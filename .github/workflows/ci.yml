@@ -13,11 +13,32 @@ concurrency:
 env:
   TURBO_TELEMETRY_DISABLED: 1
   NEXT_TELEMETRY_DISABLED: 1
+  CHECKPOINT_DISABLE: 1
+  # Owner connection (migrations/seed) + RLS-subject app role (runtime/test).
+  DATABASE_URL: postgresql://postgres@localhost:5432/clientforce
+  APP_DATABASE_URL: postgresql://clientforce_app@localhost:5432/clientforce
 
 jobs:
   build-lint-test:
     name: build · lint · test
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: clientforce
+          # Trust auth so both `postgres` and the `clientforce_app` role (created
+          # by the RLS migration, no password) can connect in CI.
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -36,6 +57,9 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      - name: Migrate database (schema + RLS + app role)
+        run: pnpm --filter @clientforce/db db:migrate
 
       - name: Lint
         run: pnpm lint
