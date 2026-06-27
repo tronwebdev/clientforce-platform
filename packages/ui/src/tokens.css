@@ -1,0 +1,8 @@
+/**
+ * Design tokens — the ONLY file permitted to contain raw color literals.
+ * Everything else must consume these custom properties (enforced by stylelint).
+ * T0 defines the brand token; the full palette/scale lands in T5.
+ */
+:root {
+  --cf-color-brand: #35e834;
+}

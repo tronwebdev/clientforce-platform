@@ -1,0 +1,27 @@
+:root {
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
+  line-height: 1.5;
+}
+
+.cf-shell {
+  padding: 2rem;
+  max-width: 48rem;
+}
+
+.cf-shell__title {
+  color: var(--cf-color-brand);
+  margin-bottom: 0.5rem;
+}
+
+.cf-shell__muted {
+  opacity: 0.6;
+  font-size: 0.875rem;
+}
