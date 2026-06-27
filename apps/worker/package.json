@@ -1,0 +1,20 @@
+{
+  "name": "worker",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx watch src/main.ts",
+    "start": "node dist/main.js",
+    "lint": "eslint .",
+    "test": "vitest run --passWithNoTests",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "@clientforce/config": "workspace:*",
+    "@temporalio/worker": "^1.11.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5"
+  }
+}
