@@ -1,6 +1,15 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "ui": "stream",
+  "globalPassThroughEnv": [
+    "DATABASE_URL",
+    "APP_DATABASE_URL",
+    "NODE_EXTRA_CA_CERTS",
+    "PRISMA_QUERY_ENGINE_LIBRARY",
+    "PRISMA_SCHEMA_ENGINE_BINARY",
+    "PRISMA_HIDE_UPDATE_MESSAGE",
+    "CHECKPOINT_DISABLE"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
@@ -10,7 +19,7 @@
       "dependsOn": ["^build"]
     },
     "test": {
-      "dependsOn": ["^build"]
+      "dependsOn": ["^build", "build"]
     },
     "dev": {
       "cache": false,

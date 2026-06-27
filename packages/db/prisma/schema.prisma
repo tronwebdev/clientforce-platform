@@ -1,0 +1,585 @@
+// Clientforce Platform — Prisma schema (DATA_MODEL.md §1–§7).
+//
+// Conventions (DATA_MODEL.md): ids are cuid(); money & credits are integer minor
+// units; createdAt/updatedAt on every model; Postgres enums. Every tenant-scoped
+// table carries `workspaceId` and is protected by Postgres RLS (see the
+// migration `*_rls_policies`). Agency-level rows are keyed by `agencyId` instead
+// and are not workspace-scoped.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §1 Tenancy — the 3-level white-label hierarchy (Agency → Workspace → User)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Agency {
+  id               String       @id @default(cuid())
+  name             String
+  slug             String       @unique
+  branding         Json
+  planTier         AgencyPlan   @default(GROWTH)
+  status           TenantStatus @default(ACTIVE)
+  stripeCustomerId String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  workspaces       Workspace[]
+  plans            Plan[]
+  creditPrices     CreditPrice[]
+}
+
+model Workspace {
+  id            String       @id @default(cuid())
+  agencyId      String
+  agency        Agency       @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  name          String
+  slug          String
+  status        TenantStatus @default(ACTIVE)
+  branding      Json?
+  planId        String?
+  creditBalance Int          @default(0)
+  settings      Json
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  memberships   Membership[]
+
+  @@unique([agencyId, slug])
+  @@index([agencyId])
+}
+
+model User {
+  id             String       @id @default(cuid())
+  email          String       @unique
+  name           String?
+  authProviderId String?      @unique
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  memberships    Membership[]
+}
+
+model Membership {
+  id          String    @id @default(cuid())
+  userId      String
+  workspaceId String
+  role        Role      @default(AGENT)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workspaceId])
+  @@index([workspaceId])
+}
+
+enum AgencyPlan {
+  STARTER
+  GROWTH
+  SCALE
+}
+
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+  ARCHIVED
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  AGENT
+  VIEWER
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §2 Knowledge & business context (pgvector)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model KnowledgeSource {
+  id          String           @id @default(cuid())
+  workspaceId String
+  agentId     String?
+  kind        SourceKind
+  uri         String?
+  label       String
+  status      IngestStatus     @default(PENDING)
+  meta        Json
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  chunks      KnowledgeChunk[]
+
+  @@index([workspaceId])
+}
+
+model KnowledgeChunk {
+  id          String          @id @default(cuid())
+  workspaceId String
+  sourceId    String
+  content     String
+  // TODO(phase-1): a vector(3072) column (text-embedding-3-large) cannot take an
+  // hnsw/ivfflat index — both cap at 2000 dims. Before enabling ANN search in the
+  // knowledge-ingestion slice, decide the index strategy: either store `halfvec(3072)`
+  // and build `hnsw (embedding halfvec_cosine_ops)`, or switch to 1536-dim
+  // embeddings and index `vector(1536)`. T1 stores the raw column only (no index).
+  embedding   Unsupported("vector(3072)")
+  tokens      Int
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  source      KnowledgeSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([sourceId])
+}
+
+model BusinessContext {
+  id          String   @id @default(cuid())
+  workspaceId String
+  agentId     String   @unique
+  offer       String
+  icp         Json
+  proofPoints Json
+  tone        String
+  constraints Json
+  rawSummary  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  agent       Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+}
+
+enum SourceKind {
+  WEBSITE
+  DOCUMENT
+  CONNECTOR
+  TEXT
+}
+
+enum IngestStatus {
+  PENDING
+  INGESTING
+  READY
+  FAILED
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §3 Agents, campaigns & the Campaign Graph
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Agent {
+  id              String           @id @default(cuid())
+  workspaceId     String
+  name            String
+  goal            String
+  category        String?
+  instructions    String?
+  status          AgentStatus      @default(DRAFT)
+  guardrails      Json
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  campaigns       Campaign[]
+  businessContext BusinessContext?
+
+  @@index([workspaceId])
+}
+
+model Campaign {
+  id          String          @id @default(cuid())
+  workspaceId String
+  agentId     String
+  name        String
+  graphId     String
+  status      CampaignStatus  @default(ACTIVE)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  agent       Agent           @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  graphs      CampaignGraph[]
+  enrollments Enrollment[]
+
+  @@index([workspaceId])
+  @@index([agentId])
+}
+
+model CampaignGraph {
+  id          String      @id @default(cuid())
+  workspaceId String
+  campaignId  String
+  version     Int
+  graph       Json
+  source      GraphSource @default(AI)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  campaign    Campaign    @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, version])
+  @@index([workspaceId])
+}
+
+enum AgentStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum CampaignStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+  ARCHIVED
+}
+
+enum GraphSource {
+  AI
+  TEMPLATE
+  MANUAL
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §4 Leads, enrollment & pipeline
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Contact {
+  id          String           @id @default(cuid())
+  workspaceId String
+  email       String?
+  phone       String?
+  firstName   String?
+  lastName    String?
+  company     String?
+  title       String?
+  source      String
+  enrichment  Json?
+  tags        String[]
+  optOut      Json
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  lists       ListMembership[]
+  enrollments Enrollment[]
+  events      Event[]
+
+  @@index([workspaceId, email])
+  @@index([workspaceId, phone])
+}
+
+model Enrollment {
+  id            String           @id @default(cuid())
+  workspaceId   String
+  campaignId    String
+  contactId     String
+  workflowId    String           @unique
+  pipelineStage String
+  currentNode   String?
+  status        EnrollmentStatus @default(ACTIVE)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  campaign      Campaign         @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contact       Contact          @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, contactId])
+  @@index([workspaceId])
+}
+
+model PipelineStage {
+  id          String   @id @default(cuid())
+  workspaceId String
+  campaignId  String?
+  key         String
+  label       String
+  order       Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([workspaceId])
+}
+
+model ContactList {
+  id          String           @id @default(cuid())
+  workspaceId String
+  name        String
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  members     ListMembership[]
+
+  @@index([workspaceId])
+}
+
+model ListMembership {
+  id          String      @id @default(cuid())
+  workspaceId String
+  listId      String
+  contactId   String
+  createdAt   DateTime    @default(now())
+  list        ContactList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  contact     Contact     @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([listId, contactId])
+  @@index([workspaceId])
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  PAUSED
+  DONE
+  UNSUBSCRIBED
+  BOUNCED
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §5 Events — the immutable backbone
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Event {
+  id           String   @id @default(cuid())
+  workspaceId  String
+  type         String
+  contactId    String?
+  enrollmentId String?
+  campaignId   String?
+  payload      Json
+  occurredAt   DateTime @default(now())
+  createdAt    DateTime @default(now())
+  contact      Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, type, occurredAt])
+  @@index([enrollmentId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §6 Automations, integrations, channels
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Automation {
+  id          String          @id @default(cuid())
+  workspaceId String
+  name        String
+  enabled     Boolean         @default(true)
+  trigger     Json
+  conditions  Json
+  actions     Json
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  runs        AutomationRun[]
+
+  @@index([workspaceId])
+}
+
+model AutomationRun {
+  id           String     @id @default(cuid())
+  workspaceId  String
+  automationId String
+  status       String
+  detail       Json
+  ranAt        DateTime   @default(now())
+  automation   Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([automationId])
+}
+
+model Integration {
+  id          String   @id @default(cuid())
+  workspaceId String
+  provider    String
+  status      String   @default("connected")
+  credentials Json
+  config      Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([workspaceId])
+}
+
+model Sender {
+  id          String   @id @default(cuid())
+  workspaceId String
+  channel     String
+  identity    String
+  provider    String
+  health      Int      @default(0)
+  warmup      Json?
+  auth        Json?
+  dailyLimit  Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([workspaceId])
+}
+
+model WebhookEndpoint {
+  id          String            @id @default(cuid())
+  workspaceId String
+  url         String
+  secret      String
+  events      String[]
+  enabled     Boolean           @default(true)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  deliveries  WebhookDelivery[]
+
+  @@index([workspaceId])
+}
+
+model WebhookDelivery {
+  id            String          @id @default(cuid())
+  workspaceId   String
+  endpointId    String
+  eventType     String
+  payload       Json
+  status        String          @default("pending")
+  responseCode  Int?
+  attempts      Int             @default(0)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  endpoint      WebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([endpointId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §7 Billing, credits & forms/proposals/widget
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Plan {
+  id           String   @id @default(cuid())
+  agencyId     String?
+  name         String
+  priceMonthly Int
+  features     Json
+  limits       Json
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  agency       Agency?  @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+
+  @@index([agencyId])
+}
+
+model CreditPrice {
+  id            String   @id @default(cuid())
+  agencyId      String?
+  action        String
+  credits       Int
+  effectiveFrom DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  agency        Agency?  @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+
+  @@index([agencyId, action])
+}
+
+model CreditLedger {
+  id           String   @id @default(cuid())
+  workspaceId  String
+  delta        Int
+  reason       String
+  channel      String?
+  refId        String?
+  balanceAfter Int
+  createdAt    DateTime @default(now())
+
+  @@index([workspaceId])
+}
+
+model Form {
+  id          String           @id @default(cuid())
+  workspaceId String
+  title       String
+  fields      Json
+  design      Json
+  routing     Json
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  submissions FormSubmission[]
+
+  @@index([workspaceId])
+}
+
+model FormSubmission {
+  id          String   @id @default(cuid())
+  workspaceId String
+  formId      String
+  contactId   String?
+  answers     Json
+  submittedAt DateTime @default(now())
+  form        Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([formId])
+}
+
+model Proposal {
+  id          String         @id @default(cuid())
+  workspaceId String
+  title       String
+  blocks      Json
+  variables   Json
+  status      String         @default("draft")
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  sends       ProposalSend[]
+
+  @@index([workspaceId])
+}
+
+model ProposalSend {
+  id            String    @id @default(cuid())
+  workspaceId   String
+  proposalId    String
+  contactId     String
+  channel       String
+  trackedLinkId String    @unique
+  viewedAt      DateTime?
+  acceptedAt    DateTime?
+  paidAt        DateTime?
+  amount        Int?
+  createdAt     DateTime  @default(now())
+  proposal      Proposal  @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([proposalId])
+}
+
+model Widget {
+  id          String   @id @default(cuid())
+  workspaceId String
+  agentId     String
+  design      Json
+  fields      Json
+  behaviour   Json
+  routing     Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([workspaceId])
+}
+
+// Client-billing / agency payouts (agency charging its own clients) are a
+// DEFERRED v2 concern — not in the initial build (DATA_MODEL.md §7).
+// model AgencyPayout { ... }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §8 Analytics — rollups (events are the source of truth; see §8)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model MetricDaily {
+  id          String   @id @default(cuid())
+  workspaceId String
+  date        DateTime @db.Date
+  agentId     String?
+  channel     String?
+  metric      String
+  value       Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([workspaceId, date, agentId, channel, metric])
+  @@index([workspaceId, date])
+}

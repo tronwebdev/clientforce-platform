@@ -12,6 +12,9 @@ next-env.d.ts
 # Turbo
 .turbo/
 
+# Locally-fetched Prisma engines (dev sandbox only; CI fetches its own)
+.prisma-engines/
+
 # Test / coverage
 coverage/
 
