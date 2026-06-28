@@ -1,8 +1,12 @@
 /**
  * @clientforce/events — internal event bus + typed event catalog (ARCHITECTURE.md §3c).
- *
- * T0 stub. The versioned event constants, payload types, Redis/BullMQ transport,
- * and the three consumer hooks (Temporal-signal, Automations, dispatcher) land in
- * T2.
  */
+export * from "./catalog";
+export * from "./types";
+export * from "./validate";
+export * from "./consumers";
+export * from "./redis";
+export * from "./bus";
+export * from "./sample-publisher";
+
 export const EVENTS_PACKAGE = "@clientforce/events";
