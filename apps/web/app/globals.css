@@ -4,24 +4,30 @@
 
 body {
   margin: 0;
-  font-family:
-    system-ui,
-    -apple-system,
-    sans-serif;
+  background: var(--cf-color-bg);
+  color: var(--cf-color-ink);
+  font-family: var(--cf-font-body);
   line-height: 1.5;
 }
 
+h1,
+h2,
+h3 {
+  font-family: var(--cf-font-display);
+}
+
 .cf-shell {
-  padding: 2rem;
+  padding: var(--cf-space-32);
   max-width: 48rem;
 }
 
 .cf-shell__title {
-  color: var(--cf-color-brand);
-  margin-bottom: 0.5rem;
+  /* Green text on white must use green-ink for WCAG AA (DESIGN_TOKENS.md §1). */
+  color: var(--cf-color-green-ink);
+  margin-bottom: var(--cf-space-8);
 }
 
 .cf-shell__muted {
-  opacity: 0.6;
-  font-size: 0.875rem;
+  color: var(--cf-color-muted-2);
+  font-size: var(--cf-text-14);
 }
