@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&amp;family=Hanken+Grotesk:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0;padding:0;}
+  *{box-sizing:border-box;}
+  ::-webkit-scrollbar{width:9px;height:9px;}
+  ::-webkit-scrollbar-thumb{background:#D8CFBE;border-radius:100px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  .acf:focus{outline:none;border-color:#35E834 !important;box-shadow:0 0 0 3px rgba(53,232,52,.16);}
+</style>
+<script src="sidebar.js"></script>
+</helmet>
+
+<div style="position:relative;min-height:100vh;width:100%;background:#FBF7F0;font-family:'Hanken Grotesk',sans-serif;overflow:hidden;"><div style="display:flex;">
+      <!-- SIDEBAR -->
+      <cf-sidebar active="automations" style="width:248px;flex:none;align-self:stretch;background:#0C140F;"></cf-sidebar>
+
+      <!-- MAIN -->
+      <div style="flex:1;background:#FBF7F0;min-width:0;padding:26px 30px 34px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+          <div>
+            <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:28px;letter-spacing:-.02em;color:#0E1512;">Automations</div>
+            <div style="font-size:15px;color:#5C6B62;">{{ subtitle }}</div>
+          </div>
+          <span onClick="{{ newAutomation }}" style="font-family:'Hanken Grotesk',sans-serif;font-weight:700;font-size:15px;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED 0%,#35E834 55%,#D0F56B 100%);border-radius:12px;padding:12px 22px;box-shadow:0 6px 16px rgba(53,232,52,.26);cursor:pointer;">+ New automation</span>
+        </div>
+
+        <div style="display:flex;gap:4px;border-bottom:1px solid #EBE3D6;margin-bottom:18px;">
+          <sc-for list="{{ segments }}" as="s" hint-placeholder-count="4">
+            <div onClick="{{ s.onClick }}" style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:{{ s.weight }};color:{{ s.color }};padding:11px 15px;border-bottom:2px solid {{ s.border }};cursor:pointer;white-space:nowrap;">{{ s.label }}<span style="font-size:12px;font-weight:700;color:{{ s.countfg }};background:{{ s.countbg }};border-radius:100px;padding:1px 8px;">{{ s.count }}</span></div>
+          </sc-for>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <sc-for list="{{ rows }}" as="r" hint-placeholder-count="6">
+            <div onClick="{{ r.onOpen }}" style="background:#fff;border:1px solid #EBE3D6;border-radius:16px;padding:16px 20px;box-shadow:0 4px 16px rgba(14,21,18,.04);cursor:pointer;display:flex;flex-direction:column;gap:13px;" style-hover="border-color:#9FD8AC;box-shadow:0 8px 26px rgba(14,21,18,.08);">
+              <div style="display:flex;align-items:center;gap:13px;">
+                <span style="width:36px;height:36px;border-radius:10px;flex:none;background:{{ r.iconbg }};color:{{ r.iconfg }};display:flex;align-items:center;justify-content:center;font-size:16px;">{{ r.trigger.icon }}</span>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:15.5px;font-weight:700;color:#0E1512;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ r.name }}</div>
+                  <div style="font-size:12.5px;color:#9AA59E;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ r.desc }}</div>
+                </div>
+                <div style="flex:none;text-align:right;"><div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:17px;color:#0E1512;line-height:1;">{{ r.runs }}</div><div style="font-size:11px;color:#9AA59E;margin-top:2px;">runs · {{ r.lastRun }}</div></div>
+                <span style="flex:none;font-size:12px;font-weight:700;color:{{ r.sfg }};background:{{ r.sbg }};border-radius:100px;padding:4px 11px;">{{ r.statusLabel }}</span>
+                <span onClick="{{ r.onToggle }}" style="width:42px;height:24px;border-radius:100px;background:{{ r.togglebg }};position:relative;display:inline-block;flex:none;cursor:pointer;"><span style="position:absolute;top:3px;{{ r.knob }}:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2);"></span></span>
+              </div>
+              <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding-left:49px;">
+                <span style="font-size:11px;font-weight:700;color:#8A7F6B;text-transform:uppercase;letter-spacing:.04em;">When</span>
+                <span style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:#1192A6;background:rgba(54,215,237,.14);border-radius:8px;padding:5px 11px;white-space:nowrap;">{{ r.trigger.icon }} {{ r.trigger.label }}</span>
+                <sc-if value="{{ r.hasConditions }}" hint-placeholder-val="{{ false }}"><span style="font-size:11.5px;font-weight:600;color:#8A7F6B;background:#F2EEE4;border-radius:8px;padding:5px 9px;white-space:nowrap;">+{{ r.condCount }} filter</span></sc-if>
+                <span style="color:#C9CFC9;">→</span>
+                <span style="font-size:11px;font-weight:700;color:#8A7F6B;text-transform:uppercase;letter-spacing:.04em;">Then</span>
+                <sc-for list="{{ r.actions }}" as="a" hint-placeholder-count="2">
+                  <span style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:#16A82A;background:rgba(53,232,52,.12);border-radius:8px;padding:5px 11px;white-space:nowrap;">{{ a.icon }} {{ a.label }}</span>
+                </sc-for>
+              </div>
+            </div>
+          </sc-for>
+          <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+            <div style="text-align:center;padding:60px 20px;background:#fff;border:1px dashed #D8CFBE;border-radius:16px;">
+              <div style="font-size:30px;margin-bottom:10px;">⟳</div>
+              <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:18px;color:#0E1512;margin-bottom:4px;">{{ emptyTitle }}</div>
+              <div style="font-size:13.5px;color:#9AA59E;margin-bottom:18px;">{{ emptySub }}</div>
+              <span onClick="{{ newAutomation }}" style="font-size:14px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);border-radius:11px;padding:11px 20px;cursor:pointer;box-shadow:0 6px 16px rgba(53,232,52,.24);">+ New automation</span>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== DETAIL DRAWER ===== -->
+    <sc-if value="{{ drawerOpen }}" hint-placeholder-val="{{ false }}">
+      <div onClick="{{ closeDrawer }}" style="position:absolute;inset:0;background:rgba(12,20,15,.4);z-index:40;">
+        <div onClick="{{ stop }}" style="position:absolute;top:0;right:0;bottom:0;width:480px;max-width:100%;background:#FBF7F0;box-shadow:-24px 0 70px rgba(0,0,0,.28);display:flex;flex-direction:column;">
+          <div style="display:flex;align-items:flex-start;gap:13px;padding:20px 22px;background:#fff;border-bottom:1px solid #EBE3D6;flex:none;">
+            <span style="width:44px;height:44px;border-radius:12px;flex:none;background:{{ d.iconbg }};color:{{ d.iconfg }};display:flex;align-items:center;justify-content:center;font-size:18px;">{{ d.trigger.icon }}</span>
+            <div style="flex:1;min-width:0;">
+              <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:18px;color:#0E1512;">{{ d.name }}</div>
+              <div style="font-size:12.5px;color:#9AA59E;">{{ d.runs }} runs · last {{ d.lastRun }}</div>
+            </div>
+            <span onClick="{{ d.onToggle }}" style="width:42px;height:24px;border-radius:100px;background:{{ d.togglebg }};position:relative;display:inline-block;flex:none;cursor:pointer;margin-top:4px;"><span style="position:absolute;top:3px;{{ d.knob }}:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2);"></span></span>
+            <span onClick="{{ closeDrawer }}" style="width:32px;height:32px;border-radius:9px;border:1px solid #EBE3D6;display:flex;align-items:center;justify-content:center;color:#9AA59E;cursor:pointer;flex:none;">✕</span>
+          </div>
+
+          <div style="flex:1;overflow:auto;min-height:0;padding:20px 22px;">
+            <div style="font-size:11px;font-weight:700;color:#1192A6;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">When this happens</div>
+            <div style="background:#fff;border:1px solid rgba(54,215,237,.4);border-radius:13px;padding:14px 16px;display:flex;align-items:center;gap:11px;">
+              <span style="width:34px;height:34px;border-radius:9px;flex:none;background:rgba(54,215,237,.16);color:#1192A6;display:flex;align-items:center;justify-content:center;font-size:15px;">{{ d.trigger.icon }}</span>
+              <span style="font-size:14.5px;font-weight:600;color:#0E1512;">{{ d.trigger.label }}</span>
+            </div>
+
+            <sc-if value="{{ d.hasConditions }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;justify-content:center;padding:6px 0;"><span style="width:2px;height:16px;background:#D8CFBE;"></span></div>
+              <div style="font-size:11px;font-weight:700;color:#8A7F6B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Only if</div>
+              <div style="background:#fff;border:1px solid #EBE3D6;border-radius:13px;overflow:hidden;">
+                <sc-for list="{{ d.conditions }}" as="c" hint-placeholder-count="1">
+                  <div style="display:flex;align-items:center;gap:10px;padding:11px 16px;border-top:1px solid #F2EEE4;"><span style="color:#8A7F6B;font-size:13px;">◆</span><span style="font-size:13.5px;color:#3B463F;">{{ c.text }}</span></div>
+                </sc-for>
+              </div>
+            </sc-if>
+
+            <div style="display:flex;justify-content:center;padding:6px 0;"><span style="width:2px;height:16px;background:#D8CFBE;"></span></div>
+            <div style="font-size:11px;font-weight:700;color:#16A82A;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Then do this</div>
+            <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:8px;">
+              <sc-for list="{{ d.actions }}" as="a" hint-placeholder-count="2">
+                <div style="background:#fff;border:1px solid rgba(53,232,52,.35);border-radius:13px;padding:14px 16px;display:flex;align-items:center;gap:11px;">
+                  <span style="width:34px;height:34px;border-radius:9px;flex:none;background:rgba(53,232,52,.14);color:#16A82A;display:flex;align-items:center;justify-content:center;font-size:15px;">{{ a.icon }}</span>
+                  <span style="font-size:14.5px;font-weight:600;color:#0E1512;flex:1;">{{ a.label }}</span>
+                </div>
+              </sc-for>
+              <div onClick="{{ d.onEdit }}" style="border:1.5px dashed #9FD8AC;border-radius:13px;padding:12px;text-align:center;font-size:13.5px;font-weight:600;color:#16A82A;cursor:pointer;">+ Add an action</div>
+            </div>
+
+            <div style="font-size:11px;font-weight:700;color:#8A7F6B;text-transform:uppercase;letter-spacing:.06em;margin:18px 0 10px;">Recent runs</div>
+            <sc-for list="{{ d.history }}" as="h" hint-placeholder-count="4">
+              <div style="display:flex;align-items:center;gap:11px;padding:9px 0;border-top:1px solid #F2EEE4;">
+                <span style="width:26px;height:26px;border-radius:8px;flex:none;background:{{ h.bg }};color:{{ h.fg }};display:flex;align-items:center;justify-content:center;font-size:12px;">{{ h.icon }}</span>
+                <span style="font-size:13px;color:#0E1512;flex:1;min-width:0;">{{ h.text }}</span>
+                <span style="font-size:12px;color:#9AA59E;flex:none;">{{ h.time }}</span>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:12px;padding:16px 22px;border-top:1px solid #EBE3D6;background:#fff;flex:none;">
+            <span onClick="{{ d.onDelete }}" style="font-size:14px;font-weight:600;color:#C9543F;background:#fff;border:1px solid #F0CFC8;border-radius:11px;padding:10px 18px;cursor:pointer;">Delete</span>
+            <span onClick="{{ closeDrawer }}" style="margin-left:auto;font-size:14px;font-weight:600;color:#5C6B62;background:#fff;border:1px solid #EBE3D6;border-radius:11px;padding:10px 18px;cursor:pointer;">Close</span>
+            <span onClick="{{ d.onEdit }}" style="font-size:14px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED 0%,#35E834 55%,#D0F56B 100%);border-radius:11px;padding:10px 20px;cursor:pointer;box-shadow:0 6px 16px rgba(53,232,52,.26);">✎ Edit automation</span>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ===== BUILDER MODAL ===== -->
+    <sc-if value="{{ builderOpen }}" hint-placeholder-val="{{ false }}">
+      <div onClick="{{ closeBuilder }}" style="position:absolute;inset:0;background:rgba(12,20,15,.5);z-index:50;display:flex;align-items:center;justify-content:center;padding:32px;">
+        <div onClick="{{ stop }}" style="width:740px;max-width:100%;max-height:100%;background:#FBF7F0;border-radius:18px;box-shadow:0 30px 90px rgba(0,0,0,.4);display:flex;flex-direction:column;overflow:hidden;">
+          <!-- header -->
+          <div style="display:flex;align-items:center;gap:14px;padding:18px 22px;background:#fff;border-bottom:1px solid #EBE3D6;flex:none;">
+            <span style="width:38px;height:38px;border-radius:10px;flex:none;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);color:#0A0F0C;display:flex;align-items:center;justify-content:center;font-size:18px;">⟳</span>
+            <input class="acf" value="{{ bName }}" onInput="{{ setName }}" placeholder="Name this automation…" style="flex:1;min-width:0;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:19px;color:#0E1512;border:1px solid transparent;background:transparent;border-radius:9px;padding:6px 8px;" />
+            <div style="display:flex;align-items:center;gap:9px;flex:none;">
+              <span style="font-size:12.5px;font-weight:700;color:{{ bEnabledFg }};">{{ bEnabledLabel }}</span>
+              <span onClick="{{ toggleBEnabled }}" style="width:42px;height:24px;border-radius:100px;background:{{ bEnabledBg }};position:relative;display:inline-block;cursor:pointer;"><span style="position:absolute;top:3px;{{ bEnabledKnob }}:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2);"></span></span>
+            </div>
+            <span onClick="{{ closeBuilder }}" style="width:32px;height:32px;border-radius:9px;border:1px solid #EBE3D6;display:flex;align-items:center;justify-content:center;color:#9AA59E;cursor:pointer;flex:none;">✕</span>
+          </div>
+
+          <div style="flex:1;overflow:auto;min-height:0;padding:22px;">
+            <!-- recipes (only when blank & new) -->
+            <sc-if value="{{ showRecipes }}" hint-placeholder-val="{{ false }}">
+              <div style="font-size:11px;font-weight:800;color:#8A7F6B;text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;">Quick start from a recipe</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:22px;">
+                <sc-for list="{{ recipes }}" as="r" hint-placeholder-count="4">
+                  <div onClick="{{ r.onPick }}" style="display:flex;align-items:center;gap:11px;background:#fff;border:1px solid #EBE3D6;border-radius:13px;padding:12px 14px;cursor:pointer;" style-hover="border-color:#9FD8AC;background:rgba(53,232,52,.04);">
+                    <span style="width:34px;height:34px;border-radius:9px;flex:none;background:rgba(54,215,237,.14);color:#1192A6;display:flex;align-items:center;justify-content:center;font-size:15px;">{{ r.icon }}</span>
+                    <div style="min-width:0;"><div style="font-size:13.5px;font-weight:700;color:#0E1512;">{{ r.name }}</div><div style="font-size:11.5px;color:#9AA59E;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ r.desc }}</div></div>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;"><div style="height:1px;flex:1;background:#EBE3D6;"></div><span style="font-size:12px;color:#9AA59E;font-weight:600;">or build from scratch</span><div style="height:1px;flex:1;background:#EBE3D6;"></div></div>
+            </sc-if>
+
+            <!-- WHEN -->
+            <div style="font-size:11px;font-weight:800;color:#1192A6;text-transform:uppercase;letter-spacing:.07em;margin-bottom:9px;">When this happens · trigger</div>
+            <sc-if value="{{ showTriggerPicker }}" hint-placeholder-val="{{ true }}">
+              <input class="acf" value="{{ triggerSearch }}" onInput="{{ onTriggerSearch }}" placeholder="Search triggers — replies, calls, forms, payments, LinkedIn…" style="width:100%;font-size:13px;color:#0E1512;border:1px solid #EBE3D6;border-radius:10px;padding:10px 13px;background:#fff;margin-bottom:12px;" />
+              <div style="display:flex;flex-direction:column;gap:14px;margin-bottom:8px;">
+                <sc-for list="{{ triggerGroups }}" as="g" hint-placeholder-count="4">
+                  <div>
+                    <div style="font-size:10.5px;font-weight:800;color:#1192A6;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">{{ g.label }}</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;">
+                      <sc-for list="{{ g.items }}" as="t" hint-placeholder-count="4">
+                        <div onClick="{{ t.onPick }}" style="display:flex;align-items:center;gap:11px;background:#fff;border:{{ t.border }};border-radius:12px;padding:11px 13px;cursor:pointer;" style-hover="border-color:#36D7ED;">
+                          <span style="width:32px;height:32px;border-radius:9px;flex:none;background:rgba(54,215,237,.14);color:#1192A6;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;">{{ t.icon }}</span>
+                          <div style="min-width:0;"><div style="font-size:13px;font-weight:700;color:#0E1512;">{{ t.label }}</div><div style="font-size:11px;color:#9AA59E;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ t.desc }}</div></div>
+                        </div>
+                      </sc-for>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+            <sc-if value="{{ hasTrigger }}" hint-placeholder-val="{{ false }}">
+              <div style="background:#fff;border:1px solid rgba(54,215,237,.45);border-radius:13px;padding:14px 16px;margin-bottom:6px;">
+                <div style="display:flex;align-items:center;gap:11px;">
+                  <span style="width:34px;height:34px;border-radius:9px;flex:none;background:rgba(54,215,237,.16);color:#1192A6;display:flex;align-items:center;justify-content:center;font-size:15px;">{{ bTrigger.icon }}</span>
+                  <span style="font-size:14.5px;font-weight:700;color:#0E1512;flex:1;">{{ bTrigger.label }}</span>
+                  <span onClick="{{ openTriggerPicker }}" style="font-size:12.5px;font-weight:700;color:#1192A6;background:rgba(54,215,237,.12);border-radius:8px;padding:6px 12px;cursor:pointer;">Change</span>
+                </div>
+                <!-- noreply config -->
+                <sc-if value="{{ bTrigger.isNoreply }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;align-items:center;gap:12px;margin-top:13px;padding-top:13px;border-top:1px solid #F2EEE4;">
+                    <span style="font-size:13px;color:#5C6B62;font-weight:600;">No reply after</span>
+                    <div style="display:flex;align-items:center;gap:0;border:1px solid #EBE3D6;border-radius:10px;overflow:hidden;">
+                      <span onClick="{{ bTrigger.onDaysDown }}" style="width:34px;height:34px;display:flex;align-items:center;justify-content:center;background:#F7F2EA;color:#0E1512;font-size:18px;cursor:pointer;">−</span>
+                      <span style="width:44px;text-align:center;font-size:14px;font-weight:700;color:#0E1512;font-variant-numeric:tabular-nums;">{{ bTrigger.days }}</span>
+                      <span onClick="{{ bTrigger.onDaysUp }}" style="width:34px;height:34px;display:flex;align-items:center;justify-content:center;background:#F7F2EA;color:#0E1512;font-size:18px;cursor:pointer;">+</span>
+                    </div>
+                    <span style="font-size:13px;color:#5C6B62;font-weight:600;">days</span>
+                  </div>
+                </sc-if>
+                <!-- schedule config -->
+                <sc-if value="{{ bTrigger.isSchedule }}" hint-placeholder-val="{{ false }}">
+                  <div style="margin-top:13px;padding-top:13px;border-top:1px solid #F2EEE4;display:flex;flex-direction:column;gap:10px;">
+                    <div style="display:flex;align-items:center;gap:8px;"><span style="font-size:12px;color:#9AA59E;font-weight:700;width:64px;">Repeat</span>
+                      <sc-for list="{{ bTrigger.freqChips }}" as="c" hint-placeholder-count="3"><span onClick="{{ c.onPick }}" style="font-size:12.5px;font-weight:600;color:{{ c.fg }};background:{{ c.bg }};border:1px solid {{ c.border }};border-radius:8px;padding:6px 13px;cursor:pointer;">{{ c.label }}</span></sc-for>
+                    </div>
+                    <sc-if value="{{ bTrigger.showDay }}" hint-placeholder-val="{{ false }}">
+                      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"><span style="font-size:12px;color:#9AA59E;font-weight:700;width:64px;">On</span>
+                        <sc-for list="{{ bTrigger.dayChips }}" as="c" hint-placeholder-count="7"><span onClick="{{ c.onPick }}" style="font-size:12.5px;font-weight:600;color:{{ c.fg }};background:{{ c.bg }};border:1px solid {{ c.border }};border-radius:8px;padding:6px 11px;cursor:pointer;">{{ c.label }}</span></sc-for>
+                      </div>
+                    </sc-if>
+                    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"><span style="font-size:12px;color:#9AA59E;font-weight:700;width:64px;">At</span>
+                      <sc-for list="{{ bTrigger.timeChips }}" as="c" hint-placeholder-count="5"><span onClick="{{ c.onPick }}" style="font-size:12.5px;font-weight:600;color:{{ c.fg }};background:{{ c.bg }};border:1px solid {{ c.border }};border-radius:8px;padding:6px 11px;cursor:pointer;">{{ c.label }}</span></sc-for>
+                    </div>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-if>
+
+            <!-- ONLY IF -->
+            <sc-if value="{{ hasTrigger }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;justify-content:center;padding:8px 0;"><span style="width:2px;height:14px;background:#D8CFBE;"></span></div>
+              <div style="display:flex;align-items:center;margin-bottom:9px;"><span style="font-size:11px;font-weight:800;color:#8A7F6B;text-transform:uppercase;letter-spacing:.07em;flex:1;">Only if · filters <span style="font-weight:600;color:#B7BDB6;">(optional)</span></span></div>
+              <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px;">
+                <sc-for list="{{ bConds }}" as="c" hint-placeholder-count="1">
+                  <div style="display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #EBE3D6;border-radius:12px;padding:10px 12px;position:relative;">
+                    <div style="position:relative;flex:none;">
+                      <span onClick="{{ c.onFieldToggle }}" style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:#0E1512;background:#F7F2EA;border:1px solid #EBE3D6;border-radius:9px;padding:8px 12px;cursor:pointer;white-space:nowrap;">{{ c.field }} <span style="color:#9AA59E;font-size:10px;">▾</span></span>
+                      <sc-if value="{{ c.fieldOpen }}" hint-placeholder-val="{{ false }}">
+                        <div style="position:absolute;top:calc(100% + 5px);left:0;width:180px;background:#fff;border:1px solid #EBE3D6;border-radius:11px;box-shadow:0 14px 40px rgba(0,0,0,.16);overflow:hidden;z-index:8;">
+                          <sc-for list="{{ c.fieldOptions }}" as="o" hint-placeholder-count="4"><div onClick="{{ o.onPick }}" style="padding:9px 13px;font-size:13px;color:#0E1512;cursor:pointer;border-bottom:1px solid #F7F2EA;" style-hover="background:#FBF7F0;">{{ o.label }}</div></sc-for>
+                        </div>
+                      </sc-if>
+                    </div>
+                    <div style="position:relative;flex:none;">
+                      <span onClick="{{ c.onOpToggle }}" style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:#5C6B62;background:#fff;border:1px solid #EBE3D6;border-radius:9px;padding:8px 12px;cursor:pointer;white-space:nowrap;">{{ c.op }} <span style="color:#9AA59E;font-size:10px;">▾</span></span>
+                      <sc-if value="{{ c.opOpen }}" hint-placeholder-val="{{ false }}">
+                        <div style="position:absolute;top:calc(100% + 5px);left:0;width:150px;background:#fff;border:1px solid #EBE3D6;border-radius:11px;box-shadow:0 14px 40px rgba(0,0,0,.16);overflow:hidden;z-index:8;">
+                          <sc-for list="{{ c.opOptions }}" as="o" hint-placeholder-count="4"><div onClick="{{ o.onPick }}" style="padding:9px 13px;font-size:13px;color:#0E1512;cursor:pointer;border-bottom:1px solid #F7F2EA;" style-hover="background:#FBF7F0;">{{ o.label }}</div></sc-for>
+                        </div>
+                      </sc-if>
+                    </div>
+                    <input class="acf" value="{{ c.value }}" onInput="{{ c.onValue }}" placeholder="value…" style="flex:1;min-width:0;font-size:13px;color:#0E1512;border:1px solid #EBE3D6;border-radius:9px;padding:8px 12px;background:#fff;" />
+                    <span onClick="{{ c.onRemove }}" style="width:32px;height:32px;border-radius:9px;border:1px solid #EBE3D6;background:#fff;display:flex;align-items:center;justify-content:center;color:#C9543F;font-size:12px;cursor:pointer;flex:none;">✕</span>
+                  </div>
+                </sc-for>
+                <span onClick="{{ addCondition }}" style="align-self:flex-start;font-size:13px;font-weight:700;color:#16A82A;background:#fff;border:1px solid #EBE3D6;border-radius:10px;padding:9px 14px;cursor:pointer;">+ Add filter</span>
+              </div>
+
+              <!-- THEN -->
+              <div style="display:flex;justify-content:center;padding:8px 0;"><span style="width:2px;height:14px;background:#D8CFBE;"></span></div>
+              <div style="font-size:11px;font-weight:800;color:#16A82A;text-transform:uppercase;letter-spacing:.07em;margin-bottom:9px;">Then do this · actions</div>
+              <div style="display:flex;flex-direction:column;gap:9px;">
+                <sc-for list="{{ bActions }}" as="a" hint-placeholder-count="2">
+                  <div style="background:#fff;border:1px solid rgba(53,232,52,.4);border-radius:13px;padding:13px 15px;">
+                    <div style="display:flex;align-items:center;gap:11px;">
+                      <span style="width:32px;height:32px;border-radius:9px;flex:none;background:rgba(53,232,52,.14);color:#16A82A;display:flex;align-items:center;justify-content:center;font-size:15px;">{{ a.icon }}</span>
+                      <span style="font-size:14px;font-weight:700;color:#0E1512;flex:1;">{{ a.label }}</span>
+                      <span onClick="{{ a.onUp }}" style="width:28px;height:28px;border-radius:8px;border:1px solid #EBE3D6;background:#fff;display:flex;align-items:center;justify-content:center;color:#9AA59E;font-size:12px;cursor:pointer;flex:none;">↑</span>
+                      <span onClick="{{ a.onDown }}" style="width:28px;height:28px;border-radius:8px;border:1px solid #EBE3D6;background:#fff;display:flex;align-items:center;justify-content:center;color:#9AA59E;font-size:12px;cursor:pointer;flex:none;">↓</span>
+                      <span onClick="{{ a.onRemove }}" style="width:28px;height:28px;border-radius:8px;border:1px solid #EBE3D6;background:#fff;display:flex;align-items:center;justify-content:center;color:#C9543F;font-size:12px;cursor:pointer;flex:none;">✕</span>
+                    </div>
+                    <!-- text config -->
+                    <sc-if value="{{ a.hasTxt1 }}" hint-placeholder-val="{{ false }}">
+                      <div style="margin-top:11px;padding-top:11px;border-top:1px solid #F2EEE4;display:flex;align-items:center;gap:10px;">
+                        <span style="font-size:12px;color:#9AA59E;font-weight:700;width:74px;flex:none;">{{ a.txt1Label }}</span>
+                        <input class="acf" value="{{ a.txt1Value }}" onInput="{{ a.onTxt1 }}" style="flex:1;min-width:0;font-size:13px;color:#0E1512;border:1px solid #EBE3D6;border-radius:9px;padding:8px 12px;background:#fff;" />
+                      </div>
+                    </sc-if>
+                    <sc-if value="{{ a.hasTxt2 }}" hint-placeholder-val="{{ false }}">
+                      <div style="margin-top:9px;display:flex;align-items:center;gap:10px;">
+                        <span style="font-size:12px;color:#9AA59E;font-weight:700;width:74px;flex:none;">{{ a.txt2Label }}</span>
+                        <input class="acf" value="{{ a.txt2Value }}" onInput="{{ a.onTxt2 }}" style="flex:1;min-width:0;font-size:13px;color:#0E1512;border:1px solid #EBE3D6;border-radius:9px;padding:8px 12px;background:#fff;" />
+                      </div>
+                    </sc-if>
+                    <!-- chip config -->
+                    <sc-if value="{{ a.hasChips }}" hint-placeholder-val="{{ false }}">
+                      <div style="margin-top:11px;padding-top:11px;border-top:1px solid #F2EEE4;display:flex;align-items:center;gap:7px;flex-wrap:wrap;">
+                        <span style="font-size:12px;color:#9AA59E;font-weight:700;width:74px;flex:none;">{{ a.chipLabel }}</span>
+                        <sc-for list="{{ a.chips }}" as="c" hint-placeholder-count="4"><span onClick="{{ c.onPick }}" style="font-size:12.5px;font-weight:600;color:{{ c.fg }};background:{{ c.bg }};border:1px solid {{ c.border }};border-radius:8px;padding:6px 12px;cursor:pointer;">{{ c.label }}</span></sc-for>
+                      </div>
+                    </sc-if>
+                    <!-- select config -->
+                    <sc-if value="{{ a.hasSel }}" hint-placeholder-val="{{ false }}">
+                      <div style="margin-top:11px;padding-top:11px;border-top:1px solid #F2EEE4;display:flex;align-items:center;gap:10px;">
+                        <span style="font-size:12px;color:#9AA59E;font-weight:700;width:74px;flex:none;">{{ a.selLabel }}</span>
+                        <div style="position:relative;flex:1;">
+                          <span onClick="{{ a.onSelToggle }}" style="display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:600;color:#0E1512;background:#fff;border:1px solid #EBE3D6;border-radius:9px;padding:8px 12px;cursor:pointer;">{{ a.selValue }}<span style="color:#9AA59E;font-size:10px;">▾</span></span>
+                          <sc-if value="{{ a.selOpen }}" hint-placeholder-val="{{ false }}">
+                            <div style="position:absolute;top:calc(100% + 5px);left:0;right:0;background:#fff;border:1px solid #EBE3D6;border-radius:11px;box-shadow:0 14px 40px rgba(0,0,0,.16);overflow:hidden;z-index:8;">
+                              <sc-for list="{{ a.selOptions }}" as="o" hint-placeholder-count="4"><div onClick="{{ o.onPick }}" style="padding:9px 13px;font-size:13px;color:#0E1512;cursor:pointer;border-bottom:1px solid #F7F2EA;" style-hover="background:#FBF7F0;">{{ o.label }}</div></sc-for>
+                            </div>
+                          </sc-if>
+                        </div>
+                      </div>
+                    </sc-if>
+                  </div>
+                </sc-for>
+
+                <sc-if value="{{ showActionPicker }}" hint-placeholder-val="{{ false }}">
+                  <div style="background:#fff;border:1.5px solid #9FD8AC;border-radius:13px;padding:14px;">
+                    <div style="font-size:11.5px;font-weight:800;color:#16A82A;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;">Choose an action</div>
+                    <input class="acf" value="{{ actionSearch }}" onInput="{{ onActionSearch }}" placeholder="Search actions — message, enroll, tag, CRM, webhook…" style="width:100%;font-size:13px;color:#0E1512;border:1px solid #EBE3D6;border-radius:10px;padding:9px 12px;background:#fff;margin-bottom:12px;" />
+                    <div style="display:flex;flex-direction:column;gap:13px;max-height:330px;overflow:auto;">
+                      <sc-for list="{{ actionGroups }}" as="g" hint-placeholder-count="4">
+                        <div>
+                          <div style="font-size:10.5px;font-weight:800;color:#16A82A;text-transform:uppercase;letter-spacing:.05em;margin-bottom:7px;">{{ g.label }}</div>
+                          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                            <sc-for list="{{ g.items }}" as="a" hint-placeholder-count="4">
+                              <div onClick="{{ a.onPick }}" style="display:flex;align-items:center;gap:10px;background:#FBFAF7;border:1px solid #EBE3D6;border-radius:11px;padding:10px 12px;cursor:pointer;" style-hover="border-color:#35E834;background:rgba(53,232,52,.05);">
+                                <span style="width:30px;height:30px;border-radius:8px;flex:none;background:rgba(53,232,52,.12);color:#16A82A;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;">{{ a.icon }}</span>
+                                <span style="font-size:13px;font-weight:600;color:#0E1512;">{{ a.label }}</span>
+                              </div>
+                            </sc-for>
+                          </div>
+                        </div>
+                      </sc-for>
+                    </div>
+                  </div>
+                </sc-if>
+                <span onClick="{{ toggleActionPicker }}" style="align-self:flex-start;font-size:13.5px;font-weight:700;color:#16A82A;background:#fff;border:1.5px dashed #9FD8AC;border-radius:11px;padding:11px 18px;cursor:pointer;">{{ actionPickerLabel }}</span>
+              </div>
+            </sc-if>
+          </div>
+
+          <!-- footer -->
+          <div style="display:flex;align-items:center;gap:12px;padding:15px 22px;border-top:1px solid #EBE3D6;background:#fff;flex:none;">
+            <span style="font-size:12.5px;color:#9AA59E;">{{ builderSummary }}</span>
+            <span onClick="{{ closeBuilder }}" style="margin-left:auto;font-size:14px;font-weight:600;color:#5C6B62;background:#fff;border:1px solid #EBE3D6;border-radius:11px;padding:10px 18px;cursor:pointer;">Cancel</span>
+            <span onClick="{{ saveBuilder }}" style="font-size:14px;font-weight:700;color:{{ saveFg }};background:{{ saveBg }};border-radius:11px;padding:10px 22px;cursor:{{ saveCursor }};box-shadow:{{ saveShadow }};">{{ saveLabel }}</span>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- TOAST -->
+    <sc-if value="{{ toastShow }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute;bottom:24px;left:50%;transform:translateX(-50%);z-index:80;background:#0C140F;color:#fff;border-radius:12px;padding:13px 20px;font-size:14px;font-weight:600;box-shadow:0 16px 44px rgba(0,0,0,.34);display:flex;align-items:center;gap:10px;"><span style="color:#7FE8A0;">✓</span>{{ toastText }}</div>
+    </sc-if>
+
+  </div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1280,&quot;height&quot;:900}}">
+class Component extends DCLogic {
+  state = {
+    seg: 'all', enabled: {}, drawerId: null,
+    custom: {}, removed: {}, newOrder: [],
+    builderOpen: false, editingId: null,
+    bName: '', bEnabled: true, bTrigger: null, bConds: [], bActions: [],
+    openDD: null, showActionPicker: false, changeTrigger: false,
+    triggerSearch: '', actionSearch: '',
+    toast: null,
+  };
+
+  _uid = 0;
+  nextUid() { this._uid += 1; return 'u' + this._uid + '_' + Date.now().toString(36); }
+  flash(text) {
+    const tok = Math.random();
+    this._tok = tok;
+    this.setState({ toast: text });
+    setTimeout(() => { if (this._tok === tok) this.setState({ toast: null }); }, 2600);
+  }
+
+  renderVals() {
+    const grad = 'linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B)';
+
+    // ---------- catalogs ----------
+    const TRIG = {
+      // Replies & conversations
+      reply:        { g: 'Replies & conversations', icon: '↩', label: 'Reply received', desc: 'A lead replies on any channel' },
+      positivereply:{ g: 'Replies & conversations', icon: '✦', label: 'Positive reply', desc: 'AI detects buying intent' },
+      objection:    { g: 'Replies & conversations', icon: '⚑', label: 'Objection raised', desc: 'AI detects an objection' },
+      question:     { g: 'Replies & conversations', icon: '?', label: 'Question asked', desc: 'A lead asks a question' },
+      inbound:      { g: 'Replies & conversations', icon: '💬', label: 'Inbound message', desc: 'New inbound SMS or WhatsApp' },
+      ooo:          { g: 'Replies & conversations', icon: '☾', label: 'Out-of-office reply', desc: 'An auto-reply is detected' },
+      noreply:      { g: 'Replies & conversations', icon: '⏳', label: 'No reply', desc: 'No response after N days', cfg: { days: 14 } },
+      // Email engagement
+      opened:   { g: 'Email engagement', icon: '◔', label: 'Email opened', desc: 'A lead opens an email' },
+      clicked:  { g: 'Email engagement', icon: '🔗', label: 'Link clicked', desc: 'A lead clicks a link' },
+      bounced:  { g: 'Email engagement', icon: '⚠', label: 'Email bounced', desc: 'A message hard-bounces' },
+      spam:     { g: 'Email engagement', icon: '🚫', label: 'Spam complaint', desc: 'Marked as spam' },
+      // Voice & calls
+      callcompleted:  { g: 'Voice & calls', icon: '☎', label: 'AI call completed', desc: 'A voice call finishes' },
+      callinterested: { g: 'Voice & calls', icon: '✦', label: 'Call: interested', desc: 'Call outcome is interested' },
+      voicemail:      { g: 'Voice & calls', icon: '🎙', label: 'Voicemail left', desc: 'AI leaves a voicemail' },
+      noanswer:       { g: 'Voice & calls', icon: '✖', label: 'Call not answered', desc: 'No pick-up on a call' },
+      callbackreq:    { g: 'Voice & calls', icon: '↺', label: 'Callback requested', desc: 'A lead asks for a callback' },
+      // Meetings
+      booked:      { g: 'Meetings', icon: '📅', label: 'Meeting booked', desc: 'A meeting is scheduled' },
+      rescheduled: { g: 'Meetings', icon: '⟳', label: 'Meeting rescheduled', desc: 'A meeting moves' },
+      canceled:    { g: 'Meetings', icon: '✕', label: 'Meeting canceled / no-show', desc: 'A meeting falls through' },
+      premeeting:  { g: 'Meetings', icon: '⏰', label: 'Before a meeting', desc: 'A set time before a meeting' },
+      // Lead lifecycle
+      created:     { g: 'Lead lifecycle', icon: '＋', label: 'Contact created', desc: 'A new contact is added' },
+      qualified:   { g: 'Lead lifecycle', icon: '✦', label: 'Lead qualified', desc: 'A lead is marked qualified' },
+      statuschange:{ g: 'Lead lifecycle', icon: '⇄', label: 'Status changed', desc: 'A contact’s status changes' },
+      scorecross:  { g: 'Lead lifecycle', icon: '◆', label: 'Lead score crosses', desc: 'Score passes a threshold' },
+      tagadded:    { g: 'Lead lifecycle', icon: '⌗', label: 'Tag added', desc: 'A tag is applied' },
+      tagremoved:  { g: 'Lead lifecycle', icon: '⌫', label: 'Tag removed', desc: 'A tag is removed' },
+      enteredlist: { g: 'Lead lifecycle', icon: '☰', label: 'Added to a list', desc: 'A contact joins a list' },
+      seqcompleted:{ g: 'Lead lifecycle', icon: '✓', label: 'Sequence completed', desc: 'A lead finishes a sequence' },
+      unsub:       { g: 'Lead lifecycle', icon: '⊘', label: 'Contact unsubscribed', desc: 'A lead opts out' },
+      // Lead Finder & prospecting
+      leadfound:  { g: 'Lead Finder & prospecting', icon: '⚲', label: 'New lead found', desc: 'Lead Finder surfaces a match' },
+      prospected: { g: 'Lead Finder & prospecting', icon: '✦', label: 'Auto-prospected lead', desc: 'The agent auto-enrolls a lead' },
+      icpmatch:   { g: 'Lead Finder & prospecting', icon: '◎', label: 'High-fit ICP match', desc: 'A strong-fit lead appears' },
+      enriched:   { g: 'Lead Finder & prospecting', icon: '⚯', label: 'Lead enriched', desc: 'New data is appended' },
+      importdone: { g: 'Lead Finder & prospecting', icon: '⬆', label: 'Import completed', desc: 'A CSV import finishes' },
+      // Forms & widget
+      formsub:    { g: 'Forms & widget', icon: '⊞', label: 'Form submitted', desc: 'Someone submits a form' },
+      widgetlead: { g: 'Forms & widget', icon: '⊕', label: 'Widget captured lead', desc: 'The on-site widget gets a lead' },
+      widgetchat: { g: 'Forms & widget', icon: '💬', label: 'Widget chat started', desc: 'A visitor opens chat' },
+      // LinkedIn
+      liconnect:  { g: 'LinkedIn', icon: 'in', label: 'Connection accepted', desc: 'A LinkedIn invite is accepted' },
+      limessage:  { g: 'LinkedIn', icon: 'in', label: 'LinkedIn reply', desc: 'A reply on LinkedIn' },
+      liprofile:  { g: 'LinkedIn', icon: 'in', label: 'Profile captured', desc: 'Saved via the extension' },
+      // Proposals & revenue
+      proposalsent:    { g: 'Proposals & revenue', icon: '❒', label: 'Proposal sent', desc: 'A proposal goes out' },
+      proposalviewed:  { g: 'Proposals & revenue', icon: '◔', label: 'Proposal viewed', desc: 'A prospect opens it' },
+      proposalaccepted:{ g: 'Proposals & revenue', icon: '✓', label: 'Proposal accepted', desc: 'A proposal is signed' },
+      payment:         { g: 'Proposals & revenue', icon: '＄', label: 'Payment succeeded', desc: 'A payment is received' },
+      paymentfailed:   { g: 'Proposals & revenue', icon: '⚠', label: 'Payment failed', desc: 'A charge fails' },
+      invoiceoverdue:  { g: 'Proposals & revenue', icon: '🧾', label: 'Invoice overdue', desc: 'An invoice passes due' },
+      // Schedule & system
+      schedule:      { g: 'Schedule & system', icon: '🕘', label: 'On a schedule', desc: 'A recurring date & time', cfg: { freq: 'Weekly', day: 'Mon', time: '9:00 AM' } },
+      webhookin:     { g: 'Schedule & system', icon: '⚯', label: 'Incoming webhook', desc: 'An external system pings us' },
+      deliverability:{ g: 'Schedule & system', icon: '⚠', label: 'Sender health drops', desc: 'Deliverability falls' },
+      agentpaused:   { g: 'Schedule & system', icon: '⏸', label: 'Agent paused / limit hit', desc: 'An agent stops sending' },
+    };
+    const ACT = {
+      // Send a message
+      email:       { g: 'Send a message', icon: '✉', label: 'Send email', cfg: { subject: 'New email' } },
+      sms:         { g: 'Send a message', icon: '💬', label: 'Send SMS', cfg: { message: 'Hi {{firstName}}' } },
+      whatsapp:    { g: 'Send a message', icon: '🗨', label: 'Send WhatsApp', cfg: { template: 'Intro template' } },
+      aicall:      { g: 'Send a message', icon: '☎', label: 'Place AI call', cfg: { agent: 'Reactivation Caller' } },
+      aireply:     { g: 'Send a message', icon: '✦', label: 'Send AI reply' },
+      liconnectreq:{ g: 'Send a message', icon: 'in', label: 'Send LinkedIn invite' },
+      limessageact:{ g: 'Send a message', icon: 'in', label: 'Send LinkedIn message', cfg: { message: 'Hi {{firstName}}' } },
+      // Sequences & campaigns
+      enroll:    { g: 'Sequences & campaigns', icon: '↪', label: 'Enroll in campaign', cfg: { campaign: 'Q3 Reactivation' } },
+      moveseq:   { g: 'Sequences & campaigns', icon: '↪', label: 'Move to sequence', cfg: { sequence: 'Nurture' } },
+      branch:    { g: 'Sequences & campaigns', icon: '⑃', label: 'Move to branch', cfg: { branch: 'Interested — book a call' } },
+      skipstep:  { g: 'Sequences & campaigns', icon: '⏭', label: 'Skip to step', cfg: { step: 'Step 2 · SMS' } },
+      pauseseq:  { g: 'Sequences & campaigns', icon: '⏸', label: 'Pause sequence' },
+      removeseq: { g: 'Sequences & campaigns', icon: '⊘', label: 'Remove from sequences' },
+      // Update the lead
+      qualify:  { g: 'Update the lead', icon: '✦', label: 'Mark qualified' },
+      setstatus:{ g: 'Update the lead', icon: '⇄', label: 'Set status', cfg: { status: 'Qualified' } },
+      tag:      { g: 'Update the lead', icon: '⌗', label: 'Add tag', cfg: { tag: 'hot-lead' } },
+      untag:    { g: 'Update the lead', icon: '⌫', label: 'Remove tag', cfg: { tag: 'cold' } },
+      addlist:  { g: 'Update the lead', icon: '☰', label: 'Add to list', cfg: { list: 'Dental — local' } },
+      removelist:{ g: 'Update the lead', icon: '☰', label: 'Remove from list', cfg: { list: 'Cold list — agencies' } },
+      score:    { g: 'Update the lead', icon: '◆', label: 'Adjust lead score', cfg: { amount: '+10' } },
+      field:    { g: 'Update the lead', icon: '▦', label: 'Update field', cfg: { field: 'Status', value: 'Qualified' } },
+      enrich:   { g: 'Update the lead', icon: '⚯', label: 'Enrich lead data' },
+      suppress: { g: 'Update the lead', icon: '⊘', label: 'Suppress / unsubscribe' },
+      // Assign & tasks
+      assign:     { g: 'Assign & tasks', icon: '☺', label: 'Assign teammate', cfg: { who: 'Jordan Mensah' } },
+      assignagent:{ g: 'Assign & tasks', icon: '◎', label: 'Assign to agent', cfg: { agent: 'Q3 Reactivation' } },
+      createtask: { g: 'Assign & tasks', icon: '✓', label: 'Create task', cfg: { task: 'Follow up' } },
+      // Meetings
+      book:     { g: 'Meetings', icon: '📅', label: 'Send booking link' },
+      reminder: { g: 'Meetings', icon: '⏰', label: 'Send meeting reminder' },
+      calendar: { g: 'Meetings', icon: '🗓', label: 'Create calendar event' },
+      // Revenue & CRM
+      crm:        { g: 'Revenue & CRM', icon: '❒', label: 'Create CRM deal', cfg: { pipeline: 'Sales pipeline' } },
+      updatedeal: { g: 'Revenue & CRM', icon: '❒', label: 'Update deal stage', cfg: { stage: 'Qualified' } },
+      proposal:   { g: 'Revenue & CRM', icon: '❒', label: 'Send proposal', cfg: { template: 'Standard proposal' } },
+      invoice:    { g: 'Revenue & CRM', icon: '🧾', label: 'Send invoice / payment link' },
+      receipt:    { g: 'Revenue & CRM', icon: '🧾', label: 'Send receipt' },
+      // Notify the team
+      slack:     { g: 'Notify the team', icon: '#', label: 'Notify Slack', cfg: { channel: '#sales' } },
+      notifyteam:{ g: 'Notify the team', icon: '🔔', label: 'Notify team' },
+      emailalert:{ g: 'Notify the team', icon: '✉', label: 'Email internal alert', cfg: { subject: 'Heads up' } },
+      // Flow & integrations
+      wait:       { g: 'Flow & integrations', icon: '⏱', label: 'Wait', cfg: { duration: '1 day' } },
+      waituntil:  { g: 'Flow & integrations', icon: '⏰', label: 'Wait until time', cfg: { time: '9:00 AM' } },
+      webhook:    { g: 'Flow & integrations', icon: '⚯', label: 'Send webhook', cfg: { url: 'https://' } },
+      zapier:     { g: 'Flow & integrations', icon: '⚡', label: 'Trigger Zapier / Make' },
+      googlesheet:{ g: 'Flow & integrations', icon: '▦', label: 'Add row to Google Sheet' },
+      endflow:    { g: 'Flow & integrations', icon: '⊘', label: 'End workflow' },
+    };
+
+    const seqOptions = ['Q3 Reactivation', 'Nurture', 'Dental clinics — local', 'SaaS founders Q2', 'Webinar follow-up'];
+    const campaignOptions = ['Q3 Reactivation', 'Dental clinics — local', 'SaaS founders Q2', 'Webinar follow-up', 'Lapsed clients Q3'];
+    const listOptions = ['Dental — local', 'SaaS founders Q2', 'Cold list — agencies', 'Webinar follow-up', 'Lapsed clients Q3'];
+    const pipelineOptions = ['Sales pipeline', 'Onboarding', 'Renewals'];
+    const dealStageOptions = ['New', 'Qualified', 'Proposal sent', 'Negotiation', 'Won', 'Lost'];
+    const proposalOptions = ['Standard proposal', 'Premium retainer', 'Pilot offer'];
+    const waOptions = ['Intro template', 'Case study template', 'Booking template'];
+    const statusOptions = ['New', 'Replied', 'Qualified', 'Meeting booked', 'Customer', 'Unsubscribed'];
+    const agentOptions = ['Q3 Reactivation', 'Dental Outreach', 'SaaS Demo Booker', 'Reactivation Caller'];
+    const branchOptions = ['Interested — book a call', 'Re-engagement', 'Objection handling'];
+    const stepOptions = ['Step 1 · Email', 'Step 2 · SMS', 'Step 3 · WhatsApp', 'Step 4 · Email', 'Step 5 · Voice'];
+    const teammateOptions = ['Jordan Mensah', 'Alex Rivera', 'Sam Carter'];
+    const durationOptions = ['1 hour', '3 hours', '1 day', '3 days', '1 week'];
+    const condFields = ['Status', 'Source', 'Tag', 'List', 'Campaign', 'Agent', 'Channel', 'Reply sentiment', 'Subscription', 'Lead score', 'Industry', 'Company size', 'Job title', 'Country'];
+    const condOps = ['is', 'is not', 'contains', 'greater than', 'less than'];
+    const freqOptions = ['Daily', 'Weekly', 'Monthly'];
+    const dayOptions = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const dayFull = { Mon: 'Monday', Tue: 'Tuesday', Wed: 'Wednesday', Thu: 'Thursday', Fri: 'Friday', Sat: 'Saturday', Sun: 'Sunday' };
+    const timeOptions = ['8:00 AM', '9:00 AM', '10:00 AM', '12:00 PM', '5:00 PM'];
+    const TRIG_GROUPS = ['Replies & conversations', 'Email engagement', 'Voice & calls', 'Meetings', 'Lead lifecycle', 'Lead Finder & prospecting', 'Forms & widget', 'LinkedIn', 'Proposals & revenue', 'Schedule & system'];
+    const ACT_GROUPS = ['Send a message', 'Sequences & campaigns', 'Update the lead', 'Assign & tasks', 'Meetings', 'Revenue & CRM', 'Notify the team', 'Flow & integrations'];
+    const TRIG_ORDER = Object.keys(TRIG);
+    const ACT_ORDER = Object.keys(ACT);
+
+    const triggerLabel = (t) => {
+      const cfg = t.cfg || {};
+      if (t.key === 'noreply') return 'No reply in ' + (cfg.days != null ? cfg.days : 14) + ' days';
+      if (t.key === 'schedule') {
+        const f = cfg.freq || 'Weekly';
+        const when = f === 'Daily' ? 'Every day' : (f === 'Monthly' ? 'Every month' : 'Every ' + (dayFull[cfg.day] || 'Monday'));
+        return when + ' · ' + (cfg.time || '9:00 AM');
+      }
+      return TRIG[t.key].label;
+    };
+    const actionLabel = (a) => {
+      const c = a.cfg || {};
+      switch (a.key) {
+        case 'slack': return 'Notify ' + (c.channel || '#sales');
+        case 'tag': return 'Add tag: ' + (c.tag || 'tag');
+        case 'moveseq': return 'Move to ' + (c.sequence || 'sequence');
+        case 'email': return 'Send email';
+        case 'sms': return 'Send SMS';
+        case 'wait': return 'Wait ' + (c.duration || '1 day');
+        case 'assign': return 'Assign to ' + (c.who || 'teammate');
+        case 'field': return 'Set ' + (c.field || 'field') + ' = ' + (c.value || '');
+        case 'webhook': return 'POST webhook';
+        case 'crm': return 'Create deal in ' + (c.pipeline || 'pipeline');
+        case 'whatsapp': return 'WhatsApp · ' + (c.template || 'template');
+        case 'aicall': return 'AI call via ' + (c.agent || 'agent');
+        case 'limessageact': return 'LinkedIn message';
+        case 'enroll': return 'Enroll in ' + (c.campaign || 'campaign');
+        case 'branch': return 'Move to ' + (c.branch || 'branch');
+        case 'skipstep': return 'Skip to ' + (c.step || 'step');
+        case 'setstatus': return 'Set status: ' + (c.status || 'status');
+        case 'untag': return 'Remove tag: ' + (c.tag || 'tag');
+        case 'addlist': return 'Add to ' + (c.list || 'list');
+        case 'removelist': return 'Remove from ' + (c.list || 'list');
+        case 'score': return 'Adjust score ' + (c.amount || '+10');
+        case 'assignagent': return 'Assign to ' + (c.agent || 'agent');
+        case 'updatedeal': return 'Deal → ' + (c.stage || 'stage');
+        case 'proposal': return 'Send ' + (c.template || 'proposal');
+        case 'waituntil': return 'Wait until ' + (c.time || '9:00 AM');
+        case 'emailalert': return 'Email alert';
+        case 'createtask': return 'Task: ' + (c.task || 'task');
+        default: return ACT[a.key].label;
+      }
+    };
+
+    // ---------- base automations ----------
+    const baseList = [
+      { id: 'a1', name: 'Auto-qualify hot replies', desc: 'Qualify & alert the team the moment a lead replies positively.', trigger: { key: 'reply' }, conditions: [{ field: 'Reply sentiment', op: 'is', value: 'Positive' }], actions: [{ key: 'qualify' }, { key: 'slack', cfg: { channel: '#sales' } }], status: 'Active', runs: '1,240', lastRun: '2m ago' },
+      { id: 'a2', name: 'Booked → create deal', desc: 'Push every booked call into your CRM as a new deal.', trigger: { key: 'booked' }, conditions: [], actions: [{ key: 'crm', cfg: { pipeline: 'Sales pipeline' } }, { key: 'tag', cfg: { tag: 'booked' } }], status: 'Active', runs: '318', lastRun: '18m ago' },
+      { id: 'a3', name: 'Stop on unsubscribe', desc: 'Immediately remove opt-outs from every active sequence.', trigger: { key: 'unsub' }, conditions: [], actions: [{ key: 'removeseq' }], status: 'Active', runs: '64', lastRun: '1h ago' },
+      { id: 'a4', name: 'Re-engage cold leads', desc: 'Move quiet leads into a lighter nurture track automatically.', trigger: { key: 'noreply', cfg: { days: 14 } }, conditions: [{ field: 'Subscription', op: 'is', value: 'Subscribed' }], actions: [{ key: 'moveseq', cfg: { sequence: 'Nurture' } }], status: 'Active', runs: '209', lastRun: '3h ago' },
+      { id: 'a5', name: 'Notify on payment', desc: 'Celebrate closed revenue and send a receipt.', trigger: { key: 'payment' }, conditions: [], actions: [{ key: 'slack', cfg: { channel: '#wins' } }, { key: 'receipt' }], status: 'Paused', runs: '47', lastRun: '2 days ago' },
+      { id: 'a6', name: 'Weekly performance digest', desc: 'Email the team a summary of last week every Monday.', trigger: { key: 'schedule', cfg: { freq: 'Weekly', day: 'Mon', time: '9:00 AM' } }, conditions: [], actions: [{ key: 'email', cfg: { subject: 'Weekly digest' } }], status: 'Active', runs: '12', lastRun: 'Mon' },
+      { id: 'a7', name: 'New lead welcome', desc: 'Send a friendly intro the moment a form lead arrives.', trigger: { key: 'created' }, conditions: [{ field: 'Source', op: 'is', value: 'Form' }], actions: [{ key: 'email', cfg: { subject: 'Welcome 👋' } }], status: 'Draft', runs: '0', lastRun: '—' },
+    ];
+
+    const normalize = (item) => {
+      const tdef = TRIG[item.trigger.key];
+      const trigger = { key: item.trigger.key, icon: tdef.icon, label: triggerLabel(item.trigger), cfg: item.trigger.cfg || tdef.cfg || {} };
+      const actions = (item.actions || []).map((a) => ({ key: a.key, icon: ACT[a.key].icon, label: actionLabel(a), cfg: a.cfg || ACT[a.key].cfg || {} }));
+      const conditions = (item.conditions || []).map((c) => ({ field: c.field, op: c.op, value: c.value, text: c.field + ' ' + c.op + ' ' + c.value }));
+      return Object.assign({}, item, { trigger, actions, conditions });
+    };
+
+    // ---------- merge base + custom ----------
+    const custom = this.state.custom, removed = this.state.removed, newOrder = this.state.newOrder;
+    const merged = [];
+    newOrder.forEach((id) => { if (custom[id] && !removed[id]) merged.push(normalize(custom[id])); });
+    baseList.forEach((b) => { if (removed[b.id]) return; merged.push(normalize(custom[b.id] || b)); });
+
+    const stateOf = (r) => {
+      if (r.status === 'Draft') return 'Draft';
+      const ov = this.state.enabled[r.id];
+      const on = ov === undefined ? r.status === 'Active' : ov;
+      return on ? 'Active' : 'Paused';
+    };
+    const statusStyle = (st) => st === 'Active' ? { sbg: '#D7F5DD', sfg: '#0F7A28' } : (st === 'Paused' ? { sbg: '#F2EEE4', sfg: '#8A7F6B' } : { sbg: 'rgba(232,196,91,.18)', sfg: '#A87B16' });
+    const iconbg = 'rgba(54,215,237,.16)', iconfg = '#1192A6';
+    const toggleFor = (r) => () => { if (r.status === 'Draft') return; this.setState((s) => { const cur = s.enabled[r.id] === undefined ? r.status === 'Active' : s.enabled[r.id]; return { enabled: Object.assign({}, s.enabled, { [r.id]: !cur }) }; }); };
+
+    const SEGS = [{ id: 'all', label: 'All' }, { id: 'Active', label: 'Active' }, { id: 'Paused', label: 'Paused' }, { id: 'Draft', label: 'Drafts' }];
+    const countFor = (id) => id === 'all' ? merged.length : merged.filter((r) => stateOf(r) === id).length;
+    const seg = this.state.seg;
+    const filtered = seg === 'all' ? merged : merged.filter((r) => stateOf(r) === seg);
+
+    const decorate = (r) => {
+      const st = stateOf(r); const on = st === 'Active';
+      return Object.assign({}, r, statusStyle(st), {
+        iconbg, iconfg, statusLabel: st, hasConditions: r.conditions.length > 0, condCount: r.conditions.length,
+        togglebg: on ? grad : '#E4EAE6', knob: on ? 'right' : 'left',
+        onToggle: (e) => { if (e) e.stopPropagation(); toggleFor(r)(); },
+        onOpen: () => this.setState({ drawerId: r.id }),
+      });
+    };
+
+    // ---------- detail drawer ----------
+    const dr = merged.find((r) => r.id === this.state.drawerId);
+    let d = { trigger: {}, actions: [], conditions: [], history: [] };
+    if (dr) {
+      const st = stateOf(dr); const on = st === 'Active';
+      const ok = { icon: '✓', bg: 'rgba(53,232,52,.14)', fg: '#16A82A' };
+      d = Object.assign({}, dr, { iconbg, iconfg, hasConditions: dr.conditions.length > 0,
+        togglebg: on ? grad : '#E4EAE6', knob: on ? 'right' : 'left',
+        onToggle: (e) => { if (e) e.stopPropagation(); toggleFor(dr)(); },
+        onEdit: () => this.openBuilder(dr.id),
+        onDelete: () => { this.setState((s) => ({ removed: Object.assign({}, s.removed, { [dr.id]: true }), drawerId: null })); this.flash('Automation deleted'); },
+        history: dr.runs === '0' ? [{ icon: '○', bg: '#F2EEE4', fg: '#9AA59E', text: 'No runs yet — enable to start', time: '—' }] : [
+          Object.assign({ text: 'Ran for Dr. Marcus Alvarez', time: '2m ago' }, ok),
+          Object.assign({ text: 'Ran for Priya Sharma', time: '1h ago' }, ok),
+          Object.assign({ text: 'Ran for Tom Becker', time: '3h ago' }, ok),
+          Object.assign({ text: 'Ran for Dr. Lena Fischer', time: 'Yesterday' }, ok),
+        ],
+      });
+    }
+
+    // ---------- builder ----------
+    const bT = this.state.bTrigger;
+    const setDD = (id) => this.setState((s) => ({ openDD: s.openDD === id ? null : id }));
+    const updateCond = (uid, patch) => this.setState((s) => ({ bConds: s.bConds.map((c) => c.uid === uid ? Object.assign({}, c, patch) : c), openDD: null }));
+    const updateAct = (uid, patchCfg) => this.setState((s) => ({ bActions: s.bActions.map((a) => a.uid === uid ? Object.assign({}, a, { cfg: Object.assign({}, a.cfg, patchCfg) }) : a), openDD: null }));
+
+    const chip = (label, active, onPick) => ({ label, onPick,
+      fg: active ? '#0A3D16' : '#5C6B62', bg: active ? 'rgba(53,232,52,.18)' : '#fff', border: active ? '#9FD8AC' : '#EBE3D6' });
+
+    const tq = (this.state.triggerSearch || '').toLowerCase();
+    const triggerGroups = TRIG_GROUPS.map((gname) => ({
+      label: gname,
+      items: TRIG_ORDER.filter((k) => TRIG[k].g === gname && (!tq || (TRIG[k].label + ' ' + TRIG[k].desc).toLowerCase().includes(tq)))
+        .map((k) => ({ key: k, icon: TRIG[k].icon, label: TRIG[k].label, desc: TRIG[k].desc,
+          border: (bT && bT.key === k) ? '1.5px solid #36D7ED' : '1px solid #EBE3D6',
+          onPick: () => { const def = TRIG[k]; this.setState({ bTrigger: { key: k, icon: def.icon, cfg: Object.assign({}, def.cfg || {}) }, changeTrigger: false, openDD: null, triggerSearch: '' }); } })),
+    })).filter((grp) => grp.items.length > 0);
+    const onTriggerSearch = (e) => { const v = e.target.value; this.setState({ triggerSearch: v }); };
+
+    let bTriggerVM = null;
+    if (bT) {
+      const cfg = bT.cfg || {};
+      bTriggerVM = { icon: TRIG[bT.key].icon, label: triggerLabel(bT), isNoreply: bT.key === 'noreply', isSchedule: bT.key === 'schedule', days: cfg.days != null ? cfg.days : 14,
+        onDaysDown: () => this.setState((s) => ({ bTrigger: Object.assign({}, s.bTrigger, { cfg: Object.assign({}, s.bTrigger.cfg, { days: Math.max(1, (s.bTrigger.cfg.days || 14) - 1) }) }) })),
+        onDaysUp: () => this.setState((s) => ({ bTrigger: Object.assign({}, s.bTrigger, { cfg: Object.assign({}, s.bTrigger.cfg, { days: (s.bTrigger.cfg.days || 14) + 1 }) }) })),
+        showDay: (cfg.freq || 'Weekly') === 'Weekly',
+        freqChips: freqOptions.map((f) => chip(f, (cfg.freq || 'Weekly') === f, () => this.setState((s) => ({ bTrigger: Object.assign({}, s.bTrigger, { cfg: Object.assign({}, s.bTrigger.cfg, { freq: f }) }) })))),
+        dayChips: dayOptions.map((dy) => chip(dy, (cfg.day || 'Mon') === dy, () => this.setState((s) => ({ bTrigger: Object.assign({}, s.bTrigger, { cfg: Object.assign({}, s.bTrigger.cfg, { day: dy }) }) })))),
+        timeChips: timeOptions.map((tm) => chip(tm, (cfg.time || '9:00 AM') === tm, () => this.setState((s) => ({ bTrigger: Object.assign({}, s.bTrigger, { cfg: Object.assign({}, s.bTrigger.cfg, { time: tm }) }) })))),
+      };
+    }
+
+    const bConds = this.state.bConds.map((c) => ({ uid: c.uid, field: c.field, op: c.op, value: c.value,
+      fieldOpen: this.state.openDD === c.uid + ':f', opOpen: this.state.openDD === c.uid + ':o',
+      onFieldToggle: () => setDD(c.uid + ':f'), onOpToggle: () => setDD(c.uid + ':o'),
+      fieldOptions: condFields.map((f) => ({ label: f, onPick: () => updateCond(c.uid, { field: f }) })),
+      opOptions: condOps.map((o) => ({ label: o, onPick: () => updateCond(c.uid, { op: o }) })),
+      onValue: (e) => { const v = e.target.value; this.setState((s) => ({ bConds: s.bConds.map((x) => x.uid === c.uid ? Object.assign({}, x, { value: v }) : x) })); },
+      onRemove: () => this.setState((s) => ({ bConds: s.bConds.filter((x) => x.uid !== c.uid), openDD: null })),
+    }));
+
+    const TXT = { slack: ['Channel', 'channel'], tag: ['Tag', 'tag'], untag: ['Tag', 'tag'], email: ['Subject', 'subject'], emailalert: ['Subject', 'subject'], sms: ['Message', 'message'], limessageact: ['Message', 'message'], webhook: ['URL', 'url'], score: ['Adjust by', 'amount'], createtask: ['Task', 'task'] };
+    const SEL = { moveseq: ['Sequence', 'sequence', seqOptions], enroll: ['Campaign', 'campaign', campaignOptions], branch: ['Branch', 'branch', branchOptions], skipstep: ['Step', 'step', stepOptions], crm: ['Pipeline', 'pipeline', pipelineOptions], updatedeal: ['Stage', 'stage', dealStageOptions], proposal: ['Template', 'template', proposalOptions], assign: ['Teammate', 'who', teammateOptions], assignagent: ['Agent', 'agent', agentOptions], setstatus: ['Status', 'status', statusOptions], addlist: ['List', 'list', listOptions], removelist: ['List', 'list', listOptions], whatsapp: ['Template', 'template', waOptions], aicall: ['Agent', 'agent', agentOptions], waituntil: ['Time', 'time', timeOptions] };
+    const bActions = this.state.bActions.map((a, idx, arr) => {
+      const c = a.cfg || {};
+      const vm = { uid: a.uid, key: a.key, icon: ACT[a.key].icon, label: actionLabel(a),
+        onRemove: () => this.setState((s) => ({ bActions: s.bActions.filter((x) => x.uid !== a.uid), openDD: null })),
+        onUp: () => this.setState((s) => { const i = s.bActions.findIndex((x) => x.uid === a.uid); if (i <= 0) return {}; const n = s.bActions.slice(); const t = n[i - 1]; n[i - 1] = n[i]; n[i] = t; return { bActions: n }; }),
+        onDown: () => this.setState((s) => { const i = s.bActions.findIndex((x) => x.uid === a.uid); if (i < 0 || i >= s.bActions.length - 1) return {}; const n = s.bActions.slice(); const t = n[i + 1]; n[i + 1] = n[i]; n[i] = t; return { bActions: n }; }),
+        hasTxt1: false, hasTxt2: false, hasChips: false, hasSel: false };
+      if (TXT[a.key]) { const [lab, key] = TXT[a.key]; vm.hasTxt1 = true; vm.txt1Label = lab; vm.txt1Value = c[key] || ''; vm.onTxt1 = (e) => { const v = e.target.value; this.setState((s) => ({ bActions: s.bActions.map((x) => x.uid === a.uid ? Object.assign({}, x, { cfg: Object.assign({}, x.cfg, { [key]: v }) }) : x) })); }; }
+      if (a.key === 'field') { vm.hasTxt1 = true; vm.txt1Label = 'Field'; vm.txt1Value = c.field || ''; vm.onTxt1 = (e) => { const v = e.target.value; this.setState((s) => ({ bActions: s.bActions.map((x) => x.uid === a.uid ? Object.assign({}, x, { cfg: Object.assign({}, x.cfg, { field: v }) }) : x) })); }; vm.hasTxt2 = true; vm.txt2Label = 'Value'; vm.txt2Value = c.value || ''; vm.onTxt2 = (e) => { const v = e.target.value; this.setState((s) => ({ bActions: s.bActions.map((x) => x.uid === a.uid ? Object.assign({}, x, { cfg: Object.assign({}, x.cfg, { value: v }) }) : x) })); }; }
+      if (a.key === 'wait') { vm.hasChips = true; vm.chipLabel = 'Duration'; vm.chips = durationOptions.map((dn) => chip(dn, (c.duration || '1 day') === dn, () => updateAct(a.uid, { duration: dn }))); }
+      if (SEL[a.key]) { const [lab, key, opts] = SEL[a.key]; vm.hasSel = true; vm.selLabel = lab; vm.selValue = c[key] || opts[0]; vm.selOpen = this.state.openDD === a.uid + ':s'; vm.onSelToggle = () => setDD(a.uid + ':s'); vm.selOptions = opts.map((o) => ({ label: o, onPick: () => updateAct(a.uid, { [key]: o }) })); }
+      return vm;
+    });
+
+    const aq = (this.state.actionSearch || '').toLowerCase();
+    const actionGroups = ACT_GROUPS.map((gname) => ({
+      label: gname,
+      items: ACT_ORDER.filter((k) => ACT[k].g === gname && (!aq || ACT[k].label.toLowerCase().includes(aq)))
+        .map((k) => ({ key: k, icon: ACT[k].icon, label: ACT[k].label,
+          onPick: () => this.setState((s) => ({ bActions: s.bActions.concat([{ uid: this.nextUid(), key: k, cfg: Object.assign({}, ACT[k].cfg || {}) }]), showActionPicker: false, actionSearch: '' })) })),
+    })).filter((grp) => grp.items.length > 0);
+    const onActionSearch = (e) => { const v = e.target.value; this.setState({ actionSearch: v }); };
+
+    const recipes = [
+      { name: 'Qualify hot replies', desc: 'Reply → qualify + Slack', icon: '↩', trigger: { key: 'reply' }, conditions: [{ field: 'Reply sentiment', op: 'is', value: 'Positive' }], actions: ['qualify', 'slack'] },
+      { name: 'Booked → CRM deal', desc: 'Call booked → create deal', icon: '📅', trigger: { key: 'booked' }, conditions: [], actions: ['crm', 'tag'] },
+      { name: 'Stop on unsubscribe', desc: 'Opt-out → remove from all', icon: '⊘', trigger: { key: 'unsub' }, conditions: [], actions: ['removeseq'] },
+      { name: 'Welcome new leads', desc: 'New contact → intro email', icon: '＋', trigger: { key: 'created' }, conditions: [], actions: ['email'] },
+    ].map((r) => ({ name: r.name, desc: r.desc, icon: r.icon,
+      onPick: () => { const def = TRIG[r.trigger.key]; this.setState({
+        bTrigger: { key: r.trigger.key, icon: def.icon, cfg: Object.assign({}, r.trigger.cfg || def.cfg || {}) },
+        bConds: r.conditions.map((c) => Object.assign({ uid: this.nextUid() }, c)),
+        bActions: r.actions.map((k) => ({ uid: this.nextUid(), key: k, cfg: Object.assign({}, ACT[k].cfg || {}) })),
+        bName: this.state.bName || r.name, changeTrigger: false, showActionPicker: false, openDD: null }); } }));
+
+    const canSave = !!bT && this.state.bActions.length > 0 && this.state.bName.trim().length > 0;
+    const showRecipes = !this.state.editingId && !bT && this.state.bConds.length === 0 && this.state.bActions.length === 0;
+
+    return {
+      navAfter: [
+        { label: 'Dashboard', icon: '◈', weight: 500, color: 'rgba(255,255,255,.82)', bg: 'transparent' },
+        { label: 'Agents', icon: '◎', weight: 500, color: 'rgba(255,255,255,.82)', bg: 'transparent' },
+        { label: 'Contacts', icon: '☺', weight: 500, color: 'rgba(255,255,255,.82)', bg: 'transparent' },
+        { label: 'Analytics', icon: '▤', weight: 500, color: 'rgba(255,255,255,.82)', bg: 'transparent' },
+        { label: 'Integrations', icon: '⚯', weight: 500, color: 'rgba(255,255,255,.82)', bg: 'transparent' },
+        { label: 'Automations', icon: '⟳', weight: 700, color: '#0A0F0C', bg: grad },
+      ],
+      navUtility: [{ label: 'Help', icon: '?' }, { label: 'Settings', icon: '⚙' }],
+      subtitle: merged.length + ' automations · ' + countFor('Active') + ' active',
+      segments: SEGS.map((s) => { const on = s.id === seg; return { label: s.label, count: countFor(s.id), weight: on ? 700 : 600, color: on ? '#0E1512' : '#8A7F6B', border: on ? '#16A82A' : 'transparent', countbg: on ? 'rgba(53,232,52,.14)' : '#F2EEE4', countfg: on ? '#16A82A' : '#8A7F6B', onClick: () => this.setState({ seg: s.id }) }; }),
+      rows: filtered.map(decorate),
+      isEmpty: filtered.length === 0,
+      emptyTitle: seg === 'all' ? 'No automations yet' : 'No ' + seg.toLowerCase() + ' automations',
+      emptySub: seg === 'all' ? 'Create your first rule to run work in the background.' : 'Try another tab or create a new automation.',
+      newAutomation: () => this.openBuilder(null),
+
+      drawerOpen: !!dr, d,
+      closeDrawer: () => this.setState({ drawerId: null }),
+      stop: (e) => { if (e) e.stopPropagation(); },
+
+      // builder
+      builderOpen: this.state.builderOpen,
+      closeBuilder: () => this.setState({ builderOpen: false, openDD: null }),
+      bName: this.state.bName,
+      setName: (e) => { const v = e.target.value; this.setState({ bName: v }); },
+      bEnabled: this.state.bEnabled, bEnabledLabel: this.state.bEnabled ? 'On' : 'Off', bEnabledFg: this.state.bEnabled ? '#16A82A' : '#9AA59E',
+      bEnabledBg: this.state.bEnabled ? grad : '#E4EAE6', bEnabledKnob: this.state.bEnabled ? 'right' : 'left',
+      toggleBEnabled: () => this.setState((s) => ({ bEnabled: !s.bEnabled })),
+      showRecipes, recipes,
+      showTriggerPicker: !bT || this.state.changeTrigger,
+      hasTrigger: !!bT && !this.state.changeTrigger,
+      triggerGroups, triggerSearch: this.state.triggerSearch, onTriggerSearch, bTrigger: bTriggerVM || { icon: '', label: '', isNoreply: false, isSchedule: false, days: 14, freqChips: [], dayChips: [], timeChips: [], showDay: false },
+      openTriggerPicker: () => this.setState({ changeTrigger: true, openDD: null }),
+      bConds, addCondition: () => this.setState((s) => ({ bConds: s.bConds.concat([{ uid: this.nextUid(), field: 'Status', op: 'is', value: '' }]) })),
+      bActions, actionGroups, actionSearch: this.state.actionSearch, onActionSearch,
+      showActionPicker: this.state.showActionPicker,
+      toggleActionPicker: () => this.setState((s) => ({ showActionPicker: !s.showActionPicker })),
+      actionPickerLabel: this.state.showActionPicker ? '✕ Close action list' : '+ Add action',
+      builderSummary: (bT ? '1 trigger' : 'No trigger') + ' · ' + this.state.bConds.length + ' filter' + (this.state.bConds.length === 1 ? '' : 's') + ' · ' + this.state.bActions.length + ' action' + (this.state.bActions.length === 1 ? '' : 's'),
+      saveLabel: this.state.editingId ? 'Save changes' : 'Create automation',
+      saveFg: canSave ? '#0A0F0C' : '#B7BDB6', saveBg: canSave ? grad : '#EDEAE2', saveCursor: canSave ? 'pointer' : 'not-allowed', saveShadow: canSave ? '0 6px 16px rgba(53,232,52,.26)' : 'none',
+      saveBuilder: () => { if (!canSave) return; this.saveBuilder(TRIG, ACT); },
+
+      toastShow: !!this.state.toast, toastText: this.state.toast || '',
+    };
+  }
+
+  openBuilder(id) {
+    if (!id) { this.setState({ builderOpen: true, editingId: null, bName: '', bEnabled: true, bTrigger: null, bConds: [], bActions: [], changeTrigger: false, showActionPicker: false, openDD: null, drawerId: null, triggerSearch: '', actionSearch: '' }); return; }
+    // find item (base or custom) — pull raw cfg from custom override or base
+    const baseRaw = {
+      a1: { name: 'Auto-qualify hot replies', trigger: { key: 'reply' }, conditions: [{ field: 'Reply sentiment', op: 'is', value: 'Positive' }], actions: [{ key: 'qualify' }, { key: 'slack', cfg: { channel: '#sales' } }], status: 'Active' },
+      a2: { name: 'Booked → create deal', trigger: { key: 'booked' }, conditions: [], actions: [{ key: 'crm', cfg: { pipeline: 'Sales pipeline' } }, { key: 'tag', cfg: { tag: 'booked' } }], status: 'Active' },
+      a3: { name: 'Stop on unsubscribe', trigger: { key: 'unsub' }, conditions: [], actions: [{ key: 'removeseq' }], status: 'Active' },
+      a4: { name: 'Re-engage cold leads', trigger: { key: 'noreply', cfg: { days: 14 } }, conditions: [{ field: 'Subscription', op: 'is', value: 'Subscribed' }], actions: [{ key: 'moveseq', cfg: { sequence: 'Nurture' } }], status: 'Active' },
+      a5: { name: 'Notify on payment', trigger: { key: 'payment' }, conditions: [], actions: [{ key: 'slack', cfg: { channel: '#wins' } }, { key: 'receipt' }], status: 'Paused' },
+      a6: { name: 'Weekly performance digest', trigger: { key: 'schedule', cfg: { freq: 'Weekly', day: 'Mon', time: '9:00 AM' } }, conditions: [], actions: [{ key: 'email', cfg: { subject: 'Weekly digest' } }], status: 'Active' },
+      a7: { name: 'New lead welcome', trigger: { key: 'created' }, conditions: [{ field: 'Source', op: 'is', value: 'Form' }], actions: [{ key: 'email', cfg: { subject: 'Welcome 👋' } }], status: 'Draft' },
+    };
+    const raw = this.state.custom[id] || baseRaw[id];
+    if (!raw) return;
+    const TRIGc = { noreply: { days: 14 }, schedule: { freq: 'Weekly', day: 'Mon', time: '9:00 AM' } };
+    const icons = { reply: '↩', booked: '📅', qualified: '✦', created: '＋', formsub: '⊞', opened: '◔', clicked: '🔗', noreply: '⏳', unsub: '⊘', payment: '＄', tagadded: '⌗', schedule: '🕘' };
+    const enOv = this.state.enabled[id];
+    const en = raw.status === 'Draft' ? true : (enOv === undefined ? raw.status === 'Active' : enOv);
+    this.setState({
+      builderOpen: true, editingId: id, bName: raw.name, bEnabled: en,
+      bTrigger: { key: raw.trigger.key, icon: icons[raw.trigger.key], cfg: Object.assign({}, TRIGc[raw.trigger.key] || {}, raw.trigger.cfg || {}) },
+      bConds: (raw.conditions || []).map((c) => ({ uid: this.nextUid(), field: c.field, op: c.op, value: c.value })),
+      bActions: (raw.actions || []).map((a) => ({ uid: this.nextUid(), key: a.key, cfg: Object.assign({}, a.cfg || {}) })),
+      changeTrigger: false, showActionPicker: false, openDD: null, drawerId: null, triggerSearch: '', actionSearch: '',
+    });
+  }
+
+  saveBuilder(TRIG, ACT) {
+    const s = this.state;
+    const id = s.editingId || ('c' + this.nextUid());
+    const prevRuns = (s.custom[id] && s.custom[id].runs) || (s.editingId ? undefined : '0');
+    const obj = {
+      id, name: s.bName.trim() || 'Untitled automation',
+      desc: s.bActions.length + ' action' + (s.bActions.length === 1 ? '' : 's') + ' when ' + (TRIG[s.bTrigger.key].label.toLowerCase()),
+      trigger: { key: s.bTrigger.key, cfg: Object.assign({}, s.bTrigger.cfg || {}) },
+      conditions: s.bConds.filter((c) => (c.value || '').trim()).map((c) => ({ field: c.field, op: c.op, value: c.value.trim() })),
+      actions: s.bActions.map((a) => ({ key: a.key, cfg: Object.assign({}, a.cfg || {}) })),
+      status: s.bEnabled ? 'Active' : 'Paused',
+      runs: prevRuns != null ? prevRuns : '0', lastRun: (s.custom[id] && s.custom[id].lastRun) || (s.editingId ? 'just now' : '—'),
+    };
+    this.setState((st) => {
+      const custom = Object.assign({}, st.custom, { [id]: obj });
+      const newOrder = (!st.editingId && !st.newOrder.includes(id)) ? [id].concat(st.newOrder) : st.newOrder;
+      const enabled = Object.assign({}, st.enabled); delete enabled[id];
+      return { custom, newOrder, enabled, builderOpen: false, editingId: null, openDD: null };
+    });
+    this.flash(s.editingId ? 'Automation updated' : 'Automation created');
+  }
+}
+</script>
+</body>
+</html>

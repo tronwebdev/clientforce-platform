@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0;padding:0;}
+  *{box-sizing:border-box;}
+  @keyframes wpulse{0%,100%{opacity:1}50%{opacity:.5}}
+  ::-webkit-scrollbar{width:9px;height:9px}
+  ::-webkit-scrollbar-thumb{background:rgba(14,21,18,.16);border-radius:6px}
+  .fbInput{font-family:'Hanken Grotesk',sans-serif;font-size:13.5px;color:#0E1512;border:1px solid #E4EAE6;border-radius:9px;padding:9px 11px;width:100%;outline:none;background:#fff;}
+  .fbInput:focus{border-color:#35E834;box-shadow:0 0 0 3px rgba(53,232,52,.12);}
+  .fbLbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#8A7F6B;margin-bottom:6px;display:block;}
+</style>
+<script src="sidebar.js"></script>
+</helmet>
+
+<div style="position:relative;min-height:100vh;width:100%;background:#FBF7F0;font-family:'Hanken Grotesk',sans-serif;overflow:hidden;"><div style="display:flex;">
+      <!-- SIDEBAR -->
+      <cf-sidebar active="forms" style="width:248px;flex:none;align-self:stretch;background:#0C140F;"></cf-sidebar>
+
+      <!-- MAIN -->
+      <div style="flex:1;background:#FBF7F0;min-width:0;">
+
+        <!-- ===== LIST VIEW ===== -->
+        <sc-if value="{{ isList }}" hint-placeholder-val="{{ true }}">
+          <div style="padding:26px 30px 34px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+              <div>
+                <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:28px;letter-spacing:-.02em;color:#0E1512;">Forms</div>
+                <div style="font-size:15px;color:#5C6B62;">Capture leads from your site and route every submission into a campaign.</div>
+              </div>
+              <span onClick="{{ onCreate }}" style="font-size:14px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);border-radius:12px;padding:12px 20px;cursor:pointer;box-shadow:0 6px 18px rgba(53,232,52,.28);">＋ Create form</span>
+            </div>
+
+            <!-- info card (light) -->
+            <div style="background:#fff;border:1px solid #EBE3D6;border-radius:18px;padding:20px 24px;margin-bottom:22px;box-shadow:0 4px 16px rgba(14,21,18,.04);">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:16px;">
+                <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+                  <span style="width:26px;height:26px;border-radius:8px;flex:none;background:linear-gradient(135deg,#36D7ED,#35E834 60%,#D0F56B);display:flex;align-items:center;justify-content:center;color:#0A0F0C;font-size:14px;">✦</span>
+                  <span style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:15px;color:#0E1512;">What is a Form?</span>
+                  <span style="font-size:13px;color:#9AA59E;">— capture leads directly from your website or landing pages</span>
+                </div>
+                <span style="display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:#5C6B62;background:#F7F9F8;border:1px solid #EBE3D6;border-radius:100px;padding:5px 12px;flex:none;"><span style="width:8px;height:8px;border-radius:50%;background:#35E834;"></span>{{ totalCount }} total forms</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:18px;">
+                <div style="flex:none;display:flex;align-items:center;gap:8px;">
+                  <span style="font-size:12.5px;font-weight:700;color:#8A7F6B;">Use for</span>
+                  <sc-for list="{{ useCases }}" as="u" hint-placeholder-count="4">
+                    <span style="font-size:12.5px;font-weight:600;color:#16A82A;background:#EAF9EC;border:1px solid #C7EDCF;border-radius:100px;padding:5px 12px;">{{ u }}</span>
+                  </sc-for>
+                </div>
+              </div>
+              <div style="margin-top:14px;padding-left:14px;border-left:3px solid #35E834;font-size:13.5px;line-height:1.6;color:#5C6B62;">Every submission is instantly routed into your selected campaign, where your AI agent takes over — following up, nurturing the lead, and moving them toward a booking or sale. No manual follow-up, no missed opportunities.</div>
+            </div>
+
+            <!-- table header -->
+            <div style="display:flex;align-items:center;padding:0 22px 8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#9AA59E;">
+              <span style="flex:1;">Form</span>
+              <span style="flex:0 0 150px;">Template</span>
+              <span style="flex:0 0 120px;">Created</span>
+              <span style="flex:0 0 110px;text-align:center;">Submissions</span>
+              <span style="flex:0 0 188px;text-align:right;">Actions</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <sc-for list="{{ forms }}" as="f" hint-placeholder-count="4">
+                <div onClick="{{ f.onOpen }}" style="background:#fff;border:1px solid #EBE3D6;border-radius:14px;padding:16px 22px;box-shadow:0 4px 16px rgba(14,21,18,.04);display:flex;align-items:center;cursor:pointer;" style-hover="border-color:#9FD8AC;box-shadow:0 8px 26px rgba(14,21,18,.09);">
+                  <div style="flex:1;min-width:0;display:flex;align-items:center;gap:14px;">
+                    <div style="width:42px;height:42px;border-radius:11px;flex:none;background:{{ f.tilebg }};display:flex;align-items:center;justify-content:center;font-size:18px;color:{{ f.tilefg }};">{{ f.icon }}</div>
+                    <div style="min-width:0;">
+                      <div style="font-size:15.5px;font-weight:700;color:#0E1512;display:flex;align-items:center;gap:9px;">{{ f.title }}<span style="font-size:11px;font-weight:700;color:{{ f.statusFg }};background:{{ f.statusBg }};border-radius:100px;padding:3px 9px;">{{ f.statusLabel }}</span><sc-if value="{{ f.hasCampaign }}" hint-placeholder-val="{{ false }}"><span style="font-size:11px;font-weight:600;color:#1192A6;background:rgba(54,215,237,.12);border-radius:100px;padding:3px 10px;">→ {{ f.campaignName }}</span></sc-if></div>
+                      <div style="font-size:12.5px;color:#9AA59E;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:340px;">{{ f.description }}</div>
+                    </div>
+                  </div>
+                  <span style="flex:0 0 150px;font-size:13px;color:#5C6B62;">{{ f.templateTitle }}</span>
+                  <span style="flex:0 0 120px;font-size:13px;color:#5C6B62;">{{ f.created }}</span>
+                  <span style="flex:0 0 110px;text-align:center;font-size:15px;font-weight:700;color:#0E1512;">{{ f.submissions }}</span>
+                  <div style="flex:0 0 188px;display:flex;align-items:center;justify-content:flex-end;gap:7px;">
+                    <span onClick="{{ f.onView }}" title="View responses" style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);border-radius:9px;padding:8px 13px;cursor:pointer;">◉ View</span>
+                    <span onClick="{{ f.onEdit }}" title="Edit form" style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:#0E1512;background:#fff;border:1px solid #E4EAE6;border-radius:9px;padding:8px 12px;cursor:pointer;">✎ Edit</span>
+                    <span onClick="{{ f.onCopy }}" title="Copy embed code" style="width:34px;height:34px;border-radius:9px;border:1px solid #EBE3D6;display:flex;align-items:center;justify-content:center;color:#5C6B62;font-size:14px;cursor:pointer;background:#fff;flex:none;">⧉</span>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- ===== BUILDER VIEW ===== -->
+        <sc-if value="{{ isBuilder }}" hint-placeholder-val="{{ false }}">
+          <div>
+            <!-- header -->
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 28px;background:#fff;border-bottom:1px solid #EBE3D6;">
+              <div style="display:flex;align-items:center;gap:13px;min-width:0;">
+                <span onClick="{{ onBack }}" style="width:38px;height:38px;border-radius:10px;border:1px solid #EBE3D6;display:flex;align-items:center;justify-content:center;color:#5C6B62;cursor:pointer;flex:none;font-size:18px;">‹</span>
+                <div style="min-width:0;">
+                  <input value="{{ title }}" onInput="{{ onTitle }}" style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:22px;letter-spacing:-.01em;color:#0E1512;border:none;outline:none;background:transparent;padding:0;width:360px;max-width:44vw;" />
+                  <div style="font-size:13px;color:#9AA59E;">Form builder · preview updates live</div>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:11px;flex:none;">
+                <sc-if value="{{ canDelete }}" hint-placeholder-val="{{ false }}">
+                  <span onClick="{{ onDelete }}" style="font-size:14px;font-weight:600;color:#C0584B;background:#fff;border:1px solid #EFD3CE;border-radius:11px;padding:11px 16px;cursor:pointer;">🗑 Delete</span>
+                </sc-if>
+                <span onClick="{{ onSave }}" style="font-size:14px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);border-radius:11px;padding:11px 22px;cursor:pointer;box-shadow:0 6px 18px rgba(53,232,52,.28);">✓ Save &amp; publish</span>
+              </div>
+            </div>
+
+            <div style="display:flex;align-items:flex-start;">
+              <!-- LEFT: config -->
+              <div style="flex:1;min-width:0;padding:22px 26px 60px;display:flex;flex-direction:column;gap:12px;">
+
+                <!-- accordion: template -->
+                <div style="background:#fff;border:1px solid #EBE3D6;border-radius:14px;overflow:hidden;">
+                  <div onClick="{{ onToggleTemplate }}" style="display:flex;align-items:center;gap:12px;padding:16px 20px;cursor:pointer;">
+                    <span style="width:30px;height:30px;border-radius:8px;flex:none;background:#EAF9EC;color:#16A82A;display:flex;align-items:center;justify-content:center;font-size:15px;">◑</span>
+                    <div style="flex:1;min-width:0;"><div style="font-size:15px;font-weight:700;color:#0E1512;">Choose a template</div><div style="font-size:12.5px;color:#9AA59E;">Start from a proven layout — you can customise everything</div></div>
+                    <span style="color:#9AA59E;font-size:13px;transform:{{ tplChevron }};">⌄</span>
+                  </div>
+                  <sc-if value="{{ expTemplate }}" hint-placeholder-val="{{ true }}">
+                    <div style="padding:0 20px 20px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
+                      <sc-for list="{{ templates }}" as="t" hint-placeholder-count="6">
+                        <div onClick="{{ t.onPick }}" style="border:1.5px solid {{ t.border }};background:{{ t.bg }};border-radius:11px;padding:14px 12px;cursor:pointer;display:flex;flex-direction:column;gap:8px;align-items:flex-start;">
+                          <span style="width:34px;height:34px;border-radius:9px;background:{{ t.iconbg }};color:{{ t.iconfg }};display:flex;align-items:center;justify-content:center;font-size:16px;">{{ t.icon }}</span>
+                          <div style="font-size:13.5px;font-weight:700;color:#0E1512;">{{ t.title }}</div>
+                          <div style="font-size:11.5px;line-height:1.4;color:#9AA59E;">{{ t.description }}</div>
+                        </div>
+                      </sc-for>
+                    </div>
+                  </sc-if>
+                </div>
+
+                <!-- accordion: build form -->
+                <div style="background:#fff;border:1px solid #EBE3D6;border-radius:14px;overflow:hidden;">
+                  <div onClick="{{ onToggleBuild }}" style="display:flex;align-items:center;gap:12px;padding:16px 20px;cursor:pointer;">
+                    <span style="width:30px;height:30px;border-radius:8px;flex:none;background:#E6F8FB;color:#0E8FA8;display:flex;align-items:center;justify-content:center;font-size:15px;">▦</span>
+                    <div style="flex:1;min-width:0;"><div style="font-size:15px;font-weight:700;color:#0E1512;">Build your form</div><div style="font-size:12.5px;color:#9AA59E;">Add, edit and order the fields you want to capture</div></div>
+                    <span style="font-size:12px;font-weight:700;color:#16A82A;background:#EAF9EC;border-radius:100px;padding:3px 10px;">{{ fieldCount }} fields</span>
+                    <span style="color:#9AA59E;font-size:13px;transform:{{ buildChevron }};">⌄</span>
+                  </div>
+                  <sc-if value="{{ expBuild }}" hint-placeholder-val="{{ false }}">
+                    <div style="padding:0 20px 20px;display:flex;flex-direction:column;gap:10px;">
+                      <sc-for list="{{ builderFields }}" as="f" hint-placeholder-count="3">
+                        <div style="border:1px solid #E4EAE6;border-radius:11px;padding:13px 14px;background:#FBFCFB;">
+                          <div style="display:flex;align-items:center;gap:9px;margin-bottom:10px;">
+                            <span style="font-size:12px;font-weight:700;color:#16A82A;background:#EAF9EC;border-radius:7px;padding:3px 9px;">{{ f.name }}</span>
+                            <span style="flex:1;"></span>
+                            <span onClick="{{ f.onUp }}" style="width:28px;height:28px;border-radius:7px;border:1px solid #E4EAE6;display:flex;align-items:center;justify-content:center;color:#8A7F6B;cursor:pointer;font-size:12px;background:#fff;">↑</span>
+                            <span onClick="{{ f.onDown }}" style="width:28px;height:28px;border-radius:7px;border:1px solid #E4EAE6;display:flex;align-items:center;justify-content:center;color:#8A7F6B;cursor:pointer;font-size:12px;background:#fff;">↓</span>
+                            <span onClick="{{ f.onRemove }}" style="width:28px;height:28px;border-radius:7px;border:1px solid #EFD3CE;display:flex;align-items:center;justify-content:center;color:#C0584B;cursor:pointer;font-size:12px;background:#fff;">✕</span>
+                          </div>
+                          <div style="display:flex;gap:10px;margin-bottom:10px;">
+                            <div style="flex:1;"><label class="fbLbl">Label</label><input value="{{ f.label }}" onInput="{{ f.onLabel }}" class="fbInput" /></div>
+                            <sc-if value="{{ f.useLabel }}" hint-placeholder-val="{{ true }}">
+                              <div style="flex:1;"><label class="fbLbl">Placeholder</label><input value="{{ f.placeholderText }}" onInput="{{ f.onPlaceholder }}" class="fbInput" /></div>
+                            </sc-if>
+                          </div>
+                          <div style="display:flex;align-items:center;gap:14px;">
+                            <div style="flex:1;"><label class="fbLbl">Type</label>
+                              <select value="{{ f.type }}" onChange="{{ f.onType }}" class="fbInput" style="cursor:pointer;">
+                                <option value="text">Text</option>
+                                <option value="textarea">Extended text</option>
+                                <option value="select">Select</option>
+                                <option value="checkbox">Checkbox</option>
+                                <option value="info">Informational text</option>
+                              </select>
+                            </div>
+                            <div onClick="{{ f.onReq }}" style="display:flex;align-items:center;gap:9px;cursor:pointer;margin-top:18px;">
+                              <span style="width:42px;height:25px;border-radius:100px;background:{{ f.reqBg }};position:relative;transition:background .2s;flex:none;"><span style="position:absolute;top:3px;left:{{ f.reqKnob }};width:19px;height:19px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left .2s;"></span></span>
+                              <span style="font-size:13px;font-weight:600;color:#5C6B62;">Required</span>
+                            </div>
+                          </div>
+                          <sc-if value="{{ f.isSelect }}" hint-placeholder-val="{{ false }}">
+                            <div style="margin-top:12px;border-top:1px dashed #E4EAE6;padding-top:12px;">
+                              <label class="fbLbl">Options</label>
+                              <div style="display:flex;flex-direction:column;gap:7px;">
+                                <sc-for list="{{ f.options }}" as="o" hint-placeholder-count="2">
+                                  <div style="display:flex;align-items:center;gap:7px;">
+                                    <input value="{{ o.label }}" onInput="{{ o.onLabel }}" class="fbInput" placeholder="Option" />
+                                    <input value="{{ o.value }}" onInput="{{ o.onValue }}" class="fbInput" placeholder="Value" />
+                                    <span onClick="{{ o.onRemove }}" style="width:30px;height:30px;border-radius:7px;border:1px solid #EFD3CE;display:flex;align-items:center;justify-content:center;color:#C0584B;cursor:pointer;flex:none;font-size:12px;">✕</span>
+                                  </div>
+                                </sc-for>
+                              </div>
+                              <span onClick="{{ f.onAddOption }}" style="display:inline-flex;margin-top:8px;font-size:12.5px;font-weight:600;color:#16A82A;cursor:pointer;">＋ Add option</span>
+                            </div>
+                          </sc-if>
+                        </div>
+                      </sc-for>
+
+                      <!-- add field -->
+                      <div style="display:flex;flex-wrap:wrap;gap:7px;align-items:center;padding-top:4px;">
+                        <span style="font-size:12.5px;font-weight:700;color:#8A7F6B;margin-right:2px;">Add:</span>
+                        <sc-for list="{{ availAttrs }}" as="a" hint-placeholder-count="5">
+                          <span onClick="{{ a.onAdd }}" style="font-size:12.5px;font-weight:600;color:#0E1512;background:#fff;border:1px solid #E4EAE6;border-radius:100px;padding:6px 12px;cursor:pointer;" style-hover="border-color:#9FD8AC;background:#F4FBF5;">{{ a.icon }} {{ a.label }}</span>
+                        </sc-for>
+                        <span onClick="{{ onAddCustomText }}" style="font-size:12.5px;font-weight:600;color:#16A82A;background:#EAF9EC;border:1px solid #C7EDCF;border-radius:100px;padding:6px 12px;cursor:pointer;">＋ Custom field</span>
+                      </div>
+
+                      <!-- title/desc/submit -->
+                      <div style="border-top:1px solid #E4EAE6;margin-top:6px;padding-top:14px;display:flex;flex-direction:column;gap:12px;">
+                        <div style="display:flex;gap:22px;">
+                          <div onClick="{{ onToggleShowTitle }}" style="display:flex;align-items:center;gap:9px;cursor:pointer;">
+                            <span style="width:42px;height:25px;border-radius:100px;background:{{ showTitleBg }};position:relative;flex:none;"><span style="position:absolute;top:3px;left:{{ showTitleKnob }};width:19px;height:19px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left .2s;"></span></span>
+                            <span style="font-size:13px;font-weight:600;color:#5C6B62;">Show title</span>
+                          </div>
+                          <div onClick="{{ onToggleShowDesc }}" style="display:flex;align-items:center;gap:9px;cursor:pointer;">
+                            <span style="width:42px;height:25px;border-radius:100px;background:{{ showDescBg }};position:relative;flex:none;"><span style="position:absolute;top:3px;left:{{ showDescKnob }};width:19px;height:19px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left .2s;"></span></span>
+                            <span style="font-size:13px;font-weight:600;color:#5C6B62;">Show description</span>
+                          </div>
+                        </div>
+                        <div><label class="fbLbl">Description</label><textarea onInput="{{ onDesc }}" class="fbInput" rows="2" style="resize:vertical;">{{ description }}</textarea></div>
+                        <div><label class="fbLbl">Submit button text</label><input value="{{ submitText }}" onInput="{{ onSubmitText }}" class="fbInput" /></div>
+                      </div>
+                    </div>
+                  </sc-if>
+                </div>
+
+                <!-- accordion: style -->
+                <div style="background:#fff;border:1px solid #EBE3D6;border-radius:14px;overflow:hidden;">
+                  <div onClick="{{ onToggleStyle }}" style="display:flex;align-items:center;gap:12px;padding:16px 20px;cursor:pointer;">
+                    <span style="width:30px;height:30px;border-radius:8px;flex:none;background:#F4FAE3;color:#6B8A1E;display:flex;align-items:center;justify-content:center;font-size:15px;">◈</span>
+                    <div style="flex:1;min-width:0;"><div style="font-size:15px;font-weight:700;color:#0E1512;">Style your form</div><div style="font-size:12.5px;color:#9AA59E;">Colors, button, corners and dark mode</div></div>
+                    <span style="color:#9AA59E;font-size:13px;transform:{{ styleChevron }};">⌄</span>
+                  </div>
+                  <sc-if value="{{ expStyle }}" hint-placeholder-val="{{ false }}">
+                    <div style="padding:0 20px 20px;display:flex;flex-direction:column;gap:14px;">
+                      <div style="display:flex;gap:14px;">
+                        <div style="flex:1;"><label class="fbLbl">Background</label><sc-for list="{{ bgSwatches }}" as="s" hint-placeholder-count="5"><span onClick="{{ s.onPick }}" style="display:inline-block;width:26px;height:26px;border-radius:7px;background:{{ s.color }};border:2px solid {{ s.border }};margin-right:6px;cursor:pointer;vertical-align:middle;"></span></sc-for></div>
+                        <div style="flex:1;"><label class="fbLbl">Button color</label><sc-for list="{{ btnSwatches }}" as="s" hint-placeholder-count="5"><span onClick="{{ s.onPick }}" style="display:inline-block;width:26px;height:26px;border-radius:7px;background:{{ s.color }};border:2px solid {{ s.border }};margin-right:6px;cursor:pointer;vertical-align:middle;"></span></sc-for></div>
+                      </div>
+                      <div>
+                        <label class="fbLbl">Button size</label>
+                        <div style="display:flex;gap:8px;">
+                          <sc-for list="{{ sizeOpts }}" as="z" hint-placeholder-count="3">
+                            <span onClick="{{ z.onPick }}" style="flex:1;text-align:center;font-size:13px;font-weight:600;padding:9px;border-radius:9px;cursor:pointer;color:{{ z.fg }};background:{{ z.bg }};border:1px solid {{ z.border }};">{{ z.label }}</span>
+                          </sc-for>
+                        </div>
+                      </div>
+                      <div style="display:flex;gap:14px;">
+                        <div style="flex:1;"><label class="fbLbl">Form radius</label><input type="number" value="{{ formRadius }}" onInput="{{ onFormRadius }}" class="fbInput" min="0" /></div>
+                        <div style="flex:1;"><label class="fbLbl">Button radius</label><input type="number" value="{{ buttonRadius }}" onInput="{{ onButtonRadius }}" class="fbInput" min="0" /></div>
+                        <div style="flex:1;"><label class="fbLbl">Input radius</label><input type="number" value="{{ inputRadius }}" onInput="{{ onInputRadius }}" class="fbInput" min="0" /></div>
+                      </div>
+                      <div onClick="{{ onToggleDark }}" style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+                        <span style="width:42px;height:25px;border-radius:100px;background:{{ darkBg }};position:relative;flex:none;"><span style="position:absolute;top:3px;left:{{ darkKnob }};width:19px;height:19px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left .2s;"></span></span>
+                        <div><div style="font-size:13.5px;font-weight:700;color:#0E1512;">Dark mode</div><div style="font-size:12px;color:#9AA59E;">Offer a dark variant of this form</div></div>
+                      </div>
+                    </div>
+                  </sc-if>
+                </div>
+
+                <!-- accordion: advanced -->
+                <div style="background:#fff;border:1px solid #EBE3D6;border-radius:14px;overflow:hidden;">
+                  <div onClick="{{ onToggleAdvanced }}" style="display:flex;align-items:center;gap:12px;padding:16px 20px;cursor:pointer;">
+                    <span style="width:30px;height:30px;border-radius:8px;flex:none;background:#F2EEE4;color:#8A7F6B;display:flex;align-items:center;justify-content:center;font-size:15px;">⚙</span>
+                    <div style="flex:1;min-width:0;"><div style="font-size:15px;font-weight:700;color:#0E1512;">Advanced options</div><div style="font-size:12.5px;color:#9AA59E;">Redirect, success message and double opt-in</div></div>
+                    <span style="color:#9AA59E;font-size:13px;transform:{{ advChevron }};">⌄</span>
+                  </div>
+                  <sc-if value="{{ expAdvanced }}" hint-placeholder-val="{{ false }}">
+                    <div style="padding:0 20px 20px;display:flex;flex-direction:column;gap:12px;">
+                      <div><label class="fbLbl">Redirect URL (optional)</label><input value="{{ redirectUrl }}" onInput="{{ onRedirect }}" class="fbInput" placeholder="https://yoursite.com/thank-you" /></div>
+                      <div style="display:flex;gap:12px;">
+                        <div style="flex:1;"><label class="fbLbl">Success heading</label><input value="{{ successHeading }}" onInput="{{ onSuccessHeading }}" class="fbInput" /></div>
+                        <div style="flex:1;"><label class="fbLbl">Success text</label><input value="{{ successText }}" onInput="{{ onSuccessText }}" class="fbInput" /></div>
+                      </div>
+                      <div onClick="{{ onToggleDoubleOptIn }}" style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+                        <span style="width:42px;height:25px;border-radius:100px;background:{{ optInBg }};position:relative;flex:none;"><span style="position:absolute;top:3px;left:{{ optInKnob }};width:19px;height:19px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left .2s;"></span></span>
+                        <div><div style="font-size:13.5px;font-weight:700;color:#0E1512;">Double opt-in</div><div style="font-size:12px;color:#9AA59E;">Send a confirmation email before adding the lead</div></div>
+                      </div>
+                    </div>
+                  </sc-if>
+                </div>
+
+                <!-- accordion: contact management -->
+                <div style="background:#fff;border:1px solid #EBE3D6;border-radius:14px;overflow:hidden;">
+                  <div onClick="{{ onToggleContact }}" style="display:flex;align-items:center;gap:12px;padding:16px 20px;cursor:pointer;">
+                    <span style="width:30px;height:30px;border-radius:8px;flex:none;background:#EAF9EC;color:#16A82A;display:flex;align-items:center;justify-content:center;font-size:15px;">☺</span>
+                    <div style="flex:1;min-width:0;"><div style="font-size:15px;font-weight:700;color:#0E1512;">Campaign &amp; list routing</div><div style="font-size:12.5px;color:#9AA59E;">Route new submissions into a campaign and a contact list</div></div>
+                    <span style="color:#9AA59E;font-size:13px;transform:{{ contactChevron }};">⌄</span>
+                  </div>
+                  <sc-if value="{{ expContact }}" hint-placeholder-val="{{ false }}">
+                    <div style="padding:0 20px 20px;">
+                      <label class="fbLbl">Assign to campaign</label>
+                      <div style="display:flex;flex-direction:column;gap:7px;margin-bottom:18px;">
+                        <sc-for list="{{ campaignsUI }}" as="c" hint-placeholder-count="3">
+                          <div onClick="{{ c.onPick }}" style="display:flex;align-items:center;gap:10px;border:1.5px solid {{ c.border }};background:{{ c.bg }};border-radius:10px;padding:10px 13px;cursor:pointer;">
+                            <span style="width:18px;height:18px;border-radius:50%;border:2px solid {{ c.dot }};display:flex;align-items:center;justify-content:center;flex:none;"><span style="width:8px;height:8px;border-radius:50%;background:{{ c.dotFill }};"></span></span>
+                            <span style="font-size:13.5px;font-weight:600;color:#0E1512;flex:1;">{{ c.title }}</span>
+                            <span style="font-size:11.5px;color:#9AA59E;">{{ c.tag }}</span>
+                          </div>
+                        </sc-for>
+                      </div>
+                      <label class="fbLbl">Add to list</label>
+                      <div style="display:flex;flex-direction:column;gap:7px;">
+                        <sc-for list="{{ lists }}" as="l" hint-placeholder-count="3">
+                          <div onClick="{{ l.onPick }}" style="display:flex;align-items:center;gap:10px;border:1.5px solid {{ l.border }};background:{{ l.bg }};border-radius:10px;padding:10px 13px;cursor:pointer;">
+                            <span style="width:18px;height:18px;border-radius:50%;border:2px solid {{ l.dot }};display:flex;align-items:center;justify-content:center;flex:none;"><span style="width:8px;height:8px;border-radius:50%;background:{{ l.dotFill }};"></span></span>
+                            <span style="font-size:13.5px;font-weight:600;color:#0E1512;flex:1;">{{ l.title }}</span>
+                            <span style="font-size:12px;color:#9AA59E;">{{ l.count }}</span>
+                          </div>
+                        </sc-for>
+                      </div>
+                    </div>
+                  </sc-if>
+                </div>
+
+                <!-- install snippet -->
+                <sc-if value="{{ canDelete }}" hint-placeholder-val="{{ false }}">
+                  <div style="background:#0C140F;border-radius:14px;padding:18px 20px;color:#fff;">
+                    <div style="font-size:14px;font-weight:700;margin-bottom:4px;">Install code</div>
+                    <div style="font-size:12.5px;color:rgba(255,255,255,.55);margin-bottom:12px;">Paste this where you want the form to appear.</div>
+                    <div style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:9px;padding:12px 14px;font-family:'Courier New',monospace;font-size:12px;color:#A8E6B6;line-height:1.6;word-break:break-all;">{{ codeSnippet }}</div>
+                    <span onClick="{{ onCopyEmbed }}" style="display:inline-flex;margin-top:12px;font-size:13px;font-weight:600;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);border-radius:9px;padding:9px 16px;cursor:pointer;">⧉ Copy code</span>
+                  </div>
+                </sc-if>
+              </div>
+
+              <!-- RIGHT: live preview -->
+              <div style="flex:0 0 470px;align-self:stretch;background:#F2EEE4;border-left:1px solid #EBE3D6;padding:22px 26px;position:sticky;top:0;">
+                <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:18px;background:#fff;border:1px solid #E4EAE6;border-radius:100px;padding:4px;width:max-content;margin-left:auto;margin-right:auto;">
+                  <span onClick="{{ onTabForm }}" style="font-size:13px;font-weight:600;padding:7px 18px;border-radius:100px;cursor:pointer;color:{{ tabFormFg }};background:{{ tabFormBg }};">Form</span>
+                  <span onClick="{{ onTabSuccess }}" style="font-size:13px;font-weight:600;padding:7px 18px;border-radius:100px;cursor:pointer;color:{{ tabSuccessFg }};background:{{ tabSuccessBg }};">Success</span>
+                </div>
+                <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:14px;">
+                  <span style="font-size:11px;color:#9AA59E;">Live preview</span>
+                  <sc-if value="{{ darkEnabled }}" hint-placeholder-val="{{ false }}">
+                    <span onClick="{{ onToggleLight }}" style="font-size:11.5px;font-weight:600;color:#5C6B62;background:#fff;border:1px solid #E4EAE6;border-radius:100px;padding:3px 10px;cursor:pointer;">{{ lightLabel }}</span>
+                  </sc-if>
+                </div>
+                <div style="display:flex;justify-content:center;">{{ previewNode }}</div>
+                <div style="text-align:center;margin-top:16px;font-size:11.5px;color:#9AA59E;">Powered by Clientforce · routed to your campaign</div>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- ===== RESPONSES VIEW ===== -->
+        <sc-if value="{{ isResponses }}" hint-placeholder-val="{{ false }}">
+          <div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 28px;background:#fff;border-bottom:1px solid #EBE3D6;">
+              <div style="display:flex;align-items:center;gap:13px;min-width:0;">
+                <span onClick="{{ onResponsesBack }}" style="width:38px;height:38px;border-radius:10px;border:1px solid #EBE3D6;display:flex;align-items:center;justify-content:center;color:#5C6B62;cursor:pointer;flex:none;font-size:18px;">‹</span>
+                <span style="width:40px;height:40px;border-radius:11px;flex:none;background:{{ rTileBg }};color:{{ rTileFg }};display:flex;align-items:center;justify-content:center;font-size:17px;">{{ rIcon }}</span>
+                <div style="min-width:0;">
+                  <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:21px;letter-spacing:-.01em;color:#0E1512;">{{ rTitle }}</div>
+                  <div style="font-size:13px;color:#9AA59E;">{{ rCount }} submissions · responses are read-only</div>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:11px;flex:none;">
+                <span onClick="{{ onExportResponses }}" style="font-size:14px;font-weight:600;color:#5C6B62;background:#fff;border:1px solid #E4EAE6;border-radius:11px;padding:11px 16px;cursor:pointer;">↥ Export CSV</span>
+                <span onClick="{{ onEditFromResponses }}" style="font-size:14px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);border-radius:11px;padding:11px 20px;cursor:pointer;box-shadow:0 6px 18px rgba(53,232,52,.28);">✎ Edit form</span>
+              </div>
+            </div>
+            <div style="padding:22px 30px 34px;">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+                <span style="font-size:12.5px;font-weight:700;color:#8A7F6B;">Routing</span>
+                <sc-if value="{{ rHasCampaign }}" hint-placeholder-val="{{ true }}"><span style="font-size:12.5px;font-weight:600;color:#1192A6;background:rgba(54,215,237,.12);border:1px solid rgba(54,215,237,.3);border-radius:100px;padding:5px 13px;">→ Campaign · {{ rCampaignName }}</span></sc-if>
+                <span style="font-size:12.5px;font-weight:600;color:#16A82A;background:#EAF9EC;border:1px solid #C7EDCF;border-radius:100px;padding:5px 13px;">☺ List · {{ rListName }}</span>
+                <span style="flex:1;"></span>
+                <div style="flex:0 0 270px;display:flex;align-items:center;gap:9px;background:#fff;border:1px solid #EBE3D6;border-radius:11px;padding:9px 13px;">
+                  <span style="color:#9AA59E;">⚲</span>
+                  <input value="{{ responseSearch }}" onInput="{{ onResponseSearch }}" placeholder="Search submissions…" style="border:none;background:transparent;font-size:13.5px;color:#0E1512;flex:1;min-width:0;padding:0;" />
+                  <sc-if value="{{ hasResponseSearch }}" hint-placeholder-val="{{ false }}"><span onClick="{{ clearResponseSearch }}" style="color:#9AA59E;cursor:pointer;font-size:12px;">✕</span></sc-if>
+                </div>
+              </div>
+              <div style="background:#fff;border:1px solid #EBE3D6;border-radius:16px;box-shadow:0 4px 16px rgba(14,21,18,.04);overflow:hidden;">
+                <div style="display:flex;align-items:center;padding:13px 20px;background:#FBF7F0;border-bottom:1.5px solid #EBE3D6;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#5C6B62;">
+                  <span style="flex:1;">Submission</span>
+                  <span style="flex:0 0 220px;">Email</span>
+                  <span style="flex:0 0 150px;">Phone</span>
+                  <span style="flex:0 0 120px;">Submitted</span>
+                  <span style="flex:0 0 30px;"></span>
+                </div>
+                <sc-for list="{{ responses }}" as="r" hint-placeholder-count="6">
+                  <div onClick="{{ r.onOpen }}" style="display:flex;align-items:center;padding:12px 20px;border-top:1px solid #F2EEE4;cursor:pointer;" style-hover="background:#FBFAF6;">
+                    <span style="flex:1;display:flex;align-items:center;gap:11px;min-width:0;">
+                      <span style="width:36px;height:36px;border-radius:50%;flex:none;background:{{ r.avbg }};display:flex;align-items:center;justify-content:center;font-size:15px;">{{ r.emoji }}</span>
+                      <span style="min-width:0;"><span style="display:block;font-weight:600;font-size:14px;color:#0E1512;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ r.name }}</span><span style="display:block;font-size:12px;color:#9AA59E;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ r.company }}</span></span>
+                    </span>
+                    <span style="flex:0 0 220px;font-size:13px;color:#3B463F;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ r.email }}</span>
+                    <span style="flex:0 0 150px;font-size:13px;color:#5C6B62;">{{ r.phone }}</span>
+                    <span style="flex:0 0 120px;font-size:13px;color:#9AA59E;">{{ r.when }}</span>
+                    <span style="flex:0 0 30px;text-align:right;color:#16A82A;font-size:16px;">›</span>
+                  </div>
+                </sc-for>
+                <sc-if value="{{ responsesEmpty }}" hint-placeholder-val="{{ false }}">
+                  <div style="padding:54px 20px;text-align:center;border-top:1px solid #F2EEE4;">
+                    <div style="font-size:30px;margin-bottom:8px;">📭</div>
+                    <div style="font-size:15px;font-weight:700;color:#0E1512;margin-bottom:3px;">No submissions yet</div>
+                    <div style="font-size:13px;color:#9AA59E;">Once this form is live and embedded, responses will appear here.</div>
+                  </div>
+                </sc-if>
+              </div>
+            </div>
+          </div>
+
+          <!-- response detail drawer -->
+          <sc-if value="{{ respDrawerOpen }}" hint-placeholder-val="{{ false }}">
+            <div onClick="{{ closeRespDrawer }}" style="position:absolute;inset:0;background:rgba(12,20,15,.42);z-index:50;">
+              <div onClick="{{ stopProp }}" style="position:absolute;top:0;right:0;bottom:0;width:440px;max-width:100%;background:#FBF7F0;box-shadow:-24px 0 70px rgba(0,0,0,.3);display:flex;flex-direction:column;">
+                <div style="display:flex;align-items:flex-start;gap:13px;padding:20px 22px;background:#fff;border-bottom:1px solid #EBE3D6;flex:none;">
+                  <span style="width:46px;height:46px;border-radius:50%;flex:none;background:{{ respSel.avbg }};display:flex;align-items:center;justify-content:center;font-size:18px;">{{ respSel.emoji }}</span>
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:18px;color:#0E1512;">{{ respSel.name }}</div>
+                    <div style="font-size:13px;color:#9AA59E;">{{ respSel.email }}</div>
+                    <div style="margin-top:6px;font-size:12px;color:#9AA59E;">Submitted {{ respSel.when }}</div>
+                  </div>
+                  <span onClick="{{ closeRespDrawer }}" style="width:32px;height:32px;border-radius:9px;border:1px solid #EBE3D6;display:flex;align-items:center;justify-content:center;color:#9AA59E;cursor:pointer;flex:none;">✕</span>
+                </div>
+                <div style="flex:1;overflow:auto;min-height:0;padding:18px 22px;">
+                  <div style="display:flex;align-items:center;gap:9px;background:rgba(54,215,237,.07);border:1px solid rgba(54,215,237,.25);border-radius:12px;padding:12px 14px;margin-bottom:18px;">
+                    <span style="width:32px;height:32px;border-radius:9px;flex:none;background:rgba(54,215,237,.16);color:#1192A6;display:flex;align-items:center;justify-content:center;font-size:15px;">→</span>
+                    <div style="font-size:12.5px;color:#3B463F;line-height:1.45;">Routed to <strong style="color:#0E1512;">{{ rCampaignName }}</strong> · added to <strong style="color:#0E1512;">{{ rListName }}</strong></div>
+                  </div>
+                  <div style="font-size:11px;font-weight:700;color:#8A7F6B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Submitted answers</div>
+                  <div style="background:#fff;border:1px solid #EBE3D6;border-radius:13px;overflow:hidden;">
+                    <sc-for list="{{ respSel.fields }}" as="f" hint-placeholder-count="4">
+                      <div style="display:flex;align-items:flex-start;gap:12px;padding:12px 15px;border-top:1px solid #F2EEE4;">
+                        <span style="font-size:13px;color:#9AA59E;flex:none;width:124px;">{{ f.label }}</span>
+                        <span style="font-size:13.5px;color:#0E1512;font-weight:600;flex:1;text-align:right;word-break:break-word;">{{ f.value }}</span>
+                      </div>
+                    </sc-for>
+                  </div>
+                </div>
+                <div style="border-top:1px solid #EBE3D6;background:#fff;padding:14px 22px;display:flex;align-items:center;gap:10px;flex:none;">
+                  <span onClick="{{ onViewContact }}" style="flex:1;text-align:center;font-size:14px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);border-radius:11px;padding:11px;cursor:pointer;">☺ View contact record</span>
+                  <span onClick="{{ closeRespDrawer }}" style="font-size:14px;font-weight:600;color:#5C6B62;background:#fff;border:1px solid #E4EAE6;border-radius:11px;padding:11px 16px;cursor:pointer;">Close</span>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+        </sc-if>
+      </div>
+    </div>
+
+    <!-- toast -->
+    <sc-if value="{{ showToast }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute;bottom:24px;left:50%;transform:translateX(-50%);background:#0C140F;color:#fff;font-size:13.5px;font-weight:600;padding:11px 20px;border-radius:11px;box-shadow:0 12px 32px rgba(0,0,0,.28);display:flex;align-items:center;gap:9px;"><span style="color:#7FE8A0;">✓</span>{{ toast }}</div>
+    </sc-if>
+  </div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = {
+    view: 'list',
+    expanded: 'template',
+    tpl: 'newsletter',
+    title: 'Newsletter signup',
+    description: 'Sign up for our monthly newsletter and product updates.',
+    fields: [
+      { name: 'email', label: 'Email', type: 'text', placeholderText: 'name@example.com', required: true },
+    ],
+    cfg: {
+      submitButtonText: 'Submit',
+      bgColor: '#ffffff', textColor: '#0E1512',
+      buttonColor: '#35E834', buttonTextColor: '#0A0F0C',
+      buttonSize: 'md',
+      formBorderRadius: 14, buttonBorderRadius: 10, inputBorderRadius: 10,
+      inputPaddingX: 13, inputPaddingY: 11,
+      successBgColor: '#ffffff', successTextColor: '#0E1512',
+      isEnableDarkMode: false, isLightMode: true,
+      darkBgColor: '#0C140F', darkTextColor: '#ffffff',
+      darkButtonColor: '#35E834', darkButtonTextColor: '#0A0F0C',
+      redirectUrl: '', successHeading: 'Thanks!',
+      successText: 'Your details were successfully submitted.',
+      isEnableDoubleOptInMode: false,
+      isShowTitle: true, isShowDescription: true,
+    },
+    previewTab: 'form',
+    listId: 0,
+    campaignId: 1,
+    editingId: 0,
+    responsesId: 0,
+    responseSel: null,
+    responseSearch: '',
+    toast: '',
+  };
+
+  templates = [
+    { name: 'newsletter', title: 'Newsletter', description: "Capture a visitor's email", icon: '✉', fields: [{ name: 'email', label: 'Email', type: 'text', placeholderText: 'name@example.com', required: true }], submit: 'Submit' },
+    { name: 'newsletter2', title: 'Newsletter +', description: 'Name and email with opt-in', icon: '✉', fields: [{ name: 'first_name', label: 'First name', type: 'text', placeholderText: 'Joe', required: false }, { name: 'last_name', label: 'Last name', type: 'text', placeholderText: 'Doe', required: false }, { name: 'email', label: 'Email', type: 'text', placeholderText: 'name@example.com', required: true }, { name: 'email_opt_in', label: 'I want to receive emails', type: 'checkbox', placeholderText: '', required: false }], submit: 'Join Newsletter' },
+    { name: 'contact', title: 'Contact', description: 'Capture details to follow up', icon: '☺', fields: [{ name: 'first_name', label: 'First name', type: 'text', placeholderText: 'Joe', required: false }, { name: 'last_name', label: 'Last name', type: 'text', placeholderText: 'Doe', required: false }, { name: 'email', label: 'Email', type: 'text', placeholderText: 'name@example.com', required: true }, { name: 'phone', label: 'Phone number', type: 'phone', placeholderText: '+1 555 012 3456', required: false }], submit: 'Add Details' },
+    { name: 'book-a-demo', title: 'Book a demo', description: 'Details for a product demo', icon: '▭', fields: [{ name: 'first_name', label: 'First name', type: 'text', placeholderText: 'Joe', required: false }, { name: 'last_name', label: 'Last name', type: 'text', placeholderText: 'Doe', required: false }, { name: 'company_name', label: 'Company', type: 'text', placeholderText: 'Comp Inc.', required: true }, { name: 'phone', label: 'Phone number', type: 'phone', placeholderText: '+1 555 012 3456', required: false }], submit: 'Book Demo' },
+    { name: 'waitlist', title: 'Waitlist', description: 'Collect emails for a waitlist', icon: '≡', fields: [{ name: 'first_name', label: 'First name', type: 'text', placeholderText: 'Joe', required: false }, { name: 'email', label: 'Email', type: 'text', placeholderText: 'name@example.com', required: true }, { name: 'company_name', label: 'Company', type: 'text', placeholderText: 'Comp Inc.', required: false }], submit: 'Add me to waitlist' },
+    { name: 'local-business-service-booking', title: 'Booking', description: 'Request a local service booking', icon: '▦', fields: [{ name: 'name', label: 'Full name', type: 'text', placeholderText: 'John Doe', required: true }, { name: 'phone', label: 'Phone number', type: 'phone', placeholderText: '+1 555 012 3456', required: true }, { name: 'service', label: 'Service needed', type: 'select', placeholderText: 'Select a service', required: true, options: [{ label: 'Consultation', value: 'consultation' }, { label: 'Repair', value: 'repair' }, { label: 'Installation', value: 'installation' }] }, { name: 'preferred_date_time', label: 'Preferred date and time', type: 'text', placeholderText: 'e.g. Friday 10am', required: true }], submit: 'Request Booking' },
+    { name: 'custom', title: 'Custom', description: 'Start from a blank form', icon: '✎', fields: [{ name: 'email', label: 'Email', type: 'text', placeholderText: 'name@example.com', required: true }], submit: 'Submit' },
+  ];
+
+  leadAttrs = [
+    { name: 'name', icon: '☺', label: 'Name', type: 'text', placeholderText: 'John Doe' },
+    { name: 'first_name', icon: '☺', label: 'First name', type: 'text', placeholderText: 'John' },
+    { name: 'last_name', icon: '☺', label: 'Last name', type: 'text', placeholderText: 'Doe' },
+    { name: 'email', icon: '@', label: 'Email', type: 'text', placeholderText: 'name@example.com' },
+    { name: 'phone', icon: '☎', label: 'Phone', type: 'phone', placeholderText: '+1 555 012 3456' },
+    { name: 'whatsapp', icon: '◍', label: 'WhatsApp', type: 'phone', placeholderText: '+1 555 012 3456' },
+    { name: 'company_name', icon: '▦', label: 'Company', type: 'text', placeholderText: 'Company Inc.' },
+    { name: 'company_size', icon: '#', label: 'Company size', type: 'text', placeholderText: '15' },
+    { name: 'email_opt_in', icon: '☑', label: 'Email opt-in', type: 'checkbox', placeholderText: '' },
+  ];
+
+  forms = [
+    { id: 1, title: 'Newsletter signup', description: 'Sign up for our monthly newsletter and product updates.', tpl: 'newsletter', icon: '✉', tilebg: '#EAF9EC', tilefg: '#16A82A', created: '2 days ago', submissions: 248, live: true, campaignId: 1, listId: 1 },
+    { id: 2, title: 'Book a demo', description: 'Capture details for a product demo with the sales team.', tpl: 'book-a-demo', icon: '▭', tilebg: '#E6F8FB', tilefg: '#0E8FA8', created: '1 week ago', submissions: 73, live: true, campaignId: 3, listId: 2 },
+    { id: 3, title: 'Service booking — plumbing', description: 'Request a local service booking with preferred time.', tpl: 'local-business-service-booking', icon: '▦', tilebg: '#F4FAE3', tilefg: '#6B8A1E', created: '3 weeks ago', submissions: 41, live: true, campaignId: 2, listId: 3 },
+    { id: 4, title: 'Early access waitlist', description: 'Collect emails for the v2 launch waitlist.', tpl: 'waitlist', icon: '≡', tilebg: '#F2EEE4', tilefg: '#8A7F6B', created: '1 month ago', submissions: 0, live: false, campaignId: 0, listId: 0 },
+  ];
+
+  lists = [
+    { id: 0, title: 'Not in a list', count: '—' },
+    { id: 1, title: 'Newsletter subscribers', count: '1,204' },
+    { id: 2, title: 'Demo requests', count: '312' },
+    { id: 3, title: 'Service leads', count: '88' },
+  ];
+
+  campaigns = [
+    { id: 0, name: 'No campaign' },
+    { id: 1, name: 'Q3 Reactivation' },
+    { id: 2, name: 'Dental clinics — local' },
+    { id: 3, name: 'SaaS founders Q2' },
+    { id: 4, name: 'Webinar follow-up' },
+  ];
+
+  people = [
+    { first: 'Marcus', last: 'Alvarez', name: 'Dr. Marcus Alvarez', email: 'm.alvarez@brightsmile.co', phone: '+1 (512) 555-0143', company: 'BrightSmile Dental', when: '12 min ago', emoji: '🦷', avbg: 'rgba(53,232,52,.16)' },
+    { first: 'Priya', last: 'Sharma', name: 'Priya Sharma', email: 'priya@launchpad.io', phone: '+1 (415) 555-0190', company: 'LaunchPad', when: '1 hour ago', emoji: '🚀', avbg: 'rgba(54,215,237,.16)' },
+    { first: 'Tom', last: 'Becker', name: 'Tom Becker', email: 'tom@beckergroup.com', phone: '+1 (212) 555-0177', company: 'Becker Group', when: '3 hours ago', emoji: '🏢', avbg: '#F2EEE4' },
+    { first: 'Lena', last: 'Fischer', name: 'Lena Fischer', email: 'lena@fischer.co', phone: '+49 30 5550199', company: 'Fischer Media', when: 'Yesterday', emoji: '🎥', avbg: 'rgba(208,245,107,.3)' },
+    { first: 'Carlos', last: 'Mendez', name: 'Carlos Mendez', email: 'carlos@mendez.io', phone: '+52 55 5550 0188', company: 'Mendez Commerce', when: 'Yesterday', emoji: '🛒', avbg: 'rgba(54,215,237,.16)' },
+    { first: 'Sofia', last: 'Rossi', name: 'Sofia Rossi', email: 'sofia@rossiclinic.it', phone: '+39 06 5550 0143', company: 'Rossi Clinic', when: '2 days ago', emoji: '🩺', avbg: 'rgba(232,196,91,.25)' },
+    { first: 'Anna', last: 'Wójcik', name: 'Anna Wójcik', email: 'anna@wojcikdental.pl', phone: '+48 22 5550143', company: 'Wójcik Dental', when: '2 days ago', emoji: '🦷', avbg: '#F2EEE4' },
+    { first: 'Daniel', last: 'Cohen', name: 'Daniel Cohen', email: 'daniel@cohengrowth.com', phone: '+1 (646) 555-0188', company: 'Cohen Growth', when: '3 days ago', emoji: '📈', avbg: 'rgba(53,232,52,.16)' },
+  ];
+
+  toast(msg) {
+    this.setState({ toast: msg });
+    clearTimeout(this._t);
+    this._t = setTimeout(() => this.setState({ toast: '' }), 1900);
+  }
+
+  setCfg(key, val) {
+    this.setState(s => ({ cfg: Object.assign({}, s.cfg, { [key]: val }) }));
+  }
+
+  setField(i, key, val) {
+    this.setState(s => {
+      const fields = s.fields.slice();
+      const f = Object.assign({}, fields[i], { [key]: val });
+      if (key === 'type' && val === 'select' && !f.options) f.options = [{ label: 'Option 1', value: 'option_1' }];
+      fields[i] = f;
+      return { fields };
+    });
+  }
+
+  moveField(i, dir) {
+    this.setState(s => {
+      const fields = s.fields.slice();
+      const j = i + dir;
+      if (j < 0 || j >= fields.length) return {};
+      const tmp = fields[i]; fields[i] = fields[j]; fields[j] = tmp;
+      return { fields };
+    });
+  }
+
+  removeField(i) {
+    this.setState(s => ({ fields: s.fields.filter((_, k) => k !== i) }));
+  }
+
+  addAttr(attr) {
+    this.setState(s => ({ fields: s.fields.concat([{ name: attr.name, label: attr.label, type: attr.type, placeholderText: attr.placeholderText, required: false }]) }));
+  }
+
+  addCustom() {
+    this.setState(s => {
+      const n = s.fields.filter(f => /^custom/.test(f.name)).length + 1;
+      return { fields: s.fields.concat([{ name: 'custom_' + n, label: 'Custom field', type: 'text', placeholderText: '', required: false }]) };
+    });
+  }
+
+  addOption(i) {
+    this.setState(s => {
+      const fields = s.fields.slice();
+      const opts = (fields[i].options || []).slice();
+      opts.push({ label: 'Option ' + (opts.length + 1), value: 'option_' + (opts.length + 1) });
+      fields[i] = Object.assign({}, fields[i], { options: opts });
+      return { fields };
+    });
+  }
+
+  setOption(i, io, key, val) {
+    this.setState(s => {
+      const fields = s.fields.slice();
+      const opts = fields[i].options.slice();
+      opts[io] = Object.assign({}, opts[io], { [key]: val });
+      fields[i] = Object.assign({}, fields[i], { options: opts });
+      return { fields };
+    });
+  }
+
+  removeOption(i, io) {
+    this.setState(s => {
+      const fields = s.fields.slice();
+      const opts = fields[i].options.filter((_, k) => k !== io);
+      fields[i] = Object.assign({}, fields[i], { options: opts });
+      return { fields };
+    });
+  }
+
+  chooseTemplate(t) {
+    this.setState({
+      tpl: t.name,
+      fields: JSON.parse(JSON.stringify(t.fields)),
+      cfg: Object.assign({}, this.state.cfg, { submitButtonText: t.submit }),
+    });
+  }
+
+  openForm(f) {
+    const t = this.templates.find(x => x.name === f.tpl) || this.templates[0];
+    this.setState({
+      view: 'builder', expanded: 'build', editingId: f.id, tpl: f.tpl,
+      title: f.title, description: f.description,
+      campaignId: f.campaignId != null ? f.campaignId : 1,
+      listId: f.listId != null ? f.listId : 0,
+      fields: JSON.parse(JSON.stringify(t.fields)),
+      cfg: Object.assign({}, this.state.cfg, { submitButtonText: t.submit }),
+    });
+  }
+
+  openResponses(f) {
+    this.setState({ view: 'responses', responsesId: f.id, responseSel: null, responseSearch: '' });
+  }
+
+  responsesFor(form) {
+    if (!form) return [];
+    const t = this.templates.find(x => x.name === form.tpl) || this.templates[0];
+    const n = Math.min(form.submissions, this.people.length);
+    const valFor = (f, p) => {
+      const m = {
+        name: p.name, first_name: p.first, last_name: p.last, email: p.email,
+        phone: p.phone, whatsapp: p.phone, company_name: p.company, company_size: '25',
+        email_opt_in: 'Yes', service: 'Repair', preferred_date_time: 'Fri 10:00am',
+      };
+      if (m[f.name] != null) return m[f.name];
+      if (f.type === 'checkbox') return 'Yes';
+      if (f.type === 'select' && f.options && f.options[0]) return f.options[0].label;
+      return '—';
+    };
+    return this.people.slice(0, n).map((p, i) => ({
+      id: i, name: p.name, email: p.email, phone: p.phone, company: p.company,
+      when: p.when, emoji: p.emoji, avbg: p.avbg,
+      fields: t.fields.filter(f => f.type !== 'info').map(f => ({ label: f.label, value: valFor(f, p) })),
+    }));
+  }
+
+  newForm() {
+    const t = this.templates[0];
+    this.setState({
+      view: 'builder', expanded: 'template', editingId: 0, tpl: 'newsletter',
+      title: 'Untitled form', description: 'Sign up for our monthly newsletter and product updates.',
+      campaignId: 1, listId: 0,
+      fields: JSON.parse(JSON.stringify(t.fields)),
+      cfg: Object.assign({}, this.state.cfg, { submitButtonText: t.submit }),
+    });
+  }
+
+  buildPreview() {
+    const e = React.createElement;
+    const c = this.state.cfg;
+    const dark = c.isEnableDarkMode && !c.isLightMode;
+    const bg = dark ? c.darkBgColor : c.bgColor;
+    const text = dark ? c.darkTextColor : c.textColor;
+    const btnBg = dark ? c.darkButtonColor : c.buttonColor;
+    const btnText = dark ? c.darkButtonTextColor : c.buttonTextColor;
+    const muted = dark ? 'rgba(255,255,255,.5)' : '#9AA59E';
+    const inputBorder = dark ? 'rgba(255,255,255,.18)' : '#E4EAE6';
+    const inputBg = dark ? 'rgba(255,255,255,.06)' : '#fff';
+    const btnPad = { sm: '9px 18px', md: '12px 22px', lg: '15px 30px' }[c.buttonSize] || '12px 22px';
+    const card = {
+      width: '380px', background: bg, color: text,
+      borderRadius: c.formBorderRadius + 'px', padding: '28px 26px',
+      boxShadow: '0 12px 40px rgba(14,21,18,.16)', fontFamily: "'Hanken Grotesk',sans-serif',",
+      border: dark ? '1px solid rgba(255,255,255,.08)' : '1px solid #EBE3D6',
+    };
+    if (this.state.previewTab === 'success') {
+      return e('div', { style: Object.assign({}, card, { textAlign: 'center', background: dark ? c.darkBgColor : c.successBgColor, color: dark ? c.darkTextColor : c.successTextColor }) }, [
+        e('div', { key: 'i', style: { width: '56px', height: '56px', borderRadius: '50%', background: btnBg, color: btnText, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px', margin: '0 auto 16px' } }, '✓'),
+        e('div', { key: 'h', style: { fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: '22px', marginBottom: '8px' } }, c.successHeading || 'Thanks!'),
+        e('div', { key: 't', style: { fontSize: '14.5px', lineHeight: 1.6, color: muted } }, c.successText || ''),
+      ]);
+    }
+    const labelStyle = { fontSize: '13px', fontWeight: 600, marginBottom: '6px', display: 'block', color: text };
+    const inputStyle = { width: '100%', border: '1px solid ' + inputBorder, borderRadius: c.inputBorderRadius + 'px', padding: c.inputPaddingY + 'px ' + c.inputPaddingX + 'px', fontSize: '14px', background: inputBg, color: text, boxSizing: 'border-box', fontFamily: 'inherit' };
+    const req = (f) => f.required ? e('span', { style: { color: '#E0796B', marginLeft: '3px' } }, '*') : null;
+    const fieldEls = this.state.fields.map((f, i) => {
+      const key = 'f' + i;
+      if (f.type === 'info') return e('p', { key, style: { fontSize: '13px', lineHeight: 1.55, color: muted, margin: '0 0 14px' } }, f.label);
+      if (f.type === 'checkbox') return e('label', { key, style: { display: 'flex', alignItems: 'center', gap: '9px', margin: '0 0 14px', fontSize: '13.5px', color: text, cursor: 'pointer' } }, [
+        e('span', { key: 'b', style: { width: '18px', height: '18px', borderRadius: '5px', border: '1px solid ' + inputBorder, flex: 'none', background: inputBg } }), f.label,
+      ]);
+      let control;
+      if (f.type === 'textarea') control = e('textarea', { rows: 3, placeholder: f.placeholderText, style: Object.assign({}, inputStyle, { resize: 'none' }) });
+      else if (f.type === 'select') control = e('div', { style: Object.assign({}, inputStyle, { display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: muted }) }, [e('span', { key: 's' }, f.placeholderText || 'Select…'), e('span', { key: 'c' }, '⌄')]);
+      else control = e('input', { placeholder: f.placeholderText, style: inputStyle });
+      return e('div', { key, style: { marginBottom: '14px' } }, [
+        e('label', { key: 'l', style: labelStyle }, [f.label, req(f)]), control,
+      ]);
+    });
+    const children = [];
+    if (c.isShowTitle) children.push(e('div', { key: 'title', style: { fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: '21px', letterSpacing: '-.01em', marginBottom: c.isShowDescription ? '6px' : '16px' } }, this.state.title || 'Untitled form'));
+    if (c.isShowDescription) children.push(e('div', { key: 'desc', style: { fontSize: '13.5px', lineHeight: 1.55, color: muted, marginBottom: '18px' } }, this.state.description));
+    fieldEls.forEach(el => children.push(el));
+    children.push(e('button', { key: 'submit', style: { width: '100%', border: 'none', borderRadius: c.buttonBorderRadius + 'px', padding: btnPad, background: btnBg, color: btnText, fontSize: '15px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', marginTop: '4px' } }, c.submitButtonText || 'Submit'));
+    return e('div', { style: card }, children);
+  }
+
+  renderVals() {
+    const s = this.state;
+    const c = s.cfg;
+    const navMain = [
+      { label: 'Dashboard', icon: '◈' }, { label: 'Agents', icon: '◎' }, { label: 'Contacts', icon: '☺' },
+      { label: 'Analytics', icon: '▤' }, { label: 'Automations', icon: '⟳' }, { label: 'Integrations', icon: '⚯' },
+    ].map(n => ({ ...n, weight: 500, color: 'rgba(255,255,255,.82)', bg: 'transparent' }));
+    const toolItems = [
+      { label: 'Dynamic Proposals', icon: '❒' }, { label: 'Forms', icon: '⊞', active: true },
+      { label: 'Agent Widget', icon: '◉' }, { label: 'Lead Finder', icon: '⚲' }, { label: 'LinkedIn Extension', icon: 'in' },
+    ].map(t => ({
+      label: t.label, icon: t.icon, weight: t.active ? 700 : 500,
+      color: t.active ? '#0A0F0C' : 'rgba(255,255,255,.82)',
+      bg: t.active ? 'linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B)' : 'transparent',
+    }));
+    const navUtility = [{ label: 'Help', icon: '?' }, { label: 'Settings', icon: '⚙' }];
+
+    const forms = this.forms.map(f => {
+      const t = this.templates.find(x => x.name === f.tpl);
+      const camp = this.campaigns.find(x => x.id === f.campaignId);
+      return {
+        ...f, templateTitle: t ? t.title : 'Custom',
+        statusLabel: f.live ? 'Live' : 'Draft',
+        statusFg: f.live ? '#16A82A' : '#8A7F6B',
+        statusBg: f.live ? 'rgba(53,232,52,.12)' : '#F2EEE4',
+        campaignName: camp ? camp.name : 'No campaign',
+        hasCampaign: !!(camp && camp.id !== 0),
+        onOpen: () => { if (f.live) this.openResponses(f); else this.openForm(f); },
+        onView: (ev) => { if (ev && ev.stopPropagation) ev.stopPropagation(); this.openResponses(f); },
+        onEdit: (ev) => { if (ev && ev.stopPropagation) ev.stopPropagation(); this.openForm(f); },
+        onCopy: (ev) => { if (ev && ev.stopPropagation) ev.stopPropagation(); this.toast('Embed code copied'); },
+      };
+    });
+
+    const knob = (on) => on ? '20px' : '3px';
+    const sw = (color, active) => ({ color, border: active ? '#0E1512' : 'rgba(0,0,0,.12)' });
+
+    const templates = this.templates.map(t => {
+      const active = t.name === s.tpl;
+      return {
+        ...t, onPick: () => this.chooseTemplate(t),
+        border: active ? '#35E834' : '#E4EAE6', bg: active ? '#F4FBF5' : '#fff',
+        iconbg: active ? 'linear-gradient(135deg,#36D7ED,#35E834 60%,#D0F56B)' : '#F2EEE4',
+        iconfg: active ? '#0A0F0C' : '#8A7F6B',
+      };
+    });
+
+    const added = s.fields.map(f => f.name);
+    const availAttrs = this.leadAttrs.filter(a => !added.includes(a.name)).map(a => ({ ...a, onAdd: () => this.addAttr(a) }));
+
+    const builderFields = s.fields.map((f, i) => ({
+      name: f.name, label: f.label, type: f.type, placeholderText: f.placeholderText,
+      useLabel: f.type !== 'info' && f.type !== 'checkbox',
+      isSelect: f.type === 'select',
+      reqBg: f.required ? '#35E834' : '#D7DED8', reqKnob: knob(f.required),
+      onLabel: (ev) => this.setField(i, 'label', ev.target.value),
+      onPlaceholder: (ev) => this.setField(i, 'placeholderText', ev.target.value),
+      onType: (ev) => this.setField(i, 'type', ev.target.value),
+      onReq: () => this.setField(i, 'required', !f.required),
+      onUp: () => this.moveField(i, -1), onDown: () => this.moveField(i, 1),
+      onRemove: () => this.removeField(i),
+      onAddOption: () => this.addOption(i),
+      options: (f.options || []).map((o, io) => ({
+        label: o.label, value: o.value,
+        onLabel: (ev) => this.setOption(i, io, 'label', ev.target.value),
+        onValue: (ev) => this.setOption(i, io, 'value', ev.target.value),
+        onRemove: () => this.removeOption(i, io),
+      })),
+    }));
+
+    const bgChoices = ['#ffffff', '#F7F9F8', '#0C140F', '#EAF9EC', '#E6F8FB'];
+    const btnChoices = ['#35E834', '#16A82A', '#36D7ED', '#0E1512', '#E0796B'];
+    const bgSwatches = bgChoices.map(col => ({ color: col, ...sw(col, c.bgColor === col), onPick: () => this.setCfg('bgColor', col) }));
+    const btnSwatches = btnChoices.map(col => ({ color: col, ...sw(col, c.buttonColor === col), onPick: () => this.setCfg('buttonColor', col) }));
+
+    const sizeOpts = [{ k: 'sm', label: 'Small' }, { k: 'md', label: 'Medium' }, { k: 'lg', label: 'Large' }].map(z => {
+      const active = c.buttonSize === z.k;
+      return { label: z.label, onPick: () => this.setCfg('buttonSize', z.k), fg: active ? '#0A0F0C' : '#5C6B62', bg: active ? '#EAF9EC' : '#fff', border: active ? '#9FD8AC' : '#E4EAE6' };
+    });
+
+    const lists = this.lists.map(l => {
+      const active = s.listId === l.id;
+      return { title: l.title, count: l.count, onPick: () => this.setState({ listId: l.id }), border: active ? '#35E834' : '#E4EAE6', bg: active ? '#F4FBF5' : '#fff', dot: active ? '#16A82A' : '#C7D0CA', dotFill: active ? '#16A82A' : 'transparent' };
+    });
+
+    const campaignsUI = this.campaigns.map(cp => {
+      const active = s.campaignId === cp.id;
+      return { title: cp.name, onPick: () => this.setState({ campaignId: cp.id }), border: active ? '#35E834' : '#E4EAE6', bg: active ? '#F4FBF5' : '#fff', dot: active ? '#16A82A' : '#C7D0CA', dotFill: active ? '#16A82A' : 'transparent', tag: cp.id === 0 ? 'Leads stay unassigned' : 'AI agent follows up' };
+    });
+
+    // ----- responses view -----
+    const rForm = this.forms.find(f => f.id === s.responsesId) || this.forms[0];
+    const rCampaign = this.campaigns.find(c => c.id === (rForm ? rForm.campaignId : 0));
+    const rList = this.lists.find(l => l.id === (rForm ? rForm.listId : 0));
+    const allResp = this.responsesFor(rForm);
+    const rq = s.responseSearch.trim().toLowerCase();
+    const respList = rq ? allResp.filter(r => (r.name + ' ' + r.email + ' ' + r.company).toLowerCase().includes(rq)) : allResp;
+    const responses = respList.map(r => ({ ...r, onOpen: () => this.setState({ responseSel: r.id }) }));
+    const selResp = s.responseSel != null ? allResp.find(r => r.id === s.responseSel) : null;
+
+    const exp = (k) => s.expanded === k;
+    const chev = (k) => exp(k) ? 'rotate(180deg)' : 'rotate(0deg)';
+
+    return {
+      navMain, toolItems, navUtility,
+      isList: s.view === 'list', isBuilder: s.view === 'builder', isResponses: s.view === 'responses',
+      totalCount: this.forms.length,
+      useCases: ['Bookings', 'Lead capture', 'Newsletter sign-ups', 'Inquiries'],
+      forms,
+      onCreate: () => this.newForm(),
+      onBack: () => this.setState({ view: 'list' }),
+      canDelete: s.editingId !== 0,
+      onDelete: () => { this.toast('Form deleted'); this.setState({ view: 'list' }); },
+      onSave: () => this.toast('Form saved & published'),
+      title: s.title, onTitle: (ev) => this.setState({ title: ev.target.value }),
+      description: s.description, onDesc: (ev) => this.setState({ description: ev.target.value }),
+      submitText: c.submitButtonText, onSubmitText: (ev) => this.setCfg('submitButtonText', ev.target.value),
+
+      templates, fieldCount: s.fields.length, builderFields, availAttrs,
+      onAddCustomText: () => this.addCustom(),
+
+      // accordion
+      onToggleTemplate: () => this.setState({ expanded: exp('template') ? null : 'template' }),
+      onToggleBuild: () => this.setState({ expanded: exp('build') ? null : 'build' }),
+      onToggleStyle: () => this.setState({ expanded: exp('style') ? null : 'style' }),
+      onToggleAdvanced: () => this.setState({ expanded: exp('advanced') ? null : 'advanced' }),
+      onToggleContact: () => this.setState({ expanded: exp('contact') ? null : 'contact' }),
+      expTemplate: exp('template'), expBuild: exp('build'), expStyle: exp('style'), expAdvanced: exp('advanced'), expContact: exp('contact'),
+      tplChevron: chev('template'), buildChevron: chev('build'), styleChevron: chev('style'), advChevron: chev('advanced'), contactChevron: chev('contact'),
+
+      // title/desc toggles
+      onToggleShowTitle: () => this.setCfg('isShowTitle', !c.isShowTitle),
+      onToggleShowDesc: () => this.setCfg('isShowDescription', !c.isShowDescription),
+      showTitleBg: c.isShowTitle ? '#35E834' : '#D7DED8', showTitleKnob: knob(c.isShowTitle),
+      showDescBg: c.isShowDescription ? '#35E834' : '#D7DED8', showDescKnob: knob(c.isShowDescription),
+
+      // style
+      bgSwatches, btnSwatches, sizeOpts,
+      formRadius: c.formBorderRadius, onFormRadius: (ev) => this.setCfg('formBorderRadius', +ev.target.value || 0),
+      buttonRadius: c.buttonBorderRadius, onButtonRadius: (ev) => this.setCfg('buttonBorderRadius', +ev.target.value || 0),
+      inputRadius: c.inputBorderRadius, onInputRadius: (ev) => this.setCfg('inputBorderRadius', +ev.target.value || 0),
+      onToggleDark: () => this.setCfg('isEnableDarkMode', !c.isEnableDarkMode),
+      darkBg: c.isEnableDarkMode ? '#35E834' : '#D7DED8', darkKnob: knob(c.isEnableDarkMode),
+
+      // advanced
+      redirectUrl: c.redirectUrl, onRedirect: (ev) => this.setCfg('redirectUrl', ev.target.value),
+      successHeading: c.successHeading, onSuccessHeading: (ev) => this.setCfg('successHeading', ev.target.value),
+      successText: c.successText, onSuccessText: (ev) => this.setCfg('successText', ev.target.value),
+      onToggleDoubleOptIn: () => this.setCfg('isEnableDoubleOptInMode', !c.isEnableDoubleOptInMode),
+      optInBg: c.isEnableDoubleOptInMode ? '#35E834' : '#D7DED8', optInKnob: knob(c.isEnableDoubleOptInMode),
+
+      // contact
+      lists,
+      campaignsUI,
+
+      // install
+      codeSnippet: '<iframe src="https://forms.clientforce.co/f/' + (s.editingId || 'new') + '" width="100%" height="' + (228 + s.fields.length * 80) + '"></iframe>',
+      onCopyEmbed: () => this.toast('Install code copied'),
+
+      // preview
+      previewNode: this.buildPreview(),
+      onTabForm: () => this.setState({ previewTab: 'form' }),
+      onTabSuccess: () => this.setState({ previewTab: 'success' }),
+      tabFormFg: s.previewTab === 'form' ? '#0A0F0C' : '#8A7F6B', tabFormBg: s.previewTab === 'form' ? '#EAF9EC' : 'transparent',
+      tabSuccessFg: s.previewTab === 'success' ? '#0A0F0C' : '#8A7F6B', tabSuccessBg: s.previewTab === 'success' ? '#EAF9EC' : 'transparent',
+      darkEnabled: c.isEnableDarkMode,
+      onToggleLight: () => this.setCfg('isLightMode', !c.isLightMode),
+      lightLabel: c.isLightMode ? '◐ Light' : '◑ Dark',
+
+      // toast
+      showToast: !!s.toast, toast: s.toast,
+
+      // responses view
+      rTitle: rForm ? rForm.title : '',
+      rCount: rForm ? rForm.submissions : 0,
+      rCampaignName: rCampaign ? rCampaign.name : 'No campaign',
+      rHasCampaign: !!(rCampaign && rCampaign.id !== 0),
+      rListName: rList ? rList.title : 'Not in a list',
+      rTileBg: rForm ? rForm.tilebg : '#EAF9EC', rTileFg: rForm ? rForm.tilefg : '#16A82A', rIcon: rForm ? rForm.icon : '✉',
+      responses, responsesEmpty: respList.length === 0,
+      responseSearch: s.responseSearch, onResponseSearch: (ev) => this.setState({ responseSearch: ev.target.value }),
+      hasResponseSearch: !!s.responseSearch, clearResponseSearch: () => this.setState({ responseSearch: '' }),
+      onResponsesBack: () => this.setState({ view: 'list', responseSel: null }),
+      onEditFromResponses: () => { if (rForm) this.openForm(rForm); },
+      onExportResponses: () => this.toast('Exporting submissions as CSV…'),
+      respDrawerOpen: !!selResp, respSel: selResp || { fields: [] },
+      closeRespDrawer: () => this.setState({ responseSel: null }),
+      stopProp: (ev) => { if (ev && ev.stopPropagation) ev.stopPropagation(); },
+      onViewContact: () => this.toast('Opening contact record…'),
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,1296 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&amp;family=Hanken+Grotesk:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0;padding:0;}
+  *{box-sizing:border-box;}
+</style>
+<script src="sidebar.js"></script>
+</helmet>
+
+<div style="position:relative;min-height:100vh;width:100%;background:#FBF7F0;font-family:'Hanken Grotesk',sans-serif;overflow:hidden;"><div style="display:flex;">
+      <!-- SIDEBAR -->
+      <cf-sidebar active="settings" style="width:248px;flex:none;align-self:stretch;background:#0C140F;"></cf-sidebar>
+
+      <!-- MAIN -->
+      <div style="flex:1;background:#FBF7F0;min-width:0;display:flex;flex-direction:column;">
+        <div style="padding:26px 30px 0;">
+          <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:28px;letter-spacing:-.02em;color:#0E1512;">Settings</div>
+          <div style="font-size:15px;color:#5C6B62;margin-bottom:20px;">Account, workspace and communication channels.</div>
+        </div>
+        <div style="display:flex;gap:26px;padding:0 30px 34px;align-items:flex-start;">
+          <!-- SUB NAV -->
+          <div style="flex:0 0 226px;position:sticky;top:20px;">
+            <div style="background:linear-gradient(168deg,#FFFFFF 0%,#FBF8F1 46%,#F3F7F3 100%);border:1px solid #EAE3D5;border-radius:16px;overflow:hidden;box-shadow:0 1px 0 rgba(255,255,255,.7) inset,0 10px 30px rgba(14,21,18,.07);">
+              <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#9AA59E;padding:14px 18px 8px;">Account</div>
+              <sc-for list="{{ accountNav }}" as="s" hint-placeholder-count="3">
+                <div onClick="{{ s.onClick }}" style="display:flex;align-items:center;gap:11px;margin:3px 10px;padding:7px 10px;border-radius:11px;font-size:14px;font-weight:{{ s.weight }};color:{{ s.color }};background:{{ s.pillBg }};box-shadow:{{ s.pillShadow }};cursor:pointer;" style-hover="background:{{ s.hoverBg }};"><span style="width:28px;height:28px;border-radius:8px;flex:none;background:{{ s.iconBg }};color:{{ s.iconFg }};border:1px solid {{ s.iconBorder }};display:flex;align-items:center;justify-content:center;font-size:14px;">{{ s.icon }}</span>{{ s.label }}</div>
+              </sc-for>
+              <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#9AA59E;padding:14px 18px 8px;border-top:1px solid #F2EEE4;">Workspace</div>
+              <sc-for list="{{ workspaceNav }}" as="s" hint-placeholder-count="3">
+                <div onClick="{{ s.onClick }}" style="display:flex;align-items:center;gap:11px;margin:3px 10px;padding:7px 10px;border-radius:11px;font-size:14px;font-weight:{{ s.weight }};color:{{ s.color }};background:{{ s.pillBg }};box-shadow:{{ s.pillShadow }};cursor:pointer;" style-hover="background:{{ s.hoverBg }};"><span style="width:28px;height:28px;border-radius:8px;flex:none;background:{{ s.iconBg }};color:{{ s.iconFg }};border:1px solid {{ s.iconBorder }};display:flex;align-items:center;justify-content:center;font-size:14px;">{{ s.icon }}</span>{{ s.label }}</div>
+              </sc-for>
+              <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#9AA59E;padding:14px 18px 8px;border-top:1px solid #F2EEE4;">Communication</div>
+              <sc-for list="{{ commNav }}" as="s" hint-placeholder-count="5">
+                <div onClick="{{ s.onClick }}" style="display:flex;align-items:center;gap:11px;margin:3px 10px;padding:7px 10px;border-radius:11px;font-size:14px;font-weight:{{ s.weight }};color:{{ s.color }};background:{{ s.pillBg }};box-shadow:{{ s.pillShadow }};cursor:pointer;" style-hover="background:{{ s.hoverBg }};">
+                  <span style="width:28px;height:28px;border-radius:8px;flex:none;background:{{ s.iconBg }};color:{{ s.iconFg }};border:1px solid {{ s.iconBorder }};display:flex;align-items:center;justify-content:center;font-size:14px;">{{ s.icon }}</span><span style="flex:1;">{{ s.label }}</span>
+                  <sc-if value="{{ s.beta }}" hint-placeholder-val="{{ false }}"><span style="font-size:10px;font-weight:800;letter-spacing:.04em;color:#1192A6;background:rgba(54,215,237,.16);border-radius:6px;padding:2px 7px;">BETA</span></sc-if>
+                </div>
+              </sc-for>
+              <div onClick="{{ onLogout }}" style="padding:11px 18px;border-top:1px solid #F2EEE4;font-size:14px;color:#C9543F;font-weight:600;cursor:pointer;">Log out</div>
+            </div>
+          </div>
+
+          <!-- CONTENT -->
+          <div style="flex:1;min-width:0;max-width:1000px;">
+
+            <!-- PROFILE -->
+            <sc-if value="{{ isProfile }}" hint-placeholder-val="{{ true }}">
+              <div style="background:#fff;border:1px solid #EBE3D6;border-radius:18px;padding:22px 24px;box-shadow:0 4px 16px rgba(14,21,18,.04);margin-bottom:16px;">
+                <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:17px;color:#0E1512;">Workspace details</div>
+                <div style="font-size:13px;color:#9AA59E;margin-bottom:16px;">The currently active workspace.</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+                  <sc-for list="{{ workspaceDetails }}" as="w" hint-placeholder-count="6">
+                    <div><div style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#9AA59E;margin-bottom:3px;">{{ w.label }}</div><div style="font-size:14.5px;font-weight:600;color:#0E1512;font-family:{{ w.font }};word-break:break-word;">{{ w.value }}</div></div>
+                  </sc-for>
+                </div>
+              </div>
+              <div style="background:#fff;border:1px solid #EBE3D6;border-radius:18px;padding:22px 24px;box-shadow:0 4px 16px rgba(14,21,18,.04);margin-bottom:16px;">
+                <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:17px;color:#0E1512;margin-bottom:16px;">Personal info</div>
+                <div style="display:flex;align-items:center;gap:16px;margin-bottom:18px;">
+                  <div style="width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#36D7ED,#35E834);color:#0A0F0C;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:21px;font-family:'Bricolage Grotesque',sans-serif;">JM</div>
+                  <span onClick="{{ tPhoto }}" style="font-size:13.5px;font-weight:600;color:#0E1512;background:#fff;border:1px solid #EBE3D6;border-radius:10px;padding:9px 15px;cursor:pointer;">Change photo</span>
+                </div>
+                <div style="display:flex;gap:16px;margin-bottom:14px;">
+                  <div style="flex:1;"><label style="display:block;font-size:12px;font-weight:700;color:#5C6B62;margin-bottom:6px;">Full name</label><div style="height:46px;border-radius:11px;background:#fff;border:1px solid #EBE3D6;display:flex;align-items:center;padding:0 14px;font-size:14px;color:#0E1512;">Jordan Mensah</div></div>
+                  <div style="flex:1;"><label style="display:block;font-size:12px;font-weight:700;color:#5C6B62;margin-bottom:6px;">Email</label><div style="height:46px;border-radius:11px;background:#fff;border:1px solid #EBE3D6;display:flex;align-items:center;padding:0 14px;font-size:14px;color:#0E1512;">jordan@brightpathgrowth.co</div></div>
+                </div>
+                <div style="display:flex;gap:16px;">
+                  <div style="flex:1;"><label style="display:block;font-size:12px;font-weight:700;color:#5C6B62;margin-bottom:6px;">Company</label><div style="height:46px;border-radius:11px;background:#fff;border:1px solid #EBE3D6;display:flex;align-items:center;padding:0 14px;font-size:14px;color:#0E1512;">BrightPath Growth</div></div>
+                  <div style="flex:1;"><label style="display:block;font-size:12px;font-weight:700;color:#5C6B62;margin-bottom:6px;">Timezone</label><div style="height:46px;border-radius:11px;background:#fff;border:1px solid #EBE3D6;display:flex;align-items:center;padding:0 14px;font-size:14px;color:#0E1512;">(GMT−06:00) Central Time<span style="margin-left:auto;color:#9AA59E;">⌄</span></div></div>
+                </div>
+              </div>
+              <div style="background:#fff;border:1px solid #EBE3D6;border-radius:18px;box-shadow:0 4px 16px rgba(14,21,18,.04);overflow:hidden;margin-bottom:16px;">
+                <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:17px;color:#0E1512;padding:18px 24px 4px;">Security</div>
+                <div style="display:flex;align-items:center;gap:14px;padding:14px 24px;border-top:1px solid #F2EEE4;"><div style="flex:1;"><div style="font-size:14px;font-weight:600;color:#0E1512;">Two-factor authentication</div><div style="font-size:12.5px;color:#9AA59E;">Require a code at sign-in.</div></div><span onClick="{{ toggle2fa }}" style="width:44px;height:26px;border-radius:100px;background:{{ tfaBg }};position:relative;display:inline-block;flex:none;cursor:pointer;"><span style="position:absolute;top:3px;{{ tfaKnob }}:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2);"></span></span></div>
+                <div style="display:flex;align-items:center;gap:14px;padding:14px 24px;border-top:1px solid #F2EEE4;"><div style="flex:1;"><div style="font-size:14px;font-weight:600;color:#0E1512;">Password</div><div style="font-size:12.5px;color:#9AA59E;">Last changed 3 months ago.</div></div><span onClick="{{ tPassword }}" style="font-size:13.5px;font-weight:600;color:#0E1512;background:#fff;border:1px solid #EBE3D6;border-radius:10px;padding:9px 15px;cursor:pointer;">Change</span></div>
+              </div>
+              <span onClick="{{ tSaveProfile }}" style="font-size:14px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);border-radius:11px;padding:11px 22px;cursor:pointer;box-shadow:0 6px 16px rgba(53,232,52,.24);">Save changes</span>
+            </sc-if>
+
+            <!-- BILLING -->
+            <sc-if value="{{ isBilling }}" hint-placeholder-val="{{ false }}">
+              <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:16px;margin-bottom:16px;">
+                <div style="background:#0C140F;border-radius:18px;padding:22px;color:#fff;">
+                  <div style="font-size:12px;font-weight:600;color:#7FE8A0;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;">Credit balance</div>
+                  <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:40px;line-height:1;margin-bottom:4px;">{{ creditsDisplay }}</div>
+                  <div style="font-size:13px;color:rgba(255,255,255,.6);margin-bottom:16px;">≈ {{ creditsDays }} days at current pace</div>
+                  <span onClick="{{ openTopup }}" style="font-size:13.5px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);border-radius:10px;padding:9px 16px;cursor:pointer;">+ Top up credits</span>
+                </div>
+                <div style="background:#fff;border:1px solid #EBE3D6;border-radius:18px;padding:22px;box-shadow:0 4px 16px rgba(14,21,18,.04);">
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;"><span style="font-size:13px;font-weight:700;color:#0E1512;">This month's usage</span><span style="font-size:13px;color:#9AA59E;">1,840 / 8,000</span></div>
+                  <div style="height:10px;border-radius:100px;background:#F2EEE4;overflow:hidden;margin-bottom:14px;"><div style="height:100%;width:23%;border-radius:100px;background:linear-gradient(90deg,#36D7ED,#35E834);"></div></div>
+                  <div style="display:flex;align-items:center;gap:10px;border-top:1px solid #F2EEE4;padding-top:12px;"><span style="font-size:13.5px;font-weight:600;color:#0E1512;flex:1;">Auto top-up at 500 credits</span><span onClick="{{ toggleAutoTopup }}" style="width:42px;height:24px;border-radius:100px;background:{{ autoTopupBg }};position:relative;display:inline-block;flex:none;cursor:pointer;"><span style="position:absolute;top:3px;{{ autoTopupKnob }}:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2);"></span></span></div>
+                </div>
+              </div>
+              <div style="background:#fff;border:1px solid #EBE3D6;border-radius:18px;padding:22px;box-shadow:0 4px 16px rgba(14,21,18,.04);margin-bottom:16px;display:flex;align-items:center;gap:16px;">
+                <div style="flex:1;"><div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:17px;color:#0E1512;">Growth plan</div><div style="font-size:13.5px;color:#5C6B62;">$199 / mo · 8,000 credits · unlimited agents · all channels</div></div>
+                <span onClick="{{ tPlan }}" style="font-size:13.5px;font-weight:600;color:#0E1512;background:#fff;border:1px solid #EBE3D6;border-radius:10px;padding:9px 16px;cursor:pointer;">Change plan</span>
+              </div>
+              <div style="background:#fff;border:1px solid #EBE3D6;border-radius:18px;box-shadow:0 4px 16px rgba(14,21,18,.04);overflow:hidden;margin-bottom:16px;">
+                <div style="display:flex;align-items:center;gap:13px;padding:18px 22px;">
+                  <span style="width:42px;height:30px;border-radius:7px;background:#0C140F;color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;">VISA</span>
+                  <span style="font-size:14px;font-weight:600;color:#0E1512;flex:1;">Visa ···· 4242 <span style="color:#9AA59E;font-weight:400;">· expires 08/27</span></span>
+                  <span onClick="{{ tPay }}" style="font-size:13.5px;font-weight:600;color:#16A82A;cursor:pointer;">Update</span>
+                </div>
+              </div>
+              <div style="background:#fff;border:1px solid #EBE3D6;border-radius:18px;box-shadow:0 4px 16px rgba(14,21,18,.04);overflow:hidden;">
+                <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:16px;color:#0E1512;padding:16px 22px;">Invoices</div>
+                <sc-for list="{{ invoices }}" as="iv" hint-placeholder-count="3">
+                  <div style="display:flex;align-items:center;gap:12px;padding:12px 22px;border-top:1px solid #F2EEE4;"><span style="font-size:14px;color:#0E1512;flex:1;">{{ iv.date }}</span><span style="font-size:14px;font-weight:600;color:#0E1512;">{{ iv.amount }}</span><span style="font-size:12px;font-weight:600;color:#0F7A28;background:#D7F5DD;border-radius:100px;padding:4px 11px;">{{ iv.status }}</span><span onClick="{{ tInvoice }}" style="font-size:13px;font-weight:600;color:#16A82A;cursor:pointer;">↓ PDF</span></div>
+                </sc-for>
+              </div>
+            </sc-if>
+
+            <!-- CUSTOM FIELDS -->
+            <sc-if value="{{ isCustom }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+                <div style="flex:0 0 300px;display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #EBE3D6;border-radius:12px;padding:11px 16px;"><span style="color:#9AA59E;">⚲</span><input value="{{ cfSearch }}" onInput="{{ onCfSearch }}" placeholder="Search fields…" style="border:none;background:transparent;font-size:14px;color:#0E1512;flex:1;min-width:0;padding:0;"></div>
+                <span onClick="{{ openAddField }}" style="margin-left:auto;font-size:14px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);border-radius:11px;padding:11px 18px;cursor:pointer;">+ Add field</span>
+              </div>
+              <div style="background:#fff;border:1px solid #EBE3D6;border-radius:18px;box-shadow:0 4px 16px rgba(14,21,18,.04);overflow:hidden;">
+                <div style="display:grid;grid-template-columns:1.4fr 1fr 1.2fr 44px;padding:11px 22px;background:#FBF7F0;border-bottom:1px solid #EBE3D6;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.02em;color:#5C6B62;"><span>Field label</span><span>Type</span><span>Field ID</span><span></span></div>
+                <sc-for list="{{ customFields }}" as="f" hint-placeholder-count="4">
+                  <div style="display:grid;grid-template-columns:1.4fr 1fr 1.2fr 44px;padding:13px 22px;border-top:1px solid #F2EEE4;align-items:center;font-size:14px;color:#0E1512;"><span style="font-weight:600;">{{ f.label }}</span><span><span style="font-size:12px;font-weight:600;color:#5C6B62;background:#F2EEE4;border-radius:7px;padding:3px 10px;">{{ f.type }}</span></span><span style="font-family:monospace;font-size:12.5px;color:#8A7F6B;">{{ f.slug }}</span><span onClick="{{ f.onRemove }}" style="text-align:center;color:#C9543F;font-weight:700;cursor:pointer;" title="Remove">✕</span></div>
+                </sc-for>
+                <sc-if value="{{ cfEmpty }}" hint-placeholder-val="{{ false }}"><div style="padding:34px;text-align:center;color:#9AA59E;font-size:13.5px;">No custom fields match.</div></sc-if>
+              </div>
+            </sc-if>
+
+            <!-- BRAND KIT -->
+            <sc-if value="{{ isBrand }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:14px;">
+                <div><div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:18px;color:#0E1512;">Brand knowledge</div><div style="font-size:13px;color:#9AA59E;">Docs, SOPs, sources, offer &amp; guardrails — the context your AI agents write and act from.</div></div>
+                <div style="display:flex;align-items:center;gap:10px;flex:none;">
+                  <span onClick="{{ toggleAgentSummary }}" style="display:inline-flex;align-items:center;gap:8px;font-size:13.5px;font-weight:700;color:#16A82A;background:rgba(53,232,52,.1);border:1px solid #9FD8AC;border-radius:11px;padding:9px 15px;cursor:pointer;">✦ Agent summary <span style="font-size:11px;color:#5C9E6E;">{{ agentSummaryChevron }}</span></span>
+                  <span onClick="{{ saveBrand }}" style="font-size:14px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);border-radius:11px;padding:10px 18px;cursor:pointer;box-shadow:0 6px 16px rgba(53,232,52,.24);">Save knowledge</span>
+                </div>
+              </div>
+
+              <!-- AGENT SUMMARY (reveal) -->
+              <sc-if value="{{ agentSummaryOpen }}" hint-placeholder-val="{{ false }}">
+                <div style="background:#0C140F;border-radius:18px;padding:20px 22px;margin-bottom:16px;color:#fff;box-shadow:0 14px 34px rgba(12,20,15,.2);">
+                  <div style="display:flex;align-items:center;gap:11px;margin-bottom:4px;">
+                    <span style="width:30px;height:30px;border-radius:9px;flex:none;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);color:#0A0F0C;display:flex;align-items:center;justify-content:center;font-size:15px;">✦</span>
+                    <span style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:16px;flex:1;">Agent summary</span>
+                    <span onClick="{{ toggleAgentSummary }}" style="font-size:12.5px;color:rgba(255,255,255,.55);cursor:pointer;">✕ Hide</span>
+                  </div>
+                  <div style="font-size:12.5px;color:rgba(255,255,255,.55);margin-bottom:13px;">The synthesized context your agents reason from, organized for selling — edit any section.</div>
+                  <div style="display:flex;align-items:center;gap:14px;margin-bottom:11px;">
+                    <span style="font-size:11px;font-weight:700;color:#7FE8A0;background:rgba(127,232,160,.12);border-radius:100px;padding:3px 10px;">{{ summaryCount }} sections</span>
+                    <span style="flex:1;"></span>
+                    <span onClick="{{ expandAllSummary }}" style="font-size:12px;font-weight:600;color:rgba(255,255,255,.6);cursor:pointer;">Expand all</span>
+                    <span onClick="{{ collapseAllSummary }}" style="font-size:12px;font-weight:600;color:rgba(255,255,255,.6);cursor:pointer;">Collapse all</span>
+                  </div>
+                  <sc-for list="{{ summarySections }}" as="s" hint-placeholder-count="14">
+                    <div style="border:1px solid rgba(255,255,255,.10);border-radius:11px;margin-bottom:8px;overflow:hidden;background:rgba(255,255,255,.03);">
+                      <div onClick="{{ s.onToggle }}" style="display:flex;align-items:center;gap:11px;padding:11px 13px;cursor:pointer;">
+                        <span style="font-size:10.5px;font-weight:800;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);border-radius:6px;padding:3px 6px;flex:none;font-family:monospace;">{{ s.n }}</span>
+                        <div style="flex:1;min-width:0;">
+                          <div style="font-size:13px;font-weight:700;color:#fff;">{{ s.title }}</div>
+                          <sc-if value="{{ s.notExpanded }}" hint-placeholder-val="{{ false }}"><div style="font-size:11.5px;color:rgba(255,255,255,.45);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px;">{{ s.preview }}</div></sc-if>
+                        </div>
+                        <span style="font-size:11px;color:rgba(255,255,255,.4);flex:none;">{{ s.chevron }}</span>
+                      </div>
+                      <sc-if value="{{ s.expanded }}" hint-placeholder-val="{{ false }}">
+                        <div style="padding:0 13px 13px;">
+                          <textarea value="{{ s.body }}" onInput="{{ s.onEdit }}" rows="4" style="width:100%;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);padding:11px 13px;font-size:13px;line-height:1.55;color:#fff;font-family:'Hanken Grotesk',sans-serif;resize:vertical;" style-focus="border-color:#7FE8A0;"></textarea>
+                        </div>
+                      </sc-if>
+                    </div>
+                  </sc-for>
+                  <div style="display:flex;align-items:center;gap:14px;margin-top:13px;">
+                    <span style="font-size:12px;color:rgba(255,255,255,.45);flex:1;min-width:0;">Auto-generated from your docs, sources, offer &amp; guardrails.</span>
+                    <span onClick="{{ regenAgentSummary }}" style="font-size:13px;font-weight:600;color:#7FE8A0;cursor:pointer;flex:none;">↻ Regenerate</span>
+                    <span onClick="{{ saveAgentSummary }}" style="font-size:13.5px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);border-radius:10px;padding:9px 18px;cursor:pointer;flex:none;">Save summary</span>
+                  </div>
+                </div>
+              </sc-if>
+
+              <!-- KNOWLEDGE: docs & SOPs -->
+              <div style="background:#fff;border:1px solid #EBE3D6;border-radius:18px;padding:22px 24px;box-shadow:0 4px 16px rgba(14,21,18,.04);margin-bottom:16px;">
+                <div style="display:flex;align-items:center;margin-bottom:4px;"><span style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:16px;color:#0E1512;flex:1;">Company docs &amp; SOPs</span><span style="font-size:12px;font-weight:600;color:#16A82A;background:rgba(53,232,52,.1);border-radius:100px;padding:3px 11px;">{{ docCount }} indexed</span></div>
+                <div style="font-size:12.5px;color:#9AA59E;margin-bottom:14px;">Upload playbooks, SOPs, pricing &amp; FAQs — agents are grounded in everything here.</div>
+                <label style="display:flex;flex-direction:column;align-items:center;justify-content:center;border:1.5px dashed #9FD8AC;border-radius:13px;padding:24px;text-align:center;cursor:pointer;background:rgba(53,232,52,.04);margin-bottom:14px;" style-hover="background:rgba(53,232,52,.08);">
+                  <input type="file" multiple="" onChange="{{ onDocUpload }}" style="display:none;">
+                  <span style="font-size:24px;margin-bottom:7px;">⬆</span>
+                  <span style="font-size:14px;font-weight:700;color:#0E1512;">Drag &amp; drop or browse</span>
+                  <span style="font-size:12px;color:#9AA59E;">PDF, DOCX, XLSX, TXT, MD · up to 25 MB each</span>
+                </label>
+                <sc-for list="{{ brandDocs }}" as="d" hint-placeholder-count="3">
+                  <div style="display:flex;align-items:center;gap:12px;border:1px solid #EBE3D6;border-radius:12px;padding:11px 14px;margin-bottom:8px;background:#FBFAF7;">
+                    <span style="width:36px;height:36px;border-radius:9px;flex:none;background:{{ d.iconbg }};display:flex;align-items:center;justify-content:center;font-size:16px;">{{ d.icon }}</span>
+                    <div style="flex:1;min-width:0;"><div style="font-size:13.5px;font-weight:600;color:#0E1512;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ d.name }}</div><div style="font-size:12px;color:#9AA59E;">{{ d.meta }}</div></div>
+                    <span style="font-size:11px;font-weight:700;color:{{ d.statusFg }};background:{{ d.statusBg }};border-radius:7px;padding:4px 9px;flex:none;">{{ d.status }}</span>
+                    <span onClick="{{ d.onRemove }}" style="width:32px;height:32px;border-radius:9px;border:1px solid #EBE3D6;background:#fff;display:flex;align-items:center;justify-content:center;color:#C9543F;font-size:12px;cursor:pointer;flex:none;">✕</span>
+                  </div>
+                </sc-for>
+              </div>
+
+              <!-- CONNECT SOURCES -->
+              <div style="background:#fff;border:1px solid #EBE3D6;border-radius:18px;padding:22px 24px;box-shadow:0 4px 16px rgba(14,21,18,.04);margin-bottom:16px;">
+                <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:16px;color:#0E1512;margin-bottom:3px;">Connect a source</div>
+                <div style="font-size:12.5px;color:#9AA59E;margin-bottom:14px;">Sync knowledge automatically from the tools you already use.</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                  <sc-for list="{{ sources }}" as="s" hint-placeholder-count="4">
+                    <div style="display:flex;align-items:center;gap:12px;border:{{ s.border }};border-radius:13px;padding:13px 14px;background:{{ s.bg }};">
+                      <span style="width:38px;height:38px;border-radius:10px;flex:none;background:{{ s.glyphBg }};color:{{ s.glyphFg }};display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;font-family:'Bricolage Grotesque',sans-serif;">{{ s.glyph }}</span>
+                      <div style="flex:1;min-width:0;"><div style="font-size:13.5px;font-weight:700;color:#0E1512;">{{ s.name }}</div><div style="font-size:11.5px;color:#9AA59E;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ s.desc }}</div></div>
+                      <span onClick="{{ s.onToggle }}" style="font-size:12.5px;font-weight:700;color:{{ s.btnFg }};background:{{ s.btnBg }};border:1px solid {{ s.btnBorder }};border-radius:9px;padding:7px 12px;cursor:pointer;flex:none;white-space:nowrap;">{{ s.btnLabel }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+                <div style="height:1px;background:#F2EEE4;margin:18px 0 14px;"></div>
+                <div style="font-size:13px;font-weight:700;color:#0E1512;margin-bottom:3px;">Web pages</div>
+                <div style="font-size:12px;color:#9AA59E;margin-bottom:11px;">Add any URL — we crawl &amp; index it for your agents.</div>
+                <div style="display:flex;gap:8px;margin-bottom:11px;">
+                  <input value="{{ webInput }}" onInput="{{ setWebInput }}" placeholder="example.com/page" style="flex:1;min-width:0;height:42px;border-radius:10px;border:1px solid #EBE3D6;background:#fff;padding:0 13px;font-size:13.5px;color:#1192A6;" style-focus="border-color:#35E834;">
+                  <span onClick="{{ addWebSource }}" style="flex:none;font-size:13.5px;font-weight:700;color:{{ webBtnFg }};background:{{ webBtnBg }};border-radius:10px;padding:0 18px;display:flex;align-items:center;cursor:pointer;">＋ Add</span>
+                </div>
+                <sc-for list="{{ webSources }}" as="w" hint-placeholder-count="2">
+                  <div style="display:flex;align-items:center;gap:11px;border:1px solid #EBE3D6;border-radius:11px;padding:10px 13px;margin-bottom:7px;background:#FBFAF7;">
+                    <span style="width:30px;height:30px;border-radius:8px;flex:none;background:rgba(54,215,237,.14);color:#1192A6;display:flex;align-items:center;justify-content:center;font-size:14px;">⧉</span>
+                    <span style="flex:1;min-width:0;font-size:13.5px;color:#1192A6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ w.url }}</span>
+                    <span style="font-size:11px;font-weight:700;color:#0F7A28;background:#D7F5DD;border-radius:7px;padding:4px 9px;flex:none;">Indexed</span>
+                    <span onClick="{{ w.onRemove }}" style="width:30px;height:30px;border-radius:8px;border:1px solid #EBE3D6;background:#fff;display:flex;align-items:center;justify-content:center;color:#C9543F;font-size:12px;cursor:pointer;flex:none;">✕</span>
+                  </div>
+                </sc-for>
+              </div>
+
+              <!-- description / offer -->
+              <div style="background:#fff;border:1px solid #EBE3D6;border-radius:18px;padding:22px 24px;box-shadow:0 4px 16px rgba(14,21,18,.04);margin-bottom:16px;">
+                <label style="display:block;font-size:12px;font-weight:700;color:#5C6B62;margin-bottom:7px;">Company description</label>
+                <textarea value="{{ brand.description }}" onInput="{{ setBrandDesc }}" rows="3" style="width:100%;border-radius:11px;border:1px solid #EBE3D6;background:#fff;padding:12px 14px;font-size:14px;line-height:1.55;color:#0E1512;font-family:'Hanken Grotesk',sans-serif;resize:vertical;" style-focus="border-color:#35E834;"></textarea>
+                <label style="display:block;font-size:12px;font-weight:700;color:#5C6B62;margin:16px 0 7px;">Core offer</label>
+                <textarea value="{{ brand.offer }}" onInput="{{ setBrandOffer }}" rows="2" style="width:100%;border-radius:11px;border:1px solid #EBE3D6;background:#fff;padding:12px 14px;font-size:14px;line-height:1.55;color:#0E1512;font-family:'Hanken Grotesk',sans-serif;resize:vertical;" style-focus="border-color:#35E834;"></textarea>
+              </div>
+
+              <!-- links -->
+              
+
+              <!-- guardrails -->
+              <div style="background:#fff;border:1px solid #EBE3D6;border-radius:18px;padding:22px 24px;box-shadow:0 4px 16px rgba(14,21,18,.04);margin-bottom:16px;">
+                <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:16px;color:#0E1512;margin-bottom:3px;">Guardrails</div>
+                <div style="font-size:12.5px;color:#9AA59E;margin-bottom:14px;">Rules every agent must follow when writing or speaking. Tag each as Always / Never / Tone.</div>
+                <sc-for list="{{ guardrails }}" as="g" hint-placeholder-count="4">
+                  <div style="display:flex;align-items:center;gap:11px;border:1px solid #EBE3D6;border-radius:11px;padding:10px 13px;margin-bottom:8px;background:#FBFAF7;">
+                    <span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:{{ g.kindFg }};background:{{ g.kindBg }};border-radius:7px;padding:4px 9px;flex:none;width:64px;justify-content:center;">{{ g.kindIcon }} {{ g.kindLabel }}</span>
+                    <span style="flex:1;min-width:0;font-size:13.5px;color:#0E1512;">{{ g.text }}</span>
+                    <span onClick="{{ g.onRemove }}" style="width:30px;height:30px;border-radius:8px;border:1px solid #EBE3D6;background:#fff;display:flex;align-items:center;justify-content:center;color:#C9543F;font-size:12px;cursor:pointer;flex:none;">✕</span>
+                  </div>
+                </sc-for>
+                <div style="display:flex;gap:8px;align-items:center;margin-top:12px;">
+                  <div style="display:flex;gap:4px;flex:none;background:#F2EEE4;border-radius:9px;padding:3px;">
+                    <sc-for list="{{ gKindChips }}" as="k" hint-placeholder-count="3">
+                      <span onClick="{{ k.onPick }}" style="font-size:12px;font-weight:700;padding:6px 11px;border-radius:7px;cursor:pointer;color:{{ k.fg }};background:{{ k.bg }};border:1px solid {{ k.border }};">{{ k.label }}</span>
+                    </sc-for>
+                  </div>
+                  <input value="{{ gNewText }}" onInput="{{ setGNewText }}" placeholder="Add a rule…" style="flex:1;min-width:0;height:42px;border-radius:10px;border:1px solid #EBE3D6;background:#fff;padding:0 13px;font-size:13.5px;color:#0E1512;" style-focus="border-color:#35E834;">
+                  <span onClick="{{ addGuardrail }}" style="flex:none;font-size:13.5px;font-weight:700;color:{{ gAddFg }};background:{{ gAddBg }};border-radius:10px;padding:0 18px;height:42px;display:flex;align-items:center;cursor:pointer;">Add</span>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:13px;">
+                  <span style="font-size:11.5px;color:#9AA59E;align-self:center;">Suggestions:</span>
+                  <sc-for list="{{ guardrailPresets }}" as="p" hint-placeholder-count="4">
+                    <span onClick="{{ p.onAdd }}" style="font-size:12px;font-weight:600;color:#5C6B62;background:#fff;border:1px solid #EBE3D6;border-radius:100px;padding:5px 12px;cursor:pointer;" style-hover="border-color:#9FD8AC;color:#16A82A;">＋ {{ p.label }}</span>
+                  </sc-for>
+                </div>
+              </div>
+
+              <!-- brand identity (de-emphasized) -->
+              <div style="background:#fff;border:1px solid #EBE3D6;border-radius:18px;padding:20px 24px;box-shadow:0 4px 16px rgba(14,21,18,.04);">
+                <div style="display:flex;align-items:center;margin-bottom:14px;"><span style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:15px;color:#0E1512;flex:1;">Brand identity <span style="font-size:12px;font-weight:500;color:#9AA59E;">· optional, for branded assets</span></span></div>
+                <div style="display:flex;gap:18px;align-items:flex-start;">
+                  <div style="flex:none;">
+                    <sc-if value="{{ hasBrandLogo }}" hint-placeholder-val="{{ false }}">
+                      <div style="width:128px;height:78px;border-radius:11px;border:1px solid #EBE3D6;background:#FBF7F0;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;">
+                        <div style="width:86%;height:80%;background-image:url({{ brandLogo }});background-size:contain;background-repeat:no-repeat;background-position:center;"></div>
+                        <span onClick="{{ removeLogo }}" style="position:absolute;top:5px;right:5px;width:22px;height:22px;border-radius:6px;background:rgba(255,255,255,.92);border:1px solid #EBE3D6;display:flex;align-items:center;justify-content:center;color:#C9543F;font-size:11px;cursor:pointer;">✕</span>
+                      </div>
+                    </sc-if>
+                    <sc-if value="{{ noBrandLogo }}" hint-placeholder-val="{{ true }}">
+                      <label style="width:128px;height:78px;border-radius:11px;border:1.5px dashed #D8CFBE;background:#FBF7F0;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;text-align:center;" style-hover="border-color:#9FD8AC;">
+                        <input type="file" accept="image/*" onChange="{{ onLogoUpload }}" style="display:none;">
+                        <span style="font-size:17px;margin-bottom:3px;">⬆</span>
+                        <span style="font-size:11.5px;font-weight:700;color:#5C6B62;">Upload logo</span>
+                      </label>
+                    </sc-if>
+                  </div>
+                  <div style="flex:1;min-width:0;">
+                    <div style="display:flex;gap:8px;margin-bottom:12px;">
+                      <div style="flex:1;"><div style="font-size:11px;font-weight:600;color:#9AA59E;margin-bottom:4px;">Primary</div><div style="display:flex;align-items:center;gap:7px;border:1px solid #EBE3D6;border-radius:9px;padding:6px 9px;"><span style="width:20px;height:20px;border-radius:5px;flex:none;background:{{ brand.primary }};border:1px solid rgba(0,0,0,.08);"></span><input value="{{ brand.primary }}" onInput="{{ setBrandPrimary }}" style="border:none;background:transparent;font-size:12.5px;font-family:monospace;color:#0E1512;flex:1;min-width:0;padding:0;"></div></div>
+                      <div style="flex:1;"><div style="font-size:11px;font-weight:600;color:#9AA59E;margin-bottom:4px;">Accent</div><div style="display:flex;align-items:center;gap:7px;border:1px solid #EBE3D6;border-radius:9px;padding:6px 9px;"><span style="width:20px;height:20px;border-radius:5px;flex:none;background:{{ brand.accent }};border:1px solid rgba(0,0,0,.08);"></span><input value="{{ brand.accent }}" onInput="{{ setBrandAccent }}" style="border:none;background:transparent;font-size:12.5px;font-family:monospace;color:#0E1512;flex:1;min-width:0;padding:0;"></div></div>
+                      <div style="flex:1;"><div style="font-size:11px;font-weight:600;color:#9AA59E;margin-bottom:4px;">Ink</div><div style="display:flex;align-items:center;gap:7px;border:1px solid #EBE3D6;border-radius:9px;padding:6px 9px;"><span style="width:20px;height:20px;border-radius:5px;flex:none;background:{{ brand.ink }};border:1px solid rgba(0,0,0,.08);"></span><input value="{{ brand.ink }}" onInput="{{ setBrandInk }}" style="border:none;background:transparent;font-size:12.5px;font-family:monospace;color:#0E1512;flex:1;min-width:0;padding:0;"></div></div>
+                    </div>
+                    <input value="{{ brand.tagline }}" onInput="{{ setBrandTagline }}" placeholder="Tagline — one-line positioning…" style="width:100%;height:40px;border-radius:9px;border:1px solid #EBE3D6;background:#fff;padding:0 12px;font-size:13.5px;color:#0E1512;" style-focus="border-color:#35E834;">
+                  </div>
+                </div>
+              </div>
+            </sc-if>
+
+            <!-- TEAM -->
+            <sc-if value="{{ isTeam }}" hint-placeholder-val="{{ false }}">
+              <div style="background:#fff;border:1px solid #EBE3D6;border-radius:18px;box-shadow:0 4px 16px rgba(14,21,18,.04);overflow:hidden;">
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 22px;"><div><div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:18px;color:#0E1512;">Team &amp; roles</div><div style="font-size:13px;color:#9AA59E;">{{ teamCount }} members · 2 seats available</div></div><span onClick="{{ openInvite }}" style="font-size:14px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);border-radius:11px;padding:10px 18px;cursor:pointer;">+ Invite</span></div>
+                <div style="display:grid;grid-template-columns:1.8fr 1fr .9fr 44px;padding:11px 22px;background:#FBF7F0;border-top:1px solid #EBE3D6;border-bottom:1px solid #EBE3D6;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.02em;color:#5C6B62;"><span>Member</span><span>Role</span><span>Status</span><span></span></div>
+                <sc-for list="{{ team }}" as="m" hint-placeholder-count="4">
+                  <div style="display:grid;grid-template-columns:1.8fr 1fr .9fr 44px;padding:13px 22px;border-top:1px solid #F2EEE4;align-items:center;"><span style="display:flex;align-items:center;gap:11px;min-width:0;"><span style="width:34px;height:34px;border-radius:50%;flex:none;background:{{ m.avbg }};color:#0A0F0C;display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:700;">{{ m.initials }}</span><span style="min-width:0;"><span style="display:block;font-size:14px;font-weight:600;color:#0E1512;">{{ m.name }}</span><span style="display:block;font-size:12.5px;color:#9AA59E;">{{ m.email }}</span></span></span><span style="font-size:13.5px;color:#3B463F;font-weight:600;">{{ m.role }}</span><span><span style="font-size:12px;font-weight:600;color:{{ m.sfg }};background:{{ m.sbg }};border-radius:100px;padding:4px 11px;">{{ m.status }}</span></span><span style="text-align:center;color:#9AA59E;font-size:18px;font-weight:700;">⋯</span></div>
+                </sc-for>
+              </div>
+            </sc-if>
+
+            <!-- SCHEDULES -->
+            <sc-if value="{{ isSchedules }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;"><div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:18px;color:#0E1512;">Sending schedules</div><span onClick="{{ openSchedule }}" style="font-size:14px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);border-radius:11px;padding:10px 18px;cursor:pointer;">+ New schedule</span></div>
+              <div style="background:#fff;border:1px solid #EBE3D6;border-radius:18px;box-shadow:0 4px 16px rgba(14,21,18,.04);overflow:hidden;">
+                <div style="display:grid;grid-template-columns:1.4fr 1.4fr 1.1fr 1fr 44px;padding:11px 22px;background:#FBF7F0;border-bottom:1px solid #EBE3D6;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.02em;color:#5C6B62;"><span>Name</span><span>Days</span><span>Hours</span><span>Timezone</span><span></span></div>
+                <sc-for list="{{ schedules }}" as="s" hint-placeholder-count="3">
+                  <div style="display:grid;grid-template-columns:1.4fr 1.4fr 1.1fr 1fr 44px;padding:13px 22px;border-top:1px solid #F2EEE4;align-items:center;font-size:13.5px;color:#0E1512;"><span style="font-weight:600;">{{ s.name }} <sc-if value="{{ s.isDefault }}" hint-placeholder-val="{{ false }}"><span style="font-size:11px;font-weight:700;color:#0F7A28;background:#D7F5DD;border-radius:6px;padding:1px 7px;">Default</span></sc-if></span><span style="color:#5C6B62;">{{ s.days }}</span><span style="color:#5C6B62;">{{ s.hours }}</span><span style="color:#5C6B62;">{{ s.tz }}</span><span onClick="{{ tRow }}" style="text-align:center;color:#9AA59E;font-weight:700;cursor:pointer;">⋯</span></div>
+                </sc-for>
+              </div>
+            </sc-if>
+
+            <!-- USAGE -->
+            <sc-if value="{{ isUsage }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;"><div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:18px;color:#0E1512;">Workspace usage</div><span style="display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#0E1512;background:#fff;border:1px solid #EBE3D6;border-radius:11px;padding:9px 14px;">June 2026 <span style="color:#9AA59E;">⌄</span></span></div>
+              <div style="background:#fff;border:1px solid #EBE3D6;border-radius:18px;padding:22px 24px;box-shadow:0 4px 16px rgba(14,21,18,.04);">
+                <sc-for list="{{ usage }}" as="u" hint-placeholder-count="5">
+                  <div style="padding:13px 0;border-top:1px solid #F2EEE4;">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:7px;"><span style="font-size:14.5px;font-weight:600;color:#0E1512;flex:1;">{{ u.label }}</span><span style="font-size:13px;color:#9AA59E;">{{ u.used }} / {{ u.total }}</span></div>
+                    <div style="height:8px;border-radius:100px;background:#F2EEE4;overflow:hidden;"><div style="height:100%;width:{{ u.pct }};border-radius:100px;background:{{ u.color }};"></div></div>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+
+            <!-- EMAIL SENDERS -->
+            <sc-if value="{{ isEmail }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;"><div><div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:18px;color:#0E1512;">Email senders</div><div style="font-size:13px;color:#9AA59E;">Mailboxes your agents send from.</div></div><span onClick="{{ openConnectEmail }}" style="font-size:14px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);border-radius:11px;padding:10px 18px;cursor:pointer;">+ Connect email</span></div>
+              <div style="background:#fff;border:1px solid #EBE3D6;border-radius:18px;box-shadow:0 4px 16px rgba(14,21,18,.04);overflow:hidden;">
+                <div style="display:grid;grid-template-columns:1.7fr .85fr .85fr 1.5fr .7fr 1fr;padding:11px 22px;background:#FBF7F0;border-bottom:1px solid #EBE3D6;font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.02em;color:#5C6B62;"><span>Sender</span><span>Sending</span><span>Receiving</span><span>Domain auth</span><span>Daily</span><span>ID</span></div>
+                <sc-for list="{{ emailSenders }}" as="e" hint-placeholder-count="3">
+                  <div onClick="{{ e.onDetail }}" style="display:grid;grid-template-columns:1.7fr .85fr .85fr 1.5fr .7fr 1fr;padding:13px 22px;border-top:1px solid #F2EEE4;align-items:center;font-size:13px;color:#0E1512;cursor:pointer;">
+                    <span style="display:flex;align-items:center;gap:10px;min-width:0;"><span style="width:30px;height:30px;border-radius:8px;flex:none;background:#fff;border:1px solid #EBE3D6;display:flex;align-items:center;justify-content:center;"><sc-if value="{{ e.isGmail }}" hint-placeholder-val="{{ true }}"><svg viewBox="0 0 24 24" width="18" height="18"><rect x="2.5" y="5" width="19" height="14" rx="2.5" fill="#EA4335"></rect><path d="M3.5 7.5l8.5 5.5 8.5-5.5" stroke="#fff" stroke-width="1.7" fill="none"></path></svg></sc-if><sc-if value="{{ e.isOutlook }}" hint-placeholder-val="{{ false }}"><svg viewBox="0 0 24 24" width="18" height="18"><rect x="2.5" y="5" width="19" height="14" rx="2.5" fill="#0F6CBD"></rect><path d="M3.5 7.5l8.5 5.5 8.5-5.5" stroke="#fff" stroke-width="1.7" fill="none"></path></svg></sc-if><sc-if value="{{ e.isSmtp }}" hint-placeholder-val="{{ false }}"><svg viewBox="0 0 24 24" width="18" height="18"><rect x="2.5" y="5" width="19" height="14" rx="2.5" fill="#7A8A80"></rect><path d="M3.5 7.5l8.5 5.5 8.5-5.5" stroke="#fff" stroke-width="1.7" fill="none"></path></svg></sc-if></span><span style="min-width:0;"><span style="display:block;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ e.email }}<sc-if value="{{ e.oauth }}" hint-placeholder-val="{{ false }}"><span style="margin-left:6px;font-size:10px;font-weight:700;color:#0F7A28;background:#D7F5DD;border-radius:5px;padding:1px 6px;">OAuth2</span></sc-if></span><span style="display:block;font-size:12px;color:#9AA59E;">{{ e.provider }}</span></span></span>
+                    <span><span style="font-size:11.5px;font-weight:600;color:{{ e.sendfg }};background:{{ e.sendbg }};border-radius:100px;padding:4px 9px;">{{ e.sending }}</span></span>
+                    <span><span style="font-size:11.5px;font-weight:600;color:{{ e.recvfg }};background:{{ e.recvbg }};border-radius:100px;padding:4px 9px;">{{ e.receiving }}</span></span>
+                    <span style="display:flex;gap:4px;flex-wrap:wrap;"><sc-for list="{{ e.domainAuth }}" as="d" hint-placeholder-count="3"><span style="font-size:10.5px;font-weight:700;color:{{ d.fg }};background:{{ d.bg }};border-radius:6px;padding:2px 6px;">{{ d.k }}</span></sc-for></span>
+                    <span style="color:#5C6B62;font-size:12.5px;">{{ e.limit }}</span>
+                    <span style="font-family:monospace;font-size:11.5px;color:#8A7F6B;">{{ e.id }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+
+            <!-- MAILER SENDERS -->
+            <sc-if value="{{ isMailer }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;"><div><div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:18px;color:#0E1512;">Clientforce Mailer <span style="font-size:11px;font-weight:800;letter-spacing:.04em;color:#1192A6;background:rgba(54,215,237,.16);border-radius:6px;padding:2px 7px;vertical-align:middle;">BETA</span></div><div style="font-size:13px;color:#9AA59E;">Verified from-addresses on the Clientforce mailer.</div></div><span onClick="{{ openAddSender }}" style="font-size:14px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);border-radius:11px;padding:10px 18px;cursor:pointer;">+ Add sender</span></div>
+              <div style="background:#fff;border:1px solid #EBE3D6;border-radius:18px;box-shadow:0 4px 16px rgba(14,21,18,.04);overflow:hidden;">
+                <div style="display:grid;grid-template-columns:1.6fr 1.2fr 1fr 1.1fr 44px;padding:11px 22px;background:#FBF7F0;border-bottom:1px solid #EBE3D6;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.02em;color:#5C6B62;"><span>From address</span><span>Display name</span><span>Domain</span><span>ID</span><span></span></div>
+                <sc-for list="{{ mailerSenders }}" as="m" hint-placeholder-count="2">
+                  <div onClick="{{ m.onDetail }}" style="display:grid;grid-template-columns:1.6fr 1.2fr 1fr 1.1fr 44px;padding:13px 22px;border-top:1px solid #F2EEE4;align-items:center;font-size:13.5px;color:#0E1512;cursor:pointer;"><span style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ m.from }}</span><span style="color:#5C6B62;">{{ m.name }}</span><span><span style="font-size:12px;font-weight:600;color:{{ m.dfg }};background:{{ m.dbg }};border-radius:100px;padding:4px 10px;">{{ m.domain }}</span></span><span style="font-family:monospace;font-size:12px;color:#8A7F6B;">{{ m.id }}</span><span onClick="{{ tRow }}" style="text-align:center;color:#9AA59E;font-weight:700;cursor:pointer;">⋯</span></div>
+                </sc-for>
+              </div>
+            </sc-if>
+
+            <!-- SUPPRESSIONS -->
+            <sc-if value="{{ isSuppress }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;"><div><div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:18px;color:#0E1512;">Suppression list</div><div style="font-size:13px;color:#9AA59E;">Addresses agents will never contact.</div></div><span onClick="{{ tUpload }}" style="margin-left:auto;font-size:13.5px;font-weight:600;color:#0E1512;background:#fff;border:1px solid #EBE3D6;border-radius:11px;padding:10px 16px;cursor:pointer;">↥ Upload CSV</span><span onClick="{{ openAddSuppression }}" style="font-size:14px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);border-radius:11px;padding:10px 16px;cursor:pointer;">+ Add</span></div>
+              <div style="background:#fff;border:1px solid #EBE3D6;border-radius:18px;box-shadow:0 4px 16px rgba(14,21,18,.04);overflow:hidden;">
+                <div style="display:grid;grid-template-columns:2fr 1.1fr 1fr 44px;padding:11px 22px;background:#FBF7F0;border-bottom:1px solid #EBE3D6;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.02em;color:#5C6B62;"><span>Email</span><span>Reason</span><span>Added</span><span></span></div>
+                <sc-for list="{{ suppressions }}" as="s" hint-placeholder-count="3">
+                  <div style="display:grid;grid-template-columns:2fr 1.1fr 1fr 44px;padding:13px 22px;border-top:1px solid #F2EEE4;align-items:center;font-size:13.5px;color:#0E1512;"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ s.email }}</span><span><span style="font-size:12px;font-weight:600;color:{{ s.rfg }};background:{{ s.rbg }};border-radius:100px;padding:4px 10px;">{{ s.reason }}</span></span><span style="color:#9AA59E;">{{ s.added }}</span><span onClick="{{ tRemoveSuppress }}" style="text-align:center;color:#9AA59E;font-weight:700;cursor:pointer;">✕</span></div>
+                </sc-for>
+              </div>
+            </sc-if>
+
+            <!-- PHONE NUMBERS -->
+            <sc-if value="{{ isPhone }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;"><div><div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:18px;color:#0E1512;">Phone numbers</div><div style="font-size:13px;color:#9AA59E;">Numbers for AI voice calls &amp; WhatsApp.</div></div><span onClick="{{ openAddNumber }}" style="font-size:14px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);border-radius:11px;padding:10px 18px;cursor:pointer;">+ Add number</span></div>
+              <div style="background:#fff;border:1px solid #EBE3D6;border-radius:18px;box-shadow:0 4px 16px rgba(14,21,18,.04);overflow:hidden;">
+                <div style="display:grid;grid-template-columns:1.4fr 1.3fr 1.4fr .9fr 44px;padding:11px 22px;background:#FBF7F0;border-bottom:1px solid #EBE3D6;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.02em;color:#5C6B62;"><span>Number</span><span>Channel</span><span>Default</span><span>Name</span><span></span></div>
+                <sc-for list="{{ phones }}" as="p" hint-placeholder-count="3">
+                  <div style="display:grid;grid-template-columns:1.4fr 1.3fr 1.4fr .9fr 44px;padding:13px 22px;border-top:1px solid #F2EEE4;align-items:center;font-size:13.5px;color:#0E1512;"><span style="font-weight:600;">{{ p.e164 }}</span><span style="color:#5C6B62;">{{ p.channel }}</span><span style="display:flex;gap:5px;flex-wrap:wrap;"><sc-for list="{{ p.badges }}" as="b" hint-placeholder-count="1"><span style="font-size:11px;font-weight:700;color:{{ b.fg }};background:{{ b.bg }};border-radius:7px;padding:3px 9px;">{{ b.label }}</span></sc-for></span><span style="color:#5C6B62;">{{ p.label }}</span><span onClick="{{ tDeleteNumber }}" style="text-align:center;color:#C9543F;font-size:12px;font-weight:700;cursor:pointer;">Delete</span></div>
+                </sc-for>
+              </div>
+            </sc-if>
+
+            <!-- WHATSAPP -->
+            <sc-if value="{{ isWhatsapp }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;"><div><div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:18px;color:#0E1512;">WhatsApp senders</div><div style="font-size:13px;color:#9AA59E;">Business numbers approved for WhatsApp.</div></div><span onClick="{{ openAddWhatsapp }}" style="font-size:14px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);border-radius:11px;padding:10px 18px;cursor:pointer;">+ Add sender</span></div>
+              <div style="display:flex;align-items:center;gap:10px;background:rgba(232,196,91,.12);border:1px solid rgba(232,196,91,.45);border-radius:12px;padding:11px 16px;margin-bottom:14px;"><span>ℹ</span><span style="font-size:12.5px;color:#5C6B62;">WhatsApp sender setup is being updated — new connections are paused. Existing senders keep working.</span></div>
+              <div style="background:#fff;border:1px solid #EBE3D6;border-radius:18px;box-shadow:0 4px 16px rgba(14,21,18,.04);overflow:hidden;">
+                <div style="display:grid;grid-template-columns:1.5fr 1.2fr 1fr 1fr 1.1fr;padding:11px 22px;background:#FBF7F0;border-bottom:1px solid #EBE3D6;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.02em;color:#5C6B62;"><span>Number</span><span>Display name</span><span>Status</span><span>Quality</span><span>ID</span></div>
+                <sc-for list="{{ whatsapps }}" as="w" hint-placeholder-count="2">
+                  <div style="display:grid;grid-template-columns:1.5fr 1.2fr 1fr 1fr 1.1fr;padding:13px 22px;border-top:1px solid #F2EEE4;align-items:center;font-size:13.5px;color:#0E1512;"><span style="font-weight:600;">{{ w.number }}</span><span style="color:#5C6B62;">{{ w.name }}</span><span><span style="font-size:12px;font-weight:600;color:{{ w.sfg }};background:{{ w.sbg }};border-radius:100px;padding:4px 10px;">{{ w.status }}</span></span><span style="color:{{ w.qfg }};font-weight:600;">{{ w.quality }}</span><span style="font-family:monospace;font-size:12px;color:#8A7F6B;">{{ w.id }}</span></div>
+                </sc-for>
+              </div>
+            </sc-if>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <sc-if value="{{ hasToast }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute;top:64px;right:26px;z-index:60;display:flex;align-items:center;gap:11px;background:#0C140F;color:#fff;border-radius:12px;padding:12px 16px;box-shadow:0 16px 40px rgba(0,0,0,.3);">
+        <span style="width:22px;height:22px;border-radius:50%;background:#35E834;color:#0A0F0C;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex:none;">✓</span>
+        <span style="font-size:13.5px;font-weight:600;">{{ toastMsg }}</span>
+        <span onClick="{{ dismissToast }}" style="margin-left:8px;color:rgba(255,255,255,.5);cursor:pointer;">✕</span>
+      </div>
+    </sc-if>
+
+    <!-- ===== CUSTOM FIELD MODAL ===== -->
+    <sc-if value="{{ cfAddOpen }}" hint-placeholder-val="{{ false }}">
+      <div onClick="{{ closeCfAdd }}" style="position:absolute;inset:0;background:rgba(12,20,15,.45);z-index:60;display:flex;align-items:center;justify-content:center;padding:40px;">
+        <div onClick="{{ stop }}" style="width:440px;max-width:100%;background:#fff;border-radius:18px;box-shadow:0 40px 90px rgba(0,0,0,.45);overflow:hidden;">
+          <div style="display:flex;align-items:center;gap:10px;padding:18px 22px;border-bottom:1px solid #EBE3D6;"><span style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:17px;color:#0E1512;flex:1;">New custom field</span><span onClick="{{ closeCfAdd }}" style="width:30px;height:30px;border-radius:9px;border:1px solid #EBE3D6;display:flex;align-items:center;justify-content:center;color:#9AA59E;cursor:pointer;">✕</span></div>
+          <div style="padding:20px 22px;">
+            <label style="display:block;font-size:12px;font-weight:700;color:#5C6B62;margin-bottom:6px;">Field label</label>
+            <input value="{{ cfAddLabel }}" onInput="{{ setCfLabel }}" placeholder="e.g. Clinic size" style="width:100%;height:46px;border-radius:11px;border:1px solid #EBE3D6;background:#fff;padding:0 14px;font-size:14px;color:#0E1512;margin-bottom:5px;" style-focus="border-color:#35E834;">
+            <div style="font-size:12px;color:#9AA59E;margin-bottom:16px;">Field ID: <span style="font-family:monospace;color:#8A7F6B;">{{ cfSlugPreview }}</span></div>
+            <label style="display:block;font-size:12px;font-weight:700;color:#5C6B62;margin-bottom:8px;">Type</label>
+            <div style="display:flex;gap:7px;flex-wrap:wrap;">
+              <sc-for list="{{ cfTypeChips }}" as="c" hint-placeholder-count="5">
+                <span onClick="{{ c.onPick }}" style="font-size:13px;font-weight:600;padding:8px 14px;border-radius:100px;cursor:pointer;background:{{ c.bg }};color:{{ c.fg }};border:1px solid {{ c.border }};">{{ c.label }}</span>
+              </sc-for>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;padding:16px 22px;border-top:1px solid #EBE3D6;">
+            <span onClick="{{ closeCfAdd }}" style="margin-left:auto;font-size:14px;font-weight:600;color:#5C6B62;background:#fff;border:1px solid #EBE3D6;border-radius:11px;padding:10px 18px;cursor:pointer;">Cancel</span>
+            <span onClick="{{ createCf }}" style="font-size:14px;font-weight:700;color:{{ cfCreateFg }};background:{{ cfCreateBg }};border-radius:11px;padding:10px 20px;cursor:{{ cfCreateCursor }};">Create field</span>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ===== INVITE MODAL ===== -->
+    <sc-if value="{{ inviteOpen }}" hint-placeholder-val="{{ false }}">
+      <div onClick="{{ closeInvite }}" style="position:absolute;inset:0;background:rgba(12,20,15,.45);z-index:60;display:flex;align-items:center;justify-content:center;padding:40px;">
+        <div onClick="{{ stop }}" style="width:460px;max-width:100%;background:#fff;border-radius:18px;box-shadow:0 40px 90px rgba(0,0,0,.45);overflow:hidden;">
+          <sc-if value="{{ inviteIsForm }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;align-items:center;gap:10px;padding:18px 22px;border-bottom:1px solid #EBE3D6;"><span style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:17px;color:#0E1512;flex:1;">Invite to workspace</span><span onClick="{{ closeInvite }}" style="width:30px;height:30px;border-radius:9px;border:1px solid #EBE3D6;display:flex;align-items:center;justify-content:center;color:#9AA59E;cursor:pointer;">✕</span></div>
+            <div style="padding:20px 22px;">
+              <label style="display:block;font-size:12px;font-weight:700;color:#5C6B62;margin-bottom:6px;">Email address</label>
+              <input value="{{ inviteEmail }}" onInput="{{ setInviteEmail }}" placeholder="name@company.com" style="width:100%;height:46px;border-radius:11px;border:1px solid #EBE3D6;background:#fff;padding:0 14px;font-size:14px;color:#0E1512;margin-bottom:16px;" style-focus="border-color:#35E834;">
+              <label style="display:block;font-size:12px;font-weight:700;color:#5C6B62;margin-bottom:8px;">Role &amp; access</label>
+              <div style="display:flex;flex-direction:column;gap:8px;">
+                <sc-for list="{{ inviteRoles }}" as="r" hint-placeholder-count="4">
+                  <div onClick="{{ r.onPick }}" style="display:flex;align-items:center;gap:12px;border:{{ r.border }};background:{{ r.bg }};border-radius:12px;padding:12px 14px;cursor:pointer;">
+                    <span style="width:34px;height:34px;border-radius:9px;flex:none;background:#F2EEE4;display:flex;align-items:center;justify-content:center;font-size:15px;">{{ r.icon }}</span>
+                    <div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:700;color:#0E1512;">{{ r.label }}</div><div style="font-size:12px;color:#9AA59E;">{{ r.desc }}</div></div>
+                    <span style="color:#16A82A;font-size:15px;visibility:{{ r.check }};">✓</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;padding:16px 22px;border-top:1px solid #EBE3D6;">
+              <span onClick="{{ closeInvite }}" style="margin-left:auto;font-size:14px;font-weight:600;color:#5C6B62;background:#fff;border:1px solid #EBE3D6;border-radius:11px;padding:10px 18px;cursor:pointer;">Cancel</span>
+              <span onClick="{{ sendInvite }}" style="font-size:14px;font-weight:700;color:{{ inviteSendFg }};background:{{ inviteSendBg }};border-radius:11px;padding:10px 20px;cursor:{{ inviteSendCursor }};">Send invite</span>
+            </div>
+          </sc-if>
+          <sc-if value="{{ inviteIsSent }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:30px 26px 22px;text-align:center;">
+              <div style="width:58px;height:58px;border-radius:50%;background:#D7F5DD;display:flex;align-items:center;justify-content:center;font-size:26px;color:#16A82A;margin:0 auto 16px;">✓</div>
+              <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:21px;color:#0E1512;margin-bottom:6px;">Access sent</div>
+              <div style="font-size:13.5px;color:#5C6B62;line-height:1.5;max-width:360px;margin:0 auto 18px;">We emailed an invite to <strong style="color:#0E1512;">{{ inviteSentEmail }}</strong> with <strong style="color:#0E1512;">{{ inviteSentRole }}</strong> access. They'll appear as “Invited” until they accept.</div>
+              <div style="text-align:left;"><label style="display:block;font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#9AA59E;margin-bottom:7px;">Or share this invite link</label>
+                <div style="display:flex;gap:8px;align-items:center;">
+                  <div style="flex:1;min-width:0;height:44px;border-radius:11px;border:1px solid #EBE3D6;background:#FBF7F0;display:flex;align-items:center;padding:0 13px;font-size:13px;color:#1192A6;font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ inviteLink }}</div>
+                  <span onClick="{{ copyInvite }}" style="flex:none;font-size:13.5px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);border-radius:11px;padding:12px 16px;cursor:pointer;">⧉ Copy</span>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;padding:16px 22px;border-top:1px solid #EBE3D6;">
+              <span onClick="{{ inviteAnother }}" style="font-size:14px;font-weight:600;color:#16A82A;cursor:pointer;">+ Invite another</span>
+              <span onClick="{{ closeInvite }}" style="margin-left:auto;font-size:14px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED 0%,#35E834 55%,#D0F56B 100%);border-radius:11px;padding:10px 22px;cursor:pointer;">Done</span>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ===== TOP-UP MODAL ===== -->
+    <sc-if value="{{ topupOpen }}" hint-placeholder-val="{{ false }}">
+      <div onClick="{{ closeTopup }}" style="position:absolute;inset:0;background:rgba(12,20,15,.45);z-index:60;display:flex;align-items:center;justify-content:center;padding:40px;">
+        <div onClick="{{ stop }}" style="width:480px;max-width:100%;background:#fff;border-radius:18px;box-shadow:0 40px 90px rgba(0,0,0,.45);overflow:hidden;">
+          <sc-if value="{{ topupIsForm }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;align-items:center;gap:10px;padding:18px 22px;border-bottom:1px solid #EBE3D6;"><span style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:17px;color:#0E1512;flex:1;">Top up credits</span><span onClick="{{ closeTopup }}" style="width:30px;height:30px;border-radius:9px;border:1px solid #EBE3D6;display:flex;align-items:center;justify-content:center;color:#9AA59E;cursor:pointer;">✕</span></div>
+            <div style="padding:20px 22px;">
+              <label style="display:block;font-size:12px;font-weight:700;color:#5C6B62;margin-bottom:9px;">Choose a credit pack</label>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px;">
+                <sc-for list="{{ topupPacks }}" as="p" hint-placeholder-count="4">
+                  <div onClick="{{ p.onPick }}" style="position:relative;border:{{ p.border }};background:{{ p.bg }};border-radius:13px;padding:14px;cursor:pointer;">
+                    <sc-if value="{{ p.best }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:-9px;left:14px;font-size:10px;font-weight:800;letter-spacing:.04em;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);border-radius:6px;padding:2px 8px;">BEST VALUE</span></sc-if>
+                    <div style="display:flex;align-items:center;justify-content:space-between;"><span style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:20px;color:#0E1512;">{{ p.credits }}</span><span style="color:#16A82A;font-size:14px;visibility:{{ p.check }};">●</span></div>
+                    <div style="font-size:12px;color:#9AA59E;">credits</div>
+                    <div style="display:flex;align-items:baseline;gap:7px;margin-top:8px;"><span style="font-size:15px;font-weight:700;color:#0E1512;">{{ p.price }}</span><span style="font-size:11.5px;color:#9AA59E;">{{ p.per }}</span></div>
+                  </div>
+                </sc-for>
+              </div>
+              <label style="display:block;font-size:12px;font-weight:700;color:#5C6B62;margin-bottom:8px;">Payment method</label>
+              <div style="display:flex;flex-direction:column;gap:8px;">
+                <sc-for list="{{ topupMethods }}" as="m" hint-placeholder-count="2">
+                  <div onClick="{{ m.onPick }}" style="display:flex;align-items:center;gap:12px;border:{{ m.border }};background:{{ m.bg }};border-radius:12px;padding:11px 14px;cursor:pointer;">
+                    <span style="width:42px;height:28px;border-radius:6px;flex:none;background:#0C140F;color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;">{{ m.glyph }}</span>
+                    <span style="font-size:14px;font-weight:600;color:#0E1512;flex:1;">{{ m.label }}</span>
+                    <span style="color:#16A82A;font-size:15px;visibility:{{ m.check }};">✓</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;padding:16px 22px;border-top:1px solid #EBE3D6;background:#FBF7F0;">
+              <div style="flex:1;"><div style="font-size:12px;color:#9AA59E;">{{ topupCredits }} credits</div><div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:20px;color:#0E1512;">{{ topupPrice }}</div></div>
+              <span onClick="{{ payTopup }}" style="font-size:14px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED 0%,#35E834 55%,#D0F56B 100%);border-radius:11px;padding:11px 22px;cursor:pointer;box-shadow:0 6px 16px rgba(53,232,52,.26);">Pay {{ topupPrice }}</span>
+            </div>
+          </sc-if>
+          <sc-if value="{{ topupIsDone }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:32px 26px 22px;text-align:center;">
+              <div style="width:58px;height:58px;border-radius:50%;background:#D7F5DD;display:flex;align-items:center;justify-content:center;font-size:26px;color:#16A82A;margin:0 auto 16px;">✓</div>
+              <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:21px;color:#0E1512;margin-bottom:6px;">Payment successful</div>
+              <div style="font-size:13.5px;color:#5C6B62;line-height:1.5;max-width:340px;margin:0 auto 18px;">Added <strong style="color:#0E1512;">{{ topupCredits }} credits</strong>. Your new balance is <strong style="color:#16A82A;">{{ topupNewBalance }}</strong>.</div>
+              <div style="background:#FBF7F0;border:1px solid #EBE3D6;border-radius:12px;padding:14px;display:flex;align-items:center;gap:12px;text-align:left;">
+                <span style="width:40px;height:40px;border-radius:11px;flex:none;background:rgba(53,232,52,.14);display:flex;align-items:center;justify-content:center;font-size:18px;">⚡</span>
+                <div style="flex:1;"><div style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#9AA59E;">New balance</div><div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:22px;color:#0E1512;">{{ topupNewBalance }}</div></div>
+                <span style="font-size:12px;color:#9AA59E;">A receipt was emailed to you.</span>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;padding:16px 22px;border-top:1px solid #EBE3D6;">
+              <span onClick="{{ closeTopup }}" style="margin-left:auto;font-size:14px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED 0%,#35E834 55%,#D0F56B 100%);border-radius:11px;padding:10px 24px;cursor:pointer;">Done</span>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ modalOpen }}" hint-placeholder-val="{{ false }}">
+      <div onClick="{{ closeModal }}" style="position:absolute;inset:0;background:rgba(12,20,15,.45);z-index:55;display:flex;align-items:center;justify-content:center;padding:40px;">
+        <div onClick="{{ stop }}" style="width:440px;max-width:100%;background:#fff;border-radius:18px;box-shadow:0 40px 90px rgba(0,0,0,.45);overflow:hidden;">
+          <div style="display:flex;align-items:center;gap:10px;padding:18px 22px;border-bottom:1px solid #EBE3D6;">
+            <span style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:17px;color:#0E1512;flex:1;">{{ modal.title }}</span>
+            <span onClick="{{ closeModal }}" style="width:30px;height:30px;border-radius:9px;border:1px solid #EBE3D6;display:flex;align-items:center;justify-content:center;color:#9AA59E;cursor:pointer;">✕</span>
+          </div>
+          <div style="padding:20px 22px;display:flex;flex-direction:column;gap:13px;">
+            <sc-for list="{{ modal.fields }}" as="f" hint-placeholder-count="2">
+              <div><label style="display:block;font-size:12px;font-weight:700;color:#5C6B62;margin-bottom:6px;">{{ f.label }}</label><div style="height:44px;border-radius:11px;background:#fff;border:1px solid #EBE3D6;display:flex;align-items:center;padding:0 14px;font-size:14px;color:#B7BDB6;">{{ f.ph }}<sc-if value="{{ f.sel }}" hint-placeholder-val="{{ false }}"><span style="margin-left:auto;color:#9AA59E;">⌄</span></sc-if></div></div>
+            </sc-for>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;padding:16px 22px;border-top:1px solid #EBE3D6;">
+            <span onClick="{{ closeModal }}" style="margin-left:auto;font-size:14px;font-weight:600;color:#5C6B62;background:#fff;border:1px solid #EBE3D6;border-radius:11px;padding:10px 18px;cursor:pointer;">Cancel</span>
+            <span onClick="{{ modalSave }}" style="font-size:14px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED 0%,#35E834 55%,#D0F56B 100%);border-radius:11px;padding:10px 20px;cursor:pointer;box-shadow:0 6px 16px rgba(53,232,52,.26);">{{ modal.cta }}</span>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+    <sc-if value="{{ flowOpen }}" hint-placeholder-val="{{ false }}">
+      <div onClick="{{ closeFlow }}" style="position:absolute;inset:0;background:rgba(12,20,15,.45);z-index:58;">
+        <div onClick="{{ stop }}" style="position:absolute;top:0;right:0;bottom:0;width:480px;max-width:100%;background:#FBF7F0;box-shadow:-24px 0 70px rgba(0,0,0,.28);display:flex;flex-direction:column;">
+          <div style="display:flex;align-items:center;gap:12px;padding:18px 22px;background:#fff;border-bottom:1px solid #EBE3D6;flex:none;">
+            <span style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:17px;color:#0E1512;flex:1;">{{ flowTitle }}</span>
+            <span onClick="{{ closeFlow }}" style="width:32px;height:32px;border-radius:9px;border:1px solid #EBE3D6;display:flex;align-items:center;justify-content:center;color:#9AA59E;cursor:pointer;">✕</span>
+          </div>
+          <div style="flex:1;overflow:auto;min-height:0;padding:20px 22px;">
+            <sc-if value="{{ flowChooser }}" hint-placeholder-val="{{ true }}">
+              <div style="font-size:13px;color:#8A7F6B;margin-bottom:14px;">{{ flowChooserTitle }}</div>
+              <div style="display:flex;flex-direction:column;gap:10px;">
+                <sc-for list="{{ flowProviders }}" as="p" hint-placeholder-count="3">
+                  <div onClick="{{ p.onPick }}" style="display:flex;align-items:center;gap:13px;background:#fff;border:1px solid #EBE3D6;border-radius:14px;padding:14px 16px;cursor:pointer;" style-hover="border-color:#9FD8AC;">
+                    <span style="width:42px;height:42px;border-radius:11px;flex:none;background:{{ p.tbg }};color:{{ p.tfg }};display:flex;align-items:center;justify-content:center;font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:16px;"><sc-if value="{{ p.isGmail }}" hint-placeholder-val="{{ false }}"><svg viewBox="0 0 24 24" width="22" height="22"><rect x="2.5" y="5" width="19" height="14" rx="2.5" fill="#EA4335"></rect><path d="M3.5 7.5l8.5 5.5 8.5-5.5" stroke="#fff" stroke-width="1.7" fill="none"></path></svg></sc-if><sc-if value="{{ p.isOutlook }}" hint-placeholder-val="{{ false }}"><svg viewBox="0 0 24 24" width="22" height="22"><rect x="2.5" y="5" width="19" height="14" rx="2.5" fill="#0F6CBD"></rect><path d="M3.5 7.5l8.5 5.5 8.5-5.5" stroke="#fff" stroke-width="1.7" fill="none"></path></svg></sc-if><sc-if value="{{ p.isMs }}" hint-placeholder-val="{{ false }}"><svg viewBox="0 0 24 24" width="22" height="22"><rect x="2.5" y="5" width="19" height="14" rx="2.5" fill="#0F6CBD"></rect><path d="M3.5 7.5l8.5 5.5 8.5-5.5" stroke="#fff" stroke-width="1.7" fill="none"></path></svg></sc-if><sc-if value="{{ p.isSmtp }}" hint-placeholder-val="{{ false }}"><svg viewBox="0 0 24 24" width="22" height="22"><rect x="2.5" y="5" width="19" height="14" rx="2.5" fill="#7A8A80"></rect><path d="M3.5 7.5l8.5 5.5 8.5-5.5" stroke="#fff" stroke-width="1.7" fill="none"></path></svg></sc-if><sc-if value="{{ p.noLogo }}" hint-placeholder-val="{{ true }}">{{ p.glyph }}</sc-if></span>
+                    <div style="flex:1;min-width:0;"><div style="font-size:15px;font-weight:700;color:#0E1512;">{{ p.name }}</div><div style="font-size:12.5px;color:#9AA59E;">{{ p.desc }}</div></div>
+                    <span style="color:#C9CFC9;font-size:18px;">›</span>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ flowStepMode }}" hint-placeholder-val="{{ false }}">
+              <span style="font-size:11px;font-weight:700;color:#8A7F6B;text-transform:uppercase;letter-spacing:.06em;">{{ flowStepLabel }}</span>
+              <div style="display:flex;gap:5px;margin:8px 0 18px;"><sc-for list="{{ flowSegs }}" as="sg" hint-placeholder-count="3"><span style="flex:1;height:5px;border-radius:100px;background:{{ sg.bg }};"></span></sc-for></div>
+              <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:17px;color:#0E1512;margin-bottom:14px;">{{ fstep.title }}</div>
+
+              <sc-if value="{{ fIsAuth }}" hint-placeholder-val="{{ false }}">
+                <div onClick="{{ flowPrimary }}" style="display:flex;align-items:center;justify-content:center;gap:10px;background:#0C140F;color:#fff;border-radius:12px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:16px;"><span style="width:24px;height:24px;border-radius:7px;background:{{ fGlyphBg }};color:{{ fGlyphFg }};display:flex;align-items:center;justify-content:center;font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:12px;"><sc-if value="{{ fIsGmail }}" hint-placeholder-val="{{ false }}"><svg viewBox="0 0 24 24" width="16" height="16"><rect x="2.5" y="5" width="19" height="14" rx="2.5" fill="#EA4335"></rect><path d="M3.5 7.5l8.5 5.5 8.5-5.5" stroke="#fff" stroke-width="1.8" fill="none"></path></svg></sc-if><sc-if value="{{ fIsOutlook }}" hint-placeholder-val="{{ false }}"><svg viewBox="0 0 24 24" width="16" height="16"><rect x="2.5" y="5" width="19" height="14" rx="2.5" fill="#0F6CBD"></rect><path d="M3.5 7.5l8.5 5.5 8.5-5.5" stroke="#fff" stroke-width="1.8" fill="none"></path></svg></sc-if><sc-if value="{{ fIsMs }}" hint-placeholder-val="{{ false }}"><svg viewBox="0 0 24 24" width="16" height="16"><rect x="2.5" y="5" width="19" height="14" rx="2.5" fill="#0F6CBD"></rect><path d="M3.5 7.5l8.5 5.5 8.5-5.5" stroke="#fff" stroke-width="1.8" fill="none"></path></svg></sc-if><sc-if value="{{ fNoLogo }}" hint-placeholder-val="{{ true }}">{{ fGlyph }}</sc-if></span>{{ fstep.authLabel }}</div>
+                <sc-if value="{{ fHasPerms }}" hint-placeholder-val="{{ true }}">
+                  <div style="font-size:11px;font-weight:700;color:#8A7F6B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Clientforce will be able to</div>
+                  <div style="background:#fff;border:1px solid #EBE3D6;border-radius:14px;overflow:hidden;"><sc-for list="{{ fstep.perms }}" as="pm" hint-placeholder-count="2"><div style="display:flex;align-items:center;gap:10px;padding:10px 15px;border-top:1px solid #F2EEE4;"><span style="color:#16A82A;font-size:13px;">✓</span><span style="font-size:13px;color:#3B463F;">{{ pm }}</span></div></sc-for></div>
+                </sc-if>
+              </sc-if>
+
+              <sc-if value="{{ fIsFields }}" hint-placeholder-val="{{ false }}">
+                <sc-for list="{{ fstep.fields }}" as="fl" hint-placeholder-count="3">
+                  <div style="margin-bottom:13px;"><label style="display:block;font-size:12px;font-weight:700;color:#5C6B62;margin-bottom:6px;">{{ fl.label }}</label><div style="display:flex;align-items:center;border-radius:11px;background:#fff;border:1px solid #EBE3D6;padding:11px 14px;font-size:14px;color:#B7BDB6;">{{ fl.ph }}<sc-if value="{{ fl.sel }}" hint-placeholder-val="{{ false }}"><span style="margin-left:auto;color:#9AA59E;">⌄</span></sc-if></div></div>
+                </sc-for>
+                <sc-if value="{{ fHasVerify }}" hint-placeholder-val="{{ true }}">
+                  <sc-if value="{{ fNotVerified }}" hint-placeholder-val="{{ true }}"><div onClick="{{ fVerify }}" style="text-align:center;font-size:13.5px;font-weight:700;color:#0E1512;background:#fff;border:1.5px solid #16A82A;border-radius:11px;padding:11px;cursor:pointer;margin-top:4px;">Verify settings</div></sc-if>
+                  <sc-if value="{{ fVerified }}" hint-placeholder-val="{{ false }}"><div style="display:flex;align-items:center;gap:10px;background:rgba(53,232,52,.08);border:1px solid rgba(53,232,52,.3);border-radius:11px;padding:11px 14px;margin-top:4px;"><span style="width:22px;height:22px;border-radius:50%;background:#16A82A;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;flex:none;">✓</span><span style="font-size:13px;font-weight:600;color:#16A82A;">Connection verified</span></div></sc-if>
+                </sc-if>
+              </sc-if>
+
+              <sc-if value="{{ fIsSelect }}" hint-placeholder-val="{{ false }}">
+                <sc-for list="{{ fstep.selects }}" as="se" hint-placeholder-count="2">
+                  <div style="margin-bottom:13px;"><label style="display:block;font-size:12px;font-weight:700;color:#5C6B62;margin-bottom:6px;">{{ se.label }}</label><div style="display:flex;align-items:center;border-radius:11px;background:#fff;border:1px solid #EBE3D6;padding:11px 14px;font-size:14px;color:#0E1512;font-weight:600;">{{ se.value }}<span style="margin-left:auto;color:#9AA59E;">⌄</span></div></div>
+                </sc-for>
+              </sc-if>
+
+              <sc-if value="{{ fIsDns }}" hint-placeholder-val="{{ false }}">
+                <div style="font-size:13px;color:#8A7F6B;margin-bottom:12px;">Add these records at your DNS provider, then verify.</div>
+                <div style="background:#fff;border:1px solid #EBE3D6;border-radius:13px;overflow:hidden;margin-bottom:12px;">
+                  <div style="display:grid;grid-template-columns:.7fr 1fr 1.6fr;padding:9px 14px;background:#FBF7F0;border-bottom:1px solid #EBE3D6;font-size:11px;font-weight:700;text-transform:uppercase;color:#8A7F6B;"><span>Type</span><span>Host</span><span>Value</span></div>
+                  <sc-for list="{{ fstep.records }}" as="rc" hint-placeholder-count="3">
+                    <div style="display:grid;grid-template-columns:.7fr 1fr 1.6fr;padding:10px 14px;border-top:1px solid #F2EEE4;font-family:monospace;font-size:11.5px;color:#3B463F;"><span style="font-weight:700;color:#0E1512;">{{ rc.type }}</span><span>{{ rc.host }}</span><span style="word-break:break-all;">{{ rc.value }}</span></div>
+                  </sc-for>
+                </div>
+                <sc-if value="{{ fNotVerified }}" hint-placeholder-val="{{ true }}"><div onClick="{{ fVerify }}" style="text-align:center;font-size:13.5px;font-weight:700;color:#0E1512;background:#fff;border:1.5px solid #16A82A;border-radius:11px;padding:11px;cursor:pointer;">Verify DNS records</div></sc-if>
+                <sc-if value="{{ fVerified }}" hint-placeholder-val="{{ false }}"><div style="display:flex;align-items:center;gap:10px;background:rgba(53,232,52,.08);border:1px solid rgba(53,232,52,.3);border-radius:11px;padding:11px 14px;"><span style="width:22px;height:22px;border-radius:50%;background:#16A82A;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;flex:none;">✓</span><span style="font-size:13px;font-weight:600;color:#16A82A;">DNS verified — SPF, DKIM &amp; DMARC OK</span></div></sc-if>
+              </sc-if>
+
+              <sc-if value="{{ fIsSummary }}" hint-placeholder-val="{{ false }}">
+                <div style="background:#fff;border:1px solid #EBE3D6;border-radius:14px;overflow:hidden;"><sc-for list="{{ fstep.summary }}" as="sm" hint-placeholder-count="3"><div style="display:flex;align-items:center;gap:10px;padding:11px 15px;border-top:1px solid #F2EEE4;"><span style="color:#16A82A;font-size:13px;">✓</span><span style="font-size:13.5px;color:#3B463F;">{{ sm }}</span></div></sc-for></div>
+              </sc-if>
+            </sc-if>
+          </div>
+
+          <sc-if value="{{ flowStepMode }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;align-items:center;gap:12px;padding:16px 22px;border-top:1px solid #EBE3D6;background:#fff;flex:none;">
+              <span onClick="{{ flowBack }}" style="font-size:14px;font-weight:600;color:#5C6B62;background:#fff;border:1px solid #EBE3D6;border-radius:11px;padding:10px 18px;cursor:pointer;">{{ flowBackLabel }}</span>
+              <span onClick="{{ flowPrimary }}" style="margin-left:auto;font-size:14px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED 0%,#35E834 55%,#D0F56B 100%);border-radius:11px;padding:10px 20px;cursor:pointer;box-shadow:0 6px 16px rgba(53,232,52,.26);">{{ flowPrimaryLabel }}</span>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ senderDetailOpen }}" hint-placeholder-val="{{ false }}">
+      <div onClick="{{ closeSenderDetail }}" style="position:absolute;inset:0;background:rgba(12,20,15,.45);z-index:57;">
+        <div onClick="{{ stop }}" style="position:absolute;top:0;right:0;bottom:0;width:500px;max-width:100%;background:#FBF7F0;box-shadow:-28px 0 70px rgba(0,0,0,.30);display:flex;flex-direction:column;">
+          <div style="display:flex;align-items:center;gap:12px;padding:18px 22px;background:#fff;border-bottom:1px solid #EBE3D6;flex:none;">
+            <span style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:17px;color:#0E1512;flex:1;">Sender details</span>
+            <span onClick="{{ closeSenderDetail }}" style="width:32px;height:32px;border-radius:9px;border:1px solid #EBE3D6;display:flex;align-items:center;justify-content:center;color:#9AA59E;cursor:pointer;">✕</span>
+          </div>
+          <div style="flex:1;overflow-y:auto;min-height:0;padding:18px 20px;display:flex;flex-direction:column;gap:12px;">
+
+            <div style="background:#fff;border:1px solid #EBE3D6;border-radius:14px;padding:16px 18px;">
+              <div style="display:flex;align-items:center;gap:13px;">
+                <div style="width:46px;height:46px;border-radius:12px;background:#fff;border:1.5px solid #EBE3D6;display:flex;align-items:center;justify-content:center;flex:none;">
+                  <sc-if value="{{ sd.isGmail }}" hint-placeholder-val="{{ false }}"><svg viewBox="0 0 24 24" width="24" height="24"><rect x="2.5" y="5" width="19" height="14" rx="2.5" fill="#EA4335"></rect><path d="M3.5 7.5l8.5 5.5 8.5-5.5" stroke="#fff" stroke-width="1.7" fill="none"></path></svg></sc-if>
+                  <sc-if value="{{ sd.isOutlook }}" hint-placeholder-val="{{ false }}"><svg viewBox="0 0 24 24" width="24" height="24"><rect x="2.5" y="5" width="19" height="14" rx="2.5" fill="#0F6CBD"></rect><path d="M3.5 7.5l8.5 5.5 8.5-5.5" stroke="#fff" stroke-width="1.7" fill="none"></path></svg></sc-if>
+                  <sc-if value="{{ sd.isSmtp }}" hint-placeholder-val="{{ false }}"><svg viewBox="0 0 24 24" width="24" height="24"><rect x="2.5" y="5" width="19" height="14" rx="2.5" fill="#7A8A80"></rect><path d="M3.5 7.5l8.5 5.5 8.5-5.5" stroke="#fff" stroke-width="1.7" fill="none"></path></svg></sc-if>
+                  <sc-if value="{{ sd.isMailer }}" hint-placeholder-val="{{ false }}"><div style="width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);display:flex;align-items:center;justify-content:center;font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:14px;color:#0A0F0C;">f</div></sc-if>
+                </div>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:15px;font-weight:700;color:#0E1512;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ sd.email }}</div>
+                  <div style="font-size:12.5px;color:#9AA59E;">{{ sd.displayName }}</div>
+                </div>
+                <span style="font-size:11px;font-weight:700;color:{{ sd.statusFg }};background:{{ sd.statusBg }};border-radius:100px;padding:4px 11px;flex:none;">{{ sd.statusLabel }}</span>
+              </div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid #F2EEE4;">
+                <span style="font-size:11px;font-weight:700;color:#5C6B62;background:#F2EEE4;border-radius:7px;padding:3px 9px;">{{ sd.providerLabel }}</span>
+                <sc-if value="{{ sd.isDedicatedIp }}" hint-placeholder-val="{{ false }}"><span style="font-size:11px;font-weight:700;color:#1192A6;background:rgba(54,215,237,.16);border-radius:7px;padding:3px 9px;">Dedicated IP</span></sc-if>
+              </div>
+            </div>
+
+            <div style="background:#fff;border:1px solid #EBE3D6;border-radius:14px;padding:16px 18px;">
+              <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#9AA59E;margin-bottom:13px;">Sending health</div>
+              <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;">
+                <div style="width:58px;height:58px;border-radius:50%;border:4px solid {{ sd.healthColor }};background:#fff;display:flex;align-items:center;justify-content:center;flex:none;">
+                  <span style="font-size:17px;font-weight:800;color:{{ sd.healthColor }};">{{ sd.healthScore }}</span>
+                </div>
+                <div style="flex:1;"><div style="font-size:15px;font-weight:700;color:{{ sd.healthColor }};">{{ sd.healthLabel }}</div><div style="font-size:12px;color:#9AA59E;">Reputation score · /100</div></div>
+                <div style="text-align:right;"><div style="font-family:'Bricolage Grotesque',sans-serif;font-size:24px;font-weight:800;color:#0E1512;line-height:1;">{{ sd.sentToday }}</div><div style="font-size:11px;color:#9AA59E;">sends today</div></div>
+              </div>
+              <div style="margin-bottom:12px;">
+                <div style="display:flex;justify-content:space-between;margin-bottom:5px;"><span style="font-size:12px;font-weight:600;color:#5C6B62;">Daily limit</span><span style="font-size:12px;color:#9AA59E;">{{ sd.sentToday }} / {{ sd.dailyLimit }}</span></div>
+                <div style="height:7px;border-radius:100px;background:#F2EEE4;overflow:hidden;"><div style="height:100%;width:{{ sd.sentTodayPct }};border-radius:100px;background:{{ sd.healthColor }};"></div></div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;border-top:1px solid #F2EEE4;padding-top:12px;">
+                <div><div style="font-size:10.5px;font-weight:700;color:#9AA59E;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">This week</div><div style="font-size:18px;font-weight:700;color:#0E1512;font-family:'Bricolage Grotesque',sans-serif;">{{ sd.sentThisWeek }}</div></div>
+                <div><div style="font-size:10.5px;font-weight:700;color:#9AA59E;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">All time</div><div style="font-size:18px;font-weight:700;color:#0E1512;font-family:'Bricolage Grotesque',sans-serif;">{{ sd.sentAllTime }}</div></div>
+              </div>
+            </div>
+
+            <sc-if value="{{ sd.hasWarmup }}" hint-placeholder-val="{{ false }}">
+              <div style="background:#fff;border:1px solid #EBE3D6;border-radius:14px;padding:16px 18px;">
+                <div style="display:flex;align-items:center;margin-bottom:12px;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#9AA59E;flex:1;">Warm-up schedule</div><span style="font-size:11px;font-weight:700;color:{{ sd.warmupStatusFg }};background:{{ sd.warmupStatusBg }};border-radius:100px;padding:3px 10px;">{{ sd.warmupStatusLabel }}</span></div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:13px;">
+                  <div><div style="font-size:10.5px;font-weight:700;color:#9AA59E;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px;">Day</div><div style="font-size:20px;font-weight:800;color:#0E1512;font-family:'Bricolage Grotesque',sans-serif;">{{ sd.warmupDay }}</div></div>
+                  <div><div style="font-size:10.5px;font-weight:700;color:#9AA59E;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px;">Current limit</div><div style="font-size:13px;font-weight:700;color:#0E1512;">{{ sd.warmupCurrentLimit }}</div></div>
+                  <div><div style="font-size:10.5px;font-weight:700;color:#9AA59E;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px;">Target</div><div style="font-size:13px;font-weight:700;color:#0E1512;">{{ sd.warmupTargetLimit }}</div></div>
+                </div>
+                <div style="height:7px;border-radius:100px;background:#F2EEE4;overflow:hidden;margin-bottom:5px;"><div style="height:100%;width:{{ sd.warmupPct }};border-radius:100px;background:linear-gradient(90deg,#36D7ED,#35E834);"></div></div>
+                <div style="font-size:11px;color:#9AA59E;text-align:right;">{{ sd.warmupDayOf }}</div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ sd.isDedicatedIp }}" hint-placeholder-val="{{ false }}">
+              <div style="background:#fff;border:1px solid #EBE3D6;border-radius:14px;padding:16px 18px;">
+                <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#9AA59E;margin-bottom:10px;">Dedicated IP</div>
+                <div style="font-family:monospace;font-size:13.5px;font-weight:600;color:#0E1512;background:#F7F9F8;border:1px solid #EBE3D6;border-radius:9px;padding:9px 13px;margin-bottom:16px;">{{ sd.dedicatedIp }}</div>
+                <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#9AA59E;margin-bottom:9px;">Blacklist monitoring</div>
+                <div style="display:flex;flex-direction:column;gap:5px;">
+                  <sc-for list="{{ sd.blacklists }}" as="bl" hint-placeholder-count="4">
+                    <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:#FBF7F0;border-radius:9px;"><span style="font-size:12px;color:{{ bl.fg }};font-weight:700;width:16px;text-align:center;">{{ bl.icon }}</span><span style="font-size:12.5px;color:#0E1512;flex:1;">{{ bl.name }}</span><span style="font-size:10.5px;font-weight:700;color:{{ bl.fg }};background:{{ bl.bg }};border-radius:6px;padding:2px 7px;">{{ bl.status }}</span></div>
+                  </sc-for>
+                </div>
+              </div>
+              <div style="background:#fff;border:1px solid #EBE3D6;border-radius:14px;padding:16px 18px;">
+                <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#9AA59E;margin-bottom:13px;">ISP reputation</div>
+                <div style="display:flex;flex-direction:column;gap:10px;">
+                  <sc-for list="{{ sd.reputations }}" as="rp" hint-placeholder-count="3">
+                    <div style="display:flex;align-items:center;gap:10px;"><span style="font-size:13px;color:#0E1512;flex:1;">{{ rp.isp }}</span><div style="width:90px;height:6px;border-radius:100px;background:#F2EEE4;overflow:hidden;flex:none;"><div style="height:100%;width:{{ rp.pct }};border-radius:100px;background:{{ rp.color }};"></div></div><span style="font-size:12px;font-weight:700;color:{{ rp.fg }};width:38px;text-align:right;">{{ rp.label }}</span></div>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ sd.hasAuth }}" hint-placeholder-val="{{ false }}">
+              <div style="background:#fff;border:1px solid #EBE3D6;border-radius:14px;padding:16px 18px;">
+                <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#9AA59E;margin-bottom:12px;">Authentication</div>
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid #F2EEE4;"><span style="font-size:13px;color:#5C6B62;">Status</span><span style="font-size:13px;font-weight:700;color:#16A82A;">✓ Connected · OAuth2</span></div>
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid #F2EEE4;"><span style="font-size:13px;color:#5C6B62;">Token expires</span><span style="font-size:13px;font-weight:600;color:#0E1512;">{{ sd.tokenExpiry }}</span></div>
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid #F2EEE4;"><span style="font-size:13px;color:#5C6B62;">Last sync</span><span style="font-size:13px;color:#5C6B62;">{{ sd.lastSync }}</span></div>
+                <div style="margin-top:13px;padding-top:13px;border-top:1px solid #F2EEE4;">
+                  <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#9AA59E;margin-bottom:8px;">Permissions granted</div>
+                  <sc-for list="{{ sd.permissions }}" as="pm" hint-placeholder-count="3"><div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><span style="color:#16A82A;font-size:12px;">✓</span><span style="font-size:13px;color:#3B463F;">{{ pm }}</span></div></sc-for>
+                </div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ sd.hasSmtp }}" hint-placeholder-val="{{ false }}">
+              <div style="background:#fff;border:1px solid #EBE3D6;border-radius:14px;padding:16px 18px;">
+                <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#9AA59E;margin-bottom:12px;">SMTP — outgoing mail</div>
+                <sc-for list="{{ sd.smtpFields }}" as="sf" hint-placeholder-count="4"><div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #F2EEE4;gap:14px;"><span style="font-size:12.5px;color:#5C6B62;flex:none;">{{ sf.label }}</span><span style="font-size:12px;font-weight:600;color:#0E1512;font-family:{{ sf.mono }};background:{{ sf.codeBg }};padding:{{ sf.codePad }};border-radius:6px;text-align:right;word-break:break-all;min-width:0;">{{ sf.value }}</span></div></sc-for>
+              </div>
+              <div style="background:#fff;border:1px solid #EBE3D6;border-radius:14px;padding:16px 18px;">
+                <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#9AA59E;margin-bottom:12px;">IMAP — incoming mail</div>
+                <sc-for list="{{ sd.imapFields }}" as="imf" hint-placeholder-count="3"><div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #F2EEE4;gap:14px;"><span style="font-size:12.5px;color:#5C6B62;flex:none;">{{ imf.label }}</span><span style="font-size:12px;font-weight:600;color:#0E1512;font-family:{{ imf.mono }};background:{{ imf.codeBg }};padding:{{ imf.codePad }};border-radius:6px;text-align:right;word-break:break-all;min-width:0;">{{ imf.value }}</span></div></sc-for>
+              </div>
+            </sc-if>
+
+            <div style="background:#fff;border:1px solid #EBE3D6;border-radius:14px;padding:16px 18px;">
+              <div style="display:flex;align-items:center;margin-bottom:12px;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#9AA59E;flex:1;">Domain authentication</div><span onClick="{{ sdCheckDns }}" style="font-size:12px;font-weight:600;color:#16A82A;cursor:pointer;">Re-check DNS</span></div>
+              <div style="display:flex;flex-direction:column;gap:6px;">
+                <sc-for list="{{ sd.domainAuth }}" as="da" hint-placeholder-count="3">
+                  <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#FBF7F0;border-radius:10px;"><span style="font-size:14px;color:{{ da.fg }};font-weight:800;width:18px;text-align:center;">{{ da.icon }}</span><div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:700;color:#0E1512;">{{ da.key }}</div><div style="font-size:11px;color:#9AA59E;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ da.detail }}</div></div><span style="font-size:10.5px;font-weight:700;color:{{ da.fg }};background:{{ da.bg }};border-radius:6px;padding:2px 8px;flex:none;">{{ da.status }}</span></div>
+                </sc-for>
+              </div>
+            </div>
+
+            <div style="background:#fff;border:1px solid #EBE3D6;border-radius:14px;padding:16px 18px;">
+              <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#9AA59E;margin-bottom:10px;">Used by agents</div>
+              <sc-for list="{{ sd.assignedAgents }}" as="ag" hint-placeholder-count="2">
+                <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid #F2EEE4;"><div style="width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,rgba(54,215,237,.22),rgba(53,232,52,.22));display:flex;align-items:center;justify-content:center;font-size:14px;flex:none;color:#16A82A;">◎</div><span style="font-size:13.5px;font-weight:600;color:#0E1512;flex:1;">{{ ag.name }}</span><span style="font-size:11.5px;color:#9AA59E;">{{ ag.role }}</span></div>
+              </sc-for>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:8px;padding-bottom:4px;">
+              <span onClick="{{ sdReconnect }}" style="text-align:center;font-size:14px;font-weight:600;color:#0E1512;background:#fff;border:1px solid #EBE3D6;border-radius:12px;padding:12px;cursor:pointer;">{{ sd.reconnectLabel }}</span>
+              <span onClick="{{ sdRemove }}" style="text-align:center;font-size:13.5px;font-weight:600;color:#C9543F;cursor:pointer;padding:8px;">Remove sender</span>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </sc-if>
+  </div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1280,&quot;height&quot;:900}}">
+const EMAIL_DETAILS = {
+  'acc_4f7a21': {
+    email: 'jordan@brightpathgrowth.co', displayName: 'Jordan at BrightPath', providerLabel: 'Google Workspace · OAuth2',
+    isGmail: true, isOutlook: false, isSmtp: false, isMailer: false,
+    statusLabel: 'Active', statusBg: '#D7F5DD', statusFg: '#0F7A28',
+    healthScore: '98', healthLabel: 'Excellent', healthColor: '#16A82A',
+    sentToday: '234', dailyLimit: '500', sentTodayPct: '47%', sentThisWeek: '1,247', sentAllTime: '28,400',
+    hasWarmup: false, isDedicatedIp: false, hasAuth: true, hasSmtp: false,
+    tokenExpiry: 'Jul 23, 2026', lastSync: '4 min ago',
+    permissions: ['Send email on your behalf', 'Read reply metadata', 'Manage labels & folders'],
+    domainAuth: [
+      { key: 'SPF', detail: 'v=spf1 include:_spf.google.com ~all', status: 'Pass', icon: '✓', fg: '#16A82A', bg: '#D7F5DD' },
+      { key: 'DKIM', detail: 'google._domainkey.brightpathgrowth.co', status: 'Pass', icon: '✓', fg: '#16A82A', bg: '#D7F5DD' },
+      { key: 'DMARC', detail: 'v=DMARC1; p=quarantine; rua=mailto:dmarc@...', status: 'Pass', icon: '✓', fg: '#16A82A', bg: '#D7F5DD' },
+    ],
+    assignedAgents: [{ name: 'Outbound SDR', role: 'Primary sender' }, { name: 'Follow-up Agent', role: 'Secondary' }],
+    reconnectLabel: 'Reconnect Google account',
+    blacklists: [], reputations: [], smtpFields: [], imapFields: [], dedicatedIp: '',
+  },
+  'acc_91b3d8': {
+    email: 'maya@brightpathgrowth.co', displayName: 'Maya at BrightPath', providerLabel: 'Microsoft 365 · OAuth2',
+    isGmail: false, isOutlook: true, isSmtp: false, isMailer: false,
+    statusLabel: 'Warming', statusBg: 'rgba(232,196,91,.18)', statusFg: '#A87B16',
+    healthScore: '72', healthLabel: 'Warming up', healthColor: '#E8C45B',
+    sentToday: '48', dailyLimit: '120', sentTodayPct: '40%', sentThisWeek: '312', sentAllTime: '4,890',
+    hasWarmup: true, warmupStatusLabel: 'Active', warmupStatusFg: '#A87B16', warmupStatusBg: 'rgba(232,196,91,.18)',
+    warmupDay: '18', warmupCurrentLimit: '120 / day', warmupTargetLimit: '500 / day', warmupPct: '40%', warmupDayOf: 'Day 18 of 45',
+    isDedicatedIp: false, hasAuth: true, hasSmtp: false,
+    tokenExpiry: 'Aug 10, 2026', lastSync: '12 min ago',
+    permissions: ['Send mail as you', 'Read reply metadata', 'Access mailbox folders'],
+    domainAuth: [
+      { key: 'SPF', detail: 'v=spf1 include:spf.protection.outlook.com ~all', status: 'Pass', icon: '✓', fg: '#16A82A', bg: '#D7F5DD' },
+      { key: 'DKIM', detail: 'selector1._domainkey.brightpathgrowth.co', status: 'Pass', icon: '✓', fg: '#16A82A', bg: '#D7F5DD' },
+      { key: 'DMARC', detail: 'Not configured — add _dmarc TXT record', status: 'Fail', icon: '✕', fg: '#C9543F', bg: 'rgba(224,121,107,.16)' },
+    ],
+    assignedAgents: [{ name: 'Nurture Agent', role: 'Primary sender' }],
+    reconnectLabel: 'Reconnect Microsoft account',
+    blacklists: [], reputations: [], smtpFields: [], imapFields: [], dedicatedIp: '',
+  },
+  'acc_2c0e55': {
+    email: 'hello@go.brightpathgrowth.co', displayName: 'BrightPath Go', providerLabel: 'Custom SMTP / IMAP',
+    isGmail: false, isOutlook: false, isSmtp: true, isMailer: false,
+    statusLabel: 'Needs attention', statusBg: 'rgba(232,196,91,.18)', statusFg: '#A87B16',
+    healthScore: '85', healthLabel: 'Good', healthColor: '#16A82A',
+    sentToday: '312', dailyLimit: '1,000', sentTodayPct: '31%', sentThisWeek: '1,680', sentAllTime: '52,300',
+    hasWarmup: false, isDedicatedIp: false, hasAuth: false, hasSmtp: true,
+    smtpFields: [
+      { label: 'Host', value: 'smtp.go.brightpathgrowth.co', mono: 'monospace', codeBg: '#F7F9F8', codePad: '2px 7px' },
+      { label: 'Port', value: '587', mono: 'monospace', codeBg: '#F7F9F8', codePad: '2px 7px' },
+      { label: 'Encryption', value: 'TLS / STARTTLS', mono: 'inherit', codeBg: 'transparent', codePad: '0' },
+      { label: 'Username', value: 'hello@go.brightpathgrowth.co', mono: 'monospace', codeBg: '#F7F9F8', codePad: '2px 7px' },
+      { label: 'Last verified', value: 'Jun 20, 2026 — OK', mono: 'inherit', codeBg: 'transparent', codePad: '0' },
+    ],
+    imapFields: [
+      { label: 'Host', value: 'imap.go.brightpathgrowth.co', mono: 'monospace', codeBg: '#F7F9F8', codePad: '2px 7px' },
+      { label: 'Port', value: '993', mono: 'monospace', codeBg: '#F7F9F8', codePad: '2px 7px' },
+      { label: 'Status', value: '⚠ Needs re-verification', mono: 'inherit', codeBg: 'transparent', codePad: '0' },
+    ],
+    domainAuth: [
+      { key: 'SPF', detail: 'v=spf1 include:go.brightpathgrowth.co ~all', status: 'Pass', icon: '✓', fg: '#16A82A', bg: '#D7F5DD' },
+      { key: 'DKIM', detail: 'Not found — add CNAME to DNS panel', status: 'Fail', icon: '✕', fg: '#C9543F', bg: 'rgba(224,121,107,.16)' },
+      { key: 'DMARC', detail: 'Not configured — add _dmarc TXT record', status: 'Fail', icon: '✕', fg: '#C9543F', bg: 'rgba(224,121,107,.16)' },
+    ],
+    assignedAgents: [{ name: 'Outbound SDR', role: 'Fallback sender' }, { name: 'Cold Outreach', role: 'Primary' }, { name: 'Re-engagement', role: 'Primary' }],
+    reconnectLabel: 'Test & re-verify connection',
+    blacklists: [], reputations: [], permissions: [], tokenExpiry: '', lastSync: '', dedicatedIp: '',
+  },
+};
+
+const MAILER_DETAILS = {
+  'snd_7a12': {
+    email: 'jordan@mail.brightpathgrowth.co', displayName: 'Jordan at BrightPath', providerLabel: 'Clientforce Mailer',
+    isGmail: false, isOutlook: false, isSmtp: false, isMailer: true,
+    statusLabel: 'Active', statusBg: '#D7F5DD', statusFg: '#0F7A28',
+    healthScore: '94', healthLabel: 'Excellent', healthColor: '#16A82A',
+    sentToday: '312', dailyLimit: '850', sentTodayPct: '37%', sentThisWeek: '1,680', sentAllTime: '12,400',
+    hasWarmup: true, warmupStatusLabel: 'Active', warmupStatusFg: '#A87B16', warmupStatusBg: 'rgba(232,196,91,.18)',
+    warmupDay: '18', warmupCurrentLimit: '850 / day', warmupTargetLimit: '10,000 / day', warmupPct: '40%', warmupDayOf: 'Day 18 of 45',
+    isDedicatedIp: true, dedicatedIp: '198.51.100.42',
+    blacklists: [
+      { name: 'Spamhaus SBL', status: 'Clean', icon: '✓', fg: '#16A82A', bg: '#D7F5DD' },
+      { name: 'Barracuda BRBL', status: 'Clean', icon: '✓', fg: '#16A82A', bg: '#D7F5DD' },
+      { name: 'SORBS', status: 'Clean', icon: '✓', fg: '#16A82A', bg: '#D7F5DD' },
+      { name: 'SpamCop SCL', status: 'Clean', icon: '✓', fg: '#16A82A', bg: '#D7F5DD' },
+      { name: 'MX Toolbox', status: 'Clean', icon: '✓', fg: '#16A82A', bg: '#D7F5DD' },
+    ],
+    reputations: [
+      { isp: 'Gmail / Google', label: 'High', pct: '85%', color: '#35E834', fg: '#16A82A' },
+      { isp: 'Outlook / Hotmail', label: 'Good', pct: '70%', color: '#36D7ED', fg: '#1192A6' },
+      { isp: 'Yahoo Mail', label: 'Good', pct: '68%', color: '#36D7ED', fg: '#1192A6' },
+    ],
+    hasAuth: false, hasSmtp: false,
+    domainAuth: [
+      { key: 'SPF', detail: 'v=spf1 include:cf-mail.co ~all', status: 'Pass', icon: '✓', fg: '#16A82A', bg: '#D7F5DD' },
+      { key: 'DKIM', detail: 'cf._domainkey.mail.brightpathgrowth.co', status: 'Pass', icon: '✓', fg: '#16A82A', bg: '#D7F5DD' },
+      { key: 'DMARC', detail: 'v=DMARC1; p=quarantine; rua=postmaster@...', status: 'Pass', icon: '✓', fg: '#16A82A', bg: '#D7F5DD' },
+    ],
+    assignedAgents: [{ name: 'Campaign Blaster', role: 'Primary sender' }, { name: 'Newsletter Agent', role: 'Primary sender' }],
+    reconnectLabel: 'Configure sender settings',
+    permissions: [], smtpFields: [], imapFields: [], tokenExpiry: '', lastSync: '',
+  },
+  'snd_7a44': {
+    email: 'team@mail.brightpathgrowth.co', displayName: 'BrightPath Team', providerLabel: 'Clientforce Mailer',
+    isGmail: false, isOutlook: false, isSmtp: false, isMailer: true,
+    statusLabel: 'Active', statusBg: '#D7F5DD', statusFg: '#0F7A28',
+    healthScore: '91', healthLabel: 'Excellent', healthColor: '#16A82A',
+    sentToday: '88', dailyLimit: '500', sentTodayPct: '18%', sentThisWeek: '412', sentAllTime: '3,200',
+    hasWarmup: true, warmupStatusLabel: 'Complete', warmupStatusFg: '#0F7A28', warmupStatusBg: '#D7F5DD',
+    warmupDay: '45', warmupCurrentLimit: '500 / day', warmupTargetLimit: '500 / day', warmupPct: '100%', warmupDayOf: 'Day 45 of 45 — Complete',
+    isDedicatedIp: false, dedicatedIp: '', blacklists: [], reputations: [],
+    hasAuth: false, hasSmtp: false,
+    domainAuth: [
+      { key: 'SPF', detail: 'v=spf1 include:cf-mail.co ~all', status: 'Pass', icon: '✓', fg: '#16A82A', bg: '#D7F5DD' },
+      { key: 'DKIM', detail: 'cf._domainkey.mail.brightpathgrowth.co', status: 'Pass', icon: '✓', fg: '#16A82A', bg: '#D7F5DD' },
+      { key: 'DMARC', detail: 'v=DMARC1; p=quarantine; rua=postmaster@...', status: 'Pass', icon: '✓', fg: '#16A82A', bg: '#D7F5DD' },
+    ],
+    assignedAgents: [{ name: 'Support Agent', role: 'Primary sender' }],
+    reconnectLabel: 'Configure sender settings',
+    permissions: [], smtpFields: [], imapFields: [], tokenExpiry: '', lastSync: '',
+  },
+};
+
+class Component extends DCLogic {
+  componentDidMount() {
+    const valid = ['profile','billing','custom','team','brand','schedules','usage','email','mailer','phone','whatsapp','suppress','notifications','api','security'];
+    const h = (window.location.hash || '').replace('#','');
+    if (h && valid.indexOf(h) !== -1) this.setState({ section: h });
+  }
+  state = {
+    section: 'profile', autoTopup: true, tfa: true, toast: '', modal: null,
+    flowCh: null, flowProv: null, flowStep: 0, flowVerified: false, senderDetail: null,
+    credits: 6200,
+    brand: {
+      tagline: 'Outreach on autopilot for clinics that want more patients',
+      description: 'BrightPath Growth helps dental & medical clinics fill more new-patient appointments with done-for-you outbound across email, SMS, WhatsApp and AI voice.',
+      offer: 'Free 15-minute growth audit, then a done-for-you multi-channel campaign — pay only for booked appointments.',
+      notes: 'Tone: friendly, concise, outcome-focused. Never make medical claims. Always note HIPAA-friendly handling. Use first name + clinic name.',
+      primary: '#35E834', accent: '#36D7ED', ink: '#0C140F',
+    },
+    brandLogo: null, brandLogoName: '',
+    brandLinks: [
+      { id: 'bl1', label: 'Website', url: 'https://brightpathgrowth.co' },
+      { id: 'bl2', label: 'Booking calendar', url: 'https://cal.com/brightpath/audit' },
+      { id: 'bl3', label: 'Case studies', url: 'https://brightpathgrowth.co/results' },
+    ],
+    brandDocs: [
+      { id: 'd1', name: 'BrightPath Sales Playbook.pdf', meta: 'PDF · 2.4 MB · added Jun 12', icon: '📕', iconbg: 'rgba(224,121,107,.16)', status: 'Indexed' },
+      { id: 'd2', name: 'New-patient onboarding SOP.docx', meta: 'DOCX · 480 KB · added Jun 9', icon: '📄', iconbg: 'rgba(54,215,237,.16)', status: 'Indexed' },
+      { id: 'd3', name: 'Pricing & packages 2026.xlsx', meta: 'XLSX · 96 KB · added May 30', icon: '📊', iconbg: 'rgba(53,232,52,.16)', status: 'Indexed' },
+    ],
+    sources: [
+      { id: 'website', glyph: '⧉', name: 'Website crawl', desc: 'brightpathgrowth.co', connected: true },
+      { id: 'notion', glyph: 'N', name: 'Notion', desc: 'Wiki & SOPs workspace', connected: true },
+      { id: 'gdrive', glyph: 'G', name: 'Google Drive', desc: 'Docs, slides & sheets', connected: false },
+      { id: 'dropbox', glyph: 'D', name: 'Dropbox', desc: 'Shared folders', connected: false },
+    ],
+    cfList: [
+      { label: 'Clinic size', type: 'Number', slug: 'clinic_size' },
+      { label: 'Last visit', type: 'Date', slug: 'last_visit' },
+      { label: 'Practice type', type: 'Dropdown', slug: 'practice_type' },
+      { label: 'Decision maker', type: 'Checkbox', slug: 'is_decision_maker' },
+    ],
+    cfSearch: '', cfAdd: { open: false, label: '', type: 'Text' },
+    invite: { open: false, step: 0, email: '', role: 'Member' }, inviteSent: { email: '', link: '', role: '' }, newMembers: [],
+    topup: { open: false, step: 0, packId: 'p2', method: 'visa' },
+    webSources: [
+      { id: 'w1', url: 'brightpathgrowth.co' },
+      { id: 'w2', url: 'brightpathgrowth.co/results' },
+    ],
+    webInput: '',
+    guardrails: [
+      { id: 'g1', kind: 'tone', text: 'Friendly, concise and outcome-focused' },
+      { id: 'g2', kind: 'dont', text: 'Make medical or clinical claims' },
+      { id: 'g3', kind: 'do', text: 'Mention HIPAA-friendly handling when relevant' },
+      { id: 'g4', kind: 'do', text: 'Use the contact first name and clinic name' },
+    ],
+    gNewKind: 'do', gNewText: '',
+    agentSummaryOpen: false, summarySections: null, summaryOpen: { s1: true },
+    agentSummary: "BrightPath Growth is a done-for-you outbound agency for dental & medical clinics. Agents open with a free 15-minute growth audit, then run a multi-channel campaign (email, SMS, WhatsApp, AI voice) and only charge for booked appointments.\n\nVoice & copy are friendly, concise and outcome-focused. Agents never make medical claims, always note HIPAA-friendly handling, and personalize with the contact's first name and clinic name.\n\nSource of truth: the uploaded Sales Playbook, onboarding SOP and pricing sheet, plus the indexed website and Notion workspace.",
+    linkSeq: 3, docSeq: 3, webSeq: 2, gSeq: 4,
+  };
+  renderVals() {
+    const sec = this.state.section;
+    const commIds = ['email', 'mailer', 'suppress', 'phone', 'whatsapp'];
+    const routeMap = { profile: 'profile', billing: 'billing', custom: 'custom-fields', team: 'teams', schedules: 'schedule', usage: 'usage', email: 'email-accounts', mailer: 'email-accounts/senders', suppress: 'email-accounts/suppressions', phone: 'phone-numbers', whatsapp: 'whatsapp-senders' };
+    const item = (id, icon, label, opts) => { opts = opts || {}; const on = id === sec; return { icon, label, weight: on ? 700 : 600, color: on ? '#0E1512' : '#3B463F',
+      pillBg: on ? 'linear-gradient(96deg,rgba(53,232,52,.20) 0%,rgba(54,215,237,.10) 60%,rgba(54,215,237,0) 100%)' : 'transparent',
+      pillShadow: on ? '0 1px 2px rgba(14,21,18,.06)' : 'none',
+      hoverBg: on ? 'linear-gradient(96deg,rgba(53,232,52,.20) 0%,rgba(54,215,237,.10) 60%,rgba(54,215,237,0) 100%)' : 'rgba(14,21,18,.04)',
+      iconBg: on ? 'linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B)' : '#FFFFFF',
+      iconFg: on ? '#0A0F0C' : (opts.iconColor || '#5C6B62'),
+      iconBorder: on ? 'rgba(0,0,0,.06)' : '#EAE3D5',
+      beta: !!opts.beta, onClick: () => this.setState({ section: id, toast: '' }) }; };
+    const commActive = commIds.indexOf(sec) !== -1;
+
+    const onColor = 'linear-gradient(135deg,#36D7ED,#35E834)';
+    const toast = (msg) => () => this.setState({ toast: msg });
+    const MCFG = {
+      addField: { title: 'New custom field', cta: 'Create field', toast: 'Custom field created', fields: [{ label: 'Field label', ph: 'e.g. Clinic size' }, { label: 'Type', ph: 'Text', sel: true }, { label: 'Field ID', ph: 'auto-generated from label' }] },
+      invite: { title: 'Invite a member', cta: 'Send invite', toast: 'Invitation sent', fields: [{ label: 'Email', ph: 'name@company.com' }, { label: 'Role', ph: 'Member', sel: true }] },
+      schedule: { title: 'New sending schedule', cta: 'Create schedule', toast: 'Schedule created', fields: [{ label: 'Name', ph: 'Business hours' }, { label: 'Days', ph: 'Mon\u2013Fri', sel: true }, { label: 'Hours', ph: '9:00 AM \u2013 5:00 PM' }] },
+      connectEmail: { title: 'Connect an email account', cta: 'Continue', toast: 'Redirecting to sign-in\u2026', fields: [{ label: 'Provider', ph: 'Gmail', sel: true }, { label: 'Email address', ph: 'you@domain.com' }] },
+      addSender: { title: 'Add a mailer sender', cta: 'Add sender', toast: 'Sender added \u2014 verify your domain', fields: [{ label: 'From address', ph: 'you@mail.domain.co' }, { label: 'Display name', ph: 'You at Company' }] },
+      addSuppression: { title: 'Add to suppression list', cta: 'Add', toast: 'Address suppressed', fields: [{ label: 'Email', ph: 'name@company.com' }, { label: 'Reason', ph: 'Unsubscribed', sel: true }] },
+      addNumber: { title: 'Add a phone number', cta: 'Search numbers', toast: 'Searching available numbers\u2026', fields: [{ label: 'Country', ph: 'United States', sel: true }, { label: 'Channel', ph: 'Voice & WhatsApp', sel: true }] },
+      addWhatsapp: { title: 'Add a WhatsApp sender', cta: 'Request approval', toast: 'WhatsApp approval requested', fields: [{ label: 'Phone number', ph: '+1 \u2026' }, { label: 'Display name', ph: 'Business name' }] },
+      topup: { title: 'Top up credits', cta: 'Pay & add credits', toast: 'Top-up successful \u2014 credits added', fields: [{ label: 'Amount', ph: '2,000 credits \u2014 $40', sel: true }, { label: 'Payment method', ph: 'Visa \u00b7\u00b7\u00b7\u00b7 4242', sel: true }] },
+    };
+    const mk = this.state.modal;
+    const mc = mk ? MCFG[mk] : null;
+    const open = (k) => () => this.setState({ modal: k, toast: '' });
+
+    const DNS = { kind: 'dns', title: 'Authenticate your domain (DKIM)', records: [ { type: 'TXT', host: '@', value: 'v=spf1 include:cf-mail.co ~all' }, { type: 'CNAME', host: 'cf._domainkey', value: 'cf._domainkey.cf-mail.co' }, { type: 'TXT', host: '_dmarc', value: 'v=DMARC1; p=none;' } ] };
+    const FLOWS = {
+      domainauth: { title: 'Domain authentication', single: 'view', steps: { view: [ DNS, { kind: 'summary', title: 'Authentication summary', cta: 'Re-check now', summary: ['SPF record verified', 'DKIM needs attention', 'DMARC needs attention'] } ] } },
+      email: { title: 'Connect email account', chooserTitle: 'How do you want to send email?',
+        providers: [
+          { id: 'gmail', glyph: 'G', tbg: 'rgba(208,245,107,.45)', tfg: '#6B7A1F', name: 'Google / Gmail', desc: 'Gmail or Workspace via OAuth' },
+          { id: 'outlook', glyph: 'O', tbg: 'rgba(54,215,237,.16)', tfg: '#1192A6', name: 'Microsoft 365 / Outlook', desc: 'Outlook.com or Microsoft 365' },
+          { id: 'exchange', glyph: 'E', tbg: 'rgba(54,215,237,.16)', tfg: '#1192A6', name: 'Exchange', desc: 'Microsoft Exchange via OAuth' },
+          { id: 'custom', glyph: '@', tbg: '#F2EEE4', tfg: '#5C6B62', name: 'Custom IMAP / SMTP', desc: 'Any provider with IMAP + SMTP' },
+          { id: 'mailer', glyph: 'cf', tbg: 'rgba(53,232,52,.16)', tfg: '#16A82A', name: 'Clientforce Mailer', desc: 'Managed sending, zero setup' },
+        ],
+        steps: {
+          gmail: [ { kind: 'auth', title: 'Authorize Google', authLabel: 'Sign in with Google', perms: ['Send email on your behalf', 'Read reply metadata', 'Manage sending limits & warm-up'] }, DNS, { kind: 'summary', title: 'Connected', summary: ['Authorized via Google OAuth', 'Open & reply tracking on', 'Warm-up enabled'] } ],
+          outlook: [ { kind: 'auth', title: 'Authorize Microsoft', authLabel: 'Sign in with Microsoft', perms: ['Send mail as you', 'Read reply metadata'] }, DNS, { kind: 'summary', title: 'Connected', summary: ['Authorized via Microsoft OAuth', 'Open & reply tracking on'] } ],
+          exchange: [ { kind: 'auth', title: 'Authorize Exchange', authLabel: 'Sign in with Microsoft', perms: ['Send mail as you', 'Read reply metadata'] }, DNS, { kind: 'summary', title: 'Connected', summary: ['Authorized via Microsoft OAuth', 'Open & reply tracking on'] } ],
+          custom: [
+            { kind: 'fields', title: 'Sending server (SMTP)', verify: true, fields: [ { label: 'From email', ph: 'you@domain.com' }, { label: 'Sender name', ph: 'Jordan at BrightPath' }, { label: 'SMTP host', ph: 'smtp.domain.com' }, { label: 'Port', ph: '587' }, { label: 'Encryption', ph: 'TLS', sel: true }, { label: 'Username', ph: 'you@domain.com' }, { label: 'Password', ph: 'app password', pw: true } ] },
+            { kind: 'fields', title: 'Receiving server (IMAP)', verify: true, fields: [ { label: 'IMAP host', ph: 'imap.domain.com' }, { label: 'Port', ph: '993' }, { label: 'Username', ph: 'you@domain.com' }, { label: 'Password', ph: 'app password', pw: true } ] },
+            DNS,
+            { kind: 'summary', title: 'Verified & ready', summary: ['SMTP verified', 'IMAP verified', 'Sending from you@domain.com'] },
+          ],
+          mailer: [ { kind: 'summary', title: 'Use Clientforce Mailer', cta: 'Set up Mailer', summary: ['No mailbox required', 'Managed deliverability & warm-up', 'Add a sending domain to begin'] } ],
+        },
+      },
+      phone: { title: 'Add a phone number', chooserTitle: 'How do you want to add a number?',
+        providers: [
+          { id: 'buy', glyph: '#', tbg: 'rgba(53,232,52,.16)', tfg: '#16A82A', name: 'Buy a number', desc: 'Search & provision a new number' },
+          { id: 'port', glyph: '~', tbg: 'rgba(54,215,237,.16)', tfg: '#1192A6', name: 'Port an existing number', desc: 'Bring your current number over' },
+        ],
+        steps: {
+          buy: [
+            { kind: 'fields', title: 'Search numbers', cta: 'Search', fields: [ { label: 'Country', ph: 'United States', sel: true }, { label: 'Area code or prefix', ph: '512' }, { label: 'Capabilities', ph: 'Voice & WhatsApp', sel: true } ] },
+            { kind: 'select', title: 'Pick a number', selects: [ { label: 'Available number', value: '+1 (512) 555-0148' }, { label: 'Capabilities', value: 'Voice, SMS & WhatsApp' } ] },
+            { kind: 'summary', title: 'Confirm purchase', cta: 'Buy number', summary: ['+1 (512) 555-0148', 'Voice, SMS & WhatsApp', '$1.15 / mo plus usage'] },
+          ],
+          port: [
+            { kind: 'fields', title: 'Number to port', fields: [ { label: 'Phone number', ph: '+1 (512) 555-0100' }, { label: 'Current carrier', ph: 'Twilio', sel: true }, { label: 'Account number', ph: 'Carrier account #' }, { label: 'Account PIN', ph: 'PIN', pw: true } ] },
+            { kind: 'fields', title: 'Authorization', fields: [ { label: 'Authorized name', ph: 'Jordan Mensah' }, { label: 'Letter of authorization', ph: 'Upload LOA (PDF)' } ] },
+            { kind: 'summary', title: 'Submit request', cta: 'Submit port request', summary: ['Porting takes 7-10 business days', 'Number stays active until ported'] },
+          ],
+        },
+      },
+      whatsapp: { title: 'Add WhatsApp sender', chooserTitle: 'How do you want to connect WhatsApp?',
+        providers: [
+          { id: 'meta', glyph: 'f', tbg: 'rgba(54,215,237,.16)', tfg: '#1192A6', name: 'Meta embedded signup', desc: 'Fastest, via Facebook Business' },
+          { id: 'twilio', glyph: 'T', tbg: 'rgba(208,245,107,.45)', tfg: '#6B7A1F', name: 'Connect via Twilio', desc: 'Use your Twilio WhatsApp sender' },
+          { id: 'manual', glyph: '@', tbg: '#F2EEE4', tfg: '#5C6B62', name: 'Manual (Cloud API)', desc: 'Phone number ID & token' },
+        ],
+        steps: {
+          meta: [ { kind: 'auth', title: 'Connect Meta', authLabel: 'Continue with Facebook', perms: ['Manage your WhatsApp Business account', 'Send & receive messages'] }, { kind: 'select', title: 'Choose sender', selects: [ { label: 'WhatsApp Business account', value: 'BrightPath Growth' }, { label: 'Phone number', value: '+1 (512) 555-0100' }, { label: 'Display name', value: 'BrightPath Growth' } ] }, { kind: 'summary', title: 'Submitted for review', cta: 'Finish', summary: ['Meta reviews display name (~1 day)', 'Messaging enabled once approved'] } ],
+          twilio: [ { kind: 'fields', title: 'Twilio credentials', verify: true, fields: [ { label: 'Account SID', ph: 'AC0000000000000000' }, { label: 'Auth token', ph: 'your auth token', pw: true }, { label: 'WhatsApp number', ph: '+1 (512) 555-0100' } ] }, { kind: 'summary', title: 'Connected', cta: 'Finish', summary: ['Sending via Twilio', 'Inbound replies enabled'] } ],
+          manual: [ { kind: 'fields', title: 'Cloud API details', fields: [ { label: 'Phone number ID', ph: '106600000000000' }, { label: 'WABA ID', ph: '209900000000000' }, { label: 'System user token', ph: 'EAAG...', pw: true } ] }, { kind: 'summary', title: 'Connected', cta: 'Finish', summary: ['Cloud API connected', 'Webhook verified'] } ],
+        },
+      },
+      mailer: { title: 'Add mailer sender', single: 'sender',
+        steps: { sender: [
+          { kind: 'fields', title: 'Sender identity', cta: 'Continue', fields: [ { label: 'From address', ph: 'you@mail.brightpathgrowth.co' }, { label: 'Display name', ph: 'You at BrightPath' } ] },
+          { kind: 'dns', title: 'Verify your domain', records: [ { type: 'TXT', host: '@', value: 'v=spf1 include:cf-mail.co ~all' }, { type: 'CNAME', host: 'cf._domainkey', value: 'cf._domainkey.cf-mail.co' }, { type: 'TXT', host: '_dmarc', value: 'v=DMARC1; p=none;' } ] },
+          { kind: 'summary', title: 'Sender ready', cta: 'Add sender', summary: ['SPF, DKIM & DMARC verified', 'Managed warm-up active', 'Sender available to agents'] },
+        ] },
+      },
+    };
+    const openFlow = (ch) => () => { const f = FLOWS[ch]; this.setState({ flowCh: ch, flowProv: f.single || null, flowStep: 0, flowVerified: false, modal: null, toast: '' }); };
+    const fch = this.state.flowCh; const fdef = fch ? FLOWS[fch] : null; const fprov = this.state.flowProv;
+    const fsteps = (fdef && fprov) ? fdef.steps[fprov] : null;
+    const fN = fsteps ? fsteps.length : 0;
+    const fidx = Math.max(0, Math.min(fN - 1, this.state.flowStep || 0));
+    const fcur = fsteps ? fsteps[fidx] : null;
+    const fpObj = (fdef && fprov && fdef.providers) ? fdef.providers.find((p) => p.id === fprov) : null;
+
+    // ----- brand / custom fields / invite / topup helpers -----
+    const setBrand = (k) => (e) => { const v = e.target.value; this.setState((s) => ({ brand: Object.assign({}, s.brand, { [k]: v }) })); };
+    const cfq = this.state.cfSearch.trim().toLowerCase();
+    const GK = { do: { label: 'Always', fg: '#0F7A28', bg: '#D7F5DD', icon: '✓' }, dont: { label: 'Never', fg: '#C9543F', bg: 'rgba(224,121,107,.16)', icon: '✕' }, tone: { label: 'Tone', fg: '#1192A6', bg: 'rgba(54,215,237,.16)', icon: '♪' } };
+    const SUMMARY_DEFAULTS = [
+      { id: 's1', n: '01', title: 'Business overview', body: 'BrightPath Growth is a done-for-you outbound agency for dental & medical clinics. We fill new-patient appointments across email, SMS, WhatsApp and AI voice — and only charge for booked appointments. US-based, ~40 active clinic clients.' },
+      { id: 's2', n: '02', title: 'Customer profile (ICP)', body: 'Independent dental & medical clinics and small DSO groups (1–10 locations) in the US/UK/EU. Buyers: practice owners, office managers, marketing leads. ~$1–8M revenue, busy but under-booked on new patients.' },
+      { id: 's3', n: '03', title: 'Pain points', body: 'Empty chairs / unfilled slots. Front desk too busy to follow up leads. Wasted ad spend with weak follow-up. No-shows. Can\u2019t match DSO marketing budgets.' },
+      { id: 's4', n: '04', title: 'Products / services / offer', body: 'Free 15-minute growth audit → done-for-you multi-channel campaign (email + SMS + WhatsApp + AI voice). Pay-per-booked-appointment pricing. Includes list building, copy, sending infra, and AI reply + call handling.' },
+      { id: 's5', n: '05', title: 'Unique selling proposition (USP)', body: 'Only-pay-for-booked-appointments removes risk. True multi-channel incl. AI voice that books live on the calendar. Fully done-for-you. HIPAA-friendly handling.' },
+      { id: 's6', n: '06', title: 'Objection handling database', body: '\u201CToo busy\u201D → we do everything, you just approve. \u201CTried agencies\u201D → pay per booked appt, no retainers. \u201CCompliance?\u201D → HIPAA-friendly, opt-out handled. \u201CAlready run ads\u201D → we convert what ads miss with follow-up.' },
+      { id: 's7', n: '07', title: 'Competitor intelligence', body: 'vs front desk: no bandwidth to follow up. vs ad agencies: they drive clicks, we book appointments. vs other tools: most are email-only & DIY — we\u2019re multi-channel and managed. Don\u2019t name competitors in outreach.' },
+      { id: 's8', n: '08', title: 'Case studies / social proof / testimonials', body: 'Bright Smiles Dental: 18 new-patient appts in 3 weeks. Rossi Clinic: 32% SMS reply rate. 40+ clinics live. Average first booked appointment within week one.' },
+      { id: 's9', n: '09', title: 'Sales process', body: '1) Free audit call. 2) Map ICP + import lists. 3) Approve first messages. 4) Launch sequence. 5) AI handles replies + books. 6) Weekly reporting. Goal of first touch: book the audit.' },
+      { id: 's10', n: '10', title: 'Brand voice', body: 'Friendly, concise, outcome-focused. Confident, never pushy. Plain English, no jargon. Personalize with first name + clinic name. No emojis in email; light emoji ok on WhatsApp.' },
+      { id: 's11', n: '11', title: 'Frequently asked questions', body: 'How fast? First appts usually within week one. Contracts? No long lock-in. The list? We build or import. Compliant? HIPAA-friendly, one-click opt-out. What do I do? Approve the first message — we handle the rest.' },
+      { id: 's12', n: '12', title: 'Compliance & restrictions', body: 'Never make medical/clinical claims. Always include opt-out (STOP for SMS, unsubscribe for email). HIPAA-friendly handling of PHI. Honor suppression list. No sends outside business hours.' },
+      { id: 's13', n: '13', title: 'Bonuses', body: 'Free reputation/review audit. Done-for-you booking-calendar setup. First 100 contacts sourced free. 14-day no-booking, no-fee guarantee.' },
+      { id: 's14', n: '14', title: 'Product intelligence & customer support brain', body: 'Onboarding ~48 hours. Reschedules handled by AI. Billing per booked appointment, invoiced monthly. Support via shared inbox, <2h response. Escalate clinical questions to the clinic.' },
+    ];
+    const ROLES = [
+      { id: 'Admin', label: 'Admin', icon: '🛡', desc: 'Manage workspace, billing & members' },
+      { id: 'Member', label: 'Member', icon: '⚒', desc: 'Build agents & send campaigns' },
+      { id: 'Client', label: 'Client', icon: '👤', desc: 'View reports & approve messages' },
+      { id: 'Viewer', label: 'Viewer', icon: '👁', desc: 'Read-only access' },
+    ];
+    const PACKS = [
+      { id: 'p1', credits: 1000, price: '$20', per: '2.0¢/credit' },
+      { id: 'p2', credits: 2500, price: '$45', per: '1.8¢/credit', best: true },
+      { id: 'p3', credits: 5000, price: '$80', per: '1.6¢/credit' },
+      { id: 'p4', credits: 10000, price: '$150', per: '1.5¢/credit' },
+    ];
+    const inviteEmailValid = /.+@.+\..+/.test(this.state.invite.email);
+    const topupPack = PACKS.find((p) => p.id === this.state.topup.packId) || PACKS[1];
+    const openSenderDetail = (kind, id) => () => this.setState({ senderDetail: { kind, id } });
+    const closeSenderDetail = () => this.setState({ senderDetail: null });
+    const sdState = this.state.senderDetail;
+    const sd = sdState ? (sdState.kind === 'email' ? EMAIL_DETAILS[sdState.id] : MAILER_DETAILS[sdState.id]) : null;
+    const sdSafe = sd || { email: '', displayName: '', providerLabel: '', statusLabel: '', statusBg: '#F2EEE4', statusFg: '#9AA59E', healthScore: '—', healthLabel: '—', healthColor: '#9AA59E', sentToday: '0', dailyLimit: '—', sentTodayPct: '0%', sentThisWeek: '0', sentAllTime: '0', isDedicatedIp: false, hasWarmup: false, hasAuth: false, hasSmtp: false, isGmail: false, isOutlook: false, isSmtp: false, isMailer: false, domainAuth: [], blacklists: [], reputations: [], assignedAgents: [], permissions: [], smtpFields: [], imapFields: [], warmupDay: '0', warmupCurrentLimit: '—', warmupTargetLimit: '—', warmupPct: '0%', warmupDayOf: '', warmupStatusLabel: '—', warmupStatusFg: '#9AA59E', warmupStatusBg: '#F2EEE4', dedicatedIp: '', reconnectLabel: 'Reconnect', tokenExpiry: '—', lastSync: '—' };
+    return {
+      routeId: routeMap[sec] || 'profile',
+      navAfter: [
+        { label: 'Dashboard', icon: '◈', weight: 500, color: 'rgba(255,255,255,.82)', bg: 'transparent' },
+        { label: 'Agents', icon: '◎', weight: 500, color: 'rgba(255,255,255,.82)', bg: 'transparent' },
+        { label: 'Contacts', icon: '☺', weight: 500, color: 'rgba(255,255,255,.82)', bg: 'transparent' },
+        { label: 'Analytics', icon: '▤', weight: 500, color: 'rgba(255,255,255,.82)', bg: 'transparent' },
+        { label: 'Integrations', icon: '⚯', weight: 500, color: 'rgba(255,255,255,.82)', bg: 'transparent' },
+        { label: 'Automations', icon: '⟳', weight: 500, color: 'rgba(255,255,255,.82)', bg: 'transparent' },
+      ],
+      accountNav: [ item('profile', '☺', 'Your profile'), item('billing', '＄', 'Plans & billing'), item('custom', '✎', 'Custom fields') ],
+      workspaceNav: [ item('team', '👥', 'Team'), item('brand', '📚', 'Brand knowledge'), item('schedules', '🕘', 'Schedules'), item('usage', '▥', 'Workspace usage') ],
+      commNav: [
+        item('email', '✉', 'Email senders'),
+        item('mailer', '📨', 'Clientforce Mailer', { beta: true }),
+        item('phone', '☎', 'Phone numbers'),
+        item('whatsapp', '🗨', 'WhatsApp senders'),
+        item('suppress', '⊘', 'Suppression list', { iconColor: '#C9543F', topBorder: '1px solid #F2EEE4' }),
+      ],
+      onLogout: toast('Logging out\u2026'),
+      toastMsg: this.state.toast, hasToast: !!this.state.toast, dismissToast: () => this.setState({ toast: '' }),
+      modalOpen: !!mc, modal: mc ? { title: mc.title, cta: mc.cta, fields: mc.fields } : { fields: [] },
+      closeModal: () => this.setState({ modal: null }),
+      modalSave: () => { const c = MCFG[this.state.modal]; this.setState({ modal: null, toast: c ? c.toast : 'Saved' }); },
+      openAddField: () => this.setState({ cfAdd: { open: true, label: '', type: 'Text' }, toast: '' }), openInvite: () => this.setState({ invite: { open: true, step: 0, email: '', role: 'Member' }, toast: '' }), openSchedule: open('schedule'), openConnectEmail: openFlow('email'), openAddSender: openFlow('mailer'), openAddSuppression: open('addSuppression'), openAddNumber: openFlow('phone'), openAddWhatsapp: openFlow('whatsapp'), openTopup: () => this.setState({ topup: { open: true, step: 0, packId: 'p2', method: 'visa' }, toast: '' }),
+      tSaveProfile: toast('Profile saved'), tPhoto: toast('Choose a photo to upload'), tPassword: toast('Password reset link sent'), tPlan: toast('Opening plan options\u2026'), tPay: toast('Update payment method'), tInvoice: toast('Downloading invoice\u2026'), tUpload: toast('Choose a CSV to upload'), tRow: toast('Row actions'), tDeleteNumber: toast('Phone number removed'), tRemoveSuppress: toast('Removed from suppression list'),
+      stop: (e) => { if (e) e.stopPropagation(); },
+      flowOpen: !!fdef,
+      flowTitle: fdef ? fdef.title : '',
+      flowChooser: !!(fdef && !fprov),
+      flowStepMode: !!(fdef && fprov),
+      flowChooserTitle: fdef ? (fdef.chooserTitle || 'Choose an option') : '',
+      flowProviders: (fdef && fdef.providers) ? fdef.providers.map((p) => Object.assign({}, p, { onPick: () => this.setState({ flowProv: p.id, flowStep: 0, flowVerified: false }), isGmail: p.id === 'gmail', isOutlook: p.id === 'outlook', isMs: p.id === 'exchange', isSmtp: p.id === 'custom', noLogo: ['gmail', 'outlook', 'exchange', 'custom'].indexOf(p.id) === -1 })) : [],
+      flowStepLabel: 'Step ' + (fidx + 1) + ' of ' + fN,
+      flowSegs: fsteps ? fsteps.map((s, i) => ({ bg: i <= fidx ? '#16A82A' : '#E4EAE6' })) : [],
+      fstep: fcur ? { title: fcur.title, authLabel: fcur.authLabel || '', fields: fcur.fields || [], selects: fcur.selects || [], records: fcur.records || [], summary: fcur.summary || [], perms: fcur.perms || [] } : { fields: [], selects: [], records: [], summary: [], perms: [] },
+      fIsAuth: !!(fcur && fcur.kind === 'auth'), fIsFields: !!(fcur && fcur.kind === 'fields'), fIsSelect: !!(fcur && fcur.kind === 'select'), fIsDns: !!(fcur && fcur.kind === 'dns'), fIsSummary: !!(fcur && fcur.kind === 'summary'),
+      fHasPerms: !!(fcur && fcur.perms && fcur.perms.length), fHasVerify: !!(fcur && fcur.verify),
+      fVerified: !!this.state.flowVerified, fNotVerified: !this.state.flowVerified, fVerify: () => this.setState({ flowVerified: true }),
+      fGlyph: fpObj ? fpObj.glyph : 'cf', fGlyphBg: fpObj ? fpObj.tbg : 'rgba(53,232,52,.16)', fGlyphFg: fpObj ? fpObj.tfg : '#16A82A',
+      fIsGmail: fprov === 'gmail', fIsOutlook: fprov === 'outlook', fIsMs: fprov === 'exchange', fNoLogo: !(fprov === 'gmail' || fprov === 'outlook' || fprov === 'exchange'),
+      openDomainAuth: openFlow('domainauth'),
+      closeFlow: () => this.setState({ flowCh: null, flowProv: null, flowStep: 0, flowVerified: false }),
+      flowBackLabel: (fidx > 0 || (fdef && !fdef.single && fprov)) ? '‹ Back' : 'Cancel',
+      flowBack: () => { if (fidx > 0) this.setState({ flowStep: fidx - 1, flowVerified: false }); else if (fdef && !fdef.single && fprov) this.setState({ flowProv: null }); else this.setState({ flowCh: null, flowProv: null }); },
+      flowPrimaryLabel: (fcur && fcur.cta) ? fcur.cta : (fidx >= fN - 1 ? 'Finish' : 'Continue'),
+      flowPrimary: () => { if (fidx >= fN - 1) this.setState({ flowCh: null, flowProv: null, flowStep: 0, flowVerified: false, toast: (fdef ? fdef.title : 'Done') + ' — complete' }); else this.setState({ flowStep: fidx + 1, flowVerified: false }); },
+
+      isProfile: sec === 'profile', isBilling: sec === 'billing', isCustom: sec === 'custom', isTeam: sec === 'team', isBrand: sec === 'brand', isSchedules: sec === 'schedules', isUsage: sec === 'usage', isEmail: sec === 'email', isMailer: sec === 'mailer', isSuppress: sec === 'suppress', isPhone: sec === 'phone', isWhatsapp: sec === 'whatsapp',
+
+      workspaceDetails: [
+        { label: 'Name', value: 'BrightPath Growth', font: 'inherit' },
+        { label: 'ID', value: 'ws_8h2k4p9x2v7m1q', font: 'monospace' },
+        { label: 'Members', value: '4', font: 'inherit' },
+        { label: 'Created', value: 'Mar 12, 2026', font: 'inherit' },
+        { label: 'Plan', value: 'Growth', font: 'inherit' },
+        { label: 'Region', value: 'US · us-east-1', font: 'inherit' },
+      ],
+      tfaBg: this.state.tfa ? onColor : '#E4EAE6', tfaKnob: this.state.tfa ? 'right' : 'left', toggle2fa: () => this.setState((s) => ({ tfa: !s.tfa })),
+      autoTopupBg: this.state.autoTopup ? onColor : '#E4EAE6', autoTopupKnob: this.state.autoTopup ? 'right' : 'left', toggleAutoTopup: () => this.setState((s) => ({ autoTopup: !s.autoTopup })),
+      invoices: [ { date: 'Jun 1, 2026', amount: '$199.00', status: 'Paid' }, { date: 'May 1, 2026', amount: '$199.00', status: 'Paid' }, { date: 'Apr 1, 2026', amount: '$199.00', status: 'Paid' } ],
+      customFields: this.state.cfList.filter((f) => !cfq || f.label.toLowerCase().includes(cfq) || f.slug.includes(cfq)).map((f) => ({ label: f.label, type: f.type, slug: f.slug, onRemove: () => this.setState((s) => ({ cfList: s.cfList.filter((x) => x.slug !== f.slug), toast: 'Custom field removed' })) })),
+      cfEmpty: this.state.cfList.filter((f) => !cfq || f.label.toLowerCase().includes(cfq) || f.slug.includes(cfq)).length === 0,
+      cfSearch: this.state.cfSearch, onCfSearch: (e) => this.setState({ cfSearch: e.target.value }),
+      cfAddOpen: this.state.cfAdd.open, cfAddLabel: this.state.cfAdd.label,
+      setCfLabel: (e) => { const v = e.target.value; this.setState((s) => ({ cfAdd: Object.assign({}, s.cfAdd, { label: v }) })); },
+      cfTypeChips: ['Text', 'Number', 'Date', 'Dropdown', 'Checkbox'].map((t) => { const on = this.state.cfAdd.type === t; return { label: t, bg: on ? 'linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B)' : '#fff', fg: on ? '#0A0F0C' : '#5C6B62', border: on ? 'transparent' : '#EBE3D6', onPick: () => this.setState((s) => ({ cfAdd: Object.assign({}, s.cfAdd, { type: t }) })) }; }),
+      cfSlugPreview: (this.state.cfAdd.label.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')) || 'auto_generated',
+      cfAddValid: !!this.state.cfAdd.label.trim(),
+      cfCreateFg: this.state.cfAdd.label.trim() ? '#0A0F0C' : '#9AA59E', cfCreateBg: this.state.cfAdd.label.trim() ? 'linear-gradient(135deg,#36D7ED 0%,#35E834 55%,#D0F56B 100%)' : '#ECE7DC', cfCreateCursor: this.state.cfAdd.label.trim() ? 'pointer' : 'not-allowed',
+      closeCfAdd: () => this.setState((s) => ({ cfAdd: Object.assign({}, s.cfAdd, { open: false }) })),
+      createCf: () => { const lbl = this.state.cfAdd.label.trim(); if (!lbl) return; const slug = (lbl.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')) || ('field_' + this.state.cfList.length); this.setState((s) => ({ cfList: s.cfList.concat([{ label: lbl, type: s.cfAdd.type, slug: s.cfList.some((x) => x.slug === slug) ? slug + '_' + s.cfList.length : slug }]), cfAdd: { open: false, label: '', type: 'Text' }, toast: 'Custom field created' })); },
+      teamCount: 4 + this.state.newMembers.length,
+      team: [
+        { name: 'Jordan Mensah', email: 'jordan@brightpathgrowth.co', role: 'Owner', initials: 'JM', avbg: 'linear-gradient(135deg,#36D7ED,#35E834)', status: 'Active', sbg: '#D7F5DD', sfg: '#0F7A28' },
+        { name: 'Maya Patel', email: 'maya@brightpathgrowth.co', role: 'Admin', initials: 'MP', avbg: 'rgba(54,215,237,.4)', status: 'Active', sbg: '#D7F5DD', sfg: '#0F7A28' },
+        { name: 'Leo Nguyen', email: 'leo@brightpathgrowth.co', role: 'Member', initials: 'LN', avbg: 'rgba(208,245,107,.6)', status: 'Active', sbg: '#D7F5DD', sfg: '#0F7A28' },
+        { name: 'Sara Kim', email: 'sara@brightpathgrowth.co', role: 'Member', initials: 'SK', avbg: '#F2EEE4', status: 'Invited', sbg: 'rgba(232,196,91,.18)', sfg: '#A87B16' },
+      ].concat(this.state.newMembers),
+      schedules: [
+        { name: 'Business hours', days: 'Mon–Fri', hours: '9:00 AM – 5:00 PM', tz: 'CT', isDefault: true },
+        { name: 'Extended', days: 'Mon–Sat', hours: '8:00 AM – 7:00 PM', tz: 'CT', isDefault: false },
+        { name: 'Weekend nurture', days: 'Sat–Sun', hours: '10:00 AM – 2:00 PM', tz: 'CT', isDefault: false },
+      ],
+      usage: [
+        { label: 'Email sends', used: '4,540', total: '20,000', pct: '23%', color: 'linear-gradient(90deg,#36D7ED,#35E834)' },
+        { label: 'SMS messages', used: '1,680', total: '5,000', pct: '34%', color: '#36D7ED' },
+        { label: 'WhatsApp messages', used: '1,344', total: '5,000', pct: '27%', color: '#16A82A' },
+        { label: 'AI voice minutes', used: '420', total: '2,000', pct: '21%', color: '#1192A6' },
+        { label: 'Auto-prospecting credits', used: '180', total: '1,000', pct: '18%', color: '#6B7A1F' },
+      ],
+      emailSenders: [
+        { email: 'jordan@brightpathgrowth.co', provider: 'Gmail · Google Workspace', oauth: true, isGmail: true, sending: 'Good', sendbg: '#D7F5DD', sendfg: '#0F7A28', receiving: 'Good', recvbg: '#D7F5DD', recvfg: '#0F7A28', domainAuth: [ { k: 'SPF', fg: '#0F7A28', bg: '#D7F5DD' }, { k: 'DKIM', fg: '#0F7A28', bg: '#D7F5DD' }, { k: 'DMARC', fg: '#0F7A28', bg: '#D7F5DD' } ], limit: '500 / day', id: 'acc_4f7a21', onDetail: openSenderDetail('email', 'acc_4f7a21') },
+        { email: 'maya@brightpathgrowth.co', provider: 'Microsoft 365 / Outlook', oauth: true, isOutlook: true, sending: 'Warming', sendbg: 'rgba(232,196,91,.18)', sendfg: '#A87B16', receiving: 'Good', recvbg: '#D7F5DD', recvfg: '#0F7A28', domainAuth: [ { k: 'SPF', fg: '#0F7A28', bg: '#D7F5DD' }, { k: 'DKIM', fg: '#0F7A28', bg: '#D7F5DD' }, { k: 'DMARC', fg: '#C9543F', bg: 'rgba(224,121,107,.16)' } ], limit: '120 / day', id: 'acc_91b3d8', onDetail: openSenderDetail('email', 'acc_91b3d8') },
+        { email: 'hello@go.brightpathgrowth.co', provider: 'Custom SMTP / IMAP', oauth: false, isSmtp: true, sending: 'Good', sendbg: '#D7F5DD', sendfg: '#0F7A28', receiving: 'Needs verification', recvbg: 'rgba(232,196,91,.18)', recvfg: '#A87B16', domainAuth: [ { k: 'SPF', fg: '#0F7A28', bg: '#D7F5DD' }, { k: 'DKIM', fg: '#C9543F', bg: 'rgba(224,121,107,.16)' }, { k: 'DMARC', fg: '#C9543F', bg: 'rgba(224,121,107,.16)' } ], limit: '1,000 / day', id: 'acc_2c0e55', onDetail: openSenderDetail('email', 'acc_2c0e55') },
+      ],
+      mailerSenders: [
+        { from: 'jordan@mail.brightpathgrowth.co', name: 'Jordan at BrightPath', domain: 'Verified', dbg: '#D7F5DD', dfg: '#0F7A28', id: 'snd_7a12', onDetail: openSenderDetail('mailer', 'snd_7a12') },
+        { from: 'team@mail.brightpathgrowth.co', name: 'BrightPath Team', domain: 'Verified', dbg: '#D7F5DD', dfg: '#0F7A28', id: 'snd_7a44', onDetail: openSenderDetail('mailer', 'snd_7a44') },
+      ],
+      suppressions: [
+        { email: 'optout@example.com', reason: 'Unsubscribed', rbg: 'rgba(224,121,107,.16)', rfg: '#C9543F', added: 'Jun 18' },
+        { email: 'bounce@deadmail.co', reason: 'Bounced', rbg: '#F2EEE4', rfg: '#8A7F6B', added: 'Jun 14' },
+        { email: 'spam@reporter.net', reason: 'Complaint', rbg: 'rgba(232,196,91,.18)', rfg: '#A87B16', added: 'Jun 9' },
+      ],
+      phones: [
+        { e164: '+1 (512) 555-0100', channel: 'Voice & WhatsApp', label: 'Main line', badges: [ { label: 'Voice default', fg: '#0F7A28', bg: '#D7F5DD' }, { label: 'WA default', fg: '#0F7A28', bg: '#D7F5DD' } ] },
+        { e164: '+1 (512) 555-0144', channel: 'Voice', label: 'Overflow', badges: [ { label: 'Voice', fg: '#5C6B62', bg: '#F2EEE4' } ] },
+        { e164: '+44 20 7946 0011', channel: 'WhatsApp', label: 'UK sender', badges: [ { label: 'WA', fg: '#5C6B62', bg: '#F2EEE4' } ] },
+      ],
+      whatsapps: [
+        { number: '+1 (512) 555-0100', name: 'BrightPath Growth', status: 'Connected', sbg: '#D7F5DD', sfg: '#0F7A28', quality: 'High', qfg: '#16A82A', id: 'wa_3f81a0' },
+        { number: '+44 20 7946 0011', name: 'BrightPath UK', status: 'Pending', sbg: 'rgba(232,196,91,.18)', sfg: '#A87B16', quality: '—', qfg: '#9AA59E', id: 'wa_5d22c7' },
+      ],
+      senderDetailOpen: !!this.state.senderDetail,
+      sd: sdSafe,
+      closeSenderDetail,
+      sdCheckDns: () => this.setState({ toast: 'Re-checking DNS records…' }),
+      sdReconnect: () => { const msg = sdSafe.reconnectLabel || 'Reconnecting'; this.setState({ toast: msg, senderDetail: null }); },
+      sdRemove: () => this.setState({ toast: 'Sender removed', senderDetail: null }),
+
+      // ----- credit balance (live) -----
+      creditsDisplay: this.state.credits.toLocaleString(),
+      creditsDays: String(Math.round(this.state.credits / 150)),
+
+      // ----- brand kit -----
+      brand: this.state.brand,
+      hasBrandLogo: !!this.state.brandLogo, noBrandLogo: !this.state.brandLogo, brandLogo: this.state.brandLogo || 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==', brandLogoName: this.state.brandLogoName,
+      onLogoUpload: (e) => { const f = e.target.files && e.target.files[0]; if (!f) return; const url = URL.createObjectURL(f); this.setState({ brandLogo: url, brandLogoName: f.name, toast: 'Logo uploaded' }); },
+      removeLogo: () => this.setState({ brandLogo: null, brandLogoName: '' }),
+      setBrandTagline: setBrand('tagline'), setBrandDesc: setBrand('description'), setBrandOffer: setBrand('offer'), setBrandNotes: setBrand('notes'),
+      setBrandPrimary: setBrand('primary'), setBrandAccent: setBrand('accent'), setBrandInk: setBrand('ink'),
+      brandLinks: this.state.brandLinks.map((l) => ({ id: l.id, label: l.label, url: l.url,
+        onLabel: (e) => { const v = e.target.value; this.setState((s) => ({ brandLinks: s.brandLinks.map((x) => x.id === l.id ? Object.assign({}, x, { label: v }) : x) })); },
+        onUrl: (e) => { const v = e.target.value; this.setState((s) => ({ brandLinks: s.brandLinks.map((x) => x.id === l.id ? Object.assign({}, x, { url: v }) : x) })); },
+        onRemove: () => this.setState((s) => ({ brandLinks: s.brandLinks.filter((x) => x.id !== l.id) })) })),
+      addLink: () => this.setState((s) => ({ brandLinks: s.brandLinks.concat([{ id: 'bl' + (s.linkSeq + 1), label: '', url: '' }]), linkSeq: s.linkSeq + 1 })),
+      docCount: String(this.state.brandDocs.length),
+      brandDocs: this.state.brandDocs.map((d) => ({ id: d.id, name: d.name, meta: d.meta, icon: d.icon, iconbg: d.iconbg, status: d.status, statusFg: '#0F7A28', statusBg: '#D7F5DD', onRemove: () => this.setState((s) => ({ brandDocs: s.brandDocs.filter((x) => x.id !== d.id) })) })),
+      onDocUpload: (e) => { const files = e.target.files; if (!files || !files.length) return; const arr = []; for (let i = 0; i < files.length; i++) { const f = files[i]; const ext = (f.name.split('.').pop() || '').toLowerCase(); const ic = ext === 'pdf' ? { icon: '📕', iconbg: 'rgba(224,121,107,.16)' } : (ext === 'xlsx' || ext === 'csv') ? { icon: '📊', iconbg: 'rgba(53,232,52,.16)' } : (ext === 'ppt' || ext === 'pptx' || ext === 'key') ? { icon: '📑', iconbg: 'rgba(232,196,91,.2)' } : { icon: '📄', iconbg: 'rgba(54,215,237,.16)' }; const kb = f.size < 1024 * 1024 ? Math.max(1, Math.round(f.size / 1024)) + ' KB' : (f.size / 1048576).toFixed(1) + ' MB'; arr.push({ id: 'd' + (this.state.docSeq + 1 + i), name: f.name, meta: ext.toUpperCase() + ' · ' + kb + ' · just now', icon: ic.icon, iconbg: ic.iconbg, status: 'Indexing…' }); } this.setState((s) => ({ brandDocs: arr.concat(s.brandDocs), docSeq: s.docSeq + arr.length, toast: arr.length + ' document' + (arr.length > 1 ? 's' : '') + ' uploaded' })); },
+      sources: this.state.sources.map((src) => { const on = src.connected; return { id: src.id, glyph: src.glyph, name: src.name, desc: src.desc, glyphBg: on ? 'rgba(53,232,52,.14)' : '#F2EEE4', glyphFg: on ? '#16A82A' : '#5C6B62', border: on ? '1.5px solid #9FD8AC' : '1px solid #EBE3D6', bg: on ? 'rgba(53,232,52,.04)' : '#fff', btnLabel: on ? '✓ Connected' : 'Connect', btnFg: on ? '#0F7A28' : '#0A0F0C', btnBg: on ? '#D7F5DD' : 'linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B)', btnBorder: on ? '#9FD8AC' : 'transparent', onToggle: () => this.setState((s) => ({ sources: s.sources.map((x) => x.id === src.id ? Object.assign({}, x, { connected: !x.connected }) : x), toast: (src.connected ? 'Disconnected ' : 'Connected ') + src.name })) }; }),
+      saveBrand: () => this.setState({ toast: 'Brand knowledge saved' }),
+
+      // ----- agent summary -----
+      agentSummaryOpen: this.state.agentSummaryOpen,
+      agentSummaryChevron: this.state.agentSummaryOpen ? 'Hide ▴' : 'View ▾',
+      toggleAgentSummary: () => this.setState((s) => ({ agentSummaryOpen: !s.agentSummaryOpen })),
+      summaryCount: String(SUMMARY_DEFAULTS.length),
+      summarySections: (this.state.summarySections || SUMMARY_DEFAULTS).map((sec) => { const open = !!this.state.summaryOpen[sec.id]; const preview = sec.body.length > 96 ? sec.body.slice(0, 95).trim() + '…' : sec.body; return { id: sec.id, n: sec.n, title: sec.title, body: sec.body, expanded: open, notExpanded: !open, preview, chevron: open ? '▴' : '▾',
+        onToggle: () => this.setState((s) => ({ summaryOpen: Object.assign({}, s.summaryOpen, { [sec.id]: !s.summaryOpen[sec.id] }) })),
+        onEdit: (e) => { const v = e.target.value; this.setState((s) => ({ summarySections: (s.summarySections || SUMMARY_DEFAULTS).map((x) => x.id === sec.id ? Object.assign({}, x, { body: v }) : x) })); } }; }),
+      expandAllSummary: () => this.setState({ summaryOpen: { s1: true, s2: true, s3: true, s4: true, s5: true, s6: true, s7: true, s8: true, s9: true, s10: true, s11: true, s12: true, s13: true, s14: true } }),
+      collapseAllSummary: () => this.setState({ summaryOpen: {} }),
+      saveAgentSummary: () => this.setState({ toast: 'Agent summary saved' }),
+      regenAgentSummary: () => this.setState({ summarySections: SUMMARY_DEFAULTS.map((x) => Object.assign({}, x)), toast: 'Summary regenerated from your knowledge' }),
+
+      // ----- indexed web pages -----
+      webSources: this.state.webSources.map((w) => ({ id: w.id, url: w.url, onRemove: () => this.setState((s) => ({ webSources: s.webSources.filter((x) => x.id !== w.id) })) })),
+      webInput: this.state.webInput, setWebInput: (e) => this.setState({ webInput: e.target.value }),
+      webValid: this.state.webInput.trim().length > 3 && /\./.test(this.state.webInput),
+      webBtnBg: (this.state.webInput.trim().length > 3 && /\./.test(this.state.webInput)) ? 'linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B)' : '#ECE7DC',
+      webBtnFg: (this.state.webInput.trim().length > 3 && /\./.test(this.state.webInput)) ? '#0A0F0C' : '#9AA59E',
+      addWebSource: () => { const raw = this.state.webInput.trim(); if (raw.length < 4 || !/\./.test(raw)) return; const url = raw.replace(/^https?:\/\//, '').replace(/\/$/, ''); this.setState((s) => ({ webSources: s.webSources.concat([{ id: 'w' + (s.webSeq + 1), url }]), webSeq: s.webSeq + 1, webInput: '', toast: 'Indexing ' + url + '…' })); },
+
+      // ----- guardrails (structured) -----
+      guardrails: this.state.guardrails.map((g) => { const M = GK[g.kind]; return { id: g.id, text: g.text, kindLabel: M.label, kindFg: M.fg, kindBg: M.bg, kindIcon: M.icon, onRemove: () => this.setState((s) => ({ guardrails: s.guardrails.filter((x) => x.id !== g.id) })) }; }),
+      gKindChips: ['do', 'dont', 'tone'].map((k) => { const on = this.state.gNewKind === k; const M = GK[k]; return { label: M.label, bg: on ? M.bg : '#fff', fg: on ? M.fg : '#5C6B62', border: on ? M.fg : '#EBE3D6', onPick: () => this.setState({ gNewKind: k }) }; }),
+      gNewText: this.state.gNewText, setGNewText: (e) => this.setState({ gNewText: e.target.value }),
+      gAddValid: !!this.state.gNewText.trim(),
+      gAddBg: this.state.gNewText.trim() ? 'linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B)' : '#ECE7DC', gAddFg: this.state.gNewText.trim() ? '#0A0F0C' : '#9AA59E',
+      addGuardrail: () => { const t = this.state.gNewText.trim(); if (!t) return; this.setState((s) => ({ guardrails: s.guardrails.concat([{ id: 'g' + (s.gSeq + 1), kind: s.gNewKind, text: t }]), gSeq: s.gSeq + 1, gNewText: '' })); },
+      guardrailPresets: ['Keep emails under 90 words', 'No emojis in email', 'Always include one clear CTA', 'Never mention competitors', 'Reference a relevant case study'].map((p) => ({ label: p, onAdd: () => { const kind = /^(no |never|don)/i.test(p) ? 'dont' : (/tone|friendly|warm|concise/i.test(p) ? 'tone' : 'do'); this.setState((s) => (s.guardrails.some((x) => x.text === p) ? {} : ({ guardrails: s.guardrails.concat([{ id: 'g' + (s.gSeq + 1), kind, text: p }]), gSeq: s.gSeq + 1 }))); } })),
+
+      // ----- invite flow -----
+      inviteOpen: this.state.invite.open, inviteEmail: this.state.invite.email,
+      inviteIsForm: this.state.invite.step === 0, inviteIsSent: this.state.invite.step === 1,
+      setInviteEmail: (e) => { const v = e.target.value; this.setState((s) => ({ invite: Object.assign({}, s.invite, { email: v }) })); },
+      inviteRoles: ROLES.map((r) => { const on = this.state.invite.role === r.id; return { id: r.id, label: r.label, icon: r.icon, desc: r.desc, border: on ? '2px solid #35E834' : '1px solid #EBE3D6', bg: on ? 'rgba(53,232,52,.06)' : '#fff', check: on ? 'visible' : 'hidden', onPick: () => this.setState((s) => ({ invite: Object.assign({}, s.invite, { role: r.id }) })) }; }),
+      inviteValid: inviteEmailValid,
+      inviteSendFg: inviteEmailValid ? '#0A0F0C' : '#9AA59E', inviteSendBg: inviteEmailValid ? 'linear-gradient(135deg,#36D7ED 0%,#35E834 55%,#D0F56B 100%)' : '#ECE7DC', inviteSendCursor: inviteEmailValid ? 'pointer' : 'not-allowed',
+      sendInvite: () => { if (!inviteEmailValid) return; const email = this.state.invite.email.trim(); const role = this.state.invite.role; const link = 'https://app.clientforce.co/invite/' + Math.random().toString(36).slice(2, 11); const initials = email.replace(/[^a-zA-Z]/g, '').slice(0, 2).toUpperCase() || '??'; this.setState((s) => ({ invite: Object.assign({}, s.invite, { step: 1 }), inviteSent: { email, link, role }, newMembers: s.newMembers.concat([{ name: email.split('@')[0], email, role, initials, avbg: '#F2EEE4', status: 'Invited', sbg: 'rgba(232,196,91,.18)', sfg: '#A87B16' }]) })); },
+      inviteSentEmail: this.state.inviteSent.email, inviteSentRole: this.state.inviteSent.role, inviteLink: this.state.inviteSent.link,
+      copyInvite: () => { try { if (navigator.clipboard) navigator.clipboard.writeText(this.state.inviteSent.link); } catch (e) {} this.setState({ toast: 'Invite link copied to clipboard' }); },
+      closeInvite: () => this.setState((s) => ({ invite: Object.assign({}, s.invite, { open: false }) })),
+      inviteAnother: () => this.setState({ invite: { open: true, step: 0, email: '', role: 'Member' } }),
+
+      // ----- top-up flow -----
+      topupOpen: this.state.topup.open,
+      topupIsForm: this.state.topup.step === 0, topupIsDone: this.state.topup.step === 1,
+      topupPacks: PACKS.map((p) => { const on = this.state.topup.packId === p.id; return { id: p.id, credits: p.credits.toLocaleString(), price: p.price, per: p.per, best: !!p.best, border: on ? '2px solid #35E834' : '1px solid #EBE3D6', bg: on ? 'rgba(53,232,52,.06)' : '#fff', check: on ? 'visible' : 'hidden', onPick: () => this.setState((s) => ({ topup: Object.assign({}, s.topup, { packId: p.id }) })) }; }),
+      topupMethods: [{ id: 'visa', label: 'Visa ···· 4242', glyph: 'VISA' }, { id: 'new', label: 'Add a new card', glyph: '＋' }].map((m) => { const on = this.state.topup.method === m.id; return { id: m.id, label: m.label, glyph: m.glyph, border: on ? '2px solid #35E834' : '1px solid #EBE3D6', bg: on ? 'rgba(53,232,52,.06)' : '#fff', check: on ? 'visible' : 'hidden', onPick: () => this.setState((s) => ({ topup: Object.assign({}, s.topup, { method: m.id }) })) }; }),
+      topupCredits: (this.state.topup.step === 1 ? (this.state.topup.paidCredits || topupPack.credits) : topupPack.credits).toLocaleString(), topupPrice: topupPack.price,
+      topupNewBalance: this.state.credits.toLocaleString(),
+      payTopup: () => { const pack = PACKS.find((p) => p.id === this.state.topup.packId) || PACKS[1]; this.setState((s) => ({ credits: s.credits + pack.credits, topup: Object.assign({}, s.topup, { step: 1, paidCredits: pack.credits, paidBalance: s.credits + pack.credits }) })); },
+      closeTopup: () => this.setState((s) => ({ topup: Object.assign({}, s.topup, { open: false }), toast: s.topup.step === 1 ? 'Credits added to your balance' : '' })),
+    };
+  }
+}
+</script>
+</body>
+</html>

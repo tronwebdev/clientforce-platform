@@ -1,0 +1,1620 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&amp;family=Hanken+Grotesk:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0;padding:0;}
+  *{box-sizing:border-box;}
+  @keyframes cfspin{to{transform:rotate(360deg);}}
+  @keyframes cfpulse{0%,100%{opacity:.35;}50%{opacity:1;}}
+</style>
+</helmet>
+
+<div style="min-height:100vh;width:100%;background:#FBF7F0;font-family:'Hanken Grotesk',sans-serif;position:relative;overflow:hidden;">
+    <div style="display:flex;align-items:stretch;min-height:100vh;">
+      <!-- DARK SIDEBAR (account context) -->
+      <div style="width:248px;flex:none;background:#0C140F;color:#fff;padding:22px 16px;display:flex;flex-direction:column;">
+        <div style="display:flex;align-items:center;gap:10px;padding:6px 8px;margin-bottom:18px;">
+          <div style="width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);display:flex;align-items:center;justify-content:center;font-family:'Bricolage Grotesque',sans-serif;font-weight:800;color:#0A0F0C;font-size:18px;">f</div>
+          <span style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:19px;">Clientforce</span>
+        </div>
+        <div style="position:relative;margin-bottom:18px;">
+          <div onClick="{{ toggleWs }}" style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:12px;background:rgba(255,255,255,.06);cursor:pointer;">
+            <span style="width:26px;height:26px;border-radius:7px;background:rgba(54,215,237,.22);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#7FE8A0;">⚙</span>
+            <div style="line-height:1.15;flex:1;min-width:0;"><div style="font-size:13.5px;font-weight:600;">Account admin</div><div style="font-size:11.5px;color:rgba(255,255,255,.5);">{{ wsCountLabel }}</div></div>
+            <span style="color:rgba(255,255,255,.45);font-size:12px;">⇅</span>
+          </div>
+          <sc-if value="{{ wsOpen }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute;left:calc(100% + 12px);top:-4px;width:248px;background:#14201A;border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:8px;box-shadow:0 20px 48px rgba(0,0,0,.5);z-index:40;">
+              <div style="font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.4);padding:6px 12px 8px;">Switch to workspace</div>
+              <sc-for list="{{ wsMenu }}" as="w" hint-placeholder-count="4">
+                <div onClick="{{ w.onOpen }}" style="display:flex;align-items:center;gap:10px;padding:8px 11px;border-radius:10px;cursor:pointer;" style-hover="background:rgba(255,255,255,.06);"><span style="width:24px;height:24px;border-radius:6px;flex:none;background:{{ w.avbg }};color:#0A0F0C;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;">{{ w.mark }}</span><span style="font-size:13.5px;color:rgba(255,255,255,.9);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ w.name }}</span></div>
+              </sc-for>
+              <div onClick="{{ openNewWs }}" style="display:flex;align-items:center;gap:8px;padding:9px 11px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:600;color:#7FE8A0;border-top:1px solid rgba(255,255,255,.08);margin-top:6px;">＋ New workspace</div>
+            </div>
+          </sc-if>
+        </div>
+        <sc-for list="{{ adminNav }}" as="n" hint-placeholder-count="5">
+          <div onClick="{{ n.onClick }}" style="display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:12px;margin-bottom:4px;font-size:14.5px;font-weight:{{ n.weight }};color:{{ n.color }};background:{{ n.bg }};cursor:pointer;"><span style="font-size:15px;width:20px;text-align:center;">{{ n.icon }}</span><span style="flex:1;">{{ n.label }}</span><sc-if value="{{ n.count }}" hint-placeholder-val="{{ false }}"><span style="font-size:11.5px;font-weight:700;color:{{ n.cfg }};background:{{ n.cbg }};border-radius:100px;padding:1px 8px;">{{ n.count }}</span></sc-if></div>
+        </sc-for>
+        <div style="margin-top:auto;font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:rgba(255,255,255,.4);padding:14px 14px 6px;">Account</div>
+        <sc-for list="{{ acctNav }}" as="n" hint-placeholder-count="2">
+          <div onClick="{{ n.onClick }}" style="display:flex;align-items:center;gap:12px;padding:9px 14px;border-radius:12px;margin-bottom:2px;font-size:14px;font-weight:{{ n.weight }};color:{{ n.color }};background:{{ n.bg }};cursor:pointer;"><span style="font-size:14px;width:20px;text-align:center;">{{ n.icon }}</span><span style="flex:1;">{{ n.label }}</span></div>
+        </sc-for>
+        <div style="position:relative;margin-top:18px;">
+          <div onClick="{{ toggleProfile }}" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.05);cursor:pointer;">
+            <div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#36D7ED,#35E834);color:#0A0F0C;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;">JM</div>
+            <div style="line-height:1.2;flex:1;"><div style="font-size:14px;font-weight:600;">Jordan Mensah</div><div style="font-size:12px;color:rgba(255,255,255,.5);">Reseller owner</div></div>
+            <span style="color:rgba(255,255,255,.4);">⌄</span>
+          </div>
+          <sc-if value="{{ profileOpen }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute;left:0;right:0;bottom:calc(100% + 8px);background:#14201A;border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:8px;box-shadow:0 20px 48px rgba(0,0,0,.5);z-index:40;">
+              <div onClick="{{ tSettings }}" style="padding:9px 11px;border-radius:9px;cursor:pointer;font-size:13.5px;color:rgba(255,255,255,.88);" style-hover="background:rgba(255,255,255,.06);">⚙ Settings</div>
+              <div onClick="{{ tLogout }}" style="padding:9px 11px;border-radius:9px;cursor:pointer;font-size:13.5px;font-weight:600;color:#E0796B;" style-hover="background:rgba(224,121,107,.12);">⤴ Sign out</div>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+
+      <!-- MAIN -->
+      <div style="flex:1;background:#FBF7F0;min-width:0;padding:26px 30px 36px;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:22px;">
+          <div>
+            <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:28px;letter-spacing:-.02em;color:#0E1512;">{{ title }}</div>
+            <div style="font-size:15px;color:#5C6B62;">{{ subtitle }}</div>
+          </div>
+          <sc-if value="{{ showPrimary }}" hint-placeholder-val="{{ true }}">
+            <span onClick="{{ primaryAction }}" style="font-family:'Hanken Grotesk',sans-serif;font-weight:700;font-size:15px;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED 0%,#35E834 55%,#D0F56B 100%);border-radius:12px;padding:12px 22px;box-shadow:0 6px 16px rgba(53,232,52,.26);cursor:pointer;">{{ primaryLabel }}</span>
+          </sc-if>
+        </div>
+
+        <!-- WORKSPACES -->
+        <sc-if value="{{ isWorkspaces }}" hint-placeholder-val="{{ true }}">
+          <!-- summary strip -->
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px;">
+            <sc-for list="{{ wsStats }}" as="s" hint-placeholder-count="4">
+              <div style="background:#fff;border:1px solid #EBE3D6;border-radius:14px;padding:14px 16px;box-shadow:0 1px 2px rgba(14,21,18,.04);">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><span style="width:24px;height:24px;border-radius:7px;flex:none;background:{{ s.tint }};color:{{ s.fg }};display:flex;align-items:center;justify-content:center;font-size:12px;">{{ s.icon }}</span><span style="font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#9AA59E;">{{ s.label }}</span></div>
+                <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:24px;color:#0E1512;">{{ s.value }}</div>
+              </div>
+            </sc-for>
+          </div>
+
+          <!-- toolbar -->
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap;">
+            <div style="position:relative;flex:1;min-width:220px;max-width:340px;">
+              <span style="position:absolute;left:13px;top:50%;transform:translateY(-50%);color:#A7AEA4;font-size:13px;">⚲</span>
+              <input value="{{ wsSearch }}" onInput="{{ onWsSearch }}" type="text" placeholder="Search workspaces…" style="width:100%;height:42px;box-sizing:border-box;padding:0 14px 0 36px;border:1px solid #E4DFD4;border-radius:11px;background:#fff;font-size:14px;font-family:'Hanken Grotesk',sans-serif;color:#0E1512;">
+            </div>
+            <div style="display:flex;gap:5px;background:#F2EEE4;border:1px solid #EBE3D6;border-radius:12px;padding:5px;">
+              <sc-for list="{{ wsFilters }}" as="t" hint-placeholder-count="4">
+                <span onClick="{{ t.onClick }}" style="font-size:13px;font-weight:600;color:{{ t.color }};background:{{ t.bg }};border-radius:9px;padding:7px 13px;cursor:pointer;box-shadow:{{ t.shadow }};">{{ t.label }} <span style="font-size:11px;color:{{ t.cfg }};">{{ t.count }}</span></span>
+              </sc-for>
+            </div>
+          </div>
+
+          <!-- grid -->
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
+            <sc-for list="{{ workspaces }}" as="w" hint-placeholder-count="6">
+              <div style="position:relative;background:linear-gradient(158deg,{{ w.tint }} 0%,{{ w.tint2 }} 30%,#fff 60%);border:1px solid #ECE7DE;border-radius:16px;padding:18px 18px 15px;box-shadow:0 1px 2px rgba(14,21,18,.04);display:flex;flex-direction:column;" style-hover="border-color:#9FD8AC;box-shadow:0 12px 30px rgba(14,21,18,.10);">
+                <div style="position:absolute;top:0;left:0;right:0;height:3px;border-radius:16px 16px 0 0;background:{{ w.bar }};"></div>
+                <div style="display:flex;align-items:center;gap:12px;margin-bottom:13px;">
+                  <span style="width:42px;height:42px;border-radius:11px;flex:none;background:{{ w.soft }};color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:17px;box-shadow:0 3px 8px rgba(14,21,18,.16),inset 0 0 0 1px rgba(255,255,255,.25);">{{ w.mark }}</span>
+                  <div style="min-width:0;flex:1;"><div style="font-size:15px;font-weight:700;color:#0E1512;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ w.name }}</div><div style="font-size:11.5px;color:#A7AEA4;font-family:monospace;">{{ w.id }}</div></div>
+                  <div style="position:relative;flex:none;">
+                    <span onClick="{{ w.onToggleMenu }}" style="width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#8A7F6B;cursor:pointer;font-size:17px;" style-hover="background:rgba(255,255,255,.7);">⋯</span>
+                    <sc-if value="{{ w.menuOpen }}" hint-placeholder-val="{{ false }}">
+                      <div style="position:absolute;right:0;top:32px;width:184px;background:#fff;border:1px solid #EBE3D6;border-radius:12px;box-shadow:0 18px 40px rgba(14,21,18,.16);padding:6px;z-index:30;">
+                        <div onClick="{{ w.onOpen }}" style="display:flex;align-items:center;gap:9px;padding:9px 11px;border-radius:8px;cursor:pointer;font-size:13.5px;color:#0E1512;" style-hover="background:#F7F5F0;">↗ Open workspace</div>
+                        <div onClick="{{ w.onManage }}" style="display:flex;align-items:center;gap:9px;padding:9px 11px;border-radius:8px;cursor:pointer;font-size:13.5px;color:#0E1512;" style-hover="background:#F7F5F0;">⚙ Manage</div>
+                        <div onClick="{{ w.onToggleStatus }}" style="display:flex;align-items:center;gap:9px;padding:9px 11px;border-radius:8px;cursor:pointer;font-size:13.5px;color:#0E1512;" style-hover="background:#F7F5F0;">{{ w.statusIcon }} {{ w.statusAction }}</div>
+                        <div onClick="{{ w.onDelete }}" style="display:flex;align-items:center;gap:9px;padding:9px 11px;border-radius:8px;cursor:pointer;font-size:13.5px;color:#C9543F;border-top:1px solid #F2EEE4;margin-top:4px;" style-hover="background:#FBEEEA;">🗑 Delete</div>
+                      </div>
+                    </sc-if>
+                  </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:9px;margin-bottom:13px;">
+                  <span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:{{ w.sfg }};background:{{ w.sbg }};border-radius:100px;padding:3px 10px;"><span style="width:7px;height:7px;border-radius:50%;background:{{ w.dot }};"></span>{{ w.status }}</span>
+                  <span style="font-size:12px;color:#A7AEA4;">{{ w.plan }} plan</span>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);border:1px solid rgba(255,255,255,.7);border-radius:12px;overflow:hidden;margin-bottom:15px;background:rgba(255,255,255,.55);backdrop-filter:blur(4px);box-shadow:0 1px 2px rgba(14,21,18,.03);">
+                  <div style="padding:11px 8px;text-align:center;border-right:1px solid #F0ECE3;"><div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:18px;color:#0E1512;">{{ w.agents }}</div><div style="font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#A7AEA4;margin-top:3px;">Agents</div></div>
+                  <div style="padding:11px 8px;text-align:center;border-right:1px solid #F0ECE3;"><div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:18px;color:#0E1512;">{{ w.contacts }}</div><div style="font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#A7AEA4;margin-top:3px;">Contacts</div></div>
+                  <div style="padding:11px 8px;text-align:center;"><div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:18px;color:#0E1512;">{{ w.booked }}</div><div style="font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#A7AEA4;margin-top:3px;">Booked</div></div>
+                </div>
+                <div style="display:flex;align-items:center;gap:9px;margin-top:auto;">
+                  <span style="font-size:12.5px;color:#8A7F6B;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ w.members }} members · {{ w.role }}</span>
+                  <span onClick="{{ w.onManage }}" style="font-size:12.5px;font-weight:600;color:#8A7F6B;cursor:pointer;">Manage</span>
+                  <span style="color:#E4DFD4;">|</span>
+                  <span onClick="{{ w.onOpen }}" style="font-size:12.5px;font-weight:700;color:#16A82A;cursor:pointer;">Open →</span>
+                </div>
+              </div>
+            </sc-for>
+            <div onClick="{{ openNewWs }}" style="border:1.5px dashed #DBD3C5;border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:24px;cursor:pointer;color:#8A7F6B;min-height:180px;" style-hover="border-color:#9FD8AC;color:#16A82A;background:#fff;">
+              <span style="width:40px;height:40px;border-radius:11px;background:#F4F1EA;display:flex;align-items:center;justify-content:center;font-size:22px;color:#8A7F6B;">＋</span>
+              <span style="font-size:14px;font-weight:600;">New workspace</span>
+            </div>
+          </div>
+
+          <!-- empty -->
+          <sc-if value="{{ wsEmpty }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-top:16px;background:#fff;border:1px solid #EBE3D6;border-radius:14px;padding:22px;text-align:center;color:#8A7F6B;">
+              <div style="font-size:14px;margin-bottom:10px;">No workspaces match your search or filter.</div>
+              <span onClick="{{ clearWsFilters }}" style="display:inline-block;font-size:13px;font-weight:700;color:#16A82A;cursor:pointer;">Clear filters</span>
+            </div>
+          </sc-if>
+        </sc-if>
+
+        <!-- RESELLER -->
+        <sc-if value="{{ isReseller }}" hint-placeholder-val="{{ false }}">
+          <!-- reseller sub-tabs -->
+          <div style="display:flex;gap:5px;background:#F2EEE4;border:1px solid #EBE3D6;border-radius:13px;padding:5px;margin-bottom:20px;width:max-content;">
+            <sc-for list="{{ rTabs }}" as="t" hint-placeholder-count="3">
+              <span onClick="{{ t.onClick }}" style="font-size:13.5px;font-weight:600;color:{{ t.color }};background:{{ t.bg }};border:{{ t.bd }};border-radius:9px;padding:8px 17px;cursor:pointer;box-shadow:{{ t.shadow }};">{{ t.label }}</span>
+            </sc-for>
+          </div>
+
+          <!-- LIST: table -->
+          <sc-if value="{{ rListFull }}" hint-placeholder-val="{{ true }}">
+            <div style="background:#fff;border:1px solid #EBE3D6;border-radius:18px;box-shadow:0 6px 24px rgba(14,21,18,.05);overflow:hidden;">
+              <div style="display:grid;grid-template-columns:54px 1.4fr 1.9fr 1fr .9fr 150px;padding:12px 22px;background:#FBF7F0;border-bottom:1.5px solid #EBE3D6;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.02em;color:#5C6B62;"><span>#</span><span>Name</span><span>Email</span><span>Plan</span><span>Status</span><span style="text-align:right;">Actions</span></div>
+              <sc-for list="{{ rUsers }}" as="u" hint-placeholder-count="5">
+                <div style="display:grid;grid-template-columns:54px 1.4fr 1.9fr 1fr .9fr 150px;padding:13px 22px;border-top:1px solid #F2EEE4;align-items:center;font-size:13.5px;color:#0E1512;" style-hover="background:#FCFAF6;">
+                  <span style="color:#9AA59E;">{{ u.n }}</span>
+                  <span style="display:flex;align-items:center;gap:10px;min-width:0;"><span style="width:30px;height:30px;border-radius:50%;flex:none;background:{{ u.avbg }};color:#0A0F0C;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">{{ u.initials }}</span><span style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ u.fullName }}</span></span>
+                  <span style="color:#5C6B62;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ u.email }}</span>
+                  <span style="color:#5C6B62;">{{ u.planText }}</span>
+                  <span><span style="font-size:12px;font-weight:600;color:{{ u.sfg }};background:{{ u.sbg }};border-radius:100px;padding:4px 10px;">{{ u.status }}</span></span>
+                  <span style="display:flex;align-items:center;justify-content:flex-end;gap:8px;">
+                    <span onClick="{{ u.onEdit }}" style="font-size:12.5px;font-weight:600;color:#0E1512;background:#fff;border:1px solid #E4DFD4;border-radius:9px;padding:6px 12px;cursor:pointer;" style-hover="border-color:#9FD8AC;color:#16A82A;">Edit</span>
+                    <span onClick="{{ u.onDelete }}" style="font-size:12.5px;font-weight:600;color:#C9543F;background:#fff;border:1px solid #F0DAD4;border-radius:9px;padding:6px 12px;cursor:pointer;" style-hover="background:#FBEEEA;border-color:#E0A99E;">Delete</span>
+                  </span>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+
+          <!-- LIST: empty state -->
+          <sc-if value="{{ rListEmpty }}" hint-placeholder-val="{{ false }}">
+            <div style="background:#fff;border:1px solid #EBE3D6;border-radius:18px;box-shadow:0 6px 24px rgba(14,21,18,.05);padding:48px 28px;text-align:center;">
+              <div style="width:72px;height:72px;border-radius:18px;background:linear-gradient(140deg,rgba(54,215,237,.18),rgba(53,232,52,.2));display:flex;align-items:center;justify-content:center;margin:0 auto 18px;font-size:30px;color:#16A82A;">⚇</div>
+              <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:20px;color:#0E1512;margin-bottom:6px;">No sub-accounts yet</div>
+              <div style="font-size:14px;color:#8A7F6B;max-width:420px;margin:0 auto 22px;line-height:1.55;">Create your first client sub-account to start reselling Clientforce. They'll get their own login and workspace.</div>
+              <span onClick="{{ rGoCreateBtn }}" style="display:inline-block;font-weight:700;font-size:14.5px;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED 0%,#35E834 55%,#D0F56B 100%);border-radius:12px;padding:12px 24px;box-shadow:0 6px 16px rgba(53,232,52,.26);cursor:pointer;">+ Create sub-account</span>
+            </div>
+          </sc-if>
+
+          <!-- CREATE / EDIT form -->
+          <sc-if value="{{ rIsForm }}" hint-placeholder-val="{{ false }}">
+            <div style="max-width:720px;background:#fff;border:1px solid #EBE3D6;border-radius:18px;box-shadow:0 6px 24px rgba(14,21,18,.05);padding:24px 24px 26px;">
+              <div style="margin-bottom:18px;"><div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:17px;color:#0E1512;">User details</div><div style="font-size:13px;color:#8A7F6B;margin-top:3px;">Fill the form to create a new client user. Login details are emailed automatically.</div></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+                <div><label style="display:block;font-size:12.5px;font-weight:700;color:#5C6B62;margin-bottom:7px;">First name</label><input value="{{ rfFirst }}" onInput="{{ rOnFirst }}" type="text" placeholder="John" style="width:100%;height:46px;box-sizing:border-box;padding:0 14px;border:1px solid #E4DFD4;border-radius:11px;background:#fff;font-size:14px;font-family:'Hanken Grotesk',sans-serif;color:#0E1512;"></div>
+                <div><label style="display:block;font-size:12.5px;font-weight:700;color:#5C6B62;margin-bottom:7px;">Last name</label><input value="{{ rfLast }}" onInput="{{ rOnLast }}" type="text" placeholder="Doe" style="width:100%;height:46px;box-sizing:border-box;padding:0 14px;border:1px solid #E4DFD4;border-radius:11px;background:#fff;font-size:14px;font-family:'Hanken Grotesk',sans-serif;color:#0E1512;"></div>
+              </div>
+              <div style="margin-top:14px;"><label style="display:block;font-size:12.5px;font-weight:700;color:#5C6B62;margin-bottom:7px;">Email</label><input value="{{ rfEmail }}" onInput="{{ rOnEmail }}" type="email" placeholder="john@company.com" style="width:100%;height:46px;box-sizing:border-box;padding:0 14px;border:1px solid #E4DFD4;border-radius:11px;background:#fff;font-size:14px;font-family:'Hanken Grotesk',sans-serif;color:#0E1512;"></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px;">
+                <div><label style="display:block;font-size:12.5px;font-weight:700;color:#5C6B62;margin-bottom:7px;">Password</label><div style="position:relative;"><input value="{{ rfPw }}" onInput="{{ rOnPw }}" type="{{ rPwType }}" placeholder="••••••••" style="width:100%;height:46px;box-sizing:border-box;padding:0 60px 0 14px;border:1px solid #E4DFD4;border-radius:11px;background:#fff;font-size:14px;font-family:'Hanken Grotesk',sans-serif;color:#0E1512;"><span onClick="{{ rTogglePw }}" style="position:absolute;top:50%;right:12px;transform:translateY(-50%);font-size:12px;font-weight:700;color:#16A82A;cursor:pointer;">{{ rPwToggleLabel }}</span></div></div>
+                <div><label style="display:block;font-size:12.5px;font-weight:700;color:#5C6B62;margin-bottom:7px;">Confirm password</label><div style="position:relative;"><input value="{{ rfCpw }}" onInput="{{ rOnCpw }}" type="{{ rCpwType }}" placeholder="••••••••" style="width:100%;height:46px;box-sizing:border-box;padding:0 60px 0 14px;border:1px solid #E4DFD4;border-radius:11px;background:#fff;font-size:14px;font-family:'Hanken Grotesk',sans-serif;color:#0E1512;"><span onClick="{{ rToggleCpw }}" style="position:absolute;top:50%;right:12px;transform:translateY(-50%);font-size:12px;font-weight:700;color:#16A82A;cursor:pointer;">{{ rCpwToggleLabel }}</span></div></div>
+              </div>
+              <div style="margin-top:14px;"><label style="display:block;font-size:12.5px;font-weight:700;color:#5C6B62;margin-bottom:7px;">SaaS plan</label>
+                <sc-if value="{{ rIsEditForm }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;gap:8px;">
+                    <span onClick="{{ rSetFront }}" style="flex:1;text-align:center;font-size:13.5px;font-weight:600;padding:12px;border-radius:11px;cursor:pointer;border:1.5px solid {{ rFrontBd }};background:{{ rFrontBg }};color:{{ rFrontFg }};">Frontend plan</span>
+                    <span onClick="{{ rSetPro }}" style="flex:1;text-align:center;font-size:13.5px;font-weight:600;padding:12px;border-radius:11px;cursor:pointer;border:1.5px solid {{ rProBd }};background:{{ rProBg }};color:{{ rProFg }};">Pro plan</span>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ rIsCreateForm }}" hint-placeholder-val="{{ true }}">
+                  <div style="height:46px;display:flex;align-items:center;padding:0 14px;border:1px solid #E4DFD4;border-radius:11px;background:#F7F5F0;font-size:14px;color:#5C6B62;">{{ rPlanLabel }} <span style="margin-left:8px;font-size:11.5px;color:#A7AEA4;">· default reseller plan</span></div>
+                </sc-if>
+              </div>
+              <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:22px;">
+                <span onClick="{{ rCancel }}" style="font-size:14px;font-weight:700;color:#0E1512;background:#fff;border:1.5px solid #E4DFD4;border-radius:11px;padding:11px 20px;cursor:pointer;">Cancel</span>
+                <span onClick="{{ rSubmit }}" style="font-size:14px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED 0%,#35E834 55%,#D0F56B 100%);border-radius:11px;padding:11px 22px;box-shadow:0 6px 16px rgba(53,232,52,.26);cursor:pointer;">{{ rSubmitLabel }}</span>
+              </div>
+            </div>
+          </sc-if>
+
+          <!-- SUCCESS -->
+          <sc-if value="{{ rIsSuccess }}" hint-placeholder-val="{{ false }}">
+            <div style="max-width:720px;background:#fff;border:1px solid #EBE3D6;border-radius:18px;box-shadow:0 6px 24px rgba(14,21,18,.05);padding:40px 32px 30px;text-align:center;">
+              <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#36D7ED,#35E834);display:flex;align-items:center;justify-content:center;margin:0 auto 18px;font-size:30px;color:#0A0F0C;box-shadow:0 8px 20px rgba(53,232,52,.32);">✓</div>
+              <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:24px;color:#0E1512;margin-bottom:8px;">Sub-account created</div>
+              <div style="font-size:15px;color:#8A7F6B;max-width:480px;margin:0 auto 22px;line-height:1.6;"><strong style="color:#0E1512;">{{ rCreatedName }}</strong> now has access to their own Clientforce workspace on the {{ rCreatedPlanLabel }}.</div>
+              <div style="display:flex;align-items:center;gap:12px;justify-content:center;background:#FBF7F0;border:1px solid #EBE3D6;border-radius:13px;padding:14px 18px;max-width:440px;margin:0 auto 16px;text-align:left;">
+                <span style="width:40px;height:40px;border-radius:11px;flex:none;background:rgba(53,232,52,.14);display:flex;align-items:center;justify-content:center;font-size:18px;color:#16A82A;">✉</span>
+                <div style="min-width:0;"><div style="font-size:13.5px;font-weight:700;color:#0E1512;">Login details emailed</div><div style="font-size:13px;color:#8A7F6B;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Sent to {{ rCreatedEmail }} with a link to set their password.</div></div>
+              </div>
+              <div style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:24px;">
+                <span onClick="{{ rSuccessList }}" style="font-size:14px;font-weight:700;color:#0E1512;background:#fff;border:1.5px solid #E4DFD4;border-radius:11px;padding:11px 20px;cursor:pointer;">Back to all users</span>
+                <span onClick="{{ rSuccessAssets }}" style="font-size:14px;font-weight:700;color:#0E1512;background:#fff;border:1.5px solid #E4DFD4;border-radius:11px;padding:11px 20px;cursor:pointer;" style-hover="border-color:#9FD8AC;color:#16A82A;">View reseller assets</span>
+                <span onClick="{{ rSuccessAnother }}" style="font-size:14px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED 0%,#35E834 55%,#D0F56B 100%);border-radius:11px;padding:11px 22px;box-shadow:0 6px 16px rgba(53,232,52,.26);cursor:pointer;">Create another</span>
+              </div>
+            </div>
+          </sc-if>
+
+          <!-- ASSETS -->
+          <sc-if value="{{ rIsAssets }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;align-items:flex-start;gap:14px;background:linear-gradient(140deg,rgba(208,245,107,.34),rgba(54,215,237,.14));border:1px solid #E4EDD6;border-radius:16px;padding:18px 20px;margin-bottom:20px;">
+              <span style="width:46px;height:46px;border-radius:12px;flex:none;background:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;color:#16A82A;box-shadow:0 2px 6px rgba(14,21,18,.06);">◳</span>
+              <div style="flex:1;min-width:0;"><div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:16px;color:#0E1512;margin-bottom:2px;">White-label reseller kit</div><div style="font-size:13.5px;color:#5C6B62;line-height:1.5;">Everything you need to sell Clientforce under your own brand. Download individually or grab the full pack.</div></div>
+              <span onClick="{{ rOpenAssets }}" style="flex:none;font-size:13.5px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED 0%,#35E834 55%,#D0F56B 100%);border-radius:11px;padding:10px 18px;box-shadow:0 6px 16px rgba(53,232,52,.26);cursor:pointer;">↓ Download all</span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;">
+              <sc-for list="{{ rAssets }}" as="a" hint-placeholder-count="6">
+                <div style="background:#fff;border:1px solid #EBE3D6;border-radius:16px;box-shadow:0 4px 16px rgba(14,21,18,.04);padding:20px;display:flex;flex-direction:column;" style-hover="border-color:#9FD8AC;box-shadow:0 10px 26px rgba(14,21,18,.08);">
+                  <div style="display:flex;align-items:center;gap:12px;margin-bottom:13px;">
+                    <span style="width:44px;height:44px;border-radius:12px;flex:none;background:{{ a.tint }};color:{{ a.fg }};display:flex;align-items:center;justify-content:center;font-size:21px;">{{ a.icon }}</span>
+                    <div style="min-width:0;"><div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:15.5px;color:#0E1512;">{{ a.title }}</div><div style="font-size:11.5px;font-weight:600;color:#9AA59E;text-transform:uppercase;letter-spacing:.02em;margin-top:2px;">{{ a.meta }}</div></div>
+                  </div>
+                  <div style="font-size:13px;color:#5C6B62;line-height:1.55;flex:1;margin-bottom:16px;">{{ a.desc }}</div>
+                  <span onClick="{{ a.onDownload }}" style="align-self:flex-start;font-size:13px;font-weight:700;color:#0E1512;background:#FBF7F0;border:1px solid #E4DFD4;border-radius:10px;padding:9px 16px;cursor:pointer;" style-hover="background:#fff;border-color:#9FD8AC;color:#16A82A;">↓ Download</span>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+        </sc-if>
+
+        <!-- AGENCY HUB (merges agency-assets + websites) -->
+        <sc-if value="{{ isAgency }}" hint-placeholder-val="{{ false }}">
+          <!-- toolbar: assets is now a secondary entry -->
+          <sc-if value="{{ aIsHome }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
+              <span onClick="{{ aGoAssets }}" style="display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#0E1512;background:#fff;border:1px solid #E4DFD4;border-radius:11px;padding:9px 15px;cursor:pointer;" style-hover="border-color:#9FD8AC;color:#16A82A;"><span style="width:22px;height:22px;border-radius:7px;background:linear-gradient(135deg,#36D7ED,#35E834);display:flex;align-items:center;justify-content:center;font-size:13px;color:#0A0F0C;">◳</span>Asset vault</span>
+            </div>
+          </sc-if>
+          <sc-if value="{{ aIsAssets }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-bottom:16px;"><span onClick="{{ aGoHome }}" style="display:inline-flex;align-items:center;gap:7px;font-size:13.5px;font-weight:700;color:#5C6B62;cursor:pointer;" style-hover="color:#16A82A;">← Back to website</span></div>
+          </sc-if>
+
+          <!-- HOME: featured website summary + list -->
+          <sc-if value="{{ aIsHome }}" hint-placeholder-val="{{ true }}">
+           <div style="max-width:1200px;">
+            <div style="background:#fff;border:1px solid #EBE3D6;border-radius:20px;box-shadow:0 6px 24px rgba(14,21,18,.05);overflow:hidden;margin-bottom:26px;">
+              <div style="display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);">
+                <div style="position:relative;background:#0C140F;min-height:300px;display:flex;flex-direction:column;">
+                  <div style="display:flex;align-items:center;gap:7px;padding:13px 16px;background:#0C140F;border-bottom:1px solid rgba(255,255,255,.08);"><span style="width:11px;height:11px;border-radius:50%;background:#FF5F57;"></span><span style="width:11px;height:11px;border-radius:50%;background:#FEBC2E;"></span><span style="width:11px;height:11px;border-radius:50%;background:#28C840;"></span><span style="margin-left:8px;flex:1;min-width:0;font-size:11px;font-weight:600;color:rgba(255,255,255,.78);background:rgba(255,255,255,.08);border-radius:6px;padding:4px 11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ aFeatured.url }}</span></div>
+                  <div style="flex:1;overflow:hidden;position:relative;min-height:240px;">
+                    <img src="{{ aFeatured.imgUrl }}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;">
+                  </div>
+                </div>
+                <div style="padding:24px 26px;display:flex;flex-direction:column;">
+                  <div style="display:flex;align-items:center;gap:9px;margin-bottom:6px;"><span style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9AA59E;">Default agency website</span><span style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;color:{{ aFeatured.sfg }};background:{{ aFeatured.sbg }};border-radius:100px;padding:3px 10px;"><span style="width:7px;height:7px;border-radius:50%;background:{{ aFeatured.dot }};"></span>{{ aFeatured.statusLabel }}</span></div>
+                  <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:23px;color:#0E1512;line-height:1.2;margin-bottom:16px;">{{ aFeatured.title }}</div>
+                  <div style="display:flex;flex-direction:column;gap:11px;margin-bottom:20px;">
+                    <div style="display:flex;align-items:center;gap:10px;"><span style="width:30px;height:30px;border-radius:8px;flex:none;background:#F2EEE4;display:flex;align-items:center;justify-content:center;font-size:14px;color:#16A82A;">◎</span><div style="min-width:0;"><div style="font-size:11px;font-weight:600;color:#9AA59E;text-transform:uppercase;letter-spacing:.03em;">Live URL</div><div style="font-size:13.5px;font-weight:600;color:#16A82A;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ aFeatured.url }}</div></div></div>
+                    <div style="display:flex;align-items:center;gap:10px;"><span style="width:30px;height:30px;border-radius:8px;flex:none;background:#F2EEE4;display:flex;align-items:center;justify-content:center;font-size:14px;color:#1192A6;">▤</span><div style="min-width:0;"><div style="font-size:11px;font-weight:600;color:#9AA59E;text-transform:uppercase;letter-spacing:.03em;">Subdomain</div><div style="font-size:13.5px;font-weight:600;color:#0E1512;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ aFeatured.domain }}</div></div></div>
+                    <div style="display:flex;align-items:center;gap:10px;"><span style="width:30px;height:30px;border-radius:8px;flex:none;background:#F2EEE4;display:flex;align-items:center;justify-content:center;font-size:14px;color:#6A4DE0;">◷</span><div><div style="font-size:11px;font-weight:600;color:#9AA59E;text-transform:uppercase;letter-spacing:.03em;">Type · Created</div><div style="font-size:13.5px;font-weight:600;color:#0E1512;">{{ aFeatured.kind }} · {{ aFeatured.created }}</div></div></div>
+                  </div>
+                  <div style="display:flex;gap:10px;margin-top:auto;flex-wrap:wrap;">
+                    <span onClick="{{ aFeatured.onVisit }}" style="font-size:13.5px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED 0%,#35E834 55%,#D0F56B 100%);border-radius:11px;padding:11px 18px;box-shadow:0 6px 16px rgba(53,232,52,.26);cursor:pointer;">↗ Visit site</span>
+                    <span onClick="{{ aFeatured.onEdit }}" style="font-size:13.5px;font-weight:700;color:#0E1512;background:#fff;border:1.5px solid #E4DFD4;border-radius:11px;padding:11px 18px;cursor:pointer;" style-hover="border-color:#9FD8AC;color:#16A82A;">Edit</span>
+                    <span onClick="{{ aFeatured.onDomain }}" style="font-size:13.5px;font-weight:700;color:#0E1512;background:#fff;border:1.5px solid #E4DFD4;border-radius:11px;padding:11px 18px;cursor:pointer;" style-hover="border-color:#9FD8AC;color:#16A82A;">Custom domain</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;"><div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:17px;color:#0E1512;">Your websites</div><span onClick="{{ aStart }}" style="font-size:13px;font-weight:700;color:#16A82A;cursor:pointer;">+ Create website</span></div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;">
+              <sc-for list="{{ aSites }}" as="s" hint-placeholder-count="3">
+                <div style="background:#fff;border:1px solid #EBE3D6;border-radius:14px;box-shadow:0 4px 16px rgba(14,21,18,.04);overflow:hidden;display:flex;flex-direction:column;" style-hover="border-color:#9FD8AC;box-shadow:0 10px 26px rgba(14,21,18,.08);">
+                  <div style="position:relative;height:152px;background:#F2EEE4;overflow:hidden;">
+                    <img src="{{ s.imgUrl }}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;">
+                    <span style="position:absolute;top:11px;right:11px;display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:{{ s.sfg }};background:rgba(255,255,255,.94);box-shadow:0 2px 8px rgba(14,21,18,.12);border-radius:100px;padding:4px 11px;"><span style="width:6px;height:6px;border-radius:50%;background:{{ s.dot }};"></span>{{ s.statusLabel }}</span>
+                  </div>
+                  <div style="padding:16px 17px 17px;display:flex;flex-direction:column;flex:1;">
+                    <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:15.5px;color:#0E1512;margin-bottom:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ s.title }}</div>
+                    <div style="font-size:12.5px;color:#16A82A;margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ s.shownDomain }}</div>
+                    <div style="font-size:12px;color:#9AA59E;margin-bottom:15px;">{{ s.kind }} · {{ s.created }}</div>
+                    <div style="display:flex;gap:8px;margin-top:auto;">
+                      <span onClick="{{ s.onEdit }}" style="flex:1;text-align:center;font-size:12.5px;font-weight:600;color:#0E1512;background:#FBF7F0;border:1px solid #E4DFD4;border-radius:9px;padding:8px 0;cursor:pointer;" style-hover="border-color:#9FD8AC;color:#16A82A;">Edit</span>
+                      <span onClick="{{ s.onDomain }}" style="flex:1;text-align:center;font-size:12.5px;font-weight:600;color:#1192A6;background:#fff;border:1px solid #BfE3EC;border-radius:9px;padding:8px 0;cursor:pointer;" style-hover="background:rgba(54,215,237,.08);">Domain</span>
+                      <span onClick="{{ s.onDelete }}" style="width:38px;text-align:center;font-size:13px;font-weight:600;color:#C9543F;background:#fff;border:1px solid #F0DAD4;border-radius:9px;padding:8px 0;cursor:pointer;" style-hover="background:#FBEEEA;border-color:#E0A99E;">✕</span>
+                    </div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+           </div>
+          </sc-if>
+
+          <!-- EMPTY: focus on setting up first website -->
+          <sc-if value="{{ aIsEmpty }}" hint-placeholder-val="{{ false }}">
+            <div style="max-width:760px;background:#fff;border:1px solid #EBE3D6;border-radius:20px;box-shadow:0 6px 24px rgba(14,21,18,.05);overflow:hidden;">
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:2px;background:#EBE3D6;">
+                <div style="height:148px;overflow:hidden;background:#F2EEE4;"><img src="{{ aEmptyImg1 }}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;"></div>
+                <div style="height:148px;overflow:hidden;background:#F2EEE4;"><img src="{{ aEmptyImg2 }}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;"></div>
+                <div style="height:148px;overflow:hidden;background:#F2EEE4;"><img src="{{ aEmptyImg3 }}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;"></div>
+              </div>
+              <div style="padding:36px 36px 38px;text-align:center;">
+                <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:24px;color:#0E1512;margin-bottom:9px;">Set up your first agency website</div>
+                <div style="font-size:15px;color:#8A7F6B;max-width:460px;margin:0 auto 26px;line-height:1.6;">Launch your agency's online home in minutes. Tell us about your business and ClientforceAi will help you build it.</div>
+                <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+                  <span onClick="{{ aStart }}" style="font-weight:700;font-size:15px;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED 0%,#35E834 55%,#D0F56B 100%);border-radius:12px;padding:13px 26px;box-shadow:0 6px 16px rgba(53,232,52,.26);cursor:pointer;">Create agency website</span>
+                  <span onClick="{{ aGoAssets }}" style="font-weight:700;font-size:15px;color:#0E1512;background:#fff;border:1.5px solid #E4DFD4;border-radius:12px;padding:13px 24px;cursor:pointer;" style-hover="border-color:#9FD8AC;color:#16A82A;">Explore asset vault</span>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+
+          <!-- ASSET VAULT -->
+          <sc-if value="{{ aIsAssets }}" hint-placeholder-val="{{ false }}">
+            <div style="max-width:1200px;">
+            <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:18px;">
+              <div><div style="font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#9AA59E;margin-bottom:5px;">Included resources</div><div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:18px;color:#0E1512;">Agency assets</div></div>
+              <div style="font-size:13px;font-weight:600;color:#16A82A;white-space:nowrap;">{{ aVaultCount }}</div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;">
+              <sc-for list="{{ aVault }}" as="a" hint-placeholder-count="6">
+                <div style="display:flex;flex-direction:column;background:#fff;border:1px solid #EBE3D6;border-radius:16px;box-shadow:0 4px 16px rgba(14,21,18,.04);overflow:hidden;" style-hover="border-color:#9FD8AC;box-shadow:0 12px 30px rgba(14,21,18,.09);">
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 18px 0;">
+                    <span style="width:46px;height:46px;border-radius:12px;flex:none;background:{{ a.tint }};color:{{ a.fg }};display:flex;align-items:center;justify-content:center;font-size:22px;">{{ a.icon }}</span>
+                    <span style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#5C6B62;background:#F2EEE4;border-radius:6px;padding:4px 10px;white-space:nowrap;">{{ a.cat }}</span>
+                  </div>
+                  <div style="display:flex;flex:1;flex-direction:column;padding:14px 18px 16px;">
+                    <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:15px;color:#0E1512;line-height:1.35;margin-bottom:8px;">{{ a.title }}</div>
+                    <div style="font-size:13px;color:#5C6B62;line-height:1.6;flex:1;">{{ a.desc }}</div>
+                    <sc-if value="{{ a.hasStatus }}" hint-placeholder-val="{{ false }}">
+                      <span style="display:inline-flex;align-items:center;gap:6px;align-self:flex-start;margin-top:13px;padding:5px 11px;border-radius:7px;background:rgba(53,232,52,.08);border:1px solid rgba(53,232,52,.18);color:#16A82A;font-size:12px;font-weight:700;">✓ {{ a.status }}</span>
+                    </sc-if>
+                    <sc-if value="{{ a.hasNote }}" hint-placeholder-val="{{ false }}">
+                      <div style="margin-top:11px;padding:10px 13px;border-radius:10px;background:rgba(53,232,52,.04);border:1px solid rgba(53,232,52,.1);color:#5C6B62;font-size:12.5px;line-height:1.55;">{{ a.note }}</div>
+                    </sc-if>
+                    <sc-if value="{{ a.hasAction }}" hint-placeholder-val="{{ false }}">
+                      <span onClick="{{ a.onAction }}" style="align-self:stretch;margin-top:15px;min-height:40px;border-radius:11px;display:inline-flex;align-items:center;justify-content:center;gap:7px;font-size:13.5px;font-weight:700;color:#fff;background:#0E1512;cursor:pointer;" style-hover="background:#1e293b;">{{ a.action }} →</span>
+                    </sc-if>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+            </div>
+          </sc-if>
+
+          <!-- WIZARD: step indicator -->
+          <sc-if value="{{ aInWizard }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:22px;">
+              <sc-for list="{{ aSteps }}" as="st" hint-placeholder-count="3">
+                <div style="display:flex;align-items:center;gap:9px;"><span style="width:26px;height:26px;border-radius:50%;background:{{ st.bg }};color:{{ st.fg }};display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:700;">{{ st.n }}</span><span style="font-size:13px;font-weight:700;color:{{ st.lc }};">{{ st.label }}</span><span style="width:28px;height:2px;border-radius:2px;background:#EDEAE2;"></span></div>
+              </sc-for>
+            </div>
+          </sc-if>
+
+          <!-- WIZARD step 1: business details -->
+          <sc-if value="{{ aIsW1 }}" hint-placeholder-val="{{ false }}">
+            <div style="max-width:680px;background:#fff;border:1px solid #EBE3D6;border-radius:18px;box-shadow:0 6px 24px rgba(14,21,18,.05);padding:24px 24px 26px;">
+              <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:18px;color:#0E1512;margin-bottom:4px;">What kind of website?</div>
+              <div style="font-size:13.5px;color:#8A7F6B;margin-bottom:20px;">Start with your AI Revenue Agency site, or build something custom.</div>
+              <label style="display:block;font-size:12.5px;font-weight:700;color:#5C6B62;margin-bottom:7px;">Business name</label>
+              <input value="{{ awBusiness }}" onInput="{{ aOnBusiness }}" type="text" placeholder="e.g. NorthStar Dental" style="width:100%;height:48px;box-sizing:border-box;padding:0 15px;border:1px solid #E4DFD4;border-radius:11px;background:#fff;font-size:14.5px;font-family:'Hanken Grotesk',sans-serif;color:#0E1512;margin-bottom:20px;">
+              <label style="display:block;font-size:12.5px;font-weight:700;color:#5C6B62;margin-bottom:9px;">Website type</label>
+              <div style="display:flex;flex-direction:column;gap:11px;margin-bottom:22px;">
+                <sc-for list="{{ aTypes }}" as="t" hint-placeholder-count="2">
+                  <div onClick="{{ t.onSelect }}" style="display:flex;align-items:flex-start;gap:14px;background:{{ t.bg }};border:1.5px solid {{ t.bd }};border-radius:14px;box-shadow:{{ t.sh }};padding:16px 18px;cursor:pointer;">
+                    <span style="width:46px;height:46px;border-radius:12px;flex:none;background:{{ t.ibg }};color:{{ t.ifg }};display:flex;align-items:center;justify-content:center;font-size:21px;">{{ t.icon }}</span>
+                    <div style="flex:1;min-width:0;">
+                      <div style="display:flex;align-items:center;gap:9px;margin-bottom:4px;"><span style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:15.5px;color:#0E1512;">{{ t.title }}</span><sc-if value="{{ t.hasBadge }}" hint-placeholder-val="{{ false }}"><span style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:#0A0F0C;background:#D0F56B;border-radius:20px;padding:2px 8px;">{{ t.badge }}</span></sc-if></div>
+                      <div style="font-size:13px;color:#5C6B62;line-height:1.5;">{{ t.desc }}</div>
+                    </div>
+                    <sc-if value="{{ t.selected }}" hint-placeholder-val="{{ false }}"><span style="width:22px;height:22px;border-radius:50%;flex:none;background:#16A82A;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;margin-top:2px;">✓</span></sc-if>
+                  </div>
+                </sc-for>
+              </div>
+
+              <sc-if value="{{ aShowDetails }}" hint-placeholder-val="{{ false }}">
+                <label style="display:block;font-size:12.5px;font-weight:700;color:#5C6B62;margin-bottom:9px;">Industry</label>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;">
+                  <sc-for list="{{ aIndustries }}" as="ind" hint-placeholder-count="6">
+                    <span onClick="{{ ind.onSelect }}" style="font-size:13px;font-weight:600;color:{{ ind.fg }};background:{{ ind.bg }};border:1.5px solid {{ ind.bd }};border-radius:10px;padding:9px 15px;cursor:pointer;">{{ ind.label }}</span>
+                  </sc-for>
+                </div>
+                <label style="display:block;font-size:12.5px;font-weight:700;color:#5C6B62;margin-bottom:9px;">What's the website for?</label>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:6px;">
+                  <sc-for list="{{ aGoals }}" as="g" hint-placeholder-count="4">
+                    <span onClick="{{ g.onSelect }}" style="display:flex;align-items:center;gap:10px;font-size:13.5px;font-weight:600;color:{{ g.fg }};background:{{ g.bg }};border:1.5px solid {{ g.bd }};border-radius:11px;padding:12px 14px;cursor:pointer;"><span style="font-size:16px;">{{ g.icon }}</span>{{ g.label }}</span>
+                  </sc-for>
+                </div>
+              </sc-if>
+
+              <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:18px;">
+                <span onClick="{{ aGoHome }}" style="font-size:14px;font-weight:700;color:#0E1512;background:#fff;border:1.5px solid #E4DFD4;border-radius:11px;padding:11px 20px;cursor:pointer;">Cancel</span>
+                <span onClick="{{ aW1Next }}" style="font-size:14px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED 0%,#35E834 55%,#D0F56B 100%);border-radius:11px;padding:11px 24px;box-shadow:0 6px 16px rgba(53,232,52,.26);cursor:pointer;">Continue →</span>
+              </div>
+            </div>
+          </sc-if>
+
+          <!-- WIZARD step 2: build method -->
+          <sc-if value="{{ aIsW2 }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;gap:10px;margin-bottom:18px;">
+              <span onClick="{{ aModeTemplate }}" style="display:flex;align-items:center;gap:9px;font-size:13.5px;font-weight:700;color:#0E1512;background:{{ aTplBg }};border:1.5px solid {{ aTplBd }};border-radius:12px;padding:11px 18px;cursor:pointer;"><span style="font-size:16px;">▦</span>Pick a template</span>
+              <span onClick="{{ aModeAi }}" style="display:flex;align-items:center;gap:9px;font-size:13.5px;font-weight:700;color:#0E1512;background:{{ aAiBg }};border:1.5px solid {{ aAiBd }};border-radius:12px;padding:11px 18px;cursor:pointer;"><span style="font-size:15px;">◆</span>Describe with AI</span>
+            </div>
+
+            <sc-if value="{{ aModeIsTemplate }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;align-items:center;gap:10px;background:linear-gradient(140deg,rgba(53,232,52,.12),rgba(54,215,237,.08));border:1px solid #E4EDD6;border-radius:13px;padding:12px 16px;margin-bottom:16px;">
+                <span style="width:34px;height:34px;border-radius:10px;flex:none;background:#35E834;color:#000;display:flex;align-items:center;justify-content:center;font-size:16px;">◆</span>
+                <div style="font-size:13.5px;color:#0E1512;line-height:1.5;"><strong>ClientforceAi suggests</strong> these templates for <strong>{{ awBusinessLabel }}</strong>. The recommended ones are marked.</div>
+              </div>
+              <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;">
+                <sc-for list="{{ aTemplates }}" as="t" hint-placeholder-count="6">
+                  <div onClick="{{ t.onSelect }}" style="position:relative;background:#fff;border:1.5px solid {{ t.selBd }};border-radius:16px;box-shadow:{{ t.selSh }};overflow:hidden;cursor:pointer;">
+                    <sc-if value="{{ t.recommended }}" hint-placeholder-val="{{ false }}">
+                      <span style="position:absolute;top:10px;right:10px;z-index:2;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:#0A0F0C;background:#D0F56B;border-radius:20px;padding:3px 9px;">★ Recommended</span>
+                    </sc-if>
+                    <div style="position:relative;height:120px;overflow:hidden;background:#F2EEE4;">
+                      <img src="{{ t.imgUrl }}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;">
+                      <span style="position:absolute;left:13px;bottom:13px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#fff;background:rgba(12,20,15,.55);border-radius:6px;padding:4px 9px;backdrop-filter:blur(4px);">{{ t.cat }}</span>
+                    </div>
+                    <div style="padding:13px 15px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                      <span style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:14.5px;color:#0E1512;">{{ t.name }}</span>
+                      <sc-if value="{{ t.selected }}" hint-placeholder-val="{{ false }}"><span style="width:22px;height:22px;border-radius:50%;background:#16A82A;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;">✓</span></sc-if>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ aModeIsAi }}" hint-placeholder-val="{{ false }}">
+              <div style="max-width:680px;background:#fff;border:1px solid #EBE3D6;border-radius:16px;box-shadow:0 4px 16px rgba(14,21,18,.04);padding:20px;">
+                <div style="display:flex;align-items:center;gap:11px;margin-bottom:14px;"><span style="width:42px;height:42px;border-radius:11px;background:#35E834;color:#000;display:flex;align-items:center;justify-content:center;font-size:20px;flex:none;">◆</span><div><div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:16px;color:#0E1512;">Describe your website</div><div style="font-size:12.5px;color:#8A7F6B;margin-top:2px;">Tell ClientforceAi what to build and it'll draft the whole page.</div></div></div>
+                <textarea value="{{ awPrompt }}" onInput="{{ aOnPromptW }}" placeholder="e.g. A booking funnel for a dental clinic — hero with an offer, services, testimonials and an appointment form. Brand color teal." style="width:100%;box-sizing:border-box;min-height:120px;resize:vertical;padding:14px;border:1px solid #E4DFD4;border-radius:12px;background:#fff;font-size:14px;font-family:'Hanken Grotesk',sans-serif;color:#0E1512;line-height:1.6;"></textarea>
+              </div>
+            </sc-if>
+
+            <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:24px;max-width:680px;">
+              <span onClick="{{ aW2Back }}" style="font-size:14px;font-weight:700;color:#0E1512;background:#fff;border:1.5px solid #E4DFD4;border-radius:11px;padding:11px 20px;cursor:pointer;">← Back</span>
+              <span onClick="{{ aW2Next }}" style="font-size:14px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED 0%,#35E834 55%,#D0F56B 100%);border-radius:11px;padding:11px 24px;box-shadow:0 6px 16px rgba(53,232,52,.26);cursor:pointer;">Continue →</span>
+            </div>
+          </sc-if>
+
+          <!-- WIZARD: building/loading -->
+          <sc-if value="{{ aIsBuild }}" hint-placeholder-val="{{ false }}">
+            <div style="max-width:660px;background:#fff;border:1px solid #EBE3D6;border-radius:18px;box-shadow:0 6px 24px rgba(14,21,18,.05);padding:56px 32px;text-align:center;">
+              <div style="position:relative;width:74px;height:74px;margin:0 auto 22px;">
+                <div style="position:absolute;inset:0;border-radius:50%;border:4px solid #EDEAE2;border-top-color:#35E834;border-right-color:#36D7ED;animation:cfspin .9s linear infinite;"></div>
+                <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:26px;color:#16A82A;">◆</div>
+              </div>
+              <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:22px;color:#0E1512;margin-bottom:8px;">Building {{ awBusinessLabel }}…</div>
+              <div style="font-size:14px;color:#8A7F6B;max-width:380px;margin:0 auto 24px;line-height:1.55;">ClientforceAi is assembling your pages, copy and layout. This only takes a moment.</div>
+              <div style="display:flex;flex-direction:column;gap:9px;max-width:300px;margin:0 auto;text-align:left;">
+                <div style="display:flex;align-items:center;gap:9px;font-size:13px;color:#16A82A;font-weight:600;"><span style="width:18px;height:18px;border-radius:50%;background:#16A82A;color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;">✓</span>Generating layout</div>
+                <div style="display:flex;align-items:center;gap:9px;font-size:13px;color:#16A82A;font-weight:600;animation:cfpulse 1.2s ease-in-out infinite;"><span style="width:18px;height:18px;border-radius:50%;border:2px solid #35E834;flex:none;"></span>Writing your copy</div>
+                <div style="display:flex;align-items:center;gap:9px;font-size:13px;color:#9AA59E;font-weight:600;"><span style="width:18px;height:18px;border-radius:50%;border:2px solid #E4DFD4;flex:none;"></span>Provisioning subdomain</div>
+              </div>
+            </div>
+          </sc-if>
+
+          <!-- WIZARD step 3: preview, domain & launch -->
+          <sc-if value="{{ aIsW3 }}" hint-placeholder-val="{{ false }}">
+            <div style="max-width:760px;">
+              <div style="display:flex;align-items:center;gap:9px;background:linear-gradient(140deg,rgba(53,232,52,.14),rgba(54,215,237,.08));border:1px solid #E4EDD6;border-radius:13px;padding:12px 16px;margin-bottom:18px;">
+                <span style="width:32px;height:32px;border-radius:9px;flex:none;background:#35E834;color:#000;display:flex;align-items:center;justify-content:center;font-size:16px;">✓</span>
+                <div style="font-size:13.5px;color:#0E1512;line-height:1.5;"><strong>Your website is ready.</strong> Preview it, set a custom domain, then launch.</div>
+              </div>
+              <div style="display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:18px;">
+                <!-- preview -->
+                <div style="background:#fff;border:1px solid #EBE3D6;border-radius:16px;box-shadow:0 6px 24px rgba(14,21,18,.05);overflow:hidden;">
+                  <div style="display:flex;align-items:center;gap:6px;padding:10px 14px;background:#F2EEE4;border-bottom:1px solid #EBE3D6;"><span style="width:9px;height:9px;border-radius:50%;background:#E0796B;"></span><span style="width:9px;height:9px;border-radius:50%;background:#E8C45B;"></span><span style="width:9px;height:9px;border-radius:50%;background:#7FCB6B;"></span><span style="margin-left:6px;font-size:11px;color:#9AA59E;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ awSubdomain }}</span></div>
+                  <div style="height:300px;overflow:hidden;position:relative;background:#F2EEE4;">
+                    <img src="{{ awPreviewImg }}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;">
+                    <div style="position:absolute;left:0;right:0;bottom:0;padding:18px 20px;background:linear-gradient(transparent,rgba(12,20,15,.74));">
+                      <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:20px;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.35);">{{ awBusinessLabel }}</div>
+                    </div>
+                  </div>
+                </div>
+                <!-- details -->
+                <div style="display:flex;flex-direction:column;gap:16px;">
+                  <div style="background:#fff;border:1px solid #EBE3D6;border-radius:16px;box-shadow:0 4px 16px rgba(14,21,18,.04);padding:18px;">
+                    <div style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#9AA59E;margin-bottom:7px;">Your subdomain</div>
+                    <div style="display:flex;align-items:center;gap:9px;"><span style="width:30px;height:30px;border-radius:8px;flex:none;background:rgba(53,232,52,.1);display:flex;align-items:center;justify-content:center;font-size:14px;color:#16A82A;">◎</span><span style="font-size:14.5px;font-weight:700;color:#16A82A;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ awSubdomain }}</span></div>
+                    <div style="font-size:12px;color:#9AA59E;margin-top:8px;line-height:1.5;">Created automatically. Your site is live here the moment you launch.</div>
+                  </div>
+                  <div style="background:#fff;border:1px solid #EBE3D6;border-radius:16px;box-shadow:0 4px 16px rgba(14,21,18,.04);padding:18px;">
+                    <div style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#9AA59E;margin-bottom:9px;">Custom domain <span style="font-weight:600;text-transform:none;letter-spacing:0;color:#B7B0A2;">· optional</span></div>
+                    <input value="{{ awDomain }}" onInput="{{ aOnDomain }}" type="text" placeholder="www.youragency.com" style="width:100%;height:44px;box-sizing:border-box;padding:0 14px;border:1px solid #E4DFD4;border-radius:11px;background:#fff;font-size:14px;font-family:'Hanken Grotesk',sans-serif;color:#0E1512;">
+                    <div style="font-size:12px;color:#9AA59E;margin-top:8px;line-height:1.5;">Point your domain's DNS to ClientforceAi after launch to connect it.</div>
+                  </div>
+                </div>
+              </div>
+              <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:22px;">
+                <span onClick="{{ aW3Back }}" style="font-size:14px;font-weight:700;color:#0E1512;background:#fff;border:1.5px solid #E4DFD4;border-radius:11px;padding:11px 20px;cursor:pointer;">← Back</span>
+                <span onClick="{{ aCreate }}" style="font-size:14px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED 0%,#35E834 55%,#D0F56B 100%);border-radius:11px;padding:11px 26px;box-shadow:0 6px 16px rgba(53,232,52,.26);cursor:pointer;">↗ Launch website</span>
+              </div>
+            </div>
+          </sc-if>
+        </sc-if>
+
+        <!-- BRANDING -->
+        <sc-if value="{{ isBranding }}" hint-placeholder-val="{{ false }}">
+          <div style="max-width:760px;">
+            <div style="background:#fff;border:1px solid #EBE3D6;border-radius:18px;padding:24px;box-shadow:0 4px 16px rgba(14,21,18,.04);margin-bottom:16px;">
+              <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:17px;color:#0E1512;margin-bottom:4px;">White-label branding</div>
+              <div style="font-size:13px;color:#9AA59E;margin-bottom:18px;">How the platform looks to your sub-accounts.</div>
+              <div style="display:flex;align-items:center;gap:16px;margin-bottom:18px;">
+                <div style="width:60px;height:60px;border-radius:14px;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);display:flex;align-items:center;justify-content:center;font-family:'Bricolage Grotesque',sans-serif;font-weight:800;color:#0A0F0C;font-size:24px;">f</div>
+                <span onClick="{{ tRow }}" style="font-size:13.5px;font-weight:600;color:#0E1512;background:#fff;border:1px solid #EBE3D6;border-radius:10px;padding:9px 15px;cursor:pointer;">Upload logo</span>
+              </div>
+              <div style="display:flex;gap:16px;margin-bottom:14px;">
+                <div style="flex:1;"><label style="display:block;font-size:12px;font-weight:700;color:#5C6B62;margin-bottom:6px;">Platform name</label><div style="height:46px;border-radius:11px;background:#fff;border:1px solid #EBE3D6;display:flex;align-items:center;padding:0 14px;font-size:14px;color:#0E1512;">BrightPath Suite</div></div>
+                <div style="flex:1;"><label style="display:block;font-size:12px;font-weight:700;color:#5C6B62;margin-bottom:6px;">Custom domain</label><div style="height:46px;border-radius:11px;background:#fff;border:1px solid #EBE3D6;display:flex;align-items:center;padding:0 14px;font-size:14px;color:#0E1512;">app.brightpathgrowth.co</div></div>
+              </div>
+              <label style="display:block;font-size:12px;font-weight:700;color:#5C6B62;margin-bottom:8px;">Brand color</label>
+              <div style="display:flex;gap:10px;margin-bottom:16px;">
+                <sc-for list="{{ brandSwatches }}" as="s" hint-placeholder-count="4">
+                  <span onClick="{{ s.pick }}" style="width:34px;height:34px;border-radius:9px;background:{{ s.color }};border:{{ s.border }};cursor:pointer;"></span>
+                </sc-for>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;border-top:1px solid #F2EEE4;padding-top:14px;"><div style="flex:1;"><div style="font-size:14px;font-weight:600;color:#0E1512;">Hide "Powered by Clientforce"</div><div style="font-size:12.5px;color:#9AA59E;">Remove platform branding for sub-accounts.</div></div><span onClick="{{ togglePb }}" style="width:44px;height:26px;border-radius:100px;background:{{ pbBg }};position:relative;display:inline-block;flex:none;cursor:pointer;"><span style="position:absolute;top:3px;{{ pbKnob }}:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2);"></span></span></div>
+            </div>
+            <span onClick="{{ tSave }}" style="font-size:14px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);border-radius:11px;padding:11px 22px;cursor:pointer;box-shadow:0 6px 16px rgba(53,232,52,.24);">Save branding</span>
+          </div>
+        </sc-if>
+
+        <!-- AGENCY EARNINGS -->
+        <sc-if value="{{ isBilling }}" hint-placeholder-val="{{ false }}">
+          <!-- sub-tabs -->
+          <div style="display:flex;gap:6px;background:#F2EEE4;border:1px solid #EBE3D6;border-radius:12px;padding:5px;margin-bottom:18px;width:max-content;">
+            <sc-for list="{{ eTabs }}" as="t" hint-placeholder-count="2">
+              <span onClick="{{ t.onClick }}" style="font-size:13.5px;font-weight:600;color:{{ t.color }};background:{{ t.bg }};border-radius:9px;padding:8px 18px;cursor:pointer;box-shadow:{{ t.shadow }};">{{ t.label }}</span>
+            </sc-for>
+          </div>
+
+          <!-- AGENCY VIEW -->
+          <sc-if value="{{ eTabAgency }}" hint-placeholder-val="{{ true }}">
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px;">
+              <sc-for list="{{ earnStats }}" as="b" hint-placeholder-count="4">
+                <div style="background:#fff;border:1px solid #EBE3D6;border-radius:16px;padding:18px;box-shadow:0 4px 16px rgba(14,21,18,.04);"><div style="font-size:12.5px;color:#5C6B62;font-weight:600;margin-bottom:8px;">{{ b.label }}</div><div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:24px;color:#0E1512;">{{ b.value }}</div><div style="font-size:12px;color:#16A82A;font-weight:600;margin-top:4px;">{{ b.sub }}</div></div>
+              </sc-for>
+            </div>
+
+            <!-- per-client earnings -->
+            <div style="background:#fff;border:1px solid #EBE3D6;border-radius:18px;box-shadow:0 4px 16px rgba(14,21,18,.04);overflow:hidden;margin-bottom:16px;">
+              <div style="display:flex;align-items:center;padding:16px 22px;"><div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:16px;color:#0E1512;flex:1;">Earnings by client</div><span style="font-size:12.5px;font-weight:600;color:#8A7F6B;">4 paying clients</span></div>
+              <div style="display:grid;grid-template-columns:2fr 1.5fr 0.8fr 1fr 1fr 0.9fr;gap:12px;padding:10px 22px;border-top:1px solid #F2EEE4;background:#FAF8F3;font-size:11.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#9AA59E;">
+                <span>Client</span><span>Plan</span><span style="text-align:center;">Payments</span><span style="text-align:right;">Total paid</span><span style="text-align:right;">Last paid</span><span style="text-align:right;">Status</span>
+              </div>
+              <sc-for list="{{ clients }}" as="c" hint-placeholder-count="4">
+                <div style="display:grid;grid-template-columns:2fr 1.5fr 0.8fr 1fr 1fr 0.9fr;gap:12px;align-items:center;padding:13px 22px;border-top:1px solid #F2EEE4;">
+                  <div style="display:flex;align-items:center;gap:11px;min-width:0;"><span style="width:34px;height:34px;border-radius:9px;background:{{ c.mbg }};color:#0A0F0C;font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:15px;display:flex;align-items:center;justify-content:center;flex:none;">{{ c.mark }}</span><div style="min-width:0;"><div style="font-size:14px;font-weight:600;color:#0E1512;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ c.name }}</div><div style="font-size:12px;color:#9AA59E;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ c.site }}</div></div></div>
+                  <span style="font-size:13px;color:#5C6B62;">{{ c.plan }}</span>
+                  <span style="font-size:14px;font-weight:700;color:#0E1512;text-align:center;">{{ c.payments }}</span>
+                  <span style="font-size:14px;font-weight:700;color:#0E1512;text-align:right;">{{ c.total }}</span>
+                  <span style="font-size:13px;color:#5C6B62;text-align:right;">{{ c.last }}</span>
+                  <span style="justify-self:end;font-size:12px;font-weight:600;color:{{ c.sfg }};background:{{ c.sbg }};border-radius:100px;padding:4px 11px;">{{ c.status }}</span>
+                </div>
+              </sc-for>
+            </div>
+
+            <!-- recent transactions -->
+            <div style="background:#fff;border:1px solid #EBE3D6;border-radius:18px;box-shadow:0 4px 16px rgba(14,21,18,.04);overflow:hidden;">
+              <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:16px;color:#0E1512;padding:16px 22px;">Recent payments</div>
+              <sc-for list="{{ agencyTx }}" as="p" hint-placeholder-count="4">
+                <div style="display:flex;align-items:center;gap:12px;padding:12px 22px;border-top:1px solid #F2EEE4;"><div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:600;color:#0E1512;">{{ p.who }}</div><div style="font-size:12px;color:#9AA59E;">{{ p.date }} · {{ p.method }}</div></div><span style="font-size:14px;font-weight:700;color:#0E1512;">{{ p.amount }}</span><span style="font-size:12px;font-weight:600;color:{{ p.fg }};background:{{ p.bg }};border-radius:100px;padding:4px 11px;width:54px;text-align:center;">{{ p.status }}</span></div>
+              </sc-for>
+            </div>
+          </sc-if>
+
+          <!-- RESELLER VIEW -->
+          <sc-if value="{{ eTabReseller }}" hint-placeholder-val="{{ false }}">
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:16px;">
+              <sc-for list="{{ resellerStats }}" as="b" hint-placeholder-count="3">
+                <div style="background:#fff;border:1px solid #EBE3D6;border-radius:16px;padding:18px;box-shadow:0 4px 16px rgba(14,21,18,.04);"><div style="font-size:13px;color:#5C6B62;font-weight:600;margin-bottom:8px;">{{ b.label }}</div><div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:26px;color:#0E1512;">{{ b.value }}</div><div style="font-size:12.5px;color:#16A82A;font-weight:600;margin-top:4px;">{{ b.sub }}</div></div>
+              </sc-for>
+            </div>
+            <div style="background:#fff;border:1px solid #EBE3D6;border-radius:18px;box-shadow:0 4px 16px rgba(14,21,18,.04);overflow:hidden;">
+              <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:16px;color:#0E1512;padding:16px 22px;">Recent payouts</div>
+              <sc-for list="{{ payouts }}" as="p" hint-placeholder-count="3">
+                <div style="display:flex;align-items:center;gap:12px;padding:12px 22px;border-top:1px solid #F2EEE4;"><span style="font-size:14px;color:#0E1512;flex:1;">{{ p.date }}</span><span style="font-size:14px;font-weight:600;color:#0E1512;">{{ p.amount }}</span><span style="font-size:12px;font-weight:600;color:{{ p.fg }};background:{{ p.bg }};border-radius:100px;padding:4px 11px;">{{ p.status }}</span></div>
+              </sc-for>
+            </div>
+          </sc-if>
+        </sc-if>
+
+        <!-- PLANS & BILLING -->
+        <sc-if value="{{ isPlans }}" hint-placeholder-val="{{ false }}">
+          <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:16px;margin-bottom:16px;align-items:start;">
+            <!-- current plan -->
+            <div style="background:#0C140F;color:#fff;border-radius:18px;padding:24px;box-shadow:0 8px 28px rgba(14,21,18,.12);overflow:hidden;position:relative;">
+              <div style="position:absolute;top:-40px;right:-30px;width:180px;height:180px;border-radius:50%;background:radial-gradient(circle,rgba(53,232,52,.28),transparent 65%);"></div>
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;"><span style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);border-radius:100px;padding:4px 12px;">Current plan</span></div>
+              <div style="display:flex;align-items:flex-end;gap:8px;margin-bottom:4px;"><span style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:30px;">Agency</span></div>
+              <div style="font-size:15px;color:rgba(255,255,255,.62);margin-bottom:18px;"><strong style="color:#fff;">$297</strong> / month · renews Jul 1, 2026</div>
+              <div style="display:grid;gap:9px;margin-bottom:22px;">
+                <sc-for list="{{ planFeatures }}" as="f" hint-placeholder-count="4">
+                  <div style="display:flex;align-items:center;gap:10px;font-size:13.5px;color:rgba(255,255,255,.86);"><span style="width:18px;height:18px;border-radius:50%;background:rgba(53,232,52,.2);color:#7FE8A0;display:flex;align-items:center;justify-content:center;font-size:11px;flex:none;">✓</span>{{ f }}</div>
+                </sc-for>
+              </div>
+              <div style="display:flex;gap:10px;">
+                <span onClick="{{ tChangePlan }}" style="font-size:13.5px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);border-radius:11px;padding:10px 18px;cursor:pointer;">Change plan</span>
+                <span onClick="{{ tCancelPlan }}" style="font-size:13.5px;font-weight:600;color:rgba(255,255,255,.8);background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);border-radius:11px;padding:10px 18px;cursor:pointer;">Cancel</span>
+              </div>
+            </div>
+            <!-- payment method -->
+            <div style="background:#fff;border:1px solid #EBE3D6;border-radius:18px;padding:22px;box-shadow:0 4px 16px rgba(14,21,18,.04);">
+              <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:16px;color:#0E1512;margin-bottom:16px;">Payment method</div>
+              <div style="display:flex;align-items:center;gap:13px;border:1px solid #EBE3D6;border-radius:13px;padding:14px;margin-bottom:14px;">
+                <span style="width:44px;height:30px;border-radius:6px;background:linear-gradient(135deg,#1A1F71,#2E77BC);color:#fff;font-size:11px;font-weight:800;font-style:italic;display:flex;align-items:center;justify-content:center;flex:none;">VISA</span>
+                <div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:600;color:#0E1512;">Visa ···· 4242</div><div style="font-size:12px;color:#9AA59E;">Expires 08 / 28</div></div>
+              </div>
+              <span onClick="{{ tUpdateCard }}" style="display:block;text-align:center;font-size:13.5px;font-weight:700;color:#0E1512;background:#fff;border:1.5px solid #E4DFD4;border-radius:11px;padding:10px;cursor:pointer;">Update card</span>
+              <div style="border-top:1px solid #F2EEE4;margin-top:16px;padding-top:14px;display:flex;align-items:center;justify-content:space-between;"><div style="font-size:13px;color:#5C6B62;">Billing email</div><div style="font-size:13px;font-weight:600;color:#0E1512;">jordan@mensahmedia.co</div></div>
+            </div>
+          </div>
+          <!-- invoices -->
+          <div style="background:#fff;border:1px solid #EBE3D6;border-radius:18px;box-shadow:0 4px 16px rgba(14,21,18,.04);overflow:hidden;">
+            <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:16px;color:#0E1512;padding:16px 22px;">Invoice history</div>
+            <sc-for list="{{ invoices }}" as="iv" hint-placeholder-count="4">
+              <div style="display:flex;align-items:center;gap:12px;padding:13px 22px;border-top:1px solid #F2EEE4;"><div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:600;color:#0E1512;">{{ iv.desc }}</div><div style="font-size:12px;color:#9AA59E;">{{ iv.date }}</div></div><span style="font-size:14px;font-weight:700;color:#0E1512;">{{ iv.amount }}</span><span style="font-size:12px;font-weight:600;color:{{ iv.fg }};background:{{ iv.bg }};border-radius:100px;padding:4px 11px;">{{ iv.status }}</span><span onClick="{{ iv.onDownload }}" style="font-size:13px;font-weight:700;color:#16A82A;cursor:pointer;">Download</span></div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <!-- HELP & TRAINING -->
+        <sc-if value="{{ isHelp }}" hint-placeholder-val="{{ false }}">
+          <!-- HERO -->
+          <div onClick="{{ heroVid.onPlay }}" style="position:relative;border-radius:20px;overflow:hidden;background:#0C140F;margin-bottom:22px;cursor:pointer;box-shadow:0 14px 40px rgba(14,21,18,.18);min-height:300px;display:flex;">
+            <div style="position:absolute;inset:0;background:linear-gradient(115deg,#0C140F 30%,rgba(12,20,15,.4)),radial-gradient(circle at 78% 30%,rgba(53,232,52,.5),transparent 55%),radial-gradient(circle at 95% 90%,rgba(54,215,237,.35),transparent 50%);"></div>
+            <div style="position:relative;padding:34px 38px;display:flex;flex-direction:column;justify-content:flex-end;max-width:60%;">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+                <span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);border-radius:100px;padding:5px 12px;"><span style="width:6px;height:6px;border-radius:50%;background:#0A0F0C;"></span>Now watching</span>
+                <span style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.6);">Week 8</span>
+              </div>
+              <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:30px;line-height:1.12;color:#fff;margin-bottom:10px;text-wrap:balance;">{{ heroVid.title }}</div>
+              <div style="font-size:14px;line-height:1.5;color:rgba(255,255,255,.72);margin-bottom:20px;max-width:440px;">{{ heroVid.desc }}</div>
+              <div style="display:flex;align-items:center;gap:14px;">
+                <span style="display:inline-flex;align-items:center;gap:9px;font-size:14px;font-weight:700;color:#0A0F0C;background:#fff;border-radius:12px;padding:11px 20px;"><span style="font-size:12px;">▶</span>Resume · 18 min left</span>
+                <span style="font-size:13px;color:rgba(255,255,255,.62);">52 min · Live mentorship</span>
+              </div>
+              <div style="margin-top:18px;height:5px;border-radius:100px;background:rgba(255,255,255,.16);overflow:hidden;max-width:440px;"><div style="width:64%;height:100%;background:linear-gradient(90deg,#36D7ED,#35E834 60%,#D0F56B);"></div></div>
+            </div>
+          </div>
+
+          <!-- FILTERS -->
+          <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:22px;">
+            <sc-for list="{{ helpFilters }}" as="f" hint-placeholder-count="6">
+              <span onClick="{{ f.onClick }}" style="font-size:13px;font-weight:600;color:{{ f.fg }};background:{{ f.bg }};border:1px solid {{ f.bd }};border-radius:100px;padding:8px 16px;cursor:pointer;">{{ f.label }}</span>
+            </sc-for>
+          </div>
+
+          <!-- FEATURED -->
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;"><span style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:17px;color:#0E1512;">Featured</span><span onClick="{{ tBrowseAll }}" style="font-size:13px;font-weight:700;color:#16A82A;cursor:pointer;">Browse all ›</span></div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:30px;">
+            <sc-for list="{{ featuredVids }}" as="v" hint-placeholder-count="3">
+              <div onClick="{{ v.onPlay }}" style="background:#fff;border:1px solid #EBE3D6;border-radius:16px;overflow:hidden;box-shadow:0 4px 16px rgba(14,21,18,.04);cursor:pointer;" style-hover="border-color:#35E834;">
+                <div style="position:relative;height:120px;background:{{ v.mark }};display:flex;align-items:center;justify-content:center;">
+                  <span style="width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.92);color:#0A0F0C;display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 4px 14px rgba(0,0,0,.18);">▶</span>
+                  <span style="position:absolute;bottom:8px;right:8px;font-size:11px;font-weight:700;color:#fff;background:rgba(10,15,12,.7);border-radius:6px;padding:3px 7px;">{{ v.dur }}</span>
+                </div>
+                <div style="padding:14px;"><div style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#16A82A;margin-bottom:4px;">{{ v.tag }}</div><div style="font-size:14.5px;font-weight:600;color:#0E1512;line-height:1.3;">{{ v.title }}</div></div>
+              </div>
+            </sc-for>
+          </div>
+
+          <!-- BONUSES LINKS -->
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;"><span style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:17px;color:#0E1512;">Bonuses &amp; resources</span></div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:30px;">
+            <sc-for list="{{ bonuses }}" as="b" hint-placeholder-count="3">
+              <div onClick="{{ b.onOpen }}" style="display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #EBE3D6;border-radius:14px;padding:14px;box-shadow:0 4px 16px rgba(14,21,18,.04);cursor:pointer;" style-hover="border-color:#35E834;">
+                <span style="width:40px;height:40px;border-radius:11px;background:{{ b.tint }};color:{{ b.fg }};display:flex;align-items:center;justify-content:center;font-size:17px;flex:none;">{{ b.icon }}</span>
+                <div style="min-width:0;flex:1;"><div style="font-size:14px;font-weight:700;color:#0E1512;margin-bottom:2px;">{{ b.title }}</div><div style="font-size:12px;color:#8A7F6B;line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ b.desc }}</div></div>
+                <span style="font-size:16px;color:#C2BBA8;">›</span>
+              </div>
+            </sc-for>
+          </div>
+
+          <!-- MENTORSHIP CURRICULUM -->
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;"><span style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:17px;color:#0E1512;">Mentorship replays</span><span style="font-size:12px;font-weight:600;color:#8A7F6B;background:#F2EEE4;border-radius:100px;padding:3px 10px;">8-week curriculum</span></div>
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:26px;">
+            <sc-for list="{{ weeks }}" as="w" hint-placeholder-count="8">
+              <div onClick="{{ w.onPlay }}" style="position:relative;display:flex;gap:15px;background:{{ w.cardBg }};border:1px solid {{ w.cardBd }};border-radius:16px;padding:16px;box-shadow:0 4px 16px rgba(14,21,18,.04);cursor:pointer;" style-hover="border-color:#35E834;">
+                <div style="flex:none;display:flex;flex-direction:column;align-items:center;gap:8px;">
+                  <span style="width:50px;height:50px;border-radius:12px;background:{{ w.mark }};display:flex;align-items:center;justify-content:center;font-size:17px;color:{{ w.markFg }};">{{ w.icon }}</span>
+                  <span style="font-size:10px;font-weight:800;letter-spacing:.06em;color:#9AA59E;">WK {{ w.num }}</span>
+                </div>
+                <div style="min-width:0;flex:1;">
+                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;"><span style="font-size:15px;font-weight:700;color:#0E1512;line-height:1.25;">{{ w.title }}</span><span style="font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:{{ w.pillFg }};background:{{ w.pillBg }};border-radius:100px;padding:3px 9px;flex:none;">{{ w.status }}</span></div>
+                  <div style="font-size:12.5px;color:#8A7F6B;line-height:1.5;">{{ w.desc }}</div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+          <!-- resources -->
+          <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:17px;color:#0E1512;margin-bottom:12px;">Resources &amp; support</div>
+          <div style="background:#fff;border:1px solid #EBE3D6;border-radius:18px;box-shadow:0 4px 16px rgba(14,21,18,.04);overflow:hidden;">
+            <sc-for list="{{ helpResources }}" as="h" hint-placeholder-count="3">
+              <div onClick="{{ h.onOpen }}" style="display:flex;align-items:center;gap:14px;padding:15px 20px;border-top:1px solid #F2EEE4;cursor:pointer;" style-hover="background:#FAF8F3;">
+                <span style="width:38px;height:38px;border-radius:10px;background:#F2EEE4;color:#0E1512;display:flex;align-items:center;justify-content:center;font-size:17px;flex:none;">{{ h.icon }}</span>
+                <div style="flex:1;min-width:0;"><div style="font-size:14.5px;font-weight:600;color:#0E1512;">{{ h.title }}</div><div style="font-size:12.5px;color:#9AA59E;">{{ h.desc }}</div></div>
+                <span style="font-size:16px;color:#C2BBA8;">›</span>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+
+    <!-- VIDEO PLAYER MODAL -->
+    <sc-if value="{{ playerOpen }}" hint-placeholder-val="{{ false }}">
+      <div onClick="{{ closePlayer }}" style="position:absolute;inset:0;z-index:70;background:rgba(8,12,9,.72);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:44px;">
+        <div onClick="{{ stop }}" style="width:760px;max-width:100%;max-height:100%;background:#fff;border-radius:22px;overflow:hidden;box-shadow:0 50px 120px rgba(0,0,0,.55);display:flex;flex-direction:column;">
+          <!-- stage -->
+          <div style="position:relative;height:380px;background:{{ player.mark }};display:flex;align-items:center;justify-content:center;flex:none;">
+            <div style="position:absolute;inset:0;background:radial-gradient(circle at 50% 42%,rgba(255,255,255,.18),transparent 55%);"></div>
+            <span onClick="{{ closePlayer }}" style="position:absolute;top:16px;right:16px;width:38px;height:38px;border-radius:50%;background:rgba(10,15,12,.45);color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;cursor:pointer;backdrop-filter:blur(4px);" style-hover="background:rgba(10,15,12,.7);">✕</span>
+            <span style="position:absolute;top:18px;left:18px;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#fff;background:rgba(10,15,12,.4);border-radius:100px;padding:5px 12px;backdrop-filter:blur(4px);">{{ player.cat }}</span>
+            <span style="position:relative;width:84px;height:84px;border-radius:50%;background:rgba(255,255,255,.95);color:#0A0F0C;display:flex;align-items:center;justify-content:center;font-size:28px;box-shadow:0 14px 40px rgba(0,0,0,.32);cursor:pointer;">▶</span>
+            <!-- scrubber -->
+            <div style="position:absolute;left:0;right:0;bottom:0;padding:16px 20px;background:linear-gradient(transparent,rgba(8,12,9,.55));">
+              <div style="height:5px;border-radius:100px;background:rgba(255,255,255,.28);overflow:hidden;margin-bottom:9px;"><div style="width:{{ playerProgressW }};height:100%;background:linear-gradient(90deg,#36D7ED,#35E834 60%,#D0F56B);"></div></div>
+              <div style="display:flex;align-items:center;justify-content:space-between;color:rgba(255,255,255,.9);font-size:12px;font-weight:600;">
+                <div style="display:flex;align-items:center;gap:14px;"><span style="font-size:14px;cursor:pointer;">⏯</span><span style="font-size:13px;cursor:pointer;">⏪ 10s</span><span style="font-size:13px;cursor:pointer;">10s ⏩</span></div>
+                <div style="display:flex;align-items:center;gap:14px;"><span>{{ player.dur }}</span><span style="cursor:pointer;">⛶</span></div>
+              </div>
+            </div>
+          </div>
+          <!-- meta -->
+          <div style="padding:22px 26px 24px;overflow-y:auto;">
+            <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:22px;color:#0E1512;line-height:1.2;margin-bottom:7px;text-wrap:balance;">{{ player.title }}</div>
+            <div style="font-size:13px;color:#8A7F6B;margin-bottom:14px;">{{ player.meta }} · {{ player.dur }}</div>
+            <div style="font-size:14px;color:#5C6B62;line-height:1.6;margin-bottom:20px;">{{ player.desc }}</div>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="display:inline-flex;align-items:center;gap:9px;font-size:14px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);border-radius:12px;padding:11px 20px;cursor:pointer;"><span style="font-size:12px;">▶</span>{{ playerResumeLabel }}</span>
+              <span style="display:inline-flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;color:#0E1512;background:#F2EEE4;border-radius:12px;padding:11px 18px;cursor:pointer;" style-hover="background:#E6E0D2;">＋ Save</span>
+              <span style="display:inline-flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;color:#0E1512;background:#F2EEE4;border-radius:12px;padding:11px 18px;cursor:pointer;" style-hover="background:#E6E0D2;">✓ Mark complete</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- VIDEO LIBRARY OVERLAY -->
+    <sc-if value="{{ libOpen }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute;inset:0;z-index:62;background:#F7F9F8;display:flex;flex-direction:column;">
+        <div style="flex:none;display:flex;align-items:center;gap:16px;padding:20px 30px;border-bottom:1px solid #E4EAE6;background:#fff;">
+          <div style="flex:1;min-width:0;">
+            <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:21px;color:#0E1512;">Video library</div>
+            <div style="font-size:13px;color:#8A7F6B;margin-top:2px;">Every how-to, walkthrough and troubleshooting guide</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:9px;background:#F7F9F8;border:1px solid #E4DFD4;border-radius:11px;padding:9px 14px;width:280px;">
+            <span style="font-size:14px;color:#9AA59E;">⌕</span>
+            <input value="{{ libSearchVal }}" onInput="{{ libOnSearch }}" placeholder="Search videos…" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font-family:'Hanken Grotesk',sans-serif;font-size:13.5px;color:#0E1512;">
+          </div>
+          <span onClick="{{ libCloseFn }}" style="width:38px;height:38px;border-radius:10px;background:#F2EEE4;color:#0E1512;display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;flex:none;" style-hover="background:#E6E0D2;">✕</span>
+        </div>
+        <div style="flex:1;min-height:0;overflow-y:auto;padding:24px 30px 40px;">
+          <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:22px;">
+            <sc-for list="{{ libCats }}" as="c" hint-placeholder-count="6">
+              <span onClick="{{ c.onClick }}" style="font-size:13px;font-weight:600;color:{{ c.fg }};background:{{ c.bg }};border:1px solid {{ c.bd }};border-radius:100px;padding:8px 16px;cursor:pointer;">{{ c.label }}</span>
+            </sc-for>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px;">
+            <sc-for list="{{ libVids }}" as="v" hint-placeholder-count="9">
+              <div onClick="{{ v.onPlay }}" style="background:#fff;border:1px solid #E4EAE6;border-radius:16px;overflow:hidden;box-shadow:0 4px 16px rgba(14,21,18,.04);cursor:pointer;" style-hover="border-color:#35E834;">
+                <div style="position:relative;height:128px;background:{{ v.mark }};display:flex;align-items:center;justify-content:center;">
+                  <span style="width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.92);color:#0A0F0C;display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 4px 14px rgba(0,0,0,.18);">▶</span>
+                  <span style="position:absolute;bottom:8px;right:8px;font-size:11px;font-weight:700;color:#fff;background:rgba(10,15,12,.7);border-radius:6px;padding:3px 7px;">{{ v.dur }}</span>
+                </div>
+                <div style="padding:15px;"><div style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#16A82A;margin-bottom:5px;">{{ v.cat }}</div><div style="font-size:14.5px;font-weight:700;color:#0E1512;line-height:1.3;margin-bottom:5px;">{{ v.title }}</div><div style="font-size:12.5px;color:#8A7F6B;line-height:1.45;">{{ v.desc }}</div></div>
+              </div>
+            </sc-for>
+          </div>
+          <sc-if value="{{ libEmpty }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:60px 0;text-align:center;color:#9AA59E;font-size:14px;">No videos match your search.</div>
+          </sc-if>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- TOAST -->
+    <sc-if value="{{ hasToast }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute;bottom:24px;right:26px;z-index:60;display:flex;align-items:center;gap:11px;background:#0C140F;color:#fff;border-radius:12px;padding:12px 16px;box-shadow:0 16px 40px rgba(0,0,0,.3);">
+        <span style="width:22px;height:22px;border-radius:50%;background:#35E834;color:#0A0F0C;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex:none;">✓</span>
+        <span style="font-size:13.5px;font-weight:600;">{{ toastMsg }}</span>
+        <span onClick="{{ dismissToast }}" style="margin-left:8px;color:rgba(255,255,255,.5);cursor:pointer;">✕</span>
+      </div>
+    </sc-if>
+
+    <!-- RESELLER DELETE CONFIRM -->
+    <sc-if value="{{ aDeleteOpen }}" hint-placeholder-val="{{ false }}">
+      <div onClick="{{ aCancelDelete }}" style="position:absolute;inset:0;background:rgba(12,20,15,.45);z-index:58;display:flex;align-items:center;justify-content:center;padding:40px;">
+        <div onClick="{{ stop }}" style="width:420px;max-width:100%;background:#fff;border-radius:18px;box-shadow:0 40px 90px rgba(0,0,0,.45);overflow:hidden;">
+          <div style="padding:24px 24px 20px;">
+            <div style="width:46px;height:46px;border-radius:12px;background:#FBEEEA;display:flex;align-items:center;justify-content:center;font-size:22px;color:#C9543F;margin-bottom:14px;">⚠</div>
+            <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:18px;color:#0E1512;margin-bottom:6px;">Delete website?</div>
+            <div style="font-size:14px;color:#8A7F6B;line-height:1.55;">This will permanently delete <strong style="color:#0E1512;">{{ aDeleteName }}</strong> and its DFY site folder. You can't undo this action.</div>
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:10px;padding:0 24px 22px;">
+            <span onClick="{{ aCancelDelete }}" style="font-size:14px;font-weight:700;color:#0E1512;background:#fff;border:1.5px solid #E4DFD4;border-radius:11px;padding:11px 20px;cursor:pointer;">Cancel</span>
+            <span onClick="{{ aConfirmDelete }}" style="font-size:14px;font-weight:700;color:#fff;background:#C9543F;border-radius:11px;padding:11px 22px;cursor:pointer;" style-hover="background:#B0432F;">Delete</span>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- RESELLER DELETE CONFIRM -->
+    <sc-if value="{{ rDeleteOpen }}" hint-placeholder-val="{{ false }}">
+      <div onClick="{{ rCancelDelete }}" style="position:absolute;inset:0;background:rgba(12,20,15,.45);z-index:58;display:flex;align-items:center;justify-content:center;padding:40px;">
+        <div onClick="{{ stop }}" style="width:420px;max-width:100%;background:#fff;border-radius:18px;box-shadow:0 40px 90px rgba(0,0,0,.45);overflow:hidden;">
+          <div style="padding:24px 24px 20px;">
+            <div style="width:46px;height:46px;border-radius:12px;background:#FBEEEA;display:flex;align-items:center;justify-content:center;font-size:22px;color:#C9543F;margin-bottom:14px;">⚠</div>
+            <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:18px;color:#0E1512;margin-bottom:6px;">Remove sub-account?</div>
+            <div style="font-size:14px;color:#8A7F6B;line-height:1.55;">This will permanently remove <strong style="color:#0E1512;">{{ rDeleteName }}</strong> and revoke their access. This action cannot be undone.</div>
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:10px;padding:0 24px 22px;">
+            <span onClick="{{ rCancelDelete }}" style="font-size:14px;font-weight:700;color:#0E1512;background:#fff;border:1.5px solid #E4DFD4;border-radius:11px;padding:11px 20px;cursor:pointer;">Cancel</span>
+            <span onClick="{{ rConfirmDelete }}" style="font-size:14px;font-weight:700;color:#fff;background:#C9543F;border-radius:11px;padding:11px 22px;cursor:pointer;" style-hover="background:#B0432F;">Remove user</span>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- MANAGE WORKSPACE DRAWER -->
+    <sc-if value="{{ manageOpen }}" hint-placeholder-val="{{ false }}">
+      <div onClick="{{ closeManage }}" style="position:absolute;inset:0;background:rgba(12,20,15,.4);z-index:56;display:flex;justify-content:flex-end;">
+        <div onClick="{{ stop }}" style="width:452px;max-width:100%;height:100%;background:#FBF7F0;box-shadow:-30px 0 80px rgba(0,0,0,.32);display:flex;flex-direction:column;overflow-y:auto;">
+          <div style="display:flex;align-items:center;gap:13px;padding:20px 22px;border-bottom:1px solid #EBE3D6;background:#fff;position:sticky;top:0;z-index:2;">
+            <span style="width:44px;height:44px;border-radius:12px;flex:none;background:{{ manageWs.soft }};color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:18px;box-shadow:0 3px 8px rgba(14,21,18,.16);">{{ manageWs.mark }}</span>
+            <div style="flex:1;min-width:0;"><div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:17px;color:#0E1512;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ manageWs.name }}</div><div style="font-size:12px;color:#A7AEA4;font-family:monospace;">{{ manageWs.id }}</div></div>
+            <span onClick="{{ closeManage }}" style="width:30px;height:30px;border-radius:9px;border:1px solid #EBE3D6;display:flex;align-items:center;justify-content:center;color:#9AA59E;cursor:pointer;flex:none;">✕</span>
+          </div>
+          <div style="padding:20px 22px;display:flex;flex-direction:column;gap:20px;">
+            <!-- quick stats -->
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
+              <div style="background:#fff;border:1px solid #EBE3D6;border-radius:12px;padding:12px;text-align:center;"><div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:19px;color:#0E1512;">{{ manageWs.agents }}</div><div style="font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#A7AEA4;margin-top:2px;">Agents</div></div>
+              <div style="background:#fff;border:1px solid #EBE3D6;border-radius:12px;padding:12px;text-align:center;"><div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:19px;color:#0E1512;">{{ manageWs.contacts }}</div><div style="font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#A7AEA4;margin-top:2px;">Contacts</div></div>
+              <div style="background:#fff;border:1px solid #EBE3D6;border-radius:12px;padding:12px;text-align:center;"><div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:19px;color:#0E1512;">{{ manageWs.booked }}</div><div style="font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#A7AEA4;margin-top:2px;">Booked</div></div>
+            </div>
+            <!-- rename -->
+            <div>
+              <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#9AA59E;margin-bottom:9px;">Workspace name</div>
+              <div style="display:flex;gap:9px;">
+                <input value="{{ wsRename }}" onInput="{{ onWsRename }}" type="text" style="flex:1;height:44px;box-sizing:border-box;padding:0 14px;border:1px solid #E4DFD4;border-radius:11px;background:#fff;font-size:14px;font-family:'Hanken Grotesk',sans-serif;color:#0E1512;">
+                <span onClick="{{ saveRename }}" style="font-size:13.5px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED,#35E834);border-radius:11px;padding:0 18px;display:flex;align-items:center;cursor:pointer;">Save</span>
+              </div>
+            </div>
+            <!-- status -->
+            <div>
+              <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#9AA59E;margin-bottom:9px;">Status</div>
+              <div style="display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #EBE3D6;border-radius:12px;padding:12px 14px;">
+                <span style="display:inline-flex;align-items:center;gap:7px;flex:1;font-size:13.5px;font-weight:600;color:{{ manageWs.sfg }};"><span style="width:8px;height:8px;border-radius:50%;background:{{ manageWs.dot }};"></span>{{ manageWs.status }}</span>
+                <span onClick="{{ manageToggleStatus }}" style="font-size:13px;font-weight:700;color:#0E1512;background:#FBF7F0;border:1px solid #E4DFD4;border-radius:10px;padding:8px 14px;cursor:pointer;" style-hover="border-color:#9FD8AC;color:#16A82A;">{{ manageStatusLabel }}</span>
+              </div>
+            </div>
+            <!-- plan -->
+            <div>
+              <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#9AA59E;margin-bottom:9px;">Plan</div>
+              <div style="display:flex;gap:8px;">
+                <sc-for list="{{ managePlanPills }}" as="p" hint-placeholder-count="3">
+                  <span onClick="{{ p.onClick }}" style="flex:1;text-align:center;font-size:13px;font-weight:700;padding:11px 6px;border-radius:11px;cursor:pointer;border:{{ p.bd }};background:{{ p.bg }};color:{{ p.fg }};">{{ p.label }}</span>
+                </sc-for>
+              </div>
+            </div>
+            <!-- members -->
+            <div>
+              <div style="display:flex;align-items:center;margin-bottom:9px;"><span style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#9AA59E;flex:1;">Members · {{ manageWs.members }}</span><span onClick="{{ manageInvite }}" style="font-size:12.5px;font-weight:700;color:#16A82A;cursor:pointer;">+ Invite</span></div>
+              <div style="background:#fff;border:1px solid #EBE3D6;border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:11px;">
+                <span style="width:34px;height:34px;border-radius:50%;flex:none;background:linear-gradient(135deg,#36D7ED,#35E834);color:#0A0F0C;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">JM</span>
+                <div style="flex:1;min-width:0;"><div style="font-size:13.5px;font-weight:600;color:#0E1512;">Jordan Mensah</div><div style="font-size:12px;color:#A7AEA4;">Workspace {{ manageWs.role }}</div></div>
+                <span style="font-size:11.5px;font-weight:700;color:#0F7A28;background:#EAF6EC;border-radius:100px;padding:3px 9px;">{{ manageWs.role }}</span>
+              </div>
+            </div>
+            <!-- open -->
+            <span onClick="{{ manageOpenWs }}" style="display:flex;align-items:center;justify-content:center;gap:8px;font-size:14px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED 0%,#35E834 55%,#D0F56B 100%);border-radius:12px;padding:13px;box-shadow:0 6px 16px rgba(53,232,52,.26);cursor:pointer;">↗ Open this workspace</span>
+            <!-- danger -->
+            <div style="border-top:1px solid #EBE3D6;padding-top:18px;">
+              <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#C9543F;margin-bottom:9px;">Danger zone</div>
+              <sc-if value="{{ wsDeleteArm }}" hint-placeholder-val="{{ false }}">
+                <div style="background:#FBEEEA;border:1px solid #F0DAD4;border-radius:12px;padding:14px;">
+                  <div style="font-size:13px;color:#8A3D2E;line-height:1.5;margin-bottom:12px;">Delete <strong>{{ manageWs.name }}</strong> and all its agents, contacts and data? This can't be undone.</div>
+                  <div style="display:flex;gap:9px;">
+                    <span onClick="{{ cancelDelete }}" style="flex:1;text-align:center;font-size:13.5px;font-weight:700;color:#0E1512;background:#fff;border:1px solid #E4DFD4;border-radius:10px;padding:10px;cursor:pointer;">Cancel</span>
+                    <span onClick="{{ confirmDelete }}" style="flex:1;text-align:center;font-size:13.5px;font-weight:700;color:#fff;background:#C9543F;border-radius:10px;padding:10px;cursor:pointer;">Delete forever</span>
+                  </div>
+                </div>
+              </sc-if>
+              <sc-if value="{{ wsNotDeleteArm }}" hint-placeholder-val="{{ true }}">
+                <span onClick="{{ armDelete }}" style="display:flex;align-items:center;justify-content:center;gap:8px;font-size:13.5px;font-weight:700;color:#C9543F;background:#fff;border:1px solid #F0DAD4;border-radius:11px;padding:11px;cursor:pointer;" style-hover="background:#FBEEEA;border-color:#E0A99E;">🗑 Delete workspace</span>
+              </sc-if>
+            </div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- NEW WORKSPACE WIZARD -->
+    <sc-if value="{{ wzOpen }}" hint-placeholder-val="{{ false }}">
+      <div onClick="{{ closeWizard }}" style="position:absolute;inset:0;background:rgba(12,20,15,.5);z-index:58;display:flex;align-items:center;justify-content:center;padding:32px;">
+        <div onClick="{{ stop }}" style="width:600px;max-width:100%;max-height:100%;background:#fff;border-radius:20px;box-shadow:0 40px 90px rgba(0,0,0,.45);display:flex;flex-direction:column;overflow:hidden;">
+          <!-- header + steps -->
+          <div style="padding:20px 24px 16px;border-bottom:1px solid #EBE3D6;">
+            <div style="display:flex;align-items:center;margin-bottom:16px;"><span style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:18px;color:#0E1512;flex:1;">New workspace</span><span onClick="{{ closeWizard }}" style="width:30px;height:30px;border-radius:9px;border:1px solid #EBE3D6;display:flex;align-items:center;justify-content:center;color:#9AA59E;cursor:pointer;">✕</span></div>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <sc-for list="{{ wzStepList }}" as="s" hint-placeholder-count="4">
+                <span style="width:26px;height:26px;border-radius:50%;flex:none;background:{{ s.badgeBg }};color:{{ s.badgeFg }};display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:700;">{{ s.badgeText }}</span>
+                <span style="font-size:13px;font-weight:600;color:{{ s.labelColor }};white-space:nowrap;">{{ s.label }}</span>
+                <span style="flex:1;height:1.5px;background:#EBE3D6;min-width:10px;"></span>
+              </sc-for>
+            </div>
+          </div>
+          <!-- body -->
+          <div style="padding:22px 24px;overflow-y:auto;">
+            <!-- STEP 1: details -->
+            <sc-if value="{{ wzIs1 }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;flex-direction:column;gap:16px;">
+                <div><label style="display:block;font-size:12.5px;font-weight:700;color:#5C6B62;margin-bottom:7px;">Workspace name</label><input value="{{ wzName }}" onInput="{{ onWzName }}" type="text" placeholder="Acme Dental" style="width:100%;height:46px;box-sizing:border-box;padding:0 14px;border:1px solid #E4DFD4;border-radius:11px;background:#fff;font-size:14px;font-family:'Hanken Grotesk',sans-serif;color:#0E1512;"></div>
+                <div><label style="display:block;font-size:12.5px;font-weight:700;color:#5C6B62;margin-bottom:7px;">Owner email</label><input value="{{ wzEmail }}" onInput="{{ onWzEmail }}" type="email" placeholder="owner@acme.com" style="width:100%;height:46px;box-sizing:border-box;padding:0 14px;border:1px solid #E4DFD4;border-radius:11px;background:#fff;font-size:14px;font-family:'Hanken Grotesk',sans-serif;color:#0E1512;"><div style="font-size:12px;color:#A7AEA4;margin-top:6px;">They'll get an email to set their password and sign in.</div></div>
+                <div><label style="display:block;font-size:12.5px;font-weight:700;color:#5C6B62;margin-bottom:9px;">Industry</label>
+                  <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                    <sc-for list="{{ wzIndustries }}" as="i" hint-placeholder-count="6">
+                      <span onClick="{{ i.onClick }}" style="font-size:13px;font-weight:600;padding:9px 15px;border-radius:10px;cursor:pointer;border:{{ i.bd }};background:{{ i.bg }};color:{{ i.fg }};">{{ i.label }}</span>
+                    </sc-for>
+                  </div>
+                </div>
+              </div>
+            </sc-if>
+            <!-- STEP 2: plan -->
+            <sc-if value="{{ wzIs2 }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:12px;">
+                <sc-for list="{{ wzPlans }}" as="p" hint-placeholder-count="3">
+                  <div onClick="{{ p.onClick }}" style="border:{{ p.bd }};background:{{ p.bg }};border-radius:14px;padding:16px 18px;cursor:pointer;display:flex;align-items:center;gap:14px;">
+                    <div style="flex:1;min-width:0;">
+                      <div style="display:flex;align-items:baseline;gap:8px;"><span style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:16px;color:#0E1512;">{{ p.id }}</span><span style="font-size:13px;color:#A7AEA4;">{{ p.price }}/mo</span></div>
+                      <div style="font-size:12.5px;color:#8A7F6B;margin-top:3px;">{{ p.blurb }}</div>
+                    </div>
+                    <span style="width:24px;height:24px;border-radius:50%;flex:none;background:linear-gradient(135deg,#36D7ED,#35E834);color:#0A0F0C;display:{{ p.check }};align-items:center;justify-content:center;font-size:13px;font-weight:700;">✓</span>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+            <!-- STEP 3: setup -->
+            <sc-if value="{{ wzIs3 }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:12px;">
+                <div onClick="{{ pickBlank }}" style="border:1.5px solid {{ wzBlankBorder }};border-radius:14px;padding:16px 18px;cursor:pointer;display:flex;align-items:center;gap:13px;background:#fff;">
+                  <span style="width:38px;height:38px;border-radius:11px;flex:none;background:#F2EEE4;display:flex;align-items:center;justify-content:center;font-size:18px;color:#16A82A;">✦</span>
+                  <div style="flex:1;"><div style="font-size:14.5px;font-weight:700;color:#0E1512;">Blank workspace</div><div style="font-size:12.5px;color:#8A7F6B;margin-top:2px;">Start fresh with default settings.</div></div>
+                  <span style="width:20px;height:20px;border-radius:50%;border:2px solid #C7D0C9;flex:none;display:flex;align-items:center;justify-content:center;"><sc-if value="{{ wzStartBlank }}" hint-placeholder-val="{{ true }}"><span style="width:12px;height:12px;border-radius:50%;background:#35E834;"></span></sc-if></span>
+                </div>
+                <div onClick="{{ pickCopy }}" style="border:1.5px solid {{ wzCopyBorder }};border-radius:14px;padding:16px 18px;cursor:pointer;display:flex;align-items:center;gap:13px;background:#fff;">
+                  <span style="width:38px;height:38px;border-radius:11px;flex:none;background:#F2EEE4;display:flex;align-items:center;justify-content:center;font-size:18px;color:#16A82A;">⎘</span>
+                  <div style="flex:1;"><div style="font-size:14.5px;font-weight:700;color:#0E1512;">Copy from existing</div><div style="font-size:12.5px;color:#8A7F6B;margin-top:2px;">Clone agents &amp; settings from another workspace.</div></div>
+                  <span style="width:20px;height:20px;border-radius:50%;border:2px solid #C7D0C9;flex:none;display:flex;align-items:center;justify-content:center;"><sc-if value="{{ wzStartCopy }}" hint-placeholder-val="{{ false }}"><span style="width:12px;height:12px;border-radius:50%;background:#35E834;"></span></sc-if></span>
+                </div>
+                <sc-if value="{{ wzStartCopy }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;flex-direction:column;gap:8px;padding:4px 2px 0;">
+                    <sc-for list="{{ wzCopyOptions }}" as="o" hint-placeholder-count="3">
+                      <span onClick="{{ o.onClick }}" style="display:flex;align-items:center;gap:11px;border:{{ o.bd }};background:{{ o.bg }};border-radius:11px;padding:10px 13px;cursor:pointer;"><span style="width:28px;height:28px;border-radius:8px;flex:none;background:{{ o.soft }};color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:13px;">{{ o.mark }}</span><span style="font-size:13.5px;font-weight:600;color:#0E1512;">{{ o.name }}</span></span>
+                    </sc-for>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-if>
+            <!-- STEP 4: review -->
+            <sc-if value="{{ wzIs4 }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;gap:13px;background:#FBF7F0;border:1px solid #EBE3D6;border-radius:14px;padding:16px;margin-bottom:16px;">
+                <span style="width:46px;height:46px;border-radius:12px;flex:none;background:linear-gradient(140deg,#36D7ED,#35E834);color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:19px;box-shadow:0 3px 8px rgba(14,21,18,.16);">{{ wzReviewMark }}</span>
+                <div style="min-width:0;"><div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:16px;color:#0E1512;">{{ wzReviewName }}</div><div style="font-size:12px;color:#A7AEA4;font-family:monospace;">{{ wzReviewSlug }}</div></div>
+              </div>
+              <div style="border:1px solid #EBE3D6;border-radius:14px;overflow:hidden;">
+                <sc-for list="{{ wzReview }}" as="r" hint-placeholder-count="5">
+                  <div style="display:flex;align-items:center;padding:12px 16px;border-top:1px solid #F2EEE4;font-size:13.5px;"><span style="flex:none;width:120px;color:#9AA59E;font-weight:600;">{{ r.k }}</span><span style="color:#0E1512;font-weight:600;">{{ r.v }}</span></div>
+                </sc-for>
+              </div>
+            </sc-if>
+          </div>
+          <!-- footer -->
+          <div style="display:flex;align-items:center;gap:12px;padding:16px 24px;border-top:1px solid #EBE3D6;">
+            <sc-if value="{{ wzShowBack }}" hint-placeholder-val="{{ false }}">
+              <span onClick="{{ wzBack }}" style="font-size:14px;font-weight:700;color:#0E1512;background:#fff;border:1.5px solid #E4DFD4;border-radius:11px;padding:11px 20px;cursor:pointer;">← Back</span>
+            </sc-if>
+            <span onClick="{{ closeWizard }}" style="margin-left:auto;font-size:14px;font-weight:600;color:#5C6B62;cursor:pointer;padding:11px 4px;">Cancel</span>
+            <span onClick="{{ wzNext }}" style="font-size:14px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED 0%,#35E834 55%,#D0F56B 100%);border-radius:11px;padding:11px 22px;cursor:pointer;box-shadow:0 6px 16px rgba(53,232,52,.26);opacity:{{ wzNextOpacity }};">{{ wzNextLabel }}</span>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- MODAL -->
+    <sc-if value="{{ modalOpen }}" hint-placeholder-val="{{ false }}">
+      <div onClick="{{ closeModal }}" style="position:absolute;inset:0;background:rgba(12,20,15,.45);z-index:55;display:flex;align-items:center;justify-content:center;padding:40px;">
+        <div onClick="{{ stop }}" style="width:440px;max-width:100%;background:#fff;border-radius:18px;box-shadow:0 40px 90px rgba(0,0,0,.45);overflow:hidden;">
+          <div style="display:flex;align-items:center;gap:10px;padding:18px 22px;border-bottom:1px solid #EBE3D6;"><span style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:17px;color:#0E1512;flex:1;">{{ modal.title }}</span><span onClick="{{ closeModal }}" style="width:30px;height:30px;border-radius:9px;border:1px solid #EBE3D6;display:flex;align-items:center;justify-content:center;color:#9AA59E;cursor:pointer;">✕</span></div>
+          <div style="padding:20px 22px;display:flex;flex-direction:column;gap:13px;">
+            <sc-for list="{{ modal.fields }}" as="f" hint-placeholder-count="2">
+              <div><label style="display:block;font-size:12px;font-weight:700;color:#5C6B62;margin-bottom:6px;">{{ f.label }}</label><div style="height:44px;border-radius:11px;background:#fff;border:1px solid #EBE3D6;display:flex;align-items:center;padding:0 14px;font-size:14px;color:#B7BDB6;">{{ f.ph }}<sc-if value="{{ f.sel }}" hint-placeholder-val="{{ false }}"><span style="margin-left:auto;color:#9AA59E;">⌄</span></sc-if></div></div>
+            </sc-for>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;padding:16px 22px;border-top:1px solid #EBE3D6;"><span onClick="{{ closeModal }}" style="margin-left:auto;font-size:14px;font-weight:600;color:#5C6B62;background:#fff;border:1px solid #EBE3D6;border-radius:11px;padding:10px 18px;cursor:pointer;">Cancel</span><span onClick="{{ modalSave }}" style="font-size:14px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED 0%,#35E834 55%,#D0F56B 100%);border-radius:11px;padding:10px 20px;cursor:pointer;box-shadow:0 6px 16px rgba(53,232,52,.26);">{{ modal.cta }}</span></div>
+        </div>
+      </div>
+    </sc-if>
+  </div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1280,&quot;height&quot;:820}}">
+class Component extends DCLogic {
+  componentDidMount() {
+    const valid = ['workspaces','reseller','agency','branding','billing','plans','help'];
+    const h = (window.location.hash || '').replace('#','');
+    if (h && valid.indexOf(h) !== -1) this.setState({ section: h });
+  }
+  state = {
+    section: 'workspaces', menu: null, toast: '', modal: null, pb: false, brandColor: '#35E834',
+    wsSearch: '', wsFilter: 'All', wsMenuId: null, manageId: null, wsRename: '', wsDeleteArm: false,
+    wzOpen: false, wzStep: 1,
+    wzForm: { name: '', email: '', industry: 'Dental', plan: 'Growth', start: 'blank', copyFrom: null },
+    wsItems: [
+      { name: 'BrightPath Growth', id: 'ws_8h2k4p9x', members: '4', plan: 'Growth', role: 'Owner', status: 'Active', agents: '9', contacts: '1.0k', booked: '46', mark: 'B', tint: 'rgba(53,232,52,.20)', tint2: 'rgba(54,215,237,.12)', soft: 'linear-gradient(140deg,#36D7ED,#35E834)', bar: 'linear-gradient(90deg,#36D7ED,#35E834)' },
+      { name: 'NorthStar Dental', id: 'ws_5d22c7b1', members: '2', plan: 'Starter', role: 'Admin', status: 'Active', agents: '3', contacts: '420', booked: '12', mark: 'N', tint: 'rgba(54,215,237,.22)', tint2: 'rgba(17,146,166,.10)', soft: 'linear-gradient(140deg,#36D7ED,#1192A6)', bar: 'linear-gradient(90deg,#36D7ED,#1192A6)' },
+      { name: 'Peak Performance PT', id: 'ws_3f81a0e9', members: '3', plan: 'Growth', role: 'Owner', status: 'Active', agents: '5', contacts: '680', booked: '21', mark: 'P', tint: 'rgba(186,222,90,.32)', tint2: 'rgba(53,232,52,.12)', soft: 'linear-gradient(140deg,#D0F56B,#35E834)', bar: 'linear-gradient(90deg,#D0F56B,#35E834)' },
+      { name: 'Lakeside Clinics', id: 'ws_9c44e2aa', members: '1', plan: 'Trial', role: 'Owner', status: 'Trial', agents: '1', contacts: '90', booked: '2', mark: 'L', tint: 'rgba(154,165,158,.24)', tint2: 'rgba(154,165,158,.10)', soft: 'linear-gradient(140deg,#AEB7B0,#7E8A82)', bar: 'linear-gradient(90deg,#AEB7B0,#7E8A82)' },
+      { name: 'Cedar Ortho', id: 'ws_1a77b9cd', members: '2', plan: 'Starter', role: 'Admin', status: 'Suspended', agents: '0', contacts: '210', booked: '0', mark: 'C', tint: 'rgba(224,121,107,.22)', tint2: 'rgba(201,84,63,.10)', soft: 'linear-gradient(140deg,#E8917F,#C9543F)', bar: 'linear-gradient(90deg,#E8917F,#C9543F)' },
+    ],
+    rView: 'list', rEditId: null, rDelete: null, rShowPw: false, rShowCpw: false,
+    rForm: { firstName: '', lastName: '', email: '', password: '', confirmPassword: '', plan: 'frontend' },
+    rUsers: [
+      { id: 1, firstName: 'Maya', lastName: 'Patel', email: 'maya@northstardental.co', plan: 'frontend', status: 'Active' },
+      { id: 2, firstName: 'Leo', lastName: 'Nguyen', email: 'leo@peakperformance.pt', plan: 'pro', status: 'Active' },
+      { id: 3, firstName: 'Sara', lastName: 'Kim', email: 'sara@lakesideclinics.com', plan: 'frontend', status: 'Trial' },
+      { id: 4, firstName: 'Tom', lastName: 'Becker', email: 'tom@cedarortho.com', plan: 'frontend', status: 'Suspended' },
+      { id: 5, firstName: 'Priya', lastName: 'Sharma', email: 'priya@smilemakers.io', plan: 'pro', status: 'Active' },
+      { id: 6, firstName: 'Carlos', lastName: 'Mendez', email: 'carlos@mendezmedia.mx', plan: 'frontend', status: 'Invited' },
+    ],
+    aView: 'home', aDelete: null, aManageId: null, aMTitle: '', aMCustom: '', aMActive: true, aPrompt: '', eTab: 'agency', helpFilter: 'All', libOpen: false, libSearch: '', libCat: 'All', player: null,
+    aWizard: { business: '', type: 'agency', industry: '', goal: '', mode: 'template', template: null, prompt: '', domain: '' },
+    aSites: [
+      { id: 1, title: 'BrightPath Growth', domain: 'brightpathgrowth.co', custom: 'brightpathgrowth.co', active: true, created: 'May 20, 2026', img: '1497366754035-f200968a6e72', kind: 'AI Revenue Agency', cat: 'Agency site', primary: true },
+      { id: 2, title: 'Free AI Revenue Audit', domain: 'audit.brightpath.co', custom: '', active: true, created: 'Jun 06, 2026', img: '1556742049-0cfed4f6a45d', kind: 'Lead funnel', cat: 'Funnel' },
+      { id: 3, title: 'Book a Strategy Call', domain: 'call.brightpath.co', custom: '', active: true, created: 'Jun 12, 2026', img: '1591115765373-5207764f72e7', kind: 'Booking funnel', cat: 'Funnel' },
+      { id: 4, title: 'AI Revenue Agents', domain: 'agents.brightpath.co', custom: 'getrevenueagents.com', active: false, created: 'Jun 14, 2026', img: '1551288049-bebda4e38f71', kind: 'Landing page', cat: 'Landing page' },
+    ],
+  };
+  renderVals() {
+    const sec = this.state.section;
+    const openPlayer = (v) => this.setState({ player: v });
+    const ST = { Active: { sbg: '#EAF6EC', sfg: '#0F7A28', dot: '#2FB85C' }, Trial: { sbg: '#F7F0DD', sfg: '#A87B16', dot: '#E0A93B' }, Suspended: { sbg: '#F7E9E6', sfg: '#C9543F', dot: '#E0796B' }, Invited: { sbg: '#F7F0DD', sfg: '#A87B16', dot: '#E0A93B' } };
+    const navDefs = [
+      { id: 'workspaces', icon: '◫', label: 'Workspaces', count: '' + this.state.wsItems.length },
+      { id: 'reseller', icon: '👥', label: 'Reseller', count: '6' },
+      { id: 'agency', icon: '🌐', label: 'Agency', count: '4' },
+      { id: 'branding', icon: '✦', label: 'Branding', count: '' },
+      { id: 'billing', icon: '＄', label: 'Agency Earnings', count: '' },
+    ];
+    const meta = {
+      workspaces: { title: 'Your workspaces', subtitle: 'Pick a workspace to manage, or spin up a new one.', primaryLabel: '+ New workspace', modal: 'newWorkspace' },
+      reseller: { title: 'Reseller — sub-accounts', subtitle: 'Client accounts you manage and resell to.', primaryLabel: '+ Create sub-account', modal: 'createUser' },
+      agency: { title: 'Agency', subtitle: 'Done-for-you websites & assets.', primaryLabel: '+ New site', modal: 'newSite' },
+      branding: { title: 'Branding', subtitle: 'White-label the platform for your clients.', primaryLabel: '+ Preview', modal: null },
+      billing: { title: 'Agency earnings', subtitle: 'Revenue from your agency clients, plus reseller payouts.', primaryLabel: '↥ Export', modal: null },
+      plans: { title: 'Plans & billing', subtitle: 'Your Clientforce subscription, payment method and invoices.', primaryLabel: '', modal: null },
+      help: { title: 'Help & training', subtitle: 'Mentorship, bonuses and resources to grow your agency.', primaryLabel: '', modal: null },
+    };
+    const m = meta[sec] || meta.workspaces;
+    const onColor = 'linear-gradient(135deg,#36D7ED,#35E834)';
+    const MCFG = {
+      newWorkspace: { title: 'New workspace', cta: 'Create workspace', toast: 'Workspace created', fields: [{ label: 'Workspace name', ph: 'Acme Dental' }, { label: 'Owner email', ph: 'owner@acme.com' }, { label: 'Plan', ph: 'Growth', sel: true }] },
+      createUser: { title: 'Create sub-account', cta: 'Create & invite', toast: 'Sub-account invited', fields: [{ label: 'Full name', ph: 'Jane Doe' }, { label: 'Email', ph: 'jane@client.com' }, { label: 'Plan', ph: 'Frontend plan', sel: true }] },
+      newSite: { title: 'New DFY website', cta: 'Create site', toast: 'Site created', fields: [{ label: 'Site name', ph: 'Acme Dental' }, { label: 'Domain', ph: 'acmedental.co' }, { label: 'Template', ph: 'Local services', sel: true }] },
+    };
+    const mk = this.state.modal; const mc = mk ? MCFG[mk] : null;
+    const toast = (msg) => () => this.setState({ toast: msg, menu: null });
+    const openModal = (k) => () => this.setState({ modal: k, menu: null, toast: '' });
+    const go = (s) => () => this.setState({ section: s, menu: null, toast: '', rView: 'list', rEditId: null, aView: 'home' });
+    const item = (n) => { const on = n.id === sec; return Object.assign({}, n, { weight: on ? 700 : 500, color: on ? '#0A0F0C' : 'rgba(255,255,255,.82)', bg: on ? 'linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B)' : 'transparent', cfg: on ? '#0A0F0C' : 'rgba(255,255,255,.85)', cbg: on ? 'rgba(0,0,0,.12)' : 'rgba(255,255,255,.12)', onClick: go(n.id) }); };
+
+    const wsBase = this.state.wsItems;
+    const PLANS = [
+      { id: 'Starter', price: '$49', blurb: '1 agent · 2 seats', feats: ['1 AI agent', '2 team seats', '1,000 contacts'] },
+      { id: 'Growth', price: '$149', blurb: '5 agents · 6 seats', feats: ['5 AI agents', '6 team seats', '25,000 contacts', 'All channels'] },
+      { id: 'Pro', price: '$399', blurb: 'Unlimited · priority', feats: ['Unlimited agents', 'Unlimited seats', '250,000 contacts', 'Priority support'] },
+    ];
+    const WSPAL = [
+      { tint: 'rgba(122,90,248,.20)', tint2: 'rgba(54,215,237,.10)', soft: 'linear-gradient(140deg,#7A5AF8,#36D7ED)', bar: 'linear-gradient(90deg,#7A5AF8,#36D7ED)' },
+      { tint: 'rgba(53,232,52,.20)', tint2: 'rgba(208,245,107,.14)', soft: 'linear-gradient(140deg,#35E834,#D0F56B)', bar: 'linear-gradient(90deg,#35E834,#D0F56B)' },
+      { tint: 'rgba(224,169,59,.22)', tint2: 'rgba(232,145,127,.10)', soft: 'linear-gradient(140deg,#E0A93B,#E8917F)', bar: 'linear-gradient(90deg,#E0A93B,#E8917F)' },
+      { tint: 'rgba(54,215,237,.22)', tint2: 'rgba(53,232,52,.10)', soft: 'linear-gradient(140deg,#36D7ED,#35E834)', bar: 'linear-gradient(90deg,#36D7ED,#35E834)' },
+    ];
+    const openWs = () => { window.location.href = 'Dashboard.dc.html'; };
+    const setWs = (next) => this.setState({ wsItems: next });
+    const updateWs = (id, patch) => setWs(wsBase.map((w) => (w.id === id ? Object.assign({}, w, patch) : w)));
+    const dec = (w) => Object.assign({}, w, ST[w.status], {
+      menuOpen: this.state.wsMenuId === w.id,
+      statusAction: w.status === 'Suspended' ? 'Reactivate' : 'Suspend',
+      statusIcon: w.status === 'Suspended' ? '▶' : '⏸',
+      onOpen: openWs,
+      onManage: () => this.setState({ manageId: w.id, wsRename: w.name, wsMenuId: null, wsDeleteArm: false }),
+      onToggleMenu: (e) => { if (e) e.stopPropagation(); this.setState((s) => ({ wsMenuId: s.wsMenuId === w.id ? null : w.id })); },
+      onToggleStatus: () => { updateWs(w.id, { status: w.status === 'Suspended' ? 'Active' : 'Suspended' }); this.setState({ wsMenuId: null, toast: (w.status === 'Suspended' ? w.name + ' reactivated' : w.name + ' suspended') }); },
+      onDelete: () => { setWs(wsBase.filter((x) => x.id !== w.id)); this.setState({ wsMenuId: null, manageId: null, toast: w.name + ' deleted' }); },
+    });
+
+    // ---- Workspaces: search + filter + stats ----
+    const wsQuery = this.state.wsSearch.trim().toLowerCase();
+    const wsFilter = this.state.wsFilter;
+    const wsFiltered = wsBase.filter((w) => {
+      const mq = !wsQuery || w.name.toLowerCase().indexOf(wsQuery) !== -1 || w.id.toLowerCase().indexOf(wsQuery) !== -1;
+      const mf = wsFilter === 'All' || w.status === wsFilter;
+      return mq && mf;
+    });
+    const numContacts = (c) => (typeof c === 'string' && c.indexOf('k') !== -1 ? Math.round(parseFloat(c) * 1000) : parseInt(c, 10) || 0);
+    const wsTotals = wsBase.reduce((a, w) => ({ agents: a.agents + (parseInt(w.agents, 10) || 0), contacts: a.contacts + numContacts(w.contacts), booked: a.booked + (parseInt(w.booked, 10) || 0) }), { agents: 0, contacts: 0, booked: 0 });
+    const fmtK = (n) => (n >= 1000 ? (n / 1000).toFixed(n % 1000 === 0 ? 0 : 1) + 'k' : '' + n);
+    const wsStats = [
+      { icon: '◫', label: 'Workspaces', value: '' + wsBase.length, tint: 'rgba(53,232,52,.16)', fg: '#16A82A' },
+      { icon: '●', label: 'Active', value: '' + wsBase.filter((w) => w.status === 'Active').length, tint: 'rgba(54,215,237,.18)', fg: '#1192A6' },
+      { icon: '🤖', label: 'Agents', value: '' + wsTotals.agents, tint: 'rgba(122,90,248,.16)', fg: '#6B4FE0' },
+      { icon: '☺', label: 'Contacts', value: fmtK(wsTotals.contacts), tint: 'rgba(224,169,59,.18)', fg: '#A87B16' },
+    ];
+    const fpill = (id) => { const on = wsFilter === id; const n = id === 'All' ? wsBase.length : wsBase.filter((w) => w.status === id).length; return { label: id, count: '' + n, color: on ? '#0A0F0C' : '#5C6B62', cfg: on ? 'rgba(10,15,12,.5)' : '#A7AEA4', bg: on ? '#fff' : 'transparent', shadow: on ? '0 1px 3px rgba(14,21,18,.12)' : 'none', onClick: () => this.setState({ wsFilter: id }) }; };
+
+    // ---- Manage drawer ----
+    const mwId = this.state.manageId;
+    const mwRaw = mwId ? wsBase.find((w) => w.id === mwId) : null;
+    const mw = mwRaw ? Object.assign({}, mwRaw, ST[mwRaw.status]) : null;
+    const mwPlanPills = mw ? PLANS.map((p) => ({ id: p.id, label: p.id, on: mw.plan === p.id, bd: mw.plan === p.id ? '1.5px solid #35E834' : '1.5px solid #E4DFD4', bg: mw.plan === p.id ? 'rgba(53,232,52,.10)' : '#fff', fg: mw.plan === p.id ? '#0E1512' : '#5C6B62', onClick: () => updateWs(mwId, { plan: p.id }) })) : [];
+
+    // ---- New-workspace wizard ----
+    const wf = this.state.wzForm;
+    const wzStep = this.state.wzStep;
+    const setWf = (patch) => this.setState((s) => ({ wzForm: Object.assign({}, s.wzForm, patch) }));
+    const openWizard = () => this.setState({ wzOpen: true, wzStep: 1, wzForm: { name: '', email: '', industry: 'Dental', plan: 'Growth', start: 'blank', copyFrom: null }, menu: null, modal: null });
+    const wzSteps = [{ n: 1, label: 'Details' }, { n: 2, label: 'Plan' }, { n: 3, label: 'Setup' }, { n: 4, label: 'Review' }];
+    const wzCanNext = wzStep === 1 ? (wf.name.trim().length > 1 && /.+@.+\..+/.test(wf.email)) : (wzStep === 3 ? (wf.start === 'blank' || !!wf.copyFrom) : true);
+    const wzSlug = 'ws_' + (wf.name.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 6) || 'new') + Math.random().toString(16).slice(2, 4);
+    const wzCreate = () => {
+      const pal = WSPAL[wsBase.length % WSPAL.length];
+      const src = wf.copyFrom ? wsBase.find((w) => w.id === wf.copyFrom) : null;
+      const nw = Object.assign({}, pal, {
+        name: wf.name.trim(), id: wzSlug, members: '1', plan: wf.plan, role: 'Owner',
+        status: wf.plan === 'Trial' ? 'Trial' : 'Active',
+        agents: src ? src.agents : '0', contacts: '0', booked: '0', mark: (wf.name.trim()[0] || 'W').toUpperCase(),
+      });
+      setWs([nw].concat(wsBase));
+      this.setState({ wzOpen: false, toast: 'Workspace "' + nw.name + '" created' });
+    };
+
+    // ---- Reseller sub-account flow (mirrors pages/reseller/*) ----
+
+    // ---- Reseller sub-account flow (mirrors pages/reseller/*) ----
+    const rView = this.state.rView;
+    const rf = this.state.rForm;
+    const planLabel = (p) => (p === 'pro' ? 'Pro plan' : 'Frontend plan');
+    const AV = ['rgba(54,215,237,.5)', 'rgba(208,245,107,.7)', 'rgba(53,232,52,.4)', 'rgba(224,121,107,.4)', 'rgba(122,90,248,.32)', 'rgba(54,215,237,.3)'];
+    const notify = (msg) => this.setState({ toast: msg, menu: null });
+    const setField = (k) => (e) => { const v = e && e.target ? e.target.value : e; this.setState((s) => ({ rForm: Object.assign({}, s.rForm, { [k]: v }) })); };
+    const setPlan = (p) => () => this.setState((s) => ({ rForm: Object.assign({}, s.rForm, { plan: p }) }));
+    const rGoList = () => this.setState({ rView: 'list', rEditId: null });
+    const rGoCreate = () => this.setState({ rView: 'create', rEditId: null, rShowPw: false, rShowCpw: false, rForm: { firstName: '', lastName: '', email: '', password: '', confirmPassword: '', plan: 'frontend' } });
+    const rGoAssets = () => this.setState({ rView: 'assets' });
+    const validate = (f) => {
+      if (!f.firstName || !f.lastName || !f.email) { notify('Please fill in first name, last name, and email.'); return false; }
+      if (f.password && f.password !== f.confirmPassword) { notify('Passwords do not match.'); return false; }
+      return true;
+    };
+    const rCreate = () => {
+      const f = this.state.rForm; if (!validate(f)) return;
+      const id = Math.max(0, ...this.state.rUsers.map((u) => u.id)) + 1;
+      this.setState((s) => ({ rUsers: s.rUsers.concat([{ id, firstName: f.firstName, lastName: f.lastName, email: f.email, plan: f.plan || 'frontend', status: 'Invited' }]), rView: 'success', rCreated: { firstName: f.firstName, lastName: f.lastName, email: f.email, plan: f.plan || 'frontend' }, toast: '' }));
+    };
+    const rSave = () => {
+      const f = this.state.rForm; if (!validate(f)) return;
+      const eid = this.state.rEditId;
+      this.setState((s) => ({ rUsers: s.rUsers.map((u) => (u.id === eid ? Object.assign({}, u, { firstName: f.firstName, lastName: f.lastName, email: f.email, plan: f.plan }) : u)), rView: 'list', rEditId: null, toast: 'User details updated.' }));
+    };
+    const rUsers = this.state.rUsers.map((u, i) => Object.assign({}, u, ST[u.status], {
+      n: String(i + 1),
+      fullName: (u.firstName + ' ' + u.lastName).trim(),
+      initials: ((u.firstName[0] || '') + (u.lastName[0] || '')).toUpperCase(),
+      avbg: AV[i % AV.length],
+      planText: planLabel(u.plan),
+      onEdit: () => this.setState({ rView: 'edit', rEditId: u.id, rShowPw: false, rShowCpw: false, rForm: { firstName: u.firstName, lastName: u.lastName, email: u.email, password: '', confirmPassword: '', plan: u.plan } }),
+      onDelete: () => this.setState({ rDelete: u }),
+    }));
+    const rd = this.state.rDelete;
+    const tabBd = (on) => (on ? '1px solid #EBE3D6' : '1px solid transparent');
+    const rTabs = [
+      { id: 'list', label: 'All users', on: rView === 'list' || rView === 'edit', onClick: rGoList },
+      { id: 'create', label: 'Create user', on: rView === 'create' || rView === 'success', onClick: rGoCreate },
+      { id: 'assets', label: 'Assets', on: rView === 'assets', onClick: rGoAssets },
+    ].map((t) => Object.assign({}, t, { color: t.on ? '#0E1512' : '#8A7F6B', bg: t.on ? '#fff' : 'transparent', shadow: t.on ? '0 1px 3px rgba(14,21,18,.10)' : 'none', bd: tabBd(t.on) }));
+    const rCreated = this.state.rCreated || { firstName: '', lastName: '', email: '' };
+    const rAssets = [
+      { icon: '◳', tint: 'rgba(54,215,237,.16)', fg: '#1192A6', title: 'Sales page', meta: 'Landing page · HTML + Figma', desc: 'High-converting white-label sales page you can host under your own domain.' },
+      { icon: '◙', tint: 'rgba(53,232,52,.16)', fg: '#16A82A', title: 'Promo banners', meta: 'Ad creatives · 12 sizes · PNG', desc: 'Display & social banner pack for paid traffic and retargeting campaigns.' },
+      { icon: '▤', tint: 'rgba(208,245,107,.4)', fg: '#5E8A12', title: 'VSL script', meta: 'Video sales letter · Google Doc', desc: 'Word-for-word video sales letter script proven to convert cold prospects.' },
+      { icon: '◇', tint: 'rgba(122,90,248,.14)', fg: '#6A4DE0', title: 'Pitch deck', meta: 'Presentation · Slides + PDF', desc: 'Investor-grade pitch deck to walk clients through the offer on a call.' },
+      { icon: '✉', tint: 'rgba(224,121,107,.16)', fg: '#C9543F', title: 'Email sequence', meta: 'Nurture flow · 7 emails · Copy', desc: 'Ready-to-load onboarding & nurture email sequence for new sign-ups.' },
+      { icon: '◷', tint: 'rgba(54,215,237,.14)', fg: '#1192A6', title: 'Demo script', meta: 'Sales call · Google Doc', desc: 'Step-by-step live demo script with objection handling and close.' },
+    ].map((a) => Object.assign({}, a, { onDownload: () => this.setState({ toast: 'Downloading “' + a.title + '”…' }) }));
+    const rHdr = ({
+      list: { title: 'Reseller — sub-accounts', subtitle: 'Client accounts you manage and resell to.', primaryLabel: '+ Create sub-account', primaryAction: rGoCreate, showPrimary: true },
+      create: { title: 'Create sub-account', subtitle: 'Fill in the form to create a new client user.', showPrimary: false },
+      success: { title: 'Sub-account created', subtitle: 'The new client account is ready to go.', showPrimary: false },
+      edit: { title: 'Edit sub-account', subtitle: 'Update user details and save changes.', showPrimary: false },
+      assets: { title: 'Reseller assets', subtitle: 'White-label sales & marketing material for your clients.', showPrimary: false },
+    })[rView] || {};
+
+    // ---- Agency: website-first hub + guided creation wizard ----
+    const aView = this.state.aView;
+    const aw = this.state.aWizard;
+    const IMG = (id, w, h) => 'https://images.unsplash.com/photo-' + id + '?auto=format&fit=crop&w=' + w + '&h=' + h + '&q=80';
+    const A_DEFAULT_IMG = '1556761175-5973dc0f32e7';
+    const INDUSTRY_IMG = {
+      'Dental & Medical': '1606811841689-23dfddce3e95',
+      'Fitness & Wellness': '1534438327276-14e5300c3a48',
+      'Home Services': '1560518883-ce09059eeffa',
+      'Professional Services': '1497366754035-f200968a6e72',
+      'E-commerce': '1556742049-0cfed4f6a45d',
+      'Other': '1556761175-5973dc0f32e7',
+    };
+    const slug = (str) => (str || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 24) || 'my-agency';
+    const setW = (k) => (e) => { const v = e && e.target ? e.target.value : e; this.setState((s) => ({ aWizard: Object.assign({}, s.aWizard, { [k]: v }) })); };
+    const setWv = (k, v) => () => this.setState((s) => ({ aWizard: Object.assign({}, s.aWizard, { [k]: v }) }));
+    const aGoHome = () => this.setState({ aView: 'home' });
+    const aGoAssets = () => this.setState({ aView: 'assets' });
+    const aStart = () => this.setState({ aView: 'w1', aWizard: { business: '', type: 'agency', industry: '', goal: '', mode: 'template', template: null, prompt: '', domain: '' } });
+    const aW1Next = () => { const w = this.state.aWizard; if (!w.business) { this.setState({ toast: 'Enter your business name to continue.' }); return; } if (w.type === 'other' && !w.goal) { this.setState({ toast: 'Choose what the website is for to continue.' }); return; } this.setState({ aView: 'w2' }); };
+    const aW2Back = () => this.setState({ aView: 'w1' });
+    const aW2Next = () => {
+      const w = this.state.aWizard;
+      if (w.mode === 'template' && !w.template) { this.setState({ toast: 'Pick a template to continue.' }); return; }
+      if (w.mode === 'ai' && !w.prompt) { this.setState({ toast: 'Describe your website to continue.' }); return; }
+      this.setState({ aView: 'wbuild' });
+      clearTimeout(this._aBuildT);
+      this._aBuildT = setTimeout(() => { if (this.state.aView === 'wbuild') this.setState({ aView: 'w3' }); }, 2400);
+    };
+    const aW3Back = () => this.setState({ aView: 'w2' });
+    const aCreate = () => {
+      const w = this.state.aWizard;
+      const id = Math.max(0, ...this.state.aSites.map((s) => s.id)) + 1;
+      const img = w.type === 'agency'
+        ? ((w.template && w.template.img) || '1486406146926-c627a92ad1ab')
+        : ((w.template && w.template.img) || INDUSTRY_IMG[w.industry] || A_DEFAULT_IMG);
+      const GOAL_CAT = { leads: 'Funnel', book: 'Funnel', sell: 'Funnel', showcase: 'Landing page' };
+      const cat = w.type === 'agency' ? 'Landing page' : (GOAL_CAT[w.goal] || 'Landing page');
+      const kind = w.type === 'agency' ? 'Agency landing' : (w.mode === 'ai' ? 'AI generated' : (w.template ? w.template.name : 'Custom'));
+      this.setState((s) => ({ aSites: s.aSites.concat([{ id, title: w.business, domain: slug(w.business) + '.cfsite.co', custom: (w.domain || '').trim(), active: true, created: 'Jun 23, 2026', img, kind, cat }]), aView: 'home', toast: '“' + w.business + '” launched.' }));
+    };
+    const aTypeDefs = [
+      { id: 'agency', icon: '◆', title: 'AI Revenue Agency website', desc: 'A done-for-you, client-powered agency site — preconfigured to capture leads and book revenue calls. No extra setup needed.', badge: 'Recommended' },
+      { id: 'other', icon: '▦', title: 'Other website type', desc: 'Build a custom site for a specific business or goal. Choose your industry and what the page is for.', badge: '' },
+    ];
+    const aIndustries = ['Dental & Medical', 'Fitness & Wellness', 'Home Services', 'Professional Services', 'E-commerce', 'Other'];
+    const aGoalDefs = [
+      { id: 'leads', label: 'Generate leads', icon: '◎' },
+      { id: 'book', label: 'Book appointments', icon: '◷' },
+      { id: 'sell', label: 'Sell a product', icon: '❖' },
+      { id: 'showcase', label: 'Showcase services', icon: '◳' },
+    ];
+    const aVault = [
+      { icon: '▤', tint: 'rgba(54,215,237,.16)', fg: '#1192A6', cat: 'Platform Access', title: 'Manage Multiple Workspaces & Brands', desc: 'Run and manage multiple client workspaces and brand accounts from a single agency dashboard.', status: 'Activated in your account' },
+      { icon: '✓', tint: 'rgba(53,232,52,.16)', fg: '#16A82A', cat: 'License', title: 'Full Agency License', desc: 'Unlocks all agency-tier features, white-label capabilities, and expanded client seat limits.', status: 'Activated in your account' },
+      { icon: '▥', tint: 'rgba(208,245,107,.4)', fg: '#5E8A12', cat: 'Playbooks', title: 'All Campaign & Niche Playbooks', desc: 'Every campaign and niche playbook in the library — swipe-ready and deployable for any industry.', status: 'Permissions granted' },
+      { icon: '◴', tint: 'rgba(122,90,248,.14)', fg: '#6A4DE0', cat: 'Playbooks', title: 'Advanced Workflow Playbooks', desc: 'Sophisticated multi-step workflow playbooks for complex campaigns and client delivery.', status: 'Permissions granted' },
+      { icon: '◆', tint: 'rgba(53,232,52,.16)', fg: '#16A82A', cat: 'Done-For-You', title: 'DFY Digital Services to Sell Today', desc: 'Pre-packaged digital services you can immediately offer to cold prospects from day one.', action: 'View DFY Services' },
+      { icon: '❖', tint: 'rgba(54,215,237,.16)', fg: '#1192A6', cat: 'Sales Assets', title: 'Offer Vault', desc: 'A curated vault of proven offers, angle breakdowns, and conversion-ready pitch frameworks.', action: 'Open Offer Vault' },
+      { icon: '⊳', tint: 'rgba(224,121,107,.16)', fg: '#C9543F', cat: 'Outreach', title: 'DFY Outreach — Landing Pages & Funnels', desc: 'Done-for-you landing pages and funnel templates designed for cold outreach and lead capture.', status: 'Assets uploading — coming soon' },
+      { icon: '✎', tint: 'rgba(208,245,107,.4)', fg: '#5E8A12', cat: 'Ad Creative', title: 'Ad Copies', desc: 'Battle-tested ad copy swipe files across multiple formats and niches for high-converting campaigns.', action: 'Browse Ad Copies' },
+      { icon: '▶', tint: 'rgba(122,90,248,.14)', fg: '#6A4DE0', cat: 'Video Sales', title: 'VSL Scripts', desc: 'Video sales letter scripts you can plug directly into your campaigns. Proven, conversion-tested frameworks.', action: 'View VSL Scripts' },
+      { icon: '◷', tint: 'rgba(54,215,237,.16)', fg: '#1192A6', cat: 'Media Buying', title: 'Media Buying Package', desc: 'Winning ad frameworks, campaign structures, and creative direction from real high-performing campaigns.', action: 'Open Media Package' },
+      { icon: '◎', tint: 'rgba(53,232,52,.16)', fg: '#16A82A', cat: 'Training', title: 'Mentorship & Agency Growth Training', desc: 'Learn how to get clients through periodical live training sessions and webinars led by mentors.', status: 'Notifications sent via email', note: 'You will be notified about each upcoming session at your registered email.' },
+      { icon: '★', tint: 'rgba(208,245,107,.4)', fg: '#5E8A12', cat: 'Certification', title: 'Clientforce Agency Certification', desc: 'Complete the training tracks to earn your certification and stand out as a vetted expert.', status: 'Awarded after designated trainings' },
+      { icon: '▦', tint: 'rgba(122,90,248,.14)', fg: '#6A4DE0', cat: 'Proposals', title: 'DFY Agency Proposal Kits', desc: 'Done-for-you proposal kits built to close clients with ease — customizable from your Proposal Dashboard.', status: 'Activated in Proposal Dashboard' },
+      { icon: '◳', tint: 'rgba(54,215,237,.16)', fg: '#1192A6', cat: 'Sales Assets', title: 'Presentation Decks', desc: 'Professional, brandable presentation decks for pitching your services in cold or warm meetings.' },
+      { icon: '◈', tint: 'rgba(53,232,52,.16)', fg: '#16A82A', cat: 'White Label', title: 'Full White-Label Experience', desc: 'Deliver all client work entirely under your own brand — invisibly powered by Clientforce.', status: 'Permissions granted' },
+      { icon: '☂', tint: 'rgba(224,121,107,.16)', fg: '#C9543F', cat: 'Support', title: 'Priority Agency Support', desc: 'Faster, priority-tier support as you scale your client work. Our team is available 24/7.', action: 'Contact Support' },
+    ].map((a) => Object.assign({}, a, {
+      hasStatus: !!a.status, hasNote: !!a.note, hasAction: !!a.action,
+      onAction: () => this.setState({ toast: 'Opening “' + a.title + '”…' }),
+    }));
+    const aTemplates = [
+      { id: 't1', name: 'Lead Magnet', cat: 'Lead Gen', img: '1551434678-e076c223a692' },
+      { id: 't2', name: 'Booking Funnel', cat: 'Appointments', img: '1519494026892-80bbd2d6fd0d' },
+      { id: 't3', name: 'Webinar Registration', cat: 'Events', img: '1591115765373-5207764f72e7' },
+      { id: 't4', name: 'Agency Home', cat: 'Corporate', img: '1486406146926-c627a92ad1ab' },
+      { id: 't5', name: 'SaaS Landing', cat: 'Product', img: '1551288049-bebda4e38f71' },
+      { id: 't6', name: 'Local Service', cat: 'Local Biz', img: '1556761175-5973dc0f32e7' },
+    ].map((t, i) => Object.assign({}, t, {
+      recommended: i < 3,
+      imgUrl: IMG(t.img, 360, 220),
+      selected: !!(aw.template && aw.template.id === t.id),
+      selBd: (aw.template && aw.template.id === t.id) ? '#16A82A' : '#EBE3D6',
+      selSh: (aw.template && aw.template.id === t.id) ? '0 0 0 3px rgba(53,232,52,.18),0 8px 22px rgba(14,21,18,.08)' : '0 4px 16px rgba(14,21,18,.04)',
+      onSelect: () => this.setState((s) => ({ aWizard: Object.assign({}, s.aWizard, { template: t }) })),
+    }));
+    const CAT_STYLE = {
+      'Agency site': { fg: '#0A0F0C', bg: '#D0F56B' },
+      'Funnel': { fg: '#1192A6', bg: 'rgba(54,215,237,.16)' },
+      'Landing page': { fg: '#6A4DE0', bg: 'rgba(122,90,248,.14)' },
+    };
+    const openManage = (s) => this.setState({ aManageId: s.id, aMTitle: s.title, aMCustom: s.custom || '', aMActive: s.active });
+    const visitSite = (s) => { try { window.open('https://' + (s.custom || s.domain), '_blank', 'noopener'); } catch (e) {} this.setState({ toast: 'Opening ' + (s.custom || s.domain) + ' …' }); };
+    const aSites = this.state.aSites.map((s, i) => Object.assign({}, s, {
+      n: String(i + 1),
+      imgUrl: IMG(s.img || A_DEFAULT_IMG, 760, 440),
+      imgEl: React.createElement('img', { src: IMG(s.img || A_DEFAULT_IMG, 760, 440), alt: '', style: { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' } }),
+      catLabel: s.cat || 'Landing page',
+      catFg: (CAT_STYLE[s.cat] || CAT_STYLE['Landing page']).fg,
+      catBg: (CAT_STYLE[s.cat] || CAT_STYLE['Landing page']).bg,
+      shownDomain: s.custom || s.domain,
+      url: 'https://' + (s.custom || s.domain),
+      statusLabel: s.active ? 'Live' : 'Paused',
+      sfg: s.active ? '#16A82A' : '#8A7F6B', sbg: s.active ? 'rgba(53,232,52,.12)' : '#EFece3',
+      dot: s.active ? '#2FB85C' : '#B7BDB6',
+      hasCustom: !!s.custom,
+      onVisit: () => visitSite(s),
+      onEdit: () => openManage(s),
+      onDomain: () => openManage(s),
+      onDelete: () => this.setState({ aDelete: s }),
+    }));
+    const aFeatured = aSites.find((s) => s.primary) || aSites[0] || null;
+    const aOthers = aSites.filter((s) => !aFeatured || s.id !== aFeatured.id);
+    const amSite = this.state.aManageId ? aSites.find((s) => s.id === this.state.aManageId) : null;
+    const aUpdateSite = (id, patch) => this.setState((st) => ({ aSites: st.aSites.map((x) => (x.id === id ? Object.assign({}, x, patch) : x)) }));
+    const ad = this.state.aDelete;
+    const aHdr = ({
+      home: { title: 'Agency website', subtitle: 'Your AI revenue agency site, plus the funnels and landing pages you run.', primaryLabel: '+ New funnel', primaryAction: aStart, showPrimary: aSites.length > 0 },
+      assets: { title: 'Agency asset vault', subtitle: 'Everything included in your agency license.', showPrimary: false },
+      w1: { title: 'Create a website', subtitle: 'Step 1 of 3 — choose your website type.', showPrimary: false },
+      w2: { title: 'Create a website', subtitle: 'Step 2 of 3 — choose how to build it.', showPrimary: false },
+      wbuild: { title: 'Building your website', subtitle: 'ClientforceAi is putting it together…', showPrimary: false },
+      w3: { title: 'Launch your website', subtitle: 'Step 3 of 3 — preview, set a domain & go live.', showPrimary: false },
+    })[aView] || {};
+
+    const isR = sec === 'reseller';
+    const isA = sec === 'agency';
+
+    const _libAll = [
+      { mark: 'linear-gradient(135deg,#0C140F,#16A82A)', dur: '52 min', cat: 'Feature walkthroughs', title: 'Agency Marketing & Client Acquisition', desc: 'Position, package and sell your service.' },
+      { mark: 'linear-gradient(135deg,#36D7ED,#35E834)', dur: '41 min', cat: 'Getting started', title: 'Account setup & platform overview', desc: 'First workspace, agent and configuration.' },
+      { mark: 'linear-gradient(135deg,#7A5AF8,#36D7ED)', dur: '1h 06m', cat: 'How-tos', title: 'Connecting email, SMS & AI Voice', desc: 'Set up every channel end-to-end.' },
+      { mark: 'linear-gradient(135deg,#35E834,#D0F56B)', dur: '34 min', cat: 'How-tos', title: 'Building your first campaign', desc: 'Pick a type and launch it correctly.' },
+      { mark: 'linear-gradient(135deg,#E0796B,#D0F56B)', dur: '28 min', cat: 'Feature walkthroughs', title: 'Auto-prospecting & lead finder', desc: 'Keep the pipeline flowing automatically.' },
+      { mark: 'linear-gradient(135deg,#36D7ED,#7A5AF8)', dur: '47 min', cat: 'Feature walkthroughs', title: 'Integrations & Zapier workflows', desc: 'Connect your wider tech stack.' },
+      { mark: 'linear-gradient(135deg,#0C140F,#36D7ED)', dur: '19 min', cat: 'Troubleshooting', title: 'Fixing email deliverability & SPF/DKIM', desc: 'Diagnose domain-auth and inbox issues.' },
+      { mark: 'linear-gradient(135deg,#C9543F,#E0796B)', dur: '22 min', cat: 'Troubleshooting', title: 'Why isn’t my agent replying?', desc: 'Debug routing, channels and triggers.' },
+      { mark: 'linear-gradient(135deg,#16A82A,#D0F56B)', dur: '31 min', cat: 'Best practices', title: 'Pricing & packaging retainers', desc: 'What to charge and how to frame it.' },
+      { mark: 'linear-gradient(135deg,#7A5AF8,#35E834)', dur: '26 min', cat: 'Best practices', title: 'Onboarding clients without churn', desc: 'A repeatable first-30-days playbook.' },
+      { mark: 'linear-gradient(135deg,#36D7ED,#16A82A)', dur: '15 min', cat: 'Getting started', title: 'Inviting your team & roles', desc: 'Seats, permissions and workspaces.' },
+      { mark: 'linear-gradient(135deg,#D0F56B,#35E834)', dur: '18 min', cat: 'How-tos', title: 'Embedding the capture widget', desc: 'Add forms and the widget to any site.' },
+    ];
+    const _libQ = (this.state.libSearch || '').toLowerCase();
+    const _libCat = this.state.libCat;
+    const _libFiltered = _libAll
+      .filter((v) => (_libCat === 'All' || v.cat === _libCat) && (!_libQ || v.title.toLowerCase().indexOf(_libQ) > -1 || v.desc.toLowerCase().indexOf(_libQ) > -1))
+      .map((v) => Object.assign({}, v, { onPlay: () => this.setState({ player: { title: v.title, cat: v.cat, dur: v.dur, meta: 'ClientForce Academy', mark: v.mark, desc: v.desc, progress: 0 } }) }));
+
+    return {
+      wsOpen: this.state.menu === 'ws', profileOpen: this.state.menu === 'profile',
+      toggleWs: () => this.setState((s) => ({ menu: s.menu === 'ws' ? null : 'ws' })),
+      toggleProfile: () => this.setState((s) => ({ menu: s.menu === 'profile' ? null : 'profile' })),
+      adminNav: navDefs.map(item),
+      acctNav: [
+        { id: 'plans', icon: '＄', label: 'Plans & billing', count: '' },
+        { id: 'help', icon: '❔', label: 'Help & training', count: '' },
+      ].map(item),
+      tSettings: toast('Opening settings…'), tLogout: toast('Signing out…'), tRow: toast('Action menu'), tSave: toast('Branding saved'),
+      tChangePlan: toast('Opening plan options…'), tCancelPlan: toast('Manage cancellation…'), tUpdateCard: toast('Update payment method…'),
+      openNewWs: openWizard,
+      title: isR ? rHdr.title : (isA ? aHdr.title : m.title), subtitle: isR ? rHdr.subtitle : (isA ? aHdr.subtitle : m.subtitle), primaryLabel: isR ? rHdr.primaryLabel : (isA ? aHdr.primaryLabel : m.primaryLabel),
+      primaryAction: isR ? rHdr.primaryAction : (isA ? aHdr.primaryAction : (sec === 'workspaces' ? openWizard : (m.modal ? openModal(m.modal) : toast(m.title + ' — done')))),
+      showPrimary: isR ? !!rHdr.showPrimary : (isA ? !!aHdr.showPrimary : !(sec === 'plans' || sec === 'help')),
+      rTabs, rListFull: rView === 'list' && rUsers.length > 0, rListEmpty: rView === 'list' && rUsers.length === 0,
+      rIsForm: rView === 'create' || rView === 'edit', rIsEditForm: rView === 'edit', rIsCreateForm: rView === 'create', rIsAssets: rView === 'assets',
+      rIsSuccess: rView === 'success', rCreatedName: (rCreated.firstName + ' ' + rCreated.lastName).trim(), rCreatedEmail: rCreated.email, rCreatedPlanLabel: planLabel(rCreated.plan),
+      rSuccessList: rGoList, rSuccessAnother: rGoCreate, rSuccessAssets: rGoAssets,
+      rAssets,
+      rGoCreateBtn: rGoCreate,
+      rFrontBd: rf.plan === 'frontend' ? '#16A82A' : '#E4DFD4', rFrontBg: rf.plan === 'frontend' ? 'rgba(53,232,52,.10)' : '#fff', rFrontFg: rf.plan === 'frontend' ? '#16A82A' : '#5C6B62',
+      rProBd: rf.plan === 'pro' ? '#16A82A' : '#E4DFD4', rProBg: rf.plan === 'pro' ? 'rgba(53,232,52,.10)' : '#fff', rProFg: rf.plan === 'pro' ? '#16A82A' : '#5C6B62',
+      rUsers,
+      rfFirst: rf.firstName, rfLast: rf.lastName, rfEmail: rf.email, rfPw: rf.password, rfCpw: rf.confirmPassword,
+      rOnFirst: setField('firstName'), rOnLast: setField('lastName'), rOnEmail: setField('email'), rOnPw: setField('password'), rOnCpw: setField('confirmPassword'),
+      rPlanLabel: planLabel(rf.plan), rPlanIsFront: rf.plan === 'frontend', rPlanIsPro: rf.plan === 'pro', rSetFront: setPlan('frontend'), rSetPro: setPlan('pro'),
+      rPwType: this.state.rShowPw ? 'text' : 'password', rCpwType: this.state.rShowCpw ? 'text' : 'password',
+      rTogglePw: () => this.setState((s) => ({ rShowPw: !s.rShowPw })), rToggleCpw: () => this.setState((s) => ({ rShowCpw: !s.rShowCpw })),
+      rPwToggleLabel: this.state.rShowPw ? 'Hide' : 'Show', rCpwToggleLabel: this.state.rShowCpw ? 'Hide' : 'Show',
+      rSubmit: rView === 'edit' ? rSave : rCreate, rSubmitLabel: rView === 'edit' ? 'Save changes' : 'Create user', rCancel: rGoList,
+      rDeleteOpen: !!rd, rDeleteName: rd ? (rd.firstName + ' ' + rd.lastName) : '',
+      rConfirmDelete: () => { const d = this.state.rDelete; this.setState((s) => ({ rUsers: s.rUsers.filter((u) => u.id !== (d && d.id)), rDelete: null, toast: d ? (d.firstName + ' ' + d.lastName + ' removed.') : 'Removed.' })); },
+      rCancelDelete: () => this.setState({ rDelete: null }),
+      rOpenAssets: () => this.setState({ toast: 'Opening reseller assets in a new tab…' }),
+      aVault, aTemplates, aSites, aFeatured, aHasFeatured: !!aFeatured,
+      aOthers, aHasOthers: aOthers.length > 0, aOthersCount: aOthers.length + (aOthers.length === 1 ? ' site' : ' sites'),
+      aManageOpen: !!amSite, aManage: amSite || {},
+      aMTitle: this.state.aMTitle, aMCustom: this.state.aMCustom, aMActive: this.state.aMActive,
+      aOnMTitle: (e) => this.setState({ aMTitle: e.target.value }),
+      aOnMCustom: (e) => this.setState({ aMCustom: e.target.value }),
+      aToggleMActive: () => this.setState((s) => ({ aMActive: !s.aMActive })),
+      aMActiveBg: this.state.aMActive ? 'linear-gradient(135deg,#36D7ED,#35E834)' : '#D8D2C6',
+      aMActiveKnob: this.state.aMActive ? 'right' : 'left',
+      aMActiveLabel: this.state.aMActive ? 'Live' : 'Paused',
+      aCloseManage: () => this.setState({ aManageId: null }),
+      aSaveManage: () => { const id = this.state.aManageId; if (id) { aUpdateSite(id, { title: this.state.aMTitle.trim() || (amSite && amSite.title), custom: this.state.aMCustom.trim(), active: this.state.aMActive }); this.setState({ aManageId: null, toast: 'Changes saved.' }); } },
+      aManageVisit: () => { if (amSite) visitSite(amSite); },
+      aManageDelete: () => { if (amSite) this.setState({ aDelete: amSite, aManageId: null }); },
+      aIsHome: aView === 'home' && aSites.length > 0, aIsEmpty: aView === 'home' && aSites.length === 0, aIsAssets: aView === 'assets',
+      aInWizard: aView === 'w1' || aView === 'w2' || aView === 'wbuild' || aView === 'w3', aIsW1: aView === 'w1', aIsW2: aView === 'w2', aIsBuild: aView === 'wbuild', aIsW3: aView === 'w3',
+      aSteps: [
+        { n: '1', label: 'Type', done: true },
+        { n: '2', label: 'Build', done: aView === 'w2' || aView === 'wbuild' || aView === 'w3' },
+        { n: '3', label: 'Launch', done: aView === 'w3' },
+      ].map((st) => Object.assign({}, st, { bg: st.done ? 'linear-gradient(135deg,#36D7ED,#35E834)' : '#EDEAE2', fg: st.done ? '#0A0F0C' : '#9AA59E', lc: st.done ? '#0E1512' : '#9AA59E' })),
+      aVaultCount: aVault.length + ' assets unlocked',
+      aEmptyImg1: IMG('1519494026892-80bbd2d6fd0d', 360, 240),
+      aEmptyImg2: IMG('1551434678-e076c223a692', 360, 240),
+      aEmptyImg3: IMG('1556761175-5973dc0f32e7', 360, 240),
+      aGoAssets, aStart, aGoHome,
+      aTypes: aTypeDefs.map((t) => Object.assign({}, t, { selected: aw.type === t.id, bd: aw.type === t.id ? '#16A82A' : '#E4DFD4', bg: aw.type === t.id ? 'rgba(53,232,52,.06)' : '#fff', sh: aw.type === t.id ? '0 0 0 3px rgba(53,232,52,.16),0 8px 22px rgba(14,21,18,.07)' : '0 4px 16px rgba(14,21,18,.04)', hasBadge: !!t.badge, ibg: aw.type === t.id ? 'linear-gradient(135deg,#36D7ED,#35E834)' : '#F2EEE4', ifg: aw.type === t.id ? '#0A0F0C' : '#5C6B62', onSelect: setWv('type', t.id) })),
+      aShowDetails: aw.type === 'other',
+      aIndustries: aIndustries.map((x) => ({ label: x, selected: aw.industry === x, fg: aw.industry === x ? '#16A82A' : '#5C6B62', bg: aw.industry === x ? 'rgba(53,232,52,.10)' : '#fff', bd: aw.industry === x ? '#16A82A' : '#E4DFD4', onSelect: setWv('industry', x) })),
+      aGoals: aGoalDefs.map((g) => Object.assign({}, g, { selected: aw.goal === g.id, fg: aw.goal === g.id ? '#16A82A' : '#5C6B62', bg: aw.goal === g.id ? 'rgba(53,232,52,.10)' : '#fff', bd: aw.goal === g.id ? '#16A82A' : '#E4DFD4' , onSelect: setWv('goal', g.id) })),
+      awBusiness: aw.business, awPrompt: aw.prompt, awDomain: aw.domain,
+      aOnBusiness: setW('business'), aOnPromptW: setW('prompt'), aOnDomain: setW('domain'),
+      aModeTemplate: setWv('mode', 'template'), aModeAi: setWv('mode', 'ai'), aModeIsTemplate: aw.mode === 'template', aModeIsAi: aw.mode === 'ai',
+      aTplBd: aw.mode === 'template' ? '#16A82A' : '#E4DFD4', aTplBg: aw.mode === 'template' ? 'rgba(53,232,52,.07)' : '#fff', aAiBd: aw.mode === 'ai' ? '#16A82A' : '#E4DFD4', aAiBg: aw.mode === 'ai' ? 'rgba(53,232,52,.07)' : '#fff',
+      aW1Next, aW2Back, aW2Next, aW3Back, aCreate,
+      awSubdomain: slug(aw.business) + '.cfsite.co',
+      awHasDomain: !!(aw.domain && aw.domain.trim()),
+      awBusinessLabel: aw.business || 'Untitled business',
+      awIndustryLabel: aw.industry || 'Not set',
+      awGoalLabel: (aGoalDefs.find((g) => g.id === aw.goal) || {}).label || 'Not set',
+      awBuildLabel: aw.mode === 'ai' ? 'AI from prompt' : 'From template',
+      awTemplateName: aw.template ? aw.template.name : (aw.mode === 'ai' ? 'AI-generated design' : 'No template'),
+      awTemplateCover: (aw.template && aw.template.cover) || 'linear-gradient(135deg,#36D7ED,#35E834)',
+      awPreviewImg: IMG((aw.template && aw.template.img) || (aw.type === 'agency' ? '1486406146926-c627a92ad1ab' : (INDUSTRY_IMG[aw.industry] || A_DEFAULT_IMG)), 680, 420),
+      aDeleteOpen: !!ad, aDeleteName: ad ? ad.title : '',
+      aConfirmDelete: () => { const d = this.state.aDelete; this.setState((s) => ({ aSites: s.aSites.filter((x) => x.id !== (d && d.id)), aDelete: null, toast: d ? ('“' + d.title + '” deleted.') : 'Deleted.' })); },
+      aCancelDelete: () => this.setState({ aDelete: null }),
+      brandSwatches: ['#35E834', '#36D7ED', '#7A5AF8', '#0C140F'].map((c) => ({ color: c, border: this.state.brandColor === c ? '3px solid #0E1512' : '1px solid #EBE3D6', pick: () => this.setState({ brandColor: c, toast: 'Brand color updated' }) })),
+      isWorkspaces: sec === 'workspaces', isReseller: sec === 'reseller', isAgency: sec === 'agency', isBranding: sec === 'branding', isBilling: sec === 'billing', isPlans: sec === 'plans', isHelp: sec === 'help',
+      workspaces: wsFiltered.map(dec),
+      wsMenu: wsBase.map(dec),
+      wsStats, wsFilters: ['All', 'Active', 'Trial', 'Suspended'].map(fpill),
+      wsCountLabel: wsBase.length + (wsBase.length === 1 ? ' workspace' : ' workspaces'),
+      wsSearch: this.state.wsSearch, onWsSearch: (e) => this.setState({ wsSearch: e.target.value }),
+      wsEmpty: wsFiltered.length === 0, clearWsFilters: () => this.setState({ wsSearch: '', wsFilter: 'All' }),
+      manageOpen: !!mw, manageWs: mw || {}, managePlanPills: mwPlanPills,
+      closeManage: () => this.setState({ manageId: null, wsDeleteArm: false }),
+      wsRename: this.state.wsRename, onWsRename: (e) => this.setState({ wsRename: e.target.value }),
+      saveRename: () => { if (mwId && this.state.wsRename.trim()) { updateWs(mwId, { name: this.state.wsRename.trim() }); this.setState({ toast: 'Workspace renamed' }); } },
+      manageToggleStatus: () => { if (mw) { updateWs(mwId, { status: mw.status === 'Suspended' ? 'Active' : 'Suspended' }); this.setState({ toast: mw.status === 'Suspended' ? mw.name + ' reactivated' : mw.name + ' suspended' }); } },
+      manageOpenWs: openWs, manageInvite: toast('Invite sent'),
+      manageStatusLabel: mw ? (mw.status === 'Suspended' ? 'Reactivate workspace' : 'Suspend workspace') : '',
+      wsDeleteArm: this.state.wsDeleteArm, wsNotDeleteArm: !this.state.wsDeleteArm, armDelete: () => this.setState({ wsDeleteArm: true }), cancelDelete: () => this.setState({ wsDeleteArm: false }),
+      confirmDelete: () => { if (mwId) { setWs(wsBase.filter((x) => x.id !== mwId)); this.setState({ manageId: null, wsDeleteArm: false, toast: (mw ? mw.name : 'Workspace') + ' deleted' }); } },
+      wzOpen: this.state.wzOpen, wzStep, wzStepList: wzSteps.map((s) => ({ n: s.n, label: s.label, on: s.n === wzStep, done: s.n < wzStep, badgeBg: s.n === wzStep ? 'linear-gradient(135deg,#36D7ED,#35E834)' : (s.n < wzStep ? 'rgba(53,232,52,.18)' : '#F2EEE4'), badgeFg: s.n === wzStep ? '#0A0F0C' : (s.n < wzStep ? '#16A82A' : '#A7AEA4'), labelColor: s.n <= wzStep ? '#0E1512' : '#A7AEA4', badgeText: s.n < wzStep ? '✓' : ('' + s.n) })),
+      closeWizard: () => this.setState({ wzOpen: false }),
+      wzIs1: wzStep === 1, wzIs2: wzStep === 2, wzIs3: wzStep === 3, wzIs4: wzStep === 4,
+      wzName: wf.name, onWzName: (e) => setWf({ name: e.target.value }),
+      wzEmail: wf.email, onWzEmail: (e) => setWf({ email: e.target.value }),
+      wzIndustries: ['Dental', 'Med spa', 'Fitness', 'Home services', 'Agency', 'Other'].map((i) => ({ label: i, on: wf.industry === i, bd: wf.industry === i ? '1.5px solid #35E834' : '1px solid #E4DFD4', bg: wf.industry === i ? 'rgba(53,232,52,.10)' : '#fff', fg: wf.industry === i ? '#0E1512' : '#5C6B62', onClick: () => setWf({ industry: i }) })),
+      wzPlans: PLANS.map((p) => ({ id: p.id, price: p.price, blurb: p.blurb, feats: p.feats.map((f) => ({ t: f })), on: wf.plan === p.id, bd: wf.plan === p.id ? '2px solid #35E834' : '1.5px solid #E4DFD4', bg: wf.plan === p.id ? 'rgba(53,232,52,.06)' : '#fff', check: wf.plan === p.id ? 'flex' : 'none', onClick: () => setWf({ plan: p.id }) })),
+      wzStartBlank: wf.start === 'blank', wzStartCopy: wf.start === 'copy',
+      wzBlankBorder: wf.start === 'blank' ? '#35E834' : '#E4DFD4', wzCopyBorder: wf.start === 'copy' ? '#35E834' : '#E4DFD4',
+      pickBlank: () => setWf({ start: 'blank', copyFrom: null }), pickCopy: () => setWf({ start: 'copy' }),
+      wzCopyOptions: wsBase.map((w) => ({ id: w.id, name: w.name, mark: w.mark, soft: w.soft, on: wf.copyFrom === w.id, bd: wf.copyFrom === w.id ? '1.5px solid #35E834' : '1px solid #E4DFD4', bg: wf.copyFrom === w.id ? 'rgba(53,232,52,.08)' : '#fff', onClick: () => setWf({ copyFrom: w.id }) })),
+      wzReview: [{ k: 'Name', v: wf.name || '—' }, { k: 'Owner email', v: wf.email || '—' }, { k: 'Industry', v: wf.industry }, { k: 'Plan', v: wf.plan + ' plan' }, { k: 'Setup', v: wf.start === 'copy' ? ('Copy from ' + ((wsBase.find((w) => w.id === wf.copyFrom) || {}).name || '—')) : 'Blank workspace' }],
+      wzReviewMark: (wf.name.trim()[0] || 'W').toUpperCase(),
+      wzReviewName: wf.name.trim() || 'New workspace', wzReviewSlug: wzSlug,
+      wzCanNext, wzNextLabel: wzStep === 4 ? 'Create workspace' : 'Continue', wzNextOpacity: wzCanNext ? '1' : '.5',
+      wzBack: () => this.setState((s) => ({ wzStep: Math.max(1, s.wzStep - 1) })),
+      wzShowBack: wzStep > 1,
+      wzNext: () => { if (!wzCanNext) return; if (wzStep === 4) { wzCreate(); } else { this.setState((s) => ({ wzStep: s.wzStep + 1 })); } },
+      sites: [
+        { name: 'NorthStar Dental', domain: 'northstardental.co', status: 'Published', cover: 'linear-gradient(135deg,#36D7ED,#16A82A)', mark: 'N', sbg: '#D7F5DD', sfg: '#0F7A28' },
+        { name: 'Peak Performance PT', domain: 'peakperformance.pt', status: 'Published', cover: 'linear-gradient(135deg,#0C140F,#16A82A)', mark: 'P', sbg: '#D7F5DD', sfg: '#0F7A28' },
+        { name: 'Lakeside Clinics', domain: 'lakesideclinics.com', status: 'Draft', cover: 'linear-gradient(135deg,#9AA59E,#5C6B62)', mark: 'L', sbg: '#F2EEE4', sfg: '#8A7F6B' },
+        { name: 'Cedar Ortho', domain: 'cedarortho.com', status: 'Published', cover: 'linear-gradient(135deg,#7A5AF8,#36D7ED)', mark: 'C', sbg: '#D7F5DD', sfg: '#0F7A28' },
+      ],
+      earnStats: [
+        { label: 'Total agency earnings', value: '$48,920', sub: 'All-time, 4 clients' },
+        { label: 'Recurring (MRR)', value: '$6,400', sub: '+14% vs last month' },
+        { label: 'Collected this month', value: '$5,980', sub: 'Jun 2026' },
+        { label: 'Avg per client', value: '$1,600', sub: 'monthly retainer' },
+      ],
+      clients: [
+        { name: 'Northstar Dental', site: 'northstardental.co', mark: 'N', mbg: 'linear-gradient(135deg,#36D7ED,#35E834)', plan: 'Growth — $1,800/mo', payments: '14', total: '$25,200', last: 'Jun 1, 2026', status: 'Active', sbg: '#D7F5DD', sfg: '#0F7A28' },
+        { name: 'Peak Performance PT', site: 'peakperformance.pt', mark: 'P', mbg: 'linear-gradient(135deg,#7A5AF8,#36D7ED)', plan: 'Scale — $2,400/mo', payments: '9', total: '$21,600', last: 'Jun 1, 2026', status: 'Active', sbg: '#D7F5DD', sfg: '#0F7A28' },
+        { name: 'Lakeside Clinics', site: 'lakesideclinics.com', mark: 'L', mbg: 'linear-gradient(135deg,#35E834,#D0F56B)', plan: 'Growth — $1,800/mo', payments: '3', total: '$5,400', last: 'Jun 4, 2026', status: 'Active', sbg: '#D7F5DD', sfg: '#0F7A28' },
+        { name: 'Cedar Ortho', site: 'cedarortho.com', mark: 'C', mbg: 'linear-gradient(135deg,#E0796B,#D0F56B)', plan: 'Starter — $900/mo', payments: '2', total: '$1,800', last: 'May 6, 2026', status: 'Past due', sbg: '#FBE3DD', sfg: '#C9543F' },
+      ],
+      agencyTx: [
+        { who: 'Northstar Dental', date: 'Jun 1, 2026', method: 'Visa ···4291', amount: '$1,800', status: 'Paid', bg: '#D7F5DD', fg: '#0F7A28' },
+        { who: 'Peak Performance PT', date: 'Jun 1, 2026', method: 'ACH transfer', amount: '$2,400', status: 'Paid', bg: '#D7F5DD', fg: '#0F7A28' },
+        { who: 'Lakeside Clinics', date: 'Jun 4, 2026', method: 'Visa ···0088', amount: '$1,800', status: 'Paid', bg: '#D7F5DD', fg: '#0F7A28' },
+        { who: 'Cedar Ortho', date: 'Jun 6, 2026', method: 'Mastercard ···7733', amount: '$900', status: 'Failed', bg: '#FBE3DD', fg: '#C9543F' },
+      ],
+      resellerStats: [
+        { label: 'Reseller revenue (MTD)', value: '$3,240', sub: '+18% vs last month' },
+        { label: 'Active sub-accounts', value: '5', sub: '1 on trial' },
+        { label: 'Next payout', value: '$2,180', sub: 'Jul 1' },
+      ],
+      payouts: [
+        { date: 'Jun 1, 2026', amount: '$2,640', status: 'Paid', bg: '#D7F5DD', fg: '#0F7A28' },
+        { date: 'May 1, 2026', amount: '$2,410', status: 'Paid', bg: '#D7F5DD', fg: '#0F7A28' },
+        { date: 'Apr 1, 2026', amount: '$1,980', status: 'Paid', bg: '#D7F5DD', fg: '#0F7A28' },
+      ],
+      planFeatures: ['Unlimited workspaces & brands', 'Full white-label & reseller license', 'All campaign & niche playbooks', 'Priority support + live mentorship'],
+      invoices: [
+        { date: 'Jun 1, 2026', desc: 'Agency plan — monthly', amount: '$297.00', status: 'Paid', bg: '#D7F5DD', fg: '#0F7A28' },
+        { date: 'May 1, 2026', desc: 'Agency plan — monthly', amount: '$297.00', status: 'Paid', bg: '#D7F5DD', fg: '#0F7A28' },
+        { date: 'Apr 1, 2026', desc: 'Agency plan — monthly', amount: '$297.00', status: 'Paid', bg: '#D7F5DD', fg: '#0F7A28' },
+        { date: 'Mar 1, 2026', desc: 'Agency plan — monthly', amount: '$297.00', status: 'Paid', bg: '#D7F5DD', fg: '#0F7A28' },
+      ].map((iv) => Object.assign({}, iv, { onDownload: () => this.setState({ toast: 'Downloading invoice ' + iv.date + '…' }) })),
+      heroVid: { title: 'Agency Marketing & Client Acquisition', desc: 'How to find, pitch, and close clients for your ClientForce-powered service. Pricing, outreach, audit-based selling, objection handling, and the 7-day action plan.', onPlay: () => openPlayer({ title: 'Agency Marketing & Client Acquisition', cat: 'Feature walkthrough', dur: '52 min', meta: 'Live mentorship · Week 8', mark: 'linear-gradient(135deg,#0C140F,#16A82A)', desc: 'How to find, pitch, and close clients for your ClientForce-powered service. Pricing, outreach, audit-based selling, objection handling, and the 7-day action plan.', progress: 64 }) },
+      helpFilters: ['All', 'How-tos', 'Feature walkthroughs', 'Troubleshooting', 'Getting started', 'Best practices'].map((label) => ({ label, onClick: () => this.setState({ helpFilter: label }), fg: this.state.helpFilter === label ? '#0A0F0C' : '#5C6B62', bg: this.state.helpFilter === label ? 'linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B)' : '#fff', bd: this.state.helpFilter === label ? 'transparent' : '#E4DFD4' })),
+      featuredVids: [
+        { mark: 'linear-gradient(135deg,#0C140F,#16A82A)', dur: '52 min', tag: 'Feature walkthrough', title: 'Agency Marketing & Client Acquisition' },
+        { mark: 'linear-gradient(135deg,#36D7ED,#35E834)', dur: '41 min', tag: 'Getting started', title: 'Account setup & platform overview' },
+        { mark: 'linear-gradient(135deg,#7A5AF8,#36D7ED)', dur: '1h 06m', tag: 'How-to', title: 'Connecting email, SMS & AI Voice' },
+      ].map((v) => Object.assign({}, v, { onPlay: () => openPlayer({ title: v.title, cat: v.tag, dur: v.dur, meta: 'ClientForce Academy', mark: v.mark, desc: 'Watch this session to get hands-on with ' + v.title.toLowerCase() + '.', progress: 0 }) })),
+      weeks: [
+        { num: '1', icon: '◆', title: 'Foundation', status: 'Watched', desc: 'Account setup, workspace configuration, and a full platform overview. Understand how every feature connects and the common early mistakes to avoid.' },
+        { num: '2', icon: '◈', title: 'Channels', status: 'Watched', desc: 'Connect email (SMTP/IMAP/OAuth), SMS, and AI Voice. Learn when to use each channel and how they work together inside campaigns.' },
+        { num: '3', icon: '◇', title: 'Campaigns', status: 'Watched', desc: 'Build and launch campaigns the right way. Learn campaign types, use cases, and how to match the right structure to your business goals.' },
+        { num: '4', icon: '⦿', title: 'Auto-Prospecting', status: 'Watched', desc: 'Keep your pipeline flowing automatically using forms, the embedded widget, auto lead finder, and Chrome extension — without manual effort.' },
+        { num: '5', icon: '⬡', title: 'Integrations', status: 'Watched', desc: 'Connect ClientForce to your wider stack. Track sales, manage proposals, handle bookings, and trigger actions across tools with Zapier.' },
+        { num: '6', icon: '⬢', title: 'Integrations Part 2', status: 'Coming soon', desc: 'Deeper integrations, advanced Zapier workflows, and connecting more of your tech stack to create a fully automated end-to-end business system.' },
+        { num: '7', icon: '⬣', title: 'Build Your Agency', status: 'Watched', desc: 'Turn ClientForce into a service you can sell. Learn how to position, package, and sell lead follow-up, booking, and sales automation services to businesses.' },
+        { num: '8', icon: '★', title: 'Agency Marketing & Client Acquisition', status: 'Now watching', desc: 'How to find, pitch, and close clients for your ClientForce-powered service. Pricing, outreach, audit-based selling, objection handling, and the 7-day action plan.' },
+      ].map((w) => {
+        const watching = w.status === 'Now watching';
+        const soon = w.status === 'Coming soon';
+        return Object.assign({}, w, {
+          onPlay: () => soon ? this.setState({ toast: '“' + w.title + '” — coming soon' }) : openPlayer({ title: w.title, cat: 'Mentorship replay', dur: '52 min', meta: 'Live mentorship · Week ' + w.num, mark: watching ? 'linear-gradient(135deg,#0C140F,#16A82A)' : 'linear-gradient(135deg,#7A5AF8,#36D7ED)', desc: w.desc, progress: watching ? 64 : 100 }),
+          cardBg: watching ? 'rgba(53,232,52,.06)' : (soon ? '#FAF8F3' : '#fff'),
+          cardBd: watching ? '#35E834' : '#EBE3D6',
+          mark: watching ? 'linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B)' : (soon ? '#EEE9DD' : '#0C140F'),
+          markFg: watching ? '#0A0F0C' : (soon ? '#A89D86' : '#7FE8A0'),
+          pillFg: watching ? '#0A0F0C' : (soon ? '#8A7F6B' : '#0F7A28'),
+          pillBg: watching ? 'linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B)' : (soon ? '#ECE6D8' : '#D7F5DD'),
+        });
+      }),
+      tBrowseAll: () => this.setState({ libOpen: true }),
+      libOpen: !!this.state.libOpen,
+      playerOpen: !!this.state.player,
+      player: this.state.player || { title: '', cat: '', dur: '', meta: '', mark: 'linear-gradient(135deg,#36D7ED,#35E834)', desc: '', progress: 0 },
+      playerProgressW: ((this.state.player && this.state.player.progress) || 0) + '%',
+      closePlayer: () => this.setState({ player: null }),
+      playerResumeLabel: (this.state.player && this.state.player.progress) ? 'Resume' : 'Play',
+      libEmpty: _libFiltered.length === 0,
+      libCloseFn: () => this.setState({ libOpen: false }),
+      libSearchVal: this.state.libSearch,
+      libOnSearch: (e) => this.setState({ libSearch: e.target.value }),
+      libCats: ['All', 'How-tos', 'Feature walkthroughs', 'Troubleshooting', 'Getting started', 'Best practices'].map((label) => ({ label, onClick: () => this.setState({ libCat: label }), fg: this.state.libCat === label ? '#0A0F0C' : '#5C6B62', bg: this.state.libCat === label ? 'linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B)' : '#F7F9F8', bd: this.state.libCat === label ? 'transparent' : '#E4DFD4' })),
+      libVids: _libFiltered,
+      bonuses: [
+        { icon: '▦', tint: 'rgba(54,215,237,.16)', fg: '#1192A6', title: 'DFY Proposal Kits', desc: 'Ready-to-send proposal templates that close clients.' },
+        { icon: '▶', tint: 'rgba(122,90,248,.14)', fg: '#6A4DE0', title: 'VSL Script Library', desc: 'Proven video sales letter scripts for your campaigns.' },
+        { icon: '◷', tint: 'rgba(53,232,52,.16)', fg: '#16A82A', title: 'Media Buying Package', desc: 'Winning ad frameworks and creative direction.' },
+        { icon: '★', tint: 'rgba(208,245,107,.4)', fg: '#5E8A12', title: 'Agency Certification', desc: 'Earn your Clientforce certification badge.' },
+      ].map((b) => Object.assign({}, b, { onOpen: () => this.setState({ toast: 'Opening “' + b.title + '”…' }) })),
+      helpResources: [
+        { icon: '◉', title: 'Getting started guide', desc: 'Set up your first workspace and agent.' },
+        { icon: '❒', title: 'Knowledge base', desc: 'Searchable articles and how-tos.' },
+        { icon: '✉', title: 'Contact support', desc: 'Reach the team — typically replies in 2h.' },
+      ].map((h) => Object.assign({}, h, { onOpen: () => this.setState({ toast: 'Opening “' + h.title + '”…' }) })),
+      eTabAgency: this.state.eTab === 'agency', eTabReseller: this.state.eTab === 'reseller',
+      eTabs: [
+        { id: 'agency', label: 'Agency clients' },
+        { id: 'reseller', label: 'Reseller sub-accounts' },
+      ].map((t) => ({ label: t.label, onClick: () => this.setState({ eTab: t.id }), color: this.state.eTab === t.id ? '#0E1512' : '#8A7F6B', bg: this.state.eTab === t.id ? '#fff' : 'transparent', shadow: this.state.eTab === t.id ? '0 1px 3px rgba(14,21,18,.1)' : 'none' })),
+      pbBg: this.state.pb ? onColor : '#E4EAE6', pbKnob: this.state.pb ? 'right' : 'left', togglePb: () => this.setState((s) => ({ pb: !s.pb })),
+      hasToast: !!this.state.toast, toastMsg: this.state.toast, dismissToast: () => this.setState({ toast: '' }),
+      modalOpen: !!mc, modal: mc ? { title: mc.title, cta: mc.cta, fields: mc.fields } : { fields: [] },
+      closeModal: () => this.setState({ modal: null }),
+      modalSave: () => { const c = MCFG[this.state.modal]; this.setState({ modal: null, toast: c ? c.toast : 'Saved' }); },
+      stop: (e) => { if (e) e.stopPropagation(); },
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&amp;family=Hanken+Grotesk:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0;padding:0;}
+  *{box-sizing:border-box;}
+  input{font-family:'Hanken Grotesk',sans-serif;outline:none;}
+  ::-webkit-scrollbar{width:9px;height:9px;}
+  ::-webkit-scrollbar-thumb{background:#D8CFBE;border-radius:100px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+</style>
+<script src="sidebar.js"></script>
+</helmet>
+
+<div style="position:relative;min-height:100vh;width:100%;background:#FBF7F0;font-family:'Hanken Grotesk',sans-serif;overflow:hidden;"><div style="display:flex;">
+      <!-- SIDEBAR -->
+      <cf-sidebar active="agents" style="width:248px;flex:none;align-self:stretch;background:#0C140F;"></cf-sidebar>
+
+      <!-- MAIN -->
+      <div style="flex:1;background:#FBF7F0;min-width:0;padding:28px 30px 34px;border-radius:0 0 14px 0;">
+        <!-- header -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;">
+          <div>
+            <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:28px;letter-spacing:-.02em;color:#0E1512;">Agents</div>
+            <div style="font-size:15px;color:#5C6B62;">{{ subtitle }}</div>
+          </div>
+          <a href="Create Agent.dc.html" style="text-decoration:none;font-family:'Hanken Grotesk',sans-serif;font-weight:700;font-size:15px;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED 0%,#35E834 55%,#D0F56B 100%);border-radius:12px;padding:12px 22px;box-shadow:0 6px 16px rgba(53,232,52,.26);cursor:pointer;">+ Add agent</a>
+        </div>
+
+        <!-- toolbar -->
+        <sc-if value="{{ noSelection }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px;">
+            <div style="flex:0 0 320px;display:flex;align-items:center;gap:10px;background:#fff;border:1px solid {{ searchBorder }};border-radius:12px;padding:11px 16px;">
+              <span style="color:#9AA59E;">⚲</span>
+              <input value="{{ search }}" onInput="{{ onSearch }}" placeholder="Search agents by name or ID…" style="border:none;background:transparent;font-size:14px;color:#0E1512;flex:1;min-width:0;padding:0;" />
+              <sc-if value="{{ hasSearch }}" hint-placeholder-val="{{ false }}"><span onClick="{{ clearSearch }}" style="color:#9AA59E;cursor:pointer;font-size:13px;">✕</span></sc-if>
+            </div>
+            <div style="display:flex;align-items:center;gap:9px;flex:none;">
+              <div style="position:relative;">
+                <div onClick="{{ toggleStatusDD }}" style="display:flex;align-items:center;gap:8px;background:{{ statusBtnBg }};border:1px solid {{ statusBtnBorder }};border-radius:11px;padding:10px 15px;font-size:14px;font-weight:600;color:{{ statusBtnFg }};cursor:pointer;">{{ statusBtnLabel }} <span style="color:#9AA59E;font-size:12px;">⌄</span></div>
+                <sc-if value="{{ statusDDOpen }}" hint-placeholder-val="{{ false }}">
+                  <div style="position:absolute;top:calc(100% + 6px);right:0;width:190px;background:#fff;border:1px solid #EBE3D6;border-radius:12px;box-shadow:0 16px 44px rgba(0,0,0,.18);overflow:hidden;z-index:40;">
+                    <sc-for list="{{ statusOptions }}" as="o" hint-placeholder-count="4">
+                      <div onClick="{{ o.onPick }}" style="display:flex;align-items:center;gap:9px;padding:10px 14px;cursor:pointer;font-size:13.5px;color:#0E1512;border-bottom:1px solid #F7F2EA;" style-hover="background:#FBF7F0;"><span style="flex:1;">{{ o.label }}</span><span style="font-size:11px;font-weight:700;color:#8A7F6B;">{{ o.count }}</span><span style="color:#16A82A;visibility:{{ o.check }};">✓</span></div>
+                    </sc-for>
+                  </div>
+                </sc-if>
+              </div>
+              <div style="position:relative;">
+                <div onClick="{{ toggleChannelDD }}" style="display:flex;align-items:center;gap:8px;background:{{ channelBtnBg }};border:1px solid {{ channelBtnBorder }};border-radius:11px;padding:10px 15px;font-size:14px;font-weight:600;color:{{ channelBtnFg }};cursor:pointer;">{{ channelBtnLabel }} <span style="color:#9AA59E;font-size:12px;">⌄</span></div>
+                <sc-if value="{{ channelDDOpen }}" hint-placeholder-val="{{ false }}">
+                  <div style="position:absolute;top:calc(100% + 6px);right:0;width:190px;background:#fff;border:1px solid #EBE3D6;border-radius:12px;box-shadow:0 16px 44px rgba(0,0,0,.18);overflow:hidden;z-index:40;">
+                    <sc-for list="{{ channelOptions }}" as="o" hint-placeholder-count="5">
+                      <div onClick="{{ o.onPick }}" style="display:flex;align-items:center;gap:9px;padding:10px 14px;cursor:pointer;font-size:13.5px;color:#0E1512;border-bottom:1px solid #F7F2EA;" style-hover="background:#FBF7F0;"><span style="width:18px;text-align:center;">{{ o.icon }}</span><span style="flex:1;">{{ o.label }}</span><span style="color:#16A82A;visibility:{{ o.check }};">✓</span></div>
+                    </sc-for>
+                  </div>
+                </sc-if>
+              </div>
+              <div style="position:relative;">
+                <div onClick="{{ toggleMoreDD }}" style="display:flex;align-items:center;gap:8px;background:{{ moreBtnBg }};border:1px solid {{ moreBtnBorder }};border-radius:11px;padding:10px 15px;font-size:14px;font-weight:600;color:{{ moreBtnFg }};cursor:pointer;">⚙ Health <sc-if value="{{ healthActive }}" hint-placeholder-val="{{ false }}"><span style="font-size:11px;color:#9AA59E;">· {{ healthBtnLabel }}</span></sc-if> <span style="color:#9AA59E;font-size:12px;">⌄</span></div>
+                <sc-if value="{{ moreDDOpen }}" hint-placeholder-val="{{ false }}">
+                  <div style="position:absolute;top:calc(100% + 6px);right:0;width:180px;background:#fff;border:1px solid #EBE3D6;border-radius:12px;box-shadow:0 16px 44px rgba(0,0,0,.18);overflow:hidden;z-index:40;">
+                    <sc-for list="{{ healthOptions }}" as="o" hint-placeholder-count="3">
+                      <div onClick="{{ o.onPick }}" style="display:flex;align-items:center;gap:9px;padding:10px 14px;cursor:pointer;font-size:13.5px;color:#0E1512;border-bottom:1px solid #F7F2EA;" style-hover="background:#FBF7F0;"><span style="flex:1;">{{ o.label }}</span><span style="color:#16A82A;visibility:{{ o.check }};">✓</span></div>
+                    </sc-for>
+                  </div>
+                </sc-if>
+              </div>
+              <div style="width:1px;height:24px;background:#EBE3D6;"></div>
+              <div style="position:relative;">
+                <div onClick="{{ toggleColsDD }}" style="display:flex;align-items:center;gap:8px;background:{{ colsBtnBg }};border:1px solid {{ colsBtnBorder }};border-radius:11px;padding:10px 15px;font-size:14px;font-weight:600;color:{{ colsBtnFg }};cursor:pointer;">▦ Columns <sc-if value="{{ colsActive }}" hint-placeholder-val="{{ false }}"><span style="font-size:11px;font-weight:700;color:#fff;background:#16A82A;border-radius:100px;padding:0 6px;">{{ colsCount }}</span></sc-if> <span style="color:#9AA59E;font-size:12px;">⌄</span></div>
+                <sc-if value="{{ colsDDOpen }}" hint-placeholder-val="{{ false }}">
+                  <div style="position:absolute;top:calc(100% + 6px);right:0;width:236px;background:#fff;border:1px solid #EBE3D6;border-radius:12px;box-shadow:0 16px 44px rgba(0,0,0,.18);overflow:hidden;z-index:40;padding:6px;">
+                    <div style="font-size:10.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:#9AA59E;padding:8px 10px 4px;">Extra metrics</div>
+                    <sc-for list="{{ colToggles }}" as="t" hint-placeholder-count="4">
+                      <div onClick="{{ t.onToggle }}" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;" style-hover="background:#FBF7F0;">
+                        <span style="display:flex;align-items:center;justify-content:center;width:18px;height:18px;border:2px solid {{ t.cbBorder }};border-radius:5px;background:{{ t.cbBg }};color:#fff;font-size:11px;flex:none;">{{ t.cbMark }}</span>
+                        <span style="font-size:13.5px;color:#0E1512;flex:1;">{{ t.label }}</span>
+                      </div>
+                    </sc-for>
+                    <div onClick="{{ resetCols }}" style="text-align:center;font-size:12.5px;font-weight:600;color:#5C6B62;padding:9px;margin-top:4px;border-top:1px solid #F2EEE4;cursor:pointer;">Reset to default</div>
+                  </div>
+                </sc-if>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+        <sc-if value="{{ hasSelection }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;background:rgba(53,232,52,.08);border:1px solid rgba(53,232,52,.3);border-radius:12px;padding:10px 16px;">
+            <span style="font-size:14px;font-weight:700;color:#0E1512;">{{ selectedCount }} selected</span>
+            <span onClick="{{ clearSel }}" style="font-size:13px;font-weight:600;color:#16A82A;cursor:pointer;">Clear</span>
+            <div style="margin-left:auto;display:flex;align-items:center;gap:9px;">
+              <span onClick="{{ bulkResume }}" style="font-size:13px;font-weight:600;color:#0E1512;background:#fff;border:1px solid #EBE3D6;border-radius:10px;padding:8px 14px;cursor:pointer;">▶ Resume</span>
+              <span onClick="{{ bulkPause }}" style="font-size:13px;font-weight:600;color:#0E1512;background:#fff;border:1px solid #EBE3D6;border-radius:10px;padding:8px 14px;cursor:pointer;">⏸ Pause</span>
+              <span onClick="{{ bulkDuplicate }}" style="font-size:13px;font-weight:600;color:#0E1512;background:#fff;border:1px solid #EBE3D6;border-radius:10px;padding:8px 14px;cursor:pointer;">⧉ Duplicate</span>
+              <span onClick="{{ bulkExport }}" style="font-size:13px;font-weight:600;color:#0E1512;background:#fff;border:1px solid #EBE3D6;border-radius:10px;padding:8px 14px;cursor:pointer;">↥ Export</span>
+              <span onClick="{{ bulkDelete }}" style="font-size:13px;font-weight:600;color:#C9543F;background:#fff;border:1px solid #F0CFC8;border-radius:10px;padding:8px 14px;cursor:pointer;">🗑 Delete</span>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- table card -->
+        <div style="background:#fff;border:1px solid #EBE3D6;border-radius:18px;box-shadow:0 6px 24px rgba(14,21,18,.05);">
+          <!-- header row -->
+          <div style="display:grid;grid-template-columns:{{ gridCols }};align-items:center;padding:0 8px;background:#FBF7F0;border-bottom:1.5px solid #EBE3D6;border-radius:18px 18px 0 0;">
+            <div onClick="{{ toggleAll }}" style="padding:14px 12px;cursor:pointer;"><span style="display:flex;align-items:center;justify-content:center;width:18px;height:18px;border:2px solid {{ allBorder }};border-radius:5px;background:{{ allBg }};color:#fff;font-size:11px;">{{ allMark }}</span></div>
+            <sc-for list="{{ headerCols }}" as="c" hint-placeholder-count="7">
+              <div onClick="{{ c.onSort }}" style="padding:14px 12px;font-size:12px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:#5C6B62;text-align:{{ c.align }};cursor:{{ c.cursor }};">{{ c.label }} <span style="color:#16A82A;">{{ c.arrow }}</span></div>
+            </sc-for>
+            <div></div>
+          </div>
+          <!-- body -->
+          <sc-for list="{{ rows }}" as="r" hint-placeholder-count="8">
+            <div onClick="{{ r.onOpen }}" style="display:grid;grid-template-columns:{{ gridCols }};align-items:center;padding:0 8px;border-top:1px solid #F2EEE4;background:{{ r.rowbg }};cursor:pointer;" style-hover="background:#FBFAF6;">
+              <div onClick="{{ r.onToggle }}" style="padding:14px 12px;cursor:pointer;"><span style="display:flex;align-items:center;justify-content:center;width:18px;height:18px;border:2px solid {{ r.cbBorder }};border-radius:5px;background:{{ r.cbBg }};color:#fff;font-size:11px;">{{ r.cbMark }}</span></div>
+              <sc-for list="{{ r.cells }}" as="cell" hint-placeholder-count="7">
+                <div style="padding:12px;min-width:0;text-align:{{ cell.align }};">
+                  <sc-if value="{{ cell.isAgent }}" hint-placeholder-val="{{ true }}">
+                    <span style="display:flex;align-items:center;gap:11px;min-width:0;">
+                      <span style="width:38px;height:38px;border-radius:50%;flex:none;background:{{ cell.avbg }};display:flex;align-items:center;justify-content:center;font-size:16px;">{{ cell.emoji }}</span>
+                      <span style="min-width:0;"><span style="display:block;font-weight:600;font-size:14.5px;color:#0E1512;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ cell.name }}</span><span style="display:block;font-size:12px;color:#9AA59E;">ID: {{ cell.id }}</span></span>
+                    </span>
+                  </sc-if>
+                  <sc-if value="{{ cell.isStatus }}" hint-placeholder-val="{{ false }}">
+                    <span style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:100px;font-size:12.5px;font-weight:600;background:{{ cell.sbg }};color:{{ cell.sfg }};border:{{ cell.sborder }};"><span style="width:6px;height:6px;border-radius:50%;background:{{ cell.sdot }};"></span>{{ cell.status }}</span>
+                  </sc-if>
+                  <sc-if value="{{ cell.isChannels }}" hint-placeholder-val="{{ false }}">
+                    <span style="display:inline-flex;gap:5px;flex-wrap:wrap;">
+                      <sc-for list="{{ cell.chans }}" as="ch" hint-placeholder-count="2">
+                        <span style="display:inline-flex;align-items:center;gap:4px;padding:4px 9px;border-radius:8px;background:{{ ch.bg }};color:{{ ch.fg }};font-size:12px;font-weight:600;">{{ ch.icon }} {{ ch.label }}</span>
+                      </sc-for>
+                    </span>
+                  </sc-if>
+                  <sc-if value="{{ cell.isHealth }}" hint-placeholder-val="{{ false }}">
+                    <span style="display:inline-flex;align-items:center;gap:7px;font-size:13.5px;font-weight:600;color:{{ cell.hfg }};"><span style="width:8px;height:8px;border-radius:50%;background:{{ cell.hdot }};"></span>{{ cell.health }}</span>
+                  </sc-if>
+                  <sc-if value="{{ cell.isNum }}" hint-placeholder-val="{{ false }}">
+                    <span style="font-size:14.5px;font-weight:{{ cell.weight }};color:{{ cell.color }};">{{ cell.value }}</span>
+                  </sc-if>
+                </div>
+              </sc-for>
+              <div onClick="{{ r.onMenuClick }}" style="padding:12px 8px;display:flex;justify-content:center;align-items:center;gap:4px;position:relative;">
+                <span onClick="{{ r.onQuickToggle }}" title="{{ r.quickTitle }}" style="width:30px;height:30px;border-radius:9px;border:1px solid #EBE3D6;background:#fff;display:flex;align-items:center;justify-content:center;color:{{ r.quickFg }};font-size:13px;cursor:pointer;">{{ r.quickIcon }}</span>
+                <span onClick="{{ r.onMenu }}" style="width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:#9AA59E;font-size:18px;font-weight:700;cursor:pointer;">⋯</span>
+                <sc-if value="{{ r.menuOpen }}" hint-placeholder-val="{{ false }}">
+                  <div style="position:absolute;top:calc(100% + 4px);right:8px;width:188px;background:#fff;border:1px solid #EBE3D6;border-radius:12px;box-shadow:0 16px 44px rgba(0,0,0,.2);overflow:hidden;z-index:45;padding:6px;text-align:left;">
+                    <sc-for list="{{ r.menu }}" as="m" hint-placeholder-count="6">
+                      <div onClick="{{ m.onClick }}" style="display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:9px;cursor:pointer;font-size:13.5px;color:{{ m.color }};" style-hover="background:#FBF7F0;"><span style="width:18px;text-align:center;">{{ m.icon }}</span>{{ m.label }}</div>
+                    </sc-for>
+                  </div>
+                </sc-if>
+              </div>
+            </div>
+          </sc-for>
+
+          <sc-if value="{{ filteredEmpty }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:56px 20px;text-align:center;border-top:1px solid #F2EEE4;">
+              <div style="font-size:30px;margin-bottom:8px;">🔍</div>
+              <div style="font-size:15px;font-weight:700;color:#0E1512;margin-bottom:3px;">No agents match</div>
+              <div style="font-size:13px;color:#9AA59E;margin-bottom:14px;">Try clearing search or filters.</div>
+              <span onClick="{{ resetFilters }}" style="font-size:13px;font-weight:700;color:#16A82A;background:rgba(53,232,52,.1);border-radius:10px;padding:9px 16px;cursor:pointer;">Reset filters</span>
+            </div>
+          </sc-if>
+          <sc-if value="{{ allEmpty }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:64px 20px;display:flex;flex-direction:column;align-items:center;text-align:center;border-top:1px solid #F2EEE4;">
+              <div style="width:90px;height:90px;border-radius:24px;background:linear-gradient(135deg,rgba(54,215,237,.18),rgba(53,232,52,.18) 55%,rgba(208,245,107,.3));display:flex;align-items:center;justify-content:center;font-size:42px;margin-bottom:18px;">🤖</div>
+              <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:22px;color:#0E1512;margin-bottom:7px;">No agents yet</div>
+              <div style="font-size:14.5px;color:#5C6B62;max-width:420px;margin-bottom:22px;">Spin up your first AI agent to find leads, run outreach across every channel, and book calls on autopilot.</div>
+              <a href="Create Agent.dc.html" style="text-decoration:none;font-weight:700;font-size:15px;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED 0%,#35E834 55%,#D0F56B 100%);border-radius:12px;padding:13px 24px;box-shadow:0 6px 16px rgba(53,232,52,.26);cursor:pointer;">+ Create your first agent</a>
+            </div>
+          </sc-if>
+
+          <!-- footer -->
+          <sc-if value="{{ hasRows }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:13px 20px;border-top:1px solid #EBE3D6;background:#FBF7F0;border-radius:0 0 18px 18px;">
+              <div style="display:flex;align-items:center;gap:12px;">
+                <span style="font-size:13px;color:#8A7F6B;">{{ footerText }}</span>
+                <div style="position:relative;">
+                  <div onClick="{{ togglePerPageDD }}" style="display:flex;align-items:center;gap:7px;background:#fff;border:1px solid #EBE3D6;border-radius:9px;padding:6px 11px;font-size:12.5px;font-weight:600;color:#5C6B62;cursor:pointer;">{{ perPage }} per page <span style="color:#9AA59E;font-size:11px;">⌄</span></div>
+                  <sc-if value="{{ perPageDDOpen }}" hint-placeholder-val="{{ false }}">
+                    <div style="position:absolute;bottom:calc(100% + 6px);left:0;width:150px;background:#fff;border:1px solid #EBE3D6;border-radius:11px;box-shadow:0 16px 44px rgba(0,0,0,.18);overflow:hidden;z-index:40;">
+                      <sc-for list="{{ perPageOptions }}" as="o" hint-placeholder-count="3">
+                        <div onClick="{{ o.onPick }}" style="display:flex;align-items:center;gap:9px;padding:9px 14px;cursor:pointer;font-size:13px;color:#0E1512;border-bottom:1px solid #F7F2EA;" style-hover="background:#FBF7F0;"><span style="flex:1;">{{ o.label }} per page</span><span style="color:#16A82A;visibility:{{ o.check }};">✓</span></div>
+                      </sc-for>
+                    </div>
+                  </sc-if>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <span onClick="{{ prevPage }}" style="width:32px;height:32px;border-radius:9px;border:1px solid #EBE3D6;background:#fff;display:flex;align-items:center;justify-content:center;color:{{ prevColor }};font-size:14px;cursor:pointer;">‹</span>
+                <sc-for list="{{ pageButtons }}" as="p" hint-placeholder-count="2">
+                  <span onClick="{{ p.onClick }}" style="min-width:32px;height:32px;padding:0 6px;border-radius:9px;border:1px solid {{ p.border }};background:{{ p.bg }};color:{{ p.color }};display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:{{ p.weight }};cursor:pointer;">{{ p.label }}</span>
+                </sc-for>
+                <span onClick="{{ nextPage }}" style="width:32px;height:32px;border-radius:9px;border:1px solid #EBE3D6;background:#fff;display:flex;align-items:center;justify-content:center;color:{{ nextColor }};font-size:14px;cursor:pointer;">›</span>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+    </div>
+
+    <!-- toast -->
+    <sc-if value="{{ hasToast }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute;bottom:22px;left:50%;transform:translateX(-50%);z-index:60;display:flex;align-items:center;gap:11px;background:#0C140F;color:#fff;border-radius:12px;padding:12px 18px;box-shadow:0 16px 40px rgba(0,0,0,.3);">
+        <span style="width:22px;height:22px;border-radius:50%;background:#35E834;color:#0A0F0C;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex:none;">✓</span>
+        <span style="font-size:13.5px;font-weight:600;">{{ toastMsg }}</span>
+        <span onClick="{{ dismissToast }}" style="margin-left:8px;color:rgba(255,255,255,.5);cursor:pointer;">✕</span>
+      </div>
+    </sc-if>
+  </div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1420,&quot;height&quot;:920}}">
+class Component extends DCLogic {
+  state = {
+    toolsOpen: false, search: '', statusF: 'all', channelF: 'all', healthF: 'all',
+    statusDD: false, channelDD: false, moreDD: false, colsDD: false, perPageDD: false,
+    rowMenu: null, sel: {}, sortKey: null, sortDir: 1, page: 1, perPage: 8,
+    colsOn: { steps: false, sends: false, bookings: false, payments: false },
+    statusOverride: {}, deleted: {}, extra: [], toast: '',
+  };
+
+  renderVals() {
+    const grad = 'linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B)';
+    const CH = {
+      Email: { key: 'Email', icon: '✉', label: 'Email', bg: 'rgba(53,232,52,.13)', fg: '#16A82A' },
+      SMS: { key: 'SMS', icon: '💬', label: 'SMS', bg: 'rgba(54,215,237,.16)', fg: '#1192A6' },
+      WhatsApp: { key: 'WhatsApp', icon: '🗨', label: 'WA', bg: 'rgba(208,245,107,.5)', fg: '#6B7A1F' },
+      Voice: { key: 'Voice', icon: '☎', label: 'Voice', bg: '#ECE7DC', fg: '#0E1512' },
+    };
+    const ST = {
+      Running: { sbg: '#D7F5DD', sfg: '#0F7A28', sborder: 'none', sdot: '#16A82A' },
+      Paused: { sbg: '#fff', sfg: '#5C6B62', sborder: '1.5px solid #CDBFA8', sdot: '#9AA59E' },
+      Draft: { sbg: '#F2EEE4', sfg: '#8A7F6B', sborder: 'none', sdot: '#C2B79F' },
+    };
+    const HE = { Good: { hfg: '#1192A6', hdot: '#36D7ED' }, Warn: { hfg: '#C9543F', hdot: '#E0796B' } };
+    const E = CH.Email, S = CH.SMS, W = CH.WhatsApp, V = CH.Voice;
+    const baseDefs = [
+      { id: '4821', name: 'Q3 Reactivation', emoji: '🌱', avbg: 'rgba(53,232,52,.16)', chans: [E, S, W, V], status: 'Running', health: 'Good', contacts: 420, replies: 48, qualified: 27, steps: 5, sends: 128, bookings: 11, payments: '$4.2k' },
+      { id: '4790', name: 'Dental clinics — local', emoji: '🦷', avbg: 'rgba(54,215,237,.16)', chans: [E, V], status: 'Running', health: 'Good', contacts: 180, replies: 31, qualified: 19, steps: 3, sends: 64, bookings: 8, payments: '$3.1k' },
+      { id: '4755', name: 'Webinar follow-up', emoji: '🎥', avbg: 'rgba(208,245,107,.3)', chans: [E], status: 'Paused', health: 'Warn', contacts: 96, replies: 12, qualified: 7, steps: 4, sends: 0, bookings: 2, payments: '$760' },
+      { id: '4733', name: 'Cold list — agencies', emoji: '🏢', avbg: '#F2EEE4', chans: [E, V], status: 'Running', health: 'Good', contacts: 312, replies: 22, qualified: 14, steps: 5, sends: 90, bookings: 6, payments: '$2.4k' },
+      { id: '4710', name: 'SaaS founders Q2', emoji: '🚀', avbg: 'rgba(54,215,237,.16)', chans: [E, S], status: 'Running', health: 'Good', contacts: 264, replies: 18, qualified: 11, steps: 4, sends: 72, bookings: 5, payments: '$1.9k' },
+      { id: '4688', name: 'Ecommerce — Shopify', emoji: '🛒', avbg: 'rgba(53,232,52,.16)', chans: [E, V], status: 'Draft', health: 'Warn', contacts: 198, replies: 9, qualified: 5, steps: 3, sends: 0, bookings: 1, payments: '$0' },
+      { id: '4651', name: 'Real estate brokers', emoji: '🏠', avbg: 'rgba(208,245,107,.3)', chans: [E], status: 'Running', health: 'Good', contacts: 140, replies: 7, qualified: 4, steps: 2, sends: 40, bookings: 3, payments: '$1.1k' },
+      { id: '4602', name: 'Fitness studios', emoji: '💪', avbg: '#F2EEE4', chans: [V], status: 'Draft', health: 'Warn', contacts: 0, replies: 0, qualified: 0, steps: 0, sends: 0, bookings: 0, payments: '$0' },
+      { id: '4571', name: 'Med spas — premium', emoji: '💆', avbg: 'rgba(54,215,237,.16)', chans: [E, W], status: 'Running', health: 'Good', contacts: 156, replies: 14, qualified: 9, steps: 4, sends: 53, bookings: 4, payments: '$1.6k' },
+      { id: '4540', name: 'Law firms outreach', emoji: '⚖', avbg: 'rgba(53,232,52,.16)', chans: [E, V], status: 'Paused', health: 'Good', contacts: 220, replies: 16, qualified: 8, steps: 5, sends: 0, bookings: 5, payments: '$2.0k' },
+      { id: '4512', name: 'Home services', emoji: '🔧', avbg: 'rgba(208,245,107,.3)', chans: [S, V], status: 'Running', health: 'Warn', contacts: 88, replies: 5, qualified: 3, steps: 3, sends: 31, bookings: 2, payments: '$640' },
+      { id: '4488', name: 'Accounting Q1', emoji: '📊', avbg: '#F2EEE4', chans: [E], status: 'Draft', health: 'Good', contacts: 0, replies: 0, qualified: 0, steps: 0, sends: 0, bookings: 0, payments: '$0' },
+    ];
+    const all = baseDefs.concat(this.state.extra)
+      .filter((a) => !this.state.deleted[a.id])
+      .map((a) => this.state.statusOverride[a.id] ? Object.assign({}, a, { status: this.state.statusOverride[a.id] }) : a);
+
+    // ----- filters -----
+    const q = this.state.search.trim().toLowerCase();
+    const sf = this.state.statusF, cf = this.state.channelF, hf = this.state.healthF;
+    const passS = (a) => sf === 'all' || a.status === sf;
+    const passC = (a) => cf === 'all' || a.chans.some((c) => c.key === cf);
+    const passH = (a) => hf === 'all' || a.health === hf;
+    const passQ = (a) => !q || (a.name + ' ' + a.id).toLowerCase().includes(q);
+    let filtered = all.filter((a) => passS(a) && passC(a) && passH(a) && passQ(a));
+
+    // ----- sort -----
+    const sk = this.state.sortKey, sd = this.state.sortDir;
+    if (sk) {
+      const stOrder = { Running: 0, Paused: 1, Draft: 2 };
+      filtered = filtered.slice().sort((a, b) => {
+        let av, bv;
+        if (sk === 'name') { av = a.name.toLowerCase(); bv = b.name.toLowerCase(); }
+        else if (sk === 'status') { av = stOrder[a.status]; bv = stOrder[b.status]; }
+        else { av = a[sk]; bv = b[sk]; }
+        return av < bv ? -sd : av > bv ? sd : 0;
+      });
+    }
+
+    // ----- pagination -----
+    const perPage = this.state.perPage;
+    const total = filtered.length;
+    const pages = Math.max(1, Math.ceil(total / perPage));
+    const page = Math.min(this.state.page, pages);
+    const start = (page - 1) * perPage;
+    const pageRows = filtered.slice(start, start + perPage);
+
+    const sel = this.state.sel;
+    const selIds = Object.keys(sel).filter((k) => sel[k]);
+    const selectedCount = all.filter((a) => sel[a.id]).length;
+    const allOn = pageRows.length > 0 && pageRows.every((a) => sel[a.id]);
+
+    // ----- columns -----
+    const colsOn = this.state.colsOn;
+    const colDefs = [
+      { key: 'agent', label: 'Agent', w: 'minmax(0,1.7fr)', align: 'left', kind: 'agent', sortKey: 'name', sortable: true, fixed: true },
+      { key: 'status', label: 'Status', w: '1fr', align: 'left', kind: 'status', sortKey: 'status', sortable: true, fixed: true },
+      { key: 'channels', label: 'Channels', w: '1.5fr', align: 'left', kind: 'channels', fixed: true },
+      { key: 'contacts', label: 'Contacts', w: '.85fr', align: 'right', kind: 'num', sortKey: 'contacts', sortable: true, fixed: true },
+      { key: 'replies', label: 'Replies', w: '.78fr', align: 'right', kind: 'num', sortKey: 'replies', sortable: true, fixed: true },
+      { key: 'qualified', label: 'Qualified', w: '.85fr', align: 'right', kind: 'num', sortKey: 'qualified', sortable: true, fixed: true },
+      { key: 'steps', label: 'Steps', w: '.7fr', align: 'right', kind: 'num', sortKey: 'steps', sortable: true, opt: true },
+      { key: 'sends', label: 'Sends today', w: '1fr', align: 'right', kind: 'num', sortKey: 'sends', sortable: true, opt: true },
+      { key: 'bookings', label: 'Bookings', w: '.85fr', align: 'right', kind: 'num', sortKey: 'bookings', sortable: true, opt: true },
+      { key: 'payments', label: 'Payments', w: '.9fr', align: 'right', kind: 'num', sortKey: 'payments', sortable: true, opt: true },
+      { key: 'health', label: 'Health', w: '.95fr', align: 'left', kind: 'health', fixed: true },
+    ];
+    const visible = colDefs.filter((c) => c.fixed || colsOn[c.key]);
+    const gridCols = '46px ' + visible.map((c) => c.w).join(' ') + ' 78px';
+    const doSort = (key) => this.setState((s) => ({ sortKey: key, sortDir: s.sortKey === key ? -s.sortDir : 1 }));
+    const headerCols = visible.map((c) => ({ label: c.label, align: c.align,
+      arrow: (c.sortable && sk === c.sortKey) ? (sd === 1 ? '↑' : '↓') : '',
+      cursor: c.sortable ? 'pointer' : 'default',
+      onSort: c.sortable ? () => doSort(c.sortKey) : (() => {}) }));
+
+    const buildCell = (col, a) => {
+      const base = { align: col.align, isAgent: false, isStatus: false, isChannels: false, isHealth: false, isNum: false };
+      if (col.kind === 'agent') return Object.assign(base, { isAgent: true, emoji: a.emoji, avbg: a.avbg, name: a.name, id: a.id });
+      if (col.kind === 'status') return Object.assign(base, { isStatus: true, status: a.status }, ST[a.status]);
+      if (col.kind === 'channels') return Object.assign(base, { isChannels: true, chans: a.chans });
+      if (col.kind === 'health') return Object.assign(base, { isHealth: true, health: a.health }, HE[a.health]);
+      const val = a[col.key];
+      return Object.assign(base, { isNum: true, value: (val === 0 ? '—' : String(val)), weight: col.key === 'contacts' ? 600 : 400, color: val === 0 ? '#C2B79F' : '#0E1512' });
+    };
+
+    const menuFor = (a) => {
+      const isRunning = a.status === 'Running';
+      const close = { rowMenu: null };
+      const nav = (url) => () => { this.setState(close); window.location.href = url; };
+      const items = [
+        { icon: '◉', label: 'View', color: '#0E1512', onClick: (e) => { if (e) e.stopPropagation(); nav('Campaign View.dc.html')(); } },
+        { icon: '✎', label: 'Edit', color: '#0E1512', onClick: (e) => { if (e) e.stopPropagation(); nav('Create Agent.dc.html')(); } },
+        { icon: '⧉', label: 'Duplicate', color: '#0E1512', onClick: (e) => { if (e) e.stopPropagation(); this.duplicate(a); } },
+        { icon: '✏', label: 'Rename', color: '#0E1512', onClick: (e) => { if (e) e.stopPropagation(); this.setState({ rowMenu: null, toast: 'Rename ' + a.name }); } },
+        { icon: a.status === 'Draft' ? '▶' : (isRunning ? '⏸' : '▶'), label: a.status === 'Draft' ? 'Launch' : (isRunning ? 'Pause' : 'Resume'), color: '#0E1512', onClick: (e) => { if (e) e.stopPropagation(); this.setStatus(a.id, isRunning ? 'Paused' : 'Running'); } },
+        { icon: '↪', label: 'Move to folder', color: '#0E1512', onClick: (e) => { if (e) e.stopPropagation(); this.setState({ rowMenu: null, toast: 'Move ' + a.name + ' to a folder' }); } },
+        { icon: '🗑', label: 'Delete', color: '#C9543F', onClick: (e) => { if (e) e.stopPropagation(); this.remove(a.id); } },
+      ];
+      return items;
+    };
+
+    const rows = pageRows.map((a, i) => {
+      const on = !!sel[a.id]; const isRunning = a.status === 'Running';
+      return {
+        id: a.id, rowbg: on ? 'rgba(53,232,52,.05)' : (i % 2 === 1 ? '#FCFAF6' : '#fff'),
+        cbBorder: on ? '#16A82A' : '#CDBFA8', cbBg: on ? '#16A82A' : 'transparent', cbMark: on ? '✓' : '',
+        cells: visible.map((c) => buildCell(c, a)),
+        onOpen: () => { window.location.href = 'Campaign View.dc.html'; },
+        onToggle: (e) => { if (e) e.stopPropagation(); this.setState((s) => ({ sel: Object.assign({}, s.sel, { [a.id]: !s.sel[a.id] }) })); },
+        onMenuClick: (e) => { if (e) e.stopPropagation(); },
+        onMenu: (e) => { if (e) e.stopPropagation(); this.setState((s) => ({ rowMenu: s.rowMenu === a.id ? null : a.id })); },
+        menuOpen: this.state.rowMenu === a.id, menu: menuFor(a),
+        quickIcon: a.status === 'Draft' ? '▶' : (isRunning ? '⏸' : '▶'),
+        quickFg: a.status === 'Draft' ? '#16A82A' : (isRunning ? '#C9543F' : '#16A82A'),
+        quickTitle: a.status === 'Draft' ? 'Launch' : (isRunning ? 'Pause' : 'Resume'),
+        onQuickToggle: (e) => { if (e) e.stopPropagation(); this.setStatus(a.id, isRunning ? 'Paused' : 'Running'); },
+      };
+    });
+
+    // ----- toolbar option builders -----
+    const statusDefs = [{ id: 'all', label: 'All statuses' }, { id: 'Running', label: 'Running' }, { id: 'Paused', label: 'Paused' }, { id: 'Draft', label: 'Draft' }];
+    const stCount = (id) => id === 'all' ? all.length : all.filter((a) => a.status === id).length;
+    const channelDefs = [{ id: 'all', icon: '◆', label: 'All channels' }, { id: 'Email', icon: '✉', label: 'Email' }, { id: 'SMS', icon: '💬', label: 'SMS' }, { id: 'WhatsApp', icon: '🗨', label: 'WhatsApp' }, { id: 'Voice', icon: '☎', label: 'Voice' }];
+    const healthDefs = [{ id: 'all', label: 'All health' }, { id: 'Good', label: 'Good' }, { id: 'Warn', label: 'Needs attention' }];
+    const curStatus = statusDefs.find((d) => d.id === sf) || statusDefs[0];
+    const curChannel = channelDefs.find((d) => d.id === cf) || channelDefs[0];
+    const curHealth = healthDefs.find((d) => d.id === hf) || healthDefs[0];
+    const colCount = ['steps', 'sends', 'bookings', 'payments'].filter((k) => colsOn[k]).length;
+
+    const running = all.filter((a) => a.status === 'Running').length;
+    const totalContacts = all.reduce((n, a) => n + a.contacts, 0);
+
+    return {
+      toolsOpen: this.state.toolsOpen,
+      toggleTools: () => this.setState((s) => ({ toolsOpen: !s.toolsOpen })),
+      toolsChevron: this.state.toolsOpen ? '▾' : '▸',
+      toolsBg: this.state.toolsOpen ? 'rgba(255,255,255,.07)' : 'transparent',
+      navAfter: [
+        { label: 'Dashboard', icon: '◈', weight: 500, color: 'rgba(255,255,255,.82)', bg: 'transparent' },
+        { label: 'Agents', icon: '◎', weight: 700, color: '#0A0F0C', bg: grad },
+        { label: 'Contacts', icon: '☺', weight: 500, color: 'rgba(255,255,255,.82)', bg: 'transparent' },
+        { label: 'Analytics', icon: '▤', weight: 500, color: 'rgba(255,255,255,.82)', bg: 'transparent' },
+        { label: 'Integrations', icon: '⚯', weight: 500, color: 'rgba(255,255,255,.82)', bg: 'transparent' },
+        { label: 'Automations', icon: '⟳', weight: 500, color: 'rgba(255,255,255,.82)', bg: 'transparent' },
+      ],
+      navTools: [
+        { label: 'Email Templates', icon: '✉' }, { label: 'Dynamic Proposals', icon: '❒' },
+        { label: 'Form Capture', icon: '⊞' }, { label: 'Agent Widget', icon: '⊕' },
+        { label: 'Lead Finder', icon: '⚲' }, { label: 'LinkedIn Extension', icon: 'in' },
+      ],
+      navUtility: [{ label: 'Help', icon: '?' }, { label: 'Settings', icon: '⚙' }],
+
+      subtitle: all.length + ' agents · ' + running + ' running · ' + totalContacts.toLocaleString() + ' contacts in sequences',
+
+      // search
+      search: this.state.search, hasSearch: !!this.state.search, searchBorder: this.state.search ? '#9FD8AC' : '#EBE3D6',
+      onSearch: (e) => this.setState({ search: e.target.value, page: 1 }),
+      clearSearch: () => this.setState({ search: '', page: 1 }),
+
+      // status filter
+      statusDDOpen: this.state.statusDD, toggleStatusDD: () => this.setState((s) => ({ statusDD: !s.statusDD, channelDD: false, moreDD: false, colsDD: false })),
+      statusBtnLabel: sf === 'all' ? 'Status' : curStatus.label, statusBtnBg: sf === 'all' ? '#fff' : 'rgba(53,232,52,.08)', statusBtnBorder: sf === 'all' ? '#EBE3D6' : '#9FD8AC', statusBtnFg: sf === 'all' ? '#5C6B62' : '#16A82A',
+      statusOptions: statusDefs.map((o) => ({ label: o.label, count: String(stCount(o.id)), check: sf === o.id ? 'visible' : 'hidden', onPick: () => this.setState({ statusF: o.id, statusDD: false, page: 1 }) })),
+
+      // channel filter
+      channelDDOpen: this.state.channelDD, toggleChannelDD: () => this.setState((s) => ({ channelDD: !s.channelDD, statusDD: false, moreDD: false, colsDD: false })),
+      channelBtnLabel: cf === 'all' ? 'Channel' : curChannel.label, channelBtnBg: cf === 'all' ? '#fff' : 'rgba(53,232,52,.08)', channelBtnBorder: cf === 'all' ? '#EBE3D6' : '#9FD8AC', channelBtnFg: cf === 'all' ? '#5C6B62' : '#16A82A',
+      channelOptions: channelDefs.map((o) => ({ icon: o.icon, label: o.label, check: cf === o.id ? 'visible' : 'hidden', onPick: () => this.setState({ channelF: o.id, channelDD: false, page: 1 }) })),
+
+      // health filter
+      moreDDOpen: this.state.moreDD, toggleMoreDD: () => this.setState((s) => ({ moreDD: !s.moreDD, statusDD: false, channelDD: false, colsDD: false })),
+      healthActive: hf !== 'all', healthBtnLabel: curHealth.label, moreBtnBg: hf === 'all' ? '#fff' : 'rgba(53,232,52,.08)', moreBtnBorder: hf === 'all' ? '#EBE3D6' : '#9FD8AC', moreBtnFg: hf === 'all' ? '#5C6B62' : '#16A82A',
+      healthOptions: healthDefs.map((o) => ({ label: o.label, check: hf === o.id ? 'visible' : 'hidden', onPick: () => this.setState({ healthF: o.id, moreDD: false, page: 1 }) })),
+
+      // columns
+      colsDDOpen: this.state.colsDD, toggleColsDD: () => this.setState((s) => ({ colsDD: !s.colsDD, statusDD: false, channelDD: false, moreDD: false })),
+      colsActive: colCount > 0, colsCount: String(colCount), colsBtnBg: colCount > 0 ? 'rgba(53,232,52,.08)' : '#fff', colsBtnBorder: colCount > 0 ? '#9FD8AC' : '#EBE3D6', colsBtnFg: colCount > 0 ? '#16A82A' : '#5C6B62',
+      colToggles: [{ key: 'steps', label: 'Steps' }, { key: 'sends', label: 'Sends today' }, { key: 'bookings', label: 'Bookings' }, { key: 'payments', label: 'Payments' }].map((c) => { const on = colsOn[c.key]; return { label: c.label, cbBorder: on ? '#16A82A' : '#CDBFA8', cbBg: on ? '#16A82A' : 'transparent', cbMark: on ? '✓' : '', onToggle: () => this.setState((s) => ({ colsOn: Object.assign({}, s.colsOn, { [c.key]: !s.colsOn[c.key] }) })) }; }),
+      resetCols: () => this.setState({ colsOn: { steps: false, sends: false, bookings: false, payments: false }, colsDD: false }),
+
+      // table
+      gridCols, headerCols, rows,
+      allBorder: allOn ? '#16A82A' : '#CDBFA8', allBg: allOn ? '#16A82A' : 'transparent', allMark: allOn ? '✓' : '',
+      toggleAll: () => this.setState((s) => { const ns = Object.assign({}, s.sel); if (pageRows.every((a) => ns[a.id])) pageRows.forEach((a) => { delete ns[a.id]; }); else pageRows.forEach((a) => { ns[a.id] = true; }); return { sel: ns }; }),
+
+      hasRows: total > 0, filteredEmpty: total === 0 && all.length > 0, allEmpty: all.length === 0,
+      resetFilters: () => this.setState({ search: '', statusF: 'all', channelF: 'all', healthF: 'all', page: 1 }),
+
+      // selection / bulk
+      noSelection: selectedCount === 0, hasSelection: selectedCount > 0, selectedCount,
+      clearSel: () => this.setState({ sel: {} }),
+      bulkPause: () => this.bulkStatus(selIds, 'Paused'),
+      bulkResume: () => this.bulkStatus(selIds, 'Running'),
+      bulkDelete: () => this.setState((s) => { const d = Object.assign({}, s.deleted); selIds.forEach((id) => { d[id] = true; }); return { deleted: d, sel: {}, toast: selIds.length + ' agent' + (selIds.length > 1 ? 's' : '') + ' deleted' }; }),
+      bulkDuplicate: () => { const copies = all.filter((a) => sel[a.id]).map((a) => Object.assign({}, a, { id: String(4000 + Math.floor(Math.random() * 999)), name: a.name + ' (copy)', status: 'Draft' })); this.setState((s) => ({ extra: s.extra.concat(copies), sel: {}, toast: copies.length + ' agent' + (copies.length > 1 ? 's' : '') + ' duplicated' })); },
+      bulkExport: () => this.setState({ toast: 'Exporting ' + selectedCount + ' agents…' }),
+
+      // pagination
+      footerText: total === 0 ? 'No agents' : ('Showing ' + (start + 1) + '–' + Math.min(start + perPage, total) + ' of ' + total + ' agents'),
+      perPage, perPageDDOpen: this.state.perPageDD, togglePerPageDD: () => this.setState((s) => ({ perPageDD: !s.perPageDD })),
+      perPageOptions: [8, 15, 25, 50].map((n) => ({ label: String(n), check: perPage === n ? 'visible' : 'hidden', onPick: () => this.setState({ perPage: n, perPageDD: false, page: 1 }) })),
+      prevColor: page > 1 ? '#0E1512' : '#C9CFC9', nextColor: page < pages ? '#0E1512' : '#C9CFC9',
+      prevPage: () => this.setState((s) => ({ page: Math.max(1, s.page - 1) })),
+      nextPage: () => this.setState({ page: Math.min(pages, page + 1) }),
+      pageButtons: Array.from({ length: pages }, (_, i) => i + 1).map((p) => ({ label: String(p), bg: p === page ? '#0C140F' : '#fff', color: p === page ? '#fff' : '#0E1512', border: p === page ? '#0C140F' : '#EBE3D6', weight: p === page ? 700 : 500, onClick: () => this.setState({ page: p }) })),
+
+      // toast
+      hasToast: !!this.state.toast, toastMsg: this.state.toast, dismissToast: () => this.setState({ toast: '' }),
+    };
+  }
+
+  setStatus(id, status) { this.setState((s) => ({ statusOverride: Object.assign({}, s.statusOverride, { [id]: status }), rowMenu: null, toast: 'Agent ' + (status === 'Running' ? 'resumed' : 'paused') })); }
+  bulkStatus(ids, status) { this.setState((s) => { const o = Object.assign({}, s.statusOverride); ids.forEach((id) => { o[id] = status; }); return { statusOverride: o, sel: {}, toast: ids.length + ' agent' + (ids.length > 1 ? 's' : '') + ' ' + (status === 'Running' ? 'resumed' : 'paused') }; }); }
+  remove(id) { this.setState((s) => ({ deleted: Object.assign({}, s.deleted, { [id]: true }), rowMenu: null, toast: 'Agent deleted' })); }
+  duplicate(a) { const copy = Object.assign({}, a, { id: String(4000 + Math.floor(Math.random() * 999)), name: a.name + ' (copy)', status: 'Draft' }); this.setState((s) => ({ extra: s.extra.concat([copy]), rowMenu: null, toast: 'Duplicated “' + a.name + '”' })); }
+}
+</script>
+</body>
+</html>

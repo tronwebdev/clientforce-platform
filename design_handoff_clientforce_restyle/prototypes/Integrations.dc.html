@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0;padding:0;}
+  *{box-sizing:border-box;}
+</style>
+<script src="sidebar.js"></script>
+</helmet>
+
+<div style="position:relative;min-height:100vh;width:100%;background:#FBF7F0;font-family:'Hanken Grotesk',sans-serif;overflow:hidden;"><div style="display:flex;">
+      <!-- SIDEBAR -->
+      <cf-sidebar active="integrations" style="width:248px;flex:none;align-self:stretch;background:#0C140F;"></cf-sidebar>
+
+      <!-- MAIN -->
+      <div style="flex:1;background:#FBF7F0;min-width:0;padding:26px 30px 34px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+          <div>
+            <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:28px;letter-spacing:-.02em;color:#0E1512;">Integrations</div>
+            <div style="font-size:15px;color:#5C6B62;">{{ connectedCount }} of {{ totalCount }} connected · Plug Clientforce into the tools you already use.</div>
+          </div>
+          <span style="font-size:14px;font-weight:600;color:#0E1512;background:#fff;border:1px solid #EBE3D6;border-radius:12px;padding:11px 18px;">＋ Request an integration</span>
+        </div>
+
+        <!-- search + categories -->
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;">
+          <div style="flex:0 0 300px;display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #EBE3D6;border-radius:12px;padding:11px 16px;">
+            <span style="color:#9AA59E;">⚲</span><span style="color:#9AA59E;font-size:14px;">Search integrations…</span>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <sc-for list="{{ cats }}" as="c" hint-placeholder-count="7">
+              <span onClick="{{ c.onClick }}" style="font-size:13px;font-weight:600;color:{{ c.color }};background:{{ c.bg }};border:1px solid {{ c.border }};border-radius:100px;padding:8px 15px;cursor:pointer;">{{ c.label }}</span>
+            </sc-for>
+          </div>
+        </div>
+
+        <!-- grid -->
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;">
+          <sc-for list="{{ items }}" as="it" hint-placeholder-count="9">
+            <div onClick="{{ it.onOpen }}" style="background:#fff;border:1px solid {{ it.cardBorder }};border-radius:16px;padding:18px;box-shadow:0 4px 16px rgba(14,21,18,.04);display:flex;flex-direction:column;cursor:pointer;" style-hover="border-color:#9FD8AC;box-shadow:0 8px 26px rgba(14,21,18,.09);">
+              <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:12px;">
+                <span style="width:44px;height:44px;border-radius:12px;flex:none;background:{{ it.tilebg }};color:{{ it.tilefg }};display:flex;align-items:center;justify-content:center;font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:18px;">{{ it.glyph }}</span>
+                <div style="flex:1;min-width:0;padding-top:2px;">
+                  <div style="font-size:15.5px;font-weight:700;color:#0E1512;">{{ it.name }}</div>
+                  <div style="font-size:12px;color:#9AA59E;font-weight:600;text-transform:uppercase;letter-spacing:.04em;">{{ it.catLabel }}</div>
+                </div>
+                <sc-if value="{{ it.connected }}" hint-placeholder-val="{{ false }}">
+                  <span style="width:10px;height:10px;border-radius:50%;background:#35E834;box-shadow:0 0 0 4px rgba(53,232,52,.18);flex:none;margin-top:6px;"></span>
+                </sc-if>
+              </div>
+              <div style="font-size:13.5px;color:#5C6B62;line-height:1.5;flex:1;margin-bottom:16px;">{{ it.desc }}</div>
+              <div style="display:flex;align-items:center;gap:10px;">
+                <sc-if value="{{ it.connected }}" hint-placeholder-val="{{ false }}">
+                  <span onClick="{{ it.onOpen }}" style="flex:1;text-align:center;font-size:13.5px;font-weight:700;color:#16A82A;background:rgba(53,232,52,.1);border:1px solid rgba(53,232,52,.3);border-radius:10px;padding:9px;cursor:pointer;">✓ Connected</span>
+                  <span style="font-size:13.5px;font-weight:600;color:#5C6B62;background:#fff;border:1px solid #EBE3D6;border-radius:10px;padding:9px 14px;cursor:pointer;">Manage</span>
+                </sc-if>
+                <sc-if value="{{ it.notConnected }}" hint-placeholder-val="{{ true }}">
+                  <span onClick="{{ it.onOpen }}" style="flex:1;text-align:center;font-size:13.5px;font-weight:700;color:#0E1512;background:#fff;border:1.5px solid #16A82A;border-radius:10px;padding:9px;cursor:pointer;">+ Connect</span>
+                </sc-if>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== INTEGRATION DETAIL / SETUP DRAWER ===== -->
+    <sc-if value="{{ detailOpen }}" hint-placeholder-val="{{ false }}">
+      <div onClick="{{ closeDetail }}" style="position:absolute;inset:0;background:rgba(12,20,15,.4);z-index:40;">
+        <div onClick="{{ stop }}" style="position:absolute;top:0;right:0;bottom:0;width:460px;max-width:100%;background:#FBF7F0;box-shadow:-24px 0 70px rgba(0,0,0,.28);display:flex;flex-direction:column;">
+          <div style="display:flex;align-items:flex-start;gap:13px;padding:20px 22px;background:#fff;border-bottom:1px solid #EBE3D6;flex:none;">
+            <span style="width:46px;height:46px;border-radius:13px;flex:none;background:{{ det.tilebg }};color:{{ det.tilefg }};display:flex;align-items:center;justify-content:center;font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:19px;">{{ det.glyph }}</span>
+            <div style="flex:1;min-width:0;">
+              <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:18px;color:#0E1512;">{{ det.name }}</div>
+              <div style="font-size:12px;color:#9AA59E;font-weight:600;text-transform:uppercase;letter-spacing:.04em;">{{ det.catLabel }}</div>
+              <div style="margin-top:7px;">
+                <sc-if value="{{ det.connected }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:700;color:#16A82A;background:rgba(53,232,52,.12);border-radius:100px;padding:4px 11px;"><span style="width:7px;height:7px;border-radius:50%;background:#35E834;box-shadow:0 0 0 3px rgba(53,232,52,.25);"></span>Live · Connected</span></sc-if>
+                <sc-if value="{{ det.notConnected }}" hint-placeholder-val="{{ true }}"><span style="font-size:12px;font-weight:700;color:#8A7F6B;background:#F2EEE4;border-radius:100px;padding:4px 11px;">Not connected</span></sc-if>
+              </div>
+            </div>
+            <span onClick="{{ closeDetail }}" style="width:32px;height:32px;border-radius:9px;border:1px solid #EBE3D6;display:flex;align-items:center;justify-content:center;color:#9AA59E;cursor:pointer;flex:none;">✕</span>
+          </div>
+
+          <div style="flex:1;overflow:auto;min-height:0;padding:18px 22px;">
+            <div style="font-size:13.5px;color:#5C6B62;line-height:1.5;margin-bottom:18px;">{{ det.desc }}</div>
+
+            <sc-if value="{{ det.connected }}" hint-placeholder-val="{{ false }}">
+              <div style="background:#fff;border:1px solid #EBE3D6;border-radius:14px;padding:16px;margin-bottom:18px;">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+                  <span style="font-size:13px;font-weight:700;color:#0E1512;flex:1;">Connection</span>
+                  <span style="font-size:12px;font-weight:700;color:#16A82A;">● Healthy</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid #F2EEE4;"><span style="font-size:12.5px;color:#9AA59E;flex:1;">Account</span><span style="font-size:13px;font-weight:600;color:#0E1512;">{{ det.account }}</span></div>
+                <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid #F2EEE4;"><span style="font-size:12.5px;color:#9AA59E;flex:1;">Last sync</span><span style="font-size:13px;font-weight:600;color:#0E1512;">{{ det.lastSync }}</span></div>
+                <div style="margin-top:12px;"><span style="font-size:12.5px;font-weight:700;color:#0E1512;background:#fff;border:1px solid #EBE3D6;border-radius:10px;padding:8px 14px;cursor:pointer;">↻ Sync now</span></div>
+              </div>
+              <div style="font-size:11px;font-weight:700;color:#8A7F6B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">What's syncing</div>
+              <div style="background:#fff;border:1px solid #EBE3D6;border-radius:14px;overflow:hidden;margin-bottom:18px;">
+                <sc-for list="{{ det.syncing }}" as="sy" hint-placeholder-count="3">
+                  <div style="display:flex;align-items:center;gap:10px;padding:10px 15px;border-top:1px solid #F2EEE4;"><span style="color:#16A82A;font-size:13px;">✓</span><span style="font-size:13.5px;color:#3B463F;">{{ sy }}</span></div>
+                </sc-for>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ det.connected }}" hint-placeholder-val="{{ false }}">
+              <div style="font-size:11px;font-weight:700;color:#8A7F6B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px;">Setup</div>
+              <sc-for list="{{ det.steps }}" as="st" hint-placeholder-count="3">
+                <div style="display:flex;gap:13px;padding-bottom:14px;">
+                  <div style="display:flex;flex-direction:column;align-items:center;flex:none;">
+                    <span style="width:28px;height:28px;border-radius:50%;background:{{ st.dotbg }};color:{{ st.dotfg }};border:{{ st.dotborder }};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;">{{ st.mark }}</span>
+                    <span style="flex:1;width:2px;background:#EBE3D6;margin-top:4px;"></span>
+                  </div>
+                  <div style="flex:1;min-width:0;padding-top:3px;">
+                    <div style="font-size:14px;font-weight:600;color:#0E1512;">{{ st.title }}</div>
+                    <div style="font-size:12.5px;color:#8A7F6B;line-height:1.45;margin-top:2px;">{{ st.desc }}</div>
+                  </div>
+                </div>
+              </sc-for>
+            </sc-if>
+
+            <sc-if value="{{ det.notConnected }}" hint-placeholder-val="{{ true }}">
+              <span style="font-size:11px;font-weight:700;color:#8A7F6B;text-transform:uppercase;letter-spacing:.06em;">{{ wizStepLabel }}</span>
+              <div style="display:flex;gap:5px;margin:8px 0 18px;">
+                <sc-for list="{{ wizSegs }}" as="sg" hint-placeholder-count="4"><span style="flex:1;height:5px;border-radius:100px;background:{{ sg.bg }};"></span></sc-for>
+              </div>
+              <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:17px;color:#0E1512;">{{ step.title }}</div>
+              <div style="font-size:13px;color:#8A7F6B;margin-bottom:16px;">{{ step.desc }}</div>
+
+              <sc-if value="{{ asAuth }}" hint-placeholder-val="{{ true }}">
+                <div onClick="{{ wizPrimary }}" style="display:flex;align-items:center;justify-content:center;gap:10px;background:#0C140F;color:#fff;border-radius:12px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:16px;"><span style="width:24px;height:24px;border-radius:7px;background:{{ det.tilebg }};color:{{ det.tilefg }};display:flex;align-items:center;justify-content:center;font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:13px;">{{ det.glyph }}</span>{{ step.authLabel }}</div>
+                <sc-if value="{{ hasPerms }}" hint-placeholder-val="{{ true }}">
+                  <div style="font-size:11px;font-weight:700;color:#8A7F6B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Clientforce will be able to</div>
+                  <div style="background:#fff;border:1px solid #EBE3D6;border-radius:14px;overflow:hidden;">
+                    <sc-for list="{{ step.perms }}" as="pm" hint-placeholder-count="2"><div style="display:flex;align-items:center;gap:10px;padding:10px 15px;border-top:1px solid #F2EEE4;"><span style="color:#16A82A;font-size:13px;">✓</span><span style="font-size:13px;color:#3B463F;">{{ pm }}</span></div></sc-for>
+                  </div>
+                </sc-if>
+              </sc-if>
+
+              <sc-if value="{{ asFields }}" hint-placeholder-val="{{ false }}">
+                <sc-for list="{{ step.fields }}" as="fl" hint-placeholder-count="2">
+                  <div style="margin-bottom:13px;"><label style="display:block;font-size:12px;font-weight:700;color:#5C6B62;margin-bottom:6px;">{{ fl.label }}</label><div style="border-radius:11px;background:#fff;border:1px solid #EBE3D6;padding:11px 14px;font-size:14px;color:#B7BDB6;">{{ fl.ph }}</div></div>
+                </sc-for>
+              </sc-if>
+
+              <sc-if value="{{ asSelect }}" hint-placeholder-val="{{ false }}">
+                <sc-for list="{{ step.selects }}" as="se" hint-placeholder-count="2">
+                  <div style="margin-bottom:13px;"><label style="display:block;font-size:12px;font-weight:700;color:#5C6B62;margin-bottom:6px;">{{ se.label }}</label><div style="display:flex;align-items:center;border-radius:11px;background:#fff;border:1px solid #EBE3D6;padding:11px 14px;font-size:14px;color:#0E1512;font-weight:600;">{{ se.value }}<span style="margin-left:auto;color:#9AA59E;">⌄</span></div></div>
+                </sc-for>
+                <sc-if value="{{ hasToggles }}" hint-placeholder-val="{{ false }}">
+                  <sc-for list="{{ step.toggles }}" as="tg" hint-placeholder-count="1"><div style="display:flex;align-items:center;gap:10px;border:1px solid #EBE3D6;border-radius:11px;padding:11px 14px;background:#fff;margin-top:4px;"><span style="font-size:13.5px;font-weight:600;color:#0E1512;flex:1;">{{ tg.label }}</span><span style="width:38px;height:22px;border-radius:100px;background:linear-gradient(135deg,#36D7ED,#35E834);position:relative;display:inline-block;flex:none;"><span style="position:absolute;top:3px;right:3px;width:16px;height:16px;border-radius:50%;background:#fff;"></span></span></div></sc-for>
+                </sc-if>
+              </sc-if>
+
+              <sc-if value="{{ asMapping }}" hint-placeholder-val="{{ false }}">
+                <div style="background:#fff;border:1px solid #EBE3D6;border-radius:14px;overflow:hidden;margin-bottom:12px;">
+                  <sc-for list="{{ step.maps }}" as="mp" hint-placeholder-count="3">
+                    <div style="display:flex;align-items:center;gap:10px;padding:11px 15px;border-top:1px solid #F2EEE4;"><span style="font-size:13px;font-weight:600;color:#0E1512;flex:1;">{{ mp.from }}</span><span style="color:#16A82A;">→</span><span style="flex:1;display:flex;align-items:center;font-size:13px;color:#5C6B62;">{{ mp.to }}<span style="margin-left:auto;color:#9AA59E;">⌄</span></span></div>
+                  </sc-for>
+                </div>
+                <sc-if value="{{ hasToggles }}" hint-placeholder-val="{{ false }}">
+                  <sc-for list="{{ step.toggles }}" as="tg" hint-placeholder-count="1"><div style="display:flex;align-items:center;gap:10px;border:1px solid #EBE3D6;border-radius:11px;padding:11px 14px;background:#fff;"><span style="font-size:13.5px;font-weight:600;color:#0E1512;flex:1;">{{ tg.label }}</span><span style="width:38px;height:22px;border-radius:100px;background:linear-gradient(135deg,#36D7ED,#35E834);position:relative;display:inline-block;flex:none;"><span style="position:absolute;top:3px;right:3px;width:16px;height:16px;border-radius:50%;background:#fff;"></span></span></div></sc-for>
+                </sc-if>
+              </sc-if>
+
+              <sc-if value="{{ asCopy }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;gap:8px;margin-bottom:9px;">
+                  <div style="flex:1;min-width:0;border-radius:11px;background:#fff;border:1px solid #EBE3D6;padding:12px 14px;font-size:13px;color:#0E1512;font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ step.copyVal }}</div>
+                  <span onClick="{{ onCopy }}" style="font-size:13px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);border-radius:11px;padding:12px 16px;cursor:pointer;flex:none;">{{ copyLabel }}</span>
+                </div>
+                <div style="font-size:12px;color:#9AA59E;">Keep this secret — it grants access to your workspace.</div>
+              </sc-if>
+
+              <sc-if value="{{ asEvents }}" hint-placeholder-val="{{ false }}">
+                <div style="background:#fff;border:1px solid #EBE3D6;border-radius:14px;overflow:hidden;">
+                  <sc-for list="{{ step.events }}" as="ev" hint-placeholder-count="4">
+                    <div onClick="{{ ev.onToggle }}" style="display:flex;align-items:center;gap:11px;padding:11px 15px;border-top:1px solid #F2EEE4;cursor:pointer;"><span style="width:18px;height:18px;border-radius:5px;border:2px solid {{ ev.cbBorder }};background:{{ ev.cbBg }};color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;flex:none;">{{ ev.cbMark }}</span><span style="font-size:13px;color:#0E1512;font-family:monospace;">{{ ev.label }}</span></div>
+                  </sc-for>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ asTest }}" hint-placeholder-val="{{ false }}">
+                <sc-if value="{{ step.payload }}" hint-placeholder-val="{{ false }}">
+                  <div style="background:#0C140F;border-radius:12px;padding:14px 16px;font-family:monospace;font-size:12px;color:#7FE8A0;line-height:1.6;white-space:pre;margin-bottom:14px;">{
+  "event": "call.booked",
+  "contact": "m.alvarez@brightsmile.co",
+  "agent": "Q3 Reactivation"
+}</div>
+                </sc-if>
+                <sc-if value="{{ notTested }}" hint-placeholder-val="{{ true }}">
+                  <div onClick="{{ onSendTest }}" style="text-align:center;font-size:14px;font-weight:700;color:#0E1512;background:#fff;border:1.5px solid #16A82A;border-radius:12px;padding:13px;cursor:pointer;">{{ step.testLabel }}</div>
+                </sc-if>
+                <sc-if value="{{ tested }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;align-items:center;gap:10px;background:rgba(53,232,52,.08);border:1px solid rgba(53,232,52,.3);border-radius:12px;padding:13px 16px;"><span style="width:24px;height:24px;border-radius:50%;background:#16A82A;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;flex:none;">✓</span><span style="font-size:13.5px;font-weight:600;color:#16A82A;">Test succeeded — 200 OK. You're good to go.</span></div>
+                </sc-if>
+              </sc-if>
+
+              <sc-if value="{{ asSummary }}" hint-placeholder-val="{{ false }}">
+                <div style="font-size:11px;font-weight:700;color:#8A7F6B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">What will sync</div>
+                <div style="background:#fff;border:1px solid #EBE3D6;border-radius:14px;overflow:hidden;">
+                  <sc-for list="{{ step.summary }}" as="sy" hint-placeholder-count="3"><div style="display:flex;align-items:center;gap:10px;padding:10px 15px;border-top:1px solid #F2EEE4;"><span style="color:#16A82A;font-size:13px;">✓</span><span style="font-size:13.5px;color:#3B463F;">{{ sy }}</span></div></sc-for>
+                </div>
+              </sc-if>
+            </sc-if>
+          </div>
+
+          <sc-if value="{{ det.notConnected }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;align-items:center;gap:12px;padding:16px 22px;border-top:1px solid #EBE3D6;background:#fff;flex:none;">
+              <span onClick="{{ wizBack }}" style="font-size:14px;font-weight:600;color:#5C6B62;background:#fff;border:1px solid #EBE3D6;border-radius:11px;padding:10px 18px;cursor:pointer;">{{ wizBackLabel }}</span>
+              <span onClick="{{ wizPrimary }}" style="margin-left:auto;font-size:14px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED 0%,#35E834 55%,#D0F56B 100%);border-radius:11px;padding:10px 20px;cursor:pointer;box-shadow:0 6px 16px rgba(53,232,52,.26);">{{ wizPrimaryLabel }}</span>
+            </div>
+          </sc-if>
+          <sc-if value="{{ det.connected }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;align-items:center;gap:12px;padding:16px 22px;border-top:1px solid #EBE3D6;background:#fff;flex:none;">
+              <span onClick="{{ disconnectDet }}" style="font-size:14px;font-weight:600;color:#C9543F;background:#fff;border:1px solid #F0CFC8;border-radius:11px;padding:10px 18px;cursor:pointer;">Disconnect</span>
+              <span style="margin-left:auto;font-size:14px;font-weight:600;color:#5C6B62;background:#fff;border:1px solid #EBE3D6;border-radius:11px;padding:10px 18px;cursor:pointer;">Settings</span>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+    </sc-if>
+
+  </div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1280,&quot;height&quot;:900}}">
+class Component extends DCLogic {
+  state = { cat: 'all', connected: { gmail: true, gcal: true, stripe: true, twilio: true, slack: true }, drawerId: null, wizStep: 0, wizTested: false, wizCopied: false, wizEvents: {} };
+  renderVals() {
+    const TILE = {
+      green: { tilebg: 'rgba(53,232,52,.16)', tilefg: '#16A82A' },
+      cyan: { tilebg: 'rgba(54,215,237,.16)', tilefg: '#1192A6' },
+      lime: { tilebg: 'rgba(208,245,107,.4)', tilefg: '#6B7A1F' },
+      ink: { tilebg: '#0C140F', tilefg: '#7FE8A0' },
+      neutral: { tilebg: '#F2EEE4', tilefg: '#5C6B62' },
+    };
+    const catLabels = { crm: 'CRM', calendar: 'Calendar', inbox: 'Inbox', messaging: 'Messaging', payments: 'Payments', automation: 'Automation' };
+    const base = [
+      { id: 'hubspot', name: 'HubSpot', cat: 'crm', glyph: 'H', tile: 'cyan', desc: 'Two-way sync of contacts, deals & lifecycle stages.' },
+      { id: 'salesforce', name: 'Salesforce', cat: 'crm', glyph: 'S', tile: 'cyan', desc: 'Push qualified leads & booked calls into Salesforce.' },
+      { id: 'pipedrive', name: 'Pipedrive', cat: 'crm', glyph: 'P', tile: 'green', desc: 'Create a deal automatically when a call is booked.' },
+      { id: 'gcal', name: 'Google Calendar', cat: 'calendar', glyph: 'G', tile: 'green', desc: 'Book calls straight onto your team calendar.' },
+      { id: 'calendly', name: 'Calendly', cat: 'calendar', glyph: 'C', tile: 'cyan', desc: 'Let leads self-book from any message or form.' },
+      { id: 'calcom', name: 'Cal.com', cat: 'calendar', glyph: '◷', tile: 'neutral', desc: 'Open-source scheduling for your whole team.' },
+      { id: 'gmail', name: 'Gmail', cat: 'inbox', glyph: 'M', tile: 'lime', desc: 'Send & track outreach from your own inbox.' },
+      { id: 'outlook', name: 'Outlook', cat: 'inbox', glyph: 'O', tile: 'cyan', desc: 'Send from Microsoft 365 mailboxes.' },
+      { id: 'smtp', name: 'Custom SMTP', cat: 'inbox', glyph: '✉', tile: 'neutral', desc: 'Connect any email provider via SMTP.' },
+      { id: 'twilio', name: 'Twilio SMS', cat: 'messaging', glyph: 'T', tile: 'green', desc: 'Power SMS outreach, replies & reminders.' },
+      { id: 'whatsapp', name: 'WhatsApp Business', cat: 'messaging', glyph: 'W', tile: 'green', desc: 'Message leads on WhatsApp with approved templates.' },
+      { id: 'slack', name: 'Slack', cat: 'messaging', glyph: '#', tile: 'ink', desc: 'Get reply & booking alerts in your channels.' },
+      { id: 'stripe', name: 'Stripe', cat: 'payments', glyph: '$', tile: 'cyan', desc: 'Collect payments and track closed revenue.' },
+      { id: 'zapier', name: 'Zapier', cat: 'automation', glyph: 'Z', tile: 'lime', desc: 'Automate workflows across 6,000+ apps.' },
+      { id: 'webhooks', name: 'Webhooks', cat: 'automation', glyph: '⇄', tile: 'neutral', desc: 'POST every event to any endpoint you choose.' },
+    ];
+
+    const catDefs = [{ id: 'all', label: 'All' }].concat(Object.keys(catLabels).map((k) => ({ id: k, label: catLabels[k] })));
+    const cat = this.state.cat;
+    const filtered = cat === 'all' ? base : base.filter((i) => i.cat === cat);
+    const conn = this.state.connected;
+
+    const acct = { gmail: 'jordan@brightpathgrowth.co', gcal: 'jordan@brightpathgrowth.co', stripe: 'BrightPath Growth (acct_1Q…)', twilio: '+1 (512) 555-0100', slack: 'BrightPath workspace' };
+    const catAccount = { crm: 'BrightPath Growth', calendar: 'Primary calendar', inbox: 'Connected mailbox', messaging: 'Connected sender', payments: 'Connected account', automation: 'Connected endpoint' };
+    const catSetup = {
+      crm: { need: 'admin access to your CRM', s2: 'Map contacts, deals & lifecycle stages', sync: ['Contacts \u2194 two-way sync', 'Qualified leads \u2192 CRM', 'Booked calls \u2192 new deals'], perms: ['Read & write contacts', 'Read & write deals & pipelines'] },
+      calendar: { need: 'a calendar you can edit', s2: 'Pick which calendar holds booked calls', sync: ['Real-time availability \u2190', 'Booked calls \u2192 calendar', 'Reschedules & cancellations \u2194'], perms: ['View & manage calendar events'] },
+      inbox: { need: 'the mailbox you send from', s2: 'Choose sending address & open tracking', sync: ['Send outreach from your inbox', 'Track opens, clicks & replies', 'Thread replies back to contacts'], perms: ['Send email on your behalf', 'Read reply metadata'] },
+      messaging: { need: 'your provider API credentials', s2: 'Connect the number or sender to send from', sync: ['Outbound messages', 'Inbound replies', 'Delivery & read receipts'], perms: [] },
+      payments: { need: 'owner/admin on the account', s2: 'Choose products & payment links', sync: ['Payments & checkouts', 'Revenue & invoices', 'Refunds & disputes'], perms: ['Read charges & balances', 'Create payment links'] },
+      automation: { need: 'access to your automation tool', s2: 'Choose which events to send', sync: ['All agent events streamed out'], perms: [] },
+    };
+    const buildFlow = (it) => {
+      const cs = catSetup[it.cat];
+      const summary = { kind: 'summary', title: 'Confirm & go live', desc: 'Review what will sync, then connect.', sync: cs.sync };
+      if (it.id === 'smtp') return [
+        { kind: 'fields', title: 'Server details', desc: 'Your outgoing mail server.', fields: [{ label: 'SMTP host', ph: 'smtp.yourdomain.com' }, { label: 'Port', ph: '587' }, { label: 'Encryption', ph: 'TLS', sel: true }] },
+        { kind: 'fields', title: 'Credentials', desc: 'Used to authenticate sending.', fields: [{ label: 'Username', ph: 'you@yourdomain.com' }, { label: 'Password / app key', ph: 'app password', pw: true }] },
+        { kind: 'test', title: 'Send a test email', desc: 'We verify delivery before going live.', testLabel: 'Send test email' },
+        summary,
+      ];
+      if (it.cat === 'messaging' && it.id !== 'slack') return [
+        { kind: 'fields', title: 'API credentials', desc: 'From your ' + it.name + ' console.', fields: [{ label: 'Account SID', ph: 'AC0000000000000000' }, { label: 'Auth token', ph: 'your auth token', pw: true }] },
+        { kind: 'select', title: 'Choose a sender', desc: 'The number or sender to send from.', selects: [{ label: it.id === 'whatsapp' ? 'WhatsApp sender' : 'Phone number', value: '+1 (512) 555-0100' }], toggles: [] },
+        { kind: 'test', title: 'Verify', desc: 'Send a test message to confirm delivery.', testLabel: 'Send test message' },
+        summary,
+      ];
+      if (it.id === 'webhooks') return [
+        { kind: 'fields', title: 'Endpoint URL', desc: 'Where we POST event payloads.', fields: [{ label: 'Payload URL', ph: 'https://api.yoursite.com/cf/webhook' }, { label: 'Signing secret (optional)', ph: 'whsec_...' }] },
+        { kind: 'events', title: 'Select events', desc: 'Choose which events to send.', events: ['contact.created', 'contact.replied', 'lead.qualified', 'call.booked', 'payment.succeeded'] },
+        { kind: 'test', title: 'Send a test event', desc: 'We POST a sample payload to your endpoint.', testLabel: 'Send test event', payload: true },
+        summary,
+      ];
+      if (it.id === 'zapier') return [
+        { kind: 'copy', title: 'Copy your API key', desc: 'Paste this into Zapier to authenticate.', copyVal: 'cf_live_sk_8h2k4p9x2v7m1q' },
+        { kind: 'select', title: 'Build a Zap', desc: 'Pick a trigger and an action in Zapier.', selects: [{ label: 'Trigger', value: 'Call booked' }, { label: 'Action', value: 'Create row (Google Sheets)' }], toggles: [] },
+        { kind: 'test', title: 'Turn it on', desc: 'Run a test, then enable your Zap.', testLabel: 'Run test' },
+        summary,
+      ];
+      let step2;
+      if (it.cat === 'crm') step2 = { kind: 'mapping', title: 'Map your fields', desc: 'Match Clientforce data to ' + it.name + '.', maps: [{ from: 'Email', to: 'Email' }, { from: 'Full name', to: 'First + last name' }, { from: 'Company', to: 'Company name' }, { from: 'Status', to: 'Lifecycle stage' }], toggles: [{ label: 'Create a deal when a call is booked' }] };
+      else if (it.cat === 'calendar') step2 = { kind: 'select', title: 'Calendar settings', desc: 'Where booked calls land.', selects: [{ label: 'Calendar', value: 'BrightPath \u2014 Bookings' }, { label: 'Event title', value: 'Growth audit' }], toggles: [{ label: 'Add a 15-min buffer before calls' }] };
+      else if (it.cat === 'payments') step2 = { kind: 'select', title: 'Payment settings', desc: 'How payments are collected.', selects: [{ label: 'Currency', value: 'USD \u2014 US Dollar' }], toggles: [{ label: 'Create payment links inside messages' }] };
+      else if (it.id === 'slack') step2 = { kind: 'select', title: 'Alerts', desc: 'Where Clientforce posts updates.', selects: [{ label: 'Channel', value: '#clientforce-alerts' }], toggles: [{ label: 'New reply alerts' }, { label: 'Call booked alerts' }] };
+      else step2 = { kind: 'select', title: 'Sending & tracking', desc: 'How outreach is sent.', selects: [{ label: 'Send from', value: acct[it.id] || 'you@yourdomain.com' }], toggles: [{ label: 'Track opens' }, { label: 'Track link clicks' }] };
+      return [
+        { kind: 'auth', title: 'Authorize ' + it.name, desc: 'Sign in to ' + it.name + ' to grant secure access.', perms: cs.perms, authLabel: 'Sign in with ' + it.name },
+        step2,
+        summary,
+      ];
+    };
+    const buildSetup = (it) => {
+      const cs = catSetup[it.cat];
+      let steps, cta;
+      if (it.id === 'smtp') { steps = [{ title: 'Enter server details', desc: 'Host, port and SSL/TLS encryption.' }, { title: 'Add credentials', desc: 'Username and an app password or API key.' }, { title: 'Send a test email', desc: 'We verify delivery before going live.' }]; cta = 'Save & send test'; }
+      else if (it.cat === 'messaging') { steps = [{ title: 'Add API credentials', desc: 'Paste your Account SID and Auth Token.' }, { title: cs.s2, desc: 'Select the phone number or sender ID.' }, { title: 'Verify & enable', desc: 'Send a test message to confirm delivery.' }]; cta = 'Connect ' + it.name; }
+      else if (it.id === 'webhooks') { steps = [{ title: 'Add an endpoint URL', desc: 'Where we POST event payloads.' }, { title: 'Select events', desc: 'Choose which agent events to send.' }, { title: 'Send a test event', desc: 'Confirm your endpoint receives it.' }]; cta = 'Add endpoint'; }
+      else if (it.id === 'zapier') { steps = [{ title: 'Copy your API key', desc: 'Paste it into Zapier to authenticate.' }, { title: 'Build a Zap', desc: 'Pick a trigger and an action.' }, { title: 'Turn it on', desc: 'Test, then enable your Zap.' }]; cta = 'Copy API key'; }
+      else { steps = [{ title: 'Sign in to ' + it.name, desc: 'Authorize Clientforce via secure OAuth.' }, { title: cs.s2, desc: 'Decide what flows between the two tools.' }, { title: 'Confirm & go live', desc: 'Review and start syncing automatically.' }]; cta = 'Authorize ' + it.name; }
+      return { need: cs.need, syncing: cs.sync, permissions: cs.perms, rawSteps: steps, ctaLabel: cta, account: acct[it.id] || catAccount[it.cat], lastSync: it.id === 'gmail' ? 'just now' : (it.id === 'stripe' ? '5 min ago' : '2 min ago') };
+    };
+    const dit = base.find((i) => i.id === this.state.drawerId);
+    let det = { steps: [], syncing: [], permissions: [] };
+    if (dit) {
+      const isOn = !!conn[dit.id];
+      const su = buildSetup(dit);
+      det = Object.assign({}, dit, TILE[dit.tile], {
+        catLabel: catLabels[dit.cat], connected: isOn, notConnected: !isOn,
+        need: su.need, syncing: su.syncing, permissions: su.permissions, hasPermissions: su.permissions.length > 0,
+        ctaLabel: su.ctaLabel, account: su.account, lastSync: su.lastSync,
+        steps: su.rawSteps.map((s, idx) => ({ title: s.title, desc: s.desc, dotbg: isOn ? '#16A82A' : (idx === 0 ? '#16A82A' : '#fff'), dotfg: (isOn || idx === 0) ? '#fff' : '#9AA59E', dotborder: (isOn || idx === 0) ? 'none' : '1px solid #D8CFBE', mark: isOn ? '\u2713' : String(idx + 1) })),
+      });
+    }
+
+    let flow = [], N = 0, idx = 0, cur = null, step = {}, segs = [];
+    if (dit && !conn[dit.id]) {
+      flow = buildFlow(dit);
+      N = flow.length;
+      idx = Math.max(0, Math.min(N - 1, this.state.wizStep || 0));
+      cur = flow[idx];
+      segs = flow.map((s, i) => ({ bg: i <= idx ? '#16A82A' : '#E4EAE6' }));
+      const evState = this.state.wizEvents || {};
+      step = {
+        title: cur.title, desc: cur.desc, authLabel: cur.authLabel || '', copyVal: cur.copyVal || '',
+        testLabel: cur.testLabel || '', payload: !!cur.payload,
+        fields: cur.fields || [], selects: cur.selects || [], maps: cur.maps || [], perms: cur.perms || [],
+        toggles: (cur.toggles || []).map((t) => ({ label: t.label })),
+        summary: cur.sync || [],
+        events: (cur.events || []).map((ev) => { const ck = evState[ev] !== false; return { label: ev, cbBg: ck ? '#16A82A' : 'transparent', cbBorder: ck ? '#16A82A' : '#CDBFA8', cbMark: ck ? '\u2713' : '', onToggle: (e) => { if (e) e.stopPropagation(); this.setState((s) => ({ wizEvents: Object.assign({}, s.wizEvents, { [ev]: !(s.wizEvents[ev] !== false) }) })); } }; }),
+      };
+    }
+    const isLast = N > 0 && idx >= N - 1;
+
+    return {
+      navAfter: [
+        { label: 'Dashboard', icon: '◈', weight: 500, color: 'rgba(255,255,255,.82)', bg: 'transparent' },
+        { label: 'Agents', icon: '◎', weight: 500, color: 'rgba(255,255,255,.82)', bg: 'transparent' },
+        { label: 'Contacts', icon: '☺', weight: 500, color: 'rgba(255,255,255,.82)', bg: 'transparent' },
+        { label: 'Analytics', icon: '▤', weight: 500, color: 'rgba(255,255,255,.82)', bg: 'transparent' },
+        { label: 'Integrations', icon: '⚯', weight: 700, color: '#0A0F0C', bg: 'linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B)' },
+        { label: 'Automations', icon: '⟳', weight: 500, color: 'rgba(255,255,255,.82)', bg: 'transparent' },
+      ],
+      navUtility: [ { label: 'Help', icon: '?' }, { label: 'Settings', icon: '⚙' } ],
+      totalCount: base.length,
+      connectedCount: base.filter((i) => conn[i.id]).length,
+      detailOpen: !!dit,
+      wizStepLabel: 'Step ' + (idx + 1) + ' of ' + N,
+      wizSegs: segs,
+      step: step,
+      asAuth: !!(cur && cur.kind === 'auth'),
+      asFields: !!(cur && cur.kind === 'fields'),
+      asSelect: !!(cur && cur.kind === 'select'),
+      asMapping: !!(cur && cur.kind === 'mapping'),
+      asCopy: !!(cur && cur.kind === 'copy'),
+      asEvents: !!(cur && cur.kind === 'events'),
+      asTest: !!(cur && cur.kind === 'test'),
+      asSummary: !!(cur && cur.kind === 'summary'),
+      hasToggles: !!(step.toggles && step.toggles.length),
+      hasPerms: !!(step.perms && step.perms.length),
+      copyLabel: this.state.wizCopied ? 'Copied ✓' : 'Copy',
+      tested: !!this.state.wizTested,
+      notTested: !this.state.wizTested,
+      onCopy: () => this.setState({ wizCopied: true }),
+      onSendTest: () => this.setState({ wizTested: true }),
+      wizBackLabel: idx > 0 ? '‹ Back' : 'Cancel',
+      wizBack: () => { if (idx > 0) this.setState({ wizStep: idx - 1, wizTested: false, wizCopied: false }); else this.setState({ drawerId: null }); },
+      wizPrimaryLabel: isLast ? 'Finish & connect' : 'Continue',
+      wizPrimary: () => { if (isLast) this.setState((s) => ({ connected: Object.assign({}, s.connected, { [this.state.drawerId]: true }) })); else this.setState({ wizStep: idx + 1, wizTested: false, wizCopied: false }); },
+      det,
+      closeDetail: () => this.setState({ drawerId: null }),
+      connectDet: () => this.setState((s) => ({ connected: Object.assign({}, s.connected, { [this.state.drawerId]: true }) })),
+      disconnectDet: () => this.setState((s) => ({ connected: Object.assign({}, s.connected, { [this.state.drawerId]: false }), wizStep: 0, wizTested: false, wizCopied: false, wizEvents: {} })),
+      stop: (e) => { if (e) e.stopPropagation(); },
+      cats: catDefs.map((c) => {
+        const on = c.id === cat;
+        return { label: c.label, color: on ? '#0A0F0C' : '#5C6B62', bg: on ? 'rgba(53,232,52,.16)' : '#fff', border: on ? '#35E834' : '#EBE3D6', onClick: () => this.setState({ cat: c.id }) };
+      }),
+      items: filtered.map((i) => {
+        const isOn = !!conn[i.id];
+        return Object.assign({}, i, TILE[i.tile], {
+          catLabel: catLabels[i.cat],
+          connected: isOn,
+          notConnected: !isOn,
+          cardBorder: isOn ? 'rgba(53,232,52,.4)' : '#EBE3D6',
+          onToggle: () => this.setState((s) => ({ connected: Object.assign({}, s.connected, { [i.id]: !s.connected[i.id] }) })),
+          onOpen: () => this.setState({ drawerId: i.id, wizStep: 0, wizTested: false, wizCopied: false, wizEvents: {} }),
+        });
+      }),
+    };
+  }
+}
+</script>
+</body>
+</html>

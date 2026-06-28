@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+body{margin:0;padding:0;font-family:'IBM Plex Sans',sans-serif;}
+*{box-sizing:border-box;}
+input,button{font-family:'IBM Plex Sans',sans-serif;}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#C8D4CA;border-radius:3px}
+</style>
+<script src="sidebar.js"></script>
+</helmet>
+
+<div style="display:flex;height:100vh;overflow:hidden;">
+
+  <!-- SIDEBAR -->
+  <cf-sidebar active="linkedin" style="width:248px;flex:none;align-self:stretch;background:#0C140F;"></cf-sidebar>
+
+  <!-- MAIN -->
+  <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;background:#F7F9F8;">
+
+    <!-- HEADER -->
+    <div style="background:#fff;border-bottom:1px solid #E4EAE6;padding:18px 28px;flex:none;">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:3px;">
+            <h1 style="font-family:'Sora',sans-serif;font-size:21px;font-weight:700;color:#0E1512;margin:0;">LinkedIn Extension</h1>
+            <sc-if value="{{ installed }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;gap:5px;padding:3px 10px;background:#EAF6EC;border-radius:999px;font-size:12px;font-weight:600;color:#16A82A;animation:fadeIn .2s ease;">
+                <span style="width:6px;height:6px;background:#35E834;border-radius:50%;"></span> Active on LinkedIn
+              </div>
+            </sc-if>
+            <sc-if value="{{ notInstalled }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;align-items:center;gap:5px;padding:3px 10px;background:#F7F9F8;border-radius:999px;font-size:12px;font-weight:500;color:#5C6B62;border:1px solid #E4EAE6;">Not installed</div>
+            </sc-if>
+          </div>
+          <p style="font-size:13px;color:#5C6B62;margin:0;">Capture leads from any website into Clientforce — LinkedIn, company sites, directories and more.</p>
+        </div>
+        <sc-if value="{{ installed }}" hint-placeholder-val="{{ false }}">
+          <button onClick="{{ onUninstall }}" style="padding:9px 18px;background:#F7F9F8;border:1px solid #E4EAE6;border-radius:10px;font-size:13px;font-weight:600;color:#5C6B62;cursor:pointer;">Manage extension</button>
+        </sc-if>
+        <sc-if value="{{ notInstalled }}" hint-placeholder-val="{{ true }}">
+          <button onClick="{{ onInstall }}" style="display:flex;align-items:center;gap:8px;padding:10px 22px;background:linear-gradient(135deg,#36D7ED,#35E834);border:none;border-radius:10px;font-size:13px;font-weight:700;color:#0C140F;cursor:pointer;">
+            <sc-if value="{{ installing }}" hint-placeholder-val="{{ false }}"><span style="width:13px;height:13px;border:2px solid #0C140F;border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;display:inline-block;"></span> Adding to Chrome…</sc-if>
+            <sc-if value="{{ notInstalling }}" hint-placeholder-val="{{ true }}">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#4285F4"/><path d="M12 7.5h6.5a9.5 9.5 0 0 1-9.5 14A9.5 9.5 0 0 1 2.5 12H9" stroke="#fff" stroke-width="1.5"/><circle cx="12" cy="12" r="3.5" fill="#fff"/></svg>
+              Add to Chrome — Free
+            </sc-if>
+          </button>
+        </sc-if>
+      </div>
+    </div>
+
+    <!-- SCROLL BODY -->
+    <div style="flex:1;overflow-y:auto;padding:28px;">
+
+      <!-- HERO: 2-col -->
+      <div style="display:grid;grid-template-columns:1fr 480px;gap:28px;align-items:center;margin-bottom:32px;">
+
+        <!-- Left: copy + social proof -->
+        <div>
+          <div style="display:inline-flex;align-items:center;gap:6px;padding:4px 12px;background:linear-gradient(135deg,#36D7ED18,#35E83418);border:1px solid #C8E8CC;border-radius:999px;font-size:12px;font-weight:600;color:#16A82A;margin-bottom:16px;">
+            ⚡ Works on any website — LinkedIn, directories, company sites &amp; more
+          </div>
+          <h2 style="font-family:'Sora',sans-serif;font-size:34px;font-weight:800;color:#0E1512;line-height:1.15;margin:0 0 16px;"><span style="background:linear-gradient(135deg,#36D7ED,#35E834);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">LinkedIn</span> — and any<br>webpage — into a lead.</h2>
+          <p style="font-size:15px;color:#5C6B62;line-height:1.7;margin:0 0 24px;max-width:460px;">Browse anywhere — LinkedIn, company websites, conference directories, forums, review sites. Whenever you spot a prospect, one click captures them into Clientforce with verified email, phone, company data, and a personalised outreach draft.</p>
+          <div style="display:flex;align-items:center;gap:20px;margin-bottom:28px;">
+            <div style="text-align:center;"><div style="font-family:'Sora',sans-serif;font-size:22px;font-weight:800;color:#0E1512;">4.9★</div><div style="font-size:11.5px;color:#5C6B62;">Chrome store</div></div>
+            <div style="width:1px;height:36px;background:#E4EAE6;"></div>
+            <div style="text-align:center;"><div style="font-family:'Sora',sans-serif;font-size:22px;font-weight:800;color:#0E1512;">3,200+</div><div style="font-size:11.5px;color:#5C6B62;">Active users</div></div>
+            <div style="width:1px;height:36px;background:#E4EAE6;"></div>
+            <div style="text-align:center;"><div style="font-family:'Sora',sans-serif;font-size:22px;font-weight:800;color:#0E1512;">&lt;1s</div><div style="font-size:11.5px;color:#5C6B62;">Capture time</div></div>
+          </div>
+          <sc-if value="{{ notInstalled }}" hint-placeholder-val="{{ true }}">
+            <button onClick="{{ onInstall }}" style="display:inline-flex;align-items:center;gap:9px;padding:13px 28px;background:linear-gradient(135deg,#36D7ED,#35E834);border:none;border-radius:12px;font-size:14px;font-weight:700;color:#0C140F;cursor:pointer;margin-right:12px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#4285F4"/><path d="M12 7.5h6.5a9.5 9.5 0 0 1-9.5 14A9.5 9.5 0 0 1 2.5 12H9" stroke="#fff" stroke-width="1.5"/><circle cx="12" cy="12" r="3.5" fill="#fff"/></svg>
+              Add to Chrome — Free
+            </button>
+            <span style="font-size:12.5px;color:#5C6B62;">No account setup needed</span>
+          </sc-if>
+          <sc-if value="{{ installed }}" hint-placeholder-val="{{ false }}">
+            <div style="display:inline-flex;align-items:center;gap:8px;padding:12px 20px;background:#EAF6EC;border:1px solid #C8E8CC;border-radius:12px;animation:fadeIn .2s ease;">
+              <span style="font-size:18px;">🎉</span>
+              <div>
+                <div style="font-size:13px;font-weight:700;color:#0E1512;">Extension is active!</div>
+                <div style="font-size:12px;color:#5C6B62;">Visit any LinkedIn profile to start capturing leads.</div>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+
+        <!-- Right: Extension mockup -->
+        <div style="background:#fff;border:1px solid #E4EAE6;border-radius:16px;padding:16px;box-shadow:0 4px 24px rgba(0,0,0,.06);">
+          <!-- Browser chrome -->
+          <div style="background:#F1F3F4;border-radius:8px 8px 0 0;padding:8px 12px;display:flex;align-items:center;gap:8px;margin:-16px -16px 0;border-bottom:1px solid #E4EAE6;">
+            <div style="display:flex;gap:5px;"><div style="width:10px;height:10px;border-radius:50%;background:#FF5F57;"></div><div style="width:10px;height:10px;border-radius:50%;background:#FEBC2E;"></div><div style="width:10px;height:10px;border-radius:50%;background:#28C840;"></div></div>
+            <div style="flex:1;background:#fff;border-radius:5px;padding:4px 10px;font-size:11.5px;color:#5C6B62;">linkedin.com/in/sarah-chen</div>
+            <div style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,#36D7ED,#35E834);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#0C140F;flex:none;">f</div>
+          </div>
+          <!-- Simulated profile page -->
+          <div style="display:flex;gap:0;margin-top:0;">
+            <!-- Profile area (left) -->
+            <div style="flex:1;padding:16px 14px 14px;border-right:1px solid #E4EAE6;">
+              <!-- Cover + avatar -->
+              <div style="height:52px;background:linear-gradient(135deg,#1a6eff22,#0077b522);border-radius:8px 8px 0 0;margin:-0px;position:relative;margin-bottom:24px;">
+                <div style="position:absolute;bottom:-18px;left:12px;width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#36D7ED,#0077b5);border:2px solid #fff;"></div>
+              </div>
+              <div style="font-size:13px;font-weight:700;color:#0E1512;margin-bottom:2px;">Sarah Chen</div>
+              <div style="font-size:11.5px;color:#5C6B62;margin-bottom:8px;">Marketing Director · TechCorp</div>
+              <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px;">
+                <span style="font-size:10px;padding:2px 6px;background:#E8F4FD;color:#0077b5;border-radius:4px;">SaaS</span>
+                <span style="font-size:10px;padding:2px 6px;background:#EEF0EE;color:#5C6B62;border-radius:4px;">B2B Marketing</span>
+              </div>
+              <div style="height:6px;background:#F0F0F0;border-radius:3px;margin-bottom:5px;"></div>
+              <div style="height:6px;background:#F0F0F0;border-radius:3px;width:70%;margin-bottom:5px;"></div>
+              <div style="height:6px;background:#F0F0F0;border-radius:3px;width:85%;"></div>
+            </div>
+            <!-- Clientforce overlay panel -->
+            <div style="width:178px;flex:none;background:#fff;padding:12px;">
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #E4EAE6;">
+                <div style="width:20px;height:20px;border-radius:5px;background:linear-gradient(135deg,#36D7ED,#35E834);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#0C140F;">f</div>
+                <span style="font-family:'Sora',sans-serif;font-size:11px;font-weight:700;color:#0E1512;flex:1;">Clientforce</span>
+                <span style="font-size:10px;color:#5C6B62;cursor:pointer;">⚙</span>
+              </div>
+              <div style="font-size:10px;color:#5C6B62;margin-bottom:6px;display:flex;align-items:center;gap:4px;"><span style="width:5px;height:5px;background:#35E834;border-radius:50%;"></span>New contact</div>
+              <div style="font-size:12px;font-weight:700;color:#0E1512;margin-bottom:1px;">Sarah Chen</div>
+              <div style="font-size:10.5px;color:#5C6B62;margin-bottom:10px;">Marketing Director · TechCorp</div>
+              <div style="background:#F7F9F8;border-radius:6px;padding:7px;margin-bottom:8px;font-size:10.5px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;"><span style="color:#5C6B62;">Email</span><span style="color:#16A82A;font-weight:500;font-size:9.5px;">✓ found</span></div>
+                <div style="color:#0E1512;font-weight:500;word-break:break-all;font-size:10px;">sarah@techcorp.io</div>
+              </div>
+              <button style="width:100%;padding:6px;background:linear-gradient(135deg,#36D7ED,#35E834);border:none;border-radius:6px;font-size:11px;font-weight:700;color:#0C140F;cursor:pointer;margin-bottom:5px;">Save to Clientforce</button>
+              <button style="width:100%;padding:6px;background:#EAF6EC;border:1px solid #C8E8CC;border-radius:6px;font-size:11px;font-weight:600;color:#16A82A;cursor:pointer;margin-bottom:5px;">+ Add to campaign</button>
+              <button style="width:100%;padding:6px;background:#F7F9F8;border:1px solid #E4EAE6;border-radius:6px;font-size:11px;font-weight:500;color:#5C6B62;cursor:pointer;">✉ Draft message</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- FEATURES GRID -->
+      <div style="margin-bottom:32px;">
+        <div style="font-family:'Sora',sans-serif;font-size:18px;font-weight:700;color:#0E1512;margin-bottom:4px;">Everything you need, on every site you visit</div>
+        <div style="font-size:13px;color:#5C6B62;margin-bottom:20px;">Six powerful capabilities built into a single lightweight panel — works anywhere on the web.</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;">
+          <sc-for list="{{ features }}" as="ft" hint-placeholder-count="6">
+            <div style="background:#fff;border:1px solid #E4EAE6;border-radius:12px;padding:18px;box-shadow:0 1px 3px rgba(0,0,0,.04);">
+              <div style="width:40px;height:40px;border-radius:10px;background:{{ ft.iconBg }};display:flex;align-items:center;justify-content:center;font-size:19px;margin-bottom:12px;">{{ ft.icon }}</div>
+              <div style="font-size:14px;font-weight:700;color:#0E1512;margin-bottom:5px;">{{ ft.title }}</div>
+              <div style="font-size:12.5px;color:#5C6B62;line-height:1.6;">{{ ft.desc }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <!-- HOW TO INSTALL -->
+      <div style="background:#0C140F;border-radius:16px;padding:28px 32px;margin-bottom:32px;position:relative;overflow:hidden;">
+        <div style="position:absolute;top:-40px;right:-40px;width:200px;height:200px;background:radial-gradient(circle,#35E83420,transparent 70%);pointer-events:none;"></div>
+        <div style="position:absolute;bottom:-60px;left:0;width:280px;height:200px;background:radial-gradient(circle,#36D7ED12,transparent 70%);pointer-events:none;"></div>
+        <div style="position:relative;">
+          <div style="font-family:'Sora',sans-serif;font-size:18px;font-weight:700;color:#fff;margin-bottom:20px;">Install in 60 seconds</div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;">
+            <sc-for list="{{ steps }}" as="st" hint-placeholder-count="4">
+              <div style="display:flex;flex-direction:column;gap:10px;">
+                <div style="width:36px;height:36px;border-radius:10px;background:{{ st.stepBg }};display:flex;align-items:center;justify-content:center;font-family:'Sora',sans-serif;font-size:16px;font-weight:800;color:{{ st.stepColor }};flex:none;">{{ st.num }}</div>
+                <div style="font-size:13px;font-weight:600;color:#fff;">{{ st.title }}</div>
+                <div style="font-size:12px;color:rgba(255,255,255,.55);line-height:1.55;">{{ st.desc }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="margin-top:24px;padding-top:20px;border-top:1px solid rgba(255,255,255,.07);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+            <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+              <div style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:rgba(255,255,255,.55);"><span style="color:#35E834;">✓</span>Chrome 88+</div>
+              <div style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:rgba(255,255,255,.55);"><span style="color:#35E834;">✓</span>Edge compatible</div>
+              <div style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:rgba(255,255,255,.55);"><span style="color:#35E834;">✓</span>No LinkedIn account changes</div>
+              <div style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:rgba(255,255,255,.55);"><span style="color:#35E834;">✓</span>Works with Sales Navigator</div>
+            </div>
+            <sc-if value="{{ notInstalled }}" hint-placeholder-val="{{ true }}">
+              <button onClick="{{ onInstall }}" style="display:flex;align-items:center;gap:7px;padding:10px 22px;background:linear-gradient(135deg,#36D7ED,#35E834);border:none;border-radius:9px;font-size:13px;font-weight:700;color:#0C140F;cursor:pointer;">
+                <sc-if value="{{ installing }}" hint-placeholder-val="{{ false }}"><span style="width:12px;height:12px;border:2px solid #0C140F;border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;display:inline-block;"></span></sc-if>
+                Add to Chrome →
+              </button>
+            </sc-if>
+          </div>
+        </div>
+      </div>
+
+      <!-- PERMISSIONS + FAQ -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+
+        <!-- Permissions -->
+        <div style="background:#fff;border:1px solid #E4EAE6;border-radius:14px;padding:22px;">
+          <div style="font-size:15px;font-weight:700;color:#0E1512;margin-bottom:4px;">What permissions does it need?</div>
+          <div style="font-size:12.5px;color:#5C6B62;margin-bottom:16px;line-height:1.5;">We only request the minimum. Here's what each permission does.</div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <sc-for list="{{ perms }}" as="p" hint-placeholder-count="3">
+              <div style="display:flex;align-items:flex-start;gap:10px;">
+                <div style="width:28px;height:28px;background:#EAF6EC;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;flex:none;">{{ p.icon }}</div>
+                <div><div style="font-size:12.5px;font-weight:600;color:#0E1512;margin-bottom:2px;">{{ p.name }}</div><div style="font-size:12px;color:#5C6B62;line-height:1.5;">{{ p.desc }}</div></div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <!-- FAQ -->
+        <div style="background:#fff;border:1px solid #E4EAE6;border-radius:14px;padding:22px;">
+          <div style="font-size:15px;font-weight:700;color:#0E1512;margin-bottom:16px;">Frequently asked</div>
+          <div style="display:flex;flex-direction:column;gap:14px;">
+            <sc-for list="{{ faqs }}" as="fq" hint-placeholder-count="3">
+              <div>
+                <div style="font-size:13px;font-weight:600;color:#0E1512;margin-bottom:4px;">{{ fq.q }}</div>
+                <div style="font-size:12.5px;color:#5C6B62;line-height:1.55;">{{ fq.a }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { installed: false, installing: false };
+
+  renderVals() {
+    const s = this.state;
+
+    const navItems = [
+      {label:'Dashboard',icon:'◈'},{label:'Agents',icon:'◎'},{label:'Contacts',icon:'≡'},
+      {label:'Analytics',icon:'◑'},{label:'Automations',icon:'∞'},{label:'Integrations',icon:'⊕'},
+    ].map(n => ({...n, bg:'transparent', ic:'rgba(255,255,255,.35)', tc:'rgba(255,255,255,.6)', fw:'400'}));
+
+    const toolItems = [
+      {label:'Dynamic Proposals',icon:'◧'},{label:'Forms',icon:'⊞'},{label:'Agent Widget',icon:'◉'},
+      {label:'Lead Finder',icon:'⊙'},{label:'LinkedIn Extension',icon:'in',active:true},
+    ].map(t => ({
+      ...t,
+      bg: t.active ? 'rgba(53,232,52,.1)' : 'transparent',
+      ic: t.active ? '#35E834' : 'rgba(255,255,255,.35)',
+      tc: t.active ? '#35E834' : 'rgba(255,255,255,.6)',
+      fw: t.active ? '600' : '400',
+    }));
+
+    const features = [
+      {icon:'🌐',iconBg:'#EAF6EC',title:'Works on any website',desc:'Browse LinkedIn, company sites, conference directories, review platforms, forums — the overlay appears wherever you spot a prospect.'},
+      {icon:'✉',iconBg:'#E0F0FF',title:'Instant email finder',desc:'Real-time enrichment surfaces a verified email and phone number right on any page — no manual lookups.'},
+      {icon:'📋',iconBg:'#FEF3EC',title:'Campaign assign',desc:'Push any captured lead directly into an active campaign without leaving the tab you\'re browsing.'},
+      {icon:'📊',iconBg:'#F0ECF8',title:'CRM overlay',desc:'See full contact history, notes, and deal stage overlaid on any page — know if you\'ve already reached out before you click.'},
+      {icon:'🔔',iconBg:'#EAF6EC',title:'Signal alerts',desc:'Get notified when tracked contacts get promoted, change companies, or post buying signals — on any platform.'},
+      {icon:'🤖',iconBg:'#EEF3FF',title:'AI outreach drafts',desc:'One-click personalised first message generated from the page context, company intel, and your campaign goal.'},
+    ];
+
+    const steps = [
+      {num:'1',title:'Add to Chrome',desc:'Click the button above to open the Chrome Web Store and add the extension.',stepBg:'linear-gradient(135deg,#36D7ED,#35E834)',stepColor:'#0C140F'},
+      {num:'2',title:'Pin to toolbar',desc:'Click the puzzle icon in Chrome and pin Clientforce for quick access.',stepBg:'rgba(255,255,255,.08)',stepColor:'#fff'},
+      {num:'3',title:'Go to LinkedIn',desc:'Navigate to any LinkedIn profile, search result, or Sales Navigator page.',stepBg:'rgba(255,255,255,.08)',stepColor:'#fff'},
+      {num:'4',title:'Click and capture',desc:'Click the Clientforce icon — the overlay appears and your lead is ready to save.',stepBg:'rgba(255,255,255,.08)',stepColor:'#fff'},
+    ];
+
+    const perms = [
+      {icon:'🔗',name:'linkedin.com access',desc:'Reads profile data from LinkedIn pages you visit. We never post or act on your behalf.'},
+      {icon:'💾',name:'Storage',desc:'Saves your Clientforce session token locally so you stay logged in between visits.'},
+      {icon:'🌐',name:'clientforce.ai access',desc:'Sends captured data to your Clientforce workspace via our API. Encrypted in transit.'},
+    ];
+
+    const faqs = [
+      {q:'Does it affect my LinkedIn account?',a:'No. The extension only reads page data — it never modifies your LinkedIn profile, messages, or account settings.'},
+      {q:'Does it work with Sales Navigator?',a:'Yes. The overlay appears on all LinkedIn domains including Sales Navigator and Recruiter Lite.'},
+      {q:'What happens to captured data?',a:'Data goes directly into your Clientforce workspace. We never store, sell, or share it with third parties.'},
+      {q:'Is it free?',a:'The extension itself is free. Lead enrichment (email + phone lookup) counts toward your Clientforce enrichment credits.'},
+    ];
+
+    return {
+      navItems, toolItems, features, steps, perms, faqs,
+      installed: s.installed, notInstalled: !s.installed,
+      installing: s.installing, notInstalling: !s.installing,
+      onInstall: () => {
+        if(s.installing) return;
+        this.setState({installing:true});
+        setTimeout(() => this.setState({installing:false, installed:true}), 2200);
+      },
+      onUninstall: () => this.setState({installed:false}),
+    };
+  }
+}
+
+</script>
+</body>
+</html>

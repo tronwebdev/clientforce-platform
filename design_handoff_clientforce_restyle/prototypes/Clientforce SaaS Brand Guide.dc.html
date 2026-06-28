@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&amp;family=Hanken+Grotesk:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0;padding:0;background:#FBF7F0;}
+  *{box-sizing:border-box;}
+</style>
+</helmet>
+
+<div style="font-family:'Hanken Grotesk',sans-serif;color:#0E1512;background:#FBF7F0;min-height:100vh;">
+
+  <!-- ===== COVER ===== -->
+  <div style="position:relative;overflow:hidden;background:#0C140F;color:#fff;padding:90px 80px 80px;">
+    <div style="position:absolute;top:-220px;right:-160px;width:680px;height:680px;border-radius:50%;background:radial-gradient(circle at 50% 50%, rgba(53,232,52,.22), rgba(54,215,237,.10) 45%, transparent 70%);"></div>
+    <div style="position:absolute;bottom:-260px;left:-160px;width:560px;height:560px;border-radius:50%;background:radial-gradient(circle at 50% 50%, rgba(208,245,107,.16), transparent 66%);"></div>
+    <div style="position:relative;z-index:2;max-width:1280px;margin:0 auto;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:90px;">
+        <img src="assets/logo-white.svg" alt="Clientforce Ai" style="height:44px;width:auto;">
+        <div style="font-family:'Hanken Grotesk',sans-serif;font-weight:700;font-size:15px;letter-spacing:.18em;text-transform:uppercase;color:#7FE8A0;">Product Brand Guide · v1</div>
+      </div>
+      <div style="display:inline-flex;align-items:center;gap:10px;padding:9px 18px;border-radius:100px;background:rgba(255,255,255,.08);font-weight:600;font-size:15px;margin-bottom:30px;">🌱 Direction E — Approachable &amp; Human</div>
+      <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:84px;line-height:.98;letter-spacing:-.03em;margin-bottom:24px;max-width:1000px;">A friendly system<br>for serious software.</div>
+      <p style="font-size:25px;line-height:1.5;color:rgba(255,255,255,.74);max-width:760px;margin:0;">How the ClientForce SaaS looks, feels and behaves — type, color, components and screens that stay warm, human and trustworthy.</p>
+    </div>
+  </div>
+
+  <!-- ===== BODY ===== -->
+  <div style="max-width:1280px;margin:0 auto;padding:80px 80px 110px;">
+
+    <!-- LOGO -->
+    <div style="margin-bottom:30px;font-family:'Hanken Grotesk',sans-serif;font-size:14px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#16A82A;">01 — Logo</div>
+    <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:28px;margin-bottom:80px;">
+      <div style="background:#fff;border:1px solid #EBE3D6;border-radius:22px;padding:48px;box-shadow:0 6px 24px rgba(14,21,18,.05);display:flex;align-items:center;justify-content:center;min-height:200px;">
+        <img src="assets/logo-dark.svg" alt="Clientforce Ai" style="height:60px;width:auto;">
+      </div>
+      <div style="background:#0C140F;border-radius:22px;padding:48px;display:flex;align-items:center;justify-content:center;min-height:200px;">
+        <img src="assets/logo-white.svg" alt="Clientforce Ai" style="height:60px;width:auto;">
+      </div>
+      <div style="background:#fff;border:1px solid #EBE3D6;border-radius:22px;padding:36px;box-shadow:0 6px 24px rgba(14,21,18,.05);display:flex;align-items:center;gap:24px;">
+        <img src="assets/mark.svg" alt="mark" style="height:64px;width:64px;">
+        <div>
+          <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:22px;letter-spacing:-.01em;">The mark</div>
+          <div style="font-size:16px;color:#5C6B62;line-height:1.5;">App icon &amp; favicon. Min size 24px. Keep clear space ≥ the bubble height.</div>
+        </div>
+      </div>
+      <div style="background:linear-gradient(135deg, #36D7ED 0%, #35E834 55%, #D0F56B 100%);border-radius:22px;padding:36px;display:flex;align-items:center;justify-content:center;">
+        <img src="assets/logo-dark.svg" alt="Clientforce Ai" style="height:48px;width:auto;">
+      </div>
+    </div>
+
+    <!-- COLOR + TYPE quick ref -->
+    <div style="margin-bottom:30px;font-family:'Hanken Grotesk',sans-serif;font-size:14px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#16A82A;">02 — Color &amp; Type</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-bottom:80px;">
+      <div style="background:#fff;border:1px solid #EBE3D6;border-radius:22px;padding:40px;box-shadow:0 6px 24px rgba(14,21,18,.05);">
+        <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:24px;margin-bottom:20px;letter-spacing:-.01em;">Palette</div>
+        <div style="height:54px;border-radius:14px;background:linear-gradient(135deg, #36D7ED 0%, #35E834 55%, #D0F56B 100%);margin-bottom:16px;"></div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">
+          <sc-for list="{{ swatches }}" as="c" hint-placeholder-count="8">
+            <div>
+              <div style="height:48px;border-radius:12px;border:1px solid #EBE3D6;background:{{ c.hex }};"></div>
+              <div style="font-size:12px;font-weight:600;margin-top:6px;">{{ c.name }}</div>
+              <div style="font-size:11px;color:#5C6B62;">{{ c.hex }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      <div style="background:#fff;border:1px solid #EBE3D6;border-radius:22px;padding:40px;box-shadow:0 6px 24px rgba(14,21,18,.05);">
+        <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:24px;margin-bottom:20px;letter-spacing:-.01em;">Type</div>
+        <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:44px;line-height:1;letter-spacing:-.025em;margin-bottom:4px;">Bricolage Grotesque</div>
+        <div style="font-size:15px;color:#5C6B62;margin-bottom:24px;">Display &amp; headings · 500–800</div>
+        <div style="font-family:'Hanken Grotesk',sans-serif;font-weight:600;font-size:30px;margin-bottom:4px;">Hanken Grotesk</div>
+        <div style="font-size:15px;color:#5C6B62;">Body, UI &amp; labels · 400–700</div>
+      </div>
+    </div>
+
+    <!-- BUTTONS -->
+    <div style="margin-bottom:30px;font-family:'Hanken Grotesk',sans-serif;font-size:14px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#16A82A;">03 — Buttons</div>
+    <div style="background:#fff;border:1px solid #EBE3D6;border-radius:22px;padding:44px;box-shadow:0 6px 24px rgba(14,21,18,.05);margin-bottom:36px;">
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:18px;margin-bottom:30px;">
+        <button style="font-family:'Hanken Grotesk',sans-serif;font-weight:700;font-size:17px;color:#0A0F0C;background:linear-gradient(135deg, #36D7ED 0%, #35E834 55%, #D0F56B 100%);border:none;border-radius:12px;padding:15px 28px;cursor:pointer;box-shadow:0 6px 18px rgba(53,232,52,.28);">Start a campaign</button>
+        <button style="font-family:'Hanken Grotesk',sans-serif;font-weight:700;font-size:17px;color:#0E1512;background:#0E1512;color:#fff;border:none;border-radius:12px;padding:15px 28px;cursor:pointer;">Add prospects</button>
+        <button style="font-family:'Hanken Grotesk',sans-serif;font-weight:600;font-size:17px;color:#0E1512;background:#fff;border:1.5px solid #DAD3C5;border-radius:12px;padding:14px 26px;cursor:pointer;">Secondary</button>
+        <button style="font-family:'Hanken Grotesk',sans-serif;font-weight:600;font-size:17px;color:#16A82A;background:rgba(22,168,42,.1);border:none;border-radius:12px;padding:15px 26px;cursor:pointer;">Ghost / soft</button>
+        <button style="font-family:'Hanken Grotesk',sans-serif;font-weight:600;font-size:17px;color:#9AA59E;background:#F2EEE4;border:none;border-radius:12px;padding:15px 26px;cursor:not-allowed;">Disabled</button>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:18px;">
+        <button style="font-family:'Hanken Grotesk',sans-serif;font-weight:700;font-size:14px;color:#0A0F0C;background:linear-gradient(135deg, #36D7ED 0%, #35E834 55%, #D0F56B 100%);border:none;border-radius:10px;padding:10px 18px;cursor:pointer;">Small</button>
+        <button style="font-family:'Hanken Grotesk',sans-serif;font-weight:700;font-size:19px;color:#0A0F0C;background:linear-gradient(135deg, #36D7ED 0%, #35E834 55%, #D0F56B 100%);border:none;border-radius:14px;padding:18px 34px;cursor:pointer;box-shadow:0 6px 18px rgba(53,232,52,.28);">Large CTA →</button>
+        <span style="font-size:15px;color:#5C6B62;">Pills 10–14px radius · gradient reserved for the single primary action per view.</span>
+      </div>
+    </div>
+
+    <!-- FORM ELEMENTS -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-bottom:80px;">
+      <div style="background:#fff;border:1px solid #EBE3D6;border-radius:22px;padding:40px;box-shadow:0 6px 24px rgba(14,21,18,.05);">
+        <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:22px;margin-bottom:22px;letter-spacing:-.01em;">Form inputs</div>
+        <label style="display:block;font-size:14px;font-weight:600;color:#5C6B62;margin-bottom:8px;">Campaign name</label>
+        <div style="display:flex;align-items:center;border:1.5px solid #16A82A;border-radius:12px;padding:14px 16px;background:#fff;margin-bottom:20px;box-shadow:0 0 0 4px rgba(22,168,42,.1);">
+          <span style="flex:1;font-size:17px;">Q3 Reactivation</span>
+          <span style="width:9px;height:18px;background:#16A82A;border-radius:1px;"></span>
+        </div>
+        <label style="display:block;font-size:14px;font-weight:600;color:#5C6B62;margin-bottom:8px;">Goal</label>
+        <div style="display:flex;align-items:center;justify-content:space-between;border:1.5px solid #DAD3C5;border-radius:12px;padding:14px 16px;background:#fff;margin-bottom:24px;">
+          <span style="font-size:17px;color:#5C6B62;">Book a call</span>
+          <span style="color:#9AA59E;">▾</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px;">
+          <div style="width:52px;height:30px;border-radius:100px;background:#35E834;position:relative;flex:none;"><div style="position:absolute;top:3px;right:3px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);"></div></div>
+          <span style="font-size:17px;">Auto-follow-up enabled</span>
+        </div>
+      </div>
+      <div style="background:#fff;border:1px solid #EBE3D6;border-radius:22px;padding:40px;box-shadow:0 6px 24px rgba(14,21,18,.05);">
+        <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:22px;margin-bottom:22px;letter-spacing:-.01em;">Badges &amp; status</div>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:24px;">
+          <sc-for list="{{ badges }}" as="b" hint-placeholder-count="4">
+            <span style="display:inline-flex;align-items:center;gap:7px;padding:7px 14px;border-radius:100px;background:{{ b.bg }};color:{{ b.fg }};font-weight:600;font-size:15px;"><span style="width:8px;height:8px;border-radius:50%;background:{{ b.dot }};"></span>{{ b.label }}</span>
+          </sc-for>
+        </div>
+        <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:22px;margin:8px 0 18px;letter-spacing:-.01em;">Avatars &amp; chips</div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+          <sc-for list="{{ avatars }}" as="a" hint-placeholder-count="4">
+            <div style="width:42px;height:42px;border-radius:50%;background:{{ a.bg }};color:#0A0F0C;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;border:2px solid #fff;">{{ a.i }}</div>
+          </sc-for>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;">
+          <sc-for list="{{ chips }}" as="ch" hint-placeholder-count="4">
+            <span style="padding:8px 16px;border-radius:100px;background:#F2EEE4;color:#16A82A;font-weight:600;font-size:15px;">{{ ch }}</span>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+
+    <!-- DASHBOARD MOCKUP -->
+    <div style="margin-bottom:30px;font-family:'Hanken Grotesk',sans-serif;font-size:14px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#16A82A;">04 — Product UI · Dashboard</div>
+    <div style="border-radius:24px;overflow:hidden;border:1px solid #EBE3D6;box-shadow:0 20px 60px rgba(14,21,18,.12);background:#fff;">
+      <!-- window bar -->
+      <div style="display:flex;align-items:center;gap:8px;padding:14px 18px;background:#F2EEE4;border-bottom:1px solid #EBE3D6;">
+        <span style="width:12px;height:12px;border-radius:50%;background:#E0796B;"></span>
+        <span style="width:12px;height:12px;border-radius:50%;background:#E8C45B;"></span>
+        <span style="width:12px;height:12px;border-radius:50%;background:#7FCB6B;"></span>
+        <span style="margin-left:14px;font-size:13px;color:#9AA59E;font-family:'Hanken Grotesk',sans-serif;">app.clientforce.ai/dashboard</span>
+      </div>
+      <div style="display:flex;min-height:560px;">
+        <!-- sidebar -->
+        <div style="width:230px;flex:none;background:#0C140F;color:#fff;padding:24px 18px;display:flex;flex-direction:column;">
+          <div style="display:flex;align-items:center;gap:10px;padding:6px 8px;margin-bottom:28px;">
+            <img src="assets/mark.svg" alt="" style="width:30px;height:30px;">
+            <span style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:19px;">Clientforce</span>
+          </div>
+          <sc-for list="{{ nav }}" as="n" hint-placeholder-count="6">
+            <div style="display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:12px;margin-bottom:4px;font-size:15px;font-weight:{{ n.weight }};color:{{ n.color }};background:{{ n.bg }};">
+              <span style="font-size:17px;">{{ n.icon }}</span>{{ n.label }}
+            </div>
+          </sc-for>
+          <div style="margin-top:auto;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.05);">
+            <div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#36D7ED,#35E834);color:#0A0F0C;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;">JM</div>
+            <div style="line-height:1.2;"><div style="font-size:14px;font-weight:600;">Jordan M.</div><div style="font-size:12px;color:rgba(255,255,255,.5);">Agency owner</div></div>
+          </div>
+        </div>
+        <!-- main -->
+        <div style="flex:1;background:#FBF7F0;padding:30px 34px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:26px;">
+            <div>
+              <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:30px;letter-spacing:-.02em;">Good morning, Jordan 👋</div>
+              <div style="font-size:16px;color:#5C6B62;">Here's how your pipeline is moving today.</div>
+            </div>
+            <button style="font-family:'Hanken Grotesk',sans-serif;font-weight:700;font-size:15px;color:#0A0F0C;background:linear-gradient(135deg, #36D7ED 0%, #35E834 55%, #D0F56B 100%);border:none;border-radius:12px;padding:12px 22px;cursor:pointer;box-shadow:0 6px 16px rgba(53,232,52,.26);">+ New campaign</button>
+          </div>
+          <!-- stat tiles -->
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;">
+            <sc-for list="{{ stats }}" as="s" hint-placeholder-count="4">
+              <div style="background:#fff;border:1px solid #EBE3D6;border-radius:18px;padding:22px;">
+                <div style="font-size:14px;color:#5C6B62;font-weight:600;margin-bottom:10px;">{{ s.label }}</div>
+                <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:36px;letter-spacing:-.02em;line-height:1;">{{ s.value }}</div>
+                <div style="font-size:14px;font-weight:600;color:#16A82A;margin-top:8px;">{{ s.delta }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <!-- table + funnel -->
+          <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:16px;">
+            <div style="background:#fff;border:1px solid #EBE3D6;border-radius:18px;padding:24px;">
+              <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:19px;margin-bottom:16px;letter-spacing:-.01em;">Active campaigns</div>
+              <sc-for list="{{ rows }}" as="r" hint-placeholder-count="4">
+                <div style="display:flex;align-items:center;gap:14px;padding:12px 0;border-top:1px solid #F2EEE4;">
+                  <div style="width:38px;height:38px;border-radius:11px;background:{{ r.bg }};display:flex;align-items:center;justify-content:center;font-size:17px;flex:none;">{{ r.icon }}</div>
+                  <div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:16px;">{{ r.name }}</div><div style="font-size:13px;color:#9AA59E;">{{ r.meta }}</div></div>
+                  <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:18px;">{{ r.count }}</div>
+                  <span style="padding:5px 12px;border-radius:100px;background:{{ r.sbg }};color:{{ r.sfg }};font-weight:600;font-size:13px;">{{ r.status }}</span>
+                </div>
+              </sc-for>
+            </div>
+            <div style="background:#fff;border:1px solid #EBE3D6;border-radius:18px;padding:24px;">
+              <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:19px;margin-bottom:18px;letter-spacing:-.01em;">Pipeline</div>
+              <sc-for list="{{ funnel }}" as="f" hint-placeholder-count="4">
+                <div style="margin-bottom:14px;">
+                  <div style="display:flex;justify-content:space-between;font-size:14px;margin-bottom:6px;"><span style="color:#5C6B62;font-weight:600;">{{ f.label }}</span><span style="font-weight:700;">{{ f.n }}</span></div>
+                  <div style="height:12px;border-radius:100px;background:#F2EEE4;overflow:hidden;"><div style="height:100%;width:{{ f.w }};border-radius:100px;background:linear-gradient(90deg,#36D7ED,#35E834);"></div></div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p style="font-size:15px;color:#5C6B62;margin:18px 0 0;text-align:center;">App shell · sidebar #0C140F · cream canvas #FBF7F0 · cards #fff with 18–22px radius · gradient only on the single primary action.</p>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      swatches: [
+        { name: 'Cyan', hex: '#36D7ED' },
+        { name: 'Green', hex: '#35E834' },
+        { name: 'Lime', hex: '#D0F56B' },
+        { name: 'Green UI', hex: '#16A82A' },
+        { name: 'Ink', hex: '#0E1512' },
+        { name: 'Muted', hex: '#5C6B62' },
+        { name: 'Cream', hex: '#FBF7F0' },
+        { name: 'Sand', hex: '#F2EEE4' },
+      ],
+      badges: [
+        { label: 'Active', bg: 'rgba(22,168,42,.12)', fg: '#16A82A', dot: '#35E834' },
+        { label: 'Scheduled', bg: 'rgba(54,215,237,.14)', fg: '#1192A6', dot: '#36D7ED' },
+        { label: 'Paused', bg: '#F2EEE4', fg: '#8A7F6B', dot: '#C9BEA6' },
+        { label: 'Needs reply', bg: 'rgba(224,121,107,.14)', fg: '#C0533F', dot: '#E0796B' },
+      ],
+      avatars: [
+        { i: 'JM', bg: '#D0F56B' },
+        { i: 'AR', bg: '#36D7ED' },
+        { i: 'SK', bg: '#35E834' },
+        { i: 'TL', bg: '#7FE8A0' },
+      ],
+      chips: ['Lead Finder', 'Campaigns', 'Follow-up', 'Pipeline'],
+      nav: [
+        { label: 'Dashboard', icon: '◈', weight: 700, color: '#0A0F0C', bg: 'linear-gradient(135deg,#36D7ED,#35E834)' },
+        { label: 'Lead Finder', icon: '⚲', weight: 500, color: 'rgba(255,255,255,.8)', bg: 'transparent' },
+        { label: 'Campaigns', icon: '◎', weight: 500, color: 'rgba(255,255,255,.8)', bg: 'transparent' },
+        { label: 'Pipeline', icon: '▤', weight: 500, color: 'rgba(255,255,255,.8)', bg: 'transparent' },
+        { label: 'Contacts', icon: '☺', weight: 500, color: 'rgba(255,255,255,.8)', bg: 'transparent' },
+        { label: 'Settings', icon: '⚙', weight: 500, color: 'rgba(255,255,255,.8)', bg: 'transparent' },
+      ],
+      stats: [
+        { label: 'New prospects', value: '248', delta: '↑ 12% this week' },
+        { label: 'Active campaigns', value: '9', delta: '↑ 2 new' },
+        { label: 'Replies', value: '63', delta: '↑ 18% reply rate' },
+        { label: 'Booked calls', value: '17', delta: '↑ 5 vs last week' },
+      ],
+      rows: [
+        { name: 'Q3 Reactivation', meta: 'Outbound · 420 contacts', count: '420', status: 'Active', bg: 'rgba(53,232,52,.14)', icon: '🌱', sbg: 'rgba(22,168,42,.12)', sfg: '#16A82A' },
+        { name: 'Dental clinics — local', meta: 'Lead Finder · 180 contacts', count: '180', status: 'Active', bg: 'rgba(54,215,237,.14)', icon: '🦷', sbg: 'rgba(22,168,42,.12)', sfg: '#16A82A' },
+        { name: 'Webinar follow-up', meta: 'Follow-up · 96 contacts', count: '96', status: 'Scheduled', bg: 'rgba(208,245,107,.3)', icon: '🎥', sbg: 'rgba(54,215,237,.14)', sfg: '#1192A6' },
+        { name: 'Cold list — agencies', meta: 'Outbound · 312 contacts', count: '312', status: 'Paused', bg: '#F2EEE4', icon: '🏢', sbg: '#F2EEE4', sfg: '#8A7F6B' },
+      ],
+      funnel: [
+        { label: 'Contacted', n: '1,008', w: '100%' },
+        { label: 'Opened', n: '642', w: '64%' },
+        { label: 'Replied', n: '210', w: '34%' },
+        { label: 'Booked', n: '54', w: '14%' },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

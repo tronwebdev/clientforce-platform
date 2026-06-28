@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+@keyframes slideIn{from{opacity:0;transform:translateX(10px)}to{opacity:1;transform:translateX(0)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+body{margin:0;padding:0;font-family:'IBM Plex Sans',sans-serif;}
+*{box-sizing:border-box;}
+button{font-family:'IBM Plex Sans',sans-serif;cursor:pointer;}
+input{font-family:'IBM Plex Sans',sans-serif;}
+</style>
+</helmet>
+
+<div style="min-width:100%;min-height:100vh;background:#e7e5df;padding:48px;box-sizing:border-box;width:max-content;">
+
+  <div style="margin-bottom:36px;">
+    <div style="font-family:'Sora',sans-serif;font-size:22px;font-weight:800;color:#0E1512;margin-bottom:5px;">Extension states</div>
+    <div style="font-size:13px;color:#5C6B62;">Six sequential states — fresh install through batch capture from search results.</div>
+  </div>
+
+  <div style="display:flex;gap:44px;align-items:flex-start;">
+
+    <!-- ══ STATE 1 · SIGN IN ══ -->
+    <div style="flex:none;width:340px;" data-screen-label="State 1 – Sign In">
+      <div style="font-size:10.5px;font-weight:700;color:#5C6B62;letter-spacing:.08em;text-transform:uppercase;margin-bottom:11px;padding-bottom:8px;border-bottom:1px solid #ccc;">State 1 · Fresh install · Sign in</div>
+      <div style="width:340px;border-radius:14px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.18),0 2px 8px rgba(0,0,0,.08);">
+        <!-- Header -->
+        <div style="background:#0C140F;padding:13px 16px;display:flex;align-items:center;gap:9px;">
+          <div style="width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,#36D7ED,#35E834);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#0C140F;font-family:'Sora',sans-serif;flex:none;">f</div>
+          <span style="font-family:'Sora',sans-serif;font-size:13.5px;font-weight:700;color:#fff;flex:1;">Clientforce</span>
+          <span style="font-size:10px;padding:2px 9px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:999px;color:rgba(255,255,255,.38);">Not connected</span>
+        </div>
+        <!-- Body -->
+        <div style="background:#fff;padding:28px 22px 22px;">
+          <div style="text-align:center;margin-bottom:24px;">
+            <div style="width:58px;height:58px;border-radius:16px;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:800;color:#0C140F;font-family:'Sora',sans-serif;margin:0 auto 14px;box-shadow:0 4px 18px rgba(53,232,52,.28);">f</div>
+            <div style="font-family:'Sora',sans-serif;font-size:18px;font-weight:700;color:#0E1512;margin-bottom:5px;">Sign in to Clientforce</div>
+            <div style="font-size:12.5px;color:#5C6B62;line-height:1.65;max-width:230px;margin:0 auto;">Capture leads from LinkedIn and any website, directly in your browser.</div>
+          </div>
+          <!-- Google SSO -->
+          <button style="width:100%;padding:10px 14px;background:#fff;border:1.5px solid #E4EAE6;border-radius:9px;display:flex;align-items:center;justify-content:center;gap:9px;font-size:13px;font-weight:600;color:#0E1512;margin-bottom:15px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57C21.36 18.3 22.56 15.48 22.56 12.25z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+            Continue with Google
+          </button>
+          <!-- Divider -->
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:15px;">
+            <div style="flex:1;height:1px;background:#E4EAE6;"></div>
+            <span style="font-size:11px;color:#9AACA1;">or sign in with email</span>
+            <div style="flex:1;height:1px;background:#E4EAE6;"></div>
+          </div>
+          <!-- Email -->
+          <div style="margin-bottom:9px;">
+            <label style="display:block;font-size:11.5px;font-weight:600;color:#5C6B62;margin-bottom:5px;">Work email</label>
+            <input type="email" placeholder="you@company.com" style="width:100%;padding:9px 12px;border:1.5px solid #E4EAE6;border-radius:8px;font-size:13px;color:#0E1512;outline:none;background:#FAFBFA;" />
+          </div>
+          <!-- Password -->
+          <div style="margin-bottom:16px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
+              <label style="font-size:11.5px;font-weight:600;color:#5C6B62;">Password</label>
+              <span style="font-size:11.5px;color:#16A82A;font-weight:500;cursor:pointer;">Forgot?</span>
+            </div>
+            <input type="password" placeholder="••••••••" style="width:100%;padding:9px 12px;border:1.5px solid #E4EAE6;border-radius:8px;font-size:13px;color:#0E1512;outline:none;background:#FAFBFA;" />
+          </div>
+          <button style="width:100%;padding:11px;background:linear-gradient(135deg,#36D7ED,#35E834);border:none;border-radius:9px;font-size:13.5px;font-weight:700;color:#0C140F;margin-bottom:13px;">Sign in →</button>
+          <div style="text-align:center;font-size:12px;color:#5C6B62;">No account? <span style="color:#16A82A;font-weight:600;cursor:pointer;">Start free</span></div>
+        </div>
+        <!-- Trust bar -->
+        <div style="background:#F7F9F8;border-top:1px solid #E4EAE6;padding:9px 16px;display:flex;align-items:center;justify-content:center;gap:14px;">
+          <span style="font-size:10.5px;color:#9AACA1;">🔒 SOC 2</span>
+          <span style="font-size:10.5px;color:#D4DAD6;">·</span>
+          <span style="font-size:10.5px;color:#9AACA1;">2,400+ teams</span>
+          <span style="font-size:10.5px;color:#D4DAD6;">·</span>
+          <span style="font-size:10.5px;color:#9AACA1;">Free to start</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ STATE 2 · IDLE + LINKEDIN SEARCH ══ -->
+    <div style="flex:none;width:340px;" data-screen-label="State 2 – Idle">
+      <div style="font-size:10.5px;font-weight:700;color:#5C6B62;letter-spacing:.08em;text-transform:uppercase;margin-bottom:11px;padding-bottom:8px;border-bottom:1px solid #ccc;">State 2 · Connected · Idle + search</div>
+      <div style="width:340px;border-radius:14px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.18),0 2px 8px rgba(0,0,0,.08);">
+        <!-- Header -->
+        <div style="background:#0C140F;padding:13px 16px;display:flex;align-items:center;gap:9px;">
+          <div style="width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,#36D7ED,#35E834);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#0C140F;font-family:'Sora',sans-serif;flex:none;">f</div>
+          <span style="font-family:'Sora',sans-serif;font-size:13.5px;font-weight:700;color:#fff;flex:1;">Clientforce</span>
+          <div style="display:flex;align-items:center;gap:5px;padding:3px 9px;background:rgba(53,232,52,.12);border:1px solid rgba(53,232,52,.2);border-radius:999px;">
+            <span style="width:5px;height:5px;background:#35E834;border-radius:50%;"></span>
+            <span style="font-size:10.5px;color:#35E834;font-weight:600;">Connected</span>
+          </div>
+          <span style="font-size:15px;color:rgba(255,255,255,.28);margin-left:6px;cursor:pointer;">⚙</span>
+        </div>
+        <!-- Workspace -->
+        <div style="background:#F7F9F8;border-bottom:1px solid #E4EAE6;padding:8px 14px;display:flex;align-items:center;gap:8px;">
+          <div style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,#36D7ED,#35E834);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#0C140F;flex:none;">W</div>
+          <span style="font-size:12.5px;color:#0E1512;font-weight:500;flex:1;">Jordan Mensah · Workspace</span>
+          <span style="font-size:11.5px;color:#5C6B62;cursor:pointer;">switch ⌄</span>
+        </div>
+        <!-- Body -->
+        <div style="background:#fff;padding:16px 16px 14px;">
+          <!-- Greeting -->
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+            <div>
+              <div style="font-family:'Sora',sans-serif;font-size:14.5px;font-weight:700;color:#0E1512;">Good morning, Jordan</div>
+              <div style="font-size:11.5px;color:#9AACA1;margin-top:2px;">48 leads captured this month</div>
+            </div>
+            <div style="background:#EAF6EC;border:1px solid #C8E8CC;border-radius:10px;padding:7px 12px;text-align:center;">
+              <div style="font-family:'Sora',sans-serif;font-size:20px;font-weight:800;color:#16A82A;line-height:1;">48</div>
+              <div style="font-size:9px;color:#5C6B62;letter-spacing:.04em;margin-top:1px;">LEADS</div>
+            </div>
+          </div>
+
+          <!-- ★ LinkedIn search trigger ★ -->
+          <div style="background:#EBF4FF;border:1.5px solid #CBE0F5;border-radius:10px;padding:12px 14px;margin-bottom:14px;">
+            <div style="font-size:10.5px;font-weight:700;color:#1A5EA8;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;display:flex;align-items:center;gap:5px;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="#1A5EA8"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+              Search LinkedIn
+            </div>
+            <div style="display:flex;gap:6px;">
+              <input type="text" placeholder="Name, title, or company…" style="flex:1;padding:8px 11px;border:1.5px solid #CBE0F5;border-radius:7px;font-size:12.5px;color:#0E1512;background:#fff;outline:none;" />
+              <button style="padding:8px 12px;background:#0A66C2;border:none;border-radius:7px;font-size:12px;font-weight:600;color:#fff;white-space:nowrap;flex:none;">Find →</button>
+            </div>
+            <div style="margin-top:7px;font-size:11px;color:#5C6B62;line-height:1.5;">Opens a LinkedIn people search — Clientforce activates on any profile you visit from results.</div>
+          </div>
+
+          <!-- Navigate prompt -->
+          <div style="background:#F7F9F8;border:1.5px dashed #D5E3D8;border-radius:9px;padding:12px 14px;text-align:center;margin-bottom:14px;">
+            <div style="font-size:22px;margin-bottom:6px;">🔍</div>
+            <div style="font-size:13px;font-weight:600;color:#0E1512;margin-bottom:3px;">Or navigate to any profile</div>
+            <div style="font-size:11.5px;color:#5C6B62;line-height:1.6;">Visit a person's profile on LinkedIn, a company site, or any directory — the icon will activate automatically.</div>
+          </div>
+
+          <!-- Recent captures -->
+          <div>
+            <div style="font-size:10.5px;font-weight:700;color:#5C6B62;text-transform:uppercase;letter-spacing:.07em;margin-bottom:7px;">Recent</div>
+            <div style="display:flex;flex-direction:column;gap:5px;">
+              <div style="display:flex;align-items:center;gap:9px;padding:8px 10px;background:#F7F9F8;border-radius:8px;">
+                <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#36D7ED,#35E834);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#0C140F;flex:none;">SC</div>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:12.5px;font-weight:600;color:#0E1512;">Sarah Chen</div>
+                  <div style="font-size:11px;color:#9AACA1;">linkedin.com · 2 h ago</div>
+                </div>
+                <span style="font-size:10px;padding:2px 7px;background:#EAF6EC;color:#16A82A;border-radius:4px;font-weight:700;">Saved</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:9px;padding:8px 10px;background:#F7F9F8;border-radius:8px;">
+                <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#D97757,#E8B84B);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#fff;flex:none;">AR</div>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:12.5px;font-weight:600;color:#0E1512;">Alex Reyes</div>
+                  <div style="font-size:11px;color:#9AACA1;">clutch.co · yesterday</div>
+                </div>
+                <span style="font-size:10px;padding:2px 7px;background:#EAF6EC;color:#16A82A;border-radius:4px;font-weight:700;">Saved</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Footer -->
+        <div style="background:#fff;padding:9px 14px;border-top:1px solid #E4EAE6;display:flex;align-items:center;justify-content:space-between;">
+          <span style="font-size:11px;color:#9AACA1;">Jordan Mensah · Workspace</span>
+          <span style="font-size:11.5px;color:#16A82A;font-weight:600;cursor:pointer;">View CRM →</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ STATE 3 · PROFILE DETECTED (POPUP) ══ -->
+    <div style="flex:none;width:360px;" data-screen-label="State 3 – Profile Detected">
+      <div style="font-size:10.5px;font-weight:700;color:#5C6B62;letter-spacing:.08em;text-transform:uppercase;margin-bottom:11px;padding-bottom:8px;border-bottom:1px solid #ccc;">State 3 · Active popup · Profile detected</div>
+      <div style="width:360px;border-radius:14px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.18),0 2px 8px rgba(0,0,0,.08);">
+        <!-- Header -->
+        <div style="background:#0C140F;padding:13px 16px;display:flex;align-items:center;gap:9px;">
+          <div style="width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,#36D7ED,#35E834);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#0C140F;font-family:'Sora',sans-serif;flex:none;">f</div>
+          <span style="font-family:'Sora',sans-serif;font-size:13.5px;font-weight:700;color:#fff;flex:1;">Clientforce</span>
+          <div style="display:flex;align-items:center;gap:5px;padding:3px 9px;background:rgba(53,232,52,.12);border:1px solid rgba(53,232,52,.2);border-radius:999px;">
+            <span style="width:5px;height:5px;background:#35E834;border-radius:50%;"></span>
+            <span style="font-size:10.5px;color:#35E834;font-weight:600;">Connected</span>
+          </div>
+          <span style="font-size:15px;color:rgba(255,255,255,.28);margin-left:6px;cursor:pointer;">⚙</span>
+        </div>
+        <!-- Detection banner -->
+        <div style="background:#EBF4FF;padding:9px 14px;display:flex;align-items:center;gap:9px;border-bottom:1px solid #CBE0F5;">
+          <div style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#36D7ED,#0A66C2);flex:none;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;">SC</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:12.5px;font-weight:600;color:#0E1512;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Sarah Chen — linkedin.com/in/sarah-chen</div>
+            <div style="font-size:11px;color:#5C6B62;">Profile detected · Not yet in your CRM</div>
+          </div>
+          <span style="font-size:10px;padding:2px 7px;background:#EAF6EC;color:#16A82A;border-radius:5px;font-weight:700;flex:none;">New</span>
+        </div>
+        <!-- Body -->
+        <div style="background:#fff;padding:14px 16px 12px;">
+          <!-- Avatar + name -->
+          <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:14px;">
+            <div style="width:50px;height:50px;border-radius:50%;background:linear-gradient(135deg,#36D7ED,#0A66C2);flex:none;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700;color:#fff;box-shadow:0 2px 10px rgba(54,215,237,.3);">SC</div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:16px;font-weight:700;color:#0E1512;margin-bottom:2px;">Sarah Chen</div>
+              <div style="font-size:12.5px;color:#5C6B62;margin-bottom:6px;">Marketing Director · TechCorp</div>
+              <div style="display:flex;gap:4px;flex-wrap:wrap;">
+                <span style="font-size:10.5px;padding:2px 8px;background:#F0F2F1;border-radius:4px;color:#5C6B62;">SaaS</span>
+                <span style="font-size:10.5px;padding:2px 8px;background:#F0F2F1;border-radius:4px;color:#5C6B62;">San Francisco</span>
+                <span style="font-size:10.5px;padding:2px 8px;background:#F0F2F1;border-radius:4px;color:#5C6B62;">201–500 emp.</span>
+              </div>
+            </div>
+          </div>
+          <!-- Enrichment -->
+          <div style="background:#F7F9F8;border:1px solid #E4EAE6;border-radius:9px;padding:10px 12px;margin-bottom:12px;">
+            <div style="font-size:10px;font-weight:700;color:#5C6B62;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">Enriched data</div>
+            <div style="display:flex;flex-direction:column;gap:6px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <span style="font-size:11.5px;color:#9AACA1;">Email</span>
+                <div style="display:flex;align-items:center;gap:5px;"><span style="font-size:12.5px;color:#0E1512;font-weight:500;">sarah@techcorp.io</span><span style="font-size:11px;color:#16A82A;font-weight:700;">✓</span></div>
+              </div>
+              <div style="height:1px;background:#EEF0EE;"></div>
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <span style="font-size:11.5px;color:#9AACA1;">Phone</span>
+                <span style="font-size:12.5px;color:#0E1512;font-weight:500;">+1 415 555 0192</span>
+              </div>
+              <div style="height:1px;background:#EEF0EE;"></div>
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <span style="font-size:11.5px;color:#9AACA1;">Funding</span>
+                <span style="font-size:12.5px;color:#0E1512;font-weight:500;">Series B · $24M raised</span>
+              </div>
+            </div>
+          </div>
+          <!-- Campaign -->
+          <div style="margin-bottom:11px;">
+            <div style="font-size:10px;font-weight:700;color:#5C6B62;text-transform:uppercase;letter-spacing:.07em;margin-bottom:7px;">Add to campaign</div>
+            <div style="display:flex;gap:5px;flex-wrap:wrap;">
+              <sc-for list="{{ campaigns }}" as="cp" hint-placeholder-count="3">
+                <div onClick="{{ cp.onSelect }}" style="padding:5px 11px;border-radius:7px;border:1.5px solid {{ cp.border }};background:{{ cp.bg }};font-size:11.5px;font-weight:600;color:{{ cp.color }};cursor:pointer;white-space:nowrap;">{{ cp.name }}</div>
+              </sc-for>
+            </div>
+          </div>
+          <!-- Note -->
+          <div style="margin-bottom:14px;">
+            <div style="font-size:10px;font-weight:700;color:#5C6B62;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">Quick note</div>
+            <div style="padding:9px 11px;border:1.5px solid #E4EAE6;border-radius:8px;font-size:12.5px;color:#5C6B62;background:#FAFBFA;line-height:1.5;">Met at SaaStr 2025 — ask about Q3 budget</div>
+          </div>
+          <!-- CTAs -->
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <button style="width:100%;padding:11px;background:linear-gradient(135deg,#36D7ED,#35E834);border:none;border-radius:9px;font-size:13.5px;font-weight:700;color:#0C140F;">⚡ Save to Clientforce</button>
+            <div style="display:flex;gap:6px;">
+              <button style="flex:1;padding:8px;background:#EAF6EC;border:1.5px solid #C8E8CC;border-radius:8px;font-size:12px;font-weight:600;color:#16A82A;">+ Campaign</button>
+              <button style="flex:1;padding:8px;background:#F7F9F8;border:1.5px solid #E4EAE6;border-radius:8px;font-size:12px;font-weight:600;color:#0E1512;">✉ Draft</button>
+              <button style="flex:1;padding:8px;background:#F7F9F8;border:1.5px solid #E4EAE6;border-radius:8px;font-size:12px;font-weight:600;color:#0E1512;">📋 List</button>
+            </div>
+          </div>
+        </div>
+        <!-- Footer -->
+        <div style="background:#fff;padding:9px 14px;border-top:1px solid #E4EAE6;display:flex;align-items:center;justify-content:space-between;">
+          <span style="font-size:11px;color:#9AACA1;">Jordan Mensah · Workspace</span>
+          <span style="font-size:11px;color:#16A82A;font-weight:600;">● Enrichment active</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ STATE 4 · LINKEDIN PROFILE PAGE OVERLAY ══ -->
+    <div style="flex:none;width:880px;" data-screen-label="State 4 – Page Overlay">
+      <div style="font-size:10.5px;font-weight:700;color:#5C6B62;letter-spacing:.08em;text-transform:uppercase;margin-bottom:11px;padding-bottom:8px;border-bottom:1px solid #ccc;">State 4 · LinkedIn profile page · Injected sidebar</div>
+      <div style="border-radius:14px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.18),0 2px 8px rgba(0,0,0,.08);">
+        <!-- Browser chrome -->
+        <div style="background:#F1F3F4;padding:9px 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #E0E0E0;">
+          <div style="display:flex;gap:5px;flex:none;">
+            <div style="width:11px;height:11px;border-radius:50%;background:#FF5F57;"></div>
+            <div style="width:11px;height:11px;border-radius:50%;background:#FEBC2E;"></div>
+            <div style="width:11px;height:11px;border-radius:50%;background:#28C840;"></div>
+          </div>
+          <div style="flex:1;background:#fff;border-radius:6px;padding:5px 12px;font-size:12.5px;color:#5C6B62;border:1px solid #E0E0E0;">linkedin.com/in/sarah-chen</div>
+          <div style="display:flex;align-items:center;gap:6px;padding:5px 12px;background:linear-gradient(135deg,#36D7ED,#35E834);border-radius:7px;flex:none;">
+            <span style="font-size:11px;font-weight:800;color:#0C140F;font-family:'Sora',sans-serif;">f</span>
+            <span style="font-size:11px;font-weight:700;color:#0C140F;">Clientforce</span>
+          </div>
+        </div>
+        <!-- Page + sidebar -->
+        <div style="display:flex;background:#F3F2EF;min-height:500px;">
+          <!-- LinkedIn page (abstracted) -->
+          <div style="flex:1;padding:20px 18px;display:flex;flex-direction:column;gap:12px;min-width:0;">
+            <div style="background:#fff;border-radius:9px;overflow:hidden;border:1px solid #E4E2DC;">
+              <div style="height:88px;background:linear-gradient(135deg,rgba(10,102,194,.12),rgba(10,102,194,.04));"></div>
+              <div style="padding:0 20px 16px;margin-top:-28px;">
+                <div style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#36D7ED,#0A66C2);border:3px solid #fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;margin-bottom:8px;">SC</div>
+                <div style="font-size:19px;font-weight:700;color:#0E1512;margin-bottom:3px;">Sarah Chen</div>
+                <div style="font-size:13px;color:#5C6B62;margin-bottom:4px;">Marketing Director at TechCorp · San Francisco Bay Area</div>
+                <div style="font-size:12px;color:#9AACA1;margin-bottom:12px;">843 connections · 2nd</div>
+                <div style="display:flex;gap:8px;">
+                  <div style="padding:7px 18px;background:#0A66C2;border-radius:999px;font-size:13px;font-weight:600;color:#fff;">Connect</div>
+                  <div style="padding:7px 18px;border:1.5px solid #0A66C2;border-radius:999px;font-size:13px;font-weight:600;color:#0A66C2;">Message</div>
+                  <div style="padding:7px 14px;border:1.5px solid #C4CFCA;border-radius:999px;font-size:13px;color:#5C6B62;">More</div>
+                </div>
+              </div>
+            </div>
+            <div style="background:#fff;border-radius:9px;padding:16px 20px;border:1px solid #E4E2DC;">
+              <div style="font-size:14px;font-weight:700;color:#0E1512;margin-bottom:10px;">About</div>
+              <div style="display:flex;flex-direction:column;gap:5px;">
+                <div style="height:7px;background:#F0F0F0;border-radius:4px;"></div>
+                <div style="height:7px;background:#F0F0F0;border-radius:4px;width:88%;"></div>
+                <div style="height:7px;background:#F0F0F0;border-radius:4px;width:72%;"></div>
+              </div>
+            </div>
+            <div style="background:#fff;border-radius:9px;padding:16px 20px;border:1px solid #E4E2DC;">
+              <div style="font-size:14px;font-weight:700;color:#0E1512;margin-bottom:14px;">Experience</div>
+              <div style="display:flex;gap:12px;margin-bottom:14px;">
+                <div style="width:38px;height:38px;border-radius:7px;background:#E8F4FD;flex:none;"></div>
+                <div><div style="font-size:13px;font-weight:600;color:#0E1512;margin-bottom:2px;">Marketing Director</div><div style="font-size:12px;color:#5C6B62;">TechCorp · Jan 2023 – Present</div></div>
+              </div>
+              <div style="display:flex;gap:12px;">
+                <div style="width:38px;height:38px;border-radius:7px;background:#EEF0EE;flex:none;"></div>
+                <div><div style="font-size:13px;font-weight:600;color:#0E1512;margin-bottom:2px;">Sr. Marketing Manager</div><div style="font-size:12px;color:#5C6B62;">GrowthCo · Mar 2020 – Dec 2022</div></div>
+              </div>
+            </div>
+          </div>
+          <!-- Clientforce sidebar -->
+          <div style="width:292px;flex:none;background:#fff;border-left:1px solid #E4E2DC;display:flex;flex-direction:column;animation:slideIn .25s ease;">
+            <div style="padding:12px 14px;background:#0C140F;display:flex;align-items:center;gap:8px;">
+              <div style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,#36D7ED,#35E834);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#0C140F;font-family:'Sora',sans-serif;">f</div>
+              <span style="font-family:'Sora',sans-serif;font-size:13px;font-weight:700;color:#fff;flex:1;">Clientforce</span>
+              <span style="font-size:14px;color:rgba(255,255,255,.35);cursor:pointer;">✕</span>
+            </div>
+            <div style="padding:8px 12px;background:#EAF6EC;border-bottom:1px solid #C8E8CC;display:flex;align-items:center;gap:6px;">
+              <span style="width:6px;height:6px;background:#35E834;border-radius:50%;flex:none;"></span>
+              <span style="font-size:11.5px;font-weight:600;color:#16A82A;">New contact · Ready to capture</span>
+            </div>
+            <div style="padding:12px 14px;border-bottom:1px solid #E4EAE6;">
+              <div style="display:flex;align-items:center;gap:9px;margin-bottom:10px;">
+                <div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#36D7ED,#0A66C2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex:none;">SC</div>
+                <div><div style="font-size:13.5px;font-weight:700;color:#0E1512;">Sarah Chen</div><div style="font-size:11.5px;color:#5C6B62;">Marketing Director · TechCorp</div></div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:5px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:5px 9px;background:#F7F9F8;border-radius:6px;"><span style="font-size:11px;color:#9AACA1;">Email</span><span style="font-size:11.5px;color:#16A82A;font-weight:600;">sarah@techcorp.io ✓</span></div>
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:5px 9px;background:#F7F9F8;border-radius:6px;"><span style="font-size:11px;color:#9AACA1;">Phone</span><span style="font-size:11.5px;color:#0E1512;font-weight:500;">+1 415 555 0192</span></div>
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:5px 9px;background:#F7F9F8;border-radius:6px;"><span style="font-size:11px;color:#9AACA1;">Funding</span><span style="font-size:11.5px;color:#0E1512;font-weight:500;">Series B · $24M</span></div>
+              </div>
+            </div>
+            <div style="padding:12px 14px;border-bottom:1px solid #E4EAE6;">
+              <div style="font-size:10px;font-weight:700;color:#5C6B62;text-transform:uppercase;letter-spacing:.07em;margin-bottom:7px;">Signals</div>
+              <div style="display:flex;flex-direction:column;gap:5px;">
+                <div style="display:flex;align-items:center;gap:7px;padding:6px 9px;background:#EAF6EC;border-radius:7px;"><span style="font-size:13px;">💰</span><span style="font-size:11.5px;color:#0E1512;font-weight:500;">Series B closed 3 weeks ago</span></div>
+                <div style="display:flex;align-items:center;gap:7px;padding:6px 9px;background:#EAF6EC;border-radius:7px;"><span style="font-size:13px;">👔</span><span style="font-size:11.5px;color:#0E1512;font-weight:500;">New role · started 8 months ago</span></div>
+                <div style="display:flex;align-items:center;gap:7px;padding:6px 9px;background:#EBF4FF;border-radius:7px;"><span style="font-size:13px;">📱</span><span style="font-size:11.5px;color:#0E1512;font-weight:500;">4 posts this week — active</span></div>
+              </div>
+            </div>
+            <div style="padding:12px 14px;flex:1;">
+              <div style="font-size:10px;font-weight:700;color:#5C6B62;text-transform:uppercase;letter-spacing:.07em;margin-bottom:7px;">Campaign</div>
+              <div style="padding:8px 11px;border:1.5px solid #E4EAE6;border-radius:8px;font-size:12.5px;color:#0E1512;background:#F7F9F8;display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;cursor:pointer;"><span>Cold Outreach Q2</span><span style="color:#9AACA1;font-size:11px;">⌄</span></div>
+              <div style="display:flex;flex-direction:column;gap:6px;">
+                <button style="width:100%;padding:10px;background:linear-gradient(135deg,#36D7ED,#35E834);border:none;border-radius:9px;font-size:13px;font-weight:700;color:#0C140F;">⚡ Save to Clientforce</button>
+                <button style="width:100%;padding:8px;background:#EAF6EC;border:1.5px solid #C8E8CC;border-radius:8px;font-size:12px;font-weight:600;color:#16A82A;">+ Add to campaign</button>
+                <button style="width:100%;padding:8px;background:#F7F9F8;border:1.5px solid #E4EAE6;border-radius:8px;font-size:12px;font-weight:500;color:#0E1512;">✉ Draft AI message</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ STATE 5 · EXISTING CRM CONTACT ══ -->
+    <div style="flex:none;width:292px;" data-screen-label="State 5 – Existing CRM">
+      <div style="font-size:10.5px;font-weight:700;color:#5C6B62;letter-spacing:.08em;text-transform:uppercase;margin-bottom:11px;padding-bottom:8px;border-bottom:1px solid #ccc;">State 5 · Profile visited · In CRM</div>
+      <div style="width:292px;border-radius:14px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.18),0 2px 8px rgba(0,0,0,.08);">
+        <div style="padding:12px 14px;background:#0C140F;display:flex;align-items:center;gap:8px;">
+          <div style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,#36D7ED,#35E834);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#0C140F;font-family:'Sora',sans-serif;">f</div>
+          <span style="font-family:'Sora',sans-serif;font-size:13px;font-weight:700;color:#fff;flex:1;">Clientforce</span>
+          <span style="font-size:14px;color:rgba(255,255,255,.35);cursor:pointer;">✕</span>
+        </div>
+        <!-- CRM badge -->
+        <div style="padding:8px 12px;background:#EEF3FF;border-bottom:1px solid #D4DCEF;display:flex;align-items:center;gap:6px;">
+          <span style="width:6px;height:6px;background:#2A6FDB;border-radius:50%;flex:none;"></span>
+          <span style="font-size:11.5px;font-weight:600;color:#2A6FDB;">In CRM · Last contact 4 days ago</span>
+        </div>
+        <!-- Contact -->
+        <div style="background:#fff;padding:14px 14px 10px;border-bottom:1px solid #E4EAE6;">
+          <div style="display:flex;align-items:center;gap:9px;margin-bottom:12px;">
+            <div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#7B5EA7,#2A6FDB);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;flex:none;">MC</div>
+            <div>
+              <div style="font-size:14px;font-weight:700;color:#0E1512;">Marcus Chen</div>
+              <div style="font-size:12px;color:#5C6B62;">VP Sales · GrowthLabs</div>
+            </div>
+          </div>
+          <!-- Deal stage -->
+          <div style="padding:7px 10px;background:#FEF3EC;border:1px solid #F8CBA0;border-radius:7px;display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <span style="font-size:11.5px;color:#D97757;font-weight:600;">⚡ Follow-up due today</span>
+            <span style="font-size:10.5px;color:#9AACA1;">Step 3 of 5</span>
+          </div>
+          <!-- History -->
+          <div style="font-size:10px;font-weight:700;color:#5C6B62;text-transform:uppercase;letter-spacing:.07em;margin-bottom:7px;">CRM history</div>
+          <div style="display:flex;flex-direction:column;gap:5px;">
+            <div style="display:flex;align-items:center;gap:7px;padding:7px 9px;background:#F7F9F8;border-radius:6px;">
+              <span style="font-size:12px;flex:none;">✉</span>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:11.5px;color:#0E1512;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Cold email sent</div>
+                <div style="font-size:10.5px;color:#9AACA1;">4 days ago · opened ✓</div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:7px;padding:7px 9px;background:#F7F9F8;border-radius:6px;">
+              <span style="font-size:12px;flex:none;">📋</span>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:11.5px;color:#0E1512;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Cold Outreach Q2</div>
+                <div style="font-size:10.5px;color:#9AACA1;">Step 2 of 5 · Active</div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:7px;padding:7px 9px;background:#FEF3EC;border:1px solid #F8CBA0;border-radius:6px;">
+              <span style="font-size:12px;flex:none;">🔔</span>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:11.5px;color:#D97757;font-weight:600;">LinkedIn touchpoint</div>
+                <div style="font-size:10.5px;color:#9AACA1;">Step 3 · Due now</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Actions -->
+        <div style="background:#fff;padding:10px 12px;display:flex;flex-direction:column;gap:6px;">
+          <button style="width:100%;padding:10px;background:linear-gradient(135deg,#36D7ED,#35E834);border:none;border-radius:8px;font-size:12.5px;font-weight:700;color:#0C140F;">✉ Send LinkedIn message</button>
+          <button style="width:100%;padding:8px;background:#F7F9F8;border:1.5px solid #E4EAE6;border-radius:8px;font-size:12px;font-weight:500;color:#0E1512;">View full CRM record →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ STATE 6 · LINKEDIN SEARCH RESULTS · BATCH CAPTURE ══ -->
+    <div style="flex:none;width:900px;" data-screen-label="State 6 – Batch Capture">
+      <div style="font-size:10.5px;font-weight:700;color:#5C6B62;letter-spacing:.08em;text-transform:uppercase;margin-bottom:11px;padding-bottom:8px;border-bottom:1px solid #ccc;">State 6 · LinkedIn search results · Batch capture overlay</div>
+      <div style="border-radius:14px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.18),0 2px 8px rgba(0,0,0,.08);">
+        <!-- Browser chrome -->
+        <div style="background:#F1F3F4;padding:9px 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #E0E0E0;">
+          <div style="display:flex;gap:5px;flex:none;">
+            <div style="width:11px;height:11px;border-radius:50%;background:#FF5F57;"></div>
+            <div style="width:11px;height:11px;border-radius:50%;background:#FEBC2E;"></div>
+            <div style="width:11px;height:11px;border-radius:50%;background:#28C840;"></div>
+          </div>
+          <div style="flex:1;background:#fff;border-radius:6px;padding:5px 12px;font-size:12.5px;color:#5C6B62;border:1px solid #E0E0E0;">linkedin.com/search/results/people/?keywords=marketing+director+saas</div>
+          <div style="display:flex;align-items:center;gap:6px;padding:5px 12px;background:linear-gradient(135deg,#36D7ED,#35E834);border-radius:7px;flex:none;">
+            <span style="font-size:11px;font-weight:800;color:#0C140F;font-family:'Sora',sans-serif;">f</span>
+            <span style="font-size:11px;font-weight:700;color:#0C140F;">3 selected</span>
+          </div>
+        </div>
+
+        <!-- Page content -->
+        <div style="background:#F3F2EF;padding:20px 24px;position:relative;">
+
+          <!-- Search results header -->
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+            <div>
+              <div style="font-size:13px;font-weight:600;color:#0E1512;">People results · <span style="color:#5C6B62;font-weight:400;">Showing results for</span> "marketing director saas"</div>
+              <div style="font-size:12px;color:#9AACA1;margin-top:2px;">About 14,200 results</div>
+            </div>
+            <!-- Clientforce batch bar (floating top) -->
+            <div style="display:flex;align-items:center;gap:8px;background:#0C140F;padding:8px 14px;border-radius:10px;box-shadow:0 4px 18px rgba(0,0,0,.25);">
+              <div style="width:20px;height:20px;border-radius:5px;background:linear-gradient(135deg,#36D7ED,#35E834);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#0C140F;font-family:'Sora',sans-serif;flex:none;">f</div>
+              <span style="font-size:12px;color:rgba(255,255,255,.7);">3 selected</span>
+              <button style="padding:5px 12px;background:linear-gradient(135deg,#36D7ED,#35E834);border:none;border-radius:6px;font-size:12px;font-weight:700;color:#0C140F;white-space:nowrap;">⚡ Capture all 3</button>
+              <span style="font-size:12px;color:rgba(255,255,255,.3);cursor:pointer;">✕</span>
+            </div>
+          </div>
+
+          <!-- Result cards grid -->
+          <div style="display:flex;flex-direction:column;gap:8px;">
+
+            <!-- Result 1 · selected -->
+            <div style="background:#fff;border:2px solid #35E834;border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:12px;position:relative;">
+              <div style="position:absolute;top:12px;left:12px;width:18px;height:18px;border-radius:5px;background:linear-gradient(135deg,#36D7ED,#35E834);display:flex;align-items:center;justify-content:center;">
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#0C140F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </div>
+              <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#36D7ED,#0A66C2);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;flex:none;margin-left:16px;">SC</div>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:14px;font-weight:700;color:#0E1512;margin-bottom:2px;">Sarah Chen</div>
+                <div style="font-size:12.5px;color:#5C6B62;margin-bottom:4px;">Marketing Director · TechCorp · San Francisco, CA</div>
+                <div style="display:flex;gap:5px;">
+                  <span style="font-size:10.5px;padding:2px 8px;background:#EAF6EC;border-radius:4px;color:#16A82A;font-weight:600;">✓ Email found</span>
+                  <span style="font-size:10.5px;padding:2px 8px;background:#F0F2F1;border-radius:4px;color:#5C6B62;">Series B</span>
+                  <span style="font-size:10.5px;padding:2px 8px;background:#EBF4FF;border-radius:4px;color:#1A5EA8;">💰 New funding</span>
+                </div>
+              </div>
+              <div style="padding:5px 11px;background:#F7F9F8;border:1px solid #E4EAE6;border-radius:7px;font-size:11.5px;color:#5C6B62;white-space:nowrap;cursor:pointer;">View profile</div>
+            </div>
+
+            <!-- Result 2 · selected -->
+            <div style="background:#fff;border:2px solid #35E834;border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:12px;position:relative;">
+              <div style="position:absolute;top:12px;left:12px;width:18px;height:18px;border-radius:5px;background:linear-gradient(135deg,#36D7ED,#35E834);display:flex;align-items:center;justify-content:center;">
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#0C140F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </div>
+              <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#D97757,#E8B84B);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;flex:none;margin-left:16px;">JP</div>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:14px;font-weight:700;color:#0E1512;margin-bottom:2px;">James Park</div>
+                <div style="font-size:12.5px;color:#5C6B62;margin-bottom:4px;">VP Marketing · Streamline AI · New York, NY</div>
+                <div style="display:flex;gap:5px;">
+                  <span style="font-size:10.5px;padding:2px 8px;background:#EAF6EC;border-radius:4px;color:#16A82A;font-weight:600;">✓ Email found</span>
+                  <span style="font-size:10.5px;padding:2px 8px;background:#F0F2F1;border-radius:4px;color:#5C6B62;">201–500 emp.</span>
+                  <span style="font-size:10.5px;padding:2px 8px;background:#EAF6EC;border-radius:4px;color:#16A82A;">👔 New role</span>
+                </div>
+              </div>
+              <div style="padding:5px 11px;background:#F7F9F8;border:1px solid #E4EAE6;border-radius:7px;font-size:11.5px;color:#5C6B62;white-space:nowrap;cursor:pointer;">View profile</div>
+            </div>
+
+            <!-- Result 3 · selected -->
+            <div style="background:#fff;border:2px solid #35E834;border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:12px;position:relative;">
+              <div style="position:absolute;top:12px;left:12px;width:18px;height:18px;border-radius:5px;background:linear-gradient(135deg,#36D7ED,#35E834);display:flex;align-items:center;justify-content:center;">
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#0C140F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </div>
+              <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#7B5EA7,#2A6FDB);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;flex:none;margin-left:16px;">RM</div>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:14px;font-weight:700;color:#0E1512;margin-bottom:2px;">Rachel Moore</div>
+                <div style="font-size:12.5px;color:#5C6B62;margin-bottom:4px;">Head of Marketing · Pulsar Analytics · Austin, TX</div>
+                <div style="display:flex;gap:5px;">
+                  <span style="font-size:10.5px;padding:2px 8px;background:#F7EEF0;border-radius:4px;color:#A8163A;font-weight:600;">Phone only</span>
+                  <span style="font-size:10.5px;padding:2px 8px;background:#F0F2F1;border-radius:4px;color:#5C6B62;">51–200 emp.</span>
+                </div>
+              </div>
+              <div style="padding:5px 11px;background:#F7F9F8;border:1px solid #E4EAE6;border-radius:7px;font-size:11.5px;color:#5C6B62;white-space:nowrap;cursor:pointer;">View profile</div>
+            </div>
+
+            <!-- Result 4 · unselected -->
+            <div style="background:#fff;border:1.5px solid #E4E2DC;border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:12px;position:relative;opacity:.7;">
+              <div style="position:absolute;top:12px;left:12px;width:18px;height:18px;border-radius:5px;border:1.5px solid #D5E3D8;background:#fff;"></div>
+              <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#36D7ED,#35E834);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#0C140F;flex:none;margin-left:16px;">TK</div>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:14px;font-weight:700;color:#0E1512;margin-bottom:2px;">Tom Kim</div>
+                <div style="font-size:12.5px;color:#5C6B62;margin-bottom:4px;">Marketing Lead · DataBridge · Chicago, IL</div>
+                <div style="display:flex;gap:5px;">
+                  <span style="font-size:10.5px;padding:2px 8px;background:#EAF6EC;border-radius:4px;color:#16A82A;font-weight:600;">✓ Email found</span>
+                  <span style="font-size:10.5px;padding:2px 8px;background:#EEF3FF;border-radius:4px;color:#2A6FDB;font-weight:600;">📋 In CRM</span>
+                </div>
+              </div>
+              <div style="padding:5px 11px;background:#F7F9F8;border:1px solid #E4EAE6;border-radius:7px;font-size:11.5px;color:#5C6B62;white-space:nowrap;cursor:pointer;">View profile</div>
+            </div>
+
+          </div>
+
+          <!-- Floating bottom action bar -->
+          <div style="margin-top:16px;background:#0C140F;border-radius:12px;padding:12px 18px;display:flex;align-items:center;gap:14px;box-shadow:0 6px 24px rgba(0,0,0,.3);">
+            <div style="width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,#36D7ED,#35E834);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#0C140F;font-family:'Sora',sans-serif;flex:none;">f</div>
+            <div style="flex:1;min-width:0;">
+              <span style="font-size:13px;font-weight:600;color:#fff;">3 leads selected</span>
+              <span style="font-size:12px;color:rgba(255,255,255,.45);margin-left:8px;">· 2 emails + 1 phone enriched</span>
+            </div>
+            <div style="display:flex;gap:7px;flex:none;">
+              <button style="padding:8px 16px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);border-radius:7px;font-size:12px;font-weight:600;color:rgba(255,255,255,.7);">Add to list</button>
+              <button style="padding:8px 18px;background:linear-gradient(135deg,#36D7ED,#35E834);border:none;border-radius:8px;font-size:13px;font-weight:700;color:#0C140F;">⚡ Capture all 3 →</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+
+class Component extends DCLogic {
+  state = { selectedCampaign: 'q2' };
+
+  renderVals() {
+    const s = this.state;
+    const campaigns = [
+      { id: 'q2',      name: 'Cold Outreach Q2' },
+      { id: 'agency',  name: 'Agency Pitch'     },
+      { id: 'founder', name: 'New Founder'       },
+    ].map(c => ({
+      ...c,
+      border: s.selectedCampaign === c.id ? '#35E834' : '#E4EAE6',
+      bg:     s.selectedCampaign === c.id ? '#EAF6EC' : '#F7F9F8',
+      color:  s.selectedCampaign === c.id ? '#16A82A' : '#5C6B62',
+      onSelect: () => this.setState({ selectedCampaign: c.id }),
+    }));
+    return { campaigns };
+  }
+}
+
+</script>
+</body>
+</html>

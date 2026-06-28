@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0;padding:0;}
+  *{box-sizing:border-box;}
+</style>
+<script src="sidebar.js"></script>
+</helmet>
+
+<div style="position:relative;min-height:100vh;width:100%;background:#FBF7F0;font-family:'Hanken Grotesk',sans-serif;overflow:hidden;"><div style="display:flex;">
+      <!-- SIDEBAR -->
+      <cf-sidebar active="stats" style="width:248px;flex:none;align-self:stretch;background:#0C140F;"></cf-sidebar>
+
+      <!-- MAIN -->
+      <div style="flex:1;background:#FBF7F0;display:flex;flex-direction:column;min-width:0;">
+        <div style="display:flex;align-items:center;gap:16px;padding:16px 28px;border-bottom:1px solid #EBE3D6;">
+          <div style="flex:1;display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #EBE3D6;border-radius:12px;padding:10px 14px;max-width:300px;">
+            <span style="color:#9AA59E;">⚲</span><span style="color:#9AA59E;font-size:14px;">Search agents, contacts…</span>
+          </div>
+          <span style="margin-left:auto;width:40px;height:40px;border-radius:11px;background:#fff;border:1px solid #EBE3D6;display:flex;align-items:center;justify-content:center;color:#5C6B62;position:relative;">◔<span style="position:absolute;top:8px;right:9px;width:7px;height:7px;border-radius:50%;background:#E0796B;"></span></span>
+          <div style="font-family:'Hanken Grotesk',sans-serif;font-weight:700;font-size:15px;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED 0%,#35E834 55%,#D0F56B 100%);border-radius:12px;padding:11px 20px;box-shadow:0 6px 16px rgba(53,232,52,.26);">+ Create agent</div>
+        </div>
+
+        <div style="padding:24px 28px 34px;">
+          <!-- header -->
+          <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:18px;">
+            <div>
+              <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:28px;letter-spacing:-.02em;color:#0E1512;">Analytics</div>
+              <div style="font-size:15px;color:#5C6B62;">{{ activeSubtitle }}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#0E1512;background:#fff;border:1px solid #EBE3D6;border-radius:11px;padding:9px 14px;">All channels <span style="color:#9AA59E;">⌄</span></span>
+              <span style="display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#0E1512;background:#fff;border:1px solid #EBE3D6;border-radius:11px;padding:9px 14px;">Last 30 days <span style="color:#9AA59E;">⌄</span></span>
+              <span style="font-size:13px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);border-radius:11px;padding:10px 16px;box-shadow:0 6px 16px rgba(53,232,52,.22);">↥ Export</span>
+            </div>
+          </div>
+
+          <!-- tabs -->
+          <div style="display:flex;gap:4px;border-bottom:1px solid #EBE3D6;margin-bottom:22px;overflow-x:auto;">
+            <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="7">
+              <div onClick="{{ t.onClick }}" style="font-size:14px;font-weight:{{ t.weight }};color:{{ t.color }};padding:11px 15px;border-bottom:2px solid {{ t.border }};cursor:pointer;white-space:nowrap;">{{ t.label }}</div>
+            </sc-for>
+          </div>
+
+          <!-- KPI ROW -->
+          <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:18px;">
+            <sc-for list="{{ kpis }}" as="m" hint-placeholder-count="5">
+              <div style="background:#fff;border:1px solid #EBE3D6;border-radius:16px;padding:18px;box-shadow:0 4px 16px rgba(14,21,18,.04);">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+                  <span style="width:30px;height:30px;border-radius:9px;background:rgba(53,232,52,.13);display:flex;align-items:center;justify-content:center;font-size:15px;color:#16A82A;">{{ m.icon }}</span>
+                  <span style="font-size:13px;color:#5C6B62;font-weight:600;">{{ m.label }}</span>
+                </div>
+                <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:28px;letter-spacing:-.02em;line-height:1;color:#0E1512;margin-bottom:10px;">{{ m.value }}</div>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <svg viewBox="0 0 100 32" preserveAspectRatio="none" style="width:58px;height:20px;flex:none;"><polyline points="{{ m.spark }}" fill="none" stroke="#35E834" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></polyline></svg>
+                  <span style="font-size:13px;font-weight:700;color:#16A82A;">{{ m.trend }}</span>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+
+          <!-- LINE + DONUT -->
+          <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:14px;margin-bottom:18px;">
+            <div style="background:#fff;border:1px solid #EBE3D6;border-radius:18px;padding:20px 22px;box-shadow:0 4px 16px rgba(14,21,18,.04);">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+                <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:17px;color:#0E1512;">{{ lineTitle }}</div>
+                <div style="display:flex;gap:14px;">
+                  <sc-for list="{{ series }}" as="s" hint-placeholder-count="2">
+                    <span style="display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:#5C6B62;"><span style="width:9px;height:9px;border-radius:50%;background:{{ s.color }};"></span>{{ s.label }}</span>
+                  </sc-for>
+                </div>
+              </div>
+              <svg viewBox="0 0 620 180" preserveAspectRatio="none" style="width:100%;height:210px;display:block;">
+                <line x1="10" y1="14" x2="610" y2="14" stroke="#F2EEE4" stroke-width="1"></line>
+                <line x1="10" y1="56" x2="610" y2="56" stroke="#F2EEE4" stroke-width="1"></line>
+                <line x1="10" y1="98" x2="610" y2="98" stroke="#F2EEE4" stroke-width="1"></line>
+                <line x1="10" y1="140" x2="610" y2="140" stroke="#F2EEE4" stroke-width="1"></line>
+                <polygon points="{{ primaryArea }}" fill="rgba(54,215,237,.10)" stroke="none"></polygon>
+                <sc-for list="{{ series }}" as="s" hint-placeholder-count="2">
+                  <polyline points="{{ s.points }}" fill="none" stroke="{{ s.color }}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></polyline>
+                </sc-for>
+              </svg>
+              <div style="display:flex;justify-content:space-between;margin-top:8px;">
+                <sc-for list="{{ xlabels }}" as="x" hint-placeholder-count="6">
+                  <span style="font-size:11px;color:#9AA59E;">{{ x }}</span>
+                </sc-for>
+              </div>
+            </div>
+
+            <div style="background:#fff;border:1px solid #EBE3D6;border-radius:18px;padding:20px 22px;box-shadow:0 4px 16px rgba(14,21,18,.04);">
+              <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:17px;color:#0E1512;margin-bottom:14px;">{{ donutTitle }}</div>
+              <div style="display:flex;align-items:center;gap:18px;">
+                <div style="position:relative;width:130px;height:130px;flex:none;">
+                  <svg viewBox="0 0 120 120" style="width:130px;height:130px;transform:rotate(0deg);">
+                    <circle cx="60" cy="60" r="54" fill="none" stroke="#F2EEE4" stroke-width="12"></circle>
+                    <sc-for list="{{ donut }}" as="d" hint-placeholder-count="4">
+                      <circle cx="60" cy="60" r="54" fill="none" stroke="{{ d.color }}" stroke-width="12" stroke-dasharray="{{ d.dash }}" transform="rotate({{ d.rot }} 60 60)"></circle>
+                    </sc-for>
+                  </svg>
+                  <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+                    <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:22px;color:#0E1512;line-height:1;">{{ donutCenter }}</div>
+                    <div style="font-size:11px;color:#9AA59E;">total</div>
+                  </div>
+                </div>
+                <div style="flex:1;min-width:0;">
+                  <sc-for list="{{ donut }}" as="d" hint-placeholder-count="4">
+                    <div style="display:flex;align-items:center;gap:9px;padding:6px 0;">
+                      <span style="width:10px;height:10px;border-radius:3px;background:{{ d.color }};flex:none;"></span>
+                      <span style="font-size:13.5px;color:#0E1512;flex:1;">{{ d.label }}</span>
+                      <span style="font-size:13px;font-weight:700;color:#5C6B62;">{{ d.pct }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- BAR CHART -->
+          <div style="background:#fff;border:1px solid #EBE3D6;border-radius:18px;padding:20px 22px;box-shadow:0 4px 16px rgba(14,21,18,.04);margin-bottom:18px;">
+            <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:17px;color:#0E1512;margin-bottom:16px;">{{ barTitle }}</div>
+            <div style="display:flex;align-items:flex-end;gap:10px;height:150px;">
+              <sc-for list="{{ bars }}" as="b" hint-placeholder-count="8">
+                <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%;align-items:center;gap:8px;">
+                  <div style="width:100%;border-radius:6px 6px 0 0;height:{{ b.h }};background:{{ b.color }};"></div>
+                  <span style="font-size:11px;color:#9AA59E;">{{ b.label }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+          <!-- TABLE -->
+          <div style="background:#fff;border:1px solid #EBE3D6;border-radius:18px;overflow:hidden;box-shadow:0 4px 16px rgba(14,21,18,.04);">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px 12px;">
+              <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:17px;color:#0E1512;">{{ tableTitle }}</div>
+              <span style="font-size:13px;color:#16A82A;font-weight:600;">View all ›</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1.8fr repeat({{ colCount }}, 1fr);padding:11px 20px;background:#FBF7F0;border-top:1px solid #EBE3D6;border-bottom:1px solid #EBE3D6;font-size:12px;font-weight:700;letter-spacing:.02em;color:#5C6B62;text-transform:uppercase;">
+              <span>{{ tableNameCol }}</span>
+              <sc-for list="{{ tableCols }}" as="c" hint-placeholder-count="4">
+                <span style="text-align:right;">{{ c }}</span>
+              </sc-for>
+            </div>
+            <sc-for list="{{ tableRows }}" as="r" hint-placeholder-count="4">
+              <div style="display:grid;grid-template-columns:1.8fr repeat({{ colCount }}, 1fr);padding:13px 20px;border-top:1px solid #F2EEE4;align-items:center;font-size:14px;color:#0E1512;">
+                <span style="display:flex;align-items:center;gap:11px;min-width:0;"><span style="width:30px;height:30px;border-radius:8px;flex:none;background:{{ r.avbg }};display:flex;align-items:center;justify-content:center;font-size:13px;">{{ r.emoji }}</span><span style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ r.name }}</span></span>
+                <sc-for list="{{ r.cells }}" as="cell" hint-placeholder-count="4">
+                  <span style="text-align:right;font-weight:600;">{{ cell }}</span>
+                </sc-for>
+              </div>
+            </sc-for>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1280,&quot;height&quot;:900}}">
+class Component extends DCLogic {
+  state = { tab: 'overview' };
+  renderVals() {
+    const W = 620, H = 180, P = 10;
+    const C = 2 * Math.PI * 54;
+    const linePts = (vals, max) => vals.map((v, i) => (P + i / (vals.length - 1) * (W - 2 * P)).toFixed(1) + ',' + (H - P - v / max * (H - 2 * P)).toFixed(1)).join(' ');
+    const donutSegs = (arr) => {
+      const tot = arr.reduce((a, b) => a + b.value, 0);
+      let acc = 0;
+      return arr.map((d) => {
+        const len = d.value / tot * C;
+        const rot = (acc / tot * 360 - 90).toFixed(2);
+        acc += d.value;
+        return { color: d.color, label: d.label, dash: len.toFixed(2) + ' ' + (C - len).toFixed(2), rot, pct: Math.round(d.value / tot * 100) + '%' };
+      });
+    };
+    const barSet = (vals, labels) => {
+      const mx = Math.max.apply(null, vals);
+      return vals.map((v, i) => ({ h: (v / mx * 100).toFixed(0) + '%', color: v === mx ? '#16A82A' : '#BFE8C8', label: labels[i] }));
+    };
+
+    const tabList = [
+      { id: 'overview', label: 'Overview' },
+      { id: 'engagement', label: 'Engagement' },
+      { id: 'deliverability', label: 'Deliverability' },
+      { id: 'conversions', label: 'Conversions' },
+      { id: 'channels', label: 'Channels' },
+      { id: 'agents', label: 'Agents' },
+      { id: 'revenue', label: 'Revenue' },
+    ];
+
+    const wkBars = ['W1', 'W2', 'W3', 'W4', 'W5', 'W6', 'W7', 'W8'];
+    const A = { Q3: { emoji: '🌱', avbg: 'rgba(53,232,52,.16)' }, DC: { emoji: '🦷', avbg: 'rgba(54,215,237,.16)' }, WF: { emoji: '🎥', avbg: 'rgba(208,245,107,.3)' }, CL: { emoji: '🏢', avbg: '#F2EEE4' } };
+
+    const specs = {
+      overview: {
+        subtitle: 'All agents · last 30 days',
+        kpis: [
+          { icon: '✉', label: 'Messages sent', value: '8,420', trend: '+12%', spark: '0,26 20,22 40,24 60,16 80,18 100,8' },
+          { icon: '◔', label: 'Open rate', value: '62%', trend: '+4pt', spark: '0,24 20,20 40,22 60,15 80,13 100,9' },
+          { icon: '↩', label: 'Reply rate', value: '9.4%', trend: '+1.2pt', spark: '0,27 20,24 40,20 60,18 80,12 100,7' },
+          { icon: '✦', label: 'Qualified', value: '210', trend: '+18%', spark: '0,24 20,21 40,22 60,14 80,12 100,7' },
+          { icon: '◷', label: 'Booked', value: '46', trend: '+9', spark: '0,27 20,25 40,21 60,20 80,14 100,9' },
+        ],
+        lineTitle: 'Sends vs replies',
+        series: [
+          { label: 'Sends', color: '#36D7ED', vals: [420, 460, 440, 520, 500, 580, 540, 620, 600, 680, 640, 720] },
+          { label: 'Replies', color: '#16A82A', vals: [40, 52, 48, 60, 58, 70, 66, 82, 78, 92, 88, 104] },
+        ],
+        donutTitle: 'Channel mix', donutCenter: '8.4k',
+        donut: [ { label: 'Email', value: 54, color: '#16A82A' }, { label: 'SMS', value: 20, color: '#36D7ED' }, { label: 'WhatsApp', value: 16, color: '#D0F56B' }, { label: 'Voice', value: 10, color: '#9AA59E' } ],
+        barTitle: 'Bookings per week', bars: [6, 9, 8, 12, 10, 14, 12, 16],
+        tableTitle: 'Top agents', nameCol: 'Agent', cols: ['Sent', 'Reply %', 'Qualified', 'Booked'],
+        rows: [
+          { k: 'Q3', name: 'Q3 Reactivation', cells: ['2,310', '11.2%', '64', '14'] },
+          { k: 'DC', name: 'Dental clinics — local', cells: ['1,980', '9.8%', '52', '11'] },
+          { k: 'CL', name: 'Cold list — agencies', cells: ['1,640', '8.1%', '41', '9'] },
+          { k: 'WF', name: 'Webinar follow-up', cells: ['980', '6.4%', '23', '5'] },
+        ],
+      },
+      engagement: {
+        subtitle: 'Opens, replies & clicks · last 30 days',
+        kpis: [
+          { icon: '◔', label: 'Open rate', value: '62%', trend: '+4pt', spark: '0,24 20,20 40,22 60,15 80,13 100,9' },
+          { icon: '↩', label: 'Reply rate', value: '9.4%', trend: '+1.2pt', spark: '0,27 20,24 40,20 60,18 80,12 100,7' },
+          { icon: '☌', label: 'Click rate', value: '4.1%', trend: '+0.6pt', spark: '0,26 20,24 40,22 60,19 80,15 100,11' },
+          { icon: '↻', label: 'Avg replies/lead', value: '1.7', trend: '+0.2', spark: '0,25 20,23 40,21 60,18 80,16 100,12' },
+          { icon: '◴', label: 'Avg reply time', value: '3.2h', trend: '−18%', spark: '0,12 20,15 40,14 60,18 80,20 100,24' },
+        ],
+        lineTitle: 'Opens vs replies',
+        series: [
+          { label: 'Opens', color: '#36D7ED', vals: [260, 280, 270, 320, 300, 360, 340, 380, 360, 410, 390, 440] },
+          { label: 'Replies', color: '#16A82A', vals: [40, 52, 48, 60, 58, 70, 66, 82, 78, 92, 88, 104] },
+        ],
+        donutTitle: 'Replies by channel', donutCenter: '792',
+        donut: [ { label: 'Email', value: 48, color: '#16A82A' }, { label: 'SMS', value: 22, color: '#36D7ED' }, { label: 'WhatsApp', value: 20, color: '#D0F56B' }, { label: 'Voice', value: 10, color: '#9AA59E' } ],
+        barTitle: 'Replies per week', bars: [52, 61, 58, 74, 70, 88, 82, 96],
+        tableTitle: 'Engagement by agent', nameCol: 'Agent', cols: ['Opens', 'Replies', 'Reply %', 'Clicks'],
+        rows: [
+          { k: 'Q3', name: 'Q3 Reactivation', cells: ['1,432', '258', '11.2%', '96'] },
+          { k: 'DC', name: 'Dental clinics — local', cells: ['1,188', '194', '9.8%', '71'] },
+          { k: 'CL', name: 'Cold list — agencies', cells: ['968', '133', '8.1%', '48'] },
+          { k: 'WF', name: 'Webinar follow-up', cells: ['604', '63', '6.4%', '22'] },
+        ],
+      },
+      deliverability: {
+        subtitle: 'Inbox placement & sending health · last 30 days',
+        kpis: [
+          { icon: '✓', label: 'Delivered', value: '98.1%', trend: '+0.4pt', spark: '0,16 20,14 40,15 60,12 80,11 100,8' },
+          { icon: '◔', label: 'Inbox rate', value: '91%', trend: '+2pt', spark: '0,20 20,18 40,17 60,14 80,12 100,9' },
+          { icon: '⚠', label: 'Bounce rate', value: '1.9%', trend: '−0.3pt', spark: '0,10 20,12 40,11 60,14 80,16 100,20' },
+          { icon: '⊘', label: 'Spam rate', value: '0.2%', trend: '−0.1pt', spark: '0,8 20,10 40,9 60,12 80,13 100,16' },
+          { icon: '◍', label: 'Domain health', value: 'Good', trend: 'stable', spark: '0,16 20,15 40,16 60,15 80,16 100,15' },
+        ],
+        lineTitle: 'Delivered vs bounced',
+        series: [
+          { label: 'Delivered', color: '#16A82A', vals: [410, 452, 432, 511, 492, 570, 531, 609, 590, 668, 629, 708] },
+          { label: 'Bounced', color: '#E0796B', vals: [10, 8, 8, 9, 8, 10, 9, 11, 10, 12, 11, 12] },
+        ],
+        donutTitle: 'Inbox placement', donutCenter: '91%',
+        donut: [ { label: 'Primary', value: 78, color: '#16A82A' }, { label: 'Promotions', value: 13, color: '#36D7ED' }, { label: 'Spam', value: 5, color: '#E8C45B' }, { label: 'Bounced', value: 4, color: '#E0796B' } ],
+        barTitle: 'Sends per week', bars: [620, 690, 640, 760, 720, 840, 790, 910],
+        tableTitle: 'Sending domains', nameCol: 'Domain', cols: ['Sent', 'Inbox %', 'Bounce %', 'Spam %'],
+        rows: [
+          { k: 'Q3', name: 'go.brightpathgrowth.co', cells: ['4,120', '93%', '1.4%', '0.1%'] },
+          { k: 'DC', name: 'mail.brightpathgrowth.co', cells: ['2,980', '90%', '2.1%', '0.2%'] },
+          { k: 'CL', name: 'hello.brightpathgrowth.co', cells: ['1,320', '88%', '2.6%', '0.4%'] },
+        ],
+      },
+      conversions: {
+        subtitle: 'Qualified → booked → paid · last 30 days',
+        kpis: [
+          { icon: '✦', label: 'Qualified', value: '210', trend: '+18%', spark: '0,24 20,21 40,22 60,14 80,12 100,7' },
+          { icon: '◷', label: 'Bookings', value: '46', trend: '+9', spark: '0,27 20,25 40,21 60,20 80,14 100,9' },
+          { icon: '☑', label: 'Show rate', value: '74%', trend: '+5pt', spark: '0,22 20,20 40,19 60,16 80,13 100,10' },
+          { icon: '＄', label: 'Deals closed', value: '19', trend: '+4', spark: '0,26 20,24 40,21 60,18 80,14 100,10' },
+          { icon: '↗', label: 'Lead→deal', value: '9.0%', trend: '+1.1pt', spark: '0,25 20,23 40,20 60,17 80,14 100,11' },
+        ],
+        lineTitle: 'Bookings vs deals closed',
+        series: [
+          { label: 'Bookings', color: '#36D7ED', vals: [3, 4, 4, 6, 5, 7, 6, 8, 7, 9, 8, 10] },
+          { label: 'Deals', color: '#16A82A', vals: [1, 2, 2, 3, 2, 3, 3, 4, 3, 4, 4, 5] },
+        ],
+        donutTitle: 'Funnel breakdown', donutCenter: '210',
+        donut: [ { label: 'Qualified', value: 210, color: '#D0F56B' }, { label: 'Booked', value: 46, color: '#36D7ED' }, { label: 'Showed', value: 34, color: '#16A82A' }, { label: 'Closed', value: 19, color: '#0E6B22' } ],
+        barTitle: 'Bookings per week', bars: [4, 6, 5, 8, 7, 9, 8, 11],
+        tableTitle: 'Conversions by agent', nameCol: 'Agent', cols: ['Qualified', 'Booked', 'Show %', 'Closed'],
+        rows: [
+          { k: 'Q3', name: 'Q3 Reactivation', cells: ['64', '14', '79%', '7'] },
+          { k: 'DC', name: 'Dental clinics — local', cells: ['52', '11', '73%', '5'] },
+          { k: 'CL', name: 'Cold list — agencies', cells: ['41', '9', '67%', '4'] },
+          { k: 'WF', name: 'Webinar follow-up', cells: ['23', '5', '60%', '3'] },
+        ],
+      },
+      channels: {
+        subtitle: 'Performance by channel · last 30 days',
+        kpis: [
+          { icon: '✉', label: 'Email reply %', value: '8.9%', trend: '+0.8pt', spark: '0,26 20,24 40,21 60,18 80,14 100,10' },
+          { icon: '💬', label: 'SMS reply %', value: '14.2%', trend: '+2.1pt', spark: '0,25 20,22 40,20 60,15 80,12 100,8' },
+          { icon: '🗨', label: 'WhatsApp reply %', value: '17.8%', trend: '+3.0pt', spark: '0,27 20,23 40,19 60,15 80,11 100,6' },
+          { icon: '☎', label: 'Voice connect %', value: '31%', trend: '+4pt', spark: '0,24 20,21 40,18 60,16 80,12 100,9' },
+          { icon: '＄', label: 'Cost / reply', value: '$1.10', trend: '−12%', spark: '0,10 20,12 40,13 60,16 80,18 100,22' },
+        ],
+        lineTitle: 'Replies — email vs WhatsApp',
+        series: [
+          { label: 'Email', color: '#16A82A', vals: [22, 26, 24, 30, 28, 34, 31, 38, 36, 42, 39, 46] },
+          { label: 'WhatsApp', color: '#D0A800', vals: [8, 11, 10, 14, 13, 18, 16, 22, 20, 26, 24, 30] },
+        ],
+        donutTitle: 'Volume by channel', donutCenter: '8.4k',
+        donut: [ { label: 'Email', value: 54, color: '#16A82A' }, { label: 'SMS', value: 20, color: '#36D7ED' }, { label: 'WhatsApp', value: 16, color: '#D0F56B' }, { label: 'Voice', value: 10, color: '#9AA59E' } ],
+        barTitle: 'Cost per channel (credits)', bars: [720, 360, 410, 960],
+        tableTitle: 'Channel performance', nameCol: 'Channel', cols: ['Sent', 'Reply %', 'Booked', 'Cost'],
+        rows: [
+          { k: 'Q3', name: 'Email', cells: ['4,540', '8.9%', '22', '720'] },
+          { k: 'DC', name: 'SMS', cells: ['1,680', '14.2%', '9', '360'] },
+          { k: 'WF', name: 'WhatsApp', cells: ['1,344', '17.8%', '8', '410'] },
+          { k: 'CL', name: 'Voice', cells: ['856', '31%', '7', '960'] },
+        ],
+      },
+      agents: {
+        subtitle: 'Per-agent leaderboard · last 30 days',
+        kpis: [
+          { icon: '◎', label: 'Active agents', value: '9', trend: '+2', spark: '0,24 20,22 40,21 60,16 80,14 100,10' },
+          { icon: '★', label: 'Top performer', value: 'Q3', trend: '14 booked', spark: '0,20 20,18 40,17 60,15 80,13 100,9' },
+          { icon: '◷', label: 'Avg booked/agent', value: '5.1', trend: '+0.7', spark: '0,25 20,23 40,21 60,18 80,15 100,11' },
+          { icon: '↩', label: 'Best reply %', value: '11.2%', trend: 'Q3', spark: '0,26 20,23 40,20 60,16 80,12 100,8' },
+          { icon: '＄', label: 'Revenue/agent', value: '$1.0k', trend: '+11%', spark: '0,26 20,24 40,21 60,18 80,14 100,10' },
+        ],
+        lineTitle: 'Bookings — top 2 agents',
+        series: [
+          { label: 'Q3 Reactivation', color: '#16A82A', vals: [1, 2, 2, 3, 2, 3, 3, 4, 3, 4, 4, 5] },
+          { label: 'Dental clinics', color: '#36D7ED', vals: [1, 1, 2, 2, 2, 2, 3, 3, 2, 3, 3, 4] },
+        ],
+        donutTitle: 'Bookings share', donutCenter: '46',
+        donut: [ { label: 'Q3 Reactivation', value: 14, color: '#16A82A' }, { label: 'Dental clinics', value: 11, color: '#36D7ED' }, { label: 'Cold list', value: 9, color: '#D0F56B' }, { label: 'Others', value: 12, color: '#9AA59E' } ],
+        barTitle: 'Bookings by agent', bars: [14, 11, 9, 5],
+        tableTitle: 'Agent leaderboard', nameCol: 'Agent', cols: ['Sent', 'Reply %', 'Qualified', 'Booked'],
+        rows: [
+          { k: 'Q3', name: 'Q3 Reactivation', cells: ['2,310', '11.2%', '64', '14'] },
+          { k: 'DC', name: 'Dental clinics — local', cells: ['1,980', '9.8%', '52', '11'] },
+          { k: 'CL', name: 'Cold list — agencies', cells: ['1,640', '8.1%', '41', '9'] },
+          { k: 'WF', name: 'Webinar follow-up', cells: ['980', '6.4%', '23', '5'] },
+        ],
+      },
+      revenue: {
+        subtitle: 'Revenue & credits · last 30 days',
+        kpis: [
+          { icon: '＄', label: 'Revenue', value: '$18.6k', trend: '+14%', spark: '0,26 20,24 40,22 60,17 80,13 100,8' },
+          { icon: '☑', label: 'Deals closed', value: '19', trend: '+4', spark: '0,26 20,24 40,21 60,18 80,14 100,10' },
+          { icon: '↗', label: 'Avg deal size', value: '$980', trend: '+6%', spark: '0,24 20,22 40,21 60,18 80,15 100,11' },
+          { icon: '◈', label: 'Credits used', value: '12.4k', trend: '+9%', spark: '0,25 20,23 40,21 60,18 80,14 100,10' },
+          { icon: '⚖', label: 'ROI', value: '4.2×', trend: '+0.4', spark: '0,24 20,22 40,20 60,16 80,13 100,9' },
+        ],
+        lineTitle: 'Revenue trend',
+        series: [
+          { label: 'Revenue', color: '#16A82A', vals: [820, 980, 900, 1180, 1100, 1420, 1300, 1680, 1560, 1980, 1820, 2240] },
+          { label: 'Credits ($)', color: '#36D7ED', vals: [300, 340, 320, 410, 390, 480, 450, 540, 520, 620, 590, 700] },
+        ],
+        donutTitle: 'Revenue by channel', donutCenter: '$18.6k',
+        donut: [ { label: 'Email', value: 47, color: '#16A82A' }, { label: 'Voice', value: 28, color: '#36D7ED' }, { label: 'WhatsApp', value: 16, color: '#D0F56B' }, { label: 'SMS', value: 9, color: '#9AA59E' } ],
+        barTitle: 'Revenue per week ($)', bars: [1800, 2400, 2100, 3200, 2800, 3600, 3300, 4200],
+        tableTitle: 'Revenue by agent', nameCol: 'Agent', cols: ['Deals', 'Avg deal', 'Revenue', 'ROI'],
+        rows: [
+          { k: 'Q3', name: 'Q3 Reactivation', cells: ['7', '$1,020', '$7,140', '4.8×'] },
+          { k: 'DC', name: 'Dental clinics — local', cells: ['5', '$960', '$4,800', '4.1×'] },
+          { k: 'CL', name: 'Cold list — agencies', cells: ['4', '$900', '$3,600', '3.6×'] },
+          { k: 'WF', name: 'Webinar follow-up', cells: ['3', '$880', '$2,640', '3.2×'] },
+        ],
+      },
+    };
+
+    const sp = specs[this.state.tab] || specs.overview;
+    const lineMax = Math.max.apply(null, sp.series.reduce((acc, s) => acc.concat(s.vals), [])) * 1.08;
+    const series = sp.series.map((s) => ({ label: s.label, color: s.color, points: linePts(s.vals, lineMax) }));
+    const primaryArea = series[0].points + ' ' + (W - P) + ',' + (H - P) + ' ' + P + ',' + (H - P);
+    const barLabels = sp.bars.length === 4 ? ['', '', '', ''] : wkBars;
+    const xlabels = ['30d', '25d', '20d', '15d', '10d', 'Now'];
+
+    return {
+      navAfter: [
+        { label: 'Dashboard', icon: '◈', weight: 500, color: 'rgba(255,255,255,.82)', bg: 'transparent' },
+        { label: 'Agents', icon: '◎', weight: 500, color: 'rgba(255,255,255,.82)', bg: 'transparent' },
+        { label: 'Contacts', icon: '☺', weight: 500, color: 'rgba(255,255,255,.82)', bg: 'transparent' },
+        { label: 'Analytics', icon: '▤', weight: 700, color: '#0A0F0C', bg: 'linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B)' },
+        { label: 'Integrations', icon: '⚯', weight: 500, color: 'rgba(255,255,255,.82)', bg: 'transparent' },
+        { label: 'Automations', icon: '⟳', weight: 500, color: 'rgba(255,255,255,.82)', bg: 'transparent' },
+      ],
+      navUtility: [ { label: 'Help', icon: '?' }, { label: 'Settings', icon: '⚙' } ],
+      tabs: tabList.map((t) => {
+        const on = t.id === this.state.tab;
+        return { label: t.label, weight: on ? 700 : 600, color: on ? '#0E1512' : '#8A7F6B', border: on ? '#16A82A' : 'transparent', onClick: () => this.setState({ tab: t.id }) };
+      }),
+      activeSubtitle: sp.subtitle,
+      kpis: sp.kpis,
+      lineTitle: sp.lineTitle,
+      series,
+      primaryArea,
+      xlabels,
+      donutTitle: sp.donutTitle,
+      donutCenter: sp.donutCenter,
+      donut: donutSegs(sp.donut),
+      barTitle: sp.barTitle,
+      bars: barSet(sp.bars, barLabels),
+      tableTitle: sp.tableTitle,
+      tableNameCol: sp.nameCol,
+      tableCols: sp.cols,
+      colCount: sp.cols.length,
+      tableRows: sp.rows.map((r) => ({ name: r.name, cells: r.cells, emoji: (A[r.k] || A.Q3).emoji, avbg: (A[r.k] || A.Q3).avbg })),
+    };
+  }
+}
+</script>
+</body>
+</html>

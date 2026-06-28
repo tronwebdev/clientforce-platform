@@ -1,0 +1,1415 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0;padding:0;}
+  *{box-sizing:border-box;}
+  @keyframes wpulse{0%,100%{opacity:1}50%{opacity:.5}}
+  ::-webkit-scrollbar{width:9px;height:9px}
+  ::-webkit-scrollbar-thumb{background:rgba(14,21,18,.16);border-radius:6px}
+  .ck-content{font-family:'Hanken Grotesk',sans-serif;font-size:16px;line-height:1.7;color:#1A2520;outline:none;}
+  .ck-content:focus{outline:none;}
+  .ck-content h1{font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:32px;line-height:1.15;letter-spacing:-.02em;margin:26px 0 12px;color:#0E1512;}
+  .ck-content h2{font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:24px;line-height:1.2;margin:22px 0 10px;color:#0E1512;}
+  .ck-content h3{font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:19px;margin:18px 0 8px;color:#0E1512;}
+  .ck-content p{margin:0 0 14px;}
+  .ck-content ul,.ck-content ol{margin:0 0 14px;padding-left:24px;}
+  .ck-content li{margin-bottom:6px;}
+  .ck-content a{color:#16A82A;text-decoration:underline;}
+  .ck-content table{border-collapse:collapse;width:100%;margin:8px 0 18px;}
+  .ck-content th{background:#EAF9EC;border:1px solid #C7EDCF;padding:9px 12px;text-align:left;font-weight:700;color:#0E1512;font-size:14px;}
+  .ck-content td{border:1px solid #E4EAE6;padding:9px 12px;font-size:14px;}
+  .ck-content .merge-tag{background:#EAF9EC;color:#16A82A;border:1px solid #C7EDCF;border-radius:6px;padding:1px 7px;font-weight:600;font-size:.92em;white-space:nowrap;}
+  .ck-content .embed-block{border:1px dashed #C7D0CA;border-radius:12px;padding:22px;text-align:center;color:#8A7F6B;background:#FBFCFB;margin:8px 0 18px;font-size:14px;}
+  .ck-content blockquote{border-left:3px solid #35E834;padding-left:16px;margin:0 0 16px;color:#5C6B62;font-style:italic;}
+  .ppill{font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:5px;border-radius:100px;padding:4px 10px;}
+  .fbInput{font-family:'Hanken Grotesk',sans-serif;font-size:13.5px;color:#0E1512;border:1px solid #E4EAE6;border-radius:9px;padding:9px 11px;width:100%;outline:none;background:#fff;}
+  .fbInput:focus{border-color:#35E834;box-shadow:0 0 0 3px rgba(53,232,52,.12);}
+</style>
+<script src="sidebar.js"></script>
+</helmet>
+
+<div style="position:relative;min-height:100vh;width:100%;background:#FBF7F0;font-family:'Hanken Grotesk',sans-serif;overflow:hidden;"><div style="display:flex;">
+      <!-- SIDEBAR -->
+      <cf-sidebar active="proposals" style="width:248px;flex:none;align-self:stretch;background:#0C140F;"></cf-sidebar>
+
+      <!-- MAIN -->
+      <div style="flex:1;background:#FBF7F0;min-width:0;">
+
+        <!-- ===== LIST VIEW ===== -->
+        <sc-if value="{{ isList }}" hint-placeholder-val="{{ true }}">
+          <div style="padding:26px 30px 40px;">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;">
+              <div>
+                <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:28px;letter-spacing:-.02em;color:#0E1512;">Dynamic Proposals</div>
+                <div style="font-size:15px;color:#5C6B62;">Send personalised proposals that auto-fill with each lead's details — and turn views into booked calls.</div>
+              </div>
+              <span onClick="{{ onCreate }}" style="font-size:14px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);border-radius:12px;padding:12px 20px;cursor:pointer;box-shadow:0 6px 18px rgba(53,232,52,.28);white-space:nowrap;">＋ New proposal</span>
+            </div>
+
+            <!-- category tabs -->
+            <div style="display:flex;align-items:center;gap:6px;border-bottom:1px solid #EBE3D6;margin-bottom:20px;">
+              <sc-for list="{{ categories }}" as="c" hint-placeholder-count="3">
+                <span onClick="{{ c.onPick }}" style="font-size:14px;font-weight:{{ c.weight }};color:{{ c.color }};padding:11px 16px;cursor:pointer;border-bottom:2px solid {{ c.border }};margin-bottom:-1px;display:inline-flex;align-items:center;gap:8px;">{{ c.icon }} {{ c.label }}</span>
+              </sc-for>
+            </div>
+
+            <div style="display:flex;align-items:flex-start;gap:24px;">
+              <!-- folder sidebar -->
+              <div style="flex:0 0 210px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:0 6px 10px;">
+                  <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9AA59E;">Folders</span>
+                  <span onClick="{{ onAddFolder }}" title="New folder" style="color:#16A82A;font-size:17px;cursor:pointer;line-height:1;">＋</span>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:3px;">
+                  <sc-for list="{{ folders }}" as="f" hint-placeholder-count="4">
+                    <div onClick="{{ f.onPick }}" style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;cursor:pointer;background:{{ f.bg }};">
+                      <span style="font-size:14px;color:{{ f.iconColor }};">{{ f.icon }}</span>
+                      <span style="font-size:13.5px;font-weight:{{ f.weight }};color:{{ f.color }};flex:1;">{{ f.title }}</span>
+                      <span style="font-size:12px;color:#9AA59E;">{{ f.count }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+                <div style="margin-top:18px;background:#fff;border:1px solid #EBE3D6;border-radius:13px;padding:15px 16px;">
+                  <div style="font-size:13px;font-weight:700;color:#0E1512;margin-bottom:9px;display:flex;align-items:center;gap:7px;"><span style="color:#16A82A;">✦</span> This month</div>
+                  <div style="display:flex;flex-direction:column;gap:9px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;"><span style="font-size:12.5px;color:#5C6B62;">Sent</span><span style="font-size:14px;font-weight:700;color:#0E1512;">{{ statSent }}</span></div>
+                    <div style="display:flex;align-items:center;justify-content:space-between;"><span style="font-size:12.5px;color:#5C6B62;">Views</span><span style="font-size:14px;font-weight:700;color:#0E1512;">{{ statViews }}</span></div>
+                    <div style="display:flex;align-items:center;justify-content:space-between;"><span style="font-size:12.5px;color:#5C6B62;">Booked</span><span style="font-size:14px;font-weight:700;color:#16A82A;">{{ statBooked }}</span></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- proposals area -->
+              <div style="flex:1;min-width:0;">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+                  <div style="flex:1;display:flex;align-items:center;gap:9px;background:#fff;border:1px solid #E4EAE6;border-radius:11px;padding:9px 13px;">
+                    <span style="color:#9AA59E;font-size:14px;">⌕</span>
+                    <input value="{{ search }}" onInput="{{ onSearch }}" placeholder="Search proposals…" style="border:none;outline:none;background:transparent;font-family:'Hanken Grotesk',sans-serif;font-size:13.5px;color:#0E1512;flex:1;" />
+                    <span style="font-size:12px;color:#9AA59E;white-space:nowrap;">{{ resultCount }} results</span>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:0;background:#fff;border:1px solid #E4EAE6;border-radius:11px;padding:3px;">
+                    <span onClick="{{ onSortRecent }}" style="font-size:12.5px;font-weight:600;color:{{ sortRecentFg }};background:{{ sortRecentBg }};border-radius:8px;padding:7px 12px;cursor:pointer;">Recent</span>
+                    <span onClick="{{ onSortViews }}" style="font-size:12.5px;font-weight:600;color:{{ sortViewsFg }};background:{{ sortViewsBg }};border-radius:8px;padding:7px 12px;cursor:pointer;">Most viewed</span>
+                  </div>
+                </div>
+                <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+                  <div style="background:#fff;border:1px solid #EBE3D6;border-radius:16px;padding:54px 30px;text-align:center;">
+                    <div style="width:64px;height:64px;border-radius:16px;margin:0 auto 16px;background:#EAF9EC;display:flex;align-items:center;justify-content:center;font-size:28px;color:#16A82A;">❒</div>
+                    <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:19px;color:#0E1512;margin-bottom:6px;">No proposals here yet</div>
+                    <div style="font-size:14px;color:#9AA59E;max-width:380px;margin:0 auto 18px;line-height:1.6;">Create your first proposal or start from a ready-made template in the library.</div>
+                    <span onClick="{{ onCreate }}" style="font-size:14px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);border-radius:11px;padding:11px 20px;cursor:pointer;">＋ New proposal</span>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ hasProposals }}" hint-placeholder-val="{{ true }}">
+                  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px;">
+                    <sc-for list="{{ proposals }}" as="p" hint-placeholder-count="3">
+                      <div onClick="{{ p.onOpen }}" style="background:#fff;border:1px solid #EBE3D6;border-radius:16px;overflow:hidden;cursor:pointer;box-shadow:0 4px 16px rgba(14,21,18,.04);display:flex;flex-direction:column;" style-hover="border-color:#9FD8AC;box-shadow:0 12px 34px rgba(14,21,18,.12);">
+                        <!-- portrait document hero -->
+                        <div style="position:relative;aspect-ratio:4/3;background:{{ p.cover }};overflow:hidden;">
+                          {{ p.imgNode }}
+                          <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(14,21,18,0) 40%,rgba(14,21,18,.55) 100%);"></div>
+                          <span style="position:absolute;top:11px;left:11px;font-size:11px;font-weight:700;color:{{ p.statusFg }};background:{{ p.statusBg }};border-radius:100px;padding:4px 10px;backdrop-filter:blur(4px);">{{ p.statusLabel }}</span>
+                          <span style="position:absolute;bottom:11px;left:12px;font-size:11px;font-weight:600;color:#fff;display:inline-flex;align-items:center;gap:6px;"><span style="opacity:.85;">📁</span>{{ p.folderName }}</span>
+                        </div>
+                        <div style="padding:14px 15px 15px;flex:1;display:flex;flex-direction:column;">
+                          <div style="font-size:15px;font-weight:700;color:#0E1512;line-height:1.3;margin-bottom:6px;">{{ p.title }}</div>
+                          <div style="font-size:12.5px;color:#9AA59E;line-height:1.5;margin-bottom:12px;flex:1;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">{{ p.description }}</div>
+                          <sc-if value="{{ p.isPersonal }}" hint-placeholder-val="{{ true }}">
+                            <div style="display:flex;align-items:center;gap:7px;margin-bottom:11px;">
+                              <span class="ppill" style="color:#0E8FA8;background:#E6F8FB;border:1px solid #BFE9F2;font-size:11px;padding:3px 8px;">✉ {{ p.sentToLeads }}</span>
+                              <span class="ppill" style="color:#16A82A;background:#EAF9EC;border:1px solid #C7EDCF;font-size:11px;padding:3px 8px;">👁 {{ p.views }}</span>
+                              <span style="font-size:11px;color:#B3BBB5;margin-left:auto;">{{ p.lastActivity }}</span>
+                            </div>
+                          </sc-if>
+                          <sc-if value="{{ p.isLibrary }}" hint-placeholder-val="{{ false }}">
+                            <div style="font-size:11px;color:#B3BBB5;margin-bottom:11px;">{{ p.lastActivity }}</div>
+                          </sc-if>
+                          <div style="display:flex;align-items:center;gap:7px;">
+                            <sc-if value="{{ p.isPersonal }}" hint-placeholder-val="{{ true }}">
+                              <span onClick="{{ p.onEdit }}" style="flex:1;text-align:center;font-size:12.5px;font-weight:700;color:#0A0F0C;background:#EAF9EC;border:1px solid #C7EDCF;border-radius:9px;padding:8px;cursor:pointer;">✎ Edit</span>
+                              <span onClick="{{ p.onPreview }}" title="Preview" style="font-size:13px;color:#5C6B62;background:#fff;border:1px solid #E4EAE6;border-radius:9px;padding:8px 10px;cursor:pointer;">👁</span>
+                              <span onClick="{{ p.onDuplicate }}" title="Duplicate" style="font-size:13px;color:#5C6B62;background:#fff;border:1px solid #E4EAE6;border-radius:9px;padding:8px 10px;cursor:pointer;">⧉</span>
+                              <span onClick="{{ p.onDelete }}" title="Delete" style="font-size:13px;color:#C0584B;background:#fff;border:1px solid #EFD3CE;border-radius:9px;padding:8px 10px;cursor:pointer;">🗑</span>
+                            </sc-if>
+                            <sc-if value="{{ p.isLibrary }}" hint-placeholder-val="{{ false }}">
+                              <span onClick="{{ p.onUse }}" style="flex:1;text-align:center;font-size:12.5px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);border-radius:9px;padding:8px;cursor:pointer;">＋ Use template</span>
+                              <span onClick="{{ p.onPreview }}" title="Preview" style="font-size:13px;color:#5C6B62;background:#fff;border:1px solid #E4EAE6;border-radius:9px;padding:8px 10px;cursor:pointer;">👁</span>
+                            </sc-if>
+                          </div>
+                        </div>
+                      </div>
+                    </sc-for>
+                  </div>
+                </sc-if>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- ===== EDITOR VIEW ===== -->
+        <sc-if value="{{ isEditor }}" hint-placeholder-val="{{ false }}">
+          <div>
+            <!-- top action bar -->
+            <div style="position:sticky;top:0;z-index:6;background:#fff;border-bottom:1px solid #F0ECE3;padding:11px 18px;display:flex;align-items:center;gap:12px;">
+              <span onClick="{{ onBack }}" style="width:36px;height:36px;border-radius:9px;border:1px solid #EBE3D6;display:flex;align-items:center;justify-content:center;color:#5C6B62;cursor:pointer;flex:none;font-size:17px;">‹</span>
+              <div style="line-height:1.25;">
+                <div style="font-size:14px;font-weight:700;color:#0E1512;">Proposal editor</div>
+                <div style="font-size:12px;color:#9AA59E;display:flex;align-items:center;gap:6px;"><span style="width:7px;height:7px;border-radius:50%;background:#35E834;"></span>{{ saveState }}</div>
+              </div>
+              <div style="margin-left:auto;display:flex;align-items:center;gap:9px;">
+                <!-- Insert dropdown -->
+                <div style="position:relative;">
+                  <span onClick="{{ onToggleInsertMenu }}" style="display:inline-flex;align-items:center;gap:7px;font-size:13.5px;font-weight:600;color:#0E1512;background:#fff;border:1px solid #E4EAE6;border-radius:10px;padding:9px 14px;cursor:pointer;">＋ Insert<span style="color:#9AA59E;">⌄</span></span>
+                  <sc-if value="{{ insertMenuOpen }}" hint-placeholder-val="{{ false }}">
+                    <div style="position:absolute;top:calc(100% + 6px);right:0;background:#fff;border:1px solid #E4EAE6;border-radius:12px;box-shadow:0 14px 36px rgba(14,21,18,.16);padding:7px;width:280px;z-index:30;max-height:420px;overflow:auto;">
+                      <sc-for list="{{ insertGroups }}" as="g" hint-placeholder-count="3">
+                        <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:#9AA59E;padding:9px 9px 5px;">{{ g.name }}</div>
+                        <sc-for list="{{ g.items }}" as="i" hint-placeholder-count="4">
+                          <div onClick="{{ i.onClick }}" style="display:flex;align-items:center;gap:11px;padding:8px 9px;border-radius:8px;cursor:pointer;" style-hover="background:#F4FBF5;">
+                            <span style="width:28px;height:28px;border-radius:7px;background:#F2EEE4;color:#16A82A;display:flex;align-items:center;justify-content:center;font-size:13px;flex:none;">{{ i.icon }}</span>
+                            <div style="min-width:0;"><div style="font-size:13.5px;font-weight:600;color:#0E1512;">{{ i.label }}</div><div style="font-size:11.5px;color:#9AA59E;">{{ i.desc }}</div></div>
+                          </div>
+                        </sc-for>
+                      </sc-for>
+                    </div>
+                  </sc-if>
+                </div>
+                <!-- Variables dropdown -->
+                <div style="position:relative;">
+                  <span onClick="{{ onToggleVarMenu }}" style="display:inline-flex;align-items:center;gap:7px;font-size:13.5px;font-weight:600;color:#16A82A;background:#EAF9EC;border:1px solid #C7EDCF;border-radius:10px;padding:9px 14px;cursor:pointer;">&#123; &#125; Variables<span style="color:#16A82A;">⌄</span></span>
+                  <sc-if value="{{ varMenuOpen }}" hint-placeholder-val="{{ false }}">
+                    <div style="position:absolute;top:calc(100% + 6px);right:0;background:#fff;border:1px solid #E4EAE6;border-radius:11px;box-shadow:0 14px 36px rgba(14,21,18,.14);padding:6px;width:228px;z-index:30;max-height:300px;overflow:auto;">
+                      <div style="padding:7px 10px;font-size:11px;color:#9AA59E;line-height:1.4;">Auto-fills with each lead's details when sent.</div>
+                      <sc-for list="{{ variables }}" as="v" hint-placeholder-count="6">
+                        <div onClick="{{ v.onClick }}" style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:8px;cursor:pointer;" style-hover="background:#F4FBF5;"><span style="font-size:13.5px;font-weight:600;color:#0E1512;">{{ v.title }}</span><span style="font-size:11px;color:#16A82A;font-family:'Courier New',monospace;background:#EAF9EC;border-radius:5px;padding:2px 6px;">{{ v.token }}</span></div>
+                      </sc-for>
+                    </div>
+                  </sc-if>
+                </div>
+                <div style="width:1px;height:24px;background:#EBE3D6;margin:0 2px;"></div>
+                <span onClick="{{ onPreview }}" style="font-size:13.5px;font-weight:600;color:#5C6B62;background:#fff;border:1px solid #E4EAE6;border-radius:10px;padding:9px 16px;cursor:pointer;">👁 Preview</span>
+                <span onClick="{{ onSave }}" style="font-size:13.5px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);border-radius:10px;padding:9px 18px;cursor:pointer;">✓ Save</span>
+              </div>
+            </div>
+
+            <!-- body: document + inspector -->
+            <div style="display:flex;align-items:flex-start;background:#EFEBE2;">
+              <!-- document -->
+              <div style="flex:1;min-width:0;padding:30px;min-height:560px;">
+                <div style="max-width:680px;margin:0 auto;background:#fff;border-radius:16px;box-shadow:0 12px 40px rgba(14,21,18,.1);overflow:hidden;">
+                  <!-- refined cover -->
+                  <div style="height:236px;position:relative;background:{{ coverBg }};display:flex;flex-direction:column;justify-content:flex-end;padding:28px 36px;overflow:hidden;">
+                    {{ coverImgNode }}
+                    <div style="position:absolute;inset:0;background:{{ overlayCss }};"></div>
+                    <sc-if value="{{ logoOn }}" hint-placeholder-val="{{ true }}">
+                      <div style="position:absolute;top:22px;left:36px;display:flex;align-items:center;gap:8px;">
+                        <span style="width:26px;height:26px;border-radius:7px;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center;font-family:'Bricolage Grotesque',sans-serif;font-weight:800;color:#0A0F0C;font-size:15px;">f</span>
+                        <span style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:14px;color:#fff;">Growth Partners</span>
+                      </div>
+                    </sc-if>
+                    <div style="position:relative;font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:rgba(255,255,255,.72);margin-bottom:7px;">Proposal · {{ propDate }}</div>
+                    <input value="{{ title }}" onInput="{{ onTitle }}" placeholder="Proposal title" style="position:relative;font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:30px;line-height:1.1;letter-spacing:-.02em;color:#fff;border:none;outline:none;background:transparent;padding:0;width:100%;" />
+                    <div style="position:relative;display:flex;align-items:center;gap:16px;margin-top:10px;flex-wrap:wrap;">
+                      <span style="font-size:13px;color:rgba(255,255,255,.9);">Presented by <strong style="font-weight:700;">{{ presenter }}</strong></span>
+                      <span style="width:4px;height:4px;border-radius:50%;background:rgba(255,255,255,.5);"></span>
+                      <span style="font-size:13px;color:rgba(255,255,255,.78);">Prepared for <span class="merge-tag" style="background:rgba(255,255,255,.16);color:#fff;border-color:rgba(255,255,255,.3);">{{ preparedFor }}</span></span>
+                    </div>
+                  </div>
+                  <!-- editable body -->
+                  <div ref="{{ setWrapEl }}" style="padding:30px 40px 48px;position:relative;">
+                    <div ref="{{ setEditorEl }}" class="ck-content" style="min-height:340px;"></div>
+
+                    <!-- inline inserter line -->
+                    <div style="position:absolute;left:40px;right:40px;top:{{ insTop }};display:{{ insShow }};align-items:center;height:0;z-index:6;">
+                      <div style="flex:1;height:2px;border-radius:2px;background:#35E834;opacity:.45;"></div>
+                      <span onClick="{{ onInserterClick }}" style="width:26px;height:26px;border-radius:50%;background:#35E834;color:#0A0F0C;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;cursor:pointer;margin:0 8px;box-shadow:0 3px 10px rgba(53,232,52,.4);">＋</span>
+                      <div style="flex:1;height:2px;border-radius:2px;background:#35E834;opacity:.45;"></div>
+                    </div>
+
+                    <!-- inserter popover -->
+                    <sc-if value="{{ inserterMenuOpen }}" hint-placeholder-val="{{ false }}">
+                      <div style="position:absolute;left:50%;top:{{ insMenuTop }};transform:translateX(-50%);background:#fff;border:1px solid #E4EAE6;border-radius:12px;box-shadow:0 18px 44px rgba(14,21,18,.2);padding:7px;width:300px;z-index:12;max-height:340px;overflow:auto;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 8px 8px;">
+                          <span style="font-size:12px;font-weight:700;color:#0E1512;">Add here</span>
+                          <span onClick="{{ onCloseInserter }}" style="cursor:pointer;color:#9AA59E;font-size:14px;">✕</span>
+                        </div>
+                        <sc-for list="{{ inserterGroups }}" as="g" hint-placeholder-count="2">
+                          <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:#9AA59E;padding:8px 9px 5px;">{{ g.name }}</div>
+                          <sc-for list="{{ g.items }}" as="i" hint-placeholder-count="3">
+                            <div onClick="{{ i.onClick }}" style="display:flex;align-items:center;gap:11px;padding:8px 9px;border-radius:8px;cursor:pointer;" style-hover="background:#F4FBF5;">
+                              <span style="width:28px;height:28px;border-radius:7px;background:#F2EEE4;color:#16A82A;display:flex;align-items:center;justify-content:center;font-size:13px;flex:none;">{{ i.icon }}</span>
+                              <div style="min-width:0;"><div style="font-size:13.5px;font-weight:600;color:#0E1512;">{{ i.label }}</div><div style="font-size:11.5px;color:#9AA59E;">{{ i.desc }}</div></div>
+                            </div>
+                          </sc-for>
+                        </sc-for>
+                      </div>
+                    </sc-if>
+
+                    <!-- floating selection toolbar -->
+                    <div style="position:absolute;top:{{ selTop }};left:{{ selLeft }};transform:translate(-50%,-100%);display:{{ selShow }};z-index:14;">
+                      <div style="display:flex;align-items:center;gap:2px;background:#0C140F;border-radius:11px;box-shadow:0 12px 30px rgba(0,0,0,.34);padding:5px;">
+                        <sc-for list="{{ selBlockBtns }}" as="b" hint-placeholder-count="3">
+                          <span onClick="{{ b.onClick }}" title="{{ b.tip }}" style="min-width:30px;height:30px;padding:0 8px;border-radius:7px;display:flex;align-items:center;justify-content:center;color:#fff;cursor:pointer;font-size:12.5px;font-weight:700;" style-hover="background:rgba(255,255,255,.13);">{{ b.label }}</span>
+                        </sc-for>
+                        <span style="width:1px;height:20px;background:rgba(255,255,255,.18);margin:0 3px;"></span>
+                        <sc-for list="{{ selFormatBtns }}" as="b" hint-placeholder-count="4">
+                          <span onClick="{{ b.onClick }}" title="{{ b.tip }}" style="width:30px;height:30px;border-radius:7px;display:flex;align-items:center;justify-content:center;color:#fff;cursor:pointer;font-size:14px;font-weight:{{ b.fw }};font-style:{{ b.fs }};text-decoration:{{ b.td }};" style-hover="background:rgba(255,255,255,.13);">{{ b.label }}</span>
+                        </sc-for>
+                        <div style="position:relative;">
+                          <span onClick="{{ onToggleColorMenu }}" title="Color" style="width:30px;height:30px;border-radius:7px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;cursor:pointer;font-size:13px;font-weight:700;" style-hover="background:rgba(255,255,255,.13);">A<span style="width:14px;height:3px;border-radius:2px;background:{{ activeColor }};margin-top:1px;"></span></span>
+                          <sc-if value="{{ colorMenuOpen }}" hint-placeholder-val="{{ false }}">
+                            <div style="position:absolute;top:calc(100% + 8px);left:50%;transform:translateX(-50%);background:#fff;border:1px solid #E4EAE6;border-radius:11px;box-shadow:0 14px 36px rgba(14,21,18,.2);padding:11px;z-index:20;width:152px;">
+                              <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#9AA59E;margin-bottom:7px;">Text</div>
+                              <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:11px;"><sc-for list="{{ foreColors }}" as="c" hint-placeholder-count="6"><span onClick="{{ c.onPick }}" style="width:24px;height:24px;border-radius:6px;background:{{ c.color }};border:1px solid rgba(0,0,0,.12);cursor:pointer;"></span></sc-for></div>
+                              <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#9AA59E;margin-bottom:7px;">Highlight</div>
+                              <div style="display:flex;flex-wrap:wrap;gap:7px;"><sc-for list="{{ highlightColors }}" as="c" hint-placeholder-count="5"><span onClick="{{ c.onPick }}" style="width:24px;height:24px;border-radius:6px;background:{{ c.color }};border:1px solid rgba(0,0,0,.12);cursor:pointer;"></span></sc-for></div>
+                            </div>
+                          </sc-if>
+                        </div>
+                        <span style="width:1px;height:20px;background:rgba(255,255,255,.18);margin:0 3px;"></span>
+                        <sc-for list="{{ selListBtns }}" as="b" hint-placeholder-count="3">
+                          <span onClick="{{ b.onClick }}" title="{{ b.tip }}" style="width:30px;height:30px;border-radius:7px;display:flex;align-items:center;justify-content:center;color:#fff;cursor:pointer;font-size:14px;" style-hover="background:rgba(255,255,255,.13);">{{ b.label }}</span>
+                        </sc-for>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div style="max-width:680px;margin:14px auto 0;text-align:center;font-size:12px;color:#9AA59E;">Select text, then use the toolbar. Insert variables to personalise per lead.</div>
+              </div>
+
+              <!-- inspector -->
+              <div style="flex:0 0 320px;align-self:stretch;background:#fff;border-left:1px solid #EBE3D6;padding:16px 16px 20px;display:flex;flex-direction:column;">
+                <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:15px;color:#0E1512;margin-bottom:12px;display:flex;align-items:center;gap:8px;flex:none;"><span style="color:#16A82A;">⚙</span> Setup</div>
+
+                <div style="flex:1;min-height:0;overflow:auto;margin:0 -4px;padding:0 4px;">
+
+                <!-- cover section -->
+                <div style="border:1px solid #EBE3D6;border-radius:13px;overflow:hidden;margin-bottom:11px;">
+                  <div onClick="{{ onInspCover }}" style="display:flex;align-items:center;gap:10px;padding:13px 15px;cursor:pointer;">
+                    <span style="width:26px;height:26px;border-radius:7px;background:#EAF9EC;color:#16A82A;display:flex;align-items:center;justify-content:center;font-size:13px;flex:none;">▣</span>
+                    <span style="flex:1;font-size:13.5px;font-weight:700;color:#0E1512;">Cover</span>
+                    <span style="color:#9AA59E;font-size:12px;transform:{{ inspCoverChev }};">⌄</span>
+                  </div>
+                  <sc-if value="{{ inspCoverOpen }}" hint-placeholder-val="{{ true }}">
+                    <div style="padding:0 15px 16px;">
+                      <label class="ilbl" style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#8A7F6B;margin-bottom:8px;">Cover image</label>
+                      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:14px;">
+                        <sc-for list="{{ coverImgOptions }}" as="c" hint-placeholder-count="6">
+                          <div onClick="{{ c.onPick }}" style="aspect-ratio:3/2;border-radius:8px;border:2px solid {{ c.border }};overflow:hidden;cursor:pointer;background:linear-gradient(135deg,#E4EAE6,#cfd8d2);display:flex;align-items:center;justify-content:center;position:relative;">
+                            <sc-if value="{{ c.isNone }}" hint-placeholder-val="{{ false }}"><span style="font-size:10px;font-weight:600;color:#8A7F6B;text-align:center;">Gradient</span></sc-if>
+                            {{ c.thumbNode }}
+                          </div>
+                        </sc-for>
+                      </div>
+                      <label class="ilbl" style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#8A7F6B;margin-bottom:7px;">Overlay</label>
+                      <div style="display:flex;gap:7px;margin-bottom:14px;">
+                        <span onClick="{{ onOverlayDark }}" style="flex:1;text-align:center;font-size:12.5px;font-weight:600;color:{{ overlayDarkFg }};background:{{ overlayDarkBg }};border:1px solid #E4EAE6;border-radius:8px;padding:8px;cursor:pointer;">Dark</span>
+                        <span onClick="{{ onOverlayLight }}" style="flex:1;text-align:center;font-size:12.5px;font-weight:600;color:{{ overlayLightFg }};background:{{ overlayLightBg }};border:1px solid #E4EAE6;border-radius:8px;padding:8px;cursor:pointer;">Light</span>
+                      </div>
+                      <div onClick="{{ onToggleLogo }}" style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+                        <span style="width:40px;height:24px;border-radius:100px;background:{{ logoBg }};position:relative;flex:none;"><span style="position:absolute;top:3px;left:{{ logoKnob }};width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left .2s;"></span></span>
+                        <span style="font-size:13px;font-weight:600;color:#5C6B62;">Show agency logo</span>
+                      </div>
+                    </div>
+                  </sc-if>
+                </div>
+
+                <!-- details section -->
+                <div style="border:1px solid #EBE3D6;border-radius:13px;overflow:hidden;margin-bottom:11px;">
+                  <div onClick="{{ onInspDetails }}" style="display:flex;align-items:center;gap:10px;padding:13px 15px;cursor:pointer;">
+                    <span style="width:26px;height:26px;border-radius:7px;background:#E6F8FB;color:#0E8FA8;display:flex;align-items:center;justify-content:center;font-size:13px;flex:none;">☰</span>
+                    <span style="flex:1;font-size:13.5px;font-weight:700;color:#0E1512;">Details</span>
+                    <span style="color:#9AA59E;font-size:12px;transform:{{ inspDetailsChev }};">⌄</span>
+                  </div>
+                  <sc-if value="{{ inspDetailsOpen }}" hint-placeholder-val="{{ false }}">
+                    <div style="padding:0 15px 16px;display:flex;flex-direction:column;gap:11px;">
+                      <div><label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#8A7F6B;margin-bottom:6px;">Presented by</label><input value="{{ presenter }}" onInput="{{ onPresenter }}" class="fbInput" /></div>
+                      <div><label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#8A7F6B;margin-bottom:6px;">Role / company</label><input value="{{ presenterRole }}" onInput="{{ onPresenterRole }}" class="fbInput" /></div>
+                      <div><label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#8A7F6B;margin-bottom:6px;">Prepared for</label><input value="{{ preparedFor }}" onInput="{{ onPreparedFor }}" class="fbInput" /><div style="font-size:11px;color:#9AA59E;margin-top:4px;">Use {{ varHint }} to auto-fill the lead's company.</div></div>
+                      <div style="display:flex;gap:9px;">
+                        <div style="flex:1;"><label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#8A7F6B;margin-bottom:6px;">Date</label><input value="{{ propDate }}" onInput="{{ onPropDate }}" class="fbInput" /></div>
+                        <div style="flex:1;"><label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#8A7F6B;margin-bottom:6px;">Validity</label><input value="{{ validUntil }}" onInput="{{ onValidUntil }}" class="fbInput" /></div>
+                      </div>
+                    </div>
+                  </sc-if>
+                </div>
+
+                <!-- cta section -->
+                <div style="border:1px solid #EBE3D6;border-radius:13px;overflow:hidden;margin-bottom:14px;">
+                  <div onClick="{{ onInspCta }}" style="display:flex;align-items:center;gap:10px;padding:13px 15px;cursor:pointer;">
+                    <span style="width:26px;height:26px;border-radius:7px;background:#F4FAE3;color:#6B8A1E;display:flex;align-items:center;justify-content:center;font-size:13px;flex:none;">📅</span>
+                    <span style="flex:1;font-size:13.5px;font-weight:700;color:#0E1512;">Call to action</span>
+                    <span style="color:#9AA59E;font-size:12px;transform:{{ inspCtaChev }};">⌄</span>
+                  </div>
+                  <sc-if value="{{ inspCtaOpen }}" hint-placeholder-val="{{ false }}">
+                    <div style="padding:0 15px 16px;display:flex;flex-direction:column;gap:11px;">
+                      <div>
+                        <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#8A7F6B;margin-bottom:6px;">Action type</label>
+                        <div style="display:flex;gap:6px;">
+                          <sc-for list="{{ ctaTypeOpts }}" as="t" hint-placeholder-count="3">
+                            <span onClick="{{ t.onPick }}" style="flex:1;text-align:center;font-size:12px;font-weight:600;padding:8px 4px;border-radius:8px;cursor:pointer;color:{{ t.fg }};background:{{ t.bg }};border:1px solid {{ t.border }};">{{ t.label }}</span>
+                          </sc-for>
+                        </div>
+                      </div>
+                      <div><label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#8A7F6B;margin-bottom:6px;">Heading</label><input value="{{ ctaHeading }}" onInput="{{ onCtaHeading }}" class="fbInput" /></div>
+                      <div><label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#8A7F6B;margin-bottom:6px;">Subtext</label><input value="{{ ctaSub }}" onInput="{{ onCtaSub }}" class="fbInput" /></div>
+                      <sc-if value="{{ ctaHasCall }}" hint-placeholder-val="{{ true }}">
+                        <div><label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#8A7F6B;margin-bottom:6px;">Booking button label</label><input value="{{ ctaButton }}" onInput="{{ onCtaButton }}" class="fbInput" /></div>
+                        <div><label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#8A7F6B;margin-bottom:6px;">Calendar link</label><input value="{{ calLink }}" onInput="{{ onCalLink }}" class="fbInput" /></div>
+                      </sc-if>
+                      <sc-if value="{{ ctaHasPay }}" hint-placeholder-val="{{ false }}">
+                        <div style="border-top:1px dashed #E4EAE6;padding-top:11px;display:flex;flex-direction:column;gap:11px;">
+                          <div style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#0E1512;"><span style="color:#16A82A;">💳</span> Payment</div>
+                          <div style="display:flex;gap:9px;">
+                            <div style="flex:0 0 70px;"><label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#8A7F6B;margin-bottom:6px;">Currency</label>
+                              <select value="{{ payCurrency }}" onChange="{{ onPayCurrency }}" class="fbInput" style="cursor:pointer;"><option value="$">$ USD</option><option value="£">£ GBP</option><option value="€">€ EUR</option></select>
+                            </div>
+                            <div style="flex:1;"><label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#8A7F6B;margin-bottom:6px;">Amount</label><input value="{{ payAmount }}" onInput="{{ onPayAmount }}" class="fbInput" placeholder="1,500" /></div>
+                          </div>
+                          <div style="display:flex;gap:6px;">
+                            <sc-for list="{{ payCadenceOpts }}" as="t" hint-placeholder-count="3">
+                              <span onClick="{{ t.onPick }}" style="flex:1;text-align:center;font-size:12px;font-weight:600;padding:7px 4px;border-radius:8px;cursor:pointer;color:{{ t.fg }};background:{{ t.bg }};border:1px solid {{ t.border }};">{{ t.label }}</span>
+                            </sc-for>
+                          </div>
+                          <div><label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#8A7F6B;margin-bottom:6px;">Pay button label</label><input value="{{ payButton }}" onInput="{{ onPayButton }}" class="fbInput" /></div>
+                          <div style="display:flex;align-items:center;gap:8px;font-size:11.5px;color:#9AA59E;"><span style="font-size:13px;">🔒</span> Secure checkout via Stripe · connected</div>
+                        </div>
+                      </sc-if>
+                    </div>
+                  </sc-if>
+                </div>
+
+                <div onClick="{{ onToggleTracking }}" style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:0 4px;margin-bottom:4px;">
+                  <span style="width:40px;height:24px;border-radius:100px;background:{{ trackingBg }};position:relative;flex:none;"><span style="position:absolute;top:3px;left:{{ trackingKnob }};width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left .2s;"></span></span>
+                  <div style="flex:1;"><div style="font-size:13px;font-weight:700;color:#0E1512;">View &amp; click tracking</div><div style="font-size:11.5px;color:#9AA59E;">Know when the lead opens it</div></div>
+                </div>
+
+                </div>
+
+                <span onClick="{{ onSend }}" style="display:block;flex:none;text-align:center;font-size:14px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);border-radius:11px;padding:12px;cursor:pointer;box-shadow:0 6px 18px rgba(53,232,52,.26);margin-top:14px;">→ Send to lead</span>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- ===== PREVIEW VIEW ===== -->
+        <sc-if value="{{ isPreview }}" hint-placeholder-val="{{ false }}">
+          <div>
+            <div style="position:sticky;top:0;z-index:5;background:#0C140F;color:#fff;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;">
+              <div style="display:flex;align-items:center;gap:12px;">
+                <span onClick="{{ onBackToEditor }}" style="width:34px;height:34px;border-radius:9px;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;color:#fff;cursor:pointer;font-size:16px;">‹</span>
+                <div><div style="font-size:14px;font-weight:600;">Client preview</div><div style="font-size:12px;color:rgba(255,255,255,.5);">How this looks to the lead it's sent to</div></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:9px;">
+                <span style="font-size:12px;color:rgba(255,255,255,.6);display:inline-flex;align-items:center;gap:7px;"><span style="width:8px;height:8px;border-radius:50%;background:#35E834;box-shadow:0 0 8px rgba(53,232,52,.6);"></span>Live link active</span>
+                <span onClick="{{ onCopyLink }}" style="font-size:13px;font-weight:600;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);border-radius:9px;padding:8px 15px;cursor:pointer;">⧉ Copy link</span>
+              </div>
+            </div>
+            <div style="background:#EFEBE2;padding:34px 30px 48px;">
+              <div style="max-width:720px;margin:0 auto;background:#fff;border-radius:16px;box-shadow:0 16px 50px rgba(14,21,18,.14);overflow:hidden;">
+                <div style="height:264px;position:relative;background:{{ coverBg }};display:flex;flex-direction:column;justify-content:flex-end;padding:32px 44px;overflow:hidden;">
+                  {{ coverImgNode }}
+                  <div style="position:absolute;inset:0;background:{{ overlayCss }};"></div>
+                  <sc-if value="{{ logoOn }}" hint-placeholder-val="{{ true }}">
+                    <div style="position:absolute;top:26px;left:44px;display:flex;align-items:center;gap:9px;">
+                      <span style="width:28px;height:28px;border-radius:8px;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center;font-family:'Bricolage Grotesque',sans-serif;font-weight:800;color:#0A0F0C;font-size:16px;">f</span>
+                      <span style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:15px;color:#fff;">Growth Partners</span>
+                    </div>
+                  </sc-if>
+                  <div style="position:relative;font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:rgba(255,255,255,.72);margin-bottom:8px;">Proposal · {{ propDate }}</div>
+                  <div style="position:relative;font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:34px;letter-spacing:-.02em;color:#fff;line-height:1.08;">{{ title }}</div>
+                  <div style="position:relative;font-size:14px;color:rgba(255,255,255,.88);margin-top:8px;">Presented by {{ presenter }} · {{ presenterRole }} — for {{ sampleLead }}</div>
+                </div>
+                <div style="padding:34px 44px 10px;">
+                  <div class="ck-content" style="font-size:16px;">{{ previewBody }}</div>
+                </div>
+                <!-- CTA -->
+                <div style="margin:14px 44px 40px;border-radius:16px;background:linear-gradient(135deg,#0C140F,#11201A);padding:28px 30px;text-align:center;color:#fff;">
+                  <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:21px;margin-bottom:6px;">{{ ctaHeading }}</div>
+                  <div style="font-size:14px;color:rgba(255,255,255,.7);margin-bottom:18px;">{{ ctaSub }}</div>
+                  <div style="display:flex;align-items:center;justify-content:center;gap:11px;flex-wrap:wrap;">
+                    <sc-if value="{{ ctaHasPay }}" hint-placeholder-val="{{ false }}">
+                      <span onClick="{{ onPayNow }}" style="font-size:14px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);border-radius:11px;padding:12px 24px;cursor:pointer;">💳 {{ payButton }} · {{ payPriceLabel }}</span>
+                    </sc-if>
+                    <sc-if value="{{ ctaHasCall }}" hint-placeholder-val="{{ true }}">
+                      <span onClick="{{ onBookCall }}" style="font-size:14px;font-weight:700;color:{{ callBtnFg }};background:{{ callBtnBg }};border:{{ callBtnBorder }};border-radius:11px;padding:12px 24px;cursor:pointer;">📅 {{ ctaButton }}</span>
+                    </sc-if>
+                    <span onClick="{{ onAccept }}" style="font-size:14px;font-weight:600;color:#fff;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);border-radius:11px;padding:12px 22px;cursor:pointer;">✓ Accept proposal</span>
+                  </div>
+                  <div style="font-size:11.5px;color:rgba(255,255,255,.45);margin-top:14px;">{{ validUntil }} · {{ ctaFootnote }}</div>
+                </div>
+              </div>
+              <div style="max-width:720px;margin:16px auto 0;text-align:center;font-size:12px;color:#9AA59E;">Powered by Clientforce · views &amp; clicks are tracked back to this lead</div>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+
+    <!-- DELETE MODAL -->
+    <sc-if value="{{ deleteOpen }}" hint-placeholder-val="{{ false }}">
+      <div onClick="{{ onCancelDelete }}" style="position:absolute;inset:0;background:rgba(14,21,18,.55);display:flex;align-items:center;justify-content:center;z-index:40;">
+        <div style="background:#fff;border-radius:18px;padding:28px;width:400px;box-shadow:0 24px 60px rgba(0,0,0,.3);text-align:center;">
+          <div style="width:52px;height:52px;border-radius:14px;margin:0 auto 14px;background:#FBEDEA;display:flex;align-items:center;justify-content:center;font-size:24px;">🗑</div>
+          <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:18px;color:#0E1512;margin-bottom:7px;">Delete "{{ deleteName }}"?</div>
+          <div style="font-size:14px;color:#5C6B62;line-height:1.55;margin-bottom:22px;">This proposal and its tracking data will be permanently removed. This can't be undone.</div>
+          <div style="display:flex;gap:10px;">
+            <span onClick="{{ onCancelDelete }}" style="flex:1;text-align:center;font-size:14px;font-weight:600;color:#5C6B62;background:#fff;border:1px solid #E4EAE6;border-radius:11px;padding:11px;cursor:pointer;">Cancel</span>
+            <span onClick="{{ onConfirmDelete }}" style="flex:1;text-align:center;font-size:14px;font-weight:700;color:#fff;background:#C0584B;border-radius:11px;padding:11px;cursor:pointer;">Delete</span>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- SEND TO LEAD MODAL -->
+    <sc-if value="{{ sendOpen }}" hint-placeholder-val="{{ false }}">
+      <div onClick="{{ onCloseSend }}" style="position:absolute;inset:0;background:rgba(12,20,15,.55);backdrop-filter:blur(3px);z-index:55;display:flex;align-items:center;justify-content:center;padding:30px;">
+        <div onClick="{{ stop }}" style="width:560px;max-width:100%;max-height:88%;overflow:auto;background:#fff;border-radius:18px;box-shadow:0 30px 80px rgba(0,0,0,.4);">
+          <!-- header -->
+          <div style="display:flex;align-items:center;gap:12px;padding:20px 24px;border-bottom:1px solid #EFEBE2;">
+            <span style="width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);display:flex;align-items:center;justify-content:center;color:#0A0F0C;font-size:16px;flex:none;">→</span>
+            <div style="flex:1;min-width:0;"><div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:17px;color:#0E1512;">Send proposal</div><div style="font-size:12.5px;color:#9AA59E;">{{ title }}</div></div>
+            <span onClick="{{ onCloseSend }}" style="width:32px;height:32px;border-radius:8px;border:1px solid #E4EAE6;display:flex;align-items:center;justify-content:center;color:#9AA59E;cursor:pointer;flex:none;">✕</span>
+          </div>
+          <!-- steps indicator -->
+          <div style="display:flex;align-items:center;gap:8px;padding:14px 24px 0;">
+            <sc-for list="{{ sendSteps }}" as="st" hint-placeholder-count="3">
+              <span style="font-size:11.5px;font-weight:700;color:{{ st.fg }};background:{{ st.bg }};border-radius:100px;padding:4px 11px;">{{ st.label }}</span>
+            </sc-for>
+          </div>
+
+          <!-- STEP 1: recipient + channel -->
+          <sc-if value="{{ sendStepLead }}" hint-placeholder-val="{{ true }}">
+            <div style="padding:18px 24px 22px;">
+              <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#8A7F6B;margin-bottom:8px;">Recipient</label>
+              <input value="{{ sendQuery }}" onInput="{{ onSendQuery }}" class="fbInput" placeholder="Search leads…" style="margin-bottom:10px;" />
+              <div style="display:flex;flex-direction:column;gap:7px;max-height:198px;overflow:auto;margin-bottom:18px;">
+                <sc-for list="{{ sendLeads }}" as="l" hint-placeholder-count="4">
+                  <div onClick="{{ l.onPick }}" style="display:flex;align-items:center;gap:11px;border:1.5px solid {{ l.border }};background:{{ l.bg }};border-radius:11px;padding:10px 13px;cursor:pointer;">
+                    <span style="width:36px;height:36px;border-radius:50%;background:{{ l.avBg }};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex:none;">{{ l.initials }}</span>
+                    <div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:600;color:#0E1512;">{{ l.name }}</div><div style="font-size:12px;color:#9AA59E;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ l.sub }}</div></div>
+                    <span style="width:18px;height:18px;border-radius:50%;border:2px solid {{ l.dot }};display:flex;align-items:center;justify-content:center;flex:none;"><span style="width:8px;height:8px;border-radius:50%;background:{{ l.dotFill }};"></span></span>
+                  </div>
+                </sc-for>
+              </div>
+              <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#8A7F6B;margin-bottom:8px;">Deliver via</label>
+              <div style="display:flex;gap:8px;">
+                <sc-for list="{{ sendChannels }}" as="c" hint-placeholder-count="3">
+                  <span onClick="{{ c.onPick }}" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 6px;border-radius:11px;cursor:pointer;color:{{ c.fg }};background:{{ c.bg }};border:1.5px solid {{ c.border }};"><span style="font-size:17px;">{{ c.icon }}</span><span style="font-size:12.5px;font-weight:600;">{{ c.label }}</span></span>
+                </sc-for>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 24px;border-top:1px solid #EFEBE2;">
+              <span onClick="{{ onCloseSend }}" style="font-size:13.5px;font-weight:600;color:#5C6B62;cursor:pointer;">Cancel</span>
+              <span onClick="{{ onSendNext }}" style="font-size:13.5px;font-weight:700;color:{{ sendNextFg }};background:{{ sendNextBg }};border-radius:10px;padding:10px 20px;cursor:{{ sendNextCursor }};">Continue →</span>
+            </div>
+          </sc-if>
+
+          <!-- STEP 2: review -->
+          <sc-if value="{{ sendStepReview }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:18px 24px 22px;">
+              <div style="display:flex;align-items:center;gap:11px;background:#F7F9F8;border:1px solid #EFEBE2;border-radius:12px;padding:13px 15px;margin-bottom:14px;">
+                <span style="width:38px;height:38px;border-radius:50%;background:{{ sendToAvBg }};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex:none;">{{ sendToInitials }}</span>
+                <div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:600;color:#0E1512;">{{ sendToName }}</div><div style="font-size:12px;color:#9AA59E;">{{ sendToTarget }}</div></div>
+                <span style="font-size:11.5px;font-weight:700;color:#16A82A;background:#EAF9EC;border-radius:100px;padding:4px 11px;">{{ sendChannelLabel }}</span>
+              </div>
+              <sc-if value="{{ sendIsEmail }}" hint-placeholder-val="{{ true }}">
+                <div style="margin-bottom:12px;"><label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#8A7F6B;margin-bottom:6px;">Subject</label><input value="{{ sendSubject }}" onInput="{{ onSendSubject }}" class="fbInput" /></div>
+              </sc-if>
+              <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#8A7F6B;margin-bottom:6px;">Message</label>
+              <textarea onInput="{{ onSendMessage }}" class="fbInput" rows="5" style="resize:vertical;line-height:1.55;">{{ sendMessage }}</textarea>
+              <div style="display:flex;align-items:flex-start;gap:9px;margin-top:12px;background:#F4FBF5;border:1px solid #C7EDCF;border-radius:10px;padding:11px 13px;">
+                <span style="color:#16A82A;font-size:14px;">🔗</span>
+                <span style="font-size:12.5px;color:#5C6B62;line-height:1.5;">A unique tracked link to <strong style="color:#0E1512;">{{ title }}</strong> will be attached. You'll be notified when {{ sendFirstName }} opens it.</span>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 24px;border-top:1px solid #EFEBE2;">
+              <span onClick="{{ onSendBack }}" style="font-size:13.5px;font-weight:600;color:#5C6B62;cursor:pointer;">‹ Back</span>
+              <span onClick="{{ onSendConfirm }}" style="font-size:13.5px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);border-radius:10px;padding:10px 22px;cursor:pointer;box-shadow:0 6px 18px rgba(53,232,52,.26);">→ Send now</span>
+            </div>
+          </sc-if>
+
+          <!-- STEP 3: done -->
+          <sc-if value="{{ sendStepDone }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:34px 24px 30px;text-align:center;">
+              <div style="width:64px;height:64px;border-radius:50%;background:#EAF9EC;color:#16A82A;display:flex;align-items:center;justify-content:center;font-size:30px;margin:0 auto 16px;">✓</div>
+              <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:20px;color:#0E1512;margin-bottom:6px;">Proposal sent</div>
+              <div style="font-size:14px;color:#5C6B62;line-height:1.55;max-width:380px;margin:0 auto 18px;">{{ sendToName }} will receive it via {{ sendChannelLabel }}. We'll notify you the moment it's opened.</div>
+              <div style="display:flex;align-items:center;gap:9px;justify-content:center;background:#F7F9F8;border:1px solid #EFEBE2;border-radius:10px;padding:10px 14px;width:max-content;max-width:100%;margin:0 auto 22px;">
+                <span style="font-size:12.5px;color:#9AA59E;font-family:'Courier New',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ sendTrackLink }}</span>
+                <span onClick="{{ onCopyTrack }}" style="font-size:12px;font-weight:600;color:#16A82A;cursor:pointer;white-space:nowrap;">⧉ Copy</span>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:center;gap:10px;">
+                <span onClick="{{ onCloseSend }}" style="font-size:13.5px;font-weight:600;color:#5C6B62;background:#fff;border:1px solid #E4EAE6;border-radius:10px;padding:10px 18px;cursor:pointer;">Done</span>
+                <span onClick="{{ onPreview }}" style="font-size:13.5px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);border-radius:10px;padding:10px 18px;cursor:pointer;">View as client</span>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- BLOCK INPUT MODAL -->
+    <sc-if value="{{ hasBlockModal }}" hint-placeholder-val="{{ false }}">
+      <div onClick="{{ onCloseBlockModal }}" style="position:fixed;inset:0;background:rgba(0,0,0,.45);backdrop-filter:blur(6px);z-index:900;display:flex;align-items:center;justify-content:center;">
+        <div onClick="{{ stop }}" style="background:#fff;border-radius:20px;box-shadow:0 24px 64px rgba(0,0,0,.22);width:460px;padding:28px 28px 24px;">
+
+          <!-- Image modal -->
+          <sc-if value="{{ bmIsImage }}" hint-placeholder-val="{{ false }}">
+            <div style="font-size:17px;font-weight:700;color:#0E1512;margin-bottom:4px;">Add image</div>
+            <div style="font-size:13px;color:#8A9E90;margin-bottom:20px;">Upload a file or paste an image URL</div>
+            <!-- tabs -->
+            <div style="display:flex;gap:0;background:#F4F6F4;border-radius:10px;padding:3px;margin-bottom:18px;">
+              <div onClick="{{ onBmTabUpload }}" style="flex:1;text-align:center;font-size:13px;font-weight:600;padding:7px;border-radius:8px;cursor:pointer;background:{{ bmTabUpload ? '#fff' : 'transparent' }};color:{{ bmTabUpload ? '#0E1512' : '#8A9E90' }};box-shadow:{{ bmTabUpload ? '0 1px 4px rgba(0,0,0,.08)' : 'none' }};">Upload</div>
+              <div onClick="{{ onBmTabUrl }}" style="flex:1;text-align:center;font-size:13px;font-weight:600;padding:7px;border-radius:8px;cursor:pointer;background:{{ bmTabUrl ? '#fff' : 'transparent' }};color:{{ bmTabUrl ? '#0E1512' : '#8A9E90' }};box-shadow:{{ bmTabUrl ? '0 1px 4px rgba(0,0,0,.08)' : 'none' }};">Paste URL</div>
+            </div>
+            <sc-if value="{{ bmTabUpload }}" hint-placeholder-val="{{ true }}">
+              <div style="border:2px dashed #D0DAD4;border-radius:14px;padding:36px 24px;text-align:center;margin-bottom:18px;">
+                <div style="font-size:28px;margin-bottom:10px;">🖼</div>
+                <div style="font-size:14px;font-weight:600;color:#0E1512;margin-bottom:4px;">Click to choose a file</div>
+                <div style="font-size:12px;color:#9AA59E;">PNG, JPG, GIF or WebP — max 10 MB</div>
+              </div>
+            </sc-if>
+            <sc-if value="{{ bmTabUrl }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-bottom:18px;">
+                <div style="font-size:12px;font-weight:600;color:#5C6B62;margin-bottom:6px;">Image URL</div>
+                <input value="{{ bmUrl }}" onChange="{{ onSetBmUrl }}" placeholder="https://example.com/photo.jpg" style="width:100%;box-sizing:border-box;border:1.5px solid #D8E0DA;border-radius:10px;padding:10px 13px;font-size:14px;color:#0E1512;outline:none;" />
+              </div>
+            </sc-if>
+          </sc-if>
+
+          <!-- Video modal -->
+          <sc-if value="{{ bmIsVideo }}" hint-placeholder-val="{{ false }}">
+            <div style="font-size:17px;font-weight:700;color:#0E1512;margin-bottom:4px;">Embed video</div>
+            <div style="font-size:13px;color:#8A9E90;margin-bottom:20px;">Paste a YouTube, Vimeo, or Loom link</div>
+            <div style="display:flex;gap:10px;margin-bottom:18px;">
+              <div style="display:flex;align-items:center;gap:6px;background:#F4F6F4;border-radius:8px;padding:8px 12px;font-size:12px;font-weight:600;color:#5C6B62;">▶ YouTube</div>
+              <div style="display:flex;align-items:center;gap:6px;background:#F4F6F4;border-radius:8px;padding:8px 12px;font-size:12px;font-weight:600;color:#5C6B62;">◈ Vimeo</div>
+              <div style="display:flex;align-items:center;gap:6px;background:#F4F6F4;border-radius:8px;padding:8px 12px;font-size:12px;font-weight:600;color:#5C6B62;">○ Loom</div>
+            </div>
+            <div style="margin-bottom:18px;">
+              <div style="font-size:12px;font-weight:600;color:#5C6B62;margin-bottom:6px;">Video URL</div>
+              <input value="{{ bmUrl }}" onChange="{{ onSetBmUrl }}" placeholder="https://youtube.com/watch?v=..." style="width:100%;box-sizing:border-box;border:1.5px solid #D8E0DA;border-radius:10px;padding:10px 13px;font-size:14px;color:#0E1512;outline:none;" />
+            </div>
+          </sc-if>
+
+          <!-- Button modal -->
+          <sc-if value="{{ bmIsButton }}" hint-placeholder-val="{{ false }}">
+            <div style="font-size:17px;font-weight:700;color:#0E1512;margin-bottom:4px;">Edit button</div>
+            <div style="font-size:13px;color:#8A9E90;margin-bottom:20px;">Update the button label and destination link</div>
+            <div style="margin-bottom:14px;">
+              <div style="font-size:12px;font-weight:600;color:#5C6B62;margin-bottom:6px;">Button label</div>
+              <input value="{{ bmLabel }}" onChange="{{ onSetBmLabel }}" placeholder="Click here" style="width:100%;box-sizing:border-box;border:1.5px solid #D8E0DA;border-radius:10px;padding:10px 13px;font-size:14px;color:#0E1512;outline:none;" />
+            </div>
+            <div style="margin-bottom:18px;">
+              <div style="font-size:12px;font-weight:600;color:#5C6B62;margin-bottom:6px;">Link URL</div>
+              <input value="{{ bmUrl }}" onChange="{{ onSetBmUrl }}" placeholder="https://cal.com/your-link" style="width:100%;box-sizing:border-box;border:1.5px solid #D8E0DA;border-radius:10px;padding:10px 13px;font-size:14px;color:#0E1512;outline:none;" />
+            </div>
+          </sc-if>
+
+          <!-- Actions -->
+          <div style="display:flex;gap:10px;justify-content:flex-end;">
+            <button onClick="{{ onCloseBlockModal }}" style="padding:9px 20px;border-radius:10px;border:1.5px solid #D8E0DA;background:#fff;font-size:13.5px;font-weight:600;color:#5C6B62;cursor:pointer;">Cancel</button>
+            <button onClick="{{ onConfirmBlock }}" style="padding:9px 22px;border-radius:10px;border:none;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);font-size:13.5px;font-weight:700;color:#0A0F0C;cursor:pointer;">{{ bmConfirmLabel }}</button>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- toast -->
+    <sc-if value="{{ showToast }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute;bottom:24px;left:50%;transform:translateX(-50%);background:#0C140F;color:#fff;font-size:13.5px;font-weight:600;padding:11px 20px;border-radius:11px;box-shadow:0 12px 32px rgba(0,0,0,.28);display:flex;align-items:center;gap:9px;z-index:50;"><span style="color:#7FE8A0;">✓</span>{{ toast }}</div>
+    </sc-if>
+  </div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = {
+    view: 'list',
+    category: 'personal',
+    folder: 0,
+    title: 'Lead follow-up & booking system',
+    content: '',
+    coverIdx: 0,
+    editingId: 1,
+    coverImgIdx: 2,
+    overlay: 'dark',
+    logoOn: true,
+    presenter: 'Jordan Mensah',
+    presenterRole: 'Founder · Growth Partners',
+    preparedFor: '{{Company}}',
+    propDate: 'June 2026',
+    validUntil: 'Valid for 30 days',
+    ctaHeading: 'Ready to move forward?',
+    ctaSub: "Book a call and we'll get you set up this week.",
+    ctaButton: 'Book a call',
+    calLink: 'cal.com/growthpartners/intro',
+    tracking: true,
+    insp: 'cover',
+    panelTab: 'insert',
+    // floating selection toolbar
+    selShow: false, selTop: '0px', selLeft: '0px',
+    // inline inserter
+    insShow: 'none', insTop: '0px', inserterMenuOpen: false, insMenuTop: '0px',
+    // cta type + payment
+    ctaType: 'call', payAmount: '1,500', payCurrency: '$', payCadence: 'once', payButton: 'Pay deposit',
+    // send flow
+    sendOpen: false, sendStep: 'lead', sendLeadId: null, sendChannel: 'email', sendQuery: '', sendSubject: '', sendMessage: '',
+    headingMenuOpen: false, colorMenuOpen: false, insertMenuOpen: false, varMenuOpen: false,
+    search: '', sort: 'recent',
+    blockModal: null,
+    activeColor: '#16A82A',
+    saveState: 'All changes saved',
+    deleteId: null,
+    toast: '',
+  };
+
+  covers = [
+    'linear-gradient(135deg,#0E8FA8,#16A82A 70%)',
+    'linear-gradient(135deg,#16A82A,#6B8A1E 75%)',
+    'linear-gradient(135deg,#0C140F,#11463A 80%)',
+    'linear-gradient(135deg,#5A4FCF,#0E8FA8 80%)',
+    'linear-gradient(135deg,#B4521E,#E0796B 80%)',
+  ];
+
+  coverImages = [
+    { label: 'Team', url: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=900&q=80&auto=format&fit=crop' },
+    { label: 'Meeting', url: 'https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=900&q=80&auto=format&fit=crop' },
+    { label: 'Analytics', url: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=900&q=80&auto=format&fit=crop' },
+    { label: 'Workspace', url: 'https://images.unsplash.com/photo-1497366811353-6870744d04b2?w=900&q=80&auto=format&fit=crop' },
+    { label: 'Handshake', url: 'https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=900&q=80&auto=format&fit=crop' },
+    { label: 'City', url: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=900&q=80&auto=format&fit=crop' },
+    { label: 'Gradient only', url: '' },
+  ];
+
+  categories = [
+    { slug: 'personal', label: 'My proposals', icon: '❒' },
+    { slug: 'library', label: 'Templates', icon: '◷' },
+    { slug: 'shared', label: 'Shared with me', icon: '⚇' },
+  ];
+
+  foldersData = {
+    personal: [
+      { id: 0, title: 'All proposals', icon: '▦' },
+      { id: 1, title: 'Active deals', icon: '◆' },
+      { id: 2, title: 'Sent', icon: '✉' },
+      { id: 3, title: 'Drafts', icon: '✎' },
+    ],
+    library: [
+      { id: 0, title: 'All templates', icon: '▦' },
+      { id: 4, title: 'Agencies', icon: '◆' },
+      { id: 5, title: 'Local business', icon: '☗' },
+    ],
+    shared: [
+      { id: 0, title: 'All shared', icon: '▦' },
+    ],
+  };
+
+  proposalsData = {
+    personal: [
+      { id: 1, title: 'Lead follow-up & booking system', description: 'Done-for-you AI follow-up that books qualified calls on autopilot for SaaS teams.', folder: 1, folderName: 'Active deals', sentToLeads: 34, views: 128, glyph: 'L', cover: 0, status: 'viewed', lastActivity: 'Viewed 2h ago', img: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=600&q=80&auto=format&fit=crop' },
+      { id: 2, title: 'Local service growth package', description: 'Missed-call text-back, review requests and booking automation for home services.', folder: 1, folderName: 'Active deals', sentToLeads: 21, views: 76, glyph: 'S', cover: 1, status: 'sent', lastActivity: 'Sent yesterday', img: 'https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=600&q=80&auto=format&fit=crop' },
+      { id: 3, title: 'Dental practice patient engine', description: 'Reactivation campaigns and AI front-desk to fill the appointment book.', folder: 2, folderName: 'Sent', sentToLeads: 12, views: 41, glyph: 'D', cover: 3, status: 'accepted', lastActivity: 'Accepted 3d ago', img: 'https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?w=600&q=80&auto=format&fit=crop' },
+      { id: 4, title: 'E-commerce abandoned cart recovery', description: 'Win back lost revenue with AI SMS + email recovery flows.', folder: 3, folderName: 'Drafts', sentToLeads: 0, views: 0, glyph: 'E', cover: 4, status: 'draft', lastActivity: 'Edited 1h ago', img: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=600&q=80&auto=format&fit=crop' },
+    ],
+    library: [
+      { id: 11, title: 'Agency lead-gen retainer', description: 'A proven monthly retainer proposal for agencies selling lead follow-up.', folder: 4, folderName: 'Agencies', glyph: 'A', cover: 2, status: 'template', lastActivity: 'Used 1.2k times', img: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=600&q=80&auto=format&fit=crop' },
+      { id: 12, title: 'Restaurant reservations engine', description: 'Fill tables with automated booking + waitlist for restaurants.', folder: 5, folderName: 'Local business', glyph: 'R', cover: 1, status: 'template', lastActivity: 'Used 840 times', img: 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=600&q=80&auto=format&fit=crop' },
+      { id: 13, title: 'Real estate buyer nurture', description: 'Nurture and route property leads to viewings automatically.', folder: 5, folderName: 'Local business', glyph: 'R', cover: 0, status: 'template', lastActivity: 'Used 610 times', img: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=600&q=80&auto=format&fit=crop' },
+    ],
+    shared: [],
+  };
+
+  statusMap = {
+    draft: { label: 'Draft', fg: '#8A7F6B', bg: 'rgba(255,255,255,.9)' },
+    sent: { label: 'Sent', fg: '#0E8FA8', bg: 'rgba(255,255,255,.92)' },
+    viewed: { label: 'Viewed', fg: '#6B8A1E', bg: 'rgba(255,255,255,.92)' },
+    accepted: { label: 'Accepted', fg: '#16A82A', bg: 'rgba(255,255,255,.94)' },
+    template: { label: 'Template', fg: '#5A4FCF', bg: 'rgba(255,255,255,.92)' },
+  };
+
+  sendLeadsData = [
+    { id: 1, name: 'Sarah Chen', sub: 'Owner · Brightline Dental', email: 'sarah@brightline.co', phone: '+1 415 555 0148', initials: 'SC', avBg: '#16A82A' },
+    { id: 2, name: 'Marcus Lee', sub: 'Founder · NorthPeak Realty', email: 'marcus@northpeak.com', phone: '+1 312 555 0172', initials: 'ML', avBg: '#0E8FA8' },
+    { id: 3, name: 'Priya Nair', sub: 'Director · Bloom Dental Group', email: 'priya@bloomdental.com', phone: '+1 646 555 0190', initials: 'PN', avBg: '#5A4FCF' },
+    { id: 4, name: 'Tom Alvarez', sub: 'GM · Verde Landscaping', email: 'tom@verdescapes.com', phone: '+1 213 555 0133', initials: 'TA', avBg: '#B4521E' },
+  ];
+
+  variables = [
+    { title: 'First name', token: '{{FirstName}}' },
+    { title: 'Last name', token: '{{LastName}}' },
+    { title: 'Title', token: '{{Title}}' },
+    { title: 'Company', token: '{{Company}}' },
+    { title: 'Email', token: '{{Email}}' },
+    { title: 'City', token: '{{City}}' },
+    { title: 'State', token: '{{State}}' },
+    { title: 'Country', token: '{{Country}}' },
+  ];
+
+  defaultBody() {
+    var img = 'https://images.unsplash.com/photo-1551434678-e076c223a692?w=900&q=80&auto=format&fit=crop';
+    return [
+      '<p>Hi <span class="merge-tag">{{FirstName}}</span>,</p>',
+      '<p>Thanks for the conversation. Based on what <span class="merge-tag">{{Company}}</span> is trying to achieve, here\u2019s exactly how we\u2019ll turn more of your inbound interest into booked calls \u2014 without adding headcount.</p>',
+
+      '<h2>The opportunity</h2>',
+      '<p>Leads arrive across forms, chat and ads, but follow-up is slow and inconsistent. That gap is where revenue leaks. With an always-on AI agent, every lead gets an instant, personal response \u2014 and the ones worth your time land on your calendar.</p>',
+
+      '<div style="display:flex;gap:14px;margin:0 0 18px;"><div style="flex:1;background:#F4FBF5;border:1px solid #C7EDCF;border-radius:12px;padding:18px;text-align:center;"><div style="font-family:\'Bricolage Grotesque\',sans-serif;font-weight:800;font-size:26px;color:#16A82A;">3.4x</div><div style="font-size:12.5px;color:#5C6B62;margin-top:3px;">More booked calls</div></div><div style="flex:1;background:#F4FBF5;border:1px solid #C7EDCF;border-radius:12px;padding:18px;text-align:center;"><div style="font-family:\'Bricolage Grotesque\',sans-serif;font-weight:800;font-size:26px;color:#16A82A;">&lt;5min</div><div style="font-size:12.5px;color:#5C6B62;margin-top:3px;">Avg. response time</div></div><div style="flex:1;background:#F4FBF5;border:1px solid #C7EDCF;border-radius:12px;padding:18px;text-align:center;"><div style="font-family:\'Bricolage Grotesque\',sans-serif;font-weight:800;font-size:26px;color:#16A82A;">24/7</div><div style="font-size:12.5px;color:#5C6B62;margin-top:3px;">Always-on follow-up</div></div></div>',
+
+      '<h2>What\u2019s included</h2>',
+      '<div style="border:1px solid #E4EAE6;border-radius:14px;padding:20px 22px;margin:0 0 18px;">' +
+        '<div style="display:flex;align-items:flex-start;gap:11px;margin-bottom:10px;"><span style="width:22px;height:22px;border-radius:50%;background:#EAF9EC;color:#16A82A;display:flex;align-items:center;justify-content:center;font-size:12px;flex:none;">\u2713</span><span style="font-size:14px;color:#1A2520;"><strong>Instant AI follow-up</strong> across email, SMS &amp; WhatsApp</span></div>' +
+        '<div style="display:flex;align-items:flex-start;gap:11px;margin-bottom:10px;"><span style="width:22px;height:22px;border-radius:50%;background:#EAF9EC;color:#16A82A;display:flex;align-items:center;justify-content:center;font-size:12px;flex:none;">\u2713</span><span style="font-size:14px;color:#1A2520;"><strong>Lead qualification &amp; routing</strong> to your calendar</span></div>' +
+        '<div style="display:flex;align-items:flex-start;gap:11px;"><span style="width:22px;height:22px;border-radius:50%;background:#EAF9EC;color:#16A82A;display:flex;align-items:center;justify-content:center;font-size:12px;flex:none;">\u2713</span><span style="font-size:14px;color:#1A2520;"><strong>Weekly performance reporting</strong> and ongoing optimisation</span></div></div>',
+
+      '<h2>How it works</h2>',
+      '<div style="margin:0 0 18px;">' +
+        '<div style="display:flex;gap:14px;margin-bottom:14px;"><span style="width:30px;height:30px;border-radius:50%;background:#0C140F;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex:none;">1</span><div><div style="font-weight:700;font-size:14.5px;color:#0E1512;">Week 1 \u2014 Setup</div><div style="font-size:13.5px;color:#5C6B62;">Connect channels, import contacts, configure your agent.</div></div></div>' +
+        '<div style="display:flex;gap:14px;margin-bottom:14px;"><span style="width:30px;height:30px;border-radius:50%;background:#0C140F;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex:none;">2</span><div><div style="font-weight:700;font-size:14.5px;color:#0E1512;">Week 2 \u2014 Launch</div><div style="font-size:13.5px;color:#5C6B62;">Go live with your first campaign and start booking calls.</div></div></div>' +
+        '<div style="display:flex;gap:14px;"><span style="width:30px;height:30px;border-radius:50%;background:#16A82A;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex:none;">3</span><div><div style="font-weight:700;font-size:14.5px;color:#0E1512;">Week 3+ \u2014 Optimise</div><div style="font-size:13.5px;color:#5C6B62;">Refine messaging and scale what converts.</div></div></div></div>',
+
+      '<figure style="margin:0 0 18px;"><img src="' + img + '" style="width:100%;border-radius:12px;display:block;" /><figcaption style="font-size:12.5px;color:#9AA59E;margin-top:7px;text-align:center;">Your dedicated dashboard \u2014 every conversation in one place.</figcaption></figure>',
+
+      '<h2>What clients say</h2>',
+      '<div style="border-radius:14px;background:#F4FBF5;border:1px solid #C7EDCF;padding:22px 24px;margin:0 0 18px;"><div style="font-size:17px;line-height:1.5;color:#0E1512;font-style:italic;">\u201CThis paid for itself in the first week \u2014 we booked 12 calls we\u2019d have otherwise lost.\u201D</div><div style="display:flex;align-items:center;gap:11px;margin-top:14px;"><span style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#36D7ED,#35E834);flex:none;"></span><div><div style="font-weight:700;font-size:13.5px;color:#0E1512;">Sarah Chen</div><div style="font-size:12.5px;color:#9AA59E;">Owner, Brightline Dental</div></div></div></div>',
+
+      '<h2>Investment</h2>',
+      '<div style="display:flex;gap:14px;margin:0 0 18px;">' +
+        '<div style="flex:1;border:1px solid #E4EAE6;border-radius:14px;padding:20px;"><div style="font-size:13px;font-weight:700;color:#8A7F6B;text-transform:uppercase;letter-spacing:.06em;">Launch</div><div style="font-family:\'Bricolage Grotesque\',sans-serif;font-weight:800;font-size:30px;color:#0E1512;margin:6px 0 2px;">$1,500<span style="font-size:14px;font-weight:600;color:#9AA59E;">/mo</span></div><div style="font-size:13px;color:#5C6B62;line-height:1.7;margin-top:10px;">2 channels<br>Booking automation<br>Email support</div></div>' +
+        '<div style="flex:1;border:2px solid #35E834;border-radius:14px;padding:20px;position:relative;background:#F4FBF5;"><span style="position:absolute;top:-11px;left:20px;font-size:11px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED,#35E834);border-radius:100px;padding:3px 10px;">Most popular</span><div style="font-size:13px;font-weight:700;color:#16A82A;text-transform:uppercase;letter-spacing:.06em;">Growth</div><div style="font-family:\'Bricolage Grotesque\',sans-serif;font-weight:800;font-size:30px;color:#0E1512;margin:6px 0 2px;">$3,200<span style="font-size:14px;font-weight:600;color:#9AA59E;">/mo</span></div><div style="font-size:13px;color:#5C6B62;line-height:1.7;margin-top:10px;">All channels<br>Reporting + A/B<br>Priority support</div></div>' +
+        '<div style="flex:1;border:1px solid #E4EAE6;border-radius:14px;padding:20px;"><div style="font-size:13px;font-weight:700;color:#8A7F6B;text-transform:uppercase;letter-spacing:.06em;">Scale</div><div style="font-family:\'Bricolage Grotesque\',sans-serif;font-weight:800;font-size:30px;color:#0E1512;margin:6px 0 2px;">Custom</div><div style="font-size:13px;color:#5C6B62;line-height:1.7;margin-top:10px;">Multi-brand<br>Dedicated manager<br>SLA</div></div>' +
+        '</div>',
+
+      '<h2>Watch a 2-minute overview</h2>',
+      '<div style="position:relative;border-radius:12px;overflow:hidden;margin:0 0 18px;height:300px;background:linear-gradient(135deg,#0C140F,#11463A);display:flex;align-items:center;justify-content:center;"><span style="width:62px;height:62px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;">\u25B6</span><span style="position:absolute;bottom:12px;left:14px;font-size:12.5px;color:rgba(255,255,255,.8);">A quick walkthrough from your account manager</span></div>',
+
+      '<div style="display:flex;gap:24px;margin:0 0 18px;"><div style="flex:1;"><h3>Why Growth Partners</h3><p>We\u2019ve launched 120+ AI follow-up systems and know exactly what converts in your space.</p></div><div style="flex:1;"><h3>Next steps</h3><p>Approve below or book a call. We\u2019ll have you live within 7 days.</p></div></div>',
+
+      '<hr style="border:none;border-top:1px solid #E4EAE6;margin:22px 0;">',
+
+      '<h2>Agreement</h2>',
+      '<p>By signing below, <span class="merge-tag">{{Company}}</span> agrees to begin the engagement outlined above.</p>',
+      '<div style="display:flex;gap:30px;margin:14px 0 18px;"><div style="flex:1;"><div style="height:40px;border-bottom:1px solid #C7D0CA;"></div><div style="font-size:12px;color:#9AA59E;margin-top:6px;">Client signature</div></div><div style="flex:1;"><div style="height:40px;border-bottom:1px solid #C7D0CA;"></div><div style="font-size:12px;color:#9AA59E;margin-top:6px;">Date</div></div></div>',
+
+      '<p>Looking forward to working together, <span class="merge-tag">{{FirstName}}</span>.</p>',
+    ].join('');
+  }
+
+  toast(msg) {
+    this.setState({ toast: msg });
+    clearTimeout(this._t);
+    this._t = setTimeout(() => this.setState({ toast: '' }), 1900);
+  }
+
+  closeMenus() {
+    this.setState({ headingMenuOpen: false, colorMenuOpen: false, insertMenuOpen: false, varMenuOpen: false });
+  }
+
+  setEditorEl = (el) => {
+    if (!el) { this._editorEl = null; this._inited = false; return; }
+    this._editorEl = el;
+    if (!this._inited) {
+      el.contentEditable = 'true';
+      el.spellcheck = false;
+      el.innerHTML = this.state.content || this.defaultBody();
+      this._inited = true;
+      const save = () => { this.saveSel(); this.updateSelToolbar(); };
+      el.addEventListener('keyup', save);
+      el.addEventListener('mouseup', () => setTimeout(save, 0));
+      el.addEventListener('focus', save);
+      el.addEventListener('input', () => { this.saveSel(); this.markDirty(); this.updateSelToolbar(); });
+      el.addEventListener('click', (ev) => this.onEditorClick(ev));
+      if (!this._selBound) {
+        this._selBound = true;
+        document.addEventListener('selectionchange', () => {
+          cancelAnimationFrame(this._selRaf);
+          this._selRaf = requestAnimationFrame(() => this.updateSelToolbar());
+        });
+      }
+    }
+  };
+
+  setWrapEl = (el) => {
+    if (!el) { this._wrapEl = null; return; }
+    this._wrapEl = el;
+    if (this._wrapBound) return;
+    this._wrapBound = true;
+    el.addEventListener('mousemove', (ev) => this.onWrapMove(ev));
+    el.addEventListener('mouseleave', () => { if (!this.state.inserterMenuOpen) this.setState({ insShow: 'none' }); });
+  };
+
+  updateSelToolbar() {
+    const el = this._editorEl, wrap = this._wrapEl;
+    if (!el || !wrap) return;
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed || !el.contains(sel.anchorNode)) {
+      if (this.state.selShow) this.setState({ selShow: false, colorMenuOpen: false });
+      return;
+    }
+    const rect = sel.getRangeAt(0).getBoundingClientRect();
+    if (!rect || (rect.width === 0 && rect.height === 0)) { if (this.state.selShow) this.setState({ selShow: false }); return; }
+    const wr = wrap.getBoundingClientRect();
+    this.setState({ selShow: true, insShow: 'none', selTop: (rect.top - wr.top - 9) + 'px', selLeft: (rect.left - wr.left + rect.width / 2) + 'px' });
+  }
+
+  onWrapMove(ev) {
+    const el = this._editorEl, wrap = this._wrapEl;
+    if (!el || !wrap || this.state.inserterMenuOpen || this.state.selShow) return;
+    const wr = wrap.getBoundingClientRect();
+    const y = ev.clientY;
+    let after = null, lineY = null;
+    const kids = el.children;
+    for (let i = 0; i < kids.length; i++) {
+      const r = kids[i].getBoundingClientRect();
+      if (y >= r.top - 16 && y <= r.bottom + 16) { after = kids[i]; lineY = r.bottom; break; }
+      if (r.top > y) break;
+      after = kids[i]; lineY = r.bottom;
+    }
+    if (after && lineY != null) {
+      this._insertAfterNode = after;
+      const t = (lineY - wr.top);
+      if (this.state.insShow !== 'flex' || Math.abs((parseFloat(this.state.insTop) || 0) - t) > 1) this.setState({ insShow: 'flex', insTop: t + 'px' });
+    } else if (this.state.insShow !== 'none') {
+      this.setState({ insShow: 'none' });
+    }
+  }
+
+  onInserterClick = () => {
+    const top = parseFloat(this.state.insTop) || 0;
+    this.setState({ inserterMenuOpen: true, insMenuTop: (top + 16) + 'px' });
+  };
+
+  insertAfterBlock(html) {
+    const el = this._editorEl;
+    if (!el) return;
+    const after = this._insertAfterNode;
+    if (after && after.parentNode === el) after.insertAdjacentHTML('afterend', html);
+    else el.insertAdjacentHTML('beforeend', html);
+    this.setState({ inserterMenuOpen: false, insShow: 'none' });
+    this.markDirty();
+  }
+
+  pickImage(cb) {
+    const inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = 'image/*';
+    inp.onchange = () => { const f = inp.files && inp.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => cb(rd.result); rd.readAsDataURL(f); };
+    inp.click();
+  }
+
+  videoEmbed(u) {
+    return '<div contenteditable="false" style="position:relative;border-radius:12px;overflow:hidden;margin:0 0 4px;height:300px;background:linear-gradient(135deg,#0C140F,#11463A);display:flex;align-items:center;justify-content:center;"><span style="width:62px;height:62px;border-radius:50%;background:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;color:#fff;font-size:24px;">\u25B6</span><span style="position:absolute;bottom:12px;left:14px;font-size:12px;color:rgba(255,255,255,.85);max-width:90%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + u + '</span></div>';
+  }
+
+  onEditorClick(ev) {
+    const act = ev.target.closest && ev.target.closest('[data-act]');
+    if (!act || !this._editorEl.contains(act)) return;
+    const type = act.getAttribute('data-act');
+    if (type === 'upload-image') {
+      ev.preventDefault();
+      this._pendingAct = act;
+      this.setState({ blockModal: { type: 'image', tab: 'upload', url: '' } });
+    } else if (type === 'set-video') {
+      ev.preventDefault();
+      this._pendingAct = act;
+      this.setState({ blockModal: { type: 'video', url: '' } });
+    } else if (type === 'edit-button') {
+      ev.preventDefault();
+      this._pendingAct = act;
+      this.setState({ blockModal: { type: 'button', label: act.textContent.trim(), url: act.getAttribute('href') || '' } });
+    }
+  }
+
+  closeBlockModal() { this._pendingAct = null; this.setState({ blockModal: null }); }
+  setBlockField(k, v) { this.setState({ blockModal: Object.assign({}, this.state.blockModal, { [k]: v }) }); }
+  confirmBlockModal() {
+    const bm = this.state.blockModal;
+    const act = this._pendingAct;
+    if (!bm || !act) { this.setState({ blockModal: null }); return; }
+    if (bm.type === 'image') {
+      if (bm.tab === 'url' && bm.url.trim()) {
+        act.outerHTML = '<img src="' + bm.url.trim() + '" style="width:100%;border-radius:12px;display:block;" />';
+        this.markDirty();
+        this._pendingAct = null; this.setState({ blockModal: null });
+      } else {
+        // upload tab — trigger file picker then close modal
+        const pending = act;
+        this._pendingAct = null; this.setState({ blockModal: null });
+        this.pickImage((url) => { pending.outerHTML = '<img src="' + url + '" style="width:100%;border-radius:12px;display:block;" />'; this.markDirty(); });
+      }
+      return;
+    }
+    if (bm.type === 'video') {
+      if (bm.url.trim()) { act.outerHTML = this.videoEmbed(bm.url.trim()); this.markDirty(); }
+    }
+    if (bm.type === 'button') {
+      if (bm.label) act.textContent = bm.label;
+      if (bm.url) act.setAttribute('href', bm.url);
+      this.markDirty();
+    }
+    this._pendingAct = null; this.setState({ blockModal: null });
+  }
+
+  openSend() { this.captureContent(); this.setState({ sendOpen: true, sendStep: 'lead', sendLeadId: null, sendChannel: 'email', sendQuery: '' }); this.closeMenus(); }
+
+  sendNext() {
+    if (this.state.sendLeadId == null) return;
+    const lead = this.sendLeadsData.find(l => l.id === this.state.sendLeadId);
+    const fn = lead ? lead.name.split(' ')[0] : 'there';
+    this.setState({
+      sendStep: 'review',
+      sendSubject: 'Your proposal from Growth Partners — ' + this.state.title,
+      sendMessage: 'Hi ' + fn + ',\n\nThanks for the conversation. I\u2019ve put together a proposal covering exactly how we\u2019ll help. You can view it at the link below — it only takes a couple of minutes.\n\nHappy to jump on a quick call if any questions come up.\n\nBest,\n' + this.state.presenter,
+    });
+  }
+
+  saveSel() {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount && this._editorEl && this._editorEl.contains(sel.anchorNode)) {
+      this._savedRange = sel.getRangeAt(0).cloneRange();
+    }
+  }
+
+  restoreSel() {
+    const el = this._editorEl;
+    if (!el) return;
+    el.focus();
+    const sel = window.getSelection();
+    if (this._savedRange && el.contains(this._savedRange.commonAncestorContainer)) {
+      sel.removeAllRanges();
+      sel.addRange(this._savedRange);
+    } else if (!sel.rangeCount || !el.contains(sel.anchorNode)) {
+      const r = document.createRange();
+      r.selectNodeContents(el); r.collapse(false);
+      sel.removeAllRanges(); sel.addRange(r);
+    }
+  }
+
+  exec(cmd, val) {
+    this.restoreSel();
+    try { document.execCommand('styleWithCSS', false, true); } catch (e) {}
+    document.execCommand(cmd, false, val);
+    this.saveSel();
+    this.markDirty();
+  }
+
+  insertHTML(html) {
+    const el = this._editorEl;
+    if (!el) return;
+    this.restoreSel();
+    const sel = window.getSelection();
+    let range;
+    if (sel.rangeCount && el.contains(sel.anchorNode)) {
+      range = sel.getRangeAt(0);
+    } else {
+      range = document.createRange();
+      range.selectNodeContents(el);
+      range.collapse(false);
+    }
+    range.deleteContents();
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    const frag = document.createDocumentFragment();
+    let node, last = null;
+    while ((node = tmp.firstChild)) { last = frag.appendChild(node); }
+    range.insertNode(frag);
+    if (last) {
+      range.setStartAfter(last);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+    this.saveSel();
+    this.markDirty();
+  }
+
+  markDirty() {
+    if (this.state.saveState !== 'Unsaved changes') this.setState({ saveState: 'Unsaved changes' });
+  }
+
+  captureContent() {
+    if (this._editorEl) this._stashed = this._editorEl.innerHTML;
+    return this._stashed || this.state.content || this.defaultBody();
+  }
+
+  openEditor(p, fresh) {
+    this._inited = false;
+    this.setState({
+      view: 'editor', editingId: p ? p.id : 0,
+      title: p ? p.title : 'Untitled proposal',
+      coverIdx: p ? p.cover : 0,
+      content: fresh ? this.defaultBody() : this.defaultBody(),
+      saveState: 'All changes saved',
+    });
+  }
+
+  goPreview() {
+    const html = this.captureContent();
+    this._inited = false;
+    this.setState({ view: 'preview', content: html });
+    this.closeMenus();
+  }
+
+  renderVals() {
+    const s = this.state;
+    const navMain = [
+      { label: 'Dashboard', icon: '◈' }, { label: 'Agents', icon: '◎' }, { label: 'Contacts', icon: '☺' },
+      { label: 'Analytics', icon: '▤' }, { label: 'Automations', icon: '⟳' }, { label: 'Integrations', icon: '⚯' },
+    ].map(n => ({ ...n, weight: 500, color: 'rgba(255,255,255,.82)', bg: 'transparent' }));
+    const toolItems = [
+      { label: 'Dynamic Proposals', icon: '❒', active: true }, { label: 'Forms', icon: '⊞' },
+      { label: 'Agent Widget', icon: '◉' }, { label: 'Lead Finder', icon: '⚲' }, { label: 'LinkedIn Extension', icon: 'in' },
+    ].map(t => ({
+      label: t.label, icon: t.icon, weight: t.active ? 700 : 500,
+      color: t.active ? '#0A0F0C' : 'rgba(255,255,255,.82)',
+      bg: t.active ? 'linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B)' : 'transparent',
+    }));
+
+    const categories = this.categories.map(c => {
+      const active = c.slug === s.category;
+      return { label: c.label, icon: c.icon, onPick: () => this.setState({ category: c.slug, folder: 0 }), weight: active ? 700 : 500, color: active ? '#0E1512' : '#8A7F6B', border: active ? '#35E834' : 'transparent' };
+    });
+
+    const allProps = this.proposalsData[s.category] || [];
+    const folderList = this.foldersData[s.category] || [{ id: 0, title: 'All', icon: '▦' }];
+    const folders = folderList.map(f => {
+      const active = s.folder === f.id;
+      const count = f.id === 0 ? allProps.length : allProps.filter(p => p.folder === f.id).length;
+      return { title: f.title, icon: f.icon, count: count, onPick: () => this.setState({ folder: f.id }), bg: active ? '#EAF9EC' : 'transparent', color: active ? '#0E1512' : '#5C6B62', weight: active ? 700 : 500, iconColor: active ? '#16A82A' : '#9AA59E' };
+    });
+
+    const isLib = s.category === 'library';
+    const q = s.search.trim().toLowerCase();
+    let filtered = (s.folder === 0 ? allProps : allProps.filter(p => p.folder === s.folder));
+    if (q) filtered = filtered.filter(p => (p.title + ' ' + p.description).toLowerCase().includes(q));
+    if (s.sort === 'views') filtered = filtered.slice().sort((a, b) => (b.views || 0) - (a.views || 0));
+    const proposals = filtered.map(p => {
+      const st = this.statusMap[p.status] || this.statusMap.draft;
+      return {
+        title: p.title, description: p.description, folderName: p.folderName,
+        glyph: p.glyph, cover: this.covers[p.cover] || this.covers[0], img: p.img,
+        imgNode: p.img ? React.createElement('img', { src: p.img, alt: '', style: { width: '100%', height: '100%', objectFit: 'cover', display: 'block' } }) : null,
+        sentToLeads: p.sentToLeads, views: p.views,
+        statusLabel: st.label, statusFg: st.fg, statusBg: st.bg, lastActivity: p.lastActivity,
+        isPersonal: s.category === 'personal', isLibrary: isLib,
+        onImgError: (ev) => { if (ev && ev.target) ev.target.style.opacity = 0; },
+        onOpen: () => isLib ? this.goPreviewFrom(p) : this.openEditor(p, false),
+        onEdit: (ev) => { if (ev && ev.stopPropagation) ev.stopPropagation(); this.openEditor(p, false); },
+        onPreview: (ev) => { if (ev && ev.stopPropagation) ev.stopPropagation(); this.goPreviewFrom(p); },
+        onDelete: (ev) => { if (ev && ev.stopPropagation) ev.stopPropagation(); this.setState({ deleteId: p.id }); },
+        onDuplicate: (ev) => { if (ev && ev.stopPropagation) ev.stopPropagation(); this.toast('Proposal duplicated'); },
+        onUse: (ev) => { if (ev && ev.stopPropagation) ev.stopPropagation(); this.toast('Template copied to My proposals'); this.openEditor(p, true); },
+      };
+    });
+
+    // editor toolbar
+    const blockStyles = [
+      { label: 'Body', tag: 'p', fz: '13.5px', fw: '500' },
+      { label: 'Heading 1', tag: 'h1', fz: '17px', fw: '800' },
+      { label: 'Heading 2', tag: 'h2', fz: '15px', fw: '700' },
+      { label: 'Heading 3', tag: 'h3', fz: '14px', fw: '700' },
+      { label: 'Quote', tag: 'blockquote', fz: '13px', fw: '500' },
+    ].map(b => ({ label: b.label, fz: b.fz, fw: b.fw, onPick: () => { this.exec('formatBlock', b.tag === 'p' ? 'p' : b.tag); this.setState({ headingMenuOpen: false }); } }));
+
+    const formatBtns = [
+      { label: 'B', tip: 'Bold', cmd: 'bold', fw: '800', fs: 'normal', td: 'none' },
+      { label: 'I', tip: 'Italic', cmd: 'italic', fw: '500', fs: 'italic', td: 'none' },
+      { label: 'U', tip: 'Underline', cmd: 'underline', fw: '600', fs: 'normal', td: 'underline' },
+      { label: 'S', tip: 'Strikethrough', cmd: 'strikeThrough', fw: '600', fs: 'normal', td: 'line-through' },
+      { label: '🔗', tip: 'Link', cmd: 'createLink', fw: '500', fs: 'normal', td: 'none' },
+    ].map(b => ({ label: b.label, tip: b.tip, fw: b.fw, fs: b.fs, td: b.td, onClick: () => { if (b.cmd === 'createLink') { const u = prompt('Link URL'); if (u) this.exec('createLink', u); } else this.exec(b.cmd); } }));
+
+    const foreColors = ['#1A2520', '#16A82A', '#0E8FA8', '#5A4FCF', '#B4521E', '#9AA59E'].map(col => ({ color: col, onPick: () => { this.exec('foreColor', col); this.setState({ activeColor: col, colorMenuOpen: false }); } }));
+    const highlightColors = ['#EEFC53', '#D0F56B', '#BFE9F2', '#FBD9D2', 'transparent'].map(col => ({ color: col === 'transparent' ? '#fff' : col, onPick: () => { this.exec('hiliteColor', col === 'transparent' ? '#ffffff' : col); this.setState({ colorMenuOpen: false }); } }));
+
+    const listAlignBtns = [
+      { label: '•≣', tip: 'Bullet list', cmd: 'insertUnorderedList' },
+      { label: '1≣', tip: 'Numbered list', cmd: 'insertOrderedList' },
+      { label: '⇤', tip: 'Align left', cmd: 'justifyLeft' },
+      { label: '↔', tip: 'Align center', cmd: 'justifyCenter' },
+      { label: '⇥', tip: 'Align right', cmd: 'justifyRight' },
+      { label: '⇲', tip: 'Indent', cmd: 'indent' },
+    ].map(b => ({ label: b.label, tip: b.tip, onClick: () => this.exec(b.cmd) }));
+
+    const imgA = 'https://images.unsplash.com/photo-1551434678-e076c223a692?w=900&q=80&auto=format&fit=crop';
+    const imgB = 'https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=900&q=80&auto=format&fit=crop';
+    const cell = '<td style="border:1px solid #E4EAE6;padding:9px 12px;font-size:14px;">&nbsp;</td>';
+    const blocks = {
+      heading: '<h2>Section heading</h2><p>Start writing\u2026</p>',
+      paragraph: '<p>Start writing\u2026</p>',
+      bullets: '<ul><li>First point</li><li>Second point</li><li>Third point</li></ul><p><br></p>',
+      quote: '<blockquote>A short, punchy line that builds confidence.</blockquote><p><br></p>',
+      divider: '<hr style="border:none;border-top:1px solid #E4EAE6;margin:22px 0;"><p><br></p>',
+      image: '<figure style="margin:0 0 18px;"><div data-act="upload-image" contenteditable="false" style="border:2px dashed #C7D0CA;border-radius:12px;height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;cursor:pointer;color:#8A7F6B;background:#FAFBFA;"><span style="font-size:26px;">\uD83D\uDDBC</span><span style="font-size:13px;font-weight:600;">Click to upload an image</span><span style="font-size:11.5px;">PNG or JPG, up to 10MB</span></div><figcaption style="font-size:12.5px;color:#9AA59E;margin-top:7px;text-align:center;">Image caption \u2014 click to edit</figcaption></figure><p><br></p>',
+      imagePair: '<div style="display:flex;gap:12px;margin:0 0 18px;"><div data-act="upload-image" contenteditable="false" style="flex:1;border:2px dashed #C7D0CA;border-radius:12px;height:150px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;cursor:pointer;color:#8A7F6B;background:#FAFBFA;"><span style="font-size:21px;">\uD83D\uDDBC</span><span style="font-size:12px;font-weight:600;">Upload</span></div><div data-act="upload-image" contenteditable="false" style="flex:1;border:2px dashed #C7D0CA;border-radius:12px;height:150px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;cursor:pointer;color:#8A7F6B;background:#FAFBFA;"><span style="font-size:21px;">\uD83D\uDDBC</span><span style="font-size:12px;font-weight:600;">Upload</span></div></div><p><br></p>',
+      video: '<div data-act="set-video" contenteditable="false" style="border:2px dashed #C7D0CA;border-radius:12px;height:180px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;cursor:pointer;color:#8A7F6B;background:#FAFBFA;margin:0 0 18px;"><span style="font-size:24px;">\u25B6</span><span style="font-size:13px;font-weight:600;">Add a video link</span><span style="font-size:11.5px;">YouTube, Vimeo or Loom</span></div><p><br></p>',
+      table: '<table><thead><tr><th>Item</th><th>Detail</th><th>Price</th></tr></thead><tbody><tr>' + cell + cell + cell + '</tr><tr>' + cell + cell + cell + '</tr></tbody></table><p><br></p>',
+      twoCol: '<div style="display:flex;gap:24px;margin:0 0 18px;"><div style="flex:1;"><h3>Left column</h3><p>Describe the first idea here.</p></div><div style="flex:1;"><h3>Right column</h3><p>Describe the second idea here.</p></div></div><p><br></p>',
+      stats: '<div style="display:flex;gap:14px;margin:0 0 18px;"><div style="flex:1;background:#F4FBF5;border:1px solid #C7EDCF;border-radius:12px;padding:18px;text-align:center;"><div style="font-family:\'Bricolage Grotesque\',sans-serif;font-weight:800;font-size:26px;color:#16A82A;">3.4x</div><div style="font-size:12.5px;color:#5C6B62;margin-top:3px;">More booked calls</div></div><div style="flex:1;background:#F4FBF5;border:1px solid #C7EDCF;border-radius:12px;padding:18px;text-align:center;"><div style="font-family:\'Bricolage Grotesque\',sans-serif;font-weight:800;font-size:26px;color:#16A82A;">&lt;5min</div><div style="font-size:12.5px;color:#5C6B62;margin-top:3px;">Avg. response time</div></div><div style="flex:1;background:#F4FBF5;border:1px solid #C7EDCF;border-radius:12px;padding:18px;text-align:center;"><div style="font-family:\'Bricolage Grotesque\',sans-serif;font-weight:800;font-size:26px;color:#16A82A;">24/7</div><div style="font-size:12.5px;color:#5C6B62;margin-top:3px;">Always-on follow-up</div></div></div><p><br></p>',
+      pricing: '<div style="display:flex;gap:14px;margin:0 0 18px;">' +
+        '<div style="flex:1;border:1px solid #E4EAE6;border-radius:14px;padding:20px;"><div style="font-size:13px;font-weight:700;color:#8A7F6B;text-transform:uppercase;letter-spacing:.06em;">Launch</div><div style="font-family:\'Bricolage Grotesque\',sans-serif;font-weight:800;font-size:30px;color:#0E1512;margin:6px 0 2px;">$1,500<span style="font-size:14px;font-weight:600;color:#9AA59E;">/mo</span></div><div style="font-size:13px;color:#5C6B62;line-height:1.7;margin-top:10px;">2 channels<br>Booking automation<br>Email support</div></div>' +
+        '<div style="flex:1;border:2px solid #35E834;border-radius:14px;padding:20px;position:relative;background:#F4FBF5;"><span style="position:absolute;top:-11px;left:20px;font-size:11px;font-weight:700;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED,#35E834);border-radius:100px;padding:3px 10px;">Most popular</span><div style="font-size:13px;font-weight:700;color:#16A82A;text-transform:uppercase;letter-spacing:.06em;">Growth</div><div style="font-family:\'Bricolage Grotesque\',sans-serif;font-weight:800;font-size:30px;color:#0E1512;margin:6px 0 2px;">$3,200<span style="font-size:14px;font-weight:600;color:#9AA59E;">/mo</span></div><div style="font-size:13px;color:#5C6B62;line-height:1.7;margin-top:10px;">All channels<br>Reporting + A/B<br>Priority support</div></div>' +
+        '<div style="flex:1;border:1px solid #E4EAE6;border-radius:14px;padding:20px;"><div style="font-size:13px;font-weight:700;color:#8A7F6B;text-transform:uppercase;letter-spacing:.06em;">Scale</div><div style="font-family:\'Bricolage Grotesque\',sans-serif;font-weight:800;font-size:30px;color:#0E1512;margin:6px 0 2px;">Custom</div><div style="font-size:13px;color:#5C6B62;line-height:1.7;margin-top:10px;">Multi-brand<br>Dedicated manager<br>SLA</div></div>' +
+        '</div><p><br></p>',
+      scope: '<div style="border:1px solid #E4EAE6;border-radius:14px;padding:20px 22px;margin:0 0 18px;"><div style="font-weight:700;font-size:15px;color:#0E1512;margin-bottom:12px;">What\u2019s included</div>' +
+        '<div style="display:flex;align-items:flex-start;gap:11px;margin-bottom:10px;"><span style="width:22px;height:22px;border-radius:50%;background:#EAF9EC;color:#16A82A;display:flex;align-items:center;justify-content:center;font-size:12px;flex:none;">\u2713</span><span style="font-size:14px;color:#1A2520;">Instant AI follow-up across email, SMS &amp; WhatsApp</span></div>' +
+        '<div style="display:flex;align-items:flex-start;gap:11px;margin-bottom:10px;"><span style="width:22px;height:22px;border-radius:50%;background:#EAF9EC;color:#16A82A;display:flex;align-items:center;justify-content:center;font-size:12px;flex:none;">\u2713</span><span style="font-size:14px;color:#1A2520;">Lead qualification &amp; routing to your calendar</span></div>' +
+        '<div style="display:flex;align-items:flex-start;gap:11px;"><span style="width:22px;height:22px;border-radius:50%;background:#EAF9EC;color:#16A82A;display:flex;align-items:center;justify-content:center;font-size:12px;flex:none;">\u2713</span><span style="font-size:14px;color:#1A2520;">Weekly performance reporting</span></div></div><p><br></p>',
+      timeline: '<div style="margin:0 0 18px;">' +
+        '<div style="display:flex;gap:14px;margin-bottom:14px;"><span style="width:30px;height:30px;border-radius:50%;background:#0C140F;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex:none;">1</span><div><div style="font-weight:700;font-size:14.5px;color:#0E1512;">Week 1 \u2014 Setup</div><div style="font-size:13.5px;color:#5C6B62;">Connect channels, import contacts, configure your agent.</div></div></div>' +
+        '<div style="display:flex;gap:14px;margin-bottom:14px;"><span style="width:30px;height:30px;border-radius:50%;background:#0C140F;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex:none;">2</span><div><div style="font-weight:700;font-size:14.5px;color:#0E1512;">Week 2 \u2014 Launch</div><div style="font-size:13.5px;color:#5C6B62;">Go live with your first campaign and start booking calls.</div></div></div>' +
+        '<div style="display:flex;gap:14px;"><span style="width:30px;height:30px;border-radius:50%;background:#16A82A;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex:none;">3</span><div><div style="font-weight:700;font-size:14.5px;color:#0E1512;">Week 3+ \u2014 Optimise</div><div style="font-size:13.5px;color:#5C6B62;">Refine messaging and scale what converts.</div></div></div></div><p><br></p>',
+      testimonial: '<div style="border-radius:14px;background:#F4FBF5;border:1px solid #C7EDCF;padding:22px 24px;margin:0 0 18px;"><div style="font-size:17px;line-height:1.5;color:#0E1512;font-style:italic;">\u201CThis paid for itself in the first week \u2014 we booked 12 calls we\u2019d have otherwise lost.\u201D</div><div style="display:flex;align-items:center;gap:11px;margin-top:14px;"><span style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#36D7ED,#35E834);flex:none;"></span><div><div style="font-weight:700;font-size:13.5px;color:#0E1512;">Sarah Chen</div><div style="font-size:12.5px;color:#9AA59E;">Owner, Brightline Dental</div></div></div></div><p><br></p>',
+      signature: '<div style="display:flex;gap:30px;margin:24px 0 18px;border-top:1px solid #E4EAE6;padding-top:22px;"><div style="flex:1;"><div style="height:40px;border-bottom:1px solid #C7D0CA;"></div><div style="font-size:12px;color:#9AA59E;margin-top:6px;">Client signature</div></div><div style="flex:1;"><div style="height:40px;border-bottom:1px solid #C7D0CA;"></div><div style="font-size:12px;color:#9AA59E;margin-top:6px;">Date</div></div></div><p><br></p>',
+      button: '<div style="margin:0 0 18px;"><a data-act="edit-button" contenteditable="false" href="#" style="display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);color:#0A0F0C;font-weight:700;text-decoration:none;border-radius:10px;padding:12px 24px;cursor:pointer;">\uD83D\uDCC5 Book a call</a></div><p><br></p>',
+    };
+    const groupDefs = [
+      { name: 'Text', items: [
+        { icon: 'H', label: 'Heading', desc: 'Section title', key: 'heading' },
+        { icon: '¶', label: 'Paragraph', desc: 'Body text', key: 'paragraph' },
+        { icon: '•≣', label: 'Bullet list', desc: 'Key points', key: 'bullets' },
+        { icon: '❝', label: 'Quote', desc: 'Pull quote', key: 'quote' },
+        { icon: '—', label: 'Divider', desc: 'Section break', key: 'divider' },
+      ] },
+      { name: 'Media', items: [
+        { icon: '▣', label: 'Image', desc: 'Upload an image', key: 'image' },
+        { icon: '▥', label: 'Image pair', desc: 'Two side by side', key: 'imagePair' },
+        { icon: '▷', label: 'Video', desc: 'Embed a video link', key: 'video' },
+      ] },
+      { name: 'Proposal blocks', items: [
+        { icon: '▦', label: 'Pricing cards', desc: '3 packages', key: 'pricing' },
+        { icon: '⊞', label: 'Pricing table', desc: 'Itemised table', key: 'table' },
+        { icon: '✓', label: 'Scope / checklist', desc: "What's included", key: 'scope' },
+        { icon: '◷', label: 'Timeline', desc: 'Phased plan', key: 'timeline' },
+        { icon: '★', label: 'Testimonial', desc: 'Social proof', key: 'testimonial' },
+        { icon: '▤', label: 'Stat row', desc: '3 key metrics', key: 'stats' },
+        { icon: '▥', label: 'Two columns', desc: 'Side-by-side text', key: 'twoCol' },
+        { icon: '✎', label: 'Signature block', desc: 'Sign & date', key: 'signature' },
+        { icon: '📅', label: 'Booking button', desc: 'Call-to-action', key: 'button' },
+      ] },
+    ];
+    const insertGroups = groupDefs.map(g => ({ name: g.name, items: g.items.map(it => ({ icon: it.icon, label: it.label, desc: it.desc, onClick: () => { this.insertHTML(blocks[it.key]); this.setState({ insertMenuOpen: false }); } })) }));
+    const inserterGroups = groupDefs.map(g => ({ name: g.name, items: g.items.map(it => ({ icon: it.icon, label: it.label, desc: it.desc, onClick: () => this.insertAfterBlock(blocks[it.key]) })) }));
+    inserterGroups.push({ name: 'Personalise', items: this.variables.slice(0, 4).map(v => ({ icon: '{ }', label: v.title, desc: v.token, onClick: () => this.insertAfterBlock('<p><span class="merge-tag">' + v.token + '</span></p>') })) });
+
+    const variables = this.variables.map(v => ({ title: v.title, token: v.token, onClick: () => { this.insertHTML('<span class="merge-tag">' + v.token + '</span>&nbsp;'); this.setState({ varMenuOpen: false }); } }));
+
+    // floating selection toolbar buttons
+    const selBlockBtns = [
+      { label: '¶', tip: 'Body text', tag: 'p' },
+      { label: 'H2', tip: 'Heading', tag: 'h2' },
+      { label: 'H3', tip: 'Subheading', tag: 'h3' },
+      { label: '❝', tip: 'Quote', tag: 'blockquote' },
+    ].map(b => ({ label: b.label, tip: b.tip, onClick: () => this.exec('formatBlock', b.tag) }));
+    const selFormatBtns = [
+      { label: 'B', tip: 'Bold', cmd: 'bold', fw: '800', fs: 'normal', td: 'none' },
+      { label: 'I', tip: 'Italic', cmd: 'italic', fw: '500', fs: 'italic', td: 'none' },
+      { label: 'U', tip: 'Underline', cmd: 'underline', fw: '600', fs: 'normal', td: 'underline' },
+      { label: '🔗', tip: 'Link', cmd: 'createLink', fw: '500', fs: 'normal', td: 'none' },
+    ].map(b => ({ label: b.label, tip: b.tip, fw: b.fw, fs: b.fs, td: b.td, onClick: () => { if (b.cmd === 'createLink') { const u = prompt('Link URL'); if (u) this.exec('createLink', u); } else this.exec(b.cmd); } }));
+    const selListBtns = [
+      { label: '•≣', tip: 'Bullet list', cmd: 'insertUnorderedList' },
+      { label: '1≣', tip: 'Numbered list', cmd: 'insertOrderedList' },
+      { label: '↔', tip: 'Align center', cmd: 'justifyCenter' },
+    ].map(b => ({ label: b.label, tip: b.tip, onClick: () => this.exec(b.cmd) }));
+
+    const coverBg = this.covers[s.coverIdx] || this.covers[0];
+    const coverGlyph = (s.title || 'P').trim().charAt(0).toUpperCase() || 'P';
+    const coverImgUrl = (this.coverImages[s.coverImgIdx] || this.coverImages[0]).url;
+    const overlayCss = s.overlay === 'dark'
+      ? 'linear-gradient(180deg,rgba(14,21,18,.18) 0%,rgba(14,21,18,.74) 100%)'
+      : 'linear-gradient(180deg,rgba(14,21,18,0) 30%,rgba(14,21,18,.5) 100%)';
+    const coverImgOptions = this.coverImages.map((c, i) => ({
+      label: c.label, url: c.url, isNone: !c.url,
+      thumbNode: c.url ? React.createElement('img', { src: c.url, alt: '', style: { width: '100%', height: '100%', objectFit: 'cover' } }) : null,
+      active: i === s.coverImgIdx,
+      border: i === s.coverImgIdx ? '#35E834' : '#E4EAE6',
+      onPick: () => this.setState({ coverImgIdx: i }),
+    }));
+    const coverImgNode = coverImgUrl ? React.createElement('img', { src: coverImgUrl, alt: '', style: { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' } }) : null;
+    const inspSection = (id) => s.insp === id;
+
+    // cta type + payment
+    const ctaTypeOpts = [{ k: 'call', label: 'Book a call' }, { k: 'pay', label: 'Accept & pay' }, { k: 'both', label: 'Both' }].map(t => { const on = s.ctaType === t.k; return { label: t.label, onPick: () => this.setState({ ctaType: t.k }), fg: on ? '#0A0F0C' : '#5C6B62', bg: on ? '#EAF9EC' : '#fff', border: on ? '#9FD8AC' : '#E4EAE6' }; });
+    const ctaHasCall = s.ctaType === 'call' || s.ctaType === 'both';
+    const ctaHasPay = s.ctaType === 'pay' || s.ctaType === 'both';
+    const payCadenceOpts = [{ k: 'once', label: 'One-time' }, { k: 'mo', label: 'Monthly' }, { k: 'dep', label: 'Deposit' }].map(t => { const on = s.payCadence === t.k; return { label: t.label, onPick: () => this.setState({ payCadence: t.k }), fg: on ? '#0A0F0C' : '#5C6B62', bg: on ? '#EAF9EC' : '#fff', border: on ? '#9FD8AC' : '#E4EAE6' }; });
+    const payPriceLabel = s.payCurrency + (s.payAmount || '0') + (s.payCadence === 'mo' ? '/mo' : '');
+
+    // send flow
+    const sendLead = this.sendLeadsData.find(l => l.id === s.sendLeadId) || null;
+    const sq = (s.sendQuery || '').trim().toLowerCase();
+    const sendLeads = this.sendLeadsData.filter(l => !sq || (l.name + ' ' + l.sub + ' ' + l.email).toLowerCase().includes(sq)).map(l => { const on = s.sendLeadId === l.id; return { name: l.name, sub: l.email + ' · ' + l.phone, initials: l.initials, avBg: l.avBg, onPick: () => this.setState({ sendLeadId: l.id }), border: on ? '#35E834' : '#EFEBE2', bg: on ? '#F4FBF5' : '#fff', dot: on ? '#16A82A' : '#C7D0CA', dotFill: on ? '#16A82A' : 'transparent' }; });
+    const sendChannels = [{ k: 'email', label: 'Email', icon: '✉' }, { k: 'sms', label: 'SMS', icon: '💬' }, { k: 'whatsapp', label: 'WhatsApp', icon: '◍' }].map(c => { const on = s.sendChannel === c.k; return { label: c.label, icon: c.icon, onPick: () => this.setState({ sendChannel: c.k }), fg: on ? '#0A0F0C' : '#5C6B62', bg: on ? '#EAF9EC' : '#fff', border: on ? '#9FD8AC' : '#E4EAE6' }; });
+    const chLabel = { email: 'Email', sms: 'SMS', whatsapp: 'WhatsApp' }[s.sendChannel];
+    const sendSteps = [{ k: 'lead', label: '1 · Recipient' }, { k: 'review', label: '2 · Message' }, { k: 'done', label: '3 · Sent' }].map(st => { const on = s.sendStep === st.k; return { label: st.label, fg: on ? '#0A0F0C' : '#9AA59E', bg: on ? '#EAF9EC' : '#F2EEE4' }; });
+    const sendFirstName = sendLead ? sendLead.name.split(' ')[0] : 'they';
+
+    return {
+      navMain, toolItems,
+      urlBar: s.view === 'editor' ? 'app.clientforce.co/proposals/personal/' + s.editingId : (s.view === 'preview' ? 'proposal.clientforce.co/p/' + s.editingId : 'app.clientforce.co/proposals'),
+      isList: s.view === 'list', isEditor: s.view === 'editor', isPreview: s.view === 'preview',
+
+      // list
+      categories, folders, proposals,
+      isEmpty: proposals.length === 0, hasProposals: proposals.length > 0,
+      statSent: '67', statViews: '245', statBooked: '18',
+      onCreate: () => this.openEditor(null, true),
+      onAddFolder: () => this.toast('New folder created'),
+      search: s.search, onSearch: (ev) => this.setState({ search: ev.target.value }),
+      sortRecentBg: s.sort === 'recent' ? '#EAF9EC' : '#fff', sortRecentFg: s.sort === 'recent' ? '#0A0F0C' : '#5C6B62',
+      sortViewsBg: s.sort === 'views' ? '#EAF9EC' : '#fff', sortViewsFg: s.sort === 'views' ? '#0A0F0C' : '#5C6B62',
+      onSortRecent: () => this.setState({ sort: 'recent' }), onSortViews: () => this.setState({ sort: 'views' }),
+      resultCount: proposals.length,
+
+      // editor
+      title: s.title, onTitle: (ev) => this.setState({ title: ev.target.value }),
+      presenter: s.presenter, sampleLead: 'Sarah at Brightline Dental',
+      coverBg, coverGlyph, coverImgUrl, coverImgNode, overlayCss, hasCoverImg: !!coverImgUrl,
+      logoOn: s.logoOn,
+      presenterRole: s.presenterRole, preparedFor: s.preparedFor,
+      propDate: s.propDate, validUntil: s.validUntil,
+      onImgErrorCover: (ev) => { if (ev && ev.target) ev.target.style.opacity = 0; },
+
+      // inspector
+      inspCoverOpen: inspSection('cover'), inspDetailsOpen: inspSection('details'), inspCtaOpen: inspSection('cta'),
+      inspCoverChev: inspSection('cover') ? 'rotate(180deg)' : 'rotate(0deg)',
+      inspDetailsChev: inspSection('details') ? 'rotate(180deg)' : 'rotate(0deg)',
+      inspCtaChev: inspSection('cta') ? 'rotate(180deg)' : 'rotate(0deg)',
+      onInspCover: () => this.setState({ insp: inspSection('cover') ? null : 'cover' }),
+      onInspDetails: () => this.setState({ insp: inspSection('details') ? null : 'details' }),
+      onInspCta: () => this.setState({ insp: inspSection('cta') ? null : 'cta' }),
+      coverImgOptions,
+      overlayDarkBg: s.overlay === 'dark' ? '#EAF9EC' : '#fff', overlayDarkFg: s.overlay === 'dark' ? '#0A0F0C' : '#5C6B62',
+      overlayLightBg: s.overlay === 'light' ? '#EAF9EC' : '#fff', overlayLightFg: s.overlay === 'light' ? '#0A0F0C' : '#5C6B62',
+      onOverlayDark: () => this.setState({ overlay: 'dark' }), onOverlayLight: () => this.setState({ overlay: 'light' }),
+      onToggleLogo: () => this.setState({ logoOn: !s.logoOn }),
+      logoBg: s.logoOn ? '#35E834' : '#D7DED8', logoKnob: s.logoOn ? '20px' : '3px',
+      onPresenter: (ev) => this.setState({ presenter: ev.target.value }),
+      onPresenterRole: (ev) => this.setState({ presenterRole: ev.target.value }),
+      onPreparedFor: (ev) => this.setState({ preparedFor: ev.target.value }),
+      onPropDate: (ev) => this.setState({ propDate: ev.target.value }),
+      onValidUntil: (ev) => this.setState({ validUntil: ev.target.value }),
+      ctaHeading: s.ctaHeading, ctaSub: s.ctaSub, ctaButton: s.ctaButton, calLink: s.calLink,
+      onCtaHeading: (ev) => this.setState({ ctaHeading: ev.target.value }),
+      onCtaSub: (ev) => this.setState({ ctaSub: ev.target.value }),
+      onCtaButton: (ev) => this.setState({ ctaButton: ev.target.value }),
+      onCalLink: (ev) => this.setState({ calLink: ev.target.value }),
+      ctaTypeOpts, ctaHasCall, ctaHasPay, payCadenceOpts, payPriceLabel,
+      payCurrency: s.payCurrency, onPayCurrency: (ev) => this.setState({ payCurrency: ev.target.value }),
+      payAmount: s.payAmount, onPayAmount: (ev) => this.setState({ payAmount: ev.target.value }),
+      payButton: s.payButton, onPayButton: (ev) => this.setState({ payButton: ev.target.value }),
+      varHint: '{{Company}}',
+      // panel tabs
+      panelInsert: s.panelTab === 'insert', panelVariables: s.panelTab === 'variables', panelSettings: s.panelTab === 'settings',
+      onPanelInsert: () => this.setState({ panelTab: 'insert' }),
+      onPanelVariables: () => this.setState({ panelTab: 'variables' }),
+      onPanelSettings: () => this.setState({ panelTab: 'settings' }),
+      tabInsertFg: s.panelTab === 'insert' ? '#0A0F0C' : '#8A7F6B', tabInsertBg: s.panelTab === 'insert' ? '#fff' : 'transparent',
+      tabVarFg: s.panelTab === 'variables' ? '#0A0F0C' : '#8A7F6B', tabVarBg: s.panelTab === 'variables' ? '#fff' : 'transparent',
+      tabSetupFg: s.panelTab === 'settings' ? '#0A0F0C' : '#8A7F6B', tabSetupBg: s.panelTab === 'settings' ? '#fff' : 'transparent',
+      tracking: s.tracking, onToggleTracking: () => this.setState({ tracking: !s.tracking }),
+      trackingBg: s.tracking ? '#35E834' : '#D7DED8', trackingKnob: s.tracking ? '20px' : '3px',
+      onSend: () => this.openSend(),
+      setEditorEl: this.setEditorEl, setWrapEl: this.setWrapEl,
+      stop: (ev) => { if (ev && ev.stopPropagation) ev.stopPropagation(); },
+
+      // floating selection toolbar
+      selShow: s.selShow ? 'block' : 'none', selTop: s.selTop, selLeft: s.selLeft,
+      selBlockBtns, selFormatBtns, selListBtns,
+      // inline inserter
+      insShow: s.insShow, insTop: s.insTop, onInserterClick: this.onInserterClick,
+      inserterMenuOpen: s.inserterMenuOpen, insMenuTop: s.insMenuTop, inserterGroups,
+      onCloseInserter: () => this.setState({ inserterMenuOpen: false }),
+
+      // send flow
+      sendOpen: s.sendOpen, onCloseSend: () => this.setState({ sendOpen: false }),
+      sendStepLead: s.sendStep === 'lead', sendStepReview: s.sendStep === 'review', sendStepDone: s.sendStep === 'done',
+      sendSteps, sendLeads, sendChannels,
+      sendQuery: s.sendQuery, onSendQuery: (ev) => this.setState({ sendQuery: ev.target.value }),
+      onSendNext: () => this.sendNext(),
+      sendNextFg: s.sendLeadId == null ? '#A9B2AC' : '#0A0F0C', sendNextBg: s.sendLeadId == null ? '#EDECE6' : 'linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B)', sendNextCursor: s.sendLeadId == null ? 'not-allowed' : 'pointer',
+      onSendBack: () => this.setState({ sendStep: 'lead' }),
+      onSendConfirm: () => this.setState({ sendStep: 'done' }),
+      sendChannelLabel: chLabel, sendIsEmail: s.sendChannel === 'email',
+      sendToName: sendLead ? sendLead.name : '', sendToInitials: sendLead ? sendLead.initials : '', sendToAvBg: sendLead ? sendLead.avBg : '#9AA59E',
+      sendToTarget: sendLead ? (s.sendChannel === 'email' ? sendLead.email : sendLead.phone) : '',
+      sendFirstName,
+      sendSubject: s.sendSubject, onSendSubject: (ev) => this.setState({ sendSubject: ev.target.value }),
+      sendMessage: s.sendMessage, onSendMessage: (ev) => this.setState({ sendMessage: ev.target.value }),
+      sendTrackLink: 'proposal.clientforce.co/p/' + s.editingId + '?t=' + (sendLead ? sendLead.id : 0) + 'x9f2',
+      onCopyTrack: () => this.toast('Tracked link copied'),
+      saveState: s.saveState,
+      onBack: () => { this.captureContent(); this.setState({ view: 'list' }); this.closeMenus(); },
+      onSave: () => { this.captureContent(); this.setState({ saveState: 'All changes saved' }); this.toast('Proposal saved'); },
+      onPreview: () => this.goPreview(),
+
+      headingMenuOpen: s.headingMenuOpen, colorMenuOpen: s.colorMenuOpen, insertMenuOpen: s.insertMenuOpen, varMenuOpen: s.varMenuOpen,
+      onToggleHeadingMenu: () => this.setState({ headingMenuOpen: !s.headingMenuOpen, colorMenuOpen: false, insertMenuOpen: false, varMenuOpen: false }),
+      onToggleColorMenu: () => this.setState({ colorMenuOpen: !s.colorMenuOpen, headingMenuOpen: false, insertMenuOpen: false, varMenuOpen: false }),
+      onToggleInsertMenu: () => this.setState({ insertMenuOpen: !s.insertMenuOpen, headingMenuOpen: false, colorMenuOpen: false, varMenuOpen: false }),
+      onToggleVarMenu: () => this.setState({ varMenuOpen: !s.varMenuOpen, headingMenuOpen: false, colorMenuOpen: false, insertMenuOpen: false }),
+      activeBlockLabel: 'Paragraph', activeColor: s.activeColor,
+      blockStyles, formatBtns, foreColors, highlightColors, listAlignBtns, insertGroups, variables,
+
+      // block input modal
+      hasBlockModal: !!s.blockModal,
+      bmType: s.blockModal ? s.blockModal.type : '',
+      bmIsImage: !!(s.blockModal && s.blockModal.type === 'image'),
+      bmIsVideo: !!(s.blockModal && s.blockModal.type === 'video'),
+      bmIsButton: !!(s.blockModal && s.blockModal.type === 'button'),
+      bmTabUpload: !!(s.blockModal && s.blockModal.tab === 'upload'),
+      bmTabUrl: !!(s.blockModal && s.blockModal.tab === 'url'),
+      bmUrl: s.blockModal ? s.blockModal.url || '' : '',
+      bmLabel: s.blockModal ? s.blockModal.label || '' : '',
+      onBmTabUpload: () => this.setBlockField('tab', 'upload'),
+      onBmTabUrl: () => this.setBlockField('tab', 'url'),
+      onSetBmUrl: (ev) => this.setBlockField('url', ev.target.value),
+      onSetBmLabel: (ev) => this.setBlockField('label', ev.target.value),
+      onConfirmBlock: () => this.confirmBlockModal(),
+      onCloseBlockModal: () => this.closeBlockModal(),
+      stop: (ev) => ev.stopPropagation(),
+      bmConfirmLabel: s.blockModal ? (s.blockModal.type === 'image' && s.blockModal.tab !== 'url' ? 'Choose file' : s.blockModal.type === 'video' ? 'Embed video' : s.blockModal.type === 'button' ? 'Update button' : 'Insert') : 'Insert',
+
+      // preview
+      previewBody: React.createElement('div', { dangerouslySetInnerHTML: { __html: s.content || this.defaultBody() } }),
+      onBackToEditor: () => { this._inited = false; this.setState({ view: 'editor' }); },
+      onCopyLink: () => this.toast('Share link copied'),
+      onBookCall: () => this.toast('Booking flow (client side)'),
+      onAccept: () => this.toast('Proposal accepted (client side)'),
+      onPayNow: () => this.toast('Secure checkout (client side)'),
+      ctaFootnote: ctaHasPay ? 'Secure payment via Stripe' : s.calLink,
+      callBtnFg: ctaHasPay ? '#fff' : '#0A0F0C',
+      callBtnBg: ctaHasPay ? 'rgba(255,255,255,.08)' : 'linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B)',
+      callBtnBorder: ctaHasPay ? '1px solid rgba(255,255,255,.16)' : 'none',
+
+      // delete
+      deleteOpen: s.deleteId !== null,
+      deleteName: (() => { const p = (this.proposalsData.personal || []).find(x => x.id === s.deleteId); return p ? p.title : ''; })(),
+      onCancelDelete: () => this.setState({ deleteId: null }),
+      onConfirmDelete: () => { const name = (this.proposalsData.personal || []).find(x => x.id === s.deleteId); this.proposalsData.personal = this.proposalsData.personal.filter(x => x.id !== s.deleteId); this.setState({ deleteId: null }); this.toast('Proposal deleted'); },
+
+      showToast: !!s.toast, toast: s.toast,
+    };
+  }
+
+  goPreviewFrom(p) {
+    this._inited = false;
+    this.setState({ view: 'preview', editingId: p.id, title: p.title, coverIdx: p.cover, content: this.defaultBody() });
+    this.closeMenus();
+  }
+}
+</script>
+</body>
+</html>

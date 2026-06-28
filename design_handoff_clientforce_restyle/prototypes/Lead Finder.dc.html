@@ -1,0 +1,1192 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+body{margin:0;padding:0;font-family:'IBM Plex Sans',sans-serif;}
+*{box-sizing:border-box;}
+input,select,button,textarea{font-family:'IBM Plex Sans',sans-serif;}
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#C8D4CA;border-radius:3px}
+</style>
+<script src="sidebar.js"></script>
+</helmet>
+
+<div style="display:flex;height:100vh;overflow:hidden;">
+
+  <!-- SIDEBAR -->
+  <cf-sidebar active="leadfinder" style="width:248px;flex:none;align-self:stretch;background:#0C140F;"></cf-sidebar>
+
+  <!-- MAIN -->
+  <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;background:#F7F9F8;">
+
+    <!-- HEADER -->
+    <div style="background:#fff;border-bottom:1px solid #E4EAE6;flex:none;">
+      <div style="padding:18px 28px 0;display:flex;align-items:flex-start;justify-content:space-between;">
+        <div>
+          <h1 style="font-family:'Sora',sans-serif;font-size:21px;font-weight:700;color:#0E1512;margin:0 0 3px;">Lead Finder</h1>
+          <p style="font-size:13px;color:#5C6B62;margin:0;">Discover and capture your ideal B2B prospects across multiple data sources.</p>
+        </div>
+        <button onClick="{{ onAddLead }}" style="display:flex;align-items:center;gap:7px;padding:9px 18px;background:linear-gradient(135deg,#36D7ED,#35E834);border:none;border-radius:10px;font-size:13px;font-weight:600;color:#0C140F;cursor:pointer;">+ Add lead manually</button>
+      </div>
+
+      <!-- PROMINENT TAB SWITCHER -->
+      <div style="display:flex;gap:10px;padding:14px 28px;">
+        <div onClick="{{ goFinder }}" style="flex:1;display:flex;align-items:center;gap:12px;padding:13px 16px;border-radius:12px;border:2px solid {{ finderBorder }};background:{{ finderBg }};cursor:pointer;transition:all .15s;">
+          <div style="width:38px;height:38px;border-radius:10px;background:{{ finderIconBg }};display:flex;align-items:center;justify-content:center;font-size:18px;flex:none;">🔍</div>
+          <div style="flex:1;">
+            <div style="font-size:14px;font-weight:700;color:{{ finderTC }};">Lead Finder</div>
+            <div style="font-size:11.5px;color:#5C6B62;margin-top:1px;">Search 275M+ B2B contacts</div>
+          </div>
+          <sc-if value="{{ isFinderTab }}" hint-placeholder-val="{{ false }}">
+            <div style="width:8px;height:8px;background:#35E834;border-radius:50%;flex:none;"></div>
+          </sc-if>
+        </div>
+        <div onClick="{{ goAuto }}" style="flex:1;display:flex;align-items:center;gap:12px;padding:13px 16px;border-radius:12px;border:2px solid {{ autoBorder }};background:{{ autoBg }};cursor:pointer;transition:all .15s;">
+          <div style="width:38px;height:38px;border-radius:10px;background:{{ autoIconBg }};display:flex;align-items:center;justify-content:center;font-size:18px;flex:none;">⚡</div>
+          <div style="flex:1;">
+            <div style="display:flex;align-items:center;gap:7px;">
+              <span style="font-size:14px;font-weight:700;color:{{ autoTC }};">Auto Prospecting</span>
+              <span style="font-size:9.5px;font-weight:700;background:linear-gradient(135deg,#36D7ED,#35E834);color:#0C140F;padding:2px 7px;border-radius:999px;letter-spacing:.04em;">PREMIUM</span>
+            </div>
+            <div style="font-size:11.5px;color:#5C6B62;margin-top:1px;">Signal-based intent discovery</div>
+          </div>
+          <sc-if value="{{ isAutoTab }}" hint-placeholder-val="{{ false }}">
+            <div style="width:8px;height:8px;background:#35E834;border-radius:50%;flex:none;"></div>
+          </sc-if>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCROLL BODY -->
+    <div style="flex:1;overflow-y:auto;padding:24px 28px;">
+
+      <!-- ═══════════════════════ LEAD FINDER TAB -->
+      <sc-if value="{{ isFinderTab }}" hint-placeholder-val="{{ true }}">
+
+        <!-- SEARCH CARD -->
+        <div style="background:#fff;border:1px solid #E4EAE6;border-radius:14px;padding:20px;margin-bottom:20px;box-shadow:0 1px 4px rgba(0,0,0,.04);">
+
+          <!-- Search source toggle -->
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid #E4EAE6;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="font-size:12.5px;font-weight:600;color:#5C6B62;">Source:</span>
+              <div onClick="{{ setModeDB }}" style="padding:5px 14px;border-radius:999px;border:1px solid {{ dbBorder }};background:{{ dbBg }};font-size:12.5px;font-weight:500;color:{{ dbColor }};cursor:pointer;">Clientforce Default</div>
+              <div onClick="{{ setModeApollo }}" style="padding:5px 14px;border-radius:999px;border:1px solid {{ apolloBorder }};background:{{ apolloBg }};font-size:12.5px;font-weight:500;color:{{ apolloColor }};cursor:pointer;display:flex;align-items:center;gap:5px;">
+                Apollo 275M+
+                <span style="font-size:10px;font-weight:700;padding:1px 5px;background:#E0F0FF;color:#2A6FDB;border-radius:4px;letter-spacing:.02em;">B2B</span>
+                <sc-if value="{{ apolloNotConnected }}" hint-placeholder-val="{{ true }}"><span style="font-size:11px;">🔒</span></sc-if>
+                <sc-if value="{{ apolloConnected }}" hint-placeholder-val="{{ false }}"><span style="width:6px;height:6px;background:#35E834;border-radius:50%;display:inline-block;"></span></sc-if>
+              </div>
+              <div onClick="{{ setModePDL }}" style="padding:5px 14px;border-radius:999px;border:1px solid {{ pdlBorder }};background:{{ pdlBg }};font-size:12.5px;font-weight:500;color:{{ pdlColor }};cursor:pointer;display:flex;align-items:center;gap:5px;">
+                People Data Labs
+                <span style="font-size:10px;font-weight:700;padding:1px 5px;background:#FEF3EC;color:#D97757;border-radius:4px;letter-spacing:.02em;">B2C</span>
+                <sc-if value="{{ pdlNotConnected }}" hint-placeholder-val="{{ true }}"><span style="font-size:11px;">🔒</span></sc-if>
+                <sc-if value="{{ pdlConnected }}" hint-placeholder-val="{{ false }}"><span style="width:6px;height:6px;background:#35E834;border-radius:50%;display:inline-block;"></span></sc-if>
+              </div>
+            </div>
+            <sc-if value="{{ showApolloConnect }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="font-size:12px;color:#5C6B62;">Connect Apollo to search 275M+ B2B contacts</span>
+                <button onClick="{{ onConnectApollo }}" style="padding:5px 14px;background:#0E1512;border:none;border-radius:999px;font-size:12px;font-weight:600;color:#35E834;cursor:pointer;">Connect Apollo →</button>
+              </div>
+            </sc-if>
+            <sc-if value="{{ showPdlConnect }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="font-size:12px;color:#5C6B62;">Connect PDL to search 80M+ consumer profiles</span>
+                <button onClick="{{ onConnectPDL }}" style="padding:5px 14px;background:#D97757;border:none;border-radius:999px;font-size:12px;font-weight:600;color:#fff;cursor:pointer;">Connect PDL →</button>
+              </div>
+            </sc-if>
+            <sc-if value="{{ apolloConnectedAndMode }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#16A82A;">
+                <span style="width:6px;height:6px;background:#35E834;border-radius:50%;"></span>
+                Searching Apollo 275M+ B2B database
+              </div>
+            </sc-if>
+            <sc-if value="{{ pdlConnectedAndMode }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#D97757;">
+                <span style="width:6px;height:6px;background:#D97757;border-radius:50%;"></span>
+                Searching People Data Labs · 80M+ consumer profiles
+              </div>
+            </sc-if>
+          </div>
+
+          <!-- Primary filters row -->
+          <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px;">
+            <div style="flex:1;min-width:175px;">
+              <div style="font-size:11px;font-weight:600;color:#5C6B62;margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em;">Keywords</div>
+              <input value="{{ searchKw }}" onChange="{{ onKw }}" placeholder="Name, email, company, domain…" style="width:100%;padding:9px 12px;border:1px solid #E4EAE6;border-radius:8px;font-size:13px;color:#0E1512;outline:none;background:#F7F9F8;" />
+            </div>
+            <div style="min-width:145px;">
+              <div style="font-size:11px;font-weight:600;color:#5C6B62;margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em;">Job Title</div>
+              <input value="{{ searchTitle }}" onChange="{{ onTitle }}" placeholder="e.g. CMO, VP Sales…" style="width:100%;padding:9px 12px;border:1px solid #E4EAE6;border-radius:8px;font-size:13px;color:#0E1512;outline:none;background:#F7F9F8;" />
+            </div>
+            <div style="min-width:140px;">
+              <div style="font-size:11px;font-weight:600;color:#5C6B62;margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em;">Industry</div>
+              <select value="{{ searchIndustry }}" onChange="{{ onIndustry }}" style="width:100%;padding:9px 10px;border:1px solid #E4EAE6;border-radius:8px;font-size:13px;color:#0E1512;background:#F7F9F8;outline:none;cursor:pointer;">
+                <option value="">Any industry</option>
+                <option>SaaS</option><option>Marketing</option><option>Consulting</option>
+                <option>E-commerce</option><option>Finance</option><option>Healthcare</option>
+                <option>Technology</option><option>Real Estate</option><option>Education</option>
+                <option>Media &amp; Publishing</option><option>Legal</option><option>Retail</option>
+              </select>
+            </div>
+            <div style="min-width:130px;">
+              <div style="font-size:11px;font-weight:600;color:#5C6B62;margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em;">Location</div>
+              <input value="{{ searchLocation }}" onChange="{{ onLocation }}" placeholder="City, state, country…" style="width:100%;padding:9px 12px;border:1px solid #E4EAE6;border-radius:8px;font-size:13px;color:#0E1512;outline:none;background:#F7F9F8;" />
+            </div>
+            <div style="display:flex;gap:7px;align-items:flex-end;">
+              <button onClick="{{ doSearch }}" style="padding:9px 22px;background:linear-gradient(135deg,#36D7ED,#35E834);border:none;border-radius:8px;font-size:13px;font-weight:600;color:#0C140F;cursor:pointer;display:flex;align-items:center;gap:7px;white-space:nowrap;">
+                <sc-if value="{{ isSearching }}" hint-placeholder-val="{{ false }}"><span style="width:13px;height:13px;border:2px solid #0C140F;border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;display:inline-block;flex:none;"></span></sc-if>
+                <sc-if value="{{ notSearching }}" hint-placeholder-val="{{ true }}">🔍</sc-if>
+                Search
+              </button>
+              <button onClick="{{ toggleAdvanced }}" style="padding:9px 14px;background:#F7F9F8;border:1px solid #E4EAE6;border-radius:8px;font-size:12.5px;font-weight:500;color:#5C6B62;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:5px;">
+                {{ advancedLabel }} <span style="font-size:11px;">{{ advancedChevron }}</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Advanced filters -->
+          <sc-if value="{{ showAdvanced }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;padding-top:12px;border-top:1px solid #E4EAE6;animation:fadeIn .15s ease;">
+              <div style="min-width:130px;">
+                <div style="font-size:11px;font-weight:600;color:#5C6B62;margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em;">Seniority</div>
+                <select value="{{ searchSeniority }}" onChange="{{ onSeniority }}" style="width:100%;padding:9px 10px;border:1px solid #E4EAE6;border-radius:8px;font-size:12.5px;color:#0E1512;background:#F7F9F8;outline:none;cursor:pointer;">
+                  <option value="">Any seniority</option>
+                  <option>C-Suite</option><option>VP / SVP</option><option>Director</option>
+                  <option>Manager</option><option>Individual Contributor</option><option>Owner / Founder</option>
+                </select>
+              </div>
+              <div style="min-width:130px;">
+                <div style="font-size:11px;font-weight:600;color:#5C6B62;margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em;">Department</div>
+                <select value="{{ searchDept }}" onChange="{{ onDept }}" style="width:100%;padding:9px 10px;border:1px solid #E4EAE6;border-radius:8px;font-size:12.5px;color:#0E1512;background:#F7F9F8;outline:none;cursor:pointer;">
+                  <option value="">Any dept</option>
+                  <option>Marketing</option><option>Sales</option><option>Engineering</option>
+                  <option>Operations</option><option>Finance</option><option>HR / People</option>
+                  <option>Legal</option><option>Product</option><option>Executive</option>
+                </select>
+              </div>
+              <div style="min-width:128px;">
+                <div style="font-size:11px;font-weight:600;color:#5C6B62;margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em;">Employees</div>
+                <select value="{{ searchSize }}" onChange="{{ onSize }}" style="width:100%;padding:9px 10px;border:1px solid #E4EAE6;border-radius:8px;font-size:12.5px;color:#0E1512;background:#F7F9F8;outline:none;cursor:pointer;">
+                  <option value="">Any size</option>
+                  <option>1–10</option><option>11–50</option><option>51–200</option>
+                  <option>201–500</option><option>501–1000</option><option>1000+</option>
+                </select>
+              </div>
+              <div style="min-width:128px;">
+                <div style="font-size:11px;font-weight:600;color:#5C6B62;margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em;">Revenue</div>
+                <select value="{{ searchRevenue }}" onChange="{{ onRevenue }}" style="width:100%;padding:9px 10px;border:1px solid #E4EAE6;border-radius:8px;font-size:12.5px;color:#0E1512;background:#F7F9F8;outline:none;cursor:pointer;">
+                  <option value="">Any revenue</option>
+                  <option>Under $1M</option><option>$1M–$5M</option><option>$5M–$20M</option>
+                  <option>$20M–$50M</option><option>$50M–$200M</option><option>$200M+</option>
+                </select>
+              </div>
+              <div style="min-width:148px;">
+                <div style="font-size:11px;font-weight:600;color:#5C6B62;margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em;">Technologies</div>
+                <input value="{{ searchTech }}" onChange="{{ onTech }}" placeholder="HubSpot, Salesforce…" style="width:100%;padding:9px 12px;border:1px solid #E4EAE6;border-radius:8px;font-size:12.5px;color:#0E1512;outline:none;background:#F7F9F8;" />
+              </div>
+              <div style="min-width:120px;">
+                <div style="font-size:11px;font-weight:600;color:#5C6B62;margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em;">Hiring?</div>
+                <select value="{{ searchHiring }}" onChange="{{ onHiring }}" style="width:100%;padding:9px 10px;border:1px solid #E4EAE6;border-radius:8px;font-size:12.5px;color:#0E1512;background:#F7F9F8;outline:none;cursor:pointer;">
+                  <option value="">All companies</option>
+                  <option value="yes">Actively hiring</option>
+                  <option value="no">Not hiring</option>
+                </select>
+              </div>
+            </div>
+          </sc-if>
+
+          <!-- Active filter chips -->
+          <sc-if value="{{ hasFilters }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid #E4EAE6;align-items:center;">
+              <span style="font-size:11px;color:#5C6B62;">Active:</span>
+              <sc-for list="{{ filterChips }}" as="fc" hint-placeholder-count="0">
+                <div style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;background:#EAF6EC;border:1px solid #C8E8CC;border-radius:999px;font-size:12px;color:#16A82A;font-weight:500;">
+                  {{ fc.label }}<span onClick="{{ fc.onRemove }}" style="cursor:pointer;opacity:.6;font-size:14px;line-height:1;">×</span>
+                </div>
+              </sc-for>
+              <span onClick="{{ clearFilters }}" style="font-size:12px;color:#5C6B62;text-decoration:underline;cursor:pointer;">Clear all</span>
+            </div>
+          </sc-if>
+        </div>
+
+        <!-- RESULTS -->
+        <sc-if value="{{ hasResults }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:13px;font-weight:600;color:#0E1512;">{{ resultCount }} leads found</span>
+              <sc-if value="{{ hasSelected }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;align-items:center;gap:6px;padding:4px 12px;background:#0E1512;border-radius:999px;">
+                  <span style="font-size:12px;color:#fff;font-weight:500;">{{ selectedCount }} selected</span>
+                  <span style="color:rgba(255,255,255,.25);">|</span>
+                  <span onClick="{{ bulkCampaign }}" style="font-size:12px;color:#35E834;cursor:pointer;font-weight:500;">+ Campaign</span>
+                  <span onClick="{{ bulkList }}" style="font-size:12px;color:#36D7ED;cursor:pointer;font-weight:500;">+ List</span>
+                  <span onClick="{{ bulkValidate }}" style="font-size:12px;color:rgba(255,255,255,.65);cursor:pointer;">✓ Validate</span>
+                  <span onClick="{{ bulkDelete }}" style="font-size:12px;color:#F87171;cursor:pointer;">⊗ Delete</span>
+                  <span onClick="{{ clearSelected }}" style="font-size:12px;color:rgba(255,255,255,.35);cursor:pointer;margin-left:2px;">✕</span>
+                </div>
+              </sc-if>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="font-size:12px;color:#5C6B62;">Sort:</span>
+              <select style="font-size:12px;border:1px solid #E4EAE6;border-radius:6px;padding:4px 8px;background:#fff;color:#0E1512;outline:none;cursor:pointer;">
+                <option>Most relevant</option><option>Name A–Z</option><option>Company A–Z</option><option>Intent score</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Table -->
+          <div style="background:#fff;border:1px solid #E4EAE6;border-radius:14px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.04);">
+            <!-- Header -->
+            <div style="display:grid;grid-template-columns:36px 200px 1fr 128px 112px 76px 30px;padding:10px 16px;background:#F7F9F8;border-bottom:2px solid #E4EAE6;align-items:center;">
+              <div onClick="{{ toggleAll }}" style="cursor:pointer;display:flex;align-items:center;justify-content:center;">
+                <div style="width:15px;height:15px;border:1.5px solid {{ allBorder }};border-radius:3px;background:{{ allBg }};display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff;">{{ allMark }}</div>
+              </div>
+              <div style="font-size:11px;font-weight:600;color:#5C6B62;letter-spacing:.04em;text-transform:uppercase;">Lead</div>
+              <div style="font-size:11px;font-weight:600;color:#5C6B62;letter-spacing:.04em;text-transform:uppercase;">Email · Company</div>
+              <div style="font-size:11px;font-weight:600;color:#5C6B62;letter-spacing:.04em;text-transform:uppercase;">Location</div>
+              <div style="font-size:11px;font-weight:600;color:#5C6B62;letter-spacing:.04em;text-transform:uppercase;">Campaigns</div>
+              <div style="font-size:11px;font-weight:600;color:#5C6B62;letter-spacing:.04em;text-transform:uppercase;">Source</div>
+              <div></div>
+            </div>
+
+            <sc-for list="{{ leads }}" as="ld" hint-placeholder-count="5">
+              <div>
+                <!-- Row -->
+                <div onClick="{{ ld.onToggle }}" style="display:grid;grid-template-columns:36px 200px 1fr 128px 112px 76px 30px;padding:12px 16px;border-bottom:1px solid {{ ld.rowBorder }};cursor:pointer;background:{{ ld.rowBg }};align-items:center;transition:background .1s;">
+                  <div onClick="{{ ld.onSelect }}" style="display:flex;align-items:center;justify-content:center;">
+                    <div style="width:15px;height:15px;border:1.5px solid {{ ld.cb }};border-radius:3px;background:{{ ld.cbg }};display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff;flex:none;">{{ ld.cm }}</div>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+                    <div style="width:36px;height:36px;border-radius:50%;background:{{ ld.color }};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex:none;">{{ ld.initials }}</div>
+                    <div style="min-width:0;">
+                      <div style="font-size:13px;font-weight:600;color:#0E1512;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ ld.name }}</div>
+                      <div style="font-size:11.5px;color:#5C6B62;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ ld.title }}</div>
+                    </div>
+                  </div>
+                  <div style="min-width:0;padding-right:8px;">
+                    <div style="display:flex;align-items:center;gap:4px;">
+                      <span style="font-size:12.5px;color:#0E1512;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:195px;">{{ ld.email }}</span>
+                      <sc-if value="{{ ld.emailVerified }}" hint-placeholder-val="{{ false }}"><span style="color:#16A82A;font-size:11px;flex:none;" title="Verified">✓</span></sc-if>
+                    </div>
+                    <div style="font-size:11.5px;color:#5C6B62;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ ld.company }} · {{ ld.industry }}</div>
+                  </div>
+                  <div>
+                    <div style="font-size:12px;color:#0E1512;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ ld.location }}</div>
+                    <div style="font-size:11.5px;color:#5C6B62;">{{ ld.phone }}</div>
+                  </div>
+                  <div>
+                    <sc-if value="{{ ld.hasCamp }}" hint-placeholder-val="{{ false }}">
+                      <span style="font-size:11px;padding:3px 7px;background:#EAF6EC;border-radius:6px;color:#16A82A;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;max-width:100px;">{{ ld.campName }}</span>
+                    </sc-if>
+                    <sc-if value="{{ ld.noCamp }}" hint-placeholder-val="{{ false }}"><span style="font-size:12px;color:#C4CFCA;">—</span></sc-if>
+                  </div>
+                  <div><span style="font-size:11px;font-weight:600;padding:3px 8px;background:{{ ld.sBg }};color:{{ ld.sFg }};border-radius:6px;">{{ ld.source }}</span></div>
+                  <div style="display:flex;align-items:center;justify-content:center;color:#5C6B62;font-size:13px;transform:{{ ld.chevron }};transition:transform .2s;">⌄</div>
+                </div>
+
+                <!-- ACCORDION -->
+                <sc-if value="{{ ld.isExpanded }}" hint-placeholder-val="{{ false }}">
+                  <div style="padding:20px 18px 20px 62px;background:#FAFCFB;border-bottom:1px solid #E4EAE6;border-top:2px solid #35E834;animation:fadeIn .15s ease;">
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 160px;gap:20px;">
+
+                      <!-- Company details -->
+                      <div>
+                        <div style="font-size:10.5px;font-weight:700;color:#5C6B62;text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;">Company Details</div>
+                        <div style="display:flex;flex-direction:column;gap:7px;font-size:12.5px;">
+                          <div style="display:flex;justify-content:space-between;"><span style="color:#5C6B62;">Website</span><span style="color:#16A82A;font-weight:500;">{{ ld.website }}</span></div>
+                          <div style="display:flex;justify-content:space-between;"><span style="color:#5C6B62;">Employees</span><span style="color:#0E1512;font-weight:500;">{{ ld.employees }}</span></div>
+                          <div style="display:flex;justify-content:space-between;"><span style="color:#5C6B62;">Revenue</span><span style="color:#0E1512;font-weight:500;">{{ ld.revenue }}</span></div>
+                          <div style="display:flex;justify-content:space-between;"><span style="color:#5C6B62;">Founded</span><span style="color:#0E1512;font-weight:500;">{{ ld.founded }}</span></div>
+                          <div style="display:flex;justify-content:space-between;"><span style="color:#5C6B62;">Industry</span><span style="color:#0E1512;font-weight:500;">{{ ld.industry }}</span></div>
+                          <sc-if value="{{ ld.isHiring }}" hint-placeholder-val="{{ false }}">
+                            <div style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;background:#EAF6EC;border-radius:6px;font-size:11.5px;color:#16A82A;font-weight:500;width:fit-content;">👔 Actively hiring</div>
+                          </sc-if>
+                        </div>
+                        <sc-if value="{{ ld.hasTech }}" hint-placeholder-val="{{ false }}">
+                          <div style="margin-top:12px;">
+                            <div style="font-size:10.5px;font-weight:700;color:#5C6B62;text-transform:uppercase;letter-spacing:.07em;margin-bottom:7px;">Technologies</div>
+                            <div style="display:flex;flex-wrap:wrap;gap:4px;">
+                              <sc-for list="{{ ld.technologies }}" as="tech" hint-placeholder-count="0">
+                                <span style="font-size:11px;padding:2px 8px;background:#EEF0EE;border-radius:5px;color:#0E1512;font-weight:500;">{{ tech }}</span>
+                              </sc-for>
+                            </div>
+                          </div>
+                        </sc-if>
+                      </div>
+
+                      <!-- Contact + social -->
+                      <div>
+                        <div style="font-size:10.5px;font-weight:700;color:#5C6B62;text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;">Contact &amp; Social</div>
+                        <div style="display:flex;flex-direction:column;gap:7px;font-size:12.5px;">
+                          <div style="display:flex;gap:8px;align-items:flex-start;"><span style="color:#5C6B62;width:58px;flex:none;">Phone</span><span style="color:#0E1512;">{{ ld.phone }}</span></div>
+                          <div style="display:flex;gap:8px;align-items:flex-start;"><span style="color:#5C6B62;width:58px;flex:none;">Email</span><span style="color:#0E1512;">{{ ld.email }}</span></div>
+                          <sc-if value="{{ ld.hasLinkedin }}" hint-placeholder-val="{{ false }}">
+                            <div style="display:flex;gap:8px;align-items:flex-start;"><span style="color:#5C6B62;width:58px;flex:none;">LinkedIn</span><span style="color:#2A6FDB;font-weight:500;word-break:break-all;">{{ ld.linkedin }}</span></div>
+                          </sc-if>
+                          <sc-if value="{{ ld.hasTwitter }}" hint-placeholder-val="{{ false }}">
+                            <div style="display:flex;gap:8px;align-items:flex-start;"><span style="color:#5C6B62;width:58px;flex:none;">Twitter</span><span style="color:#0E1512;">{{ ld.twitter }}</span></div>
+                          </sc-if>
+                          <div style="display:flex;gap:8px;align-items:flex-start;"><span style="color:#5C6B62;width:58px;flex:none;">Seniority</span><span style="color:#0E1512;">{{ ld.seniority }}</span></div>
+                          <div style="display:flex;gap:8px;align-items:flex-start;"><span style="color:#5C6B62;width:58px;flex:none;">Dept</span><span style="color:#0E1512;">{{ ld.dept }}</span></div>
+                        </div>
+                        <sc-if value="{{ ld.hasNotes }}" hint-placeholder-val="{{ false }}">
+                          <div style="margin-top:12px;">
+                            <div style="font-size:10.5px;font-weight:700;color:#5C6B62;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">Notes</div>
+                            <div style="font-size:12.5px;color:#0E1512;background:#fff;padding:8px 10px;border-radius:6px;border:1px solid #E4EAE6;border-left:2px solid #36D7ED;">{{ ld.notes }}</div>
+                          </div>
+                        </sc-if>
+                      </div>
+
+                      <!-- Campaign memberships -->
+                      <div>
+                        <div style="font-size:10.5px;font-weight:700;color:#5C6B62;text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;">Campaign Memberships</div>
+                        <sc-if value="{{ ld.hasCamp }}" hint-placeholder-val="{{ false }}">
+                          <sc-for list="{{ ld.campaigns }}" as="camp" hint-placeholder-count="0">
+                            <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#EAF6EC;border-radius:8px;margin-bottom:6px;border:1px solid #C8E8CC;">
+                              <div style="width:6px;height:6px;background:#35E834;border-radius:50%;flex:none;"></div>
+                              <span style="font-size:12.5px;color:#0E1512;font-weight:500;">{{ camp.name }}</span>
+                            </div>
+                          </sc-for>
+                        </sc-if>
+                        <sc-if value="{{ ld.noCamp }}" hint-placeholder-val="{{ false }}">
+                          <div style="font-size:12px;color:#5C6B62;font-style:italic;">No campaigns yet</div>
+                        </sc-if>
+                        <button onClick="{{ ld.onCampaign }}" style="margin-top:8px;padding:7px 12px;background:#EAF6EC;border:1px dashed #C8E8CC;border-radius:8px;font-size:12px;font-weight:600;color:#16A82A;cursor:pointer;width:100%;text-align:left;">+ Add to campaign</button>
+                      </div>
+
+                      <!-- Actions -->
+                      <div>
+                        <div style="font-size:10.5px;font-weight:700;color:#5C6B62;text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;">Actions</div>
+                        <div style="display:flex;flex-direction:column;gap:6px;">
+                          <button onClick="{{ ld.onCampaign }}" style="padding:8px 12px;background:linear-gradient(135deg,#36D7ED,#35E834);border:none;border-radius:8px;font-size:12px;font-weight:600;color:#0C140F;cursor:pointer;text-align:left;">+ Add to campaign</button>
+                          <button onClick="{{ ld.onList }}" style="padding:8px 12px;background:#EAF6EC;border:1px solid #C8E8CC;border-radius:8px;font-size:12px;font-weight:600;color:#16A82A;cursor:pointer;text-align:left;">+ Add to list</button>
+                          <button onClick="{{ ld.onProposal }}" style="padding:8px 12px;background:#F7F9F8;border:1px solid #E4EAE6;border-radius:8px;font-size:12px;font-weight:600;color:#0E1512;cursor:pointer;text-align:left;">→ Send proposal</button>
+                          <button onClick="{{ ld.onValidate }}" style="padding:8px 12px;background:#F7F9F8;border:1px solid #E4EAE6;border-radius:8px;font-size:12px;font-weight:600;color:#0E1512;cursor:pointer;text-align:left;">✓ Validate email</button>
+                          <button onClick="{{ ld.onDelete }}" style="padding:7px 12px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:8px;font-size:12px;font-weight:600;color:#DC2626;cursor:pointer;text-align:left;margin-top:2px;">⊗ Delete</button>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+
+          <!-- Pagination -->
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px;padding:0 2px;">
+            <span style="font-size:12.5px;color:#5C6B62;">Showing {{ showFrom }}–{{ showTo }} of {{ resultCount }} leads</span>
+            <div style="display:flex;gap:4px;align-items:center;">
+              <button onClick="{{ prevPage }}" style="padding:6px 14px;border:1px solid #E4EAE6;border-radius:7px;background:#fff;font-size:12px;color:#0E1512;cursor:pointer;">← Prev</button>
+              <span style="padding:6px 12px;background:#0E1512;color:#fff;border-radius:7px;font-size:12px;font-weight:600;">{{ currentPage }}</span>
+              <button onClick="{{ nextPage }}" style="padding:6px 14px;border:1px solid #E4EAE6;border-radius:7px;background:#fff;font-size:12px;color:#0E1512;cursor:pointer;">Next →</button>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- Pre-search -->
+        <sc-if value="{{ showPreSearch }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:56px 20px;text-align:center;">
+            <div style="width:64px;height:64px;background:linear-gradient(135deg,#36D7ED18,#35E83418);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:26px;margin-bottom:20px;border:1px solid #E4EAE6;">🔍</div>
+            <h3 style="font-family:'Sora',sans-serif;font-size:17px;font-weight:700;color:#0E1512;margin:0 0 8px;">Find your ideal prospects</h3>
+            <p style="font-size:13px;color:#5C6B62;max-width:400px;margin:0 0 24px;line-height:1.65;">Search by title, industry, seniority, location, revenue and more. One click to add results to your campaigns or lists.</p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
+              <div onClick="{{ quickCEO }}" style="padding:8px 14px;background:#EAF6EC;border-radius:8px;font-size:12px;color:#16A82A;font-weight:500;cursor:pointer;border:1px solid #C8E8CC;">CEO / Founder</div>
+              <div onClick="{{ quickVP }}" style="padding:8px 14px;background:#E0F0FF;border-radius:8px;font-size:12px;color:#2A6FDB;font-weight:500;cursor:pointer;border:1px solid #BAD5F5;">VP Marketing</div>
+              <div onClick="{{ quickSaaS }}" style="padding:8px 14px;background:#FEF3EC;border-radius:8px;font-size:12px;color:#D97757;font-weight:500;cursor:pointer;border:1px solid #F8CBA0;">SaaS · USA</div>
+              <div onClick="{{ quickAgency }}" style="padding:8px 14px;background:#F0ECF8;border-radius:8px;font-size:12px;color:#7B5EA7;font-weight:500;cursor:pointer;border:1px solid #D4C4EF;">Marketing agencies</div>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ showNoResults }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;align-items:center;padding:56px 20px;text-align:center;background:#fff;border:1px solid #E4EAE6;border-radius:14px;">
+            <div style="font-size:30px;margin-bottom:12px;">🔎</div>
+            <h3 style="font-family:'Sora',sans-serif;font-size:16px;font-weight:700;color:#0E1512;margin:0 0 6px;">No leads found</h3>
+            <p style="font-size:13px;color:#5C6B62;max-width:300px;margin:0 0 16px;">Try broader keywords or adjust your filters.</p>
+            <button onClick="{{ clearFilters }}" style="padding:8px 18px;background:#F7F9F8;border:1px solid #E4EAE6;border-radius:8px;font-size:13px;font-weight:600;color:#0E1512;cursor:pointer;">Clear filters</button>
+          </div>
+        </sc-if>
+
+      </sc-if>
+
+      <!-- ═══════════════════════ AUTO PROSPECTING TAB -->
+      <sc-if value="{{ isAutoTab }}" hint-placeholder-val="{{ false }}">
+
+        <!-- NOT CONNECTED GATE -->
+        <sc-if value="{{ autoNotConnected }}" hint-placeholder-val="{{ true }}">
+          <div style="display:grid;grid-template-columns:1fr 348px;gap:24px;align-items:start;">
+            <div style="background:linear-gradient(140deg,#0C140F 0%,#0F2510 45%,#091A17 100%);border-radius:16px;padding:40px;position:relative;overflow:hidden;">
+              <div style="position:absolute;top:-50px;right:-50px;width:240px;height:240px;background:radial-gradient(circle,#35E83420 0%,transparent 70%);pointer-events:none;"></div>
+              <div style="position:absolute;bottom:-60px;left:-20px;width:300px;height:220px;background:radial-gradient(circle,#36D7ED12 0%,transparent 70%);pointer-events:none;"></div>
+              <div style="position:relative;">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;"><span style="font-size:22px;">⚡</span><span style="font-size:10.5px;font-weight:700;background:linear-gradient(135deg,#36D7ED,#35E834);color:#0C140F;padding:3px 10px;border-radius:999px;letter-spacing:.06em;">PREMIUM ADD-ON</span></div>
+                <h2 style="font-family:'Sora',sans-serif;font-size:28px;font-weight:800;color:#fff;margin:0 0 12px;line-height:1.15;">Auto Prospecting</h2>
+                <p style="font-size:14px;color:rgba(255,255,255,.7);line-height:1.65;margin:0 0 22px;max-width:420px;">AI-powered lead discovery that surfaces high-intent prospects using real-time signals — job changes, funding rounds, tech stack data, social buying signals, and intent intelligence from 5,000+ sources.</p>
+                <div style="display:flex;flex-direction:column;gap:9px;margin-bottom:28px;">
+                  <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:rgba(255,255,255,.85);"><span style="color:#35E834;font-size:15px;">✓</span>Job change and hiring surge signals</div>
+                  <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:rgba(255,255,255,.85);"><span style="color:#35E834;font-size:15px;">✓</span>Funding round and growth alerts</div>
+                  <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:rgba(255,255,255,.85);"><span style="color:#35E834;font-size:15px;">✓</span>Intent data from 5,000+ data sources</div>
+                  <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:rgba(255,255,255,.85);"><span style="color:#35E834;font-size:15px;">✓</span>Auto-match prospects to existing campaigns</div>
+                  <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:rgba(255,255,255,.85);"><span style="color:#35E834;font-size:15px;">✓</span>Live daily refresh — new leads every session</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:14px;">
+                  <button onClick="{{ onConnectAuto }}" style="padding:13px 26px;background:linear-gradient(135deg,#36D7ED,#35E834);border:none;border-radius:10px;font-size:14px;font-weight:700;color:#0C140F;cursor:pointer;">⚡ Get Auto Prospecting →</button>
+                  <span style="font-size:12.5px;color:rgba(255,255,255,.45);">From $49/mo</span>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:12px;">
+              <!-- Video Demo -->
+              <div onClick="{{ toggleDemo }}" style="border-radius:12px;overflow:hidden;cursor:pointer;background:#0C140F;position:relative;">
+                <sc-if value="{{ demoNotPlaying }}" hint-placeholder-val="{{ true }}">
+                  <div style="padding:28px 20px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;text-align:center;">
+                    <div style="position:absolute;inset:0;background:radial-gradient(circle at 40% 60%,#35E83420 0%,transparent 65%),radial-gradient(circle at 75% 30%,#36D7ED15 0%,transparent 60%);pointer-events:none;"></div>
+                    <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#36D7ED,#35E834);display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 4px 24px rgba(53,232,52,.3);position:relative;">▶</div>
+                    <div style="font-size:13px;font-weight:600;color:#fff;position:relative;">Watch 2-min demo</div>
+                    <div style="font-size:11.5px;color:rgba(255,255,255,.5);position:relative;">See Auto Prospecting find live leads</div>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ demoPlaying }}" hint-placeholder-val="{{ false }}">
+                  <div style="padding:16px 18px;display:flex;flex-direction:column;gap:8px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;"><span style="font-size:11px;color:rgba(255,255,255,.6);">Auto Prospecting Demo</span><span style="font-size:11px;color:rgba(255,255,255,.4);">0:47 / 2:34</span></div>
+                    <div style="height:3px;background:rgba(255,255,255,.12);border-radius:2px;overflow:hidden;"><div style="width:31%;height:100%;background:linear-gradient(90deg,#36D7ED,#35E834);border-radius:2px;"></div></div>
+                    <div style="display:flex;align-items:center;justify-content:center;gap:18px;padding:4px 0;">
+                      <span style="font-size:18px;color:rgba(255,255,255,.7);">⏮</span>
+                      <span style="font-size:22px;color:#fff;">⏸</span>
+                      <span style="font-size:18px;color:rgba(255,255,255,.7);">⏭</span>
+                    </div>
+                  </div>
+                </sc-if>
+              </div>
+              <div style="font-size:11px;font-weight:700;color:#5C6B62;text-transform:uppercase;letter-spacing:.07em;margin-bottom:2px;">How it works</div>
+              <div style="background:#fff;border:1px solid #E4EAE6;border-radius:12px;padding:16px;"><div style="display:flex;gap:12px;align-items:flex-start;"><div style="width:36px;height:36px;background:#EAF6EC;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex:none;">📡</div><div><div style="font-size:13px;font-weight:700;color:#0E1512;margin-bottom:3px;">Signal monitoring</div><div style="font-size:12px;color:#5C6B62;line-height:1.5;">Watches job changes, funding, tech stack updates and social buying signals across 5,000+ data sources continuously.</div></div></div></div>
+              <div style="background:#fff;border:1px solid #E4EAE6;border-radius:12px;padding:16px;"><div style="display:flex;gap:12px;align-items:flex-start;"><div style="width:36px;height:36px;background:#E0F0FF;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex:none;">🎯</div><div><div style="font-size:13px;font-weight:700;color:#0E1512;margin-bottom:3px;">Intent scoring</div><div style="font-size:12px;color:#5C6B62;line-height:1.5;">Every prospect scored 0–100 on signal strength and recency — see who's in-market right now.</div></div></div></div>
+              <div style="background:#fff;border:1px solid #E4EAE6;border-radius:12px;padding:16px;"><div style="display:flex;gap:12px;align-items:flex-start;"><div style="width:36px;height:36px;background:#FEF3EC;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex:none;">🔗</div><div><div style="font-size:13px;font-weight:700;color:#0E1512;margin-bottom:3px;">Campaign matching</div><div style="font-size:12px;color:#5C6B62;line-height:1.5;">For each lead we suggest your best-fit campaign based on their trigger signal type.</div></div></div></div>
+              <div style="background:#fff;border:1px solid #E4EAE6;border-radius:12px;padding:16px;"><div style="display:flex;gap:12px;align-items:flex-start;"><div style="width:36px;height:36px;background:#F0ECF8;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex:none;">🔄</div><div><div style="font-size:13px;font-weight:700;color:#0E1512;margin-bottom:3px;">Live refresh</div><div style="font-size:12px;color:#5C6B62;line-height:1.5;">Refreshes daily and on-demand — keep coming back for fresh high-intent prospects.</div></div></div></div>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- CONNECTED UI -->
+        <sc-if value="{{ autoIsConnected }}" hint-placeholder-val="{{ false }}">
+          <div style="display:grid;grid-template-columns:288px 1fr;gap:20px;align-items:start;">
+            <!-- Config -->
+            <div style="background:#fff;border:1px solid #E4EAE6;border-radius:14px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,.04);">
+              <div style="font-size:15px;font-weight:700;color:#0E1512;margin-bottom:2px;">Configure Run</div>
+              <div style="font-size:12px;color:#5C6B62;margin-bottom:16px;">Define signals and ICP to surface the right prospects.</div>
+              <div style="margin-bottom:14px;">
+                <div style="font-size:11px;font-weight:600;color:#5C6B62;margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em;">Goal</div>
+                <select value="{{ autoGoal }}" onChange="{{ onAutoGoal }}" style="width:100%;padding:8px 10px;border:1px solid #E4EAE6;border-radius:8px;font-size:13px;background:#F7F9F8;color:#0E1512;outline:none;cursor:pointer;">
+                  <option value="">Select a goal…</option>
+                  <option>Book discovery calls</option>
+                  <option>Sell agency services</option>
+                  <option>Pitch Clientforce</option>
+                  <option>Generate leads for clients</option>
+                  <option>Drive event registrations</option>
+                </select>
+              </div>
+              <div style="margin-bottom:14px;">
+                <div style="font-size:11px;font-weight:600;color:#5C6B62;margin-bottom:7px;text-transform:uppercase;letter-spacing:.06em;">Signals</div>
+                <sc-for list="{{ autoSignalDefs }}" as="sig" hint-placeholder-count="5">
+                  <div onClick="{{ sig.onToggle }}" style="display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:8px;border:1px solid {{ sig.border }};background:{{ sig.bg }};margin-bottom:5px;cursor:pointer;">
+                    <span style="font-size:15px;">{{ sig.icon }}</span>
+                    <div style="flex:1;min-width:0;">
+                      <div style="font-size:12.5px;font-weight:600;color:{{ sig.labelColor }};">{{ sig.label }}</div>
+                      <div style="font-size:11px;color:#5C6B62;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ sig.desc }}</div>
+                    </div>
+                    <div style="width:28px;height:16px;border-radius:999px;background:{{ sig.tBg }};position:relative;flex:none;transition:background .2s;">
+                      <div style="position:absolute;top:2px;left:{{ sig.tPos }};width:12px;height:12px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 2px rgba(0,0,0,.2);"></div>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="margin-bottom:18px;">
+                <div style="font-size:11px;font-weight:600;color:#5C6B62;margin-bottom:7px;text-transform:uppercase;letter-spacing:.06em;">ICP Criteria</div>
+                <div style="display:flex;flex-direction:column;gap:7px;">
+                  <input value="{{ autoIcpTitle }}" onChange="{{ onAutoTitle }}" placeholder="Job title (e.g. CEO, CMO)" style="padding:8px 10px;border:1px solid #E4EAE6;border-radius:8px;font-size:12.5px;background:#F7F9F8;color:#0E1512;outline:none;width:100%;" />
+                  <input value="{{ autoIcpIndustry }}" onChange="{{ onAutoIndustry }}" placeholder="Industry (e.g. SaaS, Fintech)" style="padding:8px 10px;border:1px solid #E4EAE6;border-radius:8px;font-size:12.5px;background:#F7F9F8;color:#0E1512;outline:none;width:100%;" />
+                  <select value="{{ autoIcpSize }}" onChange="{{ onAutoSize }}" style="padding:8px 10px;border:1px solid #E4EAE6;border-radius:8px;font-size:12.5px;background:#F7F9F8;color:#0E1512;outline:none;cursor:pointer;width:100%;">
+                    <option value="">Any company size</option>
+                    <option>1–10</option><option>11–50</option><option>51–200</option><option>201+</option>
+                  </select>
+                  <input value="{{ autoIcpLocation }}" onChange="{{ onAutoLocation }}" placeholder="Location (e.g. USA, UK, Europe)" style="padding:8px 10px;border:1px solid #E4EAE6;border-radius:8px;font-size:12.5px;background:#F7F9F8;color:#0E1512;outline:none;width:100%;" />
+                </div>
+              </div>
+              <button onClick="{{ onRunAuto }}" style="width:100%;padding:11px;background:linear-gradient(135deg,#36D7ED,#35E834);border:none;border-radius:10px;font-size:13px;font-weight:700;color:#0C140F;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
+                <sc-if value="{{ autoRunning }}" hint-placeholder-val="{{ false }}"><span style="width:13px;height:13px;border:2px solid #0C140F;border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;display:inline-block;"></span> Running…</sc-if>
+                <sc-if value="{{ autoNotRunning }}" hint-placeholder-val="{{ true }}">⚡ Run Prospecting</sc-if>
+              </button>
+              <div style="display:flex;align-items:center;gap:6px;margin-top:10px;padding:8px 10px;background:#EAF6EC;border-radius:7px;">
+                <span style="width:7px;height:7px;background:#35E834;border-radius:50%;flex:none;"></span>
+                <span style="font-size:11.5px;color:#16A82A;font-weight:500;">Auto Prospecting connected</span>
+              </div>
+            </div>
+
+            <!-- Results -->
+            <div>
+              <sc-if value="{{ autoHasResults }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+                  <div><span style="font-size:15px;font-weight:700;color:#0E1512;">{{ autoCount }} high-intent leads</span><span style="font-size:12px;color:#5C6B62;margin-left:8px;">· refreshed just now</span></div>
+                  <button onClick="{{ onRefreshAuto }}" style="display:flex;align-items:center;gap:6px;padding:7px 14px;border:1px solid #E4EAE6;border-radius:8px;background:#fff;font-size:12px;color:#0E1512;cursor:pointer;font-weight:500;">↻ Refresh</button>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:10px;">
+                  <sc-for list="{{ autoLeads }}" as="al" hint-placeholder-count="4">
+                    <div>
+
+                      <!-- ── PERSON CARD (enriched B2B contact) ── -->
+                      <sc-if value="{{ al.isPersonType }}" hint-placeholder-val="{{ true }}">
+                        <div style="background:#fff;border:1px solid {{ al.cardBorder }};border-radius:12px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.04);">
+                          <div style="display:flex;align-items:flex-start;gap:14px;">
+                            <div style="width:52px;height:52px;border-radius:50%;background:{{ al.ringBg }};display:flex;align-items:center;justify-content:center;flex:none;">
+                              <div style="width:40px;height:40px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;flex-direction:column;">
+                                <div style="font-size:13px;font-weight:800;color:{{ al.scoreColor }};line-height:1.1;">{{ al.score }}</div>
+                                <div style="font-size:8px;color:#5C6B62;line-height:1;">intent</div>
+                              </div>
+                            </div>
+                            <div style="flex:1;min-width:0;">
+                              <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;">
+                                <div style="width:28px;height:28px;border-radius:50%;background:{{ al.color }};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex:none;">{{ al.initials }}</div>
+                                <span style="font-size:14px;font-weight:700;color:#0E1512;">{{ al.name }}</span>
+                              </div>
+                              <div style="font-size:12.5px;color:#5C6B62;margin-bottom:3px;">{{ al.title }} · {{ al.company }}</div>
+                              <div style="font-size:12px;color:#5C6B62;">📍 {{ al.location }}</div>
+                            </div>
+                            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex:none;">
+                              <div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;max-width:240px;">
+                                <sc-for list="{{ al.badges }}" as="bd" hint-placeholder-count="2">
+                                  <span style="font-size:11px;padding:3px 8px;background:{{ bd.bg }};color:{{ bd.fg }};border-radius:999px;font-weight:500;white-space:nowrap;">{{ bd.label }}</span>
+                                </sc-for>
+                              </div>
+                              <div style="display:flex;gap:6px;">
+                                <button onClick="{{ al.onCampaign }}" style="padding:6px 12px;background:linear-gradient(135deg,#36D7ED,#35E834);border:none;border-radius:7px;font-size:12px;font-weight:600;color:#0C140F;cursor:pointer;">+ Campaign</button>
+                                <button onClick="{{ al.onSave }}" style="padding:6px 12px;background:#F7F9F8;border:1px solid #E4EAE6;border-radius:7px;font-size:12px;font-weight:600;color:#0E1512;cursor:pointer;">Save</button>
+                                <button onClick="{{ al.onToggle }}" style="padding:6px 10px;background:#F7F9F8;border:1px solid #E4EAE6;border-radius:7px;font-size:12px;color:#5C6B62;cursor:pointer;transform:{{ al.chevron }};transition:transform .2s;display:flex;align-items:center;">⌄</button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </sc-if>
+
+                      <!-- ── SIGNAL CARD (Reddit / LinkedIn post / Twitter / Forum) ── -->
+                      <sc-if value="{{ al.isSignalType }}" hint-placeholder-val="{{ false }}">
+                        <div style="background:#fff;border:1px solid {{ al.cardBorder }};border-radius:12px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.04);">
+                          <div style="display:flex;align-items:flex-start;gap:12px;">
+                            <!-- Score ring -->
+                            <div style="width:52px;height:52px;border-radius:50%;background:{{ al.ringBg }};display:flex;align-items:center;justify-content:center;flex:none;">
+                              <div style="width:40px;height:40px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;flex-direction:column;">
+                                <div style="font-size:13px;font-weight:800;color:{{ al.scoreColor }};line-height:1.1;">{{ al.score }}</div>
+                                <div style="font-size:8px;color:#5C6B62;line-height:1;">intent</div>
+                              </div>
+                            </div>
+                            <!-- Content -->
+                            <div style="flex:1;min-width:0;">
+                              <!-- Platform + username row -->
+                              <div style="display:flex;align-items:center;gap:7px;margin-bottom:8px;flex-wrap:wrap;">
+                                <span style="font-size:11px;font-weight:700;padding:2px 8px;background:{{ al.platformBg }};color:{{ al.platformColor }};border-radius:5px;white-space:nowrap;">{{ al.platformIcon }} {{ al.platformLabel }}</span>
+                                <span style="font-size:13px;font-weight:600;color:#0E1512;">{{ al.username }}</span>
+                                <sc-if value="{{ al.enriched }}" hint-placeholder-val="{{ false }}">
+                                  <span style="font-size:10.5px;padding:2px 7px;background:#EAF6EC;color:#16A82A;border-radius:4px;font-weight:500;">✓ Enriched</span>
+                                </sc-if>
+                                <sc-if value="{{ al.notEnriched }}" hint-placeholder-val="{{ true }}">
+                                  <span style="font-size:10.5px;padding:2px 7px;background:#F7F9F8;color:#5C6B62;border-radius:4px;font-weight:500;">? Unenriched</span>
+                                </sc-if>
+                                <span style="font-size:11px;color:#5C6B62;margin-left:auto;white-space:nowrap;">{{ al.postedAt }}</span>
+                              </div>
+                              <!-- Post snippet -->
+                              <div style="font-size:12.5px;color:#0E1512;background:#F7F9F8;border-left:3px solid {{ al.platformColor }};padding:8px 12px;border-radius:0 6px 6px 0;margin-bottom:10px;line-height:1.55;font-style:italic;">"{{ al.postSnippet }}"</div>
+                              <!-- Engagement + signals + actions -->
+                              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                                <span style="font-size:11.5px;color:#5C6B62;flex:none;">{{ al.engagementLabel }}</span>
+                                <div style="display:flex;gap:5px;flex-wrap:wrap;flex:1;">
+                                  <sc-for list="{{ al.badges }}" as="bd" hint-placeholder-count="2">
+                                    <span style="font-size:11px;padding:3px 8px;background:{{ bd.bg }};color:{{ bd.fg }};border-radius:999px;font-weight:500;white-space:nowrap;">{{ bd.label }}</span>
+                                  </sc-for>
+                                </div>
+                                <div style="display:flex;gap:5px;flex:none;">
+                                  <button onClick="{{ al.onViewPost }}" style="padding:5px 10px;background:#F7F9F8;border:1px solid #E4EAE6;border-radius:6px;font-size:11.5px;font-weight:500;color:#5C6B62;cursor:pointer;white-space:nowrap;">↗ View post</button>
+                                  <button onClick="{{ al.onMessage }}" style="padding:5px 10px;background:#EAF6EC;border:1px solid #C8E8CC;border-radius:6px;font-size:11.5px;font-weight:600;color:#16A82A;cursor:pointer;white-space:nowrap;">✉ Message</button>
+                                  <button onClick="{{ al.onToggle }}" style="padding:5px 8px;background:#F7F9F8;border:1px solid #E4EAE6;border-radius:6px;font-size:12px;color:#5C6B62;cursor:pointer;transform:{{ al.chevron }};transition:transform .2s;">⌄</button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </sc-if>
+
+                      <!-- ── EXPANDED ACCORDION ── -->
+                      <sc-if value="{{ al.isExpanded }}" hint-placeholder-val="{{ false }}">
+
+                        <!-- Person expanded -->
+                        <sc-if value="{{ al.isPersonType }}" hint-placeholder-val="{{ true }}">
+                          <div style="background:#FAFCFB;border:1px solid #E4EAE6;border-top:2px solid {{ al.scoreColor }};border-radius:0 0 12px 12px;margin-top:-4px;padding:18px;animation:fadeIn .15s ease;">
+                            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px;">
+                              <div>
+                                <div style="font-size:10.5px;font-weight:700;color:#5C6B62;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">What triggered this lead</div>
+                                <div style="display:flex;flex-direction:column;gap:7px;">
+                                  <sc-for list="{{ al.signalDetails }}" as="sd" hint-placeholder-count="3">
+                                    <div style="display:flex;align-items:flex-start;gap:8px;padding:8px;background:#fff;border-radius:8px;border:1px solid #E4EAE6;">
+                                      <span style="font-size:15px;flex:none;">{{ sd.icon }}</span>
+                                      <div style="flex:1;min-width:0;"><div style="font-size:12px;font-weight:600;color:#0E1512;">{{ sd.signal }}</div><div style="font-size:11.5px;color:#5C6B62;">{{ sd.detail }}</div></div>
+                                      <span style="font-size:10.5px;color:#5C6B62;white-space:nowrap;flex:none;">{{ sd.date }}</span>
+                                    </div>
+                                  </sc-for>
+                                </div>
+                              </div>
+                              <div>
+                                <div style="font-size:10.5px;font-weight:700;color:#5C6B62;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">Segment Match</div>
+                                <div style="padding:12px;background:#EAF6EC;border-radius:8px;margin-bottom:10px;"><div style="font-size:12.5px;font-weight:600;color:#0E1512;margin-bottom:3px;">{{ al.segment }}</div><div style="font-size:12px;color:#5C6B62;">{{ al.segmentDesc }}</div></div>
+                                <div style="font-size:10.5px;font-weight:700;color:#5C6B62;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">Contact</div>
+                                <div style="font-size:12.5px;color:#0E1512;margin-bottom:3px;">{{ al.email }}</div>
+                                <div style="font-size:12.5px;color:#5C6B62;">{{ al.phone }}</div>
+                              </div>
+                              <div>
+                                <div style="font-size:10.5px;font-weight:700;color:#5C6B62;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">Campaign Match</div>
+                                <div style="background:#fff;border:1px solid #E4EAE6;border-radius:8px;padding:12px;margin-bottom:8px;">
+                                  <div style="font-size:11.5px;color:#5C6B62;margin-bottom:5px;">Best fit campaign:</div>
+                                  <div style="font-size:13px;font-weight:700;color:#0E1512;margin-bottom:8px;">{{ al.suggestedCampaign }}</div>
+                                  <button onClick="{{ al.onCampaign }}" style="width:100%;padding:7px;background:linear-gradient(135deg,#36D7ED,#35E834);border:none;border-radius:7px;font-size:12px;font-weight:600;color:#0C140F;cursor:pointer;">Assign →</button>
+                                </div>
+                                <button onClick="{{ al.onSave }}" style="width:100%;padding:7px;background:#F7F9F8;border:1px solid #E4EAE6;border-radius:7px;font-size:12px;font-weight:600;color:#0E1512;cursor:pointer;">Save to leads</button>
+                              </div>
+                            </div>
+                          </div>
+                        </sc-if>
+
+                        <!-- Signal expanded (Reddit / Social / Forum) -->
+                        <sc-if value="{{ al.isSignalType }}" hint-placeholder-val="{{ false }}">
+                          <div style="background:#FAFCFB;border:1px solid #E4EAE6;border-top:2px solid {{ al.platformColor }};border-radius:0 0 12px 12px;margin-top:-4px;padding:18px;animation:fadeIn .15s ease;">
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
+                              <!-- Post + AI message -->
+                              <div>
+                                <div style="font-size:10.5px;font-weight:700;color:#5C6B62;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">Original post</div>
+                                <div style="font-size:12.5px;color:#0E1512;background:#fff;border:1px solid #E4EAE6;padding:12px;border-radius:8px;line-height:1.6;margin-bottom:14px;border-left:3px solid {{ al.platformColor }};">{{ al.postSnippet }}</div>
+                                <div style="font-size:10.5px;font-weight:700;color:#5C6B62;text-transform:uppercase;letter-spacing:.07em;margin-bottom:7px;">AI-suggested outreach</div>
+                                <div style="font-size:12.5px;color:#0E1512;background:#F0FAF0;border:1px solid #C8E8CC;padding:12px;border-radius:8px;line-height:1.6;border-left:3px solid #35E834;margin-bottom:8px;">{{ al.suggestedMessage }}</div>
+                                <button onClick="{{ al.onMessage }}" style="width:100%;padding:9px;background:linear-gradient(135deg,#36D7ED,#35E834);border:none;border-radius:8px;font-size:12px;font-weight:600;color:#0C140F;cursor:pointer;">✉ Send this message →</button>
+                              </div>
+                              <!-- Identity + enrichment + campaign -->
+                              <div>
+                                <div style="font-size:10.5px;font-weight:700;color:#5C6B62;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">Lead identity</div>
+                                <sc-if value="{{ al.enriched }}" hint-placeholder-val="{{ false }}">
+                                  <div style="background:#EAF6EC;border-radius:8px;padding:12px;margin-bottom:12px;">
+                                    <div style="font-size:12.5px;font-weight:600;color:#0E1512;margin-bottom:3px;">{{ al.enrichedName }} · {{ al.enrichedTitle }}</div>
+                                    <div style="font-size:12px;color:#5C6B62;margin-bottom:2px;">{{ al.enrichedCompany }}</div>
+                                    <div style="font-size:12px;color:#16A82A;">{{ al.enrichedEmail }}</div>
+                                  </div>
+                                </sc-if>
+                                <sc-if value="{{ al.notEnriched }}" hint-placeholder-val="{{ true }}">
+                                  <div style="background:#F7F9F8;border:1px dashed #C8D4CA;border-radius:8px;padding:14px;margin-bottom:12px;text-align:center;">
+                                    <div style="font-size:22px;margin-bottom:6px;">🔍</div>
+                                    <div style="font-size:12.5px;font-weight:600;color:#0E1512;margin-bottom:4px;">Identity not yet known</div>
+                                    <div style="font-size:12px;color:#5C6B62;margin-bottom:10px;line-height:1.5;">Our enrichment engine can attempt to match this handle to a real contact profile, email, and company.</div>
+                                    <button onClick="{{ al.onEnrich }}" style="padding:8px 18px;background:#0E1512;border:none;border-radius:8px;font-size:12px;font-weight:600;color:#35E834;cursor:pointer;">⚡ Enrich this lead →</button>
+                                  </div>
+                                </sc-if>
+                                <div style="font-size:10.5px;font-weight:700;color:#5C6B62;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">Campaign</div>
+                                <div style="background:#fff;border:1px solid #E4EAE6;border-radius:8px;padding:10px;margin-bottom:8px;">
+                                  <div style="font-size:11.5px;color:#5C6B62;margin-bottom:4px;">Suggested:</div>
+                                  <div style="font-size:13px;font-weight:700;color:#0E1512;margin-bottom:8px;">{{ al.suggestedCampaign }}</div>
+                                  <button onClick="{{ al.onCampaign }}" style="width:100%;padding:7px;background:linear-gradient(135deg,#36D7ED,#35E834);border:none;border-radius:7px;font-size:12px;font-weight:600;color:#0C140F;cursor:pointer;">Assign →</button>
+                                </div>
+                                <button onClick="{{ al.onSave }}" style="width:100%;padding:7px;background:#F7F9F8;border:1px solid #E4EAE6;border-radius:7px;font-size:12px;font-weight:600;color:#0E1512;cursor:pointer;">Save to leads</button>
+                              </div>
+                            </div>
+                          </div>
+                        </sc-if>
+
+                      </sc-if>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-if>
+              <sc-if value="{{ autoNotRan }}" hint-placeholder-val="{{ true }}">
+                <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:64px 20px;text-align:center;background:#fff;border:1px dashed #C8D4CA;border-radius:14px;">
+                  <div style="font-size:40px;margin-bottom:16px;">⚡</div>
+                  <h3 style="font-family:'Sora',sans-serif;font-size:16px;font-weight:700;color:#0E1512;margin:0 0 8px;">Configure and run your first session</h3>
+                  <p style="font-size:13px;color:#5C6B62;max-width:360px;margin:0;line-height:1.6;">Select signals and ICP criteria on the left, then hit Run to discover high-intent prospects.</p>
+                </div>
+              </sc-if>
+            </div>
+          </div>
+        </sc-if>
+
+      </sc-if>
+
+    </div>
+
+    <!-- TOAST -->
+    <sc-if value="{{ hasToast }}" hint-placeholder-val="{{ false }}">
+      <div style="position:fixed;bottom:24px;right:28px;background:#0E1512;color:#fff;padding:12px 18px;border-radius:10px;font-size:13px;font-weight:500;box-shadow:0 4px 16px rgba(0,0,0,.15);display:flex;align-items:center;gap:8px;animation:slideUp .2s ease;z-index:100;">
+        <span style="color:#35E834;">✓</span> {{ toastMsg }}
+      </div>
+    </sc-if>
+
+    <!-- AUTO CONNECT MODAL -->
+    <sc-if value="{{ autoModalOpen }}" hint-placeholder-val="{{ false }}">
+      <div onClick="{{ closeAutoModal }}" style="position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);z-index:200;display:flex;align-items:center;justify-content:center;">
+        <div onClick="{{ stopProp }}" style="background:#fff;border-radius:16px;padding:32px;max-width:440px;width:100%;margin:0 20px;box-shadow:0 20px 60px rgba(0,0,0,.2);">
+          <div style="font-size:28px;margin-bottom:12px;">⚡</div>
+          <h3 style="font-family:'Sora',sans-serif;font-size:19px;font-weight:800;color:#0E1512;margin:0 0 8px;">Get Auto Prospecting</h3>
+          <p style="font-size:13px;color:#5C6B62;margin:0 0 20px;line-height:1.65;">Auto Prospecting is a premium add-on connecting to our signal intelligence platform. Purchase access and we'll activate your integration immediately.</p>
+          <div style="background:#F7F9F8;border-radius:10px;padding:14px 16px;margin-bottom:20px;border:1px solid #E4EAE6;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;"><span style="font-size:14px;font-weight:600;color:#0E1512;">Auto Prospecting</span><span style="font-family:'Sora',sans-serif;font-size:18px;font-weight:800;color:#0E1512;">$49<span style="font-size:12px;font-weight:400;color:#5C6B62;">/mo</span></span></div>
+            <div style="font-size:12px;color:#5C6B62;">500 signal-matched leads/mo · Daily refresh · Auto campaign assign</div>
+          </div>
+          <div style="display:flex;gap:10px;">
+            <button onClick="{{ onSimConnect }}" style="flex:1;padding:12px;background:linear-gradient(135deg,#36D7ED,#35E834);border:none;border-radius:10px;font-size:13px;font-weight:700;color:#0C140F;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
+              <sc-if value="{{ autoConnecting }}" hint-placeholder-val="{{ false }}"><span style="width:13px;height:13px;border:2px solid #0C140F;border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;display:inline-block;"></span> Connecting…</sc-if>
+              <sc-if value="{{ notAutoConnecting }}" hint-placeholder-val="{{ true }}">Get Access →</sc-if>
+            </button>
+            <button onClick="{{ closeAutoModal }}" style="padding:12px 18px;background:#F7F9F8;border:1px solid #E4EAE6;border-radius:10px;font-size:13px;font-weight:600;color:#0E1512;cursor:pointer;">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- PDL CONNECT MODAL -->
+    <sc-if value="{{ pdlModalOpen }}" hint-placeholder-val="{{ false }}">
+      <div onClick="{{ closePdlModal }}" style="position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);z-index:200;display:flex;align-items:center;justify-content:center;">
+        <div onClick="{{ stopProp }}" style="background:#fff;border-radius:16px;padding:32px;max-width:420px;width:100%;margin:0 20px;box-shadow:0 20px 60px rgba(0,0,0,.2);">
+          <div style="display:inline-flex;align-items:center;gap:7px;padding:3px 12px;background:#FEF3EC;border-radius:999px;margin-bottom:14px;font-size:11px;font-weight:700;color:#D97757;letter-spacing:.04em;">B2C · Consumer data</div>
+          <h3 style="font-family:'Sora',sans-serif;font-size:18px;font-weight:800;color:#0E1512;margin:0 0 8px;">Connect People Data Labs</h3>
+          <p style="font-size:13px;color:#5C6B62;margin:0 0 16px;line-height:1.65;">PDL aggregates 80M+ verified consumer profiles — name, email, phone, social handles, and demographics. Perfect for B2C outreach, local businesses, and consumer brand campaigns.</p>
+          <div style="background:#F7F9F8;border-radius:10px;padding:14px 16px;margin-bottom:20px;border:1px solid #E4EAE6;">
+            <div style="font-size:13px;font-weight:600;color:#0E1512;margin-bottom:8px;">What you unlock:</div>
+            <div style="display:flex;flex-direction:column;gap:5px;">
+              <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:#5C6B62;"><span style="color:#D97757;font-weight:700;">✓</span>80M+ verified consumer profiles</div>
+              <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:#5C6B62;"><span style="color:#D97757;font-weight:700;">✓</span>Social handles: Instagram, Facebook, TikTok</div>
+              <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:#5C6B62;"><span style="color:#D97757;font-weight:700;">✓</span>Demographics: age range, interests, income bracket</div>
+              <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:#5C6B62;"><span style="color:#D97757;font-weight:700;">✓</span>Location + household data for geo-targeting</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;">
+            <button onClick="{{ onSimPDLConnect }}" style="flex:1;padding:12px;background:#D97757;border:none;border-radius:10px;font-size:13px;font-weight:700;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
+              <sc-if value="{{ pdlConnecting }}" hint-placeholder-val="{{ false }}"><span style="width:13px;height:13px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;display:inline-block;"></span> Connecting…</sc-if>
+              <sc-if value="{{ notPdlConnecting }}" hint-placeholder-val="{{ true }}">Connect People Data Labs →</sc-if>
+            </button>
+            <button onClick="{{ closePdlModal }}" style="padding:12px 18px;background:#F7F9F8;border:1px solid #E4EAE6;border-radius:10px;font-size:13px;font-weight:600;color:#0E1512;cursor:pointer;">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- APOLLO CONNECT MODAL -->
+    <sc-if value="{{ apolloModalOpen }}" hint-placeholder-val="{{ false }}">
+      <div onClick="{{ closeApolloModal }}" style="position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);z-index:200;display:flex;align-items:center;justify-content:center;">
+        <div onClick="{{ stopProp }}" style="background:#fff;border-radius:16px;padding:32px;max-width:420px;width:100%;margin:0 20px;box-shadow:0 20px 60px rgba(0,0,0,.2);">
+          <div style="font-size:26px;margin-bottom:12px;">🔗</div>
+          <h3 style="font-family:'Sora',sans-serif;font-size:18px;font-weight:800;color:#0E1512;margin:0 0 8px;">Connect Apollo.io</h3>
+          <p style="font-size:13px;color:#5C6B62;margin:0 0 16px;line-height:1.65;">Unlock Apollo's 275M+ verified B2B contact database. Search by any combination of job title, industry, location, company size, and more.</p>
+          <div style="background:#F7F9F8;border-radius:10px;padding:14px 16px;margin-bottom:20px;border:1px solid #E4EAE6;">
+            <div style="font-size:13px;font-weight:600;color:#0E1512;margin-bottom:8px;">What you unlock:</div>
+            <div style="display:flex;flex-direction:column;gap:5px;">
+              <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:#5C6B62;"><span style="color:#35E834;">✓</span>275M+ verified B2B contacts</div>
+              <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:#5C6B62;"><span style="color:#35E834;">✓</span>Real-time email verification</div>
+              <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:#5C6B62;"><span style="color:#35E834;">✓</span>Advanced filters: seniority, dept, revenue, tech stack</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;">
+            <button onClick="{{ onSimApolloConnect }}" style="flex:1;padding:12px;background:#0E1512;border:none;border-radius:10px;font-size:13px;font-weight:700;color:#35E834;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
+              <sc-if value="{{ apolloConnecting }}" hint-placeholder-val="{{ false }}"><span style="width:13px;height:13px;border:2px solid #35E834;border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;display:inline-block;"></span> Connecting…</sc-if>
+              <sc-if value="{{ notApolloConnecting }}" hint-placeholder-val="{{ true }}">Connect Apollo →</sc-if>
+            </button>
+            <button onClick="{{ closeApolloModal }}" style="padding:12px 18px;background:#F7F9F8;border:1px solid #E4EAE6;border-radius:10px;font-size:13px;font-weight:600;color:#0E1512;cursor:pointer;">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+
+class Component extends DCLogic {
+  state = {
+    tab: 'finder',
+    searchKw:'', searchTitle:'', searchIndustry:'', searchLocation:'',
+    searchSeniority:'', searchDept:'', searchSize:'', searchRevenue:'', searchTech:'', searchHiring:'',
+    showAdvanced: false,
+    searchMode: 'db', apolloConnected: false, apolloModalOpen: false, apolloConnecting: false,
+    hasSearched: false, isSearching: false,
+    expandedId: null, selected: [], page: 1,
+    autoConnected: false, autoModalOpen: false, autoConnecting: false,
+    autoRan: false, autoRunning: false,
+    autoGoal:'', autoSignals:['job_changes','funding'],
+    autoIcpTitle:'', autoIcpIndustry:'', autoIcpSize:'', autoIcpLocation:'',
+    autoExpandedId: null, toast:'',
+    pdlConnected: false, pdlModalOpen: false, pdlConnecting: false,
+    demoPlaying: false,
+  };
+
+  _leads = [
+    {id:1,name:'Alex Torres',initials:'AT',color:'#16A82A',email:'alex.torres@nexustech.io',emailVerified:true,title:'Head of Growth',seniority:'Director',dept:'Marketing',company:'NexusTech',industry:'SaaS',location:'Austin, TX',phone:'+1 512 555 0142',source:'Apollo',campaigns:[{name:'Cold Outreach Q2'}],employees:'51–200',revenue:'$5M–$20M',website:'nexustech.io',linkedin:'linkedin.com/in/alextorres',twitter:'@atgrowth',founded:2019,technologies:['HubSpot','Intercom','Segment'],notes:'',hiring:true},
+    {id:2,name:'Priya Mehta',initials:'PM',color:'#2A6FDB',email:'priya@scaleup.co',emailVerified:true,title:'CEO',seniority:'C-Suite',dept:'Executive',company:'ScaleUp Ventures',industry:'Consulting',location:'New York, NY',phone:'+1 917 555 0384',source:'Apollo',campaigns:[],employees:'11–50',revenue:'$1M–$5M',website:'scaleup.co',linkedin:'linkedin.com/in/priyamehta',twitter:'@priyascaleup',founded:2021,technologies:['Pipedrive','Zapier','Notion'],notes:'Met at Growth Summit 2024',hiring:false},
+    {id:3,name:'Marcus Webb',initials:'MW',color:'#D97757',email:'mwebb@claritymktg.com',emailVerified:false,title:'Marketing Director',seniority:'Director',dept:'Marketing',company:'Clarity Marketing',industry:'Marketing',location:'Chicago, IL',phone:'+1 312 555 0712',source:'LinkedIn',campaigns:[{name:'Agency Pitch'}],employees:'201–500',revenue:'$20M–$50M',website:'claritymktg.com',linkedin:'linkedin.com/in/marcuswebb',twitter:'',founded:2015,technologies:['Salesforce','Marketo','Adobe Analytics'],notes:'',hiring:true},
+    {id:4,name:'Sofia Reyes',initials:'SR',color:'#7B5EA7',email:'sofia@brighthorizon.ai',emailVerified:true,title:'Founder & CEO',seniority:'C-Suite',dept:'Executive',company:'BrightHorizon AI',industry:'Technology',location:'San Francisco, CA',phone:'+1 415 555 0929',source:'Apollo',campaigns:[],employees:'1–10',revenue:'Under $1M',website:'brighthorizon.ai',linkedin:'linkedin.com/in/sofiareyes',twitter:'@sofiabhai',founded:2023,technologies:['Stripe','AWS','OpenAI API'],notes:'',hiring:false},
+    {id:5,name:'Daniel Kim',initials:'DK',color:'#0E8A7B',email:'daniel.kim@growthlabs.io',emailVerified:true,title:'VP Sales',seniority:'VP / SVP',dept:'Sales',company:'GrowthLabs',industry:'SaaS',location:'Boston, MA',phone:'+1 617 555 0456',source:'GMB',campaigns:[{name:'Cold Outreach Q2'}],employees:'51–200',revenue:'$5M–$20M',website:'growthlabs.io',linkedin:'linkedin.com/in/danielkim',twitter:'',founded:2018,technologies:['Outreach','Gong','Salesforce'],notes:'Decision maker for software tools',hiring:true},
+    {id:6,name:'Rachel Okafor',initials:'RO',color:'#C04B8A',email:'rokafor@proactive.com',emailVerified:false,title:'CMO',seniority:'C-Suite',dept:'Marketing',company:'Proactive Agency',industry:'Marketing',location:'Los Angeles, CA',phone:'+1 424 555 0177',source:'Apollo',campaigns:[],employees:'11–50',revenue:'$1M–$5M',website:'proactive.com',linkedin:'linkedin.com/in/rachelokafor',twitter:'@rachelproacmktg',founded:2020,technologies:['HubSpot','Buffer','Canva Pro'],notes:'',hiring:false},
+    {id:7,name:'James Thornton',initials:'JT',color:'#5B6BAD',email:'james@thorntonco.com',emailVerified:true,title:'Business Development',seniority:'Manager',dept:'Sales',company:'Thornton & Co',industry:'Finance',location:'Dallas, TX',phone:'+1 214 555 0838',source:'LinkedIn',campaigns:[{name:'Finance Vertical'}],employees:'201–500',revenue:'$50M–$200M',website:'thorntonco.com',linkedin:'linkedin.com/in/jamesthornton',twitter:'',founded:2008,technologies:['Salesforce','Bloomberg','DocuSign'],notes:'',hiring:false},
+    {id:8,name:'Amara Diallo',initials:'AD',color:'#2AAD7E',email:'amara@helixyoga.com',emailVerified:false,title:'Owner',seniority:'Owner / Founder',dept:'Executive',company:'Helix Yoga Studio',industry:'Health & Wellness',location:'Miami, FL',phone:'+1 305 555 0263',source:'GMB',campaigns:[],employees:'1–10',revenue:'Under $1M',website:'helixyoga.com',linkedin:'',twitter:'',founded:2021,technologies:['Mindbody','Square','Mailchimp'],notes:'Interested in automated booking',hiring:true},
+  ];
+
+  _autoLeads = [
+    {id:101,name:'Jessica Park',initials:'JP',color:'#2A6FDB',title:'VP Marketing',company:'CloudOps Inc',location:'Seattle, WA',email:'jessica@cloudops.io',phone:'+1 206 555 0922',score:92,signals:['Series B ($18M)','Hiring surge','Tech match'],signalDetails:[{icon:'💰',signal:'Series B Funding',detail:'Raised $18M led by Sequoia',date:'3 days ago'},{icon:'👔',signal:'Hiring surge',detail:'Posted 3 Marketing roles this week',date:'2 days ago'},{icon:'🔧',signal:'Tech stack match',detail:'Switched to HubSpot last month',date:'Ongoing'}],suggestedCampaign:'Series B Outreach',segment:'High-growth SaaS, Series B',segmentDesc:'Post-funding companies actively scaling marketing'},
+    {id:102,name:'Tyler Ross',initials:'TR',color:'#D97757',title:'Founder & CEO',company:'FirmBridge',location:'Austin, TX',email:'tyler@firmbridge.io',phone:'+1 512 555 0371',score:84,signals:['New role','New domain','Intent match'],signalDetails:[{icon:'👔',signal:'New role',detail:'Started as CEO 3 weeks ago',date:'3 wks ago'},{icon:'🌐',signal:'New domain',detail:'Registered firmbridge.io last month',date:'1 mo ago'},{icon:'🎯',signal:'Intent match',detail:'Researching CRM and outreach tools',date:'This week'}],suggestedCampaign:'New Founder Outreach',segment:'Newly appointed executives',segmentDesc:'Recently changed roles — high buying intent window'},
+    {id:103,name:'Zara Ahmed',initials:'ZA',color:'#7B5EA7',title:'Marketing Director',company:'Elevate Studios',location:'London, UK',email:'zara@elevatestudios.co',phone:'+44 20 7946 0201',score:76,signals:['Award win','Social activity','Hiring'],signalDetails:[{icon:'🏆',signal:'Award win',detail:'Won Best Agency 2025 regional award',date:'10 days ago'},{icon:'📱',signal:'Social activity',detail:'5 thought-leadership posts this week',date:'This week'},{icon:'👔',signal:'Hiring',detail:'New Growth Manager role posted',date:'5 days ago'}],suggestedCampaign:'Agency Pitch',segment:'Award-winning boutique agencies',segmentDesc:'Growing agencies looking to scale with automation'},
+    {id:104,name:'Marcus Chen',initials:'MC',color:'#0E8A7B',title:'VP of Revenue',company:'NorthenStar SaaS',location:'Chicago, IL',email:'marcus@northenstar.io',phone:'+1 312 555 0614',score:89,signals:['Seed ($3.2M)','Team expansion','ICP match'],signalDetails:[{icon:'💰',signal:'Seed Funding',detail:'Closed $3.2M seed round',date:'1 week ago'},{icon:'👥',signal:'Team expansion',detail:'Headcount doubled in 90 days',date:'Ongoing'},{icon:'✓',signal:'ICP match',detail:'B2B SaaS, 11-50 employees — exact match',date:'Verified'}],suggestedCampaign:'Cold Outreach Q2',segment:'Post-seed SaaS companies',segmentDesc:'Freshly funded, building go-to-market from scratch'},
+    {id:105,name:'Olivia Santos',initials:'OS',color:'#C04B8A',title:'CEO',company:'Bloom Digital',location:'Miami, FL',email:'olivia@bloomdigital.co',phone:'+1 305 555 0889',score:71,signals:['Tech shift','Agency search','Location match'],signalDetails:[{icon:'🔧',signal:'Tech stack shift',detail:'Moved from Mailchimp to ActiveCampaign',date:'2 wks ago'},{icon:'🔍',signal:'Agency search',detail:'Viewed 12+ agency profiles on Clutch',date:'This week'},{icon:'📍',signal:'Location match',detail:'Miami, matches your target market',date:'Ongoing'}],suggestedCampaign:'Agency Pitch',segment:'Local businesses scaling up',segmentDesc:'SMBs actively evaluating agencies and new tools'},
+    {id:106,name:'David Osei',initials:'DO',color:'#5B6BAD',title:'Head of Operations',company:'NexaPay',location:'Lagos, Nigeria',email:'david@nexapay.ng',phone:'+234 1 555 0477',score:82,signals:['Market expansion','Tech upgrade','Partnerships'],signalDetails:[{icon:'🚀',signal:'Expansion',detail:'Announced 3 new market launches',date:'4 days ago'},{icon:'💻',signal:'Tech investment',detail:'Upgraded to enterprise tech stack',date:'2 wks ago'},{icon:'🤝',signal:'Partnerships',detail:'Signed 2 integration partnerships',date:'1 wk ago'}],suggestedCampaign:'Finance Vertical',segment:'Fintech companies expanding',segmentDesc:'High-growth fintech with active market expansion'},
+    // Signal-type leads (social/forum/community — may be unenriched)
+    {id:107,type:'reddit',username:'u/growthmarketer_99',subreddit:'r/Entrepreneur',postSnippet:'Anyone using AI tools for client prospecting? We\'re a small marketing agency and manual outreach is killing us. Has anyone found a good way to automate the initial prospecting + first message? Open to hearing what\'s actually working for you guys.',postedAt:'2 hours ago',upvotes:89,comments:34,score:91,signals:['High intent','Agency match','Trending'],enriched:false,platformLabel:'Reddit',platformIcon:'🔴',platformColor:'#FF4500',platformBg:'#FFF0EC',suggestedMessage:'Hey, saw your post on r/Entrepreneur — we built Clientforce exactly for this. Our AI handles prospecting + personalised first messages automatically. Happy to show you a 5-min demo?',suggestedCampaign:'Intent-Based Outreach'},
+    {id:108,type:'linkedin',username:'Maya Goldstein',handle:'maya-goldstein-mktg',postSnippet:'Hot take: Cold email is not dead — bad cold email is dead. We just closed 2 new clients using hyper-personalised sequences. The key is timing your outreach to real buying signals, not just blasting a list.',postedAt:'1 day ago',likes:212,comments:47,score:78,signals:['Complementary content','Warm lead','Active poster'],enriched:true,enrichedName:'Maya Goldstein',enrichedTitle:'Founder',enrichedCompany:'Goldstein Marketing',enrichedEmail:'maya@goldsteinmktg.com',platformLabel:'LinkedIn',platformIcon:'💼',platformColor:'#0A66C2',platformBg:'#EBF4FF',suggestedMessage:'Maya, loved your post about buying signals — that\'s exactly the philosophy behind Clientforce. Our intent engine surfaces those signals automatically so you hit the right people at the right moment. Would love to share how.',suggestedCampaign:'Warm LinkedIn Outreach'},
+    {id:109,type:'twitter',username:'@techfounder_sam',postSnippet:'Spending 3 hours a day on manual outreach. There has to be a better way. What tools are you guys using to scale lead gen without losing the personal touch? Seriously considering building something myself at this point 👇',postedAt:'5 hours ago',likes:34,retweets:12,score:85,signals:['Tool search intent','Founder','High engagement'],enriched:false,platformLabel:'X (Twitter)',platformIcon:'𝕏',platformColor:'#000000',platformBg:'#F0F0F0',suggestedMessage:'Hey @techfounder_sam, saw your tweet — Clientforce does exactly this. AI handles prospecting + personalised outreach, every message still sounds human. Want a 5-min look?',suggestedCampaign:'Intent-Based Outreach'},
+    {id:110,type:'forum',username:'DigitalMarketer_Fiona',forum:'GrowthHackers',postSnippet:'Best CRM for agency client acquisition in 2025? We\'ve outgrown our current setup and need something with automated sequences, lead enrichment, and a decent analytics dashboard. Budget is flexible for the right tool.',postedAt:'6 hours ago',upvotes:23,score:88,signals:['High buying intent','Budget confirmed','Agency match'],enriched:false,platformLabel:'GrowthHackers',platformIcon:'🌐',platformColor:'#7B5EA7',platformBg:'#F3EFFE',suggestedMessage:'Hi Fiona, saw your GrowthHackers post — Clientforce ticks all those boxes. Automated sequences, lead enrichment, analytics dashboard, and it\'s specifically built for agencies doing client acquisition. Want a quick walkthrough?',suggestedCampaign:'Forum Intent Outreach'},
+  ];
+
+  _toast(msg) {
+    this.setState({ toast: msg });
+    setTimeout(() => this.setState({ toast: '' }), 3000);
+  }
+
+  renderVals() {
+    const s = this.state;
+    const toast = (msg) => (e) => { if(e && e.stopPropagation) e.stopPropagation(); this._toast(msg); };
+    const stopProp = (e) => e && e.stopPropagation();
+
+    const navItems = [
+      {label:'Dashboard',icon:'◈'},{label:'Agents',icon:'◎'},{label:'Contacts',icon:'≡'},
+      {label:'Analytics',icon:'◑'},{label:'Automations',icon:'∞'},{label:'Integrations',icon:'⊕'},
+    ].map(n => ({...n, bg:'transparent', ic:'rgba(255,255,255,.35)', tc:'rgba(255,255,255,.6)', fw:'400'}));
+
+    const toolItems = [
+      {label:'Dynamic Proposals',icon:'◧',active:false},
+      {label:'Forms',icon:'⊞',active:false},
+      {label:'Agent Widget',icon:'◉',active:false},
+      {label:'Lead Finder',icon:'⊙',active:true},
+      {label:'LinkedIn Extension',icon:'in',active:false},
+    ].map(t => ({
+      ...t,
+      bg: t.active ? 'rgba(53,232,52,.1)' : 'transparent',
+      ic: t.active ? '#35E834' : 'rgba(255,255,255,.35)',
+      tc: t.active ? '#35E834' : 'rgba(255,255,255,.6)',
+      fw: t.active ? '600' : '400',
+      onClick: () => {},
+    }));
+
+    const isFinderTab = s.tab === 'finder';
+    const isAutoTab = s.tab === 'auto';
+    const finderBorder = isFinderTab ? '#35E834' : '#E4EAE6';
+    const finderBg = isFinderTab ? '#F0FAF0' : '#fff';
+    const finderIconBg = isFinderTab ? '#EAF6EC' : '#F7F9F8';
+    const finderTC = isFinderTab ? '#0E1512' : '#5C6B62';
+    const autoBorder = isAutoTab ? '#35E834' : '#E4EAE6';
+    const autoBg = isAutoTab ? '#F0FAF0' : '#fff';
+    const autoIconBg = isAutoTab ? '#EAF6EC' : '#F7F9F8';
+    const autoTC = isAutoTab ? '#0E1512' : '#5C6B62';
+
+    // Search mode
+    const apolloConnected = s.apolloConnected;
+    const apolloNotConnected = !apolloConnected;
+    const dbActive = s.searchMode === 'db';
+    const apolloActive = s.searchMode === 'apollo';
+    const dbBorder = dbActive ? '#35E834' : '#E4EAE6';
+    const dbBg = dbActive ? '#EAF6EC' : '#F7F9F8';
+    const dbColor = dbActive ? '#16A82A' : '#5C6B62';
+    const apolloBorder = apolloActive ? (apolloConnected ? '#35E834' : '#D97757') : '#E4EAE6';
+    const apolloBg = apolloActive ? (apolloConnected ? '#EAF6EC' : '#FEF3EC') : '#F7F9F8';
+    const apolloColor = apolloActive ? (apolloConnected ? '#16A82A' : '#D97757') : '#5C6B62';
+    const showApolloConnect = apolloActive && !apolloConnected;
+    const apolloConnectedAndMode = apolloActive && apolloConnected;
+
+    // PDL mode
+    const pdlConnected = s.pdlConnected;
+    const pdlNotConnected = !pdlConnected;
+    const pdlActive = s.searchMode === 'pdl';
+    const pdlBorder = pdlActive ? (pdlConnected ? '#35E834' : '#D97757') : '#E4EAE6';
+    const pdlBg = pdlActive ? (pdlConnected ? '#EAF6EC' : '#FEF3EC') : '#F7F9F8';
+    const pdlColor = pdlActive ? (pdlConnected ? '#16A82A' : '#D97757') : '#5C6B62';
+    const showPdlConnect = pdlActive && !pdlConnected;
+    const pdlConnectedAndMode = pdlActive && pdlConnected;
+
+    // Filters
+    const hasFilters = !!(s.searchKw || s.searchTitle || s.searchIndustry || s.searchLocation || s.searchSeniority || s.searchDept || s.searchSize || s.searchRevenue || s.searchTech);
+    const filterChips = [
+      s.searchKw && {label: '"' + s.searchKw + '"', onRemove: () => this.setState({searchKw:''})},
+      s.searchTitle && {label: s.searchTitle, onRemove: () => this.setState({searchTitle:''})},
+      s.searchIndustry && {label: s.searchIndustry, onRemove: () => this.setState({searchIndustry:''})},
+      s.searchLocation && {label: s.searchLocation, onRemove: () => this.setState({searchLocation:''})},
+      s.searchSeniority && {label: s.searchSeniority, onRemove: () => this.setState({searchSeniority:''})},
+      s.searchDept && {label: s.searchDept, onRemove: () => this.setState({searchDept:''})},
+      s.searchSize && {label: s.searchSize, onRemove: () => this.setState({searchSize:''})},
+      s.searchRevenue && {label: s.searchRevenue, onRemove: () => this.setState({searchRevenue:''})},
+      s.searchTech && {label: 'Tech: ' + s.searchTech, onRemove: () => this.setState({searchTech:''})},
+    ].filter(Boolean);
+
+    const advancedLabel = s.showAdvanced ? 'Fewer filters' : 'More filters';
+    const advancedChevron = s.showAdvanced ? '↑' : '↓';
+
+    // Results
+    const filteredLeads = s.hasSearched ? this._leads : [];
+    const resultCount = filteredLeads.length;
+    const perPage = 6;
+    const currentPage = s.page;
+    const showFrom = resultCount > 0 ? (currentPage - 1) * perPage + 1 : 0;
+    const showTo = Math.min(currentPage * perPage, resultCount);
+    const hasResults = s.hasSearched && resultCount > 0;
+    const showPreSearch = !s.hasSearched;
+    const showNoResults = s.hasSearched && resultCount === 0;
+    const hasSelected = s.selected.length > 0;
+    const selectedCount = s.selected.length;
+    const allSel = filteredLeads.length > 0 && s.selected.length === filteredLeads.length;
+    const someSel = s.selected.length > 0 && !allSel;
+    const allBorder = allSel ? '#35E834' : '#C8D4CA';
+    const allBg = allSel ? '#35E834' : '#fff';
+    const allMark = allSel ? '✓' : (someSel ? '—' : '');
+
+    const srcStyle = (src) => {
+      if(src==='Apollo') return {bg:'#EAF6EC',fg:'#16A82A'};
+      if(src==='LinkedIn') return {bg:'#E0F0FF',fg:'#2A6FDB'};
+      return {bg:'#FEF3EC',fg:'#D97757'};
+    };
+
+    const leads = filteredLeads.map(l => {
+      const isExpanded = s.expandedId === l.id;
+      const isSel = s.selected.includes(l.id);
+      const ss = srcStyle(l.source);
+      return {
+        ...l,
+        isExpanded,
+        chevron: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+        rowBg: isExpanded ? '#FAFCFB' : (isSel ? '#F0FAF0' : '#fff'),
+        rowBorder: '#E4EAE6',
+        cb: isSel ? '#35E834' : '#C8D4CA',
+        cbg: isSel ? '#35E834' : '#fff',
+        cm: isSel ? '✓' : '',
+        sBg: ss.bg, sFg: ss.fg,
+        hasCamp: l.campaigns.length > 0,
+        noCamp: l.campaigns.length === 0,
+        campName: l.campaigns[0] ? l.campaigns[0].name : '',
+        hasTech: l.technologies && l.technologies.length > 0,
+        hasLinkedin: !!l.linkedin,
+        hasTwitter: !!l.twitter,
+        hasNotes: !!l.notes,
+        isHiring: !!l.hiring,
+        onToggle: (e) => { stopProp(e); this.setState({expandedId: isExpanded ? null : l.id}); },
+        onSelect: (e) => { stopProp(e); const sel = [...s.selected]; const idx = sel.indexOf(l.id); if(idx>=0) sel.splice(idx,1); else sel.push(l.id); this.setState({selected:sel}); },
+        onCampaign: toast(l.name + ' added to campaign'),
+        onList: toast(l.name + ' added to list'),
+        onProposal: toast('Proposal draft created for ' + l.name),
+        onValidate: toast('Email validation queued for ' + l.name),
+        onDelete: toast(l.name + ' deleted'),
+      };
+    });
+
+    // Auto prospecting
+    const autoNotConnected = !s.autoConnected;
+    const autoIsConnected = s.autoConnected;
+    const autoHasResults = s.autoRan;
+    const autoNotRan = !s.autoRan;
+    const autoNotRunning = !s.autoRunning;
+    const autoCount = this._autoLeads.length;
+
+    const signalDefs = [
+      {id:'job_changes',icon:'👔',label:'Job Changes',desc:'New hires, promotions, role transitions'},
+      {id:'funding',icon:'💰',label:'Funding Rounds',desc:'Seed, Series A/B, growth capital'},
+      {id:'tech_stack',icon:'🔧',label:'Tech Stack',desc:'New tools matching your ICP'},
+      {id:'social',icon:'📱',label:'Social Activity',desc:'Buying intent posts, engagement spikes'},
+      {id:'intent',icon:'🎯',label:'Intent Data',desc:'Active research on relevant topics'},
+    ];
+    const autoSignalDefs = signalDefs.map(sig => {
+      const active = s.autoSignals.includes(sig.id);
+      return {
+        ...sig, active,
+        border: active ? '#35E834' : '#E4EAE6',
+        bg: active ? '#EAF6EC' : '#fff',
+        labelColor: active ? '#16A82A' : '#0E1512',
+        tBg: active ? '#35E834' : '#C8D4CA',
+        tPos: active ? '14px' : '2px',
+        onToggle: () => {
+          const sigs = [...s.autoSignals];
+          const idx = sigs.indexOf(sig.id);
+          if(idx>=0) sigs.splice(idx,1); else sigs.push(sig.id);
+          this.setState({autoSignals:sigs});
+        },
+      };
+    });
+
+    const autoLeads = this._autoLeads.map(al => {
+      const isExpanded = s.autoExpandedId === al.id;
+      const scoreColor = al.score >= 85 ? '#35E834' : al.score >= 70 ? '#D0F56B' : '#F97316';
+      const ringBg = al.score >= 85 ? '#EAF6EC' : al.score >= 70 ? '#FEFBE6' : '#FEF3EC';
+      const badgeBg = al.score >= 85 ? '#EAF6EC' : '#FEF3EC';
+      const badgeFg = al.score >= 85 ? '#16A82A' : '#D97757';
+      const isPersonType = !al.type || al.type === 'person';
+      const isSignalType = !isPersonType;
+      // Engagement label for signal types
+      let engagementLabel = '';
+      if(isSignalType) {
+        if(al.upvotes) engagementLabel = '▲ ' + al.upvotes + (al.comments ? '  💬 ' + al.comments : '');
+        else if(al.likes) engagementLabel = '♥ ' + al.likes + (al.retweets ? '  ↻ ' + al.retweets : '');
+      }
+      const displayName = isPersonType ? al.name : al.username;
+      return {
+        ...al,
+        isExpanded, isPersonType, isSignalType,
+        scoreColor, ringBg,
+        cardBorder: isExpanded ? scoreColor : '#E4EAE6',
+        chevron: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+        badges: al.signals.map(sig => ({label:sig, bg:badgeBg, fg:badgeFg})),
+        notEnriched: !al.enriched,
+        engagementLabel,
+        onToggle: () => this.setState({autoExpandedId: isExpanded ? null : al.id}),
+        onCampaign: toast((displayName) + ' added to ' + al.suggestedCampaign),
+        onSave: toast((displayName) + ' saved to leads'),
+        onViewPost: toast('Opening post in new tab…'),
+        onMessage: toast('AI message drafted for ' + displayName),
+        onEnrich: toast('Enrichment queued for ' + displayName + ' — usually takes 30s'),
+      };
+    });
+
+    return {
+      navItems, toolItems,
+      isFinderTab, isAutoTab,
+      finderBorder, finderBg, finderIconBg, finderTC,
+      autoBorder, autoBg, autoIconBg, autoTC,
+      goFinder: () => this.setState({tab:'finder'}),
+      goAuto: () => this.setState({tab:'auto'}),
+
+      // Search
+      searchKw: s.searchKw, searchTitle: s.searchTitle, searchIndustry: s.searchIndustry,
+      searchLocation: s.searchLocation, searchSeniority: s.searchSeniority, searchDept: s.searchDept,
+      searchSize: s.searchSize, searchRevenue: s.searchRevenue, searchTech: s.searchTech, searchHiring: s.searchHiring,
+      showAdvanced: s.showAdvanced, advancedLabel, advancedChevron,
+      onKw: (e) => this.setState({searchKw:e.target.value}),
+      onTitle: (e) => this.setState({searchTitle:e.target.value}),
+      onIndustry: (e) => this.setState({searchIndustry:e.target.value}),
+      onLocation: (e) => this.setState({searchLocation:e.target.value}),
+      onSeniority: (e) => this.setState({searchSeniority:e.target.value}),
+      onDept: (e) => this.setState({searchDept:e.target.value}),
+      onSize: (e) => this.setState({searchSize:e.target.value}),
+      onRevenue: (e) => this.setState({searchRevenue:e.target.value}),
+      onTech: (e) => this.setState({searchTech:e.target.value}),
+      onHiring: (e) => this.setState({searchHiring:e.target.value}),
+      toggleAdvanced: () => this.setState({showAdvanced:!s.showAdvanced}),
+      hasFilters, filterChips,
+      clearFilters: () => this.setState({searchKw:'',searchTitle:'',searchIndustry:'',searchLocation:'',searchSeniority:'',searchDept:'',searchSize:'',searchRevenue:'',searchTech:'',searchHiring:''}),
+      isSearching: s.isSearching, notSearching: !s.isSearching,
+
+      // Apollo mode
+      dbBorder, dbBg, dbColor, apolloBorder, apolloBg, apolloColor,
+      apolloConnected, apolloNotConnected, showApolloConnect, apolloConnectedAndMode,
+      setModeDB: () => this.setState({searchMode:'db'}),
+      setModeApollo: () => { this.setState({searchMode:'apollo'}); if(!s.apolloConnected) this.setState({apolloModalOpen:true}); },
+      onConnectApollo: () => this.setState({apolloModalOpen:true}),
+      apolloModalOpen: s.apolloModalOpen,
+      apolloConnecting: s.apolloConnecting,
+      notApolloConnecting: !s.apolloConnecting,
+      closeApolloModal: () => this.setState({apolloModalOpen:false, apolloConnecting:false}),
+      onSimApolloConnect: () => {
+        if(s.apolloConnecting) return;
+        this.setState({apolloConnecting:true});
+        setTimeout(() => { this.setState({apolloConnected:true, apolloConnecting:false, apolloModalOpen:false, searchMode:'apollo'}); this._toast('Apollo connected! Search 275M+ contacts.'); }, 2000);
+      },
+
+      // Results
+      leads, hasResults, showPreSearch, showNoResults,
+      resultCount, currentPage, showFrom, showTo,
+      hasSelected, selectedCount,
+      allBorder, allBg, allMark,
+      toggleAll: () => {
+        if(allSel) this.setState({selected:[]});
+        else this.setState({selected:filteredLeads.map(l=>l.id)});
+      },
+      bulkCampaign: () => this._toast(s.selected.length + ' leads added to campaign'),
+      bulkList: () => this._toast(s.selected.length + ' leads added to list'),
+      bulkValidate: () => this._toast(s.selected.length + ' emails queued for validation'),
+      bulkDelete: () => { this._toast(s.selected.length + ' leads deleted'); this.setState({selected:[]}); },
+      clearSelected: () => this.setState({selected:[]}),
+      prevPage: () => this.setState({page: Math.max(1, s.page-1)}),
+      nextPage: () => this.setState({page: s.page+1}),
+      doSearch: () => {
+        if(s.searchMode === 'apollo' && !s.apolloConnected) { this.setState({apolloModalOpen:true}); return; }
+        this.setState({isSearching:true, hasSearched:false});
+        setTimeout(() => this.setState({isSearching:false, hasSearched:true, expandedId:null, selected:[], page:1}), 1500);
+      },
+      quickCEO: () => { this.setState({searchTitle:'CEO',hasSearched:false}); setTimeout(() => this.setState({isSearching:true}), 10); setTimeout(() => this.setState({isSearching:false,hasSearched:true,page:1}), 1600); },
+      quickVP: () => { this.setState({searchTitle:'VP Marketing',hasSearched:false}); setTimeout(() => this.setState({isSearching:true}), 10); setTimeout(() => this.setState({isSearching:false,hasSearched:true,page:1}), 1600); },
+      quickSaaS: () => { this.setState({searchIndustry:'SaaS',searchLocation:'USA',hasSearched:false}); setTimeout(() => this.setState({isSearching:true}), 10); setTimeout(() => this.setState({isSearching:false,hasSearched:true,page:1}), 1600); },
+      quickAgency: () => { this.setState({searchIndustry:'Marketing',hasSearched:false}); setTimeout(() => this.setState({isSearching:true}), 10); setTimeout(() => this.setState({isSearching:false,hasSearched:true,page:1}), 1600); },
+      onAddLead: () => this._toast('Add lead modal — coming soon'),
+
+      // Auto prospecting
+      autoNotConnected, autoIsConnected, autoHasResults, autoNotRan,
+      autoGoal: s.autoGoal, autoIcpTitle: s.autoIcpTitle, autoIcpIndustry: s.autoIcpIndustry,
+      autoIcpSize: s.autoIcpSize, autoIcpLocation: s.autoIcpLocation,
+      autoSignalDefs, autoLeads, autoCount,
+      autoRunning: s.autoRunning, autoNotRunning,
+      onAutoGoal: (e) => this.setState({autoGoal:e.target.value}),
+      onAutoTitle: (e) => this.setState({autoIcpTitle:e.target.value}),
+      onAutoIndustry: (e) => this.setState({autoIcpIndustry:e.target.value}),
+      onAutoSize: (e) => this.setState({autoIcpSize:e.target.value}),
+      onAutoLocation: (e) => this.setState({autoIcpLocation:e.target.value}),
+      onRunAuto: () => {
+        if(s.autoRunning) return;
+        this.setState({autoRunning:true, autoRan:false});
+        setTimeout(() => { this.setState({autoRunning:false, autoRan:true}); this._toast('Found ' + this._autoLeads.length + ' high-intent leads!'); }, 2200);
+      },
+      onRefreshAuto: () => { this.setState({autoRan:false}); setTimeout(() => { this.setState({autoRan:true}); this._toast('Feed refreshed with new leads'); }, 1500); },
+      onConnectAuto: () => this.setState({autoModalOpen:true}),
+      autoModalOpen: s.autoModalOpen,
+      autoConnecting: s.autoConnecting, notAutoConnecting: !s.autoConnecting,
+      closeAutoModal: () => this.setState({autoModalOpen:false, autoConnecting:false}),
+      onSimConnect: () => {
+        if(s.autoConnecting) return;
+        this.setState({autoConnecting:true});
+        setTimeout(() => { this.setState({autoConnected:true, autoConnecting:false, autoModalOpen:false}); this._toast('Auto Prospecting connected!'); }, 2000);
+      },
+
+      // PDL
+      pdlBorder, pdlBg, pdlColor, pdlConnected, pdlNotConnected, showPdlConnect, pdlConnectedAndMode,
+      setModePDL: () => { this.setState({searchMode:'pdl'}); if(!s.pdlConnected) this.setState({pdlModalOpen:true}); },
+      onConnectPDL: () => this.setState({pdlModalOpen:true}),
+      pdlModalOpen: s.pdlModalOpen,
+      pdlConnecting: s.pdlConnecting, notPdlConnecting: !s.pdlConnecting,
+      closePdlModal: () => this.setState({pdlModalOpen:false, pdlConnecting:false}),
+      onSimPDLConnect: () => {
+        if(s.pdlConnecting) return;
+        this.setState({pdlConnecting:true});
+        setTimeout(() => { this.setState({pdlConnected:true, pdlConnecting:false, pdlModalOpen:false, searchMode:'pdl'}); this._toast('People Data Labs connected! Search 80M+ consumer profiles.'); }, 2000);
+      },
+
+      // Demo
+      demoPlaying: s.demoPlaying, demoNotPlaying: !s.demoPlaying,
+      toggleDemo: () => this.setState({demoPlaying: !s.demoPlaying}),
+
+      // Shared
+      hasToast: !!s.toast, toastMsg: s.toast,
+      stopProp,
+    };
+  }
+}
+
+</script>
+</body>
+</html>
