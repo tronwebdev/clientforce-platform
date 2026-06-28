@@ -4,6 +4,7 @@
   "globalPassThroughEnv": [
     "DATABASE_URL",
     "APP_DATABASE_URL",
+    "REDIS_URL",
     "NODE_EXTRA_CA_CERTS",
     "PRISMA_QUERY_ENGINE_LIBRARY",
     "PRISMA_SCHEMA_ENGINE_BINARY",
