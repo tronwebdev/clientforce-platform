@@ -24,7 +24,9 @@
   position: sticky;
   top: 0;
   height: 100vh;
-  overflow-y: auto;
+  /* overflow must stay visible so the Tools flyout can escape to the right
+     (overflow-y:auto would force overflow-x to clip it). */
+  overflow: visible;
 }
 
 .cf-sb__brand {
@@ -202,15 +204,65 @@
   flex: 1;
 }
 
+/* Tools — collapsed rail item + right-side flyout (sidebar.js). The flyout panel
+   surface/shadow are prototype-exact sidebar chrome (not design tokens); written
+   as rgb()/rgba() so they stay literal-on-dark like the rest of the sidebar. */
+.cf-sb__tools-wrap {
+  position: relative;
+  margin-top: 2px;
+}
+
+.cf-sb__tools-toggle {
+  width: 100%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--cf-font-body);
+}
+
+.cf-sb__tools-menu {
+  position: absolute;
+  left: calc(100% + 12px);
+  top: -4px;
+  width: 264px;
+  z-index: 50;
+  background: rgb(20, 32, 26); /* #14201A — flyout panel surface */
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--cf-radius-lg);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.5);
+  padding: var(--cf-space-8);
+}
+
 .cf-sb__badge {
-  font-size: var(--cf-text-11);
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  padding: 2px var(--cf-space-8);
+  margin-left: auto;
+  font-size: 8.5px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  padding: 2px 7px;
   border-radius: var(--cf-radius-pill);
-  background: var(--cf-color-green-soft-bg);
-  color: var(--cf-color-green-700);
   white-space: nowrap;
+}
+
+/* 'Auto Prospecting' — brand gradient; 'Dynamic' — solid cyan. Both near-black text. */
+.cf-sb__badge--grad {
+  background: var(--cf-gradient-brand);
+  color: var(--cf-color-near-black);
+}
+
+.cf-sb__badge--cyan {
+  background: var(--cf-color-cyan);
+  color: var(--cf-color-near-black);
+}
+
+/* Active tool: badge flips to near-black bg + light fg. */
+.cf-sb__item--active .cf-sb__badge--grad {
+  background: var(--cf-color-near-black);
+  color: var(--cf-color-lime);
+}
+
+.cf-sb__item--active .cf-sb__badge--cyan {
+  background: var(--cf-color-near-black);
+  color: var(--cf-color-cyan);
 }
 
 .cf-sb__profile {

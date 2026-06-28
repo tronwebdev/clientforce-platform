@@ -1,29 +1,53 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
-import type { Me } from "../lib/types";
+import { useEffect, useState } from "react";
 import { activeKeyFor } from "./nav";
 import { SidebarView } from "./SidebarView";
+import type { Me } from "../lib/types";
 
-/** Client wrapper: pathname-derived active state + switch/sign-out behavior. */
+/** Client wrapper: pathname-derived active state + switch/sign-out + flyout wiring. */
 export function Sidebar({ me }: { me: Me }) {
   const pathname = usePathname();
   const router = useRouter();
   const [wsOpen, setWsOpen] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(false);
+
+  // Single-open + close on outside click (sidebar.js behavior).
+  useEffect(() => {
+    function onDocMouseDown(e: MouseEvent) {
+      const target = e.target as HTMLElement | null;
+      if (!target?.closest(".cf-sb")) {
+        setWsOpen(false);
+        setToolsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onDocMouseDown);
+    return () => document.removeEventListener("mousedown", onDocMouseDown);
+  }, []);
+
+  function toggleWs() {
+    setWsOpen((v) => {
+      if (!v) setToolsOpen(false);
+      return !v;
+    });
+  }
+
+  function toggleTools() {
+    setToolsOpen((v) => {
+      if (!v) setWsOpen(false);
+      return !v;
+    });
+  }
 
   async function selectWorkspace(workspaceId: string) {
-    if (workspaceId === me.activeWorkspace?.id) {
-      setWsOpen(false);
-      return;
-    }
+    setWsOpen(false);
+    if (workspaceId === me.activeWorkspace?.id) return;
     await fetch("/api/workspace", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ workspaceId }),
     });
-    setWsOpen(false);
-    // Re-fetch server components with the new tenant context.
     router.refresh();
   }
 
@@ -37,7 +61,9 @@ export function Sidebar({ me }: { me: Me }) {
       me={me}
       activeKey={activeKeyFor(pathname)}
       wsOpen={wsOpen}
-      onToggleWs={() => setWsOpen((v) => !v)}
+      toolsOpen={toolsOpen}
+      onToggleWs={toggleWs}
+      onToggleTools={toggleTools}
       onSelectWorkspace={selectWorkspace}
       onSignOut={signOut}
     />

@@ -1,11 +1,13 @@
+import { isToolKey, MAIN_NAV, TOOLS_NAV } from "./nav";
 import type { Me } from "../lib/types";
-import { MAIN_NAV, TOOLS_NAV } from "./nav";
 
 export interface SidebarViewProps {
   me: Me;
   activeKey: string;
   wsOpen: boolean;
+  toolsOpen: boolean;
   onToggleWs?: () => void;
+  onToggleTools?: () => void;
   onSelectWorkspace?: (workspaceId: string) => void;
   onSignOut?: () => void;
 }
@@ -21,8 +23,18 @@ function initials(me: Me): string {
  * @clientforce/ui tokens. The client wrapper supplies pathname-derived active
  * state and the switch/sign-out handlers.
  */
-export function SidebarView({ me, activeKey, wsOpen, onToggleWs, onSelectWorkspace, onSignOut }: SidebarViewProps) {
+export function SidebarView({
+  me,
+  activeKey,
+  wsOpen,
+  toolsOpen,
+  onToggleWs,
+  onToggleTools,
+  onSelectWorkspace,
+  onSignOut,
+}: SidebarViewProps) {
   const activeWs = me.activeWorkspace;
+  const toolsActive = isToolKey(activeKey);
   return (
     <nav className="cf-sb" aria-label="Primary">
       <a className="cf-sb__brand" href="/">
@@ -87,25 +99,59 @@ export function SidebarView({ me, activeKey, wsOpen, onToggleWs, onSelectWorkspa
         ))}
       </div>
 
-      {/* Tools */}
-      <div className="cf-sb__menu-head cf-sb__menu-head--section">Tools</div>
-      <div className="cf-sb__nav">
-        {TOOLS_NAV.map((item) => (
-          <a
-            key={item.key}
-            href={item.href}
-            className={["cf-sb__item", "cf-sb__item--tool", item.key === activeKey ? "cf-sb__item--active" : ""]
-              .filter(Boolean)
-              .join(" ")}
-            aria-current={item.key === activeKey ? "page" : undefined}
-          >
-            <span className="cf-sb__icon" aria-hidden="true">
-              {item.icon}
-            </span>
-            <span className="cf-sb__item-label">{item.label}</span>
-            {item.badge ? <span className="cf-sb__badge">{item.badge}</span> : null}
-          </a>
-        ))}
+      {/* Tools — collapsed rail item that opens a right-side flyout (sidebar.js) */}
+      <div className="cf-sb__tools-wrap">
+        <button
+          type="button"
+          className={["cf-sb__item", "cf-sb__tools-toggle", toolsActive ? "cf-sb__item--active" : ""]
+            .filter(Boolean)
+            .join(" ")}
+          aria-haspopup="menu"
+          aria-expanded={toolsOpen}
+          onClick={onToggleTools}
+        >
+          <span className="cf-sb__icon" aria-hidden="true">
+            ⚒
+          </span>
+          <span className="cf-sb__item-label">Tools</span>
+          <span className="cf-sb__chev" aria-hidden="true">
+            {toolsOpen ? "▾" : "▸"}
+          </span>
+        </button>
+        {toolsOpen ? (
+          <div className="cf-sb__tools-menu" role="menu" aria-label="Tools">
+            <div className="cf-sb__menu-head">Tools</div>
+            {TOOLS_NAV.map((item) => {
+              const on = item.key === activeKey;
+              return (
+                <a
+                  key={item.key}
+                  href={item.href}
+                  role="menuitem"
+                  className={["cf-sb__item", "cf-sb__item--tool", on ? "cf-sb__item--active" : ""]
+                    .filter(Boolean)
+                    .join(" ")}
+                  aria-current={on ? "page" : undefined}
+                >
+                  <span className="cf-sb__icon" aria-hidden="true">
+                    {item.icon}
+                  </span>
+                  <span className="cf-sb__item-label">{item.label}</span>
+                  {item.badge ? (
+                    <span
+                      className={[
+                        "cf-sb__badge",
+                        item.badgeStyle === "cyan" ? "cf-sb__badge--cyan" : "cf-sb__badge--grad",
+                      ].join(" ")}
+                    >
+                      {item.badge}
+                    </span>
+                  ) : null}
+                </a>
+              );
+            })}
+          </div>
+        ) : null}
       </div>
 
       <div className="cf-sb__menu-head cf-sb__menu-head--section">Help &amp; account</div>

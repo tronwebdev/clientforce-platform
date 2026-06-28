@@ -15,18 +15,36 @@ const me: Me = {
 };
 
 describe("SidebarView", () => {
-  it("renders the primary nav, profile, and active workspace", () => {
-    const html = renderToStaticMarkup(<SidebarView me={me} activeKey="contacts" wsOpen={false} />);
-    for (const label of ["Dashboard", "Agents", "Contacts", "Stats", "Integrations", "Automations", "Settings"]) {
+  it("renders the primary nav, profile, and active workspace; Tools collapsed", () => {
+    const html = renderToStaticMarkup(
+      <SidebarView me={me} activeKey="contacts" wsOpen={false} toolsOpen={false} />,
+    );
+    for (const label of ["Dashboard", "Agents", "Contacts", "Stats", "Integrations", "Automations", "Tools", "Settings"]) {
       expect(html).toContain(label);
     }
     expect(html).toContain("Mensah Agency"); // active workspace
     expect(html).toContain("Jordan Mensah"); // profile
-    expect(html).toContain("cf-sb__item--active"); // an active item is marked
+    expect(html).toContain("cf-sb__item--active"); // active item marked
+    // Collapsed: tool items + badges are not in the DOM yet.
+    expect(html).not.toContain("Lead Finder V2");
+    expect(html).not.toContain("cf-sb__tools-menu");
+  });
+
+  it("shows the Tools flyout with badge styles when open", () => {
+    const html = renderToStaticMarkup(
+      <SidebarView me={me} activeKey="proposals" wsOpen={false} toolsOpen />,
+    );
+    expect(html).toContain("cf-sb__tools-menu");
+    expect(html).toContain("Lead Finder V2");
+    expect(html).toContain("Auto Prospecting");
+    expect(html).toContain("cf-sb__badge--grad"); // gradient badge (Lead Finder)
+    expect(html).toContain("cf-sb__badge--cyan"); // cyan badge (Proposals)
   });
 
   it("lists memberships when the switcher is open", () => {
-    const html = renderToStaticMarkup(<SidebarView me={me} activeKey="dashboard" wsOpen />);
+    const html = renderToStaticMarkup(
+      <SidebarView me={me} activeKey="dashboard" wsOpen toolsOpen={false} />,
+    );
     expect(html).toContain("Switch workspace");
     expect(html).toContain("BrightSmile");
   });
