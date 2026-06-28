@@ -7,8 +7,10 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
+import type { Role } from "@clientforce/db";
 import { PrismaService } from "../db/prisma.service";
 import { IS_PUBLIC_KEY } from "./decorators";
+import { mapOrgRole } from "./role-map";
 import type { AuthenticatedRequest, MembershipView } from "./request-context";
 import { TOKEN_VERIFIER, type TokenVerifier } from "./token-verifier";
 
@@ -17,8 +19,17 @@ const WORKSPACE_HEADER = "x-workspace-id";
 /**
  * Global guard: verifies the bearer token and resolves the tenant context
  * (user → memberships → active workspace + agency), attaching it to the request.
- * `@Public()` routes bypass it. Tenant DB access happens later via TenantClient,
- * which sets the RLS GUCs per request from this context.
+ *
+ * Active-workspace selection:
+ *   - Clerk path (token carries `org_id`): resolve the workspace by the immutable
+ *     `Workspace.clerkOrgId`. If the user has no membership there yet, provision
+ *     one just-in-time (role seeded from `org_role` via AUTH_ROLE_MAP). The DB
+ *     `Membership.role` is then authoritative for RBAC — `org_role` is not used
+ *     per request.
+ *   - Otherwise (dev/non-org tokens): the `x-workspace-id` header (must be a
+ *     membership) or the first membership.
+ *
+ * `@Public()` routes bypass this. Tenant DB access happens later via TenantClient.
  */
 @Injectable()
 export class AuthGuard implements CanActivate {
@@ -58,21 +69,47 @@ export class AuthGuard implements CanActivate {
           ...(claims.email ? [{ email: claims.email }] : []),
         ],
       },
-      include: { memberships: { include: { workspace: { include: { agency: true } } } } },
     });
     if (!user) throw new UnauthorizedException("Unknown principal");
-    if (user.memberships.length === 0) {
+
+    // Clerk path: resolve workspace by org_id and provision a membership JIT.
+    if (claims.orgId) {
+      const workspace = await this.prisma.admin.workspace.findUnique({
+        where: { clerkOrgId: claims.orgId },
+        select: { id: true },
+      });
+      if (!workspace) throw new ForbiddenException("Organization is not provisioned");
+      await this.prisma.admin.membership.upsert({
+        where: { userId_workspaceId: { userId: user.id, workspaceId: workspace.id } },
+        update: {}, // existing membership wins — DB role is authoritative
+        create: { userId: user.id, workspaceId: workspace.id, role: mapOrgRole(claims.orgRole) },
+      });
+    }
+
+    const memberships = await this.prisma.admin.membership.findMany({
+      where: { userId: user.id },
+      include: { workspace: { include: { agency: true } } },
+    });
+    if (memberships.length === 0) {
       throw new ForbiddenException("User has no workspace membership");
     }
 
-    const requested = req.headers[WORKSPACE_HEADER];
-    const requestedId = Array.isArray(requested) ? requested[0] : requested;
-    const active = requestedId
-      ? user.memberships.find((m) => m.workspaceId === requestedId)
-      : user.memberships[0];
-    if (!active) throw new ForbiddenException("Not a member of the requested workspace");
+    let active: { workspaceId: string; agencyId: string; role: Role };
+    if (claims.orgId) {
+      const m = memberships.find((x) => x.workspace.clerkOrgId === claims.orgId);
+      if (!m) throw new ForbiddenException("Not a member of the active organization");
+      active = { workspaceId: m.workspaceId, agencyId: m.workspace.agencyId, role: m.role };
+    } else {
+      const requested = req.headers[WORKSPACE_HEADER];
+      const requestedId = Array.isArray(requested) ? requested[0] : requested;
+      const m = requestedId
+        ? memberships.find((x) => x.workspaceId === requestedId)
+        : memberships[0];
+      if (!m) throw new ForbiddenException("Not a member of the requested workspace");
+      active = { workspaceId: m.workspaceId, agencyId: m.workspace.agencyId, role: m.role };
+    }
 
-    const memberships: MembershipView[] = user.memberships.map((m) => ({
+    const membershipViews: MembershipView[] = memberships.map((m) => ({
       workspaceId: m.workspaceId,
       role: m.role,
       workspace: {
@@ -85,9 +122,9 @@ export class AuthGuard implements CanActivate {
 
     req.auth = {
       user: { id: user.id, email: user.email, name: user.name },
-      memberships,
+      memberships: membershipViews,
       activeWorkspaceId: active.workspaceId,
-      activeAgencyId: active.workspace.agencyId,
+      activeAgencyId: active.agencyId,
       role: active.role,
     };
     return true;

@@ -28,6 +28,9 @@ export class OidcTokenVerifier implements TokenVerifier {
       sub: payload.sub ?? "",
       email: typeof payload.email === "string" ? payload.email : undefined,
       name: typeof payload.name === "string" ? payload.name : undefined,
+      orgId: typeof payload.org_id === "string" ? payload.org_id : undefined,
+      orgSlug: typeof payload.org_slug === "string" ? payload.org_slug : undefined,
+      orgRole: typeof payload.org_role === "string" ? payload.org_role : undefined,
     };
   }
 }

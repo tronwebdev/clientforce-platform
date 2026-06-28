@@ -42,6 +42,9 @@ model Workspace {
   agency        Agency       @relation(fields: [agencyId], references: [id], onDelete: Cascade)
   name          String
   slug          String
+  // Immutable Clerk Organization id — the auth layer resolves the active
+  // workspace by this (not by slug). Set at provisioning time (T7).
+  clerkOrgId    String?      @unique
   status        TenantStatus @default(ACTIVE)
   branding      Json?
   planId        String?
