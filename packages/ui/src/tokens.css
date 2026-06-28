@@ -1,8 +1,77 @@
 /**
- * Design tokens — the ONLY file permitted to contain raw color literals.
- * Everything else must consume these custom properties (enforced by stylelint).
- * T0 defines the brand token; the full palette/scale lands in T5.
+ * Clientforce design tokens — canonical, from design_handoff_clientforce_restyle/
+ * DESIGN_TOKENS.md. The ONLY file permitted to contain raw color literals; every
+ * component consumes these custom properties (stylelint enforces this elsewhere).
+ * Do not invent or rename — values are the source of truth.
  */
 :root {
-  --cf-color-brand: #35e834;
+  /* §1 Colors (named — keep exactly) */
+  --cf-color-ink: #0e1512;
+  --cf-color-hairline: #ebe3d6;
+  --cf-color-muted: #9aa59e;
+  --cf-color-muted-2: #5c6b62;
+  --cf-color-green-ink: #16a82a;
+  --cf-color-green: #35e834;
+  --cf-color-cyan: #36d7ed;
+  --cf-color-line-soft: #f2eee4;
+  --cf-color-muted-3: #8a7f6b;
+  --cf-color-near-black: #0a0f0c;
+  --cf-color-lime: #d0f56b;
+  --cf-color-bg: #fbf7f0;
+  --cf-color-border-cool: #e4eae6;
+  --cf-color-dark: #0c140f;
+  --cf-color-green-soft-bg: #d7f5dd;
+  --cf-color-teal-ink: #1192a6;
+  --cf-color-danger: #c9543f;
+  --cf-color-green-700: #0f7a28;
+  --cf-color-surface: #ffffff;
+
+  /* §6 component one-offs (warn pill + ghost-green surface) */
+  --cf-color-warn-ink: #9a6b12;
+  --cf-color-warn-bg: #fbefd2;
+  --cf-color-green-ghost: rgba(53, 232, 52, 0.1);
+
+  /* Signature gradient */
+  --cf-gradient-brand: linear-gradient(135deg, #36d7ed 0%, #35e834 55%, #d0f56b 100%);
+
+  /* §3 Radius */
+  --cf-radius-sm: 8px;
+  --cf-radius-md: 11px;
+  --cf-radius-lg: 14px;
+  --cf-radius-xl: 16px;
+  --cf-radius-2xl: 20px;
+  --cf-radius-pill: 100px;
+
+  /* §4 Shadows */
+  --cf-shadow-card: 0 4px 16px rgba(14, 21, 18, 0.04);
+  --cf-shadow-btn-glow: 0 6px 16px rgba(53, 232, 52, 0.26);
+  --cf-shadow-dropdown: 0 16px 44px rgba(0, 0, 0, 0.18);
+  --cf-shadow-drawer: -24px 0 70px rgba(0, 0, 0, 0.28);
+  --cf-shadow-modal: 0 40px 90px rgba(0, 0, 0, 0.45);
+  --cf-shadow-toggle-knob: 0 1px 3px rgba(0, 0, 0, 0.2);
+
+  /* §5 Spacing (4px ramp) */
+  --cf-space-4: 4px;
+  --cf-space-8: 8px;
+  --cf-space-12: 12px;
+  --cf-space-16: 16px;
+  --cf-space-20: 20px;
+  --cf-space-24: 24px;
+  --cf-space-32: 32px;
+  --cf-space-40: 40px;
+  --cf-space-48: 48px;
+
+  /* §2 Typography */
+  --cf-font-display: "Bricolage Grotesque", sans-serif;
+  --cf-font-body: "Hanken Grotesk", sans-serif;
+  --cf-font-mono: "Courier New", ui-monospace, monospace;
+  --cf-text-11: 11px;
+  --cf-text-12: 12px;
+  --cf-text-13: 13px;
+  --cf-text-14: 14px;
+  --cf-text-16: 16px;
+  --cf-text-18: 18px;
+  --cf-text-20: 20px;
+  --cf-text-24: 24px;
+  --cf-text-28: 28px;
 }

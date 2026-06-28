@@ -1,19 +1,16 @@
 /**
- * @clientforce/ui — design system (CONSISTENCY_AUDIT.md).
+ * @clientforce/ui — design system (DESIGN_TOKENS.md).
  *
- * T0 stub. The full token scale, theme, and base components (Button, Card, Pill,
- * Toast, …) land in T5. For now this exports only the brand color so the token is
- * defined in exactly one place and `stylelint` can fail any off-token color.
+ * Tokens live in `tokens.css` (CSS custom properties) and `theme.ts` (the typed
+ * mirror). Components consume the tokens via classes in `styles.css`. Consumers
+ * import both stylesheets once:
+ *   import "@clientforce/ui/tokens.css";
+ *   import "@clientforce/ui/styles.css";
  */
+export * from "./theme";
+export * from "./components";
 
-/** The Clientforce brand green. The single source of truth for the token. */
-export const BRAND_COLOR = "#35E834" as const;
-
-/** Design tokens (T0: brand only; full scale arrives in T5). */
-export const tokens = {
-  color: {
-    brand: BRAND_COLOR,
-  },
-} as const;
+/** The Clientforce brand green (`green` token). */
+export const BRAND_COLOR = "#35e834" as const;
 
 export const UI_PACKAGE = "@clientforce/ui";

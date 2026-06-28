@@ -99,6 +99,12 @@ importers:
       '@clientforce/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@fontsource/bricolage-grotesque':
+        specifier: ^5.1.0
+        version: 5.2.10
+      '@fontsource/hanken-grotesk':
+        specifier: ^5.1.0
+        version: 5.2.8
       next:
         specifier: ^15.1.4
         version: 15.5.19(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -174,7 +180,14 @@ importers:
 
   packages/tenancy: {}
 
-  packages/ui: {}
+  packages/ui:
+    devDependencies:
+      '@types/react':
+        specifier: ^19.0.7
+        version: 19.2.17
+      react:
+        specifier: ^19.0.0
+        version: 19.2.7
 
 packages:
 
@@ -598,6 +611,12 @@ packages:
   '@eslint/plugin-kit@0.4.1':
     resolution: {integrity: sha512-43/qtrDUokr7LJqoF2c3+RInu/t4zfrpYdoSDfYyhg52rwLV6TnOvdG4fXm7IkSB3wErkcmJS9iEhjVtOSEjjA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+
+  '@fontsource/bricolage-grotesque@5.2.10':
+    resolution: {integrity: sha512-V2xS+1P7C8IrSypXLUx/bLtX/LsTlYtV2k2CsU+S/0t8qepZ2hvKSlyJIx7Ub/iY8Bbnj+IjAuUF9nvFz+BbIg==}
+
+  '@fontsource/hanken-grotesk@5.2.8':
+    resolution: {integrity: sha512-J/e6hdfNCbyc4WK5hmZtk0zjaIsFx3pvCdPVxY25iYw2C9v1ZggGz4nfHnRjMhcz4WfaadUuwLNtvj8sQ70tkg==}
 
   '@grpc/grpc-js@1.14.4':
     resolution: {integrity: sha512-k9Dj3DV/itK9D06Y8f190Qgop7/Ui+D0njFV3LHMPwPT75DpXLQohE9Wmz0QElrJnzsjB7KPWiKJbOl7IPDArQ==}
@@ -4200,6 +4219,10 @@ snapshots:
     dependencies:
       '@eslint/core': 0.17.0
       levn: 0.4.1
+
+  '@fontsource/bricolage-grotesque@5.2.10': {}
+
+  '@fontsource/hanken-grotesk@5.2.8': {}
 
   '@grpc/grpc-js@1.14.4':
     dependencies:

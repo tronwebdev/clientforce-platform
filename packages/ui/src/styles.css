@@ -1,0 +1,270 @@
+/**
+ * Clientforce base component styles (DESIGN_TOKENS.md §6).
+ * Token-only: every color/scale value is a var(--cf-*) — no raw hex (stylelint
+ * fails otherwise). Component-intrinsic dimensions (track sizes, 1px borders) are
+ * literal, but never colors.
+ */
+
+/* ── Button ─────────────────────────────────────────────────────────────── */
+.cf-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cf-space-8);
+  font-family: var(--cf-font-body);
+  font-size: var(--cf-text-14);
+  font-weight: 600;
+  line-height: 1;
+  padding: var(--cf-space-12) var(--cf-space-16);
+  border: 1px solid transparent;
+  border-radius: var(--cf-radius-md);
+  cursor: pointer;
+  transition:
+    box-shadow 180ms ease,
+    transform 180ms ease,
+    background 180ms ease;
+}
+
+.cf-button:focus-visible {
+  outline: 2px solid var(--cf-color-green-ink);
+  outline-offset: 2px;
+}
+
+.cf-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cf-button--primary {
+  background: var(--cf-gradient-brand);
+  color: var(--cf-color-near-black);
+  font-weight: 700;
+  box-shadow: var(--cf-shadow-btn-glow);
+}
+
+.cf-button--primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.cf-button--secondary {
+  background: var(--cf-color-surface);
+  border-color: var(--cf-color-hairline);
+  color: var(--cf-color-muted-2);
+}
+
+.cf-button--secondary:hover:not(:disabled) {
+  border-color: var(--cf-color-muted);
+}
+
+.cf-button--ghost {
+  background: var(--cf-color-green-ghost);
+  color: var(--cf-color-green-ink);
+}
+
+/* ── Card ───────────────────────────────────────────────────────────────── */
+.cf-card {
+  background: var(--cf-color-surface);
+  border: 1px solid var(--cf-color-hairline);
+  border-radius: var(--cf-radius-xl);
+  box-shadow: var(--cf-shadow-card);
+  padding: var(--cf-space-20);
+  color: var(--cf-color-ink);
+  font-family: var(--cf-font-body);
+}
+
+/* ── Pill ───────────────────────────────────────────────────────────────── */
+.cf-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cf-space-4);
+  font-family: var(--cf-font-body);
+  font-size: var(--cf-text-12);
+  font-weight: 600;
+  line-height: 1;
+  padding: var(--cf-space-4) var(--cf-space-12);
+  border-radius: var(--cf-radius-pill);
+}
+
+.cf-pill--success {
+  background: var(--cf-color-green-soft-bg);
+  color: var(--cf-color-green-700);
+}
+
+.cf-pill--warn {
+  background: var(--cf-color-warn-bg);
+  color: var(--cf-color-warn-ink);
+}
+
+.cf-pill--neutral {
+  background: var(--cf-color-line-soft);
+  color: var(--cf-color-muted-2);
+}
+
+/* ── Dropdown ───────────────────────────────────────────────────────────── */
+.cf-dropdown {
+  display: inline-block;
+  position: relative;
+  font-family: var(--cf-font-body);
+}
+
+.cf-dropdown__menu {
+  position: absolute;
+  top: calc(100% + var(--cf-space-4));
+  left: 0;
+  z-index: 20;
+  min-width: 220px;
+  background: var(--cf-color-surface);
+  border: 1px solid var(--cf-color-hairline);
+  border-radius: var(--cf-radius-lg);
+  box-shadow: var(--cf-shadow-dropdown);
+  padding: var(--cf-space-8);
+}
+
+.cf-dropdown__header {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--cf-color-muted-3);
+  padding: var(--cf-space-8) var(--cf-space-12) var(--cf-space-4);
+}
+
+.cf-dropdown__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cf-space-12);
+  width: 100%;
+  font-size: var(--cf-text-14);
+  color: var(--cf-color-ink);
+  background: transparent;
+  border: none;
+  border-radius: var(--cf-radius-sm);
+  padding: var(--cf-space-8) var(--cf-space-12);
+  cursor: pointer;
+  text-align: left;
+}
+
+.cf-dropdown__item:hover,
+.cf-dropdown__item:focus-visible {
+  background: var(--cf-color-line-soft);
+  outline: none;
+}
+
+.cf-dropdown__check {
+  color: var(--cf-color-green-ink);
+}
+
+/* ── Toast ──────────────────────────────────────────────────────────────── */
+.cf-toast {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cf-space-8);
+  background: var(--cf-color-dark);
+  color: var(--cf-color-surface);
+  font-family: var(--cf-font-body);
+  font-size: var(--cf-text-14);
+  border-radius: var(--cf-radius-lg);
+  padding: var(--cf-space-12) var(--cf-space-16);
+  box-shadow: var(--cf-shadow-dropdown);
+}
+
+.cf-toast__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--cf-radius-pill);
+  background: var(--cf-color-green);
+  flex: none;
+}
+
+.cf-toast__close {
+  background: transparent;
+  border: none;
+  color: var(--cf-color-surface);
+  font-size: var(--cf-text-16);
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 var(--cf-space-4);
+}
+
+.cf-toast__close:focus-visible {
+  outline: 2px solid var(--cf-color-green);
+  outline-offset: 2px;
+}
+
+/* ── Tab bar ────────────────────────────────────────────────────────────── */
+.cf-tabs {
+  display: inline-flex;
+  gap: var(--cf-space-4);
+  background: var(--cf-color-surface);
+  border: 1px solid var(--cf-color-hairline);
+  border-radius: var(--cf-radius-lg);
+  padding: var(--cf-space-4);
+}
+
+.cf-tab {
+  font-family: var(--cf-font-body);
+  font-size: var(--cf-text-13);
+  font-weight: 600;
+  color: var(--cf-color-muted-2);
+  background: transparent;
+  border: none;
+  border-radius: var(--cf-radius-sm);
+  padding: var(--cf-space-8) var(--cf-space-16);
+  cursor: pointer;
+}
+
+.cf-tab:focus-visible {
+  outline: 2px solid var(--cf-color-green-ink);
+  outline-offset: 2px;
+}
+
+.cf-tab--active {
+  background: var(--cf-color-ink);
+  color: var(--cf-color-surface);
+}
+
+/* ── Toggle ─────────────────────────────────────────────────────────────── */
+.cf-toggle {
+  position: relative;
+  width: 44px;
+  height: 26px;
+  border-radius: var(--cf-radius-pill);
+  background: var(--cf-color-hairline);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: background 180ms ease;
+}
+
+.cf-toggle:focus-visible {
+  outline: 2px solid var(--cf-color-green-ink);
+  outline-offset: 2px;
+}
+
+.cf-toggle--on {
+  background: var(--cf-gradient-brand);
+}
+
+.cf-toggle__knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--cf-radius-pill);
+  background: var(--cf-color-surface);
+  box-shadow: var(--cf-shadow-toggle-knob);
+  transition: transform 180ms ease;
+}
+
+.cf-toggle--on .cf-toggle__knob {
+  transform: translateX(18px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cf-button,
+  .cf-toggle,
+  .cf-toggle__knob {
+    transition: none;
+  }
+}
