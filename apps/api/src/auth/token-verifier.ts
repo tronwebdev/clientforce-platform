@@ -4,6 +4,12 @@ export interface AuthClaims {
   sub: string;
   email?: string;
   name?: string;
+  /** Active Clerk Organization id (maps to Workspace.clerkOrgId). */
+  orgId?: string;
+  /** Active Clerk Organization slug (informational; not used for linking). */
+  orgSlug?: string;
+  /** Clerk org role (e.g. "org:admin") — used only to seed a new membership. */
+  orgRole?: string;
 }
 
 /** Provider-agnostic token verification contract. */

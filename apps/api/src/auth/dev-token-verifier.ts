@@ -24,6 +24,9 @@ export class DevTokenVerifier implements TokenVerifier {
       sub: payload.sub ?? "",
       email: typeof payload.email === "string" ? payload.email : undefined,
       name: typeof payload.name === "string" ? payload.name : undefined,
+      orgId: typeof payload.org_id === "string" ? payload.org_id : undefined,
+      orgSlug: typeof payload.org_slug === "string" ? payload.org_slug : undefined,
+      orgRole: typeof payload.org_role === "string" ? payload.org_role : undefined,
     };
   }
 }
@@ -37,6 +40,9 @@ export async function signDevToken(
   return new SignJWT({
     ...(claims.email ? { email: claims.email } : {}),
     ...(claims.name ? { name: claims.name } : {}),
+    ...(claims.orgId ? { org_id: claims.orgId } : {}),
+    ...(claims.orgSlug ? { org_slug: claims.orgSlug } : {}),
+    ...(claims.orgRole ? { org_role: claims.orgRole } : {}),
   })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(claims.sub)
