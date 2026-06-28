@@ -1,5 +1,6 @@
 import { Controller, Get } from "@nestjs/common";
 import { isConfigured } from "@clientforce/config";
+import { Public } from "./auth/decorators";
 
 interface HealthResponse {
   ok: boolean;
@@ -8,9 +9,10 @@ interface HealthResponse {
 
 @Controller()
 export class HealthController {
+  @Public()
   @Get("healthz")
   health(): HealthResponse {
-    // Full health/readiness (DB, Redis, Temporal) is wired in later tickets.
+    // Liveness only. Deep readiness (DB/Redis/Temporal) is wired in later tickets.
     return { ok: true, configured: isConfigured() };
   }
 }
