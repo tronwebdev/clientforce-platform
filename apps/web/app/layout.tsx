@@ -10,6 +10,7 @@ import "@fontsource/hanken-grotesk/700.css";
 import "@clientforce/ui/tokens.css";
 import "@clientforce/ui/styles.css";
 import "./globals.css";
+import "./shell.css";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
