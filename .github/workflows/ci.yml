@@ -18,6 +18,8 @@ env:
   DATABASE_URL: postgresql://postgres@localhost:5432/clientforce
   APP_DATABASE_URL: postgresql://clientforce_app@localhost:5432/clientforce
   REDIS_URL: redis://localhost:6379
+  # Dev/test auth verifier (HS256) — production uses OIDC/JWKS via AUTH_JWKS_URL.
+  AUTH_DEV_SECRET: ci-dev-secret-not-for-production
 
 jobs:
   build-lint-test:
