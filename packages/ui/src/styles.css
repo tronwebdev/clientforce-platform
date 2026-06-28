@@ -31,7 +31,11 @@
 }
 
 .cf-button:disabled {
-  opacity: 0.5;
+  /* Desaturated — no brand fill or glow (higher specificity than --primary). */
+  background: var(--cf-color-line-soft);
+  color: var(--cf-color-muted);
+  border-color: transparent;
+  box-shadow: none;
   cursor: not-allowed;
 }
 
@@ -57,8 +61,11 @@
 }
 
 .cf-button--ghost {
+  /* Flat green tint — never the gradient (DESIGN_TOKENS.md §6). */
   background: var(--cf-color-green-ghost);
   color: var(--cf-color-green-ink);
+  box-shadow: none;
+  border-radius: 10px;
 }
 
 /* ── Card ───────────────────────────────────────────────────────────────── */
