@@ -19,6 +19,10 @@ async function run(): Promise<void> {
       `[worker] T0 stub running (config ok=${isConfigured()}). ` +
         `Set TEMPORAL_ADDRESS to connect; workflows land in T4.`,
     );
+    // Stay alive as a healthy long-running container until Temporal (mTLS) is
+    // wired in a later ticket — otherwise the process would exit and the
+    // Container App would crash-loop.
+    await new Promise<never>(() => {});
     return;
   }
 
