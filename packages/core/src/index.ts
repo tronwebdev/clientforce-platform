@@ -16,6 +16,9 @@ export type TenancyLevel = "agency" | "workspace" | "user";
 /** Package marker for wiring checks. */
 export const CORE_PACKAGE = "@clientforce/core";
 
+// CampaignGraph types, validator, and executor (DATA_MODEL.md §3.1).
+export * from "./graph";
+
 /**
  * Narrow an arbitrary string to a branded {@link Id}. Real validation arrives
  * with the data model; this keeps the type honest without runtime cost.

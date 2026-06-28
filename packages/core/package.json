@@ -16,5 +16,8 @@
     "lint": "eslint .",
     "test": "vitest run",
     "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "zod": "^3.24.1"
   }
 }
