@@ -1,0 +1,15 @@
+# Build context hygiene — images build from the repo root.
+**/node_modules
+**/dist
+**/.next
+**/.turbo
+**/coverage
+.git
+.github
+.prisma-engines
+**/.env
+**/.env.*
+# Large design-handoff assets are not needed to build the apps.
+design_handoff_clientforce_restyle
+Platform-Architecture.html
+*.md
