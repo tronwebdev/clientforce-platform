@@ -22,9 +22,9 @@ export default async function ContactsPage() {
             <Pill tone="neutral">{contacts.length}</Pill>
           </div>
           {contacts.length === 0 ? (
-            <p className="cf-empty">No contacts in {me.activeWorkspace?.name ?? "this workspace"} yet.</p>
+            <p className="cf-empty" data-testid="contacts-empty">No contacts in {me.activeWorkspace?.name ?? "this workspace"} yet.</p>
           ) : (
-            <table className="cf-table">
+            <table className="cf-table" data-testid="contacts-table">
               <thead>
                 <tr>
                   <th>Name</th>
@@ -34,7 +34,7 @@ export default async function ContactsPage() {
               </thead>
               <tbody>
                 {contacts.map((c) => (
-                  <tr key={c.id}>
+                  <tr key={c.id} data-testid="contact-row">
                     <td>{fullName(c)}</td>
                     <td>{c.email ?? "—"}</td>
                     <td>{c.company ?? "—"}</td>
