@@ -47,12 +47,13 @@ export function SidebarView({
         <button
           type="button"
           className="cf-sb__ws"
+          data-testid="ws-switcher"
           aria-haspopup="menu"
           aria-expanded={wsOpen}
           onClick={onToggleWs}
         >
           <span className="cf-sb__ws-badge">{(activeWs?.name ?? "W").slice(0, 1)}</span>
-          <span className="cf-sb__ws-name">{activeWs?.name ?? "Select workspace"}</span>
+          <span className="cf-sb__ws-name" data-testid="ws-active-name">{activeWs?.name ?? "Select workspace"}</span>
           <span className="cf-sb__chev" aria-hidden="true">
             {wsOpen ? "▴" : "▾"}
           </span>
@@ -65,6 +66,7 @@ export function SidebarView({
                 key={m.workspaceId}
                 type="button"
                 role="menuitemradio"
+                data-testid={`ws-option-${m.workspace.slug}`}
                 aria-checked={m.workspaceId === activeWs?.id}
                 className="cf-sb__ws-item"
                 onClick={() => onSelectWorkspace?.(m.workspaceId)}

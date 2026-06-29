@@ -27,6 +27,8 @@ jobs:
     name: build · migrate · deploy · smoke
     runs-on: ubuntu-latest
     environment: staging
+    outputs:
+      webFqdn: ${{ steps.fqdn.outputs.web }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -81,6 +83,14 @@ jobs:
               acrLoginServer="$ACR_LOGIN_SERVER" \
               imageTag="$IMAGE_TAG"
 
+      # ── Expose the deployed web FQDN for the e2e job ──
+      - name: Resolve web FQDN
+        id: fqdn
+        run: |
+          web="$(az containerapp show --name clientforce-web --resource-group "$RG" --query "properties.configuration.ingress.fqdn" -o tsv)"
+          echo "web=$web" >> "$GITHUB_OUTPUT"
+          echo "web FQDN: $web"
+
       # ── Run migrations (+ seed) inside the environment ──
       - name: Run migration job
         run: bash infra/scripts/run-migrate-job.sh clientforce-migrate
@@ -88,3 +98,35 @@ jobs:
       # ── Smoke: api health + the web shell logs in against the cloud DB ──
       - name: Smoke test
         run: bash infra/scripts/smoke.sh
+
+  # ── E2E browser smoke (Playwright) against the deployed staging web shell.
+  #    Proves the APP_DATABASE_URL RLS path: login → switch workspace → contacts
+  #    re-scope (3 → 1). Read-only (no writes), so safe to run on every deploy. ──
+  e2e:
+    name: e2e (Playwright vs staging)
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Chromium
+        run: pnpm --filter @clientforce/e2e exec playwright install --with-deps chromium
+
+      - name: Run e2e against staging
+        run: pnpm --filter @clientforce/e2e run e2e
+        env:
+          CI: "true"
+          E2E_BASE_URL: https://${{ needs.deploy.outputs.webFqdn }}
