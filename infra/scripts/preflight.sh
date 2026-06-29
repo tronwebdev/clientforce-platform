@@ -28,4 +28,45 @@ if [ "$missing" -ne 0 ]; then
   echo "Preflight FAILED — populate the missing Key Vault secrets."
   exit 1
 fi
-echo "Preflight passed — environment + required secrets present."
+
+# Verify the DEPLOY identity itself can do everything the pipeline needs, before
+# anything destructive runs. This is the read-only "is all access in?" gate:
+# push to ACR, create the Container Apps/identity/job, and (the non-obvious one)
+# create the app identity's role assignments in main.bicep. We assert effective
+# roles at each scope (--include-inherited covers RG/subscription inheritance, so
+# an Owner grant higher up satisfies everything).
+echo "Verifying deploy identity RBAC ..."
+caller="$(az account show --query user.name -o tsv)"      # appId for an SP login
+sub="$(az account show --query id -o tsv)"
+rg_id="/subscriptions/$sub/resourceGroups/$RG"
+acr_id="$(az acr show --name "$ACR_NAME" --query id -o tsv)"
+
+rg_roles="$(az role assignment list --assignee "$caller" --scope "$rg_id" --include-inherited --query "[].roleDefinitionName" -o tsv)"
+acr_roles="$(az role assignment list --assignee "$caller" --scope "$acr_id" --include-inherited --query "[].roleDefinitionName" -o tsv)"
+echo "  RG '$RG' roles:  $(echo "$rg_roles" | paste -sd, - )"
+echo "  ACR '$ACR_NAME' roles: $(echo "$acr_roles" | paste -sd, - )"
+
+rbac_ok=1
+has() { grep -qxF "$1" <<<"$2"; }
+
+# Push the 4 images.
+if ! { has Owner "$acr_roles" || has AcrPush "$acr_roles"; }; then
+  echo "::error::deploy identity needs 'AcrPush' (or 'Owner') on ACR '$ACR_NAME' to push images"
+  rbac_ok=0
+fi
+# Create/update the Container Apps, user-assigned identity, and migrate job.
+if ! { has Owner "$rg_roles" || has Contributor "$rg_roles"; }; then
+  echo "::error::deploy identity needs 'Contributor' (or 'Owner') on resource group '$RG'"
+  rbac_ok=0
+fi
+# Create the app identity's role assignments (kvRole + acrRole in main.bicep).
+if ! { has Owner "$rg_roles" || has "User Access Administrator" "$rg_roles"; }; then
+  echo "::error::deploy identity needs 'User Access Administrator' (or 'Owner') on '$RG' so main.bicep can create the app identity's role assignments"
+  rbac_ok=0
+fi
+
+if [ "$rbac_ok" -ne 1 ]; then
+  echo "Preflight FAILED — deploy identity is missing required RBAC (see errors above)."
+  exit 1
+fi
+echo "Preflight passed — environment, required secrets, and deploy RBAC all present."
