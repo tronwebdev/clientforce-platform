@@ -42,11 +42,16 @@ Two gates, both in `deploy.yml`, implemented by `infra/scripts/`:
 SendGrid, AWS, Slack). **Fails the build if any match** (allow-list: lockfile,
 `*.md`, `*.env.example`). This is the "zero secrets in repo" acceptance check.
 
-### 2b. Environment + secret presence — `preflight.sh`
-After OIDC login: asserts the ACR and Container Apps environment exist, and that
-the **Key Vault secrets the apps secretRef** are present (`DATABASE-URL`,
-`APP-DATABASE-URL`, `REDIS-URL`, `AUTH-DEV-SECRET`). Fails fast with the exact
-missing name, so a misnamed/absent secret never reaches a half-deploy.
+### 2b. Environment + secret presence + deploy RBAC — `preflight.sh`
+After OIDC login, and **before any build/deploy step**: asserts the ACR and
+Container Apps environment exist, that the **Key Vault secrets the apps secretRef**
+are present (`DATABASE-URL`, `APP-DATABASE-URL`, `REDIS-URL`, `AUTH-DEV-SECRET`),
+and that the **deploy identity holds the RBAC the pipeline needs** — `AcrPush` on
+the registry (push images), `Contributor` on the RG (create the apps/identity/job),
+and `User Access Administrator` on the RG (so `main.bicep` can create the app
+identity's role assignments). `Owner` at any ancestor scope satisfies these.
+Fails fast with the exact missing name/role, so a misnamed secret or an
+under-permissioned deploy identity never reaches a half-deploy.
 
 ---
 
