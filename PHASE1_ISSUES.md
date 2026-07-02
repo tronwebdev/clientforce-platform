@@ -7,8 +7,8 @@
 > journey and advances the pipeline **automatically**.
 >
 > Prereq: **Phase 0 (T0–T8) merged.** Same loop: one issue → one PR, plan-comment first, watch CI,
-> you merge. Labels: `phase-1`, `claude-code`. Context: `docs/agent_platform_build/{ARCHITECTURE.md,
-> DATA_MODEL.md}` + the prototypes in `docs/design_handoff_clientforce_restyle/prototypes/`.
+> you merge. Labels: `phase-1`, `claude-code`. Context: repo-root `ARCHITECTURE.md` + `DATA_MODEL.md`
+> + the prototypes in `design_handoff_clientforce_restyle/prototypes/`.
 >
 > **Provider keys this phase needs** (team supplies on request): **Anthropic** (planner + classifier),
 > **SendGrid** (subuser + a sending domain with SPF/DKIM/DMARC; inbound parse webhook), **embeddings**

@@ -1,12 +1,25 @@
 # Clientforce UI — Consistency Audit & Port Reference
 
+> ## ⚠️ PARTIALLY HISTORICAL — read this box before executing anything below
+> The **old-app restyle plan** in this file is superseded: the platform is now a greenfield build
+> in `tronwebdev/clientforce-platform` (Next.js 15 + React 19), governed by the repo-root
+> `PHASE1_HANDOFF.md`, `UI_PORTING_RULES.md`, and `PHASE1_FIDELITY_CHECKPOINTS.md`.
+>
+> - **Still LIVE (binding):** §1 canonical design tokens · §2 recurring component catalog ·
+>   §3 internal inconsistencies · §6 locked *design* decisions (fonts, greens, gradient) ·
+>   §6a global standards. Note `PHASE1_HANDOFF.md §A12`: the §1.4/§1.5 "recommended ramps" are
+>   **deferred** — the prototype's literal values are the Phase-1 fidelity standard.
+> - **HISTORICAL (do not execute):** §0 two-stack framing · §4 prototype→Nuxt file map ·
+>   §5 Vue/Nuxt stack-translation rules · §7 automation sequence · §6's "full restyle of the old
+>   app" scope decision. The Chrome-extension track returns in **Phase 4**.
+
 > Source of truth for restyling the live app (`tronwebdev/new-clientforce-ui`) to match the
 > prototypes in this project. Written for a developer or Claude Code agent to execute against
 > the real repo. Scanned **18 prototype `.dc.html` files** programmatically for tokens.
 
 ---
 
-## 0. The headline: this is a restyle across two different stacks
+## 0. [HISTORICAL] The headline: this is a restyle across two different stacks
 
 | | Prototype (this project) | Live app (`new-clientforce-ui`) |
 |---|---|---|
@@ -100,8 +113,11 @@ Distinct values found: `11px`(342) `12px`(207) `9px`(206) `10px`(196) `8px`(170)
 ---
 
 ## 2. Recurring component catalog
-These patterns repeat across files and should become **shared Vue components**, not copied markup
-(the modal-font bug we hit was a direct symptom of copy-paste duplication).
+These patterns repeat across files and should become **shared components** — built once, never
+copied markup (the modal-font bug we hit was a direct symptom of copy-paste duplication). The specs
+are framework-neutral; for the platform they are built **in React, in `packages/ui`**
+(`PHASE1_HANDOFF.md §A1/§C1`); the Phase-4 Chrome extension builds its own Vue equivalents from the
+same specs.
 
 | Component | Spec | Where it appears |
 |---|---|---|
@@ -133,7 +149,7 @@ These patterns repeat across files and should become **shared Vue components**, 
 
 ---
 
-## 4. Prototype → live file map
+## 4. [HISTORICAL] Prototype → live file map
 Routes/components in the live Nuxt app line up closely with the prototype screens:
 
 | Prototype file | Live Nuxt target |
@@ -158,7 +174,7 @@ Routes/components in the live Nuxt app line up closely with the prototype screen
 
 ---
 
-## 5. Stack translation rules (for the agent)
+## 5. [HISTORICAL] Stack translation rules (for the agent)
 1. **Tokens first.** Add the §1 palette/scale to `assets/scss/_variables.scss` as SCSS vars (or a
    `_tokens.scss`). Set `$primary: #35E834` (LOCKED, §6.2).
 2. **Fonts:** update the `@import url(...)` in `assets/scss/index.scss` and `$font-family-sans-serif`
@@ -218,17 +234,19 @@ The agent applies these across every screen it touches:
 - **Responsive:** every screen works from 1280→small laptop; the existing `$container-max-widths`
   breakpoints are respected. No fixed-px layouts that overflow.
 - **States everywhere:** loading (skeletons, not just spinners), empty, and error states for every
-  data-backed view — wired to the existing Apollo `loading`/error patterns.
+  data-backed view — wired to the app's data-fetching layer (platform: TanStack Query loading/error
+  states, per `PHASE1_HANDOFF.md §A2`).
 - **Motion:** consistent, subtle (150–220ms ease), respect `prefers-reduced-motion`.
 - **Consistency enforced by tokens:** no raw hex/px in components after the port — only SCSS tokens
   from §1. Add a stylelint rule to fail on off-token colors.
-- **Performance:** no regressions to bundle size; lazy-load heavy routes; keep Apollo cache behavior.
+- **Performance:** no regressions to bundle size; lazy-load heavy routes; don't fight the data
+  layer's caching (platform: TanStack Query defaults per `PHASE1_HANDOFF.md §A4`).
 - **No dead UI:** every button/link wired or explicitly disabled with reason. (We already did this
   pass in the prototypes — carry it into the real app.)
 
 ---
 
-## 7. Recommended automation sequence (Claude Code, in-repo)
+## 7. [HISTORICAL] Recommended automation sequence (Claude Code, in-repo)
 1. **PR 1 — tokens & fonts:** update `_variables.scss` + `index.scss`. Visual smoke-test. *(foundation; do first)*
 2. **PR 2 — shared components:** `<AppDrawer>`, button/pill/dropdown/toast styles. 
 3. **PR 3…N — one screen per PR:** restyle each `.vue` against its prototype; screenshot-diff vs the

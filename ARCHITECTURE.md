@@ -112,7 +112,7 @@ first-class alignment with the **Vercel AI SDK** (our LLM gateway). State via Ta
                           │  Next.js Web App  ·  Chrome Ext (Vue3)        │
                           │  Embeddable Chat Widget (JS snippet)          │
                           └───────────────┬───────────────────────────────┘
-                                          │ tRPC/GraphQL + WebSocket
+                                          │ REST (zod DTOs) + WebSocket
                           ┌───────────────▼───────────────┐
                           │      NestJS API (monolith)     │
                           │  auth · tenancy · campaigns ·  │
@@ -148,7 +148,7 @@ Prisma models + UI), all sharing the tenancy, AI gateway, and event bus:
 
 | Subsystem | What it is | Heaviest backend pieces |
 |---|---|---|
-| **Agents / Campaigns** | the 6-step builder, Campaign View (inbox/steps/leads/settings/stats/logs), sub-campaigns, per-agent automation rules | Temporal workflows, channel adapters, planner |
+| **Agents / Campaigns** | the 6-step builder (Set the goal · Design sequence · Add contacts · Enable lead capture · Guardrails & compliance · Preview & launch), Campaign View — 8 tabs (inbox/calls/steps/leads/preview/stats/settings/logs), sub-campaigns, per-agent automation rules | Temporal workflows, channel adapters, planner |
 | **Automations engine** | standalone **When → Only-if → Then** rules across the whole app: triggers (replies, calls, forms, payments, LinkedIn, schedule), conditions, multi-action, recipes, **run history** | event bus, rule evaluator, action executors, audit log |
 | **Integrations platform** | OAuth catalog (HubSpot, Salesforce, Pipedrive, GCal, Calendly, Cal.com, Gmail, Outlook, SMTP, Twilio, WhatsApp, Slack, Stripe) + **Zapier** + outbound **Webhooks** (POST every event) | OAuth broker, per-provider sync adapters, token vault, webhook dispatcher w/ retries & signing |
 | **Lead Finder / Auto-Prospecting** | DB + Apollo search **and** signal-based intent discovery — job-change/hiring/funding signals, scraped Reddit/LinkedIn/Twitter/forum posts, enrichment, **intent scoring**, daily refresh, auto-match to campaigns | scraping/ingest workers, enrichment providers, scoring model, scheduled refresh jobs |
@@ -178,8 +178,9 @@ auth, the API, billing, and analytics** — it is a Phase-0 decision, not a late
 
 ## 3c. Eventing is the backbone
 
-Almost every subsystem is wired through one **internal event bus** (e.g. `lead.replied`,
-`call.completed`, `form.submitted`, `payment.received`, `proposal.viewed`, `linkedin.captured`).
+Almost every subsystem is wired through one **internal event bus** (e.g. `email.replied.v1`,
+`call.completed.v1`, `form.submitted.v1`, `payment.received.v1`, `proposal.viewed.v1`,
+`linkedin.captured.v1` — version suffix mandatory, see `DATA_MODEL.md §5`).
 Three consumers fan out from it: **(1)** Temporal signals (branch a campaign), **(2)** the Automations
 engine (evaluate When/If/Then rules), **(3)** the outbound integrations/webhooks/Zapier dispatcher and
 the analytics warehouse. Build this bus early — it's what makes the whole app feel alive and connected.
@@ -237,7 +238,7 @@ actuator via your API), **Calendar** (Cal.com/Calendly/Google).
 ```
 apps/
   web/         Next.js app (operator console — every subsystem's UI)
-  api/         NestJS — tRPC/GraphQL + REST/webhooks + WebSocket gateway
+  api/         NestJS — REST (zod DTOs) + webhooks + WebSocket gateway
   worker/      Temporal workers (CampaignWorkflow + activities)
   voice/       Twilio media-stream bridge (Deepgram→Claude→TTS)
   widget/      Embeddable chat widget (standalone bundle)
@@ -258,7 +259,7 @@ packages/
   analytics/   Event warehouse, rollups, query API
   tenancy/     Agency→Workspace→User hierarchy, RBAC, RLS, branding
   db/          Prisma schema + migrations + tenant-scoped client
-  ui/          Design tokens + shared Vue components
+  ui/          Design tokens + shared React components
   config/      env, logging, auth, telemetry
 infra/         Bicep/Terraform for Azure + Temporal Cloud wiring
 ```

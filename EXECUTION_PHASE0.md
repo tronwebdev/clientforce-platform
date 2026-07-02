@@ -53,6 +53,9 @@ External accounts & resources the build needs. Most you already have — confirm
 - `packages/events`: typed event constants + payload types; `Event` persistence; publish/subscribe over
   Redis (BullMQ) with three consumer hooks (Temporal-signal, automations, dispatcher) as no-op stubs.
 - ✅ Emitting `lead.replied.v1` persists an Event and invokes all three consumer stubs (test).
+  *(Historical: `lead.replied` was later removed from the canonical catalog — replies are
+  channel-specific, e.g. `email.replied.v1` — per `PHASE1_HANDOFF.md §A9`; the `packages/events`
+  code is aligned in P1.7.)*
 
 **T3 — API + auth + tenancy**
 - NestJS boots; health check; auth provider wired; middleware resolves user → membership →
@@ -87,7 +90,7 @@ External accounts & resources the build needs. Most you already have — confirm
 ---
 
 ## C. How to run it with Claude Code
-1. Connect Claude Code to `clientforce-platform`; point it at this folder (`agent_platform_build/`) + `DATA_MODEL.md`.
+1. Connect Claude Code to `clientforce-platform`; point it at the repo-root docs (this file, `ARCHITECTURE.md`, `DATA_MODEL.md`).
 2. Open T0…T8 as GitHub issues (copy the blocks above). Tell Claude Code to take **one issue → one PR**.
 3. Review each PR against its ✅ criteria; merge behind a feature flag where relevant.
 4. After T8, proceed to **BUILD_PLAN Phase 1** (the email vertical slice) — its tickets are §"First tasks" there.
