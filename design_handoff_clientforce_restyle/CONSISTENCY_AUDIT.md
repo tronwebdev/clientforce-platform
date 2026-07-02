@@ -113,8 +113,11 @@ Distinct values found: `11px`(342) `12px`(207) `9px`(206) `10px`(196) `8px`(170)
 ---
 
 ## 2. Recurring component catalog
-These patterns repeat across files and should become **shared Vue components**, not copied markup
-(the modal-font bug we hit was a direct symptom of copy-paste duplication).
+These patterns repeat across files and should become **shared components** — built once, never
+copied markup (the modal-font bug we hit was a direct symptom of copy-paste duplication). The specs
+are framework-neutral; for the platform they are built **in React, in `packages/ui`**
+(`PHASE1_HANDOFF.md §A1/§C1`); the Phase-4 Chrome extension builds its own Vue equivalents from the
+same specs.
 
 | Component | Spec | Where it appears |
 |---|---|---|
@@ -231,11 +234,13 @@ The agent applies these across every screen it touches:
 - **Responsive:** every screen works from 1280→small laptop; the existing `$container-max-widths`
   breakpoints are respected. No fixed-px layouts that overflow.
 - **States everywhere:** loading (skeletons, not just spinners), empty, and error states for every
-  data-backed view — wired to the existing Apollo `loading`/error patterns.
+  data-backed view — wired to the app's data-fetching layer (platform: TanStack Query loading/error
+  states, per `PHASE1_HANDOFF.md §A2`).
 - **Motion:** consistent, subtle (150–220ms ease), respect `prefers-reduced-motion`.
 - **Consistency enforced by tokens:** no raw hex/px in components after the port — only SCSS tokens
   from §1. Add a stylelint rule to fail on off-token colors.
-- **Performance:** no regressions to bundle size; lazy-load heavy routes; keep Apollo cache behavior.
+- **Performance:** no regressions to bundle size; lazy-load heavy routes; don't fight the data
+  layer's caching (platform: TanStack Query defaults per `PHASE1_HANDOFF.md §A4`).
 - **No dead UI:** every button/link wired or explicitly disabled with reason. (We already did this
   pass in the prototypes — carry it into the real app.)
 

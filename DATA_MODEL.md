@@ -336,7 +336,7 @@ model Event {
 | Voice | `call.started.v1 · call.completed.v1 · call.failed.v1 · call.booked.v1` | durationSec, transcriptId, outcome, recordingUrl |
 | Inbound | `form.submitted.v1 · widget.conversation_started.v1 · widget.lead_captured.v1 · linkedin.captured.v1` | formId/widgetId, fields, routedTo |
 | Proposals | `proposal.sent.v1 · proposal.viewed.v1 · proposal.accepted.v1 · proposal.paid.v1` | proposalId, trackedLinkId, amount? |
-| Pipeline | `lead.enrolled.v1 · lead.stage_changed.v1 · lead.unsubscribed.v1` | fromStage, toStage, intent |
+| Pipeline | `lead.enrolled.v1 · lead.stage_changed.v1 · lead.unsubscribed.v1` | campaignId?, fromStage, toStage, channel? |
 | Billing | `payment.received.v1 · credits.consumed.v1 · credits.low.v1` | amount, channel, balance |
 | Integrations | `integration.connected.v1 · integration.sync_failed.v1` | provider |
 

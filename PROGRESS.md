@@ -47,8 +47,8 @@
 | DEC-014 | 2026-07-02 | Test inbox + send allow-list for this phase = `tronwebng@gmail.com` | Owner-confirmed (§G) | cheap |
 | DEC-015 | 2026-07-02 | Ingestion target = `https://clientforce.io`; **ingestion-proof rule:** planner copy must contain ≥2 concrete facts traceable to ingested pages, asserted against stored BusinessContext in P1.2/P1.4 tests | Proves the sequence came from ingestion, not model priors (§G) | cheap |
 | DEC-016 | 2026-07-02 | Auth provider = Clerk (Google + Microsoft social desirable, non-essential); Phase 1 ships on dev-auth | Owner-confirmed (§G / Q-001) | moderate |
-| DEC-017 | 2026-07-02 | PR 0 also fixes the wrong doc paths in `PHASE1_ISSUES.md` preamble (`docs/agent_platform_build/…` → repo root; prototypes path) — one line, beyond the literal §D list, flagged in the PR | Canonical-docs rule: a wrong path misdirects future sessions | cheap |
-| DEC-018 | 2026-07-02 | `packages/events` still ships `lead.replied.v1` (catalog + sample publisher + tests). Removing it is **product code** → owed by **P1.7** (per handoff §B amendments), not PR 0. Docs updated now; code + catalog aligned in P1.7's PR | PR 0 is docs-only by definition (§D) | cheap |
+| DEC-017 | 2026-07-02 | PR 0 also fixes every `agent_platform_build/` / `docs/…` wrong-path reference in live docs (`PHASE1_ISSUES.md` preamble, `BUILD_PLAN.md` first-tasks list, `EXECUTION_PHASE0.md §C`) — beyond the literal §D list, flagged in the PR | Canonical-docs rule: a wrong path misdirects future sessions | cheap |
+| DEC-018 | 2026-07-02 | `packages/events` still ships `lead.replied.v1` (catalog + sample publisher + tests). Removing it is **product code** → owed by **P1.7** (per handoff §B amendments), not PR 0. All doc references updated/annotated now (incl. T2's acceptance example in `EXECUTION_PHASE0.md`, kept as a historical record with an A9 footnote); code + catalog aligned in P1.7's PR | PR 0 is docs-only by definition (§D) | cheap |
 
 ## Open questions → design/product
 

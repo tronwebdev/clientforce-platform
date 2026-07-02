@@ -126,7 +126,7 @@
 ---
 
 ## First tasks to hand Claude Code (in order)
-1. "Scaffold the Turborepo monorepo per `agent_platform_build/ARCHITECTURE.md §5`."
+1. "Scaffold the Turborepo monorepo per `ARCHITECTURE.md §5`."
 2. "Create the Prisma schema with the **Agency→Workspace→User** hierarchy + `workspace_id` on every model + RLS."
 3. "Stand up the NestJS API with auth + agency/workspace tenant middleware + health check."
 4. "Build the internal **event bus** + typed event catalog (`packages/events`)."

@@ -46,8 +46,9 @@ the composition. Atom conflict → token doc wins (flag it); composition/behavio
   RLS-subject client (`withTenant`), never the owner client.
 - **Execution:** Temporal (durable timers, reply signals, branching);
   BullMQ/Redis for fast fan-out jobs; typed event catalog in `packages/events`
-  — event names are **versioned** (`email.replied.v1`), `lead.replied` is
-  removed (**A9**).
+  — event names are **versioned** (`email.replied.v1`); `lead.replied` is
+  removed from the canonical catalog (**A9**) — the `packages/events` code
+  still carries it until P1.7 aligns it (PROGRESS DEC-018).
 - **AI:** `packages/ai` gateway only — no direct Anthropic SDK imports
   elsewhere. Opus-class for planning, Sonnet-class for copy/classification.
 - **Realtime (A4):** TanStack Query polling (5s on Inbox/Logs/open lead
@@ -55,6 +56,11 @@ the composition. Atom conflict → token doc wins (flag it); composition/behavio
 - **Domain mapping (A5):** one agent = one goal = one auto-created primary
   campaign; routes `/agents/[agentId]/[tab]`, tab ∈
   `inbox|steps|leads|settings|logs` (+ inert `calls|preview|stats`).
+- **Contacts segments (A10):** the chips are **queries, not stages** — All =
+  everything · New = stage `new` · Replied = any `email.replied.v1` ·
+  Qualified = stage ∈ {`interested`} · Booked = stage `booked` · Unsub =
+  `optOut.email` OR any `Suppression` row OR enrollment `UNSUBSCRIBED`. Keep
+  the "Qualified" chip label (owner-confirmed).
 - **Models added in Phase 1 (A6/A7):** `Message` (every outbound persisted as
   rendered at send time; every inbound + intent) and `Suppression` (checked at
   the send boundary together with `Contact.optOut`). Guardrails follow the
