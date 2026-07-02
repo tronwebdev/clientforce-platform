@@ -121,7 +121,7 @@ model Agent {
   category     String?
   instructions String?                          // freeform agent guidance
   status       AgentStatus @default(DRAFT)       // DRAFT | ACTIVE | PAUSED | ARCHIVED
-  guardrails   Json                              // consent, sending window, daily caps
+  guardrails   Json                              // TYPED — must match the Guardrails schema in §3.2
   campaigns    Campaign[]
 }
 
@@ -186,6 +186,23 @@ event signal, routes by classified intent/condition), **`subcampaign`** (jump in
 **`action`** (fire an agent tool / integration — e.g. send_proposal, book_meeting), **`end`**.
 Tokens (`{{firstName}}`, `{{company}}`, `{{calendarLink}}`) resolve per-lead at render time.
 
+### 3.2 Guardrails schema (typed contract — `PHASE1_HANDOFF.md §A8`)
+`Agent.guardrails` is **not** freeform: it must match this shape (zod schema lives in
+`packages/core`, enforced by the channel adapter **and** the workflow at the send boundary).
+The wizard's Guardrails step and the agent-view Settings tab read/write exactly this:
+
+```ts
+Guardrails = {
+  sendingWindow: { days: number[],           // 1–7, ISO weekday
+                   start: string, end: string, // "09:00"/"17:00"
+                   timezone: string },
+  dailyCap:      { email: number },           // per-channel, extended later
+  consent:       { attestedBy: string, attestedAt: string } | null,
+  unsubscribeFooter: true,                    // literal true — not disableable
+  suppressionCheck:  true                     // literal true — not disableable
+}
+```
+
 ---
 
 ## 4. Leads, enrollment & pipeline
@@ -240,6 +257,54 @@ model ListMembership { id String @id @default(cuid()) listId String contactId St
 enum EnrollmentStatus { ACTIVE PAUSED DONE UNSUBSCRIBED BOUNCED }
 ```
 
+### 4.1 Message — the durable message store (`PHASE1_HANDOFF.md §A6`; migration in P1.5)
+`Event` rows are a fan-out contract, **not** a message store. Every outbound is persisted here
+**as rendered** at send time (P1.5); every inbound + its classified intent is persisted here (P1.7).
+The Inbox threads and the lead-drawer timeline read `Message` (+ `Event` for non-message events);
+events reference `messageId` in payloads rather than carrying bodies.
+
+```prisma
+model Message {
+  id                String   @id @default(cuid())
+  workspaceId       String
+  campaignId        String
+  enrollmentId      String?
+  contactId         String
+  channel           String              // "email" this phase
+  direction         MessageDirection    // OUTBOUND | INBOUND
+  subject           String?
+  body              String              // rendered (outbound) / parsed (inbound)
+  providerMessageId String?  @unique
+  inReplyToId       String?             // → Message.id (threading)
+  intent            String?             // inbound only, from P1.7 classification
+  stepNodeId        String?             // outbound only, graph node that sent it
+  sentAt            DateTime
+  meta              Json?
+  @@index([workspaceId, contactId, sentAt])
+  @@index([workspaceId, campaignId, sentAt])
+}
+enum MessageDirection { OUTBOUND INBOUND }
+```
+
+### 4.2 Suppression — the opt-out ledger (`PHASE1_HANDOFF.md §A7`; enforcement in P1.5)
+The workspace-level source of truth for "never send to this address". The email adapter checks
+Suppression **and** `Contact.optOut` before every send (both tested); unsubscribe events write
+both. Settings → Suppression is its UI.
+
+```prisma
+model Suppression {
+  id          String   @id @default(cuid())
+  workspaceId String
+  channel     String              // "email" this phase
+  address     String              // email address (or phone later)
+  reason      SuppressionReason   // UNSUBSCRIBED | BOUNCED | SPAM_COMPLAINT | MANUAL
+  source      String?             // "reply" | "link" | "import" | "admin"
+  createdAt   DateTime @default(now())
+  @@unique([workspaceId, channel, address])
+}
+enum SuppressionReason { UNSUBSCRIBED BOUNCED SPAM_COMPLAINT MANUAL }
+```
+
 ---
 
 ## 5. The event catalog (the backbone — `ARCHITECTURE.md §3c`)
@@ -250,7 +315,7 @@ Every meaningful thing is an immutable event. Stored once, fanned out to **(1)**
 model Event {
   id          String  @id @default(cuid())
   workspaceId String
-  type        String                            // see catalog below — versioned: "lead.replied.v1"
+  type        String                            // see catalog below — version suffix MANDATORY: "email.replied.v1"
   contactId   String?
   enrollmentId String?
   campaignId  String?
@@ -261,22 +326,26 @@ model Event {
 }
 ```
 
-**Canonical event types (v1):**
+**Canonical event types (version suffix mandatory — `PHASE1_HANDOFF.md §A9`):**
 
 | Domain | Events | Key payload fields |
 |---|---|---|
-| Messaging | `email.sent · email.delivered · email.opened · email.clicked · email.bounced · email.spam · email.replied` | messageId, channel, stepNodeId, link?, intent? |
-| | `sms.sent · sms.delivered · sms.replied · sms.opted_out` | segmentCount, body, intent? |
-| | `whatsapp.sent · whatsapp.delivered · whatsapp.replied · whatsapp.button_clicked` | templateId, button? |
-| Voice | `call.started · call.completed · call.failed · call.booked` | durationSec, transcriptId, outcome, recordingUrl |
-| Inbound | `form.submitted · widget.conversation_started · widget.lead_captured · linkedin.captured` | formId/widgetId, fields, routedTo |
-| Proposals | `proposal.sent · proposal.viewed · proposal.accepted · proposal.paid` | proposalId, trackedLinkId, amount? |
-| Pipeline | `lead.enrolled · lead.stage_changed · lead.unsubscribed · lead.replied` | fromStage, toStage, intent |
-| Billing | `payment.received · credits.consumed · credits.low` | amount, channel, balance |
-| Integrations | `integration.connected · integration.sync_failed` | provider |
+| Messaging | `email.sent.v1 · email.delivered.v1 · email.opened.v1 · email.clicked.v1 · email.bounced.v1 · email.spam.v1 · email.replied.v1` | messageId, channel, stepNodeId, link?, intent? |
+| | `sms.sent.v1 · sms.delivered.v1 · sms.replied.v1 · sms.opted_out.v1` | segmentCount, body, intent? |
+| | `whatsapp.sent.v1 · whatsapp.delivered.v1 · whatsapp.replied.v1 · whatsapp.button_clicked.v1` | templateId, button? |
+| Voice | `call.started.v1 · call.completed.v1 · call.failed.v1 · call.booked.v1` | durationSec, transcriptId, outcome, recordingUrl |
+| Inbound | `form.submitted.v1 · widget.conversation_started.v1 · widget.lead_captured.v1 · linkedin.captured.v1` | formId/widgetId, fields, routedTo |
+| Proposals | `proposal.sent.v1 · proposal.viewed.v1 · proposal.accepted.v1 · proposal.paid.v1` | proposalId, trackedLinkId, amount? |
+| Pipeline | `lead.enrolled.v1 · lead.stage_changed.v1 · lead.unsubscribed.v1` | fromStage, toStage, intent |
+| Billing | `payment.received.v1 · credits.consumed.v1 · credits.low.v1` | amount, channel, balance |
+| Integrations | `integration.connected.v1 · integration.sync_failed.v1` | provider |
 
-> **Rule:** classify inbound replies (`*.replied`) with Claude → attach `intent` to the payload →
-> the matching enrollment's Temporal workflow receives it as a **signal** and branches.
+> **There is no `lead.replied`** — a reply is always channel-specific (`email.replied.v1`,
+> `sms.replied.v1`, …); consumers that want "any reply" filter `*.replied.v1`.
+>
+> **Rule:** classify inbound replies (`*.replied.v1`) with Claude → attach `intent` to the payload
+> (which references `messageId`, never the body — bodies live on `Message`, §4.1) → the matching
+> enrollment's Temporal workflow receives it as a **signal** and branches.
 
 ---
 
@@ -287,7 +356,7 @@ model Automation {          // standalone When → If → Then rules
   workspaceId String
   name        String
   enabled     Boolean @default(true)
-  trigger     Json                              // { event:"lead.replied", filter:{...} }
+  trigger     Json                              // { event:"email.replied.v1", filter:{...} }
   conditions  Json                              // [{ field, op, value }]  (AND)
   actions     Json                              // [{ type, params }]  ordered
   runs        AutomationRun[]

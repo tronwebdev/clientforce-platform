@@ -1,5 +1,14 @@
 # Handoff: Clientforce — Full UI Restyle to Premium Standard
 
+> ## ⚠️ HISTORICAL — the old-app restyle plan described here is superseded
+> This README's **execution plan** (restyling the legacy `new-clientforce-ui` Nuxt 2 app — §1, §4,
+> §6) is **historical**: the platform is now a greenfield build in `tronwebdev/clientforce-platform`
+> (Next.js 15 + React 19), executed per the repo-root `PHASE1_HANDOFF.md` + `UI_PORTING_RULES.md` +
+> `PHASE1_FIDELITY_CHECKPOINTS.md`. **Still live from this folder:** the design tokens
+> (`DESIGN_TOKENS.md`, `CONSISTENCY_AUDIT.md §1–§2, §6 design decisions, §6a standards`) and the
+> `prototypes/*.dc.html` files — they remain the binding design source for every screen.
+> The Chrome-extension section (§5) returns in **Phase 4**.
+
 > **For a developer or Claude Code agent working in the real repos.**
 > This package is the complete spec to bring the live Clientforce app (and its Chrome extension)
 > up to the prototype design — investor-grade, world-class, fully consistent.

@@ -18,8 +18,6 @@
 ## Phase 0 — Foundation (Day 1–2)
 **Goal:** the skeleton runs locally and deploys to a fresh Azure setup.
 - [ ] Turborepo monorepo (§5 of ARCHITECTURE) with `apps/*` + `packages/*` scaffolds.
-- [ ] `packages/db`: Prisma + Postgres + `pgvector`; initial schema — `Org`, `User`, `Agent`,
-      `Campaign`, `CampaignGraph`, `Lead`, `Enrollment`, `Event`, `PipelineStage`.
 - [ ] `packages/tenancy` + `packages/db`: Prisma + Postgres + `pgvector`; the **3-level hierarchy** —
       `Agency → Workspace → User` (RBAC) — plus `Agent`, `Campaign`, `CampaignGraph`, `Lead`,
       `Enrollment`, `Event`, `PipelineStage`. Every domain row carries `workspace_id`; **RLS** enforced.
@@ -138,8 +136,11 @@
 8. "Implement the Claude Planner: goal + context → CampaignGraph."
 9. "Build the Email adapter + inbound webhook → event bus → classify → signal."
 10. "Wire the Create-Agent wizard + Steps editor + Leads/pipeline UI to the API."
-→ Steps 1–4 are Phase 0; 5–10 are Phase 1 (the working slice). Subsystems (Automations, Integrations,
-Lead Finder, Forms, Proposals, Widget, Analytics, Billing) follow as Phases 6–10, one PR per task.
+→ **As executed, Phase 0 = `EXECUTION_PHASE0.md` T0–T8** (steps 1–5 above **plus** the design-system
+foundation, the web shell, infra-as-code + deploy, and seed + smoke — all merged). Steps 6–10 are
+Phase 1, the working email slice, executed per `PHASE1_ISSUES.md` P1.1–P1.7 as amended by
+`PHASE1_HANDOFF.md §B–§C`. Subsystems (Automations, Integrations, Lead Finder, Forms, Proposals,
+Widget, Analytics, Billing) follow as Phases 6–10, one PR per task.
 
 ## Risks to watch
 - **White-label tenancy** — the Agency→Workspace→User hierarchy must be right in Phase 0; retrofitting tenancy is brutal.
