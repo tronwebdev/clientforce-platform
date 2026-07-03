@@ -126,12 +126,9 @@ model KnowledgeChunk {
   workspaceId String
   sourceId    String
   content     String
-  // TODO(phase-1): a vector(3072) column (text-embedding-3-large) cannot take an
-  // hnsw/ivfflat index — both cap at 2000 dims. Before enabling ANN search in the
-  // knowledge-ingestion slice, decide the index strategy: either store `halfvec(3072)`
-  // and build `hnsw (embedding halfvec_cosine_ops)`, or switch to 1536-dim
-  // embeddings and index `vector(1536)`. T1 stores the raw column only (no index).
-  embedding   Unsupported("vector(3072)")
+  // P1.2: 1536-dim (text-embedding-3-large, dimensions=1536 via @clientforce/ai)
+  // with an hnsw cosine index — resolves T1's TODO(phase-1).
+  embedding   Unsupported("vector(1536)")
   tokens      Int
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt

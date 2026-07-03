@@ -27,6 +27,9 @@ param managedIdentityName string = 'id-clientforce-dev'
 @description('Image tag to deploy (usually the git SHA).')
 param imageTag string
 
+@description('Whether Key Vault holds STORAGE-CONNECTION-STRING yet (P1.2 DOCUMENT uploads). The pipeline probes the vault and passes this; referencing a missing secret would fail the whole deploy, so it stays conditional until the owner adds it.')
+param storageSecretAvailable bool = false
+
 param apiAppName string = 'clientforce-api'
 param workerAppName string = 'clientforce-worker'
 param webAppName string = 'clientforce-web'
@@ -76,6 +79,13 @@ var dbUrlSecret = { name: 'database-url', keyVaultUrl: '${kvUri}secrets/DATABASE
 var appDbUrlSecret = { name: 'app-database-url', keyVaultUrl: '${kvUri}secrets/APP-DATABASE-URL', identity: uami.id }
 var redisUrlSecret = { name: 'redis-url', keyVaultUrl: '${kvUri}secrets/REDIS-URL', identity: uami.id }
 var authDevSecret = { name: 'auth-dev-secret', keyVaultUrl: '${kvUri}secrets/AUTH-DEV-SECRET', identity: uami.id }
+var openaiKeySecret = { name: 'openai-api-key', keyVaultUrl: '${kvUri}secrets/OPENAI-API-KEY', identity: uami.id }
+var storageConnSecret = { name: 'storage-connection-string', keyVaultUrl: '${kvUri}secrets/STORAGE-CONNECTION-STRING', identity: uami.id }
+
+// P1.2: api + worker both embed (retrieve/ingest) and both touch the uploads
+// blob container; the storage secret + env appear only once the vault has it.
+var storageSecrets = storageSecretAvailable ? [storageConnSecret] : []
+var storageEnv = storageSecretAvailable ? [{ name: 'STORAGE_CONNECTION_STRING', secretRef: 'storage-connection-string' }] : []
 
 // ── API (NestJS) — external ingress :3001 ───────────────────────────────────
 resource api 'Microsoft.App/containerApps@2024-03-01' = {
@@ -89,7 +99,7 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
       activeRevisionsMode: 'Single'
       ingress: { external: true, targetPort: 3001, transport: 'auto', allowInsecure: false }
       registries: registries
-      secrets: [dbUrlSecret, appDbUrlSecret, authDevSecret]
+      secrets: concat([dbUrlSecret, appDbUrlSecret, authDevSecret, redisUrlSecret, openaiKeySecret], storageSecrets)
     }
     template: {
       containers: [
@@ -97,12 +107,14 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
           name: 'api'
           image: '${acrLoginServer}/clientforce-api:${imageTag}'
           resources: { cpu: json('0.5'), memory: '1Gi' }
-          env: [
+          env: concat([
             { name: 'PORT', value: '3001' }
             { name: 'DATABASE_URL', secretRef: 'database-url' }
             { name: 'APP_DATABASE_URL', secretRef: 'app-database-url' }
             { name: 'AUTH_DEV_SECRET', secretRef: 'auth-dev-secret' }
-          ]
+            { name: 'REDIS_URL', secretRef: 'redis-url' }
+            { name: 'OPENAI_API_KEY', secretRef: 'openai-api-key' }
+          ], storageEnv)
         }
       ]
       scale: { minReplicas: 1, maxReplicas: 3 }
@@ -121,7 +133,7 @@ resource worker 'Microsoft.App/containerApps@2024-03-01' = {
     configuration: {
       activeRevisionsMode: 'Single'
       registries: registries
-      secrets: [dbUrlSecret, appDbUrlSecret, redisUrlSecret]
+      secrets: concat([dbUrlSecret, appDbUrlSecret, redisUrlSecret, openaiKeySecret], storageSecrets)
     }
     template: {
       containers: [
@@ -129,11 +141,12 @@ resource worker 'Microsoft.App/containerApps@2024-03-01' = {
           name: 'worker'
           image: '${acrLoginServer}/clientforce-worker:${imageTag}'
           resources: { cpu: json('0.25'), memory: '0.5Gi' }
-          env: [
+          env: concat([
             { name: 'DATABASE_URL', secretRef: 'database-url' }
             { name: 'APP_DATABASE_URL', secretRef: 'app-database-url' }
             { name: 'REDIS_URL', secretRef: 'redis-url' }
-          ]
+            { name: 'OPENAI_API_KEY', secretRef: 'openai-api-key' }
+          ], storageEnv)
         }
       ]
       scale: { minReplicas: 1, maxReplicas: 1 }

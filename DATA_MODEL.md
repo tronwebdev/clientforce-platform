@@ -11,6 +11,7 @@
 ---
 
 ## 1. Tenancy — the 3-level white-label hierarchy
+
 This is foundational and cannot be retrofitted cheaply. Read `ARCHITECTURE.md §3b` first.
 
 ```prisma
@@ -70,6 +71,7 @@ The API sets `app.workspace_id` (and `app.agency_id` for agency-level views) per
 ---
 
 ## 2. Knowledge & business context
+
 ```prisma
 model KnowledgeSource {
   id          String  @id @default(cuid())
@@ -88,10 +90,21 @@ model KnowledgeChunk {
   workspaceId String
   sourceId    String
   content     String
-  embedding   Unsupported("vector(3072)")      // pgvector; text-embedding-3-large
+  embedding   Unsupported("vector(1536)")      // pgvector; text-embedding-3-large @ dimensions=1536
   tokens      Int
   @@index([sourceId])
 }
+```
+
+> **P1.2 amendment (PR #25):** embeddings are pinned to **1536 dimensions**
+> (`text-embedding-3-large` with `dimensions: 1536`, via `@clientforce/ai`'s
+> `embed()`) so the column fits pgvector's 2,000-dim index ceiling, and the
+> column carries an **hnsw cosine index**
+> (`KnowledgeChunk_embedding_hnsw_idx`, `vector_cosine_ops`) — this resolves
+> T1's TODO(phase-1). Retrieval is cosine top-k via `<=>`, always through the
+> RLS-subject client.
+
+```prisma
 
 model BusinessContext {     // Claude-distilled profile the planner reads
   id          String  @id @default(cuid())
@@ -112,6 +125,7 @@ enum IngestStatus { PENDING INGESTING READY FAILED }
 ---
 
 ## 3. Agents, campaigns & the Campaign Graph
+
 ```prisma
 model Agent {
   id           String  @id @default(cuid())
@@ -151,42 +165,55 @@ enum GraphSource { AI TEMPLATE MANUAL }
 ```
 
 ### 3.1 CampaignGraph JSON schema (the planner's output contract)
+
 A directed graph of typed nodes + conditional edges. **Validate every graph against this before it runs.**
 
 ```jsonc
 {
-  "entry": "n1",                       // id of the first node
+  "entry": "n1", // id of the first node
   "nodes": [
-    { "id": "n1", "type": "step",
-      "channel": "email",              // email | sms | whatsapp | voice | linkedin
+    {
+      "id": "n1",
+      "type": "step",
+      "channel": "email", // email | sms | whatsapp | voice | linkedin
       "content": {
-        "subject": "Quick question about {{company}}",   // email only
-        "body": "Hi {{firstName}}, …",                   // tokens = personalization vars
-        "template": "cf_case_study_v2",                   // whatsapp approved template id
-        "buttons": ["Book a call","Send breakdown"],      // whatsapp quick replies
-        "voice": { "persona": "ava-warm", "objective": "qualify & book", "script": "…" }
+        "subject": "Quick question about {{company}}", // email only
+        "body": "Hi {{firstName}}, …", // tokens = personalization vars
+        "template": "cf_case_study_v2", // whatsapp approved template id
+        "buttons": ["Book a call", "Send breakdown"], // whatsapp quick replies
+        "voice": { "persona": "ava-warm", "objective": "qualify & book", "script": "…" },
       },
-      "pipelineOnSend": "contacted" },                    // optional stage move
+      "pipelineOnSend": "contacted",
+    }, // optional stage move
     { "id": "d1", "type": "delay", "amount": 2, "unit": "days" },
     { "id": "n2", "type": "step", "channel": "sms", "content": { "body": "…" } },
-    { "id": "b1", "type": "branch",
-      "on": "reply",                                       // reply | open | click | call_outcome | no_response
+    {
+      "id": "b1",
+      "type": "branch",
+      "on": "reply", // reply | open | click | call_outcome | no_response
       "cases": [
         { "when": { "intent": "interested" }, "goto": "sub:interested", "pipeline": "engaged" },
-        { "when": { "intent": "not_now" },    "goto": "d2" },
-        { "when": "default",                  "goto": "n2" }
-      ] },
-    { "id": "sub:interested", "type": "subcampaign", "ref": "subcampaign_id" }
+        { "when": { "intent": "not_now" }, "goto": "d2" },
+        { "when": "default", "goto": "n2" },
+      ],
+    },
+    { "id": "sub:interested", "type": "subcampaign", "ref": "subcampaign_id" },
   ],
-  "edges": [ { "from": "n1", "to": "d1" }, { "from": "d1", "to": "n2" }, { "from": "n2", "to": "b1" } ]
+  "edges": [
+    { "from": "n1", "to": "d1" },
+    { "from": "d1", "to": "n2" },
+    { "from": "n2", "to": "b1" },
+  ],
 }
 ```
+
 Node types: **`step`** (a channel send), **`delay`** (durable Temporal timer), **`branch`** (waits on an
 event signal, routes by classified intent/condition), **`subcampaign`** (jump into a triggered sub-flow),
 **`action`** (fire an agent tool / integration — e.g. send_proposal, book_meeting), **`end`**.
 Tokens (`{{firstName}}`, `{{company}}`, `{{calendarLink}}`) resolve per-lead at render time.
 
 ### 3.2 Guardrails schema (typed contract — `PHASE1_HANDOFF.md §A8`)
+
 `Agent.guardrails` is **not** freeform: it must match this shape (zod schema lives in
 `packages/core`, enforced by the channel adapter **and** the workflow at the send boundary).
 The wizard's Guardrails step and the agent-view Settings tab read/write exactly this:
@@ -206,6 +233,7 @@ Guardrails = {
 ---
 
 ## 4. Leads, enrollment & pipeline
+
 ```prisma
 model Contact {             // a person in the workspace's CRM (deduped)
   id          String  @id @default(cuid())
@@ -258,6 +286,7 @@ enum EnrollmentStatus { ACTIVE PAUSED DONE UNSUBSCRIBED BOUNCED }
 ```
 
 ### 4.1 Message — the durable message store (`PHASE1_HANDOFF.md §A6`; migration in P1.5)
+
 `Event` rows are a fan-out contract, **not** a message store. Every outbound is persisted here
 **as rendered** at send time (P1.5); every inbound + its classified intent is persisted here (P1.7).
 The Inbox threads and the lead-drawer timeline read `Message` (+ `Event` for non-message events);
@@ -287,6 +316,7 @@ enum MessageDirection { OUTBOUND INBOUND }
 ```
 
 ### 4.2 Suppression — the opt-out ledger (`PHASE1_HANDOFF.md §A7`; enforcement in P1.5)
+
 The workspace-level source of truth for "never send to this address". The email adapter checks
 Suppression **and** `Contact.optOut` before every send (both tested); unsubscribe events write
 both. Settings → Suppression is its UI.
@@ -308,6 +338,7 @@ enum SuppressionReason { UNSUBSCRIBED BOUNCED SPAM_COMPLAINT MANUAL }
 ---
 
 ## 5. The event catalog (the backbone — `ARCHITECTURE.md §3c`)
+
 Every meaningful thing is an immutable event. Stored once, fanned out to **(1)** Temporal signals,
 **(2)** the Automations engine, **(3)** integrations/webhooks/Zapier + the analytics warehouse.
 
@@ -328,17 +359,17 @@ model Event {
 
 **Canonical event types (version suffix mandatory — `PHASE1_HANDOFF.md §A9`):**
 
-| Domain | Events | Key payload fields |
-|---|---|---|
-| Messaging | `email.sent.v1 · email.delivered.v1 · email.opened.v1 · email.clicked.v1 · email.bounced.v1 · email.spam.v1 · email.replied.v1` | messageId, channel, stepNodeId, link?, intent? |
-| | `sms.sent.v1 · sms.delivered.v1 · sms.replied.v1 · sms.opted_out.v1` | segmentCount, body, intent? |
-| | `whatsapp.sent.v1 · whatsapp.delivered.v1 · whatsapp.replied.v1 · whatsapp.button_clicked.v1` | templateId, button? |
-| Voice | `call.started.v1 · call.completed.v1 · call.failed.v1 · call.booked.v1` | durationSec, transcriptId, outcome, recordingUrl |
-| Inbound | `form.submitted.v1 · widget.conversation_started.v1 · widget.lead_captured.v1 · linkedin.captured.v1` | formId/widgetId, fields, routedTo |
-| Proposals | `proposal.sent.v1 · proposal.viewed.v1 · proposal.accepted.v1 · proposal.paid.v1` | proposalId, trackedLinkId, amount? |
-| Pipeline | `lead.enrolled.v1 · lead.stage_changed.v1 · lead.unsubscribed.v1` | campaignId?, fromStage, toStage, channel? |
-| Billing | `payment.received.v1 · credits.consumed.v1 · credits.low.v1` | amount, channel, balance |
-| Integrations | `integration.connected.v1 · integration.sync_failed.v1` | provider |
+| Domain       | Events                                                                                                                          | Key payload fields                               |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| Messaging    | `email.sent.v1 · email.delivered.v1 · email.opened.v1 · email.clicked.v1 · email.bounced.v1 · email.spam.v1 · email.replied.v1` | messageId, channel, stepNodeId, link?, intent?   |
+|              | `sms.sent.v1 · sms.delivered.v1 · sms.replied.v1 · sms.opted_out.v1`                                                            | segmentCount, body, intent?                      |
+|              | `whatsapp.sent.v1 · whatsapp.delivered.v1 · whatsapp.replied.v1 · whatsapp.button_clicked.v1`                                   | templateId, button?                              |
+| Voice        | `call.started.v1 · call.completed.v1 · call.failed.v1 · call.booked.v1`                                                         | durationSec, transcriptId, outcome, recordingUrl |
+| Inbound      | `form.submitted.v1 · widget.conversation_started.v1 · widget.lead_captured.v1 · linkedin.captured.v1`                           | formId/widgetId, fields, routedTo                |
+| Proposals    | `proposal.sent.v1 · proposal.viewed.v1 · proposal.accepted.v1 · proposal.paid.v1`                                               | proposalId, trackedLinkId, amount?               |
+| Pipeline     | `lead.enrolled.v1 · lead.stage_changed.v1 · lead.unsubscribed.v1`                                                               | campaignId?, fromStage, toStage, channel?        |
+| Billing      | `payment.received.v1 · credits.consumed.v1 · credits.low.v1`                                                                    | amount, channel, balance                         |
+| Integrations | `integration.connected.v1 · integration.sync_failed.v1`                                                                         | provider                                         |
 
 > **There is no `lead.replied`** — a reply is always channel-specific (`email.replied.v1`,
 > `sms.replied.v1`, …); consumers that want "any reply" filter `*.replied.v1`.
@@ -350,6 +381,7 @@ model Event {
 ---
 
 ## 6. Automations, integrations, channels
+
 ```prisma
 model Automation {          // standalone When → If → Then rules
   id          String @id @default(cuid())
@@ -384,11 +416,13 @@ model Sender {               // email/phone identities a campaign sends from
   dailyLimit  Int
 }
 ```
+
 Outbound **WebhookEndpoint** (`url`, `secret`, `events[]`) + delivery log; Zapier rides the same dispatcher.
 
 ---
 
 ## 7. Billing, credits & forms/proposals
+
 ```prisma
 model Plan { id String @id @default(cuid()) agencyId String? name String priceMonthly Int features Json limits Json }   // 3 tiers; set at the agency level
 
@@ -449,6 +483,7 @@ model Widget {              // embeddable chat config
 ---
 
 ## 8. Analytics
+
 Events (§5) are the source of truth. Roll up async into summary tables (don't query raw events for
 dashboards). Minimum: `MetricDaily(workspaceId, date, agentId?, channel?, metric, value)` powering the
 KPI/funnel/channel/revenue/leaderboard views, plus on-demand funnel queries
@@ -457,6 +492,7 @@ KPI/funnel/channel/revenue/leaderboard views, plus on-demand funnel queries
 ---
 
 ## 9. What to hand Claude Code first (maps to BUILD_PLAN Phase 0)
+
 1. Generate the **Prisma schema** from §1–§7; enable `pgvector`; add RLS policies on every `workspaceId` table.
 2. Generate **TypeScript types** in `packages/core` for `CampaignGraph` (§3.1) + a **validator** (zod) + a unit-tested **graph executor** skeleton.
 3. Generate the **event catalog** (§5) as typed constants + payload types in `packages/events`.

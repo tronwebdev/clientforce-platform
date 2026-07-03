@@ -13,7 +13,7 @@ az containerapp env show --name "$CONTAINER_APPS_ENV" --resource-group "$RG" -o 
 echo "Verifying Key Vault secrets consumed by the deploy ..."
 # Only the secrets the apps actually secretRef (main.bicep). Temporal/Clerk
 # secrets are provisioned for later phases and aren't required by T7.
-required=(DATABASE-URL APP-DATABASE-URL REDIS-URL AUTH-DEV-SECRET)
+required=(DATABASE-URL APP-DATABASE-URL REDIS-URL AUTH-DEV-SECRET OPENAI-API-KEY)
 present="$(az keyvault secret list --vault-name "$KEY_VAULT_NAME" --query "[].name" -o tsv)"
 
 missing=0
@@ -27,6 +27,13 @@ done
 if [ "$missing" -ne 0 ]; then
   echo "Preflight FAILED — populate the missing Key Vault secrets."
   exit 1
+fi
+
+# P1.2: STORAGE-CONNECTION-STRING is OPTIONAL until the owner adds it (PR #25
+# step) — the Bicep wiring is conditional, so its absence only disables
+# DOCUMENT uploads, never the deploy.
+if ! grep -qxF "STORAGE-CONNECTION-STRING" <<<"$present"; then
+  echo "::warning::Key Vault secret STORAGE-CONNECTION-STRING not present — DOCUMENT uploads stay disabled this deploy (WEBSITE/TEXT sources unaffected)."
 fi
 
 # Verify the DEPLOY identity itself can do everything the pipeline needs, before

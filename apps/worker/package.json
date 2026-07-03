@@ -11,7 +11,10 @@
     "clean": "rm -rf dist .turbo"
   },
   "dependencies": {
+    "@clientforce/ai": "workspace:*",
     "@clientforce/config": "workspace:*",
+    "@clientforce/db": "workspace:*",
+    "@clientforce/knowledge": "workspace:*",
     "@temporalio/worker": "^1.11.7"
   },
   "devDependencies": {
