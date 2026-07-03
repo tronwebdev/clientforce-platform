@@ -8,7 +8,13 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 /** Primary = brand gradient on near-black; secondary = hairline; ghost = green tint. */
-export function Button({ variant = "primary", className, type = "button", children, ...props }: ButtonProps) {
+export function Button({
+  variant = "primary",
+  className,
+  type = "button",
+  children,
+  ...props
+}: ButtonProps) {
   const cls = ["cf-button", `cf-button--${variant}`, className].filter(Boolean).join(" ");
   return (
     <button className={cls} type={type} {...props}>

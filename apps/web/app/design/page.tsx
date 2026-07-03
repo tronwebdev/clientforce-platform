@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button, Card, Dropdown, Pill, Tabs, Toast, Toggle } from "@clientforce/ui";
+import { CompositesDemo } from "./composites";
 
 const section = {
   display: "flex",
@@ -9,7 +10,12 @@ const section = {
   gap: "var(--cf-space-12)",
   marginBottom: "var(--cf-space-32)",
 };
-const row = { display: "flex", gap: "var(--cf-space-16)", alignItems: "center", flexWrap: "wrap" as const };
+const row = {
+  display: "flex",
+  gap: "var(--cf-space-16)",
+  alignItems: "center",
+  flexWrap: "wrap" as const,
+};
 const label = {
   fontFamily: "var(--cf-font-body)",
   fontSize: "var(--cf-text-12)",
@@ -31,7 +37,13 @@ export default function DesignPage() {
       <h1 style={{ fontSize: "var(--cf-text-28)", marginBottom: "var(--cf-space-8)" }}>
         Clientforce design system
       </h1>
-      <p style={{ color: "var(--cf-color-muted-2)", marginTop: 0, marginBottom: "var(--cf-space-40)" }}>
+      <p
+        style={{
+          color: "var(--cf-color-muted-2)",
+          marginTop: 0,
+          marginBottom: "var(--cf-space-40)",
+        }}
+      >
         Base components rendered on canonical tokens (DESIGN_TOKENS.md §6).
       </p>
 
@@ -110,12 +122,21 @@ export default function DesignPage() {
       <section style={section}>
         <span style={label}>Toast</span>
         <div style={row}>
-          {toast ? <Toast onClose={() => setToast(false)}>Agent published successfully</Toast> : null}
+          {toast ? (
+            <Toast onClose={() => setToast(false)}>Agent published successfully</Toast>
+          ) : null}
           <Button variant="secondary" onClick={() => setToast(true)}>
             Show toast
           </Button>
         </div>
       </section>
+
+      <h2
+        style={{ fontSize: "var(--cf-text-20)", margin: "var(--cf-space-24) 0 var(--cf-space-16)" }}
+      >
+        C1 composites
+      </h2>
+      <CompositesDemo />
     </main>
   );
 }

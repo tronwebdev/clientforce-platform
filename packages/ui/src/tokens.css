@@ -50,6 +50,44 @@
   --cf-shadow-modal: 0 40px 90px rgba(0, 0, 0, 0.45);
   --cf-shadow-toggle-knob: 0 1px 3px rgba(0, 0, 0, 0.2);
 
+  /* C1 composite literals — lifted verbatim from the prototype sources
+     (PHASE1_HANDOFF §A12: prototype literal values are the standard; they live
+     here only because this is the one file allowed raw colors). Sources cited
+     per value in the C1 PR plan comment. */
+  --cf-scrim: rgba(12, 20, 15, 0.45); /* drawer/modal overlay */
+  --cf-shadow-drawer-460: -24px 0 70px rgba(0, 0, 0, 0.32); /* lead drawer */
+  --cf-shadow-drawer-480: -24px 0 70px rgba(0, 0, 0, 0.28); /* manual-add drawer */
+  --cf-shadow-drawer-500: -28px 0 70px rgba(0, 0, 0, 0.3); /* sender drawer */
+  --cf-shadow-modal-panel: 0 30px 80px rgba(0, 0, 0, 0.32); /* volume/limits modal */
+  --cf-shadow-table: 0 6px 24px rgba(14, 21, 18, 0.05); /* table card */
+  --cf-color-bulk-bg: rgba(53, 232, 52, 0.08); /* bulk bar fill */
+  --cf-color-bulk-border: rgba(53, 232, 52, 0.3); /* bulk bar border */
+  --cf-color-row-hover: #fbfaf6; /* table row hover tint */
+  --cf-color-danger-border: #f0cfc8; /* destructive bulk action border */
+  --cf-chip-email-bg: rgba(53, 232, 52, 0.13);
+  --cf-chip-sms-bg: rgba(54, 215, 237, 0.16);
+  --cf-chip-whatsapp-bg: rgba(208, 245, 107, 0.5);
+  --cf-chip-whatsapp-fg: #6b7a1f;
+  --cf-chip-voice-bg: #ece7dc;
+  /* Empty-state icon tile (Agents List `allEmpty`, verbatim) */
+  --cf-gradient-empty-tile: linear-gradient(
+    135deg,
+    rgba(54, 215, 237, 0.18),
+    rgba(53, 232, 52, 0.18) 55%,
+    rgba(208, 245, 107, 0.3)
+  );
+  /* Status-pill vocabulary (Contacts renderVals `ST` map, verbatim) */
+  --cf-status-new-bg: #f2eee4;
+  --cf-status-new-fg: #8a7f6b;
+  --cf-status-replied-bg: rgba(54, 215, 237, 0.16);
+  --cf-status-replied-fg: #1192a6;
+  --cf-status-qualified-bg: rgba(53, 232, 52, 0.14);
+  --cf-status-qualified-fg: #16a82a;
+  --cf-status-booked-bg: #d7f5dd;
+  --cf-status-booked-fg: #0f7a28;
+  --cf-status-unsubscribed-bg: rgba(224, 121, 107, 0.16);
+  --cf-status-unsubscribed-fg: #c9543f;
+
   /* §5 Spacing (4px ramp) */
   --cf-space-4: 4px;
   --cf-space-8: 8px;

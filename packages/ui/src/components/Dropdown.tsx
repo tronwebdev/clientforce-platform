@@ -16,7 +16,15 @@ export interface DropdownProps {
 }
 
 /** Controlled menu — surface card, dropdown shadow, uppercase header, ✓ on active (§6). */
-export function Dropdown({ label, header, items, value, open = false, onToggle, onSelect }: DropdownProps) {
+export function Dropdown({
+  label,
+  header,
+  items,
+  value,
+  open = false,
+  onToggle,
+  onSelect,
+}: DropdownProps) {
   return (
     <div className="cf-dropdown">
       <button

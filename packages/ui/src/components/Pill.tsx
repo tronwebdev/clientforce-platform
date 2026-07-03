@@ -9,7 +9,10 @@ export interface PillProps extends HTMLAttributes<HTMLSpanElement> {
 
 export function Pill({ tone = "neutral", className, children, ...props }: PillProps) {
   return (
-    <span className={["cf-pill", `cf-pill--${tone}`, className].filter(Boolean).join(" ")} {...props}>
+    <span
+      className={["cf-pill", `cf-pill--${tone}`, className].filter(Boolean).join(" ")}
+      {...props}
+    >
       {children}
     </span>
   );
