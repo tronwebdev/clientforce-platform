@@ -30,6 +30,7 @@ Pixel-diffing is **not** required (font rasterization differs); geometry/color/c
 parity is. DOM structure does not need to match the prototype — behavior and appearance do.
 
 **Global conventions (apply to every screen):**
+
 - Canvas `#FBF7F0`; cards `#fff`, border `1px #EBE3D6`, radius 16–18, shadow `0 4px 16px rgba(14,21,18,.04)` (tables: radius 18, `0 6px 24px rgba(14,21,18,.05)`).
 - Table anatomy: header row bg `#FBF7F0` with `1.5px` bottom border `#EBE3D6`; header labels 12px/700
   uppercase `#5C6B62`; body rows separated by `1px #F2EEE4`; row hover tint; 18px checkboxes with
@@ -57,6 +58,7 @@ parity is. DOM structure does not need to match the prototype — behavior and a
 ## 1. App shell + Sidebar — `sidebar.js` (binding), every screen
 
 **Geometry & color**
+
 - Sidebar: `#0C140F`, 256px wide, full height, padding `22px 16px`; content area offset by exactly 256px.
 - Logo row: 32px gradient mark (radius 9) + "Clientforce" in Bricolage 19px/700.
 - Workspace switcher: row bg `rgba(255,255,255,.06)`, radius 12; 26px badge (radius 7, `#7FE8A0`
@@ -71,6 +73,7 @@ parity is. DOM structure does not need to match the prototype — behavior and a
   14px/600, role 12px `rgba(255,255,255,.5)`, chevron flips open/closed.
 
 **Interaction script**
+
 1. Click Tools → flyout opens, chevron flips; click Workspace → workspace flyout opens **and Tools
    closes** (single-open). 2. Click outside → all close. 3. Active nav item reflects the current
    route on every Phase-1 page. 4. Switching workspace changes tenant context (lists re-scope).
@@ -84,6 +87,7 @@ stub pages, never dead `#` links.
 ## 2. Agents List — `Agents List.dc.html`
 
 **Geometry**
+
 - Toolbar: search field + Status / Channel / More / **Columns** dropdown buttons. Active filter
   button state: bg `rgba(53,232,52,.08)`, border `#9FD8AC`, count chip. Columns menu 236px wide,
   checkbox rows toggle columns live.
@@ -137,6 +141,20 @@ planner "drafting sequence" building/loading state · launch success. **Interact
 all 6 steps end-to-end creating a real Agent + primary Campaign + graph v1; back-navigation preserves
 entries; editing a drafted step bumps the graph version.
 
+> **P1.3 amendment (PR #26, DEC-024/025):** Step 1 also carries the
+> **About-your-business gap flow** after distillation: a `gapResolved/gapTotal`
+> counter; one row per open gap (required-uncited field per the owner-approved
+> registry in `packages/core`) with the two actions **"Type it"** (persists as
+> `typed`, survives re-distill, triggers re-distill) and **"✦ Let AI"**
+> (`ai_decides`, audited); fields satisfied by workspace-layer knowledge list
+> under **"✓ Found in your docs"** and are never re-asked. Adding a source that
+> reaches READY re-distills and auto-resolves newly covered gaps. Changing the
+> goal re-runs the gap evaluation against the registry (typed/delegated answers
+> persist; no-longer-required ones are kept but ignored). **Step 6:** launch is
+> gated until every gap is typed-or-delegated (`launchReady`); every
+> `ai_decides` choice surfaces in the step-6 preview and the
+> About-your-business card with **Undo** (reverts to an open gap).
+
 ---
 
 ## 4. Agent view (Campaign View) — `Campaign View.dc.html`
@@ -147,6 +165,7 @@ Stats ▤ · Settings ⚙ · Logs ≣** (white bar, `1px #EBE3D6`, radius 14, ac
 static mock):** Calls, Preview, Stats. Do not delete them.
 
 **Leads tab**
+
 - Table grid **`44px 1.9fr 1.3fr 1.1fr 1.05fr .7fr .9fr`**; body scroll region max-height 512px;
   global table anatomy; search + **source filter** dropdown + export + add; bulk bar (sequence /
   export / unsubscribe).
@@ -207,6 +226,18 @@ the event within one poll interval (≤5s).
   add/remove; **wired to the real `Suppression` model** — adding an address here must actually block
   a send (this is tested in P1.5's acceptance).
 
+> **P1.3 amendment (PR #26, DEC-025 — resolves Q-003):** **Brand kit is also
+> WIRED in Phase 1** as the canonical home of the workspace-layer
+> `BusinessContext` (`Settings.dc.html` ~140–310): the dark Agent-summary card
+> renders the distilled workspace fields (per-section edit = typed answers into
+> the workspace layer; **↻ Regenerate** = `POST /context/distill`, polls
+> `status` per A4); **Company docs** upload = workspace-scoped P1.2 ingestion
+> (`agentId` null) with live IngestStatus rows; description/offer fields and
+> writing rules (Always/Never/Tone) are structured planner input — separate
+> from the A8 sending guardrails. Connectors + brand identity stay inert.
+> `company_address` (owner edit 3) lives here: asked once per workspace,
+> consumed verbatim by P1.5's CAN-SPAM footer.
+
 ---
 
 ## 7. Login (dev auth) — minimal fidelity
@@ -222,6 +253,6 @@ provider decision (tracked in PROGRESS.md §Open questions).
 
 Every UI PR attaches, at 1440×900: default state · loading skeleton · empty state · error state ·
 each overlay open (drawer/modal/dropdown) · each wired tab/segment — **prototype next to build** for
-each. Stateful controls additionally show closed *and* open (the T6 sidebar slip rule). The PR
+each. Stateful controls additionally show closed _and_ open (the T6 sidebar slip rule). The PR
 description lists any deliberate deviation with its PROGRESS.md decision ID; undocumented deviations
 are review-blockers.

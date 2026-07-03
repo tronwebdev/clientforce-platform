@@ -13,6 +13,7 @@
   "dependencies": {
     "@clientforce/ai": "workspace:*",
     "@clientforce/config": "workspace:*",
+    "@clientforce/context": "workspace:*",
     "@clientforce/core": "workspace:*",
     "@clientforce/db": "workspace:*",
     "@clientforce/knowledge": "workspace:*",

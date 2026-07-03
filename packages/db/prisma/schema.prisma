@@ -138,21 +138,33 @@ model KnowledgeChunk {
   @@index([sourceId])
 }
 
+// P1.3 (DEC-024/025): two-layer context — one row per agent PLUS one
+// workspace-layer row (agentId null, Brand kit). Uniqueness is enforced by
+// partial unique indexes in the migration (Prisma can't express them):
+// UNIQUE(agentId) WHERE agentId IS NOT NULL · UNIQUE(workspaceId) WHERE agentId IS NULL.
+// `fields` is the registry-keyed map { value, citations: chunkId[], source }.
 model BusinessContext {
-  id          String   @id @default(cuid())
+  id          String        @id @default(cuid())
   workspaceId String
-  agentId     String   @unique
-  offer       String
-  icp         Json
-  proofPoints Json
-  tone        String
-  constraints Json
-  rawSummary  String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  agent       Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  agentId     String?
+  goal        String?
+  status      ContextStatus @default(READY)
+  fields       Json          @default("{}")
+  // Custom-goal distiller-proposed asks: [{ key, ask, dismissed? }] (DEC-024).
+  proposedAsks Json          @default("[]")
+  rawSummary   String        @default("")
+  distilledAt DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  agent       Agent?        @relation(fields: [agentId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId])
+  @@index([agentId])
+}
+
+enum ContextStatus {
+  DISTILLING
+  READY
 }
 
 enum SourceKind {
@@ -184,8 +196,8 @@ model Agent {
   guardrails      Json
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
-  campaigns       Campaign[]
-  businessContext BusinessContext?
+  campaigns        Campaign[]
+  businessContexts BusinessContext[]
 
   @@index([workspaceId])
 }

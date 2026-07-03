@@ -32,7 +32,10 @@ export interface ExecuteOptions {
   maxSteps?: number;
 }
 
-function resolveBranch(node: BranchNode, event: MockedEvent | undefined): { matched: string; chosen: BranchCase } {
+function resolveBranch(
+  node: BranchNode,
+  event: MockedEvent | undefined,
+): { matched: string; chosen: BranchCase } {
   const intent = event?.intent;
   if (intent !== undefined) {
     const hit = node.cases.find((c) => c.when !== "default" && c.when.intent === intent);
@@ -68,7 +71,9 @@ export function execute(input: unknown, options: ExecuteOptions = {}): IntendedA
 
   while (current !== undefined) {
     if (++steps > maxSteps) {
-      throw new GraphExecutionError(`Exceeded maxSteps (${maxSteps}); possible cycle at "${current}"`);
+      throw new GraphExecutionError(
+        `Exceeded maxSteps (${maxSteps}); possible cycle at "${current}"`,
+      );
     }
     const node = nodesById.get(current);
     /* c8 ignore next */
@@ -76,7 +81,12 @@ export function execute(input: unknown, options: ExecuteOptions = {}): IntendedA
 
     switch (node.type) {
       case "step": {
-        actions.push({ kind: "send", nodeId: node.id, channel: node.channel, content: node.content });
+        actions.push({
+          kind: "send",
+          nodeId: node.id,
+          channel: node.channel,
+          content: node.content,
+        });
         if (node.pipelineOnSend) {
           actions.push({ kind: "pipeline_move", nodeId: node.id, stage: node.pipelineOnSend });
         }

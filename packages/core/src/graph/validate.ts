@@ -92,7 +92,10 @@ const graphSchema = z.object({
 export function validateGraph(input: unknown): CampaignGraph {
   const parsed = graphSchema.safeParse(input);
   if (!parsed.success) {
-    throw new GraphValidationError(`Invalid campaign graph: ${parsed.error.message}`, parsed.error.issues);
+    throw new GraphValidationError(
+      `Invalid campaign graph: ${parsed.error.message}`,
+      parsed.error.issues,
+    );
   }
   const graph = parsed.data as CampaignGraph;
 
@@ -111,7 +114,9 @@ export function validateGraph(input: unknown): CampaignGraph {
       throw new GraphValidationError(`edge from "${edge.from}" references an unknown node`);
     }
     if (!ids.has(edge.to)) {
-      throw new GraphValidationError(`edge to "${edge.to}" (from "${edge.from}") references an unknown node`);
+      throw new GraphValidationError(
+        `edge to "${edge.to}" (from "${edge.from}") references an unknown node`,
+      );
     }
   }
 
@@ -131,9 +136,11 @@ export function validateGraph(input: unknown): CampaignGraph {
     }
     const deg = outDegree.get(node.id) ?? 0;
     if (node.type === "end") {
-      if (deg !== 0) throw new GraphValidationError(`end node "${node.id}" must have no outgoing edge`);
+      if (deg !== 0)
+        throw new GraphValidationError(`end node "${node.id}" must have no outgoing edge`);
     } else if (node.type === "subcampaign") {
-      if (deg > 1) throw new GraphValidationError(`subcampaign "${node.id}" has more than one outgoing edge`);
+      if (deg > 1)
+        throw new GraphValidationError(`subcampaign "${node.id}" has more than one outgoing edge`);
     } else if (deg !== 1) {
       // step / delay / action
       throw new GraphValidationError(

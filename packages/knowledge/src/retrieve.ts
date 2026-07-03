@@ -10,8 +10,12 @@ export interface RetrievedChunk {
 }
 
 export interface RetrieveOptions {
-  /** Restrict to one agent's sources, workspace-level sources, or (default) all. */
-  scope?: { agentId: string } | "workspace" | "all";
+  /**
+   * Restrict to one agent's sources (+ workspace-level unless
+   * `includeWorkspace: false` — the P1.3 agent-layer distiller needs
+   * agent-only evidence), workspace-level sources, or (default) all.
+   */
+  scope?: { agentId: string; includeWorkspace?: boolean } | "workspace" | "all";
   k?: number;
 }
 
@@ -49,7 +53,15 @@ export async function retrieve(
           WHERE s."status" = 'READY' AND s."agentId" IS NULL
           ORDER BY c."embedding" <=> ${vector}::vector
           LIMIT ${k}`
-        : tx.$queryRaw`
+        : scope.includeWorkspace === false
+          ? tx.$queryRaw`
+          SELECT c."id", c."sourceId", c."content", 1 - (c."embedding" <=> ${vector}::vector) AS score
+          FROM "KnowledgeChunk" c
+          JOIN "KnowledgeSource" s ON s."id" = c."sourceId"
+          WHERE s."status" = 'READY' AND s."agentId" = ${scope.agentId}
+          ORDER BY c."embedding" <=> ${vector}::vector
+          LIMIT ${k}`
+          : tx.$queryRaw`
           SELECT c."id", c."sourceId", c."content", 1 - (c."embedding" <=> ${vector}::vector) AS score
           FROM "KnowledgeChunk" c
           JOIN "KnowledgeSource" s ON s."id" = c."sourceId"

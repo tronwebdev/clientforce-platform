@@ -22,6 +22,9 @@ export * from "./graph";
 // Knowledge REST DTOs (P1.2, A2 — zod schemas shared by api + web).
 export * from "./knowledge";
 
+// BusinessContext field registry + DTOs (P1.3, DEC-024/025).
+export * from "./context";
+
 /**
  * Narrow an arbitrary string to a branded {@link Id}. Real validation arrives
  * with the data model; this keeps the type honest without runtime cost.

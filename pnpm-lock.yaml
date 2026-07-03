@@ -47,6 +47,9 @@ importers:
       '@clientforce/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@clientforce/context':
+        specifier: workspace:*
+        version: link:../../packages/context
       '@clientforce/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -148,6 +151,12 @@ importers:
       '@clientforce/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@clientforce/context':
+        specifier: workspace:*
+        version: link:../../packages/context
+      '@clientforce/core':
+        specifier: workspace:*
+        version: link:../../packages/core
       '@clientforce/db':
         specifier: workspace:*
         version: link:../../packages/db
@@ -188,6 +197,34 @@ importers:
         version: 22.20.0
 
   packages/config: {}
+
+  packages/context:
+    dependencies:
+      '@clientforce/ai':
+        specifier: workspace:*
+        version: link:../ai
+      '@clientforce/core':
+        specifier: workspace:*
+        version: link:../core
+      '@clientforce/db':
+        specifier: workspace:*
+        version: link:../db
+      '@clientforce/knowledge':
+        specifier: workspace:*
+        version: link:../knowledge
+      bullmq:
+        specifier: ^5.34.0
+        version: 5.79.2
+      ioredis:
+        specifier: ^5.4.1
+        version: 5.11.1
+      zod:
+        specifier: ^3.24.1
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.5
+        version: 22.20.0
 
   packages/core:
     dependencies:

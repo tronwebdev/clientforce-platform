@@ -109,18 +109,31 @@ model KnowledgeChunk {
 model BusinessContext {     // Claude-distilled profile the planner reads
   id          String  @id @default(cuid())
   workspaceId String
-  agentId     String  @unique
-  offer       String
-  icp         Json                              // industries, titles, geos, size
-  proofPoints Json                              // case studies, stats
-  tone        String
-  constraints Json                              // claims to avoid, compliance notes
-  rawSummary  String                            // full distilled brief
+  agentId     String?                           // null = the WORKSPACE layer (Brand kit)
+  goal        String?                           // agent layer: the wizard goal key
+  status      ContextStatus @default(READY)     // DISTILLING | READY (A4 polling)
+  fields      Json    @default("{}")            // registry-keyed map, see amendment below
+  rawSummary  String  @default("")              // full distilled brief
+  distilledAt DateTime?
 }
+
+enum ContextStatus { DISTILLING READY }
 
 enum SourceKind { WEBSITE DOCUMENT CONNECTOR TEXT }
 enum IngestStatus { PENDING INGESTING READY FAILED }
 ```
+
+> **P1.3 amendment (PR #26, DEC-024/025):** `BusinessContext` is **two-layer** —
+> one row per agent plus one **workspace-layer** row (`agentId` null; canonical
+> home Settings → Brand kit). Uniqueness = partial unique indexes
+> (`UNIQUE(agentId) WHERE agentId IS NOT NULL`, `UNIQUE(workspaceId) WHERE
+agentId IS NULL` — Prisma can't express these, they live in the migration).
+> The legacy fixed columns are replaced by **`fields`**: a map keyed by the
+> owner-approved field registry (`packages/core`), each entry
+> `{ value: string, citations: chunkId[], source: "distilled" | "typed" | "ai_decides" }`.
+> Fills are **evidence-cited only** — a field without citations is a gap, never
+> filled from model priors. The planner reads workspace + agent layers merged
+> (agent wins); the gap checker evaluates both layers.
 
 ---
 
