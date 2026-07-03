@@ -10,9 +10,9 @@
 
 | Unit | Status |
 |---|---|
-| PR 0 · repo/doc corrections (handoff §D) | 🔨 PR (this one) |
-| C1 · shared UI components (`packages/ui`) | ⬜ |
-| P1.1 · LLM gateway (`packages/ai`) | ⬜ |
+| PR 0 · repo/doc corrections (handoff §D) | ✅ merged (PR #22) |
+| C1 · shared UI components (`packages/ui`) | ⬜ (next after P1.1) |
+| P1.1 · LLM gateway (`packages/ai`) | 🔨 PR (this one) |
 | P1.2 · Knowledge ingestion + RAG (`packages/knowledge`) | ⬜ |
 | P1.3 · Business Context distiller | ⬜ |
 | P1.4 · Planner → CampaignGraph | ⬜ |
@@ -59,7 +59,7 @@
 | Q-003 | BusinessContext preview surface — no prototype exists | NON-BLOCKING | P1 verifies BusinessContext via API/tests only; no invented UI | OPEN (needs a design batch) |
 | Q-004 | <1280px responsive treatment | NON-BLOCKING | Fluid 1280–1920, zero horizontal scroll at 1280; below 1280 unsupported this phase | OPEN (needs a design batch) |
 | Q-005 | `OWNER_CHECKLIST.md` is referenced by handoff §G but absent from the repo | NON-BLOCKING | I author it during P1.5, when SendGrid emits the real DNS records — written click-by-click for a non-technical owner | OPEN |
-| Q-006 | SendGrid domain-auth timing: §F says "start now, DNS lags"; owner's kickoff message says records at P1.5. Exact CNAMEs require SendGrid access (`SENDGRID-API-KEY`) | NON-BLOCKING | Wait for P1.5 per the owner's (later) message; if the key lands in Key Vault earlier, produce the SiteGround records the same day | OPEN (surfaced in kickoff reply) |
+| Q-006 | SendGrid domain-auth timing: §F says "start now, DNS lags"; owner's kickoff message says records at P1.5. Exact CNAMEs require SendGrid access (`SENDGRID-API-KEY`) | NON-BLOCKING | Wait for P1.5 per the owner's (later) message; if the key lands in Key Vault earlier, produce the SiteGround records the same day | **RESOLVED 2026-07-03** — owner reports domain authentication for `clientforce.io` is **verified in SendGrid**; no DNS wait at P1.5 |
 | Q-007 | Create GitHub issues for P1.1–P1.7, or work from `PHASE1_ISSUES.md` with plans as first PR comments? | NON-BLOCKING | Work from the doc; plans go on PRs (owner's kickoff instruction) — no issues unless requested | OPEN |
 
 ## Fidelity log
