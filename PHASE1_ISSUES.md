@@ -40,8 +40,15 @@
 
 **Goal:** turn a URL/doc into embedded, retrievable chunks (`DATA_MODEL.md §2`).
 
+> **Owner amendment (2026-07-03, PROGRESS DEC-023):** three **live** source kinds, not just URL —
+> **WEBSITE** (fetch + extract) · **DOCUMENT** (real upload: PDF/DOCX/TXT/MD → blob storage,
+> `uri` = blob path → extract → chunk → embed) · **TEXT** (pasted). **CONNECTOR** stays
+> designed-but-inert. An agent's knowledge base = any mix, one or many sources; sources also
+> exist workspace-level (`agentId` null). Every source drives `IngestStatus`
+> PENDING→INGESTING→READY/FAILED live.
+
 **Scope**
-- Ingest a `KnowledgeSource` (website fetch + readability extract; plain doc/text) → clean → **chunk** →
+- Ingest a `KnowledgeSource` (website fetch + readability extract; uploaded doc; pasted text) → clean → **chunk** →
   `embed()` via `packages/ai` → store `KnowledgeChunk` rows (embedding **1536-dim**).
 - Add the **hnsw index** on the vector column now that dims fit (resolves T1's `TODO(phase-1)`).
 - `retrieve(workspaceId, query, k)` → top-k chunks via cosine distance (tenant-scoped through `withTenant`).
@@ -49,6 +56,7 @@
 
 **Acceptance criteria**
 - [ ] Ingesting a sample page produces READY chunks with embeddings; FAILED on a dead URL.
+- [ ] Uploading a **PDF fixture** produces READY chunks that are retrievable (DEC-023).
 - [ ] `retrieve` returns relevant chunks for a query, scoped to the workspace (RLS round-trip test).
 - [ ] hnsw index exists and is used (EXPLAIN shows index scan).
 
