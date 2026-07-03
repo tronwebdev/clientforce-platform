@@ -11,8 +11,8 @@
 | Unit                                                              | Status               |
 | ----------------------------------------------------------------- | -------------------- |
 | PR 0 · repo/doc corrections (handoff §D)                          | ✅ merged (PR #22)   |
-| C1 · shared UI components (`packages/ui`)                         | ⬜ (next after P1.1) |
-| P1.1 · LLM gateway (`packages/ai`)                                | 🔨 PR (this one)     |
+| C1 · shared UI components (`packages/ui`)                         | 🔨 PR (this one)     |
+| P1.1 · LLM gateway (`packages/ai`)                                | ✅ merged (PR #23)   |
 | P1.2 · Knowledge ingestion + RAG (`packages/knowledge`)           | ⬜                   |
 | P1.3 · Business Context distiller                                 | ⬜                   |
 | P1.4 · Planner → CampaignGraph                                    | ⬜                   |
