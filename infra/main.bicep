@@ -80,6 +80,7 @@ var appDbUrlSecret = { name: 'app-database-url', keyVaultUrl: '${kvUri}secrets/A
 var redisUrlSecret = { name: 'redis-url', keyVaultUrl: '${kvUri}secrets/REDIS-URL', identity: uami.id }
 var authDevSecret = { name: 'auth-dev-secret', keyVaultUrl: '${kvUri}secrets/AUTH-DEV-SECRET', identity: uami.id }
 var openaiKeySecret = { name: 'openai-api-key', keyVaultUrl: '${kvUri}secrets/OPENAI-API-KEY', identity: uami.id }
+var anthropicKeySecret = { name: 'anthropic-api-key', keyVaultUrl: '${kvUri}secrets/ANTHROPIC-API-KEY', identity: uami.id }
 var storageConnSecret = { name: 'storage-connection-string', keyVaultUrl: '${kvUri}secrets/STORAGE-CONNECTION-STRING', identity: uami.id }
 
 // P1.2: api + worker both embed (retrieve/ingest) and both touch the uploads
@@ -99,7 +100,7 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
       activeRevisionsMode: 'Single'
       ingress: { external: true, targetPort: 3001, transport: 'auto', allowInsecure: false }
       registries: registries
-      secrets: concat([dbUrlSecret, appDbUrlSecret, authDevSecret, redisUrlSecret, openaiKeySecret], storageSecrets)
+      secrets: concat([dbUrlSecret, appDbUrlSecret, authDevSecret, redisUrlSecret, openaiKeySecret, anthropicKeySecret], storageSecrets)
     }
     template: {
       containers: [
@@ -114,6 +115,7 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'AUTH_DEV_SECRET', secretRef: 'auth-dev-secret' }
             { name: 'REDIS_URL', secretRef: 'redis-url' }
             { name: 'OPENAI_API_KEY', secretRef: 'openai-api-key' }
+            { name: 'ANTHROPIC_API_KEY', secretRef: 'anthropic-api-key' }
           ], storageEnv)
         }
       ]
@@ -133,7 +135,7 @@ resource worker 'Microsoft.App/containerApps@2024-03-01' = {
     configuration: {
       activeRevisionsMode: 'Single'
       registries: registries
-      secrets: concat([dbUrlSecret, appDbUrlSecret, redisUrlSecret, openaiKeySecret], storageSecrets)
+      secrets: concat([dbUrlSecret, appDbUrlSecret, redisUrlSecret, openaiKeySecret, anthropicKeySecret], storageSecrets)
     }
     template: {
       containers: [
@@ -146,6 +148,7 @@ resource worker 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'APP_DATABASE_URL', secretRef: 'app-database-url' }
             { name: 'REDIS_URL', secretRef: 'redis-url' }
             { name: 'OPENAI_API_KEY', secretRef: 'openai-api-key' }
+            { name: 'ANTHROPIC_API_KEY', secretRef: 'anthropic-api-key' }
           ], storageEnv)
         }
       ]

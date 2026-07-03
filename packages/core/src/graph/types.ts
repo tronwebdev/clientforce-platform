@@ -85,13 +85,7 @@ export interface EndNode {
   type: "end";
 }
 
-export type GraphNode =
-  | StepNode
-  | DelayNode
-  | BranchNode
-  | SubcampaignNode
-  | ActionNode
-  | EndNode;
+export type GraphNode = StepNode | DelayNode | BranchNode | SubcampaignNode | ActionNode | EndNode;
 
 export type GraphNodeType = GraphNode["type"];
 

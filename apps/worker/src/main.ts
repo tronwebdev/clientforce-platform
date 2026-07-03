@@ -1,20 +1,26 @@
 import { NativeConnection, Worker } from "@temporalio/worker";
-import { AiGateway, AiProviderError, OpenAiEmbeddingsProvider } from "@clientforce/ai";
+import {
+  AiGateway,
+  AiProviderError,
+  AnthropicProvider,
+  OpenAiEmbeddingsProvider,
+} from "@clientforce/ai";
 import { isConfigured } from "@clientforce/config";
-import { createAppPrismaClient } from "@clientforce/db";
+import { goalKeySchema, type GoalKey } from "@clientforce/core";
+import { createDistillQueue, createDistillWorker } from "@clientforce/context";
+import { createAppPrismaClient, withTenant, type PrismaClient } from "@clientforce/db";
 import { createIngestWorker, createUploadStoreFromEnv } from "@clientforce/knowledge";
 
 const TASK_QUEUE = "clientforce";
 
 /**
- * Worker entrypoint: BullMQ knowledge-ingest worker (P1.2, live when REDIS_URL
- * is set) + the Temporal worker (T0 stub until T4/P1.6 — connects only when
- * TEMPORAL_ADDRESS is set).
+ * Worker entrypoint: BullMQ knowledge-ingest + context-distill workers (P1.2/
+ * P1.3, live when REDIS_URL is set) + the Temporal worker (T0 stub until
+ * T4/P1.6 — connects only when TEMPORAL_ADDRESS is set).
  */
 
 /**
- * Ingestion needs embeddings only; completions stay unwired in this process
- * until P1.6 activities need them.
+ * Ingestion needs embeddings only; P1.6 activities wire their own completions.
  */
 function embeddingsOnlyGateway(): AiGateway {
   const notWired = async (): Promise<never> => {
@@ -30,27 +36,85 @@ function embeddingsOnlyGateway(): AiGateway {
   });
 }
 
-function startKnowledgeWorker(): void {
+function startKnowledgeWorkers(): void {
   if (!process.env.REDIS_URL) {
-    console.log("[worker] REDIS_URL not set — knowledge-ingest worker disabled");
+    console.log("[worker] REDIS_URL not set — knowledge-ingest/context-distill workers disabled");
     return;
   }
-  const worker = createIngestWorker({
-    prisma: createAppPrismaClient(),
+  const prisma = createAppPrismaClient();
+  const distillQueue = createDistillQueue();
+
+  const ingest = createIngestWorker({
+    prisma,
     gateway: embeddingsOnlyGateway(),
     store: createUploadStoreFromEnv(),
   });
-  worker.on("completed", (job) => {
+  ingest.on("completed", (job) => {
     console.log(`[worker] knowledge-ingest completed source=${job.data.sourceId}`);
+    // Knowledge changed → re-distill the source's layer (DEC-024 trigger);
+    // agent gaps covered by new WORKSPACE docs resolve through the layer merge
+    // without touching the agent rows.
+    void enqueueRedistill(prisma, distillQueue, job.data).catch((err: unknown) => {
+      console.error(`[worker] re-distill enqueue failed for ${job.data.sourceId}`, err);
+    });
   });
-  worker.on("failed", (job, err) => {
+  ingest.on("failed", (job, err) => {
     console.error(`[worker] knowledge-ingest failed source=${job?.data.sourceId}: ${err.message}`);
   });
   console.log("[worker] knowledge-ingest worker started (P1.2)");
+
+  // Distilling needs real completions; without the key the distill worker
+  // stays off (ingest is unaffected) and jobs wait in Redis.
+  if (!process.env.ANTHROPIC_API_KEY) {
+    console.log("[worker] ANTHROPIC_API_KEY not set — context-distill worker disabled");
+    return;
+  }
+  const distiller = createDistillWorker({
+    prisma,
+    gateway: new AiGateway({
+      provider: new AnthropicProvider(),
+      embeddings: new OpenAiEmbeddingsProvider(),
+    }),
+  });
+  distiller.on("completed", (job) => {
+    console.log(
+      `[worker] context-distill completed ws=${job.data.workspaceId} agent=${job.data.agentId ?? "workspace-layer"}`,
+    );
+  });
+  distiller.on("failed", (job, err) => {
+    console.error(`[worker] context-distill failed ws=${job?.data.workspaceId}: ${err.message}`);
+  });
+  console.log("[worker] context-distill worker started (P1.3)");
+}
+
+async function enqueueRedistill(
+  prisma: PrismaClient,
+  queue: ReturnType<typeof createDistillQueue>,
+  job: { sourceId: string; workspaceId: string },
+): Promise<void> {
+  const source = await withTenant(prisma, { workspaceId: job.workspaceId }, (tx) =>
+    tx.knowledgeSource.findUnique({ where: { id: job.sourceId } }),
+  );
+  if (!source || source.status !== "READY") return;
+  let goal: GoalKey | null = null;
+  let customObjective: string | undefined;
+  if (source.agentId) {
+    const agent = await withTenant(prisma, { workspaceId: job.workspaceId }, (tx) =>
+      tx.agent.findUnique({ where: { id: source.agentId! } }),
+    );
+    const parsed = goalKeySchema.safeParse(agent?.goal);
+    goal = parsed.success ? parsed.data : null;
+    customObjective = agent?.instructions ?? undefined;
+  }
+  await queue.add(
+    "distill",
+    { workspaceId: job.workspaceId, agentId: source.agentId ?? null, goal, customObjective },
+    { attempts: 3, backoff: { type: "exponential", delay: 5_000 }, removeOnComplete: true },
+  );
 }
 
 async function run(): Promise<void> {
-  startKnowledgeWorker();
+  startKnowledgeWorkers();
 
   const address = process.env.TEMPORAL_ADDRESS;
   if (!address) {
