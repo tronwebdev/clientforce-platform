@@ -275,3 +275,571 @@
     transition: none;
   }
 }
+
+/* ════ C1 composites (PHASE1_HANDOFF §C1) — specs ported from prototypes ════ */
+
+/* ── Overlay (shared by AppDrawer + Modal) ─────────────────────────────── */
+.cf-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--cf-scrim);
+  z-index: 60;
+  font-family: var(--cf-font-body);
+}
+
+.cf-overlay--center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--cf-space-24);
+}
+
+/* ── AppDrawer — right-slide panel (Campaign View/Create Agent/Settings) ── */
+.cf-drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  max-width: 100%;
+  background: var(--cf-color-bg);
+  display: flex;
+  flex-direction: column;
+  animation: cf-drawer-in 200ms ease;
+}
+
+.cf-drawer--460 {
+  width: 460px;
+  box-shadow: var(--cf-shadow-drawer-460);
+}
+
+.cf-drawer--480 {
+  width: 480px;
+  box-shadow: var(--cf-shadow-drawer-480);
+}
+
+.cf-drawer--500 {
+  width: 500px;
+  box-shadow: var(--cf-shadow-drawer-500);
+}
+
+@keyframes cf-drawer-in {
+  from {
+    transform: translateX(40px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.cf-drawer__header {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-12);
+  background: var(--cf-color-surface);
+  border-bottom: 1px solid var(--cf-color-hairline);
+  padding: 20px 22px;
+  box-shadow: var(--cf-shadow-card);
+  flex: none;
+}
+
+.cf-drawer__title {
+  font-family: var(--cf-font-display);
+  font-weight: 700;
+  font-size: 17px;
+  color: var(--cf-color-ink);
+}
+
+.cf-drawer__subtitle {
+  font-size: 12.5px;
+  color: var(--cf-color-muted);
+}
+
+.cf-drawer__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--cf-space-20) 22px;
+}
+
+.cf-overlay__close {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  border: 1px solid var(--cf-color-hairline);
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cf-color-muted);
+  cursor: pointer;
+  flex: none;
+  font-size: var(--cf-text-14);
+  line-height: 1;
+}
+
+.cf-overlay__close:focus-visible {
+  outline: 2px solid var(--cf-color-green-ink);
+  outline-offset: 2px;
+}
+
+/* ── Modal — centered card (volume/limits editor anatomy) ─────────────── */
+.cf-modal {
+  max-width: 100%;
+  background: var(--cf-color-bg);
+  border-radius: 18px;
+  box-shadow: var(--cf-shadow-modal-panel);
+  overflow: hidden;
+  animation: cf-modal-in 180ms ease;
+}
+
+.cf-modal--surface {
+  /* CSV-modal skin: white body, heavier shadow (Create Agent). */
+  background: var(--cf-color-surface);
+  box-shadow: var(--cf-shadow-modal);
+}
+
+@keyframes cf-modal-in {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.cf-modal__header {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-12);
+  padding: 18px 22px;
+  background: var(--cf-color-surface);
+  border-bottom: 1px solid var(--cf-color-hairline);
+}
+
+.cf-modal__title {
+  font-family: var(--cf-font-display);
+  font-weight: 700;
+  font-size: 17px;
+  color: var(--cf-color-ink);
+}
+
+.cf-modal__subtitle {
+  font-size: 12.5px;
+  color: var(--cf-color-muted);
+}
+
+.cf-modal__body {
+  padding: 18px 22px;
+}
+
+.cf-modal__footer {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-12);
+  border-top: 1px solid var(--cf-color-hairline);
+  background: var(--cf-color-surface);
+  padding: 14px 22px;
+}
+
+.cf-modal__footer > :last-child {
+  margin-left: auto;
+}
+
+/* ── DataTable — card/header/rows/checkbox/menu/footer (Contacts anatomy) ── */
+.cf-table-card {
+  background: var(--cf-color-surface);
+  border: 1px solid var(--cf-color-hairline);
+  border-radius: 18px;
+  box-shadow: var(--cf-shadow-table);
+  overflow: hidden;
+  font-family: var(--cf-font-body);
+}
+
+.cf-table__head,
+.cf-table__row {
+  display: grid;
+  grid-template-columns: var(--cf-table-grid);
+  align-items: center;
+  padding: 0 var(--cf-space-8);
+}
+
+.cf-table__head {
+  background: var(--cf-color-bg);
+  border-bottom: 1.5px solid var(--cf-color-hairline);
+}
+
+.cf-table__th {
+  padding: 13px var(--cf-space-12);
+  font-size: var(--cf-text-12);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--cf-color-muted-2);
+  text-align: left;
+  background: transparent;
+  border: none;
+}
+
+.cf-table__th--sortable {
+  cursor: pointer;
+}
+
+.cf-table__th--sortable:focus-visible {
+  outline: 2px solid var(--cf-color-green-ink);
+  outline-offset: -2px;
+}
+
+.cf-table__sort {
+  color: var(--cf-color-green-ink);
+}
+
+.cf-table__row {
+  border-top: 1px solid var(--cf-color-line-soft);
+  cursor: pointer;
+}
+
+.cf-table__row:hover {
+  background: var(--cf-color-row-hover);
+}
+
+.cf-table__row--selected {
+  background: var(--cf-color-bulk-bg);
+}
+
+.cf-table__cell {
+  padding: 11px var(--cf-space-12);
+  font-size: var(--cf-text-14);
+  color: var(--cf-color-ink);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cf-checkbox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--cf-color-hairline);
+  border-radius: 5px;
+  background: var(--cf-color-surface);
+  color: var(--cf-color-surface);
+  font-size: var(--cf-text-11);
+  cursor: pointer;
+  padding: 0;
+}
+
+.cf-checkbox--checked,
+.cf-checkbox--mixed {
+  background: var(--cf-color-green-ink);
+  border-color: var(--cf-color-green-ink);
+}
+
+.cf-checkbox:focus-visible {
+  outline: 2px solid var(--cf-color-green-ink);
+  outline-offset: 2px;
+}
+
+.cf-table__checkcell {
+  padding: 13px var(--cf-space-12);
+}
+
+.cf-table__menu {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cf-color-muted);
+  font-size: var(--cf-text-18);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.cf-table__menu:hover {
+  background: var(--cf-color-line-soft);
+}
+
+.cf-table__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cf-space-16);
+  padding: 13px var(--cf-space-20);
+  border-top: 1px solid var(--cf-color-hairline);
+  background: var(--cf-color-bg);
+  font-size: var(--cf-text-13);
+  color: var(--cf-color-muted-3);
+}
+
+/* ── SegmentTabs — Contacts segment row ───────────────────────────────── */
+.cf-segments {
+  display: flex;
+  gap: var(--cf-space-4);
+  border-bottom: 1px solid var(--cf-color-hairline);
+  overflow-x: auto;
+  font-family: var(--cf-font-body);
+}
+
+.cf-segment {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-8);
+  font-size: var(--cf-text-14);
+  font-weight: 500;
+  color: var(--cf-color-muted-2);
+  padding: 11px 15px;
+  border: none;
+  background: transparent;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  flex: none;
+}
+
+.cf-segment--active {
+  font-weight: 700;
+  color: var(--cf-color-ink);
+  border-bottom-color: var(--cf-color-green);
+}
+
+.cf-segment:focus-visible {
+  outline: 2px solid var(--cf-color-green-ink);
+  outline-offset: -2px;
+}
+
+.cf-segment__count {
+  font-size: var(--cf-text-12);
+  font-weight: 700;
+  color: var(--cf-color-muted-2);
+  background: var(--cf-color-line-soft);
+  border-radius: var(--cf-radius-pill);
+  padding: 1px 8px;
+}
+
+.cf-segment--active .cf-segment__count {
+  color: var(--cf-color-green-700);
+  background: var(--cf-color-green-soft-bg);
+}
+
+/* ── BulkBar — selection action bar (Contacts) ────────────────────────── */
+.cf-bulkbar {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-space-16);
+  background: var(--cf-color-bulk-bg);
+  border: 1px solid var(--cf-color-bulk-border);
+  border-radius: var(--cf-radius-lg);
+  padding: 10px var(--cf-space-16);
+  font-family: var(--cf-font-body);
+}
+
+.cf-bulkbar__count {
+  font-size: var(--cf-text-14);
+  font-weight: 700;
+  color: var(--cf-color-ink);
+}
+
+.cf-bulkbar__clear {
+  font-size: var(--cf-text-13);
+  font-weight: 600;
+  color: var(--cf-color-green-ink);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.cf-bulkbar__actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.cf-bulkbar__action {
+  font-size: var(--cf-text-13);
+  font-weight: 600;
+  color: var(--cf-color-ink);
+  background: var(--cf-color-surface);
+  border: 1px solid var(--cf-color-hairline);
+  border-radius: 10px;
+  padding: var(--cf-space-8) 14px;
+  cursor: pointer;
+}
+
+.cf-bulkbar__action--danger {
+  color: var(--cf-color-danger);
+  border-color: var(--cf-color-danger-border);
+}
+
+.cf-bulkbar__action:focus-visible,
+.cf-bulkbar__clear:focus-visible {
+  outline: 2px solid var(--cf-color-green-ink);
+  outline-offset: 2px;
+}
+
+/* ── ChannelChip — channel label / icon square (Campaign View) ────────── */
+.cf-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cf-space-4);
+  font-family: var(--cf-font-body);
+  font-size: var(--cf-text-12);
+  font-weight: 700;
+  border-radius: var(--cf-radius-sm);
+  padding: 3px 10px;
+}
+
+.cf-chip--icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  padding: 0;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  flex: none;
+}
+
+.cf-chip--email {
+  background: var(--cf-chip-email-bg);
+  color: var(--cf-color-green-ink);
+}
+
+.cf-chip--sms {
+  background: var(--cf-chip-sms-bg);
+  color: var(--cf-color-teal-ink);
+}
+
+.cf-chip--whatsapp {
+  background: var(--cf-chip-whatsapp-bg);
+  color: var(--cf-chip-whatsapp-fg);
+}
+
+.cf-chip--voice {
+  background: var(--cf-chip-voice-bg);
+  color: var(--cf-color-ink);
+}
+
+/* ── Stepper — 26px round ± in a pill track (volume modal) ────────────── */
+.cf-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--cf-color-bg);
+  border: 1px solid var(--cf-color-hairline);
+  border-radius: var(--cf-radius-pill);
+  padding: var(--cf-space-4) 6px;
+  font-family: var(--cf-font-body);
+  flex: none;
+}
+
+.cf-stepper__btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--cf-color-surface);
+  border: 1px solid var(--cf-color-hairline);
+  color: var(--cf-color-muted-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--cf-text-16);
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+}
+
+.cf-stepper__btn:disabled {
+  color: var(--cf-color-hairline);
+  cursor: not-allowed;
+}
+
+.cf-stepper__btn:focus-visible {
+  outline: 2px solid var(--cf-color-green-ink);
+  outline-offset: 2px;
+}
+
+.cf-stepper__value {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--cf-color-ink);
+  min-width: 46px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Skeleton — checkpoints §0 convention (no prototype anchor exists) ── */
+.cf-skeleton {
+  display: block;
+  background: linear-gradient(
+    90deg,
+    var(--cf-color-line-soft) 25%,
+    var(--cf-color-hairline) 50%,
+    var(--cf-color-line-soft) 75%
+  );
+  background-size: 200% 100%;
+  border-radius: var(--cf-radius-sm);
+  animation: cf-shimmer 1.4s ease infinite;
+}
+
+@keyframes cf-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* ── EmptyState — centered glyph/title/body/actions (Contacts/Agents List) ── */
+.cf-empty {
+  padding: 60px var(--cf-space-20);
+  text-align: center;
+  font-family: var(--cf-font-body);
+}
+
+.cf-empty__glyph {
+  font-size: 30px;
+  margin-bottom: var(--cf-space-8);
+}
+
+.cf-empty__title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--cf-color-ink);
+  margin-bottom: 3px;
+}
+
+.cf-empty__body {
+  font-size: var(--cf-text-13);
+  color: var(--cf-color-muted);
+  margin-bottom: 14px;
+}
+
+.cf-empty__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cf-drawer,
+  .cf-modal {
+    animation: none;
+  }
+
+  .cf-skeleton {
+    animation: none;
+    background: var(--cf-color-line-soft);
+  }
+}
