@@ -19,6 +19,9 @@ export const CORE_PACKAGE = "@clientforce/core";
 // CampaignGraph types, validator, and executor (DATA_MODEL.md §3.1).
 export * from "./graph";
 
+// Knowledge REST DTOs (P1.2, A2 — zod schemas shared by api + web).
+export * from "./knowledge";
+
 /**
  * Narrow an arbitrary string to a branded {@link Id}. Real validation arrives
  * with the data model; this keeps the type honest without runtime cost.

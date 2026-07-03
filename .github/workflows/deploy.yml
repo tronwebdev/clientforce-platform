@@ -72,6 +72,15 @@ jobs:
       # ── Deploy the app layer (creates/updates apps, identity, RBAC, job) ──
       - name: Deploy Bicep
         run: |
+          # P1.2: the storage secret is owner-provisioned; probe the vault so the
+          # template only references it once it exists (a dangling secretRef
+          # would fail the whole deploy).
+          if az keyvault secret list --vault-name "$KEY_VAULT_NAME" --query "[].name" -o tsv | grep -qxF "STORAGE-CONNECTION-STRING"; then
+            storage=true
+          else
+            storage=false
+            echo "STORAGE-CONNECTION-STRING not in Key Vault yet — deploying without DOCUMENT upload storage."
+          fi
           az deployment group create \
             --resource-group "$RG" \
             --template-file infra/main.bicep \
@@ -81,7 +90,8 @@ jobs:
               keyVaultName="$KEY_VAULT_NAME" \
               acrName="$ACR_NAME" \
               acrLoginServer="$ACR_LOGIN_SERVER" \
-              imageTag="$IMAGE_TAG"
+              imageTag="$IMAGE_TAG" \
+              storageSecretAvailable="$storage"
 
       # ── Expose the deployed web FQDN for the e2e job ──
       - name: Resolve web FQDN

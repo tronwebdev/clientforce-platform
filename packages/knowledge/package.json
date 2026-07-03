@@ -1,0 +1,35 @@
+{
+  "name": "@clientforce/knowledge",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "@azure/storage-blob": "^12.26.0",
+    "@clientforce/ai": "workspace:*",
+    "@clientforce/db": "workspace:*",
+    "bullmq": "^5.34.0",
+    "ioredis": "^5.4.1",
+    "linkedom": "^0.18.6",
+    "mammoth": "^1.8.0",
+    "pdf-parse": "^1.1.1",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "@types/pdf-parse": "^1.1.4"
+  }
+}
