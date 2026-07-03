@@ -81,6 +81,19 @@ async function main(): Promise<void> {
       );
     }
     console.log(`resolved ${report.resolved}/${report.total} · launchReady=${report.launchReady}`);
+
+    // §G gate: the proof FAILS unless the distilled context carries at least
+    // two cited fields traceable to the ingested pages — a green run must
+    // mean a real, evidence-grounded distillation.
+    const cited = Object.entries(fields).filter(
+      ([, e]) => e.source === "distilled" && e.citations.length > 0,
+    );
+    if (cited.length < 2 || !row.rawSummary.trim()) {
+      throw new Error(
+        `Proof failed the §G gate: ${cited.length} cited fields (need ≥2), rawSummary ${row.rawSummary.trim() ? "present" : "EMPTY"}`,
+      );
+    }
+    console.log(`\n§G gate passed: ${cited.length} evidence-cited fields distilled.`);
     console.log("\n=== END LIVE PROOF ===");
   } finally {
     await owner.agency.delete({ where: { id: agency.id } }).catch(() => {});

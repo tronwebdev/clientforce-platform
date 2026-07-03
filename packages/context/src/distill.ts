@@ -38,18 +38,23 @@ export interface ProposedAsk {
 
 const EVIDENCE_PER_FIELD = 4;
 const MAX_EVIDENCE_CHUNKS = 30;
+// The full registry × short values + summary comfortably exceeds the classify
+// route's 1024-token default — a truncated forced-tool call comes back as a
+// partial/empty input, so the request carries its own output budget.
+const DISTILL_MAX_TOKENS = 4096;
 
+// `fields` and `rawSummary` are REQUIRED (no defaults): a truncated tool call
+// must fail validation and take the gateway's repair path — never silently
+// distill to nothing.
 const distillOutputSchema = z.object({
-  fields: z
-    .array(
-      z.object({
-        key: z.string(),
-        value: z.string().min(1),
-        citations: z.array(z.string()).min(1),
-      }),
-    )
-    .default([]),
-  rawSummary: z.string().default(""),
+  fields: z.array(
+    z.object({
+      key: z.string(),
+      value: z.string().min(1),
+      citations: z.array(z.string()).min(1),
+    }),
+  ),
+  rawSummary: z.string(),
   proposedAsks: z.array(z.string()).default([]),
 });
 
@@ -94,6 +99,7 @@ export async function distill(deps: DistillDeps, target: DistillTarget): Promise
         "classify",
         {
           system: DISTILL_SYSTEM,
+          maxTokens: DISTILL_MAX_TOKENS,
           prompt: renderDistillPrompt({
             goal: goalLine(goal, target.customObjective),
             fields: keys.map((k) => `- ${k} — ${CONTEXT_FIELD_META[k].hint}`).join("\n"),
