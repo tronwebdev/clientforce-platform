@@ -23,5 +23,30 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    // P1.1 acceptance: no package other than packages/ai may touch the model
+    // SDKs — everything goes through the @clientforce/ai gateway.
+    files: ["**/*.{ts,tsx,js,mjs}"],
+    ignores: ["packages/ai/**"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "@anthropic-ai/sdk",
+              message:
+                "Import the gateway from @clientforce/ai instead — direct SDK use is restricted to packages/ai (PHASE1_ISSUES P1.1).",
+            },
+            {
+              name: "openai",
+              message:
+                "Use @clientforce/ai embed()/gateway instead — provider SDKs are restricted to packages/ai (PHASE1_ISSUES P1.1).",
+            },
+          ],
+        },
+      ],
+    },
+  },
   prettier,
 );
