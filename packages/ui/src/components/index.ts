@@ -14,3 +14,4 @@ export * from "./ChannelChip";
 export * from "./Stepper";
 export * from "./Skeleton";
 export * from "./EmptyState";
+export * from "./StatusPill";

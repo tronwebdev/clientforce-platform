@@ -9,6 +9,7 @@ import {
   Modal,
   SegmentTabs,
   Skeleton,
+  StatusPill,
   Stepper,
   type DataTableColumn,
 } from "../src";
@@ -181,14 +182,29 @@ describe("Skeleton + EmptyState", () => {
   it("renders shimmer with dimensions and empty-state kinds", () => {
     expect(renderToStaticMarkup(<Skeleton width={120} height={12} />)).toContain("cf-skeleton");
     const filtered = renderToStaticMarkup(
-      <EmptyState
-        kind="filtered"
-        glyph="🔍"
-        title="No contacts match"
-        body="Try clearing filters."
-      />,
+      <EmptyState kind="filtered" title="No contacts match" body="Try clearing filters." />,
     );
     expect(filtered).toContain('data-kind="filtered"');
     expect(filtered).toContain("No contacts match");
+    expect(filtered).toContain("cf-empty__tile"); // lucide tile, never emoji
+    expect(filtered).toContain("<svg");
+    // true-empty defaults to the sparkles tile
+    const empty = renderToStaticMarkup(<EmptyState title="No agents yet" />);
+    expect(empty).toContain('data-kind="empty"');
+    expect(empty).toContain("cf-empty__tile");
+  });
+});
+
+describe("StatusPill", () => {
+  it("ships the status color vocabulary once, keyed by status", () => {
+    const html = renderToStaticMarkup(<StatusPill status="replied" />);
+    expect(html).toContain("cf-status--replied");
+    expect(html).toContain("Replied");
+    expect(renderToStaticMarkup(<StatusPill status="unsubscribed" />)).toContain(
+      "cf-status--unsubscribed",
+    );
+    expect(renderToStaticMarkup(<StatusPill status="booked" label="Meeting booked" />)).toContain(
+      "Meeting booked",
+    );
   });
 });

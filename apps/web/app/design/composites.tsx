@@ -12,7 +12,9 @@ import {
   Pill,
   SegmentTabs,
   Skeleton,
+  StatusPill,
   Stepper,
+  type ContactStatus,
   type DataTableColumn,
   type DrawerWidth,
 } from "@clientforce/ui";
@@ -89,7 +91,7 @@ const columns: Array<DataTableColumn<DemoRow>> = [
     key: "status",
     header: "Status",
     sortable: true,
-    cell: (r) => <Pill tone={r.status === "Booked" ? "success" : "neutral"}>{r.status}</Pill>,
+    cell: (r) => <StatusPill status={r.status.toLowerCase() as ContactStatus} />,
   },
 ];
 
@@ -211,10 +213,20 @@ export function CompositesDemo() {
       <section style={section}>
         <span style={label}>DataTable (default · loading · empty · error)</span>
         <div style={row}>
+          {/* demo harness only — active = ink fill, never the gradient */}
           {(["default", "loading", "empty", "error"] as const).map((s) => (
             <Button
               key={s}
-              variant={tableState === s ? "primary" : "secondary"}
+              variant="secondary"
+              style={
+                tableState === s
+                  ? {
+                      background: "var(--cf-color-ink)",
+                      color: "var(--cf-color-surface)",
+                      borderColor: "var(--cf-color-ink)",
+                    }
+                  : undefined
+              }
               data-testid={`table-${s}`}
               onClick={() => setTableState(s)}
             >
@@ -253,7 +265,7 @@ export function CompositesDemo() {
           error={
             tableState === "error" ? (
               <EmptyState
-                glyph="⚠"
+                kind="filtered"
                 title="Couldn't load contacts"
                 body="Something went wrong on our side."
                 actions={<Button variant="secondary">Retry</Button>}
@@ -263,15 +275,9 @@ export function CompositesDemo() {
           empty={
             <EmptyState
               kind="filtered"
-              glyph="🔍"
               title="No contacts match"
               body="Try clearing filters, or find fresh leads to add."
-              actions={
-                <>
-                  <Button variant="secondary">Reset filters</Button>
-                  <Button variant="primary">Find leads</Button>
-                </>
-              }
+              actions={<Button variant="secondary">Reset filters</Button>}
             />
           }
           footer={<span>Showing 1–3 of 3</span>}
@@ -357,7 +363,6 @@ export function CompositesDemo() {
             }}
           >
             <EmptyState
-              glyph="✨"
               title="No agents yet"
               body="Create your first agent to start booking meetings."
               actions={<Button variant="primary">New agent</Button>}
@@ -372,7 +377,6 @@ export function CompositesDemo() {
           >
             <EmptyState
               kind="filtered"
-              glyph="🔍"
               title="No contacts match"
               body="Try clearing filters, or find fresh leads to add."
               actions={<Button variant="secondary">Reset filters</Button>}

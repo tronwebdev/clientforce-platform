@@ -69,6 +69,24 @@
   --cf-chip-whatsapp-bg: rgba(208, 245, 107, 0.5);
   --cf-chip-whatsapp-fg: #6b7a1f;
   --cf-chip-voice-bg: #ece7dc;
+  /* Empty-state icon tile (Agents List `allEmpty`, verbatim) */
+  --cf-gradient-empty-tile: linear-gradient(
+    135deg,
+    rgba(54, 215, 237, 0.18),
+    rgba(53, 232, 52, 0.18) 55%,
+    rgba(208, 245, 107, 0.3)
+  );
+  /* Status-pill vocabulary (Contacts renderVals `ST` map, verbatim) */
+  --cf-status-new-bg: #f2eee4;
+  --cf-status-new-fg: #8a7f6b;
+  --cf-status-replied-bg: rgba(54, 215, 237, 0.16);
+  --cf-status-replied-fg: #1192a6;
+  --cf-status-qualified-bg: rgba(53, 232, 52, 0.14);
+  --cf-status-qualified-fg: #16a82a;
+  --cf-status-booked-bg: #d7f5dd;
+  --cf-status-booked-fg: #0f7a28;
+  --cf-status-unsubscribed-bg: rgba(224, 121, 107, 0.16);
+  --cf-status-unsubscribed-fg: #c9543f;
 
   /* §5 Spacing (4px ramp) */
   --cf-space-4: 4px;
