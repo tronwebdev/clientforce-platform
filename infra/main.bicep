@@ -81,6 +81,8 @@ var redisUrlSecret = { name: 'redis-url', keyVaultUrl: '${kvUri}secrets/REDIS-UR
 var authDevSecret = { name: 'auth-dev-secret', keyVaultUrl: '${kvUri}secrets/AUTH-DEV-SECRET', identity: uami.id }
 var openaiKeySecret = { name: 'openai-api-key', keyVaultUrl: '${kvUri}secrets/OPENAI-API-KEY', identity: uami.id }
 var anthropicKeySecret = { name: 'anthropic-api-key', keyVaultUrl: '${kvUri}secrets/ANTHROPIC-API-KEY', identity: uami.id }
+var sendgridKeySecret = { name: 'sendgrid-api-key', keyVaultUrl: '${kvUri}secrets/SENDGRID-API-KEY', identity: uami.id }
+var fieldEncKeySecret = { name: 'field-encryption-key', keyVaultUrl: '${kvUri}secrets/FIELD-ENCRYPTION-KEY', identity: uami.id }
 var storageConnSecret = { name: 'storage-connection-string', keyVaultUrl: '${kvUri}secrets/STORAGE-CONNECTION-STRING', identity: uami.id }
 
 // P1.2: api + worker both embed (retrieve/ingest) and both touch the uploads
@@ -100,7 +102,7 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
       activeRevisionsMode: 'Single'
       ingress: { external: true, targetPort: 3001, transport: 'auto', allowInsecure: false }
       registries: registries
-      secrets: concat([dbUrlSecret, appDbUrlSecret, authDevSecret, redisUrlSecret, openaiKeySecret, anthropicKeySecret], storageSecrets)
+      secrets: concat([dbUrlSecret, appDbUrlSecret, authDevSecret, redisUrlSecret, openaiKeySecret, anthropicKeySecret, sendgridKeySecret, fieldEncKeySecret], storageSecrets)
     }
     template: {
       containers: [
@@ -116,6 +118,11 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'REDIS_URL', secretRef: 'redis-url' }
             { name: 'OPENAI_API_KEY', secretRef: 'openai-api-key' }
             { name: 'ANTHROPIC_API_KEY', secretRef: 'anthropic-api-key' }
+            { name: 'SENDGRID_API_KEY', secretRef: 'sendgrid-api-key' }
+            { name: 'FIELD_ENCRYPTION_KEY', secretRef: 'field-encryption-key' }
+            // §G phase rule: allow-listed test sends only; sandbox until P1.8.
+            { name: 'CHANNELS_ALLOWLIST', value: 'tronwebng@gmail.com' }
+            { name: 'CHANNELS_SANDBOX', value: 'true' }
           ], storageEnv)
         }
       ]
@@ -135,7 +142,7 @@ resource worker 'Microsoft.App/containerApps@2024-03-01' = {
     configuration: {
       activeRevisionsMode: 'Single'
       registries: registries
-      secrets: concat([dbUrlSecret, appDbUrlSecret, redisUrlSecret, openaiKeySecret, anthropicKeySecret], storageSecrets)
+      secrets: concat([dbUrlSecret, appDbUrlSecret, redisUrlSecret, openaiKeySecret, anthropicKeySecret, sendgridKeySecret, fieldEncKeySecret], storageSecrets)
     }
     template: {
       containers: [
@@ -149,6 +156,10 @@ resource worker 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'REDIS_URL', secretRef: 'redis-url' }
             { name: 'OPENAI_API_KEY', secretRef: 'openai-api-key' }
             { name: 'ANTHROPIC_API_KEY', secretRef: 'anthropic-api-key' }
+            { name: 'SENDGRID_API_KEY', secretRef: 'sendgrid-api-key' }
+            { name: 'FIELD_ENCRYPTION_KEY', secretRef: 'field-encryption-key' }
+            { name: 'CHANNELS_ALLOWLIST', value: 'tronwebng@gmail.com' }
+            { name: 'CHANNELS_SANDBOX', value: 'true' }
           ], storageEnv)
         }
       ]

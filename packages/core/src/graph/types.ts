@@ -27,6 +27,13 @@ export interface StepContent {
   template?: string;
   buttons?: string[];
   voice?: VoiceContent;
+  /**
+   * Email: this step continues the thread of the prior send (owner rule 3,
+   * 2026-07-04). The ADAPTER enforces the semantics — In-Reply-To/References
+   * to the prior providerMessageId, subject inherited; a "Re:"/"Fwd:" prefix
+   * is only ever emitted on a real thread.
+   */
+  threaded?: boolean;
 }
 
 /** A channel send. */

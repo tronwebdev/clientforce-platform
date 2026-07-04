@@ -28,6 +28,10 @@ export * from "./context";
 // Planner REST DTOs (P1.4).
 export * from "./planner";
 
+// Guardrails schema (P1.5, A8) + sender DTOs.
+export * from "./guardrails";
+export * from "./senders";
+
 /**
  * Narrow an arbitrary string to a branded {@link Id}. Real validation arrives
  * with the data model; this keeps the type honest without runtime cost.

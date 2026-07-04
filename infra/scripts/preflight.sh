@@ -13,7 +13,7 @@ az containerapp env show --name "$CONTAINER_APPS_ENV" --resource-group "$RG" -o 
 echo "Verifying Key Vault secrets consumed by the deploy ..."
 # Only the secrets the apps actually secretRef (main.bicep). Temporal/Clerk
 # secrets are provisioned for later phases and aren't required by T7.
-required=(DATABASE-URL APP-DATABASE-URL REDIS-URL AUTH-DEV-SECRET OPENAI-API-KEY ANTHROPIC-API-KEY)
+required=(DATABASE-URL APP-DATABASE-URL REDIS-URL AUTH-DEV-SECRET OPENAI-API-KEY ANTHROPIC-API-KEY SENDGRID-API-KEY FIELD-ENCRYPTION-KEY)
 present="$(az keyvault secret list --vault-name "$KEY_VAULT_NAME" --query "[].name" -o tsv)"
 
 missing=0

@@ -21,6 +21,7 @@ const stepContentSchema = z.object({
   subject: z.string().optional(),
   body: z.string().optional(),
   template: z.string().optional(),
+  threaded: z.boolean().optional(),
   buttons: z.array(z.string()).optional(),
   voice: z
     .object({
