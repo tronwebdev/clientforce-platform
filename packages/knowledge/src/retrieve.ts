@@ -7,6 +7,11 @@ export interface RetrievedChunk {
   content: string;
   /** Cosine similarity in [0,1] (1 = identical direction). */
   score: number;
+  // Source snapshot fields (DEC-028) — citation rendering needs label/type/
+  // locator without a second query; joined from KnowledgeSource.
+  sourceLabel: string;
+  sourceType: "WEBSITE" | "DOCUMENT" | "CONNECTOR" | "TEXT";
+  sourceUri: string | null;
 }
 
 export interface RetrieveOptions {
@@ -18,6 +23,14 @@ export interface RetrieveOptions {
   scope?: { agentId: string; includeWorkspace?: boolean } | "workspace" | "all";
   k?: number;
 }
+
+const SELECT = `
+  SELECT c."id", c."sourceId", c."content",
+         1 - (c."embedding" <=> $1::vector) AS score,
+         s."label" AS "sourceLabel", s."kind"::text AS "sourceType", s."uri" AS "sourceUri"
+  FROM "KnowledgeChunk" c
+  JOIN "KnowledgeSource" s ON s."id" = c."sourceId"
+  WHERE s."status" = 'READY'`;
 
 /**
  * Top-k cosine retrieval over the hnsw index, always through the RLS-subject
@@ -31,48 +44,38 @@ export async function retrieve(
   query: string,
   options: RetrieveOptions = {},
 ): Promise<RetrievedChunk[]> {
-  const k = options.k ?? 8;
+  // Clamped + floored — k is interpolated into the LIMIT clause.
+  const k = Math.max(1, Math.min(100, Math.floor(options.k ?? 8)));
   const [queryVector] = await gateway.embed([query]);
   const vector = `[${queryVector!.join(",")}]`;
 
-  return withTenant(prisma, { workspaceId }, async (tx) => {
-    const scope = options.scope ?? "all";
-    const rows = await (scope === "all"
-      ? tx.$queryRaw`
-          SELECT c."id", c."sourceId", c."content", 1 - (c."embedding" <=> ${vector}::vector) AS score
-          FROM "KnowledgeChunk" c
-          JOIN "KnowledgeSource" s ON s."id" = c."sourceId"
-          WHERE s."status" = 'READY'
-          ORDER BY c."embedding" <=> ${vector}::vector
-          LIMIT ${k}`
+  const scope = options.scope ?? "all";
+  const { filter, params } =
+    scope === "all"
+      ? { filter: "", params: [] as string[] }
       : scope === "workspace"
-        ? tx.$queryRaw`
-          SELECT c."id", c."sourceId", c."content", 1 - (c."embedding" <=> ${vector}::vector) AS score
-          FROM "KnowledgeChunk" c
-          JOIN "KnowledgeSource" s ON s."id" = c."sourceId"
-          WHERE s."status" = 'READY' AND s."agentId" IS NULL
-          ORDER BY c."embedding" <=> ${vector}::vector
-          LIMIT ${k}`
+        ? { filter: ` AND s."agentId" IS NULL`, params: [] as string[] }
         : scope.includeWorkspace === false
-          ? tx.$queryRaw`
-          SELECT c."id", c."sourceId", c."content", 1 - (c."embedding" <=> ${vector}::vector) AS score
-          FROM "KnowledgeChunk" c
-          JOIN "KnowledgeSource" s ON s."id" = c."sourceId"
-          WHERE s."status" = 'READY' AND s."agentId" = ${scope.agentId}
-          ORDER BY c."embedding" <=> ${vector}::vector
-          LIMIT ${k}`
-          : tx.$queryRaw`
-          SELECT c."id", c."sourceId", c."content", 1 - (c."embedding" <=> ${vector}::vector) AS score
-          FROM "KnowledgeChunk" c
-          JOIN "KnowledgeSource" s ON s."id" = c."sourceId"
-          WHERE s."status" = 'READY' AND (s."agentId" = ${scope.agentId} OR s."agentId" IS NULL)
-          ORDER BY c."embedding" <=> ${vector}::vector
-          LIMIT ${k}`);
-    return (rows as Array<RetrievedChunk & { score: unknown }>).map((r) => ({
+          ? { filter: ` AND s."agentId" = $2`, params: [scope.agentId] }
+          : { filter: ` AND (s."agentId" = $2 OR s."agentId" IS NULL)`, params: [scope.agentId] };
+  const sql = `${SELECT}${filter}
+  ORDER BY c."embedding" <=> $1::vector
+  LIMIT ${k}`;
+
+  return withTenant(prisma, { workspaceId }, async (tx) => {
+    const rows = await tx.$queryRawUnsafe<Array<RetrievedChunk & { score: unknown }>>(
+      sql,
+      vector,
+      ...params,
+    );
+    return rows.map((r) => ({
       id: r.id,
       sourceId: r.sourceId,
       content: r.content,
       score: Number(r.score),
+      sourceLabel: r.sourceLabel,
+      sourceType: r.sourceType,
+      sourceUri: r.sourceUri,
     }));
   });
 }

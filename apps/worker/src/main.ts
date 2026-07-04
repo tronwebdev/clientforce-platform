@@ -10,6 +10,7 @@ import { goalKeySchema, type GoalKey } from "@clientforce/core";
 import { createDistillQueue, createDistillWorker } from "@clientforce/context";
 import { createAppPrismaClient, withTenant, type PrismaClient } from "@clientforce/db";
 import { createIngestWorker, createUploadStoreFromEnv } from "@clientforce/knowledge";
+import { createPlanWorker } from "@clientforce/planner";
 
 const TASK_QUEUE = "clientforce";
 
@@ -69,13 +70,11 @@ function startKnowledgeWorkers(): void {
     console.log("[worker] ANTHROPIC_API_KEY not set — context-distill worker disabled");
     return;
   }
-  const distiller = createDistillWorker({
-    prisma,
-    gateway: new AiGateway({
-      provider: new AnthropicProvider(),
-      embeddings: new OpenAiEmbeddingsProvider(),
-    }),
+  const realGateway = new AiGateway({
+    provider: new AnthropicProvider(),
+    embeddings: new OpenAiEmbeddingsProvider(),
   });
+  const distiller = createDistillWorker({ prisma, gateway: realGateway });
   distiller.on("completed", (job) => {
     console.log(
       `[worker] context-distill completed ws=${job.data.workspaceId} agent=${job.data.agentId ?? "workspace-layer"}`,
@@ -85,6 +84,15 @@ function startKnowledgeWorkers(): void {
     console.error(`[worker] context-distill failed ws=${job?.data.workspaceId}: ${err.message}`);
   });
   console.log("[worker] context-distill worker started (P1.3)");
+
+  const planner = createPlanWorker({ prisma, gateway: realGateway });
+  planner.on("completed", (job) => {
+    console.log(`[worker] planner completed ws=${job.data.workspaceId} agent=${job.data.agentId}`);
+  });
+  planner.on("failed", (job, err) => {
+    console.error(`[worker] planner failed agent=${job?.data.agentId}: ${err.message}`);
+  });
+  console.log("[worker] planner worker started (P1.4)");
 }
 
 async function enqueueRedistill(

@@ -6,6 +6,7 @@ import {
   MAX_CUSTOM_GOAL_ASKS,
   recommendedFieldsFor,
   requiredFieldsFor,
+  type ContextCitation,
   type ContextFieldKey,
   type ContextFields,
   type GoalKey,
@@ -113,13 +114,18 @@ export async function distill(deps: DistillDeps, target: DistillTarget): Promise
         distillOutputSchema,
       );
 
-      const evidenceIds = new Set(evidence.map((c) => c.id));
+      const evidenceById = new Map(evidence.map((c) => [c.id, c]));
       for (const f of out.fields) {
         // Server-side grounding checks — the model's claim to citation is not
         // trusted: unknown keys, unrequested keys, or citations outside the
-        // evidence pack drop the fill (→ gap), never an error.
+        // evidence pack drop the fill (→ gap), never an error. Kept citations
+        // are persisted as SNAPSHOTS (DEC-028): label/type/locator/quote
+        // rendered from OUR evidence pack, never from model output.
         if (!keys.includes(f.key as ContextFieldKey)) continue;
-        const citations = [...new Set(f.citations)].filter((id) => evidenceIds.has(id));
+        const citations = [...new Set(f.citations)]
+          .map((id) => evidenceById.get(id))
+          .filter((c): c is NonNullable<typeof c> => Boolean(c))
+          .map((c) => citationSnapshot(c));
         if (citations.length === 0) continue;
         distilled[f.key] = { value: f.value, citations, source: "distilled" };
       }
@@ -212,6 +218,31 @@ async function upsertRow(
     }
     return tx.businessContext.create({ data: { workspaceId, agentId, goal, status } });
   });
+}
+
+const QUOTE_MAX = 280;
+
+/**
+ * The render-ready citation snapshot (DEC-028). `quote` is a verbatim,
+ * word-safe excerpt of the cited chunk taken here — a model-claimed quote is
+ * never trusted. Locator: WEBSITE → page URL · DOCUMENT → file path (page
+ * numbers deferred; the extractor flattens pages) · TEXT → label.
+ */
+function citationSnapshot(chunk: RetrievedChunk): ContextCitation {
+  let quote = chunk.content.slice(0, QUOTE_MAX);
+  if (chunk.content.length > QUOTE_MAX) {
+    const lastSpace = quote.lastIndexOf(" ");
+    if (lastSpace > QUOTE_MAX / 2) quote = quote.slice(0, lastSpace);
+    quote += " …";
+  }
+  return {
+    chunkId: chunk.id,
+    sourceId: chunk.sourceId,
+    sourceLabel: chunk.sourceLabel,
+    sourceType: chunk.sourceType,
+    locator: chunk.sourceType === "TEXT" ? chunk.sourceLabel : chunk.sourceUri,
+    quote,
+  };
 }
 
 export const parseFields = (v: unknown): ContextFields => {

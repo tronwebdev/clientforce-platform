@@ -1,0 +1,63 @@
+# P1.4 live verification (§G + DEC-015): ingest https://clientforce.io →
+# distill → PLAN with real completions; gates on ≥2 concrete site-traceable
+# facts in the planned step copy. Manual dispatch only — keys from Key Vault
+# via the same OIDC identity as deploys.
+name: planner-live-proof
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  TURBO_TELEMETRY_DISABLED: 1
+  DATABASE_URL: postgresql://postgres@localhost:5432/clientforce
+  APP_DATABASE_URL: postgresql://clientforce_app@localhost:5432/clientforce
+  KEY_VAULT_NAME: ${{ vars.KEY_VAULT_NAME }}
+
+jobs:
+  proof:
+    name: ingest · distill · plan · report
+    runs-on: ubuntu-latest
+    environment: staging
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: clientforce
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @clientforce/planner... build
+      - run: pnpm --filter @clientforce/db db:migrate
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Run live proof (keys read from Key Vault, masked)
+        run: |
+          set -euo pipefail
+          openai="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name OPENAI-API-KEY --query value -o tsv)"
+          anthropic="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name ANTHROPIC-API-KEY --query value -o tsv)"
+          echo "::add-mask::$openai"
+          echo "::add-mask::$anthropic"
+          OPENAI_API_KEY="$openai" ANTHROPIC_API_KEY="$anthropic" pnpm exec tsx packages/planner/scripts/live-proof.ts
