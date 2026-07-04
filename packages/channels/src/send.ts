@@ -112,7 +112,11 @@ export async function sendStep(deps: SendDeps, params: SendStepParams): Promise<
       )
     : null;
   if (prior?.providerMessageId) {
-    const priorId = asMessageId(prior.providerMessageId);
+    // Thread on the RFC Message-ID that was actually on the wire (persisted in
+    // meta since the P1.6 proof caught the conflation); pre-fix rows fall back
+    // to the provider id, which doubled as the RFC id in sandbox.
+    const priorMeta = (prior.meta ?? {}) as { rfcMessageId?: string };
+    const priorId = priorMeta.rfcMessageId ?? asMessageId(prior.providerMessageId);
     inReplyTo = priorId;
     references = [priorId];
     subject = withReplyPrefix(
@@ -150,7 +154,7 @@ export async function sendStep(deps: SendDeps, params: SendStepParams): Promise<
       "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
     },
   };
-  const { providerMessageId } = await transport.send(rendered, sender);
+  const { providerMessageId, rfcMessageId } = await transport.send(rendered, sender);
 
   // A6: persist AS RENDERED at send time.
   return withTenant(prisma, ctx, (tx) =>
@@ -171,6 +175,7 @@ export async function sendStep(deps: SendDeps, params: SendStepParams): Promise<
         meta: {
           senderId: params.senderId,
           threaded: Boolean(prior),
+          ...(rfcMessageId ? { rfcMessageId } : {}),
           ...(sanitized ? { sanitized: "stripped faux thread prefix (owner rule 3)" } : {}),
         },
       },

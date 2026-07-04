@@ -33,11 +33,16 @@ const DELAY_SCALE = 6 / 86_400;
 const DAY_MS = 6_000;
 
 class TimingTransport implements EmailSender {
-  readonly sent: Array<{ email: RenderedEmail; at: number; providerMessageId: string }> = [];
+  readonly sent: Array<{
+    email: RenderedEmail;
+    at: number;
+    providerMessageId: string;
+    rfcMessageId?: string;
+  }> = [];
   constructor(private readonly inner: EmailSender) {}
   async send(email: RenderedEmail, sender: SenderConnection) {
     const result = await this.inner.send(email, sender);
-    this.sent.push({ email, at: Date.now(), providerMessageId: result.providerMessageId });
+    this.sent.push({ email, at: Date.now(), ...result });
     return result;
   }
 }
@@ -222,8 +227,13 @@ async function main(): Promise<void> {
         throw new Error(`step-2 fired ${gap}ms after step-1 — the timer did not gate it`);
       stamp(`delay gate: step-2 came ${gap}ms after step-1 (scaled 1-day timer) ✓`);
 
-      if (second.email.inReplyTo !== first.providerMessageId)
-        throw new Error("step-2 In-Reply-To does not reference step-1 (owner rule 3)");
+      // Header-level identity: In-Reply-To must equal the RFC Message-ID that
+      // was on step-1's wire (NOT SendGrid's X-Message-Id — the conflation this
+      // gate caught in run 28719640378).
+      if (!first.rfcMessageId || second.email.inReplyTo !== first.rfcMessageId)
+        throw new Error(
+          `step-2 In-Reply-To (${second.email.inReplyTo}) does not reference step-1's RFC Message-ID (${first.rfcMessageId}) — owner rule 3`,
+        );
       if (!second.email.subject.startsWith("Re: ") || !second.email.subject.includes("Tronweb"))
         throw new Error(`step-2 subject did not inherit+prefix: "${second.email.subject}"`);
       stamp(`threading gate: "${second.email.subject}" In-Reply-To ${second.email.inReplyTo} ✓`);

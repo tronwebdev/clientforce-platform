@@ -178,6 +178,56 @@ describe.skipIf(!hasInfra)("sendStep boundary integration", () => {
     expect((followUp.meta as { threaded: boolean }).threaded).toBe(true);
   });
 
+  it("owner rule 3: threading uses the wire RFC Message-ID, never the provider's internal id", async () => {
+    // SendGrid-shaped transport: X-Message-Id (returned to webhooks) differs
+    // from the RFC Message-ID actually on the wire. In-Reply-To must use the
+    // wire id — the P1.6 live-proof header gate caught this conflation.
+    class SplitIdSender implements EmailSender {
+      sent: RenderedEmail[] = [];
+      private n = 0;
+      async send(email: RenderedEmail) {
+        this.sent.push(email);
+        const n = ++this.n;
+        return {
+          providerMessageId: `SGX-${n}-${suffix}`,
+          rfcMessageId: `<rfc-${n}-${suffix}@send.clientforce.io>`,
+        };
+      }
+    }
+    const split = new SplitIdSender();
+    const contact = await owner.contact.create({
+      data: {
+        workspaceId: ws,
+        source: "seed",
+        optOut: {},
+        tags: [],
+        email: `split-${suffix}@t.test`,
+        firstName: "Cy",
+        company: "SplitCo",
+      },
+    });
+    const first = await sendStep(
+      deps({ transport: split }),
+      params({ contactId: contact.id, stepNodeId: "s1" }),
+    );
+    expect(first.providerMessageId).toBe(`SGX-1-${suffix}`); // webhook correlation id, kept
+    expect((first.meta as { rfcMessageId?: string }).rfcMessageId).toBe(
+      `<rfc-1-${suffix}@send.clientforce.io>`,
+    );
+
+    await sendStep(
+      deps({ transport: split }),
+      params({
+        contactId: contact.id,
+        stepNodeId: "s2",
+        content: { subject: "ignored", body: "Bump {{firstName}} — {{senderName}}", threaded: true },
+      }),
+    );
+    const email = split.sent.at(-1)!;
+    expect(email.inReplyTo).toBe(`<rfc-1-${suffix}@send.clientforce.io>`);
+    expect(email.references).toEqual([`<rfc-1-${suffix}@send.clientforce.io>`]);
+  });
+
   it("owner rule 3: a faux-'Re:' on a fresh thread is stripped and audited, never emitted", async () => {
     const fresh = await owner.contact.create({
       data: {

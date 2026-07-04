@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { SenderConnection } from "@clientforce/db";
-import type { EmailSender, RenderedEmail } from "./types";
+import type { EmailSender, RenderedEmail, SendResult } from "./types";
 
 /**
  * CF_MANAGED (shared pool) — SendGrid v3 via fetch, platform key from Key
@@ -16,10 +16,7 @@ export class SendGridSender implements EmailSender {
     private readonly fetchImpl: typeof fetch = fetch,
   ) {}
 
-  async send(
-    email: RenderedEmail,
-    _sender: SenderConnection,
-  ): Promise<{ providerMessageId: string }> {
+  async send(email: RenderedEmail, _sender: SenderConnection): Promise<SendResult> {
     if (!this.apiKey) {
       throw new Error(
         "SENDGRID_API_KEY is not set. In deployed environments it resolves from Key Vault secret SENDGRID-API-KEY.",
@@ -50,14 +47,19 @@ export class SendGridSender implements EmailSender {
       const detail = await res.text().catch(() => "");
       throw new Error(`SendGrid send failed: HTTP ${res.status} ${detail.slice(0, 300)}`);
     }
-    return { providerMessageId: res.headers.get("x-message-id") ?? messageId };
+    // BOTH ids come back: X-Message-Id correlates webhook events (P1.7);
+    // the minted Message-ID is what In-Reply-To must reference (owner rule 3).
+    return {
+      providerMessageId: res.headers.get("x-message-id") ?? messageId,
+      rfcMessageId: messageId,
+    };
   }
 }
 
 /** Designed-but-inert tiers — same interface, explicit not-yet (issue P1.5). */
 export class NotImplementedSender implements EmailSender {
   constructor(private readonly tier: string) {}
-  async send(): Promise<{ providerMessageId: string }> {
+  async send(): Promise<SendResult> {
     throw new Error(
       `${this.tier} sending is designed but not yet implemented (P1.5 ships CF_MANAGED)`,
     );
