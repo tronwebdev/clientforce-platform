@@ -8,15 +8,23 @@
  */
 import { z } from "zod";
 
-/** Classified reply intent (attached by the Claude classifier — §5 rule). */
+/**
+ * Classified reply intent (attached by the Claude classifier — §5 rule).
+ *
+ * DEC-034: the labels ARE the prototype's Inbox category chips (`inboxCatDefs`
+ * in `Campaign View.dc.html` — `all` is a filter, not a label), plus
+ * `unsubscribe`, which never renders as a chip: an unsubscribe thread leaves
+ * the Inbox for Suppression. Classifier, catalog, and the P1.8 Inbox UI all
+ * share this one enum — do not fork it.
+ */
 export const IntentSchema = z.enum([
-  "interested",
-  "not_now",
-  "positive",
-  "negative",
-  "neutral",
-  "unsubscribe",
-  "unknown",
+  "interested", // buying signal
+  "booked", // explicitly booked / accepted a time
+  "replied", // generic reply, none of the sharper labels fit
+  "question", // asks something / needs info before moving
+  "not", // not interested (prototype chip "Not interested")
+  "ooo", // auto-reply / out-of-office (prototype chip "Auto-reply")
+  "unsubscribe", // demands removal — side effects, never a chip
 ]);
 export type Intent = z.infer<typeof IntentSchema>;
 
@@ -74,10 +82,11 @@ export const EVENT_SCHEMAS = {
   "proposal.paid.v1": z.object({ proposalId: z.string(), trackedLinkId: z.string(), amount: z.number().int() }),
 
   // ── Pipeline ───────────────────────────────────────────────────────────────
+  // `lead.replied` was removed from the canonical catalog (handoff A9 /
+  // DEC-018, aligned in P1.7): replies are channel events — `email.replied.v1`.
   "lead.enrolled.v1": z.object({ campaignId: z.string().optional() }),
   "lead.stage_changed.v1": z.object({ fromStage: z.string(), toStage: z.string() }),
   "lead.unsubscribed.v1": z.object({ channel: z.string().optional() }),
-  "lead.replied.v1": z.object({ intent: IntentSchema, fromStage: z.string().optional(), toStage: z.string().optional() }),
 
   // ── Billing ────────────────────────────────────────────────────────────────
   "payment.received.v1": z.object({ amount: z.number().int(), channel: z.string().optional() }),
@@ -100,7 +109,7 @@ export const EVENT_TYPES_LIST = Object.keys(EVENT_SCHEMAS) as EventType[];
 
 /**
  * Symbolic constants for ergonomic, refactor-safe references in producer code,
- * e.g. `EVENT_TYPES.LEAD_REPLIED`. Values are checked against `EventType`.
+ * e.g. `EVENT_TYPES.EMAIL_REPLIED`. Values are checked against `EventType`.
  */
 export const EVENT_TYPES = {
   EMAIL_SENT: "email.sent.v1",
@@ -133,7 +142,6 @@ export const EVENT_TYPES = {
   LEAD_ENROLLED: "lead.enrolled.v1",
   LEAD_STAGE_CHANGED: "lead.stage_changed.v1",
   LEAD_UNSUBSCRIBED: "lead.unsubscribed.v1",
-  LEAD_REPLIED: "lead.replied.v1",
   PAYMENT_RECEIVED: "payment.received.v1",
   CREDITS_CONSUMED: "credits.consumed.v1",
   CREDITS_LOW: "credits.low.v1",

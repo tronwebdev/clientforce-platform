@@ -19,10 +19,43 @@ export interface ConsumerHook {
 export const temporalSignalConsumer: ConsumerHook = {
   name: "temporal-signal",
   async handle(event: BusEvent): Promise<void> {
-    // TODO(T4+): signal the enrollment's Temporal workflow to branch.
+    // Inert default — apps/worker wires the real signaler via
+    // `createTemporalSignalConsumer` (P1.7). Kept as the DEFAULT_CONSUMERS
+    // entry so environments without Temporal stay no-op.
     void event;
   },
 };
+
+/**
+ * The REAL consumer #1 (P1.7): a `*.replied.v1` event with an enrollment wakes
+ * that enrollment's CampaignWorkflow — the P1.6 branch `condition()` resolves
+ * and routes on the classified intent. The signal function is injected (the
+ * events package stays dependency-free of the Temporal client); callers pass
+ * `signalEnrollmentReply` bound to a connected client. Signal failures are
+ * logged, not thrown — a missing/finished workflow must not dead-letter the
+ * event (the Event row is already persisted for the timeline either way).
+ */
+export function createTemporalSignalConsumer(
+  signal: (enrollmentId: string, intent: string) => Promise<void>,
+  log: (msg: string) => void = console.warn,
+): ConsumerHook {
+  return {
+    name: "temporal-signal",
+    async handle(event: BusEvent): Promise<void> {
+      if (!event.type.endsWith(".replied.v1") || !event.enrollmentId) return;
+      const intent = (event.payload as { intent?: string }).intent;
+      if (!intent) return;
+      try {
+        await signal(event.enrollmentId, intent);
+      } catch (err) {
+        log(
+          `[events] temporal-signal: could not signal enrollment ${event.enrollmentId} ` +
+            `(${err instanceof Error ? err.message : String(err)}) — event ${event.id} persisted regardless`,
+        );
+      }
+    },
+  };
+}
 
 export const automationsConsumer: ConsumerHook = {
   name: "automations",

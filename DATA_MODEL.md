@@ -206,7 +206,7 @@ A directed graph of typed nodes + conditional edges. **Validate every graph agai
       "on": "reply", // reply | open | click | call_outcome | no_response
       "cases": [
         { "when": { "intent": "interested" }, "goto": "sub:interested", "pipeline": "engaged" },
-        { "when": { "intent": "not_now" }, "goto": "d2" },
+        { "when": { "intent": "not" }, "goto": "d2" },
         { "when": "default", "goto": "n2" },
       ],
     },
@@ -391,6 +391,11 @@ model Event {
 > **Rule:** classify inbound replies (`*.replied.v1`) with Claude → attach `intent` to the payload
 > (which references `messageId`, never the body — bodies live on `Message`, §4.1) → the matching
 > enrollment's Temporal workflow receives it as a **signal** and branches.
+>
+> **Intent labels (P1.7 amendment, DEC-034):** the canonical set is the prototype's Inbox
+> category chips — `interested · booked · replied · question · not · ooo` — plus `unsubscribe`
+> (side-effect label, never a chip). One enum (`IntentSchema` in `packages/events`) shared by the
+> classifier, this catalog, branch cases, and the P1.8 Inbox UI.
 
 ---
 

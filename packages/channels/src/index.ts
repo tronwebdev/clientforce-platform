@@ -31,3 +31,29 @@ export {
   type RenderedEmail,
   type SendBlockReason,
 } from "./types";
+export {
+  resolveEventMessage,
+  toBusEvents,
+  type BusEventInput,
+} from "./webhooks";
+export {
+  INBOUND_CLASSIFY_QUEUE,
+  MalformedInboundError,
+  createClassifyQueue,
+  extractReferencedIds,
+  ingestInboundEmail,
+  normalizeInboundParse,
+  parseAddress,
+  resolveInboundThread,
+  type ClassifyJobData,
+  type InboundEmail,
+  type IngestInboundDeps,
+  type ThreadResolution,
+} from "./inbound";
+export {
+  applyUnsubscribeReply,
+  classifyReply,
+  createClassifyWorker,
+  type ClassifyContext,
+  type ClassifyWorkerDeps,
+} from "./classify";

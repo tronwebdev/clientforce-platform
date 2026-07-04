@@ -60,7 +60,7 @@ export function validateEvent(input: unknown): ValidatedEvent {
   const schema = (EVENT_SCHEMAS as Record<string, z.ZodTypeAny>)[type];
   if (!schema) {
     throw new EventValidationError(
-      `Unknown event type: "${type}". Use a versioned type from the catalog (e.g. "lead.replied.v1").`,
+      `Unknown event type: "${type}". Use a versioned type from the catalog (e.g. "email.replied.v1").`,
     );
   }
 

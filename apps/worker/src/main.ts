@@ -5,20 +5,39 @@ import {
   AnthropicProvider,
   OpenAiEmbeddingsProvider,
 } from "@clientforce/ai";
-import { SendGridSender } from "@clientforce/channels";
+import { createClassifyWorker, SendGridSender } from "@clientforce/channels";
 import { isConfigured } from "@clientforce/config";
 import { goalKeySchema, type GoalKey } from "@clientforce/core";
 import { createDistillQueue, createDistillWorker } from "@clientforce/context";
 import { createAppPrismaClient, withTenant, type PrismaClient } from "@clientforce/db";
+import {
+  automationsConsumer,
+  createTemporalSignalConsumer,
+  dispatcherConsumer,
+  EventBus,
+  redisOptionsFromUrl,
+} from "@clientforce/events";
 import { createIngestWorker, createUploadStoreFromEnv } from "@clientforce/knowledge";
 import { createPlanWorker } from "@clientforce/planner";
-import { createActivities, TASK_QUEUE, WORKFLOWS_PATH } from "@clientforce/workflows";
+import {
+  cancelEnrollmentWorkflow,
+  connectTemporalClient,
+  createActivities,
+  signalEnrollmentReply,
+  TASK_QUEUE,
+  WORKFLOWS_PATH,
+} from "@clientforce/workflows";
 
 /**
- * Worker entrypoint: BullMQ knowledge-ingest + context-distill workers (P1.2/
- * P1.3, live when REDIS_URL is set) + the Temporal worker (T0 stub until
- * T4/P1.6 — connects only when TEMPORAL_ADDRESS is set).
+ * Worker entrypoint: BullMQ knowledge-ingest / context-distill / planner /
+ * inbound-classify workers + the T2 event-bus consumer (live when REDIS_URL
+ * is set) + the Temporal CampaignWorkflow worker (P1.6 — connects when
+ * TEMPORAL_ADDRESS is set; TEMPORAL_API_KEY ⇒ Temporal Cloud TLS).
  */
+
+/** Lazy shared Temporal client — null when TEMPORAL_ADDRESS is unset. */
+let temporalClientPromise: ReturnType<typeof connectTemporalClient> | undefined;
+const temporalClient = () => (temporalClientPromise ??= connectTemporalClient());
 
 /**
  * Ingestion needs embeddings only; P1.6 activities wire their own completions.
@@ -64,10 +83,30 @@ function startKnowledgeWorkers(): void {
   });
   console.log("[worker] knowledge-ingest worker started (P1.2)");
 
-  // Distilling needs real completions; without the key the distill worker
-  // stays off (ingest is unaffected) and jobs wait in Redis.
+  // P1.7: the T2 event-bus consumer — consumer #1 is now REAL: a *.replied.v1
+  // event signals the enrollment's CampaignWorkflow (skips with a log when
+  // Temporal isn't configured; the Event row is persisted regardless).
+  const bus = new EventBus({
+    prisma,
+    connection: redisOptionsFromUrl(process.env.REDIS_URL),
+    consumers: [
+      createTemporalSignalConsumer(async (enrollmentId, intent) => {
+        const client = await temporalClient();
+        if (!client) throw new Error("TEMPORAL_ADDRESS not configured — signal skipped");
+        await signalEnrollmentReply(client, enrollmentId, intent);
+        console.log(`[worker] reply signal delivered: enrollment=${enrollmentId} intent=${intent}`);
+      }),
+      automationsConsumer,
+      dispatcherConsumer,
+    ],
+  });
+  bus.startConsumer();
+  console.log("[worker] event-bus consumer started (P1.7 — temporal-signal live)");
+
+  // Distilling/classifying need real completions; without the key those
+  // workers stay off (ingest + bus are unaffected) and jobs wait in Redis.
   if (!process.env.ANTHROPIC_API_KEY) {
-    console.log("[worker] ANTHROPIC_API_KEY not set — context-distill worker disabled");
+    console.log("[worker] ANTHROPIC_API_KEY not set — distill/planner/classify workers disabled");
     return;
   }
   const realGateway = new AiGateway({
@@ -93,6 +132,27 @@ function startKnowledgeWorkers(): void {
     console.error(`[worker] planner failed agent=${job?.data.agentId}: ${err.message}`);
   });
   console.log("[worker] planner worker started (P1.4)");
+
+  // P1.7: classify inbound replies (Sonnet, engagement-aware), publish
+  // email.replied.v1 (bus → temporal-signal), apply unsubscribe side effects.
+  const classifier = createClassifyWorker({
+    prisma,
+    gateway: realGateway,
+    bus,
+    stopWorkflow: async (enrollmentId) => {
+      const client = await temporalClient();
+      if (client) await cancelEnrollmentWorkflow(client, enrollmentId);
+    },
+  });
+  classifier.on("completed", (job, result) => {
+    console.log(
+      `[worker] inbound-classify completed message=${job.data.messageId} intent=${(result as { intent?: string })?.intent}`,
+    );
+  });
+  classifier.on("failed", (job, err) => {
+    console.error(`[worker] inbound-classify failed message=${job?.data.messageId}: ${err.message}`);
+  });
+  console.log("[worker] inbound-classify worker started (P1.7)");
 }
 
 async function enqueueRedistill(
@@ -145,14 +205,37 @@ async function run(): Promise<void> {
     address,
     ...(apiKey ? { tls: true, apiKey } : {}),
   });
+  // P1.7: pipeline moves at branches publish lead.stage_changed.v1 (bus needs
+  // Redis; without it the move still persists, just without the event).
+  const activityPrisma = createAppPrismaClient();
+  const stageBus = process.env.REDIS_URL
+    ? new EventBus({
+        prisma: activityPrisma,
+        connection: redisOptionsFromUrl(process.env.REDIS_URL),
+      })
+    : undefined;
   const worker = await Worker.create({
     connection,
     namespace: process.env.TEMPORAL_NAMESPACE ?? "default",
     taskQueue: TASK_QUEUE,
     workflowsPath: WORKFLOWS_PATH,
     activities: createActivities({
-      prisma: createAppPrismaClient(),
+      prisma: activityPrisma,
       transport: new SendGridSender(),
+      ...(stageBus
+        ? {
+            publishStageChanged: async (change) => {
+              await stageBus.publish({
+                type: "lead.stage_changed.v1",
+                workspaceId: change.workspaceId,
+                contactId: change.contactId,
+                enrollmentId: change.enrollmentId,
+                campaignId: change.campaignId,
+                payload: { fromStage: change.fromStage, toStage: change.toStage },
+              });
+            },
+          }
+        : {}),
     }),
   });
   console.log(`[worker] Temporal worker started (P1.6) — task queue "${TASK_QUEUE}"`);

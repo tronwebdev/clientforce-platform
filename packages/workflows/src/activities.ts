@@ -18,6 +18,20 @@ export interface ActivityDeps {
   now?: () => Date;
   /** §G allow-list override; resolves from CHANNELS_ALLOWLIST when omitted. */
   allowlist?: string[];
+  /**
+   * P1.7: pipeline moves publish `lead.stage_changed.v1` on the event bus —
+   * the Logs feed and automations see every stage transition. Optional so
+   * tests and bus-less environments stay wired-free; failures are logged,
+   * never allowed to fail the workflow's progress.
+   */
+  publishStageChanged?: (change: {
+    workspaceId: string;
+    enrollmentId: string;
+    contactId: string;
+    campaignId: string;
+    fromStage: string;
+    toStage: string;
+  }) => Promise<void>;
 }
 
 interface EnrollmentScope {
@@ -121,15 +135,38 @@ export function createActivities(deps: ActivityDeps) {
       currentNode: string;
       pipelineStage?: string;
     }): Promise<void> {
-      await withTenant(prisma, { workspaceId: params.workspaceId }, (tx) =>
-        tx.enrollment.update({
+      const prior = await withTenant(prisma, { workspaceId: params.workspaceId }, async (tx) => {
+        const row = await tx.enrollment.findUniqueOrThrow({
+          where: { id: params.enrollmentId },
+        });
+        await tx.enrollment.update({
           where: { id: params.enrollmentId },
           data: {
             currentNode: params.currentNode,
             ...(params.pipelineStage ? { pipelineStage: params.pipelineStage } : {}),
           },
-        }),
-      );
+        });
+        return row;
+      });
+      const moved =
+        params.pipelineStage !== undefined && params.pipelineStage !== prior.pipelineStage;
+      if (moved && deps.publishStageChanged) {
+        await deps
+          .publishStageChanged({
+            workspaceId: params.workspaceId,
+            enrollmentId: params.enrollmentId,
+            contactId: prior.contactId,
+            campaignId: prior.campaignId,
+            fromStage: prior.pipelineStage,
+            toStage: params.pipelineStage!,
+          })
+          .catch((err: unknown) => {
+            console.warn(
+              `[workflows] lead.stage_changed publish failed for ${params.enrollmentId}: ` +
+                `${err instanceof Error ? err.message : String(err)} — progress persisted regardless`,
+            );
+          });
+      }
     },
 
     /**

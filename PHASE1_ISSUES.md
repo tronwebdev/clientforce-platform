@@ -192,7 +192,10 @@ OAuth refresh token, SMTP password, subuser key) are stored **encrypted in the D
 
 - SendGrid inbound/event webhook → normalize → emit `email.replied.v1` (and delivered/open/bounce) to the
   **event bus** (T2), persisting `Event` rows.
-- Reply consumer: classify intent with `packages/ai` (`interested | not_now | objection | unsubscribe | other`),
+- Reply consumer: classify intent with `packages/ai` — labels = the prototype's Inbox
+  category set (`interested | booked | replied | question | not | ooo`) plus `unsubscribe`
+  (owner directive 2026-07-04 + DEC-034: the Inbox chips ARE the intent labels; original
+  `not_now|objection|other` list superseded — prototype wins),
   attach to the event, then **signal** the matching `Enrollment`'s workflow.
 - Pipeline + unsubscribe side-effects: `lead.stage_changed`, `lead.unsubscribed` emitted; opt-out honored.
 - **Engagement awareness (foundational):** opens/clicks/bounces from P1.5 are persisted as `Event` rows

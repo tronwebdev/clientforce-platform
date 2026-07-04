@@ -57,3 +57,21 @@ export async function signalEnrollmentReply(
 ): Promise<void> {
   await client.workflow.getHandle(workflowIdFor(enrollmentId)).signal(REPLY_SIGNAL, intent);
 }
+
+/**
+ * Stop an enrollment's durable run (P1.7: an unsubscribe reply ends it — no
+ * timer may ever fire again for that lead). Cancellation is cooperative and
+ * idempotent; an already-finished workflow is a no-op, not an error.
+ */
+export async function cancelEnrollmentWorkflow(
+  client: Client,
+  enrollmentId: string,
+): Promise<void> {
+  try {
+    await client.workflow.getHandle(workflowIdFor(enrollmentId)).cancel();
+  } catch (err) {
+    // Not-found / already-completed are fine — the suppression row is the hard stop.
+    if (err instanceof Error && /not found|already completed/i.test(err.message)) return;
+    throw err;
+  }
+}
