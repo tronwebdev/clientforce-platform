@@ -1,0 +1,172 @@
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Inject,
+  NotFoundException,
+  Param,
+  Post,
+  Query,
+  UnprocessableEntityException,
+} from "@nestjs/common";
+import { randomUUID } from "node:crypto";
+import {
+  createEnrollmentSchema,
+  listEnrollmentsQuerySchema,
+  signalReplySchema,
+  validateGraph,
+  type CampaignGraph,
+} from "@clientforce/core";
+import { Role } from "@clientforce/db";
+import { workflowIdFor } from "@clientforce/workflows";
+import type { ZodSchema } from "zod";
+import { Roles } from "../auth/decorators";
+import { TenantClient } from "../db/tenant-client";
+import { WORKFLOW_ENGINE, type WorkflowEngine } from "./workflow-engine";
+
+function parse<T>(schema: ZodSchema<T>, value: unknown): T {
+  const result = schema.safeParse(value);
+  if (!result.success) {
+    throw new BadRequestException({
+      message: "Validation failed",
+      issues: result.error.issues.map((i) => ({ path: i.path.join("."), message: i.message })),
+    });
+  }
+  return result.data;
+}
+
+/**
+ * Enrollments (P1.6): enrolling a contact creates the Enrollment row and
+ * starts ONE durable CampaignWorkflow (id `enroll-<enrollmentId>` — start is
+ * idempotent, so re-enrolling or crash-retrying never double-runs). The
+ * signal-reply endpoint is the dev/testing surface until P1.7 wires the
+ * inbound classifier to the same signal.
+ */
+@Controller("enrollments")
+export class EnrollmentsController {
+  constructor(
+    private readonly tenant: TenantClient,
+    @Inject(WORKFLOW_ENGINE) private readonly engine: WorkflowEngine,
+  ) {}
+
+  @Post()
+  @Roles(Role.OWNER, Role.ADMIN)
+  async create(@Body() body: unknown) {
+    const dto = parse(createEnrollmentSchema, body);
+    const workspaceId = this.tenant.workspaceId;
+
+    const { enrollment, campaignId, senderId, graph, existed } = await this.tenant.run(
+      async (tx) => {
+        const [agent, contact] = await Promise.all([
+          tx.agent.findUnique({ where: { id: dto.agentId } }),
+          tx.contact.findUnique({ where: { id: dto.contactId } }),
+        ]);
+        if (!agent) throw new NotFoundException(`Agent ${dto.agentId} not found`);
+        if (!contact) throw new NotFoundException(`Contact ${dto.contactId} not found`);
+
+        // A5: one agent = one auto-created primary campaign (first by createdAt).
+        const campaign = await tx.campaign.findFirst({
+          where: { agentId: dto.agentId },
+          orderBy: { createdAt: "asc" },
+        });
+        if (!campaign) {
+          throw new UnprocessableEntityException(
+            "Agent has no campaign — plan the campaign first (P1.4)",
+          );
+        }
+        const graphRow = await tx.campaignGraph.findFirst({
+          where: { campaignId: campaign.id },
+          orderBy: { version: "desc" },
+        });
+        if (!graphRow) {
+          throw new UnprocessableEntityException(
+            "Campaign has no graph yet — plan the campaign first (P1.4)",
+          );
+        }
+
+        const sender = dto.senderId
+          ? await tx.senderConnection.findUnique({ where: { id: dto.senderId } })
+          : await tx.senderConnection.findFirst({
+              where: { status: "ACTIVE" },
+              orderBy: { createdAt: "asc" },
+            });
+        if (!sender || sender.status !== "ACTIVE") {
+          throw new UnprocessableEntityException(
+            "No active sender connection — connect a sender in Settings first (P1.5)",
+          );
+        }
+
+        // Idempotent create on (campaignId, contactId) — re-enroll returns the
+        // existing row and re-issues the (deduped) workflow start.
+        const prior = await tx.enrollment.findUnique({
+          where: { campaignId_contactId: { campaignId: campaign.id, contactId: contact.id } },
+        });
+        const id = prior?.id ?? randomUUID();
+        const row =
+          prior ??
+          (await tx.enrollment.create({
+            data: {
+              id,
+              workspaceId,
+              campaignId: campaign.id,
+              contactId: contact.id,
+              workflowId: workflowIdFor(id),
+              pipelineStage: "new",
+              meta: {},
+            },
+          }));
+        return {
+          enrollment: row,
+          campaignId: campaign.id,
+          senderId: sender.id,
+          // Graphs are validated at persist time (P1.4); re-validate on the way
+          // into the engine so a hand-edited row can never start a broken run.
+          graph: validateGraph(graphRow.graph) as CampaignGraph,
+          existed: Boolean(prior),
+        };
+      },
+    );
+
+    const scale = Number(process.env.TEST_DELAY_SCALE);
+    const { workflowId, deduped } = await this.engine.start({
+      workspaceId,
+      enrollmentId: enrollment.id,
+      campaignId,
+      agentId: dto.agentId,
+      contactId: dto.contactId,
+      senderId,
+      graph,
+      ...(Number.isFinite(scale) && scale > 0 ? { delayScale: scale } : {}),
+    });
+    return { ...enrollment, workflowId, workflowDeduped: deduped || existed };
+  }
+
+  @Get()
+  list(@Query() query: unknown) {
+    const { agentId } = parse(listEnrollmentsQuerySchema, query);
+    return this.tenant.run((tx) =>
+      tx.enrollment.findMany({
+        where: { campaign: { agentId } },
+        orderBy: { createdAt: "asc" },
+        include: {
+          contact: {
+            select: { id: true, email: true, firstName: true, lastName: true, company: true },
+          },
+        },
+      }),
+    );
+  }
+
+  @Post(":id/signal-reply")
+  @Roles(Role.OWNER, Role.ADMIN)
+  async signalReply(@Param("id") id: string, @Body() body: unknown) {
+    const { intent } = parse(signalReplySchema, body);
+    const enrollment = await this.tenant.run((tx) =>
+      tx.enrollment.findUnique({ where: { id } }),
+    );
+    if (!enrollment) throw new NotFoundException(`Enrollment ${id} not found`);
+    await this.engine.signalReply(id, intent);
+    return { delivered: true, workflowId: enrollment.workflowId };
+  }
+}
