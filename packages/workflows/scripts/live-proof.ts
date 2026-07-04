@@ -11,6 +11,7 @@
  *      Enrollment.meta (the Logs-tab amber row), never retried into a send.
  * §G: allow-listed inbox only, sandbox mode, root-domain DNS untouched.
  */
+import { fileURLToPath } from "node:url";
 import { TestWorkflowEnvironment } from "@temporalio/testing";
 import { Worker } from "@temporalio/worker";
 import {
@@ -170,7 +171,8 @@ async function main(): Promise<void> {
     const worker = await Worker.create({
       connection: env.nativeConnection,
       taskQueue: TASK_QUEUE,
-      workflowsPath: require.resolve("../src/workflows"),
+      // require.resolve can't see .ts — resolve the source file explicitly.
+      workflowsPath: fileURLToPath(new URL("../src/workflows.ts", import.meta.url)),
       activities: createActivities({ prisma: app, transport, allowlist: [TEST_INBOX] }),
     });
 

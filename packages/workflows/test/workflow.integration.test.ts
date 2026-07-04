@@ -9,6 +9,7 @@
  * egress) every test skips with a warning — CI and the live proof are the
  * acceptance evidence.
  */
+import { fileURLToPath } from "node:url";
 import { ApplicationFailure } from "@temporalio/common";
 import { TestWorkflowEnvironment } from "@temporalio/testing";
 import { bundleWorkflowCode, Worker, type WorkflowBundle } from "@temporalio/worker";
@@ -22,14 +23,20 @@ let bundle: WorkflowBundle | undefined;
 let unavailable = "";
 
 beforeAll(async () => {
+  // `env` is assigned LAST so a bundling failure can never leave the suite
+  // half-ready (workers with no workflows registered hang every test).
+  let candidate: TestWorkflowEnvironment | undefined;
   try {
-    env = await TestWorkflowEnvironment.createTimeSkipping();
+    candidate = await TestWorkflowEnvironment.createTimeSkipping();
     bundle = await bundleWorkflowCode({
-      workflowsPath: require.resolve("../src/workflows"),
+      // require.resolve can't see .ts — resolve the source file explicitly.
+      workflowsPath: fileURLToPath(new URL("../src/workflows.ts", import.meta.url)),
     });
+    env = candidate;
   } catch (err) {
     unavailable = err instanceof Error ? err.message : String(err);
-    console.warn(`[workflow.integration] SKIPPING — test server unavailable: ${unavailable}`);
+    console.warn(`[workflow.integration] SKIPPING — test env unavailable: ${unavailable}`);
+    await candidate?.teardown().catch(() => {});
   }
 }, 300_000);
 
