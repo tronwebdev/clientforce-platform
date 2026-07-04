@@ -417,18 +417,67 @@ model Integration {
   config      Json                              // events subscribed, field maps
 }
 
-model Sender {               // email/phone identities a campaign sends from
-  id          String @id @default(cuid())
-  workspaceId String
-  channel     String                            // email | sms | whatsapp | voice
-  identity    String                            // address or number
-  provider    String                            // sendgrid(subuser) | twilio
-  health      Int     @default(0)               // 0–100
-  warmup      Json?                             // { day, of, dailyCap }
-  auth        Json?                             // { spf, dkim, dmarc } for email
-  dailyLimit  Int
+model SenderConnection {     // P1.5: the three-tier sender model (replaces `Sender` — DEC-030)
+  id               String       @id @default(cuid())
+  workspaceId      String
+  type             SenderType                   // CF_MANAGED | GMAIL_OAUTH | OUTLOOK_OAUTH | SMTP
+  fromEmail        String
+  fromName         String?                      // owner rule 1: send FAILS at the boundary without it
+  replyTo          String?
+  status           SenderStatus @default(ACTIVE)
+  domainAuthStatus Json         @default("{}")  // { spf, dkim } badges (checkpoints §6)
+  dailyLimit       Int          @default(200)
+  sendingWindow    Json?
+  credentialsEnc   Bytes?                       // per-tenant creds, AES-256-GCM under FIELD-ENCRYPTION-KEY
+  warmupState      Json?                        // reserved (DEC-019)
+  dedicatedIp      String?                      // reserved (CF_MANAGED dedicated tier)
+  ipPoolId         String?
+  subuser          String?
 }
+enum SenderType { CF_MANAGED GMAIL_OAUTH OUTLOOK_OAUTH SMTP }
+enum SenderStatus { ACTIVE PAUSED DISABLED }
+
+model Message {              // P1.5 (A6): every outbound persisted AS RENDERED; P1.7 adds inbound + intent
+  id                String   @id @default(cuid())
+  workspaceId       String
+  campaignId        String
+  enrollmentId      String?
+  contactId         String
+  channel           String                      // "email" this phase
+  direction         MessageDirection            // OUTBOUND | INBOUND
+  subject           String?
+  body              String                      // rendered (outbound) / parsed (inbound)
+  providerMessageId String?  @unique
+  inReplyToId       String?                     // → Message.id (threading, owner rule 3)
+  intent            String?                     // inbound only (P1.7)
+  stepNodeId        String?
+  sentAt            DateTime
+  meta              Json?                       // { senderId, threaded, sanitized? }
+}
+enum MessageDirection { OUTBOUND INBOUND }
+
+model Suppression {          // P1.5 (A7): checked at the send boundary with Contact.optOut
+  id          String   @id @default(cuid())
+  workspaceId String
+  channel     String
+  address     String
+  reason      SuppressionReason                 // UNSUBSCRIBED | BOUNCED | SPAM_COMPLAINT | MANUAL
+  source      String?                           // "webhook" | "import" | "admin"
+  @@unique([workspaceId, channel, address])
+}
+enum SuppressionReason { UNSUBSCRIBED BOUNCED SPAM_COMPLAINT MANUAL }
 ```
+
+> **P1.5 amendment (PR #29, DEC-030):** `Sender` is replaced by
+> `SenderConnection` (three-tier model, issue P1.5); `Message` and
+> `Suppression` land per handoff **A6/A7**. Per-tenant credentials are
+> encrypted at rest (AES-256-GCM, master key = Key Vault
+> `FIELD-ENCRYPTION-KEY`); CF_MANAGED shared pool carries no tenant secret.
+> The send boundary enforces the A8 guardrails plus the three owner send-time
+> rules: no from-name → fail · CAN-SPAM footer = workspace `company_address`
+> **verbatim** (no address → fail) · real threading only — a "Re:"/"Fwd:"
+> prefix is stripped + audited unless the message genuinely threads to a prior
+> send (`In-Reply-To`/`References` = prior `providerMessageId`).
 
 Outbound **WebhookEndpoint** (`url`, `secret`, `events[]`) + delivery log; Zapier rides the same dispatcher.
 

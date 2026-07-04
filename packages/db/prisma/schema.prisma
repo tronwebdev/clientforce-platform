@@ -409,20 +409,96 @@ model Integration {
   @@index([workspaceId])
 }
 
-model Sender {
-  id          String   @id @default(cuid())
-  workspaceId String
-  channel     String
-  identity    String
-  provider    String
-  health      Int      @default(0)
-  warmup      Json?
-  auth        Json?
-  dailyLimit  Int
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+// P1.5: the three-tier sender model (issue P1.5; replaces the T1 `Sender`
+// placeholder — DEC-030). Per-tenant credentials live ONLY in credentialsEnc
+// (AES-256-GCM under the FIELD-ENCRYPTION-KEY master key); CF_MANAGED shared
+// pool carries none. warmupState/dedicatedIp/ipPoolId/subuser are reserved so
+// later tiers are additive (DEC-019).
+model SenderConnection {
+  id               String       @id @default(cuid())
+  workspaceId      String
+  type             SenderType
+  fromEmail        String
+  // Owner rule 1 (2026-07-04): a send through a sender without a from-name
+  // FAILS at the boundary — the signature merge token must never render blank.
+  fromName         String?
+  replyTo          String?
+  status           SenderStatus @default(ACTIVE)
+  domainAuthStatus Json         @default("{}")
+  dailyLimit       Int          @default(200)
+  sendingWindow    Json?
+  credentialsEnc   Bytes?
+  warmupState      Json?
+  dedicatedIp      String?
+  ipPoolId         String?
+  subuser          String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
   @@index([workspaceId])
+}
+
+enum SenderType {
+  CF_MANAGED
+  GMAIL_OAUTH
+  OUTLOOK_OAUTH
+  SMTP
+}
+
+enum SenderStatus {
+  ACTIVE
+  PAUSED
+  DISABLED
+}
+
+// P1.5 (handoff A6): every outbound persisted AS RENDERED at send time;
+// P1.7 persists every inbound + its classified intent.
+model Message {
+  id                String           @id @default(cuid())
+  workspaceId       String
+  campaignId        String
+  enrollmentId      String?
+  contactId         String
+  channel           String
+  direction         MessageDirection
+  subject           String?
+  body              String
+  providerMessageId String?          @unique
+  inReplyToId       String?
+  intent            String?
+  stepNodeId        String?
+  sentAt            DateTime
+  meta              Json?
+
+  @@index([workspaceId, contactId, sentAt])
+  @@index([workspaceId, campaignId, sentAt])
+}
+
+enum MessageDirection {
+  OUTBOUND
+  INBOUND
+}
+
+// P1.5 (handoff A7): checked at the send boundary together with
+// Contact.optOut; unsubscribe/bounce/spam events write rows here.
+model Suppression {
+  id          String            @id @default(cuid())
+  workspaceId String
+  channel     String
+  address     String
+  reason      SuppressionReason
+  source      String?
+  createdAt   DateTime          @default(now())
+
+  @@unique([workspaceId, channel, address])
+  @@index([workspaceId])
+}
+
+enum SuppressionReason {
+  UNSUBSCRIBED
+  BOUNCED
+  SPAM_COMPLAINT
+  MANUAL
 }
 
 model WebhookEndpoint {

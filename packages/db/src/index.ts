@@ -65,4 +65,7 @@ export async function withTenant<T>(
   });
 }
 
+// Field encryption for per-tenant credentials (P1.5).
+export { decryptField, encryptField } from "./crypto";
+
 export const DB_PACKAGE = "@clientforce/db";

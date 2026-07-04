@@ -44,6 +44,9 @@ importers:
       '@clientforce/ai':
         specifier: workspace:*
         version: link:../../packages/ai
+      '@clientforce/channels':
+        specifier: workspace:*
+        version: link:../../packages/channels
       '@clientforce/config':
         specifier: workspace:*
         version: link:../../packages/config
@@ -197,6 +200,25 @@ importers:
       zod-to-json-schema:
         specifier: ^3.24.1
         version: 3.25.2(zod@3.25.76)
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.5
+        version: 22.20.0
+
+  packages/channels:
+    dependencies:
+      '@clientforce/context':
+        specifier: workspace:*
+        version: link:../context
+      '@clientforce/core':
+        specifier: workspace:*
+        version: link:../core
+      '@clientforce/db':
+        specifier: workspace:*
+        version: link:../db
+      zod:
+        specifier: ^3.24.1
+        version: 3.25.76
     devDependencies:
       '@types/node':
         specifier: ^22.10.5
