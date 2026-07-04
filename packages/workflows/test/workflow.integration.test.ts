@@ -136,12 +136,20 @@ const inputFor = (graph: CampaignGraph, n: number): CampaignWorkflowInput => ({
 });
 
 let seq = 0;
-async function makeWorker(acts: CampaignActivities, taskQueue: string): Promise<Worker> {
+async function makeWorker(
+  acts: CampaignActivities,
+  taskQueue: string,
+  opts: { noSticky?: boolean } = {},
+): Promise<Worker> {
   return Worker.create({
     connection: env!.nativeConnection,
     taskQueue,
     workflowBundle: bundle!,
     activities: acts as unknown as object,
+    // Kill/restart tests disable the sticky cache: on the frozen-clock
+    // time-skipping server the sticky schedule-to-start timeout never expires,
+    // so a dead worker's cached workflow task would never reach its successor.
+    ...(opts.noSticky ? { maxCachedWorkflows: 0 } : {}),
   });
 }
 
@@ -227,7 +235,7 @@ describe("CampaignWorkflow (time-skipping Temporal)", () => {
     const tq = `tq-${++seq}`;
     const { calls, acts } = recordedActivities();
 
-    const worker1 = await makeWorker(acts, tq);
+    const worker1 = await makeWorker(acts, tq, { noSticky: true });
     const run1 = worker1.run();
     const handle = await env!.client.workflow.start("campaignWorkflow", {
       taskQueue: tq,
@@ -239,7 +247,7 @@ describe("CampaignWorkflow (time-skipping Temporal)", () => {
     worker1.shutdown();
     await run1;
 
-    const worker2 = await makeWorker(acts, tq);
+    const worker2 = await makeWorker(acts, tq, { noSticky: true });
     await worker2.runUntil(async () => {
       const result = await handle.result();
       expect(result).toMatchObject({ status: "completed", endNode: "end1" });
