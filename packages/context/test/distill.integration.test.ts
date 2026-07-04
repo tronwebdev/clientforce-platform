@@ -156,7 +156,7 @@ describe.skipIf(!hasInfra)("distill integration", () => {
     expect(row.distilledAt).not.toBeNull();
 
     const fields = parseFields(row.fields);
-    // Cited fills landed with REAL chunk ids…
+    // Cited fills landed as SNAPSHOTS with REAL chunk ids (DEC-028)…
     const chunkIds = new Set(
       (await owner.knowledgeChunk.findMany({ where: { workspaceId: wsA } })).map((c) => c.id),
     );
@@ -164,11 +164,20 @@ describe.skipIf(!hasInfra)("distill integration", () => {
       expect(fields[key], key).toBeDefined();
       expect(fields[key]!.source).toBe("distilled");
       expect(fields[key]!.citations.length).toBeGreaterThan(0);
-      for (const c of fields[key]!.citations) expect(chunkIds.has(c)).toBe(true);
+      for (const c of fields[key]!.citations) {
+        expect(chunkIds.has(c.chunkId)).toBe(true);
+        // Render-ready snapshot: label + type + locator + verbatim quote.
+        expect(c.sourceLabel).toBe("site");
+        expect(c.sourceType).toBe("TEXT");
+        expect(c.locator).toBe("site");
+        expect(c.quote).toContain("Acme Dental Growth");
+      }
     }
     // …the hallucinated citation was filtered out of pricing's citations,
     // and the unknown key never persisted.
-    expect(fields.pricing!.citations).not.toContain("00000000-0000-0000-0000-000000000000");
+    expect(fields.pricing!.citations.map((c) => c.chunkId)).not.toContain(
+      "00000000-0000-0000-0000-000000000000",
+    );
     expect(fields.not_a_registry_key).toBeUndefined();
     expect(row.rawSummary).toContain("distilled from evidence");
   });

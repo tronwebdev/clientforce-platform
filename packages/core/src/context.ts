@@ -12,6 +12,7 @@
  * gap and never block launch.
  */
 import { z } from "zod";
+import { knowledgeSourceKindSchema } from "./knowledge";
 
 // ── Goal cards (wizard step 1) ───────────────────────────────────────────────
 export const GOAL_KEYS = [
@@ -159,10 +160,30 @@ export function recommendedFieldsFor(goal: GoalKey): ContextFieldKey[] {
 export const contextFieldSourceSchema = z.enum(["distilled", "typed", "ai_decides"]);
 export type ContextFieldSource = z.infer<typeof contextFieldSourceSchema>;
 
+/**
+ * A citation is a SNAPSHOT taken at distill time (DEC-028): re-ingest replaces
+ * chunks, so bare ids dangle — the snapshot stays renderable and records the
+ * evidence as it was when distilled. UI contract:
+ * `P1.8_UI_WIRING_NOTES.md → Citations`.
+ */
+export const contextCitationSchema = z.object({
+  /** KnowledgeChunk id at distill time (audit key; may dangle after re-ingest). */
+  chunkId: z.string(),
+  sourceId: z.string(),
+  /** e.g. "clientforce.io" · "pricing.pdf" · "pasted text". */
+  sourceLabel: z.string(),
+  sourceType: knowledgeSourceKindSchema,
+  /** WEBSITE → page URL · DOCUMENT → file path · TEXT → label. */
+  locator: z.string().nullable(),
+  /** Verbatim excerpt of the cited chunk, taken server-side (≤280 chars). */
+  quote: z.string(),
+});
+export type ContextCitation = z.infer<typeof contextCitationSchema>;
+
 export const contextFieldValueSchema = z.object({
   value: z.string(),
-  /** KnowledgeChunk ids supporting the fill; empty ONLY for typed/ai_decides. */
-  citations: z.array(z.string()),
+  /** Citation snapshots supporting the fill; empty ONLY for typed/ai_decides. */
+  citations: z.array(contextCitationSchema),
   source: contextFieldSourceSchema,
   /** Custom-goal distiller-proposed ask this answers ("suggested for your goal"). */
   proposedAsk: z.string().optional(),

@@ -53,19 +53,17 @@ async function main(): Promise<void> {
 
     const row = await distill({ prisma: app, gateway }, { workspaceId: ws.id });
     const fields = parseFields(row.fields);
-    const chunks = await withTenant(app, { workspaceId: ws.id }, (tx) =>
-      tx.knowledgeChunk.findMany({ where: { workspaceId: ws.id } }),
-    );
-    const chunkById = new Map(chunks.map((c) => [c.id, c.content]));
 
     console.log(`\n--- distilled WORKSPACE layer (status=${row.status}) ---`);
     console.log(`rawSummary: ${row.rawSummary}`);
     for (const [key, entry] of Object.entries(fields)) {
       console.log(`\n[${key}] (${entry.source}) ${entry.value}`);
-      for (const id of entry.citations) {
+      // Citation SNAPSHOTS (DEC-028): label/type/locator/verbatim quote.
+      for (const c of entry.citations) {
         console.log(
-          `  ↳ cites chunk ${id}: "${(chunkById.get(id) ?? "<missing>").slice(0, 220).replace(/\n/g, " | ")}"`,
+          `  ↳ [${c.sourceType}] ${c.sourceLabel}${c.locator ? ` · ${c.locator}` : ""} (chunk ${c.chunkId})`,
         );
+        console.log(`    "${c.quote.replace(/\n/g, " | ")}"`);
       }
     }
 

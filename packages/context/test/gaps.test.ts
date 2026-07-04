@@ -1,8 +1,19 @@
 import { describe, expect, it } from "vitest";
-import type { ContextFields } from "@clientforce/core";
+import type { ContextCitation, ContextFields } from "@clientforce/core";
 import { checkGaps, coveredKeys, mergeLayers } from "../src/gaps";
 
-const distilled = (value: string, citations: string[] = ["chunk-1"]): ContextFields[string] => ({
+const snapshot = (chunkId = "chunk-1"): ContextCitation => ({
+  chunkId,
+  sourceId: "src-1",
+  sourceLabel: "site",
+  sourceType: "TEXT",
+  locator: "site",
+  quote: "verbatim evidence",
+});
+const distilled = (
+  value: string,
+  citations: ContextCitation[] = [snapshot()],
+): ContextFields[string] => ({
   value,
   citations,
   source: "distilled",
