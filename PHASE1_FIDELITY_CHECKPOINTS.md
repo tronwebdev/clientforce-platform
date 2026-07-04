@@ -30,6 +30,7 @@ Pixel-diffing is **not** required (font rasterization differs); geometry/color/c
 parity is. DOM structure does not need to match the prototype — behavior and appearance do.
 
 **Global conventions (apply to every screen):**
+
 - Canvas `#FBF7F0`; cards `#fff`, border `1px #EBE3D6`, radius 16–18, shadow `0 4px 16px rgba(14,21,18,.04)` (tables: radius 18, `0 6px 24px rgba(14,21,18,.05)`).
 - Table anatomy: header row bg `#FBF7F0` with `1.5px` bottom border `#EBE3D6`; header labels 12px/700
   uppercase `#5C6B62`; body rows separated by `1px #F2EEE4`; row hover tint; 18px checkboxes with
@@ -57,6 +58,7 @@ parity is. DOM structure does not need to match the prototype — behavior and a
 ## 1. App shell + Sidebar — `sidebar.js` (binding), every screen
 
 **Geometry & color**
+
 - Sidebar: `#0C140F`, 256px wide, full height, padding `22px 16px`; content area offset by exactly 256px.
 - Logo row: 32px gradient mark (radius 9) + "Clientforce" in Bricolage 19px/700.
 - Workspace switcher: row bg `rgba(255,255,255,.06)`, radius 12; 26px badge (radius 7, `#7FE8A0`
@@ -71,6 +73,7 @@ parity is. DOM structure does not need to match the prototype — behavior and a
   14px/600, role 12px `rgba(255,255,255,.5)`, chevron flips open/closed.
 
 **Interaction script**
+
 1. Click Tools → flyout opens, chevron flips; click Workspace → workspace flyout opens **and Tools
    closes** (single-open). 2. Click outside → all close. 3. Active nav item reflects the current
    route on every Phase-1 page. 4. Switching workspace changes tenant context (lists re-scope).
@@ -84,6 +87,7 @@ stub pages, never dead `#` links.
 ## 2. Agents List — `Agents List.dc.html`
 
 **Geometry**
+
 - Toolbar: search field + Status / Channel / More / **Columns** dropdown buttons. Active filter
   button state: bg `rgba(53,232,52,.08)`, border `#9FD8AC`, count chip. Columns menu 236px wide,
   checkbox rows toggle columns live.
@@ -164,6 +168,7 @@ Stats ▤ · Settings ⚙ · Logs ≣** (white bar, `1px #EBE3D6`, radius 14, ac
 static mock):** Calls, Preview, Stats. Do not delete them.
 
 **Leads tab**
+
 - Table grid **`44px 1.9fr 1.3fr 1.1fr 1.05fr .7fr .9fr`**; body scroll region max-height 512px;
   global table anatomy; search + **source filter** dropdown + export + add; bulk bar (sequence /
   export / unsubscribe).
@@ -222,13 +227,16 @@ the event within one poll interval (≤5s).
   collapsed rows show a provenance chip (`N sources` `rgba(255,255,255,.38)` / `✦ AI-inferred`
   `#EFCB68` / `✎ edited` `#7FE8A0`); expanded sections show a **Grounded in** chip row (dark pills,
   active border `#7FE8A0`) — chip click reveals the verbatim cited quote (2px `#7FE8A0` left border)
-  + source locator + `Open source ↗`; **editing a section flips it to "✎ Edited by you — overrides
-  docs" with ↺ Revert** (restores the distilled body); AI-inferred sections carry an amber note
-  "✦ Inferred by AI — no direct source in your docs. Edit to confirm, or add a doc and regenerate.";
-  Regenerate clears edits + citations refresh; **Company docs** upload (PDF, DOCX,
-  XLSX, TXT, MD · 25 MB) → workspace-level P1.2 ingestion with live IngestStatus rows; Company
-  description + Core offer fields; **Guardrails writing rules** tagged Always / Never / Tone (fed
-  to the planner). Connect-a-source grid + Brand identity (logo/colors/tagline) render inert.
+  - source locator + `Open source ↗`; **editing a section flips it to "✎ Edited by you — overrides
+    docs" with ↺ Revert** (restores the distilled body); AI-inferred sections carry an amber note
+    "✦ Inferred by AI — no direct source in your docs. Edit to confirm, or add a doc and regenerate.";
+    Regenerate clears edits + citations refresh; **Company docs** upload (PDF, DOCX,
+    XLSX, TXT, MD · 25 MB) → workspace-level P1.2 ingestion with live IngestStatus rows; **accept-list
+    rule (owner, 2026-07-04 / Q-009): the Brand-kit accept list must match the extractor's ACTUAL
+    capabilities at wiring time — drop XLSX from the UI if extraction isn't ready; never advertise a
+    format that fails after upload;** Company
+    description + Core offer fields; **Guardrails writing rules** tagged Always / Never / Tone (fed
+    to the planner). Connect-a-source grid + Brand identity (logo/colors/tagline) render inert.
 - **Email senders table:** columns = sender, sending status, receiving status, domain-auth badges
   (SPF/DKIM pass/fail pills), daily limit, sender id; row → sender detail drawer (same 500px drawer
   as §4). "Add sender" flow = P1.5 connect surface (CF Mailer / Gmail / Outlook / SMTP picker;
@@ -253,6 +261,6 @@ provider decision (tracked in PROGRESS.md §Open questions).
 
 Every UI PR attaches, at 1440×900: default state · loading skeleton · empty state · error state ·
 each overlay open (drawer/modal/dropdown) · each wired tab/segment — **prototype next to build** for
-each. Stateful controls additionally show closed *and* open (the T6 sidebar slip rule). The PR
+each. Stateful controls additionally show closed _and_ open (the T6 sidebar slip rule). The PR
 description lists any deliberate deviation with its PROGRESS.md decision ID; undocumented deviations
 are review-blockers.
