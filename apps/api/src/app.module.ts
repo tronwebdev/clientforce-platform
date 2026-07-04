@@ -8,10 +8,11 @@ import { HealthController } from "./health.controller";
 import { ContextModule } from "./context/context.module";
 import { KnowledgeModule } from "./knowledge/knowledge.module";
 import { MeController } from "./me/me.controller";
+import { PlannerModule } from "./planner/planner.module";
 import { ContactsController } from "./contacts/contacts.controller";
 
 @Module({
-  imports: [DbModule, AuthModule, KnowledgeModule, ContextModule],
+  imports: [DbModule, AuthModule, KnowledgeModule, ContextModule, PlannerModule],
   controllers: [HealthController, MeController, ContactsController],
   providers: [
     // Order matters: authenticate + resolve tenancy first, then enforce RBAC.

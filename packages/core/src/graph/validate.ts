@@ -77,11 +77,17 @@ const nodeSchema = z.discriminatedUnion("type", [
   endNode,
 ]);
 
-const graphSchema = z.object({
+/**
+ * Shape-only schema, exported for the P1.4 planner's `completeStructured`
+ * tool contract. `validateGraph` remains the full gate (shape + semantics) —
+ * passing this schema alone does NOT make a graph runnable.
+ */
+export const campaignGraphSchema = z.object({
   entry: id,
   nodes: z.array(nodeSchema).min(1),
   edges: z.array(z.object({ from: id, to: id })),
 });
+const graphSchema = campaignGraphSchema;
 
 /**
  * Validate arbitrary input into a typed {@link CampaignGraph}. Throws
