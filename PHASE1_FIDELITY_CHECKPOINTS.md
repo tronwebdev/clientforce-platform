@@ -30,7 +30,6 @@ Pixel-diffing is **not** required (font rasterization differs); geometry/color/c
 parity is. DOM structure does not need to match the prototype — behavior and appearance do.
 
 **Global conventions (apply to every screen):**
-
 - Canvas `#FBF7F0`; cards `#fff`, border `1px #EBE3D6`, radius 16–18, shadow `0 4px 16px rgba(14,21,18,.04)` (tables: radius 18, `0 6px 24px rgba(14,21,18,.05)`).
 - Table anatomy: header row bg `#FBF7F0` with `1.5px` bottom border `#EBE3D6`; header labels 12px/700
   uppercase `#5C6B62`; body rows separated by `1px #F2EEE4`; row hover tint; 18px checkboxes with
@@ -58,7 +57,6 @@ parity is. DOM structure does not need to match the prototype — behavior and a
 ## 1. App shell + Sidebar — `sidebar.js` (binding), every screen
 
 **Geometry & color**
-
 - Sidebar: `#0C140F`, 256px wide, full height, padding `22px 16px`; content area offset by exactly 256px.
 - Logo row: 32px gradient mark (radius 9) + "Clientforce" in Bricolage 19px/700.
 - Workspace switcher: row bg `rgba(255,255,255,.06)`, radius 12; 26px badge (radius 7, `#7FE8A0`
@@ -73,7 +71,6 @@ parity is. DOM structure does not need to match the prototype — behavior and a
   14px/600, role 12px `rgba(255,255,255,.5)`, chevron flips open/closed.
 
 **Interaction script**
-
 1. Click Tools → flyout opens, chevron flips; click Workspace → workspace flyout opens **and Tools
    closes** (single-open). 2. Click outside → all close. 3. Active nav item reflects the current
    route on every Phase-1 page. 4. Switching workspace changes tenant context (lists re-scope).
@@ -87,7 +84,6 @@ stub pages, never dead `#` links.
 ## 2. Agents List — `Agents List.dc.html`
 
 **Geometry**
-
 - Toolbar: search field + Status / Channel / More / **Columns** dropdown buttons. Active filter
   button state: bg `rgba(53,232,52,.08)`, border `#9FD8AC`, count chip. Columns menu 236px wide,
   checkbox rows toggle columns live.
@@ -117,9 +113,26 @@ Rail labels, verbatim: **1 Set the goal · 2 Design sequence · 3 Add contacts �
 
 **Step 1 — Set the goal:** goal cards grid `repeat(3,1fr)` gap 9 (cards radius 13, padding `16px
 14px`, hover/selected border swap); picking a goal reveals the green `✓ Goal: …` pill divider;
-**Knowledge base** list: add-source picker is a 3-up choice (Upload doc / Add URL / Connect source;
-connectors grid gap 7); each added source shows its **IngestStatus** (PENDING → INGESTING → READY /
-FAILED) live from P1.2; "How should we build the sequence?" — 3 method cards, gap 9.
+**Knowledge base** list: an agent can have **any mix of sources — one or many** (URL, uploaded doc,
+pasted text; connectors designed-but-inert): add-source picker is a 3-up choice (Upload doc / Add
+URL / Connect source; connectors grid gap 7); each added source is its own row with its own
+**IngestStatus** (PENDING → INGESTING → READY / FAILED) live from P1.2;
+**About your business card** (header bg `#F7F9F8`, "used to personalise every message", Edit
+action): shows the P1.3 distilled summary, editable; **Grounded-in footer** — one chip per
+knowledge source (icon + label, pill border `#EBE3D6`, active `#35E834`); chip click reveals the
+**verbatim cited passage** (quote block, 2px `#35E834` left border, italic) + source locator
+(page/Q#) + which fields it backs + `Open source ↗`; data = P1.3 per-field `citations[]`;
+**AI gap checker** (amber card: border `rgba(232,196,91,.48)`, bg `rgba(232,196,91,.04)`): header
+"A few things the agent still needs" + "Not found in your docs — resolve before launching." +
+`resolved/total` counter chip; green confirmation line "✓ Found in your docs:" followed by **one
+chip per covered field** — clicking a chip reveals the same verbatim-quote evidence block (quote +
+source locator + Open source), so "covered" is provable, not asserted; one row per gap (dot, label,
+desc) with three states — missing → buttons
+**Type it** (inline input appears, Clear resets) and **✦ Let AI** (chip flips to "✦ AI decides" +
+Undo). Gaps come from the P1.3 completeness check; typed answers persist as TEXT knowledge /
+context overrides and re-distill; **launch (step 6) is gated on every gap resolved** (typed or
+delegated to AI);
+"How should we build the sequence?" — 3 method cards, gap 9.
 **Step 2 — Design sequence:** renders the **planner's CampaignGraph** (P1.4): one card per `step`
 node (Step N label + email ChannelChip + `✦ AI draft` badge + `✎ Edit`), delay chips between from
 `delay` nodes, the reply branch from the `branch` node. Step-editor modal + delay modal open/close;
@@ -141,20 +154,6 @@ planner "drafting sequence" building/loading state · launch success. **Interact
 all 6 steps end-to-end creating a real Agent + primary Campaign + graph v1; back-navigation preserves
 entries; editing a drafted step bumps the graph version.
 
-> **P1.3 amendment (PR #26, DEC-024/025):** Step 1 also carries the
-> **About-your-business gap flow** after distillation: a `gapResolved/gapTotal`
-> counter; one row per open gap (required-uncited field per the owner-approved
-> registry in `packages/core`) with the two actions **"Type it"** (persists as
-> `typed`, survives re-distill, triggers re-distill) and **"✦ Let AI"**
-> (`ai_decides`, audited); fields satisfied by workspace-layer knowledge list
-> under **"✓ Found in your docs"** and are never re-asked. Adding a source that
-> reaches READY re-distills and auto-resolves newly covered gaps. Changing the
-> goal re-runs the gap evaluation against the registry (typed/delegated answers
-> persist; no-longer-required ones are kept but ignored). **Step 6:** launch is
-> gated until every gap is typed-or-delegated (`launchReady`); every
-> `ai_decides` choice surfaces in the step-6 preview and the
-> About-your-business card with **Undo** (reverts to an open gap).
-
 ---
 
 ## 4. Agent view (Campaign View) — `Campaign View.dc.html`
@@ -165,7 +164,6 @@ Stats ▤ · Settings ⚙ · Logs ≣** (white bar, `1px #EBE3D6`, radius 14, ac
 static mock):** Calls, Preview, Stats. Do not delete them.
 
 **Leads tab**
-
 - Table grid **`44px 1.9fr 1.3fr 1.1fr 1.05fr .7fr .9fr`**; body scroll region max-height 512px;
   global table anatomy; search + **source filter** dropdown + export + add; bulk bar (sequence /
   export / unsubscribe).
@@ -215,8 +213,22 @@ the event within one poll interval (≤5s).
 
 ## 6. Settings → Channels & Suppression — `Settings.dc.html`
 
-- Left sub-nav (7 sections); **only Channels + Suppression wired**; others render inert with real
-  layouts (no dead ends — each shows its prototype layout with mock/disabled controls).
+- Left sub-nav (7 sections); **Channels + Suppression + Brand kit wired**; others render inert with
+  real layouts (no dead ends — each shows its prototype layout with mock/disabled controls).
+- **Brand kit (workspace knowledge — the canonical BusinessContext surface):** "Brand knowledge"
+  header + gradient Save; **Agent summary** dark card (`#0C140F`, radius 18) — distilled sections
+  (count chip, expand/collapse all, per-section edit), "Auto-generated from your docs, sources,
+  offer & guardrails", **↻ Regenerate** (re-runs P1.3) + Save; **per-section provenance + citations**:
+  collapsed rows show a provenance chip (`N sources` `rgba(255,255,255,.38)` / `✦ AI-inferred`
+  `#EFCB68` / `✎ edited` `#7FE8A0`); expanded sections show a **Grounded in** chip row (dark pills,
+  active border `#7FE8A0`) — chip click reveals the verbatim cited quote (2px `#7FE8A0` left border)
+  + source locator + `Open source ↗`; **editing a section flips it to "✎ Edited by you — overrides
+  docs" with ↺ Revert** (restores the distilled body); AI-inferred sections carry an amber note
+  "✦ Inferred by AI — no direct source in your docs. Edit to confirm, or add a doc and regenerate.";
+  Regenerate clears edits + citations refresh; **Company docs** upload (PDF, DOCX,
+  XLSX, TXT, MD · 25 MB) → workspace-level P1.2 ingestion with live IngestStatus rows; Company
+  description + Core offer fields; **Guardrails writing rules** tagged Always / Never / Tone (fed
+  to the planner). Connect-a-source grid + Brand identity (logo/colors/tagline) render inert.
 - **Email senders table:** columns = sender, sending status, receiving status, domain-auth badges
   (SPF/DKIM pass/fail pills), daily limit, sender id; row → sender detail drawer (same 500px drawer
   as §4). "Add sender" flow = P1.5 connect surface (CF Mailer / Gmail / Outlook / SMTP picker;
@@ -225,18 +237,6 @@ the event within one poll interval (≤5s).
 - **Suppression list:** table of suppressed addresses (address, channel, reason, source, date) +
   add/remove; **wired to the real `Suppression` model** — adding an address here must actually block
   a send (this is tested in P1.5's acceptance).
-
-> **P1.3 amendment (PR #26, DEC-025 — resolves Q-003):** **Brand kit is also
-> WIRED in Phase 1** as the canonical home of the workspace-layer
-> `BusinessContext` (`Settings.dc.html` ~140–310): the dark Agent-summary card
-> renders the distilled workspace fields (per-section edit = typed answers into
-> the workspace layer; **↻ Regenerate** = `POST /context/distill`, polls
-> `status` per A4); **Company docs** upload = workspace-scoped P1.2 ingestion
-> (`agentId` null) with live IngestStatus rows; description/offer fields and
-> writing rules (Always/Never/Tone) are structured planner input — separate
-> from the A8 sending guardrails. Connectors + brand identity stay inert.
-> `company_address` (owner edit 3) lives here: asked once per workspace,
-> consumed verbatim by P1.5's CAN-SPAM footer.
 
 ---
 
@@ -253,6 +253,6 @@ provider decision (tracked in PROGRESS.md §Open questions).
 
 Every UI PR attaches, at 1440×900: default state · loading skeleton · empty state · error state ·
 each overlay open (drawer/modal/dropdown) · each wired tab/segment — **prototype next to build** for
-each. Stateful controls additionally show closed _and_ open (the T6 sidebar slip rule). The PR
+each. Stateful controls additionally show closed *and* open (the T6 sidebar slip rule). The PR
 description lists any deliberate deviation with its PROGRESS.md decision ID; undocumented deviations
 are review-blockers.
