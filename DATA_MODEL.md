@@ -277,6 +277,7 @@ model Enrollment {          // a contact's run through one campaign = 1 Temporal
   pipelineStage String                          // current PipelineStage.key
   currentNode  String?                          // node id in the graph
   status       EnrollmentStatus @default(ACTIVE) // ACTIVE | PAUSED | DONE | UNSUBSCRIBED | BOUNCED
+  meta         Json    @default("{}")            // P1.6: user-visible run audit — {blocked:{nodeId,reason,detail,at}} + events[] (branch routing, deferred actions); the Logs tab renders refusals as amber rows (owner edit 2026-07-04)
   @@unique([campaignId, contactId])
 }
 

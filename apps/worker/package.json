@@ -12,13 +12,15 @@
   },
   "dependencies": {
     "@clientforce/ai": "workspace:*",
+    "@clientforce/channels": "workspace:*",
     "@clientforce/config": "workspace:*",
     "@clientforce/context": "workspace:*",
     "@clientforce/core": "workspace:*",
     "@clientforce/db": "workspace:*",
     "@clientforce/knowledge": "workspace:*",
     "@clientforce/planner": "workspace:*",
-    "@temporalio/worker": "^1.11.7"
+    "@clientforce/workflows": "workspace:*",
+    "@temporalio/worker": "1.19.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.5"

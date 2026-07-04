@@ -5,14 +5,14 @@ import {
   AnthropicProvider,
   OpenAiEmbeddingsProvider,
 } from "@clientforce/ai";
+import { SendGridSender } from "@clientforce/channels";
 import { isConfigured } from "@clientforce/config";
 import { goalKeySchema, type GoalKey } from "@clientforce/core";
 import { createDistillQueue, createDistillWorker } from "@clientforce/context";
 import { createAppPrismaClient, withTenant, type PrismaClient } from "@clientforce/db";
 import { createIngestWorker, createUploadStoreFromEnv } from "@clientforce/knowledge";
 import { createPlanWorker } from "@clientforce/planner";
-
-const TASK_QUEUE = "clientforce";
+import { createActivities, TASK_QUEUE, WORKFLOWS_PATH } from "@clientforce/workflows";
 
 /**
  * Worker entrypoint: BullMQ knowledge-ingest + context-distill workers (P1.2/
@@ -127,24 +127,35 @@ async function run(): Promise<void> {
   const address = process.env.TEMPORAL_ADDRESS;
   if (!address) {
     console.log(
-      `[worker] Temporal stub (config ok=${isConfigured()}). ` +
-        `Set TEMPORAL_ADDRESS to connect; workflows land in P1.6.`,
+      `[worker] Temporal not connected (config ok=${isConfigured()}). ` +
+        `Set TEMPORAL_ADDRESS to run CampaignWorkflows (P1.6); ` +
+        `queues above keep running either way.`,
     );
-    // Stay alive as a healthy long-running container until Temporal (mTLS) is
-    // wired in a later ticket — otherwise the process would exit and the
-    // Container App would crash-loop.
+    // Stay alive as a healthy long-running container until the owner
+    // provisions a Temporal endpoint — otherwise the process would exit and
+    // the Container App would crash-loop.
     await new Promise<never>(() => {});
     return;
   }
 
-  const connection = await NativeConnection.connect({ address });
+  // P1.6: the real CampaignWorkflow worker. TEMPORAL_API_KEY implies Temporal
+  // Cloud (TLS); a bare address is a dev/self-hosted server.
+  const apiKey = process.env.TEMPORAL_API_KEY;
+  const connection = await NativeConnection.connect({
+    address,
+    ...(apiKey ? { tls: true, apiKey } : {}),
+  });
   const worker = await Worker.create({
     connection,
     namespace: process.env.TEMPORAL_NAMESPACE ?? "default",
     taskQueue: TASK_QUEUE,
-    // workflows + activities are registered in P1.6.
-    activities: {},
+    workflowsPath: WORKFLOWS_PATH,
+    activities: createActivities({
+      prisma: createAppPrismaClient(),
+      transport: new SendGridSender(),
+    }),
   });
+  console.log(`[worker] Temporal worker started (P1.6) — task queue "${TASK_QUEUE}"`);
   await worker.run();
 }
 

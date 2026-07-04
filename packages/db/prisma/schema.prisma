@@ -290,6 +290,9 @@ model Enrollment {
   pipelineStage String
   currentNode   String?
   status        EnrollmentStatus @default(ACTIVE)
+  // P1.6: user-visible run audit — send-boundary refusals ({blocked}), intended
+  // actions, branch routing. The Logs tab renders refusals as amber rows.
+  meta          Json             @default("{}")
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
   campaign      Campaign         @relation(fields: [campaignId], references: [id], onDelete: Cascade)

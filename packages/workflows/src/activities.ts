@@ -1,0 +1,205 @@
+/**
+ * CampaignWorkflow activities (P1.6) — the host-side effects. All DB access is
+ * tenant-scoped through `withTenant` (RLS-subject client). The send activity
+ * is idempotent by `(enrollmentId, stepNodeId)` against persisted Message rows,
+ * so a retried activity can never double-send.
+ */
+import { ApplicationFailure } from "@temporalio/common";
+import { sendStep, SendBlockedError, type EmailSender } from "@clientforce/channels";
+import type { StepContent } from "@clientforce/core";
+import { withTenant, type Prisma, type PrismaClient } from "@clientforce/db";
+import type { SendOutcome } from "./shared";
+
+export interface ActivityDeps {
+  /** RLS-subject client (`createAppPrismaClient`) — never the owner client. */
+  prisma: PrismaClient;
+  transport: EmailSender;
+  /** Injectable clock (send-window tests). */
+  now?: () => Date;
+  /** §G allow-list override; resolves from CHANNELS_ALLOWLIST when omitted. */
+  allowlist?: string[];
+}
+
+interface EnrollmentScope {
+  workspaceId: string;
+  enrollmentId: string;
+}
+
+/** Enrollment.meta shape — the Logs tab's amber-row source (owner edit 2026-07-04). */
+interface EnrollmentMeta {
+  blocked?: { nodeId: string; reason: string; detail: string; at: string };
+  events?: Array<{ nodeId: string; kind: string; detail: string; at: string }>;
+}
+
+const asMeta = (value: Prisma.JsonValue | null | undefined): EnrollmentMeta =>
+  value && typeof value === "object" && !Array.isArray(value) ? (value as EnrollmentMeta) : {};
+
+export function createActivities(deps: ActivityDeps) {
+  const { prisma, transport } = deps;
+
+  async function mergeMeta(
+    scope: EnrollmentScope,
+    merge: (meta: EnrollmentMeta) => EnrollmentMeta,
+    data: Omit<Prisma.EnrollmentUpdateInput, "meta"> = {},
+  ): Promise<void> {
+    await withTenant(prisma, { workspaceId: scope.workspaceId }, async (tx) => {
+      const enrollment = await tx.enrollment.findUnique({ where: { id: scope.enrollmentId } });
+      if (!enrollment) throw new Error(`Enrollment ${scope.enrollmentId} not found`);
+      await tx.enrollment.update({
+        where: { id: scope.enrollmentId },
+        data: { ...data, meta: merge(asMeta(enrollment.meta)) as Prisma.InputJsonValue },
+      });
+    });
+  }
+
+  return {
+    /**
+     * Send one graph step through the FULL P1.5 boundary. Idempotent: an
+     * existing OUTBOUND Message for this (enrollment, stepNode) short-circuits
+     * to a duplicate outcome — retries and workflow replays never double-send.
+     * A SendBlockedError becomes a NON-RETRYABLE failure the workflow handles.
+     */
+    async sendEnrollmentStep(params: {
+      workspaceId: string;
+      enrollmentId: string;
+      campaignId: string;
+      agentId: string;
+      contactId: string;
+      senderId: string;
+      stepNodeId: string;
+      content: StepContent;
+    }): Promise<SendOutcome> {
+      const existing = await withTenant(prisma, { workspaceId: params.workspaceId }, (tx) =>
+        tx.message.findFirst({
+          where: {
+            workspaceId: params.workspaceId,
+            enrollmentId: params.enrollmentId,
+            stepNodeId: params.stepNodeId,
+            direction: "OUTBOUND",
+          },
+        }),
+      );
+      if (existing) {
+        return {
+          kind: "duplicate",
+          messageId: existing.id,
+          providerMessageId: existing.providerMessageId,
+        };
+      }
+      try {
+        const message = await sendStep(
+          { prisma, transport, now: deps.now, allowlist: deps.allowlist },
+          {
+            workspaceId: params.workspaceId,
+            campaignId: params.campaignId,
+            agentId: params.agentId,
+            enrollmentId: params.enrollmentId,
+            contactId: params.contactId,
+            senderId: params.senderId,
+            stepNodeId: params.stepNodeId,
+            content: params.content,
+          },
+        );
+        return { kind: "sent", messageId: message.id, providerMessageId: message.providerMessageId };
+      } catch (err) {
+        if (err instanceof SendBlockedError) {
+          throw ApplicationFailure.create({
+            type: "SendBlockedError",
+            nonRetryable: true,
+            message: err.message,
+            details: [{ reason: err.reason, detail: err.message }],
+          });
+        }
+        throw err;
+      }
+    },
+
+    /** Persist live position (+ optional pipeline-stage move) — A4 polling reads this. */
+    async updateEnrollmentProgress(params: {
+      workspaceId: string;
+      enrollmentId: string;
+      currentNode: string;
+      pipelineStage?: string;
+    }): Promise<void> {
+      await withTenant(prisma, { workspaceId: params.workspaceId }, (tx) =>
+        tx.enrollment.update({
+          where: { id: params.enrollmentId },
+          data: {
+            currentNode: params.currentNode,
+            ...(params.pipelineStage ? { pipelineStage: params.pipelineStage } : {}),
+          },
+        }),
+      );
+    },
+
+    /**
+     * A send-boundary refusal ended this path. USER-VISIBLE data (the Logs tab
+     * renders it as an amber row), not just a server log. Suppression/opt-out
+     * refusals mark the enrollment UNSUBSCRIBED; anything else pauses it for a
+     * human to look at.
+     */
+    async recordEnrollmentBlocked(params: {
+      workspaceId: string;
+      enrollmentId: string;
+      nodeId: string;
+      reason: string;
+      detail: string;
+    }): Promise<void> {
+      const status =
+        params.reason === "SUPPRESSED" || params.reason === "OPTED_OUT"
+          ? ("UNSUBSCRIBED" as const)
+          : ("PAUSED" as const);
+      await mergeMeta(
+        params,
+        (meta) => ({
+          ...meta,
+          blocked: {
+            nodeId: params.nodeId,
+            reason: params.reason,
+            detail: params.detail,
+            at: new Date().toISOString(),
+          },
+        }),
+        { status, currentNode: params.nodeId },
+      );
+    },
+
+    /** Append a non-send event (branch routing, deferred actions) to the audit trail. */
+    async recordIntendedAction(params: {
+      workspaceId: string;
+      enrollmentId: string;
+      nodeId: string;
+      kind: string;
+      detail: string;
+    }): Promise<void> {
+      await mergeMeta(params, (meta) => ({
+        ...meta,
+        events: [
+          ...(meta.events ?? []),
+          {
+            nodeId: params.nodeId,
+            kind: params.kind,
+            detail: params.detail,
+            at: new Date().toISOString(),
+          },
+        ],
+      }));
+    },
+
+    /** Terminal node reached — the enrollment is DONE. */
+    async completeEnrollment(params: {
+      workspaceId: string;
+      enrollmentId: string;
+      nodeId: string;
+    }): Promise<void> {
+      await withTenant(prisma, { workspaceId: params.workspaceId }, (tx) =>
+        tx.enrollment.update({
+          where: { id: params.enrollmentId },
+          data: { status: "DONE", currentNode: params.nodeId },
+        }),
+      );
+    },
+  };
+}
+
+export type CampaignActivities = ReturnType<typeof createActivities>;

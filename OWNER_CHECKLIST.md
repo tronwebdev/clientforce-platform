@@ -52,6 +52,11 @@ delivery on deliberately.
 
 ## 4. Coming later (you'll get click-by-click when each arrives)
 
+- **P1.6 deploy (Temporal):** the durable campaign engine needs a Temporal
+  endpoint in staging. Recommendation: **Temporal Cloud** free tier — a short
+  sign-up plus two Key Vault secrets (`TEMPORAL-ADDRESS`,
+  `TEMPORAL-API-KEY`). Code, tests, and the live proof do NOT wait on this;
+  you'll get the exact steps when we wire the staging deploy.
 - **P1.7:** one MX record on `reply.clientforce.io` at SiteGround (inbound
   replies) + enabling the SendGrid event webhook (adds
   `SENDGRID-WEBHOOK-PUBLIC-KEY` to Key Vault).

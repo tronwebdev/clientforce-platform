@@ -1,0 +1,322 @@
+/**
+ * CampaignWorkflow integration tests (P1.6) on the Temporal TIME-SKIPPING test
+ * server: timers, reply-signal routing, default-timeout path, durability
+ * across a worker kill/restart, retryable-vs-refused activity failures.
+ * Activities are recorded fakes — the P1.5 boundary itself is covered by
+ * activities.test.ts + the channels suite; here the WORKFLOW is under test.
+ *
+ * The test server binary downloads on first use; where it can't (sandboxed
+ * egress) every test skips with a warning — CI and the live proof are the
+ * acceptance evidence.
+ */
+import { fileURLToPath } from "node:url";
+import { ApplicationFailure } from "@temporalio/common";
+import { TestWorkflowEnvironment } from "@temporalio/testing";
+import { bundleWorkflowCode, Worker, type WorkflowBundle } from "@temporalio/worker";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import type { CampaignGraph } from "@clientforce/core";
+import type { CampaignActivities } from "../src/activities";
+import { REPLY_SIGNAL, type CampaignWorkflowInput, type SendOutcome } from "../src/shared";
+
+let env: TestWorkflowEnvironment | undefined;
+let bundle: WorkflowBundle | undefined;
+let unavailable = "";
+
+beforeAll(async () => {
+  // `env` is assigned LAST so a bundling failure can never leave the suite
+  // half-ready (workers with no workflows registered hang every test).
+  let candidate: TestWorkflowEnvironment | undefined;
+  try {
+    candidate = await TestWorkflowEnvironment.createTimeSkipping();
+    bundle = await bundleWorkflowCode({
+      // require.resolve can't see .ts — resolve the source file explicitly.
+      workflowsPath: fileURLToPath(new URL("../src/workflows.ts", import.meta.url)),
+    });
+    env = candidate;
+  } catch (err) {
+    unavailable = err instanceof Error ? err.message : String(err);
+    console.warn(`[workflow.integration] SKIPPING — test env unavailable: ${unavailable}`);
+    await candidate?.teardown().catch(() => {});
+  }
+}, 300_000);
+
+afterAll(async () => {
+  await env?.teardown();
+});
+
+interface Recorded {
+  sends: Array<{ stepNodeId: string }>;
+  progress: Array<{ currentNode: string; pipelineStage?: string }>;
+  blocked: Array<{ nodeId: string; reason: string }>;
+  actions: Array<{ nodeId: string; kind: string; detail: string }>;
+  completed: Array<{ nodeId: string }>;
+}
+
+function recordedActivities(
+  sendImpl?: (p: { stepNodeId: string }) => Promise<SendOutcome>,
+): { calls: Recorded; acts: CampaignActivities } {
+  const calls: Recorded = { sends: [], progress: [], blocked: [], actions: [], completed: [] };
+  const acts = {
+    async sendEnrollmentStep(p: { stepNodeId: string }) {
+      calls.sends.push(p);
+      if (sendImpl) return sendImpl(p);
+      return {
+        kind: "sent",
+        messageId: `m-${calls.sends.length}`,
+        providerMessageId: `<m-${calls.sends.length}@test>`,
+      } satisfies SendOutcome;
+    },
+    async updateEnrollmentProgress(p: { currentNode: string; pipelineStage?: string }) {
+      calls.progress.push(p);
+    },
+    async recordEnrollmentBlocked(p: { nodeId: string; reason: string }) {
+      calls.blocked.push(p);
+    },
+    async recordIntendedAction(p: { nodeId: string; kind: string; detail: string }) {
+      calls.actions.push(p);
+    },
+    async completeEnrollment(p: { nodeId: string }) {
+      calls.completed.push(p);
+    },
+  } as unknown as CampaignActivities;
+  return { calls, acts };
+}
+
+const linearGraph: CampaignGraph = {
+  entry: "s1",
+  nodes: [
+    { id: "s1", type: "step", channel: "email", content: { subject: "a", body: "b" } },
+    { id: "d1", type: "delay", amount: 1, unit: "days" },
+    {
+      id: "s2",
+      type: "step",
+      channel: "email",
+      content: { subject: "a", body: "c", threaded: true },
+      pipelineOnSend: "contacted",
+    },
+    { id: "end1", type: "end" },
+  ],
+  edges: [
+    { from: "s1", to: "d1" },
+    { from: "d1", to: "s2" },
+    { from: "s2", to: "end1" },
+  ],
+};
+
+const branchGraph: CampaignGraph = {
+  entry: "s1",
+  nodes: [
+    { id: "s1", type: "step", channel: "email", content: { subject: "a", body: "b" } },
+    {
+      id: "br",
+      type: "branch",
+      on: "reply",
+      cases: [
+        { when: { intent: "interested" }, goto: "end-a", pipeline: "booked" },
+        { when: "default", goto: "end-b" },
+      ],
+    },
+    { id: "end-a", type: "end" },
+    { id: "end-b", type: "end" },
+  ],
+  edges: [
+    { from: "s1", to: "br" },
+    { from: "br", to: "end-a" },
+  ],
+};
+
+const inputFor = (graph: CampaignGraph, n: number): CampaignWorkflowInput => ({
+  workspaceId: "ws-1",
+  enrollmentId: `enr-${n}`,
+  campaignId: "cmp-1",
+  agentId: "agt-1",
+  contactId: "cnt-1",
+  senderId: "snd-1",
+  graph,
+});
+
+let seq = 0;
+async function makeWorker(
+  acts: CampaignActivities,
+  taskQueue: string,
+  opts: { noSticky?: boolean } = {},
+): Promise<Worker> {
+  return Worker.create({
+    connection: env!.nativeConnection,
+    taskQueue,
+    workflowBundle: bundle!,
+    activities: acts as unknown as object,
+    // Kill/restart tests disable the sticky cache: on the frozen-clock
+    // time-skipping server the sticky schedule-to-start timeout never expires,
+    // so a dead worker's cached workflow task would never reach its successor.
+    ...(opts.noSticky ? { maxCachedWorkflows: 0 } : {}),
+  });
+}
+
+const waitFor = async (cond: () => boolean, ms = 15_000): Promise<void> => {
+  const start = Date.now();
+  while (!cond()) {
+    if (Date.now() - start > ms) throw new Error("waitFor timed out");
+    await new Promise((r) => setTimeout(r, 50));
+  }
+};
+
+describe("CampaignWorkflow (time-skipping Temporal)", () => {
+  it("walks step → delay(timer) → step → end in order and completes", async (t) => {
+    if (!env) return t.skip();
+    const tq = `tq-${++seq}`;
+    const { calls, acts } = recordedActivities();
+    const worker = await makeWorker(acts, tq);
+    await worker.runUntil(async () => {
+      const handle = await env!.client.workflow.start("campaignWorkflow", {
+        taskQueue: tq,
+        workflowId: `t-linear-${seq}`,
+        args: [inputFor(linearGraph, seq)],
+      });
+      const result = await handle.result();
+      expect(result).toMatchObject({ status: "completed", endNode: "end1" });
+    });
+    expect(calls.sends.map((s) => s.stepNodeId)).toEqual(["s1", "s2"]);
+    // The delay node advanced currentNode before the timer, s2 moved pipeline.
+    expect(calls.progress).toContainEqual(expect.objectContaining({ currentNode: "d1" }));
+    expect(calls.progress).toContainEqual(
+      expect.objectContaining({ currentNode: "s2", pipelineStage: "contacted" }),
+    );
+    expect(calls.completed).toEqual([expect.objectContaining({ nodeId: "end1" })]);
+  }, 60_000);
+
+  it("routes a reply signal at the branch and moves the pipeline stage", async (t) => {
+    if (!env) return t.skip();
+    const tq = `tq-${++seq}`;
+    const { calls, acts } = recordedActivities();
+    const worker = await makeWorker(acts, tq);
+    await worker.runUntil(async () => {
+      const handle = await env!.client.workflow.start("campaignWorkflow", {
+        taskQueue: tq,
+        workflowId: `t-signal-${seq}`,
+        args: [inputFor(branchGraph, seq)],
+      });
+      // Signal once step 1 is out (P1.7's classifier will do exactly this).
+      await waitFor(() => calls.sends.length === 1);
+      await handle.signal(REPLY_SIGNAL, "interested");
+      const result = await handle.result();
+      expect(result).toMatchObject({ status: "completed", endNode: "end-a" });
+    });
+    expect(calls.actions).toContainEqual(
+      expect.objectContaining({ nodeId: "br", detail: "intent:interested → end-a" }),
+    );
+    expect(calls.progress).toContainEqual(
+      expect.objectContaining({ currentNode: "br", pipelineStage: "booked" }),
+    );
+  }, 60_000);
+
+  it("takes the default case when no reply arrives before the timeout", async (t) => {
+    if (!env) return t.skip();
+    const tq = `tq-${++seq}`;
+    const { calls, acts } = recordedActivities();
+    const worker = await makeWorker(acts, tq);
+    await worker.runUntil(async () => {
+      const handle = await env!.client.workflow.start("campaignWorkflow", {
+        taskQueue: tq,
+        workflowId: `t-timeout-${seq}`,
+        args: [inputFor(branchGraph, seq)],
+      });
+      // No signal: awaiting the result time-skips the 72h default timeout.
+      const result = await handle.result();
+      expect(result).toMatchObject({ status: "completed", endNode: "end-b" });
+    });
+    expect(calls.actions).toContainEqual(
+      expect.objectContaining({ nodeId: "br", detail: "default → end-b" }),
+    );
+  }, 60_000);
+
+  it("resumes after the worker is killed mid-run (durability)", async (t) => {
+    if (!env) return t.skip();
+    const tq = `tq-${++seq}`;
+    const { calls, acts } = recordedActivities();
+
+    const worker1 = await makeWorker(acts, tq, { noSticky: true });
+    const run1 = worker1.run();
+    const handle = await env!.client.workflow.start("campaignWorkflow", {
+      taskQueue: tq,
+      workflowId: `t-durable-${seq}`,
+      args: [inputFor(linearGraph, seq)],
+    });
+    await waitFor(() => calls.sends.length === 1);
+    // Kill the worker while the workflow sits on the delay timer.
+    worker1.shutdown();
+    await run1;
+
+    const worker2 = await makeWorker(acts, tq, { noSticky: true });
+    await worker2.runUntil(async () => {
+      const result = await handle.result();
+      expect(result).toMatchObject({ status: "completed", endNode: "end1" });
+    });
+    // Exactly one send per step across BOTH workers — no replay double-send.
+    expect(calls.sends.map((s) => s.stepNodeId)).toEqual(["s1", "s2"]);
+  }, 120_000);
+
+  it("retries infra failures with backoff, but a SendBlockedError refusal is terminal", async (t) => {
+    if (!env) return t.skip();
+
+    // (a) flaky transport: fails twice, then succeeds → workflow completes.
+    let attempts = 0;
+    const flaky = recordedActivities(async () => {
+      attempts++;
+      if (attempts < 3) throw new Error("transient provider outage");
+      return { kind: "sent", messageId: "m-ok", providerMessageId: null };
+    });
+    const tq1 = `tq-${++seq}`;
+    const worker1 = await makeWorker(flaky.acts, tq1);
+    await worker1.runUntil(async () => {
+      const handle = await env!.client.workflow.start("campaignWorkflow", {
+        taskQueue: tq1,
+        workflowId: `t-retry-${seq}`,
+        args: [
+          inputFor(
+            {
+              entry: "s1",
+              nodes: [
+                { id: "s1", type: "step", channel: "email", content: {} },
+                { id: "e", type: "end" },
+              ],
+              edges: [{ from: "s1", to: "e" }],
+            },
+            seq,
+          ),
+        ],
+      });
+      await expect(handle.result()).resolves.toMatchObject({ status: "completed" });
+    });
+    expect(attempts).toBe(3);
+
+    // (b) refusal: non-retryable — ONE attempt, path ends blocked + recorded.
+    const refused = recordedActivities(async () => {
+      throw ApplicationFailure.create({
+        type: "SendBlockedError",
+        nonRetryable: true,
+        message: "Send blocked (SUPPRESSED)",
+        details: [{ reason: "SUPPRESSED", detail: "Send blocked (SUPPRESSED)" }],
+      });
+    });
+    const tq2 = `tq-${++seq}`;
+    const worker2 = await makeWorker(refused.acts, tq2);
+    await worker2.runUntil(async () => {
+      const handle = await env!.client.workflow.start("campaignWorkflow", {
+        taskQueue: tq2,
+        workflowId: `t-blocked-${seq}`,
+        args: [inputFor(branchGraph, seq)],
+      });
+      await expect(handle.result()).resolves.toMatchObject({
+        status: "blocked",
+        node: "s1",
+        reason: "SUPPRESSED",
+      });
+    });
+    expect(refused.calls.sends).toHaveLength(1); // never retried into a send
+    expect(refused.calls.blocked).toEqual([
+      expect.objectContaining({ nodeId: "s1", reason: "SUPPRESSED" }),
+    ]);
+    expect(refused.calls.completed).toHaveLength(0);
+  }, 120_000);
+});
