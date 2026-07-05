@@ -97,6 +97,12 @@ jobs:
             inboundToken=false
             echo "INBOUND-PARSE-TOKEN not in Key Vault yet — inbound parse endpoint deploys without its URL token (P1.7 owner step)."
           fi
+          if az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name SENDGRID-WEBHOOK-PUBLIC-KEY --query id -o tsv >/dev/null 2>&1; then
+            sgWebhookKey=true
+          else
+            sgWebhookKey=false
+            echo "SENDGRID-WEBHOOK-PUBLIC-KEY not in Key Vault yet — signed event webhooks stay rejected (P1.7 owner step)."
+          fi
           az deployment group create \
             --resource-group "$RG" \
             --template-file infra/main.bicep \
@@ -109,7 +115,8 @@ jobs:
               imageTag="$IMAGE_TAG" \
               storageSecretAvailable="$storage" \
               temporalSecretsAvailable="$temporal" \
-              inboundTokenAvailable="$inboundToken"
+              inboundTokenAvailable="$inboundToken" \
+              sgWebhookKeyAvailable="$sgWebhookKey"
 
       # ── Expose the deployed web FQDN for the e2e job ──
       - name: Resolve web FQDN

@@ -5,7 +5,7 @@ import { fetchMe } from "../../../lib/api";
 import type { Role } from "../../../lib/types";
 
 const TITLES: Record<string, string> = {
-  agents: "Agents",
+  help: "Help",
   stats: "Stats",
   integrations: "Integrations",
   automations: "Automations",

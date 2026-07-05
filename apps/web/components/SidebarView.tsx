@@ -6,8 +6,10 @@ export interface SidebarViewProps {
   activeKey: string;
   wsOpen: boolean;
   toolsOpen: boolean;
+  helpOpen?: boolean;
   onToggleWs?: () => void;
   onToggleTools?: () => void;
+  onToggleHelp?: () => void;
   onSelectWorkspace?: (workspaceId: string) => void;
   onSignOut?: () => void;
 }
@@ -28,8 +30,10 @@ export function SidebarView({
   activeKey,
   wsOpen,
   toolsOpen,
+  helpOpen,
   onToggleWs,
   onToggleTools,
+  onToggleHelp,
   onSelectWorkspace,
   onSignOut,
 }: SidebarViewProps) {
@@ -157,6 +161,37 @@ export function SidebarView({
       </div>
 
       <div className="cf-sb__menu-head cf-sb__menu-head--section">Help &amp; account</div>
+      {/* Help — §1: 240px flyout (Help center / What's new / Contact support) */}
+      <div className="cf-sb__help-wrap">
+        <button
+          type="button"
+          className="cf-sb__item cf-sb__tools-toggle"
+          aria-haspopup="menu"
+          aria-expanded={helpOpen}
+          onClick={onToggleHelp}
+        >
+          <span className="cf-sb__icon" aria-hidden="true">
+            ?
+          </span>
+          <span className="cf-sb__item-label">Help</span>
+          <span className="cf-sb__chev" aria-hidden="true">
+            {helpOpen ? "\u25be" : "\u25b8"}
+          </span>
+        </button>
+        {helpOpen ? (
+          <div className="cf-sb__help-menu" role="menu" aria-label="Help">
+            {[
+              { label: "Help center", href: "/help" },
+              { label: "What's new", href: "/help" },
+              { label: "Contact support", href: "/help" },
+            ].map((h) => (
+              <a key={h.label} href={h.href} role="menuitem" className="cf-sb__item cf-sb__item--tool">
+                <span className="cf-sb__item-label">{h.label}</span>
+              </a>
+            ))}
+          </div>
+        ) : null}
+      </div>
       <a
         href="/settings"
         className={["cf-sb__item", activeKey === "settings" ? "cf-sb__item--active" : ""].filter(Boolean).join(" ")}

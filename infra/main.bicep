@@ -36,6 +36,9 @@ param temporalSecretsAvailable bool = false
 @description('Whether Key Vault holds INBOUND-PARSE-TOKEN (P1.7 inbound parse URL secret). Probed by the pipeline.')
 param inboundTokenAvailable bool = false
 
+@description('Whether Key Vault holds SENDGRID-WEBHOOK-PUBLIC-KEY (P1.7 signed event webhook). Probed by the pipeline.')
+param sgWebhookKeyAvailable bool = false
+
 param apiAppName string = 'clientforce-api'
 param workerAppName string = 'clientforce-worker'
 param webAppName string = 'clientforce-web'
@@ -111,6 +114,10 @@ var temporalEnv = temporalSecretsAvailable ? [
 var inboundTokenSecret = { name: 'inbound-parse-token', keyVaultUrl: '${kvUri}secrets/INBOUND-PARSE-TOKEN', identity: uami.id }
 var inboundTokenSecrets = inboundTokenAvailable ? [inboundTokenSecret] : []
 var inboundTokenEnv = inboundTokenAvailable ? [{ name: 'INBOUND_PARSE_TOKEN', secretRef: 'inbound-parse-token' }] : []
+// P1.7 owner step (2026-07-05): the signed event webhook's verification key.
+var sgWebhookKeySecret = { name: 'sendgrid-webhook-public-key', keyVaultUrl: '${kvUri}secrets/SENDGRID-WEBHOOK-PUBLIC-KEY', identity: uami.id }
+var sgWebhookKeySecrets = sgWebhookKeyAvailable ? [sgWebhookKeySecret] : []
+var sgWebhookKeyEnv = sgWebhookKeyAvailable ? [{ name: 'SENDGRID_WEBHOOK_PUBLIC_KEY', secretRef: 'sendgrid-webhook-public-key' }] : []
 
 // ── API (NestJS) — external ingress :3001 ───────────────────────────────────
 resource api 'Microsoft.App/containerApps@2024-03-01' = {
@@ -124,7 +131,7 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
       activeRevisionsMode: 'Single'
       ingress: { external: true, targetPort: 3001, transport: 'auto', allowInsecure: false }
       registries: registries
-      secrets: concat([dbUrlSecret, appDbUrlSecret, authDevSecret, redisUrlSecret, openaiKeySecret, anthropicKeySecret, sendgridKeySecret, fieldEncKeySecret], storageSecrets, temporalSecrets, inboundTokenSecrets)
+      secrets: concat([dbUrlSecret, appDbUrlSecret, authDevSecret, redisUrlSecret, openaiKeySecret, anthropicKeySecret, sendgridKeySecret, fieldEncKeySecret], storageSecrets, temporalSecrets, inboundTokenSecrets, sgWebhookKeySecrets)
     }
     template: {
       containers: [
@@ -145,7 +152,7 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
             // §G phase rule: allow-listed test sends only; sandbox until P1.8.
             { name: 'CHANNELS_ALLOWLIST', value: 'tronwebng@gmail.com' }
             { name: 'CHANNELS_SANDBOX', value: 'true' }
-          ], storageEnv, temporalEnv, inboundTokenEnv)
+          ], storageEnv, temporalEnv, inboundTokenEnv, sgWebhookKeyEnv)
         }
       ]
       scale: { minReplicas: 1, maxReplicas: 3 }
