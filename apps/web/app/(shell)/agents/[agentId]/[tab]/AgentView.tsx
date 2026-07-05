@@ -14,18 +14,7 @@ import { LeadsTab } from "./LeadsTab";
 import { LogsTab } from "./LogsTab";
 import { SettingsTab } from "./SettingsTab";
 import { StepsTab } from "./StepsTab";
-import { cf, GRAD, GOAL_EMOJI } from "./shared";
-
-export const TABS = [
-  { id: "inbox", label: "Inbox", icon: "✉", wired: true },
-  { id: "calls", label: "Calls", icon: "☎", wired: false },
-  { id: "steps", label: "Steps", icon: "⋔", wired: true },
-  { id: "leads", label: "Leads", icon: "☺", wired: true },
-  { id: "preview", label: "Preview", icon: "◉", wired: false },
-  { id: "stats", label: "Stats", icon: "▤", wired: false },
-  { id: "settings", label: "Settings", icon: "⚙", wired: true },
-  { id: "logs", label: "Logs", icon: "≣", wired: true },
-] as const;
+import { cf, GRAD, GOAL_EMOJI, TABS } from "./shared";
 
 export interface AgentViewData {
   agent: { id: string; name: string; goal: string; status: string; createdAt: string };

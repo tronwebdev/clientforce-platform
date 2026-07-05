@@ -89,7 +89,7 @@ export function InboxTab({ agentId }: { agentId: string }) {
     void refresh();
   }
 
-  const heading = INBOX_CATS.find((c) => c.id === cat)?.label ?? "All";
+  const heading = cat === "all" ? "All conversations" : INBOX_CATS.find((c) => c.id === cat)?.label ?? "All";
   const sortLabel = sort === "newest" ? "Newest first" : sort === "oldest" ? "Oldest first" : "Name A–Z";
   const chOpt = CHANNEL_OPTIONS.find((o) => o.id === channel)!;
 
@@ -261,7 +261,7 @@ export function InboxTab({ agentId }: { agentId: string }) {
                     ))}
                     <span style={{ fontSize: 11.5, fontWeight: 600, color: "#16A82A", background: "rgba(53,232,52,.1)", borderRadius: 8, padding: "6px 11px", marginLeft: 4 }}>✦ AI reply</span>
                     <div title="Reply sending arrives with a later unit" style={{ marginLeft: "auto", display: "flex", alignItems: "stretch", borderRadius: 11, overflow: "hidden", boxShadow: "0 6px 16px rgba(53,232,52,.26)", opacity: 0.85 }}>
-                      <span style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontWeight: 700, fontSize: 15, color: "#0A0F0C", background: GRAD, padding: "11px 22px" }}>Send reply</span>
+                      <span style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontWeight: 700, fontSize: 15, color: "#0A0F0C", background: GRAD, padding: "11px 22px" }}>Reply</span>
                       <span style={{ fontSize: 13, color: "#0A0F0C", background: "#35E834", padding: "11px 12px", borderLeft: "1px solid rgba(10,15,12,.18)" }}>⌄</span>
                     </div>
                   </div>

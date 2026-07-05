@@ -1,4 +1,16 @@
-/** Shared bits for the Agent view tabs (C2.4). */
+/** Shared bits for the Agent view tabs (C2.4). Plain module (no "use client")
+ * so the server route can import TABS for validation. */
+
+export const TABS = [
+  { id: "inbox", label: "Inbox", icon: "✉", wired: true },
+  { id: "calls", label: "Calls", icon: "☎", wired: false },
+  { id: "steps", label: "Steps", icon: "⋔", wired: true },
+  { id: "leads", label: "Leads", icon: "☺", wired: true },
+  { id: "preview", label: "Preview", icon: "◉", wired: false },
+  { id: "stats", label: "Stats", icon: "▤", wired: false },
+  { id: "settings", label: "Settings", icon: "⚙", wired: true },
+  { id: "logs", label: "Logs", icon: "≣", wired: true },
+] as const;
 
 export const GRAD = "linear-gradient(135deg,#36D7ED 0%,#35E834 55%,#D0F56B 100%)";
 

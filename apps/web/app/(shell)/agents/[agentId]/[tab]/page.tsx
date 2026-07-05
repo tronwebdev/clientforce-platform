@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { fetchMe } from "../../../../../lib/api";
-import { AgentView, TABS } from "./AgentView";
+import { AgentView } from "./AgentView";
+import { TABS } from "./shared";
 
 /**
  * C2.4 — Agent view (checkpoints §4), `/agents/[agentId]/[tab]` per A5.

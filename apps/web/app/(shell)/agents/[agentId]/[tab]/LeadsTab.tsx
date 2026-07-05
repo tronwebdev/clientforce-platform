@@ -304,6 +304,19 @@ export function LeadsTab({ agentId, view, onChanged }: { agentId: string; view: 
                   ) : null}
                 </div>
               </div>
+              {/* stat tiles — live Opens/Replies from Event rows; the prototype's
+                  AI "Score" tile is omitted (no live metric, DEC-038a rule) */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9, marginBottom: 18 }} data-testid="lead-stats">
+                {[
+                  { label: "Opens", value: (timeline ?? []).filter((e) => e.type === "email.opened.v1").length },
+                  { label: "Replies", value: (timeline ?? []).filter((e) => e.type === "email.replied.v1").length },
+                ].map((s) => (
+                  <div key={s.label} style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 12, padding: 12, textAlign: "center" }}>
+                    <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 20, color: "#0E1512" }}>{s.value}</div>
+                    <div style={{ fontSize: 11.5, color: "#9AA59E" }}>{s.label}</div>
+                  </div>
+                ))}
+              </div>
               <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", color: "#8A7F6B", marginBottom: 10 }}>Details</div>
               <div style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 13, marginBottom: 18 }}>
                 {[
