@@ -49,6 +49,50 @@ const BSTEPS = [
 ];
 const BUILD_DELAYS = [700, 650, 850, 600, 720, 580, 540, 820];
 
+/** Personalization chips — the REAL merge-token set (P1.5 `renderTokens`);
+ *  the prototype's `{{calendarLink}}` is omitted until a booking-link token exists. */
+const TOKENS = ["{{firstName}}", "{{lastName}}", "{{company}}", "{{senderName}}"];
+
+/** Deterministic deliverability rows (owner review, PR #34): subject length,
+ *  reading level, read time, links, "free" count — the AI-only score/verdict
+ *  and spam-risk rows are omitted, never faked. */
+function emailChecks(subject: string, body: string) {
+  const rendered = `${subject} ${body}`.replace(/\{\{\s*[\w.]+\s*\}\}/g, "Alex");
+  const words = rendered.split(/\s+/).filter(Boolean);
+  const sentences = Math.max(1, (body.match(/[.!?](\s|$)/g) ?? []).length);
+  const syllables = words.reduce(
+    (acc, w) => acc + Math.max(1, (w.toLowerCase().match(/[aeiouy]+/g) ?? []).length),
+    0,
+  );
+  // Flesch–Kincaid grade level, clamped to a sane display range.
+  const grade = Math.min(
+    16,
+    Math.max(1, Math.round(0.39 * (words.length / sentences) + 11.8 * (syllables / Math.max(1, words.length)) - 15.59)),
+  );
+  const readSec = Math.max(1, Math.round((words.length / 220) * 60));
+  const links = (body.match(/https?:\/\//g) ?? []).length;
+  const freeCount = (rendered.toLowerCase().match(/\bfree\b/g) ?? []).length;
+  const subjLen = subject.length;
+  const good = { fg: "#16A82A", dot: "#35E834" };
+  const warn = { fg: "#B8860B", dot: "#E8C45B" };
+  const neutral = { fg: "#5C6B62", dot: "#C2B79F" };
+  return [
+    freeCount === 0
+      ? { label: '"Free" appears', value: "Not used", ...good }
+      : { label: `"Free" appears ${freeCount === 1 ? "once" : `${freeCount} times`}`, value: "Minor — consider rewording", ...warn },
+    subjLen >= 1 && subjLen <= 60
+      ? { label: "Subject length", value: `Good (${subjLen} chars)`, ...good }
+      : { label: "Subject length", value: `${subjLen} chars — keep under 60`, ...warn },
+    grade <= 8
+      ? { label: "Reading level", value: `Grade ${grade} · easy`, ...good }
+      : { label: "Reading level", value: `Grade ${grade} · simplify`, ...warn },
+    { label: "Read time", value: `~${readSec} sec`, ...neutral },
+    links <= 1
+      ? { label: "Links", value: String(links), ...good }
+      : { label: "Links", value: `${links} — fewer is safer`, ...warn },
+  ];
+}
+
 /** Success-overlay confetti, verbatim from the prototype. */
 const CONFETTI = [
   { left: "8%", bg: "#36D7ED", size: 9, delay: "0s", dur: "2.6s" }, { left: "17%", bg: "#35E834", size: 7, delay: ".3s", dur: "3.1s" },
@@ -259,6 +303,11 @@ export function Wizard() {
     }
     return [...bySource.entries()].map(([id, v]) => ({ id, ...v }));
   }, [fields]);
+
+  const editStepIndex = useMemo(() => {
+    if (!graph || !editNode) return 0;
+    return graph.nodes.filter((n) => n.type === "step").findIndex((n) => n.id === editNode.id) + 1;
+  }, [graph, editNode]);
 
   const branchCases = useMemo(() => {
     const b = graph?.nodes.find((n) => n.type === "branch");
@@ -606,8 +655,8 @@ export function Wizard() {
   return (
     <div style={{ position: "relative", minHeight: "100vh", width: "100%", background: "#FBF7F0", fontFamily: "'Hanken Grotesk',sans-serif", overflow: "hidden" }}>
       {/* wizard top bar */}
-      <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 26px 16px 72px", borderBottom: "1px solid #EBE3D6", background: "#fff" }}>
-        <a href="/dashboard" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 7, fontSize: 13.5, fontWeight: 600, color: "#5C6B62", border: "1px solid #EBE3D6", borderRadius: 10, padding: "8px 13px", marginRight: 2 }}>‹ Dashboard</a>
+      <div style={{ boxSizing: "border-box", display: "flex", alignItems: "center", gap: 14, height: 66, padding: "16px 26px 16px 72px", borderBottom: "1px solid #EBE3D6", background: "#fff" }}>
+        <a href="/dashboard" style={{ boxSizing: "border-box", textDecoration: "none", display: "flex", alignItems: "center", gap: 7, height: 34, fontSize: 13.5, fontWeight: 600, color: "#5C6B62", border: "1px solid #EBE3D6", borderRadius: 10, padding: "0 13px", marginRight: 2 }}>‹ Dashboard</a>
         <div style={{ width: 32, height: 32, borderRadius: 9, background: GRAD, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, color: "#0A0F0C", fontSize: 17 }}>f</div>
         <span style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 18, color: "#0E1512" }}>New agent</span>
         <span style={{ fontSize: 13, color: "#9AA59E", borderLeft: "1px solid #EBE3D6", paddingLeft: 14 }} data-testid="step-counter">Step {step + 1} of {STEP_DEFS.length}</span>
@@ -615,14 +664,14 @@ export function Wizard() {
           {agentId ? (
             <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: "#16A82A" }} data-testid="draft-saved"><span style={{ width: 6, height: 6, borderRadius: "50%", background: "#35E834" }} />Draft saved · just now</span>
           ) : null}
-          <span style={{ fontSize: 13, fontWeight: 600, color: "#5C6B62", border: "1px solid #EBE3D6", borderRadius: 10, padding: "8px 15px" }}>Help</span>
+          <span style={{ boxSizing: "border-box", display: "flex", alignItems: "center", height: 34, fontSize: 13, fontWeight: 600, color: "#5C6B62", border: "1px solid #EBE3D6", borderRadius: 10, padding: "0 15px" }}>Help</span>
           <a href="/dashboard" style={{ textDecoration: "none", width: 34, height: 34, borderRadius: 10, border: "1px solid #EBE3D6", display: "flex", alignItems: "center", justifyContent: "center", color: "#9AA59E" }}>✕</a>
         </div>
       </div>
 
       <div style={{ display: "flex", background: "#FBF7F0", paddingLeft: 64 }}>
       {/* step rail — §3: 332px, right hairline, Back + gradient Next pinned */}
-      <div style={{ flex: "none", width: 332, borderRight: "1px solid #EBE3D6", padding: "26px 24px", minHeight: 680, display: "flex", flexDirection: "column" }}>
+      <div style={{ boxSizing: "border-box", flex: "none", width: 332, borderRight: "1px solid #EBE3D6", padding: "26px 24px", minHeight: 680, height: "calc(100vh - 66px)", position: "sticky", top: 0, alignSelf: "flex-start", display: "flex", flexDirection: "column" }}>
         <div>
           {STEP_DEFS.map((d, i) => {
             const done = i < step;
@@ -662,7 +711,7 @@ export function Wizard() {
       </div>
 
       {/* step content */}
-      <div style={{ flex: 1, minWidth: 0, padding: "28px 32px", position: "relative" }}>
+      <div style={{ boxSizing: "border-box", flex: 1, minWidth: 0, padding: "28px 32px", position: "relative" }}>
         <div style={{ marginBottom: 22 }}>
           <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 26, letterSpacing: "-.02em", color: "#0E1512" }}>{STEP_DEFS[step]!.title}</div>
           <div style={{ fontSize: 15, color: "#5C6B62" }}>{STEP_DEFS[step]!.subtitle}</div>
@@ -680,9 +729,11 @@ export function Wizard() {
         {busyMsg ? <div style={{ position: "fixed", bottom: 22, left: "50%", transform: "translateX(-50%)", background: "#0C140F", color: "#fff", borderRadius: 12, padding: "10px 18px", fontSize: 13.5, zIndex: 70 }}>{busyMsg}</div> : null}
 
         {step === 0 ? (
+          <div style={{ maxWidth: 760 }}>
           <Step1
             {...{ name, setName, goal, setGoal, sources, addMode, setAddMode, category, setCategory, categoryOpen, setCategoryOpen, instructions, setInstructions, urlInput, setUrlInput, addUrl, contextSummary, groundedSources, aboutEv, setAboutEv, gaps: openGaps, covered, coveredEv, setCoveredEv, fields, gapResolved, gapTotal, typedDrafts, setTypedDrafts, typeGap, delegateGap, undoGap, buildMethod, setBuildMethod, ensureAgent, refreshKnowledge }}
           />
+          </div>
         ) : null}
 
         {step === 1 ? (
@@ -848,7 +899,7 @@ export function Wizard() {
               <div style={{ display: "flex", alignItems: "center", gap: 14, background: "rgba(53,232,52,.1)", border: "1px solid rgba(53,232,52,.3)", borderRadius: 14, padding: "15px 18px", marginBottom: 12 }} data-testid="ready-banner">
                 <span style={{ width: 38, height: 38, borderRadius: 11, flex: "none", background: GRAD, color: "#0A0F0C", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>✓</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 15.5, color: "#0E1512" }}>All 1 channels ready to send</div>
+                  <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 15.5, color: "#0E1512" }}>Email channel ready to send</div>
                   <div style={{ fontSize: 12.5, color: "#5C6B62" }}>Every step in your sequence has a connected, healthy sender.</div>
                 </div>
               </div>
@@ -856,7 +907,7 @@ export function Wizard() {
               <div style={{ display: "flex", alignItems: "center", gap: 14, background: "rgba(232,196,91,.12)", border: "1px solid rgba(232,196,91,.5)", borderRadius: 14, padding: "15px 18px", marginBottom: 12 }} data-testid="ready-banner">
                 <span style={{ width: 38, height: 38, borderRadius: 11, flex: "none", background: "rgba(232,196,91,.25)", color: "#A87B16", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>⚠</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 15.5, color: "#0E1512" }}>0 of 1 channels ready</div>
+                  <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 15.5, color: "#0E1512" }}>Email channel not ready</div>
                   <div style={{ fontSize: 12.5, color: "#5C6B62" }}>Connect Email below before this agent can launch.</div>
                 </div>
               </div>
@@ -1058,16 +1109,66 @@ export function Wizard() {
         ) : null}
       </div>
 
-      {/* step editor modal */}
-      {editNode ? (
-        <Modal onClose={() => setEditNode(null)} title="Edit step" tid="step-editor">
-          <label style={lbl}>Subject</label>
-          <input value={editSubject} onChange={(e) => setEditSubject(e.target.value)} style={inp} data-testid="edit-subject" />
-          <label style={lbl}>Body</label>
-          <textarea value={editBody} onChange={(e) => setEditBody(e.target.value)} rows={7} style={{ ...inp, resize: "vertical" }} data-testid="edit-body" />
-          <div style={{ fontSize: 11.5, color: "#9AA59E", margin: "6px 0 14px" }}>Tokens like {"{{firstName}}"} and {"{{company}}"} personalise per lead; the signature and compliance footer are added at send time.</div>
-          <ModalActions onCancel={() => setEditNode(null)} onSave={() => void saveEditedStep()} />
-        </Modal>
+      {/* step editor — §3 (amended): 560px right drawer w/ STEP header,
+          deterministic deliverability rows, PERSONALIZATION token chips */}
+      {editNode && editNode.type === "step" ? (
+        <div onClick={() => setEditNode(null)} style={{ position: "fixed", inset: 0, background: "rgba(12,20,15,.4)", zIndex: 60 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ position: "absolute", top: 0, right: 0, bottom: 0, width: 560, maxWidth: "100%", background: "#fff", boxShadow: "-24px 0 70px rgba(0,0,0,.28)", display: "flex", flexDirection: "column" }} data-testid="step-editor">
+            <div style={{ display: "flex", alignItems: "center", gap: 13, padding: "18px 22px", borderBottom: "1px solid #EBE3D6", background: "#fff", flex: "none" }}>
+              <span style={{ width: 40, height: 40, borderRadius: 12, flex: "none", background: "rgba(53,232,52,.16)", color: "#16A82A", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 19, fontWeight: 700 }}>✉</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "#8A7F6B" }}>Step {editStepIndex}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, borderRadius: 8, padding: "2px 9px", background: "rgba(53,232,52,.13)", color: "#16A82A" }}>Email</span>
+                </div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: "#0E1512", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{editSubject || "Untitled step"}</div>
+              </div>
+              <span onClick={() => setEditNode(null)} style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid #EBE3D6", display: "flex", alignItems: "center", justifyContent: "center", color: "#9AA59E", cursor: "pointer", flex: "none" }}>✕</span>
+            </div>
+
+            <div style={{ padding: 22, display: "flex", flexDirection: "column", gap: 18, flex: 1, overflow: "auto", minHeight: 0 }}>
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#5C6B62", marginBottom: 7 }}>Subject line</label>
+                <input value={editSubject} onChange={(e) => setEditSubject(e.target.value)} style={{ boxSizing: "border-box", width: "100%", borderRadius: 11, background: "#FBF7F0", border: "1px solid #EBE3D6", padding: "11px 14px", fontSize: 14, color: "#0E1512", fontFamily: "'Hanken Grotesk',sans-serif" }} data-testid="edit-subject" />
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#5C6B62", marginBottom: 7 }}>Body</label>
+                <textarea value={editBody} onChange={(e) => setEditBody(e.target.value)} rows={8} style={{ boxSizing: "border-box", width: "100%", borderRadius: 11, background: "#FBF7F0", border: "1px solid #EBE3D6", padding: "13px 14px", fontSize: 14, color: "#3B463F", lineHeight: 1.6, minHeight: 150, resize: "vertical", fontFamily: "'Hanken Grotesk',sans-serif" }} data-testid="edit-body" />
+                <div style={{ fontSize: 11.5, color: "#9AA59E", marginTop: 6 }}>The signature and compliance footer are added at send time.</div>
+              </div>
+
+              {/* deliverability — deterministic rows only (AI-only score/verdict omitted) */}
+              <div style={{ border: "1px solid #EBE3D6", borderRadius: 13, overflow: "hidden" }} data-testid="deliverability-card">
+                <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 15px", background: "linear-gradient(90deg,rgba(53,232,52,.1),rgba(54,215,237,.07))", borderBottom: "1px solid #EBE3D6" }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#0E1512", flex: 1 }}>✦ AI deliverability check</span>
+                </div>
+                {emailChecks(editSubject, editBody).map((c, i) => (
+                  <div key={c.label} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 15px", borderTop: i ? "1px solid #F2EEE4" : "none" }}>
+                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: c.dot, flex: "none" }} />
+                    <span style={{ fontSize: 13, color: "#3B463F", flex: 1 }}>{c.label}</span>
+                    <span style={{ fontSize: 12.5, fontWeight: 600, color: c.fg }}>{c.value}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* personalization — REAL merge tokens (P1.5 renderTokens set) */}
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#8A7F6B", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 }}>Personalization</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+                  {TOKENS.map((t) => (
+                    <span key={t} onClick={() => setEditBody((b) => (b ? `${b} ${t}` : t))} style={{ fontSize: 12.5, fontWeight: 600, color: "#1192A6", background: "rgba(54,215,237,.12)", border: "1px solid rgba(54,215,237,.3)", borderRadius: 8, padding: "5px 10px", cursor: "pointer" }} data-testid={`token-${t.replace(/[^a-zA-Z]/g, "")}`}>{t}</span>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 22px", borderTop: "1px solid #EBE3D6", background: "#fff", flex: "none" }}>
+              <span title="AI rewrite arrives with the sequence tools — use ✦ Regenerate for a full re-plan" style={{ fontSize: 13, fontWeight: 700, color: "#16A82A", background: "rgba(53,232,52,.1)", borderRadius: 10, padding: "9px 14px", cursor: "default" }}>✦ Rewrite with AI</span>
+              <span onClick={() => setEditNode(null)} style={{ marginLeft: "auto", fontSize: 14, fontWeight: 600, color: "#5C6B62", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 11, padding: "10px 18px", cursor: "pointer" }}>Cancel</span>
+              <span onClick={() => void saveEditedStep()} style={{ fontSize: 14, fontWeight: 700, color: "#0A0F0C", background: GRAD, borderRadius: 11, padding: "10px 22px", cursor: "pointer", boxShadow: "0 6px 16px rgba(53,232,52,.26)" }} data-testid="modal-save">Save step</span>
+            </div>
+          </div>
+        </div>
       ) : null}
 
       {/* delay modal */}
