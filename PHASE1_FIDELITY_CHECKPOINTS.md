@@ -182,8 +182,11 @@ static mock):** Calls, Preview, Stats. Do not delete them.
   (+ intent chip) → stage change), newest first, from live `Event`/`Message` rows. This drawer is the
   human-visible proof of the engagement loop — it gets its own screenshot in every PR that touches it.
 
-**Inbox tab:** intent category chips (`inboxCats`: All / Interested / Not now / Objection / …) with
-live counts — categories ARE the P1.7 classifications; thread list (grouped per contact) → thread
+**Inbox tab:** intent category chips (`inboxCats`, verbatim: **All · Interested · Meeting booked ·
+Replied · Question · Not interested · Auto-reply**) with live counts — categories ARE the P1.7
+classifications (DEC-034 label set; the earlier "Not now / Objection" wording was stale vs the
+prototype — amended in PR #35, owner-approved); `unsubscribe`-classified threads LEAVE the Inbox
+(their home is Contacts → Unsub and the lead timeline); thread list (grouped per contact) → thread
 view rendering **real `Message` bodies** (outbound + inbound); sort dropdown; mark-done; row menu.
 Unclassified replies land in a visible bucket, never dropped.
 **Steps tab:** "Main sequence · N steps" header; renders the **persisted graph** with per-step sent/
