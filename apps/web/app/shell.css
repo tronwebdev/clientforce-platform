@@ -219,6 +219,9 @@
 }
 
 .cf-sb__tools-toggle {
+  /* Punch-list fix (owner 2026-07-05): the <button> rows sized content-box, so
+     `width: 100%` + the 14px item paddings poked 28px past the nav column. */
+  box-sizing: border-box;
   width: 100%;
   border: none;
   background: transparent;

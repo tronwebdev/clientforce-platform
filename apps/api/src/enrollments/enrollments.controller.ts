@@ -6,6 +6,7 @@ import {
   Inject,
   NotFoundException,
   Param,
+  Patch,
   Post,
   Query,
   UnprocessableEntityException,
@@ -156,6 +157,38 @@ export class EnrollmentsController {
         },
       }),
     );
+  }
+
+  /**
+   * C2.4 manual stage move (lead drawer "Move" / inbox "Move to"): persists the
+   * stage and writes the lead.stage_changed.v1 Event row directly (no bus in
+   * the API process — Logs and the drawer timeline read Event rows).
+   */
+  @Patch(":id")
+  @Roles(Role.OWNER, Role.ADMIN)
+  async move(@Param("id") id: string, @Body() body: { pipelineStage?: string }) {
+    const stage = String(body?.pipelineStage ?? "").trim();
+    if (!stage || stage.length > 40) throw new BadRequestException("pipelineStage required");
+    return this.tenant.run(async (tx) => {
+      const enrollment = await tx.enrollment.findUnique({ where: { id } });
+      if (!enrollment) throw new NotFoundException(`Enrollment ${id} not found`);
+      if (enrollment.pipelineStage === stage) return enrollment;
+      const updated = await tx.enrollment.update({
+        where: { id },
+        data: { pipelineStage: stage },
+      });
+      await tx.event.create({
+        data: {
+          workspaceId: this.tenant.workspaceId,
+          type: "lead.stage_changed.v1",
+          contactId: enrollment.contactId,
+          enrollmentId: enrollment.id,
+          campaignId: enrollment.campaignId,
+          payload: { fromStage: enrollment.pipelineStage, toStage: stage, manual: true },
+        },
+      });
+      return updated;
+    });
   }
 
   @Post(":id/signal-reply")
