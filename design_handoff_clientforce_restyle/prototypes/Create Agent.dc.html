@@ -309,6 +309,26 @@
                       <span style="font-size:12px;font-weight:600;color:#16A82A;cursor:pointer;">Edit</span>
                     </div>
                     <div style="padding:14px 16px;background:#fff;font-size:14.5px;color:#3B463F;line-height:1.55;">BrightPath Growth — we help dental clinics book more new-patient appointments. Founded 2019, based in Austin, TX. Typical client adds 15–30 patients / month. Flagship offer: a free 15-minute growth audit.</div>
+                    <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:9px 16px 10px;background:#fff;border-top:1px solid #F2EEE4;">
+                      <span style="font-size:11.5px;font-weight:600;color:#9AA59E;flex:none;">Grounded in</span>
+                      <sc-for list="{{ aboutSources }}" as="cs" hint-placeholder-count="3">
+                        <span onClick="{{ cs.onOpen }}" style="display:inline-flex;align-items:center;gap:5px;padding:3.5px 10px;border-radius:100px;border:1px solid {{ cs.border }};background:{{ cs.bg }};font-size:11.5px;font-weight:600;color:#3B463F;cursor:pointer;" style-hover="border-color:#9FD8AC;"><span style="font-size:11px;">{{ cs.icon }}</span>{{ cs.label }}</span>
+                      </sc-for>
+                    </div>
+                    <sc-if value="{{ aboutEvidenceOpen }}" hint-placeholder-val="{{ false }}">
+                      <div style="padding:10px 16px 13px;background:#FBFDF9;border-top:1px solid #F2EEE4;">
+                        <div style="border-left:2px solid #35E834;padding:1px 0 1px 11px;">
+                          <div style="font-size:12.5px;color:#3B463F;line-height:1.55;font-style:italic;">“{{ aboutQuote }}”</div>
+                          <div style="display:flex;align-items:center;gap:8px;margin-top:5px;flex-wrap:wrap;">
+                            <span style="font-size:11px;color:#9AA59E;">{{ aboutSrcLine }}</span>
+                            <span style="font-size:11px;color:#C4BAB0;">·</span>
+                            <span style="font-size:11px;font-weight:600;color:#8A7F6B;">{{ aboutBacks }}</span>
+                            <span style="flex:1;"></span>
+                            <span style="font-size:11.5px;font-weight:600;color:#16A82A;cursor:pointer;flex:none;">Open source ↗</span>
+                          </div>
+                        </div>
+                      </div>
+                    </sc-if>
                   </div>
 
                   <!-- AI gap checker -->
@@ -318,7 +338,25 @@
                       <div style="flex:1;min-width:0;"><div style="font-size:13.5px;font-weight:700;color:#0E1512;">A few things the agent still needs</div><div style="font-size:12px;color:#8A7F6B;">Not found in your docs — resolve before launching.</div></div>
                       <span style="font-size:11px;font-weight:700;color:#8A7F6B;background:rgba(232,196,91,.2);border-radius:7px;padding:3px 9px;">{{ gapResolved }}/{{ gapTotal }}</span>
                     </div>
-                    <div style="display:flex;align-items:center;gap:8px;padding:9px 16px;background:rgba(53,232,52,.06);border-bottom:1px solid rgba(232,196,91,.2);"><span style="color:#16A82A;font-size:12px;">✓</span><span style="font-size:12px;color:#16A82A;font-weight:600;">Found in your docs: services, case studies &amp; objection handling.</span></div>
+                    <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:8px 16px;background:rgba(53,232,52,.06);border-bottom:1px solid rgba(232,196,91,.2);">
+                      <span style="color:#16A82A;font-size:12px;flex:none;">✓</span>
+                      <span style="font-size:12px;color:#16A82A;font-weight:600;flex:none;">Found in your docs:</span>
+                      <sc-for list="{{ covered }}" as="cv" hint-placeholder-count="3">
+                        <span onClick="{{ cv.onOpen }}" style="display:inline-flex;align-items:center;gap:4px;padding:2.5px 9px;border-radius:100px;border:1px solid {{ cv.border }};background:{{ cv.bg }};font-size:11.5px;font-weight:600;color:#0F7A28;cursor:pointer;" style-hover="border-color:#35E834;">{{ cv.label }}<span style="font-size:9px;opacity:.6;">{{ cv.chev }}</span></span>
+                      </sc-for>
+                    </div>
+                    <sc-if value="{{ coveredEvidenceOpen }}" hint-placeholder-val="{{ false }}">
+                      <div style="padding:9px 16px 12px;background:rgba(53,232,52,.04);border-bottom:1px solid rgba(232,196,91,.2);">
+                        <div style="border-left:2px solid #35E834;padding:1px 0 1px 11px;">
+                          <div style="font-size:12.5px;color:#3B463F;line-height:1.55;font-style:italic;">“{{ coveredQuote }}”</div>
+                          <div style="display:flex;align-items:center;gap:8px;margin-top:5px;">
+                            <span style="font-size:11px;color:#8A7F6B;">{{ coveredSrcLine }}</span>
+                            <span style="flex:1;"></span>
+                            <span style="font-size:11.5px;font-weight:600;color:#16A82A;cursor:pointer;flex:none;">Open source ↗</span>
+                          </div>
+                        </div>
+                      </div>
+                    </sc-if>
                     <sc-for list="{{ gaps }}" as="g" hint-placeholder-count="3">
                       <div style="padding:11px 16px;border-top:1px solid rgba(232,196,91,.16);">
                         <div style="display:flex;align-items:center;gap:11px;">
@@ -1294,7 +1332,7 @@
                 <div style="flex:1;"><label style="display:block;font-size:11px;font-weight:800;color:#9AA59E;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">First name</label><div style="height:42px;border-radius:10px;background:#FBF7F0;border:1px solid #EBE3D6;display:flex;align-items:center;padding:0 13px;font-size:13.5px;color:#B7BDB6;">Jane</div></div>
                 <div style="flex:1;"><label style="display:block;font-size:11px;font-weight:800;color:#9AA59E;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Last name</label><div style="height:42px;border-radius:10px;background:#FBF7F0;border:1px solid #EBE3D6;display:flex;align-items:center;padding:0 13px;font-size:13.5px;color:#B7BDB6;">Doe</div></div>
               </div>
-              <div style="margin-bottom:12px;"><label style="display:block;font-size:11px;font-weight:800;color:#9AA59E;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Email</label><div style="height:42px;border-radius:10px;background:#FBF7F0;border:1px solid #EBE3D6;display:flex;align-items:center;padding:0 13px;font-size:13.5px;color:#B7BDB6;">jane@clinic.com</div></div>
+              <div style="margin-bottom:12px;"><label style="display:block;font-size:11px;font-weight:800;color:#9AA59E;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Email</label><div style="height:42px;border-radius:10px;background:#FBF7F0;border:1px solid #EBE3D6;display:flex;align-items:center;padding:0 13px;font-size:13.5px;color:#B7BDB6;"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="395358575c795a555057505a175a5654">[email&#160;protected]</a></div></div>
               <div style="display:flex;gap:12px;margin-bottom:14px;">
                 <div style="flex:1;"><label style="display:block;font-size:11px;font-weight:800;color:#9AA59E;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Company</label><div style="height:42px;border-radius:10px;background:#FBF7F0;border:1px solid #EBE3D6;display:flex;align-items:center;padding:0 13px;font-size:13.5px;color:#B7BDB6;">Clinic name</div></div>
                 <div style="flex:1;"><label style="display:block;font-size:11px;font-weight:800;color:#9AA59E;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Phone</label><div style="height:42px;border-radius:10px;background:#FBF7F0;border:1px solid #EBE3D6;display:flex;align-items:center;padding:0 13px;font-size:13.5px;color:#B7BDB6;">+1…</div></div>
@@ -1675,7 +1713,7 @@
   </div>
 
 </x-dc>
-<script type="text/x-dc" data-dc-script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script type="text/x-dc" data-dc-script>
 class Component extends DCLogic {
   state = { stepIndex: 0, sendDayState: [true, true, true, true, true, false, false], modal: null, delays: {}, inboundOn: { widget: false, form: false, embed: false }, inboundSel: { widget: null, form: null, embed: null }, openDD: null, apOn: true, apKeywords: ['dental clinic', 'orthodontist', 'pediatric dentistry', '"new patients"', 'implant dentistry'], apAddOpen: false, apParamDD: null, apParams: { location: 'United States · Canada', industry: 'Dental & Orthodontics', size: '1–50 staff', rating: '4.0 ★ +' }, apSignals: { api: true, news: true, reviews: true, social: true }, inboundExpanded: null, goal: 'reactivate', category: 'Dental & Orthodontics', buildMethod: 'ai', template: null, categoryOpen: false, channelsOn: {}, gaps: { usp: 'missing', pricing: 'missing', availability: 'missing' }, setupReveal: 0, templateExpanded: false, addSourceMode: null, tplFilter: 'all', building: false, buildProgress: 0, step2View: 'sequence', ruleOff: {}, ruleWhenSel: null, ruleThenSel: null, ruleDD: null, subNewStep: 0, subNewTrigger: null, subNewBuild: 'ai', subNewDD: null, csvStep: 0, guardToggles: { suppress: true, dnc: true, quietHours: true, throttle: true },
     phoneConnected: false, waConnected: false, connectArea: '512', connectChoice: 'new', connectProvider: 'gmail', connectStep: 0,
@@ -1935,6 +1973,21 @@ class Component extends DCLogic {
       });
     });
     const gapResolved = gapDefs.filter((g) => (this.state.gaps[g.key] || 'missing') !== 'missing').length;
+
+    const ABOUT_SOURCES = [
+      { key: 'site', icon: '🌐', label: 'brightpathgrowth.co', srcLine: '🌐 brightpathgrowth.co — homepage hero', backs: 'backs offer · pricing model', quote: 'We fill empty chairs. Done-for-you outreach that books new-patient appointments — you only pay when a patient books.' },
+      { key: 'pdf', icon: '📄', label: 'Growth-audit-overview.pdf', srcLine: '📄 Growth-audit-overview.pdf — page 2', backs: 'backs ICP · typical results', quote: 'Built for independent clinics and small DSO groups (1–10 locations). A typical client adds 15–30 new patients per month.' },
+      { key: 'faq', icon: '❓', label: 'Objection-handling FAQ', srcLine: '❓ Objection-handling FAQ — Q7 of 18', backs: 'backs objection handling', quote: 'Already tried an agency? With BrightPath you pay per booked appointment — no retainers, no lock-in.' },
+    ];
+    const aboutSources = ABOUT_SOURCES.map((a) => { const on = this.state.aboutSrc === a.key; return Object.assign({}, a, { border: on ? '#35E834' : '#EBE3D6', bg: on ? 'rgba(53,232,52,.08)' : '#fff', onOpen: () => this.setState((s) => ({ aboutSrc: s.aboutSrc === a.key ? null : a.key })) }); });
+    const aboutEv = ABOUT_SOURCES.find((a) => a.key === this.state.aboutSrc) || null;
+    const COVERED_DEFS = [
+      { key: 'services', label: 'Services', srcLine: '🌐 brightpathgrowth.co/services', quote: 'Done-for-you outbound across email, SMS, WhatsApp and AI voice — list building, copy, sending and reply handling included.' },
+      { key: 'cases', label: 'Case studies', srcLine: '🌐 brightpathgrowth.co/results', quote: 'Bright Smiles Dental: 18 new-patient appointments in the first 3 weeks. Rossi Clinic: 32% SMS reply rate.' },
+      { key: 'objections', label: 'Objection handling', srcLine: '❓ Objection-handling FAQ — 18 Q&A pairs', quote: '“Too busy to change anything?” We do everything — you approve the first message and we handle the rest.' },
+    ];
+    const covered = COVERED_DEFS.map((c) => { const on = this.state.coveredKey === c.key; return Object.assign({}, c, { chev: on ? '▴' : '▾', border: on ? '#35E834' : 'rgba(53,232,52,.35)', bg: on ? 'rgba(53,232,52,.12)' : '#fff', onOpen: () => this.setState((s) => ({ coveredKey: s.coveredKey === c.key ? null : c.key })) }); });
+    const coveredEv = COVERED_DEFS.find((c) => c.key === this.state.coveredKey) || null;
 
     const BSTEPS = [
       { icon: '📚', label: 'Parsing knowledge base & business context', category: 'Knowledge' },
@@ -2210,6 +2263,8 @@ class Component extends DCLogic {
       goalTitle,
       gapResolved,
       gapTotal: gaps.length,
+      aboutSources, aboutEvidenceOpen: !!aboutEv, aboutQuote: aboutEv ? aboutEv.quote : '', aboutSrcLine: aboutEv ? aboutEv.srcLine : '', aboutBacks: aboutEv ? aboutEv.backs : '',
+      covered, coveredEvidenceOpen: !!coveredEv, coveredQuote: coveredEv ? coveredEv.quote : '', coveredSrcLine: coveredEv ? coveredEv.srcLine : '',
       knowledgeSources: [
         { icon: '🌐', label: 'brightpathgrowth.co', meta: 'Website — 38 pages crawled', status: 'Synced', fg: '#16A82A' },
         { icon: '📄', label: 'Growth-audit-overview.pdf', meta: 'PDF · 1.4 MB', status: 'Ready', fg: '#16A82A' },

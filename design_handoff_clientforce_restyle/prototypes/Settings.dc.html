@@ -73,7 +73,7 @@
                 </div>
                 <div style="display:flex;gap:16px;margin-bottom:14px;">
                   <div style="flex:1;"><label style="display:block;font-size:12px;font-weight:700;color:#5C6B62;margin-bottom:6px;">Full name</label><div style="height:46px;border-radius:11px;background:#fff;border:1px solid #EBE3D6;display:flex;align-items:center;padding:0 14px;font-size:14px;color:#0E1512;">Jordan Mensah</div></div>
-                  <div style="flex:1;"><label style="display:block;font-size:12px;font-weight:700;color:#5C6B62;margin-bottom:6px;">Email</label><div style="height:46px;border-radius:11px;background:#fff;border:1px solid #EBE3D6;display:flex;align-items:center;padding:0 14px;font-size:14px;color:#0E1512;">jordan@brightpathgrowth.co</div></div>
+                  <div style="flex:1;"><label style="display:block;font-size:12px;font-weight:700;color:#5C6B62;margin-bottom:6px;">Email</label><div style="height:46px;border-radius:11px;background:#fff;border:1px solid #EBE3D6;display:flex;align-items:center;padding:0 14px;font-size:14px;color:#0E1512;"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="bed4d1ccdadfd0fedcccd7d9d6cacedfcad6d9ccd1c9cad690ddd1">[email&#160;protected]</a></div></div>
                 </div>
                 <div style="display:flex;gap:16px;">
                   <div style="flex:1;"><label style="display:block;font-size:12px;font-weight:700;color:#5C6B62;margin-bottom:6px;">Company</label><div style="height:46px;border-radius:11px;background:#fff;border:1px solid #EBE3D6;display:flex;align-items:center;padding:0 14px;font-size:14px;color:#0E1512;">BrightPath Growth</div></div>
@@ -155,7 +155,7 @@
                     <span style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:16px;flex:1;">Agent summary</span>
                     <span onClick="{{ toggleAgentSummary }}" style="font-size:12.5px;color:rgba(255,255,255,.55);cursor:pointer;">✕ Hide</span>
                   </div>
-                  <div style="font-size:12.5px;color:rgba(255,255,255,.55);margin-bottom:13px;">The synthesized context your agents reason from, organized for selling — edit any section.</div>
+                  <div style="font-size:12.5px;color:rgba(255,255,255,.55);margin-bottom:13px;">The synthesized context your agents reason from — every section traces to a source. Edit any section.</div>
                   <div style="display:flex;align-items:center;gap:14px;margin-bottom:11px;">
                     <span style="font-size:11px;font-weight:700;color:#7FE8A0;background:rgba(127,232,160,.12);border-radius:100px;padding:3px 10px;">{{ summaryCount }} sections</span>
                     <span style="flex:1;"></span>
@@ -170,11 +170,34 @@
                           <div style="font-size:13px;font-weight:700;color:#fff;">{{ s.title }}</div>
                           <sc-if value="{{ s.notExpanded }}" hint-placeholder-val="{{ false }}"><div style="font-size:11.5px;color:rgba(255,255,255,.45);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px;">{{ s.preview }}</div></sc-if>
                         </div>
+                        <span style="font-size:10.5px;font-weight:600;color:{{ s.provFg }};flex:none;">{{ s.prov }}</span>
                         <span style="font-size:11px;color:rgba(255,255,255,.4);flex:none;">{{ s.chevron }}</span>
                       </div>
                       <sc-if value="{{ s.expanded }}" hint-placeholder-val="{{ false }}">
                         <div style="padding:0 13px 13px;">
                           <textarea value="{{ s.body }}" onInput="{{ s.onEdit }}" rows="4" style="width:100%;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);padding:11px 13px;font-size:13px;line-height:1.55;color:#fff;font-family:'Hanken Grotesk',sans-serif;resize:vertical;" style-focus="border-color:#7FE8A0;"></textarea>
+                          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:9px;">
+                            <sc-if value="{{ s.hasCites }}" hint-placeholder-val="{{ true }}">
+                              <span style="font-size:11px;font-weight:600;color:rgba(255,255,255,.4);flex:none;">Grounded in</span>
+                              <sc-for list="{{ s.citeChips }}" as="c" hint-placeholder-count="1">
+                                <span onClick="{{ c.onOpen }}" style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:100px;border:1px solid {{ c.border }};background:{{ c.bg }};font-size:11px;font-weight:600;color:rgba(255,255,255,.75);cursor:pointer;" style-hover="border-color:#7FE8A0;"><span style="font-size:10.5px;">{{ c.icon }}</span>{{ c.label }}</span>
+                              </sc-for>
+                            </sc-if>
+                            <sc-if value="{{ s.isAI }}" hint-placeholder-val="{{ false }}">
+                              <span style="font-size:11px;font-weight:600;color:#EFCB68;">✦ Inferred by AI — no direct source in your docs. Edit to confirm, or add a doc and regenerate.</span>
+                            </sc-if>
+                            <span style="flex:1;"></span>
+                            <sc-if value="{{ s.edited }}" hint-placeholder-val="{{ false }}">
+                              <span style="font-size:11px;color:rgba(255,255,255,.5);flex:none;">✎ Edited by you — overrides docs</span>
+                              <span onClick="{{ s.onRevert }}" style="font-size:11px;font-weight:700;color:#7FE8A0;cursor:pointer;flex:none;">↺ Revert</span>
+                            </sc-if>
+                          </div>
+                          <sc-if value="{{ s.quoteOpen }}" hint-placeholder-val="{{ false }}">
+                            <div style="margin-top:8px;border-left:2px solid #7FE8A0;padding:1px 0 1px 11px;">
+                              <div style="font-size:12.5px;color:rgba(255,255,255,.82);line-height:1.55;font-style:italic;">“{{ s.quoteText }}”</div>
+                              <div style="display:flex;align-items:center;gap:8px;margin-top:4px;"><span style="font-size:11px;color:rgba(255,255,255,.45);">{{ s.quoteSrc }}</span><span style="flex:1;"></span><span style="font-size:11px;font-weight:600;color:#7FE8A0;cursor:pointer;flex:none;">Open source ↗</span></div>
+                            </div>
+                          </sc-if>
                         </div>
                       </sc-if>
                     </div>
@@ -771,7 +794,7 @@
     </sc-if>
   </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1280,&quot;height&quot;:900}}">
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1280,&quot;height&quot;:900}}">
 const EMAIL_DETAILS = {
   'acc_4f7a21': {
     email: 'jordan@brightpathgrowth.co', displayName: 'Jordan at BrightPath', providerLabel: 'Google Workspace · OAuth2',
@@ -1074,6 +1097,22 @@ class Component extends DCLogic {
       { id: 's13', n: '13', title: 'Bonuses', body: 'Free reputation/review audit. Done-for-you booking-calendar setup. First 100 contacts sourced free. 14-day no-booking, no-fee guarantee.' },
       { id: 's14', n: '14', title: 'Product intelligence & customer support brain', body: 'Onboarding ~48 hours. Reschedules handled by AI. Billing per booked appointment, invoiced monthly. Support via shared inbox, <2h response. Escalate clinical questions to the clinic.' },
     ];
+    const SUMMARY_CITES = {
+      s1: [ { icon: '🌐', label: 'Homepage', srcLine: '🌐 brightpathgrowth.co — homepage hero', quote: 'We fill empty chairs. Done-for-you outreach that books new-patient appointments — you only pay when a patient books.' }, { icon: '📄', label: 'Growth-audit PDF', srcLine: '📄 Growth-audit-overview.pdf — page 1', quote: 'US-based team working with 40+ active clinic clients.' } ],
+      s2: [ { icon: '📄', label: 'Growth-audit PDF', srcLine: '📄 Growth-audit-overview.pdf — page 2', quote: 'Built for independent clinics and small DSO groups (1–10 locations) in the $1–8M revenue range.' } ],
+      s3: [ { icon: '🌐', label: '/why-brightpath', srcLine: '🌐 brightpathgrowth.co/why-brightpath', quote: 'Your front desk is too busy to chase leads — paid clicks die in the inbox while chairs sit empty.' } ],
+      s4: [ { icon: '🌐', label: '/services', srcLine: '🌐 brightpathgrowth.co/services', quote: 'Free 15-minute growth audit, then a done-for-you campaign across email, SMS, WhatsApp and AI voice.' } ],
+      s5: [ { icon: '🌐', label: '/pricing', srcLine: '🌐 brightpathgrowth.co/pricing', quote: 'No retainers. You pay per booked appointment — if we don\u2019t book, you don\u2019t pay.' } ],
+      s6: [ { icon: '❓', label: 'FAQ · Q7', srcLine: '❓ Objection-handling FAQ — Q7 of 18', quote: 'Already tried an agency? You pay per booked appointment — no retainers, no lock-in.' } ],
+      s8: [ { icon: '🌐', label: '/results', srcLine: '🌐 brightpathgrowth.co/results', quote: 'Bright Smiles Dental booked 18 new-patient appointments in the first 3 weeks.' } ],
+      s9: [ { icon: '📄', label: 'Growth-audit PDF', srcLine: '📄 Growth-audit-overview.pdf — page 4', quote: 'Step one is always the free audit call — every first touch drives to that booking.' } ],
+      s10: [ { icon: '🌐', label: 'Site copy', srcLine: '🌐 brightpathgrowth.co — headlines sampled across 38 pages', quote: 'More patients. Less chasing.' } ],
+      s11: [ { icon: '❓', label: 'FAQ · Q1', srcLine: '❓ Objection-handling FAQ — Q1 of 18', quote: 'How fast will I see appointments? Usually within the first week of launch.' } ],
+      s12: [ { icon: '❓', label: 'FAQ · Q14', srcLine: '❓ Objection-handling FAQ — Q14 of 18', quote: 'Every SMS includes STOP opt-out; every email includes one-click unsubscribe. PHI is handled HIPAA-friendly.' } ],
+      s13: [ { icon: '🌐', label: '/pricing', srcLine: '🌐 brightpathgrowth.co/pricing — footnotes', quote: 'Includes a free reputation audit, booking-calendar setup, and your first 100 contacts sourced free.' } ],
+      s14: [ { icon: '❓', label: 'FAQ · Q16', srcLine: '❓ Objection-handling FAQ — Q16 of 18', quote: 'Onboarding takes about 48 hours; reschedules are handled automatically by the AI.' } ],
+    };
+    const SUMMARY_AI = { s7: true };
     const ROLES = [
       { id: 'Admin', label: 'Admin', icon: '🛡', desc: 'Manage workspace, billing & members' },
       { id: 'Member', label: 'Member', icon: '⚒', desc: 'Build agents & send campaigns' },
@@ -1241,13 +1280,17 @@ class Component extends DCLogic {
       agentSummaryChevron: this.state.agentSummaryOpen ? 'Hide ▴' : 'View ▾',
       toggleAgentSummary: () => this.setState((s) => ({ agentSummaryOpen: !s.agentSummaryOpen })),
       summaryCount: String(SUMMARY_DEFAULTS.length),
-      summarySections: (this.state.summarySections || SUMMARY_DEFAULTS).map((sec) => { const open = !!this.state.summaryOpen[sec.id]; const preview = sec.body.length > 96 ? sec.body.slice(0, 95).trim() + '…' : sec.body; return { id: sec.id, n: sec.n, title: sec.title, body: sec.body, expanded: open, notExpanded: !open, preview, chevron: open ? '▴' : '▾',
+      summarySections: (this.state.summarySections || SUMMARY_DEFAULTS).map((sec) => { const open = !!this.state.summaryOpen[sec.id]; const preview = sec.body.length > 96 ? sec.body.slice(0, 95).trim() + '…' : sec.body; const cites = SUMMARY_CITES[sec.id] || []; const isAI = !!SUMMARY_AI[sec.id]; const edited = !!(this.state.summaryEdited || {})[sec.id]; const q = this.state.summaryQuote || null; const openQ = (q && q.id === sec.id) ? q.idx : -1; return { id: sec.id, n: sec.n, title: sec.title, body: sec.body, expanded: open, notExpanded: !open, preview, chevron: open ? '▴' : '▾',
+        prov: edited ? '✎ edited' : (isAI ? '✦ AI-inferred' : cites.length + (cites.length === 1 ? ' source' : ' sources')), provFg: edited ? '#7FE8A0' : (isAI ? '#EFCB68' : 'rgba(255,255,255,.38)'),
+        hasCites: cites.length > 0 && !isAI, isAI, edited, quoteOpen: openQ >= 0, quoteText: openQ >= 0 ? cites[openQ].quote : '', quoteSrc: openQ >= 0 ? cites[openQ].srcLine : '',
+        citeChips: cites.map((c, i) => ({ icon: c.icon, label: c.label, border: openQ === i ? '#7FE8A0' : 'rgba(255,255,255,.16)', bg: openQ === i ? 'rgba(127,232,160,.1)' : 'rgba(255,255,255,.05)', onOpen: () => this.setState((s) => ({ summaryQuote: (s.summaryQuote && s.summaryQuote.id === sec.id && s.summaryQuote.idx === i) ? null : { id: sec.id, idx: i } })) })),
+        onRevert: () => this.setState((s) => ({ summarySections: (s.summarySections || SUMMARY_DEFAULTS).map((x) => x.id === sec.id ? Object.assign({}, x, { body: SUMMARY_DEFAULTS.find((d) => d.id === sec.id).body }) : x), summaryEdited: Object.assign({}, s.summaryEdited, { [sec.id]: false }) })),
         onToggle: () => this.setState((s) => ({ summaryOpen: Object.assign({}, s.summaryOpen, { [sec.id]: !s.summaryOpen[sec.id] }) })),
-        onEdit: (e) => { const v = e.target.value; this.setState((s) => ({ summarySections: (s.summarySections || SUMMARY_DEFAULTS).map((x) => x.id === sec.id ? Object.assign({}, x, { body: v }) : x) })); } }; }),
+        onEdit: (e) => { const v = e.target.value; this.setState((s) => ({ summaryEdited: Object.assign({}, s.summaryEdited, { [sec.id]: true }), summarySections: (s.summarySections || SUMMARY_DEFAULTS).map((x) => x.id === sec.id ? Object.assign({}, x, { body: v }) : x) })); } }; }),
       expandAllSummary: () => this.setState({ summaryOpen: { s1: true, s2: true, s3: true, s4: true, s5: true, s6: true, s7: true, s8: true, s9: true, s10: true, s11: true, s12: true, s13: true, s14: true } }),
       collapseAllSummary: () => this.setState({ summaryOpen: {} }),
       saveAgentSummary: () => this.setState({ toast: 'Agent summary saved' }),
-      regenAgentSummary: () => this.setState({ summarySections: SUMMARY_DEFAULTS.map((x) => Object.assign({}, x)), toast: 'Summary regenerated from your knowledge' }),
+      regenAgentSummary: () => this.setState({ summarySections: SUMMARY_DEFAULTS.map((x) => Object.assign({}, x)), summaryEdited: {}, summaryQuote: null, toast: 'Summary regenerated from your knowledge' }),
 
       // ----- indexed web pages -----
       webSources: this.state.webSources.map((w) => ({ id: w.id, url: w.url, onRemove: () => this.setState((s) => ({ webSources: s.webSources.filter((x) => x.id !== w.id) })) })),
