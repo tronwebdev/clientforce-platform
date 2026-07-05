@@ -13,6 +13,7 @@
   "dependencies": {
     "@clientforce/core": "workspace:*",
     "@clientforce/ui": "workspace:*",
+    "@fontsource-variable/bricolage-grotesque": "^5.2.10",
     "@fontsource/bricolage-grotesque": "^5.1.0",
     "@fontsource/hanken-grotesk": "^5.1.0",
     "jose": "^5.9.6",

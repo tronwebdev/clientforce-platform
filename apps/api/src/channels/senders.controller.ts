@@ -69,7 +69,26 @@ export class SendersController {
 
   @Get()
   list() {
-    return this.tenant.run((tx) => tx.senderConnection.findMany({ orderBy: { createdAt: "asc" } }));
+    // C2.3: wizard step 5 shows the live "Daily sending" bar per sender —
+    // sends record `meta.senderId` at the boundary (P1.5), so count today's.
+    return this.tenant.run(async (tx) => {
+      const senders = await tx.senderConnection.findMany({ orderBy: { createdAt: "asc" } });
+      const dayStart = new Date();
+      dayStart.setUTCHours(0, 0, 0, 0);
+      const counts = await Promise.all(
+        senders.map((s) =>
+          tx.message.count({
+            where: {
+              channel: "email",
+              direction: "OUTBOUND",
+              sentAt: { gte: dayStart },
+              meta: { path: ["senderId"], equals: s.id },
+            },
+          }),
+        ),
+      );
+      return senders.map((s, i) => ({ ...s, sentToday: counts[i] ?? 0 }));
+    });
   }
 
   @Post("test-send")

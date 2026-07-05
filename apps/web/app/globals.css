@@ -1,3 +1,13 @@
+/* Variable Bricolage (wght 200-800 + opsz) aliased to the token family name —
+   matches the prototypes' variable-font rendering (PR #34 review). */
+@font-face {
+  font-family: "Bricolage Grotesque";
+  src: url("/fonts/bricolage-grotesque-latin-opsz-normal.woff2") format("woff2-variations");
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   color-scheme: light;
 }

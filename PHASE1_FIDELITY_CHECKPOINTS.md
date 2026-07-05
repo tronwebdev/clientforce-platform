@@ -137,8 +137,15 @@ delegated to AI);
 "How should we build the sequence?" — 3 method cards, gap 9.
 **Step 2 — Design sequence:** renders the **planner's CampaignGraph** (P1.4): one card per `step`
 node (Step N label + email ChannelChip + `✦ AI draft` badge + `✎ Edit`), delay chips between from
-`delay` nodes, the reply branch from the `branch` node. Step-editor modal + delay modal open/close;
-edits persist to the graph (new version, `source: MANUAL`).
+`delay` nodes, the reply branch from the `branch` node. **Step editor = 560px right drawer**
+(white, shadow `-24px 0 70px rgba(0,0,0,.28)`): header row = 40px channel icon tile + `STEP N` +
+channel chip + subject title + `✕`; body = subject/body fields, **`✦ AI deliverability check`
+card** (deterministically-computable rows only — subject length, reading level, read time, links,
+"free" count; the AI-only /100 score and verdict are omitted until a real scorer exists) and the
+**PERSONALIZATION chips** (the real merge-token set); footer = `✦ Rewrite with AI` · Cancel ·
+gradient `Save step`. *(Amended in PR #34 — this section previously said "modal", stale vs the
+updated prototype.)* Delay modal opens/closes; edits persist to the graph (new version,
+`source: MANUAL`).
 **Step 3 — Add contacts:** 3 source cards (`repeat(3,1fr)` gap 12); CSV modal flow; **manual-add
 drawer** (480px, bg `#FBF7F0`). Minimal wiring: CSV of ≥1 test contact + manual single add.
 **Step 4 — Enable lead capture:** 2-col grid (`1fr 1fr`, gap 18); 48×28 gradient toggle; note
