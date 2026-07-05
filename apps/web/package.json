@@ -11,6 +11,7 @@
     "clean": "rm -rf .next .turbo"
   },
   "dependencies": {
+    "@clientforce/core": "workspace:*",
     "@clientforce/ui": "workspace:*",
     "@fontsource/bricolage-grotesque": "^5.1.0",
     "@fontsource/hanken-grotesk": "^5.1.0",

@@ -10,7 +10,7 @@ export interface NavItem {
 
 /** Primary nav — mirrors prototypes/sidebar.js. */
 export const MAIN_NAV: NavItem[] = [
-  { key: "dashboard", label: "Dashboard", icon: "◈", href: "/" },
+  { key: "dashboard", label: "Dashboard", icon: "◈", href: "/dashboard" },
   { key: "agents", label: "Agents", icon: "◎", href: "/agents" },
   { key: "contacts", label: "Contacts", icon: "☺", href: "/contacts" },
   { key: "stats", label: "Stats", icon: "▤", href: "/stats" },

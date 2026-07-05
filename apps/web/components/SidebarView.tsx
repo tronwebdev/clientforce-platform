@@ -6,11 +6,22 @@ export interface SidebarViewProps {
   activeKey: string;
   wsOpen: boolean;
   toolsOpen: boolean;
+  helpOpen?: boolean;
+  profileOpen?: boolean;
   onToggleWs?: () => void;
   onToggleTools?: () => void;
+  onToggleHelp?: () => void;
+  onToggleProfile?: () => void;
   onSelectWorkspace?: (workspaceId: string) => void;
   onSignOut?: () => void;
 }
+
+const ROLE_LABEL: Record<string, string> = {
+  OWNER: "Agency owner",
+  ADMIN: "Admin",
+  AGENT: "Agent",
+  VIEWER: "Viewer",
+};
 
 function initials(me: Me): string {
   const base = me.user.name ?? me.user.email;
@@ -28,8 +39,12 @@ export function SidebarView({
   activeKey,
   wsOpen,
   toolsOpen,
+  helpOpen,
+  profileOpen,
   onToggleWs,
   onToggleTools,
+  onToggleHelp,
+  onToggleProfile,
   onSelectWorkspace,
   onSignOut,
 }: SidebarViewProps) {
@@ -157,6 +172,34 @@ export function SidebarView({
       </div>
 
       <div className="cf-sb__menu-head cf-sb__menu-head--section">Help &amp; account</div>
+      {/* Help — §1: 240px flyout (Help center / What's new / Contact support) */}
+      <div className="cf-sb__help-wrap">
+        <button
+          type="button"
+          className="cf-sb__item cf-sb__tools-toggle"
+          aria-haspopup="menu"
+          aria-expanded={helpOpen}
+          onClick={onToggleHelp}
+        >
+          <span className="cf-sb__icon" aria-hidden="true">
+            ?
+          </span>
+          <span className="cf-sb__item-label">Help</span>
+        </button>
+        {helpOpen ? (
+          <div className="cf-sb__help-menu" role="menu" aria-label="Help">
+            {[
+              { label: "Help center", href: "/help" },
+              { label: "What's new", href: "/help" },
+              { label: "Contact support", href: "/help" },
+            ].map((h) => (
+              <a key={h.label} href={h.href} role="menuitem" className="cf-sb__item cf-sb__item--tool">
+                <span className="cf-sb__item-label">{h.label}</span>
+              </a>
+            ))}
+          </div>
+        ) : null}
+      </div>
       <a
         href="/settings"
         className={["cf-sb__item", activeKey === "settings" ? "cf-sb__item--active" : ""].filter(Boolean).join(" ")}
@@ -168,16 +211,46 @@ export function SidebarView({
         Settings
       </a>
 
-      {/* Profile */}
-      <div className="cf-sb__profile">
-        <span className="cf-sb__avatar">{initials(me)}</span>
-        <span className="cf-sb__profile-meta">
-          <span className="cf-sb__profile-name">{me.user.name ?? me.user.email}</span>
-          <span className="cf-sb__profile-role">{me.role}</span>
-        </span>
-        <button type="button" className="cf-sb__signout" onClick={onSignOut} aria-label="Sign out">
-          ⏻
+      {/* Profile — sidebar.js: chevron opens the account flyout (sign out lives there) */}
+      <div className="cf-sb__profile-wrap">
+        <button
+          type="button"
+          className="cf-sb__profile"
+          aria-haspopup="menu"
+          aria-expanded={profileOpen}
+          onClick={onToggleProfile}
+        >
+          <span className="cf-sb__avatar">{initials(me)}</span>
+          <span className="cf-sb__profile-meta">
+            <span className="cf-sb__profile-name">{me.user.name ?? me.user.email}</span>
+            <span className="cf-sb__profile-role">{ROLE_LABEL[me.role] ?? me.role}</span>
+          </span>
+          <span className="cf-sb__chev" aria-hidden="true">
+            {profileOpen ? "\u2303" : "\u2304"}
+          </span>
         </button>
+        {profileOpen ? (
+          <div className="cf-sb__profile-menu" role="menu" aria-label="Account">
+            <a className="cf-sb__profile-item" role="menuitem" href="/settings">
+              <span className="cf-sb__icon" aria-hidden="true">☺</span>
+              Account
+            </a>
+            <a className="cf-sb__profile-item" role="menuitem" href="/settings">
+              <span className="cf-sb__icon" aria-hidden="true">⚙</span>
+              Settings
+            </a>
+            <button
+              type="button"
+              className="cf-sb__profile-item cf-sb__profile-item--danger"
+              role="menuitem"
+              data-testid="sign-out"
+              onClick={onSignOut}
+            >
+              <span className="cf-sb__icon" aria-hidden="true">⏻</span>
+              Sign out
+            </button>
+          </div>
+        ) : null}
       </div>
     </nav>
   );

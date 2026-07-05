@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { APP_GUARD } from "@nestjs/core";
 import { AuthModule } from "./auth/auth.module";
 import { AuthGuard } from "./auth/auth.guard";
+import { AgentsModule } from "./agents/agents.module";
 import { RolesGuard } from "./auth/roles.guard";
 import { DbModule } from "./db/db.module";
 import { HealthController } from "./health.controller";
@@ -17,6 +18,7 @@ import { ContactsController } from "./contacts/contacts.controller";
   imports: [
     DbModule,
     AuthModule,
+    AgentsModule,
     KnowledgeModule,
     ContextModule,
     PlannerModule,

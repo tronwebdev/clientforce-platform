@@ -35,6 +35,9 @@ export * from "./senders";
 // Enrollment DTOs (P1.6).
 export * from "./enrollments";
 
+// Agents DTOs (C2.2).
+export * from "./agents";
+
 /**
  * Narrow an arbitrary string to a branded {@link Id}. Real validation arrives
  * with the data model; this keeps the type honest without runtime cost.

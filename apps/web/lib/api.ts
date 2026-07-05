@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { cookies } from "next/headers";
 import { API_URL, SESSION_COOKIE, WORKSPACE_COOKIE } from "./config";
+import type { AgentListItem } from "@clientforce/core";
 import type { Contact, Me } from "./types";
 
 async function authHeaders(): Promise<Record<string, string> | null> {
@@ -31,4 +32,13 @@ export async function fetchContacts(): Promise<Contact[]> {
   const res = await fetch(`${API_URL}/contacts`, { headers, cache: "no-store" });
   if (!res.ok) return [];
   return (await res.json()) as Contact[];
+}
+
+/** Fetch agents with live metrics (C2.2, RLS-scoped server-side). */
+export async function fetchAgents(): Promise<AgentListItem[]> {
+  const headers = await authHeaders();
+  if (!headers) return [];
+  const res = await fetch(`${API_URL}/agents`, { headers, cache: "no-store" });
+  if (!res.ok) throw new Error(`GET /agents failed: ${res.status}`);
+  return (await res.json()) as AgentListItem[];
 }

@@ -38,7 +38,7 @@ fi
 
 # P1.6/P1.7: the Temporal trio + the inbound-parse token are OPTIONAL the same
 # way (conditional Bicep wiring) — warn so a half-configured vault is visible.
-for name in TEMPORAL-ADDRESS TEMPORAL-NAMESPACE TEMPORAL-API-KEY INBOUND-PARSE-TOKEN; do
+for name in TEMPORAL-ADDRESS TEMPORAL-NAMESPACE TEMPORAL-API-KEY INBOUND-PARSE-TOKEN SENDGRID-WEBHOOK-PUBLIC-KEY; do
   if ! grep -qxF "$name" <<<"$present"; then
     echo "::warning::Key Vault secret $name not present — the feature it gates stays disabled this deploy (OWNER_CHECKLIST §4 / P1.7 owner steps)."
   fi

@@ -12,6 +12,8 @@ export function Sidebar({ me }: { me: Me }) {
   const router = useRouter();
   const [wsOpen, setWsOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
 
   // Single-open + close on outside click (sidebar.js behavior).
   useEffect(() => {
@@ -20,6 +22,8 @@ export function Sidebar({ me }: { me: Me }) {
       if (!target?.closest(".cf-sb")) {
         setWsOpen(false);
         setToolsOpen(false);
+        setHelpOpen(false);
+        setProfileOpen(false);
       }
     }
     document.addEventListener("mousedown", onDocMouseDown);
@@ -28,14 +32,44 @@ export function Sidebar({ me }: { me: Me }) {
 
   function toggleWs() {
     setWsOpen((v) => {
-      if (!v) setToolsOpen(false);
+      if (!v) {
+        setToolsOpen(false);
+        setHelpOpen(false);
+        setProfileOpen(false);
+      }
       return !v;
     });
   }
 
   function toggleTools() {
     setToolsOpen((v) => {
-      if (!v) setWsOpen(false);
+      if (!v) {
+        setWsOpen(false);
+        setHelpOpen(false);
+        setProfileOpen(false);
+      }
+      return !v;
+    });
+  }
+
+  function toggleHelp() {
+    setHelpOpen((v) => {
+      if (!v) {
+        setWsOpen(false);
+        setToolsOpen(false);
+        setProfileOpen(false);
+      }
+      return !v;
+    });
+  }
+
+  function toggleProfile() {
+    setProfileOpen((v) => {
+      if (!v) {
+        setWsOpen(false);
+        setToolsOpen(false);
+        setHelpOpen(false);
+      }
       return !v;
     });
   }
@@ -62,8 +96,12 @@ export function Sidebar({ me }: { me: Me }) {
       activeKey={activeKeyFor(pathname)}
       wsOpen={wsOpen}
       toolsOpen={toolsOpen}
+      helpOpen={helpOpen}
+      profileOpen={profileOpen}
       onToggleWs={toggleWs}
       onToggleTools={toggleTools}
+      onToggleHelp={toggleHelp}
+      onToggleProfile={toggleProfile}
       onSelectWorkspace={selectWorkspace}
       onSignOut={signOut}
     />
