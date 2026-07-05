@@ -12,7 +12,9 @@ export default async function AgentsPage() {
   if (!me) redirect("/login");
   const agents = await fetchAgents();
   return (
-    <div className="cf-content" style={{ padding: "28px 30px 34px" }}>
+    // Bare wrapper with the prototype's exact main padding — .cf-content adds
+    // its own 32px which stacked and narrowed the table (owner review nit).
+    <div style={{ padding: "28px 30px 34px" }}>
       <AgentsTable initial={agents} />
     </div>
   );

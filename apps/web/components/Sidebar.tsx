@@ -13,6 +13,7 @@ export function Sidebar({ me }: { me: Me }) {
   const [wsOpen, setWsOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
 
   // Single-open + close on outside click (sidebar.js behavior).
   useEffect(() => {
@@ -22,6 +23,7 @@ export function Sidebar({ me }: { me: Me }) {
         setWsOpen(false);
         setToolsOpen(false);
         setHelpOpen(false);
+        setProfileOpen(false);
       }
     }
     document.addEventListener("mousedown", onDocMouseDown);
@@ -33,6 +35,7 @@ export function Sidebar({ me }: { me: Me }) {
       if (!v) {
         setToolsOpen(false);
         setHelpOpen(false);
+        setProfileOpen(false);
       }
       return !v;
     });
@@ -43,6 +46,7 @@ export function Sidebar({ me }: { me: Me }) {
       if (!v) {
         setWsOpen(false);
         setHelpOpen(false);
+        setProfileOpen(false);
       }
       return !v;
     });
@@ -53,6 +57,18 @@ export function Sidebar({ me }: { me: Me }) {
       if (!v) {
         setWsOpen(false);
         setToolsOpen(false);
+        setProfileOpen(false);
+      }
+      return !v;
+    });
+  }
+
+  function toggleProfile() {
+    setProfileOpen((v) => {
+      if (!v) {
+        setWsOpen(false);
+        setToolsOpen(false);
+        setHelpOpen(false);
       }
       return !v;
     });
@@ -81,9 +97,11 @@ export function Sidebar({ me }: { me: Me }) {
       wsOpen={wsOpen}
       toolsOpen={toolsOpen}
       helpOpen={helpOpen}
+      profileOpen={profileOpen}
       onToggleWs={toggleWs}
       onToggleTools={toggleTools}
       onToggleHelp={toggleHelp}
+      onToggleProfile={toggleProfile}
       onSelectWorkspace={selectWorkspace}
       onSignOut={signOut}
     />

@@ -36,15 +36,19 @@ const HE: Record<string, { hfg: string; hdot: string }> = {
   Warn: { hfg: "#C9543F", hdot: "#E0796B" },
 };
 
-/** Deterministic goal → avatar (icon map in PROGRESS; prototype emojis are per-row mock data). */
-const GOAL_AVATAR: Record<string, { emoji: string; avbg: string }> = {
-  book_appointments: { emoji: "📅", avbg: "rgba(53,232,52,.16)" },
-  generate_leads: { emoji: "🌱", avbg: "rgba(54,215,237,.16)" },
-  reactivate_leads: { emoji: "🔁", avbg: "rgba(208,245,107,.3)" },
-  drive_signups: { emoji: "🚀", avbg: "rgba(54,215,237,.16)" },
-  collect_reviews: { emoji: "⭐", avbg: "rgba(208,245,107,.3)" },
-  custom: { emoji: "✦", avbg: "#F2EEE4" },
-};
+/**
+ * Deterministic per-agent avatar (owner review, PR #33): hash the agent id
+ * over the PROTOTYPE'S emoji pool + its four tints — unique-feeling icons
+ * like the mock rows, stable per agent, no generic fallback. A render-time
+ * bump avoids adjacent duplicates.
+ */
+const AVATAR_POOL = ["🌱", "🦷", "🎥", "🏢", "🚀", "🛒", "🏠", "💪", "💆", "⚖", "🔧", "📊"];
+const TINT_POOL = ["rgba(53,232,52,.16)", "rgba(54,215,237,.16)", "rgba(208,245,107,.3)", "#F2EEE4"];
+function hashCode(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
 
 interface ColDef {
   key: string;
@@ -166,11 +170,19 @@ export function AgentsTable({ initial }: { initial: AgentListItem[] }) {
   }, []);
 
   const rows = useMemo(() => {
-    return agents.map((a) => ({
-      ...a,
-      uiStatus: UI_STATUS[a.status] ?? "Draft",
-      ...(GOAL_AVATAR[a.goal] ?? { emoji: "🤖", avbg: "#F2EEE4" }),
-    }));
+    let prevIdx = -1;
+    return agents.map((a) => {
+      const base = hashCode(a.id);
+      let idx = base % AVATAR_POOL.length;
+      if (idx === prevIdx) idx = (idx + 1) % AVATAR_POOL.length;
+      prevIdx = idx;
+      return {
+        ...a,
+        uiStatus: UI_STATUS[a.status] ?? "Draft",
+        emoji: AVATAR_POOL[idx]!,
+        avbg: TINT_POOL[base % TINT_POOL.length]!,
+      };
+    });
   }, [agents]);
 
   const q = search.trim().toLowerCase();

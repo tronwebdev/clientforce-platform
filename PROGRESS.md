@@ -157,9 +157,4 @@ verbatim everywhere.
 | ⋯     | table row menu (Contacts/Agents List rows)       | `more-horizontal` |
 | 🤖/✨ | true-empty state tile (Agents List `allEmpty`)   | `sparkles`        |
 | 🔍    | filtered-empty state tile (Contacts/Agents List) | `search`          |
-| 📅 (goal avatar) | Agents List avatar — goal `book_appointments` | (emoji avatar, tint rgba(53,232,52,.16)) |
-| 🌱 (goal avatar) | Agents List avatar — goal `generate_leads` | (emoji avatar, tint rgba(54,215,237,.16)) |
-| 🔁 (goal avatar) | Agents List avatar — goal `reactivate_leads` | (emoji avatar, tint rgba(208,245,107,.3)) |
-| 🚀 (goal avatar) | Agents List avatar — goal `drive_signups` | (emoji avatar, tint rgba(54,215,237,.16)) |
-| ⭐ (goal avatar) | Agents List avatar — goal `collect_reviews` | (emoji avatar, tint rgba(208,245,107,.3)) |
-| ✦ (goal avatar) | Agents List avatar — goal `custom` | (emoji avatar, tint #F2EEE4) |
+| 🌱🦷🎥🏢🚀🛒🏠💪💆⚖🔧📊 (avatar pool) | Agents List row avatars — deterministic hash(agent.id) over the prototype's emoji pool + its 4 tints; render-time bump prevents adjacent duplicates (owner review PR #33) | (emoji avatars, not lucide) |

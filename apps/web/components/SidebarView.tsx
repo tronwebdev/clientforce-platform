@@ -7,12 +7,21 @@ export interface SidebarViewProps {
   wsOpen: boolean;
   toolsOpen: boolean;
   helpOpen?: boolean;
+  profileOpen?: boolean;
   onToggleWs?: () => void;
   onToggleTools?: () => void;
   onToggleHelp?: () => void;
+  onToggleProfile?: () => void;
   onSelectWorkspace?: (workspaceId: string) => void;
   onSignOut?: () => void;
 }
+
+const ROLE_LABEL: Record<string, string> = {
+  OWNER: "Agency owner",
+  ADMIN: "Admin",
+  AGENT: "Agent",
+  VIEWER: "Viewer",
+};
 
 function initials(me: Me): string {
   const base = me.user.name ?? me.user.email;
@@ -31,9 +40,11 @@ export function SidebarView({
   wsOpen,
   toolsOpen,
   helpOpen,
+  profileOpen,
   onToggleWs,
   onToggleTools,
   onToggleHelp,
+  onToggleProfile,
   onSelectWorkspace,
   onSignOut,
 }: SidebarViewProps) {
@@ -174,9 +185,6 @@ export function SidebarView({
             ?
           </span>
           <span className="cf-sb__item-label">Help</span>
-          <span className="cf-sb__chev" aria-hidden="true">
-            {helpOpen ? "\u25be" : "\u25b8"}
-          </span>
         </button>
         {helpOpen ? (
           <div className="cf-sb__help-menu" role="menu" aria-label="Help">
@@ -203,16 +211,46 @@ export function SidebarView({
         Settings
       </a>
 
-      {/* Profile */}
-      <div className="cf-sb__profile">
-        <span className="cf-sb__avatar">{initials(me)}</span>
-        <span className="cf-sb__profile-meta">
-          <span className="cf-sb__profile-name">{me.user.name ?? me.user.email}</span>
-          <span className="cf-sb__profile-role">{me.role}</span>
-        </span>
-        <button type="button" className="cf-sb__signout" onClick={onSignOut} aria-label="Sign out">
-          ⏻
+      {/* Profile — sidebar.js: chevron opens the account flyout (sign out lives there) */}
+      <div className="cf-sb__profile-wrap">
+        <button
+          type="button"
+          className="cf-sb__profile"
+          aria-haspopup="menu"
+          aria-expanded={profileOpen}
+          onClick={onToggleProfile}
+        >
+          <span className="cf-sb__avatar">{initials(me)}</span>
+          <span className="cf-sb__profile-meta">
+            <span className="cf-sb__profile-name">{me.user.name ?? me.user.email}</span>
+            <span className="cf-sb__profile-role">{ROLE_LABEL[me.role] ?? me.role}</span>
+          </span>
+          <span className="cf-sb__chev" aria-hidden="true">
+            {profileOpen ? "\u2303" : "\u2304"}
+          </span>
         </button>
+        {profileOpen ? (
+          <div className="cf-sb__profile-menu" role="menu" aria-label="Account">
+            <a className="cf-sb__profile-item" role="menuitem" href="/settings">
+              <span className="cf-sb__icon" aria-hidden="true">☺</span>
+              Account
+            </a>
+            <a className="cf-sb__profile-item" role="menuitem" href="/settings">
+              <span className="cf-sb__icon" aria-hidden="true">⚙</span>
+              Settings
+            </a>
+            <button
+              type="button"
+              className="cf-sb__profile-item cf-sb__profile-item--danger"
+              role="menuitem"
+              data-testid="sign-out"
+              onClick={onSignOut}
+            >
+              <span className="cf-sb__icon" aria-hidden="true">⏻</span>
+              Sign out
+            </button>
+          </div>
+        ) : null}
       </div>
     </nav>
   );
