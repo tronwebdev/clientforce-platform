@@ -81,6 +81,22 @@ jobs:
             storage=false
             echo "STORAGE-CONNECTION-STRING not in Key Vault yet — deploying without DOCUMENT upload storage."
           fi
+          # P1.6/P1.7: probe the Temporal trio + the inbound-parse token the same way.
+          temporal=true
+          for name in TEMPORAL-ADDRESS TEMPORAL-NAMESPACE TEMPORAL-API-KEY; do
+            if ! az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name "$name" --query id -o tsv >/dev/null 2>&1; then
+              temporal=false
+            fi
+          done
+          if [ "$temporal" = false ]; then
+            echo "Temporal secrets incomplete in Key Vault — worker deploys without a Temporal endpoint (OWNER_CHECKLIST §4)."
+          fi
+          if az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name INBOUND-PARSE-TOKEN --query id -o tsv >/dev/null 2>&1; then
+            inboundToken=true
+          else
+            inboundToken=false
+            echo "INBOUND-PARSE-TOKEN not in Key Vault yet — inbound parse endpoint deploys without its URL token (P1.7 owner step)."
+          fi
           az deployment group create \
             --resource-group "$RG" \
             --template-file infra/main.bicep \
@@ -91,7 +107,9 @@ jobs:
               acrName="$ACR_NAME" \
               acrLoginServer="$ACR_LOGIN_SERVER" \
               imageTag="$IMAGE_TAG" \
-              storageSecretAvailable="$storage"
+              storageSecretAvailable="$storage" \
+              temporalSecretsAvailable="$temporal" \
+              inboundTokenAvailable="$inboundToken"
 
       # ── Expose the deployed web FQDN for the e2e job ──
       - name: Resolve web FQDN

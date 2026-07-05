@@ -1,5 +1,5 @@
 /**
- * Integration test (T2/#3 acceptance): emitting `lead.replied.v1` persists an
+ * Integration test (T2/#3 acceptance): emitting `email.replied.v1` persists an
  * Event and invokes all three consumer stubs.
  *
  * Requires Postgres (Event persistence under RLS) + Redis (BullMQ fan-out).
@@ -10,7 +10,7 @@ import { createAppPrismaClient, createPrismaClient, type PrismaClient } from "@c
 import {
   automationsConsumer,
   dispatcherConsumer,
-  emitLeadReplied,
+  emitEmailReplied,
   EventBus,
   redisOptionsFromUrl,
   temporalSignalConsumer,
@@ -65,7 +65,7 @@ describe.skipIf(!hasInfra)("EventBus integration", () => {
   });
 
   it(
-    "persists lead.replied.v1 and invokes all three consumer stubs",
+    "persists email.replied.v1 and invokes all three consumer stubs",
     async () => {
       const spies = [
         vi.spyOn(temporalSignalConsumer, "handle"),
@@ -79,21 +79,21 @@ describe.skipIf(!hasInfra)("EventBus integration", () => {
         worker.on("failed", (_job, err) => reject(err));
       });
 
-      const event = await emitLeadReplied(bus, { workspaceId, contactId, intent: "interested" });
-      expect(event.type).toBe("lead.replied.v1");
+      const event = await emitEmailReplied(bus, { workspaceId, contactId, messageId: "m1", intent: "interested" });
+      expect(event.type).toBe("email.replied.v1");
 
       await completed;
 
       // Persisted to the Event table (owner bypasses RLS for the assertion read).
       const persisted = await owner.event.findUnique({ where: { id: event.id } });
       expect(persisted).not.toBeNull();
-      expect(persisted?.type).toBe("lead.replied.v1");
+      expect(persisted?.type).toBe("email.replied.v1");
       expect(persisted?.contactId).toBe(contactId);
 
       // All three consumer stubs invoked exactly once with the event.
       for (const spy of spies) {
         expect(spy).toHaveBeenCalledTimes(1);
-        expect(spy.mock.calls[0]?.[0]).toMatchObject({ id: event.id, type: "lead.replied.v1" });
+        expect(spy.mock.calls[0]?.[0]).toMatchObject({ id: event.id, type: "email.replied.v1" });
       }
     },
     30_000,

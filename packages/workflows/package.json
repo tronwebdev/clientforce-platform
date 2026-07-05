@@ -33,6 +33,8 @@
     "@temporalio/workflow": "1.19.0"
   },
   "devDependencies": {
+    "@clientforce/ai": "workspace:*",
+    "@clientforce/events": "workspace:*",
     "@temporalio/testing": "1.19.0",
     "@temporalio/worker": "1.19.0",
     "@types/node": "^22.10.5"

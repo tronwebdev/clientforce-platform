@@ -1,33 +1,36 @@
 /**
  * Sample publisher — demonstrates the exported, typed payload contract.
  *
- * `intent` is typed straight from the catalog (`EventPayloads["lead.replied.v1"]`),
- * so a wrong/misspelled value is a compile error. Mirrors how real producers
- * (webhook ingest, the classifier) will emit events in later tickets.
+ * `intent` is typed straight from the catalog (`EventPayloads["email.replied.v1"]`),
+ * so a wrong/misspelled value is a compile error. Mirrors how the P1.7
+ * classifier emits the reply event. (`lead.replied` left the canonical catalog
+ * per handoff A9 / DEC-018 — replies are channel events.)
  */
 import type { EventBus } from "./bus";
 import { EVENT_TYPES, type EventPayloads } from "./catalog";
 import type { BusEvent } from "./types";
 
-export interface LeadRepliedArgs {
+export interface EmailRepliedArgs {
   workspaceId: string;
+  messageId: string;
+  intent: EventPayloads["email.replied.v1"]["intent"];
   contactId?: string;
-  intent: EventPayloads["lead.replied.v1"]["intent"];
-  fromStage?: string;
-  toStage?: string;
+  enrollmentId?: string;
+  campaignId?: string;
 }
 
-export async function emitLeadReplied(bus: EventBus, args: LeadRepliedArgs): Promise<BusEvent> {
-  const payload: EventPayloads["lead.replied.v1"] = {
+export async function emitEmailReplied(bus: EventBus, args: EmailRepliedArgs): Promise<BusEvent> {
+  const payload: EventPayloads["email.replied.v1"] = {
+    messageId: args.messageId,
     intent: args.intent,
-    ...(args.fromStage ? { fromStage: args.fromStage } : {}),
-    ...(args.toStage ? { toStage: args.toStage } : {}),
   };
 
   return bus.publish({
-    type: EVENT_TYPES.LEAD_REPLIED,
+    type: EVENT_TYPES.EMAIL_REPLIED,
     workspaceId: args.workspaceId,
     ...(args.contactId ? { contactId: args.contactId } : {}),
+    ...(args.enrollmentId ? { enrollmentId: args.enrollmentId } : {}),
+    ...(args.campaignId ? { campaignId: args.campaignId } : {}),
     payload,
   });
 }

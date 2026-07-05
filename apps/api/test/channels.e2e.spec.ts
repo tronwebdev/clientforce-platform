@@ -174,7 +174,8 @@ describe.skipIf(!hasDb)("Channels API e2e", () => {
         },
       ]);
     expect(res.status).toBe(201);
-    expect(res.body).toEqual({ received: 1, suppressionsApplied: 1 });
+    // P1.7: the unsubscribe also publishes lead.unsubscribed.v1 (Event row).
+    expect(res.body).toEqual({ received: 1, suppressionsApplied: 1, eventsPublished: 1 });
     const suppression = await owner.suppression.findFirst({
       where: { workspaceId: ws, address: TEST_INBOX },
     });

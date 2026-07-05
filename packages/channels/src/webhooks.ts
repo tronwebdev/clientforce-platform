@@ -1,5 +1,6 @@
 import { createVerify } from "node:crypto";
-import { withTenant, type PrismaClient, type SuppressionReason } from "@clientforce/db";
+import { withTenant, type Message, type PrismaClient, type SuppressionReason } from "@clientforce/db";
+import type { EventType } from "@clientforce/events";
 import { z } from "zod";
 
 /**
@@ -98,12 +99,76 @@ export async function resolveEventWorkspace(
   ownerPrisma: PrismaClient,
   event: NormalizedEmailEvent,
 ): Promise<string | null> {
+  return (await resolveEventMessage(ownerPrisma, event))?.workspaceId ?? null;
+}
+
+/** Like {@link resolveEventWorkspace} but returns the whole Message row (P1.7). */
+export async function resolveEventMessage(
+  ownerPrisma: PrismaClient,
+  event: NormalizedEmailEvent,
+): Promise<Message | null> {
   if (!event.providerMessageId) return null;
   const candidates = [event.providerMessageId, `<${event.providerMessageId}>`];
-  const message = await ownerPrisma.message.findFirst({
+  return ownerPrisma.message.findFirst({
     where: { providerMessageId: { in: candidates } },
   });
-  return message?.workspaceId ?? null;
+}
+
+/** Minimal publishable shape — satisfied by `EventBus.publish` inputs. */
+export interface BusEventInput {
+  type: EventType;
+  workspaceId: string;
+  contactId?: string;
+  enrollmentId?: string;
+  campaignId?: string;
+  payload: Record<string, unknown>;
+}
+
+const TYPED_EVENT: Partial<Record<NormalizedEmailEvent["type"], EventType>> = {
+  delivered: "email.delivered.v1",
+  open: "email.opened.v1",
+  click: "email.clicked.v1",
+  bounce: "email.bounced.v1",
+  spam_report: "email.spam.v1",
+};
+
+/**
+ * P1.7 engagement awareness: a normalized provider event + its resolved
+ * Message become typed bus events — persisted `Event` rows on the lead that
+ * feed the Logs tab, the lead-drawer timeline, and the classifier's context.
+ * Suppressing events additionally emit `lead.unsubscribed.v1`.
+ */
+export function toBusEvents(event: NormalizedEmailEvent, message: Message): BusEventInput[] {
+  const base = {
+    workspaceId: message.workspaceId,
+    contactId: message.contactId,
+    ...(message.enrollmentId ? { enrollmentId: message.enrollmentId } : {}),
+    campaignId: message.campaignId,
+  };
+  const out: BusEventInput[] = [];
+  const typed = TYPED_EVENT[event.type];
+  if (typed === "email.clicked.v1") {
+    out.push({
+      ...base,
+      type: typed,
+      payload: { messageId: message.id, link: String(event.raw.url ?? "") },
+    });
+  } else if (typed === "email.bounced.v1") {
+    out.push({
+      ...base,
+      type: typed,
+      payload: {
+        messageId: message.id,
+        ...(typeof event.raw.reason === "string" ? { reason: event.raw.reason } : {}),
+      },
+    });
+  } else if (typed) {
+    out.push({ ...base, type: typed, payload: { messageId: message.id } });
+  }
+  if (event.type === "unsubscribe" || event.type === "spam_report") {
+    out.push({ ...base, type: "lead.unsubscribed.v1", payload: { channel: "email" } });
+  }
+  return out;
 }
 
 /**

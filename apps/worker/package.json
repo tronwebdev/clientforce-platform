@@ -17,6 +17,7 @@
     "@clientforce/context": "workspace:*",
     "@clientforce/core": "workspace:*",
     "@clientforce/db": "workspace:*",
+    "@clientforce/events": "workspace:*",
     "@clientforce/knowledge": "workspace:*",
     "@clientforce/planner": "workspace:*",
     "@clientforce/workflows": "workspace:*",

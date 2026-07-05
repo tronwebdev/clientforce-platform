@@ -30,6 +30,12 @@ param imageTag string
 @description('Whether Key Vault holds STORAGE-CONNECTION-STRING yet (P1.2 DOCUMENT uploads). The pipeline probes the vault and passes this; referencing a missing secret would fail the whole deploy, so it stays conditional until the owner adds it.')
 param storageSecretAvailable bool = false
 
+@description('Whether Key Vault holds the Temporal Cloud trio (TEMPORAL-ADDRESS/TEMPORAL-NAMESPACE/TEMPORAL-API-KEY, P1.6/OWNER_CHECKLIST §4). Probed by the pipeline like storage.')
+param temporalSecretsAvailable bool = false
+
+@description('Whether Key Vault holds INBOUND-PARSE-TOKEN (P1.7 inbound parse URL secret). Probed by the pipeline.')
+param inboundTokenAvailable bool = false
+
 param apiAppName string = 'clientforce-api'
 param workerAppName string = 'clientforce-worker'
 param webAppName string = 'clientforce-web'
@@ -90,6 +96,22 @@ var storageConnSecret = { name: 'storage-connection-string', keyVaultUrl: '${kvU
 var storageSecrets = storageSecretAvailable ? [storageConnSecret] : []
 var storageEnv = storageSecretAvailable ? [{ name: 'STORAGE_CONNECTION_STRING', secretRef: 'storage-connection-string' }] : []
 
+// P1.6/P1.7: Temporal Cloud endpoint (worker runs CampaignWorkflows; api starts
+// them) + the inbound-parse URL token (api verifies unsigned Inbound Parse
+// posts). Conditional like storage so deploys never break while pending.
+var temporalAddressSecret = { name: 'temporal-address', keyVaultUrl: '${kvUri}secrets/TEMPORAL-ADDRESS', identity: uami.id }
+var temporalNamespaceSecret = { name: 'temporal-namespace', keyVaultUrl: '${kvUri}secrets/TEMPORAL-NAMESPACE', identity: uami.id }
+var temporalApiKeySecret = { name: 'temporal-api-key', keyVaultUrl: '${kvUri}secrets/TEMPORAL-API-KEY', identity: uami.id }
+var temporalSecrets = temporalSecretsAvailable ? [temporalAddressSecret, temporalNamespaceSecret, temporalApiKeySecret] : []
+var temporalEnv = temporalSecretsAvailable ? [
+  { name: 'TEMPORAL_ADDRESS', secretRef: 'temporal-address' }
+  { name: 'TEMPORAL_NAMESPACE', secretRef: 'temporal-namespace' }
+  { name: 'TEMPORAL_API_KEY', secretRef: 'temporal-api-key' }
+] : []
+var inboundTokenSecret = { name: 'inbound-parse-token', keyVaultUrl: '${kvUri}secrets/INBOUND-PARSE-TOKEN', identity: uami.id }
+var inboundTokenSecrets = inboundTokenAvailable ? [inboundTokenSecret] : []
+var inboundTokenEnv = inboundTokenAvailable ? [{ name: 'INBOUND_PARSE_TOKEN', secretRef: 'inbound-parse-token' }] : []
+
 // ── API (NestJS) — external ingress :3001 ───────────────────────────────────
 resource api 'Microsoft.App/containerApps@2024-03-01' = {
   name: apiAppName
@@ -102,7 +124,7 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
       activeRevisionsMode: 'Single'
       ingress: { external: true, targetPort: 3001, transport: 'auto', allowInsecure: false }
       registries: registries
-      secrets: concat([dbUrlSecret, appDbUrlSecret, authDevSecret, redisUrlSecret, openaiKeySecret, anthropicKeySecret, sendgridKeySecret, fieldEncKeySecret], storageSecrets)
+      secrets: concat([dbUrlSecret, appDbUrlSecret, authDevSecret, redisUrlSecret, openaiKeySecret, anthropicKeySecret, sendgridKeySecret, fieldEncKeySecret], storageSecrets, temporalSecrets, inboundTokenSecrets)
     }
     template: {
       containers: [
@@ -123,7 +145,7 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
             // §G phase rule: allow-listed test sends only; sandbox until P1.8.
             { name: 'CHANNELS_ALLOWLIST', value: 'tronwebng@gmail.com' }
             { name: 'CHANNELS_SANDBOX', value: 'true' }
-          ], storageEnv)
+          ], storageEnv, temporalEnv, inboundTokenEnv)
         }
       ]
       scale: { minReplicas: 1, maxReplicas: 3 }
@@ -142,7 +164,7 @@ resource worker 'Microsoft.App/containerApps@2024-03-01' = {
     configuration: {
       activeRevisionsMode: 'Single'
       registries: registries
-      secrets: concat([dbUrlSecret, appDbUrlSecret, redisUrlSecret, openaiKeySecret, anthropicKeySecret, sendgridKeySecret, fieldEncKeySecret], storageSecrets)
+      secrets: concat([dbUrlSecret, appDbUrlSecret, redisUrlSecret, openaiKeySecret, anthropicKeySecret, sendgridKeySecret, fieldEncKeySecret], storageSecrets, temporalSecrets)
     }
     template: {
       containers: [
@@ -160,7 +182,7 @@ resource worker 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'FIELD_ENCRYPTION_KEY', secretRef: 'field-encryption-key' }
             { name: 'CHANNELS_ALLOWLIST', value: 'tronwebng@gmail.com' }
             { name: 'CHANNELS_SANDBOX', value: 'true' }
-          ], storageEnv)
+          ], storageEnv, temporalEnv)
         }
       ]
       scale: { minReplicas: 1, maxReplicas: 1 }
