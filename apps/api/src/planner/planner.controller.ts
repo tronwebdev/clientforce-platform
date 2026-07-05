@@ -5,15 +5,28 @@ import {
   Get,
   Inject,
   NotFoundException,
+  Put,
+  UnprocessableEntityException,
   Post,
   Query,
 } from "@nestjs/common";
-import { planRequestSchema, plannerGraphQuerySchema } from "@clientforce/core";
+import {
+  campaignGraphSchema,
+  planRequestSchema,
+  plannerGraphQuerySchema,
+  validateGraph,
+} from "@clientforce/core";
+import { z } from "zod";
 import { Role } from "@clientforce/db";
 import type { ZodSchema } from "zod";
 import { Roles } from "../auth/decorators";
 import { TenantClient } from "../db/tenant-client";
 import { PLAN_ENQUEUER, type PlanEnqueuer } from "./planner.providers";
+
+const putGraphSchema = z.object({
+  agentId: z.string().min(1),
+  graph: campaignGraphSchema,
+});
 
 function parse<T>(schema: ZodSchema<T>, value: unknown): T {
   const result = schema.safeParse(value);
@@ -49,6 +62,49 @@ export class PlannerController {
     if (!agent) throw new NotFoundException(`Agent ${dto.agentId} not found`);
     await this.enqueuer.enqueue({ workspaceId, agentId: dto.agentId });
     return { queued: true };
+  }
+
+  /**
+   * C2.3: a manual edit from the wizard's step editor persists as the NEXT
+   * graph version, source MANUAL — validated exactly like planner output.
+   */
+  @Put("graph")
+  @Roles(Role.OWNER, Role.ADMIN)
+  async putGraph(@Body() body: unknown) {
+    const dto = parse(putGraphSchema, body);
+    let graph;
+    try {
+      graph = validateGraph(dto.graph);
+    } catch (err) {
+      throw new UnprocessableEntityException({
+        message: "Invalid campaign graph",
+        detail: err instanceof Error ? err.message : String(err),
+      });
+    }
+    const workspaceId = this.tenant.workspaceId;
+    return this.tenant.run(async (tx) => {
+      const campaign = await tx.campaign.findFirst({
+        where: { agentId: dto.agentId },
+        orderBy: { createdAt: "asc" },
+      });
+      if (!campaign) throw new NotFoundException(`Agent ${dto.agentId} has no campaign`);
+      const latest = await tx.campaignGraph.findFirst({
+        where: { campaignId: campaign.id },
+        orderBy: { version: "desc" },
+        select: { version: true },
+      });
+      const row = await tx.campaignGraph.create({
+        data: {
+          workspaceId,
+          campaignId: campaign.id,
+          version: (latest?.version ?? 0) + 1,
+          source: "MANUAL",
+          graph: graph as object,
+        },
+      });
+      await tx.campaign.update({ where: { id: campaign.id }, data: { graphId: row.id } });
+      return row;
+    });
   }
 
   @Get("graph")

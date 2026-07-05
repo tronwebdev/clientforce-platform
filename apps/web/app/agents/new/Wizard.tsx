@@ -1,0 +1,1655 @@
+"use client";
+
+/**
+ * Create Agent wizard (C2.3) — 6 steps ported from the UPDATED
+ * `Create Agent.dc.html` (checkpoints §3), wired to the live P1.2 ingest,
+ * P1.3 context/citations/gaps (DEC-028 snapshots — chunk ids never render),
+ * P1.4 planner, P1.5 senders, A5 create path. Prototype literals throughout.
+ */
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CONTEXT_FIELD_META } from "@clientforce/core";
+import type { CampaignGraph, GraphNode } from "@clientforce/core";
+
+/** Per-field one-liner under each gap row (registry-driven). */
+const FIELD_HINTS: Record<string, string> = Object.fromEntries(
+  Object.entries(CONTEXT_FIELD_META).map(([k, v]) => [k, v.hint]),
+);
+
+const GRAD = "linear-gradient(135deg,#36D7ED 0%,#35E834 55%,#D0F56B 100%)";
+
+const cf = (path: string, init?: RequestInit) =>
+  fetch(`/api/cf/${path}`, {
+    headers: { "Content-Type": "application/json" },
+    ...init,
+  }).then(async (r) => {
+    if (!r.ok) throw new Error(`${path}: ${r.status}`);
+    return r.json();
+  });
+
+/** Rail + header copy, verbatim from the prototype's step defs. */
+const STEP_DEFS = [
+  { label: "Set the goal", hint: "Goal & build method", title: "Set the goal", subtitle: "Tell the agent what to achieve — it orchestrates the sequence, channels, and copy." },
+  { label: "Design sequence", hint: "AI-drafted steps", title: "Design the sequence", subtitle: "We drafted an outreach sequence — tweak any step." },
+  { label: "Add contacts", hint: "Import or find leads", title: "Add your contacts", subtitle: "Choose who this agent should reach out to." },
+  { label: "Enable lead capture", hint: "Optional inbound form", title: "Enable lead capture", subtitle: "Turn inbound interest into leads with a branded form." },
+  { label: "Guardrails & compliance", hint: "Consent, schedule & limits", title: "Guardrails & compliance", subtitle: "Set the rules your agent stays within — consent, sending windows, and limits." },
+  { label: "Preview & launch", hint: "Review & deploy", title: "Preview & launch", subtitle: "Review everything, then deploy your agent." },
+];
+
+/** Building-screen step list, verbatim from the prototype (BSTEPS). */
+const BSTEPS = [
+  { icon: "📚", label: "Parsing knowledge base & business context", category: "Knowledge" },
+  { icon: "🎯", label: "Identifying target audience & pain points", category: "Analysis" },
+  { icon: "⚖", label: "Applying CAN-SPAM, GDPR & compliance rules", category: "Compliance" },
+  { icon: "📡", label: "Selecting optimal channel mix for your goal", category: "Strategy" },
+  { icon: "✍", label: "Drafting personalised subject lines & hooks", category: "Copy" },
+  { icon: "📊", label: "Scoring deliverability & inbox placement", category: "Deliverability" },
+  { icon: "⏱", label: "Optimising send timing & sequence cadence", category: "Timing" },
+  { icon: "🚀", label: "Generating multi-channel outreach sequence", category: "Build" },
+];
+const BUILD_DELAYS = [700, 650, 850, 600, 720, 580, 540, 820];
+
+/** Success-overlay confetti, verbatim from the prototype. */
+const CONFETTI = [
+  { left: "8%", bg: "#36D7ED", size: 9, delay: "0s", dur: "2.6s" }, { left: "17%", bg: "#35E834", size: 7, delay: ".3s", dur: "3.1s" },
+  { left: "26%", bg: "#D0F56B", size: 11, delay: ".6s", dur: "2.4s" }, { left: "34%", bg: "#36D7ED", size: 6, delay: ".15s", dur: "2.9s" },
+  { left: "43%", bg: "#EEFC53", size: 9, delay: ".5s", dur: "3.3s" }, { left: "52%", bg: "#35E834", size: 8, delay: ".05s", dur: "2.7s" },
+  { left: "60%", bg: "#36D7ED", size: 10, delay: ".45s", dur: "3.0s" }, { left: "68%", bg: "#D0F56B", size: 7, delay: ".2s", dur: "2.5s" },
+  { left: "76%", bg: "#35E834", size: 9, delay: ".6s", dur: "3.2s" }, { left: "84%", bg: "#EEFC53", size: 6, delay: ".1s", dur: "2.8s" },
+  { left: "92%", bg: "#36D7ED", size: 8, delay: ".4s", dur: "3.0s" }, { left: "13%", bg: "#D0F56B", size: 7, delay: ".8s", dur: "2.6s" },
+  { left: "47%", bg: "#35E834", size: 10, delay: ".9s", dur: "3.1s" }, { left: "72%", bg: "#EEFC53", size: 8, delay: ".75s", dur: "2.9s" },
+];
+
+/** Goal cards, verbatim from the prototype's goalDefs (keys = registry GoalKeys). */
+const GOALS: Array<{ key: string; icon: string; title: string; desc: string }> = [
+  { key: "book_appointments", icon: "📅", title: "Book appointments", desc: "Get prospects onto your calendar." },
+  { key: "generate_leads", icon: "🎯", title: "Generate leads", desc: "Capture & qualify new leads." },
+  { key: "reactivate_leads", icon: "♻", title: "Reactivate leads", desc: "Win back lapsed contacts." },
+  { key: "drive_signups", icon: "🚀", title: "Drive sign-ups", desc: "Convert interest into trials." },
+  { key: "collect_reviews", icon: "⭐", title: "Collect reviews", desc: "Request reviews from clients." },
+  { key: "custom", icon: "✎", title: "Custom goal", desc: "Describe your own objective." },
+];
+
+interface Citation {
+  chunkId: string;
+  sourceId: string;
+  sourceLabel: string;
+  sourceType: string;
+  locator: string;
+  quote: string;
+}
+interface ContextField {
+  value: string;
+  citations?: Citation[];
+  source?: string;
+}
+interface KnowledgeSource {
+  id: string;
+  label: string;
+  kind: string;
+  status: "PENDING" | "INGESTING" | "READY" | "FAILED";
+  uri?: string | null;
+  chunkCount?: number;
+  meta?: { chunkCount?: number } | null;
+}
+interface SenderRow {
+  id: string;
+  fromEmail: string;
+  fromName?: string | null;
+  dailyLimit: number;
+  status: string;
+  sentToday: number;
+  domainAuthStatus?: Record<string, unknown> | null;
+}
+type AddMode = null | "picker" | "url" | "doc" | "connector";
+
+interface Gap {
+  key: string;
+  label: string;
+  description?: string;
+  state: "open" | "typed" | "ai_decides" | "covered";
+}
+
+const SRC_ICON: Record<string, string> = { WEBSITE: "🌐", DOCUMENT: "📄", TEXT: "📝", CONNECTOR: "🔌" };
+const SRC_KIND_LABEL: Record<string, string> = { WEBSITE: "Website", DOCUMENT: "Document", TEXT: "Pasted text", CONNECTOR: "Connector" };
+const ING_PILL: Record<string, { fg: string; label: string }> = {
+  PENDING: { fg: "#8A7F6B", label: "Queued" },
+  INGESTING: { fg: "#1192A6", label: "Ingesting…" },
+  READY: { fg: "#16A82A", label: "Ready" },
+  FAILED: { fg: "#C9543F", label: "Failed" },
+};
+
+export function Wizard() {
+  const [step, setStep] = useState(0);
+  const [busyMsg, setBusyMsg] = useState("");
+
+  // step 1
+  const [name, setName] = useState("");
+  const [goal, setGoal] = useState<string | null>(null);
+  const [agentId, setAgentId] = useState<string | null>(null);
+  const [sources, setSources] = useState<KnowledgeSource[]>([]);
+  const [category, setCategory] = useState("Dental & Orthodontics");
+  const [categoryOpen, setCategoryOpen] = useState(false);
+  const [instructions, setInstructions] = useState("");
+  const [addMode, setAddMode] = useState<AddMode>(null);
+  const [urlInput, setUrlInput] = useState("");
+  const [contextSummary, setContextSummary] = useState("");
+  const [fields, setFields] = useState<Record<string, ContextField>>({});
+  const [aboutEv, setAboutEv] = useState<string | null>(null); // sourceId
+  const [gaps, setGaps] = useState<Gap[]>([]);
+  const [gapMeta, setGapMeta] = useState({ resolved: 0, total: 0, launchReady: true });
+  const [coveredEv, setCoveredEv] = useState<string | null>(null); // field key
+  const [typedDrafts, setTypedDrafts] = useState<Record<string, string>>({});
+  const [buildMethod, setBuildMethod] = useState<"ai" | "template" | "scratch">("ai");
+
+  // step 2
+  const [graph, setGraph] = useState<CampaignGraph | null>(null);
+  const [graphSource, setGraphSource] = useState("");
+  const [graphVersion, setGraphVersion] = useState(1);
+  const [seqView, setSeqView] = useState<"sequence" | "branches">("sequence");
+  const [drafting, setDrafting] = useState(false);
+  // building interstitial (prototype BSTEPS) — timed like the prototype, but the
+  // final step only completes once the real planner graph has landed.
+  const [building, setBuilding] = useState(false);
+  const [buildProgress, setBuildProgress] = useState(0);
+  const [editNode, setEditNode] = useState<GraphNode | null>(null);
+  const [editSubject, setEditSubject] = useState("");
+  const [editBody, setEditBody] = useState("");
+  const [delayEdit, setDelayEdit] = useState<GraphNode | null>(null);
+  const [delayAmount, setDelayAmount] = useState(2);
+
+  // step 3
+  const [csvOpen, setCsvOpen] = useState(false);
+  const [listOpen, setListOpen] = useState(false);
+  const [csvText, setCsvText] = useState("");
+  const [manualOpen, setManualOpen] = useState(false);
+  const [manual, setManual] = useState({ firstName: "", lastName: "", email: "", company: "" });
+  const [added, setAdded] = useState<Array<{ id: string; email: string; firstName?: string }>>([]);
+
+  // step 4 — visual only (checkpoints §3)
+  const [capture, setCapture] = useState({ widget: false, form: false });
+
+  // step 5
+  const [senders, setSenders] = useState<SenderRow[]>([]);
+  const [dailyCap, setDailyCap] = useState(200);
+  const [windowStart, setWindowStart] = useState("09:00");
+  const [windowEnd, setWindowEnd] = useState("17:00");
+  const [sendDays, setSendDays] = useState([true, true, true, true, true, false, false]);
+  const [quietHours, setQuietHours] = useState(true);
+  const [ramp, setRamp] = useState(true);
+  const [limitsOpen, setLimitsOpen] = useState(false);
+
+  // step 6
+  const [deploying, setDeploying] = useState(false);
+  const [launched, setLaunched] = useState(false);
+  const [enrolled, setEnrolled] = useState(0);
+
+  // ── polling (A4: 5s) ────────────────────────────────────────────────────
+  const readyCount = useRef(0);
+  const refreshKnowledge = useCallback(async () => {
+    if (!agentId) return;
+    const list = (await cf(`knowledge/sources?agentId=${agentId}`)) as KnowledgeSource[];
+    setSources(list.map((s) => ({ ...s, chunkCount: s.meta?.chunkCount })));
+    // A source just turned READY → kick the P1.3 distill so the About card,
+    // citations and gap report fill in from the new evidence.
+    const ready = list.filter((s) => s.status === "READY").length;
+    if (ready > readyCount.current) {
+      readyCount.current = ready;
+      void cf("context/distill", { method: "POST", body: JSON.stringify({ agentId }) }).catch(() => {});
+    }
+  }, [agentId]);
+  const refreshContext = useCallback(async () => {
+    if (!agentId || !goal) return;
+    try {
+      const ctx = await cf(`context?agentId=${agentId}`);
+      const merged = { ...(ctx.workspace?.fields ?? {}), ...(ctx.agent?.fields ?? {}) };
+      setFields(merged as Record<string, ContextField>);
+      setContextSummary(ctx.agent?.rawSummary || ctx.workspace?.rawSummary || "");
+      // P1.3 GapReport: {gaps: [{key,label,status,…}], resolved, total, launchReady}
+      const report = await cf(`context/gaps?agentId=${agentId}&goal=${goal}`);
+      setGaps(
+        (report.gaps ?? []).map(
+          (g: { key: string; label: string; status: Gap["state"]; proposedAsk?: string }) => ({
+            key: g.key,
+            label: g.label,
+            description: g.proposedAsk ?? FIELD_HINTS[g.key] ?? "",
+            state: g.status,
+          }),
+        ),
+      );
+      setGapMeta({ resolved: report.resolved ?? 0, total: report.total ?? 0, launchReady: report.launchReady ?? true });
+    } catch {
+      /* context not distilled yet — fine */
+    }
+  }, [agentId, goal]);
+
+  useEffect(() => {
+    if (!agentId) return;
+    const t = setInterval(() => {
+      void refreshKnowledge();
+      void refreshContext();
+    }, 5000);
+    return () => clearInterval(t);
+  }, [agentId, refreshKnowledge, refreshContext]);
+
+  useEffect(() => {
+    if (step === 4) void cf("senders").then(setSenders).catch(() => {});
+  }, [step]);
+
+  // ── derived ──────────────────────────────────────────────────────────────
+  const covered = useMemo(
+    () => gaps.filter((g) => g.state === "covered"),
+    [gaps],
+  );
+  const openGaps = useMemo(() => gaps.filter((g) => g.state !== "covered"), [gaps]);
+  const gapTotal = gapMeta.total;
+  const gapResolved = gapMeta.resolved;
+  const allResolved = gapMeta.launchReady;
+
+  /** Grounded-in chips: citations aggregated BY SOURCE (chunk ids never shown). */
+  const groundedSources = useMemo(() => {
+    const bySource = new Map<string, { label: string; type: string; quotes: Citation[]; backs: Set<string> }>();
+    for (const [key, f] of Object.entries(fields)) {
+      for (const c of f.citations ?? []) {
+        const entry = bySource.get(c.sourceId) ?? { label: c.sourceLabel, type: c.sourceType, quotes: [], backs: new Set<string>() };
+        entry.quotes.push(c);
+        entry.backs.add(key.replace(/_/g, " "));
+        bySource.set(c.sourceId, entry);
+      }
+    }
+    return [...bySource.entries()].map(([id, v]) => ({ id, ...v }));
+  }, [fields]);
+
+  const branchCases = useMemo(() => {
+    const b = graph?.nodes.find((n) => n.type === "branch");
+    return b && b.type === "branch" ? b.cases : [];
+  }, [graph]);
+
+  const stepValid = [
+    Boolean(goal && name.trim() && agentId && allResolvedForNext()),
+    Boolean(graph),
+    added.length > 0,
+    true,
+    senders.length > 0,
+    allResolved,
+  ][step];
+
+  function allResolvedForNext() {
+    // Step 1 Next needs goal + name; gaps gate LAUNCH (step 6), not step 1.
+    return true;
+  }
+
+  // ── actions ──────────────────────────────────────────────────────────────
+  async function ensureAgent(): Promise<string> {
+    if (agentId) return agentId;
+    const created = await cf("agents", {
+      method: "POST",
+      body: JSON.stringify({
+        name: name.trim(),
+        goal,
+        ...(instructions.trim() ? { instructions: instructions.trim() } : {}),
+      }),
+    });
+    setAgentId(created.id);
+    return created.id as string;
+  }
+
+  async function addUrl() {
+    if (!urlInput.trim()) return;
+    const id = await ensureAgent();
+    await cf("knowledge/sources", {
+      method: "POST",
+      body: JSON.stringify({ kind: "WEBSITE", uri: urlInput.trim(), label: urlInput.trim().replace(/^https?:\/\//, ""), agentId: id }),
+    });
+    setUrlInput("");
+    setAddMode(null);
+    await refreshKnowledge();
+  }
+
+  async function typeGap(key: string) {
+    const value = typedDrafts[key]?.trim();
+    if (!value || !agentId) return;
+    await cf("context/answers", {
+      method: "POST",
+      body: JSON.stringify({ agentId, key, value }),
+    });
+    await refreshContext();
+  }
+  async function delegateGap(key: string) {
+    if (!agentId) return;
+    await cf("context/delegate", { method: "POST", body: JSON.stringify({ agentId, key }) });
+    await refreshContext();
+  }
+  async function undoGap(key: string) {
+    if (!agentId) return;
+    await cf("context/undo", { method: "POST", body: JSON.stringify({ agentId, key }) });
+    setTypedDrafts((d) => ({ ...d, [key]: "" }));
+    await refreshContext();
+  }
+
+  /** Prototype startBuild(), wired: BSTEPS advance on the prototype's timings,
+   *  but step 8 ("Generating…") holds until the real planner graph arrives. */
+  async function startBuild(id: string) {
+    window.scrollTo({ top: 0 });
+    setBuilding(true);
+    setBuildProgress(0);
+    setDrafting(true);
+    const planned = cf("planner/plan", { method: "POST", body: JSON.stringify({ agentId: id }) }).catch(() => {});
+    let acc = 180 + 200;
+    for (let idx = 0; idx < BUILD_DELAYS.length - 1; idx += 1) {
+      acc += BUILD_DELAYS[idx]!;
+      setTimeout(() => setBuildProgress(idx + 1), acc);
+    }
+    await planned;
+    const finish = (g: CampaignGraph, source: string) => {
+      setGraph(g);
+      setGraphSource(source);
+      setGraphVersion(1);
+      setDrafting(false);
+      setBuildProgress(BSTEPS.length);
+      setTimeout(() => {
+        setBuilding(false);
+        setBuildProgress(0);
+        setStep(1);
+      }, 1100);
+    };
+    const poll = setInterval(async () => {
+      try {
+        const res = await cf(`planner/graph?agentId=${id}`);
+        if (res.graph?.graph) {
+          clearInterval(poll);
+          finish(res.graph.graph as CampaignGraph, res.graph.source);
+        }
+      } catch {
+        /* keep polling */
+      }
+    }, 3000);
+  }
+
+  async function next() {
+    if (step === 0) {
+      const id = await ensureAgent();
+      if (buildMethod === "ai" && !graph) {
+        // "Generate with AI ✦" → building interstitial, then step 2
+        void startBuild(id);
+        return;
+      }
+    }
+    if (step === 4 && agentId) {
+      await cf(`agents/${agentId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          guardrails: {
+            sendingWindow: {
+              days: sendDays.flatMap((on, i) => (on ? [i + 1] : [])),
+              start: windowStart,
+              end: windowEnd,
+              timezone: "UTC",
+            },
+            dailyCap: { email: dailyCap },
+            consent: null,
+            unsubscribeFooter: true,
+            suppressionCheck: true,
+          },
+        }),
+      });
+    }
+    setStep((s) => Math.min(5, s + 1));
+  }
+
+  async function saveEditedStep() {
+    if (!graph || !editNode || !agentId) return;
+    const updated: CampaignGraph = {
+      ...graph,
+      nodes: graph.nodes.map((n) =>
+        n.id === editNode.id && n.type === "step"
+          ? { ...n, content: { ...n.content, subject: editSubject, body: editBody } }
+          : n,
+      ),
+    };
+    setBusyMsg("Saving step…");
+    const row = await cf("planner/graph", {
+      method: "PUT",
+      body: JSON.stringify({ agentId, graph: updated }),
+    });
+    setGraph(updated);
+    setGraphSource(row.source ?? "MANUAL");
+    setGraphVersion(row.version ?? graphVersion + 1);
+    setEditNode(null);
+    setBusyMsg("");
+  }
+
+  /** ✦ Regenerate with AI — re-runs the planner; the next AI version replaces the view. */
+  async function regenerate() {
+    if (!agentId || drafting) return;
+    setDrafting(true);
+    await cf("planner/plan", { method: "POST", body: JSON.stringify({ agentId }) }).catch(() => {});
+    const before = graphVersion;
+    const poll = setInterval(async () => {
+      try {
+        const res = await cf(`planner/graph?agentId=${agentId}`);
+        if (res.graph?.graph && (res.graph.version ?? 0) > before) {
+          clearInterval(poll);
+          setGraph(res.graph.graph as CampaignGraph);
+          setGraphSource(res.graph.source);
+          setGraphVersion(res.graph.version);
+          setDrafting(false);
+        }
+      } catch {
+        /* keep polling */
+      }
+    }, 3000);
+  }
+
+  /** + Add step: append delay + empty email step before the reply branch (MANUAL version). */
+  async function addStep() {
+    if (!graph || !agentId) return;
+    const steps = graph.nodes.filter((n) => n.type === "step");
+    const last = steps[steps.length - 1];
+    if (!last) return;
+    const n = steps.length + 1;
+    const delayId = `delay-added-${n}`;
+    const stepId = `step-added-${n}`;
+    const branch = graph.nodes.find((x) => x.type === "branch");
+    const updated: CampaignGraph = {
+      ...graph,
+      nodes: [
+        ...graph.nodes.filter((x) => x.type !== "branch" && x.type !== "end"),
+        { id: delayId, type: "delay", amount: 2, unit: "days" },
+        { id: stepId, type: "step", channel: "email", content: { subject: `Follow-up ${n}`, body: "Hi {{firstName}}, one more thought for {{company}}…" } },
+        ...graph.nodes.filter((x) => x.type === "branch" || x.type === "end"),
+      ],
+      edges: [
+        ...graph.edges.filter((e) => !(branch && e.from === last.id && e.to === branch.id)),
+        { from: last.id, to: delayId },
+        { from: delayId, to: stepId },
+        ...(branch ? [{ from: stepId, to: branch.id }] : []),
+      ],
+    };
+    setBusyMsg("Adding step…");
+    const row = await cf("planner/graph", { method: "PUT", body: JSON.stringify({ agentId, graph: updated }) });
+    setGraph(updated);
+    setGraphSource(row.source ?? "MANUAL");
+    setGraphVersion(row.version ?? graphVersion + 1);
+    setBusyMsg("");
+    const created = updated.nodes.find((x) => x.id === stepId);
+    if (created && created.type === "step") {
+      setEditNode(created);
+      setEditSubject(created.content.subject ?? "");
+      setEditBody(created.content.body ?? "");
+    }
+  }
+
+  async function saveDelay() {
+    if (!graph || !delayEdit || !agentId) return;
+    const updated: CampaignGraph = {
+      ...graph,
+      nodes: graph.nodes.map((n) =>
+        n.id === delayEdit.id && n.type === "delay" ? { ...n, amount: delayAmount } : n,
+      ),
+    };
+    const row = await cf("planner/graph", { method: "PUT", body: JSON.stringify({ agentId, graph: updated }) });
+    setGraph(updated);
+    setGraphSource(row.source ?? "MANUAL");
+    setGraphVersion(row.version ?? graphVersion + 1);
+    setDelayEdit(null);
+  }
+
+  async function addContacts(rows: Array<{ email: string; firstName?: string; lastName?: string; company?: string }>) {
+    for (const row of rows) {
+      if (!row.email?.includes("@")) continue;
+      try {
+        const created = await cf("contacts", { method: "POST", body: JSON.stringify(row) });
+        setAdded((a) => [...a, { id: created.id, email: row.email, firstName: row.firstName }]);
+      } catch {
+        /* skip bad row */
+      }
+    }
+  }
+
+  async function launch() {
+    if (!agentId || !allResolved || deploying || launched) return;
+    setDeploying(true);
+    await cf(`agents/${agentId}`, { method: "PATCH", body: JSON.stringify({ status: "ACTIVE" }) });
+    // Enroll every added contact on the primary campaign — each POST starts one
+    // durable CampaignWorkflow (P1.6); idempotent on (campaignId, contactId).
+    let ok = 0;
+    for (const c of added) {
+      await cf("enrollments", { method: "POST", body: JSON.stringify({ agentId, contactId: c.id }) })
+        .then(() => { ok += 1; })
+        .catch(() => {});
+    }
+    setEnrolled(ok);
+    setDeploying(false);
+    setLaunched(true);
+  }
+
+  /** Limits modal save → Guardrails schema (A8): sendingWindow + dailyCap. */
+  async function saveLimits() {
+    if (agentId) {
+      await cf(`agents/${agentId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          guardrails: {
+            sendingWindow: {
+              days: sendDays.flatMap((on, i) => (on ? [i + 1] : [])),
+              start: windowStart,
+              end: windowEnd,
+              timezone: "UTC",
+            },
+            dailyCap: { email: dailyCap },
+            consent: null,
+            unsubscribeFooter: true,
+            suppressionCheck: true,
+          },
+        }),
+      }).catch(() => {});
+    }
+    setLimitsOpen(false);
+  }
+
+  const stepCount = graph ? graph.nodes.filter((n) => n.type === "step").length : 0;
+
+  // ── deploying overlay (prototype: dark, spinner) ─────────────────────────
+  if (deploying) {
+    return (
+      <div style={{ position: "fixed", inset: 0, zIndex: 55, background: "#0C140F", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 22 }} data-testid="launch-deploying">
+        <style>{`@keyframes cfBuildSpin{to{transform:rotate(360deg)}}`}</style>
+        <div style={{ width: 62, height: 62, borderRadius: "50%", border: "4px solid rgba(255,255,255,.12)", borderTopColor: "#35E834", animation: "cfBuildSpin .8s linear infinite" }} />
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 22, color: "#fff", marginBottom: 6 }}>Launching your agent…</div>
+          <div style={{ fontSize: 13.5, color: "rgba(255,255,255,.5)" }}>Activating senders, scheduling sends &amp; arming automations</div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── success overlay (prototype: confetti, pop rings, drawn check) ────────
+  if (launched) {
+    return (
+      <div style={{ position: "fixed", inset: 0, zIndex: 56, overflow: "hidden", background: "radial-gradient(120% 85% at 50% -5%, #13241A 0%, #0C140F 58%)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 40, textAlign: "center" }} data-testid="launch-success">
+        <style>{`@keyframes cfSuccPop{0%{transform:scale(.5);opacity:0}60%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}@keyframes cfSuccRing{0%{transform:scale(.55);opacity:.65}100%{transform:scale(2);opacity:0}}@keyframes cfCheckDraw{from{stroke-dashoffset:42}to{stroke-dashoffset:0}}@keyframes cfFadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}@keyframes cfConfFall{0%{transform:translateY(-30px) rotate(0);opacity:0}12%{opacity:1}100%{transform:translateY(520px) rotate(600deg);opacity:0}}`}</style>
+        {CONFETTI.map((c, i) => (
+          <span key={i} style={{ position: "absolute", top: -30, left: c.left, width: c.size, height: c.size, background: c.bg, borderRadius: 2, animation: `cfConfFall ${c.dur} linear ${c.delay} infinite` }} />
+        ))}
+        <div style={{ position: "relative", width: 112, height: 112, marginBottom: 30, animation: "cfSuccPop .6s cubic-bezier(.2,.85,.25,1) both" }}>
+          <span style={{ position: "absolute", inset: 0, borderRadius: "50%", background: GRAD, animation: "cfSuccRing 1.8s ease-out .5s infinite" }} />
+          <span style={{ position: "absolute", inset: 0, borderRadius: "50%", background: GRAD, animation: "cfSuccRing 1.8s ease-out 1.1s infinite" }} />
+          <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: GRAD, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 18px 50px rgba(53,232,52,.4)" }}>
+            <svg width="50" height="50" viewBox="0 0 46 46"><path d="M13 24 L20 31 L33 16" fill="none" stroke="#0A0F0C" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="42" strokeDashoffset="42" style={{ animation: "cfCheckDraw .5s .55s ease forwards" }} /></svg>
+          </div>
+        </div>
+        <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 34, letterSpacing: "-.02em", color: "#fff", marginBottom: 10, animation: "cfFadeUp .5s .3s both" }}>Your agent is live 🎉</div>
+        <div style={{ fontSize: 15.5, color: "rgba(255,255,255,.6)", maxWidth: 440, lineHeight: 1.55, marginBottom: 22, animation: "cfFadeUp .5s .42s both" }}>
+          <strong style={{ color: "#fff", fontWeight: 600 }}>{name}</strong> is now reaching {enrolled} contact{enrolled === 1 ? "" : "s"} over email. First sends go out in the next scheduled window.
+        </div>
+        {enrolled < added.length ? (
+          <div style={{ fontSize: 12.5, color: "#E8C45B", marginBottom: 18, animation: "cfFadeUp .5s .47s both" }} data-testid="enroll-warning">
+            ⚠ {added.length - enrolled} of {added.length} contacts couldn&apos;t be enrolled — retry from the agent&apos;s Leads tab.
+          </div>
+        ) : null}
+        <div style={{ display: "flex", gap: 9, marginBottom: 32, animation: "cfFadeUp .5s .52s both" }}>
+          {[`${stepCount}-step sequence`, "Email", `${enrolled} contact${enrolled === 1 ? "" : "s"}`].map((chip) => (
+            <span key={chip} style={{ fontSize: 12.5, fontWeight: 600, color: "#D0F56B", background: "rgba(208,245,107,.12)", border: "1px solid rgba(208,245,107,.25)", borderRadius: 100, padding: "7px 15px" }}>{chip}</span>
+          ))}
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14, animation: "cfFadeUp .5s .62s both" }}>
+          <a href={`/agents/${agentId}`} style={{ textDecoration: "none", fontFamily: "'Hanken Grotesk',sans-serif", fontWeight: 700, fontSize: 16, color: "#0A0F0C", background: GRAD, borderRadius: 13, padding: "15px 34px", boxShadow: "0 10px 30px rgba(53,232,52,.35)", cursor: "pointer" }} data-testid="view-agent">View agent dashboard →</a>
+          <span onClick={() => { window.location.href = "/agents/new"; }} style={{ fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,.55)", cursor: "pointer" }}>Create another agent</span>
+        </div>
+      </div>
+    );
+  }
+
+  const nextLabel = building ? "Building…" : step === 4 ? "Preview" : step === 0 ? "Generate with AI ✦" : "Next ›";
+
+  return (
+    <div style={{ position: "relative", minHeight: "100vh", width: "100%", background: "#FBF7F0", fontFamily: "'Hanken Grotesk',sans-serif", overflow: "hidden" }}>
+      {/* wizard top bar */}
+      <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 26px 16px 72px", borderBottom: "1px solid #EBE3D6", background: "#fff" }}>
+        <a href="/dashboard" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 7, fontSize: 13.5, fontWeight: 600, color: "#5C6B62", border: "1px solid #EBE3D6", borderRadius: 10, padding: "8px 13px", marginRight: 2 }}>‹ Dashboard</a>
+        <div style={{ width: 32, height: 32, borderRadius: 9, background: GRAD, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, color: "#0A0F0C", fontSize: 17 }}>f</div>
+        <span style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 18, color: "#0E1512" }}>New agent</span>
+        <span style={{ fontSize: 13, color: "#9AA59E", borderLeft: "1px solid #EBE3D6", paddingLeft: 14 }} data-testid="step-counter">Step {step + 1} of {STEP_DEFS.length}</span>
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12 }}>
+          {agentId ? (
+            <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: "#16A82A" }} data-testid="draft-saved"><span style={{ width: 6, height: 6, borderRadius: "50%", background: "#35E834" }} />Draft saved · just now</span>
+          ) : null}
+          <span style={{ fontSize: 13, fontWeight: 600, color: "#5C6B62", border: "1px solid #EBE3D6", borderRadius: 10, padding: "8px 15px" }}>Help</span>
+          <a href="/dashboard" style={{ textDecoration: "none", width: 34, height: 34, borderRadius: 10, border: "1px solid #EBE3D6", display: "flex", alignItems: "center", justifyContent: "center", color: "#9AA59E" }}>✕</a>
+        </div>
+      </div>
+
+      <div style={{ display: "flex", background: "#FBF7F0", paddingLeft: 64 }}>
+      {/* step rail — §3: 332px, right hairline, Back + gradient Next pinned */}
+      <div style={{ flex: "none", width: 332, borderRight: "1px solid #EBE3D6", padding: "26px 24px", minHeight: 680, display: "flex", flexDirection: "column" }}>
+        <div>
+          {STEP_DEFS.map((d, i) => {
+            const done = i < step;
+            const current = i === step;
+            return (
+              <div
+                key={d.label}
+                style={{ display: "flex", gap: 13, alignItems: "flex-start", padding: "12px 12px", borderRadius: 13, cursor: "pointer", marginBottom: 4, background: current ? "#fff" : "transparent" }}
+                onClick={() => !building && i <= step && setStep(i)}
+                data-testid={`rail-step-${i}`}
+              >
+                <span style={{ width: 30, height: 30, borderRadius: "50%", flex: "none", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, background: done ? "#16A82A" : current ? GRAD : "#fff", color: done ? "#fff" : current ? "#0A0F0C" : "#9AA59E", border: done || current ? "none" : "1px solid #D8CFBE" }}>
+                  {done ? "✓" : i + 1}
+                </span>
+                <div style={{ minWidth: 0, paddingTop: 2 }}>
+                  <div style={{ fontSize: 14.5, fontWeight: current ? 700 : 600, color: current ? "#0E1512" : done ? "#3B463F" : "#8A7F6B", whiteSpace: "nowrap" }}>{d.label}</div>
+                  <div style={{ fontSize: 12.5, color: "#9AA59E" }}>{d.hint}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div style={{ marginTop: "auto", display: "flex", gap: 10, paddingTop: 20 }}>
+          <button type="button" onClick={() => !building && setStep((s) => Math.max(0, s - 1))} style={{ flex: "none", fontSize: 14, fontWeight: 600, color: "#5C6B62", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 11, padding: "11px 18px", cursor: "pointer", fontFamily: "'Hanken Grotesk',sans-serif" }}>
+            ‹ Back
+          </button>
+          {step < 5 ? (
+            <button type="button" data-testid="wizard-next" onClick={() => void next()} disabled={!stepValid || building} style={{ flex: 1, textAlign: "center", background: stepValid && !building ? GRAD : "#EDE8DC", border: "none", borderRadius: 11, padding: "11px 18px", fontSize: 15, fontWeight: 700, color: stepValid && !building ? "#0A0F0C" : "#A99F8C", cursor: stepValid && !building ? "pointer" : "default", boxShadow: stepValid && !building ? "0 6px 16px rgba(53,232,52,.26)" : "none", fontFamily: "'Hanken Grotesk',sans-serif" }}>
+              {nextLabel}
+            </button>
+          ) : (
+            <button type="button" data-testid="wizard-launch" onClick={() => void launch()} disabled={!allResolved} title={allResolved ? "Deploy agent" : "Resolve every gap before launching"} style={{ flex: 1, textAlign: "center", background: allResolved ? GRAD : "#EDE8DC", border: "none", borderRadius: 11, padding: "11px 18px", fontSize: 15, fontWeight: 700, color: allResolved ? "#0A0F0C" : "#A99F8C", cursor: allResolved ? "pointer" : "default", boxShadow: allResolved ? "0 6px 16px rgba(53,232,52,.26)" : "none", fontFamily: "'Hanken Grotesk',sans-serif" }}>
+              Deploy agent
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* step content */}
+      <div style={{ flex: 1, minWidth: 0, padding: "28px 32px", position: "relative" }}>
+        <div style={{ marginBottom: 22 }}>
+          <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 26, letterSpacing: "-.02em", color: "#0E1512" }}>{STEP_DEFS[step]!.title}</div>
+          <div style={{ fontSize: 15, color: "#5C6B62" }}>{STEP_DEFS[step]!.subtitle}</div>
+        </div>
+
+        {building ? (
+          <BuildingScreen
+            progress={buildProgress}
+            sources={sources}
+            fields={fields}
+            graph={graph}
+          />
+        ) : null}
+
+        {busyMsg ? <div style={{ position: "fixed", bottom: 22, left: "50%", transform: "translateX(-50%)", background: "#0C140F", color: "#fff", borderRadius: 12, padding: "10px 18px", fontSize: 13.5, zIndex: 70 }}>{busyMsg}</div> : null}
+
+        {step === 0 ? (
+          <Step1
+            {...{ name, setName, goal, setGoal, sources, addMode, setAddMode, category, setCategory, categoryOpen, setCategoryOpen, instructions, setInstructions, urlInput, setUrlInput, addUrl, contextSummary, groundedSources, aboutEv, setAboutEv, gaps: openGaps, covered, coveredEv, setCoveredEv, fields, gapResolved, gapTotal, typedDrafts, setTypedDrafts, typeGap, delegateGap, undoGap, buildMethod, setBuildMethod, ensureAgent, refreshKnowledge }}
+          />
+        ) : null}
+
+        {step === 1 ? (
+          <div style={{ maxWidth: 760 }}>
+            {drafting || !graph ? (
+              <div style={{ border: "1px solid rgba(53,232,52,.32)", borderRadius: 13, background: "rgba(53,232,52,.04)", padding: "42px 24px", textAlign: "center" }} data-testid="drafting">
+                <div style={{ fontSize: 26, marginBottom: 10 }}>✦</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "#0E1512", marginBottom: 4 }}>Drafting your sequence…</div>
+                <div style={{ fontSize: 13, color: "#8A7F6B" }}>Claude is planning steps grounded in your business context.</div>
+              </div>
+            ) : (
+              <>
+                {/* tab bar */}
+                <div style={{ display: "flex", alignItems: "center", gap: 0, marginBottom: 22, borderBottom: "2px solid #EBE3D6" }}>
+                  <div onClick={() => setSeqView("sequence")} style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 18px", fontSize: 14, fontWeight: seqView === "sequence" ? 700 : 500, color: seqView === "sequence" ? "#0E1512" : "#8A7F6B", borderBottom: `2px solid ${seqView === "sequence" ? "#16A82A" : "transparent"}`, marginBottom: -2, cursor: "pointer" }} data-testid="tab-sequence">Main sequence</div>
+                  <div onClick={() => setSeqView("branches")} style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 18px", fontSize: 14, fontWeight: seqView === "branches" ? 700 : 500, color: seqView === "branches" ? "#0E1512" : "#8A7F6B", borderBottom: `2px solid ${seqView === "branches" ? "#16A82A" : "transparent"}`, marginBottom: -2, cursor: "pointer" }} data-testid="tab-branches">
+                    Branches &amp; rules <span style={{ fontSize: 11, fontWeight: 800, color: seqView === "branches" ? "#fff" : "#8A7F6B", background: seqView === "branches" ? "#0E1512" : "#F2EEE4", borderRadius: 100, padding: "2px 8px" }}>{branchCases.length}</span>
+                  </div>
+                </div>
+
+                {seqView === "sequence" ? (
+                  <div data-testid="sequence">
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600, color: "#0E1512", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 11, padding: "9px 15px" }}>🕐 Mon–Fri · {parseInt(windowStart, 10)}–{parseInt(windowEnd, 10)} · UTC <span style={{ color: "#9AA59E" }}>⌄</span></span>
+                      <span onClick={() => void regenerate()} style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 700, color: "#16A82A", background: "rgba(53,232,52,.1)", border: "1px solid rgba(53,232,52,.3)", borderRadius: 11, padding: "9px 15px", cursor: "pointer" }} data-testid="regenerate">✦ Regenerate with AI</span>
+                    </div>
+                    {graph.nodes.map((n) => {
+                      if (n.type === "step") {
+                        const idx = graph.nodes.filter((x) => x.type === "step").indexOf(n) + 1;
+                        return (
+                          <div key={n.id} style={{ display: "flex", gap: 14, alignItems: "flex-start" }} data-testid="seq-step">
+                            <span style={{ width: 38, height: 38, borderRadius: 11, flex: "none", background: "rgba(53,232,52,.16)", color: "#16A82A", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, fontWeight: 700 }}>✉</span>
+                            <div onClick={() => { setEditNode(n); setEditSubject(n.content.subject ?? ""); setEditBody(n.content.body ?? ""); }} style={{ flex: 1, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 14, padding: "16px 18px", boxShadow: "0 4px 16px rgba(14,21,18,.04)", cursor: "pointer" }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                                <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "#8A7F6B" }}>Step {idx}</span>
+                                <span style={{ fontSize: 12, fontWeight: 700, borderRadius: 8, padding: "3px 10px", background: "rgba(53,232,52,.13)", color: "#16A82A" }}>Email</span>
+                                <span style={{ fontSize: 11, fontWeight: 700, color: "#16A82A", background: "rgba(53,232,52,.12)", borderRadius: 7, padding: "3px 9px" }}>✦ AI draft</span>
+                                <span style={{ marginLeft: "auto", fontSize: 13, color: "#9AA59E" }} data-testid="seq-edit">✎ Edit</span>
+                              </div>
+                              <div style={{ fontSize: 15.5, fontWeight: 600, color: "#0E1512", marginBottom: 4 }}>{n.content.subject}</div>
+                              <div style={{ fontSize: 14, color: "#5C6B62", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{n.content.body}</div>
+                            </div>
+                          </div>
+                        );
+                      }
+                      if (n.type === "delay") {
+                        return (
+                          <div key={n.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "4px 0 4px 26px" }} data-testid="seq-delay-row">
+                            <span style={{ width: 2, height: 34, background: "#D8CFBE", marginLeft: 17, flex: "none" }} />
+                            <span onClick={() => { setDelayEdit(n); setDelayAmount(n.amount); }} style={{ fontSize: 13, fontWeight: 600, color: "#8A7F6B", background: "#F2EEE4", borderRadius: 100, padding: "5px 14px", cursor: "pointer" }} data-testid="seq-delay">⏱ Wait {n.amount} {n.amount === 1 ? n.unit.replace(/s$/, "") : n.unit} <span style={{ color: "#C2B79F" }}>✎</span></span>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })}
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, paddingLeft: 26, marginTop: 4 }}>
+                      <span style={{ width: 2, height: 24, background: "#D8CFBE", marginLeft: 17, flex: "none" }} />
+                      <span onClick={() => void addStep()} style={{ fontSize: 14, fontWeight: 600, color: "#16A82A", background: "#fff", border: "1.5px dashed #9FD8AC", borderRadius: 11, padding: "10px 18px", cursor: "pointer" }} data-testid="add-step">+ Add step</span>
+                    </div>
+                    <div style={{ fontSize: 12, color: "#9AA59E", textAlign: "center", marginTop: 14 }}>Graph v{graphVersion} · {graphSource === "MANUAL" ? "edited — new version saved (MANUAL)" : "AI-planned"}</div>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 22 }} data-testid="branches">
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", marginBottom: 12 }}>
+                        <div style={{ fontSize: 11.5, fontWeight: 700, color: "#8A7F6B", letterSpacing: ".07em", textTransform: "uppercase", flex: 1 }}>Campaign flow</div>
+                      </div>
+                      <div style={{ background: "#0C140F", borderRadius: 14, padding: "18px 20px" }}>
+                        <div style={{ display: "flex", alignItems: "center", marginBottom: 14 }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: "#7FE8A0", textTransform: "uppercase", letterSpacing: ".08em" }}>Main sequence · {graph.nodes.filter((x) => x.type === "step").length} steps</div>
+                            <div style={{ fontSize: 11.5, color: "rgba(255,255,255,.4)", marginTop: 2 }}>{added.length ? `${added.length} contact${added.length === 1 ? "" : "s"} enroll at launch` : "Contacts enroll at launch"} · Draft</div>
+                          </div>
+                          <span onClick={() => setSeqView("sequence")} style={{ fontSize: 11.5, fontWeight: 700, color: "#0A0F0C", background: "#7FE8A0", borderRadius: 8, padding: "4px 11px", cursor: "pointer" }}>View steps</span>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, overflowX: "auto", paddingBottom: 2 }}>
+                          {graph.nodes.filter((x) => x.type === "step").map((s, i, arr) => (
+                            <Fragment key={s.id}>
+                              <div style={{ flex: "none", background: "rgba(255,255,255,.09)", borderRadius: 9, padding: "6px 11px", fontSize: 12, fontWeight: 600, color: "#fff", whiteSpace: "nowrap" }}>✉ {s.type === "step" ? s.content.subject : ""}</div>
+                              {i < arr.length - 1 ? <span style={{ color: "rgba(255,255,255,.25)", fontSize: 11, flex: "none" }}>→</span> : null}
+                            </Fragment>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11.5, fontWeight: 700, color: "#8A7F6B", letterSpacing: ".07em", textTransform: "uppercase", marginBottom: 12 }}>Reply branch</div>
+                      <div style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 14, overflow: "hidden", boxShadow: "0 4px 16px rgba(14,21,18,.04)" }}>
+                        {branchCases.map((c, i) => (
+                          <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", borderTop: i ? "1px solid #F2EEE4" : "none" }} data-testid="branch-rule">
+                            <span style={{ fontSize: 13, color: "#0E1512", flex: 1 }}>{c.when === "default" ? "Any other reply" : `Reply classified “${c.when.intent}”`}</span>
+                            <span style={{ fontSize: 12, fontWeight: 700, borderRadius: 8, padding: "4px 11px", background: c.when === "default" ? "#F2EEE4" : "#D7F5DD", color: c.when === "default" ? "#8A7F6B" : "#16A82A" }}>→ {c.goto === "end-won" ? "Mark interested — hand to you" : c.goto === "end-lost" ? "End sequence" : c.goto}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ fontSize: 12, color: "#9AA59E", marginTop: 10 }}>Replies are classified by intent (P1.7) — the branch fires the moment a lead answers.</div>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        ) : null}
+
+        {step === 2 ? (
+          <div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 18 }}>
+              {[
+                { icon: "⬆", title: "Upload CSV", desc: "Import contacts from a .csv file.", iconbg: "rgba(53,232,52,.16)", act: () => setCsvOpen(true), tid: "contacts-csv" },
+                { icon: "❒", title: "Choose a list", desc: "Pick an existing saved list.", iconbg: "rgba(54,215,237,.16)", act: () => setListOpen(true), tid: "contacts-list" },
+                { icon: "✎", title: "Add manually", desc: "Enter contacts one by one.", iconbg: "#F2EEE4", act: () => setManualOpen(true), tid: "contacts-manual" },
+              ].map((c) => (
+                <div key={c.title} onClick={c.act} data-testid={c.tid} style={{ border: "1px solid #EBE3D6", borderRadius: 13, background: "#fff", padding: "16px 14px", cursor: "pointer" }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: c.iconbg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, marginBottom: 11 }}>{c.icon}</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: "#0E1512", marginBottom: 3 }}>{c.title}</div>
+                  <div style={{ fontSize: 13, color: "#8A7F6B", lineHeight: 1.4 }}>{c.desc}</div>
+                </div>
+              ))}
+            </div>
+            {added.length > 0 ? (
+              <div style={{ border: "1px solid #EBE3D6", borderRadius: 13, background: "#fff" }} data-testid="contacts-added">
+                {added.map((a, i) => (
+                  <div key={`${a.email}-${i}`} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", borderTop: i ? "1px solid #F2EEE4" : "none", fontSize: 13.5, color: "#0E1512" }}>
+                    <span style={{ color: "#16A82A" }}>✓</span>
+                    {a.firstName ? `${a.firstName} · ` : ""}{a.email}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ fontSize: 13, color: "#9AA59E" }}>No contacts yet — add at least one to continue.</div>
+            )}
+          </div>
+        ) : null}
+
+        {step === 3 ? (
+          <div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+              {(
+                [
+                  { key: "widget", title: "Website chat widget", desc: "Qualify visitors and capture leads 24/7." },
+                  { key: "form", title: "Form capture", desc: "Route form submissions into the sequence." },
+                ] as const
+              ).map((c) => (
+                <div key={c.key} style={{ border: "1px solid #EBE3D6", borderRadius: 13, background: "#fff", padding: "16px 18px", display: "flex", alignItems: "center", gap: 14 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14.5, fontWeight: 700, color: "#0E1512", marginBottom: 3 }}>{c.title}</div>
+                    <div style={{ fontSize: 12.5, color: "#8A7F6B" }}>{c.desc}</div>
+                  </div>
+                  <div onClick={() => setCapture((v) => ({ ...v, [c.key]: !v[c.key] }))} style={{ width: 48, height: 28, borderRadius: 100, background: capture[c.key] ? GRAD : "#E4DDCE", position: "relative", cursor: "pointer", flex: "none", transition: "background .15s" }} data-testid={`capture-${c.key}`}>
+                    <span style={{ position: "absolute", top: 3, left: capture[c.key] ? 23 : 3, width: 22, height: 22, borderRadius: "50%", background: "#fff", boxShadow: "0 1px 4px rgba(0,0,0,.2)", transition: "left .15s" }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ fontSize: 12.5, color: "#9AA59E", marginTop: 14 }}>This step is optional — you can skip it and connect capture sources any time later.</div>
+          </div>
+        ) : null}
+
+        {step === 4 ? (
+          <div style={{ maxWidth: 820 }}>
+            {/* channel readiness (email-only phase: reqChannels = [Email]) */}
+            {senders.length > 0 ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 14, background: "rgba(53,232,52,.1)", border: "1px solid rgba(53,232,52,.3)", borderRadius: 14, padding: "15px 18px", marginBottom: 12 }} data-testid="ready-banner">
+                <span style={{ width: 38, height: 38, borderRadius: 11, flex: "none", background: GRAD, color: "#0A0F0C", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>✓</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 15.5, color: "#0E1512" }}>All 1 channels ready to send</div>
+                  <div style={{ fontSize: 12.5, color: "#5C6B62" }}>Every step in your sequence has a connected, healthy sender.</div>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: "flex", alignItems: "center", gap: 14, background: "rgba(232,196,91,.12)", border: "1px solid rgba(232,196,91,.5)", borderRadius: 14, padding: "15px 18px", marginBottom: 12 }} data-testid="ready-banner">
+                <span style={{ width: 38, height: 38, borderRadius: 11, flex: "none", background: "rgba(232,196,91,.25)", color: "#A87B16", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>⚠</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 15.5, color: "#0E1512" }}>0 of 1 channels ready</div>
+                  <div style={{ fontSize: 12.5, color: "#5C6B62" }}>Connect Email below before this agent can launch.</div>
+                </div>
+              </div>
+            )}
+
+            <div style={{ margin: "4px 0 11px", fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 12, letterSpacing: ".14em", textTransform: "uppercase", color: "#16A82A" }}>Channels &amp; senders</div>
+
+            {/* email senders (live P1.5 SenderConnections) */}
+            <div style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 16, boxShadow: "0 4px 16px rgba(14,21,18,.04)", marginBottom: 18, overflow: "hidden" }} data-testid="senders-list">
+              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "16px 18px" }}>
+                <span style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 16, color: "#0E1512", flex: 1 }}>Email senders <span style={{ fontSize: 13, fontWeight: 600, color: "#9AA59E" }}>· {senders.length} connected</span></span>
+                <span title="Senders are connected in Settings → Channels (P1.5)" style={{ fontSize: 13, fontWeight: 700, color: "#16A82A", background: "rgba(53,232,52,.1)", borderRadius: 10, padding: "8px 14px", cursor: "default" }}>＋ Add sender</span>
+              </div>
+              {senders.length === 0 ? (
+                <div style={{ borderTop: "1px solid #F2EEE4", padding: "20px 18px", display: "flex", alignItems: "center", gap: 14 }}>
+                  <span style={{ width: 40, height: 40, borderRadius: 11, flex: "none", background: "#F2EEE4", color: "#9AA59E", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>✉</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 700, color: "#0E1512" }}>No email sender connected</div>
+                    <div style={{ fontSize: 12, color: "#8A7F6B" }}>Required for Email steps.</div>
+                  </div>
+                </div>
+              ) : (
+                senders.map((s) => {
+                  const auth = (s.domainAuthStatus ?? {}) as Record<string, { pass?: boolean } | boolean | undefined>;
+                  const passes = ["spf", "dkim", "dmarc"].filter((k) => {
+                    const v = auth[k];
+                    return v === true || (typeof v === "object" && v?.pass === true);
+                  }).length;
+                  const healthy = passes === 3;
+                  const pct = Math.min(100, Math.round((s.sentToday / Math.max(1, s.dailyLimit)) * 100));
+                  const active = s.status === "ACTIVE";
+                  return (
+                    <div key={s.id} style={{ borderTop: "1px solid #F2EEE4", padding: "15px 18px" }} data-testid="sender-row">
+                      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 13 }}>
+                        <span style={{ width: 36, height: 36, borderRadius: 10, flex: "none", background: "rgba(208,245,107,.4)", color: "#6B7A1F", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 16 }}>f</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: "#0E1512" }}>{s.fromEmail}</div>
+                          <div style={{ fontSize: 12, color: "#9AA59E" }}>Clientforce Mailer · {s.fromName ?? "—"}</div>
+                        </div>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: active ? "#0F7A28" : "#A87B16", background: active ? "#D7F5DD" : "rgba(232,196,91,.18)", borderRadius: 7, padding: "5px 10px", flex: "none" }}>{active ? "Active" : s.status}</span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                        <div style={{ flex: "none", textAlign: "left", minWidth: 74 }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".05em", color: "#9AA59E", marginBottom: 2 }}>Auth</div>
+                          <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 19, lineHeight: 1, color: healthy ? "#16A82A" : "#E8C45B" }}>{passes}/3<span style={{ fontSize: 11, fontWeight: 600, color: "#8A7F6B" }}> {healthy ? "Pass" : "Needs DNS"}</span></div>
+                        </div>
+                        <div style={{ flex: "none", minWidth: 90 }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".05em", color: "#9AA59E", marginBottom: 4 }}>Reputation</div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <span style={{ width: 9, height: 9, borderRadius: "50%", background: active ? "#16A82A" : "#E8C45B" }} />
+                            <span style={{ fontSize: 13.5, fontWeight: 700, color: "#0E1512" }}>{active ? "Good" : "Building"}</span>
+                          </div>
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
+                            <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".05em", color: "#9AA59E" }}>Daily sending</span>
+                            <span style={{ fontSize: 11.5, fontWeight: 600, color: "#5C6B62" }}>{s.sentToday.toLocaleString()} / {s.dailyLimit.toLocaleString()}</span>
+                          </div>
+                          <div style={{ height: 7, borderRadius: 100, background: "#F2EEE4", overflow: "hidden" }}>
+                            <div style={{ height: "100%", width: `${pct}%`, borderRadius: 100, background: healthy ? "#16A82A" : "#E8C45B" }} />
+                          </div>
+                        </div>
+                        <span onClick={() => setLimitsOpen(true)} style={{ fontSize: 13, fontWeight: 700, color: "#5C6B62", border: "1px solid #EBE3D6", borderRadius: 10, padding: "8px 14px", cursor: "pointer", flex: "none" }} data-testid="sender-manage">Manage</span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div style={{ margin: "26px 0 11px", fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 12, letterSpacing: ".14em", textTransform: "uppercase", color: "#16A82A" }}>Sending behavior</div>
+
+            {/* sending schedule → Guardrails.sendingWindow */}
+            <div style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 16, boxShadow: "0 4px 16px rgba(14,21,18,.04)", padding: "18px 20px", marginBottom: 18 }} data-testid="schedule-card">
+              <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 16, color: "#0E1512" }}>Sending schedule</div>
+              <div style={{ fontSize: 12.5, color: "#9AA59E", marginTop: 2, marginBottom: 16 }}>The agent only sends inside this window — replies are still handled 24/7.</div>
+              <div style={{ display: "flex", gap: 16, marginBottom: 16 }}>
+                <div style={{ flex: 1.4 }}>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#9AA59E", marginBottom: 6 }}>Timezone</label>
+                  <div style={{ height: 44, borderRadius: 11, background: "#FBF7F0", border: "1px solid #EBE3D6", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 14px", fontSize: 14, color: "#0E1512" }}>UTC<span style={{ color: "#9AA59E", fontSize: 11 }}>▾</span></div>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#9AA59E", marginBottom: 6 }}>Sending window</label>
+                  <div onClick={() => setLimitsOpen(true)} style={{ height: 44, borderRadius: 11, background: "#FBF7F0", border: "1px solid #EBE3D6", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 14px", fontSize: 14, color: "#0E1512", cursor: "pointer" }} data-testid="window-box">{windowStart} – {windowEnd}<span style={{ color: "#9AA59E", fontSize: 11 }}>▾</span></div>
+                </div>
+              </div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#9AA59E", marginBottom: 8 }}>Sending days</label>
+              <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+                {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((label, i) => {
+                  const on = sendDays[i];
+                  return (
+                    <span key={label} onClick={() => setSendDays((d) => d.map((v, j) => (j === i ? !v : v)))} style={{ flex: 1, textAlign: "center", fontSize: 13, fontWeight: 700, padding: "9px 0", borderRadius: 10, background: on ? "#0E1512" : "#fff", color: on ? "#fff" : "#9AA59E", border: `1px solid ${on ? "#0E1512" : "#EBE3D6"}`, cursor: "pointer" }} data-testid={`day-${label}`}>{label}</span>
+                  );
+                })}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 14, background: "#FBF7F0", border: "1px solid #EBE3D6", borderRadius: 12, padding: "13px 15px" }}>
+                <span style={{ fontSize: 18, flex: "none" }}>🌙</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 600, color: "#0E1512" }}>Pause outside business hours</div>
+                  <div style={{ fontSize: 12, color: "#8A7F6B" }}>Hold queued messages overnight &amp; on weekends instead of sending late.</div>
+                </div>
+                <GradToggle on={quietHours} onClick={() => setQuietHours((v) => !v)} tid="toggle-quiet" />
+              </div>
+            </div>
+
+            {/* volume & deliverability limits → Guardrails.dailyCap */}
+            <div style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 16, boxShadow: "0 4px 16px rgba(14,21,18,.04)", padding: "18px 20px" }} data-testid="limits-card">
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 16 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 16, color: "#0E1512" }}>Volume &amp; deliverability limits</div>
+                  <div style={{ fontSize: 12.5, color: "#9AA59E", marginTop: 2 }}>Daily caps protect your sender reputation across channels.</div>
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 10, marginBottom: 14 }}>
+                <div onClick={() => setLimitsOpen(true)} style={{ display: "flex", alignItems: "center", gap: 11, background: "#FBF7F0", border: "1px solid #EBE3D6", borderRadius: 12, padding: "11px 13px", cursor: "pointer" }} data-testid="limit-email">
+                  <span style={{ width: 32, height: 32, borderRadius: 9, flex: "none", background: "rgba(53,232,52,.16)", color: "#16A82A", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>✉</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12.5, color: "#8A7F6B", fontWeight: 600 }}>Email</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: "#0E1512" }}>{dailyCap} / day</div>
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 14, background: "#FBF7F0", border: "1px solid #EBE3D6", borderRadius: 12, padding: "13px 15px" }}>
+                <span style={{ fontSize: 18, flex: "none" }}>📈</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 600, color: "#0E1512" }}>Gradually ramp send volume</div>
+                  <div style={{ fontSize: 12, color: "#8A7F6B" }}>Warm-up-safe — increases daily volume slowly to protect new senders.</div>
+                </div>
+                <GradToggle on={ramp} onClick={() => setRamp((v) => !v)} tid="toggle-ramp" />
+              </div>
+            </div>
+
+            <div style={{ margin: "26px 0 11px", fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 12, letterSpacing: ".14em", textTransform: "uppercase", color: "#16A82A" }}>Compliance &amp; consent</div>
+
+            {/* AI compliance banner */}
+            <div style={{ display: "flex", alignItems: "center", gap: 14, background: "linear-gradient(90deg,rgba(53,232,52,.12),rgba(54,215,237,.08))", border: "1px solid rgba(53,232,52,.28)", borderRadius: 14, padding: "15px 18px", marginBottom: 18 }} data-testid="compliance-banner">
+              <span style={{ width: 38, height: 38, borderRadius: 11, flex: "none", background: GRAD, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, color: "#0A0F0C" }}>✓</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 15.5, color: "#0E1512" }}>Compliance check passed</div>
+                <div style={{ fontSize: 12.5, color: "#5C6B62" }}>Your sequence meets outreach regulations for the regions you&apos;re targeting.</div>
+              </div>
+              <div style={{ display: "flex", gap: 7, flex: "none" }}>
+                {["CAN-SPAM ✓", "GDPR ✓", "CASL ✓"].map((c) => (
+                  <span key={c} style={{ fontSize: 12, fontWeight: 700, color: "#16A82A", background: "rgba(53,232,52,.14)", borderRadius: 8, padding: "5px 10px" }}>{c}</span>
+                ))}
+              </div>
+            </div>
+
+            {/* consent & opt-out — A8: unsubscribeFooter + suppressionCheck are
+                literal true, never disableable → locked rows, no toggles. */}
+            <div style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 16, boxShadow: "0 4px 16px rgba(14,21,18,.04)", marginBottom: 18, overflow: "hidden" }} data-testid="consent-card">
+              <div style={{ padding: "16px 20px 4px" }}>
+                <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 16, color: "#0E1512" }}>Consent &amp; opt-out</div>
+                <div style={{ fontSize: 12.5, color: "#9AA59E", marginTop: 2 }}>How contacts opt out, and who the agent must never message.</div>
+              </div>
+              {[
+                { icon: "✉", label: "One-click unsubscribe footer", desc: "Appended to every email — CAN-SPAM & GDPR compliant." },
+                { icon: "🚫", label: "Honor suppression list", desc: "Never contact addresses on your workspace suppression list." },
+                { icon: "⛔", label: "Respect opt-outs", desc: "Skip contacts who opted out and auto-suppress anyone who unsubscribes." },
+              ].map((c) => (
+                <div key={c.label} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 20px", borderTop: "1px solid #F2EEE4" }}>
+                  <span style={{ width: 34, height: 34, borderRadius: 10, flex: "none", background: "rgba(53,232,52,.12)", color: "#16A82A", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>{c.icon}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: "#0E1512" }}>{c.label}</div>
+                    <div style={{ fontSize: 12.5, color: "#8A7F6B" }}>{c.desc}</div>
+                  </div>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "#0F7A28", background: "#D7F5DD", borderRadius: 7, padding: "5px 10px", flex: "none" }}>🔒 Required</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {step === 5 ? (
+          <div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 18 }}>
+              {[
+                { label: "Goal", value: GOALS.find((g) => g.key === goal)?.title ?? "—" },
+                { label: "Sequence", value: graph ? `${graph.nodes.filter((n) => n.type === "step").length} steps · reply branch` : "—" },
+                { label: "Contacts", value: `${added.length} enrolled at launch` },
+                { label: "Lead capture", value: capture.widget || capture.form ? "Enabled" : "Off (optional)" },
+              ].map((c) => (
+                <div key={c.label} style={{ border: "1px solid #EBE3D6", borderRadius: 13, background: "#fff", padding: "14px 14px" }}>
+                  <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", color: "#9AA59E", marginBottom: 6 }}>{c.label}</div>
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: "#0E1512" }}>{c.value}</div>
+                </div>
+              ))}
+            </div>
+            {!allResolved ? (
+              <div style={{ border: "1px solid rgba(232,196,91,.48)", borderRadius: 12, background: "rgba(232,196,91,.06)", padding: "12px 16px", fontSize: 13, color: "#8A7F6B" }} data-testid="launch-gate">
+                ✦ {gapTotal - gapResolved} unresolved gap{gapTotal - gapResolved > 1 ? "s" : ""} — resolve them in step 1 (type it or let AI decide) before launching.
+              </div>
+            ) : (
+              <div style={{ border: "1px solid rgba(53,232,52,.32)", borderRadius: 12, background: "rgba(53,232,52,.05)", padding: "12px 16px", fontSize: 13, color: "#0F7A28" }}>
+                ✓ Everything the agent needs is resolved — ready to launch.
+              </div>
+            )}
+          </div>
+        ) : null}
+      </div>
+
+      {/* step editor modal */}
+      {editNode ? (
+        <Modal onClose={() => setEditNode(null)} title="Edit step" tid="step-editor">
+          <label style={lbl}>Subject</label>
+          <input value={editSubject} onChange={(e) => setEditSubject(e.target.value)} style={inp} data-testid="edit-subject" />
+          <label style={lbl}>Body</label>
+          <textarea value={editBody} onChange={(e) => setEditBody(e.target.value)} rows={7} style={{ ...inp, resize: "vertical" }} data-testid="edit-body" />
+          <div style={{ fontSize: 11.5, color: "#9AA59E", margin: "6px 0 14px" }}>Tokens like {"{{firstName}}"} and {"{{company}}"} personalise per lead; the signature and compliance footer are added at send time.</div>
+          <ModalActions onCancel={() => setEditNode(null)} onSave={() => void saveEditedStep()} />
+        </Modal>
+      ) : null}
+
+      {/* delay modal */}
+      {delayEdit ? (
+        <Modal onClose={() => setDelayEdit(null)} title="Edit delay" tid="delay-modal">
+          <div style={{ display: "flex", alignItems: "center", gap: 14, justifyContent: "center", margin: "10px 0 18px" }}>
+            <Stepper onMinus={() => setDelayAmount((v) => Math.max(1, v - 1))} onPlus={() => setDelayAmount((v) => v + 1)} value={`${delayAmount} ${delayEdit.type === "delay" ? delayEdit.unit : "days"}`} />
+          </div>
+          <ModalActions onCancel={() => setDelayEdit(null)} onSave={() => void saveDelay()} />
+        </Modal>
+      ) : null}
+
+      {/* list picker — designed; no saved lists exist yet in P1 */}
+      {listOpen ? (
+        <Modal onClose={() => setListOpen(false)} title="Choose a list" tid="list-picker">
+          <div style={{ border: "1px dashed #D8CFBE", borderRadius: 12, background: "#FBF7F0", padding: "26px 20px", textAlign: "center", marginBottom: 14 }}>
+            <div style={{ fontSize: 22, marginBottom: 8 }}>❒</div>
+            <div style={{ fontSize: 13.5, fontWeight: 700, color: "#0E1512", marginBottom: 3 }}>No saved lists yet</div>
+            <div style={{ fontSize: 12.5, color: "#8A7F6B" }}>Lists you save from Contacts appear here — upload a CSV or add contacts manually for now.</div>
+          </div>
+        </Modal>
+      ) : null}
+
+      {/* volume & limits modal — stepper controls writing the Guardrails schema */}
+      {limitsOpen ? (
+        <Modal onClose={() => setLimitsOpen(false)} title="Volume & limits" tid="limits-modal">
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
+            <LimitCard label="Daily email cap" value={String(dailyCap)} onMinus={() => setDailyCap((v) => Math.max(10, v - 10))} onPlus={() => setDailyCap((v) => v + 10)} tid="cap" />
+            <LimitCard label="Window start (UTC)" value={windowStart} onMinus={() => setWindowStart(shiftH(windowStart, -1))} onPlus={() => setWindowStart(shiftH(windowStart, 1))} tid="start" />
+            <LimitCard label="Window end (UTC)" value={windowEnd} onMinus={() => setWindowEnd(shiftH(windowEnd, -1))} onPlus={() => setWindowEnd(shiftH(windowEnd, 1))} tid="end" />
+          </div>
+          <div style={{ fontSize: 12, color: "#9AA59E", marginBottom: 14 }}>Unsubscribe footer and suppression checks are always on — they can&apos;t be disabled.</div>
+          <ModalActions onCancel={() => setLimitsOpen(false)} onSave={() => void saveLimits()} />
+        </Modal>
+      ) : null}
+
+      {/* CSV modal */}
+      {csvOpen ? (
+        <Modal onClose={() => setCsvOpen(false)} title="Upload CSV" tid="csv-modal">
+          <div style={{ fontSize: 12.5, color: "#8A7F6B", marginBottom: 8 }}>Paste rows as <code>email,firstName,lastName,company</code> — header row optional.</div>
+          <textarea value={csvText} onChange={(e) => setCsvText(e.target.value)} rows={7} style={{ ...inp, resize: "vertical", fontFamily: "monospace", fontSize: 12.5 }} data-testid="csv-text" placeholder={"email,firstName\njane@acme.io,Jane"} />
+          <ModalActions
+            onCancel={() => setCsvOpen(false)}
+            saveLabel="Import"
+            onSave={() => {
+              const rows = csvText
+                .split("\n")
+                .map((l) => l.trim())
+                .filter((l) => l && !l.toLowerCase().startsWith("email,"))
+                .map((l) => {
+                  const [email, firstName, lastName, company] = l.split(",").map((v) => v?.trim());
+                  return { email: email ?? "", firstName, lastName, company };
+                });
+              void addContacts(rows).then(() => {
+                setCsvOpen(false);
+                setCsvText("");
+              });
+            }}
+          />
+        </Modal>
+      ) : null}
+
+      {/* manual-add drawer — §3: 480px, bg #FBF7F0 */}
+      {manualOpen ? (
+        <div style={{ position: "fixed", inset: 0, zIndex: 60 }}>
+          <div onClick={() => setManualOpen(false)} style={{ position: "absolute", inset: 0, background: "rgba(12,20,15,.45)" }} />
+          <div style={{ position: "absolute", top: 0, right: 0, bottom: 0, width: 480, background: "#FBF7F0", boxShadow: "-24px 0 70px rgba(0,0,0,.3)", display: "flex", flexDirection: "column" }} data-testid="manual-drawer">
+            <div style={{ background: "#fff", borderBottom: "1px solid #EBE3D6", padding: "16px 20px", fontSize: 16, fontWeight: 700, color: "#0E1512" }}>Add contact</div>
+            <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 4 }}>
+              {(["firstName", "lastName", "email", "company"] as const).map((k) => (
+                <div key={k}>
+                  <label style={lbl}>{k === "firstName" ? "First name" : k === "lastName" ? "Last name" : k === "email" ? "Email" : "Company"}</label>
+                  <input value={manual[k]} onChange={(e) => setManual((m) => ({ ...m, [k]: e.target.value }))} style={inp} data-testid={`manual-${k}`} />
+                </div>
+              ))}
+              <button
+                type="button"
+                data-testid="manual-save"
+                onClick={() => void addContacts([manual]).then(() => { setManualOpen(false); setManual({ firstName: "", lastName: "", email: "", company: "" }); })}
+                disabled={!manual.email.includes("@")}
+                style={{ marginTop: 12, background: manual.email.includes("@") ? GRAD : "#EDE8DC", border: "none", borderRadius: 11, padding: "12px 0", fontSize: 14.5, fontWeight: 700, color: manual.email.includes("@") ? "#0A0F0C" : "#A99F8C", cursor: "pointer", fontFamily: "'Hanken Grotesk',sans-serif" }}
+              >
+                Add contact
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      </div>
+    </div>
+  );
+}
+
+/* ── building screen (prototype BSTEPS overlay, wired to live data) ────────── */
+function BuildingScreen({ progress, sources, fields, graph }: {
+  progress: number;
+  sources: KnowledgeSource[];
+  fields: Record<string, ContextField>;
+  graph: CampaignGraph | null;
+}) {
+  const bp = progress;
+  const buildDone = bp >= BSTEPS.length;
+  const headline = buildDone ? "Agent ready ✓" : bp >= 5 ? "Almost there…" : "Building your agent…";
+  const subline = buildDone ? "Opening your sequence designer…" : `Step ${Math.min(bp + 1, BSTEPS.length)} of ${BSTEPS.length} — analysing goal, knowledge & compliance`;
+  const pct = `${Math.round((bp / BSTEPS.length) * 100)}%`;
+  const ready = sources.filter((s) => s.status === "READY").length;
+  const fieldVal = (k: string) => fields[k]?.value;
+  const stepCount = graph ? graph.nodes.filter((n) => n.type === "step").length : 0;
+  const waitDays = graph
+    ? graph.nodes.reduce((acc, n) => (n.type === "delay" ? acc + (n.unit === "days" ? n.amount : 0) : acc), 0)
+    : 0;
+  // "What we found" — same panel, live values (no invented metrics).
+  const discovered = [
+    { show: bp >= 1, icon: "📚", label: "Knowledge", value: sources.length ? `${sources.length} source${sources.length > 1 ? "s" : ""} · ${ready} ready` : "No sources added — using your answers" },
+    { show: bp >= 2, icon: "🎯", label: "Audience", value: fieldVal("target_audience") ?? fieldVal("audience") ?? "From your business context" },
+    { show: bp >= 3, icon: "⚖", label: "Compliance", value: "CAN-SPAM ✓ · GDPR ✓ · CASL ✓" },
+    { show: bp >= 4, icon: "📡", label: "Channels", value: "Email" },
+    { show: bp >= 5, icon: "✍", label: "Lead hook", value: fieldVal("offer") ?? fieldVal("value_proposition") ?? "Personalised per contact" },
+    { show: bp >= 6, icon: "📊", label: "Deliverability", value: "Suppression & unsubscribe checks enforced" },
+    { show: bp >= 7 && stepCount > 0, icon: "⏱", label: "Cadence", value: `${stepCount} steps over ${waitDays} days · Optimal send times` },
+    { show: bp >= 8 && stepCount > 0, icon: "🚀", label: "Sequence", value: `${stepCount}-step email sequence generated` },
+  ];
+  return (
+    <div style={{ position: "absolute", inset: 0, background: "#FBF7F0", zIndex: 20, display: "flex", flexDirection: "column", padding: "36px 32px", overflowY: "auto" }} data-testid="building">
+      <style>{`@keyframes cfBuildPulse{0%,100%{box-shadow:0 0 0 0 rgba(53,232,52,.5),0 0 0 0 rgba(53,232,52,.18)}60%{box-shadow:0 0 0 10px rgba(53,232,52,.22),0 0 0 22px rgba(53,232,52,.07)}}@keyframes cfReveal{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}`}</style>
+      <div style={{ textAlign: "center", marginBottom: 28 }}>
+        <div style={{ width: 58, height: 58, borderRadius: 17, background: GRAD, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 28, color: "#0A0F0C", margin: "0 auto 20px", animation: "cfBuildPulse 1.9s ease-in-out infinite" }}>f</div>
+        <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 24, letterSpacing: "-.02em", color: "#0E1512", marginBottom: 6 }}>{headline}</div>
+        <div style={{ fontSize: 13.5, color: "#9AA59E" }}>{subline}</div>
+      </div>
+      <div style={{ marginBottom: 26 }}>
+        <div style={{ height: 5, background: "#E4EAE6", borderRadius: 100, overflow: "hidden", marginBottom: 7 }}>
+          <div style={{ height: "100%", borderRadius: 100, background: "linear-gradient(90deg,#36D7ED,#35E834 60%,#D0F56B)", transition: "width .65s cubic-bezier(.22,1,.36,1)", width: pct }} />
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ fontSize: 11.5, fontWeight: 600, color: "#9AA59E" }}>{bp} of {BSTEPS.length} steps complete</span>
+          <span style={{ fontSize: 11.5, fontWeight: 700, color: "#16A82A" }}>{pct}</span>
+        </div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1.15fr 1fr", gap: 22, flex: 1 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+          {BSTEPS.map((s, idx) => {
+            const done = bp > idx;
+            const active = bp === idx && !buildDone;
+            return (
+              <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: 11, background: active ? "rgba(53,232,52,.08)" : "transparent" }}>
+                <div style={{ width: 30, height: 30, borderRadius: 9, flex: "none", background: done ? "#D7F5DD" : active ? "rgba(53,232,52,.22)" : "#F2EEE4", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>{done ? "✓" : s.icon}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: active || done ? 600 : 500, color: active ? "#0E1512" : done ? "#3B463F" : "#9AA59E", lineHeight: 1.3 }}>{s.label}</div>
+                  <div style={{ fontSize: 10.5, fontWeight: 700, color: "#C2B79F", letterSpacing: ".05em", textTransform: "uppercase", marginTop: 1 }}>{s.category}</div>
+                </div>
+                <span style={{ fontSize: 11.5, fontWeight: 700, color: done ? "#16A82A" : active ? "#1192A6" : "transparent", whiteSpace: "nowrap", minWidth: 56, textAlign: "right" }}>{done ? "Done" : active ? "Working…" : ""}</span>
+              </div>
+            );
+          })}
+        </div>
+        <div>
+          <div style={{ fontSize: 11.5, fontWeight: 700, color: "#8A7F6B", textTransform: "uppercase", letterSpacing: ".07em", marginBottom: 10 }}>What we found</div>
+          <div style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 13, overflow: "hidden", boxShadow: "0 1px 4px rgba(14,21,18,.04)" }}>
+            {discovered.filter((d) => d.show).map((d) => (
+              <div key={d.label} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "9px 13px", borderBottom: "1px solid #F5F0E8", animation: "cfReveal .28s ease both" }}>
+                <span style={{ fontSize: 15, flex: "none", marginTop: 1 }}>{d.icon}</span>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 10.5, fontWeight: 700, color: "#9AA59E", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 2 }}>{d.label}</div>
+                  <div style={{ fontSize: 12.5, fontWeight: 600, color: "#0E1512", lineHeight: 1.4 }}>{d.value}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          {bp >= 3 ? (
+            <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6, animation: "cfReveal .3s ease both" }}>
+              {["CAN-SPAM guidelines applied", "GDPR & CASL compliant", "Opt-out & unsubscribe flow ready"].map((t) => (
+                <div key={t} style={{ display: "flex", alignItems: "center", gap: 7, background: "rgba(53,232,52,.07)", border: "1px solid rgba(53,232,52,.22)", borderRadius: 9, padding: "7px 11px" }}>
+                  <span style={{ fontSize: 12, color: "#16A82A" }}>✓</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "#16A82A" }}>{t}</span>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── step 1 (goal + knowledge + citations + gaps + method) ────────────────── */
+function Step1(props: {
+  name: string; setName: (v: string) => void;
+  goal: string | null; setGoal: (v: string) => void;
+  sources: KnowledgeSource[];
+  addMode: AddMode; setAddMode: (v: AddMode) => void;
+  category: string; setCategory: (v: string) => void;
+  categoryOpen: boolean; setCategoryOpen: (v: boolean) => void;
+  instructions: string; setInstructions: (v: string) => void;
+  urlInput: string; setUrlInput: (v: string) => void; addUrl: () => Promise<void>;
+  contextSummary: string;
+  groundedSources: Array<{ id: string; label: string; type: string; quotes: Citation[]; backs: Set<string> }>;
+  aboutEv: string | null; setAboutEv: (v: string | null) => void;
+  gaps: Gap[]; covered: Gap[]; coveredEv: string | null; setCoveredEv: (v: string | null) => void;
+  fields: Record<string, ContextField>;
+  gapResolved: number; gapTotal: number;
+  typedDrafts: Record<string, string>; setTypedDrafts: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  typeGap: (k: string) => Promise<void>; delegateGap: (k: string) => Promise<void>; undoGap: (k: string) => Promise<void>;
+  buildMethod: "ai" | "template" | "scratch"; setBuildMethod: (v: "ai" | "template" | "scratch") => void;
+  ensureAgent: () => Promise<string>; refreshKnowledge: () => Promise<void>;
+}) {
+  const p = props;
+  const openSource = p.groundedSources.find((s) => s.id === p.aboutEv);
+  const openQuote = openSource?.quotes[0];
+  const coveredField = p.coveredEv ? p.fields[p.coveredEv] : undefined;
+  const coveredQuote = coveredField?.citations?.[0];
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 16, alignItems: "flex-start", marginBottom: 20 }}>
+        <div style={{ flex: 1.5 }}>
+          <label style={upLbl}>Campaign name</label>
+          <input value={p.name} onChange={(e) => p.setName(e.target.value)} placeholder="e.g. Q3 Reactivation" style={{ height: 50, width: "100%", boxSizing: "border-box", borderRadius: 12, background: "#fff", border: "1px solid #EBE3D6", padding: "0 16px", fontSize: 15, color: "#0E1512", boxShadow: "0 1px 4px rgba(14,21,18,.04)", fontFamily: "'Hanken Grotesk',sans-serif" }} data-testid="agent-name" />
+        </div>
+        <div style={{ flex: 1, position: "relative" }}>
+          <label style={upLbl}>Business category</label>
+          <div onClick={() => p.setCategoryOpen(!p.categoryOpen)} style={{ height: 50, borderRadius: 12, background: "#fff", border: "1px solid #EBE3D6", display: "flex", alignItems: "center", padding: "0 16px", fontSize: 14.5, color: "#0E1512", boxShadow: "0 1px 4px rgba(14,21,18,.04)", cursor: "pointer" }} data-testid="category">
+            {p.category}<span style={{ marginLeft: "auto", color: "#B7BDB6", fontSize: 11 }}>▾</span>
+          </div>
+          {p.categoryOpen ? (
+            <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 12, boxShadow: "0 12px 32px rgba(14,21,18,.16)", zIndex: 15, overflow: "hidden" }}>
+              {CATEGORIES.map((c) => (
+                <div key={c} onClick={() => { p.setCategory(c); p.setCategoryOpen(false); }} style={{ padding: "10px 15px", fontSize: 14, color: "#0E1512", cursor: "pointer" }}>{c}</div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ fontSize: 16, fontWeight: 700, color: "#0E1512", marginBottom: 3 }}>What should this agent achieve?</div>
+        <div style={{ fontSize: 13.5, color: "#9AA59E" }}>Select the primary goal — this shapes the entire sequence and copy.</div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 9, marginBottom: 20 }}>
+        {GOALS.map((g) => {
+          const on = p.goal === g.key;
+          return (
+            <div key={g.key} onClick={() => p.setGoal(g.key)} data-testid={`goal-${g.key}`} style={{ borderRadius: 13, border: on ? "2px solid #35E834" : "1px solid #EBE3D6", background: on ? "rgba(53,232,52,.07)" : "#fff", padding: "16px 14px", cursor: "pointer", transition: "border-color .12s" }}>
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 11 }}>
+                <span style={{ width: 34, height: 34, borderRadius: 10, background: on ? "rgba(53,232,52,.16)" : "#F2EEE4", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17 }}>{g.icon}</span>
+                <span style={{ width: 18, height: 18, borderRadius: "50%", border: on ? "none" : "1.5px solid #D8CFBE", background: on ? "#16A82A" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "#fff", flex: "none" }}>{on ? "✓" : ""}</span>
+              </div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#0E1512", marginBottom: 3 }}>{g.title}</div>
+              <div style={{ fontSize: 12, color: "#8A7F6B", lineHeight: 1.45 }}>{g.desc}</div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={{ marginBottom: 20 }}>
+        <label style={upLbl}>Agent instructions <span style={{ fontWeight: 400, color: "#C2B79F", letterSpacing: 0, textTransform: "none", fontSize: 11 }}>optional context</span></label>
+        <textarea value={p.instructions} onChange={(e) => p.setInstructions(e.target.value)} placeholder="Anything the agent should know or how it should behave — audience, offer to lead with, tone rules…" rows={3} style={{ display: "block", width: "100%", boxSizing: "border-box", borderRadius: 12, background: "#fff", border: "1px solid #EBE3D6", padding: "14px 16px", fontSize: 14.5, color: "#3B463F", lineHeight: 1.6, boxShadow: "0 1px 4px rgba(14,21,18,.04)", minHeight: 76, resize: "vertical", fontFamily: "'Hanken Grotesk',sans-serif" }} data-testid="agent-instructions" />
+      </div>
+
+      {p.goal ? (
+        <>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 28 }} data-testid="goal-pill">
+            <div style={{ height: 1, flex: 1, background: "#EBE3D6" }} />
+            <span style={{ fontSize: 11.5, fontWeight: 700, color: "#16A82A", background: "rgba(53,232,52,.1)", borderRadius: 100, padding: "4px 13px", whiteSpace: "nowrap" }}>✓ Goal: {GOALS.find((g) => g.key === p.goal)?.title}</span>
+            <div style={{ height: 1, flex: 1, background: "#EBE3D6" }} />
+          </div>
+
+          {/* Knowledge base — header above the card, add-source picker below */}
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 11 }}>
+              <span style={{ fontSize: 15, fontWeight: 700, color: "#0E1512" }}>Knowledge base</span>
+              <span style={{ fontSize: 12.5, color: "#9AA59E" }}>the agent reads these before building anything</span>
+            </div>
+            <div style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 12, overflow: "hidden", boxShadow: "0 1px 4px rgba(14,21,18,.04)" }}>
+              {p.sources.map((s) => {
+                const st = ING_PILL[s.status]!;
+                const meta = s.status === "READY"
+                  ? `${SRC_KIND_LABEL[s.kind] ?? "Source"}${s.chunkCount ? ` — ${s.chunkCount} section${s.chunkCount === 1 ? "" : "s"} indexed` : ""}`
+                  : s.status === "FAILED"
+                    ? `${SRC_KIND_LABEL[s.kind] ?? "Source"} — couldn't be read`
+                    : SRC_KIND_LABEL[s.kind] ?? "Source";
+                return (
+                  <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 11, padding: "11px 16px", borderBottom: "1px solid #F5F0E8" }} data-testid={`source-${s.status.toLowerCase()}`}>
+                    <span style={{ width: 30, height: 30, borderRadius: 8, background: "#F2EEE4", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flex: "none" }}>{SRC_ICON[s.kind] ?? "📄"}</span>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ fontSize: 13.5, fontWeight: 600, color: "#0E1512", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.label}</div>
+                      <div style={{ fontSize: 11.5, color: "#9AA59E" }}>{meta}</div>
+                    </div>
+                    <span style={{ fontSize: 11.5, fontWeight: 700, color: st.fg }}>{st.label}</span>
+                  </div>
+                );
+              })}
+              <div onClick={() => p.setAddMode(p.addMode ? null : "picker")} style={{ display: "flex", alignItems: "center", gap: 8, padding: "11px 16px", cursor: "pointer" }} data-testid="add-source">
+                <span style={{ width: 26, height: 26, borderRadius: 7, border: "1.5px dashed #9FD8AC", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: "#16A82A", flex: "none" }}>+</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: "#16A82A" }}>Add source</span>
+                <span style={{ fontSize: 12.5, color: "#B7BDB6", fontWeight: 400 }}>website · document · connector</span>
+              </div>
+            </div>
+
+            {p.addMode ? (
+              <div style={{ marginTop: 8, border: "1px solid #EBE3D6", borderRadius: 12, overflow: "hidden", background: "#fff", boxShadow: "0 2px 10px rgba(14,21,18,.07)" }} data-testid="add-source-panel">
+                <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderBottom: "1px solid #F2EEE4" }}>
+                  {p.addMode === "picker" ? (
+                    <span style={{ fontSize: 13, fontWeight: 700, color: "#0E1512", flex: 1 }}>Add a knowledge source</span>
+                  ) : (
+                    <>
+                      <span onClick={() => p.setAddMode("picker")} style={{ fontSize: 12, fontWeight: 600, color: "#9AA59E", cursor: "pointer", flex: "none" }}>‹ Back</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: "#0E1512", flex: 1, marginLeft: 8 }}>
+                        {p.addMode === "url" ? "Website URL" : p.addMode === "doc" ? "Upload document" : "Connect an app"}
+                      </span>
+                    </>
+                  )}
+                  <span onClick={() => p.setAddMode(null)} style={{ color: "#C2B79F", cursor: "pointer", fontSize: 15, flex: "none", lineHeight: 1 }}>×</span>
+                </div>
+
+                {p.addMode === "picker" ? (
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)" }}>
+                    {(
+                      [
+                        { key: "doc", icon: "📄", label: "Document", sub: "PDF · DOCX · TXT" },
+                        { key: "url", icon: "🔗", label: "Website URL", sub: "Pages · sitemap" },
+                        { key: "connector", icon: "🔌", label: "Connector", sub: "Drive · Notion…" },
+                      ] as const
+                    ).map((m, i) => (
+                      <div key={m.key} onClick={() => p.setAddMode(m.key)} style={{ padding: "18px 14px", textAlign: "center", cursor: "pointer", borderRight: i < 2 ? "1px solid #F2EEE4" : "none" }} data-testid={`add-${m.key}`}>
+                        <div style={{ width: 38, height: 38, borderRadius: 11, background: "#F2EEE4", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, margin: "0 auto 10px" }}>{m.icon}</div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: "#0E1512", marginBottom: 3 }}>{m.label}</div>
+                        <div style={{ fontSize: 11.5, color: "#9AA59E" }}>{m.sub}</div>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+
+                {p.addMode === "url" ? (
+                  <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
+                    <input value={p.urlInput} onChange={(e) => p.setUrlInput(e.target.value)} placeholder="https://yoursite.com" style={{ height: 46, boxSizing: "border-box", borderRadius: 10, background: "#FBF7F0", border: "1px solid #EBE3D6", padding: "0 14px", fontSize: 14, color: "#0E1512", fontFamily: "'Hanken Grotesk',sans-serif" }} data-testid="url-input" />
+                    <div style={{ height: 40, borderRadius: 10, background: "#FBF7F0", border: "1px solid #EBE3D6", display: "flex", alignItems: "center", padding: "0 14px", fontSize: 13, color: "#5C6B62", cursor: "pointer" }}>Full site (crawl all pages)<span style={{ marginLeft: "auto", color: "#B7BDB6" }}>▾</span></div>
+                    <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                      <span onClick={() => p.setAddMode(null)} style={{ fontSize: 13, fontWeight: 600, color: "#5C6B62", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 9, padding: "8px 14px", cursor: "pointer" }}>Cancel</span>
+                      <span onClick={() => void p.addUrl()} style={{ fontSize: 13, fontWeight: 700, color: "#0A0F0C", background: GRAD, borderRadius: 9, padding: "8px 16px", cursor: "pointer" }} data-testid="url-add">Add URL</span>
+                    </div>
+                  </div>
+                ) : null}
+
+                {p.addMode === "doc" ? (
+                  <div style={{ padding: "14px 16px" }}>
+                    <div style={{ border: "1.5px dashed #D8CFBE", borderRadius: 11, padding: "28px 20px", textAlign: "center", background: "#FBF7F0", cursor: "pointer" }}>
+                      <div style={{ fontSize: 26, marginBottom: 9 }}>📄</div>
+                      <div style={{ fontSize: 13.5, fontWeight: 600, color: "#0E1512", marginBottom: 4 }}>Drop a file here or browse</div>
+                      <div style={{ fontSize: 12, color: "#9AA59E" }}>PDF · DOCX · TXT · CSV · up to 20 MB</div>
+                    </div>
+                  </div>
+                ) : null}
+
+                {p.addMode === "connector" ? (
+                  <div style={{ padding: 12, display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 7 }}>
+                    {["HubSpot", "Notion", "Google Drive", "Salesforce", "Slack", "Zendesk"].map((c) => (
+                      <div key={c} style={{ display: "flex", alignItems: "center", gap: 8, border: "1px solid #EBE3D6", borderRadius: 10, padding: "9px 12px", background: "#fff", fontSize: 12.5, fontWeight: 600, color: "#0E1512", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        <span style={{ fontSize: 15, flex: "none" }}>🔌</span>{c}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+
+          {/* About your business + Grounded-in citations */}
+          <div style={{ border: "1px solid #EBE3D6", borderRadius: 13, overflow: "hidden", boxShadow: "0 1px 4px rgba(14,21,18,.04)", marginBottom: 14 }} data-testid="about-card">
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", background: "#F7F9F8", borderBottom: "1px solid #EBE3D6" }}>
+              <span style={{ fontSize: 15, fontWeight: 700, color: "#0E1512", flex: 1 }}>About your business</span>
+              <span style={{ fontSize: 12, color: "#9AA59E" }}>used to personalise every message</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: "#16A82A", cursor: "pointer" }}>Edit</span>
+            </div>
+            <div style={{ padding: "14px 16px", background: "#fff", fontSize: 14.5, color: "#3B463F", lineHeight: 1.55 }}>
+              {p.contextSummary || "Ingest a source and the distilled business brief appears here — every claim cited to your own docs."}
+            </div>
+            {p.groundedSources.length > 0 ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap", padding: "9px 16px 10px", background: "#fff", borderTop: "1px solid #F2EEE4" }}>
+                <span style={{ fontSize: 11.5, fontWeight: 600, color: "#9AA59E", flex: "none" }}>Grounded in</span>
+                {p.groundedSources.map((s) => (
+                  <span key={s.id} onClick={() => p.setAboutEv(p.aboutEv === s.id ? null : s.id)} data-testid="grounded-chip" style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3.5px 10px", borderRadius: 100, border: `1px solid ${p.aboutEv === s.id ? "#35E834" : "#EBE3D6"}`, background: p.aboutEv === s.id ? "rgba(53,232,52,.07)" : "#fff", fontSize: 11.5, fontWeight: 600, color: "#3B463F", cursor: "pointer" }}>
+                    <span style={{ fontSize: 11 }}>{SRC_ICON[s.type] ?? "📄"}</span>
+                    {s.label}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+            {openSource && openQuote ? (
+              <div style={{ padding: "10px 16px 13px", background: "#FBFDF9", borderTop: "1px solid #F2EEE4" }} data-testid="grounded-evidence">
+                <div style={{ borderLeft: "2px solid #35E834", padding: "1px 0 1px 11px" }}>
+                  <div style={{ fontSize: 12.5, color: "#3B463F", lineHeight: 1.55, fontStyle: "italic" }}>“{openQuote.quote}”</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 5, flexWrap: "wrap" }}>
+                    <span style={{ fontSize: 11, color: "#9AA59E" }}>{SRC_ICON[openSource.type] ?? "📄"} {openSource.label} — {openQuote.locator}</span>
+                    <span style={{ fontSize: 11, color: "#C4BAB0" }}>·</span>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: "#8A7F6B" }}>backs {[...openSource.backs].join(" · ")}</span>
+                    <span style={{ flex: 1 }} />
+                    <span style={{ fontSize: 11.5, fontWeight: 600, color: "#16A82A", cursor: "pointer", flex: "none" }}>Open source ↗</span>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </div>
+
+          {/* AI gap checker */}
+          <div style={{ border: "1px solid rgba(232,196,91,.48)", borderRadius: 12, overflow: "hidden", background: "rgba(232,196,91,.04)", marginBottom: 22 }} data-testid="gap-checker">
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", borderBottom: "1px solid rgba(232,196,91,.28)" }}>
+              <span style={{ fontSize: 13, color: "#D4A020" }}>✦</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 700, color: "#0E1512" }}>A few things the agent still needs</div>
+                <div style={{ fontSize: 12, color: "#8A7F6B" }}>Not found in your docs — resolve before launching.</div>
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 700, color: "#8A7F6B", background: "rgba(232,196,91,.2)", borderRadius: 7, padding: "3px 9px" }} data-testid="gap-counter">{p.gapResolved}/{p.gapTotal}</span>
+            </div>
+            {p.covered.length > 0 ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap", padding: "8px 16px", background: "rgba(53,232,52,.06)", borderBottom: "1px solid rgba(232,196,91,.2)" }}>
+                <span style={{ color: "#16A82A", fontSize: 12, flex: "none" }}>✓</span>
+                <span style={{ fontSize: 12, color: "#16A82A", fontWeight: 600, flex: "none" }}>Found in your docs:</span>
+                {p.covered.map((c) => (
+                  <span key={c.key} onClick={() => p.setCoveredEv(p.coveredEv === c.key ? null : c.key)} data-testid="covered-chip" style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "2.5px 9px", borderRadius: 100, border: `1px solid ${p.coveredEv === c.key ? "#35E834" : "rgba(53,232,52,.35)"}`, background: p.coveredEv === c.key ? "rgba(53,232,52,.12)" : "rgba(53,232,52,.06)", fontSize: 11.5, fontWeight: 600, color: "#0F7A28", cursor: "pointer" }}>
+                    {c.label}
+                    <span style={{ fontSize: 9, opacity: 0.6 }}>{p.coveredEv === c.key ? "▴" : "▾"}</span>
+                  </span>
+                ))}
+              </div>
+            ) : null}
+            {coveredQuote ? (
+              <div style={{ padding: "9px 16px 12px", background: "rgba(53,232,52,.04)", borderBottom: "1px solid rgba(232,196,91,.2)" }} data-testid="covered-evidence">
+                <div style={{ borderLeft: "2px solid #35E834", padding: "1px 0 1px 11px" }}>
+                  <div style={{ fontSize: 12.5, color: "#3B463F", lineHeight: 1.55, fontStyle: "italic" }}>“{coveredQuote.quote}”</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 5 }}>
+                    <span style={{ fontSize: 11, color: "#8A7F6B" }}>{SRC_ICON[coveredQuote.sourceType] ?? "📄"} {coveredQuote.sourceLabel} — {coveredQuote.locator}</span>
+                    <span style={{ flex: 1 }} />
+                    <span style={{ fontSize: 11.5, fontWeight: 600, color: "#16A82A", cursor: "pointer", flex: "none" }}>Open source ↗</span>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+            {p.gaps.map((g) => (
+              <div key={g.key} style={{ padding: "11px 16px", borderTop: "1px solid rgba(232,196,91,.16)" }} data-testid={`gap-${g.state}`}>
+                <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
+                  <span style={{ width: 7, height: 7, borderRadius: "50%", background: g.state === "open" ? "#D4A020" : "#16A82A", flex: "none" }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 600, color: "#0E1512" }}>{g.label}</div>
+                    <div style={{ fontSize: 11.5, color: "#9AA59E" }}>{g.description}</div>
+                  </div>
+                  {g.state === "open" ? (
+                    <>
+                      <span onClick={() => p.setTypedDrafts((d) => ({ ...d, [g.key]: d[g.key] ?? "" }))} style={{ fontSize: 12, fontWeight: 600, color: "#5C6B62", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 9, padding: "5px 10px", cursor: "pointer", flex: "none" }} data-testid={`gap-type-${g.key}`}>Type it</span>
+                      <span onClick={() => void p.delegateGap(g.key)} style={{ fontSize: 12, fontWeight: 700, color: "#16A82A", background: "rgba(53,232,52,.12)", border: "1px solid rgba(53,232,52,.3)", borderRadius: 9, padding: "5px 10px", cursor: "pointer", flex: "none" }} data-testid={`gap-ai-${g.key}`}>✦ Let AI</span>
+                    </>
+                  ) : g.state === "ai_decides" ? (
+                    <>
+                      <span style={{ fontSize: 11.5, fontWeight: 700, color: "#16A82A", background: "rgba(53,232,52,.12)", borderRadius: 8, padding: "4px 9px", flex: "none" }}>✦ AI decides</span>
+                      <span onClick={() => void p.undoGap(g.key)} style={{ fontSize: 12, color: "#9AA59E", cursor: "pointer", flex: "none" }}>Undo</span>
+                    </>
+                  ) : (
+                    <>
+                      <span style={{ fontSize: 11.5, fontWeight: 700, color: "#0F7A28", background: "#D7F5DD", borderRadius: 8, padding: "4px 9px", flex: "none" }}>Typed ✓</span>
+                      <span onClick={() => void p.undoGap(g.key)} style={{ fontSize: 12, color: "#9AA59E", cursor: "pointer", flex: "none" }}>Clear</span>
+                    </>
+                  )}
+                </div>
+                {g.state === "open" && p.typedDrafts[g.key] !== undefined ? (
+                  <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                    <input value={p.typedDrafts[g.key]} onChange={(e) => p.setTypedDrafts((d) => ({ ...d, [g.key]: e.target.value }))} placeholder={`Type your ${g.label.toLowerCase()}…`} style={{ ...inp, flex: 1, marginBottom: 0 }} data-testid={`gap-input-${g.key}`} />
+                    <button type="button" onClick={() => void p.typeGap(g.key)} style={{ background: GRAD, border: "none", borderRadius: 10, padding: "0 16px", fontSize: 13, fontWeight: 700, color: "#0A0F0C", cursor: "pointer", fontFamily: "'Hanken Grotesk',sans-serif" }} data-testid={`gap-save-${g.key}`}>Save</button>
+                  </div>
+                ) : null}
+              </div>
+            ))}
+            {p.gaps.length === 0 ? <div style={{ padding: "12px 16px", fontSize: 12.5, color: "#0F7A28" }}>✓ Nothing missing — everything the goal needs is covered or resolved.</div> : null}
+          </div>
+
+          {/* build method */}
+          <div style={{ borderTop: "1px solid #EBE3D6", paddingTop: 26, paddingBottom: 30 }}>
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "#0E1512", marginBottom: 3 }}>How should we build the sequence?</div>
+              <div style={{ fontSize: 13.5, color: "#9AA59E" }}>Choose how the agent&apos;s outreach gets created.</div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 9, marginBottom: 14 }}>
+              {(
+                [
+                  { key: "ai", icon: "✦", title: "Let AI build it", desc: "Generate the full agent from your goal." },
+                  { key: "template", icon: "❒", title: "Use a template", desc: "Start from a proven playbook." },
+                  { key: "scratch", icon: "✎", title: "From scratch", desc: "Build every step yourself." },
+                ] as const
+              ).map((b) => {
+                const on = p.buildMethod === b.key;
+                return (
+                  <div key={b.key} onClick={() => b.key === "ai" && p.setBuildMethod(b.key)} style={{ borderRadius: 13, border: on ? "1.5px solid #35E834" : "1px solid #EBE3D6", background: on ? "rgba(53,232,52,.05)" : "#fff", padding: "16px 14px", cursor: b.key === "ai" ? "pointer" : "default", opacity: b.key === "ai" ? 1 : 0.6 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 10, background: "#F2EEE4", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, marginBottom: 11 }}>{b.icon}</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: "#0E1512", marginBottom: 3 }}>{b.title}</div>
+                    <div style={{ fontSize: 12, color: "#8A7F6B", lineHeight: 1.4 }}>{b.desc}</div>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ border: "1px solid rgba(53,232,52,.32)", borderRadius: 12, overflow: "hidden", background: "rgba(53,232,52,.04)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "12px 16px", borderBottom: "1px solid rgba(53,232,52,.18)" }}>
+                <span style={{ fontSize: 13, color: "#16A82A" }}>✦</span>
+                <span style={{ fontSize: 13.5, fontWeight: 700, color: "#0E1512", flex: 1 }}>Clientforce will orchestrate this for you</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#16A82A", background: "rgba(53,232,52,.12)", borderRadius: 7, padding: "3px 9px" }}>Recommended</span>
+              </div>
+              {[
+                { label: "Sequence steps, timing and reply branches", value: "planned from your goal" },
+                { label: "Copy grounded in your business context", value: "every claim cited" },
+                { label: "Guardrails & compliance defaults", value: "editable in step 5" },
+              ].map((o) => (
+                <div key={o.label} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 16px", borderTop: "1px solid rgba(53,232,52,.1)" }}>
+                  <span style={{ color: "#16A82A", fontSize: 12, flex: "none" }}>✓</span>
+                  <span style={{ fontSize: 13, color: "#3B463F", flex: 1 }}>{o.label}</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: "#8A7F6B" }}>{o.value}</span>
+                </div>
+              ))}
+              <div style={{ padding: "10px 16px", fontSize: 12, color: "#8A7F6B", borderTop: "1px solid rgba(53,232,52,.1)" }}>You&apos;ll review and tweak everything in the next steps.</div>
+            </div>
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+/* ── shared bits ──────────────────────────────────────────────────────────── */
+const lbl: React.CSSProperties = { display: "block", fontSize: 12, fontWeight: 700, color: "#5C6B62", margin: "10px 0 5px" };
+/** Prototype's uppercase micro-caps field label. */
+const upLbl: React.CSSProperties = { display: "block", fontSize: 11.5, fontWeight: 700, color: "#8A7F6B", letterSpacing: ".07em", textTransform: "uppercase", marginBottom: 8 };
+const CATEGORIES = ["Dental & Orthodontics", "Healthcare & Wellness", "Home Services", "Real Estate", "Marketing Agency", "SaaS & Technology", "Professional Services", "Other"];
+const inp: React.CSSProperties = { width: "100%", boxSizing: "border-box", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 10, padding: "10px 13px", fontSize: 13.5, color: "#0E1512", marginBottom: 6, fontFamily: "'Hanken Grotesk',sans-serif" };
+
+function Modal({ title, children, onClose, tid }: { title: string; children: React.ReactNode; onClose: () => void; tid?: string }) {
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 60 }}>
+      <div onClick={onClose} style={{ position: "absolute", inset: 0, background: "rgba(12,20,15,.45)" }} />
+      <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 560, maxWidth: "92vw", background: "#FBF7F0", borderRadius: 18, boxShadow: "0 30px 80px rgba(0,0,0,.32)", overflow: "hidden" }} data-testid={tid}>
+        <div style={{ background: "#fff", borderBottom: "1px solid #EBE3D6", padding: "14px 20px", fontSize: 16, fontWeight: 700, color: "#0E1512" }}>{title}</div>
+        <div style={{ padding: 20 }}>{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function ModalActions({ onCancel, onSave, saveLabel = "Save" }: { onCancel: () => void; onSave: () => void; saveLabel?: string }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "flex-end", gap: 9, marginTop: 8 }}>
+      <button type="button" onClick={onCancel} style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 11, padding: "10px 18px", fontSize: 13.5, fontWeight: 600, color: "#0E1512", cursor: "pointer", fontFamily: "'Hanken Grotesk',sans-serif" }}>Cancel</button>
+      <button type="button" onClick={onSave} data-testid="modal-save" style={{ background: GRAD, border: "none", borderRadius: 11, padding: "10px 20px", fontSize: 13.5, fontWeight: 700, color: "#0A0F0C", cursor: "pointer", boxShadow: "0 6px 16px rgba(53,232,52,.26)", fontFamily: "'Hanken Grotesk',sans-serif" }}>{saveLabel}</button>
+    </div>
+  );
+}
+
+function Stepper({ value, onMinus, onPlus }: { value: string; onMinus: () => void; onPlus: () => void }) {
+  const btn: React.CSSProperties = { width: 34, height: 34, borderRadius: 10, border: "1px solid #EBE3D6", background: "#fff", fontSize: 16, cursor: "pointer", color: "#0E1512" };
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <button type="button" onClick={onMinus} style={btn}>−</button>
+      <span style={{ minWidth: 90, textAlign: "center", fontSize: 15, fontWeight: 700, color: "#0E1512" }}>{value}</span>
+      <button type="button" onClick={onPlus} style={btn}>+</button>
+    </div>
+  );
+}
+
+/** Prototype 44×25 gradient toggle (step-5 sending-behavior rows). */
+function GradToggle({ on, onClick, tid }: { on: boolean; onClick: () => void; tid: string }) {
+  return (
+    <div onClick={onClick} style={{ width: 44, height: 25, borderRadius: 100, background: on ? GRAD : "#D8CFBE", display: "flex", alignItems: "center", justifyContent: on ? "flex-end" : "flex-start", padding: 3, cursor: "pointer", flex: "none", transition: "background .2s" }} data-testid={tid}>
+      <span style={{ width: 19, height: 19, borderRadius: "50%", background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,.25)" }} />
+    </div>
+  );
+}
+
+function LimitCard({ label, value, onMinus, onPlus, tid }: { label: string; value: string; onMinus: () => void; onPlus: () => void; tid: string }) {
+  return (
+    <div style={{ border: "1px solid #EBE3D6", borderRadius: 13, background: "#fff", padding: "14px 14px" }} data-testid={`limit-${tid}`}>
+      <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", color: "#9AA59E", marginBottom: 10 }}>{label}</div>
+      <Stepper value={value} onMinus={onMinus} onPlus={onPlus} />
+    </div>
+  );
+}
+
+function shiftH(hhmm: string, delta: number): string {
+  const [h = 9] = hhmm.split(":").map(Number);
+  const nh = Math.min(23, Math.max(0, h + delta));
+  return `${String(nh).padStart(2, "0")}:00`;
+}

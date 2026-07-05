@@ -7,8 +7,17 @@ import {
   NotFoundException,
   Param,
   Patch,
+  Post,
 } from "@nestjs/common";
-import { updateAgentSchema, validateGraph, type AgentListItem } from "@clientforce/core";
+import {
+  createAgentSchema,
+  DEFAULT_GUARDRAILS,
+  parseGuardrails,
+  updateAgentSchema,
+  validateGraph,
+  type AgentListItem,
+} from "@clientforce/core";
+import type { Prisma } from "@clientforce/db";
 import { Role } from "@clientforce/db";
 import { Roles } from "../auth/decorators";
 import { TenantClient } from "../db/tenant-client";
@@ -140,6 +149,32 @@ export class AgentsController {
     });
   }
 
+  /** C2.3: wizard step-1 creates the DRAFT agent (A5 create path). */
+  @Post()
+  @Roles(Role.OWNER, Role.ADMIN)
+  async create(@Body() body: unknown) {
+    const parsed = createAgentSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException({
+        message: "Validation failed",
+        issues: parsed.error.issues.map((i) => ({ path: i.path.join("."), message: i.message })),
+      });
+    }
+    const workspaceId = this.tenant.workspaceId;
+    return this.tenant.run((tx) =>
+      tx.agent.create({
+        data: {
+          workspaceId,
+          name: parsed.data.name,
+          goal: parsed.data.goal,
+          instructions: parsed.data.instructions ?? null,
+          status: "DRAFT",
+          guardrails: DEFAULT_GUARDRAILS as unknown as Prisma.InputJsonValue,
+        },
+      }),
+    );
+  }
+
   @Patch(":id")
   @Roles(Role.OWNER, Role.ADMIN)
   async update(@Param("id") id: string, @Body() body: unknown) {
@@ -153,7 +188,17 @@ export class AgentsController {
     return this.tenant.run(async (tx) => {
       const agent = await tx.agent.findUnique({ where: { id } });
       if (!agent) throw new NotFoundException(`Agent ${id} not found`);
-      return tx.agent.update({ where: { id }, data: parsed.data });
+      const { guardrails, ...rest } = parsed.data;
+      return tx.agent.update({
+        where: { id },
+        data: {
+          ...rest,
+          // C2.3: guardrails go through the A8 schema — invalid shapes throw.
+          ...(guardrails !== undefined
+            ? { guardrails: parseGuardrails(guardrails) as unknown as Prisma.InputJsonValue }
+            : {}),
+        },
+      });
     });
   }
 
