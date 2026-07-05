@@ -221,10 +221,12 @@
                           </div>
                           <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;padding-left:37px;">
                             <span style="font-size:12.5px;font-weight:600;color:{{ brand }};background:{{ chipBg }};border:1px solid {{ chipBorder }};border-radius:100px;padding:7px 13px;">📅 Book a call</span>
-                            <span style="font-size:12.5px;font-weight:600;color:{{ brand }};background:{{ chipBg }};border:1px solid {{ chipBorder }};border-radius:100px;padding:7px 13px;">📄 Get a proposal</span>
+                            <sc-if value="{{ featCallback }}" hint-placeholder-val="{{ true }}"><span style="font-size:12.5px;font-weight:600;color:{{ brand }};background:{{ chipBg }};border:1px solid {{ chipBorder }};border-radius:100px;padding:7px 13px;">📞 Call me back</span></sc-if>
+                            <sc-if value="{{ featProposal }}" hint-placeholder-val="{{ true }}"><span style="font-size:12.5px;font-weight:600;color:{{ brand }};background:{{ chipBg }};border:1px solid {{ chipBorder }};border-radius:100px;padding:7px 13px;">📄 Get a proposal</span></sc-if>
                           </div>
                           <div style="display:flex;align-items:center;gap:9px;background:{{ inputBg }};border:1px solid {{ inputBorder }};border-radius:100px;padding:7px 7px 7px 15px;">
                             <span style="flex:1;font-size:13px;color:{{ inputPlaceholder }};">Type your message…</span>
+                            <sc-if value="{{ featVoice }}" hint-placeholder-val="{{ true }}"><span style="width:34px;height:34px;border-radius:50%;background:{{ chipBg }};border:1px solid {{ chipBorder }};display:flex;align-items:center;justify-content:center;font-size:14px;flex:none;">🎙</span></sc-if>
                             <span style="width:34px;height:34px;border-radius:50%;background:{{ brand }};display:flex;align-items:center;justify-content:center;color:{{ onBrand }};font-size:14px;flex:none;">➤</span>
                           </div>
                         </div>
@@ -274,6 +276,48 @@
 
               <!-- BEHAVIOUR -->
               <sc-if value="{{ tabBehaviour }}" hint-placeholder-val="{{ false }}">
+                <div style="max-width:1000px;background:#fff;border:1px solid #EBE3D6;border-radius:14px;padding:22px;box-shadow:0 4px 16px rgba(14,21,18,.04);margin-bottom:18px;">
+                  <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;"><span style="width:30px;height:30px;border-radius:8px;background:rgba(208,245,107,.35);display:flex;align-items:center;justify-content:center;font-size:15px;">⚡</span><span style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:16px;color:#0E1512;">Conversation features</span></div>
+                  <div style="font-size:13px;color:#9AA59E;margin-bottom:16px;">What this widget can offer visitors — each maps to a channel your agent runs.</div>
+
+                  <div style="display:flex;align-items:flex-start;gap:12px;padding:13px 0;border-top:1px solid #F2EEE4;">
+                    <span style="width:34px;height:34px;border-radius:9px;background:#EAF9EC;border:1px solid #C7EDCF;display:flex;align-items:center;justify-content:center;font-size:15px;flex:none;">📞</span>
+                    <div style="flex:1;min-width:0;">
+                      <div style="font-size:14px;font-weight:700;color:#0E1512;">Call me back</div>
+                      <div style="font-size:12.5px;color:#5C6B62;line-height:1.5;margin-top:1px;">AI voice agent calls the visitor — instantly or scheduled. Adds a required Phone capture field (maps to <span style="font-family:'Courier New',monospace;">lead.phone</span>) and records consent with every request.</div>
+                      <sc-if value="{{ featCallback }}" hint-placeholder-val="{{ true }}">
+                        <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:10px;">
+                          <span style="font-size:12.5px;font-weight:700;color:#0E1512;">Callback hours</span>
+                          <span onClick="{{ onCbStart }}" style="font-size:12.5px;font-weight:600;color:#0E1512;background:#F7F9F8;border:1px solid #EBE3D6;border-radius:8px;padding:7px 11px;cursor:pointer;">{{ cbStart }} ⌄</span>
+                          <span style="font-size:12px;color:#9AA59E;">to</span>
+                          <span onClick="{{ onCbEnd }}" style="font-size:12.5px;font-weight:600;color:#0E1512;background:#F7F9F8;border:1px solid #EBE3D6;border-radius:8px;padding:7px 11px;cursor:pointer;">{{ cbEnd }} ⌄</span>
+                          <span onClick="{{ onCbTz }}" style="font-size:12.5px;font-weight:600;color:#0E1512;background:#F7F9F8;border:1px solid #EBE3D6;border-radius:8px;padding:7px 11px;cursor:pointer;">{{ cbTz }} ⌄</span>
+                        </div>
+                        <div style="font-size:11.5px;color:#9AA59E;margin-top:7px;">Same guardrail as email send windows — the agent never calls outside these hours. Requests outside the window auto-offer "schedule for later".</div>
+                      </sc-if>
+                    </div>
+                    <span onClick="{{ onToggleCb }}" style="justify-self:end;flex:none;width:42px;height:25px;border-radius:100px;background:{{ cbBg }};position:relative;cursor:pointer;margin-top:5px;"><span style="position:absolute;top:3px;left:{{ cbKnob }};width:19px;height:19px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);"></span></span>
+                  </div>
+
+                  <div style="display:flex;align-items:flex-start;gap:12px;padding:13px 0;border-top:1px solid #F2EEE4;">
+                    <span style="width:34px;height:34px;border-radius:9px;background:#E6F8FB;border:1px solid #BFE9F2;display:flex;align-items:center;justify-content:center;font-size:15px;flex:none;">🎙</span>
+                    <div style="flex:1;min-width:0;">
+                      <div style="font-size:14px;font-weight:700;color:#0E1512;">Live voice chat</div>
+                      <div style="font-size:12.5px;color:#5C6B62;line-height:1.5;margin-top:1px;">Visitors talk to the agent in the browser via the mic button — same brain, same booking flow, transcript saved to the conversation.</div>
+                    </div>
+                    <span onClick="{{ onToggleVoiceFeat }}" style="flex:none;width:42px;height:25px;border-radius:100px;background:{{ vfBg }};position:relative;cursor:pointer;margin-top:5px;"><span style="position:absolute;top:3px;left:{{ vfKnob }};width:19px;height:19px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);"></span></span>
+                  </div>
+
+                  <div style="display:flex;align-items:flex-start;gap:12px;padding:13px 0 2px;border-top:1px solid #F2EEE4;">
+                    <span style="width:34px;height:34px;border-radius:9px;background:rgba(53,232,52,.12);border:1px solid #C7EDCF;display:flex;align-items:center;justify-content:center;font-size:15px;flex:none;">📄</span>
+                    <div style="flex:1;min-width:0;">
+                      <div style="font-size:14px;font-weight:700;color:#0E1512;">Instant proposal</div>
+                      <div style="font-size:12.5px;color:#5C6B62;line-height:1.5;margin-top:1px;">Generates a personalized proposal from your Brand kit knowledge and sends it through your email channel — footer and suppression rules apply automatically.</div>
+                    </div>
+                    <span onClick="{{ onToggleProp }}" style="flex:none;width:42px;height:25px;border-radius:100px;background:{{ pfBg }};position:relative;cursor:pointer;margin-top:5px;"><span style="position:absolute;top:3px;left:{{ pfKnob }};width:19px;height:19px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);"></span></span>
+                  </div>
+                </div>
+
                 <div style="max-width:1000px;display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start;">
                   <div style="background:#fff;border:1px solid #EBE3D6;border-radius:14px;padding:22px;box-shadow:0 4px 16px rgba(14,21,18,.04);">
                     <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;"><span style="width:30px;height:30px;border-radius:8px;background:rgba(54,215,237,.16);display:flex;align-items:center;justify-content:center;font-size:15px;">📅</span><span style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:16px;color:#0E1512;">Book a call — guide questions</span></div>
@@ -348,13 +392,19 @@
               <sc-if value="{{ tabConvos }}" hint-placeholder-val="{{ false }}">
                 <div style="display:grid;grid-template-columns:340px 1fr;gap:18px;height:520px;">
                   <div style="background:#fff;border:1px solid #EBE3D6;border-radius:14px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 4px 16px rgba(14,21,18,.04);">
-                    <div style="padding:16px 18px;border-bottom:1px solid #F2EEE4;"><div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:15px;color:#0E1512;margin-bottom:10px;">Contacts</div><div style="display:flex;align-items:center;gap:9px;background:#F7F9F8;border:1px solid #EBE3D6;border-radius:9px;padding:9px 12px;"><span style="color:#9AA59E;font-size:13px;">⚲</span><span style="font-size:13px;color:#9AA59E;">Search…</span></div></div>
+                    <div style="padding:16px 18px;border-bottom:1px solid #F2EEE4;"><div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:15px;color:#0E1512;margin-bottom:10px;">Contacts</div><div style="display:flex;align-items:center;gap:9px;background:#F7F9F8;border:1px solid #EBE3D6;border-radius:9px;padding:9px 12px;"><span style="color:#9AA59E;font-size:13px;">⚲</span><span style="font-size:13px;color:#9AA59E;">Search…</span></div>
+                      <div style="display:flex;gap:7px;margin-top:10px;">
+                        <sc-for list="{{ convFilters }}" as="f" hint-placeholder-count="3">
+                          <span onClick="{{ f.onPick }}" style="font-size:12px;font-weight:600;color:{{ f.color }};background:{{ f.bg }};border:1px solid {{ f.border }};border-radius:100px;padding:5px 12px;cursor:pointer;">{{ f.label }}</span>
+                        </sc-for>
+                      </div>
+                    </div>
                     <div style="flex:1;overflow:auto;padding:8px;">
                       <sc-for list="{{ contacts }}" as="c" hint-placeholder-count="4">
                         <div onClick="{{ c.onClick }}" style="display:flex;align-items:center;gap:11px;padding:11px 12px;border-radius:11px;background:{{ c.bg }};border:1px solid {{ c.border }};margin-bottom:6px;cursor:pointer;">
                           <div style="width:34px;height:34px;border-radius:50%;background:{{ c.avBg }};color:{{ c.avFg }};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex:none;">{{ c.initials }}</div>
                           <div style="flex:1;min-width:0;"><div style="font-size:13.5px;font-weight:700;color:#0E1512;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ c.name }}</div><div style="font-size:12px;color:#9AA59E;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ c.email }}</div></div>
-                          <span style="font-size:11px;color:#9AA59E;flex:none;">{{ c.time }}</span>
+                          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex:none;"><span style="font-size:11px;color:#9AA59E;">{{ c.time }}</span><span style="font-size:11px;">{{ c.chIcon }}</span></div>
                         </div>
                       </sc-for>
                     </div>
@@ -367,9 +417,37 @@
                     </div>
                     <div style="flex:1;overflow:auto;padding:20px;background:#FBF9F4;">
                       <sc-for list="{{ thread }}" as="t" hint-placeholder-count="4">
-                        <div style="display:flex;{{ t.justify }}margin-bottom:13px;">
-                          <div style="max-width:74%;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#9AA59E;margin-bottom:4px;{{ t.alignText }}">{{ t.roleLabel }}</div><div style="font-size:13.5px;line-height:1.55;color:{{ t.fg }};background:{{ t.bg }};border:1px solid {{ t.bd }};padding:11px 14px;border-radius:{{ t.radius }};">{{ t.content }}</div></div>
-                        </div>
+                        <sc-if value="{{ t.isMsg }}" hint-placeholder-val="{{ true }}">
+                          <div style="display:flex;{{ t.justify }}margin-bottom:13px;">
+                            <div style="max-width:74%;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#9AA59E;margin-bottom:4px;{{ t.alignText }}">{{ t.roleLabel }}</div><div style="font-size:13.5px;line-height:1.55;color:{{ t.fg }};background:{{ t.bg }};border:1px solid {{ t.bd }};padding:11px 14px;border-radius:{{ t.radius }};">{{ t.content }}</div></div>
+                          </div>
+                        </sc-if>
+                        <sc-if value="{{ t.isCall }}" hint-placeholder-val="{{ false }}">
+                          <div style="margin-bottom:13px;background:#fff;border:1px solid #E4EAE6;border-radius:14px;padding:15px 16px;">
+                            <div style="display:flex;align-items:center;gap:11px;">
+                              <span style="width:36px;height:36px;border-radius:50%;background:#D7F5DD;display:flex;align-items:center;justify-content:center;font-size:15px;flex:none;">📞</span>
+                              <div style="flex:1;min-width:0;">
+                                <div style="font-size:13.5px;font-weight:700;color:#0E1512;">{{ t.dir }}</div>
+                                <div style="font-size:12px;color:#9AA59E;margin-top:1px;">{{ t.when }}</div>
+                              </div>
+                              <span style="font-size:11.5px;font-weight:700;color:#0F7A28;background:rgba(53,232,52,.1);border-radius:100px;padding:4px 11px;flex:none;">{{ t.status }} · {{ t.dur }}</span>
+                            </div>
+                            <div style="display:flex;align-items:center;gap:10px;margin-top:12px;background:#F7F9F8;border:1px solid #EBE3D6;border-radius:100px;padding:7px 8px 7px 7px;">
+                              <span style="width:28px;height:28px;border-radius:50%;background:#16A82A;color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;flex:none;cursor:pointer;">▶</span>
+                              <div style="flex:1;height:4px;border-radius:100px;background:#DCE4DE;position:relative;"><span style="position:absolute;left:0;top:0;height:100%;width:34%;border-radius:100px;background:#16A82A;"></span></div>
+                              <span style="font-size:11.5px;color:#9AA59E;flex:none;">0:46 / {{ t.dur }}</span>
+                            </div>
+                            <div style="display:flex;flex-direction:column;gap:5px;margin-top:12px;font-size:12.5px;color:#3B463F;">
+                              <div style="display:flex;gap:6px;"><span style="color:#0F7A28;font-weight:700;flex:none;">✓</span><span>{{ t.o1 }}</span></div>
+                              <div style="display:flex;gap:6px;"><span style="color:#0F7A28;font-weight:700;flex:none;">✓</span><span>{{ t.o2 }}</span></div>
+                            </div>
+                            <div style="margin-top:11px;border-left:2px solid #35E834;padding:1px 0 1px 10px;font-size:12.5px;color:#5C6B62;line-height:1.5;font-style:italic;">{{ t.snippet }}</div>
+                            <div style="display:flex;align-items:center;gap:14px;margin-top:12px;font-size:12.5px;font-weight:700;color:#16A82A;">
+                              <span style="cursor:pointer;">View full transcript</span>
+                              <span style="cursor:pointer;">Download recording</span>
+                            </div>
+                          </div>
+                        </sc-if>
                       </sc-for>
                     </div>
                   </div>
@@ -422,6 +500,12 @@ class Component extends DCLogic {
     position: 'right',
     openAfter: true,
     exitIntent: false,
+    featCallback: true,
+    featVoice: true,
+    featProposal: true,
+    cbStart: '9:00 AM',
+    cbEnd: '6:00 PM',
+    cbTz: 'CST',
     device: 'desktop',
     published: false,
     fields: [
@@ -603,32 +687,56 @@ class Component extends DCLogic {
     const embedCode = '<' + sct + '\n  src="https://cdn.clientforce.co/widget.js"\n  data-widget-id="wgt_8fa3c21e"\n  async>\n</' + sct + '>';
 
     const cdata = [
-      { name: 'Sarah Chen', email: 'sarah@brightlabs.io', phone: '+1 415 555 0132', time: '2m', initials: 'SC' },
-      { name: 'Marcus Reed', email: 'marcus@northpeak.co', phone: '+1 312 555 0188', time: '1h', initials: 'MR' },
-      { name: 'Aisha Patel', email: 'aisha@loophq.com', phone: '+44 20 7946 0421', time: '3h', initials: 'AP' },
-      { name: 'Diego Alvarez', email: 'diego@vela.studio', phone: '+34 91 555 7720', time: '1d', initials: 'DA' },
+      { name: 'Sarah Chen', email: 'sarah@brightlabs.io', phone: '+1 415 555 0132', time: '2m', initials: 'SC', kind: 'chat' },
+      { name: 'Dana Whitfield', email: 'dana@lakesidedental.com', phone: '+1 512 555 0147', time: '18m', initials: 'DW', kind: 'call' },
+      { name: 'Marcus Reed', email: 'marcus@northpeak.co', phone: '+1 312 555 0188', time: '1h', initials: 'MR', kind: 'chat' },
+      { name: 'Aisha Patel', email: 'aisha@loophq.com', phone: '+44 20 7946 0421', time: '3h', initials: 'AP', kind: 'call' },
+      { name: 'Diego Alvarez', email: 'diego@vela.studio', phone: '+34 91 555 7720', time: '1d', initials: 'DA', kind: 'chat' },
     ];
     const avPalette = ['linear-gradient(135deg,#6B5FFF,#36D7ED)', 'linear-gradient(135deg,#36D7ED,#35E834)', 'linear-gradient(135deg,#F5A623,#FF6B6B)', 'linear-gradient(135deg,#35E834,#D0F56B)'];
+    const cFilter = s.convFilter || 'all';
+    const convFilters = [
+      { id: 'all', label: 'All' }, { id: 'chat', label: '💬 Chats' }, { id: 'call', label: '📞 Calls' },
+    ].map((f) => ({
+      label: f.label,
+      onPick: () => this.setState({ convFilter: f.id }),
+      color: cFilter === f.id ? '#0F7A28' : '#5C6B62',
+      bg: cFilter === f.id ? 'rgba(53,232,52,.12)' : '#fff',
+      border: cFilter === f.id ? 'rgba(53,232,52,.4)' : '#EBE3D6',
+    }));
     const contacts = cdata.map((c, i) => ({
       name: c.name, email: c.email, phone: c.phone, time: c.time, initials: c.initials,
+      chIcon: c.kind === 'call' ? '📞' : '💬',
       avBg: avPalette[i % avPalette.length], avFg: '#fff',
       onClick: () => this.setState({ selectedContact: i }),
       bg: s.selectedContact === i ? 'rgba(53,232,52,.08)' : 'transparent',
       border: s.selectedContact === i ? 'rgba(53,232,52,.3)' : 'transparent',
-    }));
+    })).filter((c, i) => cFilter === 'all' || cdata[i].kind === cFilter);
     const active = cdata[s.selectedContact] || cdata[0];
-    const threadRaw = [
+    const chatThread = [
       { role: 'assistant', content: "Hi! 👋 I'm Acme's AI assistant. Are you here about pricing, or would you like a quick walkthrough?" },
       { role: 'user', content: "Pricing — we're a 12-person agency looking to automate outreach." },
       { role: 'assistant', content: 'Got it. For a team your size the Growth plan fits best. Want me to book a 30-min call to map it to your workflow?' },
       { role: 'user', content: 'Yes, sometime Thursday afternoon would be great.' },
       { role: 'assistant', content: 'Perfect — I have Thu 2:00pm or 3:30pm open. Which works? And what email should I send the invite to?' },
     ];
+    const callThread = [
+      { role: 'user', content: 'Requested "Call me back now" from the pricing page · consent recorded.' },
+      { role: 'call', dir: 'Outbound AI voice call', status: 'Completed', dur: '2:14', when: 'Today · 11:42 AM',
+        o1: 'Qualified — single-location clinic, looking now', o2: 'Booked — Thu, Jul 9 · 2:00 PM with Jordan',
+        snippet: '"…and the free audit is genuinely free? No card?" — "Correct, nothing to pay unless you book patients with us."' },
+      { role: 'assistant', content: 'Follow-up sent: calendar invite + call summary emailed to dana@lakesidedental.com.' },
+    ];
+    const threadRaw = active.kind === 'call' ? callThread : chatThread;
     const thread = threadRaw.map((t) => {
       const user = t.role === 'user';
+      const isCall = t.role === 'call';
       return {
+        isMsg: !isCall, isCall,
         roleLabel: user ? active.name.split(' ')[0] : 'AI Agent',
-        content: t.content,
+        content: t.content || '',
+        dir: t.dir || '', status: t.status || '', dur: t.dur || '', when: t.when || '',
+        o1: t.o1 || '', o2: t.o2 || '', snippet: t.snippet || '',
         justify: user ? 'justify-content:flex-end;' : 'justify-content:flex-start;',
         alignText: user ? 'text-align:right;' : '',
         fg: user ? '#0A0F0C' : '#27322C',
@@ -660,6 +768,11 @@ class Component extends DCLogic {
       unread: s.unread, onToggleUnread: () => this.setState({ unread: !s.unread }),
       unreadBg: s.unread ? '#35E834' : '#D8DEDA', unreadKnob: s.unread ? '22px' : '3px',
       themeOpts, radiusOpts, positionOpts,
+      featCallback: s.featCallback, cbBg: s.featCallback ? '#35E834' : '#D8DEDA', cbKnob: s.featCallback ? '20px' : '3px', onToggleCb: () => this.setState({ featCallback: !s.featCallback }),
+      featVoice: s.featVoice, vfBg: s.featVoice ? '#35E834' : '#D8DEDA', vfKnob: s.featVoice ? '20px' : '3px', onToggleVoiceFeat: () => this.setState({ featVoice: !s.featVoice }),
+      featProposal: s.featProposal, pfBg: s.featProposal ? '#35E834' : '#D8DEDA', pfKnob: s.featProposal ? '20px' : '3px', onToggleProp: () => this.setState({ featProposal: !s.featProposal }),
+      cbStart: s.cbStart, cbEnd: s.cbEnd, cbTz: s.cbTz,
+      onCbStart: () => this.toast('Time picker'), onCbEnd: () => this.toast('Time picker'), onCbTz: () => this.toast('Timezone picker'),
       openBg: s.openAfter ? '#35E834' : '#D8DEDA', openKnob: s.openAfter ? '20px' : '3px', onToggleOpen: () => this.setState({ openAfter: !s.openAfter }),
       exitBg: s.exitIntent ? '#35E834' : '#D8DEDA', exitKnob: s.exitIntent ? '20px' : '3px', onToggleExit: () => this.setState({ exitIntent: !s.exitIntent }),
       onDesktop: () => this.setState({ device: 'desktop' }), onMobile: () => this.setState({ device: 'mobile' }),
