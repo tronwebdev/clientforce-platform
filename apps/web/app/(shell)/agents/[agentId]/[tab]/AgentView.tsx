@@ -27,6 +27,7 @@ export interface AgentViewData {
   guardrails: {
     sendingWindow: { days: number[]; start: string; end: string; timezone: string };
     dailyCap: { email: number };
+    tracking?: { openTracking: boolean; linkTracking: boolean };
     unsubscribeFooter: true;
     suppressionCheck: true;
   } | null;

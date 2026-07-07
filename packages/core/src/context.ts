@@ -21,6 +21,10 @@ export const GOAL_KEYS = [
   "reactivate_leads",
   "drive_signups",
   "collect_reviews",
+  // v2 wizard additions (DEC-042; prototype order — before custom)
+  "promote_offer",
+  "fill_event",
+  "upsell_clients",
   "custom",
 ] as const;
 export const goalKeySchema = z.enum(GOAL_KEYS);
@@ -49,6 +53,16 @@ export const CONTEXT_FIELD_KEYS = [
   "trial_details",
   "review_channel",
   "incentive_policy",
+  // v2 goal-conditional additions (DEC-042)
+  "offer_details",
+  "purchase_link",
+  "offer_deadline",
+  "event_name",
+  "event_date",
+  "registration_link",
+  "event_value",
+  "upsell_pitch",
+  "upsell_audience",
 ] as const;
 export const contextFieldKeySchema = z.enum(CONTEXT_FIELD_KEYS);
 export type ContextFieldKey = z.infer<typeof contextFieldKeySchema>;
@@ -87,6 +101,27 @@ export const CONTEXT_FIELD_META: Record<ContextFieldKey, { label: string; hint: 
   incentive_policy: {
     label: "Incentive policy",
     hint: "whether/what review incentives are allowed (compliance)",
+  },
+  offer_details: {
+    label: "Offer details",
+    hint: "what exactly is being promoted: the product, promo or launch",
+  },
+  purchase_link: { label: "Purchase link", hint: "URL where buyers purchase or claim the offer" },
+  offer_deadline: { label: "Deadline", hint: "when the offer or promotion ends" },
+  event_name: { label: "Event name", hint: "the event being promoted (webinar, open house, …)" },
+  event_date: { label: "Date & time", hint: "when the event runs, including timezone" },
+  registration_link: { label: "Registration link", hint: "URL where attendees sign up" },
+  event_value: {
+    label: "What attendees get",
+    hint: "why attending is worth it; what attendees receive",
+  },
+  upsell_pitch: {
+    label: "What to pitch",
+    hint: "the upgrade or add-on being offered to existing clients",
+  },
+  upsell_audience: {
+    label: "Who qualifies",
+    hint: "which existing clients should hear the pitch",
   },
 };
 
@@ -132,6 +167,21 @@ export const GOAL_FIELD_TABLE: Record<GoalKey, GoalFieldSpec> = {
   collect_reviews: {
     required: ["review_channel", "incentive_policy"],
     recommended: ["services", "tone"],
+  },
+  // v2 goals (DEC-042): required rows are the owner-specified per-goal gap
+  // rows from the v2 prototype; recommended sets start empty pending owner
+  // input (NON-BLOCKING default — nothing extra is distilled or gated).
+  promote_offer: {
+    required: ["offer_details", "pricing", "purchase_link", "offer_deadline"],
+    recommended: [],
+  },
+  fill_event: {
+    required: ["event_name", "event_date", "registration_link", "event_value"],
+    recommended: [],
+  },
+  upsell_clients: {
+    required: ["upsell_pitch", "upsell_audience", "pricing", "booking_link"],
+    recommended: [],
   },
   // Core only; the distiller may propose up to MAX_CUSTOM_GOAL_ASKS extra asks
   // derived from the typed objective (labeled, auditable, removable).

@@ -56,10 +56,12 @@ export function SettingsTab({ agentId, view, onChanged }: { agentId: string; vie
     if (!g) return;
     setDailyCap(g.dailyCap.email);
     setDays([1, 2, 3, 4, 5, 6, 7].map((d) => g.sendingWindow.days.includes(d)));
+    setTracking({ open: g.tracking?.openTracking ?? true, link: g.tracking?.linkTracking ?? true });
   }, [view?.guardrails]);
 
-  async function saveGuardrails(next: { cap?: number; days?: boolean[] }) {
+  async function saveGuardrails(next: { cap?: number; days?: boolean[]; tracking?: { open: boolean; link: boolean } }) {
     const g = view?.guardrails;
+    const t = next.tracking ?? tracking;
     await cf(`agents/${agentId}`, {
       method: "PATCH",
       body: JSON.stringify({
@@ -72,6 +74,7 @@ export function SettingsTab({ agentId, view, onChanged }: { agentId: string; vie
           },
           dailyCap: { email: next.cap ?? dailyCap },
           consent: null,
+          tracking: { openTracking: t.open, linkTracking: t.link },
           unsubscribeFooter: true,
           suppressionCheck: true,
         },
@@ -179,8 +182,8 @@ export function SettingsTab({ agentId, view, onChanged }: { agentId: string; vie
       <div style={{ ...card, padding: "8px 20px 14px" }} data-testid="settings-tracking">
         {(
           [
-            { key: "open" as const, label: "Open tracking", desc: "Track when a prospect opens an email.", inert: true },
-            { key: "link" as const, label: "Link tracking", desc: "Track clicks on links in your emails.", inert: true },
+            { key: "open" as const, label: "Open tracking", desc: "Track when a prospect opens an email." },
+            { key: "link" as const, label: "Link tracking", desc: "Track clicks on links in your emails." },
           ]
         ).map((t) => (
           <div key={t.key} style={{ display: "flex", justifyContent: "space-between", gap: 16, padding: "13px 0", borderTop: "1px solid #F2EEE4", alignItems: "center" }}>
@@ -188,7 +191,7 @@ export function SettingsTab({ agentId, view, onChanged }: { agentId: string; vie
               <div style={{ fontSize: 14, fontWeight: 600, color: "#0E1512" }}>{t.label}</div>
               <div style={{ fontSize: 13, color: "#9AA59E" }}>{t.desc}</div>
             </div>
-            <span onClick={() => setTracking((v) => ({ ...v, [t.key]: !v[t.key] }))} title="Persisted tracking preferences arrive with a Guardrails schema extension" style={{ width: 44, height: 26, borderRadius: 100, background: tracking[t.key] ? GRAD : "#D8CFBE", position: "relative", display: "inline-block", cursor: "pointer", flex: "none" }} data-testid={`toggle-${t.key}`}>
+            <span onClick={() => { const nextT = { ...tracking, [t.key]: !tracking[t.key] }; setTracking(nextT); void saveGuardrails({ tracking: nextT }); }} style={{ width: 44, height: 26, borderRadius: 100, background: tracking[t.key] ? GRAD : "#D8CFBE", position: "relative", display: "inline-block", cursor: "pointer", flex: "none" }} data-testid={`toggle-${t.key}`}>
               <span style={{ position: "absolute", top: 3, ...(tracking[t.key] ? { right: 3 } : { left: 3 }), width: 20, height: 20, borderRadius: "50%", background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,.2)" }} />
             </span>
           </div>
@@ -211,11 +214,13 @@ export function SettingsTab({ agentId, view, onChanged }: { agentId: string; vie
 
       {/* danger zone */}
       <div style={{ background: "#FFFBFA", border: "1px solid #F0CFC8", borderRadius: 16, padding: "20px 22px" }} data-testid="danger-zone">
-        <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 16, color: "#C9543F", marginBottom: 4 }}>Danger zone</div>
-        <div style={{ fontSize: 14, color: "#5C6B62", marginBottom: 14 }}>Archive pauses sending &amp; hides the agent. Delete is permanent.</div>
-        <div style={{ display: "flex", gap: 10 }}>
-          <span onClick={() => { void cf(`agents/${agentId}`, { method: "PATCH", body: JSON.stringify({ status: "ARCHIVED" }) }).then(() => router.push("/agents")).catch(() => {}); }} style={{ fontSize: 13, fontWeight: 600, color: "#5C6B62", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 10, padding: "9px 15px", cursor: "pointer" }} data-testid="archive">Archive</span>
-          <span onClick={() => { if (window.confirm("Delete this agent permanently? This cannot be undone.")) void cf(`agents/${agentId}`, { method: "DELETE" }).then(() => router.push("/agents")).catch(() => {}); }} style={{ fontSize: 13, fontWeight: 600, color: "#fff", background: "#C9543F", borderRadius: 10, padding: "9px 15px", cursor: "pointer" }} data-testid="delete">Delete</span>
+        <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 16, color: "#C9543F", marginBottom: 6 }}>Danger zone</div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
+        <div style={{ fontSize: 14, color: "#5C6B62" }}>Archive pauses sending &amp; hides the agent. Delete is permanent.</div>
+        <div style={{ display: "flex", gap: 10, flex: "none" }}>
+          <span onClick={() => { void cf(`agents/${agentId}`, { method: "PATCH", body: JSON.stringify({ status: "ARCHIVED" }) }).then(() => router.push("/agents")).catch(() => {}); }} style={{ fontSize: 13, fontWeight: 600, color: "#5C6B62", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 10, padding: "9px 16px", cursor: "pointer" }} data-testid="archive">Archive</span>
+          <span onClick={() => { if (window.confirm("Delete this agent permanently? This cannot be undone.")) void cf(`agents/${agentId}`, { method: "DELETE" }).then(() => router.push("/agents")).catch(() => {}); }} style={{ fontSize: 13, fontWeight: 600, color: "#fff", background: "#C9543F", borderRadius: 10, padding: "9px 16px", cursor: "pointer" }} data-testid="delete">Delete</span>
+        </div>
         </div>
       </div>
 

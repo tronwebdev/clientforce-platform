@@ -22,6 +22,30 @@ const typed = (value: string): ContextFields[string] => ({ value, citations: [],
 const delegated = (): ContextFields[string] => ({ value: "", citations: [], source: "ai_decides" });
 
 describe("checkGaps (DEC-024/025)", () => {
+  it("zero sources + zero answers seeds EVERY goal-required field as an open gap (DEC-042(4) regression)", () => {
+    const report = checkGaps({ goal: "book_appointments", workspaceFields: {}, agentFields: {} });
+    expect(report.gaps.length).toBeGreaterThan(0);
+    expect(report.gaps.every((g) => g.status === "open")).toBe(true);
+    expect(report.resolved).toBe(0);
+    expect(report.launchReady).toBe(false);
+  });
+
+  it("the v2 goals carry their owner-specified required rows", () => {
+    const offer = checkGaps({ goal: "promote_offer", workspaceFields: {}, agentFields: {} });
+    expect(offer.gaps.map((g) => g.key)).toEqual(
+      expect.arrayContaining(["offer_details", "pricing", "purchase_link", "offer_deadline"]),
+    );
+    const event = checkGaps({ goal: "fill_event", workspaceFields: {}, agentFields: {} });
+    expect(event.gaps.map((g) => g.key)).toEqual(
+      expect.arrayContaining(["event_name", "event_date", "registration_link", "event_value"]),
+    );
+    const upsell = checkGaps({ goal: "upsell_clients", workspaceFields: {}, agentFields: {} });
+    expect(upsell.gaps.map((g) => g.key)).toEqual(
+      expect.arrayContaining(["upsell_pitch", "upsell_audience", "pricing", "booking_link"]),
+    );
+    expect(upsell.launchReady).toBe(false);
+  });
+
   it("uncited required fields are open gaps; cited ones are covered", () => {
     const report = checkGaps({
       goal: "book_appointments",

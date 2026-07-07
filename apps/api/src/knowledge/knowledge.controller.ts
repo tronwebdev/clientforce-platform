@@ -39,7 +39,7 @@ import {
 import type { AiGateway } from "@clientforce/ai";
 
 /** Extensions the extractor supports (extract.ts dispatch) — reject others at the door. */
-const UPLOAD_EXTENSIONS = /\.(pdf|docx|txt|md)$/i;
+const UPLOAD_EXTENSIONS = /\.(pdf|docx|txt|csv|md)$/i;
 
 interface UploadedDocument {
   originalname: string;
@@ -115,7 +115,7 @@ export class KnowledgeController {
   async uploadSource(@UploadedFile() file: UploadedDocument | undefined, @Body() body: unknown) {
     if (!file) throw new BadRequestException('Missing multipart "file" field');
     if (!UPLOAD_EXTENSIONS.test(file.originalname)) {
-      throw new BadRequestException("Unsupported document type — upload PDF, DOCX, TXT, or MD");
+      throw new BadRequestException("Unsupported document type — upload PDF, DOCX, TXT, CSV, or MD");
     }
     const dto = parse(uploadKnowledgeSourceSchema, body ?? {});
     const workspaceId = this.tenant.workspaceId;
@@ -140,6 +140,24 @@ export class KnowledgeController {
     );
     await this.enqueuer.enqueue({ sourceId: source.id, workspaceId });
     return updated;
+  }
+
+  /**
+   * DEC-026: the wizard's Upload-doc card must never be a dead click — when
+   * document storage isn't configured (no STORAGE_CONNECTION_STRING in a
+   * deployed environment) it renders disabled with this reason. Local dev
+   * falls back to the filesystem store, so uploads stay enabled there.
+   */
+  @Get("upload-config")
+  uploadConfig() {
+    const enabled =
+      Boolean(process.env.STORAGE_CONNECTION_STRING) || process.env.NODE_ENV !== "production";
+    return {
+      enabled,
+      reason: enabled
+        ? null
+        : "Document storage isn't configured for this workspace yet — ask your admin to finish storage setup.",
+    };
   }
 
   @Get("sources")
