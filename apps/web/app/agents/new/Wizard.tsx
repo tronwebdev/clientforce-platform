@@ -7,8 +7,8 @@
  * P1.4 planner, P1.5 senders, A5 create path. Prototype literals throughout.
  */
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CONTEXT_FIELD_META, GOAL_KEYS, requiredFieldsFor, type GoalKey } from "@clientforce/core";
-import type { CampaignGraph, DraftState, GraphNode } from "@clientforce/core";
+import { CONTEXT_FIELD_META, customTokensMissingFallback, GOAL_KEYS, requiredFieldsFor, type GoalKey } from "@clientforce/core";
+import type { CampaignGraph, ContactFieldDefDto, DraftState, GraphNode } from "@clientforce/core";
 
 /** Per-field one-liner under each gap row (registry-driven). */
 const FIELD_HINTS: Record<string, string> = Object.fromEntries(
@@ -259,6 +259,10 @@ export function Wizard() {
   const [editNode, setEditNode] = useState<GraphNode | null>(null);
   const [editSubject, setEditSubject] = useState("");
   const [editBody, setEditBody] = useState("");
+  // C2.7: custom-field tokens — chip selection + the mandatory-fallback card.
+  const [fieldDefs, setFieldDefs] = useState<ContactFieldDefDto[]>([]);
+  const [customTokenKey, setCustomTokenKey] = useState<string | null>(null);
+  const [customFallback, setCustomFallback] = useState("");
   const [delayEdit, setDelayEdit] = useState<GraphNode | null>(null);
   const [delayAmount, setDelayAmount] = useState(2);
 
@@ -442,7 +446,15 @@ export function Wizard() {
   // DEC-026: the Upload-doc card is disabled-with-reason when storage is absent.
   useEffect(() => {
     void cf("knowledge/upload-config").then(setUploadCfg).catch(() => setUploadCfg({ enabled: true }));
+    // C2.7: workspace custom-field defs feed the token picker.
+    void cf("contact-fields").then(setFieldDefs).catch(() => {});
   }, []);
+
+  // C2.7: the fallback card never survives switching steps/closing the editor.
+  useEffect(() => {
+    setCustomTokenKey(null);
+    setCustomFallback("");
+  }, [editNode]);
 
   // ── derived ──────────────────────────────────────────────────────────────
   // DEC-024: before any server report exists, seed the goal's required fields
@@ -806,8 +818,26 @@ export function Wizard() {
     setStep((s) => Math.min(5, s + 1));
   }
 
+  /** C2.7: insert `{{custom.<key>|fallback}}` — only ever with the fallback
+   *  (never-blank rule); the save-time check below is the typed-token backstop. */
+  function insertCustomToken() {
+    const fb = customFallback.trim();
+    if (!customTokenKey || !fb) return;
+    const token = `{{custom.${customTokenKey}|${fb}}}`;
+    setEditBody((b) => (b ? `${b} ${token}` : token));
+    setCustomTokenKey(null);
+    setCustomFallback("");
+  }
+
   async function saveEditedStep() {
     if (!graph || !editNode || !agentId) return;
+    // C2.7: custom tokens carry a MANDATORY fallback ({{custom.key|fallback}})
+    // — reject at save time so a blank can never reach the send boundary.
+    const missing = customTokensMissingFallback(`${editSubject} ${editBody}`);
+    if (missing.length > 0) {
+      toast(`Add a fallback for {{custom.${missing[0]}}} — custom tokens never render blank.`);
+      return;
+    }
     const updated: CampaignGraph = {
       ...graph,
       nodes: graph.nodes.map((n) =>
@@ -1571,14 +1601,43 @@ export function Wizard() {
                 ))}
               </div>
 
-              {/* personalization — REAL merge tokens (P1.5 renderTokens set) */}
+              {/* personalization — REAL merge tokens (P1.5 renderTokens set) +
+                  C2.7 custom-field chips (v3 Create Agent.dc.html:1198): custom
+                  tokens need a MANDATORY fallback before they insert. */}
               <div>
                 <div style={{ fontSize: 11, fontWeight: 700, color: "#8A7F6B", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 }}>Personalization</div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
                   {TOKENS.map((t) => (
-                    <span key={t} onClick={() => setEditBody((b) => (b ? `${b} ${t}` : t))} style={{ fontSize: 12.5, fontWeight: 600, color: "#1192A6", background: "rgba(54,215,237,.12)", border: "1px solid rgba(54,215,237,.3)", borderRadius: 8, padding: "5px 10px", cursor: "pointer" }} data-testid={`token-${t.replace(/[^a-zA-Z]/g, "")}`}>{t}</span>
+                    <span key={t} onClick={() => { setCustomTokenKey(null); setEditBody((b) => (b ? `${b} ${t}` : t)); }} style={{ fontSize: 12.5, fontWeight: 600, color: "#1192A6", background: "rgba(54,215,237,.12)", border: "1px solid rgba(54,215,237,.3)", borderRadius: 8, padding: "5px 10px", cursor: "pointer" }} data-testid={`token-${t.replace(/[^a-zA-Z]/g, "")}`}>{t}</span>
                   ))}
+                  {fieldDefs.filter((d) => !d.archived).map((d) => {
+                    const on = customTokenKey === d.key;
+                    return (
+                      <span key={d.id} onClick={() => { setCustomTokenKey(on ? null : d.key); setCustomFallback(""); }} style={{ fontSize: 12.5, fontWeight: 600, color: "#1192A6", background: on ? "rgba(54,215,237,.24)" : "rgba(54,215,237,.12)", border: `1px solid ${on ? "#36D7ED" : "rgba(54,215,237,.3)"}`, borderRadius: 8, padding: "5px 10px", cursor: "pointer" }} data-testid={`token-custom-${d.key}`}>{`{{custom.${d.key}}}`}</span>
+                    );
+                  })}
                 </div>
+                {customTokenKey ? (
+                  <div style={{ marginTop: 10, background: "rgba(54,215,237,.06)", border: "1px solid rgba(54,215,237,.28)", borderRadius: 11, padding: "12px 14px" }} data-testid="fallback-card">
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7 }}>
+                      <span style={{ fontSize: 11, fontWeight: 800, color: "#1192A6", textTransform: "uppercase", letterSpacing: ".05em" }}>{`Fallback for {{custom.${customTokenKey}}}`}</span>
+                      <span style={{ fontSize: 10, fontWeight: 800, color: "#C9543F", background: "#FBEEEA", borderRadius: 100, padding: "2px 7px" }}>Required</span>
+                    </div>
+                    <input
+                      autoFocus
+                      value={customFallback}
+                      onChange={(e) => setCustomFallback(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") insertCustomToken(); }}
+                      placeholder="e.g. your practice"
+                      style={{ width: "100%", boxSizing: "border-box", height: 38, borderRadius: 9, background: "#fff", border: "1px solid rgba(54,215,237,.4)", padding: "0 12px", fontSize: 13, color: "#0E1512", fontFamily: "'Hanken Grotesk',sans-serif" }}
+                      data-testid="fallback-input"
+                    />
+                    <div style={{ fontSize: 11.5, color: "#5C6B62", lineHeight: 1.5, marginTop: 7 }}>
+                      Used when a contact has no <strong>{fieldDefs.find((d) => d.key === customTokenKey)?.label ?? customTokenKey}</strong> value — custom tokens never render blank.
+                    </div>
+                    <span onClick={insertCustomToken} style={{ display: "inline-block", marginTop: 9, fontSize: 12.5, fontWeight: 700, color: customFallback.trim() ? "#0A0F0C" : "#9AA59E", background: customFallback.trim() ? GRAD : "#ECE7DC", borderRadius: 9, padding: "7px 14px", cursor: customFallback.trim() ? "pointer" : "not-allowed" }} data-testid="fallback-insert">Insert token</span>
+                  </div>
+                ) : null}
               </div>
             </div>
 
