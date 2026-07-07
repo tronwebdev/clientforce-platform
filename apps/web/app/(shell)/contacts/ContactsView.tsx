@@ -23,6 +23,7 @@ export interface ContactRow {
   lastName: string | null;
   email: string | null;
   company: string | null;
+  title: string | null;
   phone: string | null;
   source: string | null;
   createdAt: string;
@@ -86,7 +87,8 @@ const timeAgo = (iso: string | null) => {
   if (s < 60) return "just now";
   if (s < 3600) return `${Math.floor(s / 60)}m ago`;
   if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  return `${Math.floor(s / 86400)}d ago`;
+  if (s < 172800) return "Yesterday";
+  return `${Math.floor(s / 86400)} days ago`;
 };
 
 /** Drawer timeline row treatment per live event type. */
@@ -118,6 +120,7 @@ export function ContactsView() {
   const [agentDD, setAgentDD] = useState(false);
   const [moreDD, setMoreDD] = useState(false);
   const [toggles, setToggles] = useState({ repliedOnly: false, bookedOnly: false, subscribedOnly: false });
+  const [sourceFilter, setSourceFilter] = useState("all");
   const [sortKey, setSortKey] = useState<"name" | "company" | "status" | null>(null);
   const [sortDir, setSortDir] = useState(1);
   const [page, setPage] = useState(1);
@@ -169,13 +172,14 @@ export function ContactsView() {
     [rows],
   );
 
-  // prototype filter pipeline: status(seg) → agent → toggles → search → sort → paginate
+  // prototype filter pipeline: status(seg) → agent → source → toggles → search → sort → paginate
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     let list = (rows ?? []).filter((c) => {
       const st = deriveStatus(c);
       if (seg !== "all" && st !== seg) return false;
       if (agentFilter !== "all" && c.agentName !== agentFilter) return false;
+      if (sourceFilter !== "all" && c.source !== sourceFilter) return false;
       if (toggles.repliedOnly && !["Replied", "Qualified", "Booked"].includes(st)) return false;
       if (toggles.bookedOnly && st !== "Booked") return false;
       if (toggles.subscribedOnly && st === "Unsubscribed") return false;
@@ -191,7 +195,7 @@ export function ContactsView() {
       });
     }
     return list;
-  }, [rows, seg, agentFilter, toggles, search, sortKey, sortDir]);
+  }, [rows, seg, agentFilter, sourceFilter, toggles, search, sortKey, sortDir]);
 
   const pages = Math.max(1, Math.ceil(filtered.length / perPage));
   const start = (Math.min(page, pages) - 1) * perPage;
@@ -203,7 +207,8 @@ export function ContactsView() {
   }, [rows]);
   const selected = Object.keys(sel).filter((k) => sel[k]);
   const allOn = pageRows.length > 0 && pageRows.every((r) => sel[r.id]);
-  const moreCount = Object.values(toggles).filter(Boolean).length + (agentFilter !== "all" ? 0 : 0);
+  const moreActive = sourceFilter !== "all" || Object.values(toggles).some(Boolean);
+  const moreCount = (sourceFilter !== "all" ? 1 : 0) + Object.values(toggles).filter(Boolean).length;
 
   async function bulkUnsubscribe(ids: string[]) {
     if (ids.length === 0) return;
@@ -259,7 +264,8 @@ export function ContactsView() {
   const st = drawer ? deriveStatus(drawer) : null;
 
   return (
-    <div style={{ display: "flex", minWidth: 0, flex: 1 }}>
+    // prototype renders at the browser-default line-height, not the app's 1.5
+    <div style={{ display: "flex", minWidth: 0, flex: 1, lineHeight: "normal" }}>
       {/* lists rail — prototype composition; lists have no model yet (flagged in plan) */}
       <div style={{ width: 226, flex: "none", background: "#F4F0E7", borderRight: "1px solid #EBE3D6", padding: "22px 14px", display: "flex", flexDirection: "column", minWidth: 0, boxSizing: "border-box" }} data-testid="lists-rail">
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 8px", marginBottom: 12 }}>
@@ -372,13 +378,21 @@ export function ContactsView() {
                 ) : null}
               </div>
               <div style={{ position: "relative" }}>
-                <span onClick={() => { setMoreDD((v) => !v); setStatusDD(false); setAgentDD(false); }} style={trigger(Object.values(toggles).some(Boolean))} data-testid="filters">
+                <span onClick={() => { setMoreDD((v) => !v); setStatusDD(false); setAgentDD(false); }} style={trigger(moreActive)} data-testid="filters">
                   ⚙ Filters
-                  {Object.values(toggles).some(Boolean) ? <span style={{ fontSize: 11, fontWeight: 700, color: "#fff", background: "#16A82A", borderRadius: 100, padding: "0 6px" }}>{moreCount}</span> : null}
+                  {moreActive ? <span style={{ fontSize: 11, fontWeight: 700, color: "#fff", background: "#16A82A", borderRadius: 100, padding: "0 6px" }}>{moreCount}</span> : null}
                   <span style={{ color: "#9AA59E", fontSize: 12 }}>⌄</span>
                 </span>
                 {moreDD ? (
                   <div style={{ ...menuShell, width: 268, padding: 6 }}>
+                    <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: "#9AA59E", padding: "8px 10px 4px" }}>Source</div>
+                    {["all", ...Array.from(new Set((rows ?? []).map((r) => r.source).filter((x): x is string => !!x)))].map((o) => (
+                      <div key={o} onClick={() => { setSourceFilter(o); setPage(1); }} style={{ display: "flex", alignItems: "center", gap: 9, padding: "8px 10px", borderRadius: 8, fontSize: 13.5, color: "#0E1512", cursor: "pointer" }} data-testid={`source-${o}`}>
+                        <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o === "all" ? "All sources" : o}</span>
+                        <span style={{ color: "#16A82A", visibility: sourceFilter === o ? "visible" : "hidden" }}>✓</span>
+                      </div>
+                    ))}
+                    <div style={{ height: 1, background: "#F2EEE4", margin: "6px 4px" }} />
                     <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: "#9AA59E", padding: "6px 10px 4px" }}>Quick toggles</div>
                     {(
                       [
@@ -397,7 +411,7 @@ export function ContactsView() {
                         </div>
                       );
                     })}
-                    <div onClick={() => { setToggles({ repliedOnly: false, bookedOnly: false, subscribedOnly: false }); setAgentFilter("all"); setSeg("all"); setSearch(""); setPage(1); setMoreDD(false); }} style={{ textAlign: "center", fontSize: 12.5, fontWeight: 600, color: "#C9543F", padding: 9, marginTop: 4, borderTop: "1px solid #F2EEE4", cursor: "pointer" }}>Reset all filters</div>
+                    <div onClick={() => { setToggles({ repliedOnly: false, bookedOnly: false, subscribedOnly: false }); setAgentFilter("all"); setSourceFilter("all"); setSeg("all"); setSearch(""); setPage(1); setMoreDD(false); }} style={{ textAlign: "center", fontSize: 12.5, fontWeight: 600, color: "#C9543F", padding: 9, marginTop: 4, borderTop: "1px solid #F2EEE4", cursor: "pointer" }}>Reset all filters</div>
                   </div>
                 ) : null}
               </div>
@@ -462,7 +476,7 @@ export function ContactsView() {
               <div style={{ fontSize: 15, fontWeight: 700, color: "#0E1512", marginBottom: 3 }}>No contacts match</div>
               <div style={{ fontSize: 13, color: "#9AA59E", marginBottom: 14 }}>Try clearing filters, or find fresh leads to add.</div>
               <div style={{ display: "flex", gap: 9, justifyContent: "center" }}>
-                <span onClick={() => { setToggles({ repliedOnly: false, bookedOnly: false, subscribedOnly: false }); setAgentFilter("all"); setSeg("all"); setSearch(""); setPage(1); }} style={{ fontSize: 13, fontWeight: 700, color: "#5C6B62", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 10, padding: "9px 16px", cursor: "pointer" }}>Reset filters</span>
+                <span onClick={() => { setToggles({ repliedOnly: false, bookedOnly: false, subscribedOnly: false }); setAgentFilter("all"); setSourceFilter("all"); setSeg("all"); setSearch(""); setPage(1); }} style={{ fontSize: 13, fontWeight: 700, color: "#5C6B62", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 10, padding: "9px 16px", cursor: "pointer" }}>Reset filters</span>
                 <a href="/lead-finder" style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 700, color: "#0A0F0C", background: GRAD, borderRadius: 10, padding: "9px 16px", boxShadow: "0 5px 14px rgba(53,232,52,.24)" }}>⚲ Find leads</a>
               </div>
             </div>
@@ -581,6 +595,7 @@ export function ContactsView() {
                 <div style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 13, overflow: "hidden", marginBottom: 18 }}>
                   {[
                     ["Company", drawer.company ?? "—"],
+                    ["Title", drawer.title ?? "—"],
                     ["Phone", drawer.phone ?? "—"],
                     ["Source", drawer.source ?? "—"],
                     ["Agent", drawer.agentName ?? "—"],

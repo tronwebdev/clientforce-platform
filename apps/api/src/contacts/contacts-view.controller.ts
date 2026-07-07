@@ -70,6 +70,7 @@ export class ContactsViewController {
           lastName: c.lastName,
           email: c.email,
           company: c.company,
+          title: c.title,
           phone: c.phone,
           source: c.source,
           createdAt: c.createdAt.toISOString(),
