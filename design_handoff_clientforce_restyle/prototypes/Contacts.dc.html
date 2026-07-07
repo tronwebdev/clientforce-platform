@@ -259,9 +259,15 @@
               <div style="font-size:11px;font-weight:700;color:#8A7F6B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Custom fields</div>
               <div style="background:#fff;border:1px solid #EBE3D6;border-radius:13px;overflow:hidden;margin-bottom:18px;">
                 <sc-for list="{{ d.custom }}" as="f" hint-placeholder-count="2">
-                  <div style="display:flex;align-items:center;gap:12px;padding:11px 15px;border-top:1px solid #F2EEE4;">
+                  <div style="display:flex;align-items:center;gap:12px;padding:8px 15px;border-top:1px solid #F2EEE4;min-height:30px;">
                     <span style="font-size:13px;color:#1192A6;flex:none;width:120px;font-weight:600;">{{ f.label }}</span>
-                    <span style="font-size:13.5px;color:#0E1512;font-weight:600;flex:1;text-align:right;">{{ f.value }}</span>
+                    <sc-if value="{{ f.notEditing }}" hint-placeholder-val="{{ true }}">
+                      <span onClick="{{ f.onEdit }}" title="Edit value" style="font-size:13.5px;color:#0E1512;font-weight:600;flex:1;text-align:right;cursor:pointer;display:flex;align-items:center;justify-content:flex-end;gap:7px;" style-hover="color:#16A82A;">{{ f.value }} <span style="font-size:11px;color:#C2B79F;">✎</span></span>
+                    </sc-if>
+                    <sc-if value="{{ f.editing }}" hint-placeholder-val="{{ false }}">
+                      <input value="{{ f.editVal }}" onInput="{{ f.onInput }}" style="flex:1;min-width:0;height:32px;border-radius:8px;background:#FBF7F0;border:1px solid #35E834;padding:0 10px;font-size:13px;font-weight:600;color:#0E1512;text-align:right;outline:none;" />
+                      <span onClick="{{ f.onSave }}" style="width:30px;height:30px;border-radius:8px;background:rgba(53,232,52,.14);color:#16A82A;display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer;flex:none;">✓</span>
+                    </sc-if>
                   </div>
                 </sc-for>
               </div>
@@ -322,7 +328,25 @@
                   <div style="display:grid;grid-template-columns:1fr 22px 1.1fr;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #F2EEE4;">
                     <div style="min-width:0;"><div style="font-size:12.5px;font-weight:700;color:#0E1512;font-family:monospace;">{{ r.col }}</div><div style="font-size:11px;color:#9AA59E;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ r.sample }}</div></div>
                     <span style="color:#C2B79F;text-align:center;font-size:12px;">→</span>
-                    <div style="border:1px solid #EBE3D6;border-radius:9px;padding:8px 11px;font-size:12.5px;font-weight:600;color:{{ r.fieldColor }};background:#FBF7F0;display:flex;align-items:center;cursor:pointer;">{{ r.field }}<span style="margin-left:auto;color:#9AA59E;">⌄</span></div>
+                    <div style="position:relative;">
+                      <div onClick="{{ r.onToggle }}" style="border:1px solid {{ r.fieldBorder }};border-radius:9px;padding:8px 11px;font-size:12.5px;font-weight:600;color:{{ r.fieldColor }};background:#FBF7F0;display:flex;align-items:center;cursor:pointer;">{{ r.field }}<span style="margin-left:auto;color:#9AA59E;">⌄</span></div>
+                      <sc-if value="{{ r.ddOpen }}" hint-placeholder-val="{{ false }}">
+                        <div style="position:absolute;top:calc(100% + 5px);right:0;width:224px;background:#fff;border:1px solid #EBE3D6;border-radius:12px;box-shadow:0 16px 44px rgba(0,0,0,.18);overflow:hidden;z-index:8;">
+                          <div style="max-height:196px;overflow-y:auto;">
+                            <div style="font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#9AA59E;padding:9px 13px 4px;">Standard fields</div>
+                            <sc-for list="{{ r.stdOptions }}" as="o" hint-placeholder-count="4">
+                              <div onClick="{{ o.onPick }}" style="display:flex;align-items:center;gap:8px;padding:8px 13px;cursor:pointer;font-size:12.5px;font-weight:600;color:#0E1512;" style-hover="background:#FBF7F0;"><span style="flex:1;">{{ o.label }}</span><span style="color:#16A82A;visibility:{{ o.check }};">✓</span></div>
+                            </sc-for>
+                            <div style="font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#1192A6;padding:9px 13px 4px;border-top:1px solid #F2EEE4;">Custom fields</div>
+                            <sc-for list="{{ r.customOptions }}" as="o" hint-placeholder-count="2">
+                              <div onClick="{{ o.onPick }}" style="display:flex;align-items:center;gap:8px;padding:8px 13px;cursor:pointer;font-size:12.5px;font-weight:600;color:#0E1512;" style-hover="background:#FBF7F0;"><span style="flex:1;">{{ o.label }}</span><span style="color:#16A82A;visibility:{{ o.check }};">✓</span></div>
+                            </sc-for>
+                          </div>
+                          <div onClick="{{ r.onCreate }}" style="display:flex;align-items:center;gap:7px;padding:9px 13px;cursor:pointer;font-size:12.5px;font-weight:700;color:#16A82A;border-top:1px solid #EBE3D6;" style-hover="background:rgba(53,232,52,.06);"><span style="flex:1;">{{ r.createLabel }}</span><span style="font-size:9px;font-weight:800;color:#8A7F6B;background:#F2EEE4;border-radius:100px;padding:2px 6px;">ADMIN</span></div>
+                          <div onClick="{{ r.onSkip }}" style="display:flex;align-items:center;gap:8px;padding:8px 13px;cursor:pointer;font-size:12.5px;font-weight:600;color:#9AA59E;border-top:1px solid #F2EEE4;" style-hover="background:#FBF7F0;"><span style="flex:1;">Skip this column</span><span style="color:#16A82A;visibility:{{ r.skipCheck }};">✓</span></div>
+                        </div>
+                      </sc-if>
+                    </div>
                   </div>
                 </sc-for>
               </sc-if>
@@ -416,14 +440,19 @@
             <!-- custom fields -->
             <div style="display:flex;align-items:center;margin-bottom:10px;">
               <span style="font-size:11px;font-weight:800;color:#9AA59E;text-transform:uppercase;letter-spacing:.05em;flex:1;">Custom fields</span>
-              <span onClick="{{ addCustomField }}" style="font-size:12.5px;font-weight:700;color:#16A82A;cursor:pointer;">＋ Add field</span>
+              <span onClick="{{ addCustomField }}" title="Creates a workspace-wide field — admins only" style="font-size:12.5px;font-weight:700;color:#16A82A;cursor:pointer;">＋ Add field <span style="font-size:10px;font-weight:800;color:#8A7F6B;background:#F2EEE4;border-radius:100px;padding:2px 7px;vertical-align:1px;">ADMIN</span></span>
+            </div>
+            <div style="display:flex;gap:12px;margin-bottom:13px;">
+              <sc-for list="{{ defFields }}" as="df" hint-placeholder-count="2">
+                <div style="flex:1;min-width:0;"><label style="display:block;font-size:11px;font-weight:800;color:#1192A6;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">{{ df.label }}</label><input value="{{ df.value }}" onInput="{{ df.onValue }}" placeholder="{{ df.ph }}" style="width:100%;height:44px;border-radius:10px;background:#fff;border:1px solid #EBE3D6;padding:0 13px;font-size:14px;color:#0E1512;" style-focus="border-color:#35E834;" /></div>
+              </sc-for>
             </div>
             <sc-if value="{{ noCustom }}" hint-placeholder-val="{{ true }}">
-              <div onClick="{{ addCustomField }}" style="border:1.5px dashed #D8CFBE;border-radius:11px;padding:14px;text-align:center;font-size:13px;color:#9AA59E;cursor:pointer;margin-bottom:16px;" style-hover="border-color:#9FD8AC;color:#16A82A;">+ Add a custom field (e.g. Industry, Source URL, Plan)</div>
+              <div onClick="{{ addCustomField }}" style="border:1.5px dashed #D8CFBE;border-radius:11px;padding:14px;text-align:center;font-size:13px;color:#9AA59E;cursor:pointer;margin-bottom:16px;" style-hover="border-color:#9FD8AC;color:#16A82A;">＋ New field for this workspace (e.g. Source URL) · Admin</div>
             </sc-if>
             <sc-for list="{{ customFields }}" as="cf" hint-placeholder-count="2">
               <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
-                <input value="{{ cf.key }}" onInput="{{ cf.onKey }}" placeholder="Field name" style="flex:0 0 150px;height:40px;border-radius:10px;background:#fff;border:1px solid #EBE3D6;padding:0 12px;font-size:13px;color:#0E1512;" style-focus="border-color:#35E834;" />
+                <input value="{{ cf.key }}" onInput="{{ cf.onKey }}" placeholder="New field name" style="flex:0 0 150px;height:40px;border-radius:10px;background:#fff;border:1px solid #EBE3D6;padding:0 12px;font-size:13px;color:#0E1512;" style-focus="border-color:#35E834;" />
                 <input value="{{ cf.value }}" onInput="{{ cf.onValue }}" placeholder="Value" style="flex:1;min-width:0;height:40px;border-radius:10px;background:#fff;border:1px solid #EBE3D6;padding:0 12px;font-size:13px;color:#0E1512;" style-focus="border-color:#35E834;" />
                 <span onClick="{{ cf.onRemove }}" style="width:34px;height:34px;border-radius:9px;border:1px solid #EBE3D6;background:#fff;display:flex;align-items:center;justify-content:center;color:#C9543F;font-size:14px;cursor:pointer;flex:none;">✕</span>
               </div>
@@ -473,6 +502,9 @@ class Component extends DCLogic {
     modal: null, csvStep: 0, importListId: 'all', importListDD: false,
     form: { first: '', last: '', email: '', company: '', title: '', phone: '', location: '', status: 'New', listId: '' },
     formListDD: false, customFields: [], cfSeq: 0,
+    // C2.7: workspace-level custom field defs (admin-created) + per-contact values
+    fieldDefs: [{ key: 'industry', label: 'Industry', ph: 'e.g. Dental' }, { key: 'plan', label: 'Plan', ph: 'e.g. Growth' }],
+    defVals: {}, contactCustomOverride: {}, editingCustom: null, editingCustomVal: '', mapDD: null, mapPick: {},
     newContacts: [], userLists: [], newListName: '', deleted: {},
     contactCalled: {}, contactPaused: {}, contactStatusOverride: {}, contactMoveDD: false, contactNotes: {}, contactTags: {},
   };
@@ -516,7 +548,8 @@ class Component extends DCLogic {
     const baseRaw = raw.map((r, i) => ({
       id: 'c' + (i + 1), name: r[0], email: r[1], company: r[2], title: r[3], phone: r[4], location: r[5],
       status: r[6], agent: r[7], list: r[8], source: r[9], emoji: r[10], avbg: AV[r[11]], last: r[12],
-      opens: String(r[13]), replies: String(r[14]), score: String(r[15]), custom: [],
+      opens: String(r[13]), replies: String(r[14]), score: String(r[15]),
+      custom: i === 0 ? [{ key: 'Industry', value: 'Dental' }, { key: 'Plan', value: 'Growth' }] : (i === 2 ? [{ key: 'Industry', value: 'SaaS' }] : []),
     }));
     const base = this.state.newContacts.concat(baseRaw).filter((c) => !this.state.deleted[c.id]).map((c) => this.state.contactStatusOverride[c.id] ? Object.assign({}, c, { status: this.state.contactStatusOverride[c.id] }) : c);
 
@@ -605,7 +638,17 @@ class Component extends DCLogic {
         { label: 'Source', value: dc.source }, { label: 'Agent', value: dc.agent },
       ],
       hasCustom: !!(dc.custom && dc.custom.length),
-      custom: (dc.custom || []).map((f) => ({ label: f.key, value: f.value })),
+      custom: (dc.custom || []).map((f) => {
+        const ov = (this.state.contactCustomOverride[dc.id] || {})[f.key];
+        const val = ov !== undefined ? ov : f.value;
+        const editing = this.state.editingCustom === dc.id + '|' + f.key;
+        return {
+          label: f.key, value: val, editing, notEditing: !editing, editVal: this.state.editingCustomVal,
+          onEdit: (e) => { if (e) e.stopPropagation(); this.setState({ editingCustom: dc.id + '|' + f.key, editingCustomVal: val }); },
+          onInput: (e) => this.setState({ editingCustomVal: e.target.value }),
+          onSave: (e) => { if (e) e.stopPropagation(); this.setState((s) => ({ contactCustomOverride: Object.assign({}, s.contactCustomOverride, { [dc.id]: Object.assign({}, s.contactCustomOverride[dc.id] || {}, { [f.key]: (s.editingCustomVal || '').trim() || val }) }), editingCustom: null })); },
+        };
+      }),
       tags: dcTags,
       callLabel: dcCalled ? 'Calling…' : 'Call', callBg: dcCalled ? 'rgba(54,215,237,.12)' : '#fff', callBorder: dcCalled ? '#9AD6E4' : '#EBE3D6',
       pauseLabel: dcPaused ? '▶ Resume' : '⏸ Pause', pauseFg: dcPaused ? '#16A82A' : '#0E1512', pauseBg: dcPaused ? 'rgba(53,232,52,.06)' : '#fff', pauseBorder: dcPaused ? '#9FD8AC' : '#EBE3D6',
@@ -637,13 +680,33 @@ class Component extends DCLogic {
       stepNum: 'Step ' + Math.min(cs + 1, 3) + ' of 3',
       primaryLabel: cs === 2 ? 'Import 240 contacts' : 'Continue',
       mapRows: [
-        { col: 'first_name', sample: 'Marcus', field: 'First name', fieldColor: '#0E1512' },
-        { col: 'last_name', sample: 'Alvarez', field: 'Last name', fieldColor: '#0E1512' },
-        { col: 'email', sample: 'm.alvarez@brightsmile.co', field: 'Email', fieldColor: '#0E1512' },
-        { col: 'company', sample: 'BrightSmile Dental', field: 'Company', fieldColor: '#0E1512' },
-        { col: 'phone', sample: '+1 (512) 555-0143', field: 'Phone', fieldColor: '#0E1512' },
-        { col: 'city', sample: 'Austin', field: 'Skip this column', fieldColor: '#9AA59E' },
-      ],
+        { col: 'first_name', sample: 'Marcus', auto: 'First name' },
+        { col: 'last_name', sample: 'Alvarez', auto: 'Last name' },
+        { col: 'email', sample: 'm.alvarez@brightsmile.co', auto: 'Email' },
+        { col: 'company', sample: 'BrightSmile Dental', auto: 'Company' },
+        { col: 'phone', sample: '+1 (512) 555-0143', auto: 'Phone' },
+        { col: 'practice_type', sample: 'Orthodontics', auto: 'Skip this column' },
+      ].map((c, i) => {
+        const picked = this.state.mapPick[i] || c.auto;
+        const isSkip = picked === 'Skip this column';
+        const isNew = picked.indexOf('＋ ') === 0;
+        const title = c.col.replace(/_/g, ' ').replace(/^./, (ch) => ch.toUpperCase());
+        const pick = (label) => this.setState((s) => ({ mapPick: Object.assign({}, s.mapPick, { [i]: label }), mapDD: null }));
+        const std = ['First name', 'Last name', 'Email', 'Company', 'Phone', 'Title', 'Location'];
+        return {
+          col: c.col, sample: c.sample, field: picked,
+          fieldColor: isSkip ? '#9AA59E' : (isNew ? '#1192A6' : '#0E1512'),
+          fieldBorder: isNew ? '#9AD6E4' : '#EBE3D6',
+          ddOpen: this.state.mapDD === i,
+          onToggle: (e) => { if (e) e.stopPropagation(); this.setState((s) => ({ mapDD: s.mapDD === i ? null : i })); },
+          stdOptions: std.map((label) => ({ label, check: picked === label ? 'visible' : 'hidden', onPick: (e) => { if (e) e.stopPropagation(); pick(label); } })),
+          customOptions: this.state.fieldDefs.map((d) => ({ label: d.label, check: picked === d.label ? 'visible' : 'hidden', onPick: (e) => { if (e) e.stopPropagation(); pick(d.label); } })),
+          createLabel: '＋ Create field \u201C' + title + '\u201D',
+          onCreate: (e) => { if (e) e.stopPropagation(); pick('＋ ' + title + ' · new field'); },
+          onSkip: (e) => { if (e) e.stopPropagation(); pick('Skip this column'); },
+          skipCheck: isSkip ? 'visible' : 'hidden',
+        };
+      }),
       reviewStats: [
         { value: '240', label: 'New contacts', fg: '#16A82A' },
         { value: '8', label: 'Duplicates merged', fg: '#1192A6' },
@@ -678,10 +741,11 @@ class Component extends DCLogic {
         title: form.title.trim() || '—', phone: form.phone.trim() || '—', location: form.location.trim(),
         status: form.status, agent: 'Unassigned', list: targetList || '—', source: 'Manual entry',
         emoji: '👤', avbg: AV[av], last: 'Just now', opens: '0', replies: '0', score: '50',
-        custom: this.state.customFields.filter((c) => c.key.trim()).map((c) => ({ key: c.key.trim(), value: c.value.trim() || '—' })),
+        custom: this.state.fieldDefs.filter((d) => (this.state.defVals[d.key] || '').trim()).map((d) => ({ key: d.label, value: this.state.defVals[d.key].trim() }))
+          .concat(this.state.customFields.filter((c) => c.key.trim()).map((c) => ({ key: c.key.trim(), value: c.value.trim() || '—' }))),
       };
       this.setState((s) => ({
-        newContacts: [newC].concat(s.newContacts), modal: null, customFields: [],
+        newContacts: [newC].concat(s.newContacts), modal: null, customFields: [], defVals: {},
         form: { first: '', last: '', email: '', company: '', title: '', phone: '', location: '', status: 'New', listId: '' },
         selList: targetList && allListNames.includes(targetList) ? targetList : s.selList, page: 1,
       }));
@@ -822,6 +886,10 @@ class Component extends DCLogic {
       toggleFormListDD: () => this.setState((s) => ({ formListDD: !s.formListDD })),
       formListOptions: formListChoices.map((c) => ({ label: c.name, check: (curFormList || '') === c.id ? 'visible' : 'hidden', onPick: () => this.setState((s) => ({ form: Object.assign({}, s.form, { listId: c.id }), formListDD: false })) })),
       noCustom: this.state.customFields.length === 0,
+      defFields: this.state.fieldDefs.map((df) => ({
+        label: df.label, ph: df.ph, value: this.state.defVals[df.key] || '',
+        onValue: (e) => { const v = e.target.value; this.setState((s) => ({ defVals: Object.assign({}, s.defVals, { [df.key]: v }) })); },
+      })),
       customFields: cfList,
       addCustomField: () => this.setState((s) => ({ customFields: s.customFields.concat([{ id: 'cf' + (s.cfSeq + 1), key: '', value: '' }]), cfSeq: s.cfSeq + 1 })),
       validHint: formValid ? 'Ready to create' : 'First name & a valid email required',

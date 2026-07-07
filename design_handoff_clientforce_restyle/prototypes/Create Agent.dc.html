@@ -172,6 +172,13 @@
                     </div>
                   </sc-for>
                 </div>
+                <sc-if value="{{ customGoalOn }}" hint-placeholder-val="{{ false }}">
+                  <div style="margin-top:12px;animation:revealSection .3s ease both;">
+                    <label style="display:block;font-size:11.5px;font-weight:700;color:#8A7F6B;letter-spacing:.07em;text-transform:uppercase;margin-bottom:8px;">What counts as success? <span style="font-weight:400;color:#C2B79F;letter-spacing:0;text-transform:none;font-size:11px;">optional</span></label>
+                    <input value="{{ customSuccess }}" onChange="{{ onCustomSuccess }}" placeholder="e.g. Client confirms the intro call, or replies YES to the offer" style="width:100%;box-sizing:border-box;border-radius:12px;background:#fff;border:1px solid #EBE3D6;padding:13px 16px;font-size:14px;color:#0E1512;font-family:inherit;outline:none;box-shadow:0 1px 4px rgba(14,21,18,.04);">
+                    <div style="font-size:11.5px;color:#8A7F6B;margin-top:7px;">Defines the agent's completion signal — replies matching this mark the goal <b>completed</b> across your campaign.</div>
+                  </div>
+                </sc-if>
               </div>
 
               <!-- Agent instructions — always visible, above reveal divider -->
@@ -1191,10 +1198,17 @@
             <div>
               <div style="font-size:11px;font-weight:700;color:#8A7F6B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Personalization</div>
               <div style="display:flex;flex-wrap:wrap;gap:7px;">
-                <sc-for list="{{ tokens }}" as="t" hint-placeholder-count="4">
-                  <span style="font-size:12.5px;font-weight:600;color:#1192A6;background:rgba(54,215,237,.12);border:1px solid rgba(54,215,237,.3);border-radius:8px;padding:5px 10px;cursor:pointer;">{{ t }}</span>
+                <sc-for list="{{ tokens }}" as="t" hint-placeholder-count="6">
+                  <span onClick="{{ t.onPick }}" style="font-size:12.5px;font-weight:600;color:#1192A6;background:{{ t.bg }};border:1px solid {{ t.border }};border-radius:8px;padding:5px 10px;cursor:pointer;">{{ t.label }}</span>
                 </sc-for>
               </div>
+              <sc-if value="{{ customTokenOpen }}" hint-placeholder-val="{{ false }}">
+                <div style="margin-top:10px;background:rgba(54,215,237,.06);border:1px solid rgba(54,215,237,.28);border-radius:11px;padding:12px 14px;">
+                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px;"><span style="font-size:11px;font-weight:800;color:#1192A6;text-transform:uppercase;letter-spacing:.05em;">Fallback for {{ customTokenLabel }}</span><span style="font-size:10px;font-weight:800;color:#C9543F;background:#FBEEEA;border-radius:100px;padding:2px 7px;">Required</span></div>
+                  <input value="{{ customFallback }}" onInput="{{ onCustomFallback }}" placeholder="e.g. your practice" style="width:100%;height:38px;border-radius:9px;background:#fff;border:1px solid rgba(54,215,237,.4);padding:0 12px;font-size:13px;color:#0E1512;" style-focus="border-color:#36D7ED;" />
+                  <div style="font-size:11.5px;color:#5C6B62;line-height:1.5;margin-top:7px;">Used when a contact has no <strong>{{ customTokenField }}</strong> value — custom tokens never render blank.</div>
+                </div>
+              </sc-if>
             </div>
           </div>
 
@@ -1743,7 +1757,7 @@ class Component extends DCLogic {
       { id: 'es2', email: 'maya@brightpathgrowth.co', name: 'Maya at BrightPath', provider: 'Microsoft 365', provIcon: 'O', provBg: 'rgba(54,215,237,.16)', provFg: '#1192A6',
         statusLabel: 'Warming', statusFg: '#A87B16', statusBg: 'rgba(232,196,91,.18)', health: '72', healthLabel: 'Warming up', healthColor: '#E8C45B',
         repLabel: 'Good', repColor: '#1192A6', dailyLimit: 120, sentToday: 48, warmup: 'Day 18 of 45', auth: { spf: true, dkim: true, dmarc: false } } ],
-    deploying: false, deployed: false };
+    deploying: false, deployed: false, customSuccess: '' };
   startBuild() {
     const delays = [700,650,850,600,720,580,540,820];
     let acc = 180;
@@ -2327,6 +2341,9 @@ class Component extends DCLogic {
       templates: templatesUI, tplFilterTabs, templatesFiltered,
       gaps,
       goalTitle,
+      customGoalOn: this.state.goal === 'custom',
+      customSuccess: this.state.customSuccess,
+      onCustomSuccess: (e) => this.setState({ customSuccess: e.target.value }),
       gapResolved,
       gapTotal: gaps.length,
       aboutSources, aboutEvidenceOpen: !!aboutEv, aboutQuote: aboutEv ? aboutEv.quote : '', aboutSrcLine: aboutEv ? aboutEv.srcLine : '', aboutBacks: aboutEv ? aboutEv.backs : '',
@@ -2343,7 +2360,20 @@ class Component extends DCLogic {
       isSmsEdit: isStepM && er.channel === 'SMS',
       isWhatsappEdit: isStepM && er.channel === 'WhatsApp',
       isVoiceEdit: isStepM && er.channel === 'Voice',
-      tokens: ['{{firstName}}', '{{company}}', '{{senderName}}', '{{calendarLink}}'],
+      tokens: ['{{firstName}}', '{{company}}', '{{senderName}}', '{{calendarLink}}'].map((label) => ({
+        label, bg: 'rgba(54,215,237,.12)', border: 'rgba(54,215,237,.3)',
+        onPick: () => this.setState({ customTokenKey: null }),
+      })).concat([{ k: 'industry', f: 'Industry' }, { k: 'plan', f: 'Plan' }].map((d) => ({
+        label: '{{custom.' + d.k + '}}',
+        bg: this.state.customTokenKey === d.k ? 'rgba(54,215,237,.24)' : 'rgba(54,215,237,.12)',
+        border: this.state.customTokenKey === d.k ? '#36D7ED' : 'rgba(54,215,237,.3)',
+        onPick: () => this.setState({ customTokenKey: this.state.customTokenKey === d.k ? null : d.k, customFallback: '' }),
+      }))),
+      customTokenOpen: !!this.state.customTokenKey,
+      customTokenLabel: '{{custom.' + (this.state.customTokenKey || '') + '}}',
+      customTokenField: this.state.customTokenKey === 'plan' ? 'Plan' : 'Industry',
+      customFallback: this.state.customFallback || '',
+      onCustomFallback: (e) => this.setState({ customFallback: e.target.value }),
       addChannels,
       openAdd: () => this.setState({ modal: { kind: 'add' } }),
       closeModal: () => this.setState({ modal: null }),
