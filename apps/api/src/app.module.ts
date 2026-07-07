@@ -13,6 +13,7 @@ import { KnowledgeModule } from "./knowledge/knowledge.module";
 import { MeController } from "./me/me.controller";
 import { PlannerModule } from "./planner/planner.module";
 import { ContactsController } from "./contacts/contacts.controller";
+import { ContactsViewController } from "./contacts/contacts-view.controller";
 
 @Module({
   imports: [
@@ -25,7 +26,7 @@ import { ContactsController } from "./contacts/contacts.controller";
     ChannelsModule,
     EnrollmentsModule,
   ],
-  controllers: [HealthController, MeController, ContactsController],
+  controllers: [HealthController, MeController, ContactsController, ContactsViewController],
   providers: [
     // Order matters: authenticate + resolve tenancy first, then enforce RBAC.
     { provide: APP_GUARD, useClass: AuthGuard },
