@@ -5,7 +5,8 @@
  * The A10 segment chips are QUERIES over live derived rows (`deriveStatus`),
  * never stored stage values. A4: 5s polling; drawer timeline polls while open.
  */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { EmptyState } from "@clientforce/ui";
 
 const GRAD = "linear-gradient(135deg,#36D7ED 0%,#35E834 55%,#D0F56B 100%)";
 
@@ -40,6 +41,10 @@ interface TimelineEvent {
   payload: Record<string, unknown>;
   occurredAt: string;
 }
+
+/** Add-a-contact drawer field styles (prototype literals). */
+const addLbl: CSSProperties = { display: "block", fontSize: 11, fontWeight: 800, color: "#9AA59E", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 6 };
+const addInp: CSSProperties = { width: "100%", boxSizing: "border-box", height: 44, borderRadius: 10, background: "#fff", border: "1px solid #EBE3D6", padding: "0 13px", fontSize: 14, color: "#0E1512", fontFamily: "'Hanken Grotesk',sans-serif" };
 
 /** A10 derivation — the single source for chips, pills and filters. */
 export function deriveStatus(c: ContactRow): "New" | "Replied" | "Qualified" | "Booked" | "Unsubscribed" {
@@ -132,8 +137,12 @@ export function ContactsView() {
   const [timeline, setTimeline] = useState<TimelineEvent[] | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
-  const [form, setForm] = useState({ firstName: "", lastName: "", email: "", company: "", phone: "" });
-  const [csvText, setCsvText] = useState("");
+  const [form, setForm] = useState({ firstName: "", lastName: "", email: "", company: "", phone: "", title: "" });
+  // 36-2: 3-step CSV wizard (Upload → Map → Review → Done), client-side parse.
+  const [csvStep, setCsvStep] = useState(0);
+  const [csvFile, setCsvFile] = useState<{ name: string; headers: string[]; rows: string[][] } | null>(null);
+  const [csvMap, setCsvMap] = useState<string[]>([]);
+  const [csvDone, setCsvDone] = useState(0);
 
   const refresh = useCallback(async () => {
     try {
@@ -225,23 +234,76 @@ export function ContactsView() {
     void refresh();
   }
   async function createContact() {
-    if (!form.email.includes("@") || !form.firstName.trim()) return;
+    if (!/.+@.+\..+/.test(form.email) || !form.firstName.trim()) return;
     await cf("contacts", { method: "POST", body: JSON.stringify(form) }).catch(() => {});
     setAddOpen(false);
-    setForm({ firstName: "", lastName: "", email: "", company: "", phone: "" });
+    setForm({ firstName: "", lastName: "", email: "", company: "", phone: "", title: "" });
     void refresh();
   }
-  async function importCsv() {
-    const lines = csvText.split("\n").map((l) => l.trim()).filter((l) => l && !l.toLowerCase().startsWith("email,"));
-    for (const l of lines) {
-      const [email, firstName, lastName, company] = l.split(",").map((v) => v?.trim());
-      if (!email?.includes("@")) continue;
-      await cf("contacts", { method: "POST", body: JSON.stringify({ email, firstName, lastName, company }) }).catch(() => {});
+
+  /** CSV wizard helpers — parse client-side, POST per mapped row. */
+  const CSV_FIELDS = ["First name", "Last name", "Email", "Company", "Phone", "Title", "Skip this column"] as const;
+  const CSV_FIELD_KEY: Record<string, string> = { "First name": "firstName", "Last name": "lastName", Email: "email", Company: "company", Phone: "phone", Title: "title" };
+  function autoMatch(header: string): string {
+    const h = header.toLowerCase().replace(/[^a-z]/g, "");
+    if (h.includes("first")) return "First name";
+    if (h.includes("last") || h === "surname") return "Last name";
+    if (h.includes("email") || h.includes("mail")) return "Email";
+    if (h.includes("company") || h.includes("org")) return "Company";
+    if (h.includes("phone") || h.includes("tel")) return "Phone";
+    if (h.includes("title") || h.includes("role")) return "Title";
+    return "Skip this column";
+  }
+  function loadCsv(name: string, text: string) {
+    const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    if (lines.length === 0) return;
+    const headers = lines[0]!.split(",").map((v) => v.trim());
+    const rows = lines.slice(1).map((l) => l.split(",").map((v) => v.trim()));
+    setCsvFile({ name, headers, rows });
+    setCsvMap(headers.map(autoMatch));
+  }
+  const csvParsed = useMemo(() => {
+    if (!csvFile) return null;
+    const emailIdx = csvMap.findIndex((m) => m === "Email");
+    const existing = new Set((rows ?? []).map((r) => (r.email ?? "").toLowerCase()).filter(Boolean));
+    const unsubEmails = new Set((rows ?? []).filter((r) => r.unsub).map((r) => (r.email ?? "").toLowerCase()));
+    const valid = csvFile.rows.filter((r) => emailIdx >= 0 && /.+@.+\..+/.test(r[emailIdx] ?? ""));
+    const dupes = valid.filter((r) => existing.has((r[emailIdx] ?? "").toLowerCase()));
+    const suppressed = valid.filter((r) => unsubEmails.has((r[emailIdx] ?? "").toLowerCase()));
+    return {
+      newCount: valid.length - dupes.length,
+      dupes: dupes.length,
+      suppressed: suppressed.length,
+      mapped: csvMap.filter((m) => m !== "Skip this column").length,
+      valid,
+      emailIdx,
+    };
+  }, [csvFile, csvMap, rows]);
+  async function runImport() {
+    if (!csvFile || !csvParsed) return;
+    let created = 0;
+    for (const r of csvParsed.valid) {
+      const payload: Record<string, string> = {};
+      csvMap.forEach((m, i) => {
+        const key = CSV_FIELD_KEY[m];
+        if (key && r[i]) payload[key] = r[i]!;
+      });
+      if (!payload.email) continue;
+      const ok = await cf("contacts", { method: "POST", body: JSON.stringify(payload) }).then(() => true).catch(() => false);
+      if (ok) created += 1;
     }
-    setImportOpen(false);
-    setCsvText("");
+    setCsvDone(created);
+    setCsvStep(3);
     void refresh();
   }
+  function closeImport() {
+    setImportOpen(false);
+    setCsvStep(0);
+    setCsvFile(null);
+    setCsvMap([]);
+    setCsvDone(0);
+  }
+
 
   const sortArrow = (key: string) => (sortKey === key ? (sortDir === 1 ? "↑" : "↓") : "");
   const clickSort = (key: "name" | "company" | "status") => {
@@ -461,24 +523,34 @@ export function ContactsView() {
               <button type="button" onClick={() => void refresh()} style={{ background: GRAD, border: "none", borderRadius: 10, padding: "9px 16px", fontSize: 13, fontWeight: 700, color: "#0A0F0C", cursor: "pointer", fontFamily: "'Hanken Grotesk',sans-serif" }}>Retry</button>
             </div>
           ) : (rows?.length ?? 0) === 0 ? (
-            <div style={{ padding: "60px 20px", textAlign: "center" }} data-testid="contacts-true-empty">
-              <div style={{ fontSize: 30, marginBottom: 8 }}>☺</div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: "#0E1512", marginBottom: 3 }}>No contacts yet</div>
-              <div style={{ fontSize: 13, color: "#9AA59E", marginBottom: 14 }}>Import a CSV or add your first contact to get started.</div>
-              <div style={{ display: "flex", gap: 9, justifyContent: "center" }}>
-                <span onClick={() => setImportOpen(true)} style={{ fontSize: 13, fontWeight: 700, color: "#5C6B62", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 10, padding: "9px 16px", cursor: "pointer" }}>↥ Import CSV</span>
-                <span onClick={() => setAddOpen(true)} style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 700, color: "#0A0F0C", background: GRAD, borderRadius: 10, padding: "9px 16px", boxShadow: "0 5px 14px rgba(53,232,52,.24)", cursor: "pointer" }}>+ Add contact</span>
-              </div>
+            <div data-testid="contacts-true-empty">
+              {/* 36-4/DEC-022: the shared 90px radius-24 gradient tile (sparkles). */}
+              <EmptyState
+                kind="empty"
+                title="No contacts yet"
+                body="Import a CSV or add your first contact to get started."
+                actions={
+                  <>
+                    <span onClick={() => setImportOpen(true)} style={{ fontSize: 13, fontWeight: 700, color: "#5C6B62", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 10, padding: "9px 16px", cursor: "pointer" }}>↥ Import CSV</span>
+                    <span onClick={() => setAddOpen(true)} style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 700, color: "#0A0F0C", background: GRAD, borderRadius: 10, padding: "9px 16px", boxShadow: "0 5px 14px rgba(53,232,52,.24)", cursor: "pointer" }}>+ Add contact</span>
+                  </>
+                }
+              />
             </div>
           ) : filtered.length === 0 ? (
-            <div style={{ padding: "60px 20px", textAlign: "center" }} data-testid="contacts-filtered-empty">
-              <div style={{ fontSize: 30, marginBottom: 8 }}>🔍</div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: "#0E1512", marginBottom: 3 }}>No contacts match</div>
-              <div style={{ fontSize: 13, color: "#9AA59E", marginBottom: 14 }}>Try clearing filters, or find fresh leads to add.</div>
-              <div style={{ display: "flex", gap: 9, justifyContent: "center" }}>
-                <span onClick={() => { setToggles({ repliedOnly: false, bookedOnly: false, subscribedOnly: false }); setAgentFilter("all"); setSourceFilter("all"); setSeg("all"); setSearch(""); setPage(1); }} style={{ fontSize: 13, fontWeight: 700, color: "#5C6B62", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 10, padding: "9px 16px", cursor: "pointer" }}>Reset filters</span>
-                <a href="/lead-finder" style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 700, color: "#0A0F0C", background: GRAD, borderRadius: 10, padding: "9px 16px", boxShadow: "0 5px 14px rgba(53,232,52,.24)" }}>⚲ Find leads</a>
-              </div>
+            <div data-testid="contacts-filtered-empty">
+              {/* 36-3/DEC-021: filtered-empty carries SECONDARY actions only. */}
+              <EmptyState
+                kind="filtered"
+                title="No contacts match"
+                body="Try clearing filters, or find fresh leads to add."
+                actions={
+                  <>
+                    <span onClick={() => { setToggles({ repliedOnly: false, bookedOnly: false, subscribedOnly: false }); setAgentFilter("all"); setSourceFilter("all"); setSeg("all"); setSearch(""); setPage(1); }} style={{ fontSize: 13, fontWeight: 700, color: "#5C6B62", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 10, padding: "9px 16px", cursor: "pointer" }}>Reset filters</span>
+                    <a href="/lead-finder" style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 700, color: "#5C6B62", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 10, padding: "9px 16px" }}>⚲ Find leads</a>
+                  </>
+                }
+              />
             </div>
           ) : (
             pageRows.map((c, i) => {
@@ -567,12 +639,19 @@ export function ContactsView() {
                     {moveDD ? (
                       <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, width: 230, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 12, boxShadow: "0 16px 44px rgba(0,0,0,.2)", zIndex: 30, overflow: "hidden" }}>
                         <div style={{ fontSize: 10.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".07em", color: "#9AA59E", padding: "10px 14px 6px" }}>Move to</div>
-                        {MOVE_OPTIONS.map((m) => (
-                          <div key={m.label} onClick={() => void moveStage(drawer, m.stage)} style={{ display: "flex", alignItems: "center", gap: 9, padding: "10px 14px", fontSize: 13.5, color: m.color, borderTop: "1px solid #F7F2EA", cursor: "pointer" }}>
-                            <span style={{ width: 18, textAlign: "center" }}>{m.icon}</span>
-                            <span style={{ flex: 1 }}>{m.label}</span>
-                          </div>
-                        ))}
+                        {MOVE_OPTIONS.map((m) => {
+                          const current =
+                            (m.stage === "interested" && st === "Qualified") ||
+                            (m.stage === "booked" && st === "Booked") ||
+                            (m.stage === "__unsub__" && st === "Unsubscribed");
+                          return (
+                            <div key={m.label} onClick={() => void moveStage(drawer, m.stage)} style={{ display: "flex", alignItems: "center", gap: 9, padding: "10px 14px", fontSize: 13.5, color: m.color, borderTop: "1px solid #F7F2EA", cursor: "pointer" }}>
+                              <span style={{ width: 18, textAlign: "center" }}>{m.icon}</span>
+                              <span style={{ flex: 1 }}>{m.label}</span>
+                              <span style={{ color: "#16A82A", visibility: current ? "visible" : "hidden" }}>✓</span>
+                            </div>
+                          );
+                        })}
                       </div>
                     ) : null}
                   </div>
@@ -637,51 +716,182 @@ export function ContactsView() {
           </div>
         ) : null}
 
-        {/* add-contact modal */}
+        {/* 36-1: Add-a-contact — 484px right drawer per Contacts.dc.html:379.
+            Omissions logged in DEC-044: STATUS picker (A10 conflict), LIST
+            select (lists inert), CUSTOM FIELDS (no model), LOCATION (no field). */}
         {addOpen ? (
-          <div onClick={() => setAddOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(12,20,15,.45)", zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
-            <div onClick={(e) => e.stopPropagation()} style={{ width: 460, maxWidth: "100%", background: "#FBF7F0", borderRadius: 18, boxShadow: "0 30px 80px rgba(0,0,0,.32)", overflow: "hidden" }} data-testid="add-modal">
-              <div style={{ background: "#fff", padding: "16px 20px", borderBottom: "1px solid #EBE3D6", fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 17, color: "#0E1512" }}>Add contact</div>
-              <div style={{ padding: 20 }}>
-                {(
-                  [
-                    ["firstName", "First name"],
-                    ["lastName", "Last name"],
-                    ["email", "Email"],
-                    ["company", "Company"],
-                    ["phone", "Phone"],
-                  ] as const
-                ).map(([k, label]) => (
-                  <div key={k} style={{ marginBottom: 10 }}>
-                    <label style={{ display: "block", fontSize: 11, fontWeight: 800, color: "#9AA59E", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 6 }}>{label}</label>
-                    <input value={form[k]} onChange={(e) => setForm((f) => ({ ...f, [k]: e.target.value }))} style={{ width: "100%", boxSizing: "border-box", height: 42, borderRadius: 10, background: "#fff", border: "1px solid #EBE3D6", padding: "0 13px", fontSize: 13.5, color: "#0E1512", fontFamily: "'Hanken Grotesk',sans-serif" }} data-testid={`form-${k}`} />
+          <div onClick={() => setAddOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(12,20,15,.4)", zIndex: 60 }}>
+            <div onClick={(e) => e.stopPropagation()} style={{ position: "absolute", top: 0, right: 0, bottom: 0, width: 484, maxWidth: "100%", background: "#FBF7F0", boxShadow: "-24px 0 70px rgba(0,0,0,.28)", display: "flex", flexDirection: "column" }} data-testid="add-modal">
+              <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "18px 22px", background: "#fff", borderBottom: "1px solid #EBE3D6", flex: "none" }}>
+                <span style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 17, color: "#0E1512", flex: 1 }}>Add a contact</span>
+                <span onClick={() => setAddOpen(false)} style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid #EBE3D6", display: "flex", alignItems: "center", justifyContent: "center", color: "#9AA59E", cursor: "pointer" }}>✕</span>
+              </div>
+              <div style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: "20px 22px" }}>
+                <div style={{ display: "flex", gap: 12, marginBottom: 13 }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={addLbl}>First name *</label>
+                    <input value={form.firstName} onChange={(e) => setForm((f) => ({ ...f, firstName: e.target.value }))} placeholder="Jane" style={addInp} data-testid="form-firstName" />
                   </div>
-                ))}
-                <div style={{ fontSize: 12, color: form.firstName.trim() && /.+@.+\..+/.test(form.email) ? "#16A82A" : "#9AA59E", marginBottom: 12 }}>
-                  {form.firstName.trim() && /.+@.+\..+/.test(form.email) ? "Ready to create" : "First name & a valid email required"}
+                  <div style={{ flex: 1 }}>
+                    <label style={addLbl}>Last name</label>
+                    <input value={form.lastName} onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))} placeholder="Doe" style={addInp} data-testid="form-lastName" />
+                  </div>
                 </div>
-                <div style={{ display: "flex", justifyContent: "flex-end", gap: 9 }}>
-                  <span onClick={() => setAddOpen(false)} style={{ fontSize: 13.5, fontWeight: 600, color: "#5C6B62", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 11, padding: "10px 18px", cursor: "pointer" }}>Cancel</span>
-                  <span onClick={() => void createContact()} style={{ fontSize: 13.5, fontWeight: 700, color: "#0A0F0C", background: GRAD, borderRadius: 11, padding: "10px 20px", boxShadow: "0 6px 16px rgba(53,232,52,.26)", cursor: "pointer" }} data-testid="create-contact">Create contact</span>
+                <div style={{ marginBottom: 13 }}>
+                  <label style={addLbl}>Email *</label>
+                  <input value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} placeholder="jane@clinic.com" style={{ ...addInp, borderColor: form.email && !/.+@.+\..+/.test(form.email) ? "#E0A99E" : "#EBE3D6" }} data-testid="form-email" />
                 </div>
+                <div style={{ display: "flex", gap: 12, marginBottom: 13 }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={addLbl}>Company</label>
+                    <input value={form.company} onChange={(e) => setForm((f) => ({ ...f, company: e.target.value }))} placeholder="Clinic name" style={addInp} data-testid="form-company" />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={addLbl}>Phone</label>
+                    <input value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} placeholder="+1 …" style={addInp} data-testid="form-phone" />
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 12, marginBottom: 13 }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={addLbl}>Title</label>
+                    <input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} placeholder="Owner" style={addInp} data-testid="form-title" />
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 22px", borderTop: "1px solid #EBE3D6", background: "#fff", flex: "none" }}>
+                {(() => {
+                  const valid = form.firstName.trim() && /.+@.+\..+/.test(form.email);
+                  return (
+                    <>
+                      <span style={{ fontSize: 13, color: valid ? "#16A82A" : "#9AA59E", flex: 1 }}>{valid ? "Ready to create" : "First name & a valid email required"}</span>
+                      <span onClick={() => setAddOpen(false)} style={{ fontSize: 14, fontWeight: 600, color: "#5C6B62", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 11, padding: "10px 16px", cursor: "pointer" }}>Cancel</span>
+                      <span onClick={() => void createContact()} style={{ fontSize: 14, fontWeight: 700, color: valid ? "#0A0F0C" : "#9AA59E", background: valid ? GRAD : "#ECE7DC", borderRadius: 11, padding: "10px 20px", cursor: valid ? "pointer" : "not-allowed", boxShadow: valid ? "0 6px 16px rgba(53,232,52,.26)" : "none" }} data-testid="create-contact">Create contact</span>
+                    </>
+                  );
+                })()}
               </div>
             </div>
           </div>
         ) : null}
 
-        {/* import CSV modal */}
+        {/* 36-2: Import contacts from CSV — the prototype's 3-step wizard.
+            Add-to-list select omitted (lists inert — DEC-044). */}
         {importOpen ? (
-          <div onClick={() => setImportOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(12,20,15,.45)", zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
-            <div onClick={(e) => e.stopPropagation()} style={{ width: 560, maxWidth: "100%", background: "#FBF7F0", borderRadius: 18, boxShadow: "0 30px 80px rgba(0,0,0,.32)", overflow: "hidden" }} data-testid="import-modal">
-              <div style={{ background: "#fff", padding: "16px 20px", borderBottom: "1px solid #EBE3D6", fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 17, color: "#0E1512" }}>Import CSV</div>
-              <div style={{ padding: 20 }}>
-                <div style={{ fontSize: 12.5, color: "#8A7F6B", marginBottom: 8 }}>Paste rows as <code>email,firstName,lastName,company</code> — header row optional.</div>
-                <textarea value={csvText} onChange={(e) => setCsvText(e.target.value)} rows={7} style={{ width: "100%", boxSizing: "border-box", borderRadius: 10, background: "#fff", border: "1px solid #EBE3D6", padding: "10px 13px", fontSize: 12.5, color: "#0E1512", fontFamily: "monospace", resize: "vertical", marginBottom: 14 }} data-testid="csv-text" />
-                <div style={{ display: "flex", justifyContent: "flex-end", gap: 9 }}>
-                  <span onClick={() => setImportOpen(false)} style={{ fontSize: 13.5, fontWeight: 600, color: "#5C6B62", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 11, padding: "10px 18px", cursor: "pointer" }}>Cancel</span>
-                  <span onClick={() => void importCsv()} style={{ fontSize: 13.5, fontWeight: 700, color: "#0A0F0C", background: GRAD, borderRadius: 11, padding: "10px 20px", boxShadow: "0 6px 16px rgba(53,232,52,.26)", cursor: "pointer" }} data-testid="import-save">Import</span>
-                </div>
+          <div onClick={closeImport} style={{ position: "fixed", inset: 0, background: "rgba(12,20,15,.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 36, zIndex: 60 }}>
+            <div onClick={(e) => e.stopPropagation()} style={{ width: 540, maxWidth: "100%", background: "#fff", borderRadius: 18, boxShadow: "0 40px 90px rgba(0,0,0,.45)", overflow: "hidden" }} data-testid="import-modal">
+              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "18px 22px", borderBottom: "1px solid #EBE3D6" }}>
+                <span style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(53,232,52,.16)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, color: "#16A82A" }}>⬆</span>
+                <span style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 17, color: "#0E1512", flex: 1 }}>Import contacts from CSV</span>
+                <span onClick={closeImport} style={{ width: 30, height: 30, borderRadius: 9, border: "1px solid #EBE3D6", display: "flex", alignItems: "center", justifyContent: "center", color: "#9AA59E", cursor: "pointer" }}>✕</span>
               </div>
+              {csvStep < 3 ? (
+                <>
+                  <div style={{ padding: "16px 22px 0" }}>
+                    <div style={{ display: "flex", gap: 5 }}>
+                      {[0, 1, 2].map((n) => (
+                        <span key={n} style={{ flex: 1, height: 5, borderRadius: 100, background: n <= csvStep ? "#16A82A" : "#E4EAE6" }} />
+                      ))}
+                    </div>
+                    <div style={{ fontSize: 11.5, fontWeight: 700, color: "#8A7F6B", letterSpacing: ".04em", marginTop: 9, textTransform: "uppercase" }}>Step {Math.min(csvStep + 1, 3)} of 3</div>
+                  </div>
+                  <div style={{ padding: "16px 22px 20px" }}>
+                    {csvStep === 0 ? (
+                      <>
+                        <div style={{ fontSize: 16, fontWeight: 700, color: "#0E1512", marginBottom: 14 }}>Upload your file</div>
+                        <label style={{ display: "block", border: "1.5px dashed #9FD8AC", borderRadius: 13, padding: "30px 20px", textAlign: "center", background: "rgba(53,232,52,.04)", cursor: "pointer" }} data-testid="csv-dropzone">
+                          <input type="file" accept=".csv,text/csv" style={{ display: "none" }} data-testid="csv-input" onChange={(e) => { const f = e.target.files?.[0]; if (f) void f.text().then((t) => loadCsv(f.name, t)); e.target.value = ""; }} />
+                          <div style={{ fontSize: 28, marginBottom: 9 }}>📄</div>
+                          <div style={{ fontSize: 14.5, fontWeight: 700, color: "#0E1512", marginBottom: 3 }}>Drop your CSV here or browse</div>
+                          <div style={{ fontSize: 12.5, color: "#9AA59E" }}>.csv up to 50 MB · first row should be column headers</div>
+                        </label>
+                        {csvFile ? (
+                          <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 11, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 11, padding: "11px 14px" }} data-testid="csv-file-row">
+                            <span style={{ width: 32, height: 32, borderRadius: 8, background: "#D7F5DD", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: "#16A82A", flex: "none" }}>✓</span>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 13.5, fontWeight: 600, color: "#0E1512" }}>{csvFile.name}</div>
+                              <div style={{ fontSize: 11.5, color: "#9AA59E" }}>{csvFile.rows.length} rows · {csvFile.headers.length} columns detected</div>
+                            </div>
+                            <span onClick={() => { setCsvFile(null); setCsvMap([]); }} style={{ color: "#9AA59E", cursor: "pointer" }}>✕</span>
+                          </div>
+                        ) : null}
+                      </>
+                    ) : null}
+                    {csvStep === 1 && csvFile ? (
+                      <>
+                        <div style={{ fontSize: 16, fontWeight: 700, color: "#0E1512", marginBottom: 3 }}>Map your columns</div>
+                        <div style={{ fontSize: 13, color: "#9AA59E", marginBottom: 14 }}>We matched these automatically — adjust any that look off.</div>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 22px 1.1fr", gap: 8, paddingBottom: 7, borderBottom: "1px solid #EBE3D6", marginBottom: 4 }}>
+                          <span style={{ fontSize: 10.5, fontWeight: 800, color: "#9AA59E", textTransform: "uppercase", letterSpacing: ".05em" }}>CSV column</span>
+                          <span />
+                          <span style={{ fontSize: 10.5, fontWeight: 800, color: "#9AA59E", textTransform: "uppercase", letterSpacing: ".05em" }}>Maps to</span>
+                        </div>
+                        {csvFile.headers.map((h, i) => (
+                          <div key={h + i} style={{ display: "grid", gridTemplateColumns: "1fr 22px 1.1fr", gap: 8, alignItems: "center", padding: "8px 0", borderBottom: "1px solid #F2EEE4" }}>
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ fontSize: 12.5, fontWeight: 700, color: "#0E1512", fontFamily: "monospace" }}>{h}</div>
+                              <div style={{ fontSize: 11, color: "#9AA59E", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{csvFile.rows[0]?.[i] ?? ""}</div>
+                            </div>
+                            <span style={{ color: "#C2B79F", textAlign: "center", fontSize: 12 }}>→</span>
+                            <select value={csvMap[i]} onChange={(e) => setCsvMap((m) => m.map((v, j) => (j === i ? e.target.value : v)))} style={{ border: "1px solid #EBE3D6", borderRadius: 9, padding: "8px 11px", fontSize: 12.5, fontWeight: 600, color: csvMap[i] === "Skip this column" ? "#9AA59E" : "#0E1512", background: "#FBF7F0", cursor: "pointer", fontFamily: "'Hanken Grotesk',sans-serif" }} data-testid={`csv-map-${i}`}>
+                              {CSV_FIELDS.map((f) => (
+                                <option key={f} value={f}>{f}</option>
+                              ))}
+                            </select>
+                          </div>
+                        ))}
+                      </>
+                    ) : null}
+                    {csvStep === 2 && csvParsed ? (
+                      <>
+                        <div style={{ fontSize: 16, fontWeight: 700, color: "#0E1512", marginBottom: 3 }}>Review import</div>
+                        <div style={{ fontSize: 13, color: "#9AA59E", marginBottom: 16 }}>Here&apos;s what we&apos;ll add to your contacts.</div>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+                          {[
+                            { value: String(csvParsed.newCount), label: "New contacts", fg: "#16A82A" },
+                            { value: String(csvParsed.dupes), label: "Duplicates detected", fg: "#1192A6" },
+                            { value: String(csvParsed.suppressed), label: "On suppression list", fg: "#8A7F6B" },
+                            { value: String(csvParsed.mapped), label: "Columns mapped", fg: "#0E1512" },
+                          ].map((st2) => (
+                            <div key={st2.label} style={{ background: "#FBF7F0", border: "1px solid #EBE3D6", borderRadius: 12, padding: "14px 16px" }}>
+                              <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: 24, fontWeight: 800, color: st2.fg, lineHeight: 1, marginBottom: 4 }}>{st2.value}</div>
+                              <div style={{ fontSize: 12, color: "#8A7F6B" }}>{st2.label}</div>
+                            </div>
+                          ))}
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(53,232,52,.06)", border: "1px solid rgba(53,232,52,.22)", borderRadius: 11, padding: "11px 14px" }}>
+                          <span style={{ color: "#16A82A" }}>✓</span>
+                          <span style={{ fontSize: 12.5, color: "#16A82A", fontWeight: 600 }}>All contacts checked against your suppression list.</span>
+                        </div>
+                      </>
+                    ) : null}
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 22px", borderTop: "1px solid #EBE3D6" }}>
+                    {csvStep === 0 ? (
+                      <span onClick={closeImport} style={{ fontSize: 14, fontWeight: 600, color: "#5C6B62", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 11, padding: "10px 18px", cursor: "pointer" }}>Cancel</span>
+                    ) : (
+                      <span onClick={() => setCsvStep((v) => Math.max(0, v - 1))} style={{ fontSize: 14, fontWeight: 600, color: "#5C6B62", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 11, padding: "10px 18px", cursor: "pointer" }}>‹ Back</span>
+                    )}
+                    {(() => {
+                      const canGo = csvStep === 0 ? Boolean(csvFile) : csvStep === 1 ? csvMap.includes("Email") : (csvParsed?.newCount ?? 0) + (csvParsed?.dupes ?? 0) > 0;
+                      const label = csvStep === 2 ? `Import ${csvParsed?.valid.length ?? 0} contacts` : "Continue";
+                      return (
+                        <span onClick={() => { if (!canGo) return; if (csvStep === 2) void runImport(); else setCsvStep((v) => v + 1); }} style={{ marginLeft: "auto", fontSize: 14, fontWeight: 700, color: canGo ? "#0A0F0C" : "#9AA59E", background: canGo ? GRAD : "#ECE7DC", borderRadius: 11, padding: "10px 22px", cursor: canGo ? "pointer" : "not-allowed", boxShadow: canGo ? "0 6px 16px rgba(53,232,52,.26)" : "none" }} data-testid="import-save">{label}</span>
+                      );
+                    })()}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div style={{ padding: "34px 28px", textAlign: "center" }} data-testid="csv-done">
+                    <div style={{ width: 60, height: 60, borderRadius: "50%", background: "#D7F5DD", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, color: "#16A82A", margin: "0 auto 18px" }}>✓</div>
+                    <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 22, color: "#0E1512", marginBottom: 6 }}>{csvDone} contact{csvDone === 1 ? "" : "s"} imported</div>
+                    <div style={{ fontSize: 13.5, color: "#5C6B62", lineHeight: 1.5, maxWidth: 380, margin: "0 auto" }}>They&apos;re ready to enroll in a campaign.</div>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", padding: "16px 22px", borderTop: "1px solid #EBE3D6" }}>
+                    <span onClick={closeImport} style={{ marginLeft: "auto", fontSize: 14, fontWeight: 700, color: "#0A0F0C", background: GRAD, borderRadius: 11, padding: "10px 24px", cursor: "pointer", boxShadow: "0 6px 16px rgba(53,232,52,.26)" }}>Done</span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         ) : null}
