@@ -21,7 +21,7 @@ import {
   sectionCard,
 } from "./shared";
 
-const PREVIEW_NOTE = "Preview — persists with the workspace Brand-kit unit";
+const PREVIEW_NOTE = "Preview — edits here don\u2019t save yet";
 
 // ── seed data (prototype verbatim) ──────────────────────────────────────────
 
@@ -155,7 +155,7 @@ export function BrandKit({ toast }: { toast: (m: string) => void }) {
       if (res?.ok) ok += 1;
     }
     await refresh();
-    toast(ok > 0 ? `${ok} document${ok > 1 ? "s" : ""} uploaded` : "Upload failed — PDF, DOCX, TXT, CSV or MD up to 25 MB");
+    toast(ok > 0 ? `${ok} document${ok > 1 ? "s" : ""} uploaded` : "Upload failed — PDF, DOCX, XLSX, TXT, CSV or MD up to 25 MB");
   }
   async function removeSource(id: string) {
     await cf(`knowledge/sources/${id}`, { method: "DELETE" }).catch(() => {});
@@ -358,7 +358,7 @@ export function BrandKit({ toast }: { toast: (m: string) => void }) {
         </div>
         <div style={{ fontSize: 12.5, color: "#9AA59E", marginBottom: 14 }}>Upload playbooks, SOPs, pricing &amp; FAQs — agents are grounded in everything here.</div>
         <label style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", border: "1.5px dashed #9FD8AC", borderRadius: 13, padding: 24, textAlign: "center", cursor: "pointer", background: "rgba(53,232,52,.04)", marginBottom: 14, boxSizing: "border-box" }} data-testid="docs-dropzone">
-          <input type="file" multiple onChange={(e) => { void uploadDocs(e.target.files); e.target.value = ""; }} style={{ display: "none" }} />
+          <input type="file" multiple accept=".pdf,.docx,.xlsx,.txt,.csv,.md" onChange={(e) => { void uploadDocs(e.target.files); e.target.value = ""; }} style={{ display: "none" }} />
           <span style={{ fontSize: 24, marginBottom: 7 }}>⬆</span>
           <span style={{ fontSize: 14, fontWeight: 700, color: "#0E1512" }}>Drag &amp; drop or browse</span>
           <span style={{ fontSize: 12, color: "#9AA59E" }}>PDF, DOCX, XLSX, TXT, MD · up to 25 MB each</span>
@@ -446,7 +446,7 @@ export function BrandKit({ toast }: { toast: (m: string) => void }) {
       {/* description / offer */}
       <div style={sectionCard} data-testid="brand-description-card">
         <label style={{ ...lbl, marginBottom: 7 }}>Company description</label>
-        <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} style={textarea} title="Persists with the Brand-kit context unit" data-testid="brand-description" />
+        <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} style={textarea} title="Edits here don\u2019t save yet" data-testid="brand-description" />
         <label style={{ ...lbl, margin: "16px 0 7px" }}>Core offer</label>
         <textarea value={offer} onChange={(e) => setOffer(e.target.value)} rows={2} style={textarea} data-testid="brand-offer" />
       </div>
