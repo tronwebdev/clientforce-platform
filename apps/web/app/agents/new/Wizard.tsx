@@ -429,16 +429,20 @@ export function Wizard() {
 
   async function typeGap(key: string) {
     const value = typedDrafts[key]?.trim();
-    if (!value || !agentId) return;
+    if (!value || !name.trim() || !goal) return;
+    // v2: a typed answer is a context-unlock path — it must work BEFORE any
+    // source exists, so create the draft agent on demand.
+    const id = agentId ?? (await ensureAgent());
     await cf("context/answers", {
       method: "POST",
-      body: JSON.stringify({ agentId, key, value }),
+      body: JSON.stringify({ agentId: id, key, value }),
     });
     await refreshContext();
   }
   async function delegateGap(key: string) {
-    if (!agentId) return;
-    await cf("context/delegate", { method: "POST", body: JSON.stringify({ agentId, key }) });
+    if (!name.trim() || !goal) return;
+    const id = agentId ?? (await ensureAgent());
+    await cf("context/delegate", { method: "POST", body: JSON.stringify({ agentId: id, key }) });
     await refreshContext();
   }
   async function undoGap(key: string) {
@@ -1350,7 +1354,7 @@ export function Wizard() {
               {manualQueue.map((c, i) => (
                 <div key={`${c.email}-${i}`} style={{ display: "flex", alignItems: "center", gap: 11, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 12, padding: "11px 14px", marginBottom: 8 }} data-testid="manual-queued-row">
                   <span style={{ width: 34, height: 34, borderRadius: "50%", flex: "none", background: i % 2 === 0 ? "rgba(53,232,52,.16)" : "rgba(54,215,237,.16)", color: "#0A0F0C", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12.5, fontWeight: 700 }}>
-                    {`${(c.firstName[0] ?? "").toUpperCase()}${(c.lastName[0] ?? "").toUpperCase()}` || c.email.slice(0, 2).toUpperCase()}
+                    {`${(c.firstName.replace(/^dr\.?\s+/i, "")[0] ?? "").toUpperCase()}${(c.lastName[0] ?? "").toUpperCase()}` || c.email.slice(0, 2).toUpperCase()}
                   </span>
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <div style={{ fontSize: 13.5, fontWeight: 600, color: "#0E1512" }}>{[c.firstName, c.lastName].filter(Boolean).join(" ") || c.email}</div>
