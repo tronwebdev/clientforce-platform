@@ -167,9 +167,55 @@ const ING_PILL: Record<string, { fg: string; label: string }> = {
   FAILED: { fg: "#C9543F", label: "Failed" },
 };
 
+/** GET /system/health payload (the worker heartbeat + storage agreement). */
+interface SystemHealth {
+  worker: "alive" | "stale" | "unknown";
+  heartbeat: { at?: string; planner?: boolean; storage?: string; uploadsRoot?: string } | null;
+  uploadsMismatch?: boolean;
+}
+
 export function Wizard() {
   const [step, setStep] = useState(0);
   const [busyMsg, setBusyMsg] = useState("");
+  // §0 toast — same treatment as Settings (dark pill, green ✓ dot, dismiss ✕).
+  const [toastMsg, setToastMsg] = useState("");
+  const toast = useCallback((m: string) => setToastMsg(m), []);
+  useEffect(() => {
+    if (!toastMsg) return;
+    const t = setTimeout(() => setToastMsg(""), 3200);
+    return () => clearTimeout(t);
+  }, [toastMsg]);
+
+  // environment banner — poll /system/health on mount + every 30s. First
+  // fetch failing once is NOT "worker down"; only 2 consecutive failures are.
+  const [health, setHealth] = useState<SystemHealth | null>(null);
+  const healthFails = useRef(0);
+  useEffect(() => {
+    const check = () =>
+      cf("system/health")
+        .then((h) => {
+          healthFails.current = 0;
+          setHealth(h as SystemHealth);
+        })
+        .catch(() => {
+          healthFails.current += 1;
+          if (healthFails.current >= 2) {
+            setHealth({ worker: "unknown", heartbeat: null, uploadsMismatch: false });
+          }
+        });
+    void check();
+    const t = setInterval(() => void check(), 30_000);
+    return () => clearInterval(t);
+  }, []);
+  const envIssue = !health
+    ? null
+    : health.worker !== "alive"
+      ? "Background processing is offline — documents and sequence generation will wait until it's back. Ask your admin to check the worker service."
+      : health.heartbeat && !health.heartbeat.planner
+        ? "AI planning isn't configured yet — sequence generation will wait. Ask your admin to finish AI setup."
+        : health.uploadsMismatch
+          ? "Document storage is misconfigured — the API and worker are using different local folders. Ask your admin to set a shared UPLOADS_DIR."
+          : null;
 
   // step 1
   const [name, setName] = useState("");
@@ -206,6 +252,10 @@ export function Wizard() {
   // final step only completes once the real planner graph has landed.
   const [building, setBuilding] = useState(false);
   const [buildProgress, setBuildProgress] = useState(0);
+  // B7: planner failure surfaced on the building screen ("" = failed, no reason).
+  const [planFailed, setPlanFailed] = useState<string | null>(null);
+  // B7: regenerate failure surfaced inline on step 2.
+  const [regenError, setRegenError] = useState<string | null>(null);
   const [editNode, setEditNode] = useState<GraphNode | null>(null);
   const [editSubject, setEditSubject] = useState("");
   const [editBody, setEditBody] = useState("");
@@ -373,83 +423,203 @@ export function Wizard() {
   }
 
   // ── actions ──────────────────────────────────────────────────────────────
+  /** Double-create guard (B5): concurrent callers (debounced draft effect +
+   *  addUrl/typeGap/next) share one in-flight create. */
+  const agentCreate = useRef<Promise<string> | null>(null);
   async function ensureAgent(): Promise<string> {
     if (agentId) return agentId;
-    const created = await cf("agents", {
+    if (agentCreate.current) return agentCreate.current;
+    agentCreate.current = cf("agents", {
       method: "POST",
       body: JSON.stringify({
         name: name.trim(),
         goal,
         ...(instructions.trim() ? { instructions: instructions.trim() } : {}),
       }),
-    });
-    setAgentId(created.id);
-    return created.id as string;
+    })
+      .then((created) => {
+        setAgentId(created.id);
+        return created.id as string;
+      })
+      .catch((err: unknown) => {
+        agentCreate.current = null;
+        throw err;
+      });
+    return agentCreate.current;
   }
+
+  // B5: implicit draft — name + goal are enough to create the draft agent
+  // (knowledge attaches to it), no source/answer action required first. The
+  // timer resets per keystroke (true debounce) so the draft gets the full name.
+  useEffect(() => {
+    if (!name.trim() || !goal || agentId) return;
+    const t = setTimeout(() => {
+      void ensureAgent().catch(() => toast("Couldn't save the draft — check your connection."));
+    }, 800);
+    return () => clearTimeout(t);
+    // ensureAgent is deliberately not a dep: only name/goal/agentId gate the trigger.
+  }, [name, goal, agentId]);
 
   async function addUrl() {
     if (!urlInput.trim()) return;
-    const id = await ensureAgent();
-    await cf("knowledge/sources", {
-      method: "POST",
-      body: JSON.stringify({ kind: "WEBSITE", uri: urlInput.trim(), label: urlInput.trim().replace(/^https?:\/\//, ""), agentId: id }),
-    });
-    setUrlInput("");
-    setAddMode(null);
-    await refreshKnowledge();
+    if (!name.trim()) {
+      toast("Name your agent first — knowledge attaches to it.");
+      return;
+    }
+    try {
+      const id = await ensureAgent();
+      await cf("knowledge/sources", {
+        method: "POST",
+        body: JSON.stringify({ kind: "WEBSITE", uri: urlInput.trim(), label: urlInput.trim().replace(/^https?:\/\//, ""), agentId: id }),
+      });
+      setUrlInput("");
+      setAddMode(null);
+      await refreshKnowledge();
+    } catch {
+      toast("Couldn't add that URL — try again.");
+    }
   }
 
   async function removeSource(id: string) {
-    await cf(`knowledge/sources/${id}`, { method: "DELETE" }).catch(() => {});
+    await cf(`knowledge/sources/${id}`, { method: "DELETE" }).catch(() => {
+      toast("Couldn't remove the source.");
+    });
     await refreshKnowledge();
+  }
+
+  /** B3: FAILED → PENDING + re-enqueue; the row's amber pill takes over. */
+  async function retrySource(id: string) {
+    try {
+      await cf(`knowledge/sources/${id}/retry`, { method: "POST" });
+      toast("Retrying ingestion…");
+      await refreshKnowledge();
+    } catch {
+      toast("Couldn't retry — try again.");
+    }
   }
 
   /** DEC-026: real multipart upload through the proxy (cf() forces JSON headers). */
   async function uploadDoc(file: File) {
-    const id = await ensureAgent();
-    const fd = new FormData();
-    fd.append("file", file);
-    fd.append("agentId", id);
-    setBusyMsg("Uploading document…");
-    await fetch("/api/cf/knowledge/sources/upload", { method: "POST", body: fd }).catch(() => {});
-    setBusyMsg("");
-    setAddMode(null);
-    await refreshKnowledge();
+    if (!name.trim()) {
+      toast("Name your agent first — knowledge attaches to it.");
+      return;
+    }
+    try {
+      const id = await ensureAgent();
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("agentId", id);
+      // busyMsg covers the transfer only — the row's own pill takes over after.
+      setBusyMsg("Uploading document…");
+      const res = await fetch("/api/cf/knowledge/sources/upload", { method: "POST", body: fd });
+      setBusyMsg("");
+      if (!res.ok) {
+        const apiMsg = await res
+          .json()
+          .then((j: { message?: unknown }) => (typeof j?.message === "string" ? j.message : null))
+          .catch(() => null);
+        toast(res.status < 500 && apiMsg ? apiMsg : "Upload failed — try again.");
+        return;
+      }
+      setAddMode(null);
+      await refreshKnowledge();
+    } catch {
+      setBusyMsg("");
+      toast("Upload failed — try again.");
+    }
   }
 
   async function saveAbout() {
     if (!agentId) return;
-    await cf("context/summary", {
-      method: "POST",
-      body: JSON.stringify({ agentId, summary: aboutDraft }),
-    }).catch(() => {});
-    setContextSummary(aboutDraft);
-    setAboutEditing(false);
+    try {
+      await cf("context/summary", {
+        method: "POST",
+        body: JSON.stringify({ agentId, summary: aboutDraft }),
+      });
+      setContextSummary(aboutDraft);
+      setAboutEditing(false);
+    } catch {
+      toast("Couldn't save the summary.");
+    }
   }
 
   async function typeGap(key: string) {
     const value = typedDrafts[key]?.trim();
     if (!value || !name.trim() || !goal) return;
-    // v2: a typed answer is a context-unlock path — it must work BEFORE any
-    // source exists, so create the draft agent on demand.
-    const id = agentId ?? (await ensureAgent());
-    await cf("context/answers", {
-      method: "POST",
-      body: JSON.stringify({ agentId: id, key, value }),
-    });
-    await refreshContext();
+    try {
+      // v2: a typed answer is a context-unlock path — it must work BEFORE any
+      // source exists, so create the draft agent on demand.
+      const id = agentId ?? (await ensureAgent());
+      await cf("context/answers", {
+        method: "POST",
+        body: JSON.stringify({ agentId: id, key, value }),
+      });
+      await refreshContext();
+    } catch {
+      toast("Couldn't save that answer — try again.");
+    }
   }
   async function delegateGap(key: string) {
     if (!name.trim() || !goal) return;
-    const id = agentId ?? (await ensureAgent());
-    await cf("context/delegate", { method: "POST", body: JSON.stringify({ agentId: id, key }) });
-    await refreshContext();
+    try {
+      const id = agentId ?? (await ensureAgent());
+      await cf("context/delegate", { method: "POST", body: JSON.stringify({ agentId: id, key }) });
+      await refreshContext();
+    } catch {
+      toast("Couldn't save that answer — try again.");
+    }
   }
   async function undoGap(key: string) {
     if (!agentId) return;
-    await cf("context/undo", { method: "POST", body: JSON.stringify({ agentId, key }) });
-    setTypedDrafts((d) => ({ ...d, [key]: "" }));
-    await refreshContext();
+    try {
+      await cf("context/undo", { method: "POST", body: JSON.stringify({ agentId, key }) });
+      setTypedDrafts((d) => ({ ...d, [key]: "" }));
+      await refreshContext();
+    } catch {
+      toast("Couldn't save that answer — try again.");
+    }
+  }
+
+  function finishBuild(g: CampaignGraph, source: string) {
+    setGraph(g);
+    setGraphSource(source);
+    setGraphVersion(1);
+    setDrafting(false);
+    setBuildProgress(BSTEPS.length);
+    setTimeout(() => {
+      setBuilding(false);
+      setBuildProgress(0);
+      setStep(1);
+    }, 1100);
+  }
+
+  /** DEC-038 amended (DEC-047): hold until graph OR failure — never infinite. */
+  const buildPoll = useRef<ReturnType<typeof setInterval> | null>(null);
+  function pollBuild(id: string) {
+    if (buildPoll.current) clearInterval(buildPoll.current);
+    buildPoll.current = setInterval(async () => {
+      try {
+        const res = await cf(`planner/graph?agentId=${id}`);
+        if (res.graph?.graph) {
+          if (buildPoll.current) clearInterval(buildPoll.current);
+          buildPoll.current = null;
+          finishBuild(res.graph.graph as CampaignGraph, res.graph.source);
+          return;
+        }
+      } catch {
+        /* keep polling */
+      }
+      try {
+        const st = await cf(`planner/status?agentId=${id}`);
+        if (st.state === "failed") {
+          if (buildPoll.current) clearInterval(buildPoll.current);
+          buildPoll.current = null;
+          setPlanFailed(typeof st.failedReason === "string" ? st.failedReason : "");
+        }
+      } catch {
+        /* keep polling */
+      }
+    }, 3000);
   }
 
   /** Prototype startBuild(), wired: BSTEPS advance on the prototype's timings,
@@ -459,43 +629,68 @@ export function Wizard() {
     setBuilding(true);
     setBuildProgress(0);
     setDrafting(true);
-    const planned = cf("planner/plan", { method: "POST", body: JSON.stringify({ agentId: id }) }).catch(() => {});
+    setPlanFailed(null);
+    let postFailed = false;
+    const planned = cf("planner/plan", { method: "POST", body: JSON.stringify({ agentId: id }) }).catch((err: unknown) => {
+      postFailed = true;
+      setPlanFailed(err instanceof Error ? err.message : String(err));
+    });
     let acc = 180 + 200;
     for (let idx = 0; idx < BUILD_DELAYS.length - 1; idx += 1) {
       acc += BUILD_DELAYS[idx]!;
       setTimeout(() => setBuildProgress(idx + 1), acc);
     }
     await planned;
-    const finish = (g: CampaignGraph, source: string) => {
-      setGraph(g);
-      setGraphSource(source);
-      setGraphVersion(1);
-      setDrafting(false);
-      setBuildProgress(BSTEPS.length);
-      setTimeout(() => {
-        setBuilding(false);
-        setBuildProgress(0);
-        setStep(1);
-      }, 1100);
-    };
-    const poll = setInterval(async () => {
-      try {
-        const res = await cf(`planner/graph?agentId=${id}`);
-        if (res.graph?.graph) {
-          clearInterval(poll);
-          finish(res.graph.graph as CampaignGraph, res.graph.source);
-        }
-      } catch {
-        /* keep polling */
-      }
-    }, 3000);
+    if (!postFailed) pollBuild(id);
+  }
+
+  /** B7: re-POST the plan from the building screen's failure panel and resume the poll. */
+  async function retryBuild() {
+    if (!agentId) return;
+    setPlanFailed(null);
+    setDrafting(true);
+    try {
+      await cf("planner/plan", { method: "POST", body: JSON.stringify({ agentId }) });
+    } catch (err: unknown) {
+      setPlanFailed(err instanceof Error ? err.message : String(err));
+      return;
+    }
+    pollBuild(agentId);
+  }
+
+  /** B7: leave the failed building screen without losing the step-1 setup. */
+  function backToSetup() {
+    if (buildPoll.current) clearInterval(buildPoll.current);
+    buildPoll.current = null;
+    setPlanFailed(null);
+    setDrafting(false);
+    setBuilding(false);
+    setBuildProgress(0);
   }
 
   async function next() {
     if (step === 0) {
-      // v2 (§3): no context → Generate is a dimmed no-op, never a build.
-      if (!hasContext) return;
-      const id = await ensureAgent();
+      // B4: the blocked Generate click always explains itself (reason ladder).
+      const reason = !name.trim()
+        ? "Name your agent first."
+        : !goal
+          ? "Pick a goal first."
+          : !hasContext && sources.some((s) => s.status === "PENDING" || s.status === "INGESTING")
+            ? "Waiting for your knowledge sources to finish ingesting."
+            : !hasContext
+              ? "Add a knowledge source or answer a question above to unlock sequence building."
+              : null;
+      if (reason) {
+        toast(reason);
+        return;
+      }
+      let id: string;
+      try {
+        id = await ensureAgent();
+      } catch {
+        toast("Couldn't save the draft — check your connection.");
+        return;
+      }
       if (buildMethod === "ai" && !graph) {
         // "Generate with AI ✦" → building interstitial, then step 2
         void startBuild(id);
@@ -547,11 +742,20 @@ export function Wizard() {
     setBusyMsg("");
   }
 
-  /** ✦ Regenerate with AI — re-runs the planner; the next AI version replaces the view. */
+  /** ✦ Regenerate with AI — re-runs the planner; the next AI version replaces the view.
+   *  DEC-038 amended (DEC-047): hold until graph OR failure — never infinite. */
   async function regenerate() {
     if (!agentId || drafting) return;
     setDrafting(true);
-    await cf("planner/plan", { method: "POST", body: JSON.stringify({ agentId }) }).catch(() => {});
+    setRegenError(null);
+    try {
+      await cf("planner/plan", { method: "POST", body: JSON.stringify({ agentId }) });
+    } catch (err: unknown) {
+      toast("Sequence generation failed");
+      setDrafting(false);
+      setRegenError(err instanceof Error ? err.message : String(err));
+      return;
+    }
     const before = graphVersion;
     const poll = setInterval(async () => {
       try {
@@ -562,6 +766,18 @@ export function Wizard() {
           setGraphSource(res.graph.source);
           setGraphVersion(res.graph.version);
           setDrafting(false);
+          return;
+        }
+      } catch {
+        /* keep polling */
+      }
+      try {
+        const st = await cf(`planner/status?agentId=${agentId}`);
+        if (st.state === "failed") {
+          clearInterval(poll);
+          toast("Sequence generation failed");
+          setDrafting(false);
+          setRegenError(typeof st.failedReason === "string" ? st.failedReason : "");
         }
       } catch {
         /* keep polling */
@@ -672,7 +888,7 @@ export function Wizard() {
             suppressionCheck: true,
           },
         }),
-      }).catch(() => {});
+      }).catch(() => toast("Couldn't save limits — try again."));
     }
     setLimitsOpen(false);
   }
@@ -780,8 +996,10 @@ export function Wizard() {
           <button type="button" onClick={() => !building && setStep((s) => Math.max(0, s - 1))} style={{ flex: "none", fontSize: 14, fontWeight: 600, color: "#5C6B62", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 11, padding: "11px 18px", cursor: "pointer", fontFamily: "'Hanken Grotesk',sans-serif" }}>
             ‹ Back
           </button>
+          {/* B4: on step 0 the button stays clickable while looking disabled so
+              the click can explain (next()'s reason ladder → toast). */}
           {step < 5 ? (
-            <button type="button" data-testid="wizard-next" onClick={() => void next()} disabled={!stepValid || building} style={{ flex: 1, textAlign: "center", background: stepValid && !building ? GRAD : "#EDE8DC", border: "none", borderRadius: 11, padding: "11px 18px", fontSize: 15, fontWeight: 700, color: stepValid && !building ? "#0A0F0C" : "#A99F8C", cursor: stepValid && !building ? "pointer" : "default", boxShadow: stepValid && !building ? "0 6px 16px rgba(53,232,52,.26)" : "none", opacity: step === 0 && stepValid && !hasContext ? 0.55 : 1, transition: "opacity .2s", fontFamily: "'Hanken Grotesk',sans-serif" }}>
+            <button type="button" data-testid="wizard-next" onClick={() => void next()} disabled={building || (step !== 0 && !stepValid)} style={{ flex: 1, textAlign: "center", background: stepValid && !building ? GRAD : "#EDE8DC", border: "none", borderRadius: 11, padding: "11px 18px", fontSize: 15, fontWeight: 700, color: stepValid && !building ? "#0A0F0C" : "#A99F8C", cursor: stepValid && !building ? "pointer" : "default", boxShadow: stepValid && !building ? "0 6px 16px rgba(53,232,52,.26)" : "none", opacity: step === 0 && stepValid && !hasContext ? 0.55 : 1, transition: "opacity .2s", fontFamily: "'Hanken Grotesk',sans-serif" }}>
               {nextLabel}
             </button>
           ) : (
@@ -799,21 +1017,40 @@ export function Wizard() {
           <div style={{ fontSize: 15, color: "#5C6B62" }}>{STEP_DEFS[step]!.subtitle}</div>
         </div>
 
+        {envIssue ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 10, border: "1px solid rgba(232,196,91,.48)", background: "rgba(232,196,91,.06)", borderRadius: 12, padding: "12px 16px", marginBottom: 18 }} data-testid="env-banner">
+            <span style={{ fontSize: 15, color: "#D4A020", flex: "none" }}>⚠</span>
+            <span style={{ fontSize: 13.5, fontWeight: 600, color: "#8A7F6B" }}>{envIssue}</span>
+          </div>
+        ) : null}
+
         {building ? (
           <BuildingScreen
             progress={buildProgress}
             sources={sources}
             fields={fields}
             graph={graph}
+            planFailed={planFailed}
+            onRetry={() => void retryBuild()}
+            onBack={backToSetup}
           />
         ) : null}
 
         {busyMsg ? <div style={{ position: "fixed", bottom: 22, left: "50%", transform: "translateX(-50%)", background: "#0C140F", color: "#fff", borderRadius: 12, padding: "10px 18px", fontSize: 13.5, zIndex: 70 }}>{busyMsg}</div> : null}
 
+        {/* §0 toast — Settings treatment: dark pill, 22px green ✓ dot, dismiss ✕ */}
+        {toastMsg ? (
+          <div style={{ position: "fixed", bottom: 22, left: "50%", transform: "translateX(-50%)", zIndex: 71, display: "flex", alignItems: "center", gap: 11, background: "#0C140F", color: "#fff", borderRadius: 12, padding: "12px 16px", boxShadow: "0 16px 40px rgba(0,0,0,.3)" }} data-testid="toast">
+            <span style={{ width: 22, height: 22, borderRadius: "50%", background: "#35E834", color: "#0A0F0C", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flex: "none" }}>✓</span>
+            <span style={{ fontSize: 13.5, fontWeight: 600 }}>{toastMsg}</span>
+            <span onClick={() => setToastMsg("")} style={{ marginLeft: 8, color: "rgba(255,255,255,.5)", cursor: "pointer" }}>✕</span>
+          </div>
+        ) : null}
+
         {step === 0 ? (
           <div style={{ maxWidth: 760 }}>
           <Step1
-            {...{ name, setName, goal, setGoal, sources, addMode, setAddMode, category, setCategory, categoryOpen, setCategoryOpen, instructions, setInstructions, urlInput, setUrlInput, addUrl, contextSummary, groundedSources, aboutEv, setAboutEv, gaps: openGaps, covered, coveredEv, setCoveredEv, fields, gapResolved, gapTotal, typedDrafts, setTypedDrafts, typeGap, delegateGap, undoGap, buildMethod, setBuildMethod, ensureAgent, refreshKnowledge, hasContext, readyCnt, removeSource, uploadDoc, uploadCfg, aboutEditing, setAboutEditing, aboutDraft, setAboutDraft, saveAbout }}
+            {...{ name, setName, goal, setGoal, sources, addMode, setAddMode, category, setCategory, categoryOpen, setCategoryOpen, instructions, setInstructions, urlInput, setUrlInput, addUrl, contextSummary, groundedSources, aboutEv, setAboutEv, gaps: openGaps, covered, coveredEv, setCoveredEv, fields, gapResolved, gapTotal, typedDrafts, setTypedDrafts, typeGap, delegateGap, undoGap, buildMethod, setBuildMethod, ensureAgent, refreshKnowledge, hasContext, readyCnt, removeSource, retrySource, uploadDoc, uploadCfg, aboutEditing, setAboutEditing, aboutDraft, setAboutDraft, saveAbout, toast }}
           />
           </div>
         ) : null}
@@ -828,6 +1065,14 @@ export function Wizard() {
               </div>
             ) : (
               <>
+                {/* B7: regenerate failed — inline error row with Retry (never silent) */}
+                {regenError !== null ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, border: "1px solid rgba(224,121,107,.4)", background: "rgba(224,121,107,.06)", borderRadius: 12, padding: "10px 14px", marginBottom: 14 }} data-testid="regen-failed">
+                    <span style={{ fontSize: 14, color: "#C9543F", flex: "none" }}>⚠</span>
+                    <span style={{ fontSize: 12.5, color: "#8A7F6B", flex: 1, minWidth: 0 }}>Sequence generation failed{regenError ? ` — ${regenError.slice(0, 200)}` : ""}</span>
+                    <span onClick={() => void regenerate()} style={{ fontSize: 12, fontWeight: 700, color: "#16A82A", cursor: "pointer", flex: "none" }} data-testid="regen-retry">Retry</span>
+                  </div>
+                ) : null}
                 {/* tab bar */}
                 <div style={{ display: "flex", alignItems: "center", gap: 0, marginBottom: 22, borderBottom: "2px solid #EBE3D6" }}>
                   <div onClick={() => setSeqView("sequence")} style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 18px", fontSize: 14, fontWeight: seqView === "sequence" ? 700 : 500, color: seqView === "sequence" ? "#0E1512" : "#8A7F6B", borderBottom: `2px solid ${seqView === "sequence" ? "#16A82A" : "transparent"}`, marginBottom: -2, cursor: "pointer" }} data-testid="tab-sequence">Main sequence</div>
@@ -1385,11 +1630,15 @@ export function Wizard() {
 }
 
 /* ── building screen (prototype BSTEPS overlay, wired to live data) ────────── */
-function BuildingScreen({ progress, sources, fields, graph }: {
+function BuildingScreen({ progress, sources, fields, graph, planFailed, onRetry, onBack }: {
   progress: number;
   sources: KnowledgeSource[];
   fields: Record<string, ContextField>;
   graph: CampaignGraph | null;
+  /** B7: non-null = the planner job failed (value = failedReason, may be ""). */
+  planFailed: string | null;
+  onRetry: () => void;
+  onBack: () => void;
 }) {
   const bp = progress;
   const buildDone = bp >= BSTEPS.length;
@@ -1431,6 +1680,18 @@ function BuildingScreen({ progress, sources, fields, graph }: {
         </div>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1.15fr 1fr", gap: 22, flex: 1 }}>
+        {planFailed !== null ? (
+          /* B7: DEC-038 amended (DEC-047): hold until graph OR failure — never infinite. */
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 12, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 13, padding: "22px 20px", alignSelf: "flex-start", width: "100%", boxSizing: "border-box" }} data-testid="plan-failed">
+            <div style={{ width: 42, height: 42, borderRadius: 12, background: "rgba(224,121,107,.16)", color: "#C9543F", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>⚠</div>
+            <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 17, color: "#0E1512" }}>Sequence generation failed</div>
+            {planFailed ? <div style={{ fontSize: 12.5, color: "#8A7F6B", lineHeight: 1.5 }}>{planFailed.slice(0, 200)}</div> : null}
+            <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+              <button type="button" onClick={onRetry} style={{ background: GRAD, border: "none", borderRadius: 11, padding: "10px 20px", fontSize: 14, fontWeight: 700, color: "#0A0F0C", cursor: "pointer", boxShadow: "0 6px 16px rgba(53,232,52,.26)", fontFamily: "'Hanken Grotesk',sans-serif" }} data-testid="plan-failed-retry">Retry</button>
+              <button type="button" onClick={onBack} style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 11, padding: "10px 18px", fontSize: 14, fontWeight: 600, color: "#5C6B62", cursor: "pointer", fontFamily: "'Hanken Grotesk',sans-serif" }} data-testid="plan-failed-back">Back to setup</button>
+            </div>
+          </div>
+        ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
           {BSTEPS.map((s, idx) => {
             const done = bp > idx;
@@ -1447,6 +1708,7 @@ function BuildingScreen({ progress, sources, fields, graph }: {
             );
           })}
         </div>
+        )}
         <div>
           <div style={{ fontSize: 11.5, fontWeight: 700, color: "#8A7F6B", textTransform: "uppercase", letterSpacing: ".07em", marginBottom: 10 }}>What we found</div>
           <div style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 13, overflow: "hidden", boxShadow: "0 1px 4px rgba(14,21,18,.04)" }}>
@@ -1498,19 +1760,27 @@ function Step1(props: {
   ensureAgent: () => Promise<string>; refreshKnowledge: () => Promise<void>;
   hasContext: boolean; readyCnt: number;
   removeSource: (id: string) => Promise<void>;
+  retrySource: (id: string) => Promise<void>;
   uploadDoc: (f: File) => Promise<void>;
   uploadCfg: { enabled: boolean; reason?: string | null } | null;
   aboutEditing: boolean; setAboutEditing: (v: boolean) => void;
   aboutDraft: string; setAboutDraft: (v: string) => void;
   saveAbout: () => Promise<void>;
+  toast: (m: string) => void;
 }) {
   const p = props;
+  // B2: URL scope — "Entire site" is designed-but-inert (Coming soon); only
+  // the current single-page extract ships, so the value always stays "page".
+  const [urlScope, setUrlScope] = useState<"page" | "site">("page");
+  const [scopeOpen, setScopeOpen] = useState(false);
   const openSource = p.groundedSources.find((s) => s.id === p.aboutEv);
   const openQuote = openSource?.quotes[0];
   const coveredField = p.coveredEv ? p.fields[p.coveredEv] : undefined;
   const coveredQuote = coveredField?.citations?.[0];
   return (
     <div>
+      {/* B3: indeterminate ingest bar (30% amber segment sliding left→right) */}
+      <style>{`@keyframes cfIngestSlide{0%{left:-30%}100%{left:100%}}`}</style>
       <div style={{ display: "flex", gap: 16, alignItems: "flex-start", marginBottom: 20 }}>
         <div style={{ flex: 1.5 }}>
           <label style={upLbl}>Campaign name</label>
@@ -1584,8 +1854,16 @@ function Step1(props: {
                     <div style={{ minWidth: 0, flex: 1 }}>
                       <div style={{ fontSize: 13.5, fontWeight: 600, color: "#0E1512", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.label}</div>
                       <div style={{ fontSize: 11.5, color: "#9AA59E" }}>{meta}</div>
+                      {s.status === "PENDING" || s.status === "INGESTING" ? (
+                        <div style={{ position: "relative", height: 3, borderRadius: 100, background: "#F2EEE4", overflow: "hidden", marginTop: 5 }} data-testid="source-progress">
+                          <span style={{ position: "absolute", top: 0, bottom: 0, left: "-30%", width: "30%", borderRadius: 100, background: "#D4A020", animation: "cfIngestSlide 1.2s linear infinite" }} />
+                        </div>
+                      ) : null}
                     </div>
                     <span style={{ fontSize: 11.5, fontWeight: 700, color: st.fg }}>{st.label}</span>
+                    {s.status === "FAILED" ? (
+                      <span onClick={() => void p.retrySource(s.id)} style={{ fontSize: 12, fontWeight: 700, color: "#16A82A", cursor: "pointer", flex: "none" }} data-testid={`source-retry-${s.id}`}>Retry</span>
+                    ) : null}
                     <span onClick={() => void p.removeSource(s.id)} title="Remove source" style={{ fontSize: 12, color: "#C2B79F", cursor: "pointer", flex: "none", padding: "2px 5px", lineHeight: 1 }} data-testid={`source-remove-${s.id}`}>✕</span>
                   </div>
                 );
@@ -1599,6 +1877,10 @@ function Step1(props: {
 
             {p.addMode ? (
               <div style={{ marginTop: 8, border: "1px solid #EBE3D6", borderRadius: 12, overflow: "hidden", background: "#fff", boxShadow: "0 2px 10px rgba(14,21,18,.07)" }} data-testid="add-source-panel">
+                {/* B5: knowledge needs a draft agent, and the draft needs a name. */}
+                {!p.name.trim() ? (
+                  <div style={{ padding: "9px 14px", fontSize: 12.5, fontWeight: 600, color: "#B7791F", background: "rgba(232,196,91,.08)", borderBottom: "1px solid #F2EEE4" }} data-testid="no-name-notice">Name your agent first — knowledge attaches to it.</div>
+                ) : null}
                 <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderBottom: "1px solid #F2EEE4" }}>
                   {p.addMode === "picker" ? (
                     <span style={{ fontSize: 13, fontWeight: 700, color: "#0E1512", flex: 1 }}>Add a knowledge source</span>
@@ -1634,7 +1916,20 @@ function Step1(props: {
                 {p.addMode === "url" ? (
                   <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
                     <input value={p.urlInput} onChange={(e) => p.setUrlInput(e.target.value)} placeholder="https://yoursite.com" style={{ height: 46, boxSizing: "border-box", borderRadius: 10, background: "#FBF7F0", border: "1px solid #EBE3D6", padding: "0 14px", fontSize: 14, color: "#0E1512", fontFamily: "'Hanken Grotesk',sans-serif" }} data-testid="url-input" />
-                    <div style={{ height: 40, borderRadius: 10, background: "#FBF7F0", border: "1px solid #EBE3D6", display: "flex", alignItems: "center", padding: "0 14px", fontSize: 13, color: "#5C6B62", cursor: "pointer" }}>Full site (crawl all pages)<span style={{ marginLeft: "auto", color: "#B7BDB6" }}>▾</span></div>
+                    {/* B2: real scope dropdown — "Entire site" is Coming soon (stays "page") */}
+                    <div style={{ position: "relative" }}>
+                      <div onClick={() => setScopeOpen(!scopeOpen)} style={{ height: 40, borderRadius: 10, background: "#FBF7F0", border: "1px solid #EBE3D6", display: "flex", alignItems: "center", padding: "0 14px", fontSize: 13, color: "#5C6B62", cursor: "pointer" }} data-testid="url-scope">
+                        {urlScope === "page" ? "This page" : "Entire site"}<span style={{ marginLeft: "auto", color: "#B7BDB6" }}>▾</span>
+                      </div>
+                      {scopeOpen ? (
+                        <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 12, boxShadow: "0 12px 32px rgba(14,21,18,.16)", zIndex: 15, overflow: "hidden" }}>
+                          <div onClick={() => { setUrlScope("page"); setScopeOpen(false); }} style={{ padding: "10px 15px", fontSize: 14, color: "#0E1512", cursor: "pointer" }} data-testid="url-scope-page">This page</div>
+                          <div onClick={() => { p.toast("Site crawl is coming soon — this page will be indexed for now"); setUrlScope("page"); setScopeOpen(false); }} style={{ display: "flex", alignItems: "center", padding: "10px 15px", fontSize: 14, color: "#0E1512", cursor: "pointer" }} data-testid="url-scope-site">
+                            Entire site<span style={{ marginLeft: "auto", fontSize: 11, fontWeight: 700, color: "#8A7F6B", background: "#F2EEE4", borderRadius: 100, padding: "2px 8px" }}>Coming soon</span>
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
                     <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
                       <span onClick={() => p.setAddMode(null)} style={{ fontSize: 13, fontWeight: 600, color: "#5C6B62", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 9, padding: "8px 14px", cursor: "pointer" }}>Cancel</span>
                       <span onClick={() => void p.addUrl()} style={{ fontSize: 13, fontWeight: 700, color: "#0A0F0C", background: GRAD, borderRadius: 9, padding: "8px 16px", cursor: "pointer" }} data-testid="url-add">Add URL</span>

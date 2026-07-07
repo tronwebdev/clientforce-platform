@@ -12,6 +12,7 @@ import { EnrollmentsModule } from "./enrollments/enrollments.module";
 import { KnowledgeModule } from "./knowledge/knowledge.module";
 import { MeController } from "./me/me.controller";
 import { PlannerModule } from "./planner/planner.module";
+import { SystemModule } from "./system/system.module";
 import { ContactsController } from "./contacts/contacts.controller";
 import { ContactsViewController } from "./contacts/contacts-view.controller";
 
@@ -25,6 +26,7 @@ import { ContactsViewController } from "./contacts/contacts-view.controller";
     PlannerModule,
     ChannelsModule,
     EnrollmentsModule,
+    SystemModule,
   ],
   controllers: [HealthController, MeController, ContactsController, ContactsViewController],
   providers: [

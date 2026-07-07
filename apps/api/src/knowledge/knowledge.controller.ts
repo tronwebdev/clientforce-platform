@@ -143,6 +143,33 @@ export class KnowledgeController {
   }
 
   /**
+   * Wizard bugfix round (B3): a FAILED source gets a Retry affordance instead
+   * of delete-and-re-add. Resets to PENDING, clears the recorded error and
+   * re-enqueues the same ingestion job (re-ingest is idempotent — P1.2).
+   */
+  @Post("sources/:id/retry")
+  @Roles(Role.OWNER, Role.ADMIN, Role.AGENT)
+  async retrySource(@Param("id") id: string) {
+    const source = await this.tenant.run((tx) => tx.knowledgeSource.findUnique({ where: { id } }));
+    if (!source) throw new NotFoundException();
+    if (source.status !== "FAILED") {
+      throw new BadRequestException("Only failed sources can be retried");
+    }
+    const meta =
+      source.meta && typeof source.meta === "object" && !Array.isArray(source.meta)
+        ? (source.meta as Record<string, unknown>)
+        : {};
+    const updated = await this.tenant.run((tx) =>
+      tx.knowledgeSource.update({
+        where: { id },
+        data: { status: "PENDING", meta: { ...meta, error: null } },
+      }),
+    );
+    await this.enqueuer.enqueue({ sourceId: id, workspaceId: this.tenant.workspaceId });
+    return updated;
+  }
+
+  /**
    * DEC-026: the wizard's Upload-doc card must never be a dead click — when
    * document storage isn't configured (no STORAGE_CONNECTION_STRING in a
    * deployed environment) it renders disabled with this reason. Local dev

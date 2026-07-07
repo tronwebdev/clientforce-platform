@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import { NativeConnection, Worker } from "@temporalio/worker";
 import {
   AiGateway,
@@ -12,10 +13,12 @@ import { createDistillQueue, createDistillWorker } from "@clientforce/context";
 import { createAppPrismaClient, withTenant, type PrismaClient } from "@clientforce/db";
 import {
   automationsConsumer,
+  createRedisClient,
   createTemporalSignalConsumer,
   dispatcherConsumer,
   EventBus,
   redisOptionsFromUrl,
+  WORKER_HEARTBEAT_KEY,
 } from "@clientforce/events";
 import { createIngestWorker, createUploadStoreFromEnv } from "@clientforce/knowledge";
 import { createPlanWorker } from "@clientforce/planner";
@@ -56,11 +59,44 @@ function embeddingsOnlyGateway(): AiGateway {
   });
 }
 
+/** Local uploads root — must match the API's resolution (see GET /system/health). */
+const uploadsRoot = (): string =>
+  process.env.STORAGE_CONNECTION_STRING
+    ? "azure"
+    : (process.env.UPLOADS_DIR ?? join(process.cwd(), ".uploads"));
+
+/**
+ * Liveness heartbeat: a 45s-TTL Redis key refreshed every 15s so the API's
+ * GET /system/health can tell "worker alive" from "jobs will wait forever".
+ * Written even when ANTHROPIC_API_KEY is absent — the payload says which
+ * workers are actually on.
+ */
+function startHeartbeat(redisUrl: string): void {
+  const redis = createRedisClient(redisUrl);
+  const beat = (): void => {
+    const payload = JSON.stringify({
+      at: new Date().toISOString(),
+      ingest: true,
+      distill: !!process.env.ANTHROPIC_API_KEY,
+      planner: !!process.env.ANTHROPIC_API_KEY,
+      storage: process.env.STORAGE_CONNECTION_STRING ? "azure" : "file",
+      uploadsRoot: uploadsRoot(),
+    });
+    redis.setex(WORKER_HEARTBEAT_KEY, 45, payload).catch((err: unknown) => {
+      console.error("[worker] heartbeat write failed", err);
+    });
+  };
+  beat();
+  setInterval(beat, 15_000);
+}
+
 function startKnowledgeWorkers(): void {
   if (!process.env.REDIS_URL) {
     console.log("[worker] REDIS_URL not set — knowledge-ingest/context-distill workers disabled");
     return;
   }
+  console.log(`[worker] uploads root: ${uploadsRoot()}`);
+  startHeartbeat(process.env.REDIS_URL);
   const prisma = createAppPrismaClient();
   const distillQueue = createDistillQueue();
 
@@ -126,7 +162,13 @@ function startKnowledgeWorkers(): void {
 
   const planner = createPlanWorker({ prisma, gateway: realGateway });
   planner.on("completed", (job) => {
-    console.log(`[worker] planner completed ws=${job.data.workspaceId} agent=${job.data.agentId}`);
+    const ms =
+      job.finishedOn !== undefined && job.processedOn !== undefined
+        ? `${job.finishedOn - job.processedOn}ms`
+        : "unknown";
+    console.log(
+      `[worker] planner completed ws=${job.data.workspaceId} agent=${job.data.agentId} duration=${ms}`,
+    );
   });
   planner.on("failed", (job, err) => {
     console.error(`[worker] planner failed agent=${job?.data.agentId}: ${err.message}`);
