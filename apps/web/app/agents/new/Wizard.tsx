@@ -212,7 +212,7 @@ export function Wizard() {
     : health.worker !== "alive"
       ? "Background processing is offline — documents and sequence generation will wait until it's back. Ask your admin to check the worker service."
       : health.heartbeat && !health.heartbeat.planner
-        ? "AI planning isn't configured yet — sequence generation will wait. Ask your admin to finish AI setup."
+        ? "AI planning isn't configured yet — sequence generation will wait. Ask your admin to finish AI setup (Key Vault secret ANTHROPIC-API-KEY, exposed to the service as the ANTHROPIC_API_KEY environment variable)."
         : health.uploadsMismatch
           ? "Document storage is misconfigured — the API and worker are using different local folders. Ask your admin to set a shared UPLOADS_DIR."
           : null;
