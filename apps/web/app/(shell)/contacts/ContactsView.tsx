@@ -111,6 +111,18 @@ const EVENT_ROW: Record<string, { icon: string; bg: string; fg: string; label: (
   "lead.unsubscribed.v1": { icon: "⊘", bg: "rgba(224,121,107,.16)", fg: "#C9543F", label: () => "Unsubscribed from all sequences" },
 };
 
+/** 40-1: a CSV header becomes a HUMAN label ("practice_type" -> "Practice type");
+ *  the raw slug lives only in the def key / token ({{custom.practice_type}}). */
+const humanizeHeader = (h: string) => h.replace(/_/g, " ").replace(/^./, (ch) => ch.toUpperCase());
+
+/** 40-2: the two designed create failures get distinct copy (409 vs 422). */
+const fieldCreateFailureCopy = (err: unknown) => {
+  const status = err instanceof Error ? /:\s*(\d+)$/.exec(err.message)?.[1] : null;
+  return status === "422"
+    ? "This workspace has reached its 30-field limit — archive a field to add another."
+    : "Couldn't create that field — it may already exist.";
+};
+
 const MOVE_OPTIONS = [
   { icon: "✦", label: "Mark as qualified", stage: "interested", color: "#0E1512" },
   { icon: "📅", label: "Mark as booked", stage: "booked", color: "#0E1512" },
@@ -307,8 +319,8 @@ export function ContactsView() {
       // plan §UI-1: after create, focus the new def's value input.
       const key = slugifyFieldLabel(label);
       setTimeout(() => document.querySelector<HTMLInputElement>(`[data-testid='custom-input-${key}']`)?.focus(), 60);
-    } catch {
-      setFieldError("Couldn't create that field — it may already exist.");
+    } catch (err) {
+      setFieldError(fieldCreateFailureCopy(err));
     } finally {
       setCreatingField(false);
     }
@@ -373,11 +385,11 @@ export function ContactsView() {
         try {
           const def = (await cf("contact-fields", {
             method: "POST",
-            body: JSON.stringify({ label: csvFile.headers[i], origin: "csv_import" }),
+            body: JSON.stringify({ label: humanizeHeader(csvFile.headers[i] ?? ""), origin: "csv_import" }),
           })) as ContactFieldDefDto;
           customKeyByCol.set(i, def.key);
-        } catch {
-          setCsvError(`Couldn't create the field "${csvFile.headers[i]}" — the import was not started.`);
+        } catch (err) {
+          setCsvError(`${fieldCreateFailureCopy(err)} The import was not started.`);
           return;
         }
       }
@@ -923,7 +935,7 @@ export function ContactsView() {
                     {activeDefs.map((d) => (
                       <div key={d.id} style={{ flex: 1, minWidth: "calc(50% - 6px)" }}>
                         <label style={{ display: "block", fontSize: 11, fontWeight: 800, color: "#1192A6", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 6 }}>{d.label}</label>
-                        <input value={formCustom[d.key] ?? ""} onChange={(e) => setFormCustom((v) => ({ ...v, [d.key]: e.target.value }))} placeholder={`e.g. ${d.label === "Industry" ? "Dental" : d.label === "Plan" ? "Growth" : d.label}`} style={addInp} data-testid={`custom-input-${d.key}`} />
+                        <input value={formCustom[d.key] ?? ""} onChange={(e) => setFormCustom((v) => ({ ...v, [d.key]: e.target.value }))} placeholder={d.label === "Industry" ? "e.g. Dental" : d.label === "Plan" ? "e.g. Growth" : "Value"} style={addInp} data-testid={`custom-input-${d.key}`} />
                       </div>
                     ))}
                   </div>
@@ -1026,7 +1038,7 @@ export function ContactsView() {
                           const picked = csvMap[i] ?? "Skip this column";
                           const isSkip = picked === "Skip this column";
                           const isNew = picked === CSV_CREATE;
-                          const title = h.replace(/_/g, " ").replace(/^./, (ch) => ch.toUpperCase());
+                          const title = humanizeHeader(h);
                           const display = isNew ? `＋ ${title} · new field` : picked.startsWith("custom:") ? (fieldDefs.find((d) => d.key === picked.slice(7))?.label ?? picked.slice(7)) : picked;
                           const pick = (v: string) => { setCsvMap((m) => m.map((x, j) => (j === i ? v : x))); setMapDD(null); };
                           return (
@@ -1101,7 +1113,7 @@ export function ContactsView() {
                           <div style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(54,215,237,.06)", border: "1px solid rgba(54,215,237,.28)", borderRadius: 11, padding: "11px 14px", marginBottom: 10 }} data-testid="csv-create-note">
                             <span style={{ color: "#1192A6" }}>＋</span>
                             <span style={{ fontSize: 12.5, color: "#1192A6", fontWeight: 600 }}>
-                              {csvParsed.createCount} new custom field{csvParsed.createCount === 1 ? "" : "s"} will be created: {csvFile!.headers.filter((_, i) => csvMap[i] === CSV_CREATE).map((h) => h.replace(/_/g, " ").replace(/^./, (ch) => ch.toUpperCase())).join(", ")}
+                              {csvParsed.createCount} new custom field{csvParsed.createCount === 1 ? "" : "s"} will be created: {csvFile!.headers.filter((_, i) => csvMap[i] === CSV_CREATE).map(humanizeHeader).join(", ")}
                             </span>
                           </div>
                         ) : null}
