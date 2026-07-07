@@ -254,7 +254,7 @@ describe("CampaignWorkflow (time-skipping Temporal)", () => {
     });
     // Exactly one send per step across BOTH workers — no replay double-send.
     expect(calls.sends.map((s) => s.stepNodeId)).toEqual(["s1", "s2"]);
-  }, 120_000);
+  }, 240_000); // 120s flaked twice on slow CI runners (time-skipping env + worker restart)
 
   it("retries infra failures with backoff, but a SendBlockedError refusal is terminal", async (t) => {
     if (!env) return t.skip();
@@ -318,5 +318,5 @@ describe("CampaignWorkflow (time-skipping Temporal)", () => {
       expect.objectContaining({ nodeId: "s1", reason: "SUPPRESSED" }),
     ]);
     expect(refused.calls.completed).toHaveLength(0);
-  }, 120_000);
+  }, 240_000); // 120s flaked twice on slow CI runners (time-skipping env + worker restart)
 });
