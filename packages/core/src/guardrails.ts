@@ -19,10 +19,23 @@ export const sendingWindowSchema = z.object({
 });
 export type SendingWindow = z.infer<typeof sendingWindowSchema>;
 
+/**
+ * Owner-approved A8 extension (DEC-042): open/link tracking are real,
+ * per-agent persisted toggles — unlike the literal-true consent rails below,
+ * these two ARE user-controllable. Legacy rows without the block parse to
+ * both-on (the send path's historical behavior).
+ */
+export const trackingSchema = z.object({
+  openTracking: z.boolean(),
+  linkTracking: z.boolean(),
+});
+export type Tracking = z.infer<typeof trackingSchema>;
+
 export const guardrailsSchema = z.object({
   sendingWindow: sendingWindowSchema,
   dailyCap: z.object({ email: z.number().int().min(1) }),
   consent: z.object({ attestedBy: z.string().min(1), attestedAt: z.string().min(1) }).nullable(),
+  tracking: trackingSchema.default({ openTracking: true, linkTracking: true }),
   unsubscribeFooter: z.literal(true),
   suppressionCheck: z.literal(true),
 });
@@ -33,6 +46,7 @@ export const DEFAULT_GUARDRAILS: Guardrails = {
   sendingWindow: { days: [1, 2, 3, 4, 5], start: "09:00", end: "17:00", timezone: "UTC" },
   dailyCap: { email: 200 },
   consent: null,
+  tracking: { openTracking: true, linkTracking: true },
   unsubscribeFooter: true,
   suppressionCheck: true,
 };
