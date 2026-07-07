@@ -42,7 +42,7 @@
 
     <div style="display:flex;background:#FBF7F0;padding-left:64px;">
       <!-- STEP RAIL -->
-      <div style="width:332px;flex:none;border-right:1px solid #EBE3D6;padding:26px 24px;display:flex;flex-direction:column;min-height:680px;">
+      <div style="width:332px;flex:none;padding:26px 24px 0;display:flex;flex-direction:column;min-height:680px;">
         <sc-for list="{{ steps }}" as="s" hint-placeholder-count="5">
           <div onClick="{{ s.onClick }}" style="display:flex;gap:13px;align-items:flex-start;padding:12px 12px;border-radius:13px;cursor:pointer;margin-bottom:4px;background:{{ s.rowbg }};">
             <span style="width:30px;height:30px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;background:{{ s.dotbg }};color:{{ s.dotfg }};border:{{ s.dotborder }};">{{ s.dot }}</span>
@@ -52,14 +52,14 @@
             </div>
           </div>
         </sc-for>
-        <div style="margin-top:auto;display:flex;gap:10px;padding-top:20px;">
+        <div style="margin-top:auto;display:flex;gap:10px;padding-top:14px;position:sticky;bottom:0;background:#FBF7F0;padding-bottom:24px;">
           <div onClick="{{ goBack }}" style="flex:none;font-size:14px;font-weight:600;color:#5C6B62;background:#fff;border:1px solid #EBE3D6;border-radius:11px;padding:11px 18px;cursor:pointer;">‹ Back</div>
-          <div onClick="{{ goNext }}" style="flex:1;text-align:center;font-family:'Hanken Grotesk',sans-serif;font-weight:700;font-size:15px;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED 0%,#35E834 55%,#D0F56B 100%);border-radius:11px;padding:11px 18px;cursor:pointer;box-shadow:0 6px 16px rgba(53,232,52,.26);">{{ nextLabel }}</div>
+          <div onClick="{{ goNext }}" style="flex:1;text-align:center;font-family:'Hanken Grotesk',sans-serif;font-weight:700;font-size:15px;color:#0A0F0C;background:linear-gradient(135deg,#36D7ED 0%,#35E834 55%,#D0F56B 100%);border-radius:11px;padding:11px 18px;cursor:pointer;box-shadow:0 6px 16px rgba(53,232,52,.26);opacity:{{ nextOpacity }};transition:opacity .2s;">{{ nextLabel }}</div>
         </div>
       </div>
 
       <!-- STEP CONTENT -->
-      <div style="flex:1;min-width:0;padding:28px 32px;position:relative;">
+      <div style="flex:1;min-width:0;padding:28px 32px;position:relative;border-left:1px solid #EBE3D6;">
         <div style="margin-bottom:22px;">
           <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:26px;letter-spacing:-.02em;color:#0E1512;">{{ stepTitle }}</div>
           <div style="font-size:15px;color:#5C6B62;">{{ stepSubtitle }}</div>
@@ -161,7 +161,7 @@
                   <div style="font-size:13.5px;color:#9AA59E;">Select the primary goal — this shapes the entire sequence and copy.</div>
                 </div>
                 <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:9px;">
-                  <sc-for list="{{ goals }}" as="g" hint-placeholder-count="6">
+                  <sc-for list="{{ goals }}" as="g" hint-placeholder-count="9">
                     <div onClick="{{ g.onPick }}" style="border-radius:13px;border:{{ g.border }};background:{{ g.bg }};padding:16px 14px;cursor:pointer;transition:border-color .12s;" style-hover="border-color:#9FD8AC;">
                       <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:11px;">
                         <span style="width:34px;height:34px;border-radius:10px;background:{{ g.iconbg }};display:flex;align-items:center;justify-content:center;font-size:17px;">{{ g.icon }}</span>
@@ -207,6 +207,7 @@
                           <span style="width:30px;height:30px;border-radius:8px;background:#F2EEE4;display:flex;align-items:center;justify-content:center;font-size:14px;flex:none;">{{ k.icon }}</span>
                           <div style="min-width:0;flex:1;"><div style="font-size:13.5px;font-weight:600;color:#0E1512;">{{ k.label }}</div><div style="font-size:11.5px;color:#9AA59E;">{{ k.meta }}</div></div>
                           <span style="font-size:11.5px;font-weight:700;color:{{ k.fg }};">{{ k.status }}</span>
+                          <span onClick="{{ k.onRemove }}" style="font-size:12px;color:#C2B79F;cursor:pointer;flex:none;padding:2px 5px;line-height:1;" style-hover="color:#B54B3A;">✕</span>
                         </div>
                       </sc-for>
 
@@ -278,7 +279,7 @@
                         <!-- Document upload -->
                         <sc-if value="{{ isAddDoc }}" hint-placeholder-val="{{ false }}">
                           <div style="padding:14px 16px;">
-                            <div style="border:1.5px dashed #D8CFBE;border-radius:11px;padding:28px 20px;text-align:center;background:#FBF7F0;cursor:pointer;" style-hover="border-color:#9FD8AC;background:rgba(53,232,52,.04);">
+                            <div onClick="{{ addDocSource }}" style="border:1.5px dashed #D8CFBE;border-radius:11px;padding:28px 20px;text-align:center;background:#FBF7F0;cursor:pointer;" style-hover="border-color:#9FD8AC;background:rgba(53,232,52,.04);">
                               <div style="font-size:26px;margin-bottom:9px;">&#128196;</div>
                               <div style="font-size:13.5px;font-weight:600;color:#0E1512;margin-bottom:4px;">Drop a file here or browse</div>
                               <div style="font-size:12px;color:#9AA59E;">PDF · DOCX · TXT · CSV · up to 20 MB</div>
@@ -302,6 +303,10 @@
                   </div>
 
                   <!-- About your business (prominent card) -->
+                  <sc-if value="{{ aboutEmpty }}" hint-placeholder-val="{{ false }}">
+                    <div style="border:1px dashed #D8CFBE;border-radius:13px;padding:15px 16px;background:#FBF7F0;"><span style="font-size:13.5px;font-weight:600;color:#8A7F6B;">No business profile yet — </span><span style="font-size:13.5px;color:#9AA59E;">add a knowledge source and we&#8217;ll distill one for personalisation.</span></div>
+                  </sc-if>
+                  <sc-if value="{{ aboutReady }}" hint-placeholder-val="{{ true }}">
                   <div style="border:1px solid #EBE3D6;border-radius:13px;overflow:hidden;box-shadow:0 1px 4px rgba(14,21,18,.04);">
                     <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:#F7F9F8;border-bottom:1px solid #EBE3D6;">
                       <span style="font-size:15px;font-weight:700;color:#0E1512;flex:1;">About your business</span>
@@ -330,14 +335,16 @@
                       </div>
                     </sc-if>
                   </div>
+                  </sc-if>
 
                   <!-- AI gap checker -->
                   <div style="border:1px solid rgba(232,196,91,.48);border-radius:12px;overflow:hidden;background:rgba(232,196,91,.04);">
                     <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid rgba(232,196,91,.28);">
                       <span style="font-size:13px;color:#D4A020;">✦</span>
-                      <div style="flex:1;min-width:0;"><div style="font-size:13.5px;font-weight:700;color:#0E1512;">A few things the agent still needs</div><div style="font-size:12px;color:#8A7F6B;">Not found in your docs — resolve before launching.</div></div>
+                      <div style="flex:1;min-width:0;"><div style="font-size:13.5px;font-weight:700;color:#0E1512;">A few things the agent still needs</div><sc-if value="{{ hasContext }}" hint-placeholder-val="{{ true }}"><div style="font-size:12px;color:#8A7F6B;">Not found in your docs — resolve before launching.</div></sc-if><sc-if value="{{ noContext }}" hint-placeholder-val="{{ false }}"><div style="font-size:12px;font-weight:600;color:#B7791F;">No context yet — add a source or type answers before launch.</div></sc-if></div>
                       <span style="font-size:11px;font-weight:700;color:#8A7F6B;background:rgba(232,196,91,.2);border-radius:7px;padding:3px 9px;">{{ gapResolved }}/{{ gapTotal }}</span>
                     </div>
+                    <sc-if value="{{ hasContext }}" hint-placeholder-val="{{ true }}">
                     <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:8px 16px;background:rgba(53,232,52,.06);border-bottom:1px solid rgba(232,196,91,.2);">
                       <span style="color:#16A82A;font-size:12px;flex:none;">✓</span>
                       <span style="font-size:12px;color:#16A82A;font-weight:600;flex:none;">Found in your docs:</span>
@@ -345,6 +352,7 @@
                         <span onClick="{{ cv.onOpen }}" style="display:inline-flex;align-items:center;gap:4px;padding:2.5px 9px;border-radius:100px;border:1px solid {{ cv.border }};background:{{ cv.bg }};font-size:11.5px;font-weight:600;color:#0F7A28;cursor:pointer;" style-hover="border-color:#35E834;">{{ cv.label }}<span style="font-size:9px;opacity:.6;">{{ cv.chev }}</span></span>
                       </sc-for>
                     </div>
+                    </sc-if>
                     <sc-if value="{{ coveredEvidenceOpen }}" hint-placeholder-val="{{ false }}">
                       <div style="padding:9px 16px 12px;background:rgba(53,232,52,.04);border-bottom:1px solid rgba(232,196,91,.2);">
                         <div style="border-left:2px solid #35E834;padding:1px 0 1px 11px;">
@@ -372,7 +380,16 @@
                   </div>
                 </div>
 
-                <!-- HOW TO BUILD -->
+                <!-- HOW TO BUILD (locked until context exists) -->
+                <sc-if value="{{ noContext }}" hint-placeholder-val="{{ false }}">
+                  <div style="border-top:1px solid #EBE3D6;padding-top:22px;padding-bottom:30px;">
+                    <div style="display:flex;align-items:center;gap:10px;border:1px dashed #D8CFBE;border-radius:12px;padding:14px 16px;background:#FBF7F0;">
+                      <span style="font-size:13px;color:#D4A020;flex:none;">✦</span>
+                      <span style="font-size:13px;font-weight:600;color:#8A7F6B;">Add a knowledge source or answer a question above to unlock sequence building.</span>
+                    </div>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ hasContext }}" hint-placeholder-val="{{ true }}">
                 <div style="border-top:1px solid #EBE3D6;padding-top:26px;padding-bottom:30px;">
                   <div style="margin-bottom:14px;"><div style="font-size:16px;font-weight:700;color:#0E1512;margin-bottom:3px;">How should we build the sequence?</div><div style="font-size:13.5px;color:#9AA59E;">Choose how the agent's outreach gets created.</div></div>
                   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:14px;">
@@ -431,6 +448,7 @@
                     </div>
                   </sc-if>
                 </div>
+                </sc-if>
 
                 <!-- Sending preferences (after build method chosen) -->
                 <sc-if value="{{ setupReveal2 }}" hint-placeholder-val="{{ false }}">
@@ -1332,7 +1350,7 @@
                 <div style="flex:1;"><label style="display:block;font-size:11px;font-weight:800;color:#9AA59E;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">First name</label><div style="height:42px;border-radius:10px;background:#FBF7F0;border:1px solid #EBE3D6;display:flex;align-items:center;padding:0 13px;font-size:13.5px;color:#B7BDB6;">Jane</div></div>
                 <div style="flex:1;"><label style="display:block;font-size:11px;font-weight:800;color:#9AA59E;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Last name</label><div style="height:42px;border-radius:10px;background:#FBF7F0;border:1px solid #EBE3D6;display:flex;align-items:center;padding:0 13px;font-size:13.5px;color:#B7BDB6;">Doe</div></div>
               </div>
-              <div style="margin-bottom:12px;"><label style="display:block;font-size:11px;font-weight:800;color:#9AA59E;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Email</label><div style="height:42px;border-radius:10px;background:#FBF7F0;border:1px solid #EBE3D6;display:flex;align-items:center;padding:0 13px;font-size:13.5px;color:#B7BDB6;">jane@clinic.com</div></div>
+              <div style="margin-bottom:12px;"><label style="display:block;font-size:11px;font-weight:800;color:#9AA59E;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Email</label><div style="height:42px;border-radius:10px;background:#FBF7F0;border:1px solid #EBE3D6;display:flex;align-items:center;padding:0 13px;font-size:13.5px;color:#B7BDB6;"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="ea808b848faa898683848389c4898587">[email&#160;protected]</a></div></div>
               <div style="display:flex;gap:12px;margin-bottom:14px;">
                 <div style="flex:1;"><label style="display:block;font-size:11px;font-weight:800;color:#9AA59E;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Company</label><div style="height:42px;border-radius:10px;background:#FBF7F0;border:1px solid #EBE3D6;display:flex;align-items:center;padding:0 13px;font-size:13.5px;color:#B7BDB6;">Clinic name</div></div>
                 <div style="flex:1;"><label style="display:block;font-size:11px;font-weight:800;color:#9AA59E;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Phone</label><div style="height:42px;border-radius:10px;background:#FBF7F0;border:1px solid #EBE3D6;display:flex;align-items:center;padding:0 13px;font-size:13.5px;color:#B7BDB6;">+1…</div></div>
@@ -1713,7 +1731,7 @@
   </div>
 
 </x-dc>
-<script type="text/x-dc" data-dc-script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script type="text/x-dc" data-dc-script>
 class Component extends DCLogic {
   state = { stepIndex: 0, sendDayState: [true, true, true, true, true, false, false], modal: null, delays: {}, inboundOn: { widget: false, form: false, embed: false }, inboundSel: { widget: null, form: null, embed: null }, openDD: null, apOn: true, apKeywords: ['dental clinic', 'orthodontist', 'pediatric dentistry', '"new patients"', 'implant dentistry'], apAddOpen: false, apParamDD: null, apParams: { location: 'United States · Canada', industry: 'Dental & Orthodontics', size: '1–50 staff', rating: '4.0 ★ +' }, apSignals: { api: true, news: true, reviews: true, social: true }, inboundExpanded: null, goal: 'reactivate', category: 'Dental & Orthodontics', buildMethod: 'ai', template: null, categoryOpen: false, channelsOn: {}, gaps: { usp: 'missing', pricing: 'missing', availability: 'missing' }, setupReveal: 0, templateExpanded: false, addSourceMode: null, tplFilter: 'all', building: false, buildProgress: 0, step2View: 'sequence', ruleOff: {}, ruleWhenSel: null, ruleThenSel: null, ruleDD: null, subNewStep: 0, subNewTrigger: null, subNewBuild: 'ai', subNewDD: null, csvStep: 0, guardToggles: { suppress: true, dnc: true, quietHours: true, throttle: true },
     phoneConnected: false, waConnected: false, connectArea: '512', connectChoice: 'new', connectProvider: 'gmail', connectStep: 0,
@@ -1891,6 +1909,9 @@ class Component extends DCLogic {
       { key: 'reactivate', icon: '♻', title: 'Reactivate leads', desc: 'Win back lapsed contacts.' },
       { key: 'signups', icon: '🚀', title: 'Drive sign-ups', desc: 'Convert interest into trials.' },
       { key: 'reviews', icon: '⭐', title: 'Collect reviews', desc: 'Request reviews from clients.' },
+      { key: 'offer', icon: '🏷', title: 'Promote an offer', desc: 'Pitch a product, promo or launch.' },
+      { key: 'event', icon: '🎟', title: 'Fill an event', desc: 'Drive webinar or open-house signups.' },
+      { key: 'upsell', icon: '📈', title: 'Upsell clients', desc: 'Pitch upgrades to current clients.' },
       { key: 'custom', icon: '✎', title: 'Custom goal', desc: 'Describe your own objective.' },
     ];
     const goals = goalDefs.map((g) => {
@@ -1957,11 +1978,32 @@ class Component extends DCLogic {
 
     const selGoal = goalDefs.find((g) => g.key === this.state.goal);
     const goalTitle = selGoal ? selGoal.title : 'your goal';
-    const gapDefs = [
+    const BASE_GAPS = [
       { key: 'usp', label: 'Unique selling point', desc: 'What makes you different?', placeholder: "e.g. 15 booked appts in 30 days or you don't pay" },
       { key: 'pricing', label: 'Pricing & packages', desc: 'What the offer costs.', placeholder: 'e.g. $1,500/mo retainer · $99 per booked appt' },
       { key: 'availability', label: 'Booking availability', desc: 'When prospects can book.', placeholder: 'e.g. Mon–Fri, 9am–5pm CT' },
     ];
+    const GOAL_GAPS = {
+      offer: [
+        { key: 'offerDetails', label: 'Offer details', desc: 'What exactly is being promoted?', placeholder: 'e.g. 20% off whitening through August' },
+        { key: 'offerPrice', label: 'Pricing', desc: 'What does it cost?', placeholder: 'e.g. $199 (normally $249)' },
+        { key: 'offerLink', label: 'Purchase link', desc: 'Where do buyers go?', placeholder: 'e.g. brightpath.co/whitening' },
+        { key: 'offerDeadline', label: 'Deadline', desc: 'When does the offer end?', placeholder: 'e.g. Ends Aug 31' },
+      ],
+      event: [
+        { key: 'eventName', label: 'Event name', desc: 'What is the event?', placeholder: 'e.g. Implants 101 webinar' },
+        { key: 'eventDate', label: 'Date & time', desc: 'When does it run?', placeholder: 'e.g. Thu Jul 24, 6pm CT' },
+        { key: 'eventLink', label: 'Registration link', desc: 'Where do attendees sign up?', placeholder: 'e.g. brightpath.co/webinar' },
+        { key: 'eventValue', label: 'What attendees get', desc: 'Why should they attend?', placeholder: 'e.g. Free consult voucher for attendees' },
+      ],
+      upsell: [
+        { key: 'upsellOffer', label: 'What to pitch', desc: 'The upgrade or add-on.', placeholder: 'e.g. Whitening add-on for cleaning patients' },
+        { key: 'upsellWho', label: 'Who qualifies', desc: 'Which clients should hear it?', placeholder: 'e.g. Active patients, last visit under 12 months' },
+        { key: 'upsellPrice', label: 'Pricing', desc: 'What does it cost?', placeholder: 'e.g. $149 add-on · member discount 20%' },
+        { key: 'upsellLink', label: 'Booking link', desc: 'Where do they say yes?', placeholder: 'e.g. brightpath.co/upgrade' },
+      ],
+    };
+    const gapDefs = GOAL_GAPS[this.state.goal] || BASE_GAPS;
     const gaps = gapDefs.map((g) => {
       const mode = this.state.gaps[g.key] || 'missing';
       return Object.assign({}, g, {
@@ -1974,19 +2016,41 @@ class Component extends DCLogic {
     });
     const gapResolved = gapDefs.filter((g) => (this.state.gaps[g.key] || 'missing') !== 'missing').length;
 
+    const DEFAULT_SOURCES = [
+      { id: 'site', icon: '🌐', label: 'brightpathgrowth.co', meta: 'Website — 38 pages crawled', status: 'Synced' },
+      { id: 'pdf', icon: '📄', label: 'Growth-audit-overview.pdf', meta: 'PDF · 1.4 MB', status: 'Ready' },
+      { id: 'faq', icon: '❓', label: 'Objection-handling FAQ', meta: '18 Q&A pairs', status: 'Ready' },
+    ];
+    const srcList = this.state.sources || DEFAULT_SOURCES;
+    const knowledgeSources = srcList.map((k) => Object.assign({}, k, {
+      fg: k.status === 'Ingesting' ? '#D4A020' : '#16A82A',
+      onRemove: () => this.setState({ sources: (this.state.sources || DEFAULT_SOURCES).filter((x) => x.id !== k.id) }),
+    }));
+    const readyCount = srcList.filter((k) => k.status !== 'Ingesting').length;
+    const typedCount = gapDefs.filter((g) => (this.state.gaps[g.key] || 'missing') === 'manual').length;
+    const hasContext = readyCount > 0 || typedCount > 0;
+    const addSourceOfType = (icon, label, metaIng, metaReady) => {
+      const cur = this.state.sources || DEFAULT_SOURCES;
+      const id = 'src' + Date.now();
+      this.setState({ sources: cur.concat([{ id, icon, label, meta: metaIng, status: 'Ingesting' }]), addSourceMode: null });
+      setTimeout(() => { this.setState((s) => ({ sources: (s.sources || []).map((x) => x.id === id ? Object.assign({}, x, { status: 'Ready', meta: metaReady }) : x) })); }, 2600);
+    };
+    const addUrlSource = () => addSourceOfType('🌐', 'acmedental.com', 'Website — crawling…', 'Website — 12 pages crawled');
+    const addDocSource = () => addSourceOfType('📄', 'Pricing-sheet.pdf', 'PDF — processing…', 'PDF · 0.8 MB');
+
     const ABOUT_SOURCES = [
       { key: 'site', icon: '🌐', label: 'brightpathgrowth.co', srcLine: '🌐 brightpathgrowth.co — homepage hero', backs: 'backs offer · pricing model', quote: 'We fill empty chairs. Done-for-you outreach that books new-patient appointments — you only pay when a patient books.' },
       { key: 'pdf', icon: '📄', label: 'Growth-audit-overview.pdf', srcLine: '📄 Growth-audit-overview.pdf — page 2', backs: 'backs ICP · typical results', quote: 'Built for independent clinics and small DSO groups (1–10 locations). A typical client adds 15–30 new patients per month.' },
       { key: 'faq', icon: '❓', label: 'Objection-handling FAQ', srcLine: '❓ Objection-handling FAQ — Q7 of 18', backs: 'backs objection handling', quote: 'Already tried an agency? With BrightPath you pay per booked appointment — no retainers, no lock-in.' },
     ];
-    const aboutSources = ABOUT_SOURCES.map((a) => { const on = this.state.aboutSrc === a.key; return Object.assign({}, a, { border: on ? '#35E834' : '#EBE3D6', bg: on ? 'rgba(53,232,52,.08)' : '#fff', onOpen: () => this.setState((s) => ({ aboutSrc: s.aboutSrc === a.key ? null : a.key })) }); });
+    const aboutSources = (readyCount === 0 ? [] : ABOUT_SOURCES).map((a) => { const on = this.state.aboutSrc === a.key; return Object.assign({}, a, { border: on ? '#35E834' : '#EBE3D6', bg: on ? 'rgba(53,232,52,.08)' : '#fff', onOpen: () => this.setState((s) => ({ aboutSrc: s.aboutSrc === a.key ? null : a.key })) }); });
     const aboutEv = ABOUT_SOURCES.find((a) => a.key === this.state.aboutSrc) || null;
     const COVERED_DEFS = [
       { key: 'services', label: 'Services', srcLine: '🌐 brightpathgrowth.co/services', quote: 'Done-for-you outbound across email, SMS, WhatsApp and AI voice — list building, copy, sending and reply handling included.' },
       { key: 'cases', label: 'Case studies', srcLine: '🌐 brightpathgrowth.co/results', quote: 'Bright Smiles Dental: 18 new-patient appointments in the first 3 weeks. Rossi Clinic: 32% SMS reply rate.' },
       { key: 'objections', label: 'Objection handling', srcLine: '❓ Objection-handling FAQ — 18 Q&A pairs', quote: '“Too busy to change anything?” We do everything — you approve the first message and we handle the rest.' },
     ];
-    const covered = COVERED_DEFS.map((c) => { const on = this.state.coveredKey === c.key; return Object.assign({}, c, { chev: on ? '▴' : '▾', border: on ? '#35E834' : 'rgba(53,232,52,.35)', bg: on ? 'rgba(53,232,52,.12)' : '#fff', onOpen: () => this.setState((s) => ({ coveredKey: s.coveredKey === c.key ? null : c.key })) }); });
+    const covered = (readyCount === 0 ? [] : COVERED_DEFS).map((c) => { const on = this.state.coveredKey === c.key; return Object.assign({}, c, { chev: on ? '▴' : '▾', border: on ? '#35E834' : 'rgba(53,232,52,.35)', bg: on ? 'rgba(53,232,52,.12)' : '#fff', onOpen: () => this.setState((s) => ({ coveredKey: s.coveredKey === c.key ? null : c.key })) }); });
     const coveredEv = COVERED_DEFS.find((c) => c.key === this.state.coveredKey) || null;
 
     const BSTEPS = [
@@ -2203,8 +2267,9 @@ class Component extends DCLogic {
       subNewPickAi: () => this.setState({ subNewBuild: 'ai' }),
       subNewPickScratch: () => this.setState({ subNewBuild: 'scratch' }),
       buildStepsUI, buildDiscovered, buildComplianceDone, buildHeadline, buildSubline, buildProgressPct, buildStepLabel,
+      nextOpacity: (i === 0 && !hasContext) ? '.55' : '1',
       nextLabel: this.state.building ? 'Building…' : (i >= total - 1 ? 'Deploy agent' : (i === total - 2 ? 'Preview' : (i === 0 ? 'Generate with AI ✦' : 'Next ›'))),
-      goNext: () => { if (i >= total - 1) { if (!this.state.deploying && !this.state.deployed) { this.setState({ deploying: true }); setTimeout(() => this.setState({ deploying: false, deployed: true }), 1600); } return; } if (i === 0 && !this.state.building) { this.setState({ building: true, buildProgress: 0 }); setTimeout(() => this.startBuild(), 200); } else if (!this.state.building) { this.setState((s) => ({ stepIndex: clamp(s.stepIndex + 1) })); } },
+      goNext: () => { if (i >= total - 1) { if (!this.state.deploying && !this.state.deployed) { this.setState({ deploying: true }); setTimeout(() => this.setState({ deploying: false, deployed: true }), 1600); } return; } if (i === 0 && !hasContext) return; if (i === 0 && !this.state.building) { this.setState({ building: true, buildProgress: 0 }); setTimeout(() => this.startBuild(), 200); } else if (!this.state.building) { this.setState((s) => ({ stepIndex: clamp(s.stepIndex + 1) })); } },
       goBack: () => { if (!this.state.building) this.setState((s) => ({ stepIndex: clamp(s.stepIndex - 1) })); },
       steps: defs.map((d, idx) => {
         const done = idx < i;
@@ -2256,7 +2321,8 @@ class Component extends DCLogic {
       pickAddUrl: () => this.setState({ addSourceMode: 'url' }),
       pickAddDoc: () => this.setState({ addSourceMode: 'document' }),
       pickAddConnector: () => this.setState({ addSourceMode: 'connector' }),
-      addSourceSave: () => this.setState({ addSourceMode: null }),
+      addSourceSave: addUrlSource,
+      addDocSource,
       connectors: [ { icon: '📁', label: 'Google Drive' }, { icon: '📝', label: 'Notion' }, { icon: '📦', label: 'Dropbox' }, { icon: '🔧', label: 'HubSpot' }, { icon: '📚', label: 'Confluence' }, { icon: '💻', label: 'GitHub' } ],
       templates: templatesUI, tplFilterTabs, templatesFiltered,
       gaps,
@@ -2265,11 +2331,9 @@ class Component extends DCLogic {
       gapTotal: gaps.length,
       aboutSources, aboutEvidenceOpen: !!aboutEv, aboutQuote: aboutEv ? aboutEv.quote : '', aboutSrcLine: aboutEv ? aboutEv.srcLine : '', aboutBacks: aboutEv ? aboutEv.backs : '',
       covered, coveredEvidenceOpen: !!coveredEv, coveredQuote: coveredEv ? coveredEv.quote : '', coveredSrcLine: coveredEv ? coveredEv.srcLine : '',
-      knowledgeSources: [
-        { icon: '🌐', label: 'brightpathgrowth.co', meta: 'Website — 38 pages crawled', status: 'Synced', fg: '#16A82A' },
-        { icon: '📄', label: 'Growth-audit-overview.pdf', meta: 'PDF · 1.4 MB', status: 'Ready', fg: '#16A82A' },
-        { icon: '❓', label: 'Objection-handling FAQ', meta: '18 Q&A pairs', status: 'Ready', fg: '#16A82A' },
-      ],
+      knowledgeSources,
+      hasContext, noContext: !hasContext,
+      aboutReady: readyCount > 0, aboutEmpty: readyCount === 0,
       seq,
       editorOpen: isStepM,
       addOpen: !!(modal && modal.kind === 'add'),
