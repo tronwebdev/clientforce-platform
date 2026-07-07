@@ -447,7 +447,8 @@ export function AgentsTable({ initial }: { initial: AgentListItem[] }) {
             <div
               key={a.id}
               data-testid="agent-row"
-              onClick={() => router.push(`/agents/${a.id}`)}
+              // B6: a DRAFT row opens where the work is — the wizard, resumed.
+              onClick={() => router.push(a.uiStatus === "Draft" ? `/agents/new?agent=${a.id}` : `/agents/${a.id}`)}
               style={{ display: "grid", gridTemplateColumns: gridCols, alignItems: "center", padding: "0 8px", borderTop: "1px solid #F2EEE4", background: on ? "rgba(53,232,52,.05)" : i % 2 === 1 ? "#FCFAF6" : "#fff", cursor: "pointer" }}
             >
               <div
@@ -512,6 +513,10 @@ export function AgentsTable({ initial }: { initial: AgentListItem[] }) {
                 {rowMenu === a.id ? (
                   <div style={{ position: "absolute", top: "calc(100% + 4px)", right: 8, width: 188, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 12, boxShadow: "0 16px 44px rgba(0,0,0,.2)", overflow: "hidden", zIndex: 45, padding: 6, textAlign: "left" }}>
                     {[
+                      // B6: drafts resume in the wizard with step + entries intact.
+                      ...(a.uiStatus === "Draft"
+                        ? [{ icon: "✎", label: "Continue setup", danger: false, act: () => router.push(`/agents/new?agent=${a.id}`) }]
+                        : []),
                       { icon: "◉", label: "View", danger: false, act: () => router.push(`/agents/${a.id}`) },
                       { icon: "✎", label: "Edit", danger: false, act: () => router.push(`/agents/${a.id}`) },
                       { icon: "⧉", label: "Duplicate", danger: false, act: () => { setRowMenu(null); setToast("Duplicate arrives with a later phase"); } },

@@ -14,16 +14,52 @@ export const createAgentSchema = z.object({
 });
 export type CreateAgentInput = z.infer<typeof createAgentSchema>;
 
+/**
+ * B6: the wizard's resumable working set. Everything durable (name, goal,
+ * instructions, sources, gaps, context, graph, guardrails) lives on its own
+ * rows; this JSON carries only what would otherwise die with the browser tab.
+ * `null` clears it (set at launch — a launched agent is not resumable).
+ */
+export const draftStateSchema = z.object({
+  step: z.number().int().min(0).max(5),
+  buildMethod: z.enum(["ai", "template", "scratch"]).optional(),
+  added: z
+    .array(
+      z.object({
+        id: z.string(),
+        email: z.string(),
+        firstName: z.string().optional(),
+      }),
+    )
+    .max(500)
+    .optional(),
+  capture: z.object({ widget: z.boolean(), form: z.boolean() }).optional(),
+  dailyCap: z.number().int().min(1).max(10000).optional(),
+  windowStart: z.string().max(5).optional(),
+  windowEnd: z.string().max(5).optional(),
+  sendDays: z.array(z.boolean()).length(7).optional(),
+  quietHours: z.boolean().optional(),
+  ramp: z.boolean().optional(),
+});
+export type DraftState = z.infer<typeof draftStateSchema>;
+
 export const updateAgentSchema = z
   .object({
     name: z.string().min(1).max(120).optional(),
     status: agentStatusSchema.optional(),
     /** Validated against the A8 Guardrails schema api-side (parseGuardrails). */
     guardrails: z.unknown().optional(),
+    /** B6: wizard draft-resume state; null clears it (launch). */
+    draftState: z.union([draftStateSchema, z.null()]).optional(),
   })
-  .refine((v) => v.name !== undefined || v.status !== undefined || v.guardrails !== undefined, {
-    message: "Provide name, status and/or guardrails",
-  });
+  .refine(
+    (v) =>
+      v.name !== undefined ||
+      v.status !== undefined ||
+      v.guardrails !== undefined ||
+      v.draftState !== undefined,
+    { message: "Provide name, status, guardrails and/or draftState" },
+  );
 export type UpdateAgentInput = z.infer<typeof updateAgentSchema>;
 
 /** One Agents-List row (checkpoints §2) — live metrics, RLS-scoped. */

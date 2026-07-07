@@ -8,7 +8,7 @@
  */
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CONTEXT_FIELD_META, GOAL_KEYS, requiredFieldsFor, type GoalKey } from "@clientforce/core";
-import type { CampaignGraph, GraphNode } from "@clientforce/core";
+import type { CampaignGraph, DraftState, GraphNode } from "@clientforce/core";
 
 /** Per-field one-liner under each gap row (registry-driven). */
 const FIELD_HINTS: Record<string, string> = Object.fromEntries(
@@ -291,6 +291,91 @@ export function Wizard() {
   const [launched, setLaunched] = useState(false);
   const [enrolled, setEnrolled] = useState(0);
 
+  // ── B6: draft resume ("Continue setup" → /agents/new?agent=<id>) ─────────
+  // Durable state (name/goal/instructions/sources/gaps/context/graph) refetches
+  // from its own rows; draftState carries only the wizard's local working set.
+  const [resuming, setResuming] = useState<boolean>(
+    () => typeof window !== "undefined" && new URLSearchParams(window.location.search).has("agent"),
+  );
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("agent");
+    if (!id) return;
+    void (async () => {
+      try {
+        const a = await cf(`agents/${id}/draft`);
+        if (a.status !== "DRAFT") {
+          // Launched agents aren't resumable — hand over to the agent view.
+          window.location.replace(`/agents/${a.id}`);
+          return;
+        }
+        const ds = (a.draftState ?? {}) as Partial<DraftState>;
+        setAgentId(a.id);
+        setName(a.name ?? "");
+        setGoal(a.goal ?? null);
+        setInstructions(a.instructions ?? "");
+        if (ds.buildMethod) setBuildMethod(ds.buildMethod);
+        if (ds.added) setAdded(ds.added);
+        if (ds.capture) setCapture(ds.capture);
+        if (typeof ds.dailyCap === "number") setDailyCap(ds.dailyCap);
+        if (ds.windowStart) setWindowStart(ds.windowStart);
+        if (ds.windowEnd) setWindowEnd(ds.windowEnd);
+        if (ds.sendDays?.length === 7) setSendDays(ds.sendDays);
+        if (typeof ds.quietHours === "boolean") setQuietHours(ds.quietHours);
+        if (typeof ds.ramp === "boolean") setRamp(ds.ramp);
+        let target = typeof ds.step === "number" ? Math.min(5, Math.max(0, ds.step)) : 0;
+        if (target >= 1) {
+          // Steps past the first need the sequence — refetch it; if the plan
+          // never landed, resume on setup rather than an empty sequence.
+          try {
+            const res = await cf(`planner/graph?agentId=${a.id}`);
+            if (res.graph?.graph) {
+              setGraph(res.graph.graph as CampaignGraph);
+              setGraphSource(res.graph.source);
+              setGraphVersion(res.graph.version ?? 1);
+            } else target = 0;
+          } catch {
+            target = 0;
+          }
+        }
+        setStep(target);
+      } catch {
+        toast("Couldn't load that draft — starting fresh.");
+      } finally {
+        setResuming(false);
+      }
+    })();
+  }, [toast]);
+
+  // B6: autosave the working set on the DRAFT agent (debounced) so Continue
+  // setup restores the exact step + entries. One toast per outage, not per tick.
+  const draftSaveFailed = useRef(false);
+  useEffect(() => {
+    if (!agentId || launched || resuming || building) return;
+    const t = setTimeout(() => {
+      const draftState: DraftState = {
+        step,
+        buildMethod,
+        added,
+        capture,
+        dailyCap,
+        windowStart,
+        windowEnd,
+        sendDays,
+        quietHours,
+        ramp,
+      };
+      cf(`agents/${agentId}`, { method: "PATCH", body: JSON.stringify({ draftState }) })
+        .then(() => {
+          draftSaveFailed.current = false;
+        })
+        .catch(() => {
+          if (!draftSaveFailed.current) toast("Couldn't save your progress — check your connection.");
+          draftSaveFailed.current = true;
+        });
+    }, 800);
+    return () => clearTimeout(t);
+  }, [agentId, launched, resuming, building, step, buildMethod, added, capture, dailyCap, windowStart, windowEnd, sendDays, quietHours, ramp, toast]);
+
   // ── polling (A4: 5s) ────────────────────────────────────────────────────
   const readyCount = useRef(0);
   const refreshKnowledge = useCallback(async () => {
@@ -452,13 +537,14 @@ export function Wizard() {
   // (knowledge attaches to it), no source/answer action required first. The
   // timer resets per keystroke (true debounce) so the draft gets the full name.
   useEffect(() => {
-    if (!name.trim() || !goal || agentId) return;
+    // B6: while resuming, the draft already exists — never create a second one.
+    if (resuming || !name.trim() || !goal || agentId) return;
     const t = setTimeout(() => {
       void ensureAgent().catch(() => toast("Couldn't save the draft — check your connection."));
     }, 800);
     return () => clearTimeout(t);
     // ensureAgent is deliberately not a dep: only name/goal/agentId gate the trigger.
-  }, [name, goal, agentId]);
+  }, [name, goal, agentId, resuming]);
 
   async function addUrl() {
     if (!urlInput.trim()) return;
@@ -854,7 +940,8 @@ export function Wizard() {
   async function launch() {
     if (!agentId || !allResolved || deploying || launched) return;
     setDeploying(true);
-    await cf(`agents/${agentId}`, { method: "PATCH", body: JSON.stringify({ status: "ACTIVE" }) });
+    // B6: launch clears draftState — a launched agent is no longer resumable.
+    await cf(`agents/${agentId}`, { method: "PATCH", body: JSON.stringify({ status: "ACTIVE", draftState: null }) });
     // Enroll every added contact on the primary campaign — each POST starts one
     // durable CampaignWorkflow (P1.6); idempotent on (campaignId, contactId).
     let ok = 0;
@@ -944,6 +1031,12 @@ export function Wizard() {
         </div>
       </div>
     );
+  }
+
+  // B6: hold the canvas while the draft hydrates (avoids a step-1 flash
+  // before the resumed step lands).
+  if (resuming) {
+    return <div style={{ minHeight: "100vh", background: "#FBF7F0" }} data-testid="wizard-resuming" />;
   }
 
   const nextLabel = building ? "Building…" : step === 4 ? "Preview" : step === 0 ? "Generate with AI ✦" : "Next ›";

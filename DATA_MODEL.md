@@ -149,6 +149,8 @@ model Agent {
   instructions String?                          // freeform agent guidance
   status       AgentStatus @default(DRAFT)       // DRAFT | ACTIVE | PAUSED | ARCHIVED
   guardrails   Json                              // TYPED — must match the Guardrails schema in §3.2
+  draftState   Json?                             // TYPED (core draftStateSchema) — wizard resume
+                                                 // working set; NULL once launched (B6, PR #39)
   campaigns    Campaign[]
 }
 

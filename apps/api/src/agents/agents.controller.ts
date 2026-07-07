@@ -17,8 +17,7 @@ import {
   validateGraph,
   type AgentListItem,
 } from "@clientforce/core";
-import type { Prisma } from "@clientforce/db";
-import { Role } from "@clientforce/db";
+import { Prisma, Role } from "@clientforce/db";
 import { Roles } from "../auth/decorators";
 import { TenantClient } from "../db/tenant-client";
 
@@ -175,6 +174,26 @@ export class AgentsController {
     );
   }
 
+  /** B6: wizard hydration payload for "Continue setup" — DRAFT resume only. */
+  @Get(":id/draft")
+  async draft(@Param("id") id: string) {
+    return this.tenant.run(async (tx) => {
+      const agent = await tx.agent.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          name: true,
+          goal: true,
+          instructions: true,
+          status: true,
+          draftState: true,
+        },
+      });
+      if (!agent) throw new NotFoundException(`Agent ${id} not found`);
+      return agent;
+    });
+  }
+
   @Patch(":id")
   @Roles(Role.OWNER, Role.ADMIN)
   async update(@Param("id") id: string, @Body() body: unknown) {
@@ -188,7 +207,7 @@ export class AgentsController {
     return this.tenant.run(async (tx) => {
       const agent = await tx.agent.findUnique({ where: { id } });
       if (!agent) throw new NotFoundException(`Agent ${id} not found`);
-      const { guardrails, ...rest } = parsed.data;
+      const { guardrails, draftState, ...rest } = parsed.data;
       return tx.agent.update({
         where: { id },
         data: {
@@ -196,6 +215,15 @@ export class AgentsController {
           // C2.3: guardrails go through the A8 schema — invalid shapes throw.
           ...(guardrails !== undefined
             ? { guardrails: parseGuardrails(guardrails) as unknown as Prisma.InputJsonValue }
+            : {}),
+          // B6: draft-resume working set; null clears it (launch).
+          ...(draftState !== undefined
+            ? {
+                draftState:
+                  draftState === null
+                    ? Prisma.DbNull
+                    : (draftState as unknown as Prisma.InputJsonValue),
+              }
             : {}),
         },
       });
