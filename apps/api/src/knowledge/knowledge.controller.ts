@@ -39,7 +39,7 @@ import {
 import type { AiGateway } from "@clientforce/ai";
 
 /** Extensions the extractor supports (extract.ts dispatch) — reject others at the door. */
-const UPLOAD_EXTENSIONS = /\.(pdf|docx|txt|md)$/i;
+const UPLOAD_EXTENSIONS = /\.(pdf|docx|txt|csv|md)$/i;
 
 interface UploadedDocument {
   originalname: string;
@@ -115,7 +115,7 @@ export class KnowledgeController {
   async uploadSource(@UploadedFile() file: UploadedDocument | undefined, @Body() body: unknown) {
     if (!file) throw new BadRequestException('Missing multipart "file" field');
     if (!UPLOAD_EXTENSIONS.test(file.originalname)) {
-      throw new BadRequestException("Unsupported document type — upload PDF, DOCX, TXT, or MD");
+      throw new BadRequestException("Unsupported document type — upload PDF, DOCX, TXT, CSV, or MD");
     }
     const dto = parse(uploadKnowledgeSourceSchema, body ?? {});
     const workspaceId = this.tenant.workspaceId;
@@ -156,7 +156,7 @@ export class KnowledgeController {
       enabled,
       reason: enabled
         ? null
-        : "Document storage isn't configured yet — the STORAGE-CONNECTION-STRING secret is missing (see the PR #25 owner step).",
+        : "Document storage isn't configured for this workspace yet — ask your admin to finish storage setup.",
     };
   }
 

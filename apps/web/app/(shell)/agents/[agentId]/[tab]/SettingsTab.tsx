@@ -214,11 +214,13 @@ export function SettingsTab({ agentId, view, onChanged }: { agentId: string; vie
 
       {/* danger zone */}
       <div style={{ background: "#FFFBFA", border: "1px solid #F0CFC8", borderRadius: 16, padding: "20px 22px" }} data-testid="danger-zone">
-        <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 16, color: "#C9543F", marginBottom: 4 }}>Danger zone</div>
-        <div style={{ fontSize: 14, color: "#5C6B62", marginBottom: 14 }}>Archive pauses sending &amp; hides the agent. Delete is permanent.</div>
-        <div style={{ display: "flex", gap: 10 }}>
-          <span onClick={() => { void cf(`agents/${agentId}`, { method: "PATCH", body: JSON.stringify({ status: "ARCHIVED" }) }).then(() => router.push("/agents")).catch(() => {}); }} style={{ fontSize: 13, fontWeight: 600, color: "#5C6B62", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 10, padding: "9px 15px", cursor: "pointer" }} data-testid="archive">Archive</span>
-          <span onClick={() => { if (window.confirm("Delete this agent permanently? This cannot be undone.")) void cf(`agents/${agentId}`, { method: "DELETE" }).then(() => router.push("/agents")).catch(() => {}); }} style={{ fontSize: 13, fontWeight: 600, color: "#fff", background: "#C9543F", borderRadius: 10, padding: "9px 15px", cursor: "pointer" }} data-testid="delete">Delete</span>
+        <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 16, color: "#C9543F", marginBottom: 6 }}>Danger zone</div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
+        <div style={{ fontSize: 14, color: "#5C6B62" }}>Archive pauses sending &amp; hides the agent. Delete is permanent.</div>
+        <div style={{ display: "flex", gap: 10, flex: "none" }}>
+          <span onClick={() => { void cf(`agents/${agentId}`, { method: "PATCH", body: JSON.stringify({ status: "ARCHIVED" }) }).then(() => router.push("/agents")).catch(() => {}); }} style={{ fontSize: 13, fontWeight: 600, color: "#5C6B62", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 10, padding: "9px 16px", cursor: "pointer" }} data-testid="archive">Archive</span>
+          <span onClick={() => { if (window.confirm("Delete this agent permanently? This cannot be undone.")) void cf(`agents/${agentId}`, { method: "DELETE" }).then(() => router.push("/agents")).catch(() => {}); }} style={{ fontSize: 13, fontWeight: 600, color: "#fff", background: "#C9543F", borderRadius: 10, padding: "9px 16px", cursor: "pointer" }} data-testid="delete">Delete</span>
+        </div>
         </div>
       </div>
 

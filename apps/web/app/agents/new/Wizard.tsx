@@ -733,7 +733,9 @@ export function Wizard() {
   const nextLabel = building ? "Building…" : step === 4 ? "Preview" : step === 0 ? "Generate with AI ✦" : "Next ›";
 
   return (
-    <div style={{ position: "relative", minHeight: "100vh", width: "100%", background: "#FBF7F0", fontFamily: "'Hanken Grotesk',sans-serif", overflow: "hidden" }}>
+    // overflowX "clip" (not "hidden"): hidden creates a scroll container and
+    // kills every descendant position:sticky — the v2 rail footer must stick.
+    <div style={{ position: "relative", minHeight: "100vh", width: "100%", background: "#FBF7F0", fontFamily: "'Hanken Grotesk',sans-serif", overflowX: "clip" }}>
       {/* wizard top bar */}
       <div style={{ boxSizing: "border-box", display: "flex", alignItems: "center", gap: 14, height: 66, padding: "16px 26px 16px 72px", borderBottom: "1px solid #EBE3D6", background: "#fff" }}>
         <a href="/dashboard" style={{ boxSizing: "border-box", textDecoration: "none", display: "flex", alignItems: "center", gap: 7, height: 34, fontSize: 13.5, fontWeight: 600, color: "#5C6B62", border: "1px solid #EBE3D6", borderRadius: 10, padding: "0 13px", marginRight: 2 }}>‹ Dashboard</a>

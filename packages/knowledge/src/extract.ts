@@ -105,6 +105,7 @@ export async function extractFromDocument(filename: string, data: Buffer): Promi
       return text;
     }
     case "txt":
+    case "csv": // Q-009: the wizard dropzone advertises CSV — rows ingest as plain text
     case "md": {
       let text = data.toString("utf8");
       if (ext === "md") {
@@ -120,7 +121,7 @@ export async function extractFromDocument(filename: string, data: Buffer): Promi
       return out;
     }
     default:
-      throw new ExtractionError(`Unsupported document type ".${ext}" — use PDF, DOCX, TXT or MD`);
+      throw new ExtractionError(`Unsupported document type ".${ext}" — use PDF, DOCX, TXT, CSV or MD`);
   }
 }
 
