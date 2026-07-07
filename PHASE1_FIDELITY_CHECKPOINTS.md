@@ -168,7 +168,9 @@ entries; editing a drafted step bumps the graph version.
 ## 4. Agent view (Campaign View) — `Campaign View.dc.html`
 
 **Tab bar:** 8 tabs in prototype order — **Inbox ✉ · Calls ☎ · Steps ⋔ · Leads ☺ · Preview ◉ ·
-Stats ▤ · Settings ⚙ · Logs ≣** (white bar, `1px #EBE3D6`, radius 14, active = ink fill).
+Stats ▤ · Settings ⚙ · Logs ≣** (white bar, `1px #EBE3D6`, radius 14, **active = brand gradient**
+with near-black text, per the prototype's `tabs` map — the earlier "ink fill" wording was stale;
+amended in PR #36, owner-approved).
 **Wired in P1:** Inbox, Steps, Leads, Settings, Logs. **Inert (visible, tab disabled-with-reason or
 static mock):** Calls, Preview, Stats. Do not delete them.
 
