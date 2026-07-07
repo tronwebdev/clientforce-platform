@@ -5,8 +5,14 @@
 # dispatch only; read-only against Azure except the e2e knowledge source.
 name: worker-health-probe
 
+# pull_request trigger (paths-scoped to this file): workflow_dispatch only
+# resolves from the default branch, and pushing there triggers a staging
+# redeploy — which would destroy the evidence this probe is collecting.
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/worker-health-probe.yml"
 
 permissions:
   id-token: write
