@@ -1,5 +1,6 @@
 import { parseHTML } from "linkedom";
 import mammoth from "mammoth";
+import * as XLSX from "xlsx";
 import pdfParse from "pdf-parse";
 
 /** Typed, non-retryable extraction failure → the source goes FAILED with this reason. */
@@ -104,6 +105,31 @@ export async function extractFromDocument(filename: string, data: Buffer): Promi
       if (!text) throw new ExtractionError("DOCX contains no extractable text");
       return text;
     }
+    // Q-009: the Brand-kit dropzone advertises XLSX — sheets ingest as text
+    // lines (one row per line, cells tab-joined, sheet name as a heading).
+    case "xlsx": {
+      let wb: XLSX.WorkBook;
+      try {
+        wb = XLSX.read(data, { type: "buffer" });
+      } catch (e) {
+        throw new ExtractionError(
+          `XLSX parse failed: ${e instanceof Error ? e.message : String(e)}`,
+        );
+      }
+      const blocks: string[] = [];
+      for (const name of wb.SheetNames) {
+        const sheet = wb.Sheets[name];
+        if (!sheet) continue;
+        const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, raw: false });
+        const lines = rows
+          .map((r) => (Array.isArray(r) ? r.map((c) => String(c ?? "").trim()).join("\t").trim() : ""))
+          .filter(Boolean);
+        if (lines.length > 0) blocks.push(`${name}\n${lines.join("\n")}`);
+      }
+      const text = normalize(blocks.join("\n\n"));
+      if (!text) throw new ExtractionError("XLSX contains no extractable text");
+      return text;
+    }
     case "txt":
     case "csv": // Q-009: the wizard dropzone advertises CSV — rows ingest as plain text
     case "md": {
@@ -121,7 +147,7 @@ export async function extractFromDocument(filename: string, data: Buffer): Promi
       return out;
     }
     default:
-      throw new ExtractionError(`Unsupported document type ".${ext}" — use PDF, DOCX, TXT, CSV or MD`);
+      throw new ExtractionError(`Unsupported document type ".${ext}" — use PDF, DOCX, XLSX, TXT, CSV or MD`);
   }
 }
 
