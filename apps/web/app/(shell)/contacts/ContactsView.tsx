@@ -270,19 +270,23 @@ export function ContactsView() {
     const valid = csvFile.rows.filter((r) => emailIdx >= 0 && /.+@.+\..+/.test(r[emailIdx] ?? ""));
     const dupes = valid.filter((r) => existing.has((r[emailIdx] ?? "").toLowerCase()));
     const suppressed = valid.filter((r) => unsubEmails.has((r[emailIdx] ?? "").toLowerCase()));
+    // Prototype semantics (round-2 fix): detected duplicates are SKIPPED —
+    // only fresh rows import; the button and done-count follow newCount.
+    const fresh = valid.filter((r) => !existing.has((r[emailIdx] ?? "").toLowerCase()));
     return {
-      newCount: valid.length - dupes.length,
+      newCount: fresh.length,
       dupes: dupes.length,
       suppressed: suppressed.length,
       mapped: csvMap.filter((m) => m !== "Skip this column").length,
       valid,
+      fresh,
       emailIdx,
     };
   }, [csvFile, csvMap, rows]);
   async function runImport() {
     if (!csvFile || !csvParsed) return;
     let created = 0;
-    for (const r of csvParsed.valid) {
+    for (const r of csvParsed.fresh) {
       const payload: Record<string, string> = {};
       csvMap.forEach((m, i) => {
         const key = CSV_FIELD_KEY[m];
@@ -848,7 +852,7 @@ export function ContactsView() {
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
                           {[
                             { value: String(csvParsed.newCount), label: "New contacts", fg: "#16A82A" },
-                            { value: String(csvParsed.dupes), label: "Duplicates detected", fg: "#1192A6" },
+                            { value: String(csvParsed.dupes), label: "Duplicates skipped", fg: "#1192A6" },
                             { value: String(csvParsed.suppressed), label: "On suppression list", fg: "#8A7F6B" },
                             { value: String(csvParsed.mapped), label: "Columns mapped", fg: "#0E1512" },
                           ].map((st2) => (
@@ -872,8 +876,8 @@ export function ContactsView() {
                       <span onClick={() => setCsvStep((v) => Math.max(0, v - 1))} style={{ fontSize: 14, fontWeight: 600, color: "#5C6B62", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 11, padding: "10px 18px", cursor: "pointer" }}>‹ Back</span>
                     )}
                     {(() => {
-                      const canGo = csvStep === 0 ? Boolean(csvFile) : csvStep === 1 ? csvMap.includes("Email") : (csvParsed?.newCount ?? 0) + (csvParsed?.dupes ?? 0) > 0;
-                      const label = csvStep === 2 ? `Import ${csvParsed?.valid.length ?? 0} contacts` : "Continue";
+                      const canGo = csvStep === 0 ? Boolean(csvFile) : csvStep === 1 ? csvMap.includes("Email") : (csvParsed?.newCount ?? 0) > 0;
+                      const label = csvStep === 2 ? `Import ${csvParsed?.newCount ?? 0} contact${(csvParsed?.newCount ?? 0) === 1 ? "" : "s"}` : "Continue";
                       return (
                         <span onClick={() => { if (!canGo) return; if (csvStep === 2) void runImport(); else setCsvStep((v) => v + 1); }} style={{ marginLeft: "auto", fontSize: 14, fontWeight: 700, color: canGo ? "#0A0F0C" : "#9AA59E", background: canGo ? GRAD : "#ECE7DC", borderRadius: 11, padding: "10px 22px", cursor: canGo ? "pointer" : "not-allowed", boxShadow: canGo ? "0 6px 16px rgba(53,232,52,.26)" : "none" }} data-testid="import-save">{label}</span>
                       );
