@@ -13,6 +13,9 @@
 .cf-sb {
   display: flex;
   flex-direction: column;
+  /* 36-5 rhythm: the prototypes render the sidebar at the browser-default
+     line-height; the app's body 1.5 made every nav row ~4px taller (§1 ±2px). */
+  line-height: normal;
   /* §1: 248px is the prototype literal (checkpoints corrected 2026-07-05). */
   width: 248px;
   flex: none;
@@ -227,6 +230,8 @@
   background: transparent;
   cursor: pointer;
   font-family: var(--cf-font-body);
+  /* 36-5: <button> default text-align:center centered the flex:1 label. */
+  text-align: left;
 }
 
 .cf-sb__tools-menu {
