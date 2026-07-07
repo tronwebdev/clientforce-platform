@@ -56,10 +56,12 @@ export function SettingsTab({ agentId, view, onChanged }: { agentId: string; vie
     if (!g) return;
     setDailyCap(g.dailyCap.email);
     setDays([1, 2, 3, 4, 5, 6, 7].map((d) => g.sendingWindow.days.includes(d)));
+    setTracking({ open: g.tracking?.openTracking ?? true, link: g.tracking?.linkTracking ?? true });
   }, [view?.guardrails]);
 
-  async function saveGuardrails(next: { cap?: number; days?: boolean[] }) {
+  async function saveGuardrails(next: { cap?: number; days?: boolean[]; tracking?: { open: boolean; link: boolean } }) {
     const g = view?.guardrails;
+    const t = next.tracking ?? tracking;
     await cf(`agents/${agentId}`, {
       method: "PATCH",
       body: JSON.stringify({
@@ -72,6 +74,7 @@ export function SettingsTab({ agentId, view, onChanged }: { agentId: string; vie
           },
           dailyCap: { email: next.cap ?? dailyCap },
           consent: null,
+          tracking: { openTracking: t.open, linkTracking: t.link },
           unsubscribeFooter: true,
           suppressionCheck: true,
         },
@@ -179,8 +182,8 @@ export function SettingsTab({ agentId, view, onChanged }: { agentId: string; vie
       <div style={{ ...card, padding: "8px 20px 14px" }} data-testid="settings-tracking">
         {(
           [
-            { key: "open" as const, label: "Open tracking", desc: "Track when a prospect opens an email.", inert: true },
-            { key: "link" as const, label: "Link tracking", desc: "Track clicks on links in your emails.", inert: true },
+            { key: "open" as const, label: "Open tracking", desc: "Track when a prospect opens an email." },
+            { key: "link" as const, label: "Link tracking", desc: "Track clicks on links in your emails." },
           ]
         ).map((t) => (
           <div key={t.key} style={{ display: "flex", justifyContent: "space-between", gap: 16, padding: "13px 0", borderTop: "1px solid #F2EEE4", alignItems: "center" }}>
@@ -188,7 +191,7 @@ export function SettingsTab({ agentId, view, onChanged }: { agentId: string; vie
               <div style={{ fontSize: 14, fontWeight: 600, color: "#0E1512" }}>{t.label}</div>
               <div style={{ fontSize: 13, color: "#9AA59E" }}>{t.desc}</div>
             </div>
-            <span onClick={() => setTracking((v) => ({ ...v, [t.key]: !v[t.key] }))} title="Persisted tracking preferences arrive with a Guardrails schema extension" style={{ width: 44, height: 26, borderRadius: 100, background: tracking[t.key] ? GRAD : "#D8CFBE", position: "relative", display: "inline-block", cursor: "pointer", flex: "none" }} data-testid={`toggle-${t.key}`}>
+            <span onClick={() => { const nextT = { ...tracking, [t.key]: !tracking[t.key] }; setTracking(nextT); void saveGuardrails({ tracking: nextT }); }} style={{ width: 44, height: 26, borderRadius: 100, background: tracking[t.key] ? GRAD : "#D8CFBE", position: "relative", display: "inline-block", cursor: "pointer", flex: "none" }} data-testid={`toggle-${t.key}`}>
               <span style={{ position: "absolute", top: 3, ...(tracking[t.key] ? { right: 3 } : { left: 3 }), width: 20, height: 20, borderRadius: "50%", background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,.2)" }} />
             </span>
           </div>

@@ -142,6 +142,24 @@ export class KnowledgeController {
     return updated;
   }
 
+  /**
+   * DEC-026: the wizard's Upload-doc card must never be a dead click — when
+   * document storage isn't configured (no STORAGE_CONNECTION_STRING in a
+   * deployed environment) it renders disabled with this reason. Local dev
+   * falls back to the filesystem store, so uploads stay enabled there.
+   */
+  @Get("upload-config")
+  uploadConfig() {
+    const enabled =
+      Boolean(process.env.STORAGE_CONNECTION_STRING) || process.env.NODE_ENV !== "production";
+    return {
+      enabled,
+      reason: enabled
+        ? null
+        : "Document storage isn't configured yet — the STORAGE-CONNECTION-STRING secret is missing (see the PR #25 owner step).",
+    };
+  }
+
   @Get("sources")
   listSources(@Query() query: unknown) {
     const { agentId, scope } = parse(listKnowledgeSourcesQuerySchema, query ?? {});

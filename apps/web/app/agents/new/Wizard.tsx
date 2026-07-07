@@ -7,7 +7,7 @@
  * P1.4 planner, P1.5 senders, A5 create path. Prototype literals throughout.
  */
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CONTEXT_FIELD_META } from "@clientforce/core";
+import { CONTEXT_FIELD_META, GOAL_KEYS, requiredFieldsFor, type GoalKey } from "@clientforce/core";
 import type { CampaignGraph, GraphNode } from "@clientforce/core";
 
 /** Per-field one-liner under each gap row (registry-driven). */
@@ -111,6 +111,9 @@ const GOALS: Array<{ key: string; icon: string; title: string; desc: string }> =
   { key: "reactivate_leads", icon: "♻", title: "Reactivate leads", desc: "Win back lapsed contacts." },
   { key: "drive_signups", icon: "🚀", title: "Drive sign-ups", desc: "Convert interest into trials." },
   { key: "collect_reviews", icon: "⭐", title: "Collect reviews", desc: "Request reviews from clients." },
+  { key: "promote_offer", icon: "🏷", title: "Promote an offer", desc: "Pitch a product, promo or launch." },
+  { key: "fill_event", icon: "🎟", title: "Fill an event", desc: "Drive webinar or open-house signups." },
+  { key: "upsell_clients", icon: "📈", title: "Upsell clients", desc: "Pitch upgrades to current clients." },
   { key: "custom", icon: "✎", title: "Custom goal", desc: "Describe your own objective." },
 ];
 
@@ -156,9 +159,10 @@ interface Gap {
 
 const SRC_ICON: Record<string, string> = { WEBSITE: "🌐", DOCUMENT: "📄", TEXT: "📝", CONNECTOR: "🔌" };
 const SRC_KIND_LABEL: Record<string, string> = { WEBSITE: "Website", DOCUMENT: "Document", TEXT: "Pasted text", CONNECTOR: "Connector" };
+/** v2: every not-yet-ready state renders amber and never counts as context. */
 const ING_PILL: Record<string, { fg: string; label: string }> = {
-  PENDING: { fg: "#8A7F6B", label: "Queued" },
-  INGESTING: { fg: "#1192A6", label: "Ingesting…" },
+  PENDING: { fg: "#D4A020", label: "Queued" },
+  INGESTING: { fg: "#D4A020", label: "Ingesting" },
   READY: { fg: "#16A82A", label: "Ready" },
   FAILED: { fg: "#C9543F", label: "Failed" },
 };
@@ -181,10 +185,16 @@ export function Wizard() {
   const [fields, setFields] = useState<Record<string, ContextField>>({});
   const [aboutEv, setAboutEv] = useState<string | null>(null); // sourceId
   const [gaps, setGaps] = useState<Gap[]>([]);
-  const [gapMeta, setGapMeta] = useState({ resolved: 0, total: 0, launchReady: true });
+  // DEC-024: never all-clear by default — launch stays gated until a real
+  // gap report says otherwise (the staging zero-source bug).
+  const [gapMeta, setGapMeta] = useState({ resolved: 0, total: 0, launchReady: false });
   const [coveredEv, setCoveredEv] = useState<string | null>(null); // field key
   const [typedDrafts, setTypedDrafts] = useState<Record<string, string>>({});
   const [buildMethod, setBuildMethod] = useState<"ai" | "template" | "scratch">("ai");
+  const [reportLoaded, setReportLoaded] = useState(false);
+  const [uploadCfg, setUploadCfg] = useState<{ enabled: boolean; reason?: string | null } | null>(null);
+  const [aboutEditing, setAboutEditing] = useState(false);
+  const [aboutDraft, setAboutDraft] = useState("");
 
   // step 2
   const [graph, setGraph] = useState<CampaignGraph | null>(null);
@@ -207,7 +217,10 @@ export function Wizard() {
   const [listOpen, setListOpen] = useState(false);
   const [csvText, setCsvText] = useState("");
   const [manualOpen, setManualOpen] = useState(false);
-  const [manual, setManual] = useState({ firstName: "", lastName: "", email: "", company: "" });
+  const EMPTY_MANUAL = { firstName: "", lastName: "", email: "", company: "", phone: "" };
+  const [manual, setManual] = useState(EMPTY_MANUAL);
+  // DEC-039a: multi-add — rows queue up "this session" and post together.
+  const [manualQueue, setManualQueue] = useState<Array<typeof EMPTY_MANUAL>>([]);
   const [added, setAdded] = useState<Array<{ id: string; email: string; firstName?: string }>>([]);
 
   // step 4 — visual only (checkpoints §3)
@@ -249,7 +262,13 @@ export function Wizard() {
       const merged = { ...(ctx.workspace?.fields ?? {}), ...(ctx.agent?.fields ?? {}) };
       setFields(merged as Record<string, ContextField>);
       setContextSummary(ctx.agent?.rawSummary || ctx.workspace?.rawSummary || "");
-      // P1.3 GapReport: {gaps: [{key,label,status,…}], resolved, total, launchReady}
+    } catch {
+      /* context not distilled yet — fine */
+    }
+    // DEC-024 fix: the gap report is fetched INDEPENDENTLY of the context row —
+    // at zero sources it still returns every goal-required field as an open
+    // gap (the old coupled fetch silently kept the all-clear default).
+    try {
       const report = await cf(`context/gaps?agentId=${agentId}&goal=${goal}`);
       setGaps(
         (report.gaps ?? []).map(
@@ -261,14 +280,19 @@ export function Wizard() {
           }),
         ),
       );
-      setGapMeta({ resolved: report.resolved ?? 0, total: report.total ?? 0, launchReady: report.launchReady ?? true });
+      setGapMeta({ resolved: report.resolved ?? 0, total: report.total ?? 0, launchReady: report.launchReady ?? false });
+      setReportLoaded(true);
     } catch {
-      /* context not distilled yet — fine */
+      /* gap report unavailable — the registry-seeded local gaps stay */
     }
   }, [agentId, goal]);
 
   useEffect(() => {
     if (!agentId) return;
+    // immediate first fetch (v2: gap rows must seed as soon as agent+goal
+    // exist, not a poll-tick later), then the A4 5s poll.
+    void refreshKnowledge();
+    void refreshContext();
     const t = setInterval(() => {
       void refreshKnowledge();
       void refreshContext();
@@ -280,15 +304,35 @@ export function Wizard() {
     if (step === 4) void cf("senders").then(setSenders).catch(() => {});
   }, [step]);
 
+  // DEC-026: the Upload-doc card is disabled-with-reason when storage is absent.
+  useEffect(() => {
+    void cf("knowledge/upload-config").then(setUploadCfg).catch(() => setUploadCfg({ enabled: true }));
+  }, []);
+
   // ── derived ──────────────────────────────────────────────────────────────
-  const covered = useMemo(
-    () => gaps.filter((g) => g.state === "covered"),
-    [gaps],
-  );
-  const openGaps = useMemo(() => gaps.filter((g) => g.state !== "covered"), [gaps]);
-  const gapTotal = gapMeta.total;
-  const gapResolved = gapMeta.resolved;
-  const allResolved = gapMeta.launchReady;
+  // DEC-024: before any server report exists, seed the goal's required fields
+  // as OPEN gaps straight from the core registry — zero sources must never
+  // read as launch-ready.
+  const localGaps = useMemo<Gap[]>(() => {
+    if (!goal || !(GOAL_KEYS as readonly string[]).includes(goal)) return [];
+    return requiredFieldsFor(goal as GoalKey).map((k) => ({
+      key: k,
+      label: CONTEXT_FIELD_META[k].label,
+      description: FIELD_HINTS[k] ?? "",
+      state: "open" as const,
+    }));
+  }, [goal]);
+  const gapRows = reportLoaded ? gaps : localGaps;
+  const covered = useMemo(() => gapRows.filter((g) => g.state === "covered"), [gapRows]);
+  const openGaps = useMemo(() => gapRows.filter((g) => g.state !== "covered"), [gapRows]);
+  const gapTotal = reportLoaded ? gapMeta.total : localGaps.length;
+  const gapResolved = reportLoaded ? gapMeta.resolved : 0;
+  const allResolved = reportLoaded ? gapMeta.launchReady : false;
+
+  // v2 gating: context = at least one READY source or one typed gap answer.
+  const readyCnt = useMemo(() => sources.filter((x) => x.status === "READY").length, [sources]);
+  const typedCnt = useMemo(() => gapRows.filter((g) => g.state === "typed").length, [gapRows]);
+  const hasContext = readyCnt > 0 || typedCnt > 0;
 
   /** Grounded-in chips: citations aggregated BY SOURCE (chunk ids never shown). */
   const groundedSources = useMemo(() => {
@@ -355,6 +399,34 @@ export function Wizard() {
     await refreshKnowledge();
   }
 
+  async function removeSource(id: string) {
+    await cf(`knowledge/sources/${id}`, { method: "DELETE" }).catch(() => {});
+    await refreshKnowledge();
+  }
+
+  /** DEC-026: real multipart upload through the proxy (cf() forces JSON headers). */
+  async function uploadDoc(file: File) {
+    const id = await ensureAgent();
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("agentId", id);
+    setBusyMsg("Uploading document…");
+    await fetch("/api/cf/knowledge/sources/upload", { method: "POST", body: fd }).catch(() => {});
+    setBusyMsg("");
+    setAddMode(null);
+    await refreshKnowledge();
+  }
+
+  async function saveAbout() {
+    if (!agentId) return;
+    await cf("context/summary", {
+      method: "POST",
+      body: JSON.stringify({ agentId, summary: aboutDraft }),
+    }).catch(() => {});
+    setContextSummary(aboutDraft);
+    setAboutEditing(false);
+  }
+
   async function typeGap(key: string) {
     const value = typedDrafts[key]?.trim();
     if (!value || !agentId) return;
@@ -417,6 +489,8 @@ export function Wizard() {
 
   async function next() {
     if (step === 0) {
+      // v2 (§3): no context → Generate is a dimmed no-op, never a build.
+      if (!hasContext) return;
       const id = await ensureAgent();
       if (buildMethod === "ai" && !graph) {
         // "Generate with AI ✦" → building interstitial, then step 2
@@ -437,6 +511,7 @@ export function Wizard() {
             },
             dailyCap: { email: dailyCap },
             consent: null,
+            tracking: { openTracking: true, linkTracking: true },
             unsubscribeFooter: true,
             suppressionCheck: true,
           },
@@ -544,7 +619,7 @@ export function Wizard() {
     setDelayEdit(null);
   }
 
-  async function addContacts(rows: Array<{ email: string; firstName?: string; lastName?: string; company?: string }>) {
+  async function addContacts(rows: Array<{ email: string; firstName?: string; lastName?: string; company?: string; phone?: string }>) {
     for (const row of rows) {
       if (!row.email?.includes("@")) continue;
       try {
@@ -588,6 +663,7 @@ export function Wizard() {
             },
             dailyCap: { email: dailyCap },
             consent: null,
+            tracking: { openTracking: true, linkTracking: true },
             unsubscribeFooter: true,
             suppressionCheck: true,
           },
@@ -670,8 +746,8 @@ export function Wizard() {
       </div>
 
       <div style={{ display: "flex", background: "#FBF7F0", paddingLeft: 64 }}>
-      {/* step rail — §3: 332px, right hairline, Back + gradient Next pinned */}
-      <div style={{ boxSizing: "border-box", flex: "none", width: 332, borderRight: "1px solid #EBE3D6", padding: "26px 24px", minHeight: 680, height: "calc(100vh - 66px)", position: "sticky", top: 0, alignSelf: "flex-start", display: "flex", flexDirection: "column" }}>
+      {/* step rail — §3 v2: 332px, divider lives on the content, sticky footer */}
+      <div style={{ boxSizing: "border-box", flex: "none", width: 332, padding: "26px 24px 0", minHeight: 680, height: "calc(100vh - 66px)", position: "sticky", top: 0, alignSelf: "flex-start", display: "flex", flexDirection: "column" }}>
         <div>
           {STEP_DEFS.map((d, i) => {
             const done = i < step;
@@ -694,12 +770,12 @@ export function Wizard() {
             );
           })}
         </div>
-        <div style={{ marginTop: "auto", display: "flex", gap: 10, paddingTop: 20 }}>
+        <div style={{ marginTop: "auto", display: "flex", gap: 10, paddingTop: 14, position: "sticky", bottom: 0, background: "#FBF7F0", paddingBottom: 24 }}>
           <button type="button" onClick={() => !building && setStep((s) => Math.max(0, s - 1))} style={{ flex: "none", fontSize: 14, fontWeight: 600, color: "#5C6B62", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 11, padding: "11px 18px", cursor: "pointer", fontFamily: "'Hanken Grotesk',sans-serif" }}>
             ‹ Back
           </button>
           {step < 5 ? (
-            <button type="button" data-testid="wizard-next" onClick={() => void next()} disabled={!stepValid || building} style={{ flex: 1, textAlign: "center", background: stepValid && !building ? GRAD : "#EDE8DC", border: "none", borderRadius: 11, padding: "11px 18px", fontSize: 15, fontWeight: 700, color: stepValid && !building ? "#0A0F0C" : "#A99F8C", cursor: stepValid && !building ? "pointer" : "default", boxShadow: stepValid && !building ? "0 6px 16px rgba(53,232,52,.26)" : "none", fontFamily: "'Hanken Grotesk',sans-serif" }}>
+            <button type="button" data-testid="wizard-next" onClick={() => void next()} disabled={!stepValid || building} style={{ flex: 1, textAlign: "center", background: stepValid && !building ? GRAD : "#EDE8DC", border: "none", borderRadius: 11, padding: "11px 18px", fontSize: 15, fontWeight: 700, color: stepValid && !building ? "#0A0F0C" : "#A99F8C", cursor: stepValid && !building ? "pointer" : "default", boxShadow: stepValid && !building ? "0 6px 16px rgba(53,232,52,.26)" : "none", opacity: step === 0 && stepValid && !hasContext ? 0.55 : 1, transition: "opacity .2s", fontFamily: "'Hanken Grotesk',sans-serif" }}>
               {nextLabel}
             </button>
           ) : (
@@ -710,8 +786,8 @@ export function Wizard() {
         </div>
       </div>
 
-      {/* step content */}
-      <div style={{ boxSizing: "border-box", flex: 1, minWidth: 0, padding: "28px 32px", position: "relative" }}>
+      {/* step content — v2: carries the 1px divider as border-left */}
+      <div style={{ boxSizing: "border-box", flex: 1, minWidth: 0, padding: "28px 32px", position: "relative", borderLeft: "1px solid #EBE3D6" }}>
         <div style={{ marginBottom: 22 }}>
           <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 26, letterSpacing: "-.02em", color: "#0E1512" }}>{STEP_DEFS[step]!.title}</div>
           <div style={{ fontSize: 15, color: "#5C6B62" }}>{STEP_DEFS[step]!.subtitle}</div>
@@ -731,7 +807,7 @@ export function Wizard() {
         {step === 0 ? (
           <div style={{ maxWidth: 760 }}>
           <Step1
-            {...{ name, setName, goal, setGoal, sources, addMode, setAddMode, category, setCategory, categoryOpen, setCategoryOpen, instructions, setInstructions, urlInput, setUrlInput, addUrl, contextSummary, groundedSources, aboutEv, setAboutEv, gaps: openGaps, covered, coveredEv, setCoveredEv, fields, gapResolved, gapTotal, typedDrafts, setTypedDrafts, typeGap, delegateGap, undoGap, buildMethod, setBuildMethod, ensureAgent, refreshKnowledge }}
+            {...{ name, setName, goal, setGoal, sources, addMode, setAddMode, category, setCategory, categoryOpen, setCategoryOpen, instructions, setInstructions, urlInput, setUrlInput, addUrl, contextSummary, groundedSources, aboutEv, setAboutEv, gaps: openGaps, covered, coveredEv, setCoveredEv, fields, gapResolved, gapTotal, typedDrafts, setTypedDrafts, typeGap, delegateGap, undoGap, buildMethod, setBuildMethod, ensureAgent, refreshKnowledge, hasContext, readyCnt, removeSource, uploadDoc, uploadCfg, aboutEditing, setAboutEditing, aboutDraft, setAboutDraft, saveAbout }}
           />
           </div>
         ) : null}
@@ -1231,28 +1307,68 @@ export function Wizard() {
         </Modal>
       ) : null}
 
-      {/* manual-add drawer — §3: 480px, bg #FBF7F0 */}
+      {/* manual-add drawer — §3/DEC-039a: full prototype anatomy, multi-add session */}
       {manualOpen ? (
         <div style={{ position: "fixed", inset: 0, zIndex: 60 }}>
-          <div onClick={() => setManualOpen(false)} style={{ position: "absolute", inset: 0, background: "rgba(12,20,15,.45)" }} />
-          <div style={{ position: "absolute", top: 0, right: 0, bottom: 0, width: 480, background: "#FBF7F0", boxShadow: "-24px 0 70px rgba(0,0,0,.3)", display: "flex", flexDirection: "column" }} data-testid="manual-drawer">
-            <div style={{ background: "#fff", borderBottom: "1px solid #EBE3D6", padding: "16px 20px", fontSize: 16, fontWeight: 700, color: "#0E1512" }}>Add contact</div>
-            <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 4 }}>
-              {(["firstName", "lastName", "email", "company"] as const).map((k) => (
-                <div key={k}>
-                  <label style={lbl}>{k === "firstName" ? "First name" : k === "lastName" ? "Last name" : k === "email" ? "Email" : "Company"}</label>
-                  <input value={manual[k]} onChange={(e) => setManual((m) => ({ ...m, [k]: e.target.value }))} style={inp} data-testid={`manual-${k}`} />
+          <div onClick={() => setManualOpen(false)} style={{ position: "absolute", inset: 0, background: "rgba(12,20,15,.4)" }} />
+          <div style={{ position: "absolute", top: 0, right: 0, bottom: 0, width: 480, maxWidth: "100%", background: "#FBF7F0", boxShadow: "-24px 0 70px rgba(0,0,0,.28)", display: "flex", flexDirection: "column" }} data-testid="manual-drawer">
+            <div style={{ flex: "none", display: "flex", alignItems: "center", gap: 12, padding: "18px 22px", background: "#fff", borderBottom: "1px solid #EBE3D6" }}>
+              <span style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 17, color: "#0E1512", flex: 1 }}>Add contacts manually</span>
+              <span onClick={() => setManualOpen(false)} style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid #EBE3D6", display: "flex", alignItems: "center", justifyContent: "center", color: "#9AA59E", cursor: "pointer" }} data-testid="manual-close">✕</span>
+            </div>
+            <div style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: "20px 22px" }}>
+              <div style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 14, padding: 16, marginBottom: 18 }}>
+                <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
+                  {([["firstName", "First name", "Jane"], ["lastName", "Last name", "Doe"]] as const).map(([k, label, ph]) => (
+                    <div key={k} style={{ flex: 1 }}>
+                      <label style={manualLbl}>{label}</label>
+                      <input value={manual[k]} onChange={(e) => setManual((m) => ({ ...m, [k]: e.target.value }))} placeholder={ph} style={manualInp} data-testid={`manual-${k}`} />
+                    </div>
+                  ))}
+                </div>
+                <div style={{ marginBottom: 12 }}>
+                  <label style={manualLbl}>Email</label>
+                  <input value={manual.email} onChange={(e) => setManual((m) => ({ ...m, email: e.target.value }))} placeholder="jane@clinic.com" style={manualInp} data-testid="manual-email" />
+                </div>
+                <div style={{ display: "flex", gap: 12, marginBottom: 14 }}>
+                  {([["company", "Company", "Clinic name"], ["phone", "Phone", "+1…"]] as const).map(([k, label, ph]) => (
+                    <div key={k} style={{ flex: 1 }}>
+                      <label style={manualLbl}>{label}</label>
+                      <input value={manual[k]} onChange={(e) => setManual((m) => ({ ...m, [k]: e.target.value }))} placeholder={ph} style={manualInp} data-testid={`manual-${k}`} />
+                    </div>
+                  ))}
+                </div>
+                <div
+                  onClick={() => { if (!manual.email.includes("@")) return; setManualQueue((q) => [...q, manual]); setManual(EMPTY_MANUAL); }}
+                  style={{ textAlign: "center", fontSize: 13.5, fontWeight: 700, color: "#16A82A", background: "rgba(53,232,52,.08)", border: "1.5px solid rgba(53,232,52,.3)", borderRadius: 11, padding: 11, cursor: manual.email.includes("@") ? "pointer" : "default", opacity: manual.email.includes("@") ? 1 : 0.6 }}
+                  data-testid="manual-queue-add"
+                >
+                  + Add contact
+                </div>
+              </div>
+              <div style={{ fontSize: 11.5, fontWeight: 700, color: "#8A7F6B", letterSpacing: ".07em", textTransform: "uppercase", marginBottom: 10 }}>Added this session · {manualQueue.length}</div>
+              {manualQueue.map((c, i) => (
+                <div key={`${c.email}-${i}`} style={{ display: "flex", alignItems: "center", gap: 11, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 12, padding: "11px 14px", marginBottom: 8 }} data-testid="manual-queued-row">
+                  <span style={{ width: 34, height: 34, borderRadius: "50%", flex: "none", background: i % 2 === 0 ? "rgba(53,232,52,.16)" : "rgba(54,215,237,.16)", color: "#0A0F0C", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12.5, fontWeight: 700 }}>
+                    {`${(c.firstName[0] ?? "").toUpperCase()}${(c.lastName[0] ?? "").toUpperCase()}` || c.email.slice(0, 2).toUpperCase()}
+                  </span>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 600, color: "#0E1512" }}>{[c.firstName, c.lastName].filter(Boolean).join(" ") || c.email}</div>
+                    <div style={{ fontSize: 12, color: "#9AA59E", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.email}{c.company ? ` · ${c.company}` : ""}</div>
+                  </div>
+                  <span onClick={() => setManualQueue((q) => q.filter((_, j) => j !== i))} style={{ color: "#C9543F", fontSize: 12, fontWeight: 600, cursor: "pointer", flex: "none" }}>Remove</span>
                 </div>
               ))}
-              <button
-                type="button"
+            </div>
+            <div style={{ flex: "none", display: "flex", alignItems: "center", gap: 12, padding: "16px 22px", borderTop: "1px solid #EBE3D6", background: "#fff" }}>
+              <span style={{ fontSize: 13, color: "#9AA59E", flex: 1 }}>{manualQueue.length} contact{manualQueue.length === 1 ? "" : "s"} ready to add</span>
+              <span
+                onClick={() => { if (manualQueue.length === 0) return; void addContacts(manualQueue).then(() => { setManualQueue([]); setManualOpen(false); }); }}
+                style={{ fontSize: 14, fontWeight: 700, color: "#0A0F0C", background: GRAD, borderRadius: 11, padding: "10px 22px", cursor: manualQueue.length ? "pointer" : "default", boxShadow: "0 6px 16px rgba(53,232,52,.26)", opacity: manualQueue.length ? 1 : 0.55 }}
                 data-testid="manual-save"
-                onClick={() => void addContacts([manual]).then(() => { setManualOpen(false); setManual({ firstName: "", lastName: "", email: "", company: "" }); })}
-                disabled={!manual.email.includes("@")}
-                style={{ marginTop: 12, background: manual.email.includes("@") ? GRAD : "#EDE8DC", border: "none", borderRadius: 11, padding: "12px 0", fontSize: 14.5, fontWeight: 700, color: manual.email.includes("@") ? "#0A0F0C" : "#A99F8C", cursor: "pointer", fontFamily: "'Hanken Grotesk',sans-serif" }}
               >
-                Add contact
-              </button>
+                Add to campaign
+              </span>
             </div>
           </div>
         </div>
@@ -1374,6 +1490,13 @@ function Step1(props: {
   typeGap: (k: string) => Promise<void>; delegateGap: (k: string) => Promise<void>; undoGap: (k: string) => Promise<void>;
   buildMethod: "ai" | "template" | "scratch"; setBuildMethod: (v: "ai" | "template" | "scratch") => void;
   ensureAgent: () => Promise<string>; refreshKnowledge: () => Promise<void>;
+  hasContext: boolean; readyCnt: number;
+  removeSource: (id: string) => Promise<void>;
+  uploadDoc: (f: File) => Promise<void>;
+  uploadCfg: { enabled: boolean; reason?: string | null } | null;
+  aboutEditing: boolean; setAboutEditing: (v: boolean) => void;
+  aboutDraft: string; setAboutDraft: (v: string) => void;
+  saveAbout: () => Promise<void>;
 }) {
   const p = props;
   const openSource = p.groundedSources.find((s) => s.id === p.aboutEv);
@@ -1457,6 +1580,7 @@ function Step1(props: {
                       <div style={{ fontSize: 11.5, color: "#9AA59E" }}>{meta}</div>
                     </div>
                     <span style={{ fontSize: 11.5, fontWeight: 700, color: st.fg }}>{st.label}</span>
+                    <span onClick={() => void p.removeSource(s.id)} title="Remove source" style={{ fontSize: 12, color: "#C2B79F", cursor: "pointer", flex: "none", padding: "2px 5px", lineHeight: 1 }} data-testid={`source-remove-${s.id}`}>✕</span>
                   </div>
                 );
               })}
@@ -1514,11 +1638,21 @@ function Step1(props: {
 
                 {p.addMode === "doc" ? (
                   <div style={{ padding: "14px 16px" }}>
-                    <div style={{ border: "1.5px dashed #D8CFBE", borderRadius: 11, padding: "28px 20px", textAlign: "center", background: "#FBF7F0", cursor: "pointer" }}>
-                      <div style={{ fontSize: 26, marginBottom: 9 }}>📄</div>
-                      <div style={{ fontSize: 13.5, fontWeight: 600, color: "#0E1512", marginBottom: 4 }}>Drop a file here or browse</div>
-                      <div style={{ fontSize: 12, color: "#9AA59E" }}>PDF · DOCX · TXT · CSV · up to 20 MB</div>
-                    </div>
+                    {p.uploadCfg && !p.uploadCfg.enabled ? (
+                      /* DEC-026: never a dead click — disabled with the reason. */
+                      <div style={{ border: "1.5px dashed #D8CFBE", borderRadius: 11, padding: "28px 20px", textAlign: "center", background: "#FBF7F0", opacity: 0.65, cursor: "default" }} data-testid="upload-disabled">
+                        <div style={{ fontSize: 26, marginBottom: 9 }}>📄</div>
+                        <div style={{ fontSize: 13.5, fontWeight: 600, color: "#0E1512", marginBottom: 4 }}>Document upload unavailable</div>
+                        <div style={{ fontSize: 12, color: "#8A7F6B", maxWidth: 380, margin: "0 auto" }}>{p.uploadCfg.reason}</div>
+                      </div>
+                    ) : (
+                      <label style={{ display: "block", border: "1.5px dashed #D8CFBE", borderRadius: 11, padding: "28px 20px", textAlign: "center", background: "#FBF7F0", cursor: "pointer" }} data-testid="upload-dropzone">
+                        <input type="file" accept=".pdf,.docx,.txt,.md,.csv" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) void p.uploadDoc(f); e.target.value = ""; }} data-testid="upload-input" />
+                        <div style={{ fontSize: 26, marginBottom: 9 }}>📄</div>
+                        <div style={{ fontSize: 13.5, fontWeight: 600, color: "#0E1512", marginBottom: 4 }}>Drop a file here or browse</div>
+                        <div style={{ fontSize: 12, color: "#9AA59E" }}>PDF · DOCX · TXT · CSV · up to 20 MB</div>
+                      </label>
+                    )}
                   </div>
                 ) : null}
 
@@ -1535,16 +1669,35 @@ function Step1(props: {
             ) : null}
           </div>
 
-          {/* About your business + Grounded-in citations */}
+          {/* About your business — v2: dashed empty card until a READY source exists */}
+          {p.readyCnt === 0 ? (
+            <div style={{ border: "1px dashed #D8CFBE", borderRadius: 13, padding: "15px 16px", background: "#FBF7F0", marginBottom: 14 }} data-testid="about-empty">
+              <span style={{ fontSize: 13.5, fontWeight: 600, color: "#8A7F6B" }}>No business profile yet — </span>
+              <span style={{ fontSize: 13.5, color: "#9AA59E" }}>add a knowledge source and we’ll distill one for personalisation.</span>
+            </div>
+          ) : (
           <div style={{ border: "1px solid #EBE3D6", borderRadius: 13, overflow: "hidden", boxShadow: "0 1px 4px rgba(14,21,18,.04)", marginBottom: 14 }} data-testid="about-card">
             <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", background: "#F7F9F8", borderBottom: "1px solid #EBE3D6" }}>
               <span style={{ fontSize: 15, fontWeight: 700, color: "#0E1512", flex: 1 }}>About your business</span>
               <span style={{ fontSize: 12, color: "#9AA59E" }}>used to personalise every message</span>
-              <span style={{ fontSize: 12, fontWeight: 600, color: "#16A82A", cursor: "pointer" }}>Edit</span>
+              {p.aboutEditing ? (
+                <>
+                  <span onClick={() => p.setAboutEditing(false)} style={{ fontSize: 12, fontWeight: 600, color: "#9AA59E", cursor: "pointer" }}>Cancel</span>
+                  <span onClick={() => void p.saveAbout()} style={{ fontSize: 12, fontWeight: 700, color: "#16A82A", cursor: "pointer" }} data-testid="about-save">Save</span>
+                </>
+              ) : (
+                <span onClick={() => { p.setAboutDraft(p.contextSummary); p.setAboutEditing(true); }} style={{ fontSize: 12, fontWeight: 600, color: "#16A82A", cursor: "pointer" }} data-testid="about-edit">Edit</span>
+              )}
             </div>
+            {p.aboutEditing ? (
+              <div style={{ padding: "10px 12px", background: "#fff" }}>
+                <textarea value={p.aboutDraft} onChange={(e) => p.setAboutDraft(e.target.value)} rows={4} style={{ display: "block", width: "100%", boxSizing: "border-box", borderRadius: 10, background: "#FBF7F0", border: "1px solid #EBE3D6", padding: "10px 13px", fontSize: 14, color: "#3B463F", lineHeight: 1.55, resize: "vertical", fontFamily: "'Hanken Grotesk',sans-serif" }} data-testid="about-textarea" />
+              </div>
+            ) : (
             <div style={{ padding: "14px 16px", background: "#fff", fontSize: 14.5, color: "#3B463F", lineHeight: 1.55 }}>
               {p.contextSummary || "Ingest a source and the distilled business brief appears here — every claim cited to your own docs."}
             </div>
+            )}
             {p.groundedSources.length > 0 ? (
               <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap", padding: "9px 16px 10px", background: "#fff", borderTop: "1px solid #F2EEE4" }}>
                 <span style={{ fontSize: 11.5, fontWeight: 600, color: "#9AA59E", flex: "none" }}>Grounded in</span>
@@ -1571,6 +1724,7 @@ function Step1(props: {
               </div>
             ) : null}
           </div>
+          )}
 
           {/* AI gap checker */}
           <div style={{ border: "1px solid rgba(232,196,91,.48)", borderRadius: 12, overflow: "hidden", background: "rgba(232,196,91,.04)", marginBottom: 22 }} data-testid="gap-checker">
@@ -1578,11 +1732,15 @@ function Step1(props: {
               <span style={{ fontSize: 13, color: "#D4A020" }}>✦</span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13.5, fontWeight: 700, color: "#0E1512" }}>A few things the agent still needs</div>
-                <div style={{ fontSize: 12, color: "#8A7F6B" }}>Not found in your docs — resolve before launching.</div>
+                {p.hasContext ? (
+                  <div style={{ fontSize: 12, color: "#8A7F6B" }}>Not found in your docs — resolve before launching.</div>
+                ) : (
+                  <div style={{ fontSize: 12, fontWeight: 600, color: "#B7791F" }} data-testid="gap-nocontext">No context yet — add a source or type answers before launch.</div>
+                )}
               </div>
               <span style={{ fontSize: 11, fontWeight: 700, color: "#8A7F6B", background: "rgba(232,196,91,.2)", borderRadius: 7, padding: "3px 9px" }} data-testid="gap-counter">{p.gapResolved}/{p.gapTotal}</span>
             </div>
-            {p.covered.length > 0 ? (
+            {p.hasContext && p.covered.length > 0 ? (
               <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap", padding: "8px 16px", background: "rgba(53,232,52,.06)", borderBottom: "1px solid rgba(232,196,91,.2)" }}>
                 <span style={{ color: "#16A82A", fontSize: 12, flex: "none" }}>✓</span>
                 <span style={{ fontSize: 12, color: "#16A82A", fontWeight: 600, flex: "none" }}>Found in your docs:</span>
@@ -1642,7 +1800,15 @@ function Step1(props: {
             {p.gaps.length === 0 ? <div style={{ padding: "12px 16px", fontSize: 12.5, color: "#0F7A28" }}>✓ Nothing missing — everything the goal needs is covered or resolved.</div> : null}
           </div>
 
-          {/* build method */}
+          {/* build method — v2: locked until ≥1 READY source or a typed answer */}
+          {!p.hasContext ? (
+            <div style={{ borderTop: "1px solid #EBE3D6", paddingTop: 22, paddingBottom: 30 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, border: "1px dashed #D8CFBE", borderRadius: 12, padding: "14px 16px", background: "#FBF7F0" }} data-testid="build-locked">
+                <span style={{ fontSize: 13, color: "#D4A020", flex: "none" }}>✦</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: "#8A7F6B" }}>Add a knowledge source or answer a question above to unlock sequence building.</span>
+              </div>
+            </div>
+          ) : (
           <div style={{ borderTop: "1px solid #EBE3D6", paddingTop: 26, paddingBottom: 30 }}>
             <div style={{ marginBottom: 14 }}>
               <div style={{ fontSize: 16, fontWeight: 700, color: "#0E1512", marginBottom: 3 }}>How should we build the sequence?</div>
@@ -1686,6 +1852,7 @@ function Step1(props: {
               <div style={{ padding: "10px 16px", fontSize: 12, color: "#8A7F6B", borderTop: "1px solid rgba(53,232,52,.1)" }}>You&apos;ll review and tweak everything in the next steps.</div>
             </div>
           </div>
+          )}
         </>
       ) : null}
     </div>
@@ -1693,10 +1860,12 @@ function Step1(props: {
 }
 
 /* ── shared bits ──────────────────────────────────────────────────────────── */
-const lbl: React.CSSProperties = { display: "block", fontSize: 12, fontWeight: 700, color: "#5C6B62", margin: "10px 0 5px" };
 /** Prototype's uppercase micro-caps field label. */
 const upLbl: React.CSSProperties = { display: "block", fontSize: 11.5, fontWeight: 700, color: "#8A7F6B", letterSpacing: ".07em", textTransform: "uppercase", marginBottom: 8 };
 const CATEGORIES = ["Dental & Orthodontics", "Healthcare & Wellness", "Home Services", "Real Estate", "Marketing Agency", "SaaS & Technology", "Professional Services", "Other"];
+/** DEC-039a drawer micro-caps label + 42px field. */
+const manualLbl: React.CSSProperties = { display: "block", fontSize: 11, fontWeight: 800, color: "#9AA59E", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 6 };
+const manualInp: React.CSSProperties = { height: 42, width: "100%", boxSizing: "border-box", borderRadius: 10, background: "#FBF7F0", border: "1px solid #EBE3D6", display: "flex", alignItems: "center", padding: "0 13px", fontSize: 13.5, color: "#0E1512", fontFamily: "'Hanken Grotesk',sans-serif" };
 const inp: React.CSSProperties = { width: "100%", boxSizing: "border-box", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 10, padding: "10px 13px", fontSize: 13.5, color: "#0E1512", marginBottom: 6, fontFamily: "'Hanken Grotesk',sans-serif" };
 
 function Modal({ title, children, onClose, tid }: { title: string; children: React.ReactNode; onClose: () => void; tid?: string }) {

@@ -23,7 +23,7 @@ import {
 } from "@clientforce/core";
 import { checkGaps, mergeLayers, parseAsks, parseFields } from "@clientforce/context";
 import { Role, type Prisma } from "@clientforce/db";
-import type { ZodSchema } from "zod";
+import { z, type ZodSchema } from "zod";
 import { Roles } from "../auth/decorators";
 import { TenantClient } from "../db/tenant-client";
 import { DISTILL_ENQUEUER, type DistillEnqueuer } from "./context.providers";
@@ -98,6 +98,37 @@ export class ContextController {
       workspaceFields: parseFields(workspace?.fields),
       agentFields: parseFields(agent?.fields),
       proposedAsks: parseAsks(agent?.proposedAsks),
+    });
+  }
+
+  /**
+   * C2.3 §3 "About your business · Edit" (wizard-v2 round): the distilled
+   * summary is user-editable; the edit persists on the agent layer's
+   * rawSummary and survives re-distills only until the next distill runs —
+   * which is the documented behavior of the distilled brief (owner-visible
+   * wording in the wizard).
+   */
+  @Post("summary")
+  @Roles(Role.OWNER, Role.ADMIN, Role.AGENT)
+  async editSummary(@Body() body: unknown) {
+    const dto = parse(
+      z.object({ agentId: z.string().min(1), summary: z.string().max(4000) }),
+      body,
+    );
+    const workspaceId = this.tenant.workspaceId;
+    return this.tenant.run(async (tx) => {
+      const existing = await tx.businessContext.findFirst({
+        where: { workspaceId, agentId: dto.agentId },
+      });
+      if (existing) {
+        return tx.businessContext.update({
+          where: { id: existing.id },
+          data: { rawSummary: dto.summary },
+        });
+      }
+      return tx.businessContext.create({
+        data: { workspaceId, agentId: dto.agentId, fields: {}, rawSummary: dto.summary },
+      });
     });
   }
 
