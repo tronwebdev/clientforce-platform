@@ -1,0 +1,128 @@
+# Live diagnostic (owner-requested 2026-07-07): why is the B1 degraded banner
+# still up after the #39 deploy? Probes, in order: container/revision state,
+# worker logs, Redis secret parity between api+worker, the live /system/health
+# payload, and an end-to-end doc-ingest + plan against staging. Manual
+# dispatch only; read-only against Azure except the e2e knowledge source.
+name: worker-health-probe
+
+# Dispatch-only: during the 2026-07-07 outage diagnosis this also ran on
+# pull_request (workflow_dispatch resolves from the default branch only, and
+# pushing to main triggers a staging redeploy — which would have destroyed
+# the evidence). With the diagnosis done, it dispatches from main post-merge.
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  RG: ${{ vars.AZURE_RESOURCE_GROUP }}
+  KEY_VAULT_NAME: ${{ vars.KEY_VAULT_NAME }}
+
+jobs:
+  probe:
+    name: worker · redis · health · e2e
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: 1 — container + revision state (api · worker · web)
+        run: |
+          set -uo pipefail
+          for app in clientforce-api clientforce-worker clientforce-web; do
+            echo "── $app ──────────────────────────────────────"
+            az containerapp show --name "$app" --resource-group "$RG" \
+              --query "{provisioning:properties.provisioningState, running:properties.runningStatus, image:properties.template.containers[0].image, activeRevision:properties.latestRevisionName, readyRevision:properties.latestReadyRevisionName}" -o json
+            az containerapp revision list --name "$app" --resource-group "$RG" \
+              --query "[].{name:name, active:properties.active, created:properties.createdTime, provisioning:properties.provisioningState, health:properties.healthState, replicas:properties.replicas, traffic:properties.trafficWeight}" -o table
+          done
+          echo "── worker replicas (restart counts) ──"
+          rev="$(az containerapp show --name clientforce-worker --resource-group "$RG" --query "properties.latestReadyRevisionName" -o tsv)"
+          az containerapp replica list --name clientforce-worker --resource-group "$RG" --revision "$rev" \
+            --query "[].{name:name, created:properties.createdTime, states:properties.containers[].{restarts:restartCount, running:runningState, ready:ready}}" -o json || true
+
+      - name: 2 — worker logs (last 150 lines)
+        run: |
+          az containerapp logs show --name clientforce-worker --resource-group "$RG" --tail 150 --format text || echo "::warning::could not fetch worker logs"
+
+      - name: 3 — Redis + Anthropic secret parity (api vs worker)
+        run: |
+          set -uo pipefail
+          for app in clientforce-api clientforce-worker; do
+            echo "── $app env (REDIS/ANTHROPIC) ──"
+            az containerapp show --name "$app" --resource-group "$RG" \
+              --query "properties.template.containers[0].env[?name=='REDIS_URL' || name=='ANTHROPIC_API_KEY']" -o json
+            echo "── $app secret sources ──"
+            az containerapp secret list --name "$app" --resource-group "$RG" \
+              --query "[?name=='redis-url' || name=='anthropic-api-key'].{name:name, keyVaultUrl:keyVaultUrl}" -o json || true
+          done
+
+      - name: 4 — live /system/health (via the web proxy, dev sign-in)
+        run: |
+          set -uo pipefail
+          web="$(az containerapp show --name clientforce-web --resource-group "$RG" --query "properties.configuration.ingress.fqdn" -o tsv)"
+          jar="$(mktemp)"
+          code="$(curl -sS -c "$jar" -o /dev/null -w '%{http_code}' --data-urlencode "email=owner@demo-agency.test" "https://$web/api/auth/dev-login")"
+          echo "dev-login -> $code"
+          echo "health:"
+          curl -sS -b "$jar" "https://$web/api/cf/system/health" | tee /tmp/health.json | python3 -m json.tool || true
+
+      - name: "5 — e2e: TXT doc → Ready · plan → graph · queue drain"
+        run: |
+          set -uo pipefail
+          web="$(az containerapp show --name clientforce-web --resource-group "$RG" --query "properties.configuration.ingress.fqdn" -o tsv)"
+          jar="$(mktemp)"
+          curl -sS -c "$jar" -o /dev/null --data-urlencode "email=owner@demo-agency.test" "https://$web/api/auth/dev-login"
+          cf() { curl -sS -b "$jar" -H "Content-Type: application/json" "$@"; }
+
+          echo "── create a probe agent ──"
+          agent="$(cf -X POST -d '{"name":"health probe '"$GITHUB_RUN_ID"'","goal":"promote_offer"}' "https://$web/api/cf/agents")"
+          echo "$agent" | python3 -m json.tool | head -6
+          aid="$(echo "$agent" | python3 -c 'import sys,json;print(json.load(sys.stdin)["id"])')"
+
+          echo "── upload a real TXT doc ──"
+          printf 'Clientforce health probe %s. BrightPath sells done-for-you outreach for dental clinics at 99 dollars per booked appointment from Austin TX. The offer is a free growth audit.\n' "$GITHUB_RUN_ID" > /tmp/probe.txt
+          src="$(curl -sS -b "$jar" -F "file=@/tmp/probe.txt" -F "agentId=$aid" "https://$web/api/cf/knowledge/sources/upload")"
+          echo "$src" | python3 -m json.tool | head -8
+          sid="$(echo "$src" | python3 -c 'import sys,json;print(json.load(sys.stdin)["id"])')"
+
+          echo "── poll to READY (timeout 120s) ──"
+          ok=""
+          for i in $(seq 1 24); do
+            sleep 5
+            st="$(cf "https://$web/api/cf/knowledge/sources?agentId=$aid" | python3 -c 'import sys,json;rows=json.load(sys.stdin);print(next((r["status"] for r in rows if r["id"]=="'"$sid"'"), "?"))')"
+            echo "  [$i] $st"
+            if [ "$st" = "READY" ]; then ok=1; break; fi
+            if [ "$st" = "FAILED" ]; then echo "::error::ingest FAILED"; break; fi
+          done
+          [ -n "$ok" ] && echo "doc reached READY ✓" || echo "::warning::doc did not reach READY in 120s"
+
+          echo "── plan → graph (timeout 180s) ──"
+          cf -X POST -d '{"agentId":"'"$aid"'"}' "https://$web/api/cf/planner/plan" | head -c 200; echo
+          planned=""
+          for i in $(seq 1 36); do
+            sleep 5
+            g="$(cf "https://$web/api/cf/planner/graph?agentId=$aid")"
+            if echo "$g" | grep -q '"nodes"'; then planned=1; echo "  graph landed ✓"; break; fi
+            stt="$(cf "https://$web/api/cf/planner/status?agentId=$aid")"
+            echo "  [$i] $stt"
+            echo "$stt" | grep -q '"failed"' && { echo "::error::planner job FAILED"; break; }
+          done
+          [ -n "$planned" ] || echo "::warning::no graph within 180s"
+
+          echo "── queue drain: sources still PENDING/INGESTING older than 10 min ──"
+          dburl="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name DATABASE-URL --query value -o tsv)"
+          echo "::add-mask::$dburl"
+          psql "$dburl" -c "select status, count(*), min(\"updatedAt\") as oldest from \"KnowledgeSource\" where status in ('PENDING','INGESTING') and \"updatedAt\" < now() - interval '10 minutes' group by status;" || echo "::warning::db check failed"
+
+          echo "── final health after activity ──"
+          cf "https://$web/api/cf/system/health" | python3 -m json.tool || true

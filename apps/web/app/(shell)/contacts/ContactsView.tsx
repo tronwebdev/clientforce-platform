@@ -6,6 +6,7 @@
  * never stored stage values. A4: 5s polling; drawer timeline polls while open.
  */
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { slugifyFieldLabel, type ContactFieldDefDto } from "@clientforce/core";
 import { EmptyState } from "@clientforce/ui";
 
 const GRAD = "linear-gradient(135deg,#36D7ED 0%,#35E834 55%,#D0F56B 100%)";
@@ -27,6 +28,7 @@ export interface ContactRow {
   title: string | null;
   phone: string | null;
   source: string | null;
+  custom?: Record<string, string>;
   createdAt: string;
   stage: string | null;
   enrollmentStatus: string | null;
@@ -109,6 +111,18 @@ const EVENT_ROW: Record<string, { icon: string; bg: string; fg: string; label: (
   "lead.unsubscribed.v1": { icon: "⊘", bg: "rgba(224,121,107,.16)", fg: "#C9543F", label: () => "Unsubscribed from all sequences" },
 };
 
+/** 40-1: a CSV header becomes a HUMAN label ("practice_type" -> "Practice type");
+ *  the raw slug lives only in the def key / token ({{custom.practice_type}}). */
+const humanizeHeader = (h: string) => h.replace(/_/g, " ").replace(/^./, (ch) => ch.toUpperCase());
+
+/** 40-2: the two designed create failures get distinct copy (409 vs 422). */
+const fieldCreateFailureCopy = (err: unknown) => {
+  const status = err instanceof Error ? /:\s*(\d+)$/.exec(err.message)?.[1] : null;
+  return status === "422"
+    ? "This workspace has reached its 30-field limit — archive a field to add another."
+    : "Couldn't create that field — it may already exist.";
+};
+
 const MOVE_OPTIONS = [
   { icon: "✦", label: "Mark as qualified", stage: "interested", color: "#0E1512" },
   { icon: "📅", label: "Mark as booked", stage: "booked", color: "#0E1512" },
@@ -133,16 +147,41 @@ export function ContactsView() {
   const [perPageDD, setPerPageDD] = useState(false);
   const [sel, setSel] = useState<Record<string, boolean>>({});
   const [drawerId, setDrawerId] = useState<string | null>(null);
+  // C2.7: detail-drawer inline custom-value edit (values only, defs untouched).
+  const [detailEdit, setDetailEdit] = useState<{ key: string; value: string } | null>(null);
   const [moveDD, setMoveDD] = useState(false);
   const [timeline, setTimeline] = useState<TimelineEvent[] | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [form, setForm] = useState({ firstName: "", lastName: "", email: "", company: "", phone: "", title: "" });
+  // C2.7: add-drawer custom values + the admin inline-create state.
+  const [formCustom, setFormCustom] = useState<Record<string, string>>({});
+  const [addFieldOpen, setAddFieldOpen] = useState(false);
+  const [addFieldLabel, setAddFieldLabel] = useState("");
+  const [creatingField, setCreatingField] = useState(false);
+  const [fieldError, setFieldError] = useState<string | null>(null);
   // 36-2: 3-step CSV wizard (Upload → Map → Review → Done), client-side parse.
   const [csvStep, setCsvStep] = useState(0);
   const [csvFile, setCsvFile] = useState<{ name: string; headers: string[]; rows: string[][] } | null>(null);
   const [csvMap, setCsvMap] = useState<string[]>([]);
   const [csvDone, setCsvDone] = useState(0);
+  const [csvError, setCsvError] = useState<string | null>(null);
+  const [mapDD, setMapDD] = useState<number | null>(null);
+
+  // C2.7: workspace custom-field defs + the caller's role (create = admin-only).
+  const [fieldDefs, setFieldDefs] = useState<ContactFieldDefDto[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const activeDefs = useMemo(() => fieldDefs.filter((d) => !d.archived), [fieldDefs]);
+  const refreshDefs = useCallback(
+    () => cf("contact-fields").then((d: ContactFieldDefDto[]) => setFieldDefs(d)).catch(() => {}),
+    [],
+  );
+  useEffect(() => {
+    void refreshDefs();
+    void cf("me")
+      .then((m: { role?: string }) => setIsAdmin(m.role === "OWNER" || m.role === "ADMIN"))
+      .catch(() => {});
+  }, [refreshDefs]);
 
   const refresh = useCallback(async () => {
     try {
@@ -164,6 +203,12 @@ export function ContactsView() {
   const drawer = useMemo(() => (rows ?? []).find((r) => r.id === drawerId) ?? null, [rows, drawerId]);
 
   // drawer timeline polls while open (A4)
+  // C2.7: leave any in-progress inline edit behind when switching contacts
+  // (keyed on the id — the drawer OBJECT identity changes every 5s poll).
+  useEffect(() => {
+    setDetailEdit(null);
+  }, [drawerId]);
+
   useEffect(() => {
     if (!drawer) return;
     setTimeline(null);
@@ -226,6 +271,21 @@ export function ContactsView() {
     setMoveDD(false);
     void refresh();
   }
+  async function saveDetailEdit(contactId: string) {
+    if (!detailEdit) return;
+    const value = detailEdit.value.trim();
+    // prototype semantics: a blanked value keeps the prior one (exit only).
+    if (value === "") {
+      setDetailEdit(null);
+      return;
+    }
+    await cf(`contacts/${contactId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ custom: { [detailEdit.key]: value } }),
+    }).catch(() => {});
+    setDetailEdit(null);
+    void refresh();
+  }
   async function moveStage(c: ContactRow, stage: string) {
     setMoveDD(false);
     if (stage === "__unsub__") return bulkUnsubscribe([c.id]);
@@ -235,15 +295,43 @@ export function ContactsView() {
   }
   async function createContact() {
     if (!/.+@.+\..+/.test(form.email) || !form.firstName.trim()) return;
-    await cf("contacts", { method: "POST", body: JSON.stringify(form) }).catch(() => {});
+    const custom = Object.fromEntries(Object.entries(formCustom).filter(([, v]) => v.trim() !== ""));
+    await cf("contacts", {
+      method: "POST",
+      body: JSON.stringify({ ...form, ...(Object.keys(custom).length ? { custom } : {}) }),
+    }).catch(() => {});
     setAddOpen(false);
     setForm({ firstName: "", lastName: "", email: "", company: "", phone: "", title: "" });
+    setFormCustom({});
     void refresh();
   }
 
-  /** CSV wizard helpers — parse client-side, POST per mapped row. */
+  // C2.7: inline field create from the add drawer (admin-only affordance).
+  async function createFieldInline() {
+    const label = addFieldLabel.trim();
+    if (!label || creatingField) return;
+    setCreatingField(true);
+    try {
+      await cf("contact-fields", { method: "POST", body: JSON.stringify({ label, origin: "manual" }) });
+      await refreshDefs();
+      setAddFieldLabel("");
+      setAddFieldOpen(false);
+      // plan §UI-1: after create, focus the new def's value input.
+      const key = slugifyFieldLabel(label);
+      setTimeout(() => document.querySelector<HTMLInputElement>(`[data-testid='custom-input-${key}']`)?.focus(), 60);
+    } catch (err) {
+      setFieldError(fieldCreateFailureCopy(err));
+    } finally {
+      setCreatingField(false);
+    }
+  }
+
+  /** CSV wizard helpers — parse client-side, POST per mapped row.
+   *  C2.7 map targets: standard labels · `custom:<key>` (existing def) ·
+   *  `__create__` (admin: new TEXT def from the column header) · skip. */
   const CSV_FIELDS = ["First name", "Last name", "Email", "Company", "Phone", "Title", "Skip this column"] as const;
   const CSV_FIELD_KEY: Record<string, string> = { "First name": "firstName", "Last name": "lastName", Email: "email", Company: "company", Phone: "phone", Title: "title" };
+  const CSV_CREATE = "__create__";
   function autoMatch(header: string): string {
     const h = header.toLowerCase().replace(/[^a-z]/g, "");
     if (h.includes("first")) return "First name";
@@ -278,6 +366,7 @@ export function ContactsView() {
       dupes: dupes.length,
       suppressed: suppressed.length,
       mapped: csvMap.filter((m) => m !== "Skip this column").length,
+      createCount: csvMap.filter((m) => m === CSV_CREATE).length,
       valid,
       fresh,
       emailIdx,
@@ -285,14 +374,39 @@ export function ContactsView() {
   }, [csvFile, csvMap, rows]);
   async function runImport() {
     if (!csvFile || !csvParsed) return;
+    setCsvError(null);
+    // C2.7: create the new defs FIRST — a def-create failure aborts before any
+    // contact posts, so no row can land referencing a field that doesn't exist.
+    const customKeyByCol = new Map<number, string>();
+    for (let i = 0; i < csvMap.length; i += 1) {
+      const m = csvMap[i]!;
+      if (m.startsWith("custom:")) customKeyByCol.set(i, m.slice(7));
+      else if (m === CSV_CREATE) {
+        try {
+          const def = (await cf("contact-fields", {
+            method: "POST",
+            body: JSON.stringify({ label: humanizeHeader(csvFile.headers[i] ?? ""), origin: "csv_import" }),
+          })) as ContactFieldDefDto;
+          customKeyByCol.set(i, def.key);
+        } catch (err) {
+          setCsvError(`${fieldCreateFailureCopy(err)} The import was not started.`);
+          return;
+        }
+      }
+    }
+    if (customKeyByCol.size > 0) void refreshDefs();
     let created = 0;
     for (const r of csvParsed.fresh) {
-      const payload: Record<string, string> = {};
+      const payload: Record<string, unknown> = {};
+      const custom: Record<string, string> = {};
       csvMap.forEach((m, i) => {
         const key = CSV_FIELD_KEY[m];
         if (key && r[i]) payload[key] = r[i]!;
+        const ck = customKeyByCol.get(i);
+        if (ck && r[i]) custom[ck] = r[i]!;
       });
       if (!payload.email) continue;
+      if (Object.keys(custom).length) payload.custom = custom;
       const ok = await cf("contacts", { method: "POST", body: JSON.stringify(payload) }).then(() => true).catch(() => false);
       if (ok) created += 1;
     }
@@ -306,6 +420,7 @@ export function ContactsView() {
     setCsvFile(null);
     setCsvMap([]);
     setCsvDone(0);
+    setCsvError(null);
   }
 
 
@@ -691,6 +806,48 @@ export function ContactsView() {
                   ))}
                 </div>
 
+                {/* C2.7 — custom-field rows (v3 Contacts.dc.html:258): teal 120px
+                    labels, click-to-edit value (persistent ✎, green ✓ saves via
+                    PATCH /contacts/:id). Rows = ACTIVE defs holding a value. */}
+                {(() => {
+                  const customRows = activeDefs
+                    .map((d) => ({ def: d, value: drawer.custom?.[d.key] }))
+                    .filter((r): r is { def: ContactFieldDefDto; value: string } => typeof r.value === "string" && r.value !== "");
+                  if (customRows.length === 0) return null;
+                  return (
+                    <>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: "#8A7F6B", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 }}>Custom fields</div>
+                      <div style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 13, overflow: "hidden", marginBottom: 18 }} data-testid="drawer-custom">
+                        {customRows.map(({ def, value }, i) => {
+                          const editing = detailEdit?.key === def.key;
+                          return (
+                            <div key={def.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 15px", borderTop: i ? "1px solid #F2EEE4" : "none", minHeight: 30 }}>
+                              <span style={{ fontSize: 13, color: "#1192A6", flex: "none", width: 120, fontWeight: 600 }}>{def.label}</span>
+                              {!editing ? (
+                                <span onClick={() => setDetailEdit({ key: def.key, value })} title="Edit value" style={{ fontSize: 13.5, color: "#0E1512", fontWeight: 600, flex: 1, textAlign: "right", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 7 }} data-testid={`drawer-custom-${def.key}`}>
+                                  {value} <span style={{ fontSize: 11, color: "#C2B79F" }}>✎</span>
+                                </span>
+                              ) : (
+                                <>
+                                  <input
+                                    autoFocus
+                                    value={detailEdit.value}
+                                    onChange={(e) => setDetailEdit({ key: def.key, value: e.target.value })}
+                                    onKeyDown={(e) => { if (e.key === "Enter") void saveDetailEdit(drawer.id); }}
+                                    style={{ flex: 1, minWidth: 0, height: 32, borderRadius: 8, background: "#FBF7F0", border: "1px solid #35E834", padding: "0 10px", fontSize: 13, fontWeight: 600, color: "#0E1512", textAlign: "right", outline: "none", boxSizing: "border-box", fontFamily: "'Hanken Grotesk',sans-serif" }}
+                                    data-testid="drawer-custom-input"
+                                  />
+                                  <span onClick={() => void saveDetailEdit(drawer.id)} style={{ width: 30, height: 30, borderRadius: 8, background: "rgba(53,232,52,.14)", color: "#16A82A", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, cursor: "pointer", flex: "none" }} data-testid="drawer-custom-save">✓</span>
+                                </>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
+                  );
+                })()}
+
                 <div style={{ fontSize: 11, fontWeight: 700, color: "#8A7F6B", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 10 }}>Activity</div>
                 {timeline === null ? (
                   <div style={{ fontSize: 13, color: "#9AA59E" }}>Loading activity…</div>
@@ -761,6 +918,51 @@ export function ContactsView() {
                     <input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} placeholder="Owner" style={addInp} data-testid="form-title" />
                   </div>
                 </div>
+
+                {/* C2.7 — CUSTOM FIELDS block (v3 Contacts.dc.html:440). Def inputs
+                    render for everyone; the create affordances are admin-only
+                    (plan decision 2 — the prototype's ADMIN pill is decorative). */}
+                <div style={{ display: "flex", alignItems: "center", marginBottom: 10, marginTop: 4 }} data-testid="custom-fields-block">
+                  <span style={{ fontSize: 11, fontWeight: 800, color: "#9AA59E", textTransform: "uppercase", letterSpacing: ".05em", flex: 1 }}>Custom fields</span>
+                  {isAdmin ? (
+                    <span onClick={() => { setAddFieldOpen(true); setFieldError(null); }} title="Creates a workspace-wide field — admins only" style={{ fontSize: 12.5, fontWeight: 700, color: "#16A82A", cursor: "pointer" }} data-testid="add-field">
+                      ＋ Add field <span style={{ fontSize: 10, fontWeight: 800, color: "#8A7F6B", background: "#F2EEE4", borderRadius: 100, padding: "2px 7px", verticalAlign: 1 }}>ADMIN</span>
+                    </span>
+                  ) : null}
+                </div>
+                {activeDefs.length > 0 ? (
+                  <div style={{ display: "flex", gap: 12, marginBottom: 13, flexWrap: "wrap" }}>
+                    {activeDefs.map((d) => (
+                      <div key={d.id} style={{ flex: 1, minWidth: "calc(50% - 6px)" }}>
+                        <label style={{ display: "block", fontSize: 11, fontWeight: 800, color: "#1192A6", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 6 }}>{d.label}</label>
+                        <input value={formCustom[d.key] ?? ""} onChange={(e) => setFormCustom((v) => ({ ...v, [d.key]: e.target.value }))} placeholder={d.label === "Industry" ? "e.g. Dental" : d.label === "Plan" ? "e.g. Growth" : "Value"} style={addInp} data-testid={`custom-input-${d.key}`} />
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+                {addFieldOpen ? (
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }} data-testid="add-field-row">
+                    <input
+                      autoFocus
+                      value={addFieldLabel}
+                      onChange={(e) => setAddFieldLabel(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") void createFieldInline(); }}
+                      placeholder="New field name"
+                      style={{ flex: "0 0 150px", height: 40, borderRadius: 10, background: "#fff", border: "1px solid #EBE3D6", padding: "0 12px", fontSize: 13, color: "#0E1512", boxSizing: "border-box", fontFamily: "'Hanken Grotesk',sans-serif" }}
+                      data-testid="add-field-name"
+                    />
+                    <span onClick={() => void createFieldInline()} style={{ flex: 1, minWidth: 0, fontSize: 12.5, fontWeight: 700, color: addFieldLabel.trim() ? "#16A82A" : "#9AA59E", cursor: addFieldLabel.trim() ? "pointer" : "default" }} data-testid="add-field-save">
+                      {creatingField ? "Creating…" : "＋ Create field"}
+                    </span>
+                    <span onClick={() => { setAddFieldOpen(false); setAddFieldLabel(""); setFieldError(null); }} style={{ width: 34, height: 34, borderRadius: 9, border: "1px solid #EBE3D6", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", color: "#C9543F", fontSize: 14, cursor: "pointer", flex: "none" }}>✕</span>
+                  </div>
+                ) : null}
+                {fieldError ? <div style={{ fontSize: 12, color: "#C9543F", marginBottom: 8 }} data-testid="field-error">{fieldError}</div> : null}
+                {isAdmin && !addFieldOpen && activeDefs.length === 0 ? (
+                  <div onClick={() => setAddFieldOpen(true)} style={{ border: "1.5px dashed #D8CFBE", borderRadius: 11, padding: 14, textAlign: "center", fontSize: 13, color: "#9AA59E", cursor: "pointer", marginBottom: 16 }} data-testid="add-field-empty-cta">
+                    ＋ New field for this workspace (e.g. Source URL) · Admin
+                  </div>
+                ) : null}
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 22px", borderTop: "1px solid #EBE3D6", background: "#fff", flex: "none" }}>
                 {(() => {
@@ -829,20 +1031,62 @@ export function ContactsView() {
                           <span />
                           <span style={{ fontSize: 10.5, fontWeight: 800, color: "#9AA59E", textTransform: "uppercase", letterSpacing: ".05em" }}>Maps to</span>
                         </div>
-                        {csvFile.headers.map((h, i) => (
-                          <div key={h + i} style={{ display: "grid", gridTemplateColumns: "1fr 22px 1.1fr", gap: 8, alignItems: "center", padding: "8px 0", borderBottom: "1px solid #F2EEE4" }}>
-                            <div style={{ minWidth: 0 }}>
-                              <div style={{ fontSize: 12.5, fontWeight: 700, color: "#0E1512", fontFamily: "monospace" }}>{h}</div>
-                              <div style={{ fontSize: 11, color: "#9AA59E", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{csvFile.rows[0]?.[i] ?? ""}</div>
+                        {csvFile.headers.map((h, i) => {
+                          // C2.7 (v3 Contacts.dc.html:327): custom "Maps to" dropdown —
+                          // Standard fields / Custom fields sections, admin create row,
+                          // teal picked-new state (#1192A6 text / #9AD6E4 border).
+                          const picked = csvMap[i] ?? "Skip this column";
+                          const isSkip = picked === "Skip this column";
+                          const isNew = picked === CSV_CREATE;
+                          const title = humanizeHeader(h);
+                          const display = isNew ? `＋ ${title} · new field` : picked.startsWith("custom:") ? (fieldDefs.find((d) => d.key === picked.slice(7))?.label ?? picked.slice(7)) : picked;
+                          const pick = (v: string) => { setCsvMap((m) => m.map((x, j) => (j === i ? v : x))); setMapDD(null); };
+                          return (
+                            <div key={h + i} style={{ display: "grid", gridTemplateColumns: "1fr 22px 1.1fr", gap: 8, alignItems: "center", padding: "8px 0", borderBottom: "1px solid #F2EEE4" }}>
+                              <div style={{ minWidth: 0 }}>
+                                <div style={{ fontSize: 12.5, fontWeight: 700, color: "#0E1512", fontFamily: "monospace" }}>{h}</div>
+                                <div style={{ fontSize: 11, color: "#9AA59E", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{csvFile.rows[0]?.[i] ?? ""}</div>
+                              </div>
+                              <span style={{ color: "#C2B79F", textAlign: "center", fontSize: 12 }}>→</span>
+                              <div style={{ position: "relative" }}>
+                                <div onClick={() => setMapDD((v) => (v === i ? null : i))} style={{ border: `1px solid ${isNew ? "#9AD6E4" : "#EBE3D6"}`, borderRadius: 9, padding: "8px 11px", fontSize: 12.5, fontWeight: 600, color: isSkip ? "#9AA59E" : isNew ? "#1192A6" : "#0E1512", background: "#FBF7F0", display: "flex", alignItems: "center", cursor: "pointer" }} data-testid={`csv-map-${i}`}>
+                                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{display}</span>
+                                  <span style={{ marginLeft: "auto", color: "#9AA59E", paddingLeft: 6 }}>⌄</span>
+                                </div>
+                                {mapDD === i ? (
+                                  <div style={{ position: "absolute", top: "calc(100% + 5px)", right: 0, width: 224, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 12, boxShadow: "0 16px 44px rgba(0,0,0,.18)", overflow: "hidden", zIndex: 8 }} data-testid="csv-map-dd">
+                                    <div style={{ maxHeight: 196, overflowY: "auto" }}>
+                                      <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "#9AA59E", padding: "9px 13px 4px" }}>Standard fields</div>
+                                      {CSV_FIELDS.filter((f) => f !== "Skip this column").map((f) => (
+                                        <div key={f} onClick={() => pick(f)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 13px", cursor: "pointer", fontSize: 12.5, fontWeight: 600, color: "#0E1512" }}>
+                                          <span style={{ flex: 1 }}>{f}</span>
+                                          <span style={{ color: "#16A82A", visibility: picked === f ? "visible" : "hidden" }}>✓</span>
+                                        </div>
+                                      ))}
+                                      <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "#1192A6", padding: "9px 13px 4px", borderTop: "1px solid #F2EEE4" }}>Custom fields</div>
+                                      {activeDefs.map((d) => (
+                                        <div key={d.id} onClick={() => pick(`custom:${d.key}`)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 13px", cursor: "pointer", fontSize: 12.5, fontWeight: 600, color: "#0E1512" }} data-testid={`csv-map-custom-${d.key}`}>
+                                          <span style={{ flex: 1 }}>{d.label}</span>
+                                          <span style={{ color: "#16A82A", visibility: picked === `custom:${d.key}` ? "visible" : "hidden" }}>✓</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                    {isAdmin ? (
+                                      <div onClick={() => pick(CSV_CREATE)} style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 13px", cursor: "pointer", fontSize: 12.5, fontWeight: 700, color: "#16A82A", borderTop: "1px solid #EBE3D6" }} data-testid="csv-map-create">
+                                        <span style={{ flex: 1 }}>＋ Create field “{title}”</span>
+                                        <span style={{ fontSize: 9, fontWeight: 800, color: "#8A7F6B", background: "#F2EEE4", borderRadius: 100, padding: "2px 6px" }}>ADMIN</span>
+                                      </div>
+                                    ) : null}
+                                    <div onClick={() => pick("Skip this column")} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 13px", cursor: "pointer", fontSize: 12.5, fontWeight: 600, color: "#9AA59E", borderTop: "1px solid #F2EEE4" }}>
+                                      <span style={{ flex: 1 }}>Skip this column</span>
+                                      <span style={{ color: "#16A82A", visibility: isSkip ? "visible" : "hidden" }}>✓</span>
+                                    </div>
+                                  </div>
+                                ) : null}
+                              </div>
                             </div>
-                            <span style={{ color: "#C2B79F", textAlign: "center", fontSize: 12 }}>→</span>
-                            <select value={csvMap[i]} onChange={(e) => setCsvMap((m) => m.map((v, j) => (j === i ? e.target.value : v)))} style={{ border: "1px solid #EBE3D6", borderRadius: 9, padding: "8px 11px", fontSize: 12.5, fontWeight: 600, color: csvMap[i] === "Skip this column" ? "#9AA59E" : "#0E1512", background: "#FBF7F0", cursor: "pointer", fontFamily: "'Hanken Grotesk',sans-serif" }} data-testid={`csv-map-${i}`}>
-                              {CSV_FIELDS.map((f) => (
-                                <option key={f} value={f}>{f}</option>
-                              ))}
-                            </select>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </>
                     ) : null}
                     {csvStep === 2 && csvParsed ? (
@@ -862,6 +1106,23 @@ export function ContactsView() {
                             </div>
                           ))}
                         </div>
+                        {/* C2.7: created-field note — the prototype's review has no
+                            created-fields tile (4 tiles only); this teal note row makes
+                            the create visible without inventing a fifth tile (flagged). */}
+                        {csvParsed.createCount > 0 ? (
+                          <div style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(54,215,237,.06)", border: "1px solid rgba(54,215,237,.28)", borderRadius: 11, padding: "11px 14px", marginBottom: 10 }} data-testid="csv-create-note">
+                            <span style={{ color: "#1192A6" }}>＋</span>
+                            <span style={{ fontSize: 12.5, color: "#1192A6", fontWeight: 600 }}>
+                              {csvParsed.createCount} new custom field{csvParsed.createCount === 1 ? "" : "s"} will be created: {csvFile!.headers.filter((_, i) => csvMap[i] === CSV_CREATE).map(humanizeHeader).join(", ")}
+                            </span>
+                          </div>
+                        ) : null}
+                        {csvError ? (
+                          <div style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(224,121,107,.08)", border: "1px solid rgba(224,121,107,.3)", borderRadius: 11, padding: "11px 14px", marginBottom: 10 }} data-testid="csv-error">
+                            <span style={{ color: "#C9543F" }}>⚠</span>
+                            <span style={{ fontSize: 12.5, color: "#C9543F", fontWeight: 600 }}>{csvError}</span>
+                          </div>
+                        ) : null}
                         <div style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(53,232,52,.06)", border: "1px solid rgba(53,232,52,.22)", borderRadius: 11, padding: "11px 14px" }}>
                           <span style={{ color: "#16A82A" }}>✓</span>
                           <span style={{ fontSize: 12.5, color: "#16A82A", fontWeight: 600 }}>All contacts checked against your suppression list.</span>

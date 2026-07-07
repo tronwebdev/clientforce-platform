@@ -1,3 +1,4 @@
+import { CUSTOM_TOKEN_RE } from "@clientforce/core";
 import type { Contact } from "@clientforce/db";
 
 /**
@@ -14,9 +15,26 @@ export class MissingTokenError extends Error {
 
 export function renderTokens(
   text: string,
-  contact: Pick<Contact, "firstName" | "lastName" | "company" | "email">,
+  contact: Pick<Contact, "firstName" | "lastName" | "company" | "email"> &
+    Partial<Pick<Contact, "custom">>,
   senderName: string,
 ): string {
+  // C2.7 custom tokens first: {{custom.<key>|fallback}} → value-or-fallback.
+  // No value AND no fallback throws — custom tokens never render blank; the
+  // wizard rejects fallback-less tokens at save time, this is the boundary
+  // backstop.
+  const custom =
+    contact.custom && typeof contact.custom === "object" && !Array.isArray(contact.custom)
+      ? (contact.custom as Record<string, unknown>)
+      : {};
+  const withCustom = text.replace(CUSTOM_TOKEN_RE, (_m, key: string, fallback?: string) => {
+    const value = custom[key];
+    if (typeof value === "string" && value.trim() !== "") return value;
+    const fb = fallback?.trim();
+    if (fb) return fb;
+    throw new MissingTokenError(`custom.${key}`);
+  });
+
   const values: Record<string, string | null | undefined> = {
     firstName: contact.firstName,
     lastName: contact.lastName,
@@ -24,7 +42,7 @@ export function renderTokens(
     email: contact.email,
     senderName,
   };
-  return text.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_m, token: string) => {
+  return withCustom.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_m, token: string) => {
     const value = values[token];
     if (value === undefined || value === null || value === "") throw new MissingTokenError(token);
     return value;

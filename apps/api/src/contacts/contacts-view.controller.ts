@@ -73,6 +73,7 @@ export class ContactsViewController {
           title: c.title,
           phone: c.phone,
           source: c.source,
+          custom: c.custom ?? {},
           createdAt: c.createdAt.toISOString(),
           stage: enr?.pipelineStage ?? null,
           agentName: enr?.campaign?.agent?.name ?? null,

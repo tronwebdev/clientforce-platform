@@ -190,6 +190,15 @@ planner "drafting sequence" building/loading state · launch success. **Interact
 all 6 steps end-to-end creating a real Agent + primary Campaign + graph v1; back-navigation preserves
 entries; editing a drafted step bumps the graph version.
 
+**C2.7 amendment (custom-field tokens — binding from the C2.7 kickoff, v3 `Create Agent.dc.html`):**
+the step-2 editor drawer's PERSONALIZATION picker gains one chip per active workspace custom field
+(`{{custom.<key>}}`, e.g. `{{custom.industry}}` / `{{custom.plan}}`); **selecting a custom chip opens
+the "Fallback for {{custom.*}}" card** with a `Required` badge and the note that custom tokens never
+render blank — insertion is blocked until a fallback is typed (value-or-fallback at render, P1.5
+never-blank precedent; a stored custom token with no fallback is a save-time validation error).
+**States:** picker with custom chips · chip selected + empty fallback card (Required) · fallback
+filled + token inserted.
+
 ---
 
 ## 4. Agent view (Campaign View) — `Campaign View.dc.html`
@@ -249,6 +258,23 @@ the event within one poll interval (≤5s).
 - **Interaction script:** switch each segment (counts change consistently with the mapping); sort by
   status ⇄; open contact drawer; bulk-select → unsubscribe updates `optOut` + Suppression and the row
   pill flips.
+
+**C2.7 amendment (custom fields — binding from the C2.7 kickoff, v3 `Contacts.dc.html`):**
+- **Add-contact drawer — CUSTOM FIELDS block:** active workspace defs render as optional inputs in
+  the 2-col row (e.g. Industry / Plan) above the **admin-only `＋ Add field`** inline-create (ADMIN
+  pill; input placeholder "e.g. Industry, Source URL, Plan" → creates a TEXT def and focuses its
+  value input). Non-admins see and fill def inputs but get **no create affordance**.
+- **CSV import step 2 — "Maps to" dropdown:** sectioned **Standard fields / Custom fields** with ✓
+  on the current pick; **`＋ Create field "<Column>"`** row with ADMIN pill; `Skip this column` at
+  the bottom; a picked-new target renders **teal `#1192A6`** text with teal border. Step-3 review
+  counts created fields.
+- **Contact detail drawer — DETAILS custom rows:** custom values append to the DETAILS list (same
+  row anatomy); **click-to-edit inline** — pencil on hover → right-aligned bordered input + green ✓
+  save (values only; defs are created only via the two create flows).
+- **States:** drawer defs empty / filled / inline-create open · map-step dropdown open (custom
+  section + create row) · review counting a created field · detail rows view / editing / saved ·
+  non-admin drawer (no create affordances) · archived def absent from every picker · 31st-def
+  designed error.
 
 ---
 

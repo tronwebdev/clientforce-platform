@@ -260,6 +260,31 @@ enum GraphSource {
 // §4 Leads, enrollment & pipeline
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// C2.7: workspace-defined custom field (docs/PLAN_CUSTOM_FIELDS.md). `key` is
+/// an immutable slug; archive-never-delete (values stay in Contact.custom).
+model ContactFieldDef {
+  id          String    @id @default(cuid())
+  workspaceId String
+  key         String
+  label       String
+  type        FieldType @default(TEXT)
+  options     String[]
+  origin      String
+  archived    Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([workspaceId, key])
+  @@index([workspaceId])
+}
+
+enum FieldType {
+  TEXT
+  NUMBER
+  DATE
+  SELECT
+}
+
 model Contact {
   id          String           @id @default(cuid())
   workspaceId String
@@ -271,6 +296,9 @@ model Contact {
   title       String?
   source      String
   enrichment  Json?
+  /// C2.7: user-entered custom-field values keyed by ContactFieldDef.key —
+  /// never mixed with `enrichment` (reserved for machine enrichment).
+  custom      Json             @default("{}")
   tags        String[]
   optOut      Json
   createdAt   DateTime         @default(now())

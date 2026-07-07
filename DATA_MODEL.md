@@ -260,7 +260,9 @@ model Contact {             // a person in the workspace's CRM (deduped)
   company     String?
   title       String?
   source      String                            // auto-prospecting | import | form | widget | linkedin | manual
-  enrichment  Json?                             // appended provider data
+  enrichment  Json?                             // appended provider data (machine enrichment ONLY)
+  custom      Json @default("{}")               // C2.7: user-entered custom-field values keyed by
+                                                // ContactFieldDef.key — never mixed with enrichment
   tags        String[]
   optOut      Json                              // { email:false, sms:false, whatsapp:false }
   lists       ListMembership[]
@@ -269,6 +271,20 @@ model Contact {             // a person in the workspace's CRM (deduped)
   @@index([workspaceId, email])
   @@index([workspaceId, phone])
 }
+
+model ContactFieldDef {      // C2.7 (docs/PLAN_CUSTOM_FIELDS.md): workspace custom field
+  id          String  @id @default(cuid())
+  workspaceId String
+  key         String                            // slug, IMMUTABLE ("industry", "source_url")
+  label       String                            // display ("Industry")
+  type        FieldType @default(TEXT)          // TEXT | NUMBER | DATE | SELECT (creation UI: TEXT only)
+  options     String[]                          // SELECT only
+  origin      String                            // manual | csv_import
+  archived    Boolean @default(false)           // archive-never-delete; values stay in Contact.custom
+  @@unique([workspaceId, key])                  // max 30 ACTIVE defs per workspace (server-enforced)
+}
+// Personalization: {{custom.<key>|fallback}} — the fallback is MANDATORY at save
+// time and the renderer emits value-or-fallback, never blank (P1.5 rule).
 
 model Enrollment {          // a contact's run through one campaign = 1 Temporal workflow
   id           String  @id @default(cuid())

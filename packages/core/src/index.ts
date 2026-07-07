@@ -38,6 +38,9 @@ export * from "./enrollments";
 // Agents DTOs (C2.2).
 export * from "./agents";
 
+// Contact custom fields (C2.7) — defs, values, {{custom.*}} token grammar.
+export * from "./contact-fields";
+
 /**
  * Narrow an arbitrary string to a branded {@link Id}. Real validation arrives
  * with the data model; this keeps the type honest without runtime cost.
