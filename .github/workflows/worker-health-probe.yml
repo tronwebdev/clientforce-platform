@@ -78,7 +78,7 @@ jobs:
           echo "health:"
           curl -sS -b "$jar" "https://$web/api/cf/system/health" | tee /tmp/health.json | python3 -m json.tool || true
 
-      - name: 5 — e2e: TXT doc → Ready · plan → graph · queue drain
+      - name: "5 — e2e: TXT doc → Ready · plan → graph · queue drain"
         run: |
           set -uo pipefail
           web="$(az containerapp show --name clientforce-web --resource-group "$RG" --query "properties.configuration.ingress.fqdn" -o tsv)"
