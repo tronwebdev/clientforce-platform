@@ -105,20 +105,34 @@ rows → bulk bar shows count; clear; click row → agent view.
 
 ## 3. Create Agent wizard — `Create Agent.dc.html` (**6 steps** — the notes' 5-step table is superseded)
 
-**Frame:** page bg `#FBF7F0` with `padding-left:64px`; **step rail 332px** (`flex:none`, right border
-`1px #EBE3D6`, padding `26px 24px`, min-height 680px); step rows padding 12px, radius 13, gap 13;
-active row filled, completed rows checked. `‹ Back` (white secondary) + gradient `Next` pinned at the
-rail bottom. Step title Bricolage 26px; subtitle 15px `#5C6B62`.
+**Frame:** page bg `#FBF7F0` with `padding-left:64px`; **step rail 332px** (`flex:none`, padding
+`26px 24px 0`, min-height 680px — the 1px `#EBE3D6` divider lives on the step content as
+`border-left`, not on the rail); step rows padding 12px, radius 13, gap 13; active row filled,
+completed rows checked. `‹ Back` (white secondary) + gradient `Next`/`Generate` in a **sticky
+footer at the rail's viewport bottom** (`position:sticky;bottom:0`, bg `#FBF7F0`, padding-top 14px,
+padding-bottom 24px); Generate dims to `opacity:.55` and is a **no-op** on step 1 while no context
+exists (see the gating note below). Step title Bricolage 26px; subtitle 15px `#5C6B62`.
+*(Amended in the wizard-v2 PR — prototype v2 moved the divider and made the footer sticky; the
+previous "pinned at the rail bottom" wording is superseded.)*
 
 Rail labels, verbatim: **1 Set the goal · 2 Design sequence · 3 Add contacts · 4 Enable lead capture ·
 5 Guardrails & compliance · 6 Preview & launch.**
 
-**Step 1 — Set the goal:** goal cards grid `repeat(3,1fr)` gap 9 (cards radius 13, padding `16px
-14px`, hover/selected border swap); picking a goal reveals the green `✓ Goal: …` pill divider;
+**Step 1 — Set the goal:** **nine** goal cards, grid `repeat(3,1fr)` gap 9 (cards radius 13,
+padding `16px 14px`, hover/selected border swap) — verbatim: Book appointments 📅 · Generate
+leads 🎯 · Reactivate leads ♻ · Drive sign-ups 🚀 · Collect reviews ⭐ · **Promote an offer 🏷 ·
+Fill an event 🎟 · Upsell clients 📈** (v2 additions) · Custom goal ✎; picking a goal reveals the
+green `✓ Goal: …` pill divider; **per-goal required-field gap rows** (v2): offer → offer details /
+pricing / purchase link / deadline; event → event name / date & time / registration link / what
+attendees get; upsell → what to pitch / who qualifies / pricing / booking link; all other goals
+keep the base USP / pricing / availability rows;
 **Knowledge base** list: an agent can have **any mix of sources — one or many** (URL, uploaded doc,
 pasted text; connectors designed-but-inert): add-source picker is a 3-up choice (Upload doc / Add
 URL / Connect source; connectors grid gap 7); each added source is its own row with its own
-**IngestStatus** (PENDING → INGESTING → READY / FAILED) live from P1.2;
+**IngestStatus** (PENDING → INGESTING → READY / FAILED) live from P1.2, an amber `Ingesting`
+(`#D4A020`) → green `Ready` (`#16A82A`) status text, and a trailing **remove ✕** (`#C2B79F`,
+hover `#B54B3A`); the URL panel's Add URL and the (clickable) doc dropzone both append a live
+INGESTING row that flips to READY;
 **About your business card** (header bg `#F7F9F8`, "used to personalise every message", Edit
 action): shows the P1.3 distilled summary, editable; **Grounded-in footer** — one chip per
 knowledge source (icon + label, pill border `#EBE3D6`, active `#35E834`); chip click reveals the
@@ -133,8 +147,15 @@ desc) with three states — missing → buttons
 **Type it** (inline input appears, Clear resets) and **✦ Let AI** (chip flips to "✦ AI decides" +
 Undo). Gaps come from the P1.3 completeness check; typed answers persist as TEXT knowledge /
 context overrides and re-distill; **launch (step 6) is gated on every gap resolved** (typed or
-delegated to AI);
-"How should we build the sequence?" — 3 method cards, gap 9.
+delegated to AI); **zero-context state (v2)**: with no READY source and no typed answer, the gap
+subline flips to amber-bold `No context yet — add a source or type answers before launch.`, the
+green covered strip and its citation data are suppressed (empty, not hidden), and the About card
+is replaced by a dashed empty card — `No business profile yet — add a knowledge source and we'll
+distill one for personalisation.`;
+"How should we build the sequence?" — 3 method cards, gap 9, **gated on ≥1 READY source or a
+typed answer**: without context it renders the dashed locked placeholder `✦ Add a knowledge source
+or answer a question above to unlock sequence building.` and Generate is dimmed + no-op.
+*(Step-1 items amended in the wizard-v2 PR against prototype v2.)*
 **Step 2 — Design sequence:** renders the **planner's CampaignGraph** (P1.4): one card per `step`
 node (Step N label + email ChannelChip + `✦ AI draft` badge + `✎ Edit`), delay chips between from
 `delay` nodes, the reply branch from the `branch` node. **Step editor = 560px right drawer**
@@ -147,7 +168,13 @@ gradient `Save step`. *(Amended in PR #34 — this section previously said "moda
 updated prototype.)* Delay modal opens/closes; edits persist to the graph (new version,
 `source: MANUAL`).
 **Step 3 — Add contacts:** 3 source cards (`repeat(3,1fr)` gap 12); CSV modal flow; **manual-add
-drawer** (480px, bg `#FBF7F0`). Minimal wiring: CSV of ≥1 test contact + manual single add.
+drawer** (480px, bg `#FBF7F0`, shadow `-24px 0 70px rgba(0,0,0,.28)`, scrim `rgba(12,20,15,.4)`):
+header `Add contacts manually` (Bricolage 17) + 32px ✕; white form card (radius 14) with 11px/800
+micro-caps labels — 2-col First/Last name, full-width Email, 2-col Company/**Phone** — and an
+in-card tinted `+ Add contact` **multi-add** button; `ADDED THIS SESSION · N` micro-caps label over
+rows with 34px initials avatars + red `Remove`; footer `N contacts ready to add` + gradient
+`Add to campaign`. *(Amended in the wizard-v2 PR per DEC-039a — previously "minimal wiring".)*
+Minimal wiring: CSV of ≥1 test contact + manual single add.
 **Step 4 — Enable lead capture:** 2-col grid (`1fr 1fr`, gap 18); 48×28 gradient toggle; note
 "This step is optional — you can skip it…" verbatim. **Visual only in P1** (toggle state persists,
 no capture backend).
