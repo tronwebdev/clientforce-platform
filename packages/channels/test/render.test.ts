@@ -28,6 +28,39 @@ describe("renderTokens", () => {
     );
     expect(() => renderTokens("{{unknownToken}}", contact, "S")).toThrow(MissingTokenError);
   });
+
+  // C2.7: {{custom.<key>|fallback}} — value-or-fallback, never blank.
+  it("custom token renders the contact's value when present", () => {
+    expect(
+      renderTokens("{{custom.industry|your industry}}", { ...contact, custom: { industry: "Dental" } }, "S"),
+    ).toBe("Dental");
+  });
+
+  it("custom token falls back when the value is missing or empty", () => {
+    expect(renderTokens("{{custom.industry|your industry}}", { ...contact, custom: {} }, "S")).toBe(
+      "your industry",
+    );
+    expect(
+      renderTokens("{{custom.industry|your industry}}", { ...contact, custom: { industry: "" } }, "S"),
+    ).toBe("your industry");
+  });
+
+  it("custom token with no value AND no fallback fails the send (never blank)", () => {
+    expect(() => renderTokens("{{custom.industry}}", { ...contact, custom: {} }, "S")).toThrow(
+      MissingTokenError,
+    );
+    expect(() => renderTokens("{{custom.industry|}}", contact, "S")).toThrow(MissingTokenError);
+  });
+
+  it("custom and standard tokens compose in one body", () => {
+    expect(
+      renderTokens(
+        "Hi {{firstName}}, {{custom.plan|the plan}} awaits",
+        { ...contact, custom: { plan: "Growth" } },
+        "S",
+      ),
+    ).toBe("Hi Ada, Growth awaits");
+  });
 });
 
 describe("thread prefix helpers (owner rule 3)", () => {
