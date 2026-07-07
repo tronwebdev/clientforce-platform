@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { AiGateway } from "@clientforce/ai";
-import { withTenant, type KnowledgeSource, type PrismaClient } from "@clientforce/db";
+import { Prisma, withTenant, type KnowledgeSource, type PrismaClient } from "@clientforce/db";
 import { chunkText } from "./chunk";
 import { ExtractionError, extractFromDocument, extractFromUrl } from "./extract";
 import type { UploadStore } from "./storage";
@@ -19,6 +19,8 @@ export interface IngestJobPayload {
 }
 
 const EMBED_BATCH = 64;
+/** Multi-row VALUES batch size for the chunk INSERTs (one round-trip per 50). */
+const INSERT_BATCH = 50;
 
 /**
  * The ingestion pipeline (P1.2): PENDING → INGESTING → extract → chunk →
@@ -37,26 +39,35 @@ export async function ingestSource(deps: IngestDeps, job: IngestJobPayload): Pro
     throw new Error(`KnowledgeSource ${job.sourceId} not found in workspace ${job.workspaceId}`);
 
   await setStatus(deps, job, "INGESTING");
+  const t0 = Date.now();
   try {
     const { text, title } = await extract(source, deps);
     const chunks = chunkText(text);
     if (chunks.length === 0) throw new ExtractionError("Extraction produced no chunkable text");
+    const extractMs = Date.now() - t0;
 
+    const tEmbed = Date.now();
     const vectors: number[][] = [];
     for (let i = 0; i < chunks.length; i += EMBED_BATCH) {
       vectors.push(
         ...(await gateway.embed(chunks.slice(i, i + EMBED_BATCH).map((c) => c.content))),
       );
     }
+    const embedMs = Date.now() - tEmbed;
 
+    const tPersist = Date.now();
     await withTenant(prisma, ctx, async (tx) => {
       await tx.knowledgeChunk.deleteMany({ where: { sourceId: source.id } });
-      for (let i = 0; i < chunks.length; i++) {
-        const chunk = chunks[i]!;
-        const vector = `[${vectors[i]!.join(",")}]`;
+      // Batched multi-row VALUES (groups of 50) — the per-chunk round-trip was
+      // the persist bottleneck on large documents. The ::vector cast stays per row.
+      for (let i = 0; i < chunks.length; i += INSERT_BATCH) {
+        const rows = chunks.slice(i, i + INSERT_BATCH).map((chunk, j) => {
+          const vector = `[${vectors[i + j]!.join(",")}]`;
+          return Prisma.sql`(${randomUUID()}, ${job.workspaceId}, ${source.id}, ${chunk.content}, ${vector}::vector, ${chunk.tokens}, NOW())`;
+        });
         await tx.$executeRaw`
           INSERT INTO "KnowledgeChunk" ("id", "workspaceId", "sourceId", "content", "embedding", "tokens", "updatedAt")
-          VALUES (${randomUUID()}, ${job.workspaceId}, ${source.id}, ${chunk.content}, ${vector}::vector, ${chunk.tokens}, NOW())`;
+          VALUES ${Prisma.join(rows)}`;
       }
       await tx.knowledgeSource.update({
         where: { id: source.id },
@@ -71,6 +82,10 @@ export async function ingestSource(deps: IngestDeps, job: IngestJobPayload): Pro
         },
       });
     });
+    const persistMs = Date.now() - tPersist;
+    console.log(
+      `[ingest] source=${source.id} extract=${extractMs}ms chunks=${chunks.length} embed=${embedMs}ms persist=${persistMs}ms total=${Date.now() - t0}ms bytes=${text.length}`,
+    );
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     await withTenant(prisma, ctx, (tx) =>

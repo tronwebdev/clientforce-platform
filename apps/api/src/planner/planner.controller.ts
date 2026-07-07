@@ -18,6 +18,7 @@ import {
 } from "@clientforce/core";
 import { z } from "zod";
 import { Role } from "@clientforce/db";
+import { createPlanQueue, type PlanTarget } from "@clientforce/planner";
 import type { ZodSchema } from "zod";
 import { Roles } from "../auth/decorators";
 import { TenantClient } from "../db/tenant-client";
@@ -105,6 +106,58 @@ export class PlannerController {
       await tx.campaign.update({ where: { id: campaign.id }, data: { graphId: row.id } });
       return row;
     });
+  }
+
+  /** Lazy BullMQ handle onto the planner queue — the API boots without Redis. */
+  private statusQueue?: ReturnType<typeof createPlanQueue>;
+
+  /**
+   * Wizard bugfix round (B7): expose the agent's newest plan job state so the
+   * "drafting sequence" poll can distinguish "still working" from "failed" —
+   * hold until graph OR failure, never infinite. Redis absence/errors degrade
+   * to { state: "none" }, never a 500.
+   */
+  @Get("status")
+  async status(@Query() query: unknown) {
+    const dto = parse(plannerGraphQuerySchema, query ?? {});
+    const none = { state: "none" as string, failedReason: null as string | null, at: null as string | null };
+    if (!process.env.REDIS_URL) return none;
+    try {
+      // Same queue name as the worker: createPlanQueue → PLANNER_QUEUE_NAME.
+      this.statusQueue ??= createPlanQueue();
+      const jobs = await this.statusQueue.getJobs(
+        ["failed", "active", "waiting", "delayed", "completed"],
+        0,
+        50,
+      );
+      const workspaceId = this.tenant.workspaceId;
+      const mine = jobs
+        .filter((j) => {
+          const data = j?.data as PlanTarget | undefined;
+          return data?.agentId === dto.agentId && data?.workspaceId === workspaceId;
+        })
+        .sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0));
+      const job = mine[0];
+      if (!job) return none;
+      const raw = await job.getState();
+      const state =
+        raw === "waiting" || raw === "delayed" || raw === "waiting-children" || raw === "prioritized"
+          ? "waiting"
+          : raw === "active" || raw === "completed" || raw === "failed"
+            ? raw
+            : "none";
+      return {
+        state,
+        failedReason: state === "failed" ? (job.failedReason ?? null) : null,
+        at: job.finishedOn
+          ? new Date(job.finishedOn).toISOString()
+          : job.timestamp
+            ? new Date(job.timestamp).toISOString()
+            : null,
+      };
+    } catch {
+      return none;
+    }
   }
 
   @Get("graph")

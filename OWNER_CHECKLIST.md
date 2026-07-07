@@ -42,6 +42,15 @@ To add or replace any secret: **portal.azure.com** → search **clientforce-kv**
 the table → paste the value → **Create**. (For `FIELD-ENCRYPTION-KEY`, use the
 Cloud Shell command from PR #29 so the value is properly random.)
 
+> **Two names for the same secret (normal — don't "fix" it):** Azure Key Vault
+> doesn't allow underscores, so secrets are named with hyphens there
+> (`ANTHROPIC-API-KEY`). Inside the running app the same value appears as an
+> environment variable, which can't contain hyphens, so it's underscored
+> (`ANTHROPIC_API_KEY`). The mapping between the two lives in
+> `infra/main.bicep` and is checked by the deploy preflight — if anyone ever
+> asks you "is the Anthropic key set up?", the Key Vault name in the table
+> above is the one you look for.
+
 ## 3. Test inbox (§G)
 
 `tronwebng@gmail.com` is the only address the platform will send to during

@@ -194,6 +194,8 @@ model Agent {
   instructions    String?
   status          AgentStatus      @default(DRAFT)
   guardrails      Json
+  /// B6: wizard draft-resume working set (core `draftStateSchema`); NULL once launched.
+  draftState      Json?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   campaigns        Campaign[]
