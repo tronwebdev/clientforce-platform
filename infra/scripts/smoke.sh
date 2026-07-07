@@ -28,8 +28,12 @@ case "$login_code" in
   *) echo "::error::dev-login https://$web_fqdn/api/auth/dev-login -> $login_code (expected 2xx/3xx)"; exit 1;;
 esac
 
-home_code="$(curl -sS -b "$cookies" -o /tmp/home.html -w '%{http_code}' "https://$web_fqdn/")"
-[ "$home_code" = "200" ] || { echo "::error::authenticated GET https://$web_fqdn/ -> $home_code (expected 200; shell likely bounced to /login)"; exit 1; }
-grep -qi "Welcome back" /tmp/home.html || { echo "::error::shell did not render the authenticated dashboard"; exit 1; }
+# C2.1 landed the shell on /agents (handoff §C): `/` now 307s there BY DESIGN,
+# which made this assertion stale — every deploy since PR #33 failed here while
+# the deployment itself succeeded (masking the real Redis outage found
+# 2026-07-07). Assert the designed landing page instead.
+home_code="$(curl -sS -b "$cookies" -o /tmp/home.html -w '%{http_code}' "https://$web_fqdn/agents")"
+[ "$home_code" = "200" ] || { echo "::error::authenticated GET https://$web_fqdn/agents -> $home_code (expected 200; shell likely bounced to /login)"; exit 1; }
+grep -qi "Add agent" /tmp/home.html || { echo "::error::shell did not render the authenticated Agents screen"; exit 1; }
 
 echo "Smoke passed — deployed shell logged in against the cloud DB."
