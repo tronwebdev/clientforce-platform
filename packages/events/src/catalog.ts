@@ -85,7 +85,15 @@ export const EVENT_SCHEMAS = {
   // `lead.replied` was removed from the canonical catalog (handoff A9 /
   // DEC-018, aligned in P1.7): replies are channel events — `email.replied.v1`.
   "lead.enrolled.v1": z.object({ campaignId: z.string().optional() }),
-  "lead.stage_changed.v1": z.object({ fromStage: z.string(), toStage: z.string() }),
+  // C2.9 (DEC-059): goal-completion transitions carry the completing
+  // campaign's goal + its terminal label — ADDITIVE optional fields, no
+  // version bump (legacy payloads stay valid); UIs render `label` verbatim.
+  "lead.stage_changed.v1": z.object({
+    fromStage: z.string(),
+    toStage: z.string(),
+    goalKey: z.string().optional(),
+    label: z.string().optional(),
+  }),
   "lead.unsubscribed.v1": z.object({ channel: z.string().optional() }),
 
   // ── Lists (C2.8, docs/PLAN_CONTACT_LISTS.md) ───────────────────────────────

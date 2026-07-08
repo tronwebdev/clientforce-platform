@@ -17,7 +17,7 @@ import { StepsTab } from "./StepsTab";
 import { cf, GRAD, GOAL_EMOJI, TABS } from "./shared";
 
 export interface AgentViewData {
-  agent: { id: string; name: string; goal: string; status: string; createdAt: string };
+  agent: { id: string; name: string; goal: string; goalLabel?: string; goalPill?: string; status: string; createdAt: string };
   campaign: { id: string; name: string } | null;
   graph: CampaignGraph | null;
   graphVersion: number | null;
@@ -143,7 +143,7 @@ export function AgentView({ agentId, tab }: { agentId: string; tab: string }) {
             <button type="button" onClick={() => void refresh()} style={{ background: GRAD, border: "none", borderRadius: 11, padding: "10px 20px", fontSize: 13.5, fontWeight: 700, color: "#0A0F0C", cursor: "pointer", fontFamily: "'Hanken Grotesk',sans-serif" }}>Retry</button>
           </div>
         ) : tab === "inbox" ? (
-          <InboxTab agentId={agentId} />
+          <InboxTab agentId={agentId} goalLabel={view?.agent.goalLabel} />
         ) : tab === "steps" ? (
           <StepsTab view={view} />
         ) : tab === "leads" ? (

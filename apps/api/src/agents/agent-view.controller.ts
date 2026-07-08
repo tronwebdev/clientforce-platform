@@ -1,5 +1,5 @@
 import { Controller, Get, NotFoundException, Param, Query } from "@nestjs/common";
-import { parseGuardrails, validateGraph, type CampaignGraph } from "@clientforce/core";
+import { goalTerminalLabel, goalTerminalPill, parseGuardrails, validateGraph, type CampaignGraph } from "@clientforce/core";
 import { TenantClient } from "../db/tenant-client";
 
 /**
@@ -74,6 +74,9 @@ export class AgentViewController {
           id: agent.id,
           name: agent.name,
           goal: agent.goal,
+          // C2.9 (DEC-059): resolved terminal wording — custom label from guardrails.
+          goalLabel: goalTerminalLabel(agent.goal, guardrails?.goalLabel),
+          goalPill: goalTerminalPill(agent.goal),
           status: agent.status,
           createdAt: agent.createdAt.toISOString(),
         },

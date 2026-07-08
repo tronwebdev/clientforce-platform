@@ -42,3 +42,6 @@ e2e/.playwright/
 
 # Local Redis persistence snapshot (local dev stack artifact)
 dump.rdb
+
+# local dev filesystem upload store (createUploadStoreFromEnv default)
+.uploads/

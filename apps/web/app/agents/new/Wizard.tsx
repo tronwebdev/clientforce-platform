@@ -10,7 +10,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "rea
 // B9: the wizard's "＋ Add sender" opens the same connect flow Settings uses —
 // the prototype's binding is `openAddEmail: () => connectChannel('email')`.
 import { ConnectFlowDrawer } from "../../(shell)/settings/shared";
-import { CONTEXT_FIELD_META, customTokensMissingFallback, GOAL_KEYS, requiredFieldsFor, type GoalKey } from "@clientforce/core";
+import { CONTEXT_FIELD_META, customTokensMissingFallback, GOAL_KEYS, goalTerminalLabel, requiredFieldsFor, type GoalKey } from "@clientforce/core";
 import type { CampaignGraph, ContactFieldDefDto, DraftState, GraphNode } from "@clientforce/core";
 
 /** Per-field one-liner under each gap row (registry-driven). */
@@ -250,6 +250,8 @@ export function Wizard() {
   // step 1
   const [name, setName] = useState("");
   const [goal, setGoal] = useState<string | null>(null);
+  // C2.9 (DEC-059): custom goal's owner-typed terminal label (default "Goal met").
+  const [goalLabel, setGoalLabel] = useState("");
   const [agentId, setAgentId] = useState<string | null>(null);
   const [sources, setSources] = useState<KnowledgeSource[]>([]);
   const [category, setCategory] = useState("Dental & Orthodontics");
@@ -364,6 +366,7 @@ export function Wizard() {
         setName(a.name ?? "");
         setGoal(a.goal ?? null);
         setInstructions(a.instructions ?? "");
+        if (ds.goalLabel) setGoalLabel(ds.goalLabel);
         if (ds.buildMethod) setBuildMethod(ds.buildMethod);
         if (ds.added) setAdded(ds.added);
         if (ds.capture) setCapture(ds.capture);
@@ -427,6 +430,7 @@ export function Wizard() {
         quietHours,
         ramp,
         ...(pickedList ? { pickedListId: pickedList.id } : {}),
+        ...(goalLabel.trim() ? { goalLabel: goalLabel.trim() } : {}),
       };
       cf(`agents/${agentId}`, { method: "PATCH", body: JSON.stringify({ draftState }) })
         .then(() => {
@@ -438,7 +442,7 @@ export function Wizard() {
         });
     }, 800);
     return () => clearTimeout(t);
-  }, [agentId, launched, resuming, building, step, buildMethod, added, capture, dailyCap, windowStart, windowEnd, timezone, sendDays, quietHours, ramp, pickedList, toast]);
+  }, [agentId, launched, resuming, building, step, buildMethod, added, capture, dailyCap, windowStart, windowEnd, timezone, sendDays, quietHours, ramp, pickedList, goalLabel, toast]);
 
   // ── polling (A4: 5s) ────────────────────────────────────────────────────
   const readyCount = useRef(0);
@@ -899,6 +903,8 @@ export function Wizard() {
             dailyCap: { email: dailyCap },
             consent: null,
             tracking: { openTracking: true, linkTracking: true },
+            // C2.9: custom goal's terminal label survives launch here (DEC-059).
+            ...(goal === "custom" && goalLabel.trim() ? { goalLabel: goalLabel.trim() } : {}),
             unsubscribeFooter: true,
             suppressionCheck: true,
           },
@@ -1072,7 +1078,7 @@ export function Wizard() {
     // contact arrives both ways (the more specific action).
     const origins = new Map<string, { kind: "manual" | "csv" | "list"; listId?: string; listName?: string }>();
     if (pickedList) {
-      const members = (await cf(`contacts/view?listId=${pickedList.id}`).catch(() => [])) as { id: string }[];
+      const members = ((await cf(`contacts/view?listId=${pickedList.id}`).catch(() => ({ rows: [] }))) as { rows: { id: string }[] }).rows;
       for (const m of members) origins.set(m.id, { kind: "list", listId: pickedList.id, listName: pickedList.name });
     }
     for (const c of added) origins.set(c.id, { kind: c.src ?? "manual" });
@@ -1104,6 +1110,8 @@ export function Wizard() {
             dailyCap: { email: dailyCap },
             consent: null,
             tracking: { openTracking: true, linkTracking: true },
+            // C2.9: custom goal's terminal label survives launch here (DEC-059).
+            ...(goal === "custom" && goalLabel.trim() ? { goalLabel: goalLabel.trim() } : {}),
             unsubscribeFooter: true,
             suppressionCheck: true,
           },
@@ -1276,7 +1284,7 @@ export function Wizard() {
         {step === 0 ? (
           <div style={{ maxWidth: 760 }}>
           <Step1
-            {...{ name, setName, goal, setGoal, sources, addMode, setAddMode, category, setCategory, categoryOpen, setCategoryOpen, instructions, setInstructions, urlInput, setUrlInput, addUrl, contextSummary, groundedSources, aboutEv, setAboutEv, gaps: openGaps, covered, coveredEv, setCoveredEv, fields, gapResolved, gapTotal, typedDrafts, setTypedDrafts, typeGap, delegateGap, undoGap, buildMethod, setBuildMethod, ensureAgent, refreshKnowledge, hasContext, readyCnt, distilling, removeSource, retrySource, uploadDoc, uploadCfg, aboutEditing, setAboutEditing, aboutDraft, setAboutDraft, saveAbout, toast }}
+            {...{ name, setName, goal, setGoal, goalLabel, setGoalLabel, sources, addMode, setAddMode, category, setCategory, categoryOpen, setCategoryOpen, instructions, setInstructions, urlInput, setUrlInput, addUrl, contextSummary, groundedSources, aboutEv, setAboutEv, gaps: openGaps, covered, coveredEv, setCoveredEv, fields, gapResolved, gapTotal, typedDrafts, setTypedDrafts, typeGap, delegateGap, undoGap, buildMethod, setBuildMethod, ensureAgent, refreshKnowledge, hasContext, readyCnt, distilling, removeSource, retrySource, uploadDoc, uploadCfg, aboutEditing, setAboutEditing, aboutDraft, setAboutDraft, saveAbout, toast }}
           />
           </div>
         ) : null}
@@ -2067,6 +2075,7 @@ function BuildingScreen({ progress, sources, fields, graph, planFailed, onRetry,
 function Step1(props: {
   name: string; setName: (v: string) => void;
   goal: string | null; setGoal: (v: string) => void;
+  goalLabel: string; setGoalLabel: (v: string) => void;
   sources: KnowledgeSource[];
   addMode: AddMode; setAddMode: (v: AddMode) => void;
   category: string; setCategory: (v: string) => void;
@@ -2153,11 +2162,22 @@ function Step1(props: {
 
       {p.goal ? (
         <>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 28 }} data-testid="goal-pill">
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: p.goal === "custom" ? 14 : 28 }} data-testid="goal-pill">
             <div style={{ height: 1, flex: 1, background: "#EBE3D6" }} />
-            <span style={{ fontSize: 11.5, fontWeight: 700, color: "#16A82A", background: "rgba(53,232,52,.1)", borderRadius: 100, padding: "4px 13px", whiteSpace: "nowrap" }}>✓ Goal: {GOALS.find((g) => g.key === p.goal)?.title}</span>
+            {/* C2.9 (DEC-059): the completion-signal explainer — names the goal's
+                own terminal label (GOAL_META; custom = the typed label). */}
+            <span style={{ fontSize: 11.5, fontWeight: 700, color: "#16A82A", background: "rgba(53,232,52,.1)", borderRadius: 100, padding: "4px 13px", whiteSpace: "nowrap" }}>
+              ✓ Goal: {GOALS.find((g) => g.key === p.goal)?.title}
+              <span style={{ fontWeight: 600, color: "#0F7A28" }} data-testid="goal-explainer"> · completes when: “{goalTerminalLabel(p.goal, p.goalLabel)}”</span>
+            </span>
             <div style={{ height: 1, flex: 1, background: "#EBE3D6" }} />
           </div>
+          {p.goal === "custom" ? (
+            <div style={{ marginBottom: 28, maxWidth: 420 }}>
+              <label style={upLbl}>Completed-state label <span style={{ fontWeight: 400, color: "#C2B79F", letterSpacing: 0, textTransform: "none", fontSize: 11 }}>optional — how this goal reads once met</span></label>
+              <input value={p.goalLabel} onChange={(e) => p.setGoalLabel(e.target.value.slice(0, 60))} placeholder="Goal met" style={{ display: "block", width: "100%", boxSizing: "border-box", height: 44, borderRadius: 12, background: "#fff", border: "1px solid #EBE3D6", padding: "0 14px", fontSize: 14, color: "#0E1512", boxShadow: "0 1px 4px rgba(14,21,18,.04)", fontFamily: "'Hanken Grotesk',sans-serif" }} data-testid="goal-label-input" />
+            </div>
+          ) : null}
 
           {/* Knowledge base — header above the card, add-source picker below */}
           <div style={{ marginBottom: 20 }}>

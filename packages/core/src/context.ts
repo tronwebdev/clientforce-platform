@@ -30,6 +30,47 @@ export const GOAL_KEYS = [
 export const goalKeySchema = z.enum(GOAL_KEYS);
 export type GoalKey = z.infer<typeof goalKeySchema>;
 
+/**
+ * C2.9 (`docs/PLAN_GOAL_STATE.md`, DEC-059): per-goal terminal-state wording —
+ * the 9-row label table VERBATIM. Display-layer only: the internal stage key
+ * stays `booked`; these strings are what that state is CALLED per goal.
+ * `custom` may be overridden by an owner-typed label (wizard step 1).
+ */
+export const GOAL_META: Record<GoalKey, { terminalLabel: string; terminalPill: string }> = {
+  book_appointments: { terminalLabel: "Meeting booked", terminalPill: "Booked" },
+  generate_leads: { terminalLabel: "Lead qualified", terminalPill: "Qualified" },
+  reactivate_leads: { terminalLabel: "Reactivated", terminalPill: "Reactivated" },
+  drive_signups: { terminalLabel: "Signed up", terminalPill: "Signed up" },
+  collect_reviews: { terminalLabel: "Review left", terminalPill: "Reviewed" },
+  promote_offer: { terminalLabel: "Purchase made", terminalPill: "Purchased" },
+  fill_event: { terminalLabel: "Registered", terminalPill: "Registered" },
+  upsell_clients: { terminalLabel: "Upsell accepted", terminalPill: "Upgraded" },
+  custom: { terminalLabel: "Goal met", terminalPill: "Goal met" },
+};
+
+/** Chip/timeline label for a goal; `customLabel` overrides for `custom` only. */
+export function goalTerminalLabel(goalKey: string | null | undefined, customLabel?: string | null): string {
+  if (goalKey === "custom" && customLabel?.trim()) return customLabel.trim();
+  return GOAL_META[(goalKey ?? "") as GoalKey]?.terminalLabel ?? GOAL_META.custom.terminalLabel;
+}
+
+/** Short pill for tables/tabs. Custom is ALWAYS "Goal met" (plan table). */
+export function goalTerminalPill(goalKey: string | null | undefined): string {
+  return GOAL_META[(goalKey ?? "") as GoalKey]?.terminalPill ?? GOAL_META.custom.terminalPill;
+}
+
+/**
+ * Aggregation rule (plan §"Contacts is cross-agent"): workspace-level labels
+ * (segment tab, filter option, quick toggle, Move-to) show the shared goal's
+ * short pill iff every ACTIVE agent has ONE goal; mixed goals → "Goal met".
+ * No active agents → the generic fallback too.
+ */
+export function workspaceGoalPill(activeGoalKeys: readonly string[]): string {
+  const distinct = [...new Set(activeGoalKeys)];
+  if (distinct.length === 1) return goalTerminalPill(distinct[0]);
+  return GOAL_META.custom.terminalPill;
+}
+
 // ── Field vocabulary ─────────────────────────────────────────────────────────
 export const CONTEXT_FIELD_KEYS = [
   // core (required for every goal)

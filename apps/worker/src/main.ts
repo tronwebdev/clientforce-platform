@@ -323,7 +323,12 @@ async function run(): Promise<void> {
                 contactId: change.contactId,
                 enrollmentId: change.enrollmentId,
                 campaignId: change.campaignId,
-                payload: { fromStage: change.fromStage, toStage: change.toStage },
+                payload: {
+                  fromStage: change.fromStage,
+                  toStage: change.toStage,
+                  // C2.9: present on goal-completion moves (DEC-059).
+                  ...(change.goalKey ? { goalKey: change.goalKey, label: change.label } : {}),
+                },
               });
             },
           }

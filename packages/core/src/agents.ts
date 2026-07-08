@@ -43,6 +43,8 @@ export const draftStateSchema = z.object({
   timezone: z.string().max(64).optional(),
   /** C2.8: step-3 "Choose a list" — name/count re-resolve from the server on resume. */
   pickedListId: z.string().optional(),
+  /** C2.9: custom-goal terminal label typed in step 1 (also lands in guardrails). */
+  goalLabel: z.string().max(60).optional(),
   sendDays: z.array(z.boolean()).length(7).optional(),
   quietHours: z.boolean().optional(),
   ramp: z.boolean().optional(),

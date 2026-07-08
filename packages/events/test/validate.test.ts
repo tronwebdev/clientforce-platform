@@ -95,4 +95,36 @@ describe("validateEvent", () => {
       }),
     ).toThrow(/Invalid payload for "list.member.removed.v1"/);
   });
+
+  it("lead.stage_changed.v1 carries optional { goalKey, label } (C2.9) and stays legacy-compatible", () => {
+    // C2.9 (DEC-059): goal-completion moves carry the completing campaign's
+    // goal + terminal label — additive optional fields, no version bump.
+    const withGoal = validateEvent({
+      workspaceId: "ws1",
+      type: EVENT_TYPES.LEAD_STAGE_CHANGED,
+      payload: { fromStage: "replied", toStage: "booked", goalKey: "promote_offer", label: "Purchase made" },
+    });
+    expect(withGoal.payload).toEqual({
+      fromStage: "replied",
+      toStage: "booked",
+      goalKey: "promote_offer",
+      label: "Purchase made",
+    });
+
+    // Legacy payloads (pre-C2.9 rows) stay valid.
+    const legacy = validateEvent({
+      workspaceId: "ws1",
+      type: EVENT_TYPES.LEAD_STAGE_CHANGED,
+      payload: { fromStage: "new", toStage: "replied" },
+    });
+    expect(legacy.payload).toEqual({ fromStage: "new", toStage: "replied" });
+
+    expect(() =>
+      validateEvent({
+        workspaceId: "ws1",
+        type: EVENT_TYPES.LEAD_STAGE_CHANGED,
+        payload: { toStage: "booked" },
+      }),
+    ).toThrow(/Invalid payload for "lead.stage_changed.v1"/);
+  });
 });
