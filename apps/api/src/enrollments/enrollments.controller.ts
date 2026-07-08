@@ -114,7 +114,8 @@ export class EnrollmentsController {
               contactId: contact.id,
               workflowId: workflowIdFor(id),
               pipelineStage: "new",
-              meta: {},
+              // 49-3: provenance rides the run-audit meta — never a schema change.
+              meta: dto.origin ? { origin: dto.origin } : {},
             },
           }));
         return {

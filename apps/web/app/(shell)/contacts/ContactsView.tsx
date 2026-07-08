@@ -111,6 +111,9 @@ const EVENT_ROW: Record<string, { icon: string; bg: string; fg: string; label: (
   "email.bounced.v1": { icon: "⚠", bg: "rgba(224,121,107,.14)", fg: "#C9543F", label: () => "Email hard-bounced" },
   "lead.stage_changed.v1": { icon: "↪", bg: "rgba(53,232,52,.14)", fg: "#16A82A", label: (p) => `Moved to ${String(p.toStage ?? "a new stage")}${p.manual ? " by you" : ""}` },
   "lead.unsubscribed.v1": { icon: "⊘", bg: "rgba(224,121,107,.16)", fg: "#C9543F", label: () => "Unsubscribed from all sequences" },
+  // C2.8 (49-1): membership events render human — the slug never surfaces raw.
+  "list.member.added.v1": { icon: "≣", bg: "rgba(53,232,52,.14)", fg: "#16A82A", label: (p) => `Added to ${String(p.listName ?? "a list")}` },
+  "list.member.removed.v1": { icon: "≣", bg: "#F2EEE4", fg: "#8A7F6B", label: (p) => `Removed from ${String(p.listName ?? "a list")}` },
 };
 
 /** 40-1: a CSV header becomes a HUMAN label ("practice_type" -> "Practice type");

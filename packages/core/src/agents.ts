@@ -29,6 +29,8 @@ export const draftStateSchema = z.object({
         id: z.string(),
         email: z.string(),
         firstName: z.string().optional(),
+        /** C2.8 (49-3): how the contact was added — drives enrollment provenance. */
+        src: z.enum(["manual", "csv"]).optional(),
       }),
     )
     .max(500)

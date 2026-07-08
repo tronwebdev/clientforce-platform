@@ -18,7 +18,17 @@ interface Lead {
   currentNode: string | null;
   createdAt: string;
   updatedAt: string;
+  /** P1.6 run-audit json; C2.8 (49-3) adds `origin` — enrollment provenance. */
+  meta?: { origin?: { kind: "manual" | "csv" | "list"; listName?: string } };
   contact: { id: string; email: string | null; firstName: string | null; lastName: string | null; company: string | null };
+}
+
+/** 49-3: ORIGINATED FROM renders the enrollment's provenance, never a default. */
+function originCell(l: Lead): { icon: string; label: string } {
+  const o = l.meta?.origin;
+  if (o?.kind === "list") return { icon: "≣", label: `List · ${o.listName ?? "a list"}` };
+  if (o?.kind === "csv") return { icon: "⬆", label: "CSV import" };
+  return { icon: "✎", label: "Manual" };
 }
 interface TimelineEvent {
   id: string;
@@ -69,6 +79,9 @@ const EVENT_ROW: Record<string, { icon: string; bg: string; fg: string; label: (
   "email.spam_reported.v1": { icon: "⚠", bg: "rgba(224,121,107,.14)", fg: "#C9543F", label: () => "Marked as spam" },
   "lead.stage_changed.v1": { icon: "✦", bg: "rgba(53,232,52,.14)", fg: "#16A82A", label: (p) => `Stage changed${p.fromStage ? ` — ${String(p.fromStage)} → ${String(p.toStage)}` : ""}` },
   "lead.unsubscribed.v1": { icon: "⊘", bg: "rgba(224,121,107,.16)", fg: "#C9543F", label: () => "Unsubscribed from all sequences" },
+  // C2.8 (49-1): membership events render human — the slug never surfaces raw.
+  "list.member.added.v1": { icon: "≣", bg: "rgba(53,232,52,.14)", fg: "#16A82A", label: (p) => `Added to ${String(p.listName ?? "a list")}` },
+  "list.member.removed.v1": { icon: "≣", bg: "#F2EEE4", fg: "#8A7F6B", label: (p) => `Removed from ${String(p.listName ?? "a list")}` },
 };
 
 const MOVE_OPTIONS = [
@@ -356,7 +369,7 @@ export function LeadsTab({ agentId, view, onChanged }: { agentId: string; view: 
                   </div>
                   <div style={{ padding: "11px 12px", fontSize: 14, color: "#3B463F", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.contact.company ?? "—"}</div>
                   <div style={{ padding: "11px 12px" }}>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12.5, color: "#5C6B62" }}><span style={{ fontSize: 13 }}>✎</span>Manual</span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12.5, color: "#5C6B62", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} data-testid="lead-origin"><span style={{ fontSize: 13, flex: "none" }}>{originCell(l).icon}</span>{originCell(l).label}</span>
                   </div>
                   <div style={{ padding: "11px 12px" }}>
                     <span style={{ display: "inline-block", padding: "5px 11px", borderRadius: 100, fontSize: 12, fontWeight: 600, background: pill.bg, color: pill.fg }}>{pill.label}</span>
