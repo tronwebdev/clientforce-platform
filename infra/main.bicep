@@ -145,6 +145,10 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'APP_DATABASE_URL', secretRef: 'app-database-url' }
             { name: 'AUTH_DEV_SECRET', secretRef: 'auth-dev-secret' }
             { name: 'REDIS_URL', secretRef: 'redis-url' }
+            // The staging cache is OSS-cluster-policy: standalone clients get
+            // MOVED on keys owned by other shards (2026-07-08 diagnosis) — this
+            // flips @clientforce/events to ioredis Cluster clients.
+            { name: 'REDIS_CLUSTER', value: 'true' }
             { name: 'OPENAI_API_KEY', secretRef: 'openai-api-key' }
             { name: 'ANTHROPIC_API_KEY', secretRef: 'anthropic-api-key' }
             { name: 'SENDGRID_API_KEY', secretRef: 'sendgrid-api-key' }
@@ -183,6 +187,9 @@ resource worker 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'DATABASE_URL', secretRef: 'database-url' }
             { name: 'APP_DATABASE_URL', secretRef: 'app-database-url' }
             { name: 'REDIS_URL', secretRef: 'redis-url' }
+            // Same cluster flag as the api container — api and worker MUST
+            // agree, or one side's queue writes land where the other can't read.
+            { name: 'REDIS_CLUSTER', value: 'true' }
             { name: 'OPENAI_API_KEY', secretRef: 'openai-api-key' }
             { name: 'ANTHROPIC_API_KEY', secretRef: 'anthropic-api-key' }
             { name: 'SENDGRID_API_KEY', secretRef: 'sendgrid-api-key' }

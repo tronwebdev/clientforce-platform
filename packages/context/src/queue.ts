@@ -1,5 +1,5 @@
 import { Queue, Worker, type ConnectionOptions } from "bullmq";
-import { BULL_PREFIX, redisOptionsFromUrl } from "@clientforce/events";
+import { BULL_PREFIX, bullConnectionFromUrl } from "@clientforce/events";
 import { distill, type DistillDeps, type DistillTarget } from "./distill";
 
 export const CONTEXT_QUEUE_NAME = "clientforce.context.distill";
@@ -9,7 +9,7 @@ export const CONTEXT_QUEUE_NAME = "clientforce.context.distill";
 // ending in `=` — 2026-07-08 staging outage) and lacked SNI/username/db.
 const connectionFrom = (
   redisUrl = process.env.REDIS_URL ?? "redis://localhost:6379",
-): ConnectionOptions => redisOptionsFromUrl(redisUrl);
+): ConnectionOptions => bullConnectionFromUrl(redisUrl);
 
 /** Enqueue a (re-)distill — the API on typed answers, the ingest worker on READY sources. */
 export function createDistillQueue(redisUrl?: string): Queue<DistillTarget> {

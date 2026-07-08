@@ -13,11 +13,11 @@ import { createDistillQueue, createDistillWorker } from "@clientforce/context";
 import { createAppPrismaClient, withTenant, type PrismaClient } from "@clientforce/db";
 import {
   automationsConsumer,
+  bullConnectionFromUrl,
   createRedisClient,
   createTemporalSignalConsumer,
   dispatcherConsumer,
   EventBus,
-  redisOptionsFromUrl,
   WORKER_HEARTBEAT_KEY,
 } from "@clientforce/events";
 import { createIngestWorker, createUploadStoreFromEnv } from "@clientforce/knowledge";
@@ -124,7 +124,7 @@ function startKnowledgeWorkers(): void {
   // Temporal isn't configured; the Event row is persisted regardless).
   const bus = new EventBus({
     prisma,
-    connection: redisOptionsFromUrl(process.env.REDIS_URL),
+    connection: bullConnectionFromUrl(process.env.REDIS_URL),
     consumers: [
       createTemporalSignalConsumer(async (enrollmentId, intent) => {
         const client = await temporalClient();
@@ -253,7 +253,7 @@ async function run(): Promise<void> {
   const stageBus = process.env.REDIS_URL
     ? new EventBus({
         prisma: activityPrisma,
-        connection: redisOptionsFromUrl(process.env.REDIS_URL),
+        connection: bullConnectionFromUrl(process.env.REDIS_URL),
       })
     : undefined;
   const worker = await Worker.create({

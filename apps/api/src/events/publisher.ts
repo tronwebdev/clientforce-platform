@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import type { BusEventInput } from "@clientforce/channels";
 import { withTenant, type Prisma } from "@clientforce/db";
-import { EventBus, redisOptionsFromUrl, validateEvent } from "@clientforce/events";
+import { bullConnectionFromUrl, EventBus, validateEvent } from "@clientforce/events";
 import { PrismaService } from "../db/prisma.service";
 
 export const EVENTS_PUBLISHER = Symbol("EVENTS_PUBLISHER");
@@ -25,7 +25,7 @@ export class BusOrInlinePublisher implements EventsPublisher {
     if (process.env.REDIS_URL) {
       this.bus = new EventBus({
         prisma: this.prisma.app,
-        connection: redisOptionsFromUrl(process.env.REDIS_URL),
+        connection: bullConnectionFromUrl(process.env.REDIS_URL),
       });
     }
   }
