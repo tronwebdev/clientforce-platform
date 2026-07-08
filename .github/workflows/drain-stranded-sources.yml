@@ -1,0 +1,82 @@
+# One-off ops tool (2026-07-08 outage cleanup): sources whose ingest enqueue
+# was lost during the Redis outage sit in PENDING forever — nothing in the
+# product re-enqueues a PENDING row. This drains them through the DESIGNED
+# mechanisms only: stale rows flip to FAILED (true — their ingestion failed)
+# with an explanatory error, which surfaces the B3 per-row Retry in the UI;
+# rows in the demo workspace are then retried through the real
+# POST /knowledge/sources/:id/retry so they re-enqueue and reach READY.
+# Dispatch-only; safe to re-run (the >10-minute stale filter never touches a
+# live job, and re-ingest is idempotent — P1.2).
+name: drain-stranded-sources
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  RG: ${{ vars.AZURE_RESOURCE_GROUP }}
+  KEY_VAULT_NAME: ${{ vars.KEY_VAULT_NAME }}
+
+jobs:
+  drain:
+    name: flip stale → FAILED · retry demo rows · verify
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: 1 — inventory the stranded rows
+        run: |
+          set -euo pipefail
+          dburl="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name DATABASE-URL --query value -o tsv)"
+          echo "::add-mask::$dburl"
+          echo "$dburl" > /tmp/dburl
+          psql "$(cat /tmp/dburl)" -c "select s.id, w.slug as workspace, s.status, s.label, s.\"updatedAt\" from \"KnowledgeSource\" s join \"Workspace\" w on w.id = s.\"workspaceId\" where s.status in ('PENDING','INGESTING') and s.\"updatedAt\" < now() - interval '10 minutes' order by s.\"updatedAt\";"
+          psql "$(cat /tmp/dburl)" -At -c "select s.id from \"KnowledgeSource\" s where s.status in ('PENDING','INGESTING') and s.\"updatedAt\" < now() - interval '10 minutes';" > /tmp/stranded-ids
+          echo "stranded: $(wc -l < /tmp/stranded-ids) rows"
+
+      - name: 2 — flip stale rows to FAILED (surfaces the designed Retry)
+        run: |
+          set -euo pipefail
+          [ -s /tmp/stranded-ids ] || { echo "nothing stranded — done"; exit 0; }
+          psql "$(cat /tmp/dburl)" -c "update \"KnowledgeSource\" set status = 'FAILED', meta = coalesce(meta, '{}'::jsonb) || jsonb_build_object('error', 'Ingestion was interrupted by a staging outage (2026-07-08). Press Retry to re-process this source.'), \"updatedAt\" = now() where status in ('PENDING','INGESTING') and \"updatedAt\" < now() - interval '10 minutes';"
+
+      - name: 3 — retry demo-workspace rows through the real endpoint
+        run: |
+          set -euo pipefail
+          [ -s /tmp/stranded-ids ] || { echo "nothing stranded — done"; exit 0; }
+          web="$(az containerapp show --name clientforce-web --resource-group "$RG" --query "properties.configuration.ingress.fqdn" -o tsv)"
+          jar="$(mktemp)"
+          curl -sS -c "$jar" -o /dev/null --data-urlencode "email=owner@demo-agency.test" "https://$web/api/auth/dev-login"
+          demo_ids="$(psql "$(cat /tmp/dburl)" -At -c "select s.id from \"KnowledgeSource\" s join \"Workspace\" w on w.id = s.\"workspaceId\" where w.slug = 'demo' and s.id = any(string_to_array('$(paste -sd, /tmp/stranded-ids)', ','));")"
+          [ -n "$demo_ids" ] || { echo "no stranded rows in the demo workspace"; exit 0; }
+          for id in $demo_ids; do
+            code="$(curl -sS -b "$jar" -o /dev/null -w '%{http_code}' -X POST "https://$web/api/cf/knowledge/sources/$id/retry")"
+            echo "retry $id -> $code"
+          done
+
+      - name: 4 — verify the drain (poll up to 5 min)
+        run: |
+          set -euo pipefail
+          [ -s /tmp/stranded-ids ] || { echo "nothing stranded — done"; exit 0; }
+          idlist="$(paste -sd, /tmp/stranded-ids)"
+          for i in $(seq 1 30); do
+            sleep 10
+            left="$(psql "$(cat /tmp/dburl)" -At -c "select count(*) from \"KnowledgeSource\" where id = any(string_to_array('$idlist', ',')) and status in ('PENDING','INGESTING');")"
+            echo "  [$i] formerly-stranded rows still processing: $left"
+            [ "$left" = "0" ] && break
+          done
+          echo "── final state of every formerly-stranded row ──"
+          psql "$(cat /tmp/dburl)" -c "select s.id, w.slug as workspace, s.status, s.label from \"KnowledgeSource\" s join \"Workspace\" w on w.id = s.\"workspaceId\" where s.id = any(string_to_array('$idlist', ',')) order by w.slug, s.status;"
+          echo "── stale-queue check (the probe's drain gate) ──"
+          psql "$(cat /tmp/dburl)" -c "select status, count(*) from \"KnowledgeSource\" where status in ('PENDING','INGESTING') and \"updatedAt\" < now() - interval '10 minutes' group by status;"
