@@ -9,6 +9,7 @@ import {
   Param,
   Post,
   Query,
+  ServiceUnavailableException,
   UploadedFile,
   UseInterceptors,
 } from "@nestjs/common";
@@ -23,6 +24,7 @@ import { Role } from "@clientforce/db";
 import {
   MAX_UPLOAD_BYTES,
   retrieve,
+  StorageUnavailableError,
   uploadPathFor,
   type UploadStore,
 } from "@clientforce/knowledge";
@@ -131,10 +133,38 @@ export class KnowledgeController {
         },
       }),
     );
-    const path = await this.store.put(
-      uploadPathFor(workspaceId, source.id, file.originalname),
-      file.buffer,
-    );
+    let path: string;
+    try {
+      path = await this.store.put(
+        uploadPathFor(workspaceId, source.id, file.originalname),
+        file.buffer,
+      );
+    } catch (err) {
+      if (err instanceof StorageUnavailableError) {
+        // Designed failure instead of a 240s ingress hang: the row goes FAILED
+        // (the B3 Retry affordance re-runs it) and the client gets a 503
+        // naming storage as the unreachable prerequisite.
+        await this.tenant
+          .run((tx) =>
+            tx.knowledgeSource.update({
+              where: { id: source.id },
+              data: {
+                status: "FAILED",
+                meta: {
+                  filename: file.originalname,
+                  bytes: file.size,
+                  error: "Document storage is unreachable — press Retry once it recovers.",
+                },
+              },
+            }),
+          )
+          .catch(() => undefined);
+        throw new ServiceUnavailableException(
+          "Document storage is unreachable right now — your file was not saved. Try again in a moment.",
+        );
+      }
+      throw err;
+    }
     const updated = await this.tenant.run((tx) =>
       tx.knowledgeSource.update({ where: { id: source.id }, data: { uri: path } }),
     );

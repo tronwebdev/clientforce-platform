@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import { Controller, Get } from "@nestjs/common";
 import { createRedisClient, WORKER_HEARTBEAT_KEY } from "@clientforce/events";
+import { AzureBlobUploadStore } from "@clientforce/knowledge";
 
 /** Shape the worker writes every 15s (apps/worker startHeartbeat). */
 interface WorkerHeartbeat {
@@ -27,11 +28,35 @@ const uploadsRoot = (): string =>
 @Controller("system")
 export class SystemHealthController {
   private redis?: ReturnType<typeof createRedisClient>;
+  private blobStore?: AzureBlobUploadStore;
+  private storageCheck: { at: number; reachable: boolean } | null = null;
+
+  /**
+   * Storage reachability (hardening, wizard bug round #2): one bounded
+   * round-trip to the uploads container, cached 60s so the banner's 5s health
+   * poll stays cheap. `null` on the file store — nothing remote to probe.
+   */
+  private async storageReachable(): Promise<boolean | null> {
+    if (!process.env.STORAGE_CONNECTION_STRING) return null;
+    if (this.storageCheck && Date.now() - this.storageCheck.at < 60_000) {
+      return this.storageCheck.reachable;
+    }
+    try {
+      this.blobStore ??= new AzureBlobUploadStore();
+      const reachable = await this.blobStore.reachable();
+      this.storageCheck = { at: Date.now(), reachable };
+      return reachable;
+    } catch {
+      this.storageCheck = { at: Date.now(), reachable: false };
+      return false;
+    }
+  }
 
   @Get("health")
   async health() {
     const storage = process.env.STORAGE_CONNECTION_STRING ? "azure" : "file";
     const root = uploadsRoot();
+    const storageReachable = await this.storageReachable();
     let worker: "alive" | "stale" | "unknown" = "unknown";
     let heartbeat: WorkerHeartbeat | null = null;
     if (process.env.REDIS_URL) {
@@ -56,7 +81,7 @@ export class SystemHealthController {
     return {
       worker,
       heartbeat,
-      api: { storage, uploadsRoot: root },
+      api: { storage, uploadsRoot: root, storageReachable },
       uploadsMismatch,
       checkedAt: new Date().toISOString(),
     };
