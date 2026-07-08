@@ -180,6 +180,14 @@ card is live: opens the **480px list picker modal** (prototype anatomy) listing 
 icon + count; picking a list shows it as the chosen source. Enrollment semantics = **SNAPSHOT at
 launch** (members enroll through the same path as a CSV import; no live-sync — deferred per plan).
 States: picker open · picked card · archived list absent from the picker.
+**C2.9 amendment (dynamic goal-completion state — binding from the C2.9 kickoff,
+`docs/PLAN_GOAL_STATE.md`; design pass WAIVED — the plan's label table is the fidelity source):**
+step 1's existing goal-pill divider becomes the **completion-signal explainer**: alongside
+"✓ Goal: <title>" it names the goal's own terminal label ("Completes when: <terminalLabel>",
+from core `GOAL_META`). Selecting **Custom goal** reveals an optional "completed state" label
+input (max 60 chars, placeholder/default **"Goal met"**) — the typed label flows to every
+goal-state surface (§4/§5). States: explainer per selected goal · custom input empty (default) ·
+custom input typed.
 **Step 4 — Enable lead capture:** 2-col grid (`1fr 1fr`, gap 18); 48×28 gradient toggle; note
 "This step is optional — you can skip it…" verbatim. **Visual only in P1** (toggle state persists,
 no capture backend).
@@ -223,6 +231,13 @@ static mock):** Calls, Preview, Stats. Do not delete them.
   drawer gains the List row + menu — both mount the SAME `packages/ui` Add-to-list menu component;
   **§5's v4 menu anatomy is the fidelity source** for these mounts (unification rule,
   `docs/PLAN_CONTACT_LISTS.md`).
+- **C2.9 amendment (dynamic goal-completion state — `docs/PLAN_GOAL_STATE.md`, label table =
+  fidelity source):** the Inbox **"Meeting booked" category chip** and the booked intent tint label
+  (thread rows + reading pane) render the campaign goal's **terminalLabel** (a promote_offer agent
+  shows "Purchase made" — never "Meeting booked"; counts unchanged). The **Leads tab** booked stage
+  pill + stage-filter option + "Mark as …" move option render the goal's **terminalPill/Label**.
+  Lead-drawer timeline stage rows render the label carried on the `lead.stage_changed.v1` payload
+  verbatim. book_appointments campaigns are pixel-unchanged.
 - **Lead detail drawer:** scrim `rgba(12,20,15,.45)`; panel **460px**, bg `#FBF7F0`, shadow
   `-24px 0 70px rgba(0,0,0,.32)`; white header (padding `20px 22px`). Contains the **activity
   timeline** — every persisted event for the lead (sent → delivered → opened → clicked → replied
@@ -309,6 +324,14 @@ the event within one poll interval (≤5s).
 - **States:** rail default / list-scoped · New-list modal (empty · named · error-duplicate) · bulk
   menu open / after-add · drawer List row + menu open · add-drawer select open · CSV step-3 select ·
   archived list absent from rail + every picker (membership preserved).
+**C2.9 amendment (dynamic goal-completion state — `docs/PLAN_GOAL_STATE.md`, label table = fidelity
+source):** the "Booked" wording becomes goal-dynamic across: segment tab · per-row status pill ·
+status-filter dropdown · "Booked only" quick toggle · bulk "Move to" menu ("Mark as …") · drawer
+timeline stage rows. **Aggregation rule (Contacts is cross-agent):** per-ROW pills show the
+completing campaign's specific short pill (from the stage-change event's `{ goalKey, label }`);
+workspace-level labels (tab / filter / toggle / Move-to) show the shared goal's pill when every
+ACTIVE agent has one goal, else generic **"Goal met"**. Internal stage key + A10 derivation
+unchanged; mixed-goal state must show the generic tab with per-row specific pills side by side.
 
 - Left sub-nav (7 sections); **Channels + Suppression + Brand kit wired**; others render inert with
   real layouts (no dead ends — each shows its prototype layout with mock/disabled controls).
@@ -336,6 +359,7 @@ the event within one poll interval (≤5s).
 - **Suppression list:** table of suppressed addresses (address, channel, reason, source, date) +
   add/remove; **wired to the real `Suppression` model** — adding an address here must actually block
   a send (this is tested in P1.5's acceptance).
+
 
 ---
 
