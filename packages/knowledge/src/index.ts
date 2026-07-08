@@ -21,6 +21,8 @@ export {
   createUploadStoreFromEnv,
   FileUploadStore,
   MemoryUploadStore,
+  STORAGE_OP_TIMEOUT_MS,
+  StorageUnavailableError,
   uploadPathFor,
   type UploadStore,
 } from "./storage";

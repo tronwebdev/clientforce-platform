@@ -37,6 +37,8 @@ export const draftStateSchema = z.object({
   dailyCap: z.number().int().min(1).max(10000).optional(),
   windowStart: z.string().max(5).optional(),
   windowEnd: z.string().max(5).optional(),
+  /** B10: IANA zone for the sending window (also lands in guardrails). */
+  timezone: z.string().max(64).optional(),
   sendDays: z.array(z.boolean()).length(7).optional(),
   quietHours: z.boolean().optional(),
   ramp: z.boolean().optional(),

@@ -18,6 +18,24 @@ export interface UploadStore {
 export const uploadPathFor = (workspaceId: string, sourceId: string, filename: string): string =>
   `workspaces/${workspaceId}/knowledge/${sourceId}/${filename}`;
 
+/**
+ * Blob writes are bounded so a closed network path fails in seconds with a
+ * designed error instead of hanging the upload request into the Container
+ * Apps 240s ingress timeout (the 2026-07-08 staging outage symptom). The API
+ * maps `StorageUnavailableError` to a 503 naming storage as the prerequisite.
+ */
+export const STORAGE_OP_TIMEOUT_MS = 15_000;
+
+export class StorageUnavailableError extends Error {
+  constructor(cause?: unknown) {
+    super(
+      `Document storage did not respond within ${STORAGE_OP_TIMEOUT_MS / 1000}s` +
+        (cause instanceof Error ? ` (${cause.message})` : ""),
+    );
+    this.name = "StorageUnavailableError";
+  }
+}
+
 export class AzureBlobUploadStore implements UploadStore {
   private readonly service: BlobServiceClient;
 
@@ -35,10 +53,30 @@ export class AzureBlobUploadStore implements UploadStore {
 
   async put(path: string, data: Buffer, contentType?: string): Promise<string> {
     const client = this.service.getContainerClient(this.container).getBlockBlobClient(path);
-    await client.uploadData(data, {
-      blobHTTPHeaders: contentType ? { blobContentType: contentType } : undefined,
-    });
+    try {
+      await client.uploadData(data, {
+        abortSignal: AbortSignal.timeout(STORAGE_OP_TIMEOUT_MS),
+        blobHTTPHeaders: contentType ? { blobContentType: contentType } : undefined,
+      });
+    } catch (err) {
+      if (err instanceof Error && (err.name === "AbortError" || err.name === "TimeoutError")) {
+        throw new StorageUnavailableError(err);
+      }
+      throw err;
+    }
     return path;
+  }
+
+  /** /system/health probe — one bounded round-trip to the uploads container. */
+  async reachable(): Promise<boolean> {
+    try {
+      await this.service
+        .getContainerClient(this.container)
+        .exists({ abortSignal: AbortSignal.timeout(3_000) });
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   async get(path: string): Promise<Buffer> {

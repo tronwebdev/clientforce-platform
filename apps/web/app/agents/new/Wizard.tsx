@@ -7,6 +7,9 @@
  * P1.4 planner, P1.5 senders, A5 create path. Prototype literals throughout.
  */
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+// B9: the wizard's "＋ Add sender" opens the same connect flow Settings uses —
+// the prototype's binding is `openAddEmail: () => connectChannel('email')`.
+import { ConnectFlowDrawer } from "../../(shell)/settings/shared";
 import { CONTEXT_FIELD_META, customTokensMissingFallback, GOAL_KEYS, requiredFieldsFor, type GoalKey } from "@clientforce/core";
 import type { CampaignGraph, ContactFieldDefDto, DraftState, GraphNode } from "@clientforce/core";
 
@@ -25,6 +28,29 @@ const cf = (path: string, init?: RequestInit) =>
     if (!r.ok) throw new Error(`${path}: ${r.status}`);
     return r.json();
   });
+
+/**
+ * B10: sending-schedule timezones. The A8 schema stores the IANA zone; the two
+ * display formats are the prototype's own literals — menu rows follow the
+ * "(GMT−06:00) Central Time" shape, the closed control follows
+ * "America/Chicago (CT)". The prototype shows only the closed control, so the
+ * menu anatomy reuses the wizard's existing dropdowns (flagged composition).
+ */
+const TZ_OPTIONS = [
+  { zone: "UTC", offset: "GMT+00:00", label: "UTC", short: "UTC" },
+  { zone: "America/New_York", offset: "GMT−05:00", label: "Eastern Time", short: "ET" },
+  { zone: "America/Chicago", offset: "GMT−06:00", label: "Central Time", short: "CT" },
+  { zone: "America/Denver", offset: "GMT−07:00", label: "Mountain Time", short: "MT" },
+  { zone: "America/Los_Angeles", offset: "GMT−08:00", label: "Pacific Time", short: "PT" },
+  { zone: "Europe/London", offset: "GMT+00:00", label: "London", short: "GMT" },
+  { zone: "Europe/Berlin", offset: "GMT+01:00", label: "Central Europe", short: "CET" },
+  { zone: "Africa/Lagos", offset: "GMT+01:00", label: "Lagos", short: "WAT" },
+  { zone: "Asia/Dubai", offset: "GMT+04:00", label: "Dubai", short: "GST" },
+  { zone: "Asia/Kolkata", offset: "GMT+05:30", label: "India", short: "IST" },
+  { zone: "Asia/Singapore", offset: "GMT+08:00", label: "Singapore", short: "SGT" },
+  { zone: "Australia/Sydney", offset: "GMT+10:00", label: "Sydney", short: "AEST" },
+] as const;
+const tzShort = (zone: string): string => TZ_OPTIONS.find((t) => t.zone === zone)?.short ?? zone;
 
 /** Rail + header copy, verbatim from the prototype's step defs. */
 const STEP_DEFS = [
@@ -172,6 +198,8 @@ interface SystemHealth {
   worker: "alive" | "stale" | "unknown";
   heartbeat: { at?: string; planner?: boolean; storage?: string; uploadsRoot?: string } | null;
   uploadsMismatch?: boolean;
+  /** Hardening (bug round #2): bounded probe of the uploads container; null = local file store. */
+  api?: { storageReachable?: boolean | null };
 }
 
 export function Wizard() {
@@ -215,7 +243,9 @@ export function Wizard() {
         ? "AI planning isn't configured yet — sequence generation will wait. Ask your admin to finish AI setup (Key Vault secret ANTHROPIC-API-KEY, exposed to the service as the ANTHROPIC_API_KEY environment variable)."
         : health.uploadsMismatch
           ? "Document storage is misconfigured — the API and worker are using different local folders. Ask your admin to set a shared UPLOADS_DIR."
-          : null;
+          : health.api?.storageReachable === false
+            ? "Document storage is unreachable — uploads will fail until it's back. Ask your admin to check the storage account's network access."
+            : null;
 
   // step 1
   const [name, setName] = useState("");
@@ -238,6 +268,14 @@ export function Wizard() {
   const [typedDrafts, setTypedDrafts] = useState<Record<string, string>>({});
   const [buildMethod, setBuildMethod] = useState<"ai" | "template" | "scratch">("ai");
   const [reportLoaded, setReportLoaded] = useState(false);
+  // B8: the distill in-flight state — true from the moment a kick fires until
+  // the context rows read READY again. Drives the "Reading your documents…"
+  // treatment on the About card + gap checker so the resting "Not found in
+  // your docs" copy never shows while the AI is still mid-read.
+  const [distilling, setDistilling] = useState(false);
+  const distillKickPending = useRef(false);
+  const distillKickFailed = useRef(false);
+  const distillFailToasted = useRef(false);
   const [uploadCfg, setUploadCfg] = useState<{ enabled: boolean; reason?: string | null } | null>(null);
   const [aboutEditing, setAboutEditing] = useState(false);
   const [aboutDraft, setAboutDraft] = useState("");
@@ -284,11 +322,14 @@ export function Wizard() {
   const [senders, setSenders] = useState<SenderRow[]>([]);
   const [dailyCap, setDailyCap] = useState(200);
   const [windowStart, setWindowStart] = useState("09:00");
+  const [timezone, setTimezone] = useState("UTC"); // B10 — IANA, A8 sendingWindow
+  const [tzOpen, setTzOpen] = useState(false);
   const [windowEnd, setWindowEnd] = useState("17:00");
   const [sendDays, setSendDays] = useState([true, true, true, true, true, false, false]);
   const [quietHours, setQuietHours] = useState(true);
   const [ramp, setRamp] = useState(true);
   const [limitsOpen, setLimitsOpen] = useState(false);
+  const [connectOpen, setConnectOpen] = useState(false); // B9 add-sender flow
 
   // step 6
   const [deploying, setDeploying] = useState(false);
@@ -322,6 +363,7 @@ export function Wizard() {
         if (ds.capture) setCapture(ds.capture);
         if (typeof ds.dailyCap === "number") setDailyCap(ds.dailyCap);
         if (ds.windowStart) setWindowStart(ds.windowStart);
+        if (ds.timezone) setTimezone(ds.timezone);
         if (ds.windowEnd) setWindowEnd(ds.windowEnd);
         if (ds.sendDays?.length === 7) setSendDays(ds.sendDays);
         if (typeof ds.quietHours === "boolean") setQuietHours(ds.quietHours);
@@ -364,6 +406,7 @@ export function Wizard() {
         dailyCap,
         windowStart,
         windowEnd,
+        timezone,
         sendDays,
         quietHours,
         ramp,
@@ -378,7 +421,7 @@ export function Wizard() {
         });
     }, 800);
     return () => clearTimeout(t);
-  }, [agentId, launched, resuming, building, step, buildMethod, added, capture, dailyCap, windowStart, windowEnd, sendDays, quietHours, ramp, toast]);
+  }, [agentId, launched, resuming, building, step, buildMethod, added, capture, dailyCap, windowStart, windowEnd, timezone, sendDays, quietHours, ramp, toast]);
 
   // ── polling (A4: 5s) ────────────────────────────────────────────────────
   const readyCount = useRef(0);
@@ -387,13 +430,32 @@ export function Wizard() {
     const list = (await cf(`knowledge/sources?agentId=${agentId}`)) as KnowledgeSource[];
     setSources(list.map((s) => ({ ...s, chunkCount: s.meta?.chunkCount })));
     // A source just turned READY → kick the P1.3 distill so the About card,
-    // citations and gap report fill in from the new evidence.
+    // citations and gap report fill in from the new evidence. A failed kick
+    // retries on every poll tick until it lands (B8: during the 2026-07-08
+    // outage these POSTs 500'd into an empty catch, so the step-1 knowledge
+    // state could never fill in-session — never a silent catch, B5 rule).
     const ready = list.filter((s) => s.status === "READY").length;
-    if (ready > readyCount.current) {
+    if (ready > readyCount.current || distillKickFailed.current) {
       readyCount.current = ready;
-      void cf("context/distill", { method: "POST", body: JSON.stringify({ agentId }) }).catch(() => {});
+      distillKickFailed.current = false;
+      distillKickPending.current = true;
+      setDistilling(true); // in-flight from the click, not a poll-tick later
+      void cf("context/distill", { method: "POST", body: JSON.stringify({ agentId }) })
+        .then(() => {
+          distillKickPending.current = false;
+          distillFailToasted.current = false;
+        })
+        .catch(() => {
+          distillKickPending.current = false;
+          distillKickFailed.current = true;
+          setDistilling(false);
+          if (!distillFailToasted.current) {
+            distillFailToasted.current = true;
+            toast("Couldn't start reading your documents — retrying automatically.");
+          }
+        });
     }
-  }, [agentId]);
+  }, [agentId, toast]);
   const refreshContext = useCallback(async () => {
     if (!agentId || !goal) return;
     try {
@@ -401,6 +463,14 @@ export function Wizard() {
       const merged = { ...(ctx.workspace?.fields ?? {}), ...(ctx.agent?.fields ?? {}) };
       setFields(merged as Record<string, ContextField>);
       setContextSummary(ctx.agent?.rawSummary || ctx.workspace?.rawSummary || "");
+      // B8: the rows carry the distill status — in-flight while either layer
+      // is DISTILLING (the same poll that flips it READY also delivers the
+      // fresh fields + summary, so covered gaps/About update in one tick).
+      if (!distillKickPending.current) {
+        setDistilling(
+          ctx.agent?.status === "DISTILLING" || ctx.workspace?.status === "DISTILLING",
+        );
+      }
     } catch {
       /* context not distilled yet — fine */
     }
@@ -804,7 +874,7 @@ export function Wizard() {
               days: sendDays.flatMap((on, i) => (on ? [i + 1] : [])),
               start: windowStart,
               end: windowEnd,
-              timezone: "UTC",
+              timezone,
             },
             dailyCap: { email: dailyCap },
             consent: null,
@@ -996,7 +1066,7 @@ export function Wizard() {
               days: sendDays.flatMap((on, i) => (on ? [i + 1] : [])),
               start: windowStart,
               end: windowEnd,
-              timezone: "UTC",
+              timezone,
             },
             dailyCap: { email: dailyCap },
             consent: null,
@@ -1173,7 +1243,7 @@ export function Wizard() {
         {step === 0 ? (
           <div style={{ maxWidth: 760 }}>
           <Step1
-            {...{ name, setName, goal, setGoal, sources, addMode, setAddMode, category, setCategory, categoryOpen, setCategoryOpen, instructions, setInstructions, urlInput, setUrlInput, addUrl, contextSummary, groundedSources, aboutEv, setAboutEv, gaps: openGaps, covered, coveredEv, setCoveredEv, fields, gapResolved, gapTotal, typedDrafts, setTypedDrafts, typeGap, delegateGap, undoGap, buildMethod, setBuildMethod, ensureAgent, refreshKnowledge, hasContext, readyCnt, removeSource, retrySource, uploadDoc, uploadCfg, aboutEditing, setAboutEditing, aboutDraft, setAboutDraft, saveAbout, toast }}
+            {...{ name, setName, goal, setGoal, sources, addMode, setAddMode, category, setCategory, categoryOpen, setCategoryOpen, instructions, setInstructions, urlInput, setUrlInput, addUrl, contextSummary, groundedSources, aboutEv, setAboutEv, gaps: openGaps, covered, coveredEv, setCoveredEv, fields, gapResolved, gapTotal, typedDrafts, setTypedDrafts, typeGap, delegateGap, undoGap, buildMethod, setBuildMethod, ensureAgent, refreshKnowledge, hasContext, readyCnt, distilling, removeSource, retrySource, uploadDoc, uploadCfg, aboutEditing, setAboutEditing, aboutDraft, setAboutDraft, saveAbout, toast }}
           />
           </div>
         ) : null}
@@ -1207,7 +1277,7 @@ export function Wizard() {
                 {seqView === "sequence" ? (
                   <div data-testid="sequence">
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600, color: "#0E1512", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 11, padding: "9px 15px" }}>🕐 Mon–Fri · {parseInt(windowStart, 10)}–{parseInt(windowEnd, 10)} · UTC <span style={{ color: "#9AA59E" }}>⌄</span></span>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600, color: "#0E1512", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 11, padding: "9px 15px" }}>🕐 Mon–Fri · {parseInt(windowStart, 10)}–{parseInt(windowEnd, 10)} · {tzShort(timezone)} <span style={{ color: "#9AA59E" }}>⌄</span></span>
                       <span onClick={() => void regenerate()} style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 700, color: "#16A82A", background: "rgba(53,232,52,.1)", border: "1px solid rgba(53,232,52,.3)", borderRadius: 11, padding: "9px 15px", cursor: "pointer" }} data-testid="regenerate">✦ Regenerate with AI</span>
                     </div>
                     {graph.nodes.map((n) => {
@@ -1369,7 +1439,7 @@ export function Wizard() {
             <div style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 16, boxShadow: "0 4px 16px rgba(14,21,18,.04)", marginBottom: 18, overflow: "hidden" }} data-testid="senders-list">
               <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "16px 18px" }}>
                 <span style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 16, color: "#0E1512", flex: 1 }}>Email senders <span style={{ fontSize: 13, fontWeight: 600, color: "#9AA59E" }}>· {senders.length} connected</span></span>
-                <span title="Senders are connected in Settings → Channels (P1.5)" style={{ fontSize: 13, fontWeight: 700, color: "#16A82A", background: "rgba(53,232,52,.1)", borderRadius: 10, padding: "8px 14px", cursor: "default" }}>＋ Add sender</span>
+                <span onClick={() => setConnectOpen(true)} style={{ fontSize: 13, fontWeight: 700, color: "#16A82A", background: "rgba(53,232,52,.1)", borderRadius: 10, padding: "8px 14px", cursor: "pointer" }} data-testid="wizard-add-sender">＋ Add sender</span>
               </div>
               {senders.length === 0 ? (
                 <div style={{ borderTop: "1px solid #F2EEE4", padding: "20px 18px", display: "flex", alignItems: "center", gap: 14 }}>
@@ -1435,9 +1505,24 @@ export function Wizard() {
               <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 16, color: "#0E1512" }}>Sending schedule</div>
               <div style={{ fontSize: 12.5, color: "#9AA59E", marginTop: 2, marginBottom: 16 }}>The agent only sends inside this window — replies are still handled 24/7.</div>
               <div style={{ display: "flex", gap: 16, marginBottom: 16 }}>
-                <div style={{ flex: 1.4 }}>
+                <div style={{ flex: 1.4, position: "relative" }}>
                   <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#9AA59E", marginBottom: 6 }}>Timezone</label>
-                  <div style={{ height: 44, borderRadius: 11, background: "#FBF7F0", border: "1px solid #EBE3D6", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 14px", fontSize: 14, color: "#0E1512" }}>UTC<span style={{ color: "#9AA59E", fontSize: 11 }}>▾</span></div>
+                  {/* B10: the prototype's control is a picker (cursor:pointer + ▾) — make it one. */}
+                  <div onClick={() => setTzOpen(!tzOpen)} style={{ height: 44, borderRadius: 11, background: "#FBF7F0", border: "1px solid #EBE3D6", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 14px", fontSize: 14, color: "#0E1512", cursor: "pointer" }} data-testid="tz-box">
+                    {timezone === "UTC" ? "UTC" : `${timezone} (${tzShort(timezone)})`}
+                    <span style={{ color: "#9AA59E", fontSize: 11 }}>▾</span>
+                  </div>
+                  {tzOpen ? (
+                    <div style={{ position: "absolute", top: "100%", left: 0, right: 0, marginTop: 6, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 12, boxShadow: "0 12px 32px rgba(14,21,18,.12)", zIndex: 30, maxHeight: 264, overflowY: "auto" }} data-testid="tz-menu">
+                      {TZ_OPTIONS.map((t) => (
+                        <div key={t.zone} onClick={() => { setTimezone(t.zone); setTzOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 15px", fontSize: 13.5, color: "#0E1512", cursor: "pointer", background: timezone === t.zone ? "rgba(53,232,52,.07)" : "#fff" }} data-testid={`tz-opt-${t.zone.replace("/", "-")}`}>
+                          <span style={{ color: "#9AA59E", fontSize: 12.5, flex: "none" }}>({t.offset})</span>
+                          {t.label}
+                          {timezone === t.zone ? <span style={{ marginLeft: "auto", color: "#16A82A", fontWeight: 700 }}>✓</span> : null}
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
                 <div style={{ flex: 1 }}>
                   <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#9AA59E", marginBottom: 6 }}>Sending window</label>
@@ -1669,6 +1754,21 @@ export function Wizard() {
             <div style={{ fontSize: 12.5, color: "#8A7F6B" }}>Lists you save from Contacts appear here — upload a CSV or add contacts manually for now.</div>
           </div>
         </Modal>
+      ) : null}
+
+      {/* B9: add-sender connect flow — the same drawer Settings → Channels uses
+          (prototype `openAddEmail`); the senders list + readiness banner refetch
+          on close so a sender added mid-wizard counts immediately. */}
+      {connectOpen ? (
+        <ConnectFlowDrawer
+          channel="email"
+          onClose={() => {
+            setConnectOpen(false);
+            void cf("senders").then(setSenders).catch(() => {});
+          }}
+          toast={toast}
+          onMailerCreated={() => void cf("senders").then(setSenders).catch(() => {})}
+        />
       ) : null}
 
       {/* volume & limits modal — stepper controls writing the Guardrails schema */}
@@ -1910,7 +2010,7 @@ function Step1(props: {
   typeGap: (k: string) => Promise<void>; delegateGap: (k: string) => Promise<void>; undoGap: (k: string) => Promise<void>;
   buildMethod: "ai" | "template" | "scratch"; setBuildMethod: (v: "ai" | "template" | "scratch") => void;
   ensureAgent: () => Promise<string>; refreshKnowledge: () => Promise<void>;
-  hasContext: boolean; readyCnt: number;
+  hasContext: boolean; readyCnt: number; distilling: boolean;
   removeSource: (id: string) => Promise<void>;
   retrySource: (id: string) => Promise<void>;
   uploadDoc: (f: File) => Promise<void>;
@@ -2148,7 +2248,20 @@ function Step1(props: {
               </div>
             ) : (
             <div style={{ padding: "14px 16px", background: "#fff", fontSize: 14.5, color: "#3B463F", lineHeight: 1.55 }}>
-              {p.contextSummary || "Ingest a source and the distilled business brief appears here — every claim cited to your own docs."}
+              {p.contextSummary ||
+                (p.distilling ? (
+                  // B8 in-flight treatment (designed state, no prototype anchor —
+                  // same amber + indeterminate-bar motion as the B3 source rows).
+                  <span data-testid="about-distilling">
+                    <span style={{ fontSize: 13.5, fontWeight: 600, color: "#B7791F" }}>Reading your documents…</span>
+                    <span style={{ display: "block", fontSize: 12.5, color: "#9AA59E", marginTop: 2 }}>The distilled business brief appears here in a moment — every claim cited to your own docs.</span>
+                    <span style={{ display: "block", position: "relative", height: 3, borderRadius: 100, background: "#F2EEE4", overflow: "hidden", marginTop: 10 }}>
+                      <span style={{ position: "absolute", top: 0, bottom: 0, left: "-30%", width: "30%", borderRadius: 100, background: "#D4A020", animation: "cfIngestSlide 1.2s linear infinite" }} />
+                    </span>
+                  </span>
+                ) : (
+                  "Ingest a source and the distilled business brief appears here — every claim cited to your own docs."
+                ))}
             </div>
             )}
             {p.groundedSources.length > 0 ? (
@@ -2185,7 +2298,16 @@ function Step1(props: {
               <span style={{ fontSize: 13, color: "#D4A020" }}>✦</span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13.5, fontWeight: 700, color: "#0E1512" }}>A few things the agent still needs</div>
-                {p.hasContext ? (
+                {p.distilling ? (
+                  // B8: while the distiller is mid-read, the resting "Not found
+                  // in your docs" copy is a lie — say what's actually happening.
+                  <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12, fontWeight: 600, color: "#B7791F" }} data-testid="gap-distilling">
+                    <span style={{ display: "inline-block", position: "relative", width: 34, height: 3, borderRadius: 100, background: "#F2EEE4", overflow: "hidden", flex: "none" }}>
+                      <span style={{ position: "absolute", top: 0, bottom: 0, left: "-30%", width: "30%", borderRadius: 100, background: "#D4A020", animation: "cfIngestSlide 1.2s linear infinite" }} />
+                    </span>
+                    Reading your documents — results update as soon as it finishes.
+                  </div>
+                ) : p.hasContext ? (
                   <div style={{ fontSize: 12, color: "#8A7F6B" }}>Not found in your docs — resolve before launching.</div>
                 ) : (
                   <div style={{ fontSize: 12, fontWeight: 600, color: "#B7791F" }} data-testid="gap-nocontext">No context yet — add a source or type answers before launch.</div>

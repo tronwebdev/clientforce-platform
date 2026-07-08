@@ -10,7 +10,12 @@ import { createClassifyWorker, SendGridSender } from "@clientforce/channels";
 import { isConfigured } from "@clientforce/config";
 import { goalKeySchema, type GoalKey } from "@clientforce/core";
 import { createDistillQueue, createDistillWorker } from "@clientforce/context";
-import { createAppPrismaClient, withTenant, type PrismaClient } from "@clientforce/db";
+import {
+  createAppPrismaClient,
+  createPrismaClient,
+  withTenant,
+  type PrismaClient,
+} from "@clientforce/db";
 import {
   automationsConsumer,
   bullConnectionFromUrl,
@@ -20,7 +25,11 @@ import {
   EventBus,
   WORKER_HEARTBEAT_KEY,
 } from "@clientforce/events";
-import { createIngestWorker, createUploadStoreFromEnv } from "@clientforce/knowledge";
+import {
+  createIngestQueue,
+  createIngestWorker,
+  createUploadStoreFromEnv,
+} from "@clientforce/knowledge";
 import { createPlanWorker } from "@clientforce/planner";
 import {
   cancelEnrollmentWorkflow,
@@ -97,6 +106,7 @@ function startKnowledgeWorkers(): void {
   }
   console.log(`[worker] uploads root: ${uploadsRoot()}`);
   startHeartbeat(process.env.REDIS_URL);
+  startStrandedSourceSweep();
   const prisma = createAppPrismaClient();
   const distillQueue = createDistillQueue();
 
@@ -195,6 +205,46 @@ function startKnowledgeWorkers(): void {
     console.error(`[worker] inbound-classify failed message=${job?.data.messageId}: ${err.message}`);
   });
   console.log("[worker] inbound-classify worker started (P1.7)");
+}
+
+/**
+ * Stranded-source sweep (hardening, wizard bug round #2): sources whose ingest
+ * enqueue was lost — outage, worker death mid-job — sit in PENDING/INGESTING
+ * forever, because nothing in the product re-enqueues them (the 2026-07-08
+ * outage left 17 such rows; a manual drain workflow recovered them). On boot
+ * and every 10 minutes, re-enqueue anything stale for >10 minutes: never a
+ * live job (a healthy ingest moves the row in seconds), and re-ingest is
+ * idempotent (P1.2). Cross-tenant maintenance read — owner client, same
+ * precedent as P1.7 inbound thread resolution.
+ */
+function startStrandedSourceSweep(): void {
+  const owner = createPrismaClient();
+  const queue = createIngestQueue();
+  const sweep = async (): Promise<void> => {
+    const stale = await owner.knowledgeSource.findMany({
+      where: {
+        status: { in: ["PENDING", "INGESTING"] },
+        updatedAt: { lt: new Date(Date.now() - 10 * 60_000) },
+      },
+      select: { id: true, workspaceId: true },
+      take: 100,
+    });
+    for (const s of stale) {
+      await queue.add(
+        "ingest",
+        { sourceId: s.id, workspaceId: s.workspaceId },
+        { attempts: 3, backoff: { type: "exponential", delay: 5_000 }, removeOnComplete: true },
+      );
+      console.log(`[worker] stranded-source sweep re-enqueued source=${s.id}`);
+    }
+    if (stale.length > 0) console.log(`[worker] stranded-source sweep: ${stale.length} re-enqueued`);
+  };
+  void sweep().catch((err: unknown) => console.error("[worker] stranded-source sweep failed", err));
+  setInterval(() => {
+    void sweep().catch((err: unknown) =>
+      console.error("[worker] stranded-source sweep failed", err),
+    );
+  }, 10 * 60_000);
 }
 
 async function enqueueRedistill(
