@@ -307,13 +307,18 @@ export function Wizard() {
   // step 3
   const [csvOpen, setCsvOpen] = useState(false);
   const [listOpen, setListOpen] = useState(false);
+  // C2.8: "Choose a list" — picked list enrolls its members at launch
+  // (SNAPSHOT semantics: resolved at deploy time, same path as CSV adds).
+  const [wizardLists, setWizardLists] = useState<{ id: string; name: string; memberCount: number; archived: boolean }[]>([]);
+  const [pickedList, setPickedList] = useState<{ id: string; name: string; memberCount: number } | null>(null);
+  const [listSearch, setListSearch] = useState("");
   const [csvText, setCsvText] = useState("");
   const [manualOpen, setManualOpen] = useState(false);
   const EMPTY_MANUAL = { firstName: "", lastName: "", email: "", company: "", phone: "" };
   const [manual, setManual] = useState(EMPTY_MANUAL);
   // DEC-039a: multi-add — rows queue up "this session" and post together.
   const [manualQueue, setManualQueue] = useState<Array<typeof EMPTY_MANUAL>>([]);
-  const [added, setAdded] = useState<Array<{ id: string; email: string; firstName?: string }>>([]);
+  const [added, setAdded] = useState<Array<{ id: string; email: string; firstName?: string; src?: "manual" | "csv" }>>([]);
 
   // step 4 — visual only (checkpoints §3)
   const [capture, setCapture] = useState({ widget: false, form: false });
@@ -335,6 +340,7 @@ export function Wizard() {
   const [deploying, setDeploying] = useState(false);
   const [launched, setLaunched] = useState(false);
   const [enrolled, setEnrolled] = useState(0);
+  const [enrollTarget, setEnrollTarget] = useState(0); // C2.8: adds + list snapshot
 
   // ── B6: draft resume ("Continue setup" → /agents/new?agent=<id>) ─────────
   // Durable state (name/goal/instructions/sources/gaps/context/graph) refetches
@@ -364,6 +370,16 @@ export function Wizard() {
         if (typeof ds.dailyCap === "number") setDailyCap(ds.dailyCap);
         if (ds.windowStart) setWindowStart(ds.windowStart);
         if (ds.timezone) setTimezone(ds.timezone);
+        // C2.8: re-resolve the picked list from the server (name/count are
+        // truth, not draft copies — B6 rule); a deleted/archived list drops.
+        if (ds.pickedListId) {
+          void cf("lists")
+            .then((ls: { id: string; name: string; memberCount: number; archived: boolean }[]) => {
+              const l = ls.find((x) => x.id === ds.pickedListId && !x.archived);
+              if (l) setPickedList({ id: l.id, name: l.name, memberCount: l.memberCount });
+            })
+            .catch(() => {});
+        }
         if (ds.windowEnd) setWindowEnd(ds.windowEnd);
         if (ds.sendDays?.length === 7) setSendDays(ds.sendDays);
         if (typeof ds.quietHours === "boolean") setQuietHours(ds.quietHours);
@@ -410,6 +426,7 @@ export function Wizard() {
         sendDays,
         quietHours,
         ramp,
+        ...(pickedList ? { pickedListId: pickedList.id } : {}),
       };
       cf(`agents/${agentId}`, { method: "PATCH", body: JSON.stringify({ draftState }) })
         .then(() => {
@@ -421,7 +438,7 @@ export function Wizard() {
         });
     }, 800);
     return () => clearTimeout(t);
-  }, [agentId, launched, resuming, building, step, buildMethod, added, capture, dailyCap, windowStart, windowEnd, timezone, sendDays, quietHours, ramp, toast]);
+  }, [agentId, launched, resuming, building, step, buildMethod, added, capture, dailyCap, windowStart, windowEnd, timezone, sendDays, quietHours, ramp, pickedList, toast]);
 
   // ── polling (A4: 5s) ────────────────────────────────────────────────────
   const readyCount = useRef(0);
@@ -518,6 +535,8 @@ export function Wizard() {
     void cf("knowledge/upload-config").then(setUploadCfg).catch(() => setUploadCfg({ enabled: true }));
     // C2.7: workspace custom-field defs feed the token picker.
     void cf("contact-fields").then(setFieldDefs).catch(() => {});
+    // C2.8: saved lists feed the step-3 picker.
+    void cf("lists").then(setWizardLists).catch(() => {});
   }, []);
 
   // C2.7: the fallback card never survives switching steps/closing the editor.
@@ -578,7 +597,8 @@ export function Wizard() {
   const stepValid = [
     Boolean(goal && name.trim() && agentId && allResolvedForNext()),
     Boolean(graph),
-    added.length > 0,
+    // C2.8: a picked list is a contact source — it satisfies the step like adds do.
+    added.length > 0 || pickedList !== null,
     true,
     senders.length > 0,
     allResolved,
@@ -1025,12 +1045,13 @@ export function Wizard() {
     setDelayEdit(null);
   }
 
-  async function addContacts(rows: Array<{ email: string; firstName?: string; lastName?: string; company?: string; phone?: string }>) {
+  async function addContacts(rows: Array<{ email: string; firstName?: string; lastName?: string; company?: string; phone?: string }>, src: "manual" | "csv") {
     for (const row of rows) {
       if (!row.email?.includes("@")) continue;
       try {
         const created = await cf("contacts", { method: "POST", body: JSON.stringify(row) });
-        setAdded((a) => [...a, { id: created.id, email: row.email, firstName: row.firstName }]);
+        // 49-3: the source rides each entry so launch can tell the enrollment.
+        setAdded((a) => [...a, { id: created.id, email: row.email, firstName: row.firstName, src }]);
       } catch {
         /* skip bad row */
       }
@@ -1044,12 +1065,24 @@ export function Wizard() {
     await cf(`agents/${agentId}`, { method: "PATCH", body: JSON.stringify({ status: "ACTIVE", draftState: null }) });
     // Enroll every added contact on the primary campaign — each POST starts one
     // durable CampaignWorkflow (P1.6); idempotent on (campaignId, contactId).
+    // C2.8: a picked list enrolls its members THROUGH THE SAME PATH — the
+    // membership is resolved NOW (snapshot at launch; no live-sync, per plan).
+    // 49-3: each enrollment carries its provenance — the Leads tab's
+    // ORIGINATED FROM column renders it. Adds win over list membership when a
+    // contact arrives both ways (the more specific action).
+    const origins = new Map<string, { kind: "manual" | "csv" | "list"; listId?: string; listName?: string }>();
+    if (pickedList) {
+      const members = (await cf(`contacts/view?listId=${pickedList.id}`).catch(() => [])) as { id: string }[];
+      for (const m of members) origins.set(m.id, { kind: "list", listId: pickedList.id, listName: pickedList.name });
+    }
+    for (const c of added) origins.set(c.id, { kind: c.src ?? "manual" });
     let ok = 0;
-    for (const c of added) {
-      await cf("enrollments", { method: "POST", body: JSON.stringify({ agentId, contactId: c.id }) })
+    for (const [contactId, origin] of origins) {
+      await cf("enrollments", { method: "POST", body: JSON.stringify({ agentId, contactId, origin }) })
         .then(() => { ok += 1; })
         .catch(() => {});
     }
+    setEnrollTarget(origins.size);
     setEnrolled(ok);
     setDeploying(false);
     setLaunched(true);
@@ -1115,9 +1148,9 @@ export function Wizard() {
         <div style={{ fontSize: 15.5, color: "rgba(255,255,255,.6)", maxWidth: 440, lineHeight: 1.55, marginBottom: 22, animation: "cfFadeUp .5s .42s both" }}>
           <strong style={{ color: "#fff", fontWeight: 600 }}>{name}</strong> is now reaching {enrolled} contact{enrolled === 1 ? "" : "s"} over email. First sends go out in the next scheduled window.
         </div>
-        {enrolled < added.length ? (
+        {enrolled < enrollTarget ? (
           <div style={{ fontSize: 12.5, color: "#E8C45B", marginBottom: 18, animation: "cfFadeUp .5s .47s both" }} data-testid="enroll-warning">
-            ⚠ {added.length - enrolled} of {added.length} contacts couldn&apos;t be enrolled — retry from the agent&apos;s Leads tab.
+            ⚠ {enrollTarget - enrolled} of {enrollTarget} contacts couldn&apos;t be enrolled — retry from the agent&apos;s Leads tab.
           </div>
         ) : null}
         <div style={{ display: "flex", gap: 9, marginBottom: 32, animation: "cfFadeUp .5s .52s both" }}>
@@ -1362,14 +1395,21 @@ export function Wizard() {
           <div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 18 }}>
               {[
-                { icon: "⬆", title: "Upload CSV", desc: "Import contacts from a .csv file.", iconbg: "rgba(53,232,52,.16)", act: () => setCsvOpen(true), tid: "contacts-csv" },
-                { icon: "❒", title: "Choose a list", desc: "Pick an existing saved list.", iconbg: "rgba(54,215,237,.16)", act: () => setListOpen(true), tid: "contacts-list" },
-                { icon: "✎", title: "Add manually", desc: "Enter contacts one by one.", iconbg: "#F2EEE4", act: () => setManualOpen(true), tid: "contacts-manual" },
+                { icon: "⬆", title: "Upload CSV", desc: "Import contacts from a .csv file.", iconbg: "rgba(53,232,52,.16)", act: () => setCsvOpen(true), tid: "contacts-csv", picked: false },
+                // C2.8: picked treatment composes the goal-card selected state
+                // (the prototype shows only the resting card — flagged).
+                pickedList
+                  ? { icon: "❒", title: pickedList.name, desc: `${pickedList.memberCount} contact${pickedList.memberCount === 1 ? "" : "s"} enroll at launch · as of launch day`, iconbg: "rgba(54,215,237,.16)", act: () => { setListSearch(""); setListOpen(true); }, tid: "contacts-list", picked: true }
+                  : { icon: "❒", title: "Choose a list", desc: "Pick an existing saved list.", iconbg: "rgba(54,215,237,.16)", act: () => { setListSearch(""); setListOpen(true); }, tid: "contacts-list", picked: false },
+                { icon: "✎", title: "Add manually", desc: "Enter contacts one by one.", iconbg: "#F2EEE4", act: () => setManualOpen(true), tid: "contacts-manual", picked: false },
               ].map((c) => (
-                <div key={c.title} onClick={c.act} data-testid={c.tid} style={{ border: "1px solid #EBE3D6", borderRadius: 13, background: "#fff", padding: "16px 14px", cursor: "pointer" }}>
+                <div key={c.tid} onClick={c.act} data-testid={c.tid} style={{ position: "relative", border: c.picked ? "2px solid #35E834" : "1px solid #EBE3D6", borderRadius: 13, background: c.picked ? "rgba(53,232,52,.07)" : "#fff", padding: "16px 14px", cursor: "pointer" }}>
                   <div style={{ width: 36, height: 36, borderRadius: 10, background: c.iconbg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, marginBottom: 11 }}>{c.icon}</div>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: "#0E1512", marginBottom: 3 }}>{c.title}</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: "#0E1512", marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.title}</div>
                   <div style={{ fontSize: 13, color: "#8A7F6B", lineHeight: 1.4 }}>{c.desc}</div>
+                  {c.picked ? (
+                    <span onClick={(e) => { e.stopPropagation(); setPickedList(null); }} title="Remove list" style={{ position: "absolute", top: 10, right: 10, color: "#9AA59E", fontSize: 13, cursor: "pointer", padding: 4 }} data-testid="picked-list-clear">✕</span>
+                  ) : null}
                 </div>
               ))}
             </div>
@@ -1622,7 +1662,7 @@ export function Wizard() {
               {[
                 { label: "Goal", value: GOALS.find((g) => g.key === goal)?.title ?? "—" },
                 { label: "Sequence", value: graph ? `${graph.nodes.filter((n) => n.type === "step").length} steps · reply branch` : "—" },
-                { label: "Contacts", value: `${added.length} enrolled at launch` },
+                { label: "Contacts", value: pickedList ? `${added.length + pickedList.memberCount} enrolled at launch (incl. “${pickedList.name}”)` : `${added.length} enrolled at launch` },
                 { label: "Lead capture", value: capture.widget || capture.form ? "Enabled" : "Off (optional)" },
               ].map((c) => (
                 <div key={c.label} style={{ border: "1px solid #EBE3D6", borderRadius: 13, background: "#fff", padding: "14px 14px" }}>
@@ -1746,14 +1786,47 @@ export function Wizard() {
       ) : null}
 
       {/* list picker — designed; no saved lists exist yet in P1 */}
+      {/* C2.8: live 480px list picker (prototype anatomy) — SNAPSHOT semantics:
+          the picked list's members enroll at launch through the CSV path. */}
       {listOpen ? (
-        <Modal onClose={() => setListOpen(false)} title="Choose a list" tid="list-picker">
-          <div style={{ border: "1px dashed #D8CFBE", borderRadius: 12, background: "#FBF7F0", padding: "26px 20px", textAlign: "center", marginBottom: 14 }}>
-            <div style={{ fontSize: 22, marginBottom: 8 }}>❒</div>
-            <div style={{ fontSize: 13.5, fontWeight: 700, color: "#0E1512", marginBottom: 3 }}>No saved lists yet</div>
-            <div style={{ fontSize: 12.5, color: "#8A7F6B" }}>Lists you save from Contacts appear here — upload a CSV or add contacts manually for now.</div>
+        <div onClick={() => setListOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(12,20,15,.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 36, zIndex: 60 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: 480, maxWidth: "100%", background: "#fff", borderRadius: 18, boxShadow: "0 40px 90px rgba(0,0,0,.45)", overflow: "hidden" }} data-testid="list-picker">
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "18px 22px", borderBottom: "1px solid #EBE3D6" }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 17, color: "#0E1512" }}>Choose a list</div>
+                <div style={{ fontSize: 12.5, color: "#9AA59E" }}>Pick a saved contact list to enroll.</div>
+              </div>
+              <span onClick={() => setListOpen(false)} style={{ width: 30, height: 30, borderRadius: 9, border: "1px solid #EBE3D6", display: "flex", alignItems: "center", justifyContent: "center", color: "#9AA59E", cursor: "pointer" }}>✕</span>
+            </div>
+            <div style={{ padding: "14px 16px" }}>
+              {/* 49-4: the prototype's search row */}
+              <div style={{ display: "flex", alignItems: "center", gap: 9, background: "#FBF7F0", border: "1px solid #EBE3D6", borderRadius: 11, padding: "10px 14px", marginBottom: 12 }}>
+                <span style={{ color: "#9AA59E" }}>⚲</span>
+                <input value={listSearch} onChange={(e) => setListSearch(e.target.value)} placeholder="Search lists…" style={{ border: "none", background: "transparent", fontSize: 13.5, color: "#0E1512", flex: 1, minWidth: 0, outline: "none", fontFamily: "'Hanken Grotesk',sans-serif" }} data-testid="list-picker-search" />
+              </div>
+              {wizardLists.filter((l) => !l.archived).length === 0 ? (
+                <div style={{ border: "1px dashed #D8CFBE", borderRadius: 12, background: "#FBF7F0", padding: "26px 20px", textAlign: "center" }}>
+                  <div style={{ fontSize: 22, marginBottom: 8 }}>❒</div>
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: "#0E1512", marginBottom: 3 }}>No saved lists yet</div>
+                  <div style={{ fontSize: 12.5, color: "#8A7F6B" }}>Lists you save from Contacts appear here — upload a CSV or add contacts manually for now.</div>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 7, maxHeight: 340, overflowY: "auto" }}>
+                  {wizardLists.filter((l) => !l.archived && l.name.toLowerCase().includes(listSearch.trim().toLowerCase())).map((l) => (
+                    <div key={l.id} onClick={() => { setPickedList({ id: l.id, name: l.name, memberCount: l.memberCount }); setListOpen(false); }} onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#9FD8AC"; e.currentTarget.style.background = "#FBF7F0"; }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#EBE3D6"; e.currentTarget.style.background = "#fff"; }} style={{ display: "flex", alignItems: "center", gap: 12, border: "1px solid #EBE3D6", borderRadius: 12, padding: "12px 14px", cursor: "pointer", background: "#fff" }} data-testid={`list-pick-${l.id}`}>
+                      <span style={{ width: 38, height: 38, borderRadius: 10, background: "#F2EEE4", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flex: "none" }}>❒</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: "#0E1512" }}>{l.name}</div>
+                        <div style={{ fontSize: 12, color: "#9AA59E" }}>{l.memberCount} contact{l.memberCount === 1 ? "" : "s"}</div>
+                      </div>
+                      <span style={{ color: "#C9CFC9", fontSize: 18 }}>›</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        </Modal>
+        </div>
       ) : null}
 
       {/* B9: add-sender connect flow — the same drawer Settings → Channels uses
@@ -1801,7 +1874,7 @@ export function Wizard() {
                   const [email, firstName, lastName, company] = l.split(",").map((v) => v?.trim());
                   return { email: email ?? "", firstName, lastName, company };
                 });
-              void addContacts(rows).then(() => {
+              void addContacts(rows, "csv").then(() => {
                 setCsvOpen(false);
                 setCsvText("");
               });
@@ -1866,7 +1939,7 @@ export function Wizard() {
             <div style={{ flex: "none", display: "flex", alignItems: "center", gap: 12, padding: "16px 22px", borderTop: "1px solid #EBE3D6", background: "#fff" }}>
               <span style={{ fontSize: 13, color: "#9AA59E", flex: 1 }}>{manualQueue.length} contact{manualQueue.length === 1 ? "" : "s"} ready to add</span>
               <span
-                onClick={() => { if (manualQueue.length === 0) return; void addContacts(manualQueue).then(() => { setManualQueue([]); setManualOpen(false); }); }}
+                onClick={() => { if (manualQueue.length === 0) return; void addContacts(manualQueue, "manual").then(() => { setManualQueue([]); setManualOpen(false); }); }}
                 style={{ fontSize: 14, fontWeight: 700, color: "#0A0F0C", background: GRAD, borderRadius: 11, padding: "10px 22px", cursor: manualQueue.length ? "pointer" : "default", boxShadow: "0 6px 16px rgba(53,232,52,.26)", opacity: manualQueue.length ? 1 : 0.55 }}
                 data-testid="manual-save"
               >

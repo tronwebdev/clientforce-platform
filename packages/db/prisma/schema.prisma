@@ -303,7 +303,7 @@ model Contact {
   optOut      Json
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
-  lists       ListMembership[]
+  lists       ContactListMember[]
   enrollments Enrollment[]
   events      Event[]
 
@@ -346,22 +346,34 @@ model PipelineStage {
 }
 
 model ContactList {
-  id          String           @id @default(cuid())
+  id          String              @id @default(cuid())
   workspaceId String
   name        String
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-  members     ListMembership[]
+  /// C2.8 (docs/PLAN_CONTACT_LISTS.md): "manual" | "csv_import" | "form" |
+  /// "widget" | "automation" — future origins RESERVED for the integrations.
+  origin      String
+  /// Archive, never delete (same rule as ContactFieldDef).
+  archived    Boolean             @default(false)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  members     ContactListMember[]
 
+  @@unique([workspaceId, name])
   @@index([workspaceId])
 }
 
-model ListMembership {
+/// C2.8: explicit membership (lists ≠ segments — segments stay derived).
+/// The plan's composite identity lives in @@unique([listId, contactId]); the
+/// surrogate id is retained from the Phase-0 table (no FK churn), and
+/// workspaceId stays for the house RLS pattern.
+model ContactListMember {
   id          String      @id @default(cuid())
   workspaceId String
   listId      String
   contactId   String
-  createdAt   DateTime    @default(now())
+  addedAt     DateTime    @default(now())
+  /// userId | "import" | "automation"
+  addedBy     String
   list        ContactList @relation(fields: [listId], references: [id], onDelete: Cascade)
   contact     Contact     @relation(fields: [contactId], references: [id], onDelete: Cascade)
 

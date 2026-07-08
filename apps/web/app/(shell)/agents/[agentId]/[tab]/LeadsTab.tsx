@@ -6,6 +6,8 @@
  * the 460px lead drawer with the LIVE activity timeline (own §8 pair).
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { ContactListDto } from "@clientforce/core";
+import { AddToListMenu } from "@clientforce/ui";
 import type { AgentViewData } from "./AgentView";
 import { cf, GRAD, avTint, initials, timeAgo } from "./shared";
 
@@ -16,7 +18,17 @@ interface Lead {
   currentNode: string | null;
   createdAt: string;
   updatedAt: string;
+  /** P1.6 run-audit json; C2.8 (49-3) adds `origin` — enrollment provenance. */
+  meta?: { origin?: { kind: "manual" | "csv" | "list"; listName?: string } };
   contact: { id: string; email: string | null; firstName: string | null; lastName: string | null; company: string | null };
+}
+
+/** 49-3: ORIGINATED FROM renders the enrollment's provenance, never a default. */
+function originCell(l: Lead): { icon: string; label: string } {
+  const o = l.meta?.origin;
+  if (o?.kind === "list") return { icon: "≣", label: `List · ${o.listName ?? "a list"}` };
+  if (o?.kind === "csv") return { icon: "⬆", label: "CSV import" };
+  return { icon: "✎", label: "Manual" };
 }
 interface TimelineEvent {
   id: string;
@@ -67,6 +79,9 @@ const EVENT_ROW: Record<string, { icon: string; bg: string; fg: string; label: (
   "email.spam_reported.v1": { icon: "⚠", bg: "rgba(224,121,107,.14)", fg: "#C9543F", label: () => "Marked as spam" },
   "lead.stage_changed.v1": { icon: "✦", bg: "rgba(53,232,52,.14)", fg: "#16A82A", label: (p) => `Stage changed${p.fromStage ? ` — ${String(p.fromStage)} → ${String(p.toStage)}` : ""}` },
   "lead.unsubscribed.v1": { icon: "⊘", bg: "rgba(224,121,107,.16)", fg: "#C9543F", label: () => "Unsubscribed from all sequences" },
+  // C2.8 (49-1): membership events render human — the slug never surfaces raw.
+  "list.member.added.v1": { icon: "≣", bg: "rgba(53,232,52,.14)", fg: "#16A82A", label: (p) => `Added to ${String(p.listName ?? "a list")}` },
+  "list.member.removed.v1": { icon: "≣", bg: "#F2EEE4", fg: "#8A7F6B", label: (p) => `Removed from ${String(p.listName ?? "a list")}` },
 };
 
 const MOVE_OPTIONS = [
@@ -84,15 +99,99 @@ export function LeadsTab({ agentId, view, onChanged }: { agentId: string; view: 
   const [openId, setOpenId] = useState<string | null>(null);
   const [moveDD, setMoveDD] = useState(false);
   const [timeline, setTimeline] = useState<TimelineEvent[] | null>(null);
+  // C2.8: the ONE Add-to-list menu, mounted on this bulk bar + the lead drawer
+  // (unification rule — §5's v4 anatomy is the fidelity source).
+  const [lists, setLists] = useState<ContactListDto[]>([]);
+  const [bulkListDD, setBulkListDD] = useState(false);
+  const [drawerListDD, setDrawerListDD] = useState(false);
+  const [contactLists, setContactLists] = useState<Record<string, { id: string; name: string }[]>>({});
+  const [toastMsg, setToastMsg] = useState("");
 
   const refresh = useCallback(async () => {
     const res = await cf(`enrollments?agentId=${agentId}`).catch(() => null);
     if (res) setLeads(res as Lead[]);
   }, [agentId]);
 
+  const refreshLists = useCallback(async () => {
+    const [l, view] = await Promise.all([
+      cf("lists").catch(() => null),
+      cf("contacts/view").catch(() => null),
+    ]);
+    if (l) setLists((l as ContactListDto[]).filter((x) => !x.archived));
+    if (view) {
+      setContactLists(
+        Object.fromEntries(
+          (view as { id: string; lists?: { id: string; name: string }[] }[]).map((c) => [c.id, c.lists ?? []]),
+        ),
+      );
+    }
+  }, []);
+
   useEffect(() => {
     void refresh();
-  }, [refresh]);
+    void refreshLists();
+  }, [refresh, refreshLists]);
+
+  useEffect(() => {
+    if (!toastMsg) return;
+    const t = setTimeout(() => setToastMsg(""), 3200);
+    return () => clearTimeout(t);
+  }, [toastMsg]);
+
+  const [newListOpen, setNewListOpen] = useState(false);
+  const [newListName, setNewListName] = useState("");
+  const [newListErr, setNewListErr] = useState<string | null>(null);
+  const [newListIds, setNewListIds] = useState<string[]>([]);
+
+  function openNewList(contactIds: string[]) {
+    setBulkListDD(false);
+    setDrawerListDD(false);
+    setNewListIds(contactIds);
+    setNewListName("");
+    setNewListErr(null);
+    setNewListOpen(true);
+  }
+
+  async function createList() {
+    const name = newListName.trim();
+    if (!name) return;
+    try {
+      await cf("lists", { method: "POST", body: JSON.stringify({ name, contactIds: newListIds }) });
+      setNewListOpen(false);
+      setChecked({});
+      setToastMsg(
+        newListIds.length > 0
+          ? `Created “${name}” with ${newListIds.length} lead${newListIds.length === 1 ? "" : "s"}.`
+          : `Created “${name}”.`,
+      );
+      void refreshLists();
+    } catch (err) {
+      const status = err instanceof Error ? /:\s*(\d+)$/.exec(err.message)?.[1] : null;
+      setNewListErr(
+        status === "409" ? `A list named “${name}” already exists.` : "Couldn't create the list — try again.",
+      );
+    }
+  }
+
+  async function addLeadsToList(listId: string, contactIds: string[]) {
+    setBulkListDD(false);
+    setDrawerListDD(false);
+    try {
+      const res = (await cf(`lists/${listId}/members`, {
+        method: "POST",
+        body: JSON.stringify({ contactIds }),
+      })) as { added: number };
+      const name = lists.find((l) => l.id === listId)?.name ?? "list";
+      setToastMsg(
+        res.added === 0
+          ? `Already in “${name}” — nothing to add.`
+          : `Added ${res.added} lead${res.added === 1 ? "" : "s"} to “${name}”.`,
+      );
+      void refreshLists();
+    } catch {
+      setToastMsg("Couldn't add to that list — try again.");
+    }
+  }
 
   const open = useMemo(() => (leads ?? []).find((l) => l.id === openId) ?? null, [leads, openId]);
 
@@ -203,6 +302,21 @@ export function LeadsTab({ agentId, view, onChanged }: { agentId: string; view: 
         <div style={{ display: "flex", alignItems: "center", gap: 12, background: "#0C140F", borderRadius: 12, padding: "10px 16px", marginBottom: 12 }} data-testid="bulk-bar">
           <span style={{ fontSize: 13.5, fontWeight: 700, color: "#fff" }}>{selected.length} selected</span>
           <span onClick={() => exportCsv(visible.filter((l) => checked[l.id]))} style={{ fontSize: 13, fontWeight: 600, color: "#fff", background: "rgba(255,255,255,.1)", borderRadius: 9, padding: "7px 13px", cursor: "pointer" }}>Export</span>
+          {/* C2.8: the ONE Add-to-list menu (v4 §5 anatomy) on the Leads bulk bar */}
+          <div style={{ position: "relative" }}>
+            <span onClick={() => setBulkListDD((v) => !v)} style={{ fontSize: 13, fontWeight: 600, color: "#fff", background: "rgba(255,255,255,.1)", borderRadius: 9, padding: "7px 13px", cursor: "pointer" }} data-testid="leads-bulk-add-to-list">≣ Add to list</span>
+            {bulkListDD ? (
+              <AddToListMenu
+                header={`Add ${selected.length} to list`}
+                options={lists.map((l) => ({ id: l.id, name: l.name, count: l.memberCount }))}
+                showCounts
+                newListLabel="New list from selection"
+                onPick={(listId) => { void addLeadsToList(listId, visible.filter((l) => checked[l.id]).map((l) => l.contact.id)); setChecked({}); }}
+                onNewList={() => openNewList(visible.filter((l) => checked[l.id]).map((l) => l.contact.id))}
+                testid="leads-bulk-list-menu"
+              />
+            ) : null}
+          </div>
           <span onClick={() => { for (const id of selected) void moveStage(id, "interested"); setChecked({}); }} style={{ fontSize: 13, fontWeight: 600, color: "#0A0F0C", background: "#7FE8A0", borderRadius: 9, padding: "7px 13px", cursor: "pointer" }}>Mark interested</span>
           <span onClick={() => setChecked({})} style={{ marginLeft: "auto", fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,.6)", cursor: "pointer" }}>Clear</span>
         </div>
@@ -255,7 +369,7 @@ export function LeadsTab({ agentId, view, onChanged }: { agentId: string; view: 
                   </div>
                   <div style={{ padding: "11px 12px", fontSize: 14, color: "#3B463F", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.contact.company ?? "—"}</div>
                   <div style={{ padding: "11px 12px" }}>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12.5, color: "#5C6B62" }}><span style={{ fontSize: 13 }}>✎</span>Manual</span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12.5, color: "#5C6B62", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} data-testid="lead-origin"><span style={{ fontSize: 13, flex: "none" }}>{originCell(l).icon}</span>{originCell(l).label}</span>
                   </div>
                   <div style={{ padding: "11px 12px" }}>
                     <span style={{ display: "inline-block", padding: "5px 11px", borderRadius: 100, fontSize: 12, fontWeight: 600, background: pill.bg, color: pill.fg }}>{pill.label}</span>
@@ -304,6 +418,31 @@ export function LeadsTab({ agentId, view, onChanged }: { agentId: string; view: 
                   ) : null}
                 </div>
               </div>
+              {/* C2.8: List row + the ONE menu (v4 §5 anatomy — unification rule) */}
+              <div style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 13, overflow: "visible", marginBottom: 18 }} data-testid="lead-list-row">
+                <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 15px" }}>
+                  <span style={{ fontSize: 13, color: "#9AA59E", flex: "none", width: 92 }}>List</span>
+                  <span style={{ flex: 1, minWidth: 0, fontSize: 13.5, color: "#0E1512", fontWeight: 600, textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} data-testid="lead-list-value">
+                    {(contactLists[open.contact.id] ?? []).length > 0
+                      ? `${contactLists[open.contact.id]![0]!.name}${contactLists[open.contact.id]!.length > 1 ? ` +${contactLists[open.contact.id]!.length - 1}` : ""}`
+                      : "—"}
+                  </span>
+                  <div style={{ position: "relative", flex: "none" }}>
+                    <span onClick={() => setDrawerListDD((v) => !v)} style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 700, color: "#16A82A", background: "rgba(53,232,52,.08)", border: "1px solid #9FD8AC", borderRadius: 8, padding: "5px 10px", cursor: "pointer" }} data-testid="lead-add-to-list">＋ Add to list</span>
+                    {drawerListDD ? (
+                      <AddToListMenu
+                        header="Add to list"
+                        options={lists.map((l) => ({ id: l.id, name: l.name, current: (contactLists[open.contact.id] ?? []).some((m) => m.id === l.id) }))}
+                        newListLabel="New list"
+                        onPick={(listId) => void addLeadsToList(listId, [open.contact.id])}
+                        onNewList={() => openNewList([open.contact.id])}
+                        testid="lead-list-menu"
+                      />
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+
               {/* stat tiles — live Opens/Replies from Event rows; the prototype's
                   AI "Score" tile is omitted (no live metric, DEC-038a rule) */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9, marginBottom: 18 }} data-testid="lead-stats">
@@ -361,6 +500,38 @@ export function LeadsTab({ agentId, view, onChanged }: { agentId: string; view: 
               <a href="/contacts" style={{ textDecoration: "none", marginLeft: "auto", fontSize: 14, fontWeight: 700, color: "#0A0F0C", background: GRAD, borderRadius: 11, padding: "10px 18px" }}>Open full record ›</a>
             </div>
           </div>
+        </div>
+      ) : null}
+
+      {/* C2.8: New-list modal (same prototype anatomy as Contacts) */}
+      {newListOpen ? (
+        <div onClick={() => setNewListOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(12,20,15,.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 36, zIndex: 70 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: 420, maxWidth: "100%", background: "#fff", borderRadius: 18, boxShadow: "0 40px 90px rgba(0,0,0,.45)", overflow: "hidden" }} data-testid="leads-new-list-modal">
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "18px 22px", borderBottom: "1px solid #EBE3D6" }}>
+              <span style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 17, color: "#0E1512", flex: 1 }}>Create a list</span>
+              <span onClick={() => setNewListOpen(false)} style={{ width: 30, height: 30, borderRadius: 9, border: "1px solid #EBE3D6", display: "flex", alignItems: "center", justifyContent: "center", color: "#9AA59E", cursor: "pointer" }}>✕</span>
+            </div>
+            <div style={{ padding: "20px 22px" }}>
+              <label style={{ display: "block", fontSize: 11, fontWeight: 800, color: "#9AA59E", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 7 }}>List name</label>
+              <input value={newListName} onChange={(e) => { setNewListName(e.target.value); setNewListErr(null); }} onKeyDown={(e) => { if (e.key === "Enter") void createList(); }} placeholder="e.g. Q4 webinar signups" autoFocus style={{ width: "100%", boxSizing: "border-box", height: 46, borderRadius: 11, background: "#FBF7F0", border: `1px solid ${newListErr ? "#E0A99E" : "#EBE3D6"}`, padding: "0 14px", fontSize: 14.5, color: "#0E1512", marginBottom: 6, fontFamily: "'Hanken Grotesk',sans-serif" }} data-testid="leads-new-list-name" />
+              <div style={{ fontSize: 12.5, color: newListErr ? "#C9543F" : "#9AA59E" }}>
+                {newListErr ?? (newListIds.length > 0 ? `${newListIds.length} lead${newListIds.length === 1 ? "" : "s"} will be added to it.` : "Group contacts for targeting — a contact can be in many lists.")}
+              </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 22px", borderTop: "1px solid #EBE3D6" }}>
+              <span onClick={() => setNewListOpen(false)} style={{ marginLeft: "auto", fontSize: 14, fontWeight: 600, color: "#5C6B62", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 11, padding: "10px 16px", cursor: "pointer" }}>Cancel</span>
+              <span onClick={() => void createList()} style={{ fontSize: 14, fontWeight: 700, color: newListName.trim() ? "#0A0F0C" : "#9AA59E", background: newListName.trim() ? GRAD : "#ECE7DC", borderRadius: 11, padding: "10px 20px", cursor: newListName.trim() ? "pointer" : "not-allowed" }} data-testid="leads-new-list-create">Create list</span>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* §0 toast */}
+      {toastMsg ? (
+        <div style={{ position: "fixed", bottom: 22, left: "50%", transform: "translateX(-50%)", zIndex: 71, display: "flex", alignItems: "center", gap: 11, background: "#0C140F", color: "#fff", borderRadius: 12, padding: "12px 16px", boxShadow: "0 16px 40px rgba(0,0,0,.3)" }} data-testid="leads-toast">
+          <span style={{ width: 22, height: 22, borderRadius: "50%", background: "#35E834", color: "#0A0F0C", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flex: "none" }}>✓</span>
+          <span style={{ fontSize: 13.5, fontWeight: 600 }}>{toastMsg}</span>
+          <span onClick={() => setToastMsg("")} style={{ marginLeft: 8, color: "rgba(255,255,255,.5)", cursor: "pointer" }}>✕</span>
         </div>
       ) : null}
     </>

@@ -52,4 +52,47 @@ describe("validateEvent", () => {
       }),
     ).toThrow(/Invalid event envelope/);
   });
+
+  // C2.8 (docs/PLAN_CONTACT_LISTS.md): the membership events are the
+  // Forms/Widget/Automations join points — the payload shape is a contract.
+  it("accepts list.member.added.v1 with the full payload contract", () => {
+    const event = validateEvent({
+      workspaceId: "ws1",
+      contactId: "c1",
+      type: EVENT_TYPES.LIST_MEMBER_ADDED,
+      payload: { listId: "l1", listName: "Q3 dental leads", addedBy: "u1", origin: "manual" },
+    });
+    expect(event.type).toBe("list.member.added.v1");
+    expect(event.payload).toEqual({
+      listId: "l1",
+      listName: "Q3 dental leads",
+      addedBy: "u1",
+      origin: "manual",
+    });
+  });
+
+  it("accepts list.member.removed.v1 and rejects payloads missing the contract fields", () => {
+    const event = validateEvent({
+      workspaceId: "ws1",
+      contactId: "c1",
+      type: EVENT_TYPES.LIST_MEMBER_REMOVED,
+      payload: { listId: "l1", listName: "Q3 dental leads", removedBy: "u1" },
+    });
+    expect(event.payload).toEqual({ listId: "l1", listName: "Q3 dental leads", removedBy: "u1" });
+
+    expect(() =>
+      validateEvent({
+        workspaceId: "ws1",
+        type: EVENT_TYPES.LIST_MEMBER_ADDED,
+        payload: { listId: "l1" },
+      }),
+    ).toThrow(/Invalid payload for "list.member.added.v1"/);
+    expect(() =>
+      validateEvent({
+        workspaceId: "ws1",
+        type: EVENT_TYPES.LIST_MEMBER_REMOVED,
+        payload: { listId: "l1", listName: "x" },
+      }),
+    ).toThrow(/Invalid payload for "list.member.removed.v1"/);
+  });
 });

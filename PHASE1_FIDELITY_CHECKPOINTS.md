@@ -175,6 +175,11 @@ in-card tinted `+ Add contact` **multi-add** button; `ADDED THIS SESSION · N` m
 rows with 34px initials avatars + red `Remove`; footer `N contacts ready to add` + gradient
 `Add to campaign`. *(Amended in the wizard-v2 PR per DEC-039a — previously "minimal wiring".)*
 Minimal wiring: CSV of ≥1 test contact + manual single add.
+**C2.8 amendment (contact lists — `docs/PLAN_CONTACT_LISTS.md`):** the **"Choose a list"** source
+card is live: opens the **480px list picker modal** (prototype anatomy) listing active lists w/
+icon + count; picking a list shows it as the chosen source. Enrollment semantics = **SNAPSHOT at
+launch** (members enroll through the same path as a CSV import; no live-sync — deferred per plan).
+States: picker open · picked card · archived list absent from the picker.
 **Step 4 — Enable lead capture:** 2-col grid (`1fr 1fr`, gap 18); 48×28 gradient toggle; note
 "This step is optional — you can skip it…" verbatim. **Visual only in P1** (toggle state persists,
 no capture backend).
@@ -214,6 +219,10 @@ static mock):** Calls, Preview, Stats. Do not delete them.
 - Table grid **`44px 1.9fr 1.3fr 1.1fr 1.05fr .7fr .9fr`**; body scroll region max-height 512px;
   global table anatomy; search + **source filter** dropdown + export + add; bulk bar (sequence /
   export / unsubscribe).
+- **C2.8 amendment (contact lists):** the bulk bar gains **`≣ Add to list`** and the lead detail
+  drawer gains the List row + menu — both mount the SAME `packages/ui` Add-to-list menu component;
+  **§5's v4 menu anatomy is the fidelity source** for these mounts (unification rule,
+  `docs/PLAN_CONTACT_LISTS.md`).
 - **Lead detail drawer:** scrim `rgba(12,20,15,.45)`; panel **460px**, bg `#FBF7F0`, shadow
   `-24px 0 70px rgba(0,0,0,.32)`; white header (padding `20px 22px`). Contains the **activity
   timeline** — every persisted event for the lead (sent → delivered → opened → clicked → replied
@@ -276,9 +285,30 @@ the event within one poll interval (≤5s).
   non-admin drawer (no create affordances) · archived def absent from every picker · 31st-def
   designed error.
 
----
-
-## 6. Settings → Channels & Suppression — `Settings.dc.html`
+**C2.8 amendment (contact lists — binding from the C2.8 kickoff, `docs/PLAN_CONTACT_LISTS.md`, v4
+`Contacts.dc.html`; supersedes the C2.5/DEC-044 "lists rail inert / LIST select omitted" waivers):**
+- **Lists rail (226px):** live `ContactList` rows — All contacts + per-list rows with icon + real
+  member count, gradient active state; clicking a list scopes the table (the rail IS the list
+  filter — no separate dropdown); **`＋ New list`** → New-list modal → `POST /lists`. Archived
+  lists absent.
+- **List-scoped header:** list name + green LIST badge + "N contacts in this list".
+- **Bulk bar — `≣ Add to list` MENU (v4 anatomy, the binding pattern):** header "Add N to list" ·
+  existing list rows w/ icon + count · ✓ on current · footer **"＋ New list from selection"** →
+  New-list modal which assigns the selection on create. Membership changes update the LIST column,
+  rail counts, and scoping live.
+- **UNIFICATION RULE (owner):** the same Add-to-list menu component (one implementation,
+  `packages/ui`) mounts in all FOUR spots — Contacts bulk bar · contact detail drawer · Campaign
+  View Leads-tab bulk bar · lead detail drawer. This §5 anatomy is the fidelity source for every
+  mount (§4 references it).
+- **Contact detail drawer:** List row atop DETAILS (current list + green `＋ Add to list` → the
+  same menu; "＋ New list" assigns this contact on create).
+- **Add-contact drawer:** LIST select active (attach on create). **CSV import step 3:** "Add to
+  list" select (existing list or none; membership origin `csv_import`).
+- **LIST table column:** renders primary list; "+N" when in multiple (build detail — prototype
+  shows primary).
+- **States:** rail default / list-scoped · New-list modal (empty · named · error-duplicate) · bulk
+  menu open / after-add · drawer List row + menu open · add-drawer select open · CSV step-3 select ·
+  archived list absent from rail + every picker (membership preserved).
 
 - Left sub-nav (7 sections); **Channels + Suppression + Brand kit wired**; others render inert with
   real layouts (no dead ends — each shows its prototype layout with mock/disabled controls).

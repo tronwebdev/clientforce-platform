@@ -176,6 +176,47 @@ async function main(): Promise<void> {
         });
       }
     }
+
+    // C2.8 (docs/PLAN_CONTACT_LISTS.md): the prototype's five base lists become
+    // real rows in the primary workspace, with real memberships over the seeded
+    // contacts, so the lists rail renders honest counts from day one.
+    if (ws.slug === "demo") {
+      const listNames = [
+        "Dental — local",
+        "SaaS founders Q2",
+        "Cold list — agencies",
+        "Webinar follow-up",
+        "Lapsed clients Q3",
+      ];
+      const listIds = new Map<string, string>();
+      for (const name of listNames) {
+        const list = await prisma.contactList.upsert({
+          where: { workspaceId_name: { workspaceId: workspace.id, name } },
+          update: {},
+          create: { workspaceId: workspace.id, name, origin: "manual" },
+        });
+        listIds.set(name, list.id);
+      }
+      const memberships: Array<[email: string, listName: string]> = [
+        ["ada@demo-agency.test", "SaaS founders Q2"],
+        ["alan@demo-agency.test", "Cold list — agencies"],
+        ["edsger@demo-agency.test", "Dental — local"],
+      ];
+      for (const [email, listName] of memberships) {
+        const contact = await prisma.contact.findFirst({
+          where: { workspaceId: workspace.id, email },
+        });
+        const listId = listIds.get(listName);
+        if (contact && listId) {
+          await prisma.contactListMember.createMany({
+            data: [
+              { workspaceId: workspace.id, listId, contactId: contact.id, addedBy: "import" },
+            ],
+            skipDuplicates: true,
+          });
+        }
+      }
+    }
   }
 
   // Sample Agent lives in the primary workspace (one usable agent, per #9).

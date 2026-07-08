@@ -29,6 +29,8 @@ export const draftStateSchema = z.object({
         id: z.string(),
         email: z.string(),
         firstName: z.string().optional(),
+        /** C2.8 (49-3): how the contact was added — drives enrollment provenance. */
+        src: z.enum(["manual", "csv"]).optional(),
       }),
     )
     .max(500)
@@ -39,6 +41,8 @@ export const draftStateSchema = z.object({
   windowEnd: z.string().max(5).optional(),
   /** B10: IANA zone for the sending window (also lands in guardrails). */
   timezone: z.string().max(64).optional(),
+  /** C2.8: step-3 "Choose a list" — name/count re-resolve from the server on resume. */
+  pickedListId: z.string().optional(),
   sendDays: z.array(z.boolean()).length(7).optional(),
   quietHours: z.boolean().optional(),
   ramp: z.boolean().optional(),

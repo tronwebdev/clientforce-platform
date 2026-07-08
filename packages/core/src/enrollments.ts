@@ -13,6 +13,17 @@ export const createEnrollmentSchema = z.object({
   contactId: z.string().min(1),
   /** Optional — defaults to the workspace's first ACTIVE sender connection. */
   senderId: z.string().min(1).optional(),
+  /**
+   * C2.8 (49-3): enrollment provenance — the Leads tab's ORIGINATED FROM
+   * column renders it ("List · Dental — local" / "CSV import" / "Manual").
+   */
+  origin: z
+    .object({
+      kind: z.enum(["manual", "csv", "list"]),
+      listId: z.string().optional(),
+      listName: z.string().max(80).optional(),
+    })
+    .optional(),
 });
 export type CreateEnrollmentInput = z.infer<typeof createEnrollmentSchema>;
 

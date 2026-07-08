@@ -7,6 +7,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
 } from "@nestjs/common";
 import { contactCustomValuesSchema } from "@clientforce/core";
@@ -37,9 +38,24 @@ interface CreateContactDto {
 export class ContactsController {
   constructor(private readonly tenant: TenantClient) {}
 
+  /** C2.8: `?listId=` scopes to explicit membership; rows carry active lists. */
   @Get()
-  list() {
-    return this.tenant.run((tx) => tx.contact.findMany({ orderBy: { createdAt: "asc" } }));
+  list(@Query("listId") listId?: string) {
+    return this.tenant.run(async (tx) => {
+      const contacts = await tx.contact.findMany({
+        orderBy: { createdAt: "asc" },
+        ...(listId ? { where: { lists: { some: { listId } } } } : {}),
+        include: {
+          lists: { select: { list: { select: { id: true, name: true, archived: true } } } },
+        },
+      });
+      return contacts.map(({ lists, ...c }) => ({
+        ...c,
+        lists: lists
+          .filter((m) => !m.list.archived)
+          .map((m) => ({ id: m.list.id, name: m.list.name })),
+      }));
+    });
   }
 
   @Post()
