@@ -48,6 +48,8 @@ export const EVENT_SCHEMAS = {
   // ── Messaging · SMS ────────────────────────────────────────────────────────
   "sms.sent.v1": z.object({ ...messageRef, segmentCount: z.number().int().nonnegative(), body: z.string().optional() }),
   "sms.delivered.v1": z.object({ ...messageRef }),
+  // P2.1 (DEC-061): provider delivery failure (Twilio status callback).
+  "sms.failed.v1": z.object({ ...messageRef, reason: z.string().optional(), errorCode: z.string().optional() }),
   "sms.replied.v1": z.object({ ...messageRef, body: z.string(), intent: IntentSchema }),
   "sms.opted_out.v1": z.object({ ...messageRef, reason: z.string().optional() }),
 
@@ -145,6 +147,7 @@ export const EVENT_TYPES = {
   EMAIL_REPLIED: "email.replied.v1",
   SMS_SENT: "sms.sent.v1",
   SMS_DELIVERED: "sms.delivered.v1",
+  SMS_FAILED: "sms.failed.v1",
   SMS_REPLIED: "sms.replied.v1",
   SMS_OPTED_OUT: "sms.opted_out.v1",
   WHATSAPP_SENT: "whatsapp.sent.v1",

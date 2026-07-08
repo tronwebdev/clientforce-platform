@@ -5,7 +5,7 @@
  */
 import { z } from "zod";
 
-export const senderTypeSchema = z.enum(["CF_MANAGED", "GMAIL_OAUTH", "OUTLOOK_OAUTH", "SMTP"]);
+export const senderTypeSchema = z.enum(["CF_MANAGED", "GMAIL_OAUTH", "OUTLOOK_OAUTH", "SMTP", "TWILIO_SMS"]);
 export type SenderTypeDto = z.infer<typeof senderTypeSchema>;
 
 export const createSenderSchema = z.object({
@@ -18,6 +18,23 @@ export const createSenderSchema = z.object({
   sendingWindow: z.unknown().optional(),
 });
 export type CreateSenderDto = z.infer<typeof createSenderSchema>;
+
+/**
+ * P2.1 (DEC-061): the SMS sender create shape — E.164 phone + Twilio
+ * messaging-service SID. Enum-only migration: the phone is STORED in the
+ * `fromEmail` column for TWILIO_SMS rows (documented reuse); the SID rides
+ * the field-encrypted `credentialsEnc` blob like every per-tenant credential.
+ */
+export const e164Schema = z.string().regex(/^\+[1-9]\d{6,14}$/, "E.164 phone, e.g. +15551234567");
+export const createSmsSenderSchema = z.object({
+  type: z.literal("TWILIO_SMS"),
+  phone: e164Schema,
+  /** Display label for Settings rows (not a send-time from-name — SMS has none). */
+  fromName: z.string().min(1).max(120),
+  messagingServiceSid: z.string().regex(/^MG[a-zA-Z0-9]{32}$/, "Twilio messaging service SID (MG…)"),
+  dailyLimit: z.number().int().min(1).max(10_000).optional(),
+});
+export type CreateSmsSenderDto = z.infer<typeof createSmsSenderSchema>;
 
 export const testSendSchema = z.object({
   senderId: z.string().min(1),

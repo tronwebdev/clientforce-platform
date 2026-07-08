@@ -38,6 +38,24 @@ export interface EmailSender {
   send(email: RenderedEmail, sender: SenderConnection): Promise<SendResult>;
 }
 
+/** P2.1 (DEC-061): a fully rendered outbound SMS — body already carries the
+ *  opt-out line when the boundary decided it must. */
+export interface RenderedSms {
+  to: string;
+  body: string;
+}
+
+export interface SmsSendResult {
+  providerMessageId: string;
+  /** GSM-7/UCS-2 segment count — persisted into Message.meta (DEC-061). */
+  segments: number;
+}
+
+/** The provider-agnostic SMS adapter — transport only, same contract as EmailSender. */
+export interface SmsSender {
+  send(sms: RenderedSms, sender: SenderConnection): Promise<SmsSendResult>;
+}
+
 /** Typed refusals from the send boundary — recorded, never silently dropped. */
 export type SendBlockReason =
   | "SUPPRESSED"
@@ -47,7 +65,10 @@ export type SendBlockReason =
   | "OUTSIDE_SENDING_WINDOW"
   | "DAILY_CAP_REACHED"
   | "SENDER_DISABLED"
-  | "RECIPIENT_NOT_ALLOWLISTED";
+  | "RECIPIENT_NOT_ALLOWLISTED"
+  // P2.1 (DEC-061): SMS-boundary extensions.
+  | "CONTACT_NO_PHONE"
+  | "SENDER_NOT_SMS";
 
 export class SendBlockedError extends Error {
   constructor(

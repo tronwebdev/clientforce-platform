@@ -127,4 +127,31 @@ describe("validateEvent", () => {
       }),
     ).toThrow(/Invalid payload for "lead.stage_changed.v1"/);
   });
+
+  it("sms.*.v1 payload contracts (P2.1/DEC-061)", () => {
+    const sent = validateEvent({
+      workspaceId: "ws1",
+      type: EVENT_TYPES.SMS_SENT,
+      payload: { messageId: "m1", segmentCount: 2, body: "hi" },
+    });
+    expect(sent.payload).toEqual({ messageId: "m1", segmentCount: 2, body: "hi" });
+
+    const failed = validateEvent({
+      workspaceId: "ws1",
+      type: EVENT_TYPES.SMS_FAILED,
+      payload: { messageId: "m1", reason: "undeliverable", errorCode: "30003" },
+    });
+    expect(failed.payload).toEqual({ messageId: "m1", reason: "undeliverable", errorCode: "30003" });
+
+    const replied = validateEvent({
+      workspaceId: "ws1",
+      type: EVENT_TYPES.SMS_REPLIED,
+      payload: { messageId: "m1", body: "yes please", intent: "interested" },
+    });
+    expect(replied.payload).toEqual({ messageId: "m1", body: "yes please", intent: "interested" });
+
+    expect(() =>
+      validateEvent({ workspaceId: "ws1", type: EVENT_TYPES.SMS_SENT, payload: { messageId: "m1" } }),
+    ).toThrow(/Invalid payload for "sms.sent.v1"/);
+  });
 });

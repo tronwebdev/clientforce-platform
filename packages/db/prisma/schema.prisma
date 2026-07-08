@@ -488,6 +488,9 @@ enum SenderType {
   GMAIL_OAUTH
   OUTLOOK_OAUTH
   SMTP
+  /// P2.1 (DEC-061): Twilio SMS — phone rides the fromEmail column (enum-only
+  /// migration); messagingServiceSid rides credentialsEnc (field-encrypted).
+  TWILIO_SMS
 }
 
 enum SenderStatus {

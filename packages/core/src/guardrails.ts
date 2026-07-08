@@ -33,7 +33,9 @@ export type Tracking = z.infer<typeof trackingSchema>;
 
 export const guardrailsSchema = z.object({
   sendingWindow: sendingWindowSchema,
-  dailyCap: z.object({ email: z.number().int().min(1) }),
+  // P2.1 (DEC-061): per-channel caps — sms OPTIONAL and additive; legacy
+  // rows parse unchanged. A8 literals below stay untouched.
+  dailyCap: z.object({ email: z.number().int().min(1), sms: z.number().int().min(1).optional() }),
   consent: z.object({ attestedBy: z.string().min(1), attestedAt: z.string().min(1) }).nullable(),
   tracking: trackingSchema.default({ openTracking: true, linkTracking: true }),
   /**
