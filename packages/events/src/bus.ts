@@ -3,6 +3,7 @@
  * (BullMQ) to the three consumer hooks (ARCHITECTURE.md §3c, DATA_MODEL.md §5).
  */
 import { Queue, Worker, type ConnectionOptions, type Job } from "bullmq";
+import { BULL_PREFIX } from "./redis";
 import { Prisma, withTenant, type PrismaClient } from "@clientforce/db";
 import type { EventType } from "./catalog";
 import { DEFAULT_CONSUMERS, type ConsumerHook } from "./consumers";
@@ -34,7 +35,7 @@ export class EventBus {
     this.connection = opts.connection;
     this.consumers = opts.consumers ?? DEFAULT_CONSUMERS;
     this.queueName = opts.queueName ?? EVENTS_QUEUE_NAME;
-    this.queue = new Queue(this.queueName, { connection: this.connection });
+    this.queue = new Queue(this.queueName, { connection: this.connection, prefix: BULL_PREFIX });
   }
 
   /**
@@ -85,7 +86,7 @@ export class EventBus {
       async (job: Job<BusEvent>) => {
         await this.dispatch(job.data);
       },
-      { connection: this.connection },
+      { connection: this.connection, prefix: BULL_PREFIX },
     );
     return this.worker;
   }
