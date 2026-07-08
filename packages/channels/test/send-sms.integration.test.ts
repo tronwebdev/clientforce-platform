@@ -6,6 +6,7 @@
  * guardrail window + per-channel caps, allow-list, STOP rail, and the
  * email path untouched. Skips without infra.
  */
+import { createHmac } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   createAppPrismaClient,
@@ -18,11 +19,14 @@ import {
 import { sendSmsStep, SMS_OPT_OUT_LINE, type SendSmsDeps } from "../src/send-sms";
 import { applySmsStop, ingestInboundSms, isStopMessage, normalizeTwilioInbound } from "../src/sms-inbound";
 import { smsSegmentCount, validateTwilioSignature } from "../src/twilio";
-import { SendBlockedError, type RenderedSms, type SmsSender } from "../src/types";
+import type { RenderedSms, SmsSender } from "../src/types";
 
 const hasInfra = Boolean(process.env.APP_DATABASE_URL ?? process.env.DATABASE_URL);
 const suffix = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 const PHONE = "+15005551234";
+// Explicit key — the boundary never decrypts in these tests; env-free like the
+// email suite's crypto round-trip.
+const ENC_KEY = Buffer.from(new Array(32).fill(7)).toString("base64");
 /** Tuesday 10:00 UTC — inside the Mon–Fri 09:00–17:00 UTC window. */
 const IN_WINDOW = () => new Date("2026-07-07T10:00:00Z");
 
@@ -100,7 +104,7 @@ describe.skipIf(!hasInfra)("sendSmsStep boundary integration", () => {
         fromEmail: "+15005550006", // DEC-061: E.164 rides the fromEmail column
         fromName: "Clinic SMS",
         dailyLimit: 100,
-        credentialsEnc: encryptField(JSON.stringify({ messagingServiceSid: `MG${"a".repeat(32)}` })),
+        credentialsEnc: encryptField(JSON.stringify({ messagingServiceSid: `MG${"a".repeat(32)}` }), ENC_KEY),
       },
     });
     senderId = sender.id;
@@ -220,7 +224,6 @@ describe.skipIf(!hasInfra)("sendSmsStep boundary integration", () => {
     const url = "https://api.example.com/webhooks/twilio";
     const params = { From: PHONE, Body: "yes", MessageSid: "SM1" };
     // Signature computed with the same recipe — self-consistency + tamper check.
-    const { createHmac } = require("node:crypto") as typeof import("node:crypto");
     const data = url + Object.keys(params).sort().map((k) => k + params[k as keyof typeof params]).join("");
     const sig = createHmac("sha1", "token").update(Buffer.from(data, "utf-8")).digest("base64");
     expect(validateTwilioSignature("token", url, params, sig)).toBe(true);

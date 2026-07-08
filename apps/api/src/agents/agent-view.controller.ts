@@ -139,6 +139,9 @@ export class AgentViewController {
             contact: contactById.get(contactId) ?? null,
             enrollmentId: enrollment?.id ?? null,
             stage: enrollment?.pipelineStage ?? null,
+            // P2.1 (DEC-061): channels present in the thread — the §4 channel
+            // filter and per-thread chips are live once sms exists.
+            channels: [...new Set(msgs.map((m) => m.channel))],
             intent: lastInbound.intent ?? null,
             unread: !lastOutbound || lastInbound.sentAt > lastOutbound.sentAt,
             done: meta.done === true,
@@ -148,6 +151,7 @@ export class AgentViewController {
             messages: msgs.map((m) => ({
               id: m.id,
               direction: m.direction,
+              channel: m.channel,
               subject: m.subject,
               body: m.body,
               intent: m.intent,

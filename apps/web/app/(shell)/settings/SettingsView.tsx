@@ -9,11 +9,10 @@
  */
 import { useEffect, useState } from "react";
 import { BrandKit } from "./BrandKit";
-import { EmailSendersSection, MailerSendersSection, SuppressionSection } from "./ChannelsSections";
+import { EmailSendersSection, MailerSendersSection, SmsSendersSection, SuppressionSection } from "./ChannelsSections";
 import {
   BillingSection,
   CustomFieldsSection,
-  PhoneSection,
   ProfileSection,
   SchedulesSection,
   TeamSection,
@@ -46,7 +45,7 @@ const WORKSPACE_NAV: NavItem[] = [
 const COMM_NAV: NavItem[] = [
   { id: "email", icon: "✉", label: "Email senders" },
   { id: "mailer", icon: "📨", label: "Clientforce Mailer", beta: true },
-  { id: "phone", icon: "☎", label: "Phone numbers" },
+  { id: "phone", icon: "☎", label: "Phone & SMS" },
   { id: "whatsapp", icon: "🗨", label: "WhatsApp senders" },
   { id: "suppress", icon: "⊘", label: "Suppression list", iconColor: "#C9543F" },
 ];
@@ -117,7 +116,7 @@ export function SettingsView() {
           {section === "usage" ? <UsageSection /> : null}
           {section === "email" ? <EmailSendersSection toast={setToast} /> : null}
           {section === "mailer" ? <MailerSendersSection toast={setToast} /> : null}
-          {section === "phone" ? <PhoneSection toast={setToast} /> : null}
+          {section === "phone" ? <SmsSendersSection toast={setToast} /> : null}
           {section === "whatsapp" ? <WhatsappSection toast={setToast} /> : null}
           {section === "suppress" ? <SuppressionSection toast={setToast} /> : null}
         </div>

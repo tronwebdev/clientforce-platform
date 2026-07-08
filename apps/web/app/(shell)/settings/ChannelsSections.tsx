@@ -89,7 +89,7 @@ export function EmailSendersSection({ toast }: { toast: (m: string) => void }) {
   const { senders, error, refresh } = useSenders();
   const [flowOpen, setFlowOpen] = useState(false);
   const [drawer, setDrawer] = useState<Sender | null>(null);
-  const rows = senders?.filter((s) => s.type !== "CF_MANAGED") ?? null;
+  const rows = senders?.filter((s) => s.type !== "CF_MANAGED" && s.type !== "TWILIO_SMS") ?? null;
 
   return (
     <div data-testid="section-email">
@@ -147,6 +147,64 @@ export function EmailSendersSection({ toast }: { toast: (m: string) => void }) {
         )}
       </div>
       {flowOpen ? <ConnectFlowDrawer channel="email" onClose={() => setFlowOpen(false)} toast={toast} onMailerCreated={refresh} /> : null}
+      {drawer ? <SenderDetailDrawer sender={drawer} onClose={() => setDrawer(null)} toast={toast} /> : null}
+    </div>
+  );
+}
+
+// ── SMS SENDERS (P2.1, DEC-061 — §6 amendment: the sms sender surface is LIVE) ─
+
+const SMS_GRID = "1.5fr 1.2fr .9fr .8fr 1fr";
+
+export function SmsSendersSection({ toast }: { toast: (m: string) => void }) {
+  const { senders, error, refresh } = useSenders();
+  const [flowOpen, setFlowOpen] = useState(false);
+  const [drawer, setDrawer] = useState<Sender | null>(null);
+  const rows = senders?.filter((s) => s.type === "TWILIO_SMS") ?? null;
+
+  return (
+    <div data-testid="section-sms">
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+        <div>
+          <div style={sectionHead}>SMS senders</div>
+          <div style={sectionSub}>Twilio numbers your agents text from — STOP replies suppress automatically.</div>
+        </div>
+        <span onClick={() => setFlowOpen(true)} style={gradBtn} data-testid="connect-sms">+ Add SMS sender</span>
+      </div>
+      <div style={tableCard} data-testid="sms-senders-table">
+        <div style={theadRow(SMS_GRID)}><span>Number</span><span>Label</span><span>Status</span><span>Daily</span><span>ID</span></div>
+        {rows === null && !error ? (
+          <SkeletonRows testid="sms-senders-skeleton" rows={2} />
+        ) : error ? (
+          <ErrorState what="SMS senders" onRetry={() => void refresh()} testid="sms-senders-error" />
+        ) : rows !== null && rows.length === 0 ? (
+          <div data-testid="sms-senders-empty">
+            <EmptyState
+              kind="empty"
+              title="No SMS numbers connected"
+              body="Connect a Twilio number + messaging service and your agents can text — sequences may then mix email and SMS steps."
+              actions={<span onClick={() => setFlowOpen(true)} style={{ fontSize: 13, fontWeight: 700, color: "#5C6B62", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 10, padding: "9px 16px", cursor: "pointer" }}>+ Add SMS sender</span>}
+            />
+          </div>
+        ) : (
+          (rows ?? []).map((s) => {
+            const st = sendStatus(s);
+            return (
+              <div key={s.id} onClick={() => setDrawer(s)} style={{ ...tbodyRow(SMS_GRID), fontSize: 13, color: "#0E1512", cursor: "pointer" }} data-testid="sms-sender-row">
+                <span style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                  <span style={{ width: 30, height: 30, borderRadius: 8, flex: "none", background: "rgba(53,232,52,.12)", color: "#16A82A", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>✆</span>
+                  <span style={{ fontWeight: 600, fontFamily: "monospace", fontSize: 12.5 }}>{s.fromEmail}</span>
+                </span>
+                <span style={{ color: "#3B463F" }}>{s.fromName ?? "—"}</span>
+                <span><span style={{ fontSize: 11.5, fontWeight: 600, color: st.fg, background: st.bg, borderRadius: 100, padding: "4px 9px" }}>{st.label}</span></span>
+                <span style={{ color: "#5C6B62", fontSize: 12.5 }}>{s.dailyLimit.toLocaleString()} / day</span>
+                <span style={{ fontFamily: "monospace", fontSize: 11.5, color: "#8A7F6B" }}>{s.id.slice(0, 8)}</span>
+              </div>
+            );
+          })
+        )}
+      </div>
+      {flowOpen ? <ConnectFlowDrawer channel="phone" onClose={() => setFlowOpen(false)} toast={toast} onMailerCreated={refresh} /> : null}
       {drawer ? <SenderDetailDrawer sender={drawer} onClose={() => setDrawer(null)} toast={toast} /> : null}
     </div>
   );
