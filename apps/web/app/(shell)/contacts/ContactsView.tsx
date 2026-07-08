@@ -5,8 +5,15 @@
  * The A10 segment chips are QUERIES over live derived rows (`deriveStatus`),
  * never stored stage values. A4: 5s polling; drawer timeline polls while open.
  */
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
-import { slugifyFieldLabel, type ContactFieldDefDto, type ContactListDto } from "@clientforce/core";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import {
+  importContactRowSchema,
+  slugifyFieldLabel,
+  type ContactFieldDefDto,
+  type ContactListDto,
+  type ImportContactRow,
+  type ImportContactsResult,
+} from "@clientforce/core";
 import { AddToListMenu, EmptyState, listGlyph } from "@clientforce/ui";
 
 const GRAD = "linear-gradient(135deg,#36D7ED 0%,#35E834 55%,#D0F56B 100%)";
@@ -169,9 +176,23 @@ export function ContactsView() {
   const [csvStep, setCsvStep] = useState(0);
   const [csvFile, setCsvFile] = useState<{ name: string; headers: string[]; rows: string[][] } | null>(null);
   const [csvMap, setCsvMap] = useState<string[]>([]);
-  const [csvDone, setCsvDone] = useState(0);
   const [csvError, setCsvError] = useState<string | null>(null);
   const [mapDD, setMapDD] = useState<number | null>(null);
+  // IMP-1/IMP-2 (owner bug round 2026-07-08): the Review tiles are SNAPSHOTTED
+  // when the user enters the Review step — never recomputed while the 5s poll
+  // refreshes `rows` — and execution has real states: button disables, a
+  // progress bar tracks chunks, and the done modal shows the SERVER's counts.
+  const [reviewSnap, setReviewSnap] = useState<{
+    newCount: number; dupes: number; suppressed: number; mapped: number;
+    createCount: number; valid: string[][]; emailIdx: number;
+  } | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importProg, setImportProg] = useState<{ done: number; total: number } | null>(null);
+  const [importResult, setImportResult] = useState<ImportContactsResult | null>(null);
+  /** Rows sent to the server this run — retry pulls failed indexes from here. */
+  const sentRowsRef = useRef<ImportContactRow[]>([]);
+  /** DEC-058: closing mid-import continues in the background + completion toast. */
+  const bgCloseRef = useRef(false);
 
   // C2.8: contact lists — the rail scopes the table (the rail IS the filter),
   // the ONE Add-to-list menu mounts on the bulk bar + detail drawer, and the
@@ -464,33 +485,40 @@ export function ContactsView() {
     setCsvFile({ name, headers, rows });
     setCsvMap(headers.map(autoMatch));
   }
-  const csvParsed = useMemo(() => {
-    if (!csvFile) return null;
+  /** IMP-2: Review stats compute ONCE, on entering the Review step — the tiles
+   *  render this snapshot, so the 5s poll can no longer make counters climb.
+   *  Dupes/suppressed here are the client's ESTIMATE for the preview; the done
+   *  modal shows the server's authoritative counts (the server re-dedupes
+   *  transactionally, so a stale estimate can never skip a legitimate row). */
+  function snapReview() {
+    if (!csvFile) return;
     const emailIdx = csvMap.findIndex((m) => m === "Email");
     const existing = new Set((rows ?? []).map((r) => (r.email ?? "").toLowerCase()).filter(Boolean));
     const unsubEmails = new Set((rows ?? []).filter((r) => r.unsub).map((r) => (r.email ?? "").toLowerCase()));
     const valid = csvFile.rows.filter((r) => emailIdx >= 0 && /.+@.+\..+/.test(r[emailIdx] ?? ""));
     const dupes = valid.filter((r) => existing.has((r[emailIdx] ?? "").toLowerCase()));
     const suppressed = valid.filter((r) => unsubEmails.has((r[emailIdx] ?? "").toLowerCase()));
-    // Prototype semantics (round-2 fix): detected duplicates are SKIPPED —
-    // only fresh rows import; the button and done-count follow newCount.
-    const fresh = valid.filter((r) => !existing.has((r[emailIdx] ?? "").toLowerCase()));
-    return {
-      newCount: fresh.length,
+    setReviewSnap({
+      newCount: valid.length - dupes.length,
       dupes: dupes.length,
       suppressed: suppressed.length,
       mapped: csvMap.filter((m) => m !== "Skip this column").length,
       createCount: csvMap.filter((m) => m === CSV_CREATE).length,
       valid,
-      fresh,
       emailIdx,
-    };
-  }, [csvFile, csvMap, rows]);
+    });
+  }
+  /** IMP-3: chunk size for the bulk endpoint — small enough that the progress
+   *  bar moves on an owner-sized (tens of rows) file, well under the server's
+   *  IMPORT_CHUNK_MAX. Each chunk is one transactional POST /contacts/import. */
+  const CLIENT_CHUNK = 25;
   async function runImport() {
-    if (!csvFile || !csvParsed) return;
+    if (!csvFile || !reviewSnap || importing) return;
     setCsvError(null);
     // C2.7: create the new defs FIRST — a def-create failure aborts before any
     // contact posts, so no row can land referencing a field that doesn't exist.
+    // (Def CREATION stays this admin-gated client pre-step; the bulk endpoint
+    // takes custom VALUES only — flagged in the PR plan.)
     const customKeyByCol = new Map<number, string>();
     for (let i = 0; i < csvMap.length; i += 1) {
       const m = csvMap[i]!;
@@ -509,9 +537,12 @@ export function ContactsView() {
       }
     }
     if (customKeyByCol.size > 0) void refreshDefs();
-    let created = 0;
-    const createdIds: string[] = [];
-    for (const r of csvParsed.fresh) {
+    // Build payload rows from the SNAPSHOT — every valid row goes to the
+    // server; the server decides duplicates (workspace + within-batch), so the
+    // client never mis-skips a row off stale data (IMP-2).
+    const rowsToSend: ImportContactRow[] = [];
+    const prefailed: ImportContactsResult["failed"] = [];
+    for (const r of reviewSnap.valid) {
       const payload: Record<string, unknown> = {};
       const custom: Record<string, string> = {};
       csvMap.forEach((m, i) => {
@@ -520,35 +551,90 @@ export function ContactsView() {
         const ck = customKeyByCol.get(i);
         if (ck && r[i]) custom[ck] = r[i]!;
       });
-      if (!payload.email) continue;
       if (Object.keys(custom).length) payload.custom = custom;
-      const row = (await cf("contacts", { method: "POST", body: JSON.stringify(payload) }).catch(() => null)) as { id: string } | null;
-      if (row) {
-        created += 1;
-        createdIds.push(row.id);
+      const parsed = importContactRowSchema.safeParse(payload);
+      // index -1 = not sendable; these can't be retried, only reported.
+      if (!parsed.success) prefailed.push({ index: -1, email: String(payload.email ?? "(no email)"), reason: "Invalid email address — not imported" });
+      else rowsToSend.push(parsed.data);
+    }
+    await executeImport(rowsToSend, prefailed, { created: 0, skippedDuplicates: 0, suppressed: 0 });
+  }
+  /** Runs the chunk loop; used by both the first run and "Retry failed". Local
+   *  variables + refs only — closing the modal mid-run must not disturb it. */
+  async function executeImport(
+    rowsToSend: ImportContactRow[],
+    prefailed: ImportContactsResult["failed"],
+    base: { created: number; skippedDuplicates: number; suppressed: number },
+  ) {
+    const listId = csvListId; // capture — closeImport() may reset the state mid-run
+    bgCloseRef.current = false;
+    sentRowsRef.current = rowsToSend;
+    setImporting(true);
+    setImportProg({ done: 0, total: rowsToSend.length });
+    const agg: ImportContactsResult = { ...base, failed: [...prefailed] };
+    for (let start = 0; start < rowsToSend.length; start += CLIENT_CHUNK) {
+      const chunk = rowsToSend.slice(start, start + CLIENT_CHUNK);
+      try {
+        const res = (await cf("contacts/import", {
+          method: "POST",
+          body: JSON.stringify({ rows: chunk, ...(listId ? { listId } : {}) }),
+        })) as ImportContactsResult;
+        agg.created += res.created;
+        agg.skippedDuplicates += res.skippedDuplicates;
+        agg.suppressed += res.suppressed;
+        agg.failed.push(...res.failed.map((f) => ({ ...f, index: start + f.index })));
+      } catch {
+        // The chunk is one transaction — a failed call imported none of it.
+        chunk.forEach((row, i) => agg.failed.push({ index: start + i, email: row.email, reason: "Network error — row not imported" }));
       }
+      setImportProg({ done: Math.min(start + chunk.length, rowsToSend.length), total: rowsToSend.length });
     }
-    // C2.8: step-3 "Add to list" — every imported row lands in the picked list.
-    if (csvListId && createdIds.length > 0) {
-      await cf(`lists/${csvListId}/members`, {
-        method: "POST",
-        body: JSON.stringify({ contactIds: createdIds }),
-      }).catch(() => setCsvError("Contacts imported, but adding them to the list failed."));
-      void refreshLists();
-    }
-    setCsvDone(created);
-    setCsvStep(3);
+    setImporting(false);
+    setImportResult(agg);
     void refresh();
+    void refreshLists();
+    if (bgCloseRef.current) {
+      // DEC-058: the modal was closed mid-run — finish silently, then confirm.
+      const fails = agg.failed.length;
+      setToastMsg(`Imported ${agg.created} contact${agg.created === 1 ? "" : "s"}${agg.skippedDuplicates ? ` · ${agg.skippedDuplicates} duplicate${agg.skippedDuplicates === 1 ? "" : "s"} skipped` : ""}${fails ? ` · ${fails} failed` : ""}`);
+      setImportProg(null);
+      setImportResult(null);
+    } else {
+      setCsvStep(3);
+    }
+  }
+  /** Error-summary "Retry N failed" — re-runs ONLY the failed rows (IMP-1);
+   *  already-created rows are never resent, and the server would skip them as
+   *  duplicates even if they were. */
+  async function retryFailed() {
+    if (!importResult || importing) return;
+    const retryRows = importResult.failed.filter((f) => f.index >= 0).map((f) => sentRowsRef.current[f.index]).filter((r): r is ImportContactRow => Boolean(r));
+    const keepFailed = importResult.failed.filter((f) => f.index < 0);
+    if (retryRows.length === 0) return;
+    await executeImport(retryRows, keepFailed, {
+      created: importResult.created,
+      skippedDuplicates: importResult.skippedDuplicates,
+      suppressed: importResult.suppressed,
+    });
   }
   function closeImport() {
     setImportOpen(false);
     setCsvStep(0);
     setCsvFile(null);
     setCsvMap([]);
-    setCsvDone(0);
     setCsvError(null);
     setCsvListId("");
     setCsvListDD(false);
+    setReviewSnap(null);
+    if (importing) {
+      // DEC-058: continue in the background; the chunk loop only reads locals
+      // and refs, so resetting the wizard state above is safe. Completion
+      // lands as a toast instead of the done modal.
+      bgCloseRef.current = true;
+      return;
+    }
+    setImportProg(null);
+    setImportResult(null);
   }
 
 
@@ -1312,14 +1398,14 @@ export function ContactsView() {
                         })}
                       </>
                     ) : null}
-                    {csvStep === 2 && csvParsed ? (
+                    {csvStep === 2 && reviewSnap ? (
                       <>
                         <div style={{ fontSize: 16, fontWeight: 700, color: "#0E1512", marginBottom: 3 }}>Review import</div>
                         <div style={{ fontSize: 13, color: "#9AA59E", marginBottom: 16 }}>Here&apos;s what we&apos;ll add to your contacts.</div>
                         {/* C2.8: step-3 "Add to list" select — existing list or none */}
                         <div style={{ marginBottom: 14, position: "relative" }}>
                           <label style={addLbl}>Add to list</label>
-                          <div onClick={() => setCsvListDD((v) => !v)} style={{ ...addInp, background: "#FBF7F0", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }} data-testid="csv-list">
+                          <div onClick={() => { if (importing) return; setCsvListDD((v) => !v); }} style={{ ...addInp, background: "#FBF7F0", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: importing ? "not-allowed" : "pointer", opacity: importing ? 0.6 : 1 }} data-testid="csv-list">
                             <span style={{ color: csvListId ? "#0E1512" : "#9AA59E" }}>
                               {csvListId ? activeLists.find((l) => l.id === csvListId)?.name ?? "No list (all contacts)" : "No list (all contacts)"}
                             </span>
@@ -1340,10 +1426,10 @@ export function ContactsView() {
                         </div>
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
                           {[
-                            { value: String(csvParsed.newCount), label: "New contacts", fg: "#16A82A" },
-                            { value: String(csvParsed.dupes), label: "Duplicates skipped", fg: "#1192A6" },
-                            { value: String(csvParsed.suppressed), label: "On suppression list", fg: "#8A7F6B" },
-                            { value: String(csvParsed.mapped), label: "Columns mapped", fg: "#0E1512" },
+                            { value: String(reviewSnap.newCount), label: "New contacts", fg: "#16A82A" },
+                            { value: String(reviewSnap.dupes), label: "Duplicates skipped", fg: "#1192A6" },
+                            { value: String(reviewSnap.suppressed), label: "On suppression list", fg: "#8A7F6B" },
+                            { value: String(reviewSnap.mapped), label: "Columns mapped", fg: "#0E1512" },
                           ].map((st2) => (
                             <div key={st2.label} style={{ background: "#FBF7F0", border: "1px solid #EBE3D6", borderRadius: 12, padding: "14px 16px" }}>
                               <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: 24, fontWeight: 800, color: st2.fg, lineHeight: 1, marginBottom: 4 }}>{st2.value}</div>
@@ -1354,11 +1440,11 @@ export function ContactsView() {
                         {/* C2.7: created-field note — the prototype's review has no
                             created-fields tile (4 tiles only); this teal note row makes
                             the create visible without inventing a fifth tile (flagged). */}
-                        {csvParsed.createCount > 0 ? (
+                        {reviewSnap.createCount > 0 ? (
                           <div style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(54,215,237,.06)", border: "1px solid rgba(54,215,237,.28)", borderRadius: 11, padding: "11px 14px", marginBottom: 10 }} data-testid="csv-create-note">
                             <span style={{ color: "#1192A6" }}>＋</span>
                             <span style={{ fontSize: 12.5, color: "#1192A6", fontWeight: 600 }}>
-                              {csvParsed.createCount} new custom field{csvParsed.createCount === 1 ? "" : "s"} will be created: {csvFile!.headers.filter((_, i) => csvMap[i] === CSV_CREATE).map(humanizeHeader).join(", ")}
+                              {reviewSnap.createCount} new custom field{reviewSnap.createCount === 1 ? "" : "s"} will be created: {csvFile!.headers.filter((_, i) => csvMap[i] === CSV_CREATE).map(humanizeHeader).join(", ")}
                             </span>
                           </div>
                         ) : null}
@@ -1372,6 +1458,20 @@ export function ContactsView() {
                           <span style={{ color: "#16A82A" }}>✓</span>
                           <span style={{ fontSize: 12.5, color: "#16A82A", fontWeight: 600 }}>All contacts checked against your suppression list.</span>
                         </div>
+                        {/* IMP-1: in-flight state — progress over chunks, not
+                            re-derived stats; the tiles above stay frozen. */}
+                        {importing && importProg ? (
+                          <div style={{ marginTop: 12 }} data-testid="import-progress">
+                            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 7 }}>
+                              <span style={{ fontSize: 13, fontWeight: 700, color: "#0E1512" }}>Importing… {importProg.done} of {importProg.total}</span>
+                              <span style={{ fontSize: 12, fontWeight: 600, color: "#8A7F6B" }}>{importProg.total > 0 ? Math.round((importProg.done / importProg.total) * 100) : 0}%</span>
+                            </div>
+                            <div style={{ height: 8, borderRadius: 100, background: "#E4EAE6", overflow: "hidden" }}>
+                              <div style={{ height: "100%", width: `${importProg.total > 0 ? (importProg.done / importProg.total) * 100 : 0}%`, borderRadius: 100, background: GRAD, transition: "width .3s ease" }} data-testid="import-progress-bar" />
+                            </div>
+                            <div style={{ fontSize: 11.5, color: "#9AA59E", marginTop: 7 }}>You can close this window — the import keeps running and we&apos;ll confirm when it&apos;s done.</div>
+                          </div>
+                        ) : null}
                       </>
                     ) : null}
                   </div>
@@ -1379,28 +1479,79 @@ export function ContactsView() {
                     {csvStep === 0 ? (
                       <span onClick={closeImport} style={{ fontSize: 14, fontWeight: 600, color: "#5C6B62", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 11, padding: "10px 18px", cursor: "pointer" }}>Cancel</span>
                     ) : (
-                      <span onClick={() => setCsvStep((v) => Math.max(0, v - 1))} style={{ fontSize: 14, fontWeight: 600, color: "#5C6B62", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 11, padding: "10px 18px", cursor: "pointer" }}>‹ Back</span>
+                      <span onClick={() => { if (importing) return; setCsvStep((v) => Math.max(0, v - 1)); }} style={{ fontSize: 14, fontWeight: 600, color: "#5C6B62", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 11, padding: "10px 18px", cursor: importing ? "not-allowed" : "pointer", opacity: importing ? 0.5 : 1 }}>‹ Back</span>
                     )}
                     {(() => {
-                      const canGo = csvStep === 0 ? Boolean(csvFile) : csvStep === 1 ? csvMap.includes("Email") : (csvParsed?.newCount ?? 0) > 0;
-                      const label = csvStep === 2 ? `Import ${csvParsed?.newCount ?? 0} contact${(csvParsed?.newCount ?? 0) === 1 ? "" : "s"}` : "Continue";
+                      // IMP-1: the primary disables the moment the import starts
+                      // — a second click can no longer race a poll refresh into
+                      // duplicate contacts. IMP-2: snapshot happens on 1 → 2.
+                      const canGo = !importing && (csvStep === 0 ? Boolean(csvFile) : csvStep === 1 ? csvMap.includes("Email") : (reviewSnap?.newCount ?? 0) > 0);
+                      const label = importing ? "Importing…" : csvStep === 2 ? `Import ${reviewSnap?.newCount ?? 0} contact${(reviewSnap?.newCount ?? 0) === 1 ? "" : "s"}` : "Continue";
                       return (
-                        <span onClick={() => { if (!canGo) return; if (csvStep === 2) void runImport(); else setCsvStep((v) => v + 1); }} style={{ marginLeft: "auto", fontSize: 14, fontWeight: 700, color: canGo ? "#0A0F0C" : "#9AA59E", background: canGo ? GRAD : "#ECE7DC", borderRadius: 11, padding: "10px 22px", cursor: canGo ? "pointer" : "not-allowed", boxShadow: canGo ? "0 6px 16px rgba(53,232,52,.26)" : "none" }} data-testid="import-save">{label}</span>
+                        <span onClick={() => { if (!canGo) return; if (csvStep === 2) void runImport(); else { if (csvStep === 1) snapReview(); setCsvStep((v) => v + 1); } }} style={{ marginLeft: "auto", fontSize: 14, fontWeight: 700, color: canGo ? "#0A0F0C" : "#9AA59E", background: canGo ? GRAD : "#ECE7DC", borderRadius: 11, padding: "10px 22px", cursor: canGo ? "pointer" : "not-allowed", boxShadow: canGo ? "0 6px 16px rgba(53,232,52,.26)" : "none" }} data-testid="import-save">{label}</span>
                       );
                     })()}
                   </div>
                 </>
               ) : (
-                <>
-                  <div style={{ padding: "34px 28px", textAlign: "center" }} data-testid="csv-done">
-                    <div style={{ width: 60, height: 60, borderRadius: "50%", background: "#D7F5DD", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, color: "#16A82A", margin: "0 auto 18px" }}>✓</div>
-                    <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 22, color: "#0E1512", marginBottom: 6 }}>{csvDone} contact{csvDone === 1 ? "" : "s"} imported</div>
-                    <div style={{ fontSize: 13.5, color: "#5C6B62", lineHeight: 1.5, maxWidth: 380, margin: "0 auto" }}>They&apos;re ready to enroll in a campaign.</div>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", padding: "16px 22px", borderTop: "1px solid #EBE3D6" }}>
-                    <span onClick={closeImport} style={{ marginLeft: "auto", fontSize: 14, fontWeight: 700, color: "#0A0F0C", background: GRAD, borderRadius: 11, padding: "10px 24px", cursor: "pointer", boxShadow: "0 6px 16px rgba(53,232,52,.26)" }}>Done</span>
-                  </div>
-                </>
+                // IMP-1: the done modal reports the SERVER's counts — created /
+                // duplicates / suppressed / failed — never a client-side tally.
+                // failed > 0 lands the error-summary variant with per-row
+                // reasons and "Retry N failed" (failed rows only re-run).
+                (() => {
+                  const res = importResult ?? { created: 0, skippedDuplicates: 0, suppressed: 0, failed: [] };
+                  const retryable = res.failed.filter((f) => f.index >= 0).length;
+                  const hasFails = res.failed.length > 0;
+                  const tiles = [
+                    { value: String(res.created), label: "Imported", fg: "#16A82A" },
+                    { value: String(res.skippedDuplicates), label: "Duplicates skipped", fg: "#1192A6" },
+                    { value: String(res.suppressed), label: "On suppression list", fg: "#8A7F6B" },
+                    { value: String(res.failed.length), label: "Failed", fg: hasFails ? "#C9543F" : "#0E1512" },
+                  ];
+                  return (
+                    <>
+                      <div style={{ padding: "30px 28px 22px", textAlign: "center" }} data-testid={hasFails ? "csv-error-summary" : "csv-done"}>
+                        <div style={{ width: 60, height: 60, borderRadius: "50%", background: hasFails ? "rgba(224,121,107,.14)" : "#D7F5DD", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, color: hasFails ? "#C9543F" : "#16A82A", margin: "0 auto 18px" }}>{hasFails ? "⚠" : "✓"}</div>
+                        <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 22, color: "#0E1512", marginBottom: 6 }}>
+                          {hasFails ? `${res.created} imported · ${res.failed.length} failed` : `${res.created} contact${res.created === 1 ? "" : "s"} imported`}
+                        </div>
+                        <div style={{ fontSize: 13.5, color: "#5C6B62", lineHeight: 1.5, maxWidth: 380, margin: "0 auto 18px" }}>
+                          {hasFails ? "The rows below didn't import. You can retry just those rows." : "They're ready to enroll in a campaign."}
+                        </div>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8, textAlign: "left" }}>
+                          {tiles.map((t) => (
+                            <div key={t.label} style={{ background: "#FBF7F0", border: "1px solid #EBE3D6", borderRadius: 12, padding: "12px 13px" }}>
+                              <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: 20, fontWeight: 800, color: t.fg, lineHeight: 1, marginBottom: 4 }}>{t.value}</div>
+                              <div style={{ fontSize: 11, color: "#8A7F6B" }}>{t.label}</div>
+                            </div>
+                          ))}
+                        </div>
+                        {hasFails ? (
+                          <div style={{ marginTop: 12, maxHeight: 168, overflowY: "auto", border: "1px solid rgba(224,121,107,.3)", borderRadius: 11, textAlign: "left" }} data-testid="csv-failed-rows">
+                            {res.failed.map((f, i) => (
+                              <div key={`${f.email}-${i}`} style={{ display: "flex", alignItems: "baseline", gap: 10, padding: "9px 13px", borderTop: i === 0 ? "none" : "1px solid #F3EEE4" }}>
+                                <span style={{ fontSize: 12.5, fontWeight: 700, color: "#0E1512", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 170 }}>{f.email}</span>
+                                <span style={{ fontSize: 12, color: "#C9543F", minWidth: 0 }}>{f.reason}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 22px", borderTop: "1px solid #EBE3D6" }}>
+                        {hasFails ? (
+                          <span onClick={closeImport} style={{ fontSize: 14, fontWeight: 600, color: "#5C6B62", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 11, padding: "10px 18px", cursor: "pointer" }}>Close</span>
+                        ) : null}
+                        {hasFails && retryable > 0 ? (
+                          <span onClick={() => { if (!importing) void retryFailed(); }} style={{ marginLeft: "auto", fontSize: 14, fontWeight: 700, color: importing ? "#9AA59E" : "#0A0F0C", background: importing ? "#ECE7DC" : GRAD, borderRadius: 11, padding: "10px 24px", cursor: importing ? "not-allowed" : "pointer", boxShadow: importing ? "none" : "0 6px 16px rgba(53,232,52,.26)" }} data-testid="csv-retry-failed">
+                            {importing && importProg ? `Retrying… ${importProg.done} of ${importProg.total}` : `Retry ${retryable} failed`}
+                          </span>
+                        ) : (
+                          <span onClick={closeImport} style={{ marginLeft: "auto", fontSize: 14, fontWeight: 700, color: "#0A0F0C", background: GRAD, borderRadius: 11, padding: "10px 24px", cursor: "pointer", boxShadow: "0 6px 16px rgba(53,232,52,.26)" }}>Done</span>
+                        )}
+                      </div>
+                    </>
+                  );
+                })()
               )}
             </div>
           </div>
