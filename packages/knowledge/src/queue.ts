@@ -1,20 +1,15 @@
 import { Queue, Worker, type ConnectionOptions } from "bullmq";
-import { BULL_PREFIX } from "@clientforce/events";
+import { BULL_PREFIX, redisOptionsFromUrl } from "@clientforce/events";
 import { ingestSource, type IngestDeps, type IngestJobPayload } from "./pipeline";
 
 export const KNOWLEDGE_QUEUE_NAME = "clientforce.knowledge.ingest";
 
+// One URL parser for the whole platform: the local copy this replaces passed
+// `URL.password` percent-ENCODED to Redis AUTH (WRONGPASS on Azure keys
+// ending in `=` — 2026-07-08 staging outage) and lacked SNI/username/db.
 const connectionFrom = (
   redisUrl = process.env.REDIS_URL ?? "redis://localhost:6379",
-): ConnectionOptions => {
-  const url = new URL(redisUrl);
-  return {
-    host: url.hostname,
-    port: Number(url.port || 6379),
-    ...(url.password ? { password: url.password } : {}),
-    ...(url.protocol === "rediss:" ? { tls: {} } : {}),
-  };
-};
+): ConnectionOptions => redisOptionsFromUrl(redisUrl);
 
 /** Enqueue an ingestion run for a source (the API calls this on create/re-ingest). */
 export function createIngestQueue(redisUrl?: string): Queue<IngestJobPayload> {

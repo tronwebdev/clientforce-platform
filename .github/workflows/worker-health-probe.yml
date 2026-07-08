@@ -50,9 +50,16 @@ jobs:
           az containerapp replica list --name clientforce-worker --resource-group "$RG" --revision "$rev" \
             --query "[].{name:name, created:properties.createdTime, states:properties.containers[].{restarts:restartCount, running:runningState, ready:ready}}" -o json || true
 
+      # Container logs echo whatever the process printed — ioredis, for one,
+      # includes the AUTH argument (the live Redis key) in its error objects,
+      # and this repo is PUBLIC. Every log step MUST pass through this mask:
+      # any token-shaped run of 24+ secret-alphabet chars is redacted before
+      # it can reach the Actions log. (A probe run leaked exactly this way on
+      # 2026-07-08; the run logs were deleted and the key is being rotated.)
       - name: 2 — worker logs (last 150 lines)
         run: |
-          az containerapp logs show --name clientforce-worker --resource-group "$RG" --tail 150 --format text || echo "::warning::could not fetch worker logs"
+          az containerapp logs show --name clientforce-worker --resource-group "$RG" --tail 150 --format text \
+            | sed -E 's#[A-Za-z0-9+/=_%-]{24,}#[REDACTED]#g' || echo "::warning::could not fetch worker logs"
 
       - name: 3 — Redis + Anthropic secret parity (api vs worker)
         run: |
@@ -89,10 +96,25 @@ jobs:
           echo "$agent" | python3 -m json.tool | head -6
           aid="$(echo "$agent" | python3 -c 'import sys,json;print(json.load(sys.stdin)["id"])')"
 
-          echo "── upload a real TXT doc ──"
+          echo "── storage target (which account does the secret point at?) ──"
+          conn="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name STORAGE-CONNECTION-STRING --query value -o tsv || true)"
+          echo "::add-mask::$conn"
+          echo "$conn" | tr ';' '\n' | grep -E '^(AccountName|BlobEndpoint)=' || echo "(no AccountName/BlobEndpoint fields)"
+
+          echo "── upload a real TXT doc (timed) ──"
           printf 'Clientforce health probe %s. BrightPath sells done-for-you outreach for dental clinics at 99 dollars per booked appointment from Austin TX. The offer is a free growth audit.\n' "$GITHUB_RUN_ID" > /tmp/probe.txt
-          src="$(curl -sS -b "$jar" -F "file=@/tmp/probe.txt" -F "agentId=$aid" "https://$web/api/cf/knowledge/sources/upload")"
-          echo "$src" | python3 -m json.tool | head -8
+          t0=$(date +%s)
+          code="$(curl -sS -b "$jar" -o /tmp/upload-body -w '%{http_code}' -F "file=@/tmp/probe.txt" -F "agentId=$aid" "https://$web/api/cf/knowledge/sources/upload" || true)"
+          echo "upload http=$code after $(( $(date +%s) - t0 ))s; body head:"
+          head -c 300 /tmp/upload-body; echo
+
+          echo "── api container logs right after the attempt (server-side error) ──"
+          # Same public-log rule as step 2: mask token-shaped strings BEFORE
+          # anything hits stdout — this exact step leaked the Redis key once.
+          az containerapp logs show --name clientforce-api --resource-group "$RG" --tail 80 --format text \
+            | sed -E 's#[A-Za-z0-9+/=_%-]{24,}#[REDACTED]#g' | grep -viE 'GET /|healthz' | tail -40 || echo "::warning::could not fetch api logs"
+
+          src="$(cat /tmp/upload-body)"
           sid="$(echo "$src" | python3 -c 'import sys,json;print(json.load(sys.stdin)["id"])')"
 
           echo "── poll to READY (timeout 120s) ──"

@@ -42,6 +42,13 @@ export function createRedisClient(url: string): Redis {
  * to plaintext against a TLS-only endpoint (staging outage diagnosis,
  * 2026-07-07). The plain `createRedisClient` never had this bug: ioredis
  * parses the scheme natively when given the URL string.
+ *
+ * Credentials MUST be percent-decoded: WHATWG `URL.username`/`URL.password`
+ * return the ENCODED form, and Redis AUTH takes the raw secret — an Azure
+ * access key ending in `=` arrives as `%3D` and gets WRONGPASS on every
+ * BullMQ connection while `createRedisClient` (ioredis's own URL parser,
+ * which decodes) stays healthy. That split-brain — heartbeat alive, every
+ * queue dead — was the final layer of the 2026-07-08 staging outage.
  */
 export function redisOptionsFromUrl(url: string): ConnectionOptions {
   const u = new URL(url);
@@ -49,8 +56,8 @@ export function redisOptionsFromUrl(url: string): ConnectionOptions {
   return {
     host: u.hostname,
     port: u.port ? Number(u.port) : tls ? 6380 : 6379,
-    ...(u.username ? { username: u.username } : {}),
-    ...(u.password ? { password: u.password } : {}),
+    ...(u.username ? { username: decodeURIComponent(u.username) } : {}),
+    ...(u.password ? { password: decodeURIComponent(u.password) } : {}),
     ...(u.pathname.length > 1 ? { db: Number(u.pathname.slice(1)) } : {}),
     ...(tls ? { tls: { servername: u.hostname } } : {}),
   };
