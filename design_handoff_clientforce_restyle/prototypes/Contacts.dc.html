@@ -135,7 +135,24 @@
             <span onClick="{{ clearSel }}" style="font-size:13px;font-weight:600;color:#16A82A;cursor:pointer;">Clear</span>
             <div style="margin-left:auto;display:flex;align-items:center;gap:9px;">
               <span style="font-size:13px;font-weight:600;color:#0E1512;background:#fff;border:1px solid #EBE3D6;border-radius:10px;padding:8px 14px;cursor:pointer;">+ Add to sequence</span>
-              <span onClick="{{ openNewList }}" style="font-size:13px;font-weight:600;color:#0E1512;background:#fff;border:1px solid #EBE3D6;border-radius:10px;padding:8px 14px;cursor:pointer;">≣ Add to list</span>
+              <div style="position:relative;">
+                <span onClick="{{ toggleBulkListDD }}" style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:#0E1512;background:{{ bulkListBtnBg }};border:1px solid {{ bulkListBtnBorder }};border-radius:10px;padding:8px 14px;cursor:pointer;">≣ Add to list <span style="color:#9AA59E;font-size:11px;">⌄</span></span>
+                <sc-if value="{{ bulkListDD }}" hint-placeholder-val="{{ false }}">
+                  <div style="position:absolute;top:calc(100% + 6px);right:0;width:248px;background:#fff;border:1px solid #EBE3D6;border-radius:12px;box-shadow:0 16px 44px rgba(0,0,0,.18);overflow:hidden;z-index:12;">
+                    <div style="font-size:10.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:#9AA59E;padding:10px 14px 5px;">Add {{ selectedCount }} to list</div>
+                    <div style="max-height:212px;overflow-y:auto;">
+                      <sc-for list="{{ bulkListOptions }}" as="o" hint-placeholder-count="4">
+                        <div onClick="{{ o.onPick }}" style="display:flex;align-items:center;gap:10px;padding:9px 14px;cursor:pointer;" style-hover="background:#FBF7F0;">
+                          <span style="width:24px;height:24px;border-radius:7px;flex:none;background:{{ o.iconBg }};display:flex;align-items:center;justify-content:center;font-size:13px;">{{ o.icon }}</span>
+                          <span style="font-size:13.5px;font-weight:600;color:#0E1512;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ o.name }}</span>
+                          <span style="font-size:11.5px;font-weight:700;color:#9AA59E;">{{ o.count }}</span>
+                        </div>
+                      </sc-for>
+                    </div>
+                    <div onClick="{{ openNewListForBulk }}" style="display:flex;align-items:center;gap:9px;padding:10px 14px;cursor:pointer;font-size:13px;font-weight:700;color:#16A82A;border-top:1px solid #EBE3D6;" style-hover="background:rgba(53,232,52,.06);"><span>＋</span> New list from selection</div>
+                  </div>
+                </sc-if>
+              </div>
               <span style="font-size:13px;font-weight:600;color:#0E1512;background:#fff;border:1px solid #EBE3D6;border-radius:10px;padding:8px 14px;cursor:pointer;">↥ Export</span>
               <span onClick="{{ deleteSelected }}" style="font-size:13px;font-weight:600;color:#C9543F;background:#fff;border:1px solid #F0CFC8;border-radius:10px;padding:8px 14px;cursor:pointer;">🗑 Delete</span>
             </div>
@@ -247,7 +264,29 @@
               <div style="background:#fff;border:1px solid #EBE3D6;border-radius:12px;padding:12px;text-align:center;"><div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:20px;color:#16A82A;">{{ d.score }}</div><div style="font-size:11.5px;color:#9AA59E;">Score</div></div>
             </div>
             <div style="font-size:11px;font-weight:700;color:#8A7F6B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Details</div>
-            <div style="background:#fff;border:1px solid #EBE3D6;border-radius:13px;overflow:hidden;margin-bottom:18px;">
+            <div style="background:#fff;border:1px solid #EBE3D6;border-radius:13px;overflow:visible;margin-bottom:18px;">
+              <div style="display:flex;align-items:center;gap:12px;padding:11px 15px;">
+                <span style="font-size:13px;color:#9AA59E;flex:none;width:92px;">List</span>
+                <span style="flex:1;min-width:0;font-size:13.5px;color:#0E1512;font-weight:600;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ d.list }}</span>
+                <div style="position:relative;flex:none;">
+                  <span onClick="{{ toggleDrawerListDD }}" style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:#16A82A;background:rgba(53,232,52,.08);border:1px solid #9FD8AC;border-radius:8px;padding:5px 10px;cursor:pointer;">＋ Add to list</span>
+                  <sc-if value="{{ drawerListDD }}" hint-placeholder-val="{{ false }}">
+                    <div style="position:absolute;top:calc(100% + 6px);right:0;width:248px;background:#fff;border:1px solid #EBE3D6;border-radius:12px;box-shadow:0 16px 44px rgba(0,0,0,.18);overflow:hidden;z-index:14;">
+                      <div style="font-size:10.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:#9AA59E;padding:10px 14px 5px;">Add to list</div>
+                      <div style="max-height:212px;overflow-y:auto;">
+                        <sc-for list="{{ drawerListOptions }}" as="o" hint-placeholder-count="4">
+                          <div onClick="{{ o.onPick }}" style="display:flex;align-items:center;gap:10px;padding:9px 14px;cursor:pointer;" style-hover="background:#FBF7F0;">
+                            <span style="width:24px;height:24px;border-radius:7px;flex:none;background:{{ o.iconBg }};display:flex;align-items:center;justify-content:center;font-size:13px;">{{ o.icon }}</span>
+                            <span style="font-size:13.5px;font-weight:600;color:#0E1512;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ o.name }}</span>
+                            <span style="color:#16A82A;visibility:{{ o.check }};">✓</span>
+                          </div>
+                        </sc-for>
+                      </div>
+                      <div onClick="{{ openNewListForDrawer }}" style="display:flex;align-items:center;gap:9px;padding:10px 14px;cursor:pointer;font-size:13px;font-weight:700;color:#16A82A;border-top:1px solid #EBE3D6;" style-hover="background:rgba(53,232,52,.06);"><span>＋</span> New list</div>
+                    </div>
+                  </sc-if>
+                </div>
+              </div>
               <sc-for list="{{ d.fields }}" as="f" hint-placeholder-count="6">
                 <div style="display:flex;align-items:center;gap:12px;padding:11px 15px;border-top:1px solid #F2EEE4;">
                   <span style="font-size:13px;color:#9AA59E;flex:none;width:92px;">{{ f.label }}</span>
@@ -506,6 +545,7 @@ class Component extends DCLogic {
     fieldDefs: [{ key: 'industry', label: 'Industry', ph: 'e.g. Dental' }, { key: 'plan', label: 'Plan', ph: 'e.g. Growth' }],
     defVals: {}, contactCustomOverride: {}, editingCustom: null, editingCustomVal: '', mapDD: null, mapPick: {},
     newContacts: [], userLists: [], newListName: '', deleted: {},
+    bulkListDD: false, contactListOverride: {}, newListAssign: null, drawerListDD: false,
     contactCalled: {}, contactPaused: {}, contactStatusOverride: {}, contactMoveDD: false, contactNotes: {}, contactTags: {},
   };
 
@@ -551,7 +591,12 @@ class Component extends DCLogic {
       opens: String(r[13]), replies: String(r[14]), score: String(r[15]),
       custom: i === 0 ? [{ key: 'Industry', value: 'Dental' }, { key: 'Plan', value: 'Growth' }] : (i === 2 ? [{ key: 'Industry', value: 'SaaS' }] : []),
     }));
-    const base = this.state.newContacts.concat(baseRaw).filter((c) => !this.state.deleted[c.id]).map((c) => this.state.contactStatusOverride[c.id] ? Object.assign({}, c, { status: this.state.contactStatusOverride[c.id] }) : c);
+    const base = this.state.newContacts.concat(baseRaw).filter((c) => !this.state.deleted[c.id]).map((c) => {
+      const st = this.state.contactStatusOverride[c.id];
+      const lo = this.state.contactListOverride[c.id];
+      if (!st && !lo) return c;
+      return Object.assign({}, c, st ? { status: st } : {}, lo ? { list: lo } : {});
+    });
 
     // ----- lists -----
     const baseListNames = ['Dental — local', 'SaaS founders Q2', 'Cold list — agencies', 'Webinar follow-up', 'Lapsed clients Q3'];
@@ -754,9 +799,28 @@ class Component extends DCLogic {
     // New list
     const nlName = this.state.newListName.trim();
     const nlValid = nlName.length > 1 && !allListNames.includes(nlName);
+    const selIds = Object.keys(this.state.sel).filter((k) => this.state.sel[k]);
+    const assignListTo = (ids, name) => {
+      this.setState((s) => {
+        const ov = Object.assign({}, s.contactListOverride);
+        ids.forEach((id) => { ov[id] = name; });
+        return { contactListOverride: ov, sel: {}, bulkListDD: false };
+      });
+    };
     const createList = () => {
       if (!nlValid) return;
-      this.setState((s) => ({ userLists: s.userLists.concat([{ id: nlName, name: nlName }]), selList: nlName, newListName: '', modal: null }));
+      const a = this.state.newListAssign;
+      const targetIds = a === 'sel' ? selIds : (a ? [a] : []);
+      this.setState((s) => {
+        const ov = Object.assign({}, s.contactListOverride);
+        targetIds.forEach((id) => { ov[id] = nlName; });
+        return {
+          userLists: s.userLists.concat([{ id: nlName, name: nlName }]),
+          selList: targetIds.length > 0 ? s.selList : nlName,
+          contactListOverride: ov, sel: a === 'sel' ? {} : s.sel,
+          newListName: '', modal: null, newListAssign: null,
+        };
+      });
     };
 
     const setSeg = (id) => this.setState({ segment: id, page: 1 });
@@ -775,7 +839,28 @@ class Component extends DCLogic {
       // lists rail
       allList: { count: String(base.length), bg: selList === 'all' ? 'linear-gradient(135deg,rgba(54,215,237,.16),rgba(53,232,52,.16))' : 'transparent', weight: selList === 'all' ? 700 : 600, color: selList === 'all' ? '#0E1512' : '#5C6B62', countFg: selList === 'all' ? '#16A82A' : '#9AA59E', onClick: () => this.setState({ selList: 'all', page: 1 }) },
       lists: allListNames.map((n) => { const on = selList === n; return { name: n, icon: listIcon(n), iconBg: listIconBg(n), count: String(listCount(n)), bg: on ? 'linear-gradient(135deg,rgba(54,215,237,.16),rgba(53,232,52,.16))' : 'transparent', weight: on ? 700 : 600, color: on ? '#0E1512' : '#3B463F', countFg: on ? '#16A82A' : '#9AA59E', onClick: () => this.setState({ selList: n, page: 1 }) }; }),
-      openNewList: () => this.setState({ modal: 'newlist', newListName: '' }),
+      openNewList: () => this.setState({ modal: 'newlist', newListName: '', newListAssign: null }),
+
+      // bulk add-to-list menu
+      bulkListDD: this.state.bulkListDD,
+      toggleBulkListDD: (e) => { if (e) e.stopPropagation(); this.setState((s) => ({ bulkListDD: !s.bulkListDD, statusDD: false, agentDD: false, moreDD: false })); },
+      bulkListBtnBg: this.state.bulkListDD ? 'rgba(53,232,52,.08)' : '#fff',
+      bulkListBtnBorder: this.state.bulkListDD ? '#9FD8AC' : '#EBE3D6',
+      bulkListOptions: allListNames.map((n) => ({
+        name: n, icon: listIcon(n), iconBg: listIconBg(n), count: String(listCount(n)),
+        onPick: (e) => { if (e) e.stopPropagation(); assignListTo(selIds, n); },
+      })),
+      openNewListForBulk: (e) => { if (e) e.stopPropagation(); this.setState({ modal: 'newlist', newListName: '', newListAssign: 'sel', bulkListDD: false }); },
+
+      // drawer add-to-list (same menu anatomy — unified across contacts/leads surfaces)
+      drawerListDD: this.state.drawerListDD,
+      toggleDrawerListDD: (e) => { if (e) e.stopPropagation(); this.setState((s) => ({ drawerListDD: !s.drawerListDD, contactMoveDD: false })); },
+      drawerListOptions: allListNames.map((n) => ({
+        name: n, icon: listIcon(n), iconBg: listIconBg(n),
+        check: dc && dc.list === n ? 'visible' : 'hidden',
+        onPick: (e) => { if (e) e.stopPropagation(); if (dc) { assignListTo([dc.id], n); this.setState({ drawerListDD: false }); } },
+      })),
+      openNewListForDrawer: (e) => { if (e) e.stopPropagation(); if (dc) this.setState({ modal: 'newlist', newListName: '', newListAssign: dc.id, drawerListDD: false }); },
 
       // header scope
       scopeTitle: selList === 'all' ? 'All contacts' : selList,
