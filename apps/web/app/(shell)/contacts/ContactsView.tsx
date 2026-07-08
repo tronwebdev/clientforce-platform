@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import {
   importContactRowSchema,
   slugifyFieldLabel,
+  workspaceGoalPill,
   type ContactFieldDefDto,
   type ContactListDto,
   type ImportContactRow,
@@ -38,6 +39,8 @@ export interface ContactRow {
   custom?: Record<string, string>;
   /** C2.8: active-list memberships (addedAt order — first = primary). */
   lists?: { id: string; name: string }[];
+  /** C2.9: the completing campaign's terminal wording (per-row pills/chips). */
+  goal?: { key: string; label: string; pill: string } | null;
   createdAt: string;
   stage: string | null;
   enrollmentStatus: string | null;
@@ -116,7 +119,9 @@ const EVENT_ROW: Record<string, { icon: string; bg: string; fg: string; label: (
   "email.clicked.v1": { icon: "🔗", bg: "rgba(54,215,237,.16)", fg: "#1192A6", label: () => "Clicked a link" },
   "email.replied.v1": { icon: "↩", bg: "rgba(54,215,237,.16)", fg: "#1192A6", label: (p) => `Replied${p.intent ? ` — classified “${String(p.intent)}”` : ""}` },
   "email.bounced.v1": { icon: "⚠", bg: "rgba(224,121,107,.14)", fg: "#C9543F", label: () => "Email hard-bounced" },
-  "lead.stage_changed.v1": { icon: "↪", bg: "rgba(53,232,52,.14)", fg: "#16A82A", label: (p) => `Moved to ${String(p.toStage ?? "a new stage")}${p.manual ? " by you" : ""}` },
+  // C2.9: goal-completion events carry the campaign's terminal label — render
+  // it verbatim; older events fall back to the raw stage.
+  "lead.stage_changed.v1": { icon: "↪", bg: "rgba(53,232,52,.14)", fg: "#16A82A", label: (p) => `Moved to ${String(p.label ?? p.toStage ?? "a new stage")}${p.manual ? " by you" : ""}` },
   "lead.unsubscribed.v1": { icon: "⊘", bg: "rgba(224,121,107,.16)", fg: "#C9543F", label: () => "Unsubscribed from all sequences" },
   // C2.8 (49-1): membership events render human — the slug never surfaces raw.
   "list.member.added.v1": { icon: "≣", bg: "rgba(53,232,52,.14)", fg: "#16A82A", label: (p) => `Added to ${String(p.listName ?? "a list")}` },
@@ -135,14 +140,18 @@ const fieldCreateFailureCopy = (err: unknown) => {
     : "Couldn't create that field — it may already exist.";
 };
 
-const MOVE_OPTIONS = [
+/** C2.9: the goal-completion row's wording follows the workspace pill. */
+const moveOptions = (wsPill: string) => [
   { icon: "✦", label: "Mark as qualified", stage: "interested", color: "#0E1512" },
-  { icon: "📅", label: "Mark as booked", stage: "booked", color: "#0E1512" },
+  { icon: "📅", label: `Mark as ${wsPill.toLowerCase()}`, stage: "booked", color: "#0E1512" },
   { icon: "⊘", label: "Unsubscribe", stage: "__unsub__", color: "#C9543F" },
 ];
 
 export function ContactsView() {
   const [rows, setRows] = useState<ContactRow[] | null>(null);
+  // C2.9: distinct goals of ACTIVE agents — workspace-level labels show the
+  // shared goal's pill iff there is exactly one, else "Goal met" (DEC-059).
+  const [activeGoalKeys, setActiveGoalKeys] = useState<string[]>([]);
   const [error, setError] = useState(false);
   const [seg, setSeg] = useState<string>("all");
   const [search, setSearch] = useState("");
@@ -217,6 +226,12 @@ export function ContactsView() {
   const [fieldDefs, setFieldDefs] = useState<ContactFieldDefDto[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const activeDefs = useMemo(() => fieldDefs.filter((d) => !d.archived), [fieldDefs]);
+  const wsPill = useMemo(() => workspaceGoalPill(activeGoalKeys), [activeGoalKeys]);
+  /** C2.9: the segment list with the goal-dynamic terminal tab (id stays "Booked"). */
+  const segments = useMemo(
+    () => SEGMENTS.map((sg) => (sg.id === "Booked" ? { ...sg, label: wsPill } : sg)),
+    [wsPill],
+  );
   const refreshDefs = useCallback(
     () => cf("contact-fields").then((d: ContactFieldDefDto[]) => setFieldDefs(d)).catch(() => {}),
     [],
@@ -232,8 +247,9 @@ export function ContactsView() {
     try {
       const res = (await cf(
         `contacts/view${activeList ? `?listId=${activeList}` : ""}`,
-      )) as ContactRow[];
-      setRows(res);
+      )) as { rows: ContactRow[]; activeGoalKeys: string[] };
+      setRows(res.rows);
+      setActiveGoalKeys(res.activeGoalKeys);
       setError(false);
     } catch {
       setError(true);
@@ -710,7 +726,7 @@ export function ContactsView() {
               {rows
                 ? activeListRow
                   ? `${rows.length} contact${rows.length === 1 ? "" : "s"} in this list`
-                  : `${rows.length} contacts · ${counts.Qualified ?? 0} qualified · ${counts.Booked ?? 0} booked`
+                  : `${rows.length} contacts · ${counts.Qualified ?? 0} qualified · ${counts.Booked ?? 0} ${wsPill.toLowerCase()}`
                 : "…"}
             </div>
           </div>
@@ -723,7 +739,7 @@ export function ContactsView() {
 
         {/* segment tabs — A10 queries */}
         <div style={{ display: "flex", gap: 4, borderBottom: "1px solid #EBE3D6", marginBottom: 14, overflowX: "auto" }} data-testid="segments">
-          {SEGMENTS.map((s) => {
+          {segments.map((s) => {
             const on = seg === s.id;
             return (
               <span key={s.id} onClick={() => { setSeg(s.id); setPage(1); }} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, fontWeight: on ? 700 : 600, color: on ? "#0E1512" : "#8A7F6B", padding: "11px 15px", borderBottom: `2px solid ${on ? "#16A82A" : "transparent"}`, cursor: "pointer", whiteSpace: "nowrap", flex: "none" }} data-testid={`seg-${s.id}`}>
@@ -781,11 +797,11 @@ export function ContactsView() {
             <div style={{ display: "flex", gap: 9, flex: "none" }}>
               <div style={{ position: "relative" }}>
                 <span onClick={() => { setStatusDD((v) => !v); setAgentDD(false); setMoreDD(false); }} style={trigger(seg !== "all")} data-testid="status-filter">
-                  {seg === "all" ? "Status" : SEGMENTS.find((s) => s.id === seg)?.label}<span style={{ color: "#9AA59E", fontSize: 12 }}>⌄</span>
+                  {seg === "all" ? "Status" : segments.find((s) => s.id === seg)?.label}<span style={{ color: "#9AA59E", fontSize: 12 }}>⌄</span>
                 </span>
                 {statusDD ? (
                   <div style={{ ...menuShell, width: 200 }}>
-                    {[{ id: "all", label: "All statuses" }, ...SEGMENTS.slice(1)].map((o) => (
+                    {[{ id: "all", label: "All statuses" }, ...segments.slice(1)].map((o) => (
                       <div key={o.id} onClick={() => { setSeg(o.id); setPage(1); setStatusDD(false); }} style={{ display: "flex", alignItems: "center", gap: 9, padding: "10px 14px", fontSize: 13.5, color: "#0E1512", borderBottom: "1px solid #F7F2EA", cursor: "pointer" }}>
                         <span style={{ flex: 1 }}>{o.label}</span>
                         <span style={{ fontSize: 11, fontWeight: 700, color: "#8A7F6B" }}>{o.id === "all" ? rows?.length ?? 0 : counts[o.id] ?? 0}</span>
@@ -830,7 +846,7 @@ export function ContactsView() {
                     {(
                       [
                         { key: "repliedOnly" as const, label: "Replied or further" },
-                        { key: "bookedOnly" as const, label: "Booked only" },
+                        { key: "bookedOnly" as const, label: `${wsPill} only` },
                         { key: "subscribedOnly" as const, label: "Hide unsubscribed" },
                       ]
                     ).map((t) => {
@@ -927,6 +943,9 @@ export function ContactsView() {
             pageRows.map((c, i) => {
               const status = deriveStatus(c);
               const pill = ST[status]!;
+              // C2.9: per-ROW terminal pills show the completing campaign's
+              // wording; every other status keeps the A10 name.
+              const pillLabel = status === "Booked" ? c.goal?.pill ?? wsPill : status;
               const on = Boolean(sel[c.id]);
               return (
                 <div key={c.id} onClick={() => setDrawerId(c.id)} style={{ display: "grid", gridTemplateColumns: "46px minmax(0,1.9fr) 1.2fr .95fr 1.15fr .85fr .95fr 44px", alignItems: "center", padding: "0 8px", borderTop: "1px solid #F2EEE4", background: on ? "rgba(53,232,52,.05)" : i % 2 === 1 ? "#FCFAF6" : "#fff", cursor: "pointer" }} data-testid="contact-row">
@@ -942,7 +961,7 @@ export function ContactsView() {
                   </div>
                   <div style={{ padding: "11px 12px", fontSize: 14, color: "#3B463F", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.company ?? "—"}</div>
                   <div style={{ padding: "11px 12px" }}>
-                    <span style={{ display: "inline-flex", alignItems: "center", padding: "5px 12px", borderRadius: 100, fontSize: 12.5, fontWeight: 600, background: pill.sbg, color: pill.sfg, whiteSpace: "nowrap" }} data-testid="status-pill">{status}</span>
+                    <span style={{ display: "inline-flex", alignItems: "center", padding: "5px 12px", borderRadius: 100, fontSize: 12.5, fontWeight: 600, background: pill.sbg, color: pill.sfg, whiteSpace: "nowrap" }} data-testid="status-pill">{pillLabel}</span>
                   </div>
                   <div style={{ padding: "11px 12px", fontSize: 13.5, color: "#5C6B62", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.agentName ?? "—"}</div>
                   {/* C2.8: LIST column — primary list; "+N" when in multiple */}
@@ -1007,7 +1026,7 @@ export function ContactsView() {
                   <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 18, color: "#0E1512" }}>{fullName(drawer)}</div>
                   <div style={{ fontSize: 13, color: "#9AA59E" }}>{drawer.email}</div>
                   <div style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 7, flexWrap: "wrap" }}>
-                    <span style={{ display: "inline-flex", padding: "4px 11px", borderRadius: 100, fontSize: 12, fontWeight: 600, background: ST[st!]!.sbg, color: ST[st!]!.sfg }} data-testid="drawer-pill">{st}</span>
+                    <span style={{ display: "inline-flex", padding: "4px 11px", borderRadius: 100, fontSize: 12, fontWeight: 600, background: ST[st!]!.sbg, color: ST[st!]!.sfg }} data-testid="drawer-pill">{st === "Booked" ? drawer.goal?.pill ?? wsPill : st}</span>
                   </div>
                 </div>
                 <span onClick={() => setDrawerId(null)} style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid #EBE3D6", color: "#9AA59E", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flex: "none" }}>✕</span>
@@ -1020,7 +1039,7 @@ export function ContactsView() {
                     {moveDD ? (
                       <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, width: 230, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 12, boxShadow: "0 16px 44px rgba(0,0,0,.2)", zIndex: 30, overflow: "hidden" }}>
                         <div style={{ fontSize: 10.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".07em", color: "#9AA59E", padding: "10px 14px 6px" }}>Move to</div>
-                        {MOVE_OPTIONS.map((m) => {
+                        {moveOptions(wsPill).map((m) => {
                           const current =
                             (m.stage === "interested" && st === "Qualified") ||
                             (m.stage === "booked" && st === "Booked") ||

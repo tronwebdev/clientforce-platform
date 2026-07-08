@@ -6,7 +6,7 @@
  */
 import { ApplicationFailure } from "@temporalio/common";
 import { sendStep, SendBlockedError, type EmailSender } from "@clientforce/channels";
-import type { StepContent } from "@clientforce/core";
+import { goalTerminalLabel, parseGuardrails, type StepContent } from "@clientforce/core";
 import { withTenant, type Prisma, type PrismaClient } from "@clientforce/db";
 import type { SendOutcome } from "./shared";
 
@@ -31,6 +31,9 @@ export interface ActivityDeps {
     campaignId: string;
     fromStage: string;
     toStage: string;
+    /** C2.9 (DEC-059): set on goal-completion moves — UIs render `label` verbatim. */
+    goalKey?: string;
+    label?: string;
   }) => Promise<void>;
 }
 
@@ -138,6 +141,7 @@ export function createActivities(deps: ActivityDeps) {
       const prior = await withTenant(prisma, { workspaceId: params.workspaceId }, async (tx) => {
         const row = await tx.enrollment.findUniqueOrThrow({
           where: { id: params.enrollmentId },
+          include: { campaign: { select: { agent: { select: { goal: true, guardrails: true } } } } },
         });
         await tx.enrollment.update({
           where: { id: params.enrollmentId },
@@ -151,6 +155,20 @@ export function createActivities(deps: ActivityDeps) {
       const moved =
         params.pipelineStage !== undefined && params.pipelineStage !== prior.pipelineStage;
       if (moved && deps.publishStageChanged) {
+        // C2.9: goal-completion moves carry the campaign goal + terminal label.
+        let goal: { goalKey: string; label: string } | undefined;
+        if (params.pipelineStage === "booked") {
+          let customLabel: string | undefined;
+          try {
+            customLabel = parseGuardrails(prior.campaign.agent.guardrails).goalLabel;
+          } catch {
+            customLabel = undefined; // legacy/invalid guardrails never block the move
+          }
+          goal = {
+            goalKey: prior.campaign.agent.goal,
+            label: goalTerminalLabel(prior.campaign.agent.goal, customLabel),
+          };
+        }
         await deps
           .publishStageChanged({
             workspaceId: params.workspaceId,
@@ -159,6 +177,7 @@ export function createActivities(deps: ActivityDeps) {
             campaignId: prior.campaignId,
             fromStage: prior.pipelineStage,
             toStage: params.pipelineStage!,
+            ...(goal ?? {}),
           })
           .catch((err: unknown) => {
             console.warn(

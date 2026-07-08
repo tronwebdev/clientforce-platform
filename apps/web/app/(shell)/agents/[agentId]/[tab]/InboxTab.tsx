@@ -35,7 +35,16 @@ const CHANNEL_OPTIONS = [
   { id: "whatsapp", icon: "🗨", label: "WhatsApp" },
 ];
 
-export function InboxTab({ agentId }: { agentId: string }) {
+/** C2.9 (DEC-059): `goalLabel` = the campaign goal's terminal wording — the
+ *  booked category chip/tint renders it instead of the single-goal-era
+ *  "Meeting booked" (a promote_offer agent reads "Purchase made"). */
+export function InboxTab({ agentId, goalLabel }: { agentId: string; goalLabel?: string }) {
+  const cats = INBOX_CATS.map((c) => (c.id === "booked" && goalLabel ? { ...c, label: goalLabel } : c));
+  const tintFor = (intent: string) => {
+    const t = CAT_TINT[intent];
+    if (!t) return null;
+    return intent === "booked" && goalLabel ? { ...t, label: goalLabel } : t;
+  };
   const [threads, setThreads] = useState<Thread[] | null>(null);
   const [cat, setCat] = useState("all");
   const [channel, setChannel] = useState("all");
@@ -89,7 +98,7 @@ export function InboxTab({ agentId }: { agentId: string }) {
     void refresh();
   }
 
-  const heading = cat === "all" ? "All conversations" : INBOX_CATS.find((c) => c.id === cat)?.label ?? "All";
+  const heading = cat === "all" ? "All conversations" : cats.find((c) => c.id === cat)?.label ?? "All";
   const sortLabel = sort === "newest" ? "Newest first" : sort === "oldest" ? "Oldest first" : "Name A–Z";
   const chOpt = CHANNEL_OPTIONS.find((o) => o.id === channel)!;
 
@@ -98,7 +107,7 @@ export function InboxTab({ agentId }: { agentId: string }) {
       {/* category chips + channel filter */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
         <div style={{ display: "flex", gap: 6, overflowX: "auto", flex: 1, minWidth: 0, paddingBottom: 2 }}>
-          {INBOX_CATS.map((c) => {
+          {cats.map((c) => {
             const on = cat === c.id;
             return (
               <span key={c.id} onClick={() => { setCat(c.id); setSelId(null); }} style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "8px 13px", borderRadius: 100, fontSize: 13, fontWeight: on ? 700 : 600, color: on ? "#0A0F0C" : "#5C6B62", background: on ? GRAD : "#fff", border: `1px solid ${on ? "transparent" : "#EBE3D6"}`, cursor: "pointer", whiteSpace: "nowrap", flex: "none" }} data-testid={`cat-${c.id}`}>
@@ -170,7 +179,7 @@ export function InboxTab({ agentId }: { agentId: string }) {
             ) : (
               visible.map((t) => {
                 const on = sel?.contactId === t.contactId;
-                const tint = t.intent ? CAT_TINT[t.intent] : null;
+                const tint = t.intent ? tintFor(t.intent) : null;
                 const name = [t.contact?.firstName, t.contact?.lastName].filter(Boolean).join(" ") || t.contact?.email || "Unknown";
                 return (
                   <div key={t.contactId} onClick={() => setSelId(t.contactId)} style={{ display: "flex", gap: 11, padding: "12px 16px", borderLeft: `3px solid ${on ? "#35E834" : "transparent"}`, background: on ? "#FBF7F0" : "transparent", cursor: "pointer", borderBottom: "1px solid #F7F2EA", opacity: t.done ? 0.55 : 1 }} data-testid="thread-row">
@@ -208,8 +217,8 @@ export function InboxTab({ agentId }: { agentId: string }) {
                   <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 16.5, color: "#0E1512", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{sel.messages[0]?.subject ?? "(no subject)"}</div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
                     <span style={{ fontSize: 11.5, fontWeight: 700, color: "#16A82A", background: "rgba(53,232,52,.13)", borderRadius: 6, padding: "2px 9px" }}>✉ Email</span>
-                    {sel.intent && CAT_TINT[sel.intent] ? (
-                      <span style={{ fontSize: 11.5, fontWeight: 700, color: CAT_TINT[sel.intent]!.fg, background: CAT_TINT[sel.intent]!.bg, borderRadius: 100, padding: "3px 10px" }}>{CAT_TINT[sel.intent]!.label}</span>
+                    {sel.intent && tintFor(sel.intent) ? (
+                      <span style={{ fontSize: 11.5, fontWeight: 700, color: tintFor(sel.intent)!.fg, background: tintFor(sel.intent)!.bg, borderRadius: 100, padding: "3px 10px" }}>{tintFor(sel.intent)!.label}</span>
                     ) : null}
                     <span style={{ fontSize: 13, color: "#9AA59E" }}>with {[sel.contact?.firstName, sel.contact?.lastName].filter(Boolean).join(" ") || sel.contact?.email}</span>
                   </div>

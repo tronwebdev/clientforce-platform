@@ -36,6 +36,13 @@ export const guardrailsSchema = z.object({
   dailyCap: z.object({ email: z.number().int().min(1) }),
   consent: z.object({ attestedBy: z.string().min(1), attestedAt: z.string().min(1) }).nullable(),
   tracking: trackingSchema.default({ openTracking: true, linkTracking: true }),
+  /**
+   * C2.9 (DEC-059): custom-goal terminal label, owner-typed in wizard step 1.
+   * Rides this Json because it must survive launch without a migration —
+   * display-only, no effect on the send boundary; the A8 rails below are
+   * untouched. Absent for the 8 fixed goals (GOAL_META supplies their labels).
+   */
+  goalLabel: z.string().max(60).optional(),
   unsubscribeFooter: z.literal(true),
   suppressionCheck: z.literal(true),
 });

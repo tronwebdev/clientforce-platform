@@ -1,4 +1,5 @@
 import { BadRequestException, Body, Controller, Get, Param, Post, Query } from "@nestjs/common";
+import { goalTerminalLabel, goalTerminalPill, parseGuardrails } from "@clientforce/core";
 import { Role } from "@clientforce/db";
 import { Roles } from "../auth/decorators";
 import { TenantClient } from "../db/tenant-client";
@@ -40,6 +41,13 @@ export class ContactsViewController {
         arr.push({ id: m.list.id, name: m.list.name });
         listsBy.set(m.contactId, arr);
       }
+      // C2.9: distinct goals of ACTIVE agents drive the workspace-level label
+      // (aggregation rule — shared pill iff one goal, else "Goal met").
+      const activeAgents = await tx.agent.findMany({
+        where: { status: "ACTIVE" },
+        select: { goal: true },
+      });
+      const activeGoalKeys = [...new Set(activeAgents.map((a) => a.goal))];
       const [enrollments, replied, suppressions, lastEvents] = await Promise.all([
         tx.enrollment.findMany({
           where: { contactId: { in: ids } },
@@ -50,7 +58,7 @@ export class ContactsViewController {
             status: true,
             updatedAt: true,
             campaignId: true,
-            campaign: { select: { agent: { select: { name: true } } } },
+            campaign: { select: { agent: { select: { name: true, goal: true, guardrails: true } } } },
           },
         }),
         tx.event.groupBy({
@@ -68,7 +76,11 @@ export class ContactsViewController {
 
       const latestEnrollment = new Map<
         string,
-        { pipelineStage: string; status: string; campaign?: { agent: { name: string } | null } | null }
+        {
+          pipelineStage: string;
+          status: string;
+          campaign?: { agent: { name: string; goal: string; guardrails: unknown } | null } | null;
+        }
       >();
       for (const e of enrollments) {
         if (e.contactId && !latestEnrollment.has(e.contactId)) latestEnrollment.set(e.contactId, e);
@@ -77,7 +89,7 @@ export class ContactsViewController {
       const suppressed = new Set(suppressions.map((s) => s.address.toLowerCase()));
       const lastBy = new Map(lastEvents.map((e) => [e.contactId, e._max.occurredAt]));
 
-      return contacts.map((c) => {
+      const rows = contacts.map((c) => {
         const enr = latestEnrollment.get(c.id);
         const optOut = (c.optOut ?? {}) as { email?: boolean };
         const unsub =
@@ -97,6 +109,9 @@ export class ContactsViewController {
           lists: listsBy.get(c.id) ?? [],
           createdAt: c.createdAt.toISOString(),
           stage: enr?.pipelineStage ?? null,
+          // C2.9: the completing campaign's terminal wording (per-row pills +
+          // chips render THIS, never the workspace aggregate).
+          goal: enr?.campaign?.agent ? rowGoal(enr.campaign.agent) : null,
           agentName: enr?.campaign?.agent?.name ?? null,
           enrollmentStatus: enr?.status ?? null,
           replied: repliedSet.has(c.id),
@@ -104,6 +119,7 @@ export class ContactsViewController {
           lastActivity: (lastBy.get(c.id) ?? c.createdAt)?.toISOString() ?? null,
         };
       });
+      return { rows, activeGoalKeys };
     });
   }
 
@@ -137,6 +153,7 @@ export class ContactsViewController {
       const enrollment = await tx.enrollment.findFirst({
         where: { contactId: id },
         orderBy: { updatedAt: "desc" },
+        include: { campaign: { select: { agent: { select: { goal: true, guardrails: true } } } } },
       });
       if (!enrollment) throw new BadRequestException("Contact has no enrollment to move");
       if (enrollment.pipelineStage === stage) return enrollment;
@@ -144,6 +161,11 @@ export class ContactsViewController {
         where: { id: enrollment.id },
         data: { pipelineStage: stage },
       });
+      // C2.9 (DEC-059): goal-completion moves carry the campaign goal + label.
+      const goal =
+        stage === "booked" && enrollment.campaign?.agent
+          ? { goalKey: enrollment.campaign.agent.goal, label: rowGoal(enrollment.campaign.agent).label }
+          : null;
       await tx.event.create({
         data: {
           workspaceId: this.tenant.workspaceId,
@@ -151,7 +173,7 @@ export class ContactsViewController {
           contactId: id,
           enrollmentId: enrollment.id,
           campaignId: enrollment.campaignId,
-          payload: { fromStage: enrollment.pipelineStage, toStage: stage, manual: true },
+          payload: { fromStage: enrollment.pipelineStage, toStage: stage, manual: true, ...(goal ?? {}) },
         },
       });
       return updated;
@@ -213,4 +235,23 @@ export class ContactsViewController {
       return { updated };
     });
   }
+}
+
+/** C2.9: a row's goal wording — custom label from guardrails when present. */
+function rowGoal(agent: { goal: string; guardrails: unknown }): {
+  key: string;
+  label: string;
+  pill: string;
+} {
+  let customLabel: string | undefined;
+  try {
+    customLabel = parseGuardrails(agent.guardrails).goalLabel;
+  } catch {
+    customLabel = undefined; // legacy/invalid guardrails never break the view
+  }
+  return {
+    key: agent.goal,
+    label: goalTerminalLabel(agent.goal, customLabel),
+    pill: goalTerminalPill(agent.goal),
+  };
 }

@@ -14,7 +14,9 @@ import {
 import { randomUUID } from "node:crypto";
 import {
   createEnrollmentSchema,
+  goalTerminalLabel,
   listEnrollmentsQuerySchema,
+  parseGuardrails,
   signalReplySchema,
   validateGraph,
   type CampaignGraph,
@@ -171,21 +173,28 @@ export class EnrollmentsController {
     const stage = String(body?.pipelineStage ?? "").trim();
     if (!stage || stage.length > 40) throw new BadRequestException("pipelineStage required");
     return this.tenant.run(async (tx) => {
-      const enrollment = await tx.enrollment.findUnique({ where: { id } });
+      const enrollment = await tx.enrollment.findUnique({
+        where: { id },
+        include: { campaign: { select: { agent: { select: { goal: true, guardrails: true } } } } },
+      });
       if (!enrollment) throw new NotFoundException(`Enrollment ${id} not found`);
       if (enrollment.pipelineStage === stage) return enrollment;
+      const { campaign, ...bare } = enrollment;
       const updated = await tx.enrollment.update({
         where: { id },
         data: { pipelineStage: stage },
       });
+      // C2.9 (DEC-059): goal-completion moves carry the campaign goal + its
+      // terminal label — timelines render the label verbatim.
+      const goal = stage === "booked" ? goalMeta(campaign.agent.goal, campaign.agent.guardrails) : null;
       await tx.event.create({
         data: {
           workspaceId: this.tenant.workspaceId,
           type: "lead.stage_changed.v1",
-          contactId: enrollment.contactId,
-          enrollmentId: enrollment.id,
-          campaignId: enrollment.campaignId,
-          payload: { fromStage: enrollment.pipelineStage, toStage: stage, manual: true },
+          contactId: bare.contactId,
+          enrollmentId: bare.id,
+          campaignId: bare.campaignId,
+          payload: { fromStage: bare.pipelineStage, toStage: stage, manual: true, ...(goal ?? {}) },
         },
       });
       return updated;
@@ -203,4 +212,15 @@ export class EnrollmentsController {
     await this.engine.signalReply(id, intent);
     return { delivered: true, workflowId: enrollment.workflowId };
   }
+}
+
+/** C2.9: `{ goalKey, label }` for a goal-completion event payload. */
+function goalMeta(goal: string, guardrails: unknown): { goalKey: string; label: string } {
+  let customLabel: string | undefined;
+  try {
+    customLabel = parseGuardrails(guardrails).goalLabel;
+  } catch {
+    customLabel = undefined; // legacy/invalid guardrails never block a stage move
+  }
+  return { goalKey: goal, label: goalTerminalLabel(goal, customLabel) };
 }

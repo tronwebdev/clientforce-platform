@@ -42,6 +42,8 @@ const STAGE_PILL: Record<string, { label: string; bg: string; fg: string }> = {
   active: { label: "In sequence", bg: "rgba(54,215,237,.14)", fg: "#1192A6" },
   replied: { label: "Replied", bg: "rgba(208,245,107,.4)", fg: "#6E7A12" },
   interested: { label: "Interested", bg: "#D7F5DD", fg: "#0F7A28" },
+  // C2.9: the booked LABEL is goal-dynamic (resolved in-component); this
+  // entry keeps the tint — the label here is the legacy fallback only.
   booked: { label: "Meeting booked", bg: "rgba(53,232,52,.16)", fg: "#16A82A" },
   unsub: { label: "Unsubscribed", bg: "rgba(224,121,107,.16)", fg: "#C9543F" },
   suppressed: { label: "Suppressed", bg: "#ECE7DC", fg: "#8A7F6B" },
@@ -77,20 +79,32 @@ const EVENT_ROW: Record<string, { icon: string; bg: string; fg: string; label: (
   "email.replied.v1": { icon: "↩", bg: "rgba(54,215,237,.16)", fg: "#1192A6", label: (p) => `Replied${p.intent ? ` — classified “${String(p.intent)}”` : ""}` },
   "email.bounced.v1": { icon: "⚠", bg: "rgba(224,121,107,.14)", fg: "#C9543F", label: () => "Email hard-bounced" },
   "email.spam_reported.v1": { icon: "⚠", bg: "rgba(224,121,107,.14)", fg: "#C9543F", label: () => "Marked as spam" },
-  "lead.stage_changed.v1": { icon: "✦", bg: "rgba(53,232,52,.14)", fg: "#16A82A", label: (p) => `Stage changed${p.fromStage ? ` — ${String(p.fromStage)} → ${String(p.toStage)}` : ""}` },
+  // C2.9: goal-completion events carry the campaign's terminal label — it
+  // renders verbatim; older events fall back to the raw stages.
+  "lead.stage_changed.v1": { icon: "✦", bg: "rgba(53,232,52,.14)", fg: "#16A82A", label: (p) => (p.label ? `Stage changed — ${String(p.label)}` : `Stage changed${p.fromStage ? ` — ${String(p.fromStage)} → ${String(p.toStage)}` : ""}`) },
   "lead.unsubscribed.v1": { icon: "⊘", bg: "rgba(224,121,107,.16)", fg: "#C9543F", label: () => "Unsubscribed from all sequences" },
   // C2.8 (49-1): membership events render human — the slug never surfaces raw.
   "list.member.added.v1": { icon: "≣", bg: "rgba(53,232,52,.14)", fg: "#16A82A", label: (p) => `Added to ${String(p.listName ?? "a list")}` },
   "list.member.removed.v1": { icon: "≣", bg: "#F2EEE4", fg: "#8A7F6B", label: (p) => `Removed from ${String(p.listName ?? "a list")}` },
 };
 
-const MOVE_OPTIONS = [
+/** C2.9: the goal-completion move follows the agent goal's short pill. */
+const moveOptions = (goalPill: string) => [
   { icon: "💬", label: "Interested — book a call", stage: "interested", color: "#0E1512" },
-  { icon: "📅", label: "Mark as booked", stage: "booked", color: "#0E1512" },
+  { icon: "📅", label: `Mark as ${goalPill.toLowerCase()}`, stage: "booked", color: "#0E1512" },
   { icon: "⏱", label: "Back to sequence", stage: "new", color: "#0E1512" },
 ];
 
 export function LeadsTab({ agentId, view, onChanged }: { agentId: string; view: AgentViewData | null; onChanged: () => Promise<void> | void }) {
+  // C2.9 (DEC-059): this tab is single-agent — every booked-stage surface
+  // (pill, filter option, Mark-as move) uses THIS campaign goal's wording.
+  const goalLabel = view?.agent.goalLabel ?? "Meeting booked";
+  const goalPill = view?.agent.goalPill ?? "Booked";
+  const stagePill = (key: string) => {
+    const t = STAGE_PILL[key] ?? STAGE_PILL.active!;
+    return key === "booked" ? { ...t, label: goalLabel } : t;
+  };
+  const filters = FILTERS.map((f) => (f.id === "booked" ? { ...f, label: goalPill } : f));
   const [leads, setLeads] = useState<Lead[] | null>(null);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
@@ -121,7 +135,7 @@ export function LeadsTab({ agentId, view, onChanged }: { agentId: string; view: 
     if (view) {
       setContactLists(
         Object.fromEntries(
-          (view as { id: string; lists?: { id: string; name: string }[] }[]).map((c) => [c.id, c.lists ?? []]),
+          ((view as { rows: { id: string; lists?: { id: string; name: string }[] }[] }).rows ?? []).map((c) => [c.id, c.lists ?? []]),
         ),
       );
     }
@@ -275,7 +289,7 @@ export function LeadsTab({ agentId, view, onChanged }: { agentId: string; view: 
             {filterDD ? (
               <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, width: 244, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 12, boxShadow: "0 16px 44px rgba(0,0,0,.18)", overflow: "hidden", zIndex: 20 }}>
                 <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "#9AA59E", padding: "10px 14px 6px" }}>Filter by status</div>
-                {FILTERS.map((f) => (
+                {filters.map((f) => (
                   <div key={f.id} onClick={() => { setFilter(f.id); setFilterDD(false); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 14px", fontSize: 13.5, fontWeight: filter === f.id ? 700 : 500, color: "#0E1512", borderTop: "1px solid #F7F2EA", background: filter === f.id ? "rgba(53,232,52,.06)" : "transparent", cursor: "pointer" }}>
                     <span style={{ flex: 1 }}>{f.label}</span>
                     <span style={{ fontSize: 11, fontWeight: 700, color: "#8A7F6B", background: "#F2EEE4", borderRadius: 100, padding: "1px 7px" }}>{counts[f.id] ?? 0}</span>
@@ -351,7 +365,7 @@ export function LeadsTab({ agentId, view, onChanged }: { agentId: string; view: 
             </div>
           ) : (
             visible.map((l, i) => {
-              const pill = STAGE_PILL[pillKey(l)]!;
+              const pill = stagePill(pillKey(l));
               const isChecked = Boolean(checked[l.id]);
               const step = stepIndex(l);
               const name = [l.contact.firstName, l.contact.lastName].filter(Boolean).join(" ") || l.contact.email || "Unknown";
@@ -393,7 +407,7 @@ export function LeadsTab({ agentId, view, onChanged }: { agentId: string; view: 
                 <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 18, color: "#0E1512" }}>{[open.contact.firstName, open.contact.lastName].filter(Boolean).join(" ") || open.contact.email}</div>
                 <div style={{ fontSize: 13, color: "#9AA59E" }}>{open.contact.email}</div>
                 <div style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 7 }}>
-                  <span style={{ display: "inline-flex", padding: "4px 11px", borderRadius: 100, fontSize: 12, fontWeight: 600, background: STAGE_PILL[pillKey(open)]!.bg, color: STAGE_PILL[pillKey(open)]!.fg }}>{STAGE_PILL[pillKey(open)]!.label}</span>
+                  <span style={{ display: "inline-flex", padding: "4px 11px", borderRadius: 100, fontSize: 12, fontWeight: 600, background: stagePill(pillKey(open)).bg, color: stagePill(pillKey(open)).fg }}>{stagePill(pillKey(open)).label}</span>
                   <span style={{ fontSize: 12, color: "#9AA59E" }}>{stepIndex(open) ? `Step ${stepIndex(open)} of ${stepTotal}` : ""}</span>
                 </div>
               </div>
@@ -407,7 +421,7 @@ export function LeadsTab({ agentId, view, onChanged }: { agentId: string; view: 
                   {moveDD ? (
                     <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, width: 240, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 12, boxShadow: "0 16px 44px rgba(0,0,0,.18)", overflow: "hidden", zIndex: 20 }}>
                       <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "#9AA59E", padding: "10px 14px 6px" }}>Move to</div>
-                      {MOVE_OPTIONS.map((m) => (
+                      {moveOptions(goalPill).map((m) => (
                         <div key={m.stage} onClick={() => void moveStage(open.id, m.stage)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 14px", fontSize: 13.5, color: m.color, borderTop: "1px solid #F7F2EA", cursor: "pointer" }}>
                           <span style={{ width: 20, textAlign: "center" }}>{m.icon}</span>
                           <span style={{ flex: 1 }}>{m.label}</span>
