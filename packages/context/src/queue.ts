@@ -1,20 +1,15 @@
 import { Queue, Worker, type ConnectionOptions } from "bullmq";
-import { BULL_PREFIX } from "@clientforce/events";
+import { BULL_PREFIX, redisOptionsFromUrl } from "@clientforce/events";
 import { distill, type DistillDeps, type DistillTarget } from "./distill";
 
 export const CONTEXT_QUEUE_NAME = "clientforce.context.distill";
 
+// One URL parser for the whole platform: the local copy this replaces passed
+// `URL.password` percent-ENCODED to Redis AUTH (WRONGPASS on Azure keys
+// ending in `=` — 2026-07-08 staging outage) and lacked SNI/username/db.
 const connectionFrom = (
   redisUrl = process.env.REDIS_URL ?? "redis://localhost:6379",
-): ConnectionOptions => {
-  const url = new URL(redisUrl);
-  return {
-    host: url.hostname,
-    port: Number(url.port || 6379),
-    ...(url.password ? { password: url.password } : {}),
-    ...(url.protocol === "rediss:" ? { tls: {} } : {}),
-  };
-};
+): ConnectionOptions => redisOptionsFromUrl(redisUrl);
 
 /** Enqueue a (re-)distill — the API on typed answers, the ingest worker on READY sources. */
 export function createDistillQueue(redisUrl?: string): Queue<DistillTarget> {

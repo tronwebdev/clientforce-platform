@@ -45,4 +45,19 @@ describe("redisOptionsFromUrl", () => {
       db: 2,
     });
   });
+
+  /** Staging-outage regression (2026-07-08, layer 5): WHATWG URL getters return
+   *  credentials percent-ENCODED (an Azure access key's trailing `=` reads as
+   *  `%3D`), and Redis AUTH wants the raw secret. Passing the getter value
+   *  through unmapped made every BullMQ connection WRONGPASS while the plain
+   *  ioredis client (whose own URL parser decodes) kept the heartbeat green.
+   *  The URL setters used here encode on assignment, so round-tripping the
+   *  original strings is exactly the property under test. */
+  it("percent-decodes username and password (reserved chars like = @ + /)", () => {
+    const url = withCreds("rediss://cache.example.net:6380", "us=er", "p@ss=word+end=");
+    expect(url).toContain("%3D"); // the setter really did encode — guard the fixture
+    const opts = redisOptionsFromUrl(url) as { username?: string; password?: string };
+    expect(opts.username).toBe("us=er");
+    expect(opts.password).toBe("p@ss=word+end=");
+  });
 });
