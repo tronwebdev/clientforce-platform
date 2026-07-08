@@ -19,7 +19,10 @@ async function signIn(page: Page): Promise<void> {
   await page.goto("/login");
   await page.getByLabel("Email").fill(OWNER_EMAIL);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page.getByRole("heading", { name: /Welcome back/i })).toBeVisible();
+  // C2.1 landed the shell on /agents (handoff §C) — the pre-C2.1 "Welcome
+  // back" dashboard assertion made this spec red on every deploy since
+  // PR #33 (same stale-assertion family as the old smoke, fixed in #41).
+  await expect(page.getByTestId("agents-subtitle")).toBeVisible();
 }
 
 /** Switch the active workspace via the sidebar and wait for the re-render. */
