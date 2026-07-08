@@ -596,7 +596,8 @@ export function Wizard() {
   const stepValid = [
     Boolean(goal && name.trim() && agentId && allResolvedForNext()),
     Boolean(graph),
-    added.length > 0,
+    // C2.8: a picked list is a contact source — it satisfies the step like adds do.
+    added.length > 0 || pickedList !== null,
     true,
     senders.length > 0,
     allResolved,
