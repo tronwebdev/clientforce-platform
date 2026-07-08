@@ -1,11 +1,12 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { API_URL, SESSION_COOKIE, WORKSPACE_COOKIE } from "../../../../lib/config";
+import { API_URL, WORKSPACE_COOKIE } from "../../../../lib/config";
+import { bearerToken } from "../../../../lib/auth-token";
 
 /** C2.2 mutation proxy — cookie session → bearer + workspace headers (A2). */
 async function forward(req: Request, id: string, method: "PATCH" | "DELETE") {
   const store = await cookies();
-  const token = store.get(SESSION_COOKIE)?.value;
+  const token = await bearerToken();
   if (!token) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   const workspace = store.get(WORKSPACE_COOKIE)?.value;
   const res = await fetch(`${API_URL}/agents/${id}`, {

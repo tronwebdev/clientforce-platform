@@ -25,6 +25,9 @@ const ROLE_GATED: Record<string, Role[]> = {
 export default async function SectionPage({ params }: { params: Promise<{ section: string }> }) {
   const me = await fetchMe();
   if (!me) redirect("/login");
+  // A3 (DEC-060): membership-less principal — the shell layout renders the
+  // first-run modal; the page contributes nothing.
+  if ("noWorkspace" in me) return null;
 
   const { section } = await params;
   const title = TITLES[section] ?? section.charAt(0).toUpperCase() + section.slice(1);

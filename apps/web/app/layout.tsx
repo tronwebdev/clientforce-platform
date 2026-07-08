@@ -13,6 +13,8 @@ import "./globals.css";
 import "./shell.css";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { ClerkProvider } from "@clerk/nextjs";
+import { clerkEnabled } from "../lib/clerk";
 
 export const metadata: Metadata = {
   title: "Clientforce",
@@ -20,9 +22,12 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
-  return (
+  const shell = (
     <html lang="en">
       <body>{children}</body>
     </html>
   );
+  // A3 (DEC-060): the provider mounts only when Clerk is configured — without
+  // keys the tree (and bundle behavior) is exactly the pre-Clerk one.
+  return clerkEnabled ? <ClerkProvider afterSignOutUrl="/sign-in">{shell}</ClerkProvider> : shell;
 }

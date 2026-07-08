@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { API_URL, SESSION_COOKIE, WORKSPACE_COOKIE } from "../../../../lib/config";
+import { API_URL, WORKSPACE_COOKIE } from "../../../../lib/config";
+import { bearerToken } from "../../../../lib/auth-token";
 
 /**
  * Generic authenticated proxy (C2.3): the wizard is client-driven (polling +
@@ -10,7 +11,8 @@ import { API_URL, SESSION_COOKIE, WORKSPACE_COOKIE } from "../../../../lib/confi
  */
 async function forward(req: Request, path: string[]): Promise<NextResponse> {
   const store = await cookies();
-  const token = store.get(SESSION_COOKIE)?.value;
+  // A3 (DEC-060): Clerk session JWT when configured, dev cookie otherwise.
+  const token = await bearerToken();
   if (!token) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   const workspace = store.get(WORKSPACE_COOKIE)?.value;
   const url = new URL(req.url);

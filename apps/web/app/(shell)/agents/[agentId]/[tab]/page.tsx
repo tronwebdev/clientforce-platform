@@ -15,6 +15,9 @@ export default async function AgentTabPage({
 }) {
   const me = await fetchMe();
   if (!me) redirect("/login");
+  // A3 (DEC-060): membership-less principal — the shell layout renders the
+  // first-run modal; the page contributes nothing.
+  if ("noWorkspace" in me) return null;
   const { agentId, tab } = await params;
   if (!TABS.some((t) => t.id === tab)) notFound();
   return <AgentView agentId={agentId} tab={tab} />;

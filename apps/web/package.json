@@ -11,6 +11,7 @@
     "clean": "rm -rf .next .turbo"
   },
   "dependencies": {
+    "@clerk/nextjs": "^7.5.14",
     "@clientforce/core": "workspace:*",
     "@clientforce/ui": "workspace:*",
     "@fontsource-variable/bricolage-grotesque": "^5.2.10",

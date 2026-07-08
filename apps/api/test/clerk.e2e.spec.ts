@@ -96,6 +96,13 @@ describe.skipIf(!hasDb)("API e2e (Clerk org path)", () => {
       await owner.contact.deleteMany({ where: { workspaceId: { in: [wsC, wsV] } } });
       await owner.agency.delete({ where: { id: agencyId } }).catch(() => undefined);
       await owner.user.deleteMany({ where: { id: { in: userIds } } });
+      // A3: rows created by the lazy-upsert / first-run tests below.
+      const lazy = await owner.user.findMany({ where: { email: { contains: `lazy-${suffix}` } } });
+      for (const u of lazy) {
+        const ms = await owner.membership.findMany({ where: { userId: u.id }, include: { workspace: true } });
+        for (const m of ms) await owner.agency.delete({ where: { id: m.workspace.agencyId } }).catch(() => undefined);
+      }
+      await owner.user.deleteMany({ where: { email: { contains: `lazy-${suffix}` } } });
     }
     await owner?.$disconnect();
   });
@@ -141,5 +148,82 @@ describe.skipIf(!hasDb)("API e2e (Clerk org path)", () => {
       .get("/me")
       .set("Authorization", `Bearer ${missingOrgToken}`)
       .expect(403);
+  });
+
+  // ── A3 (DEC-060): first-login lazy upsert + first-run workspace ────────────
+
+  it("lazily creates the User on first login (unknown sub + email), then 403 NO_WORKSPACE", async () => {
+    const token = await signDevToken(SECRET, {
+      sub: `auth|lazy-${suffix}`,
+      email: `lazy-${suffix}@t.test`,
+      name: "Lazy First",
+    });
+    const me = await request(app.getHttpServer()).get("/me").set("Authorization", `Bearer ${token}`);
+    expect(me.status).toBe(403);
+    expect(me.body.code).toBe("NO_WORKSPACE");
+
+    const created = await owner.user.findUnique({ where: { authProviderId: `auth|lazy-${suffix}` } });
+    expect(created?.email).toBe(`lazy-${suffix}@t.test`);
+    expect(created?.name).toBe("Lazy First");
+  });
+
+  it("first-run POST /workspaces bootstraps Agency → Workspace → OWNER membership", async () => {
+    const token = await signDevToken(SECRET, {
+      sub: `auth|lazy-${suffix}`,
+      email: `lazy-${suffix}@t.test`,
+    });
+    const created = await request(app.getHttpServer())
+      .post("/workspaces")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ name: "Lazy First Workspace" });
+    expect(created.status).toBe(201);
+
+    const me = await request(app.getHttpServer()).get("/me").set("Authorization", `Bearer ${token}`);
+    expect(me.status).toBe(200);
+    expect(me.body.role).toBe("OWNER");
+    expect(me.body.activeWorkspace?.name).toBe("Lazy First Workspace");
+
+    // First-run only: a second call must 409 now that a membership exists.
+    await request(app.getHttpServer())
+      .post("/workspaces")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ name: "Another" })
+      .expect(409);
+  });
+
+  it("links authProviderId onto a seeded user matched by email (no duplicate row)", async () => {
+    const seeded = await owner.user.create({ data: { email: `lazy-${suffix}-seeded@t.test` } });
+    userIds.push(seeded.id);
+    await owner.membership.create({ data: { userId: seeded.id, workspaceId: wsC, role: "AGENT" } });
+    const token = await signDevToken(SECRET, {
+      sub: `auth|lazy-link-${suffix}`,
+      email: `lazy-${suffix}-seeded@t.test`,
+    });
+    const me = await request(app.getHttpServer()).get("/me").set("Authorization", `Bearer ${token}`);
+    expect(me.status).toBe(200);
+    const after = await owner.user.findUnique({ where: { id: seeded.id } });
+    expect(after?.authProviderId).toBe(`auth|lazy-link-${suffix}`);
+    expect(await owner.user.count({ where: { email: `lazy-${suffix}-seeded@t.test` } })).toBe(1);
+  });
+
+  it("rejects a sub/email mismatch on an already-linked user (401, never a takeover)", async () => {
+    const token = await signDevToken(SECRET, {
+      sub: `auth|imposter-${suffix}`,
+      email: `lazy-${suffix}-seeded@t.test`, // linked to auth|lazy-link above
+    });
+    await request(app.getHttpServer()).get("/me").set("Authorization", `Bearer ${token}`).expect(401);
+  });
+
+  it("lazy upsert composes with the org JIT path in one request", async () => {
+    const token = await signDevToken(SECRET, {
+      sub: `auth|lazy-org-${suffix}`,
+      email: `lazy-${suffix}-org@t.test`,
+      orgId: ORG_C,
+      orgRole: "org:member",
+    });
+    const me = await request(app.getHttpServer()).get("/me").set("Authorization", `Bearer ${token}`);
+    expect(me.status).toBe(200);
+    expect(me.body.activeWorkspace?.id).toBe(wsC);
+    expect(me.body.role).toBe("AGENT"); // org:member seed
   });
 });

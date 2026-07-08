@@ -7,6 +7,9 @@ import { fetchMe } from "../../../lib/api";
 export default async function DashboardPage() {
   const me = await fetchMe();
   if (!me) redirect("/login");
+  // A3 (DEC-060): membership-less principal — the shell layout renders the
+  // first-run modal; the page contributes nothing.
+  if ("noWorkspace" in me) return null;
   return (
     <>
       <TopBar title="Dashboard" me={me} />

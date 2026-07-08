@@ -11,6 +11,7 @@ import { ContextModule } from "./context/context.module";
 import { EnrollmentsModule } from "./enrollments/enrollments.module";
 import { KnowledgeModule } from "./knowledge/knowledge.module";
 import { MeController } from "./me/me.controller";
+import { WorkspacesController } from "./workspaces/workspaces.controller";
 import { PlannerModule } from "./planner/planner.module";
 import { SystemModule } from "./system/system.module";
 import { ContactsController } from "./contacts/contacts.controller";
@@ -31,7 +32,7 @@ import { BusOrInlinePublisher, EVENTS_PUBLISHER } from "./events/publisher";
     EnrollmentsModule,
     SystemModule,
   ],
-  controllers: [HealthController, MeController, ContactsController, ContactsViewController, ContactFieldsController, ContactListsController],
+  controllers: [HealthController, MeController, WorkspacesController, ContactsController, ContactsViewController, ContactFieldsController, ContactListsController],
   providers: [
     // Order matters: authenticate + resolve tenancy first, then enforce RBAC.
     { provide: APP_GUARD, useClass: AuthGuard },

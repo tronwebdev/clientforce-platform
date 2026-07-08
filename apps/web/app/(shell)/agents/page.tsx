@@ -10,6 +10,9 @@ import { AgentsTable } from "./AgentsTable";
 export default async function AgentsPage() {
   const me = await fetchMe();
   if (!me) redirect("/login");
+  // A3 (DEC-060): membership-less principal — the shell layout renders the
+  // first-run modal; the page contributes nothing.
+  if ("noWorkspace" in me) return null;
   const agents = await fetchAgents();
   return (
     // Bare wrapper with the prototype's exact main padding — .cf-content adds
