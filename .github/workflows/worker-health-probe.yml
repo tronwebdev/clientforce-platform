@@ -141,9 +141,12 @@ jobs:
           done
           [ -n "$planned" ] || echo "::warning::no graph within 180s"
 
-          echo "── queue drain: sources still PENDING/INGESTING older than 10 min ──"
+          echo "── B8 diagnosis: BusinessContext metadata for recent agents (no content) ──"
           dburl="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name DATABASE-URL --query value -o tsv)"
           echo "::add-mask::$dburl"
+          psql "$dburl" -c "select bc.id, a.name as agent, bc.status, (select count(*) from jsonb_object_keys(bc.fields) k) as field_count, length(coalesce(bc.\"rawSummary\",'')) as summary_len, bc.goal, bc.\"updatedAt\" from \"BusinessContext\" bc left join \"Agent\" a on a.id = bc.\"agentId\" order by bc.\"updatedAt\" desc limit 15;"
+          psql "$dburl" -c "select a.name, a.\"createdAt\", (select count(*) from \"KnowledgeSource\" s where s.\"agentId\" = a.id) as sources, (select count(*) from \"CampaignGraph\" g join \"Campaign\" c on c.id = g.\"campaignId\" where c.\"agentId\" = a.id) as graphs from \"Agent\" a where a.\"createdAt\" > now() - interval '12 hours' order by a.\"createdAt\" desc limit 12;"
+          echo "── queue drain: sources still PENDING/INGESTING older than 10 min ──"
           psql "$dburl" -c "select status, count(*), min(\"updatedAt\") as oldest from \"KnowledgeSource\" where status in ('PENDING','INGESTING') and \"updatedAt\" < now() - interval '10 minutes' group by status;" || echo "::warning::db check failed"
 
           echo "── final health after activity ──"
