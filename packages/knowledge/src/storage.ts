@@ -36,6 +36,19 @@ export class StorageUnavailableError extends Error {
   }
 }
 
+/** Timeout (the bounded abort) or a network-level failure — auth/HTTP errors stay loud. */
+function isUnreachable(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  if (err.name === "AbortError" || err.name === "TimeoutError") return true;
+  const code = (err as { code?: unknown }).code;
+  return (
+    typeof code === "string" &&
+    ["ENOTFOUND", "ECONNREFUSED", "ECONNRESET", "ETIMEDOUT", "EAI_AGAIN", "EHOSTUNREACH"].includes(
+      code,
+    )
+  );
+}
+
 export class AzureBlobUploadStore implements UploadStore {
   private readonly service: BlobServiceClient;
 
@@ -59,9 +72,7 @@ export class AzureBlobUploadStore implements UploadStore {
         blobHTTPHeaders: contentType ? { blobContentType: contentType } : undefined,
       });
     } catch (err) {
-      if (err instanceof Error && (err.name === "AbortError" || err.name === "TimeoutError")) {
-        throw new StorageUnavailableError(err);
-      }
+      if (isUnreachable(err)) throw new StorageUnavailableError(err);
       throw err;
     }
     return path;
