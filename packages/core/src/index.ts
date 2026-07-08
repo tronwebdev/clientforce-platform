@@ -40,6 +40,7 @@ export * from "./agents";
 
 // Contact custom fields (C2.7) — defs, values, {{custom.*}} token grammar.
 export * from "./contact-fields";
+export * from "./contact-lists";
 
 /**
  * Narrow an arbitrary string to a branded {@link Id}. Real validation arrives

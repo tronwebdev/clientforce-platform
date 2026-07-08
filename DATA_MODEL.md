@@ -265,7 +265,7 @@ model Contact {             // a person in the workspace's CRM (deduped)
                                                 // ContactFieldDef.key — never mixed with enrichment
   tags        String[]
   optOut      Json                              // { email:false, sms:false, whatsapp:false }
-  lists       ListMembership[]
+  lists       ContactListMember[]
   enrollments Enrollment[]
   events      ActivityEvent[]
   @@index([workspaceId, email])
@@ -308,11 +308,22 @@ model PipelineStage {
   order       Int
 }
 
+// C2.8 (docs/PLAN_CONTACT_LISTS.md): lists = explicit stored membership;
+// segments stay derived queries. origin reserves "form"|"widget"|"automation"
+// for the integrations; archive, never delete. Membership changes emit
+// list.member.added.v1 / list.member.removed.v1 (the Automations join points).
 model ContactList {
   id String @id @default(cuid()) workspaceId String name String
-  members ListMembership[]
+  origin String                                  // manual | csv_import | form | widget | automation
+  archived Boolean @default(false)
+  members ContactListMember[]
+  @@unique([workspaceId, name])
 }
-model ListMembership { id String @id @default(cuid()) listId String contactId String @@unique([listId, contactId]) }
+model ContactListMember {
+  id String @id @default(cuid()) workspaceId String listId String contactId String
+  addedAt DateTime @default(now()) addedBy String // userId | "import" | "automation"
+  @@unique([listId, contactId])
+}
 
 enum EnrollmentStatus { ACTIVE PAUSED DONE UNSUBSCRIBED BOUNCED }
 ```

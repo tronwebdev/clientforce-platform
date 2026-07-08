@@ -16,6 +16,8 @@ import { SystemModule } from "./system/system.module";
 import { ContactsController } from "./contacts/contacts.controller";
 import { ContactsViewController } from "./contacts/contacts-view.controller";
 import { ContactFieldsController } from "./contacts/contact-fields.controller";
+import { ContactListsController } from "./contacts/contact-lists.controller";
+import { BusOrInlinePublisher, EVENTS_PUBLISHER } from "./events/publisher";
 
 @Module({
   imports: [
@@ -29,11 +31,13 @@ import { ContactFieldsController } from "./contacts/contact-fields.controller";
     EnrollmentsModule,
     SystemModule,
   ],
-  controllers: [HealthController, MeController, ContactsController, ContactsViewController, ContactFieldsController],
+  controllers: [HealthController, MeController, ContactsController, ContactsViewController, ContactFieldsController, ContactListsController],
   providers: [
     // Order matters: authenticate + resolve tenancy first, then enforce RBAC.
     { provide: APP_GUARD, useClass: AuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
+    // C2.8: membership events (bus with Redis, inline persist without).
+    { provide: EVENTS_PUBLISHER, useClass: BusOrInlinePublisher },
   ],
 })
 export class AppModule {}

@@ -6,8 +6,8 @@
  * never stored stage values. A4: 5s polling; drawer timeline polls while open.
  */
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
-import { slugifyFieldLabel, type ContactFieldDefDto } from "@clientforce/core";
-import { EmptyState } from "@clientforce/ui";
+import { slugifyFieldLabel, type ContactFieldDefDto, type ContactListDto } from "@clientforce/core";
+import { AddToListMenu, EmptyState, listGlyph } from "@clientforce/ui";
 
 const GRAD = "linear-gradient(135deg,#36D7ED 0%,#35E834 55%,#D0F56B 100%)";
 
@@ -29,6 +29,8 @@ export interface ContactRow {
   phone: string | null;
   source: string | null;
   custom?: Record<string, string>;
+  /** C2.8: active-list memberships (addedAt order — first = primary). */
+  lists?: { id: string; name: string }[];
   createdAt: string;
   stage: string | null;
   enrollmentStatus: string | null;
@@ -168,6 +170,25 @@ export function ContactsView() {
   const [csvError, setCsvError] = useState<string | null>(null);
   const [mapDD, setMapDD] = useState<number | null>(null);
 
+  // C2.8: contact lists — the rail scopes the table (the rail IS the filter),
+  // the ONE Add-to-list menu mounts on the bulk bar + detail drawer, and the
+  // New-list modal optionally assigns (selection / single contact) on create.
+  const [lists, setLists] = useState<ContactListDto[] | null>(null);
+  // §0 toast — same treatment as the wizard/Settings (dark pill, green ✓, ✕).
+  const [toastMsg, setToastMsg] = useState("");
+  const [activeList, setActiveList] = useState<string | null>(null);
+  const [bulkListDD, setBulkListDD] = useState(false);
+  const [drawerListDD, setDrawerListDD] = useState(false);
+  const [newListOpen, setNewListOpen] = useState(false);
+  const [newListName, setNewListName] = useState("");
+  const [newListErr, setNewListErr] = useState<string | null>(null);
+  /** What the created list assigns: "sel" = bulk selection, contactId, or nothing. */
+  const [newListAssign, setNewListAssign] = useState<"sel" | string | null>(null);
+  const [csvListId, setCsvListId] = useState<string>("");
+  const [csvListDD, setCsvListDD] = useState(false);
+  const [formListId, setFormListId] = useState<string>("");
+  const [formListDD, setFormListDD] = useState(false);
+
   // C2.7: workspace custom-field defs + the caller's role (create = admin-only).
   const [fieldDefs, setFieldDefs] = useState<ContactFieldDefDto[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -185,20 +206,38 @@ export function ContactsView() {
 
   const refresh = useCallback(async () => {
     try {
-      const res = (await cf("contacts/view")) as ContactRow[];
+      const res = (await cf(
+        `contacts/view${activeList ? `?listId=${activeList}` : ""}`,
+      )) as ContactRow[];
       setRows(res);
       setError(false);
     } catch {
       setError(true);
     }
-  }, []);
+  }, [activeList]);
+
+  // C2.8: rail lists (real counts) ride the same 5s poll as the rows.
+  const refreshLists = useCallback(
+    () => cf("lists").then((l: ContactListDto[]) => setLists(l)).catch(() => {}),
+    [],
+  );
+
+  useEffect(() => {
+    if (!toastMsg) return;
+    const t = setTimeout(() => setToastMsg(""), 3200);
+    return () => clearTimeout(t);
+  }, [toastMsg]);
 
   // A4: 5s polling
   useEffect(() => {
     void refresh();
-    const t = setInterval(() => void refresh(), 5000);
+    void refreshLists();
+    const t = setInterval(() => {
+      void refresh();
+      void refreshLists();
+    }, 5000);
     return () => clearInterval(t);
-  }, [refresh]);
+  }, [refresh, refreshLists]);
 
   const drawer = useMemo(() => (rows ?? []).find((r) => r.id === drawerId) ?? null, [rows, drawerId]);
 
@@ -271,6 +310,69 @@ export function ContactsView() {
     setMoveDD(false);
     void refresh();
   }
+
+  // ── C2.8: list mutations (every failure surfaces — B5 rule) ──────────────
+  const activeLists = useMemo(() => (lists ?? []).filter((l) => !l.archived), [lists]);
+  const activeListRow = useMemo(
+    () => (activeList ? (lists ?? []).find((l) => l.id === activeList) ?? null : null),
+    [lists, activeList],
+  );
+
+  async function addToList(listId: string, contactIds: string[], clearSel: boolean) {
+    setBulkListDD(false);
+    setDrawerListDD(false);
+    try {
+      const res = (await cf(`lists/${listId}/members`, {
+        method: "POST",
+        body: JSON.stringify({ contactIds }),
+      })) as { added: number; skipped: number };
+      const name = (lists ?? []).find((l) => l.id === listId)?.name ?? "list";
+      setToastMsg(
+        res.added === 0
+          ? `Already in “${name}” — nothing to add.`
+          : `Added ${res.added} contact${res.added === 1 ? "" : "s"} to “${name}”.`,
+      );
+      if (clearSel) setSel({});
+      void refresh();
+      void refreshLists();
+    } catch {
+      setToastMsg("Couldn't add to that list — try again.");
+    }
+  }
+
+  function openNewList(assign: "sel" | string | null) {
+    setBulkListDD(false);
+    setDrawerListDD(false);
+    setNewListAssign(assign);
+    setNewListName("");
+    setNewListErr(null);
+    setNewListOpen(true);
+  }
+
+  async function createList() {
+    const name = newListName.trim();
+    if (!name) return;
+    const contactIds = newListAssign === "sel" ? selected : newListAssign ? [newListAssign] : [];
+    try {
+      await cf("lists", { method: "POST", body: JSON.stringify({ name, contactIds }) });
+      setNewListOpen(false);
+      setToastMsg(
+        contactIds.length > 0
+          ? `Created “${name}” with ${contactIds.length} contact${contactIds.length === 1 ? "" : "s"}.`
+          : `Created “${name}”.`,
+      );
+      if (newListAssign === "sel") setSel({});
+      void refresh();
+      void refreshLists();
+    } catch (err) {
+      const status = err instanceof Error ? /:\s*(\d+)$/.exec(err.message)?.[1] : null;
+      setNewListErr(
+        status === "409"
+          ? `A list named “${name}” already exists.`
+          : "Couldn't create the list — try again.",
+      );
+    }
+  }
   async function saveDetailEdit(contactId: string) {
     if (!detailEdit) return;
     const value = detailEdit.value.trim();
@@ -296,13 +398,22 @@ export function ContactsView() {
   async function createContact() {
     if (!/.+@.+\..+/.test(form.email) || !form.firstName.trim()) return;
     const custom = Object.fromEntries(Object.entries(formCustom).filter(([, v]) => v.trim() !== ""));
-    await cf("contacts", {
+    const created = (await cf("contacts", {
       method: "POST",
       body: JSON.stringify({ ...form, ...(Object.keys(custom).length ? { custom } : {}) }),
-    }).catch(() => {});
+    }).catch(() => null)) as { id: string } | null;
+    // C2.8: add-drawer LIST select — attach on create.
+    if (created && formListId) {
+      await cf(`lists/${formListId}/members`, {
+        method: "POST",
+        body: JSON.stringify({ contactIds: [created.id] }),
+      }).catch(() => setToastMsg("Contact created, but adding to the list failed."));
+      void refreshLists();
+    }
     setAddOpen(false);
     setForm({ firstName: "", lastName: "", email: "", company: "", phone: "", title: "" });
     setFormCustom({});
+    setFormListId("");
     void refresh();
   }
 
@@ -396,6 +507,7 @@ export function ContactsView() {
     }
     if (customKeyByCol.size > 0) void refreshDefs();
     let created = 0;
+    const createdIds: string[] = [];
     for (const r of csvParsed.fresh) {
       const payload: Record<string, unknown> = {};
       const custom: Record<string, string> = {};
@@ -407,8 +519,19 @@ export function ContactsView() {
       });
       if (!payload.email) continue;
       if (Object.keys(custom).length) payload.custom = custom;
-      const ok = await cf("contacts", { method: "POST", body: JSON.stringify(payload) }).then(() => true).catch(() => false);
-      if (ok) created += 1;
+      const row = (await cf("contacts", { method: "POST", body: JSON.stringify(payload) }).catch(() => null)) as { id: string } | null;
+      if (row) {
+        created += 1;
+        createdIds.push(row.id);
+      }
+    }
+    // C2.8: step-3 "Add to list" — every imported row lands in the picked list.
+    if (csvListId && createdIds.length > 0) {
+      await cf(`lists/${csvListId}/members`, {
+        method: "POST",
+        body: JSON.stringify({ contactIds: createdIds }),
+      }).catch(() => setCsvError("Contacts imported, but adding them to the list failed."));
+      void refreshLists();
     }
     setCsvDone(created);
     setCsvStep(3);
@@ -421,6 +544,8 @@ export function ContactsView() {
     setCsvMap([]);
     setCsvDone(0);
     setCsvError(null);
+    setCsvListId("");
+    setCsvListDD(false);
   }
 
 
@@ -447,19 +572,34 @@ export function ContactsView() {
   return (
     // prototype renders at the browser-default line-height, not the app's 1.5
     <div style={{ display: "flex", minWidth: 0, flex: 1, lineHeight: "normal" }}>
-      {/* lists rail — prototype composition; lists have no model yet (flagged in plan) */}
+      {/* C2.8: lists rail — LIVE ContactList rows with real counts; clicking a
+          list scopes the table (the rail IS the list filter). Archived lists
+          are absent (membership preserved). */}
       <div style={{ width: 226, flex: "none", background: "#F4F0E7", borderRight: "1px solid #EBE3D6", padding: "22px 14px", display: "flex", flexDirection: "column", minWidth: 0, boxSizing: "border-box" }} data-testid="lists-rail">
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 8px", marginBottom: 12 }}>
           <span style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 12, letterSpacing: ".1em", textTransform: "uppercase", color: "#8A7F6B", flex: 1 }}>Lists</span>
-          <span title="Saved lists arrive with a later phase" style={{ width: 24, height: 24, borderRadius: 7, background: "#fff", border: "1px solid #EBE3D6", color: "#16A82A", fontSize: 15, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", cursor: "default" }}>＋</span>
+          <span onClick={() => openNewList(null)} style={{ width: 24, height: 24, borderRadius: 7, background: "#fff", border: "1px solid #EBE3D6", color: "#16A82A", fontSize: 15, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }} data-testid="rail-new-list">＋</span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 11px", borderRadius: 10, marginBottom: 3, background: "linear-gradient(135deg,rgba(54,215,237,.16),rgba(53,232,52,.16))" }}>
+        <div onClick={() => { setActiveList(null); setPage(1); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 11px", borderRadius: 10, marginBottom: 3, cursor: "pointer", background: activeList === null ? "linear-gradient(135deg,rgba(54,215,237,.16),rgba(53,232,52,.16))" : "transparent" }} data-testid="rail-all">
           <span style={{ fontSize: 15, width: 20, textAlign: "center" }}>☺</span>
-          <span style={{ fontSize: 14, fontWeight: 700, color: "#0E1512", flex: 1 }}>All contacts</span>
-          <span style={{ fontSize: 11.5, fontWeight: 700, color: "#16A82A" }}>{rows?.length ?? 0}</span>
+          <span style={{ fontSize: 14, fontWeight: activeList === null ? 700 : 600, color: activeList === null ? "#0E1512" : "#3B463F", flex: 1 }}>All contacts</span>
+          <span style={{ fontSize: 11.5, fontWeight: 700, color: activeList === null ? "#16A82A" : "#9AA59E" }}>{activeList === null ? rows?.length ?? 0 : ""}</span>
         </div>
         <div style={{ height: 1, background: "#E6E0D4", margin: "8px 6px" }} />
-        <div title="Saved lists arrive with a later phase" style={{ display: "flex", alignItems: "center", gap: 9, padding: "10px 11px", borderRadius: 10, marginTop: 8, border: "1.5px dashed #D8CFBE", color: "#8A7F6B", cursor: "default" }}>
+        <div style={{ overflowY: "auto", flex: 1, minHeight: 0, margin: "0 -4px", padding: "0 4px" }}>
+          {activeLists.map((l) => {
+            const on = activeList === l.id;
+            const glyph = listGlyph(l.name);
+            return (
+              <div key={l.id} onClick={() => { setActiveList(on ? null : l.id); setPage(1); setSel({}); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 11px", borderRadius: 10, marginBottom: 3, cursor: "pointer", background: on ? "linear-gradient(135deg,rgba(54,215,237,.16),rgba(53,232,52,.16))" : "transparent" }} data-testid={`rail-list-${l.id}`}>
+                <span style={{ width: 24, height: 24, borderRadius: 7, flex: "none", background: glyph.iconBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13 }}>{glyph.icon}</span>
+                <span style={{ fontSize: 13.5, fontWeight: on ? 700 : 600, color: on ? "#0E1512" : "#3B463F", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.name}</span>
+                <span style={{ fontSize: 11.5, fontWeight: 700, color: on ? "#16A82A" : "#9AA59E" }}>{l.memberCount}</span>
+              </div>
+            );
+          })}
+        </div>
+        <div onClick={() => openNewList(null)} onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#9FD8AC"; e.currentTarget.style.color = "#16A82A"; }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#D8CFBE"; e.currentTarget.style.color = "#8A7F6B"; }} style={{ display: "flex", alignItems: "center", gap: 9, padding: "10px 11px", borderRadius: 10, marginTop: 8, border: "1.5px dashed #D8CFBE", color: "#8A7F6B", cursor: "pointer" }} data-testid="rail-new-list-row">
           <span style={{ fontSize: 15 }}>＋</span>
           <span style={{ fontSize: 13, fontWeight: 600 }}>New list</span>
         </div>
@@ -470,11 +610,19 @@ export function ContactsView() {
         {/* page header */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
           <div>
+            {/* C2.8: list-scoped header — name + green LIST badge + member line */}
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 26, letterSpacing: "-.02em", color: "#0E1512" }}>All contacts</span>
+              <span style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 26, letterSpacing: "-.02em", color: "#0E1512" }} data-testid="scope-title">{activeListRow ? activeListRow.name : "All contacts"}</span>
+              {activeListRow ? (
+                <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".06em", color: "#0F7A28", background: "rgba(53,232,52,.14)", border: "1px solid rgba(53,232,52,.35)", borderRadius: 7, padding: "3px 8px" }} data-testid="scope-badge">LIST</span>
+              ) : null}
             </div>
             <div style={{ fontSize: 14, color: "#5C6B62" }} data-testid="scope-sub">
-              {rows ? `${rows.length} contacts · ${counts.Qualified ?? 0} qualified · ${counts.Booked ?? 0} booked` : "…"}
+              {rows
+                ? activeListRow
+                  ? `${rows.length} contact${rows.length === 1 ? "" : "s"} in this list`
+                  : `${rows.length} contacts · ${counts.Qualified ?? 0} qualified · ${counts.Booked ?? 0} booked`
+                : "…"}
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, flex: "none" }}>
@@ -504,6 +652,21 @@ export function ContactsView() {
             <span onClick={() => setSel({})} style={{ fontSize: 13, fontWeight: 600, color: "#16A82A", cursor: "pointer" }}>Clear</span>
             <div style={{ marginLeft: "auto", display: "flex", gap: 9 }}>
               <span title="Sequence enrollment lives on the agent's Leads tab" style={{ fontSize: 13, fontWeight: 600, color: "#0E1512", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 10, padding: "8px 14px", cursor: "default" }}>+ Add to sequence</span>
+              {/* C2.8: the v4 bulk add-to-list menu — the ONE menu component */}
+              <div style={{ position: "relative" }}>
+                <span onClick={() => setBulkListDD((v) => !v)} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: "#0E1512", background: bulkListDD ? "rgba(53,232,52,.08)" : "#fff", border: `1px solid ${bulkListDD ? "#9FD8AC" : "#EBE3D6"}`, borderRadius: 10, padding: "8px 14px", cursor: "pointer" }} data-testid="bulk-add-to-list">≣ Add to list <span style={{ color: "#9AA59E", fontSize: 11 }}>⌄</span></span>
+                {bulkListDD ? (
+                  <AddToListMenu
+                    header={`Add ${selected.length} to list`}
+                    options={activeLists.map((l) => ({ id: l.id, name: l.name, count: l.memberCount }))}
+                    showCounts
+                    newListLabel="New list from selection"
+                    onPick={(listId) => void addToList(listId, selected, true)}
+                    onNewList={() => openNewList("sel")}
+                    testid="bulk-list-menu"
+                  />
+                ) : null}
+              </div>
               <span
                 onClick={() => {
                   const list = filtered.filter((r) => sel[r.id]);
@@ -693,7 +856,17 @@ export function ContactsView() {
                     <span style={{ display: "inline-flex", alignItems: "center", padding: "5px 12px", borderRadius: 100, fontSize: 12.5, fontWeight: 600, background: pill.sbg, color: pill.sfg, whiteSpace: "nowrap" }} data-testid="status-pill">{status}</span>
                   </div>
                   <div style={{ padding: "11px 12px", fontSize: 13.5, color: "#5C6B62", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.agentName ?? "—"}</div>
-                  <div style={{ padding: "11px 12px", fontSize: 12.5, color: "#5C6B62" }}>—</div>
+                  {/* C2.8: LIST column — primary list; "+N" when in multiple */}
+                  <div style={{ padding: "11px 12px", fontSize: 12.5, color: "#5C6B62", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} data-testid="list-cell">
+                    {c.lists && c.lists.length > 0 ? (
+                      <>
+                        {c.lists[0]!.name}
+                        {c.lists.length > 1 ? <span style={{ color: "#9AA59E", fontWeight: 700 }}> +{c.lists.length - 1}</span> : null}
+                      </>
+                    ) : (
+                      "—"
+                    )}
+                  </div>
                   <div style={{ padding: "11px 12px", fontSize: 13.5, color: "#5C6B62" }}>{timeAgo(c.lastActivity)}</div>
                   <div style={{ padding: "11px 8px", display: "flex", justifyContent: "center" }}>
                     <span style={{ width: 30, height: 30, borderRadius: 9, color: "#9AA59E", fontSize: 18, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>⋯</span>
@@ -787,6 +960,31 @@ export function ContactsView() {
                       <div style={{ fontSize: 11.5, color: "#9AA59E" }}>{s.label}</div>
                     </div>
                   ))}
+                </div>
+
+                {/* C2.8: List row atop DETAILS (v4) — current list + the ONE menu */}
+                <div style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 13, overflow: "visible", marginBottom: 18 }} data-testid="drawer-list-row">
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 15px" }}>
+                    <span style={{ fontSize: 13, color: "#9AA59E", flex: "none", width: 92 }}>List</span>
+                    <span style={{ flex: 1, minWidth: 0, fontSize: 13.5, color: "#0E1512", fontWeight: 600, textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} data-testid="drawer-list-value">
+                      {drawer.lists && drawer.lists.length > 0
+                        ? `${drawer.lists[0]!.name}${drawer.lists.length > 1 ? ` +${drawer.lists.length - 1}` : ""}`
+                        : "—"}
+                    </span>
+                    <div style={{ position: "relative", flex: "none" }}>
+                      <span onClick={() => setDrawerListDD((v) => !v)} style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 700, color: "#16A82A", background: "rgba(53,232,52,.08)", border: "1px solid #9FD8AC", borderRadius: 8, padding: "5px 10px", cursor: "pointer" }} data-testid="drawer-add-to-list">＋ Add to list</span>
+                      {drawerListDD ? (
+                        <AddToListMenu
+                          header="Add to list"
+                          options={activeLists.map((l) => ({ id: l.id, name: l.name, current: (drawer.lists ?? []).some((m) => m.id === l.id) }))}
+                          newListLabel="New list"
+                          onPick={(listId) => void addToList(listId, [drawer.id], false)}
+                          onNewList={() => openNewList(drawer.id)}
+                          testid="drawer-list-menu"
+                        />
+                      ) : null}
+                    </div>
+                  </div>
                 </div>
 
                 <div style={{ fontSize: 11, fontWeight: 700, color: "#8A7F6B", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 }}>Details</div>
@@ -916,6 +1114,28 @@ export function ContactsView() {
                   <div style={{ flex: 1 }}>
                     <label style={addLbl}>Title</label>
                     <input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} placeholder="Owner" style={addInp} data-testid="form-title" />
+                  </div>
+                  {/* C2.8: LIST select — active per the plan (DEC-044 waiver closed) */}
+                  <div style={{ flex: 1, position: "relative" }}>
+                    <label style={addLbl}>List</label>
+                    <div onClick={() => setFormListDD((v) => !v)} style={{ ...addInp, display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }} data-testid="form-list">
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: formListId ? "#0E1512" : "#9AA59E" }}>
+                        {formListId ? activeLists.find((l) => l.id === formListId)?.name ?? "No list" : "No list"}
+                      </span>
+                      <span style={{ color: "#9AA59E", fontSize: 11 }}>▾</span>
+                    </div>
+                    {formListDD ? (
+                      <div style={{ position: "absolute", top: "100%", left: 0, right: 0, marginTop: 6, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 12, boxShadow: "0 16px 44px rgba(0,0,0,.18)", zIndex: 30, maxHeight: 212, overflowY: "auto" }} data-testid="form-list-menu">
+                        <div onClick={() => { setFormListId(""); setFormListDD(false); }} style={{ padding: "9px 14px", fontSize: 13.5, color: "#5C6B62", cursor: "pointer" }}>No list</div>
+                        {activeLists.map((l) => (
+                          <div key={l.id} onClick={() => { setFormListId(l.id); setFormListDD(false); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 14px", fontSize: 13.5, fontWeight: 600, color: "#0E1512", cursor: "pointer", background: formListId === l.id ? "rgba(53,232,52,.07)" : "#fff" }} data-testid={`form-list-opt-${l.id}`}>
+                            <span style={{ width: 24, height: 24, borderRadius: 7, flex: "none", background: listGlyph(l.name).iconBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13 }}>{listGlyph(l.name).icon}</span>
+                            <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.name}</span>
+                            {formListId === l.id ? <span style={{ color: "#16A82A" }}>✓</span> : null}
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                 </div>
 
@@ -1093,6 +1313,28 @@ export function ContactsView() {
                       <>
                         <div style={{ fontSize: 16, fontWeight: 700, color: "#0E1512", marginBottom: 3 }}>Review import</div>
                         <div style={{ fontSize: 13, color: "#9AA59E", marginBottom: 16 }}>Here&apos;s what we&apos;ll add to your contacts.</div>
+                        {/* C2.8: step-3 "Add to list" select — existing list or none */}
+                        <div style={{ marginBottom: 14, position: "relative" }}>
+                          <label style={addLbl}>Add to list</label>
+                          <div onClick={() => setCsvListDD((v) => !v)} style={{ ...addInp, background: "#FBF7F0", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }} data-testid="csv-list">
+                            <span style={{ color: csvListId ? "#0E1512" : "#9AA59E" }}>
+                              {csvListId ? activeLists.find((l) => l.id === csvListId)?.name ?? "No list (all contacts)" : "No list (all contacts)"}
+                            </span>
+                            <span style={{ color: "#9AA59E", fontSize: 11 }}>▾</span>
+                          </div>
+                          {csvListDD ? (
+                            <div style={{ position: "absolute", top: "100%", left: 0, right: 0, marginTop: 6, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 12, boxShadow: "0 16px 44px rgba(0,0,0,.18)", zIndex: 30, maxHeight: 212, overflowY: "auto" }} data-testid="csv-list-menu">
+                              <div onClick={() => { setCsvListId(""); setCsvListDD(false); }} style={{ padding: "9px 14px", fontSize: 13.5, color: "#5C6B62", cursor: "pointer" }}>No list (all contacts)</div>
+                              {activeLists.map((l) => (
+                                <div key={l.id} onClick={() => { setCsvListId(l.id); setCsvListDD(false); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 14px", fontSize: 13.5, fontWeight: 600, color: "#0E1512", cursor: "pointer", background: csvListId === l.id ? "rgba(53,232,52,.07)" : "#fff" }} data-testid={`csv-list-opt-${l.id}`}>
+                                  <span style={{ width: 24, height: 24, borderRadius: 7, flex: "none", background: listGlyph(l.name).iconBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13 }}>{listGlyph(l.name).icon}</span>
+                                  <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.name}</span>
+                                  {csvListId === l.id ? <span style={{ color: "#16A82A" }}>✓</span> : null}
+                                </div>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
                           {[
                             { value: String(csvParsed.newCount), label: "New contacts", fg: "#16A82A" },
@@ -1158,6 +1400,52 @@ export function ContactsView() {
                 </>
               )}
             </div>
+          </div>
+        ) : null}
+
+        {/* C2.8: New-list modal (prototype anatomy) — creates via POST /lists;
+            optionally assigns the bulk selection / a single contact on create. */}
+        {newListOpen ? (
+          <div onClick={() => setNewListOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(12,20,15,.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 36, zIndex: 70 }}>
+            <div onClick={(e) => e.stopPropagation()} style={{ width: 420, maxWidth: "100%", background: "#fff", borderRadius: 18, boxShadow: "0 40px 90px rgba(0,0,0,.45)", overflow: "hidden" }} data-testid="new-list-modal">
+              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "18px 22px", borderBottom: "1px solid #EBE3D6" }}>
+                <span style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 17, color: "#0E1512", flex: 1 }}>Create a list</span>
+                <span onClick={() => setNewListOpen(false)} style={{ width: 30, height: 30, borderRadius: 9, border: "1px solid #EBE3D6", display: "flex", alignItems: "center", justifyContent: "center", color: "#9AA59E", cursor: "pointer" }}>✕</span>
+              </div>
+              <div style={{ padding: "20px 22px" }}>
+                <label style={{ display: "block", fontSize: 11, fontWeight: 800, color: "#9AA59E", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 7 }}>List name</label>
+                <input
+                  value={newListName}
+                  onChange={(e) => { setNewListName(e.target.value); setNewListErr(null); }}
+                  onKeyDown={(e) => { if (e.key === "Enter") void createList(); }}
+                  placeholder="e.g. Q4 webinar signups"
+                  autoFocus
+                  style={{ width: "100%", boxSizing: "border-box", height: 46, borderRadius: 11, background: "#FBF7F0", border: `1px solid ${newListErr ? "#E0A99E" : "#EBE3D6"}`, padding: "0 14px", fontSize: 14.5, color: "#0E1512", marginBottom: 6, fontFamily: "'Hanken Grotesk',sans-serif" }}
+                  data-testid="new-list-name"
+                />
+                <div style={{ fontSize: 12.5, color: newListErr ? "#C9543F" : "#9AA59E" }} data-testid="new-list-hint">
+                  {newListErr ??
+                    (newListAssign === "sel"
+                      ? `The ${selected.length} selected contact${selected.length === 1 ? "" : "s"} will be added to it.`
+                      : newListAssign
+                        ? "This contact will be added to it."
+                        : "Group contacts for targeting — a contact can be in many lists.")}
+                </div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 22px", borderTop: "1px solid #EBE3D6" }}>
+                <span onClick={() => setNewListOpen(false)} style={{ marginLeft: "auto", fontSize: 14, fontWeight: 600, color: "#5C6B62", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 11, padding: "10px 16px", cursor: "pointer" }}>Cancel</span>
+                <span onClick={() => void createList()} style={{ fontSize: 14, fontWeight: 700, color: newListName.trim() ? "#0A0F0C" : "#9AA59E", background: newListName.trim() ? GRAD : "#ECE7DC", borderRadius: 11, padding: "10px 20px", cursor: newListName.trim() ? "pointer" : "not-allowed", boxShadow: newListName.trim() ? "0 6px 16px rgba(53,232,52,.26)" : "none" }} data-testid="new-list-create">Create list</span>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {/* §0 toast — dark pill, green ✓ dot, dismiss ✕ */}
+        {toastMsg ? (
+          <div style={{ position: "fixed", bottom: 22, left: "50%", transform: "translateX(-50%)", zIndex: 71, display: "flex", alignItems: "center", gap: 11, background: "#0C140F", color: "#fff", borderRadius: 12, padding: "12px 16px", boxShadow: "0 16px 40px rgba(0,0,0,.3)" }} data-testid="toast">
+            <span style={{ width: 22, height: 22, borderRadius: "50%", background: "#35E834", color: "#0A0F0C", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flex: "none" }}>✓</span>
+            <span style={{ fontSize: 13.5, fontWeight: 600 }}>{toastMsg}</span>
+            <span onClick={() => setToastMsg("")} style={{ marginLeft: 8, color: "rgba(255,255,255,.5)", cursor: "pointer" }}>✕</span>
           </div>
         ) : null}
       </div>

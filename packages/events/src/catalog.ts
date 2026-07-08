@@ -88,6 +88,22 @@ export const EVENT_SCHEMAS = {
   "lead.stage_changed.v1": z.object({ fromStage: z.string(), toStage: z.string() }),
   "lead.unsubscribed.v1": z.object({ channel: z.string().optional() }),
 
+  // ── Lists (C2.8, docs/PLAN_CONTACT_LISTS.md) ───────────────────────────────
+  // The Forms/Widget/Automations JOIN POINTS: integrations later subscribe to
+  // these (and write memberships with their reserved origin) — no integration
+  // UI in v1. `addedBy`: userId | "import" | "automation".
+  "list.member.added.v1": z.object({
+    listId: z.string(),
+    listName: z.string(),
+    addedBy: z.string(),
+    origin: z.string(),
+  }),
+  "list.member.removed.v1": z.object({
+    listId: z.string(),
+    listName: z.string(),
+    removedBy: z.string(),
+  }),
+
   // ── Billing ────────────────────────────────────────────────────────────────
   "payment.received.v1": z.object({ amount: z.number().int(), channel: z.string().optional() }),
   "credits.consumed.v1": z.object({ amount: z.number().int(), channel: z.string(), balance: z.number().int() }),
@@ -142,6 +158,8 @@ export const EVENT_TYPES = {
   LEAD_ENROLLED: "lead.enrolled.v1",
   LEAD_STAGE_CHANGED: "lead.stage_changed.v1",
   LEAD_UNSUBSCRIBED: "lead.unsubscribed.v1",
+  LIST_MEMBER_ADDED: "list.member.added.v1",
+  LIST_MEMBER_REMOVED: "list.member.removed.v1",
   PAYMENT_RECEIVED: "payment.received.v1",
   CREDITS_CONSUMED: "credits.consumed.v1",
   CREDITS_LOW: "credits.low.v1",

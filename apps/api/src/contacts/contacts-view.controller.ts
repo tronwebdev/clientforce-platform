@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Param, Post } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Get, Param, Post, Query } from "@nestjs/common";
 import { Role } from "@clientforce/db";
 import { Roles } from "../auth/decorators";
 import { TenantClient } from "../db/tenant-client";
@@ -14,12 +14,32 @@ import { TenantClient } from "../db/tenant-client";
 export class ContactsViewController {
   constructor(private readonly tenant: TenantClient) {}
 
-  /** Enriched rows the segment queries run over (workspace-scoped via RLS). */
+  /**
+   * Enriched rows the segment queries run over (workspace-scoped via RLS).
+   * C2.8: `?listId=` scopes to explicit list membership (the rail IS the list
+   * filter); each row carries `lists: [{id, name}]` (active lists only — an
+   * archived list leaves every surface, membership preserved in the DB).
+   */
   @Get("view")
-  async view() {
+  async view(@Query("listId") listId?: string) {
     return this.tenant.run(async (tx) => {
-      const contacts = await tx.contact.findMany({ orderBy: { createdAt: "asc" } });
+      const contacts = await tx.contact.findMany({
+        orderBy: { createdAt: "asc" },
+        ...(listId ? { where: { lists: { some: { listId } } } } : {}),
+      });
       const ids = contacts.map((c) => c.id);
+      const memberships = await tx.contactListMember.findMany({
+        where: { contactId: { in: ids } },
+        orderBy: { addedAt: "asc" },
+        select: { contactId: true, list: { select: { id: true, name: true, archived: true } } },
+      });
+      const listsBy = new Map<string, { id: string; name: string }[]>();
+      for (const m of memberships) {
+        if (m.list.archived) continue;
+        const arr = listsBy.get(m.contactId) ?? [];
+        arr.push({ id: m.list.id, name: m.list.name });
+        listsBy.set(m.contactId, arr);
+      }
       const [enrollments, replied, suppressions, lastEvents] = await Promise.all([
         tx.enrollment.findMany({
           where: { contactId: { in: ids } },
@@ -74,6 +94,7 @@ export class ContactsViewController {
           phone: c.phone,
           source: c.source,
           custom: c.custom ?? {},
+          lists: listsBy.get(c.id) ?? [],
           createdAt: c.createdAt.toISOString(),
           stage: enr?.pipelineStage ?? null,
           agentName: enr?.campaign?.agent?.name ?? null,
