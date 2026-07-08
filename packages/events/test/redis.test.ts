@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
-import { redisOptionsFromUrl } from "../src/redis";
+import { afterEach, describe, expect, it } from "vitest";
+import { Cluster } from "ioredis";
+import { bullConnectionFromUrl, redisClusterEnabled, redisOptionsFromUrl } from "../src/redis";
 
 /** Staging-outage regression (2026-07-07): rediss:// must map to TLS options —
  *  plain host/port silently downgraded every BullMQ connection to plaintext
@@ -59,5 +60,38 @@ describe("redisOptionsFromUrl", () => {
     const opts = redisOptionsFromUrl(url) as { username?: string; password?: string };
     expect(opts.username).toBe("us=er");
     expect(opts.password).toBe("p@ss=word+end=");
+  });
+});
+
+/** Staging-outage regression (2026-07-08, layer 6): the live cache is
+ *  OSS-cluster-policy — a standalone client gets `MOVED <slot> <node>` for any
+ *  key owned by another shard, and only a Cluster INSTANCE makes BullMQ speak
+ *  cluster (plain options always construct a standalone client). */
+describe("bullConnectionFromUrl", () => {
+  afterEach(() => {
+    delete process.env.REDIS_CLUSTER;
+  });
+
+  it("REDIS_CLUSTER flag parsing: true/1 on, everything else off", () => {
+    expect(redisClusterEnabled("true")).toBe(true);
+    expect(redisClusterEnabled("TRUE")).toBe(true);
+    expect(redisClusterEnabled("1")).toBe(true);
+    expect(redisClusterEnabled("false")).toBe(false);
+    expect(redisClusterEnabled("")).toBe(false);
+    expect(redisClusterEnabled(undefined)).toBe(false);
+  });
+
+  it("returns plain options without the flag (local/CI behavior unchanged)", () => {
+    expect(bullConnectionFromUrl("redis://localhost:6379")).toEqual({
+      host: "localhost",
+      port: 6379,
+    });
+  });
+
+  it("returns an ioredis Cluster instance when REDIS_CLUSTER=true", () => {
+    process.env.REDIS_CLUSTER = "true";
+    const conn = bullConnectionFromUrl("rediss://cache.example.net:6380");
+    expect(conn).toBeInstanceOf(Cluster);
+    (conn as Cluster).disconnect();
   });
 });

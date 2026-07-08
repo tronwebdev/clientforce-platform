@@ -1,5 +1,5 @@
 import type { ConnectionOptions } from "bullmq";
-import { Redis } from "ioredis";
+import { Cluster, Redis, type RedisOptions } from "ioredis";
 
 /**
  * Shared BullMQ key prefix, hash-tagged for Redis Cluster: BullMQ's multi-key
@@ -23,12 +23,67 @@ export const WORKER_HEARTBEAT_KEY = "cf:worker:heartbeat";
  * unhandled `error` event kills the process (observed as a risk in the
  * staging-Redis outage diagnosis, 2026-07-07).
  */
-export function createRedisClient(url: string): Redis {
+export function createRedisClient(url: string): Redis | Cluster {
+  if (redisClusterEnabled()) return clusterFromUrl(url, { maxRetriesPerRequest: 2 });
   const client = new Redis(url, { maxRetriesPerRequest: 2 });
   client.on("error", (err: unknown) => {
     console.error("[redis] connection error", err instanceof Error ? err.message : err);
   });
   return client;
+}
+
+/**
+ * `REDIS_CLUSTER=true` (set by infra/main.bicep on api + worker) switches every
+ * Redis client to cluster mode. The flag is explicit rather than sniffed: a
+ * standalone client against the OSS-cluster-policy staging cache doesn't fail
+ * on connect — it fails per-key with `MOVED <slot> <ip>:<port>` whenever the
+ * slot lives on another shard (the layer after the 2026-07-08 WRONGPASS fix:
+ * upload → enqueue → MOVED 4633 → 500), and a cluster client against plain
+ * local Redis fails outright (`CLUSTER SLOTS` is disabled there).
+ */
+export function redisClusterEnabled(flag = process.env.REDIS_CLUSTER): boolean {
+  return flag === "1" || flag?.toLowerCase() === "true";
+}
+
+/**
+ * Cluster client for an Azure OSS-cluster-policy cache, built from the same
+ * URL shape as everything else. Two Azure-documented quirks: `CLUSTER SLOTS`
+ * announces shard nodes by raw IP, so (1) `dnsLookup` must pass the address
+ * through un-resolved, and (2) TLS must pin SNI/verification to the cache
+ * hostname or every shard connection fails its certificate check.
+ */
+function clusterFromUrl(url: string, redisOverrides: RedisOptions = {}): Cluster {
+  const { host, port, ...nodeOptions } = redisOptionsFromUrl(url) as RedisOptions & {
+    host: string;
+    port: number;
+  };
+  const cluster = new Redis.Cluster([{ host, port }], {
+    dnsLookup: (address, callback) => callback(null, address),
+    redisOptions: { ...nodeOptions, ...redisOverrides },
+  });
+  cluster.on("error", (err: unknown) => {
+    console.error("[redis-cluster] connection error", err instanceof Error ? err.message : err);
+  });
+  return cluster;
+}
+
+/**
+ * The connection every BullMQ Queue/Worker construction must use: plain
+ * options normally (BullMQ manages its own standalone clients), a `Cluster`
+ * instance when `REDIS_CLUSTER` is set — BullMQ only speaks cluster when
+ * handed an instance; options always instantiate a standalone client, which
+ * cannot follow MOVED redirects. `maxRetriesPerRequest` is left at the ioredis
+ * default so producers still surface errors instead of queueing forever
+ * (BullMQ nulls it internally where blocking commands require it).
+ */
+export function bullConnectionFromUrl(url: string): ConnectionOptions {
+  // Cast: bullmq's ConnectionOptions names the Cluster type from its OWN
+  // ioredis dependency (5.10.x), which is nominally distinct from ours
+  // (5.11.x) under pnpm strict node_modules — same runtime class, types-only
+  // skew.
+  return redisClusterEnabled()
+    ? (clusterFromUrl(url) as unknown as ConnectionOptions)
+    : redisOptionsFromUrl(url);
 }
 
 /**

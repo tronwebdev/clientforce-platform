@@ -8,7 +8,7 @@
  * shared-secret URL token before anything here runs.
  */
 import { Queue } from "bullmq";
-import { BULL_PREFIX } from "@clientforce/events";
+import { BULL_PREFIX, bullConnectionFromUrl } from "@clientforce/events";
 import type { ConnectionOptions } from "bullmq";
 import { withTenant, type Message, type PrismaClient } from "@clientforce/db";
 
@@ -183,7 +183,8 @@ export interface ClassifyJobData {
 
 export function createClassifyQueue(connection?: ConnectionOptions): Queue<ClassifyJobData> {
   return new Queue<ClassifyJobData>(INBOUND_CLASSIFY_QUEUE, {
-    connection: connection ?? { url: process.env.REDIS_URL },
+    connection:
+      connection ?? bullConnectionFromUrl(process.env.REDIS_URL ?? "redis://localhost:6379"),
     prefix: BULL_PREFIX,
   });
 }

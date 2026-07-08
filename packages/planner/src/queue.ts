@@ -1,5 +1,5 @@
 import { Queue, Worker, type ConnectionOptions } from "bullmq";
-import { BULL_PREFIX, redisOptionsFromUrl } from "@clientforce/events";
+import { BULL_PREFIX, bullConnectionFromUrl } from "@clientforce/events";
 import { planCampaign, type PlanDeps, type PlanTarget } from "./plan";
 
 export const PLANNER_QUEUE_NAME = "clientforce.planner.plan";
@@ -9,7 +9,7 @@ export const PLANNER_QUEUE_NAME = "clientforce.planner.plan";
 // ending in `=` — 2026-07-08 staging outage) and lacked SNI/username/db.
 const connectionFrom = (
   redisUrl = process.env.REDIS_URL ?? "redis://localhost:6379",
-): ConnectionOptions => redisOptionsFromUrl(redisUrl);
+): ConnectionOptions => bullConnectionFromUrl(redisUrl);
 
 /** Enqueue a planning run (the wizard's step-2 "drafting sequence" polls the graph). */
 export function createPlanQueue(redisUrl?: string): Queue<PlanTarget> {
