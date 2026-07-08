@@ -8,6 +8,7 @@
  * "opened twice, clicked, went cold" is visible at classification time.
  */
 import { Worker, type ConnectionOptions, type Job } from "bullmq";
+import { BULL_PREFIX } from "@clientforce/events";
 import type { AiGateway } from "@clientforce/ai";
 import { withTenant, type PrismaClient } from "@clientforce/db";
 import { IntentSchema, type EventBus, type Intent } from "@clientforce/events";
@@ -126,7 +127,7 @@ export function createClassifyWorker(deps: ClassifyWorkerDeps): Worker<ClassifyJ
 
       return { intent };
     },
-    { connection: deps.connection ?? { url: process.env.REDIS_URL } },
+    { connection: deps.connection ?? { url: process.env.REDIS_URL }, prefix: BULL_PREFIX },
   );
 }
 

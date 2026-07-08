@@ -1,4 +1,5 @@
 import { Queue, Worker, type ConnectionOptions } from "bullmq";
+import { BULL_PREFIX } from "@clientforce/events";
 import { planCampaign, type PlanDeps, type PlanTarget } from "./plan";
 
 export const PLANNER_QUEUE_NAME = "clientforce.planner.plan";
@@ -17,7 +18,7 @@ const connectionFrom = (
 
 /** Enqueue a planning run (the wizard's step-2 "drafting sequence" polls the graph). */
 export function createPlanQueue(redisUrl?: string): Queue<PlanTarget> {
-  return new Queue<PlanTarget>(PLANNER_QUEUE_NAME, { connection: connectionFrom(redisUrl) });
+  return new Queue<PlanTarget>(PLANNER_QUEUE_NAME, { connection: connectionFrom(redisUrl), prefix: BULL_PREFIX });
 }
 
 export function createPlanWorker(deps: PlanDeps, redisUrl?: string): Worker<PlanTarget> {
@@ -26,6 +27,6 @@ export function createPlanWorker(deps: PlanDeps, redisUrl?: string): Worker<Plan
     async (job) => {
       await planCampaign(deps, job.data);
     },
-    { connection: connectionFrom(redisUrl), concurrency: 2 },
+    { connection: connectionFrom(redisUrl), prefix: BULL_PREFIX, concurrency: 2 },
   );
 }

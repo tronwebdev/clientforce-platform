@@ -23,6 +23,7 @@
     "@azure/storage-blob": "^12.26.0",
     "@clientforce/ai": "workspace:*",
     "@clientforce/db": "workspace:*",
+    "@clientforce/events": "workspace:*",
     "bullmq": "^5.34.0",
     "ioredis": "^5.4.1",
     "linkedom": "^0.18.6",

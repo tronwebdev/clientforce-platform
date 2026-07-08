@@ -1,4 +1,5 @@
 import { Queue, Worker, type ConnectionOptions } from "bullmq";
+import { BULL_PREFIX } from "@clientforce/events";
 import { distill, type DistillDeps, type DistillTarget } from "./distill";
 
 export const CONTEXT_QUEUE_NAME = "clientforce.context.distill";
@@ -17,7 +18,7 @@ const connectionFrom = (
 
 /** Enqueue a (re-)distill — the API on typed answers, the ingest worker on READY sources. */
 export function createDistillQueue(redisUrl?: string): Queue<DistillTarget> {
-  return new Queue<DistillTarget>(CONTEXT_QUEUE_NAME, { connection: connectionFrom(redisUrl) });
+  return new Queue<DistillTarget>(CONTEXT_QUEUE_NAME, { connection: connectionFrom(redisUrl), prefix: BULL_PREFIX });
 }
 
 export function createDistillWorker(deps: DistillDeps, redisUrl?: string): Worker<DistillTarget> {
@@ -26,6 +27,6 @@ export function createDistillWorker(deps: DistillDeps, redisUrl?: string): Worke
     async (job) => {
       await distill(deps, job.data);
     },
-    { connection: connectionFrom(redisUrl), concurrency: 2 },
+    { connection: connectionFrom(redisUrl), prefix: BULL_PREFIX, concurrency: 2 },
   );
 }

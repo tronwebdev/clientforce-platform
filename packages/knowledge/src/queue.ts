@@ -1,4 +1,5 @@
 import { Queue, Worker, type ConnectionOptions } from "bullmq";
+import { BULL_PREFIX } from "@clientforce/events";
 import { ingestSource, type IngestDeps, type IngestJobPayload } from "./pipeline";
 
 export const KNOWLEDGE_QUEUE_NAME = "clientforce.knowledge.ingest";
@@ -18,7 +19,7 @@ const connectionFrom = (
 /** Enqueue an ingestion run for a source (the API calls this on create/re-ingest). */
 export function createIngestQueue(redisUrl?: string): Queue<IngestJobPayload> {
   return new Queue<IngestJobPayload>(KNOWLEDGE_QUEUE_NAME, {
-    connection: connectionFrom(redisUrl),
+    connection: connectionFrom(redisUrl), prefix: BULL_PREFIX,
   });
 }
 
@@ -27,6 +28,6 @@ export function createIngestWorker(deps: IngestDeps, redisUrl?: string): Worker<
   return new Worker<IngestJobPayload>(
     KNOWLEDGE_QUEUE_NAME,
     async (job) => ingestSource(deps, job.data),
-    { connection: connectionFrom(redisUrl), concurrency: 2 },
+    { connection: connectionFrom(redisUrl), prefix: BULL_PREFIX, concurrency: 2 },
   );
 }

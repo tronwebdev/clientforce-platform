@@ -1,6 +1,17 @@
 import type { ConnectionOptions } from "bullmq";
 import { Redis } from "ioredis";
 
+/**
+ * Shared BullMQ key prefix, hash-tagged for Redis Cluster: BullMQ's multi-key
+ * Lua scripts require every key in one hash slot, and the braces make
+ * `{cf}:…:wait` / `{cf}:…:active` hash together. Without this, a clustered
+ * cache (Azure Managed Redis / OSS cluster policy) rejects every script with
+ * CROSSSLOT — the 2026-07-08 staging diagnosis. Plain (non-cluster) Redis
+ * treats the braces as ordinary characters, so local/dev behavior is
+ * unchanged. EVERY Queue/Worker construction must pass this prefix.
+ */
+export const BULL_PREFIX = "{cf}";
+
 /** Where the worker process writes its liveness heartbeat (GET /system/health reads it). */
 export const WORKER_HEARTBEAT_KEY = "cf:worker:heartbeat";
 

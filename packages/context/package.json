@@ -23,6 +23,7 @@
     "@clientforce/ai": "workspace:*",
     "@clientforce/core": "workspace:*",
     "@clientforce/db": "workspace:*",
+    "@clientforce/events": "workspace:*",
     "@clientforce/knowledge": "workspace:*",
     "bullmq": "^5.34.0",
     "ioredis": "^5.4.1",
