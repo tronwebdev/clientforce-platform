@@ -223,7 +223,10 @@ export function InboxTab({ agentId, goalLabel }: { agentId: string; goalLabel?: 
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 16.5, color: "#0E1512", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{sel.messages[0]?.subject ?? "(no subject)"}</div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
-                    <span style={{ fontSize: 11.5, fontWeight: 700, color: "#16A82A", background: "rgba(53,232,52,.13)", borderRadius: 6, padding: "2px 9px" }}>✉ Email</span>
+                    {/* P2.1: channel-true chips — one per channel in the thread */}
+                    {((sel.channels?.length ? sel.channels : ["email"])).map((c) => (
+                      <span key={c} style={{ fontSize: 11.5, fontWeight: 700, color: c === "sms" ? "#1192A6" : "#16A82A", background: c === "sms" ? "rgba(54,215,237,.14)" : "rgba(53,232,52,.13)", borderRadius: 6, padding: "2px 9px" }}>{c === "sms" ? "💬 SMS" : "✉ Email"}</span>
+                    ))}
                     {sel.intent && tintFor(sel.intent) ? (
                       <span style={{ fontSize: 11.5, fontWeight: 700, color: tintFor(sel.intent)!.fg, background: tintFor(sel.intent)!.bg, borderRadius: 100, padding: "3px 10px" }}>{tintFor(sel.intent)!.label}</span>
                     ) : null}
