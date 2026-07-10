@@ -1,7 +1,10 @@
 # ADR: P3.0 Voice spike — real-time call loop go/no-go
 
-- **Status:** Proposed (spike complete; awaits owner-gated live call for final numbers)
-- **Date:** 2026-07-10
+- **Status:** Accepted — **GO** on the loop and barge-in, proven on a real call
+  (2026-07-10). The **latency promote gate stays OPEN** — reviewer-agreed gate:
+  TTFA **p50 ≤ ~1.2 s AND p95 ≤ ~1.5 s over ≥100 turns with 0 dropped audio**,
+  to be certified by a longer measured run in Phase 3 (see Latency → Promote gate).
+- **Date:** 2026-07-10 (updated same day with live-call numbers)
 - **Decision record:** PROGRESS DEC-066
 - **Scope:** de-risk the Phase-3 long pole (voice) — prove the real-time loop,
   measure it, recommend what "voice in July" can honestly mean. Throwaway code
@@ -10,23 +13,32 @@
 
 ## TL;DR / Verdict
 
-The loop is **architecturally proven and barge-in works**, but the **latency and
-cost tables below are not yet backed by a real phone call** — the live path is
-blocked on one owner action (adding `DEEPGRAM-API-KEY` to Key Vault) plus
-answering a demo call. Everything up to the vendor boundary is built, tested,
-and green: Twilio Media Streams framing, a streaming `Deepgram STT → Claude →
-Deepgram Aura TTS` loop, sentence-chunked TTS for low time-to-first-audio, and
-**deterministic barge-in cancellation** (caller speech drops in-flight TTS via
-Twilio `clear` + aborting the LLM/TTS streams).
+**GO** — the real-time loop and barge-in are **proven on a real phone call**
+(2026-07-10, run 29128990633): a live outbound call carried the full
+`Twilio ⇄ Deepgram STT ⇄ Claude Haiku ⇄ Deepgram Aura TTS` loop over 6 turns,
+the caller interrupted the agent mid-sentence three times, and **end-to-end
+time-to-first-audio measured p50 ≈ 1.17 s** — essentially the same as the
+brain-only synthetic, i.e. STT-endpointing + PSTN added far less than the
+conservative projection. Barge-in cancelled in-flight TTS with **0–3 ms clear
+latency and zero dropped audio**. The `voice` gateway change is additive only.
 
-**Recommendation for July: "designed + waitlist," not live calls at GA.** The
-loop mechanics are a go; the honest blockers are (1) no live-measured latency
-yet, (2) Deepgram is a *new* vendor with no account, secret, or cost history in
-this stack, and (3) none of the productionization (call tools, Calls-tab UI,
-graph voice nodes, recording retention, error handling) is in scope or built.
-Ship voice in July as a **designed, waitlisted capability** with a single
-gated live demo, and promote to live calls once the live run confirms the
-latency budget and Deepgram is onboarded like Twilio/SendGrid were.
+**But the latency promote gate stays OPEN.** The live call is 6 turns; TTFA p95
+rests on **5 samples** and round-trip p95 on **3**. That is enough to prove the
+concept and the p50, not enough to certify an SLO. **Reviewer-agreed promote
+gate:** TTFA **p50 ≤ ~1.2 s AND p95 ≤ ~1.5 s**, measured over **≥100 turns**
+across several calls, with **0 dropped-audio events**. **Promoting to live calls
+requires a longer measured run in Phase 3** to certify that gate under real
+network variance — plus one real endpointing rough edge (below) to tune.
+
+**Recommendation for July: "designed + waitlist," with the gated live demo done
+— not live calls at GA.** The concept is de-risked; the honest remaining
+blockers are (1) an **unverified p95** (small live sample), (2) Deepgram is a
+*new* vendor now onboarded with a Key Vault secret but with no cost/SLA history,
+and (3) none of the productionization (call tools, Calls-tab UI, graph voice
+nodes, recording retention, error handling) is in scope or built. Ship voice in
+July as a **designed, waitlisted capability** with the completed gated demo as
+proof, and promote to live calls once the Phase-3 longer run certifies the p95
+gate and Deepgram is fully onboarded like Twilio/SendGrid.
 
 ---
 
@@ -81,26 +93,47 @@ provisioning is needed for the spike.
 
 ## Latency
 
-**⚠️ These are two different things — read the source column.** The spike ran a
-`fake-brain` synthetic harness (22 scripted caller turns, no telephony, no
-Deepgram/Claude keys) that proves loop **mechanics** but whose timings are
-dominated by a fake TTS that emits silence in real time. The **live** column is
-a component-budget projection from vendor specs, to be replaced by the real run.
+Two measured datasets, plus one obsolete projection kept for the record. Read
+the **source** column — the numbers mean different things:
 
-| Metric (per turn)         | Synthetic (mechanics only) | Live budget (projected) | Source |
-|---------------------------|----------------------------|-------------------------|--------|
-| Endpointing (caller stops → STT final) | n/a (bypassed)  | ~300 ms (Deepgram `endpointing=300`) | vendor |
-| LLM first token           | ~12 ms (fake)              | ~300–500 ms (Haiku streaming) | projected |
-| **Time-to-first-audio (TTFA)** | p50 94 ms / p95 191 ms (fake TTS) | **~0.8–1.2 s** (STT final + LLM first token + Aura TTFB) | projected |
-| Per-turn round trip (full reply spoken) | p50 4.6 s / p95 6.7 s (fake real-time silence) | **~1.5–3 s** depending on reply length | projected |
-| Dropped-audio events      | **0 / 22 turns**          | to be measured | synthetic |
-| PSTN transport (each way) | n/a                       | ~100–300 ms (caller-heard only) | vendor |
+- **live-brain** (run 29128725976): 22 scripted-caller turns, **real** Claude
+  Haiku + **real** Deepgram Aura TTS, no telephony. Measures brain + TTS with a
+  large sample; STT and PSTN are *not* exercised (caller text is scripted).
+- **real call** (run 29128990633): **an actual outbound phone call**, 6 turns /
+  76.5 s, the full loop including live Deepgram STT and PSTN. End-to-end, but a
+  small sample.
 
-**What the synthetic run genuinely establishes:** the state machine sustains 22
-back-to-back turns with **0 dropped-audio events**, TTS starts on the first
-closed sentence (not the whole reply), and per-turn usage/cost accounting fires
-exactly once per turn through the gateway hook. The **live TTFA number is the
-single most important unknown** and the reason for the gated demo call.
+| Metric (per turn) | live-brain (22 turns) | **real call (6 turns)** | Source |
+|---|---|---|---|
+| LLM first token (Haiku, streaming) | p50 541 ms · p95 2328 ms | p50 506 ms · p95 907 ms | measured |
+| **Time-to-first-audio (TTFA)** | p50 1093 ms · p95 2839 ms (18) | **p50 1169 ms · p95 1712 ms (5)** | measured — real call is end-to-end (STT + PSTN incl.) |
+| Per-turn round trip (full reply spoken) | p50 6049 ms · p95 8968 ms (18) | p50 5399 ms · p95 7257 ms (3) | measured |
+| **Barge-in clear latency** | 0–1 ms (4) | **0–3 ms (4, incl. a greeting interrupt)** | measured |
+| Dropped-audio events | **0 / 22** | **0 / 6** | measured |
+
+**The headline finding:** real end-to-end TTFA (with STT-endpointing + PSTN
+*included*) came in at **p50 ~1.17 s — within noise of the brain-only
+synthetic's ~1.09 s.** The earlier component-budget projection (~0.8–1.2 s TTFA,
+with a 1.4–3.3 s worst case once STT+PSTN were added) was **too pessimistic on
+the added legs**: Deepgram's endpointing overlaps caller silence the human is
+already producing, and PSTN transport is small. TTS starts on the first closed
+sentence (sentence-chunked), so the caller hears the reply begin well before it
+finishes generating.
+
+### Promote gate (OPEN)
+
+The **p50 is proven acceptable; the p95 is not yet certified.** The real-call
+p95 numbers rest on 5 (TTFA) and 3 (round-trip) samples — enough to disprove a
+disaster, not enough to promise an SLO under real network variance.
+
+**Reviewer-agreed promote gate (to move from waitlist to live calls):**
+
+- TTFA **p50 ≤ ~1.2 s** AND **p95 ≤ ~1.5 s**,
+- measured over **≥100 turns** across several calls and network conditions,
+- with **0 dropped-audio events**.
+
+Certifying that gate is a **Phase-3 longer run**. Until it exists, the verdict is
+GO-on-concept, **not** GO-on-SLO.
 
 ---
 
@@ -116,11 +149,14 @@ Per-minute list prices (2026-07, USD; verify against first invoices):
 | Twilio outbound US voice | $0.014 / min | same account as SMS |
 | **Estimated total** | **~$0.05–0.08 / min** | dominated by TTS chars + Twilio |
 
-The synthetic run's cost model (wired end-to-end, TTS+LLM+Twilio) produced
-**~$0.042/min** on short scripted replies; real calls with fuller replies land
-nearer the top of the range. STT is nearly free; **TTS character volume is the
-cost driver**, which makes reply brevity (the 300-token cap) both a latency and
-a cost lever.
+**Measured on the real call** (6 turns / 76.5 s): STT $0.0074 · TTS $0.0158 ·
+LLM $0.0019 · Twilio $0.0178 → **$0.043 total ≈ $0.034/min** (the live-brain
+synthetic, with longer replies and no real STT, logged ~$0.075/min — the top of
+the range). STT is the cheapest leg even when exercised; **Twilio + TTS
+character volume dominate**, which makes reply brevity (the 300-token cap) both
+a latency and a cost lever. Real per-minute cost will vary with reply length and
+call duration, but **~$0.03–0.08/min is confirmed as the right order of
+magnitude.**
 
 ---
 
@@ -134,24 +170,28 @@ the agent is speaking, `CallSession`:
    stream and the Aura TTS fetch mid-flight (the gateway's `streamVoice`
    propagates the abort and still logs usage on the way out).
 
-Proven deterministically in `apps/voice/test/barge-in.test.ts` and exercised
-4×/22 turns in the synthetic run: every barge-in fired `clear` exactly once,
-marked the turn `interrupted`, and recorded no full round-trip for the cut turn.
-The **clear-latency will be re-measured live** (the synthetic harness fires the
-interrupt in-process, so its 0 ms figure is not meaningful); the mechanism
-itself is not in doubt.
+Proven deterministically in `apps/voice/test/barge-in.test.ts`, exercised 4×/22
+turns in the synthetic run, and — decisively — **confirmed on the real call**:
+the caller interrupted the agent three times (e.g. the reply "You're in sales —
+I␣" was clipped mid-word) plus once during the greeting, each firing `clear`
+exactly once with **0–3 ms clear latency and zero dropped audio**. Live barge-in
+is not a projection anymore; it works on a real PSTN call.
 
 ---
 
 ## The three biggest risks for the production build
 
-1. **Live latency is unmeasured, and voice is unforgiving.** TTFA above ~1.2 s
-   reads as a laggy, talk-over-y call. The projection is a budget, not a
-   measurement — the real STT-endpointing + Haiku-first-token + Aura-TTFB sum on
-   a real PSTN call is the gate. If it lands high, the fix space (lower
-   endpointing, smaller model, pre-warming, regional endpoints) is real but
-   unbudgeted. **Mitigation:** run the live `synthetic-call`/`demo-call` modes
-   the moment `DEEPGRAM-API-KEY` lands; treat measured TTFA as the promote gate.
+1. **p95 latency is unverified, and STT endpointing fragments real speech.**
+   The real call proved p50 TTFA ~1.17 s (good), but p95 rests on 5 samples —
+   not an SLO. And a real rough edge surfaced: **Deepgram's endpointing split
+   the caller's sentences** ("So we are doing currently, we run" / "afternoon," /
+   "sales.") so the agent occasionally replied to a partial utterance. Voice is
+   unforgiving — a laggy p95 or a mistimed endpoint both read as "the bot talks
+   over me." **Mitigation:** the Phase-3 longer run (≥100 turns) certifies the
+   p95 gate; tune `endpointing`/`utterance_end_ms`/VAD (and consider Deepgram
+   `smart_format`/interim-stability) so turn boundaries track real speech. The
+   fix space (endpointing tuning, pre-warming, regional endpoints) is real; it's
+   now a *tuning* task, not a *proof* task.
 
 2. **Deepgram is a brand-new third-party dependency.** Everything else (Twilio,
    SendGrid, Anthropic, OpenAI) is already onboarded with Key Vault secrets,
@@ -184,12 +224,17 @@ itself is not in doubt.
   waitlisted** capability (the Calls tab already exists as an inert route per
   A5). This is truthful, demoable to the owner, and carries no promise the
   backend can't keep.
-- **Defer past July (promote gate = measured live TTFA ≤ ~1.2 s p95 + Deepgram
-  onboarded):** live outbound/inbound calls at scale, call tools, graph voice
-  nodes, recording retention, and production error handling.
+- **Defer past July — reviewer-agreed promote gate (OPEN):** a Phase-3 longer
+  measured run (**≥100 turns** across several calls) certifying TTFA **p50 ≤
+  ~1.2 s AND p95 ≤ ~1.5 s** with **0 dropped audio**, endpointing tuned so it
+  stops fragmenting real speech, and Deepgram fully onboarded (cost/SLA history,
+  alerting, fallback path). Only then do live outbound/inbound calls at scale,
+  call tools, graph voice nodes, recording retention, and production error
+  handling become in-scope.
 
-The loop is not the risk anymore; the **unmeasured live latency and the new
-vendor** are. Buy those down with one real call before promising live voice.
+The loop is no longer the risk — the real call proved it. What remains is an
+**unverified p95** and a **new vendor**: certify the former with a longer run
+and onboard the latter before promising live voice.
 
 ---
 
@@ -216,18 +261,18 @@ takes email and SMS.
 - **`demo-call`** — one recorded outbound call to `SMS-TEST-NUMBER`. Requires
   `DEEPGRAM-API-KEY` and a `VOICE-FROM-NUMBER` secret.
 
-## Owner action to unlock the live numbers (non-technical, step by step)
+## Live run — DONE (2026-07-10)
 
-1. Create a Deepgram account at deepgram.com and copy its **API key** (Deepgram
-   dashboard → **API Keys** → **Create a Key**).
-2. Add it to Azure Key Vault as a secret named **`DEEPGRAM-API-KEY`**
-   (Azure Portal → the `clientforce-kv` vault → **Secrets** → **Generate/Import**
-   → Name = `DEEPGRAM-API-KEY`, Value = the key → **Create**).
-3. Add the Voice-capable Twilio number in E.164 form (e.g. `+1...`) as a secret
-   named **`VOICE-FROM-NUMBER`** the same way.
-4. Tell us, and we run `voice-live-spike` in `demo-call` mode — your test phone
-   rings, you have a short chat, and we attach the recording + real latency
-   table to this PR.
+Both secrets (`DEEPGRAM-API-KEY`, `VOICE-FROM-NUMBER`) are in `clientforce-kv`,
+and all three modes have run on `main`:
 
-Until then, this ADR ships with synthetic-mechanics numbers and a projected
-live budget, clearly labelled as such.
+- `synthetic-call` (run 29128725976) — live-brain, 22 turns, numbers above.
+- `demo-call` (run 29128990633) — **a real outbound call** to the owner's test
+  number, 6 turns, recorded (recording in the Twilio console); numbers above.
+- `preflight` (run 29128722774) — failed on a cloudflared-hostname DNS-propagation
+  race (single `curl`, no retry); fixed separately.
+
+**Next step to close the promote gate (Phase 3):** a longer measured run
+(≥100 turns) to certify TTFA p95 and confirm dropped-audio stays at zero at
+volume, plus endpointing tuning. That run — not another owner action — is what
+moves voice from "designed + waitlist" to live calls.
