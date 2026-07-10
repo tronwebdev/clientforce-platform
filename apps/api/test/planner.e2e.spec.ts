@@ -21,6 +21,8 @@ const SECRET = process.env.AUTH_DEV_SECRET ?? "test-dev-secret";
 const suffix = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 
 const FACT = "free growth audit";
+// M1b (DEC-066): the fake emits the v4 shape — six-case REPLY PLAYBOOK with
+// stage pins and strategy steps (validateAll requires it at generation).
 const goodGraph = (prompt: string) => ({
   entry: "step-1",
   nodes: [
@@ -39,16 +41,31 @@ const goodGraph = (prompt: string) => ({
       type: "branch",
       on: "reply",
       cases: [
-        { when: { intent: "interested" }, goto: "end-won" },
+        { when: { intent: "interested" }, goto: "end-won", pipeline: "booked" },
+        { when: { intent: "objection_price" }, goto: "step-reframe", pipeline: "replied" },
+        { when: { intent: "objection_timing" }, goto: "step-ack", pipeline: "replied" },
+        { when: { intent: "wrong_person" }, goto: "step-referral", pipeline: "replied" },
+        { when: { intent: "info_request" }, goto: "step-answer", pipeline: "replied" },
+        { when: { intent: "not_interested" }, goto: "step-close", pipeline: "lost" },
         { when: "default", goto: "end-lost" },
       ],
     },
+    { id: "step-reframe", type: "step", channel: "email", content: { body: "Value first, {{firstName}}.", threaded: true } },
+    { id: "step-ack", type: "step", channel: "email", content: { body: "Understood — later then.", threaded: true } },
+    { id: "step-referral", type: "step", channel: "email", content: { body: "Who should I ask?", threaded: true } },
+    { id: "step-answer", type: "step", channel: "email", content: { body: "Here is the answer.", threaded: true } },
+    { id: "step-close", type: "step", channel: "email", content: { body: "All good — door's open.", threaded: true } },
     { id: "end-won", type: "end" },
     { id: "end-lost", type: "end" },
   ],
   edges: [
     { from: "step-1", to: "delay-1" },
     { from: "delay-1", to: "branch-reply" },
+    { from: "step-reframe", to: "branch-reply" },
+    { from: "step-ack", to: "branch-reply" },
+    { from: "step-referral", to: "end-lost" },
+    { from: "step-answer", to: "branch-reply" },
+    { from: "step-close", to: "end-lost" },
   ],
 });
 

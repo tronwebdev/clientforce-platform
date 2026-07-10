@@ -1,6 +1,9 @@
 # P1.7 live verification (§G): the closed loop — enroll → real SendGrid
 # SANDBOX send → simulated inbound reply → REAL Sonnet classification → bus →
 # temporal signal → branch → stage change; plus the unsubscribe stop path.
+# M1b (DEC-066) legs: the classifier-v2 pinned fixture matrix (REAL model),
+# the objection_price → value-reframe → interested → booked path on the
+# six-case playbook graph, and not_interested → lost with ZERO suppression.
 # Manual dispatch only — keys from Key Vault via the deploy OIDC identity.
 name: inbound-live-proof
 
