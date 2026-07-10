@@ -70,6 +70,30 @@ export async function resolveInboundSmsThread(
   };
 }
 
+/**
+ * DEC-064: consent fails safe. A STOP whose thread can't resolve (no prior
+ * outbound sms Message row) must still suppress — every workspace holding a
+ * contact with the sender's phone is a target. The digits-length guard keeps
+ * a malformed `From` from matching every contact via `contains`.
+ */
+export interface SmsStopFallbackTarget {
+  workspaceId: string;
+  contactId: string;
+}
+
+export async function resolveSmsStopFallback(
+  owner: PrismaClient,
+  phone: string,
+): Promise<SmsStopFallbackTarget[]> {
+  const digits = phone.replace(/^\+/, "");
+  if (digits.length < 7) return [];
+  const contacts = await owner.contact.findMany({
+    where: { phone: { contains: digits } },
+    select: { id: true, workspaceId: true },
+  });
+  return contacts.map((c) => ({ workspaceId: c.workspaceId, contactId: c.id }));
+}
+
 export interface IngestInboundSmsDeps {
   owner: PrismaClient;
   app: PrismaClient;
