@@ -72,6 +72,19 @@ jobs:
               print(f"SendGrid authentication for {send_domain} already exists (id={match['id']}).")
 
           print(f"id: {match['id']}  valid: {match.get('valid')}")
+
+          # Trigger SendGrid's validation — it only re-checks DNS on demand
+          # (same as the dashboard's Verify button), and the per-record verdict
+          # comes from SendGrid's resolvers, not ours.
+          try:
+              verdict = call("POST", f"/whitelabel/domains/{match['id']}/validate")
+              print(f"validation attempted: valid={verdict.get('valid')}")
+              for name, rec in (verdict.get("validation_results") or {}).items():
+                  print(f"  [{name}] valid={rec.get('valid')}  reason={rec.get('reason')}")
+          except Exception as e:
+              print(f"validation call failed: {e}")
+
+          match = call("GET", f"/whitelabel/domains/{match['id']}")
           print()
           print("DNS records to add (type · host · value):")
           for name, rec in (match.get("dns") or {}).items():
