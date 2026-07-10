@@ -17,6 +17,9 @@ const ALLOWED: Role[] = ["OWNER", "ADMIN"];
 export default async function SettingsPage() {
   const me = await fetchMe();
   if (!me) redirect("/login");
+  // A3 (DEC-060): membership-less principal — the shell layout renders the
+  // first-run modal; the page contributes nothing.
+  if ("noWorkspace" in me) return null;
 
   if (!ALLOWED.includes(me.role)) {
     return (

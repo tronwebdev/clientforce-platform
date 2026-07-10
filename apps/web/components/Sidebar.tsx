@@ -87,6 +87,14 @@ export function Sidebar({ me }: { me: Me }) {
 
   async function signOut() {
     await fetch("/api/auth/logout", { method: "POST" });
+    // A3 (DEC-060): in Clerk mode the Clerk session must end too, or the
+    // middleware bounces the user straight back in. The provider exposes the
+    // global; absent (dev mode) we fall through to the dev login.
+    const clerk = (window as { Clerk?: { signOut?: (o?: { redirectUrl?: string }) => Promise<void> } }).Clerk;
+    if (clerk?.signOut) {
+      await clerk.signOut({ redirectUrl: "/sign-in" });
+      return;
+    }
     window.location.href = "/login";
   }
 

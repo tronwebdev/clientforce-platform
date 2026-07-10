@@ -6,12 +6,14 @@ import type { EmailSender, RenderedEmail, SendResult } from "./types";
  * CF_MANAGED (shared pool) — SendGrid v3 via fetch, platform key from Key
  * Vault (`SENDGRID-API-KEY`). SANDBOX MODE by default until P1.8 (issue
  * P1.5): SendGrid validates and accepts the payload but delivers nothing;
- * `CHANNELS_SANDBOX=false` turns real delivery on, deliberately.
+ * A3 (DEC-060a): `SENDGRID_SANDBOX` controls delivery (fallback: the legacy
+ * `CHANNELS_SANDBOX`). Default is ON everywhere — real delivery is only ever
+ * turned on deliberately, by production config, behind the domain-auth gate.
  */
 export class SendGridSender implements EmailSender {
   constructor(
     private readonly apiKey = process.env.SENDGRID_API_KEY,
-    private readonly sandbox = process.env.CHANNELS_SANDBOX !== "false",
+    private readonly sandbox = (process.env.SENDGRID_SANDBOX ?? process.env.CHANNELS_SANDBOX) !== "false",
     private readonly baseUrl = process.env.SENDGRID_BASE_URL ?? "https://api.sendgrid.com",
     private readonly fetchImpl: typeof fetch = fetch,
   ) {}

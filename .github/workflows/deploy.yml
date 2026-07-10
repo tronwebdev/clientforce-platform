@@ -103,6 +103,16 @@ jobs:
             sgWebhookKey=false
             echo "SENDGRID-WEBHOOK-PUBLIC-KEY not in Key Vault yet — signed event webhooks stay rejected (P1.7 owner step)."
           fi
+          # A3 (DEC-060): all four Clerk secrets must be present to wire Clerk.
+          clerk=true
+          for name in CLERK-PUBLISHABLE-KEY CLERK-SECRET-KEY CLERK-JWKS-URL CLERK-ISSUER; do
+            if ! az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name "$name" --query id -o tsv >/dev/null 2>&1; then
+              clerk=false
+            fi
+          done
+          if [ "$clerk" = false ]; then
+            echo "Clerk secrets not (fully) in Key Vault — the deploy stays on dev-token auth (A3 owner step)."
+          fi
           az deployment group create \
             --resource-group "$RG" \
             --template-file infra/main.bicep \
@@ -116,7 +126,8 @@ jobs:
               storageSecretAvailable="$storage" \
               temporalSecretsAvailable="$temporal" \
               inboundTokenAvailable="$inboundToken" \
-              sgWebhookKeyAvailable="$sgWebhookKey"
+              sgWebhookKeyAvailable="$sgWebhookKey" \
+              clerkSecretsAvailable="$clerk"
 
       # ── Expose the deployed web FQDN for the e2e job ──
       - name: Resolve web FQDN

@@ -85,3 +85,15 @@ if [ "$rbac_ok" -ne 1 ]; then
   exit 1
 fi
 echo "Preflight passed — environment, required secrets, and deploy RBAC all present."
+
+# A3 (DEC-060): Clerk goes live only when all four secrets exist — warn on a
+# partial set (half-configured vault = confusing auth behavior).
+clerk_present=0
+for name in CLERK-PUBLISHABLE-KEY CLERK-SECRET-KEY CLERK-JWKS-URL CLERK-ISSUER; do
+  if grep -qxF "$name" <<<"$present"; then clerk_present=$((clerk_present + 1)); fi
+done
+if [ "$clerk_present" -eq 0 ]; then
+  echo "::notice::Clerk secrets absent — this deploy stays on dev-token auth (A3 owner step)."
+elif [ "$clerk_present" -lt 4 ]; then
+  echo "::warning::Only $clerk_present/4 Clerk secrets present (need CLERK-PUBLISHABLE-KEY, CLERK-SECRET-KEY, CLERK-JWKS-URL, CLERK-ISSUER) — Clerk stays OFF until all four exist."
+fi

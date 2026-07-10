@@ -1,22 +1,28 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server";
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
 const SESSION_COOKIE = "cf_session";
+// A3 (DEC-060): dual-mode — Clerk only when the publishable key is configured;
+// otherwise the legacy cookie guard runs byte-identically (CI/e2e: zero Clerk env).
+const clerkEnabled = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
 
 /** Public paths that don't require a session. */
 function isPublic(pathname: string): boolean {
   return (
     pathname === "/login" ||
     pathname === "/design" ||
+    pathname.startsWith("/sign-in") ||
+    pathname.startsWith("/sign-up") ||
     pathname.startsWith("/api/auth/")
   );
 }
 
 /**
- * Auth route guard: unauthenticated requests to protected routes are redirected
- * to /login (with a `next` param); an authenticated user hitting /login is sent
- * to the shell. Role checks happen server-side in the shell using /me.
+ * Legacy (dev-token) guard: unauthenticated requests to protected routes are
+ * redirected to /login (with a `next` param); an authenticated user hitting
+ * /login is sent to the shell. Role checks happen server-side using /me.
  */
-export function middleware(req: NextRequest): NextResponse {
+function legacyMiddleware(req: NextRequest): NextResponse {
   const { pathname } = req.nextUrl;
   const session = req.cookies.get(SESSION_COOKIE)?.value;
 
@@ -35,6 +41,24 @@ export function middleware(req: NextRequest): NextResponse {
   }
 
   return NextResponse.next();
+}
+
+const isPublicRoute = createRouteMatcher([
+  "/sign-in(.*)",
+  "/sign-up(.*)",
+  "/login",
+  "/design",
+  "/api/auth(.*)",
+]);
+
+/** Clerk guard: same policy, Clerk session instead of the dev cookie. */
+const clerkGuard = clerkMiddleware(async (auth, req) => {
+  if (!isPublicRoute(req)) await auth.protect();
+});
+
+/** Dispatches per mode; named export keeps the legacy guard unit-testable. */
+export function middleware(req: NextRequest, event: NextFetchEvent) {
+  return clerkEnabled ? clerkGuard(req, event) : legacyMiddleware(req);
 }
 
 export const config = {

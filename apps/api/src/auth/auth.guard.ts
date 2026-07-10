@@ -9,7 +9,7 @@ import {
 import { Reflector } from "@nestjs/core";
 import type { Role } from "@clientforce/db";
 import { PrismaService } from "../db/prisma.service";
-import { IS_PUBLIC_KEY } from "./decorators";
+import { ALLOW_NO_MEMBERSHIP_KEY, IS_PUBLIC_KEY } from "./decorators";
 import { mapOrgRole } from "./role-map";
 import type { AuthenticatedRequest, MembershipView } from "./request-context";
 import { TOKEN_VERIFIER, type TokenVerifier } from "./token-verifier";
@@ -62,7 +62,7 @@ export class AuthGuard implements CanActivate {
       throw new UnauthorizedException("Token has no subject");
     }
 
-    const user = await this.prisma.admin.user.findFirst({
+    let user = await this.prisma.admin.user.findFirst({
       where: {
         OR: [
           ...(claims.sub ? [{ authProviderId: claims.sub }] : []),
@@ -70,7 +70,24 @@ export class AuthGuard implements CanActivate {
         ],
       },
     });
-    if (!user) throw new UnauthorizedException("Unknown principal");
+    // A3 (DEC-060): first login lazily upserts the User. A verified token with
+    // an unknown subject creates the row (email claim REQUIRED — Clerk setup
+    // adds it to the session token); a seeded user matched by email gets the
+    // provider id linked. A sub/email mismatch on an already-linked user is an
+    // identity conflict, never a silent takeover.
+    if (!user) {
+      if (!claims.sub || !claims.email) throw new UnauthorizedException("Unknown principal");
+      user = await this.prisma.admin.user.create({
+        data: { email: claims.email, name: claims.name ?? null, authProviderId: claims.sub },
+      });
+    } else if (claims.sub && user.authProviderId === null) {
+      user = await this.prisma.admin.user.update({
+        where: { id: user.id },
+        data: { authProviderId: claims.sub },
+      });
+    } else if (claims.sub && user.authProviderId !== claims.sub) {
+      throw new UnauthorizedException("Principal conflict");
+    }
 
     // Clerk path: resolve workspace by org_id and provision a membership JIT.
     if (claims.orgId) {
@@ -91,7 +108,23 @@ export class AuthGuard implements CanActivate {
       include: { workspace: { include: { agency: true } } },
     });
     if (memberships.length === 0) {
-      throw new ForbiddenException("User has no workspace membership");
+      // A3 (DEC-060): the first-run endpoint may proceed without a membership;
+      // everything else gets a TYPED 403 the web turns into the first-run modal.
+      const allowNoMembership = this.reflector.getAllAndOverride<boolean>(
+        ALLOW_NO_MEMBERSHIP_KEY,
+        [context.getHandler(), context.getClass()],
+      );
+      if (allowNoMembership) {
+        req.auth = {
+          user: { id: user.id, email: user.email, name: user.name },
+          memberships: [],
+          activeWorkspaceId: "",
+          activeAgencyId: "",
+          role: "VIEWER",
+        };
+        return true;
+      }
+      throw new ForbiddenException({ message: "User has no workspace membership", code: "NO_WORKSPACE" });
     }
 
     let active: { workspaceId: string; agencyId: string; role: Role };

@@ -10,5 +10,8 @@ import { ContactsView } from "./ContactsView";
 export default async function ContactsPage() {
   const me = await fetchMe();
   if (!me) redirect("/login");
+  // A3 (DEC-060): membership-less principal — the shell layout renders the
+  // first-run modal; the page contributes nothing.
+  if ("noWorkspace" in me) return null;
   return <ContactsView />;
 }

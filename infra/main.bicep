@@ -39,6 +39,12 @@ param inboundTokenAvailable bool = false
 @description('Whether Key Vault holds SENDGRID-WEBHOOK-PUBLIC-KEY (P1.7 signed event webhook). Probed by the pipeline.')
 param sgWebhookKeyAvailable bool = false
 
+@description('Whether Key Vault holds the Clerk quartet (CLERK-PUBLISHABLE-KEY/CLERK-SECRET-KEY for web, CLERK-JWKS-URL/CLERK-ISSUER for the api verifier — A3/DEC-060). Probed by the pipeline; absent = dev-token auth only.')
+param clerkSecretsAvailable bool = false
+
+@description('SendGrid sandbox mode (A3/DEC-060a). Stays "true" in every environment config by default; ONLY a production parameter file flips it to "false", and the live-send proof gates on domain auth first. Never flip by editing this default.')
+param sendgridSandbox string = 'true'
+
 param apiAppName string = 'clientforce-api'
 param workerAppName string = 'clientforce-worker'
 param webAppName string = 'clientforce-web'
@@ -118,6 +124,23 @@ var inboundTokenEnv = inboundTokenAvailable ? [{ name: 'INBOUND_PARSE_TOKEN', se
 var sgWebhookKeySecret = { name: 'sendgrid-webhook-public-key', keyVaultUrl: '${kvUri}secrets/SENDGRID-WEBHOOK-PUBLIC-KEY', identity: uami.id }
 var sgWebhookKeySecrets = sgWebhookKeyAvailable ? [sgWebhookKeySecret] : []
 var sgWebhookKeyEnv = sgWebhookKeyAvailable ? [{ name: 'SENDGRID_WEBHOOK_PUBLIC_KEY', secretRef: 'sendgrid-webhook-public-key' }] : []
+// A3 (DEC-060): Clerk — api verifies via JWKS (no vendor SDK); web gets the
+// publishable + secret keys. All four ride Key Vault so the public repo never
+// names the Clerk instance.
+var clerkJwksSecret = { name: 'clerk-jwks-url', keyVaultUrl: '${kvUri}secrets/CLERK-JWKS-URL', identity: uami.id }
+var clerkIssuerSecret = { name: 'clerk-issuer', keyVaultUrl: '${kvUri}secrets/CLERK-ISSUER', identity: uami.id }
+var clerkPublishableSecret = { name: 'clerk-publishable-key', keyVaultUrl: '${kvUri}secrets/CLERK-PUBLISHABLE-KEY', identity: uami.id }
+var clerkSecretKeySecret = { name: 'clerk-secret-key', keyVaultUrl: '${kvUri}secrets/CLERK-SECRET-KEY', identity: uami.id }
+var clerkApiSecrets = clerkSecretsAvailable ? [clerkJwksSecret, clerkIssuerSecret] : []
+var clerkApiEnv = clerkSecretsAvailable ? [
+  { name: 'AUTH_JWKS_URL', secretRef: 'clerk-jwks-url' }
+  { name: 'AUTH_ISSUER', secretRef: 'clerk-issuer' }
+] : []
+var clerkWebSecrets = clerkSecretsAvailable ? [clerkPublishableSecret, clerkSecretKeySecret] : []
+var clerkWebEnv = clerkSecretsAvailable ? [
+  { name: 'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY', secretRef: 'clerk-publishable-key' }
+  { name: 'CLERK_SECRET_KEY', secretRef: 'clerk-secret-key' }
+] : []
 
 // ── API (NestJS) — external ingress :3001 ───────────────────────────────────
 resource api 'Microsoft.App/containerApps@2024-03-01' = {
@@ -131,7 +154,7 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
       activeRevisionsMode: 'Single'
       ingress: { external: true, targetPort: 3001, transport: 'auto', allowInsecure: false }
       registries: registries
-      secrets: concat([dbUrlSecret, appDbUrlSecret, authDevSecret, redisUrlSecret, openaiKeySecret, anthropicKeySecret, sendgridKeySecret, fieldEncKeySecret], storageSecrets, temporalSecrets, inboundTokenSecrets, sgWebhookKeySecrets)
+      secrets: concat([dbUrlSecret, appDbUrlSecret, authDevSecret, redisUrlSecret, openaiKeySecret, anthropicKeySecret, sendgridKeySecret, fieldEncKeySecret], storageSecrets, temporalSecrets, inboundTokenSecrets, sgWebhookKeySecrets, clerkApiSecrets)
     }
     template: {
       containers: [
@@ -153,10 +176,13 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'ANTHROPIC_API_KEY', secretRef: 'anthropic-api-key' }
             { name: 'SENDGRID_API_KEY', secretRef: 'sendgrid-api-key' }
             { name: 'FIELD_ENCRYPTION_KEY', secretRef: 'field-encryption-key' }
-            // §G phase rule: allow-listed test sends only; sandbox until P1.8.
+            // §G phase rule: allow-listed test sends only (DEC-014 — the
+            // allow-list REMAINS the recipient filter even when sandbox is off).
             { name: 'CHANNELS_ALLOWLIST', value: 'tronwebng@gmail.com' }
-            { name: 'CHANNELS_SANDBOX', value: 'true' }
-          ], storageEnv, temporalEnv, inboundTokenEnv, sgWebhookKeyEnv)
+            // A3 (DEC-060a): env-controlled sandbox; 'true' everywhere except
+            // an explicit production parameter — see the param description.
+            { name: 'SENDGRID_SANDBOX', value: sendgridSandbox }
+          ], storageEnv, temporalEnv, inboundTokenEnv, sgWebhookKeyEnv, clerkApiEnv)
         }
       ]
       scale: { minReplicas: 1, maxReplicas: 3 }
@@ -195,7 +221,7 @@ resource worker 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'SENDGRID_API_KEY', secretRef: 'sendgrid-api-key' }
             { name: 'FIELD_ENCRYPTION_KEY', secretRef: 'field-encryption-key' }
             { name: 'CHANNELS_ALLOWLIST', value: 'tronwebng@gmail.com' }
-            { name: 'CHANNELS_SANDBOX', value: 'true' }
+            { name: 'SENDGRID_SANDBOX', value: sendgridSandbox }
           ], storageEnv, temporalEnv)
         }
       ]
@@ -216,7 +242,7 @@ resource web 'Microsoft.App/containerApps@2024-03-01' = {
       activeRevisionsMode: 'Single'
       ingress: { external: true, targetPort: 3000, transport: 'auto', allowInsecure: false }
       registries: registries
-      secrets: [authDevSecret]
+      secrets: concat([authDevSecret], clerkWebSecrets)
     }
     template: {
       containers: [
@@ -224,11 +250,11 @@ resource web 'Microsoft.App/containerApps@2024-03-01' = {
           name: 'web'
           image: '${acrLoginServer}/clientforce-web:${imageTag}'
           resources: { cpu: json('0.5'), memory: '1Gi' }
-          env: [
+          env: concat([
             { name: 'PORT', value: '3000' }
             { name: 'AUTH_DEV_SECRET', secretRef: 'auth-dev-secret' }
             { name: 'API_URL', value: 'https://${api.properties.configuration.ingress.fqdn}' }
-          ]
+          ], clerkWebEnv)
         }
       ]
       scale: { minReplicas: 1, maxReplicas: 3 }
