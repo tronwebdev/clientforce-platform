@@ -21,6 +21,8 @@ export {
 export type {
   CompletionProvider,
   EmbeddingsProvider,
+  StreamEvent,
+  StreamParams,
   TextParams,
   TextResult,
   ToolParams,
@@ -34,6 +36,8 @@ export {
   MissingPromptVarError,
   type AiTask,
   type CompleteRequest,
+  type StreamVoiceRequest,
+  type VoiceTurn,
   type TokenUsage,
   type UsageRecord,
   type UsageHook,

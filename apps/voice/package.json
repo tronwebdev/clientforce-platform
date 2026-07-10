@@ -1,0 +1,25 @@
+{
+  "name": "voice",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "synthetic": "node dist/run-synthetic.js",
+    "place-call": "node dist/place-call.js",
+    "persist": "node dist/persist.js",
+    "lint": "eslint .",
+    "test": "vitest run --passWithNoTests",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "@clientforce/ai": "workspace:*",
+    "@clientforce/db": "workspace:*",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "@types/ws": "^8.5.13"
+  }
+}

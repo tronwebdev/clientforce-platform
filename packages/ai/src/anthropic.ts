@@ -2,6 +2,8 @@ import Anthropic, { APIError } from "@anthropic-ai/sdk";
 import { AiProviderError } from "./types";
 import type {
   CompletionProvider,
+  StreamEvent,
+  StreamParams,
   TextParams,
   TextResult,
   ToolParams,
@@ -67,6 +69,36 @@ export class AnthropicProvider implements CompletionProvider {
       input: toolUse.input,
       usage: { inputTokens: res.usage.input_tokens, outputTokens: res.usage.output_tokens },
     };
+  }
+
+  /** Streaming multi-turn completion — the gateway's `voice` route (P3.0). */
+  async *streamText(params: StreamParams): AsyncIterable<StreamEvent> {
+    const usage = { inputTokens: 0, outputTokens: 0 };
+    try {
+      const stream = await this.client.messages.create(
+        {
+          model: params.model,
+          max_tokens: params.maxTokens,
+          ...(params.system ? { system: params.system } : {}),
+          ...(params.temperature !== undefined ? { temperature: params.temperature } : {}),
+          messages: params.turns.map((t) => ({ role: t.role, content: t.content })),
+          stream: true,
+        },
+        { signal: params.signal },
+      );
+      for await (const event of stream) {
+        if (event.type === "message_start") {
+          usage.inputTokens = event.message.usage.input_tokens;
+        } else if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+          yield { type: "delta", text: event.delta.text };
+        } else if (event.type === "message_delta") {
+          usage.outputTokens = event.usage.output_tokens;
+        }
+      }
+    } catch (err) {
+      throw toProviderError(err);
+    }
+    yield { type: "done", usage };
   }
 
   private async request(
