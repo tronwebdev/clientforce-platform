@@ -1,0 +1,77 @@
+# P2.1 diagnostics: did an inbound SMS (e.g. a STOP reply) ever reach Twilio,
+# and where is the messaging service configured to deliver it? Prints counts,
+# sids, statuses, error codes, and configured URLs ONLY — never phone numbers
+# or message bodies (the owner's number is Key-Vault-only; run logs are public).
+name: sms-inbound-probe
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  KEY_VAULT_NAME: ${{ vars.KEY_VAULT_NAME }}
+
+jobs:
+  probe:
+    name: inbound messages · service config · webhook alerts
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Probe Twilio (safe fields only)
+        run: |
+          set -euo pipefail
+          sid="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name TWILIO-ACCOUNT-SID --query value -o tsv)"
+          token="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name TWILIO-AUTH-TOKEN --query value -o tsv)"
+          msid="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name SMS-MESSAGING-SERVICE-SID --query value -o tsv)"
+          echo "::add-mask::$sid"; echo "::add-mask::$token"; echo "::add-mask::$msid"
+
+          echo "== 1) Inbound messages on the account (last 25 messages scanned) =="
+          curl -sf -u "$sid:$token" \
+            "https://api.twilio.com/2010-04-01/Accounts/$sid/Messages.json?PageSize=25" \
+            | python3 -c '
+          import json, sys
+          msgs = json.load(sys.stdin).get("messages", [])
+          inbound = [m for m in msgs if m.get("direction") == "inbound"]
+          print(f"messages scanned: {len(msgs)}; inbound among them: {len(inbound)}")
+          for m in inbound:
+              print(f"  inbound sid={m.get('"'"'sid'"'"')} status={m.get('"'"'status'"'"')} created={m.get('"'"'date_created'"'"')}")
+          '
+
+          echo "== 2) Messaging service inbound config =="
+          curl -sf -u "$sid:$token" "https://messaging.twilio.com/v1/Services/$msid" \
+            | python3 -c '
+          import json, sys
+          s = json.load(sys.stdin)
+          for k in ("inbound_request_url", "inbound_method", "fallback_url", "use_inbound_webhook_on_number", "sticky_sender"):
+              print(f"{k}: {s.get(k)}")
+          '
+
+          echo "== 3) Numbers attached to the service (count + per-number webhook override) =="
+          curl -sf -u "$sid:$token" "https://messaging.twilio.com/v1/Services/$msid/PhoneNumbers?PageSize=20" \
+            | python3 -c '
+          import json, sys
+          ns = json.load(sys.stdin).get("phone_numbers", [])
+          print(f"numbers in service: {len(ns)}")
+          for n in ns:
+              print(f"  number sid={n.get('"'"'sid'"'"')} country={n.get('"'"'country_code'"'"')} capabilities={n.get('"'"'capabilities'"'"')}")
+          '
+
+          echo "== 4) Webhook delivery alerts (Twilio Monitor, newest first) =="
+          curl -sf -u "$sid:$token" "https://monitor.twilio.com/v1/Alerts?PageSize=10" \
+            | python3 -c '
+          import json, sys
+          alerts = json.load(sys.stdin).get("alerts", [])
+          print(f"alerts returned: {len(alerts)}")
+          for a in alerts:
+              print(f"  {a.get('"'"'date_created'"'"')} error={a.get('"'"'error_code'"'"')} url={a.get('"'"'request_url'"'"')}")
+          '
