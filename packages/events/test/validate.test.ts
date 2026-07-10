@@ -32,8 +32,8 @@ describe("validateEvent", () => {
     ).toThrow(/Invalid payload for "email.replied.v1"/);
   });
 
-  it("rejects an intent outside the prototype inboxCats label set (DEC-034)", () => {
-    for (const bad of ["maybe", "not_now", "positive", "unknown"]) {
+  it("rejects an intent outside the pinned label set (DEC-034/DEC-066)", () => {
+    for (const bad of ["maybe", "not_now", "positive", "unknown", "objection", "price"]) {
       expect(() =>
         validateEvent({
           workspaceId: "ws1",
@@ -41,6 +41,40 @@ describe("validateEvent", () => {
           payload: { messageId: "m1", intent: bad },
         }),
       ).toThrow(EventValidationError);
+    }
+  });
+
+  // M1b (DEC-066): the six-intent reply taxonomy is ADDITIVE — new values
+  // validate on both replied events, every legacy value still validates.
+  it("accepts the M1b strategy intents AND every legacy intent (additive extension)", () => {
+    const intents = [
+      "objection_price",
+      "objection_timing",
+      "wrong_person",
+      "info_request",
+      "not_interested",
+      // legacy set — pinned so a future edit can never turn additive into destructive
+      "interested",
+      "booked",
+      "replied",
+      "question",
+      "not",
+      "ooo",
+      "unsubscribe",
+    ];
+    for (const intent of intents) {
+      const email = validateEvent({
+        workspaceId: "ws1",
+        type: EVENT_TYPES.EMAIL_REPLIED,
+        payload: { messageId: "m1", intent },
+      });
+      expect(email.payload).toMatchObject({ intent });
+      const sms = validateEvent({
+        workspaceId: "ws1",
+        type: EVENT_TYPES.SMS_REPLIED,
+        payload: { messageId: "m1", body: "…", intent },
+      });
+      expect(sms.payload).toMatchObject({ intent });
     }
   });
 

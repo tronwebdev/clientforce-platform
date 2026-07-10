@@ -10,23 +10,29 @@ import { AiGateway } from "@clientforce/ai";
 import { createAppPrismaClient, createPrismaClient, type PrismaClient } from "@clientforce/db";
 import type { EventBus } from "@clientforce/events";
 import { applyUnsubscribeReply, classifyReply } from "../src/classify";
+import { REPLY_INTENT_FIXTURES } from "../src/classify-fixtures";
 import { ingestInboundEmail, normalizeInboundParse, resolveInboundThread } from "../src/inbound";
 
 const hasInfra = Boolean(process.env.APP_DATABASE_URL ?? process.env.DATABASE_URL);
 const suffix = `inb-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 const LEAD = `lead-${suffix}@acme.test`;
 
-/** Prompt-parsing fake: the reply text drives the label, like the real model. */
+/** Prompt-parsing fake: the reply text drives the label, like the real model.
+ *  M1b: the PINNED fixtures resolve first (each fixture's verbatim reply maps
+ *  to its pinned label — the same contract the live proof asserts against the
+ *  REAL model), then the legacy regex heuristics. */
 const gateway = new AiGateway({
   provider: {
     completeText: async () => ({ text: "", usage: { inputTokens: 0, outputTokens: 0 } }),
     completeTool: async (params: { prompt: string }) => ({
       input: {
-        intent: /remove me|stop emailing/i.test(params.prompt)
-          ? "unsubscribe"
-          : /book a call|interested/i.test(params.prompt)
-            ? "interested"
-            : "replied",
+        intent:
+          REPLY_INTENT_FIXTURES.find((f) => params.prompt.includes(f.reply))?.intent ??
+          (/remove me|stop emailing/i.test(params.prompt)
+            ? "unsubscribe"
+            : /book a call|interested/i.test(params.prompt)
+              ? "interested"
+              : "replied"),
       },
       usage: { inputTokens: 0, outputTokens: 0 },
     }),
@@ -192,6 +198,20 @@ describe.skipIf(!hasInfra)("inbound thread resolution + side effects", () => {
       engagement: ["email.opened.v1 at 2026-07-04T12:00:00Z"],
     });
     expect(intent).toBe("interested");
+  });
+
+  // M1b (DEC-066): the pinned fixture matrix — every emission label's fixture
+  // classifies to its pin through the full classifyReply path (deterministic
+  // fake here; the live proof runs the SAME fixtures against the real model).
+  it("classifies every pinned fixture to its pinned intent (one per emission label)", async () => {
+    for (const fixture of REPLY_INTENT_FIXTURES) {
+      const intent = await classifyReply(gateway, {
+        goal: "book_appointments",
+        replyText: fixture.reply,
+        engagement: [],
+      });
+      expect(intent, fixture.reply).toBe(fixture.intent);
+    }
   });
 
   it("unsubscribe side effects: Suppression + optOut + enrollment UNSUBSCRIBED + event + workflow stop", async () => {

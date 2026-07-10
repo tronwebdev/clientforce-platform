@@ -69,4 +69,48 @@ describe("resolveReplyBranch (mirrors the T4 executor semantics)", () => {
     };
     expect(resolveReplyBranch(noDefault, "objection")).toBeUndefined();
   });
+
+  // ── M1b (DEC-066): six-case routing + legacy back-compat ────────────────────
+  const sixCase: BranchNode = {
+    id: "br",
+    type: "branch",
+    on: "reply",
+    cases: [
+      { when: { intent: "interested" }, goto: "end-won", pipeline: "booked" },
+      { when: { intent: "objection_price" }, goto: "step-reframe-price", pipeline: "replied" },
+      { when: { intent: "objection_timing" }, goto: "step-ack-timing", pipeline: "replied" },
+      { when: { intent: "wrong_person" }, goto: "step-referral", pipeline: "replied" },
+      { when: { intent: "info_request" }, goto: "step-answer", pipeline: "replied" },
+      { when: { intent: "not_interested" }, goto: "step-close", pipeline: "lost" },
+      { when: "default", goto: "step-followup" },
+    ],
+  };
+
+  it("routes each of the six strategy intents to its own case (stage pin carried)", () => {
+    const expected: Array<[string, string, string]> = [
+      ["interested", "end-won", "booked"],
+      ["objection_price", "step-reframe-price", "replied"],
+      ["objection_timing", "step-ack-timing", "replied"],
+      ["wrong_person", "step-referral", "replied"],
+      ["info_request", "step-answer", "replied"],
+      ["not_interested", "step-close", "lost"],
+    ];
+    for (const [intent, goto, pipeline] of expected) {
+      const r = resolveReplyBranch(sixCase, intent);
+      expect(r, intent).toMatchObject({ matched: `intent:${intent}`, chosen: { goto, pipeline } });
+    }
+  });
+
+  it("routes the fallback label and unknown FUTURE intents to default (never a crash)", () => {
+    expect(resolveReplyBranch(sixCase, "replied")?.matched).toBe("default");
+    expect(resolveReplyBranch(sixCase, "some_future_intent")?.matched).toBe("default");
+  });
+
+  it("BACK-COMPAT: a legacy 1-branch graph routes NEW intents to its default case", () => {
+    // `node` above is the pre-M1b planner shape (interested + default only).
+    for (const intent of ["objection_price", "objection_timing", "wrong_person", "info_request", "not_interested"]) {
+      const r = resolveReplyBranch(node, intent);
+      expect(r, intent).toMatchObject({ matched: "default", chosen: { goto: "nudge" } });
+    }
+  });
 });

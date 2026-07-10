@@ -9,6 +9,7 @@
 export {
   planCampaign,
   PlannerError,
+  REQUIRED_BRANCH_INTENTS,
   validateAll,
   type PlanDeps,
   type PlanResult,

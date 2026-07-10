@@ -54,9 +54,14 @@ export {
   applyUnsubscribeReply,
   classifyReply,
   createClassifyWorker,
+  CLASSIFY_EMISSION_LABELS,
+  CLASSIFY_PROMPT_NAME,
+  CLASSIFY_PROMPT_VERSION,
   type ClassifyContext,
   type ClassifyWorkerDeps,
 } from "./classify";
+// M1b (DEC-066): pinned reply→intent fixtures — the classification contract.
+export { REPLY_INTENT_FIXTURES, fixtureFor, type ReplyIntentFixture } from "./classify-fixtures";
 // ── P2.1 (DEC-061/062): the SMS channel ──────────────────────────────────────
 export { sendSmsStep, SMS_OPT_OUT_LINE, DEFAULT_SMS_DAILY_CAP, type SendSmsDeps, type SendSmsStepParams } from "./send-sms";
 export { TwilioSmsSender, parseTwilioConfig, smsSegmentCount, validateTwilioSignature, type TwilioSenderConfig } from "./twilio";

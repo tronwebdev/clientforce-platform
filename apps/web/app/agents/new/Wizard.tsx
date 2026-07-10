@@ -10,6 +10,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "rea
 // B9: the wizard's "＋ Add sender" opens the same connect flow Settings uses —
 // the prototype's binding is `openAddEmail: () => connectChannel('email')`.
 import { ConnectFlowDrawer } from "../../(shell)/settings/shared";
+import { branchWhenLabel } from "../../../lib/intents";
 import { BUSINESS_CATEGORIES, CONTEXT_FIELD_META, customTokensMissingFallback, GOAL_KEYS, goalTerminalLabel, requiredFieldsFor, type GoalKey } from "@clientforce/core";
 import type { CampaignGraph, ContactFieldDefDto, DraftState, GraphNode } from "@clientforce/core";
 
@@ -1395,12 +1396,29 @@ export function Wizard() {
                     <div>
                       <div style={{ fontSize: 11.5, fontWeight: 700, color: "#8A7F6B", letterSpacing: ".07em", textTransform: "uppercase", marginBottom: 12 }}>Reply branch</div>
                       <div style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 14, overflow: "hidden", boxShadow: "0 4px 16px rgba(14,21,18,.04)" }}>
-                        {branchCases.map((c, i) => (
-                          <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", borderTop: i ? "1px solid #F2EEE4" : "none" }} data-testid="branch-rule">
-                            <span style={{ fontSize: 13, color: "#0E1512", flex: 1 }}>{c.when === "default" ? "Any other reply" : `Reply classified “${c.when.intent}”`}</span>
-                            <span style={{ fontSize: 12, fontWeight: 700, borderRadius: 8, padding: "4px 11px", background: c.when === "default" ? "#F2EEE4" : "#D7F5DD", color: c.when === "default" ? "#8A7F6B" : "#16A82A" }}>→ {c.goto === "end-won" ? "Mark interested — hand to you" : c.goto === "end-lost" ? "End sequence" : c.goto}</span>
-                          </div>
-                        ))}
+                        {branchCases.map((c, i) => {
+                          // M1b (DEC-066): when-labels come from the ONE intent
+                          // vocabulary (verbatim fallback for unknown values);
+                          // goto pills resolve the target node — a strategy
+                          // step renders its subject, raw node ids never show.
+                          const target = graph?.nodes.find((n) => n.id === c.goto);
+                          const gotoLabel =
+                            !target || target.type === "end"
+                              ? c.goto === "end-won"
+                                ? "Mark interested — hand to you"
+                                : "End sequence"
+                              : target.type === "step"
+                                ? `Send “${target.content.subject?.trim() || "reply"}”`
+                                : target.type === "action"
+                                  ? target.action.replaceAll("_", " ")
+                                  : c.goto;
+                          return (
+                            <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", borderTop: i ? "1px solid #F2EEE4" : "none" }} data-testid="branch-rule">
+                              <span style={{ fontSize: 13, color: "#0E1512", flex: 1 }}>{branchWhenLabel(c.when)}</span>
+                              <span style={{ fontSize: 12, fontWeight: 700, borderRadius: 8, padding: "4px 11px", background: c.when === "default" ? "#F2EEE4" : "#D7F5DD", color: c.when === "default" ? "#8A7F6B" : "#16A82A", flex: "none" }}>→ {gotoLabel}</span>
+                            </div>
+                          );
+                        })}
                       </div>
                       <div style={{ fontSize: 12, color: "#9AA59E", marginTop: 10 }}>Replies are classified by intent (P1.7) — the branch fires the moment a lead answers.</div>
                     </div>

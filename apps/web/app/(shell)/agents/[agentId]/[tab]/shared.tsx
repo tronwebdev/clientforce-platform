@@ -33,27 +33,10 @@ export const cf = (path: string, init?: RequestInit) =>
     return r.json();
   });
 
-/** Intent → Inbox category chip (prototype `inboxCatDefs`, DEC-034 label set). */
-export const INBOX_CATS = [
-  { id: "all", label: "All" },
-  { id: "interested", label: "Interested" },
-  { id: "booked", label: "Meeting booked" },
-  { id: "replied", label: "Replied" },
-  { id: "question", label: "Question" },
-  { id: "not", label: "Not interested" },
-  { id: "ooo", label: "Auto-reply" },
-] as const;
-
-/** Category chip tint per intent (thread rows + reading pane). */
-export const CAT_TINT: Record<string, { fg: string; bg: string; label: string }> = {
-  interested: { fg: "#0F7A28", bg: "#D7F5DD", label: "Interested" },
-  booked: { fg: "#1192A6", bg: "rgba(54,215,237,.16)", label: "Meeting booked" },
-  replied: { fg: "#5C6B62", bg: "#F2EEE4", label: "Replied" },
-  question: { fg: "#A87B16", bg: "rgba(232,196,91,.2)", label: "Question" },
-  not: { fg: "#C9543F", bg: "rgba(224,121,107,.14)", label: "Not interested" },
-  ooo: { fg: "#8A7F6B", bg: "#F2EEE4", label: "Auto-reply" },
-  unsubscribe: { fg: "#C9543F", bg: "rgba(224,121,107,.14)", label: "Unsubscribed" },
-};
+/** Intent → Inbox category chips + per-intent tints: the ONE vocabulary
+ *  module (M1b, DEC-066 — prototype `inboxCatDefs` + designed M1b labels,
+ *  verbatim fallback for unknown intents). Re-exported for the tab imports. */
+export { INBOX_CATS, INTENT_TINT, intentTint, branchWhenLabel } from "../../../../../lib/intents";
 
 export function initials(first?: string | null, last?: string | null, email?: string | null): string {
   const a = (first ?? "").trim()[0] ?? "";

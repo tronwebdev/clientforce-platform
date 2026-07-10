@@ -125,6 +125,48 @@ const branchGraph: CampaignGraph = {
   ],
 };
 
+/** M1b (DEC-066): a v4-planner-shaped graph — six-case reply branch, price
+ *  reframe rejoins the branch (loop-back), not_interested closes as lost. */
+const playbookGraph: CampaignGraph = {
+  entry: "s1",
+  nodes: [
+    { id: "s1", type: "step", channel: "email", content: { subject: "a", body: "b" } },
+    {
+      id: "br",
+      type: "branch",
+      on: "reply",
+      cases: [
+        { when: { intent: "interested" }, goto: "end-a", pipeline: "booked" },
+        { when: { intent: "objection_price" }, goto: "reframe", pipeline: "replied" },
+        { when: { intent: "objection_timing" }, goto: "ack", pipeline: "replied" },
+        { when: { intent: "wrong_person" }, goto: "referral", pipeline: "replied" },
+        { when: { intent: "info_request" }, goto: "answer", pipeline: "replied" },
+        { when: { intent: "not_interested" }, goto: "close", pipeline: "lost" },
+        { when: "default", goto: "end-b" },
+      ],
+    },
+    { id: "reframe", type: "step", channel: "email", content: { subject: "Re: a", body: "value", threaded: true } },
+    { id: "ack", type: "step", channel: "email", content: { subject: "Re: a", body: "later", threaded: true } },
+    { id: "dt", type: "delay", amount: 30, unit: "days" },
+    { id: "follow", type: "step", channel: "email", content: { subject: "Re: a", body: "back", threaded: true } },
+    { id: "referral", type: "step", channel: "email", content: { subject: "Re: a", body: "who", threaded: true } },
+    { id: "answer", type: "step", channel: "email", content: { subject: "Re: a", body: "info", threaded: true } },
+    { id: "close", type: "step", channel: "email", content: { subject: "Re: a", body: "bye", threaded: true } },
+    { id: "end-a", type: "end" },
+    { id: "end-b", type: "end" },
+  ],
+  edges: [
+    { from: "s1", to: "br" },
+    { from: "reframe", to: "br" }, // loop-back: await the NEXT reply
+    { from: "ack", to: "dt" },
+    { from: "dt", to: "follow" },
+    { from: "follow", to: "br" },
+    { from: "referral", to: "end-b" },
+    { from: "answer", to: "br" },
+    { from: "close", to: "end-b" },
+  ],
+};
+
 const inputFor = (graph: CampaignGraph, n: number): CampaignWorkflowInput => ({
   workspaceId: "ws-1",
   enrollmentId: `enr-${n}`,
@@ -229,6 +271,90 @@ describe("CampaignWorkflow (time-skipping Temporal)", () => {
       expect.objectContaining({ nodeId: "br", detail: "default → end-b" }),
     );
   }, 60_000);
+
+  // ── M1b (DEC-066): six-intent branch routing ────────────────────────────────
+
+  it("ACCEPTANCE: objection_price → value-reframe send → rejoin branch → interested → booked", async (t) => {
+    if (!env) return t.skip();
+    const tq = `tq-${++seq}`;
+    const { calls, acts } = recordedActivities();
+    const worker = await makeWorker(acts, tq);
+    await worker.runUntil(async () => {
+      const handle = await env!.client.workflow.start("campaignWorkflow", {
+        taskQueue: tq,
+        workflowId: `t-objection-${seq}`,
+        args: [inputFor(playbookGraph, seq)],
+      });
+      await waitFor(() => calls.sends.length === 1); // opener out
+      await handle.signal(REPLY_SIGNAL, "objection_price");
+      await waitFor(() => calls.sends.length === 2); // the REFRAME went out
+      await handle.signal(REPLY_SIGNAL, "interested");
+      const result = await handle.result();
+      expect(result).toMatchObject({ status: "completed", endNode: "end-a" });
+    });
+    // The reframe step is the objection_price case's target — sent exactly once.
+    expect(calls.sends.map((s) => s.stepNodeId)).toEqual(["s1", "reframe"]);
+    // Stage journey: replied (objection recorded) → booked (goal met).
+    expect(calls.progress).toContainEqual(
+      expect.objectContaining({ currentNode: "br", pipelineStage: "replied" }),
+    );
+    expect(calls.progress).toContainEqual(
+      expect.objectContaining({ currentNode: "br", pipelineStage: "booked" }),
+    );
+    expect(calls.actions).toContainEqual(
+      expect.objectContaining({ nodeId: "br", detail: "intent:objection_price → reframe" }),
+    );
+    expect(calls.actions).toContainEqual(
+      expect.objectContaining({ nodeId: "br", detail: "intent:interested → end-a" }),
+    );
+  }, 120_000);
+
+  it("not_interested → graceful close send → enrollment completes with stage lost (no suppression path exists here)", async (t) => {
+    if (!env) return t.skip();
+    const tq = `tq-${++seq}`;
+    const { calls, acts } = recordedActivities();
+    const worker = await makeWorker(acts, tq);
+    await worker.runUntil(async () => {
+      const handle = await env!.client.workflow.start("campaignWorkflow", {
+        taskQueue: tq,
+        workflowId: `t-lost-${seq}`,
+        args: [inputFor(playbookGraph, seq)],
+      });
+      await waitFor(() => calls.sends.length === 1);
+      await handle.signal(REPLY_SIGNAL, "not_interested");
+      const result = await handle.result();
+      expect(result).toMatchObject({ status: "completed", endNode: "end-b" });
+    });
+    // Graceful close SENT (a real goodbye, not a silent stop), then done.
+    expect(calls.sends.map((s) => s.stepNodeId)).toEqual(["s1", "close"]);
+    expect(calls.progress).toContainEqual(
+      expect.objectContaining({ currentNode: "br", pipelineStage: "lost" }),
+    );
+    // The enrollment COMPLETED — never blocked/unsubscribed (not_interested ≠ unsubscribe).
+    expect(calls.completed).toEqual([expect.objectContaining({ nodeId: "end-b" })]);
+    expect(calls.blocked).toHaveLength(0);
+  }, 120_000);
+
+  it("BACK-COMPAT: a legacy 1-branch graph routes a NEW intent to its default case and completes", async (t) => {
+    if (!env) return t.skip();
+    const tq = `tq-${++seq}`;
+    const { calls, acts } = recordedActivities();
+    const worker = await makeWorker(acts, tq);
+    await worker.runUntil(async () => {
+      const handle = await env!.client.workflow.start("campaignWorkflow", {
+        taskQueue: tq,
+        workflowId: `t-legacy-${seq}`,
+        args: [inputFor(branchGraph, seq)], // the pre-M1b shape: interested + default
+      });
+      await waitFor(() => calls.sends.length === 1);
+      await handle.signal(REPLY_SIGNAL, "objection_price");
+      const result = await handle.result();
+      expect(result).toMatchObject({ status: "completed", endNode: "end-b" });
+    });
+    expect(calls.actions).toContainEqual(
+      expect.objectContaining({ nodeId: "br", detail: "default → end-b" }),
+    );
+  }, 120_000);
 
   it("resumes after the worker is killed mid-run (durability)", async (t) => {
     if (!env) return t.skip();

@@ -15,7 +15,7 @@
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { AiGateway } from "@clientforce/ai";
-import { OPENER_WORD_CAP, type CampaignGraph, type StepNode } from "@clientforce/core";
+import { execute, OPENER_WORD_CAP, type CampaignGraph, type StepNode } from "@clientforce/core";
 import {
   createAppPrismaClient,
   createPrismaClient,
@@ -87,10 +87,12 @@ function legacyGraph(audit: string, price: string): object {
 }
 
 /**
- * The arc-compliant shape a model following the v3 playbook emits: opener ≤
- * cap ending with its one question, value/proof, objection-preempt, breakup
- * last and shortest — strictly decreasing, one CTA each. `dirty` appends a
- * banned phrase (parsed from the prompt) to the value step.
+ * The arc-compliant shape a model following the v4 playbook emits: the M1a
+ * selling-craft main sequence (opener ≤ cap ending with its one question,
+ * value/proof, objection-preempt, breakup last — strictly decreasing, one CTA
+ * each) PLUS the M1b six-case REPLY PLAYBOOK branch with its strategy steps
+ * and stage pins. `dirty` appends a banned phrase (parsed from the prompt) to
+ * the value step.
  */
 function craftGraph(audit: string, price: string, dirty: string): object {
   return {
@@ -122,7 +124,12 @@ function craftGraph(audit: string, price: string, dirty: string): object {
         type: "branch",
         on: "reply",
         cases: [
-          { when: { intent: "interested" }, goto: mode === "broken" ? "nowhere" : "end-won" },
+          { when: { intent: "interested" }, goto: mode === "broken" ? "nowhere" : "end-won", pipeline: "booked" },
+          { when: { intent: "objection_price" }, goto: "step-reframe-price", pipeline: "replied" },
+          { when: { intent: "objection_timing" }, goto: "step-ack-timing", pipeline: "replied" },
+          { when: { intent: "wrong_person" }, goto: "step-referral", pipeline: "replied" },
+          { when: { intent: "info_request" }, goto: "step-answer", pipeline: "replied" },
+          { when: { intent: "not_interested" }, goto: "step-close", pipeline: "lost" },
           { when: "default", goto: "step-3" },
         ],
       },
@@ -145,6 +152,69 @@ function craftGraph(audit: string, price: string, dirty: string): object {
           body: `Closing the file on {{company}}, {{firstName}} — no worries either way.`,
         },
       },
+      // M1b reply-strategy steps: price/answer rejoin the branch, timing waits
+      // long then rejoins, wrong_person/not_interested close out.
+      {
+        id: "step-reframe-price",
+        type: "step",
+        channel: "email",
+        content: {
+          subject: "Re: the audit numbers",
+          body: `Fair concern, {{firstName}} — the ${audit} exists so you see the number before spending anything. Worth seeing it?`,
+          threaded: true,
+        },
+      },
+      {
+        id: "step-ack-timing",
+        type: "step",
+        channel: "email",
+        content: {
+          subject: "Re: the audit numbers",
+          body: `Understood, {{firstName}} — I'll circle back when the timing fits {{company}}. Sound fair?`,
+          threaded: true,
+        },
+      },
+      { id: "delay-timing", type: "delay", amount: 30, unit: "days" },
+      {
+        id: "step-timing-follow",
+        type: "step",
+        channel: "email",
+        content: {
+          subject: "Re: the audit numbers",
+          body: `Circling back as promised, {{firstName}} — is now a better moment for {{company}}?`,
+          threaded: true,
+        },
+      },
+      {
+        id: "step-referral",
+        type: "step",
+        channel: "email",
+        content: {
+          subject: "Re: the audit numbers",
+          body: `Thanks for the honesty, {{firstName}} — who at {{company}} should I speak with instead?`,
+          threaded: true,
+        },
+      },
+      {
+        id: "step-answer",
+        type: "step",
+        channel: "email",
+        content: {
+          subject: "Re: the audit numbers",
+          body: `Good question, {{firstName}} — the ${audit} covers exactly that. Want the two-line summary?`,
+          threaded: true,
+        },
+      },
+      {
+        id: "step-close",
+        type: "step",
+        channel: "email",
+        content: {
+          subject: "Re: the audit numbers",
+          body: `All good, {{firstName}} — closing this out. If {{company}} ever wants the ${audit}, the door's open.`,
+          threaded: true,
+        },
+      },
       { id: "end-won", type: "end" },
       { id: "end-lost", type: "end" },
     ],
@@ -155,6 +225,13 @@ function craftGraph(audit: string, price: string, dirty: string): object {
       { from: "step-3", to: "delay-2" },
       { from: "delay-2", to: "step-4" },
       { from: "step-4", to: "end-lost" },
+      { from: "step-reframe-price", to: "branch-reply" },
+      { from: "step-ack-timing", to: "delay-timing" },
+      { from: "delay-timing", to: "step-timing-follow" },
+      { from: "step-timing-follow", to: "branch-reply" },
+      { from: "step-referral", to: "end-lost" },
+      { from: "step-answer", to: "branch-reply" },
+      { from: "step-close", to: "end-lost" },
     ],
   };
 }
@@ -466,6 +543,56 @@ describe.skipIf(!hasInfra)("planCampaign integration", () => {
     ).rejects.toThrow(PlannerError);
     expect(toolCalls).toBe(2);
     expect(await owner.campaignGraph.count({ where: { workspaceId: wsA } })).toBe(before);
+  });
+
+  // ── M1b (DEC-066): the six-intent REPLY PLAYBOOK ───────────────────────────
+
+  it("plans the six-case reply branch — every strategy intent routes to its path with its stage pin", async () => {
+    const result = await planCampaign(deps(), { workspaceId: wsA, agentId: craftAgentId });
+    const branch = result.graph.nodes.find((n) => n.type === "branch");
+    expect(branch?.type).toBe("branch");
+    if (branch?.type !== "branch") return;
+
+    const caseFor = (intent: string) =>
+      branch.cases.find((c) => c.when !== "default" && c.when.intent === intent);
+    expect(caseFor("interested")).toMatchObject({ pipeline: "booked" });
+    expect(caseFor("objection_price")).toMatchObject({ pipeline: "replied" });
+    expect(caseFor("objection_timing")).toMatchObject({ pipeline: "replied" });
+    expect(caseFor("wrong_person")).toMatchObject({ pipeline: "replied" });
+    expect(caseFor("info_request")).toMatchObject({ pipeline: "replied" });
+    expect(caseFor("not_interested")).toMatchObject({ pipeline: "lost" });
+    expect(branch.cases.some((c) => c.when === "default")).toBe(true);
+
+    // Strategy cases route to STEP nodes; rejoining paths edge back to the branch.
+    const byId = new Map(result.graph.nodes.map((n) => [n.id, n]));
+    for (const intent of ["objection_price", "objection_timing", "wrong_person", "info_request", "not_interested"]) {
+      expect(byId.get(caseFor(intent)!.goto)?.type, intent).toBe("step");
+    }
+    const rejoins = (from: string) => result.graph.edges.some((e) => e.from === from && e.to === branch.id);
+    expect(rejoins(caseFor("objection_price")!.goto)).toBe(true);
+    expect(rejoins(caseFor("info_request")!.goto)).toBe(true);
+
+    // The prompt carried the playbook (wiring proof).
+    expect(lastPrompt).toContain("REPLY PLAYBOOK");
+    expect(lastPrompt).toContain('{"intent":"not_interested"}, "pipeline":"lost"');
+  });
+
+  it("dry-runs the terminal strategy paths: not_interested → graceful close → end with stage lost", async () => {
+    const result = await planCampaign(deps(), { workspaceId: wsA, agentId: craftAgentId });
+    const branch = result.graph.nodes.find((n) => n.type === "branch");
+    if (branch?.type !== "branch") throw new Error("no branch");
+
+    const lost = execute(result.graph, { events: { [branch.id]: { intent: "not_interested" } } });
+    expect(lost.find((a) => a.kind === "branch")).toMatchObject({ matched: "intent:not_interested" });
+    expect(lost).toContainEqual(expect.objectContaining({ kind: "pipeline_move", stage: "lost" }));
+    // The close step SENDS (graceful close is a real message), then the path ends.
+    const closeStep = branch.cases.find((c) => c.when !== "default" && c.when.intent === "not_interested")!.goto;
+    expect(lost).toContainEqual(expect.objectContaining({ kind: "send", nodeId: closeStep }));
+    expect(lost.at(-1)?.kind).toBe("end");
+
+    const referral = execute(result.graph, { events: { [branch.id]: { intent: "wrong_person" } } });
+    expect(referral.find((a) => a.kind === "branch")).toMatchObject({ matched: "intent:wrong_person" });
+    expect(referral.at(-1)?.kind).toBe("end");
   });
 
   it("REGRESSION: an agent with legacy guardrails and no category plans end-to-end unchanged", async () => {
