@@ -66,8 +66,10 @@ export {
   isStopMessage,
   normalizeTwilioInbound,
   resolveInboundSmsThread,
+  resolveSmsStopFallback,
   type InboundSms,
   type IngestInboundSmsDeps,
+  type SmsStopFallbackTarget,
   type SmsThreadResolution,
 } from "./sms-inbound";
 export type { RenderedSms, SmsSender, SmsSendResult } from "./types";

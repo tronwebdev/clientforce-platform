@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Header,
   Headers,
   Inject,
   Optional,
@@ -17,11 +18,13 @@ import {
   applySmsStop,
   ingestInboundEmail,
   ingestInboundSms,
+  isStopMessage,
   MalformedInboundError,
   normalizeInboundParse,
   normalizeSendGridEvents,
   normalizeTwilioInbound,
   resolveEventMessage,
+  resolveSmsStopFallback,
   toBusEvents,
   validateTwilioSignature,
   verifySendGridSignature,
@@ -148,11 +151,15 @@ export class WebhooksController {
   @Public()
   @Post("twilio-inbound")
   @UseInterceptors(AnyFilesInterceptor())
+  // 60-round: Twilio requires a TwiML (xml) response — answering json raised
+  // error 12300 on every inbound. We never instruct a reply, so the body is
+  // always the empty <Response/>.
+  @Header("Content-Type", "text/xml")
   async twilioInbound(
     @Req() req: Request,
     @Body() form: Record<string, unknown>,
     @Headers("x-twilio-signature") signature?: string,
-  ) {
+  ): Promise<string> {
     const authToken = process.env.TWILIO_AUTH_TOKEN;
     if (authToken) {
       const url = `${process.env.PUBLIC_API_URL ?? `https://${req.headers.host ?? ""}`}${req.originalUrl}`;
@@ -169,7 +176,25 @@ export class WebhooksController {
     const inbound = normalizeTwilioInbound(form ?? {});
     if (!inbound.from || !inbound.body) throw new BadRequestException("Malformed Twilio inbound payload");
     const result = await ingestInboundSms({ owner: this.prisma.admin, app: this.prisma.app }, inbound);
-    if (!result) return { received: true, matched: false };
+    if (!result) {
+      // DEC-064: consent fails safe — a STOP whose thread can't resolve (no
+      // prior outbound sms Message) still suppresses in every workspace that
+      // holds a contact with this phone. `sms.opted_out.v1` needs a messageId
+      // (none exists on this path), so only `lead.unsubscribed.v1` is emitted.
+      if (isStopMessage(inbound.body)) {
+        const targets = await resolveSmsStopFallback(this.prisma.admin, inbound.from);
+        for (const t of targets) {
+          await applySmsStop(this.prisma.app, t.workspaceId, t.contactId, inbound.from, null);
+          await this.publisher.publish({
+            type: "lead.unsubscribed.v1",
+            workspaceId: t.workspaceId,
+            contactId: t.contactId,
+            payload: { channel: "sms" },
+          });
+        }
+      }
+      return "<Response/>";
+    }
 
     const { message, resolution, stop } = result;
     if (stop) {
@@ -190,7 +215,7 @@ export class WebhooksController {
         campaignId: resolution.campaignId,
         payload: { channel: "sms" },
       });
-      return { received: true, matched: true, stop: true, messageId: message.id };
+      return "<Response/>";
     }
 
     if (this.classifyQueue) {
@@ -200,6 +225,6 @@ export class WebhooksController {
         { attempts: 3, backoff: { type: "exponential", delay: 5_000 }, removeOnComplete: true },
       );
     }
-    return { received: true, matched: true, messageId: message.id };
+    return "<Response/>";
   }
 }
