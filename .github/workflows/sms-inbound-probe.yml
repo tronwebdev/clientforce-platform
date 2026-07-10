@@ -35,16 +35,19 @@ jobs:
           msid="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name SMS-MESSAGING-SERVICE-SID --query value -o tsv)"
           echo "::add-mask::$sid"; echo "::add-mask::$token"; echo "::add-mask::$msid"
 
-          echo "== 1) Inbound messages on the account (last 25 messages scanned) =="
+          echo "== 1) Recent messages, ALL directions (opt-out auto-replies show as outbound-reply) =="
           curl -sf -u "$sid:$token" \
-            "https://api.twilio.com/2010-04-01/Accounts/$sid/Messages.json?PageSize=25" \
+            "https://api.twilio.com/2010-04-01/Accounts/$sid/Messages.json?PageSize=15" \
             | python3 -c '
           import json, sys
           msgs = json.load(sys.stdin).get("messages", [])
-          inbound = [m for m in msgs if m.get("direction") == "inbound"]
-          print(f"messages scanned: {len(msgs)}; inbound among them: {len(inbound)}")
-          for m in inbound:
-              print(f"  inbound sid={m.get('"'"'sid'"'"')} status={m.get('"'"'status'"'"')} created={m.get('"'"'date_created'"'"')}")
+          print(f"messages returned: {len(msgs)} (newest first)")
+          for m in msgs:
+              print(
+                  f"  sid={m.get('"'"'sid'"'"')} direction={m.get('"'"'direction'"'"')}"
+                  f" status={m.get('"'"'status'"'"')} error={m.get('"'"'error_code'"'"')}"
+                  f" created={m.get('"'"'date_created'"'"')}"
+              )
           '
 
           echo "== 2) Messaging service inbound config =="
