@@ -1,0 +1,82 @@
+# P2.1 rail-1 closing proof (DEC-067): the platform-owned US test handset
+# drives STOP → START → STOP at the platform number so Twilio's opt-out
+# auto-replies (a US/CA-scoped feature the owner's NG handset can't trigger)
+# get captured with delivery status, and the staging ledger stance is
+# asserted (suppression persists until explicit re-consent). Buys the
+# handset on first run (FriendlyName-tagged so it is never re-purchased),
+# stores it in Key Vault, and folds it into the SMS-ALLOWLIST secret
+# (DEC-063 scope). Numbers are masked everywhere; sids/booleans only.
+name: sms-us-rail1-proof
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type LIVE to confirm real SMS keywords will be exchanged between platform-owned numbers (and a number may be purchased)'
+        required: true
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  RG: ${{ vars.AZURE_RESOURCE_GROUP || 'clientforce-dev' }}
+  KEY_VAULT_NAME: ${{ vars.KEY_VAULT_NAME }}
+  TURBO_TELEMETRY_DISABLED: 1
+
+jobs:
+  proof:
+    name: STOP/START/STOP via US handset · ledger stance
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Refuse without explicit confirmation
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "LIVE" ]; then
+            echo "::error::Dispatch input 'confirm' must be exactly LIVE — refusing."
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @clientforce/channels... build
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Run rail-1 proof (every secret masked)
+        run: |
+          set -euo pipefail
+          sid="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name TWILIO-ACCOUNT-SID --query value -o tsv)"
+          token="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name TWILIO-AUTH-TOKEN --query value -o tsv)"
+          msid="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name SMS-MESSAGING-SERVICE-SID --query value -o tsv)"
+          ng="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name SMS-TEST-NUMBER --query value -o tsv)"
+          dev="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name AUTH-DEV-SECRET --query value -o tsv)"
+          us="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name SMS-US-TEST-NUMBER --query value -o tsv 2>/dev/null || true)"
+          echo "::add-mask::$sid"; echo "::add-mask::$token"; echo "::add-mask::$msid"
+          echo "::add-mask::$ng"; echo "::add-mask::$dev"
+          [ -n "$us" ] && echo "::add-mask::$us"
+          api_fqdn="$(az containerapp show --name clientforce-api --resource-group "$RG" --query "properties.configuration.ingress.fqdn" -o tsv)"
+          out="$RUNNER_TEMP/us-number"
+          TWILIO_ACCOUNT_SID="$sid" TWILIO_AUTH_TOKEN="$token" \
+            SMS_TEST_MESSAGING_SERVICE_SID="$msid" US_TEST_NUMBER="$us" \
+            SMS_TEST_NUMBER="$ng" STAGING_API_URL="https://$api_fqdn" AUTH_DEV_SECRET="$dev" \
+            US_NUMBER_OUT="$out" \
+            pnpm exec tsx packages/channels/scripts/sms-rail1-proof.ts
+          # Persist the handset + fold it into the allow-list (DEC-063 scope).
+          if [ -s "$out" ]; then
+            usnum="$(cat "$out")"
+            echo "::add-mask::$usnum"
+            az keyvault secret set --vault-name "$KEY_VAULT_NAME" --name SMS-US-TEST-NUMBER --value "$usnum" -o none \
+              || echo "::warning::Could not write SMS-US-TEST-NUMBER to Key Vault (no set permission?) — the handset stays discoverable via its Twilio FriendlyName 'clientforce-us-test'; add the secret manually."
+            az keyvault secret set --vault-name "$KEY_VAULT_NAME" --name SMS-ALLOWLIST --value "$ng,$usnum" -o none \
+              || echo "::warning::Could not write SMS-ALLOWLIST to Key Vault — set it manually to the NG test number and the US handset, comma-separated."
+          fi
