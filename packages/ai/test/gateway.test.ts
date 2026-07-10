@@ -10,6 +10,7 @@ import {
 import type {
   CompletionProvider,
   EmbeddingsProvider,
+  StreamParams,
   TextParams,
   ToolParams,
 } from "../src/provider";
@@ -113,7 +114,12 @@ describe("model routing", () => {
       }),
       config: {
         ...fastConfig,
-        models: { planner: "opus-test", copy: "sonnet-copy", classify: "sonnet-classify" },
+        models: {
+          planner: "opus-test",
+          copy: "sonnet-copy",
+          classify: "sonnet-classify",
+          voice: "haiku-voice",
+        },
       },
     });
     await gw.complete("planner", { prompt: "a" });
@@ -129,7 +135,10 @@ describe("model routing", () => {
         maxTokens.push(p.maxTokens);
         return "ok";
       }),
-      config: { ...fastConfig, maxTokens: { planner: 1111, copy: 222, classify: 33 } },
+      config: {
+        ...fastConfig,
+        maxTokens: { planner: 1111, copy: 222, classify: 33, voice: 300 },
+      },
     });
     await gw.complete("planner", { prompt: "a" });
     await gw.complete("classify", { prompt: "b", maxTokens: 77 });
@@ -194,7 +203,7 @@ describe("usage logging", () => {
       }),
       config: {
         ...fastConfig,
-        models: { planner: "m", copy: "m", classify: "m" },
+        models: { planner: "m", copy: "m", classify: "m", voice: "m" },
         prices: { m: { input: 1, output: 2 } },
       },
       onUsage: (r) => records.push(r),
@@ -230,6 +239,125 @@ describe("embed", () => {
     const gw = new AiGateway({ provider: textProvider(async () => "unused"), config: fastConfig });
     await expect(gw.embed([])).resolves.toEqual([]);
     await expect(gw.embed(["x"])).rejects.toThrow(/no embeddings provider/i);
+  });
+});
+
+describe("streamVoice (P3.0 spike route)", () => {
+  const streamingProvider = (
+    events: Array<{ type: "delta"; text: string } | { type: "done"; usage: typeof usage }>,
+    onStart?: (p: StreamParams) => void,
+  ): CompletionProvider => ({
+    completeText: async () => {
+      throw new Error("not used");
+    },
+    completeTool: async () => {
+      throw new Error("not used");
+    },
+    streamText: async function* (p) {
+      onStart?.(p);
+      for (const e of events) {
+        if (p.signal.aborted) throw new AiProviderError("aborted", undefined, false);
+        yield e;
+      }
+    },
+  });
+
+  it("yields deltas in order and records usage once at settle", async () => {
+    const records: UsageRecord[] = [];
+    const gw = new AiGateway({
+      provider: streamingProvider([
+        { type: "delta", text: "Hi " },
+        { type: "delta", text: "there." },
+        { type: "done", usage },
+      ]),
+      config: fastConfig,
+      onUsage: (r) => records.push(r),
+    });
+    const chunks: string[] = [];
+    for await (const c of gw.streamVoice({ turns: [{ role: "user", content: "hello" }] })) {
+      chunks.push(c);
+    }
+    expect(chunks.join("")).toBe("Hi there.");
+    expect(records).toHaveLength(1);
+    expect(records[0]).toMatchObject({ task: "voice", retries: 0, outcome: "ok" });
+    expect(records[0].usage).toEqual(usage);
+  });
+
+  it("routes to the voice model with voice max tokens and passes turns through", async () => {
+    let seen: StreamParams | undefined;
+    const gw = new AiGateway({
+      provider: streamingProvider([{ type: "done", usage }], (p) => (seen = p)),
+      config: {
+        ...fastConfig,
+        models: { planner: "p", copy: "c", classify: "cl", voice: "haiku-voice" },
+        maxTokens: { planner: 1, copy: 1, classify: 1, voice: 321 },
+      },
+    });
+    for await (const _ of gw.streamVoice({
+      system: "be brief",
+      turns: [
+        { role: "user", content: "hi" },
+        { role: "assistant", content: "hello" },
+        { role: "user", content: "book me in" },
+      ],
+    })) {
+      // drain
+    }
+    expect(seen?.model).toBe("haiku-voice");
+    expect(seen?.maxTokens).toBe(321);
+    expect(seen?.turns).toHaveLength(3);
+    expect(seen?.system).toBe("be brief");
+  });
+
+  it("barge-in: aborting the caller signal aborts the provider stream, usage still logged", async () => {
+    const records: UsageRecord[] = [];
+    const abort = new AbortController();
+    const gw = new AiGateway({
+      provider: {
+        completeText: async () => {
+          throw new Error("not used");
+        },
+        completeTool: async () => {
+          throw new Error("not used");
+        },
+        streamText: async function* (p) {
+          yield { type: "delta", text: "one " };
+          abort.abort(); // caller barges in mid-stream
+          if (p.signal.aborted) throw new AiProviderError("aborted", undefined, false);
+          yield { type: "delta", text: "two" };
+        },
+      },
+      config: fastConfig,
+      onUsage: (r) => records.push(r),
+    });
+    const chunks: string[] = [];
+    const err = await (async () => {
+      try {
+        for await (const c of gw.streamVoice({
+          turns: [{ role: "user", content: "x" }],
+          signal: abort.signal,
+        })) {
+          chunks.push(c);
+        }
+        return null;
+      } catch (e) {
+        return e;
+      }
+    })();
+    expect(chunks).toEqual(["one "]);
+    expect(err).toBeInstanceOf(AiProviderError);
+    expect(records).toHaveLength(1);
+    expect(records[0]).toMatchObject({ task: "voice", outcome: "error" });
+  });
+
+  it("throws a typed error when the provider cannot stream", async () => {
+    const gw = new AiGateway({ provider: textProvider(async () => "unused"), config: fastConfig });
+    const iterate = async () => {
+      for await (const _ of gw.streamVoice({ turns: [{ role: "user", content: "x" }] })) {
+        // never reached
+      }
+    };
+    await expect(iterate()).rejects.toThrow(/does not support streaming/i);
   });
 });
 

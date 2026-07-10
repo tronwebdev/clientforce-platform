@@ -5,7 +5,7 @@ import type { ZodIssue } from "zod";
  * is config-driven — see `config.ts`. Later phases extend this union (voice
  * brain, widget chat) without changing the gateway interface.
  */
-export type AiTask = "planner" | "copy" | "classify";
+export type AiTask = "planner" | "copy" | "classify" | "voice";
 
 export interface CompleteRequest {
   /** System prompt (optional). */
@@ -21,6 +21,24 @@ export interface CompleteRequest {
 export interface TokenUsage {
   inputTokens: number;
   outputTokens: number;
+}
+
+// ── Voice streaming (P3.0 spike — `voice` is the only streaming route) ───────
+
+/** One turn of a live call transcript, oldest first. */
+export interface VoiceTurn {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export interface StreamVoiceRequest {
+  system?: string;
+  /** Full call transcript so far; must start with a user turn. */
+  turns: VoiceTurn[];
+  maxTokens?: number;
+  temperature?: number;
+  /** Barge-in: aborting this signal cancels the in-flight generation. */
+  signal?: AbortSignal;
 }
 
 /** One structured record per provider call, emitted through `onUsage`. */

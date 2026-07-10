@@ -45,3 +45,6 @@ dump.rdb
 
 # local dev filesystem upload store (createUploadStoreFromEnv default)
 .uploads/
+
+# P3.0 voice spike scratch output (run-synthetic / bridge metrics dump)
+/metrics.json
