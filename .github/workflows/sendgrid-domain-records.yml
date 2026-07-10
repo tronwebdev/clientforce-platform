@@ -1,0 +1,79 @@
+# A3 (DEC-060a) enabler: ensure a SendGrid domain authentication exists for
+# the SEND subdomain and print the DNS records the owner must add at the DNS
+# host. Registers the authentication in SendGrid ONLY — never touches DNS
+# (root-domain mail DNS is untouchable per DEC-013; these records live under
+# the send. subdomain). CNAME hosts/values are public DNS data — safe to print.
+name: sendgrid-domain-records
+
+on:
+  workflow_dispatch:
+    inputs:
+      send_domain:
+        description: "Send domain to authenticate"
+        required: false
+        default: "send.clientforce.io"
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  KEY_VAULT_NAME: ${{ vars.KEY_VAULT_NAME }}
+
+jobs:
+  records:
+    name: ensure subdomain auth + print DNS records
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Ensure domain auth + print records
+        run: |
+          set -euo pipefail
+          send_domain="${{ github.event.inputs.send_domain }}"
+          case "$send_domain" in
+            *.clientforce.io) ;;
+            *) echo "::error::send_domain must be a clientforce.io subdomain (DEC-013)"; exit 1;;
+          esac
+          key="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name SENDGRID-API-KEY --query value -o tsv)"
+          echo "::add-mask::$key"
+          export SG_KEY="$key" SEND_DOMAIN="$send_domain"
+          python3 <<'PY'
+          import json, os, urllib.request
+
+          key = os.environ["SG_KEY"]
+          send_domain = os.environ["SEND_DOMAIN"]
+
+          def call(method, path, body=None):
+              req = urllib.request.Request(
+                  f"https://api.sendgrid.com/v3{path}",
+                  method=method,
+                  headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+                  data=json.dumps(body).encode() if body is not None else None,
+              )
+              with urllib.request.urlopen(req) as res:
+                  return json.load(res)
+
+          domains = call("GET", "/whitelabel/domains")
+          def host(d):
+              sub = d.get("subdomain")
+              return f"{sub}.{d['domain']}" if sub and not d["domain"].startswith(sub + ".") else d["domain"]
+          match = next((d for d in domains if d["domain"] == send_domain or host(d) == send_domain), None)
+          if match is None:
+              print(f"No SendGrid authentication for {send_domain} yet — creating (SendGrid-side only, no DNS touched).")
+              match = call("POST", "/whitelabel/domains", {"domain": send_domain, "automatic_security": True, "default": False})
+          else:
+              print(f"SendGrid authentication for {send_domain} already exists (id={match['id']}).")
+
+          print(f"id: {match['id']}  valid: {match.get('valid')}")
+          print()
+          print("DNS records to add (type · host · value):")
+          for name, rec in (match.get("dns") or {}).items():
+              print(f"  [{name}] {rec.get('type','cname').upper()}  {rec['host']}  ->  {rec['data']}  (valid={rec.get('valid')})")
+          PY

@@ -35,19 +35,20 @@ async function assertDomainAuthVerified(apiKey: string): Promise<void> {
   });
   if (!res.ok) throw new Error(`SendGrid domain-auth lookup failed: ${res.status}`);
   const domains = (await res.json()) as SgDomain[];
+  // The FROM is agent@SEND_DOMAIN — the gate must require the SEND domain's
+  // own authentication. A root-domain fallback here once let the proof reach
+  // SendGrid only to 403 on sender identity (66-round).
   const match = domains.find(
-    (d) =>
-      d.domain === ROOT_DOMAIN &&
-      (d.subdomain ? `${d.subdomain}.${d.domain}` === SEND_DOMAIN : d.domain === SEND_DOMAIN),
-  ) ?? domains.find((d) => d.domain === ROOT_DOMAIN);
-  if (!match) throw new Error(`GATE FAILED: no SendGrid authenticated domain for ${ROOT_DOMAIN}`);
+    (d) => d.domain === SEND_DOMAIN || `${d.subdomain}.${d.domain}` === SEND_DOMAIN,
+  );
+  if (!match) throw new Error(`GATE FAILED: no SendGrid authenticated domain for ${SEND_DOMAIN}`);
   if (!match.valid) {
     const bad = Object.entries(match.dns ?? {})
       .filter(([, v]) => !v.valid)
       .map(([k, v]) => `${k} (${v.type} ${v.host})`);
-    throw new Error(`GATE FAILED: SendGrid domain auth not valid for ${ROOT_DOMAIN} — failing records: ${bad.join(", ") || "unknown"}`);
+    throw new Error(`GATE FAILED: SendGrid domain auth not valid for ${SEND_DOMAIN} — failing records: ${bad.join(", ") || "unknown"}`);
   }
-  console.log(`GATE 1 OK: SendGrid domain auth VALID for ${ROOT_DOMAIN} (SPF/DKIM verified by SendGrid)`);
+  console.log(`GATE 1 OK: SendGrid domain auth VALID for ${SEND_DOMAIN} (SPF/DKIM verified by SendGrid)`);
 
   const dmarc = await resolveTxt(`_dmarc.${ROOT_DOMAIN}`).catch(() => [] as string[][]);
   const record = dmarc.flat().find((t) => t.startsWith("v=DMARC1"));
