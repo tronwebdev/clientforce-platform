@@ -1,8 +1,9 @@
 # ADR: P3.0 Voice spike — real-time call loop go/no-go
 
 - **Status:** Accepted — **GO** on the loop and barge-in, proven on a real call
-  (2026-07-10). The **p95 latency promote gate stays OPEN** pending a longer
-  measured run in Phase 3 (see Latency → Promote gate).
+  (2026-07-10). The **latency promote gate stays OPEN** — reviewer-agreed gate:
+  TTFA **p50 ≤ ~1.2 s AND p95 ≤ ~1.5 s over ≥100 turns with 0 dropped audio**,
+  to be certified by a longer measured run in Phase 3 (see Latency → Promote gate).
 - **Date:** 2026-07-10 (updated same day with live-call numbers)
 - **Decision record:** PROGRESS DEC-066
 - **Scope:** de-risk the Phase-3 long pole (voice) — prove the real-time loop,
@@ -21,11 +22,12 @@ brain-only synthetic, i.e. STT-endpointing + PSTN added far less than the
 conservative projection. Barge-in cancelled in-flight TTS with **0–3 ms clear
 latency and zero dropped audio**. The `voice` gateway change is additive only.
 
-**But the p95 latency promote gate stays OPEN.** The live call is 6 turns; TTFA
-p95 rests on **5 samples** and round-trip p95 on **3**. That is enough to prove
-the concept and the p50, not enough to certify a p95 SLO. **Promoting to live
-calls requires a longer measured run in Phase 3** (target: ≥100 turns across
-several calls) to establish a stable TTFA p95 and confirm it holds under real
+**But the latency promote gate stays OPEN.** The live call is 6 turns; TTFA p95
+rests on **5 samples** and round-trip p95 on **3**. That is enough to prove the
+concept and the p50, not enough to certify an SLO. **Reviewer-agreed promote
+gate:** TTFA **p50 ≤ ~1.2 s AND p95 ≤ ~1.5 s**, measured over **≥100 turns**
+across several calls, with **0 dropped-audio events**. **Promoting to live calls
+requires a longer measured run in Phase 3** to certify that gate under real
 network variance — plus one real endpointing rough edge (below) to tune.
 
 **Recommendation for July: "designed + waitlist," with the gated live demo done
@@ -122,11 +124,16 @@ finishes generating.
 
 The **p50 is proven acceptable; the p95 is not yet certified.** The real-call
 p95 numbers rest on 5 (TTFA) and 3 (round-trip) samples — enough to disprove a
-disaster, not enough to promise an SLO under real network variance. **The gate
-to promote from waitlist to live calls is a Phase-3 longer run** — target ≥100
-turns across several calls and network conditions — establishing a stable TTFA
-**p95 ≤ ~1.5 s** and confirming 0 dropped-audio holds at volume. Until that run
-exists, the verdict is GO-on-concept, **not** GO-on-SLO.
+disaster, not enough to promise an SLO under real network variance.
+
+**Reviewer-agreed promote gate (to move from waitlist to live calls):**
+
+- TTFA **p50 ≤ ~1.2 s** AND **p95 ≤ ~1.5 s**,
+- measured over **≥100 turns** across several calls and network conditions,
+- with **0 dropped-audio events**.
+
+Certifying that gate is a **Phase-3 longer run**. Until it exists, the verdict is
+GO-on-concept, **not** GO-on-SLO.
 
 ---
 
@@ -217,12 +224,13 @@ is not a projection anymore; it works on a real PSTN call.
   waitlisted** capability (the Calls tab already exists as an inert route per
   A5). This is truthful, demoable to the owner, and carries no promise the
   backend can't keep.
-- **Defer past July — promote gate (OPEN):** a Phase-3 longer measured run
-  (≥100 turns across several calls) establishing a stable **TTFA p95 ≤ ~1.5 s**
-  with 0 dropped audio, endpointing tuned so it stops fragmenting real speech,
-  and Deepgram fully onboarded (cost/SLA history, alerting, fallback path). Only
-  then do live outbound/inbound calls at scale, call tools, graph voice nodes,
-  recording retention, and production error handling become in-scope.
+- **Defer past July — reviewer-agreed promote gate (OPEN):** a Phase-3 longer
+  measured run (**≥100 turns** across several calls) certifying TTFA **p50 ≤
+  ~1.2 s AND p95 ≤ ~1.5 s** with **0 dropped audio**, endpointing tuned so it
+  stops fragmenting real speech, and Deepgram fully onboarded (cost/SLA history,
+  alerting, fallback path). Only then do live outbound/inbound calls at scale,
+  call tools, graph voice nodes, recording retention, and production error
+  handling become in-scope.
 
 The loop is no longer the risk — the real call proved it. What remains is an
 **unverified p95** and a **new vendor**: certify the former with a longer run
