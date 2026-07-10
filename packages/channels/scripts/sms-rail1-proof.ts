@@ -160,8 +160,15 @@ async function stagingCtx(): Promise<StagingCtx | null> {
     console.log("staging ledger checks skipped (staging env not provided)");
     return null;
   }
-  const token = await signDevToken(DEV_SECRET, { sub: "owner@demo-agency.test", email: "owner@demo-agency.test" });
-  const me = (await fetch(`${STAGING_API}/me`, { headers: { Authorization: `Bearer ${token}` } }).then((r) => r.json())) as {
+  // The seeded user's authProviderId is bound to the WEB dev-login's subject
+  // convention (`dev|<email>`) — any other sub is a principal conflict (401).
+  const token = await signDevToken(DEV_SECRET, {
+    sub: "dev|owner@demo-agency.test",
+    email: "owner@demo-agency.test",
+  });
+  const meRes = await fetch(`${STAGING_API}/me`, { headers: { Authorization: `Bearer ${token}` } });
+  if (!meRes.ok) throw new Error(`staging /me -> ${meRes.status}: ${(await meRes.text()).slice(0, 200)}`);
+  const me = (await meRes.json()) as {
     memberships?: Array<{ workspaceId: string }>;
   };
   const workspaceId = (me.memberships ?? [])[0]?.workspaceId;
