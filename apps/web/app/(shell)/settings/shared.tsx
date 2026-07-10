@@ -219,10 +219,15 @@ export const FLOWS: Record<string, FlowDef> = {
     title: "Add a phone number",
     chooserTitle: "How do you want to add a number?",
     providers: [
-      { id: "buy", glyph: "#", tbg: "rgba(53,232,52,.16)", tfg: "#16A82A", name: "Buy a number", desc: "Search & provision a new number" },
-      { id: "port", glyph: "~", tbg: "rgba(54,215,237,.16)", tfg: "#1192A6", name: "Port an existing number", desc: "Bring your current number over" },
+      // P2.1 (DEC-061): the LIVE SMS path — creates a real TWILIO_SMS sender.
+      { id: "twilio", glyph: "✆", tbg: "rgba(53,232,52,.16)", tfg: "#16A82A", name: "Connect a Twilio number", desc: "A number + messaging service you already run" },
+      { id: "buy", glyph: "#", tbg: "rgba(54,215,237,.16)", tfg: "#1192A6", name: "Buy a number", desc: "Search & provision a new number" },
+      { id: "port", glyph: "~", tbg: "rgba(232,196,91,.2)", tfg: "#A87B16", name: "Port an existing number", desc: "Bring your current number over" },
     ],
     steps: {
+      twilio: [
+        { kind: "fields", title: "Twilio SMS sender", cta: "Add SMS sender", fields: [{ label: "Phone number", ph: "+15125550148" }, { label: "Label", ph: "Clinic SMS" }, { label: "Messaging service SID", ph: "MG0123456789abcdef0123456789abcdef" }] },
+      ],
       buy: [
         { kind: "fields", title: "Search numbers", cta: "Search", fields: [{ label: "Country", ph: "United States", sel: true }, { label: "Area code or prefix", ph: "512" }, { label: "Capabilities", ph: "Voice & WhatsApp", sel: true }] },
         { kind: "select", title: "Pick a number", selects: [{ label: "Available number", value: "+1 (512) 555-0148" }, { label: "Capabilities", value: "Voice, SMS & WhatsApp" }] },
@@ -286,6 +291,10 @@ export function ConnectFlowDrawer({ channel, onClose, toast, onMailerCreated }: 
   const [verified, setVerified] = useState(false);
   const [fromEmail, setFromEmail] = useState("");
   const [fromName, setFromName] = useState("");
+  // P2.1 (DEC-061): live Twilio SMS sender inputs.
+  const [smsPhone, setSmsPhone] = useState("");
+  const [smsLabel, setSmsLabel] = useState("");
+  const [smsSid, setSmsSid] = useState("");
   const [busy, setBusy] = useState(false);
 
   const def = FLOWS[ch];
@@ -294,9 +303,11 @@ export function ConnectFlowDrawer({ channel, onClose, toast, onMailerCreated }: 
   const cur = steps ? steps[Math.min(step, steps.length - 1)] : null;
   const provObj = def.providers?.find((p) => p.id === prov) ?? null;
   const isMailerLive = ch === "mailer";
+  const isSmsLive = ch === "phone" && prov === "twilio";
   const last = steps ? step >= steps.length - 1 : false;
   const emailValid = /.+@.+\..+/.test(fromEmail);
-  const mailerGateClosed = isMailerLive && cur?.kind === "fields" && !emailValid;
+  const smsValid = /^\+[1-9]\d{6,14}$/.test(smsPhone.trim()) && smsLabel.trim().length > 0 && /^MG[a-zA-Z0-9]{32}$/.test(smsSid.trim());
+  const mailerGateClosed = (isMailerLive && cur?.kind === "fields" && !emailValid) || (isSmsLive && cur?.kind === "fields" && !smsValid);
 
   const pick = (id: string) => {
     if (ch === "email" && id === "mailer") {
@@ -328,6 +339,20 @@ export function ConnectFlowDrawer({ channel, onClose, toast, onMailerCreated }: 
           toast(`${def.title} — complete`);
         })
         .catch(() => toast("Couldn’t add the sender — check the from address and try again."))
+        .finally(() => setBusy(false));
+      return;
+    }
+    if (isSmsLive) {
+      // P2.1 (DEC-061): this flow actually creates the TWILIO_SMS sender.
+      if (busy) return;
+      setBusy(true);
+      cf("senders", { method: "POST", body: JSON.stringify({ type: "TWILIO_SMS", phone: smsPhone.trim(), fromName: smsLabel.trim(), messagingServiceSid: smsSid.trim() }) })
+        .then(async () => {
+          await onMailerCreated?.();
+          onClose();
+          toast("SMS sender added — Twilio number connected");
+        })
+        .catch(() => toast("Couldn’t add the SMS sender — check the number and messaging service SID."))
         .finally(() => setBusy(false));
       return;
     }
@@ -421,7 +446,26 @@ export function ConnectFlowDrawer({ channel, onClose, toast, onMailerCreated }: 
             ) : null}
 
             {cur.kind === "fields" ? (
-              isMailerLive ? (
+              isSmsLive ? (
+                <>
+                  {/* live inputs — this flow actually creates the SMS sender */}
+                  <div style={{ marginBottom: 13 }}>
+                    <label style={lbl}>Phone number (E.164)</label>
+                    <input value={smsPhone} onChange={(e) => setSmsPhone(e.target.value)} placeholder="+15125550148" style={{ ...inp, height: 44 }} data-testid="sms-phone" />
+                  </div>
+                  <div style={{ marginBottom: 13 }}>
+                    <label style={lbl}>Label</label>
+                    <input value={smsLabel} onChange={(e) => setSmsLabel(e.target.value)} placeholder="Clinic SMS" style={{ ...inp, height: 44 }} data-testid="sms-label" />
+                  </div>
+                  <div style={{ marginBottom: 13 }}>
+                    <label style={lbl}>Messaging service SID</label>
+                    <input value={smsSid} onChange={(e) => setSmsSid(e.target.value)} placeholder="MG0123456789abcdef0123456789abcdef" style={{ ...inp, height: 44 }} data-testid="sms-sid" />
+                  </div>
+                  <div style={{ fontSize: 12, color: "#8A7F6B", lineHeight: 1.5 }}>
+                    Advanced Opt-Out must be ON for this messaging service — STOP replies also suppress here automatically (double rail).
+                  </div>
+                </>
+              ) : isMailerLive ? (
                 <>
                   {/* live inputs — this flow actually creates the sender */}
                   <div style={{ marginBottom: 13 }}>

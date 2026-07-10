@@ -89,7 +89,7 @@ export function EmailSendersSection({ toast }: { toast: (m: string) => void }) {
   const { senders, error, refresh } = useSenders();
   const [flowOpen, setFlowOpen] = useState(false);
   const [drawer, setDrawer] = useState<Sender | null>(null);
-  const rows = senders?.filter((s) => s.type !== "CF_MANAGED") ?? null;
+  const rows = senders?.filter((s) => s.type !== "CF_MANAGED" && s.type !== "TWILIO_SMS") ?? null;
 
   return (
     <div data-testid="section-email">
@@ -147,6 +147,64 @@ export function EmailSendersSection({ toast }: { toast: (m: string) => void }) {
         )}
       </div>
       {flowOpen ? <ConnectFlowDrawer channel="email" onClose={() => setFlowOpen(false)} toast={toast} onMailerCreated={refresh} /> : null}
+      {drawer ? <SenderDetailDrawer sender={drawer} onClose={() => setDrawer(null)} toast={toast} /> : null}
+    </div>
+  );
+}
+
+// ── SMS SENDERS (P2.1, DEC-061 — §6 amendment: the sms sender surface is LIVE) ─
+
+const SMS_GRID = "1.5fr 1.2fr .9fr .8fr 1fr";
+
+export function SmsSendersSection({ toast }: { toast: (m: string) => void }) {
+  const { senders, error, refresh } = useSenders();
+  const [flowOpen, setFlowOpen] = useState(false);
+  const [drawer, setDrawer] = useState<Sender | null>(null);
+  const rows = senders?.filter((s) => s.type === "TWILIO_SMS") ?? null;
+
+  return (
+    <div data-testid="section-sms">
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+        <div>
+          <div style={sectionHead}>SMS senders</div>
+          <div style={sectionSub}>Twilio numbers your agents text from — STOP replies suppress automatically.</div>
+        </div>
+        <span onClick={() => setFlowOpen(true)} style={gradBtn} data-testid="connect-sms">+ Add SMS sender</span>
+      </div>
+      <div style={tableCard} data-testid="sms-senders-table">
+        <div style={theadRow(SMS_GRID)}><span>Number</span><span>Label</span><span>Status</span><span>Daily</span><span>ID</span></div>
+        {rows === null && !error ? (
+          <SkeletonRows testid="sms-senders-skeleton" rows={2} />
+        ) : error ? (
+          <ErrorState what="SMS senders" onRetry={() => void refresh()} testid="sms-senders-error" />
+        ) : rows !== null && rows.length === 0 ? (
+          <div data-testid="sms-senders-empty">
+            <EmptyState
+              kind="empty"
+              title="No SMS numbers connected"
+              body="Connect a Twilio number + messaging service and your agents can text — sequences may then mix email and SMS steps."
+              actions={<span onClick={() => setFlowOpen(true)} style={{ fontSize: 13, fontWeight: 700, color: "#5C6B62", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 10, padding: "9px 16px", cursor: "pointer" }}>+ Add SMS sender</span>}
+            />
+          </div>
+        ) : (
+          (rows ?? []).map((s) => {
+            const st = sendStatus(s);
+            return (
+              <div key={s.id} onClick={() => setDrawer(s)} style={{ ...tbodyRow(SMS_GRID), fontSize: 13, color: "#0E1512", cursor: "pointer" }} data-testid="sms-sender-row">
+                <span style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                  <span style={{ width: 30, height: 30, borderRadius: 8, flex: "none", background: "rgba(53,232,52,.12)", color: "#16A82A", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>✆</span>
+                  <span style={{ fontWeight: 600, fontFamily: "monospace", fontSize: 12.5 }}>{s.fromEmail}</span>
+                </span>
+                <span style={{ color: "#3B463F" }}>{s.fromName ?? "—"}</span>
+                <span><span style={{ fontSize: 11.5, fontWeight: 600, color: st.fg, background: st.bg, borderRadius: 100, padding: "4px 9px" }}>{st.label}</span></span>
+                <span style={{ color: "#5C6B62", fontSize: 12.5 }}>{s.dailyLimit.toLocaleString()} / day</span>
+                <span style={{ fontFamily: "monospace", fontSize: 11.5, color: "#8A7F6B" }}>{s.id.slice(0, 8)}</span>
+              </div>
+            );
+          })
+        )}
+      </div>
+      {flowOpen ? <ConnectFlowDrawer channel="phone" onClose={() => setFlowOpen(false)} toast={toast} onMailerCreated={refresh} /> : null}
       {drawer ? <SenderDetailDrawer sender={drawer} onClose={() => setDrawer(null)} toast={toast} /> : null}
     </div>
   );
@@ -222,13 +280,17 @@ const prettyKey = (k: string) => {
 
 function SenderDetailDrawer({ sender, onClose, toast }: { sender: Sender; onClose: () => void; toast: (m: string) => void }) {
   const isMailer = sender.type === "CF_MANAGED";
+  // 54-1 (review): drawer blocks gate by sender TYPE — an SMS sender has no
+  // SPF/DKIM/DMARC story; its trust rails are A2P registration + the STOP
+  // double rail, so the domain-auth card simply doesn't render.
+  const isSms = sender.type === "TWILIO_SMS";
   const prov = PROVIDER[sender.type];
   const st = DETAIL_STATUS[sender.status] ?? { label: sender.status, ...PAIR.neutral };
   const passes = authPasses(sender);
   const barColor = passes === 3 ? "#16A82A" : "#E8C45B";
   const pct = Math.min(100, Math.round((sender.sentToday / Math.max(1, sender.dailyLimit)) * 100));
   const warmupEntries = sender.warmupState && typeof sender.warmupState === "object" ? Object.entries(sender.warmupState) : [];
-  const providerChip = isMailer ? "Clientforce Mailer" : (prov?.sub ?? sender.type);
+  const providerChip = isMailer ? "Clientforce Mailer" : isSms ? "Twilio SMS" : (prov?.sub ?? sender.type);
 
   return (
     <DrawerShell width={500} title="Sender details" onClose={onClose} z={57} shadow="-28px 0 70px rgba(0,0,0,.30)" testid="sender-drawer"
@@ -250,6 +312,8 @@ function SenderDetailDrawer({ sender, onClose, toast }: { sender: Sender; onClos
             <div style={{ width: 46, height: 46, borderRadius: 12, background: "#fff", border: "1.5px solid #EBE3D6", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", boxSizing: "border-box" }}>
               {isMailer ? (
                 <div style={{ width: 28, height: 28, borderRadius: 7, background: GRAD, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: BRICO, fontWeight: 800, fontSize: 14, color: "#0A0F0C" }}>f</div>
+              ) : isSms ? (
+                <span style={{ width: 28, height: 28, borderRadius: 7, background: "rgba(53,232,52,.12)", color: "#16A82A", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>✆</span>
               ) : (
                 <EnvelopeLogo fill={prov?.logo ?? "#7A8A80"} size={24} />
               )}
@@ -307,7 +371,27 @@ function SenderDetailDrawer({ sender, onClose, toast }: { sender: Sender; onClos
           </div>
         ) : null}
 
-        {/* domain authentication — always */}
+        {/* P2.1 (54-1): sms senders carry opt-out rails instead of DNS auth */}
+        {isSms ? (
+          <div style={subCard} data-testid="sender-sms-optout">
+            <div style={{ ...microLabel, marginBottom: 12 }}>Opt-out compliance</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {[
+                { key: "Advanced Opt-Out", detail: "Twilio messaging-service level (rail 1)" },
+                { key: "STOP webhook rail", detail: "Suppression + opt-out + unenroll on STOP (rail 2)" },
+                { key: "Opt-out line", detail: "\u201CReply STOP to opt out.\u201D on every first outbound" },
+              ].map((a) => (
+                <div key={a.key} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "#FBF7F0", borderRadius: 10 }}>
+                  <span style={{ fontSize: 14, color: "#16A82A", fontWeight: 800, width: 18, textAlign: "center" }}>✓</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#0E1512" }}>{a.key}</div>
+                    <div style={{ fontSize: 11, color: "#9AA59E", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.detail}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
         <div style={subCard} data-testid="sender-domain-auth">
           <div style={{ display: "flex", alignItems: "center", marginBottom: 12 }}>
             <div style={{ ...microLabel, flex: 1 }}>Domain authentication</div>
@@ -331,6 +415,7 @@ function SenderDetailDrawer({ sender, onClose, toast }: { sender: Sender; onClos
             ))}
           </div>
         </div>
+        )}
         {/* "Used by agents" card omitted — no sender↔agent assignment model this phase */}
       </div>
     </DrawerShell>
@@ -427,7 +512,7 @@ export function SuppressionSection({ toast }: { toast: (m: string) => void }) {
         </div>
       </div>
       <div style={tableCard} data-testid="suppress-table">
-        <div style={theadRow(SUPPRESS_GRID)}><span>Email</span><span>Channel</span><span>Reason</span><span>Source</span><span>Added</span><span /></div>
+        <div style={theadRow(SUPPRESS_GRID)}><span>Address</span><span>Channel</span><span>Reason</span><span>Source</span><span>Added</span><span /></div>
         {rows === null && !error ? (
           <SkeletonRows testid="suppress-skeleton" />
         ) : error ? (

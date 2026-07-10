@@ -14,15 +14,22 @@ import { AnyFilesInterceptor } from "@nestjs/platform-express";
 import type { Queue } from "bullmq";
 import {
   applyEmailEvent,
+  applySmsStop,
   ingestInboundEmail,
+  ingestInboundSms,
   MalformedInboundError,
   normalizeInboundParse,
   normalizeSendGridEvents,
+  normalizeTwilioInbound,
   resolveEventMessage,
   toBusEvents,
+  validateTwilioSignature,
   verifySendGridSignature,
   type ClassifyJobData,
 } from "@clientforce/channels";
+import { EVENT_TYPES } from "@clientforce/events";
+import { Req } from "@nestjs/common";
+import type { Request } from "express";
 import { Public } from "../auth/decorators";
 import { PrismaService } from "../db/prisma.service";
 import { EVENTS_PUBLISHER, type EventsPublisher } from "../events/publisher";
@@ -128,5 +135,71 @@ export class WebhooksController {
       );
     }
     return { received: true, matched: true, messageId: result.message.id };
+  }
+
+  /**
+   * P2.1 (DEC-061/062): Twilio inbound SMS. Authenticity = X-Twilio-Signature
+   * (HMAC over the public URL + params with the auth token); with no token
+   * configured, accepted in dev, REJECTED in production — the SendGrid model.
+   * STOP-family bodies run the second opt-out rail (Suppression + optOut.sms +
+   * enrollments UNSUBSCRIBED + lead.unsubscribed.v1 + sms.opted_out.v1);
+   * everything else rides the SAME P1.7 classify queue as email.
+   */
+  @Public()
+  @Post("twilio-inbound")
+  @UseInterceptors(AnyFilesInterceptor())
+  async twilioInbound(
+    @Req() req: Request,
+    @Body() form: Record<string, unknown>,
+    @Headers("x-twilio-signature") signature?: string,
+  ) {
+    const authToken = process.env.TWILIO_AUTH_TOKEN;
+    if (authToken) {
+      const url = `${process.env.PUBLIC_API_URL ?? `https://${req.headers.host ?? ""}`}${req.originalUrl}`;
+      const params = Object.fromEntries(
+        Object.entries(form ?? {}).filter(([, v]) => typeof v === "string"),
+      ) as Record<string, string>;
+      if (!signature || !validateTwilioSignature(authToken, url, params, signature)) {
+        throw new UnauthorizedException("Invalid Twilio signature");
+      }
+    } else if (process.env.NODE_ENV === "production") {
+      throw new UnauthorizedException("Twilio auth token not configured");
+    }
+
+    const inbound = normalizeTwilioInbound(form ?? {});
+    if (!inbound.from || !inbound.body) throw new BadRequestException("Malformed Twilio inbound payload");
+    const result = await ingestInboundSms({ owner: this.prisma.admin, app: this.prisma.app }, inbound);
+    if (!result) return { received: true, matched: false };
+
+    const { message, resolution, stop } = result;
+    if (stop) {
+      await applySmsStop(this.prisma.app, resolution.workspaceId, resolution.contactId, inbound.from, resolution.enrollmentId);
+      await this.publisher.publish({
+        type: EVENT_TYPES.SMS_OPTED_OUT,
+        workspaceId: resolution.workspaceId,
+        contactId: resolution.contactId,
+        enrollmentId: resolution.enrollmentId ?? undefined,
+        campaignId: resolution.campaignId,
+        payload: { messageId: message.id, reason: "STOP reply" },
+      });
+      await this.publisher.publish({
+        type: "lead.unsubscribed.v1",
+        workspaceId: resolution.workspaceId,
+        contactId: resolution.contactId,
+        enrollmentId: resolution.enrollmentId ?? undefined,
+        campaignId: resolution.campaignId,
+        payload: { channel: "sms" },
+      });
+      return { received: true, matched: true, stop: true, messageId: message.id };
+    }
+
+    if (this.classifyQueue) {
+      await this.classifyQueue.add(
+        "classify",
+        { workspaceId: resolution.workspaceId, messageId: message.id },
+        { attempts: 3, backoff: { type: "exponential", delay: 5_000 }, removeOnComplete: true },
+      );
+    }
+    return { received: true, matched: true, messageId: message.id };
   }
 }

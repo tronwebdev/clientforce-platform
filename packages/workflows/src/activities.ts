@@ -5,7 +5,7 @@
  * so a retried activity can never double-send.
  */
 import { ApplicationFailure } from "@temporalio/common";
-import { sendStep, SendBlockedError, type EmailSender } from "@clientforce/channels";
+import { sendSmsStep, sendStep, SendBlockedError, type EmailSender, type SmsSender } from "@clientforce/channels";
 import { goalTerminalLabel, parseGuardrails, type StepContent } from "@clientforce/core";
 import { withTenant, type Prisma, type PrismaClient } from "@clientforce/db";
 import type { SendOutcome } from "./shared";
@@ -14,6 +14,10 @@ export interface ActivityDeps {
   /** RLS-subject client (`createAppPrismaClient`) — never the owner client. */
   prisma: PrismaClient;
   transport: EmailSender;
+  /** P2.1 (DEC-061): the SMS transport; absent → sms steps refuse (typed). */
+  smsTransport?: SmsSender;
+  /** DEC-063: sms allow-list (CHANNELS_SMS_ALLOWLIST resolved by the boundary when omitted). */
+  smsAllowlist?: string[];
   /** Injectable clock (send-window tests). */
   now?: () => Date;
   /** §G allow-list override; resolves from CHANNELS_ALLOWLIST when omitted. */
@@ -85,6 +89,8 @@ export function createActivities(deps: ActivityDeps) {
       senderId: string;
       stepNodeId: string;
       content: StepContent;
+      /** P2.1: the step node's channel — "email" (default) or "sms". */
+      channel?: string;
     }): Promise<SendOutcome> {
       const existing = await withTenant(prisma, { workspaceId: params.workspaceId }, (tx) =>
         tx.message.findFirst({
@@ -104,19 +110,45 @@ export function createActivities(deps: ActivityDeps) {
         };
       }
       try {
-        const message = await sendStep(
-          { prisma, transport, now: deps.now, allowlist: deps.allowlist },
-          {
-            workspaceId: params.workspaceId,
-            campaignId: params.campaignId,
-            agentId: params.agentId,
-            enrollmentId: params.enrollmentId,
-            contactId: params.contactId,
-            senderId: params.senderId,
-            stepNodeId: params.stepNodeId,
-            content: params.content,
-          },
-        );
+        let message;
+        if (params.channel === "sms") {
+          // P2.1 (DEC-061): sms steps resolve the workspace's ACTIVE Twilio
+          // sender themselves — the enrollment's senderId is the EMAIL sender.
+          if (!deps.smsTransport) {
+            throw new SendBlockedError("SENDER_NOT_SMS", "no sms transport configured");
+          }
+          const smsSender = await withTenant(prisma, { workspaceId: params.workspaceId }, (tx) =>
+            tx.senderConnection.findFirst({ where: { type: "TWILIO_SMS", status: "ACTIVE" } }),
+          );
+          if (!smsSender) throw new SendBlockedError("SENDER_NOT_SMS", "no active TWILIO_SMS sender");
+          message = await sendSmsStep(
+            { prisma, transport: deps.smsTransport, now: deps.now, allowlist: deps.smsAllowlist },
+            {
+              workspaceId: params.workspaceId,
+              campaignId: params.campaignId,
+              agentId: params.agentId,
+              enrollmentId: params.enrollmentId,
+              contactId: params.contactId,
+              senderId: smsSender.id,
+              stepNodeId: params.stepNodeId,
+              content: params.content,
+            },
+          );
+        } else {
+          message = await sendStep(
+            { prisma, transport, now: deps.now, allowlist: deps.allowlist },
+            {
+              workspaceId: params.workspaceId,
+              campaignId: params.campaignId,
+              agentId: params.agentId,
+              enrollmentId: params.enrollmentId,
+              contactId: params.contactId,
+              senderId: params.senderId,
+              stepNodeId: params.stepNodeId,
+              content: params.content,
+            },
+          );
+        }
         return { kind: "sent", messageId: message.id, providerMessageId: message.providerMessageId };
       } catch (err) {
         if (err instanceof SendBlockedError) {

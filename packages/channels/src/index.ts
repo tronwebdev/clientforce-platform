@@ -57,3 +57,17 @@ export {
   type ClassifyContext,
   type ClassifyWorkerDeps,
 } from "./classify";
+// ── P2.1 (DEC-061/062): the SMS channel ──────────────────────────────────────
+export { sendSmsStep, SMS_OPT_OUT_LINE, DEFAULT_SMS_DAILY_CAP, type SendSmsDeps, type SendSmsStepParams } from "./send-sms";
+export { TwilioSmsSender, parseTwilioConfig, smsSegmentCount, validateTwilioSignature, type TwilioSenderConfig } from "./twilio";
+export {
+  applySmsStop,
+  ingestInboundSms,
+  isStopMessage,
+  normalizeTwilioInbound,
+  resolveInboundSmsThread,
+  type InboundSms,
+  type IngestInboundSmsDeps,
+  type SmsThreadResolution,
+} from "./sms-inbound";
+export type { RenderedSms, SmsSender, SmsSendResult } from "./types";

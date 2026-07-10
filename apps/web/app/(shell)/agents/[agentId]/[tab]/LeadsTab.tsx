@@ -83,6 +83,13 @@ const EVENT_ROW: Record<string, { icon: string; bg: string; fg: string; label: (
   // renders verbatim; older events fall back to the raw stages.
   "lead.stage_changed.v1": { icon: "✦", bg: "rgba(53,232,52,.14)", fg: "#16A82A", label: (p) => (p.label ? `Stage changed — ${String(p.label)}` : `Stage changed${p.fromStage ? ` — ${String(p.fromStage)} → ${String(p.toStage)}` : ""}`) },
   "lead.unsubscribed.v1": { icon: "⊘", bg: "rgba(224,121,107,.16)", fg: "#C9543F", label: () => "Unsubscribed from all sequences" },
+  // P2.1 (DEC-061): sms timeline rows — same anatomy, channel-true copy.
+  "sms.sent.v1": { icon: "✆", bg: "#F2EEE4", fg: "#8A7F6B", label: () => "Step SMS sent" },
+  "sms.delivered.v1": { icon: "✓", bg: "#F2EEE4", fg: "#8A7F6B", label: () => "SMS delivered" },
+  "sms.failed.v1": { icon: "⚠", bg: "rgba(224,121,107,.14)", fg: "#C9543F", label: (p) => `SMS failed${p.reason ? ` — ${String(p.reason)}` : ""}` },
+  "sms.replied.v1": { icon: "💬", bg: "rgba(54,215,237,.16)", fg: "#1192A6", label: (p) => `Replied by SMS${p.intent ? ` — classified “${String(p.intent)}”` : ""}` },
+  "sms.opted_out.v1": { icon: "⊘", bg: "rgba(224,121,107,.16)", fg: "#C9543F", label: () => "Replied STOP — suppressed for SMS" },
+
   // C2.8 (49-1): membership events render human — the slug never surfaces raw.
   "list.member.added.v1": { icon: "≣", bg: "rgba(53,232,52,.14)", fg: "#16A82A", label: (p) => `Added to ${String(p.listName ?? "a list")}` },
   "list.member.removed.v1": { icon: "≣", bg: "#F2EEE4", fg: "#8A7F6B", label: (p) => `Removed from ${String(p.listName ?? "a list")}` },

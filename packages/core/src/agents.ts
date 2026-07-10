@@ -37,6 +37,8 @@ export const draftStateSchema = z.object({
     .optional(),
   capture: z.object({ widget: z.boolean(), form: z.boolean() }).optional(),
   dailyCap: z.number().int().min(1).max(10000).optional(),
+  /** P2.1 (DEC-061): the sms daily cap (guardrails dailyCap.sms). */
+  smsDailyCap: z.number().int().min(1).max(10000).optional(),
   windowStart: z.string().max(5).optional(),
   windowEnd: z.string().max(5).optional(),
   /** B10: IANA zone for the sending window (also lands in guardrails). */

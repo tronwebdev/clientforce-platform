@@ -6,7 +6,7 @@ import {
   AnthropicProvider,
   OpenAiEmbeddingsProvider,
 } from "@clientforce/ai";
-import { createClassifyWorker, SendGridSender } from "@clientforce/channels";
+import { createClassifyWorker, SendGridSender , TwilioSmsSender} from "@clientforce/channels";
 import { isConfigured } from "@clientforce/config";
 import { goalKeySchema, type GoalKey } from "@clientforce/core";
 import { createDistillQueue, createDistillWorker } from "@clientforce/context";
@@ -314,6 +314,8 @@ async function run(): Promise<void> {
     activities: createActivities({
       prisma: activityPrisma,
       transport: new SendGridSender(),
+      // P2.1 (DEC-061): sms steps route through Twilio (SMS_SANDBOX default ON).
+      smsTransport: new TwilioSmsSender(),
       ...(stageBus
         ? {
             publishStageChanged: async (change) => {

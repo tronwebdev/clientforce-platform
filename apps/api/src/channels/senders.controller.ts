@@ -9,8 +9,8 @@ import {
   UnprocessableEntityException,
 } from "@nestjs/common";
 import { SendBlockedError, sendStep, type EmailSender } from "@clientforce/channels";
-import { createSenderSchema, testSendSchema } from "@clientforce/core";
-import { Role, type Prisma } from "@clientforce/db";
+import { createSenderSchema, createSmsSenderSchema, testSendSchema } from "@clientforce/core";
+import { encryptField, Role, type Prisma } from "@clientforce/db";
 import type { ZodSchema } from "zod";
 import { Roles } from "../auth/decorators";
 import { PrismaService } from "../db/prisma.service";
@@ -45,6 +45,25 @@ export class SendersController {
   @Post()
   @Roles(Role.OWNER, Role.ADMIN)
   create(@Body() body: unknown) {
+    // P2.1 (DEC-061): the SMS create shape is its own schema — E.164 phone
+    // rides the fromEmail column (enum-only migration, documented), the
+    // messaging-service SID rides the field-encrypted credentials blob.
+    if ((body as { type?: string })?.type === "TWILIO_SMS") {
+      const sms = parse(createSmsSenderSchema, body);
+      const workspaceId = this.tenant.workspaceId;
+      return this.tenant.run((tx) =>
+        tx.senderConnection.create({
+          data: {
+            workspaceId,
+            type: "TWILIO_SMS",
+            fromEmail: sms.phone,
+            fromName: sms.fromName,
+            ...(sms.dailyLimit ? { dailyLimit: sms.dailyLimit } : {}),
+            credentialsEnc: new Uint8Array(encryptField(JSON.stringify({ messagingServiceSid: sms.messagingServiceSid }))),
+          },
+        }),
+      );
+    }
     const dto = parse(createSenderSchema, body);
     if (dto.type !== "CF_MANAGED") {
       throw new BadRequestException(

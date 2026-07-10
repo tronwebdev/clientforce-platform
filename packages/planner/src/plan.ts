@@ -68,6 +68,13 @@ export async function planCampaign(deps: PlanDeps, target: PlanTarget): Promise<
   );
   if (!agent) throw new PlannerError(`Agent ${agentId} not found in workspace ${workspaceId}`);
 
+  // P2.1 (DEC-061): sms steps are only plannable when the workspace has an
+  // ACTIVE Twilio sender — no sender, no sms nodes (honest absence).
+  const smsSender = await withTenant(prisma, { workspaceId }, (tx) =>
+    tx.senderConnection.findFirst({ where: { type: "TWILIO_SMS", status: "ACTIVE" } }),
+  );
+  const allowedChannels = smsSender ? ["email", "sms"] : ["email"];
+
   const [workspaceRow, agentRow] = await withTenant(prisma, { workspaceId }, (tx) =>
     Promise.all([
       tx.businessContext.findFirst({ where: { workspaceId, agentId: null } }),
@@ -88,6 +95,9 @@ export async function planCampaign(deps: PlanDeps, target: PlanTarget): Promise<
     guardrails: renderGuardrails(agent.guardrails),
     stepCount: "3-4",
     tokens: REQUIRED_TOKENS.join(" and "),
+    channels: smsSender
+      ? '"email" or "sms" — mix channels where the sequence benefits; sms steps have NO subject, body ≤ 300 characters, one clear ask.'
+      : '"email" ONLY.',
   });
 
   // Attempt 1 (shape is enforced + repaired inside completeStructured) …
@@ -98,7 +108,7 @@ export async function planCampaign(deps: PlanDeps, target: PlanTarget): Promise<
   );
   let graph: CampaignGraph;
   try {
-    graph = validateAll(candidate);
+    graph = validateAll(candidate, allowedChannels);
   } catch (err) {
     // … one bounded SEMANTIC repair: the model sees its graph + the error.
     const message = err instanceof Error ? err.message : String(err);
@@ -114,7 +124,7 @@ export async function planCampaign(deps: PlanDeps, target: PlanTarget): Promise<
       campaignGraphSchema,
     );
     try {
-      graph = validateAll(candidate);
+      graph = validateAll(candidate, allowedChannels);
     } catch (second) {
       throw new PlannerError(
         `Planner produced an invalid graph after one repair: ${second instanceof Error ? second.message : String(second)}`,
@@ -165,16 +175,20 @@ export async function planCampaign(deps: PlanDeps, target: PlanTarget): Promise<
   return { campaign, graphRow, graph, dryRun };
 }
 
-/** Shape + T4 semantics + P1.4 slice requirements, as one gate. */
-export function validateAll(input: unknown): CampaignGraph {
+/** Shape + T4 semantics + P1.4 slice requirements, as one gate.
+ *  P2.1 (DEC-061): `allowedChannels` widens per workspace capability — sms
+ *  joins ONLY when an active Twilio sender exists (default stays email-only). */
+export function validateAll(input: unknown, allowedChannels: string[] = ["email"]): CampaignGraph {
   const graph = validateGraph(input);
 
   const steps = graph.nodes.filter((n): n is StepNode => n.type === "step");
   if (steps.length === 0) throw new GraphValidationError("Graph has no step nodes");
-  const nonEmail = steps.filter((s) => s.channel !== "email");
-  if (nonEmail.length > 0) {
+  const disallowed = steps.filter((s) => !allowedChannels.includes(s.channel));
+  if (disallowed.length > 0) {
     throw new GraphValidationError(
-      `Phase 1 is email-only; steps ${nonEmail.map((s) => s.id).join(", ")} use other channels`,
+      allowedChannels.length === 1
+        ? `Phase 1 is email-only; steps ${disallowed.map((s) => s.id).join(", ")} use other channels`
+        : `Steps ${disallowed.map((s) => s.id).join(", ")} use channels outside [${allowedChannels.join(", ")}]`,
     );
   }
   if (!graph.nodes.some((n) => n.type === "delay")) {

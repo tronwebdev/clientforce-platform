@@ -188,6 +188,12 @@ from core `GOAL_META`). Selecting **Custom goal** reveals an optional "completed
 input (max 60 chars, placeholder/default **"Goal met"**) — the typed label flows to every
 goal-state surface (§4/§5). States: explainer per selected goal · custom input empty (default) ·
 custom input typed.
+**P2.1 amendment (Twilio SMS — binding from the P2.1 kickoff, DEC-061):** step-2 sequence cards
+and the sequence editor render **sms steps with the prototype ChannelChip anatomy** — same card,
+channel-true icon (💬, teal `rgba(54,215,237,.16)`/`#1192A6` tint) and chip text "SMS"; sms cards
+title "SMS message" (no subject). The planner emits sms steps ONLY when an active SMS sender
+exists. The limits modal gains the **"Daily SMS cap"** stepper (guardrails `dailyCap.sms`) beside
+the email cap; the step-5 limits card shows the sms tile.
 **Step 4 — Enable lead capture:** 2-col grid (`1fr 1fr`, gap 18); 48×28 gradient toggle; note
 "This step is optional — you can skip it…" verbatim. **Visual only in P1** (toggle state persists,
 no capture backend).
@@ -238,6 +244,11 @@ static mock):** Calls, Preview, Stats. Do not delete them.
   pill + stage-filter option + "Mark as …" move option render the goal's **terminalPill/Label**.
   Lead-drawer timeline stage rows render the label carried on the `lead.stage_changed.v1` payload
   verbatim. book_appointments campaigns are pixel-unchanged.
+- **P2.1 amendment (Twilio SMS, DEC-061):** the Inbox **"All channels" filter is FUNCTIONAL** — a
+  thread matches when any of its messages used the channel; thread rows with sms messages carry a
+  teal **SMS chip** + channel-true avatar badge; the Steps tab renders sms step cards per the §3
+  ChannelChip anatomy; lead/contact timelines render `sms.*` rows (sent/delivered/failed/replied/
+  opted-out) with channel-true copy.
 - **Lead detail drawer:** scrim `rgba(12,20,15,.45)`; panel **460px**, bg `#FBF7F0`, shadow
   `-24px 0 70px rgba(0,0,0,.32)`; white header (padding `20px 22px`). Contains the **activity
   timeline** — every persisted event for the lead (sent → delivered → opened → clicked → replied
@@ -360,6 +371,14 @@ unchanged; mixed-goal state must show the generic tab with per-row specific pill
   add/remove; **wired to the real `Suppression` model** — adding an address here must actually block
   a send (this is tested in P1.5's acceptance).
 
+
+**P2.1 amendment (Twilio SMS — §6, DEC-061/062):** the Communication rail's **"Phone & SMS"**
+section is LIVE: SMS senders table (number · label · status · daily · id) + the sender drawer for
+TWILIO_SMS rows; **"+ Add SMS sender"** opens the connect drawer whose **"Connect a Twilio
+number"** path actually creates the sender (E.164 phone + label + messaging-service SID —
+SID field-encrypted; number rides the fromEmail column per the enum-only migration). Buy/port
+number flows stay designed-inert. The empty state names the capability ("sequences may then mix
+email and SMS steps"). STOP suppressions appear in the existing Suppression table (channel "sms").
 
 ---
 

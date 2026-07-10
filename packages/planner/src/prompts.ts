@@ -6,7 +6,7 @@ import { registerPrompt, renderPrompt } from "@clientforce/ai";
  * context — which is itself evidence-cited by P1.3 — never model priors.
  */
 export const PLANNER_PROMPT_NAME = "planner.campaign";
-export const PLANNER_PROMPT_VERSION = 1;
+export const PLANNER_PROMPT_VERSION = 2; // P2.1 (DEC-061): channel line parameterized
 
 export const PLANNER_SYSTEM =
   "You are a campaign planner for an outbound email agent. You design a short, effective email sequence as a " +
@@ -23,7 +23,7 @@ function ensureRegistered(): void {
   registerPrompt({
     name: PLANNER_PROMPT_NAME,
     version: PLANNER_PROMPT_VERSION,
-    template: `Design an outbound EMAIL campaign graph for this agent.
+    template: `Design an outbound campaign graph for this agent.
 
 GOAL: {{goal}}
 
@@ -34,7 +34,7 @@ GUARDRAILS (constraints the plan must respect):
 {{guardrails}}
 
 GRAPH REQUIREMENTS:
-- Channel: "email" ONLY.
+- Channel: {{channels}}
 - {{stepCount}} "step" nodes; each content has "subject" and "body"; use {{tokens}} in the body (and subject where natural).
 - At least one "delay" node between sends (1-4 days).
 - Exactly one "branch" node with on="reply": a case for {"intent":"interested"} routing to an "end" (or booking "action") path, and a "default" case continuing the follow-up sequence.
@@ -50,6 +50,8 @@ export function renderPlannerPrompt(vars: {
   guardrails: string;
   stepCount: string;
   tokens: string;
+  /** P2.1 (DEC-061): '"email" ONLY.' unless an active SMS sender widens it. */
+  channels: string;
 }): string {
   ensureRegistered();
   return renderPrompt(PLANNER_PROMPT_NAME, PLANNER_PROMPT_VERSION, vars);

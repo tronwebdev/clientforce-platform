@@ -328,6 +328,8 @@ export function Wizard() {
   // step 5
   const [senders, setSenders] = useState<SenderRow[]>([]);
   const [dailyCap, setDailyCap] = useState(200);
+  // P2.1 (DEC-061): per-channel sms cap (guardrails dailyCap.sms).
+  const [smsDailyCap, setSmsDailyCap] = useState(50);
   const [windowStart, setWindowStart] = useState("09:00");
   const [timezone, setTimezone] = useState("UTC"); // B10 — IANA, A8 sendingWindow
   const [tzOpen, setTzOpen] = useState(false);
@@ -371,6 +373,7 @@ export function Wizard() {
         if (ds.added) setAdded(ds.added);
         if (ds.capture) setCapture(ds.capture);
         if (typeof ds.dailyCap === "number") setDailyCap(ds.dailyCap);
+        if (typeof ds.smsDailyCap === "number") setSmsDailyCap(ds.smsDailyCap);
         if (ds.windowStart) setWindowStart(ds.windowStart);
         if (ds.timezone) setTimezone(ds.timezone);
         // C2.8: re-resolve the picked list from the server (name/count are
@@ -423,6 +426,7 @@ export function Wizard() {
         added,
         capture,
         dailyCap,
+        smsDailyCap,
         windowStart,
         windowEnd,
         timezone,
@@ -442,7 +446,7 @@ export function Wizard() {
         });
     }, 800);
     return () => clearTimeout(t);
-  }, [agentId, launched, resuming, building, step, buildMethod, added, capture, dailyCap, windowStart, windowEnd, timezone, sendDays, quietHours, ramp, pickedList, goalLabel, toast]);
+  }, [agentId, launched, resuming, building, step, buildMethod, added, capture, dailyCap, smsDailyCap, windowStart, windowEnd, timezone, sendDays, quietHours, ramp, pickedList, goalLabel, toast]);
 
   // ── polling (A4: 5s) ────────────────────────────────────────────────────
   const readyCount = useRef(0);
@@ -900,7 +904,7 @@ export function Wizard() {
               end: windowEnd,
               timezone,
             },
-            dailyCap: { email: dailyCap },
+            dailyCap: { email: dailyCap, sms: smsDailyCap },
             consent: null,
             tracking: { openTracking: true, linkTracking: true },
             // C2.9: custom goal's terminal label survives launch here (DEC-059).
@@ -1107,7 +1111,7 @@ export function Wizard() {
               end: windowEnd,
               timezone,
             },
-            dailyCap: { email: dailyCap },
+            dailyCap: { email: dailyCap, sms: smsDailyCap },
             consent: null,
             tracking: { openTracking: true, linkTracking: true },
             // C2.9: custom goal's terminal label survives launch here (DEC-059).
@@ -1326,15 +1330,17 @@ export function Wizard() {
                         const idx = graph.nodes.filter((x) => x.type === "step").indexOf(n) + 1;
                         return (
                           <div key={n.id} style={{ display: "flex", gap: 14, alignItems: "flex-start" }} data-testid="seq-step">
-                            <span style={{ width: 38, height: 38, borderRadius: 11, flex: "none", background: "rgba(53,232,52,.16)", color: "#16A82A", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, fontWeight: 700 }}>✉</span>
+                            {/* P2.1 (DEC-061, §3 amendment): ChannelChip anatomy — sms
+                                steps reuse the card with channel-true icon + tint. */}
+                            <span style={{ width: 38, height: 38, borderRadius: 11, flex: "none", background: n.channel === "sms" ? "rgba(54,215,237,.16)" : "rgba(53,232,52,.16)", color: n.channel === "sms" ? "#1192A6" : "#16A82A", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, fontWeight: 700 }}>{n.channel === "sms" ? "💬" : "✉"}</span>
                             <div onClick={() => { setEditNode(n); setEditSubject(n.content.subject ?? ""); setEditBody(n.content.body ?? ""); }} style={{ flex: 1, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 14, padding: "16px 18px", boxShadow: "0 4px 16px rgba(14,21,18,.04)", cursor: "pointer" }}>
                               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
                                 <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "#8A7F6B" }}>Step {idx}</span>
-                                <span style={{ fontSize: 12, fontWeight: 700, borderRadius: 8, padding: "3px 10px", background: "rgba(53,232,52,.13)", color: "#16A82A" }}>Email</span>
+                                <span style={{ fontSize: 12, fontWeight: 700, borderRadius: 8, padding: "3px 10px", background: n.channel === "sms" ? "rgba(54,215,237,.14)" : "rgba(53,232,52,.13)", color: n.channel === "sms" ? "#1192A6" : "#16A82A" }} data-testid="seq-channel-chip">{n.channel === "sms" ? "SMS" : "Email"}</span>
                                 <span style={{ fontSize: 11, fontWeight: 700, color: "#16A82A", background: "rgba(53,232,52,.12)", borderRadius: 7, padding: "3px 9px" }}>✦ AI draft</span>
                                 <span style={{ marginLeft: "auto", fontSize: 13, color: "#9AA59E" }} data-testid="seq-edit">✎ Edit</span>
                               </div>
-                              <div style={{ fontSize: 15.5, fontWeight: 600, color: "#0E1512", marginBottom: 4 }}>{n.content.subject}</div>
+                              <div style={{ fontSize: 15.5, fontWeight: 600, color: "#0E1512", marginBottom: 4 }}>{n.channel === "sms" ? "SMS message" : n.content.subject}</div>
                               <div style={{ fontSize: 14, color: "#5C6B62", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{n.content.body}</div>
                             </div>
                           </div>
@@ -1373,7 +1379,7 @@ export function Wizard() {
                         <div style={{ display: "flex", alignItems: "center", gap: 6, overflowX: "auto", paddingBottom: 2 }}>
                           {graph.nodes.filter((x) => x.type === "step").map((s, i, arr) => (
                             <Fragment key={s.id}>
-                              <div style={{ flex: "none", background: "rgba(255,255,255,.09)", borderRadius: 9, padding: "6px 11px", fontSize: 12, fontWeight: 600, color: "#fff", whiteSpace: "nowrap" }}>✉ {s.type === "step" ? s.content.subject : ""}</div>
+                              <div style={{ flex: "none", background: "rgba(255,255,255,.09)", borderRadius: 9, padding: "6px 11px", fontSize: 12, fontWeight: 600, color: "#fff", whiteSpace: "nowrap" }}>{s.type === "step" && s.channel === "sms" ? "💬 SMS" : `✉ ${s.type === "step" ? (s.content.subject ?? "") : ""}`}</div>
                               {i < arr.length - 1 ? <span style={{ color: "rgba(255,255,255,.25)", fontSize: 11, flex: "none" }}>→</span> : null}
                             </Fragment>
                           ))}
@@ -1610,6 +1616,14 @@ export function Wizard() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12.5, color: "#8A7F6B", fontWeight: 600 }}>Email</div>
                     <div style={{ fontSize: 15, fontWeight: 700, color: "#0E1512" }}>{dailyCap} / day</div>
+                  </div>
+                </div>
+                {/* P2.1 (DEC-061): the sms cap tile — same anatomy, channel tint */}
+                <div onClick={() => setLimitsOpen(true)} style={{ display: "flex", alignItems: "center", gap: 11, background: "#FBF7F0", border: "1px solid #EBE3D6", borderRadius: 12, padding: "11px 13px", cursor: "pointer" }} data-testid="limit-sms">
+                  <span style={{ width: 32, height: 32, borderRadius: 9, flex: "none", background: "rgba(54,215,237,.16)", color: "#1192A6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>💬</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12.5, color: "#8A7F6B", fontWeight: 600 }}>SMS</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: "#0E1512" }}>{smsDailyCap} / day</div>
                   </div>
                 </div>
               </div>
@@ -1855,8 +1869,12 @@ export function Wizard() {
       {/* volume & limits modal — stepper controls writing the Guardrails schema */}
       {limitsOpen ? (
         <Modal onClose={() => setLimitsOpen(false)} title="Volume & limits" tid="limits-modal">
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
             <LimitCard label="Daily email cap" value={String(dailyCap)} onMinus={() => setDailyCap((v) => Math.max(10, v - 10))} onPlus={() => setDailyCap((v) => v + 10)} tid="cap" />
+            {/* P2.1 (DEC-061): per-channel sms cap (guardrails dailyCap.sms) */}
+            <LimitCard label="Daily SMS cap" value={String(smsDailyCap)} onMinus={() => setSmsDailyCap((v) => Math.max(10, v - 10))} onPlus={() => setSmsDailyCap((v) => v + 10)} tid="sms-cap" />
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
             <LimitCard label="Window start (UTC)" value={windowStart} onMinus={() => setWindowStart(shiftH(windowStart, -1))} onPlus={() => setWindowStart(shiftH(windowStart, 1))} tid="start" />
             <LimitCard label="Window end (UTC)" value={windowEnd} onMinus={() => setWindowEnd(shiftH(windowEnd, -1))} onPlus={() => setWindowEnd(shiftH(windowEnd, 1))} tid="end" />
           </div>

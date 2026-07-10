@@ -45,6 +45,15 @@ param clerkSecretsAvailable bool = false
 @description('SendGrid sandbox mode (A3/DEC-060a). Stays "true" in every environment config by default; ONLY a production parameter file flips it to "false", and the live-send proof gates on domain auth first. Never flip by editing this default.')
 param sendgridSandbox string = 'true'
 
+@description('Whether Key Vault holds the Twilio pair (TWILIO-ACCOUNT-SID/TWILIO-AUTH-TOKEN — P2.1/DEC-061). Probed by the pipeline; absent = sms transport unconfigured (sends refuse typed, inbound rejected in production).')
+param twilioSecretsAvailable bool = false
+
+@description('Twilio SMS sandbox (P2.1/DEC-061, same discipline as SENDGRID_SANDBOX): \'true\' everywhere by default; only an explicit production parameter flips it.')
+param smsSandbox string = 'true'
+
+@description('DEC-063: comma-separated E.164 allow-list for SMS recipients. Empty = no live SMS recipients anywhere; the owner\'s test number lands here in a logged DEC.')
+param smsAllowlist string = ''
+
 param apiAppName string = 'clientforce-api'
 param workerAppName string = 'clientforce-worker'
 param webAppName string = 'clientforce-web'
@@ -141,6 +150,18 @@ var clerkWebEnv = clerkSecretsAvailable ? [
   { name: 'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY', secretRef: 'clerk-publishable-key' }
   { name: 'CLERK_SECRET_KEY', secretRef: 'clerk-secret-key' }
 ] : []
+// P2.1 (DEC-061): Twilio credentials — same conditional pattern.
+var twilioSidSecret = { name: 'twilio-account-sid', keyVaultUrl: '${kvUri}secrets/TWILIO-ACCOUNT-SID', identity: uami.id }
+var twilioTokenSecret = { name: 'twilio-auth-token', keyVaultUrl: '${kvUri}secrets/TWILIO-AUTH-TOKEN', identity: uami.id }
+var twilioSecrets = twilioSecretsAvailable ? [twilioSidSecret, twilioTokenSecret] : []
+var twilioEnv = twilioSecretsAvailable ? [
+  { name: 'TWILIO_ACCOUNT_SID', secretRef: 'twilio-account-sid' }
+  { name: 'TWILIO_AUTH_TOKEN', secretRef: 'twilio-auth-token' }
+] : []
+var smsEnv = [
+  { name: 'SMS_SANDBOX', value: smsSandbox }
+  { name: 'CHANNELS_SMS_ALLOWLIST', value: smsAllowlist }
+]
 
 // ── API (NestJS) — external ingress :3001 ───────────────────────────────────
 resource api 'Microsoft.App/containerApps@2024-03-01' = {
@@ -154,7 +175,7 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
       activeRevisionsMode: 'Single'
       ingress: { external: true, targetPort: 3001, transport: 'auto', allowInsecure: false }
       registries: registries
-      secrets: concat([dbUrlSecret, appDbUrlSecret, authDevSecret, redisUrlSecret, openaiKeySecret, anthropicKeySecret, sendgridKeySecret, fieldEncKeySecret], storageSecrets, temporalSecrets, inboundTokenSecrets, sgWebhookKeySecrets, clerkApiSecrets)
+      secrets: concat([dbUrlSecret, appDbUrlSecret, authDevSecret, redisUrlSecret, openaiKeySecret, anthropicKeySecret, sendgridKeySecret, fieldEncKeySecret], storageSecrets, temporalSecrets, inboundTokenSecrets, sgWebhookKeySecrets, clerkApiSecrets, twilioSecrets)
     }
     template: {
       containers: [
@@ -182,7 +203,7 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
             // A3 (DEC-060a): env-controlled sandbox; 'true' everywhere except
             // an explicit production parameter — see the param description.
             { name: 'SENDGRID_SANDBOX', value: sendgridSandbox }
-          ], storageEnv, temporalEnv, inboundTokenEnv, sgWebhookKeyEnv, clerkApiEnv)
+          ], storageEnv, temporalEnv, inboundTokenEnv, sgWebhookKeyEnv, clerkApiEnv, twilioEnv, smsEnv)
         }
       ]
       scale: { minReplicas: 1, maxReplicas: 3 }
@@ -201,7 +222,7 @@ resource worker 'Microsoft.App/containerApps@2024-03-01' = {
     configuration: {
       activeRevisionsMode: 'Single'
       registries: registries
-      secrets: concat([dbUrlSecret, appDbUrlSecret, redisUrlSecret, openaiKeySecret, anthropicKeySecret, sendgridKeySecret, fieldEncKeySecret], storageSecrets, temporalSecrets)
+      secrets: concat([dbUrlSecret, appDbUrlSecret, redisUrlSecret, openaiKeySecret, anthropicKeySecret, sendgridKeySecret, fieldEncKeySecret], storageSecrets, temporalSecrets, twilioSecrets)
     }
     template: {
       containers: [
@@ -222,7 +243,7 @@ resource worker 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'FIELD_ENCRYPTION_KEY', secretRef: 'field-encryption-key' }
             { name: 'CHANNELS_ALLOWLIST', value: 'tronwebng@gmail.com' }
             { name: 'SENDGRID_SANDBOX', value: sendgridSandbox }
-          ], storageEnv, temporalEnv)
+          ], storageEnv, temporalEnv, twilioEnv, smsEnv)
         }
       ]
       scale: { minReplicas: 1, maxReplicas: 1 }

@@ -1,0 +1,79 @@
+# P2.1 live SMS verification (DEC-061/062/063): one real SMS to the owner's
+# allow-listed test number through the full boundary, plus the allow-list and
+# STOP-suppression refusals in the same run. The test number + messaging
+# service SID come from Key Vault (SMS-TEST-NUMBER / SMS-MESSAGING-SERVICE-SID)
+# and are MASKED — never dispatch inputs (public repo). Manual dispatch only.
+name: sms-live-proof
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type LIVE to confirm one real SMS will be sent to the allow-listed number'
+        required: true
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  TURBO_TELEMETRY_DISABLED: 1
+  DATABASE_URL: postgresql://postgres@localhost:5432/clientforce
+  APP_DATABASE_URL: postgresql://clientforce_app@localhost:5432/clientforce
+  KEY_VAULT_NAME: ${{ vars.KEY_VAULT_NAME }}
+
+jobs:
+  proof:
+    name: one live SMS · allow-list refusal · STOP-suppression refusal
+    runs-on: ubuntu-latest
+    environment: staging
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: clientforce
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Refuse without explicit confirmation
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "LIVE" ]; then
+            echo "::error::Dispatch input 'confirm' must be exactly LIVE — refusing to run a live SMS send."
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @clientforce/channels... build
+      - run: pnpm --filter @clientforce/db db:migrate
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Run live SMS proof (gated in-script; every secret masked)
+        run: |
+          set -euo pipefail
+          sid="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name TWILIO-ACCOUNT-SID --query value -o tsv)"
+          token="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name TWILIO-AUTH-TOKEN --query value -o tsv)"
+          number="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name SMS-TEST-NUMBER --query value -o tsv)"
+          msid="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name SMS-MESSAGING-SERVICE-SID --query value -o tsv)"
+          echo "::add-mask::$sid"; echo "::add-mask::$token"; echo "::add-mask::$number"; echo "::add-mask::$msid"
+          FIELD_ENCRYPTION_KEY="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name FIELD-ENCRYPTION-KEY --query value -o tsv)"
+          echo "::add-mask::$FIELD_ENCRYPTION_KEY"
+          export FIELD_ENCRYPTION_KEY
+          TWILIO_ACCOUNT_SID="$sid" TWILIO_AUTH_TOKEN="$token" SMS_TEST_NUMBER="$number" SMS_TEST_MESSAGING_SERVICE_SID="$msid" \
+            pnpm exec tsx packages/channels/scripts/sms-live-proof.ts

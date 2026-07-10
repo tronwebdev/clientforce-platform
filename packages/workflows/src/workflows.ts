@@ -82,13 +82,13 @@ export async function campaignWorkflow(
 
     switch (node.type) {
       case "step": {
-        if (node.channel !== "email") {
-          // Phase-1 slice is email-only (validated at persist); record, don't send.
+        if (node.channel !== "email" && node.channel !== "sms") {
+          // P2.1: email + sms are live; anything else records, doesn't send.
           await acts.recordIntendedAction({
             ...base,
             nodeId: node.id,
             kind: "send",
-            detail: `channel ${node.channel} deferred (email slice)`,
+            detail: `channel ${node.channel} deferred`,
           });
           current = nextAfter(input.graph, node.id);
           break;
@@ -102,6 +102,9 @@ export async function campaignWorkflow(
             senderId: input.senderId,
             stepNodeId: node.id,
             content: node.content,
+            // P2.1 (DEC-061): ONE durable workflow drives both channels — the
+            // activity routes by the step's channel.
+            channel: node.channel,
           });
         } catch (err) {
           const blocked = blockedReasonOf(err);

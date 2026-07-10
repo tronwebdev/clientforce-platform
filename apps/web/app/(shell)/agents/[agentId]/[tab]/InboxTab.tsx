@@ -11,6 +11,7 @@ import { CAT_TINT, cf, GRAD, INBOX_CATS, avTint, initials, timeAgo } from "./sha
 interface ThreadMessage {
   id: string;
   direction: "OUTBOUND" | "INBOUND";
+  channel?: string;
   subject: string | null;
   body: string;
   intent: string | null;
@@ -18,6 +19,8 @@ interface ThreadMessage {
 }
 export interface Thread {
   contactId: string;
+  /** P2.1 (DEC-061): channels present in the thread ("email" | "sms"). */
+  channels?: string[];
   contact: { id: string; firstName: string | null; lastName: string | null; company: string | null; email: string | null } | null;
   intent: string | null;
   unread: boolean;
@@ -74,7 +77,9 @@ export function InboxTab({ agentId, goalLabel }: { agentId: string; goalLabel?: 
 
   const visible = useMemo(() => {
     let list = (threads ?? []).filter((t) => cat === "all" || t.intent === cat);
-    if (channel !== "all" && channel !== "email") list = []; // email-only phase
+    // P2.1 (DEC-061, §4 amendment): the channel filter is FUNCTIONAL — a
+    // thread matches when any of its messages used the channel.
+    if (channel !== "all") list = list.filter((t) => (t.channels ?? ["email"]).includes(channel));
     list = [...list].sort((a, b) =>
       sort === "newest"
         ? b.lastAt.localeCompare(a.lastAt)
@@ -180,12 +185,13 @@ export function InboxTab({ agentId, goalLabel }: { agentId: string; goalLabel?: 
               visible.map((t) => {
                 const on = sel?.contactId === t.contactId;
                 const tint = t.intent ? tintFor(t.intent) : null;
+                const hasSms = (t.channels ?? []).includes("sms");
                 const name = [t.contact?.firstName, t.contact?.lastName].filter(Boolean).join(" ") || t.contact?.email || "Unknown";
                 return (
                   <div key={t.contactId} onClick={() => setSelId(t.contactId)} style={{ display: "flex", gap: 11, padding: "12px 16px", borderLeft: `3px solid ${on ? "#35E834" : "transparent"}`, background: on ? "#FBF7F0" : "transparent", cursor: "pointer", borderBottom: "1px solid #F7F2EA", opacity: t.done ? 0.55 : 1 }} data-testid="thread-row">
                     <span style={{ width: 38, height: 38, borderRadius: "50%", flex: "none", background: avTint(t.contactId), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "#0A0F0C", position: "relative" }}>
                       {initials(t.contact?.firstName, t.contact?.lastName, t.contact?.email)}
-                      <span style={{ position: "absolute", bottom: -2, right: -3, width: 18, height: 18, borderRadius: "50%", background: "rgba(53,232,52,.9)", border: "2px solid #fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, color: "#0A0F0C" }}>✉</span>
+                      <span style={{ position: "absolute", bottom: -2, right: -3, width: 18, height: 18, borderRadius: "50%", background: hasSms ? "rgba(54,215,237,.9)" : "rgba(53,232,52,.9)", border: "2px solid #fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, color: "#0A0F0C" }}>{hasSms ? "💬" : "✉"}</span>
                     </span>
                     <div style={{ minWidth: 0, flex: 1 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
@@ -195,6 +201,7 @@ export function InboxTab({ agentId, goalLabel }: { agentId: string; goalLabel?: 
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
                         <span style={{ fontSize: 10.5, fontWeight: 700, color: tint?.fg ?? "#8A7F6B", background: tint?.bg ?? "#F2EEE4", borderRadius: 6, padding: "2px 7px" }}>{tint?.label ?? "Unclassified"}</span>
+                        {hasSms ? <span style={{ fontSize: 10.5, fontWeight: 700, color: "#1192A6", background: "rgba(54,215,237,.14)", borderRadius: 6, padding: "2px 7px" }} data-testid="thread-sms-chip">SMS</span> : null}
                         <span style={{ fontSize: 12, color: "#9AA59E", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.contact?.company ?? ""}</span>
                       </div>
                       <div style={{ fontSize: 12.5, color: "#9AA59E", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.preview}</div>
@@ -216,7 +223,10 @@ export function InboxTab({ agentId, goalLabel }: { agentId: string; goalLabel?: 
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 16.5, color: "#0E1512", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{sel.messages[0]?.subject ?? "(no subject)"}</div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
-                    <span style={{ fontSize: 11.5, fontWeight: 700, color: "#16A82A", background: "rgba(53,232,52,.13)", borderRadius: 6, padding: "2px 9px" }}>✉ Email</span>
+                    {/* P2.1: channel-true chips — one per channel in the thread */}
+                    {((sel.channels?.length ? sel.channels : ["email"])).map((c) => (
+                      <span key={c} style={{ fontSize: 11.5, fontWeight: 700, color: c === "sms" ? "#1192A6" : "#16A82A", background: c === "sms" ? "rgba(54,215,237,.14)" : "rgba(53,232,52,.13)", borderRadius: 6, padding: "2px 9px" }}>{c === "sms" ? "💬 SMS" : "✉ Email"}</span>
+                    ))}
                     {sel.intent && tintFor(sel.intent) ? (
                       <span style={{ fontSize: 11.5, fontWeight: 700, color: tintFor(sel.intent)!.fg, background: tintFor(sel.intent)!.bg, borderRadius: 100, padding: "3px 10px" }}>{tintFor(sel.intent)!.label}</span>
                     ) : null}

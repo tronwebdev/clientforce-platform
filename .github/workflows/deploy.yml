@@ -131,6 +131,16 @@ jobs:
           if [ "$clerk" = false ]; then
             echo "Clerk secrets not (fully) in Key Vault — the deploy stays on dev-token auth (A3 owner step)."
           fi
+          # P2.1 (DEC-061): Twilio pair — both or neither.
+          twilio=true
+          for name in TWILIO-ACCOUNT-SID TWILIO-AUTH-TOKEN; do
+            if ! az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name "$name" --query id -o tsv >/dev/null 2>&1; then
+              twilio=false
+            fi
+          done
+          if [ "$twilio" = false ]; then
+            echo "Twilio secrets not (fully) in Key Vault — SMS transport stays unconfigured (P2.1 owner step)."
+          fi
           az deployment group create \
             --resource-group "$RG" \
             --template-file infra/main.bicep \
@@ -145,7 +155,8 @@ jobs:
               temporalSecretsAvailable="$temporal" \
               inboundTokenAvailable="$inboundToken" \
               sgWebhookKeyAvailable="$sgWebhookKey" \
-              clerkSecretsAvailable="$clerk"
+              clerkSecretsAvailable="$clerk" \
+              twilioSecretsAvailable="$twilio"
 
       # ── Expose the deployed web FQDN for the e2e job ──
       - name: Resolve web FQDN
