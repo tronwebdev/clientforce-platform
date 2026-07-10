@@ -121,6 +121,18 @@ async function main(): Promise<void> {
     create: { email: "owner@demo-agency.test", name: "Demo Owner" },
   });
 
+  // A3 Google acceptance (DEC-060c): the owner's real account gets OWNER
+  // membership in BOTH demo workspaces so the switcher re-scope step has
+  // somewhere to go. `update: {}` on both upserts is load-bearing — the row
+  // may be the Clerk-lazy-upserted first-run user (authProviderId set) and
+  // must never be touched; their self-created first-run workspace is not
+  // referenced here at all, so it stays intact as first-run evidence.
+  const ownerAccount = await prisma.user.upsert({
+    where: { email: "tronwebng@gmail.com" },
+    update: {},
+    create: { email: "tronwebng@gmail.com", name: "Godswill" },
+  });
+
   for (const ws of WORKSPACES) {
     const workspace = await prisma.workspace.upsert({
       where: { agencyId_slug: { agencyId: agency.id, slug: ws.slug } },
@@ -141,6 +153,12 @@ async function main(): Promise<void> {
       where: { userId_workspaceId: { userId: user.id, workspaceId: workspace.id } },
       update: { role: "OWNER" },
       create: { userId: user.id, workspaceId: workspace.id, role: "OWNER" },
+    });
+
+    await prisma.membership.upsert({
+      where: { userId_workspaceId: { userId: ownerAccount.id, workspaceId: workspace.id } },
+      update: {},
+      create: { userId: ownerAccount.id, workspaceId: workspace.id, role: "OWNER" },
     });
 
     const stageCount = await prisma.pipelineStage.count({
