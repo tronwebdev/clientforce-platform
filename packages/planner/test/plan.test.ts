@@ -87,3 +87,45 @@ describe("validateAll (P1.4 slice requirements)", () => {
     expect(() => validateAll(g)).toThrow(GraphValidationError);
   });
 });
+
+describe("validateAll neverSay gate (M1a, DEC-064 — the deterministic rail)", () => {
+  it("passes a clean graph against a ban list", () => {
+    expect(() => validateAll(goodGraph(), ["email"], ["cheap", "guarantee"])).not.toThrow();
+  });
+
+  it("catches a banned phrase in a BODY, naming term and step", () => {
+    expect(() => validateAll(goodGraph(), ["email"], ["free growth audit"])).toThrow(
+      /"free growth audit" in step-1/,
+    );
+  });
+
+  it("catches a banned phrase in a SUBJECT", () => {
+    expect(() => validateAll(goodGraph(), ["email"], ["Quick follow-up"])).toThrow(
+      /"Quick follow-up" in step-2/,
+    );
+  });
+
+  it("matches case-insensitively in both directions", () => {
+    expect(() => validateAll(goodGraph(), ["email"], ["FREE GROWTH AUDIT"])).toThrow(
+      GraphValidationError,
+    );
+    const g = goodGraph();
+    (g.nodes[0] as { content: { body: string } }).content.body += " Absolutely GUARANTEED.";
+    expect(() => validateAll(g, ["email"], ["guaranteed"])).toThrow(/"guaranteed" in step-1/);
+  });
+
+  it("names every hit across steps in one error (repair sees the full list)", () => {
+    expect(() => validateAll(goodGraph(), ["email"], ["audit", "interested"])).toThrow(
+      /"audit" in step-1.*"interested" in step-2/s,
+    );
+  });
+
+  it("empty/whitespace ban entries never match (no accidental ban-everything)", () => {
+    expect(() => validateAll(goodGraph(), ["email"], ["", "   "])).not.toThrow();
+  });
+
+  it("REGRESSION: omitting the parameter is byte-identical to today's gate", () => {
+    expect(() => validateAll(goodGraph())).not.toThrow();
+    expect(() => validateAll(goodGraph(), ["email"])).not.toThrow();
+  });
+});

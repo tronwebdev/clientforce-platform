@@ -17,7 +17,7 @@ import { StepsTab } from "./StepsTab";
 import { cf, GRAD, GOAL_EMOJI, TABS } from "./shared";
 
 export interface AgentViewData {
-  agent: { id: string; name: string; goal: string; goalLabel?: string; goalPill?: string; status: string; createdAt: string };
+  agent: { id: string; name: string; goal: string; goalLabel?: string; goalPill?: string; category?: string | null; status: string; createdAt: string };
   campaign: { id: string; name: string } | null;
   graph: CampaignGraph | null;
   graphVersion: number | null;
@@ -26,8 +26,13 @@ export interface AgentViewData {
   dailyCap: number | null;
   guardrails: {
     sendingWindow: { days: number[]; start: string; end: string; timezone: string };
-    dailyCap: { email: number };
+    dailyCap: { email: number; sms?: number };
+    consent?: { attestedBy: string; attestedAt: string } | null;
     tracking?: { openTracking: boolean; linkTracking: boolean };
+    /** C2.9 (DEC-059): custom-goal terminal label riding the Json. */
+    goalLabel?: string;
+    /** M1a (DEC-064): per-agent strategy rider — notes + never-say. */
+    strategy?: { strategyNotes?: string; neverSay?: string[] };
     unsubscribeFooter: true;
     suppressionCheck: true;
   } | null;

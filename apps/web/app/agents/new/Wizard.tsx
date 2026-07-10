@@ -10,7 +10,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "rea
 // B9: the wizard's "＋ Add sender" opens the same connect flow Settings uses —
 // the prototype's binding is `openAddEmail: () => connectChannel('email')`.
 import { ConnectFlowDrawer } from "../../(shell)/settings/shared";
-import { CONTEXT_FIELD_META, customTokensMissingFallback, GOAL_KEYS, goalTerminalLabel, requiredFieldsFor, type GoalKey } from "@clientforce/core";
+import { BUSINESS_CATEGORIES, CONTEXT_FIELD_META, customTokensMissingFallback, GOAL_KEYS, goalTerminalLabel, requiredFieldsFor, type GoalKey } from "@clientforce/core";
 import type { CampaignGraph, ContactFieldDefDto, DraftState, GraphNode } from "@clientforce/core";
 
 /** Per-field one-liner under each gap row (registry-driven). */
@@ -367,6 +367,7 @@ export function Wizard() {
         setAgentId(a.id);
         setName(a.name ?? "");
         setGoal(a.goal ?? null);
+        if (a.category) setCategory(a.category);
         setInstructions(a.instructions ?? "");
         if (ds.goalLabel) setGoalLabel(ds.goalLabel);
         if (ds.buildMethod) setBuildMethod(ds.buildMethod);
@@ -436,7 +437,9 @@ export function Wizard() {
         ...(pickedList ? { pickedListId: pickedList.id } : {}),
         ...(goalLabel.trim() ? { goalLabel: goalLabel.trim() } : {}),
       };
-      cf(`agents/${agentId}`, { method: "PATCH", body: JSON.stringify({ draftState }) })
+      // M1a (DEC-064): category rides the same PATCH — it's a durable column
+      // (not draftState), and picker changes after the implicit create must land.
+      cf(`agents/${agentId}`, { method: "PATCH", body: JSON.stringify({ draftState, category }) })
         .then(() => {
           draftSaveFailed.current = false;
         })
@@ -446,7 +449,7 @@ export function Wizard() {
         });
     }, 800);
     return () => clearTimeout(t);
-  }, [agentId, launched, resuming, building, step, buildMethod, added, capture, dailyCap, smsDailyCap, windowStart, windowEnd, timezone, sendDays, quietHours, ramp, pickedList, goalLabel, toast]);
+  }, [agentId, launched, resuming, building, step, buildMethod, added, capture, dailyCap, smsDailyCap, windowStart, windowEnd, timezone, sendDays, quietHours, ramp, pickedList, goalLabel, category, toast]);
 
   // ── polling (A4: 5s) ────────────────────────────────────────────────────
   const readyCount = useRef(0);
@@ -629,6 +632,9 @@ export function Wizard() {
       body: JSON.stringify({
         name: name.trim(),
         goal,
+        // M1a (DEC-064): persist the step-1 picker — goal×category derives
+        // the selling arc (supersedes DEC-038(6) visual-only).
+        category,
         ...(instructions.trim() ? { instructions: instructions.trim() } : {}),
       }),
     })
@@ -2548,7 +2554,9 @@ function Step1(props: {
 /* ── shared bits ──────────────────────────────────────────────────────────── */
 /** Prototype's uppercase micro-caps field label. */
 const upLbl: React.CSSProperties = { display: "block", fontSize: 11.5, fontWeight: 700, color: "#8A7F6B", letterSpacing: ".07em", textTransform: "uppercase", marginBottom: 8 };
-const CATEGORIES = ["Dental & Orthodontics", "Healthcare & Wellness", "Home Services", "Real Estate", "Marketing Agency", "SaaS & Technology", "Professional Services", "Other"];
+// M1a (DEC-064): the picker vocabulary lives in core beside the arc map so
+// the two can never fork; this alias keeps the render sites unchanged.
+const CATEGORIES = BUSINESS_CATEGORIES;
 /** DEC-039a drawer micro-caps label + 42px field. */
 const manualLbl: React.CSSProperties = { display: "block", fontSize: 11, fontWeight: 800, color: "#9AA59E", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 6 };
 const manualInp: React.CSSProperties = { height: 42, width: "100%", boxSizing: "border-box", borderRadius: 10, background: "#FBF7F0", border: "1px solid #EBE3D6", display: "flex", alignItems: "center", padding: "0 13px", fontSize: 13.5, color: "#0E1512", fontFamily: "'Hanken Grotesk',sans-serif" };

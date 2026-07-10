@@ -3,13 +3,19 @@
 /**
  * Settings tab (checkpoints §4) — Channels & senders (live SenderConnections),
  * sending schedule + volume limits writing the A8 Guardrails schema, Tracking
- * & compliance rows (A8 literals locked; open/link tracking present-but-inert
- * until a schema field exists — flagged), danger zone, the 500px sender
- * drawer and the 460px volume modal. Email-only phase: phone/WhatsApp cards
- * omitted (DEC-038 precedent).
+ * & compliance rows (A8 literals locked), the M1a Strategy section (selected
+ * arc display + strategy notes + never-say — designed state, no prototype
+ * anchor, DEC-064), danger zone, the 500px sender drawer and the 460px volume
+ * modal. Email-only phase: phone/WhatsApp cards omitted (DEC-038 precedent).
+ *
+ * Guardrails saves COMPOSE over the server's parsed guardrails and override
+ * only the edited subset — the previous rebuild-from-tab-state write silently
+ * dropped `goalLabel` (and would drop `dailyCap.sms`/`consent`/`strategy`);
+ * DEC-064 carry-along fix.
  */
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { NEVER_SAY_MAX, selectStrategy, STRATEGY_NOTES_MAX } from "@clientforce/core";
 import type { AgentViewData } from "./AgentView";
 import { cf, GRAD } from "./shared";
 
@@ -41,6 +47,10 @@ export function SettingsTab({ agentId, view, onChanged }: { agentId: string; vie
   const [dailyCap, setDailyCap] = useState(200);
   const [days, setDays] = useState([true, true, true, true, true, false, false]);
   const [tracking, setTracking] = useState({ open: true, link: true });
+  // M1a strategy rider (DEC-064) — hydrated from the server's parsed guardrails.
+  const [notes, setNotes] = useState("");
+  const [neverSay, setNeverSay] = useState<string[]>([]);
+  const [neverSayInput, setNeverSayInput] = useState("");
 
   const refresh = useCallback(async () => {
     const res = await cf("senders").catch(() => null);
@@ -57,11 +67,27 @@ export function SettingsTab({ agentId, view, onChanged }: { agentId: string; vie
     setDailyCap(g.dailyCap.email);
     setDays([1, 2, 3, 4, 5, 6, 7].map((d) => g.sendingWindow.days.includes(d)));
     setTracking({ open: g.tracking?.openTracking ?? true, link: g.tracking?.linkTracking ?? true });
+    setNotes(g.strategy?.strategyNotes ?? "");
+    setNeverSay(g.strategy?.neverSay ?? []);
   }, [view?.guardrails]);
 
-  async function saveGuardrails(next: { cap?: number; days?: boolean[]; tracking?: { open: boolean; link: boolean } }) {
+  async function saveGuardrails(next: {
+    cap?: number;
+    days?: boolean[];
+    tracking?: { open: boolean; link: boolean };
+    strategy?: { notes?: string; neverSay?: string[] };
+  }) {
     const g = view?.guardrails;
     const t = next.tracking ?? tracking;
+    const outNotes = (next.strategy?.notes ?? notes).trim();
+    const outNever = next.strategy?.neverSay ?? neverSay;
+    const strategy =
+      outNotes || outNever.length > 0
+        ? {
+            ...(outNotes ? { strategyNotes: outNotes } : {}),
+            ...(outNever.length > 0 ? { neverSay: outNever } : {}),
+          }
+        : undefined;
     await cf(`agents/${agentId}`, {
       method: "PATCH",
       body: JSON.stringify({
@@ -72,15 +98,38 @@ export function SettingsTab({ agentId, view, onChanged }: { agentId: string; vie
             end: g?.sendingWindow.end ?? "17:00",
             timezone: g?.sendingWindow.timezone ?? "UTC",
           },
-          dailyCap: { email: next.cap ?? dailyCap },
-          consent: null,
+          // Preserve everything this tab doesn't render (sms cap, consent,
+          // goalLabel) — a Settings edit must never erase another surface's write.
+          dailyCap: { email: next.cap ?? dailyCap, ...(g?.dailyCap.sms != null ? { sms: g.dailyCap.sms } : {}) },
+          consent: g?.consent ?? null,
           tracking: { openTracking: t.open, linkTracking: t.link },
+          ...(g?.goalLabel ? { goalLabel: g.goalLabel } : {}),
+          ...(strategy ? { strategy } : {}),
           unsubscribeFooter: true,
           suppressionCheck: true,
         },
       }),
     }).catch(() => {});
     void onChanged();
+  }
+
+  function addNeverSay() {
+    const term = neverSayInput.trim();
+    if (!term || neverSay.length >= NEVER_SAY_MAX) return;
+    if (neverSay.some((x) => x.toLowerCase() === term.toLowerCase())) {
+      setNeverSayInput("");
+      return;
+    }
+    const next = [...neverSay, term.slice(0, 80)];
+    setNeverSay(next);
+    setNeverSayInput("");
+    void saveGuardrails({ strategy: { neverSay: next } });
+  }
+
+  function removeNeverSay(term: string) {
+    const next = neverSay.filter((x) => x !== term);
+    setNeverSay(next);
+    void saveGuardrails({ strategy: { neverSay: next } });
   }
 
   const g = view?.guardrails;
@@ -210,6 +259,69 @@ export function SettingsTab({ agentId, view, onChanged }: { agentId: string; vie
             <span style={{ fontSize: 11, fontWeight: 700, color: "#0F7A28", background: "#D7F5DD", borderRadius: 7, padding: "5px 10px", flex: "none" }}>🔒 Required</span>
           </div>
         ))}
+      </div>
+
+      <div style={{ ...label, marginTop: 8 }}>Strategy</div>
+
+      {/* M1a (DEC-064) — designed section, no prototype anchor (§0 card/label
+          conventions; flagged in the fidelity log). Arc is DISPLAY: derived
+          from goal + business category at creation, never stored. */}
+      <div style={{ ...card, padding: "18px 20px" }} data-testid="settings-strategy">
+        {(() => {
+          const s = selectStrategy(view?.agent.goal, view?.agent.category);
+          return (
+            <div style={{ background: "#FBF7F0", border: "1px solid #EBE3D6", borderRadius: 12, padding: "14px 16px", marginBottom: 16 }} data-testid="strategy-arc">
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".08em", color: "#9AA59E", marginBottom: 6 }}>Selling arc</div>
+              <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 15, color: "#0E1512" }}>{s.arc.label}</div>
+              <div style={{ fontSize: 13, color: "#5C6B62", marginTop: 4, lineHeight: 1.45 }}>{s.arc.description}</div>
+              <div style={{ fontSize: 12, color: "#9AA59E", marginTop: 8 }}>Derived from your goal and business category ({s.category}) at creation.</div>
+            </div>
+          );
+        })()}
+
+        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#9AA59E", marginBottom: 6 }}>Strategy notes</label>
+        <textarea
+          value={notes}
+          maxLength={STRATEGY_NOTES_MAX}
+          onChange={(e) => setNotes(e.target.value)}
+          onBlur={() => { if ((view?.guardrails?.strategy?.strategyNotes ?? "") !== notes.trim()) void saveGuardrails({}); }}
+          placeholder="Anything the AI should know about how you sell — positioning, what's worked before, who signs off…"
+          rows={3}
+          style={{ width: "100%", boxSizing: "border-box", resize: "vertical", borderRadius: 11, background: "#FBF7F0", border: "1px solid #EBE3D6", padding: "11px 14px", fontSize: 14, color: "#0E1512", fontFamily: "inherit", lineHeight: 1.5, outline: "none" }}
+          data-testid="strategy-notes"
+        />
+        <div style={{ fontSize: 11.5, color: "#9AA59E", marginTop: 4, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{notes.length}/{STRATEGY_NOTES_MAX}</div>
+
+        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#9AA59E", margin: "10px 0 4px" }}>Never say</label>
+        <div style={{ fontSize: 12.5, color: "#9AA59E", marginBottom: 8 }}>Words or phrases the AI must never use — generated sequences are checked and repaired automatically.</div>
+        {neverSay.length > 0 ? (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
+            {neverSay.map((term) => (
+              <span key={term} style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 600, color: "#0E1512", background: "#FBF7F0", border: "1px solid #EBE3D6", borderRadius: 100, padding: "6px 8px 6px 13px" }} data-testid="neversay-chip">
+                {term}
+                <span onClick={() => removeNeverSay(term)} style={{ width: 18, height: 18, borderRadius: "50%", background: "#EBE3D6", color: "#5C6B62", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 11, cursor: "pointer" }} data-testid="neversay-remove">✕</span>
+              </span>
+            ))}
+          </div>
+        ) : null}
+        {neverSay.length < NEVER_SAY_MAX ? (
+          <input
+            value={neverSayInput}
+            maxLength={80}
+            onChange={(e) => setNeverSayInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addNeverSay(); } }}
+            placeholder="Type a word or phrase and press Enter"
+            style={{ width: "100%", boxSizing: "border-box", height: 40, borderRadius: 11, background: "#FBF7F0", border: "1px solid #EBE3D6", padding: "0 14px", fontSize: 14, color: "#0E1512", outline: "none" }}
+            data-testid="neversay-input"
+          />
+        ) : (
+          <div style={{ fontSize: 12.5, color: "#9A6B12", background: "#FBEFD2", borderRadius: 9, padding: "8px 12px" }} data-testid="neversay-cap">{NEVER_SAY_MAX} of {NEVER_SAY_MAX} — remove one to add another.</div>
+        )}
+
+        <div style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12.5, color: "#8A7F6B", background: "rgba(53,232,52,.07)", borderRadius: 10, padding: "10px 13px", marginTop: 14 }} data-testid="strategy-footnote">
+          <span style={{ fontSize: 13 }}>ⓘ</span>
+          <span>Changes apply the next time the sequence is generated and to newly enrolled contacts — messages already scheduled for contacts in flight aren&apos;t rewritten.</span>
+        </div>
       </div>
 
       {/* danger zone */}

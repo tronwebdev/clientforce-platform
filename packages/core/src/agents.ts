@@ -3,6 +3,7 @@
  */
 import { z } from "zod";
 import { goalKeySchema } from "./context";
+import { businessCategorySchema } from "./strategy";
 
 export const agentStatusSchema = z.enum(["DRAFT", "ACTIVE", "PAUSED", "ARCHIVED"]);
 export type AgentStatus = z.infer<typeof agentStatusSchema>;
@@ -10,6 +11,11 @@ export type AgentStatus = z.infer<typeof agentStatusSchema>;
 export const createAgentSchema = z.object({
   name: z.string().min(1).max(120),
   goal: goalKeySchema,
+  /**
+   * M1a (DEC-064): the wizard's existing step-1 picker, finally persisted
+   * (supersedes DEC-038(6) visual-only). Drives arc selection with the goal.
+   */
+  category: businessCategorySchema.optional(),
   instructions: z.string().max(2000).optional(),
 });
 export type CreateAgentInput = z.infer<typeof createAgentSchema>;
@@ -57,6 +63,8 @@ export const updateAgentSchema = z
   .object({
     name: z.string().min(1).max(120).optional(),
     status: agentStatusSchema.optional(),
+    /** M1a (DEC-064): DRAFT-only api-side — the arc derives at creation. */
+    category: businessCategorySchema.optional(),
     /** Validated against the A8 Guardrails schema api-side (parseGuardrails). */
     guardrails: z.unknown().optional(),
     /** B6: wizard draft-resume state; null clears it (launch). */
@@ -66,9 +74,10 @@ export const updateAgentSchema = z
     (v) =>
       v.name !== undefined ||
       v.status !== undefined ||
+      v.category !== undefined ||
       v.guardrails !== undefined ||
       v.draftState !== undefined,
-    { message: "Provide name, status, guardrails and/or draftState" },
+    { message: "Provide name, status, category, guardrails and/or draftState" },
   );
 export type UpdateAgentInput = z.infer<typeof updateAgentSchema>;
 
