@@ -56,9 +56,24 @@ const clerkGuard = clerkMiddleware(async (auth, req) => {
   if (!isPublicRoute(req)) await auth.protect();
 });
 
+/**
+ * DEC-060b: in Clerk mode the dev rail must still work — smoke and the staging
+ * e2e suite authenticate with `cf_session`, and the api keeps its dual
+ * verifier (A3). A dev session is honored only while NO Clerk browser session
+ * exists (`__client_uat*` all absent/zero), so a stale dev cookie can never
+ * shadow a real Clerk sign-in into a redirect loop.
+ */
+export function devRail(req: NextRequest): boolean {
+  if (!req.cookies.get(SESSION_COOKIE)?.value) return false;
+  return !req.cookies
+    .getAll()
+    .some((c) => c.name.startsWith("__client_uat") && c.value !== "" && c.value !== "0");
+}
+
 /** Dispatches per mode; named export keeps the legacy guard unit-testable. */
 export function middleware(req: NextRequest, event: NextFetchEvent) {
-  return clerkEnabled ? clerkGuard(req, event) : legacyMiddleware(req);
+  if (!clerkEnabled || devRail(req)) return legacyMiddleware(req);
+  return clerkGuard(req, event);
 }
 
 export const config = {

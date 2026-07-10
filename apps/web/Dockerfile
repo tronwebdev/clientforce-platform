@@ -6,6 +6,11 @@ RUN corepack enable
 WORKDIR /app
 
 FROM base AS build
+# DEC-060b: NEXT_PUBLIC_* is inlined into the client bundle at BUILD time —
+# runtime env alone leaves the browser half of the app blind to Clerk. The
+# publishable key is public-by-design (it ships to every browser).
+ARG NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+ENV NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
 COPY . .
 RUN pnpm install --frozen-lockfile
 RUN pnpm --filter "web..." build

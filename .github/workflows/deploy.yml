@@ -55,6 +55,20 @@ jobs:
       - name: Build & push images
         run: |
           set -euo pipefail
+          # DEC-060b: the web client bundle inlines NEXT_PUBLIC_* at BUILD time,
+          # so the publishable key must reach docker as a build-arg — Bicep's
+          # runtime env alone leaves the browser blind to Clerk. Same all-four
+          # gate as the Bicep clerkSecretsAvailable probe so image and infra
+          # always agree. The key is public-by-design; masked regardless.
+          clerk=true
+          for name in CLERK-PUBLISHABLE-KEY CLERK-SECRET-KEY CLERK-JWKS-URL CLERK-ISSUER; do
+            az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name "$name" --query id -o tsv >/dev/null 2>&1 || clerk=false
+          done
+          clerk_pk=""
+          if [ "$clerk" = true ]; then
+            clerk_pk="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name CLERK-PUBLISHABLE-KEY --query value -o tsv)"
+            echo "::add-mask::$clerk_pk"
+          fi
           declare -A IMAGES=(
             [clientforce-api]=apps/api/Dockerfile
             [clientforce-worker]=apps/worker/Dockerfile
@@ -63,8 +77,12 @@ jobs:
           )
           for name in "${!IMAGES[@]}"; do
             ref="$ACR_LOGIN_SERVER/$name:$IMAGE_TAG"
+            args=()
+            if [ "$name" = "clientforce-web" ]; then
+              args+=(--build-arg "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=$clerk_pk")
+            fi
             echo "::group::build $ref"
-            docker build -f "${IMAGES[$name]}" -t "$ref" .
+            docker build -f "${IMAGES[$name]}" "${args[@]}" -t "$ref" .
             docker push "$ref"
             echo "::endgroup::"
           done
