@@ -1,0 +1,82 @@
+# A3 §8 delta (DEC-060): capture the SKINNED Clerk sign-in/sign-up on the
+# deployed staging web (the sandbox cannot reach *.azurecontainerapps.io — this
+# runs where the e2e suite runs). Asserts Clerk mode is actually ON (no dev
+# login form), the §7 skin rendered, and the Google social button is present.
+# Screenshots upload as run artifacts. Manual dispatch, post-deploy.
+name: clerk-skin-proof
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  RG: ${{ vars.AZURE_RG || 'clientforce-dev' }}
+
+jobs:
+  proof:
+    name: skinned sign-in/sign-up on staging
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install chromium --with-deps
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Resolve staging web URL
+        id: fqdn
+        run: |
+          web="$(az containerapp show --name clientforce-web --resource-group "$RG" --query "properties.configuration.ingress.fqdn" -o tsv)"
+          echo "url=https://$web" >> "$GITHUB_OUTPUT"
+
+      - name: Capture skinned Clerk pages
+        run: |
+          cat > /tmp/clerk-skin.mjs <<'JS'
+          import { chromium } from "playwright-core";
+          const BASE = process.env.STAGING_URL;
+          const run = async () => {
+            const browser = await chromium.launch();
+            const page = await (await browser.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
+            await page.goto(`${BASE}/sign-in`, { waitUntil: "networkidle", timeout: 60000 });
+            await page.waitForTimeout(4000); // clerk-js mounts client-side
+            const text = await page.evaluate(() => document.body.innerText);
+            const html = await page.content();
+            const clerkMounted = html.includes("cl-rootBox") || html.includes("cl-card");
+            const devForm = text.includes("Sign in to Clientforce") && !clerkMounted;
+            const hasGoogle = /google/i.test(text) || /google/i.test(html);
+            console.log(`clerk widget mounted: ${clerkMounted}`);
+            console.log(`google social present: ${hasGoogle}`);
+            console.log(`legacy dev form: ${devForm}`);
+            await page.screenshot({ path: "clerk-sign-in.png" });
+            await page.goto(`${BASE}/sign-up`, { waitUntil: "networkidle", timeout: 60000 });
+            await page.waitForTimeout(4000);
+            await page.screenshot({ path: "clerk-sign-up.png" });
+            await browser.close();
+            if (!clerkMounted) throw new Error("GATE FAILED: Clerk widget did not mount — Clerk env not live on staging");
+            if (!hasGoogle) throw new Error("GATE FAILED: Google social button not present on the sign-in widget");
+          };
+          run().catch((e) => { console.error(e); process.exit(1); });
+          JS
+          STAGING_URL="${{ steps.fqdn.outputs.url }}" node /tmp/clerk-skin.mjs
+
+      - name: Upload §8 delta screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: clerk-skin-proof
+          path: |
+            clerk-sign-in.png
+            clerk-sign-up.png
