@@ -6,6 +6,7 @@
  * never disableable.
  */
 import { z } from "zod";
+import { strategyBlockSchema } from "./strategy";
 
 const timeHHMM = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "HH:MM");
 
@@ -45,6 +46,14 @@ export const guardrailsSchema = z.object({
    * untouched. Absent for the 8 fixed goals (GOAL_META supplies their labels).
    */
   goalLabel: z.string().max(60).optional(),
+  /**
+   * M1a (DEC-065): optional per-agent selling strategy — `strategyNotes`
+   * (planner prompt guidance) + `neverSay` (prompt AND deterministic
+   * post-generation ban). Rides this Json like `goalLabel` — no migration;
+   * absent = defaults, legacy rows parse unchanged. Read at plan time only;
+   * the A8 rails below are untouched and the send boundary ignores it.
+   */
+  strategy: strategyBlockSchema.optional(),
   unsubscribeFooter: z.literal(true),
   suppressionCheck: z.literal(true),
 });

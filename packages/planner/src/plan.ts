@@ -6,12 +6,15 @@ import {
   CONTEXT_FIELD_META,
   execute,
   GraphValidationError,
+  parseGuardrails,
+  selectStrategy,
   validateGraph,
   type CampaignGraph,
   type ContextFieldKey,
   type ContextFields,
   type IntendedAction,
   type StepNode,
+  type StrategyBlock,
 } from "@clientforce/core";
 import {
   withTenant,
@@ -89,6 +92,12 @@ export async function planCampaign(deps: PlanDeps, target: PlanTarget): Promise<
     );
   }
 
+  // M1a (DEC-065): arc + tone derive from (goal, category) — both fixed at
+  // creation; the strategy block rides guardrails Json (absent = defaults).
+  const strategy = selectStrategy(agent.goal, agent.category);
+  const block = strategyBlockOf(agent.guardrails);
+  const neverSay = block?.neverSay ?? [];
+
   const prompt = renderPlannerPrompt({
     goal: agent.goal + (agent.instructions ? ` — ${agent.instructions}` : ""),
     context: contextText,
@@ -98,6 +107,12 @@ export async function planCampaign(deps: PlanDeps, target: PlanTarget): Promise<
     channels: smsSender
       ? '"email" or "sms" — mix channels where the sequence benefits; sms steps have NO subject, body ≤ 300 characters, one clear ask.'
       : '"email" ONLY.',
+    arcLabel: strategy.arc.label,
+    arcDescription: strategy.arc.description,
+    arcRoles: strategy.arc.roles.map((r, i) => `  ${i + 1}. ${r}`).join("\n"),
+    toneHints: strategy.toneHints,
+    strategyNotes: block?.strategyNotes?.trim() || "(none)",
+    neverSay: neverSay.length ? neverSay.map((t) => `"${t}"`).join(", ") : "(none)",
   });
 
   // Attempt 1 (shape is enforced + repaired inside completeStructured) …
@@ -108,7 +123,7 @@ export async function planCampaign(deps: PlanDeps, target: PlanTarget): Promise<
   );
   let graph: CampaignGraph;
   try {
-    graph = validateAll(candidate, allowedChannels);
+    graph = validateAll(candidate, allowedChannels, neverSay);
   } catch (err) {
     // … one bounded SEMANTIC repair: the model sees its graph + the error.
     const message = err instanceof Error ? err.message : String(err);
@@ -124,7 +139,7 @@ export async function planCampaign(deps: PlanDeps, target: PlanTarget): Promise<
       campaignGraphSchema,
     );
     try {
-      graph = validateAll(candidate, allowedChannels);
+      graph = validateAll(candidate, allowedChannels, neverSay);
     } catch (second) {
       throw new PlannerError(
         `Planner produced an invalid graph after one repair: ${second instanceof Error ? second.message : String(second)}`,
@@ -177,8 +192,17 @@ export async function planCampaign(deps: PlanDeps, target: PlanTarget): Promise<
 
 /** Shape + T4 semantics + P1.4 slice requirements, as one gate.
  *  P2.1 (DEC-061): `allowedChannels` widens per workspace capability — sms
- *  joins ONLY when an active Twilio sender exists (default stays email-only). */
-export function validateAll(input: unknown, allowedChannels: string[] = ["email"]): CampaignGraph {
+ *  joins ONLY when an active Twilio sender exists (default stays email-only).
+ *  M1a (DEC-065): `neverSay` is the deterministic half of the double rail —
+ *  the prompt bans the strings, this gate PROVES they're absent (violation →
+ *  the caller's bounded repair round-trip → typed failure). Manual edits via
+ *  PUT /planner/graph are deliberately NOT checked — those are the owner's
+ *  own typed words; this guards generation. */
+export function validateAll(
+  input: unknown,
+  allowedChannels: string[] = ["email"],
+  neverSay: string[] = [],
+): CampaignGraph {
   const graph = validateGraph(input);
 
   const steps = graph.nodes.filter((n): n is StepNode => n.type === "step");
@@ -204,6 +228,22 @@ export function validateAll(input: unknown, allowedChannels: string[] = ["email"
       throw new GraphValidationError(`Step copy must use the merge token ${token}`);
     }
   }
+  // M1a: case-insensitive substring scan per step — names every hit so the
+  // repair round-trip knows exactly what to remove.
+  const hits: string[] = [];
+  for (const step of steps) {
+    const text = `${step.content.subject ?? ""}\n${step.content.body ?? ""}`.toLowerCase();
+    for (const term of neverSay) {
+      if (term.trim() && text.includes(term.trim().toLowerCase())) {
+        hits.push(`"${term}" in ${step.id}`);
+      }
+    }
+  }
+  if (hits.length > 0) {
+    throw new GraphValidationError(
+      `Step copy contains banned phrases (agent strategy neverSay): ${hits.join(", ")} — rewrite those steps without the banned strings`,
+    );
+  }
   return graph;
 }
 
@@ -216,6 +256,17 @@ function renderContext(fields: ContextFields): string {
       return `- ${key} (${label}): ${v.value}`;
     })
     .join("\n");
+}
+
+/** The guardrails strategy rider, leniently: an unparsable row plans as legacy
+ *  (no notes, no bans) rather than blocking the run — the send boundary is
+ *  where strict guardrails parsing already lives. */
+function strategyBlockOf(guardrails: unknown): StrategyBlock | undefined {
+  try {
+    return parseGuardrails(guardrails).strategy;
+  } catch {
+    return undefined;
+  }
 }
 
 function renderGuardrails(guardrails: unknown): string {

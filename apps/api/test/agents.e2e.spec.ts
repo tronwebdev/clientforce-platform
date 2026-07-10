@@ -167,6 +167,82 @@ describe.skipIf(!hasDb)("Agents API e2e", () => {
       .expect(400);
   });
 
+  it("M1a (DEC-065): category persists at create, survives /draft, and locks after DRAFT", async () => {
+    // Create through the wizard's path — category lands on the row.
+    const created = await request(app.getHttpServer())
+      .post("/agents")
+      .set(asOwner())
+      .send({ name: "Crafted", goal: "book_appointments", category: "Dental & Orthodontics" });
+    expect(created.status).toBe(201);
+    expect(created.body).toMatchObject({ status: "DRAFT", category: "Dental & Orthodontics" });
+    const id = created.body.id as string;
+
+    // Unknown categories are rejected (the vocabulary is the core enum).
+    await request(app.getHttpServer())
+      .post("/agents")
+      .set(asOwner())
+      .send({ name: "Bad", goal: "book_appointments", category: "Not A Category" })
+      .expect(400);
+
+    // The resume hydration payload carries it.
+    const draft = await request(app.getHttpServer()).get(`/agents/${id}/draft`).set(asOwner());
+    expect(draft.body.category).toBe("Dental & Orthodontics");
+
+    // While DRAFT the wizard may re-pick…
+    await request(app.getHttpServer())
+      .patch(`/agents/${id}`)
+      .set(asOwner())
+      .send({ category: "Home Services" })
+      .expect(200);
+
+    // …but once launched the arc input is frozen (derive at creation).
+    await request(app.getHttpServer()).patch(`/agents/${id}`).set(asOwner()).send({ status: "ACTIVE" });
+    await request(app.getHttpServer())
+      .patch(`/agents/${id}`)
+      .set(asOwner())
+      .send({ category: "Real Estate" })
+      .expect(400);
+
+    await request(app.getHttpServer()).delete(`/agents/${id}`).set(asOwner()).expect(200);
+  });
+
+  it("M1a (DEC-065): a guardrails PATCH with a strategy block round-trips through the A8 schema", async () => {
+    const res = await request(app.getHttpServer())
+      .patch(`/agents/${agentId}`)
+      .set(asOwner())
+      .send({
+        guardrails: {
+          sendingWindow: { days: [1, 2, 3, 4, 5], start: "09:00", end: "17:00", timezone: "UTC" },
+          dailyCap: { email: 200 },
+          consent: null,
+          strategy: { strategyNotes: "Lead with the audit.", neverSay: ["cheap", "guarantee"] },
+          unsubscribeFooter: true,
+          suppressionCheck: true,
+        },
+      });
+    expect(res.status).toBe(200);
+    expect(res.body.guardrails.strategy).toEqual({
+      strategyNotes: "Lead with the audit.",
+      neverSay: ["cheap", "guarantee"],
+    });
+
+    // An over-cap block is a validation error, not a silent trim.
+    await request(app.getHttpServer())
+      .patch(`/agents/${agentId}`)
+      .set(asOwner())
+      .send({
+        guardrails: {
+          sendingWindow: { days: [1], start: "09:00", end: "17:00", timezone: "UTC" },
+          dailyCap: { email: 200 },
+          consent: null,
+          strategy: { neverSay: Array.from({ length: 11 }, (_, i) => `t${i}`) },
+          unsubscribeFooter: true,
+          suppressionCheck: true,
+        },
+      })
+      .expect(400); // PRESENT-yet-invalid never widens — designed 400 (DEC-065)
+  });
+
   it("a VIEWER can read but not mutate → 403", async () => {
     const viewer = { Authorization: `Bearer ${viewerToken}`, "x-workspace-id": ws };
     await request(app.getHttpServer()).get("/agents").set(viewer).expect(200);

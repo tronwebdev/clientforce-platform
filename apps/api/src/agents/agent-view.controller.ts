@@ -77,6 +77,9 @@ export class AgentViewController {
           // C2.9 (DEC-059): resolved terminal wording — custom label from guardrails.
           goalLabel: goalTerminalLabel(agent.goal, guardrails?.goalLabel),
           goalPill: goalTerminalPill(agent.goal),
+          // M1a (DEC-065): with the goal this derives the Settings tab's
+          // selling-arc display (selectStrategy — never stored).
+          category: agent.category,
           status: agent.status,
           createdAt: agent.createdAt.toISOString(),
         },

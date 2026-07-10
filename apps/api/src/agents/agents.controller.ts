@@ -166,6 +166,9 @@ export class AgentsController {
           workspaceId,
           name: parsed.data.name,
           goal: parsed.data.goal,
+          // M1a (DEC-065): the wizard's step-1 picker persisted — with the
+          // goal it derives the selling arc (supersedes DEC-038(6)).
+          category: parsed.data.category ?? null,
           instructions: parsed.data.instructions ?? null,
           status: "DRAFT",
           guardrails: DEFAULT_GUARDRAILS as unknown as Prisma.InputJsonValue,
@@ -184,6 +187,7 @@ export class AgentsController {
           id: true,
           name: true,
           goal: true,
+          category: true,
           instructions: true,
           status: true,
           draftState: true,
@@ -207,14 +211,30 @@ export class AgentsController {
     return this.tenant.run(async (tx) => {
       const agent = await tx.agent.findUnique({ where: { id } });
       if (!agent) throw new NotFoundException(`Agent ${id} not found`);
+      // M1a (DEC-065): the arc derives at creation — category writes are
+      // wizard-only, so they stop once the agent leaves DRAFT.
+      if (parsed.data.category !== undefined && agent.status !== "DRAFT") {
+        throw new BadRequestException(
+          "Business category is set at creation and can't change after launch",
+        );
+      }
       const { guardrails, draftState, ...rest } = parsed.data;
+      // C2.3: guardrails go through the A8 schema — a PRESENT-yet-invalid
+      // shape is the caller's error (designed 400, never a raw 500).
+      let parsedGuardrails: ReturnType<typeof parseGuardrails> | undefined;
+      if (guardrails !== undefined) {
+        try {
+          parsedGuardrails = parseGuardrails(guardrails);
+        } catch {
+          throw new BadRequestException("Guardrails failed A8 schema validation");
+        }
+      }
       return tx.agent.update({
         where: { id },
         data: {
           ...rest,
-          // C2.3: guardrails go through the A8 schema — invalid shapes throw.
-          ...(guardrails !== undefined
-            ? { guardrails: parseGuardrails(guardrails) as unknown as Prisma.InputJsonValue }
+          ...(parsedGuardrails !== undefined
+            ? { guardrails: parsedGuardrails as unknown as Prisma.InputJsonValue }
             : {}),
           // B6: draft-resume working set; null clears it (launch).
           ...(draftState !== undefined
