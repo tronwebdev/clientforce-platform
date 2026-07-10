@@ -1,6 +1,6 @@
 # apps/voice — P3.0 voice spike (throwaway)
 
-**This is a SPIKE, not a build** (Phase 3 de-risk, DEC-064). The deliverable is
+**This is a SPIKE, not a build** (Phase 3 de-risk, DEC-066). The deliverable is
 `docs/adr/voice-spike.md` — a measured go/no-go on the real-time voice loop —
 not this code. Nothing here is production-quality on purpose: no retries beyond
 what the loop needs, no persistence beyond the taste-test, no UI. Do not extend
