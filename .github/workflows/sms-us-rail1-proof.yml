@@ -66,12 +66,15 @@ jobs:
           [ -n "$us" ] && echo "::add-mask::$us"
           api_fqdn="$(az containerapp show --name clientforce-api --resource-group "$RG" --query "properties.configuration.ingress.fqdn" -o tsv)"
           out="$RUNNER_TEMP/us-number"
+          script_rc=0
           TWILIO_ACCOUNT_SID="$sid" TWILIO_AUTH_TOKEN="$token" \
             SMS_TEST_MESSAGING_SERVICE_SID="$msid" US_TEST_NUMBER="$us" \
             SMS_TEST_NUMBER="$ng" STAGING_API_URL="https://$api_fqdn" AUTH_DEV_SECRET="$dev" \
             US_NUMBER_OUT="$out" \
-            pnpm exec tsx packages/channels/scripts/sms-rail1-proof.ts
-          # Persist the handset + fold it into the allow-list (DEC-063 scope).
+            pnpm exec tsx packages/channels/scripts/sms-rail1-proof.ts || script_rc=$?
+          # Persist the handset + fold it into the allow-list (DEC-063 scope) even
+          # when the proof itself failed — a purchased number must never be lost
+          # to a red run (the FriendlyName tag is the backstop either way).
           if [ -s "$out" ]; then
             usnum="$(cat "$out")"
             echo "::add-mask::$usnum"
@@ -80,3 +83,4 @@ jobs:
             az keyvault secret set --vault-name "$KEY_VAULT_NAME" --name SMS-ALLOWLIST --value "$ng,$usnum" -o none \
               || echo "::warning::Could not write SMS-ALLOWLIST to Key Vault — set it manually to the NG test number and the US handset, comma-separated."
           fi
+          exit "$script_rc"

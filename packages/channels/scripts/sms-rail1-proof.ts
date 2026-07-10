@@ -144,34 +144,70 @@ async function keywordRound(round: string, body: string, from: string, to: strin
   return false;
 }
 
-/** Staging ledger stance: counts/booleans only, addresses queried but never printed. */
-async function ledgerCheck(): Promise<void> {
-  if (!STAGING_API || !DEV_SECRET || !NG_NUMBER) {
-    console.log("ledger check skipped (staging env not provided)");
-    return;
+/**
+ * Staging helpers (dev token; addresses queried but never printed). The US
+ * handset gets its OWN staging contact so its STOP lands a real suppression
+ * row through the live webhook — the proof carries its own precondition
+ * instead of depending on the owner having added a contact manually.
+ */
+interface StagingCtx {
+  token: string;
+  workspaceId: string;
+}
+
+async function stagingCtx(): Promise<StagingCtx | null> {
+  if (!STAGING_API || !DEV_SECRET) {
+    console.log("staging ledger checks skipped (staging env not provided)");
+    return null;
   }
   const token = await signDevToken(DEV_SECRET, { sub: "owner@demo-agency.test", email: "owner@demo-agency.test" });
   const me = (await fetch(`${STAGING_API}/me`, { headers: { Authorization: `Bearer ${token}` } }).then((r) => r.json())) as {
     memberships?: Array<{ workspaceId: string }>;
   };
-  const workspaceIds = (me.memberships ?? []).map((m) => m.workspaceId);
-  let ngRows = 0;
-  let usRows = 0;
-  for (const ws of workspaceIds) {
-    const rows = (await fetch(`${STAGING_API}/suppressions?q=${encodeURIComponent(NG_NUMBER)}`, {
-      headers: { Authorization: `Bearer ${token}`, "x-workspace-id": ws },
-    }).then((r) => (r.ok ? r.json() : []))) as SuppressionRow[];
-    ngRows += rows.filter((r) => r.channel === "sms").length;
-    const usQ = (await fetch(`${STAGING_API}/suppressions?q=${encodeURIComponent(process.env.US_RESOLVED_NUMBER ?? "zzz-no-match")}`, {
-      headers: { Authorization: `Bearer ${token}`, "x-workspace-id": ws },
-    }).then((r) => (r.ok ? r.json() : []))) as SuppressionRow[];
-    usRows += usQ.filter((r) => r.channel === "sms").length;
+  const workspaceId = (me.memberships ?? [])[0]?.workspaceId;
+  if (!workspaceId) throw new Error("staging /me returned no memberships for the dev principal");
+  return { token, workspaceId };
+}
+
+const authHeaders = (ctx: StagingCtx) => ({
+  Authorization: `Bearer ${ctx.token}`,
+  "x-workspace-id": ctx.workspaceId,
+});
+
+async function ensureStagingContact(ctx: StagingCtx, phone: string): Promise<void> {
+  const contacts = (await fetch(`${STAGING_API}/contacts`, { headers: authHeaders(ctx) }).then((r) => r.json())) as Array<{
+    phone?: string | null;
+  }>;
+  const digits = phone.replace(/^\+/, "");
+  if (contacts.some((c) => (c.phone ?? "").includes(digits))) {
+    console.log("staging contact for the US handset already exists");
+    return;
   }
-  console.log(`\n-- staging ledger stance (DEC-062/064) --`);
-  console.log(`  NG suppression rows (sms): ${ngRows} — expected 1 (present across every STOP AND the owner's START: suppression persists until explicit re-consent; applySmsStop is create-if-absent)`);
-  console.log(`  US-handset suppression rows (sms): ${usRows} — expected 0 (no matching contact; DEC-064 fail-safe suppresses matched contacts only)`);
-  if (ngRows !== 1) throw new Error(`LEDGER STANCE FAILED: expected exactly 1 NG sms suppression row, found ${ngRows}`);
-  if (usRows !== 0) throw new Error(`LEDGER STANCE FAILED: expected 0 US-handset sms suppression rows, found ${usRows}`);
+  const res = await fetch(`${STAGING_API}/contacts`, {
+    method: "POST",
+    headers: { ...authHeaders(ctx), "Content-Type": "application/json" },
+    body: JSON.stringify({ email: "us-handset@clientforce.test", firstName: "US", lastName: "Handset", phone }),
+  });
+  if (!res.ok) throw new Error(`staging contact create failed: ${res.status}`);
+  console.log("staging contact created for the US handset (rail-2 resolution target)");
+}
+
+async function smsSuppressionCount(ctx: StagingCtx, q: string): Promise<number> {
+  const rows = (await fetch(`${STAGING_API}/suppressions?q=${encodeURIComponent(q)}`, {
+    headers: authHeaders(ctx),
+  }).then((r) => (r.ok ? r.json() : []))) as SuppressionRow[];
+  return rows.filter((r) => r.channel === "sms").length;
+}
+
+async function expectUsRows(ctx: StagingCtx, phone: string, expected: number, why: string): Promise<void> {
+  let count = -1;
+  for (let i = 0; i < 12; i++) {
+    count = await smsSuppressionCount(ctx, phone);
+    if (count === expected) break;
+    await sleep(5000);
+  }
+  console.log(`  ledger: US-handset sms suppression rows = ${count} (expected ${expected} — ${why})`);
+  if (count !== expected) throw new Error(`LEDGER STANCE FAILED: expected ${expected} US-handset sms rows (${why}), found ${count}`);
 }
 
 async function main(): Promise<void> {
@@ -181,14 +217,24 @@ async function main(): Promise<void> {
   console.log("\n=== P2.1 RAIL-1 CLOSING PROOF (US test handset, DEC-067) ===");
   const handset = await ensureUsTestNumber();
   if (OUT_FILE) writeFileSync(OUT_FILE, handset.number, "utf8");
-  process.env.US_RESOLVED_NUMBER = handset.number;
   const target = await ensureInService(handset.sid, handset.number);
 
-  const stop1 = await keywordRound("1/3 STOP", "STOP", handset.number, target);
-  const start = await keywordRound("2/3 START", "START", handset.number, target);
-  const stop2 = await keywordRound("3/3 STOP", "STOP", handset.number, target);
+  const ctx = await stagingCtx();
+  if (ctx) await ensureStagingContact(ctx, handset.number);
 
-  await ledgerCheck();
+  const stop1 = await keywordRound("1/3 STOP", "STOP", handset.number, target);
+  if (ctx) await expectUsRows(ctx, handset.number, 1, "STOP creates the row via the live webhook — rail 2 full loop");
+
+  const start = await keywordRound("2/3 START", "START", handset.number, target);
+  if (ctx) await expectUsRows(ctx, handset.number, 1, "START must NOT clear it — suppression persists until explicit re-consent (DEC-062/064)");
+
+  const stop2 = await keywordRound("3/3 STOP", "STOP", handset.number, target);
+  if (ctx) await expectUsRows(ctx, handset.number, 1, "repeat STOP stays a single row — applySmsStop is create-if-absent");
+
+  if (ctx && NG_NUMBER) {
+    const ng = await smsSuppressionCount(ctx, NG_NUMBER);
+    console.log(`  ledger (informational): NG-handset sms suppression rows = ${ng} (0 until the owner adds their contact; suppression needs a matched contact per DEC-064)`);
+  }
 
   if (!stop1 || !stop2) {
     throw new Error(
