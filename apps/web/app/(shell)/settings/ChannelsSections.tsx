@@ -280,13 +280,17 @@ const prettyKey = (k: string) => {
 
 function SenderDetailDrawer({ sender, onClose, toast }: { sender: Sender; onClose: () => void; toast: (m: string) => void }) {
   const isMailer = sender.type === "CF_MANAGED";
+  // 54-1 (review): drawer blocks gate by sender TYPE — an SMS sender has no
+  // SPF/DKIM/DMARC story; its trust rails are A2P registration + the STOP
+  // double rail, so the domain-auth card simply doesn't render.
+  const isSms = sender.type === "TWILIO_SMS";
   const prov = PROVIDER[sender.type];
   const st = DETAIL_STATUS[sender.status] ?? { label: sender.status, ...PAIR.neutral };
   const passes = authPasses(sender);
   const barColor = passes === 3 ? "#16A82A" : "#E8C45B";
   const pct = Math.min(100, Math.round((sender.sentToday / Math.max(1, sender.dailyLimit)) * 100));
   const warmupEntries = sender.warmupState && typeof sender.warmupState === "object" ? Object.entries(sender.warmupState) : [];
-  const providerChip = isMailer ? "Clientforce Mailer" : (prov?.sub ?? sender.type);
+  const providerChip = isMailer ? "Clientforce Mailer" : isSms ? "Twilio SMS" : (prov?.sub ?? sender.type);
 
   return (
     <DrawerShell width={500} title="Sender details" onClose={onClose} z={57} shadow="-28px 0 70px rgba(0,0,0,.30)" testid="sender-drawer"
@@ -308,6 +312,8 @@ function SenderDetailDrawer({ sender, onClose, toast }: { sender: Sender; onClos
             <div style={{ width: 46, height: 46, borderRadius: 12, background: "#fff", border: "1.5px solid #EBE3D6", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", boxSizing: "border-box" }}>
               {isMailer ? (
                 <div style={{ width: 28, height: 28, borderRadius: 7, background: GRAD, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: BRICO, fontWeight: 800, fontSize: 14, color: "#0A0F0C" }}>f</div>
+              ) : isSms ? (
+                <span style={{ width: 28, height: 28, borderRadius: 7, background: "rgba(53,232,52,.12)", color: "#16A82A", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>✆</span>
               ) : (
                 <EnvelopeLogo fill={prov?.logo ?? "#7A8A80"} size={24} />
               )}
@@ -365,7 +371,27 @@ function SenderDetailDrawer({ sender, onClose, toast }: { sender: Sender; onClos
           </div>
         ) : null}
 
-        {/* domain authentication — always */}
+        {/* P2.1 (54-1): sms senders carry opt-out rails instead of DNS auth */}
+        {isSms ? (
+          <div style={subCard} data-testid="sender-sms-optout">
+            <div style={{ ...microLabel, marginBottom: 12 }}>Opt-out compliance</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {[
+                { key: "Advanced Opt-Out", detail: "Twilio messaging-service level (rail 1)" },
+                { key: "STOP webhook rail", detail: "Suppression + opt-out + unenroll on STOP (rail 2)" },
+                { key: "Opt-out line", detail: "\u201CReply STOP to opt out.\u201D on every first outbound" },
+              ].map((a) => (
+                <div key={a.key} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "#FBF7F0", borderRadius: 10 }}>
+                  <span style={{ fontSize: 14, color: "#16A82A", fontWeight: 800, width: 18, textAlign: "center" }}>✓</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#0E1512" }}>{a.key}</div>
+                    <div style={{ fontSize: 11, color: "#9AA59E", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.detail}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
         <div style={subCard} data-testid="sender-domain-auth">
           <div style={{ display: "flex", alignItems: "center", marginBottom: 12 }}>
             <div style={{ ...microLabel, flex: 1 }}>Domain authentication</div>
@@ -389,6 +415,7 @@ function SenderDetailDrawer({ sender, onClose, toast }: { sender: Sender; onClos
             ))}
           </div>
         </div>
+        )}
         {/* "Used by agents" card omitted — no sender↔agent assignment model this phase */}
       </div>
     </DrawerShell>
@@ -485,7 +512,7 @@ export function SuppressionSection({ toast }: { toast: (m: string) => void }) {
         </div>
       </div>
       <div style={tableCard} data-testid="suppress-table">
-        <div style={theadRow(SUPPRESS_GRID)}><span>Email</span><span>Channel</span><span>Reason</span><span>Source</span><span>Added</span><span /></div>
+        <div style={theadRow(SUPPRESS_GRID)}><span>Address</span><span>Channel</span><span>Reason</span><span>Source</span><span>Added</span><span /></div>
         {rows === null && !error ? (
           <SkeletonRows testid="suppress-skeleton" />
         ) : error ? (
