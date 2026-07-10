@@ -31,7 +31,7 @@ export interface AgentViewData {
     tracking?: { openTracking: boolean; linkTracking: boolean };
     /** C2.9 (DEC-059): custom-goal terminal label riding the Json. */
     goalLabel?: string;
-    /** M1a (DEC-064): per-agent strategy rider — notes + never-say. */
+    /** M1a (DEC-065): per-agent strategy rider — notes + never-say. */
     strategy?: { strategyNotes?: string; neverSay?: string[] };
     unsubscribeFooter: true;
     suppressionCheck: true;

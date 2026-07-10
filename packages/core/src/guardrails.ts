@@ -47,7 +47,7 @@ export const guardrailsSchema = z.object({
    */
   goalLabel: z.string().max(60).optional(),
   /**
-   * M1a (DEC-064): optional per-agent selling strategy — `strategyNotes`
+   * M1a (DEC-065): optional per-agent selling strategy — `strategyNotes`
    * (planner prompt guidance) + `neverSay` (prompt AND deterministic
    * post-generation ban). Rides this Json like `goalLabel` — no migration;
    * absent = defaults, legacy rows parse unchanged. Read at plan time only;

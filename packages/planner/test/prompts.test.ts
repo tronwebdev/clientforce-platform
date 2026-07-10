@@ -1,5 +1,5 @@
 /**
- * M1a (DEC-064): the prompt-layer before/after — v3 carries the selling-craft
+ * M1a (DEC-065): the prompt-layer before/after — v3 carries the selling-craft
  * playbook + STRATEGY block; v2 (still registered, P1.1 append-only registry)
  * carries none of it. Pure, no infra.
  */

@@ -6,14 +6,14 @@ import { BANNED_OPENERS, OPENER_WORD_CAP } from "@clientforce/core";
  * (DEC-015): step copy may only use facts present in the provided business
  * context — which is itself evidence-cited by P1.3 — never model priors.
  *
- * v3 (M1a, DEC-064): selling craft — step ROLES (opener earns the reply,
+ * v3 (M1a, DEC-065): selling craft — step ROLES (opener earns the reply,
  * value/proof, objection-preempt, polite breakup last), one CTA per message,
  * decreasing length, per-role subject rules, banned-opener list, and the
  * per-agent STRATEGY block (arc + tone from the goal×category map, owner
  * strategyNotes, hard-banned neverSay strings). v2 stays registered.
  */
 export const PLANNER_PROMPT_NAME = "planner.campaign";
-export const PLANNER_PROMPT_VERSION = 3; // M1a (DEC-064): selling-craft playbook + STRATEGY block
+export const PLANNER_PROMPT_VERSION = 3; // M1a (DEC-065): selling-craft playbook + STRATEGY block
 
 export const PLANNER_SYSTEM =
   "You are a campaign planner for an outbound email agent. You design a short, effective email sequence as a " +
@@ -108,7 +108,7 @@ export function renderPlannerPrompt(vars: {
   tokens: string;
   /** P2.1 (DEC-061): '"email" ONLY.' unless an active SMS sender widens it. */
   channels: string;
-  /** M1a (DEC-064): arc + tone from selectStrategy(goal, category). */
+  /** M1a (DEC-065): arc + tone from selectStrategy(goal, category). */
   arcLabel: string;
   arcDescription: string;
   /** Bulleted role ladder ("  1. OPENER — …"). */

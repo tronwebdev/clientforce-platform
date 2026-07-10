@@ -1,5 +1,5 @@
 /**
- * Selling-strategy registry (M1a, DEC-064) — the internal constant map
+ * Selling-strategy registry (M1a, DEC-065) — the internal constant map
  * f(goal × business category) → arc + tone hints, plus the optional
  * per-agent strategy block that rides the guardrails Json (goalLabel
  * precedent, DEC-059 — no migration).
@@ -201,7 +201,7 @@ export const strategyBlockSchema = z.object({
   strategyNotes: z.string().max(STRATEGY_NOTES_MAX).optional(),
   /**
    * Hard-banned strings — injected into the prompt AND deterministically
-   * checked post-generation in the planner's validation gate (DEC-064).
+   * checked post-generation in the planner's validation gate (DEC-065).
    */
   neverSay: z.array(z.string().min(1).max(80)).max(NEVER_SAY_MAX).optional(),
 });

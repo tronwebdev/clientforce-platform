@@ -167,7 +167,7 @@ describe.skipIf(!hasDb)("Agents API e2e", () => {
       .expect(400);
   });
 
-  it("M1a (DEC-064): category persists at create, survives /draft, and locks after DRAFT", async () => {
+  it("M1a (DEC-065): category persists at create, survives /draft, and locks after DRAFT", async () => {
     // Create through the wizard's path — category lands on the row.
     const created = await request(app.getHttpServer())
       .post("/agents")
@@ -206,7 +206,7 @@ describe.skipIf(!hasDb)("Agents API e2e", () => {
     await request(app.getHttpServer()).delete(`/agents/${id}`).set(asOwner()).expect(200);
   });
 
-  it("M1a (DEC-064): a guardrails PATCH with a strategy block round-trips through the A8 schema", async () => {
+  it("M1a (DEC-065): a guardrails PATCH with a strategy block round-trips through the A8 schema", async () => {
     const res = await request(app.getHttpServer())
       .patch(`/agents/${agentId}`)
       .set(asOwner())
@@ -240,7 +240,7 @@ describe.skipIf(!hasDb)("Agents API e2e", () => {
           suppressionCheck: true,
         },
       })
-      .expect(400); // PRESENT-yet-invalid never widens — designed 400 (DEC-064)
+      .expect(400); // PRESENT-yet-invalid never widens — designed 400 (DEC-065)
   });
 
   it("a VIEWER can read but not mutate → 403", async () => {

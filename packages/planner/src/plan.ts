@@ -92,7 +92,7 @@ export async function planCampaign(deps: PlanDeps, target: PlanTarget): Promise<
     );
   }
 
-  // M1a (DEC-064): arc + tone derive from (goal, category) — both fixed at
+  // M1a (DEC-065): arc + tone derive from (goal, category) — both fixed at
   // creation; the strategy block rides guardrails Json (absent = defaults).
   const strategy = selectStrategy(agent.goal, agent.category);
   const block = strategyBlockOf(agent.guardrails);
@@ -193,7 +193,7 @@ export async function planCampaign(deps: PlanDeps, target: PlanTarget): Promise<
 /** Shape + T4 semantics + P1.4 slice requirements, as one gate.
  *  P2.1 (DEC-061): `allowedChannels` widens per workspace capability — sms
  *  joins ONLY when an active Twilio sender exists (default stays email-only).
- *  M1a (DEC-064): `neverSay` is the deterministic half of the double rail —
+ *  M1a (DEC-065): `neverSay` is the deterministic half of the double rail —
  *  the prompt bans the strings, this gate PROVES they're absent (violation →
  *  the caller's bounded repair round-trip → typed failure). Manual edits via
  *  PUT /planner/graph are deliberately NOT checked — those are the owner's

@@ -28,7 +28,7 @@ export * from "./context";
 // Planner REST DTOs (P1.4).
 export * from "./planner";
 
-// Selling-strategy registry (M1a, DEC-064) — arcs, tone map, strategy block.
+// Selling-strategy registry (M1a, DEC-065) — arcs, tone map, strategy block.
 export * from "./strategy";
 
 // Guardrails schema (P1.5, A8) + sender DTOs.

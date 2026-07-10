@@ -12,7 +12,7 @@ export const createAgentSchema = z.object({
   name: z.string().min(1).max(120),
   goal: goalKeySchema,
   /**
-   * M1a (DEC-064): the wizard's existing step-1 picker, finally persisted
+   * M1a (DEC-065): the wizard's existing step-1 picker, finally persisted
    * (supersedes DEC-038(6) visual-only). Drives arc selection with the goal.
    */
   category: businessCategorySchema.optional(),
@@ -63,7 +63,7 @@ export const updateAgentSchema = z
   .object({
     name: z.string().min(1).max(120).optional(),
     status: agentStatusSchema.optional(),
-    /** M1a (DEC-064): DRAFT-only api-side — the arc derives at creation. */
+    /** M1a (DEC-065): DRAFT-only api-side — the arc derives at creation. */
     category: businessCategorySchema.optional(),
     /** Validated against the A8 Guardrails schema api-side (parseGuardrails). */
     guardrails: z.unknown().optional(),

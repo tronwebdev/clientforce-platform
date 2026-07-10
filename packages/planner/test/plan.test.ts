@@ -88,7 +88,7 @@ describe("validateAll (P1.4 slice requirements)", () => {
   });
 });
 
-describe("validateAll neverSay gate (M1a, DEC-064 — the deterministic rail)", () => {
+describe("validateAll neverSay gate (M1a, DEC-065 — the deterministic rail)", () => {
   it("passes a clean graph against a ban list", () => {
     expect(() => validateAll(goodGraph(), ["email"], ["cheap", "guarantee"])).not.toThrow();
   });

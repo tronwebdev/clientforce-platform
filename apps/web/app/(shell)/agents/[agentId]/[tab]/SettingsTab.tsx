@@ -5,13 +5,13 @@
  * sending schedule + volume limits writing the A8 Guardrails schema, Tracking
  * & compliance rows (A8 literals locked), the M1a Strategy section (selected
  * arc display + strategy notes + never-say — designed state, no prototype
- * anchor, DEC-064), danger zone, the 500px sender drawer and the 460px volume
+ * anchor, DEC-065), danger zone, the 500px sender drawer and the 460px volume
  * modal. Email-only phase: phone/WhatsApp cards omitted (DEC-038 precedent).
  *
  * Guardrails saves COMPOSE over the server's parsed guardrails and override
  * only the edited subset — the previous rebuild-from-tab-state write silently
  * dropped `goalLabel` (and would drop `dailyCap.sms`/`consent`/`strategy`);
- * DEC-064 carry-along fix.
+ * DEC-065 carry-along fix.
  */
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -47,7 +47,7 @@ export function SettingsTab({ agentId, view, onChanged }: { agentId: string; vie
   const [dailyCap, setDailyCap] = useState(200);
   const [days, setDays] = useState([true, true, true, true, true, false, false]);
   const [tracking, setTracking] = useState({ open: true, link: true });
-  // M1a strategy rider (DEC-064) — hydrated from the server's parsed guardrails.
+  // M1a strategy rider (DEC-065) — hydrated from the server's parsed guardrails.
   const [notes, setNotes] = useState("");
   const [neverSay, setNeverSay] = useState<string[]>([]);
   const [neverSayInput, setNeverSayInput] = useState("");
@@ -263,7 +263,7 @@ export function SettingsTab({ agentId, view, onChanged }: { agentId: string; vie
 
       <div style={{ ...label, marginTop: 8 }}>Strategy</div>
 
-      {/* M1a (DEC-064) — designed section, no prototype anchor (§0 card/label
+      {/* M1a (DEC-065) — designed section, no prototype anchor (§0 card/label
           conventions; flagged in the fidelity log). Arc is DISPLAY: derived
           from goal + business category at creation, never stored. */}
       <div style={{ ...card, padding: "18px 20px" }} data-testid="settings-strategy">

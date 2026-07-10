@@ -1,5 +1,5 @@
 /**
- * M1a (DEC-064): the strategy registry — arc selection over the owner-approved
+ * M1a (DEC-065): the strategy registry — arc selection over the owner-approved
  * goal×category map (PR #63 plan comment), the guardrails strategy rider's
  * caps, and the legacy-row regression (absent block = defaults, parse
  * unchanged — the goalLabel precedent holds).

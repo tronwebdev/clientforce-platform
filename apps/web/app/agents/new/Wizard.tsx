@@ -437,7 +437,7 @@ export function Wizard() {
         ...(pickedList ? { pickedListId: pickedList.id } : {}),
         ...(goalLabel.trim() ? { goalLabel: goalLabel.trim() } : {}),
       };
-      // M1a (DEC-064): category rides the same PATCH — it's a durable column
+      // M1a (DEC-065): category rides the same PATCH — it's a durable column
       // (not draftState), and picker changes after the implicit create must land.
       cf(`agents/${agentId}`, { method: "PATCH", body: JSON.stringify({ draftState, category }) })
         .then(() => {
@@ -632,7 +632,7 @@ export function Wizard() {
       body: JSON.stringify({
         name: name.trim(),
         goal,
-        // M1a (DEC-064): persist the step-1 picker — goal×category derives
+        // M1a (DEC-065): persist the step-1 picker — goal×category derives
         // the selling arc (supersedes DEC-038(6) visual-only).
         category,
         ...(instructions.trim() ? { instructions: instructions.trim() } : {}),
@@ -2554,7 +2554,7 @@ function Step1(props: {
 /* ── shared bits ──────────────────────────────────────────────────────────── */
 /** Prototype's uppercase micro-caps field label. */
 const upLbl: React.CSSProperties = { display: "block", fontSize: 11.5, fontWeight: 700, color: "#8A7F6B", letterSpacing: ".07em", textTransform: "uppercase", marginBottom: 8 };
-// M1a (DEC-064): the picker vocabulary lives in core beside the arc map so
+// M1a (DEC-065): the picker vocabulary lives in core beside the arc map so
 // the two can never fork; this alias keeps the render sites unchanged.
 const CATEGORIES = BUSINESS_CATEGORIES;
 /** DEC-039a drawer micro-caps label + 42px field. */

@@ -6,7 +6,7 @@
  * broken model output is caught and never persisted. Requires Postgres;
  * completions are a prompt-parsing fake (no network). Skips without infra.
  *
- * M1a (DEC-064): the fake is PROMPT-DRIVEN like the original grounding
+ * M1a (DEC-065): the fake is PROMPT-DRIVEN like the original grounding
  * simulation — it emits the selling-craft arc shape only when the prompt
  * carries the v3 STRATEGY block, and honors the prompt's NEVER SAY list
  * (violating once/always per test mode). The structural assertions walk the
@@ -420,7 +420,7 @@ describe.skipIf(!hasInfra)("planCampaign integration", () => {
     );
   });
 
-  // ── M1a (DEC-064): selling craft + strategy block ──────────────────────────
+  // ── M1a (DEC-065): selling craft + strategy block ──────────────────────────
 
   it("the planned sequence exhibits the arc STRUCTURALLY; the pre-playbook shape does not", async () => {
     const result = await planCampaign(deps(), { workspaceId: wsA, agentId: craftAgentId });

@@ -166,7 +166,7 @@ export class AgentsController {
           workspaceId,
           name: parsed.data.name,
           goal: parsed.data.goal,
-          // M1a (DEC-064): the wizard's step-1 picker persisted — with the
+          // M1a (DEC-065): the wizard's step-1 picker persisted — with the
           // goal it derives the selling arc (supersedes DEC-038(6)).
           category: parsed.data.category ?? null,
           instructions: parsed.data.instructions ?? null,
@@ -211,7 +211,7 @@ export class AgentsController {
     return this.tenant.run(async (tx) => {
       const agent = await tx.agent.findUnique({ where: { id } });
       if (!agent) throw new NotFoundException(`Agent ${id} not found`);
-      // M1a (DEC-064): the arc derives at creation — category writes are
+      // M1a (DEC-065): the arc derives at creation — category writes are
       // wizard-only, so they stop once the agent leaves DRAFT.
       if (parsed.data.category !== undefined && agent.status !== "DRAFT") {
         throw new BadRequestException(
