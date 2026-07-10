@@ -55,8 +55,23 @@ jobs:
             | python3 -c '
           import json, sys
           s = json.load(sys.stdin)
-          for k in ("inbound_request_url", "inbound_method", "fallback_url", "use_inbound_webhook_on_number", "sticky_sender"):
+          # friendly_name is a label, not a secret — it lets the owner confirm
+          # WHICH service the platform uses when the account has several.
+          for k in ("friendly_name", "inbound_request_url", "inbound_method", "fallback_url", "use_inbound_webhook_on_number", "sticky_sender"):
               print(f"{k}: {s.get(k)}")
+          '
+
+          echo "== 2b) ALL messaging services on the account (platform service marked) =="
+          export MSID="$msid"
+          curl -sf -u "$sid:$token" "https://messaging.twilio.com/v1/Services?PageSize=20" \
+            | python3 -c '
+          import json, os, sys
+          ours = os.environ.get("MSID", "")
+          services = json.load(sys.stdin).get("services", [])
+          print(f"services on account: {len(services)}")
+          for s in services:
+              mark = "  <-- PLATFORM SERVICE" if s.get("sid") == ours else ""
+              print(f"  {s.get('"'"'friendly_name'"'"')}{mark}")
           '
 
           echo "== 3) Numbers attached to the service (count + per-number webhook override) =="
