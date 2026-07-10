@@ -28,7 +28,9 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install chromium --with-deps
+      # Playwright lives in @clientforce/e2e, not the workspace root — install
+      # the browser through the same filter the deploy e2e job uses.
+      - run: pnpm --filter @clientforce/e2e exec playwright install --with-deps chromium
 
       - name: Azure login (OIDC)
         uses: azure/login@v2
@@ -44,9 +46,10 @@ jobs:
           echo "url=https://$web" >> "$GITHUB_OUTPUT"
 
       - name: Capture skinned Clerk pages
+        working-directory: e2e
         run: |
-          cat > /tmp/clerk-skin.mjs <<'JS'
-          import { chromium } from "playwright-core";
+          cat > clerk-skin.mjs <<'JS'
+          import { chromium } from "@playwright/test";
           const BASE = process.env.STAGING_URL;
           const run = async () => {
             const browser = await chromium.launch();
@@ -71,12 +74,12 @@ jobs:
           };
           run().catch((e) => { console.error(e); process.exit(1); });
           JS
-          STAGING_URL="${{ steps.fqdn.outputs.url }}" node /tmp/clerk-skin.mjs
+          STAGING_URL="${{ steps.fqdn.outputs.url }}" node clerk-skin.mjs
 
       - name: Upload §8 delta screenshots
         uses: actions/upload-artifact@v4
         with:
           name: clerk-skin-proof
           path: |
-            clerk-sign-in.png
-            clerk-sign-up.png
+            e2e/clerk-sign-in.png
+            e2e/clerk-sign-up.png
