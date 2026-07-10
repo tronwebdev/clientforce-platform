@@ -1,0 +1,52 @@
+# P2.1 diagnostics: fetch one Twilio message's delivery status + error code.
+# The live proof only sees the queue-time acceptance; carrier-side failures
+# (A2P registration, opt-out, empty sender pool) land on the message record
+# afterward. Prints ONLY status/error fields — never the to/from numbers
+# (the owner's test number stays Key-Vault-only; the repo and its run logs
+# are public).
+name: sms-status-probe
+
+on:
+  workflow_dispatch:
+    inputs:
+      message_sid:
+        description: "Twilio Message SID (SM…) to inspect"
+        required: true
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  KEY_VAULT_NAME: ${{ vars.KEY_VAULT_NAME }}
+
+jobs:
+  probe:
+    name: message delivery status
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Fetch message status (safe fields only)
+        run: |
+          set -euo pipefail
+          msg_sid="${{ github.event.inputs.message_sid }}"
+          case "$msg_sid" in SM[0-9a-fA-F]*) ;; *) echo "::error::message_sid must be a Twilio SM… sid"; exit 1;; esac
+          sid="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name TWILIO-ACCOUNT-SID --query value -o tsv)"
+          token="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name TWILIO-AUTH-TOKEN --query value -o tsv)"
+          echo "::add-mask::$sid"; echo "::add-mask::$token"
+          curl -sf -u "$sid:$token" \
+            "https://api.twilio.com/2010-04-01/Accounts/$sid/Messages/$msg_sid.json" \
+            | python3 -c '
+          import json, sys
+          m = json.load(sys.stdin)
+          # Safe fields only — no to/from, no body.
+          for k in ("status", "error_code", "error_message", "num_segments", "date_created", "date_sent"):
+              print(f"{k}: {m.get(k)}")
+          '
