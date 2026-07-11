@@ -1430,7 +1430,7 @@ export function Wizard() {
           />
         ) : null}
 
-        {step === 5 ? <Step6Review {...{ goal, graph, pickedList, csvImport, audienceTotal, capture, allResolved, gapTotal, gapResolved }} /> : null}
+        {step === 5 ? <Step6Review {...{ name, graph, audienceTotal, capture, apOn: capture.ap ?? goalFitOf(goal) !== "existing_audience", sendDays, windowStart, windowEnd, timezone, dailyCap, smsDailyCap, allResolved, gapTotal, gapResolved, launch }} /> : null}
       </div>
       </div>
     </div>
