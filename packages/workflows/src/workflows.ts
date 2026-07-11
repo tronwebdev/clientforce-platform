@@ -71,8 +71,10 @@ export async function campaignWorkflow(
     enrollmentId: input.enrollmentId,
   };
 
-  let current: NodeId | undefined = input.graph.entry;
-  let lastNode: NodeId = input.graph.entry;
+  // R1 (DEC-073): a rules "move" starts the run at its target node.
+  const startAt: NodeId = input.startNodeId ?? input.graph.entry;
+  let current: NodeId | undefined = startAt;
+  let lastNode: NodeId = startAt;
 
   while (current !== undefined) {
     const node = nodesById.get(current);

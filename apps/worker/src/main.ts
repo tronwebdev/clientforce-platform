@@ -17,7 +17,11 @@ import {
   type PrismaClient,
 } from "@clientforce/db";
 import {
-  automationsConsumer,
+  createPerAgentRules,
+  runSequenceQuietSweep,
+  type QuietSweepDeps,
+} from "@clientforce/automations";
+import {
   bullConnectionFromUrl,
   createRedisClient,
   createTemporalSignalConsumer,
@@ -33,8 +37,10 @@ import {
 import { createPlanWorker } from "@clientforce/planner";
 import {
   cancelEnrollmentWorkflow,
+  cancelWorkflowById,
   connectTemporalClient,
   createActivities,
+  moveEnrollmentToNode,
   signalEnrollmentReply,
   TASK_QUEUE,
   WORKFLOWS_PATH,
@@ -129,25 +135,68 @@ function startKnowledgeWorkers(): void {
   });
   console.log("[worker] knowledge-ingest worker started (P1.2)");
 
-  // P1.7: the T2 event-bus consumer — consumer #1 is now REAL: a *.replied.v1
+  // P1.7: the T2 event-bus consumer — consumer #1 is REAL: a *.replied.v1
   // event signals the enrollment's CampaignWorkflow (skips with a log when
   // Temporal isn't configured; the Event row is persisted regardless).
+  // R1 (DEC-073): consumer #2 is now REAL too — the per-agent campaign-rules
+  // evaluator, with its gate on consumer #1 (rails → rules → graph
+  // continuation; a terminal rule action skips the reply signal). Cross-
+  // tenant reads (stored-workflowId lookup, sweep discovery) use the owner
+  // client — the stranded-source-sweep precedent; all writes stay tenant-scoped.
+  const owner = createPrismaClient();
+  // Late-bound: the rules deps need the bus, the bus's consumer list needs
+  // the rules — the holder breaks the construction cycle.
+  const busRef: { current?: EventBus } = {};
+  const ruleDeps = {
+    prisma,
+    publish: async (input: Parameters<EventBus["publish"]>[0]) => {
+      if (busRef.current) await busRef.current.publish(input);
+    },
+    cancelWorkflow: async ({ workflowId }: { workflowId: string }) => {
+      const client = await temporalClient();
+      if (!client) throw new Error("TEMPORAL_ADDRESS not configured — cancel skipped");
+      await cancelWorkflowById(client, workflowId);
+    },
+    moveEnrollment: async (params: {
+      workspaceId: string;
+      enrollmentId: string;
+      targetNodeId: string;
+      dedupeKey: string;
+    }) => {
+      const client = await temporalClient();
+      if (!client) throw new Error("TEMPORAL_ADDRESS not configured — move unavailable");
+      await moveEnrollmentToNode(client, prisma, params);
+    },
+  };
+  const rules = createPerAgentRules(ruleDeps);
   const bus = new EventBus({
     prisma,
     connection: bullConnectionFromUrl(process.env.REDIS_URL),
     consumers: [
-      createTemporalSignalConsumer(async (enrollmentId, intent) => {
-        const client = await temporalClient();
-        if (!client) throw new Error("TEMPORAL_ADDRESS not configured — signal skipped");
-        await signalEnrollmentReply(client, enrollmentId, intent);
-        console.log(`[worker] reply signal delivered: enrollment=${enrollmentId} intent=${intent}`);
-      }),
-      automationsConsumer,
+      createTemporalSignalConsumer(
+        async (enrollmentId, intent) => {
+          const client = await temporalClient();
+          if (!client) throw new Error("TEMPORAL_ADDRESS not configured — signal skipped");
+          // R1: a moved enrollment runs under a new workflow id — signal the
+          // STORED one (falls back to the enroll-time id when absent).
+          const row = await owner.enrollment.findUnique({
+            where: { id: enrollmentId },
+            select: { workflowId: true },
+          });
+          await signalEnrollmentReply(client, enrollmentId, intent, row?.workflowId ?? undefined);
+          console.log(`[worker] reply signal delivered: enrollment=${enrollmentId} intent=${intent}`);
+        },
+        console.warn,
+        rules.shouldContinueGraph,
+      ),
+      rules.consumer,
       dispatcherConsumer,
     ],
   });
+  busRef.current = bus;
   bus.startConsumer();
-  console.log("[worker] event-bus consumer started (P1.7 — temporal-signal live)");
+  console.log("[worker] event-bus consumer started (P1.7 temporal-signal + R1 campaign rules live)");
+  startSequenceQuietSweep({ ...ruleDeps, ownerPrisma: owner });
 
   // Distilling/classifying need real completions; without the key those
   // workers stay off (ingest + bus are unaffected) and jobs wait in Redis.
@@ -245,6 +294,29 @@ function startStrandedSourceSweep(): void {
       console.error("[worker] stranded-source sweep failed", err),
     );
   }, 10 * 60_000);
+}
+
+/**
+ * Sequence-quiet sweep (R1, DEC-073): the "sequence completed + N days quiet"
+ * rule trigger — the one trigger with no bus event to subscribe to. Runs on
+ * boot + hourly (the stranded-source-sweep pattern); fire-once semantics live
+ * in the run key (`quiet:<enrollmentId>` under the ruleId+eventId unique),
+ * so the poll cadence only bounds latency and multi-replica double-runs are
+ * no-ops.
+ */
+function startSequenceQuietSweep(deps: QuietSweepDeps): void {
+  const sweep = async (): Promise<void> => {
+    const { checked, fired } = await runSequenceQuietSweep(deps);
+    if (fired > 0) {
+      console.log(`[worker] sequence-quiet sweep: ${fired} rule run(s) fired (${checked} checked)`);
+    }
+  };
+  void sweep().catch((err: unknown) => console.error("[worker] sequence-quiet sweep failed", err));
+  setInterval(() => {
+    void sweep().catch((err: unknown) =>
+      console.error("[worker] sequence-quiet sweep failed", err),
+    );
+  }, 60 * 60_000);
 }
 
 async function enqueueRedistill(
