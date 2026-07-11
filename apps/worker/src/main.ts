@@ -138,7 +138,7 @@ function startKnowledgeWorkers(): void {
   // P1.7: the T2 event-bus consumer — consumer #1 is REAL: a *.replied.v1
   // event signals the enrollment's CampaignWorkflow (skips with a log when
   // Temporal isn't configured; the Event row is persisted regardless).
-  // R1 (DEC-073): consumer #2 is now REAL too — the per-agent campaign-rules
+  // R1 (DEC-074): consumer #2 is now REAL too — the per-agent campaign-rules
   // evaluator, with its gate on consumer #1 (rails → rules → graph
   // continuation; a terminal rule action skips the reply signal). Cross-
   // tenant reads (stored-workflowId lookup, sweep discovery) use the owner
@@ -297,7 +297,7 @@ function startStrandedSourceSweep(): void {
 }
 
 /**
- * Sequence-quiet sweep (R1, DEC-073): the "sequence completed + N days quiet"
+ * Sequence-quiet sweep (R1, DEC-074): the "sequence completed + N days quiet"
  * rule trigger — the one trigger with no bus event to subscribe to. Runs on
  * boot + hourly (the stranded-source-sweep pattern); fire-once semantics live
  * in the run key (`quiet:<enrollmentId>` under the ruleId+eventId unique),

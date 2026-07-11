@@ -47,7 +47,7 @@ describe("createTemporalSignalConsumer", () => {
     expect(log).toHaveBeenCalledWith(expect.stringContaining("enr-1"));
   });
 
-  // R1 (DEC-073): the campaign-rules gate — rails → rules → graph continuation.
+  // R1 (DEC-074): the campaign-rules gate — rails → rules → graph continuation.
   it("skips the signal when the rules gate answers false — a terminal rule action handled the reply", async () => {
     const signal = vi.fn();
     const log = vi.fn();

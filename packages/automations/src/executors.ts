@@ -1,5 +1,5 @@
 /**
- * Action executors (R1, DEC-073). ALL idempotent — bus redelivery re-executes
+ * Action executors (R1, DEC-074). ALL idempotent — bus redelivery re-executes
  * and every observable effect converges:
  *   move        — deterministic workflow id per (enrollment, event); replays dedupe
  *   end/pause   — status update converges; cancel is idempotent

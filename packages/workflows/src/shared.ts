@@ -40,7 +40,7 @@ export interface CampaignWorkflowInput {
    */
   branchDefaultTimeoutHours?: number;
   /**
-   * R1 (DEC-073): start the walk at this node instead of `graph.entry` —
+   * R1 (DEC-074): start the walk at this node instead of `graph.entry` —
    * the "move to sequence/branch" rule action restarts an enrollment's run
    * here (cancel old run → new run at the target). Optional: in-flight
    * pre-R1 runs replay unchanged. Already-sent steps stay safe either way —

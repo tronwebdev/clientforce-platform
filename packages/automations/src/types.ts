@@ -1,5 +1,5 @@
 /**
- * Engine dependency seams (R1, DEC-073). The package stays Temporal-free —
+ * Engine dependency seams (R1, DEC-074). The package stays Temporal-free —
  * cancel/move are injected the same way the events package injects the
  * signal function (the DEC-035 precedent); callers bind them to a connected
  * client (`cancelWorkflowById` / `moveEnrollmentToNode` in

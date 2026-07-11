@@ -1,5 +1,5 @@
 /**
- * R1 (DEC-073) engine fixtures against real Postgres (hermetic skip without
+ * R1 (DEC-074) engine fixtures against real Postgres (hermetic skip without
  * infra — the repo convention). The W1 acceptance set:
  *
  *   precedence   — a terminal rule action gates the graph continuation

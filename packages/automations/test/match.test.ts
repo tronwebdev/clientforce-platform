@@ -1,5 +1,5 @@
 /**
- * R1 (DEC-073): pure trigger matching — every trigger kind against its
+ * R1 (DEC-074): pure trigger matching — every trigger kind against its
  * verified bus-event mapping (see the R1 PR plan comment).
  */
 import { describe, expect, it } from "vitest";

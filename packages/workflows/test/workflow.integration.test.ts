@@ -231,7 +231,7 @@ describe("CampaignWorkflow (time-skipping Temporal)", () => {
     expect(calls.completed).toEqual([expect.objectContaining({ nodeId: "end1" })]);
   }, 60_000);
 
-  it("R1 (DEC-073): starts the walk at startNodeId — the rules move action's restart-at-node", async (t) => {
+  it("R1 (DEC-074): starts the walk at startNodeId — the rules move action's restart-at-node", async (t) => {
     if (!env) return t.skip();
     const tq = `tq-${++seq}`;
     const { calls, acts } = recordedActivities();

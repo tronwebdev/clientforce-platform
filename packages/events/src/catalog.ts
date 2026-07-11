@@ -151,7 +151,7 @@ export const EVENT_SCHEMAS = {
   "integration.connected.v1": z.object({ provider: z.string() }),
   "integration.sync_failed.v1": z.object({ provider: z.string(), error: z.string().optional() }),
 
-  // ── Automations (R1, DEC-073) ──────────────────────────────────────────────
+  // ── Automations (R1, DEC-074) ──────────────────────────────────────────────
   // One per-agent rule evaluation outcome — the `CampaignRuleRun` row's Logs
   // twin (fired · skipped_conflict · refused_depth · error, the core status
   // set). Emitted per run row, never instead of it: the row is the history,

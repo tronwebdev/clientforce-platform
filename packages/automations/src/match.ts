@@ -1,5 +1,5 @@
 /**
- * Pure trigger/condition matching (R1, DEC-073). Every trigger kind maps to
+ * Pure trigger/condition matching (R1, DEC-074). Every trigger kind maps to
  * EXISTING bus event kinds (A9 — names ossify; the plan comment on the R1 PR
  * lists the verified mapping):
  *

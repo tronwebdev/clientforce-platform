@@ -1,4 +1,4 @@
--- R1 (DEC-073): per-agent automation rules (ARCHITECTURE §151) — additive
+-- R1 (DEC-074): per-agent automation rules (ARCHITECTURE §151) — additive
 -- CampaignRule + CampaignRuleRun, the campaign-scoped siblings of the
 -- Phase-6 standalone Automation/AutomationRun (§152, byte-untouched here).
 -- Run idempotency: unique (ruleId, eventId) — bus redelivery can't double-fire.

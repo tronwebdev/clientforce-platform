@@ -444,7 +444,7 @@ model AutomationRun {
   @@index([automationId])
 }
 
-/// R1 (DEC-073): per-agent automation rules (ARCHITECTURE §151) — the
+/// R1 (DEC-074): per-agent automation rules (ARCHITECTURE §151) — the
 /// campaign-scoped SIBLING of the standalone `Automation` (§152, Phase 6),
 /// sharing the typed trigger/condition/action unions in `@clientforce/core`
 /// but a DISTINCT entity: rules carry row order, goal-seed provenance,
@@ -471,7 +471,7 @@ model CampaignRule {
   @@index([campaignId])
 }
 
-/// R1 (DEC-073): rule-run history, mirroring `AutomationRun`'s shape.
+/// R1 (DEC-074): rule-run history, mirroring `AutomationRun`'s shape.
 /// Idempotency: unique (ruleId, eventId) — bus redelivery can't double-fire
 /// (eventId is the bus Event row id, or the sweep's synthetic fire-once key
 /// `quiet:<enrollmentId>` for the timer trigger).

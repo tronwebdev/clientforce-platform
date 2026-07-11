@@ -1,5 +1,5 @@
 /**
- * The REAL consumer #2 (R1, DEC-073) — replaces the T2 no-op
+ * The REAL consumer #2 (R1, DEC-074) — replaces the T2 no-op
  * `automationsConsumer` in the worker's bus wiring, keeping the three-hook
  * fan-out contract (temporal-signal · automations · dispatcher).
  *

@@ -1,5 +1,5 @@
 /**
- * R1 (DEC-073): the typed campaign-rules vocabulary — constrained unions,
+ * R1 (DEC-074): the typed campaign-rules vocabulary — constrained unions,
  * never free-form. These pins are the shared-core contract: Phase 6's
  * standalone Automations parse the SAME schemas.
  */

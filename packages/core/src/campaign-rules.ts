@@ -1,5 +1,5 @@
 /**
- * Per-agent automation rules (R1, DEC-073 — ARCHITECTURE.md §151).
+ * Per-agent automation rules (R1, DEC-074 — ARCHITECTURE.md §151).
  *
  * The typed When→If→Then vocabulary shared by campaign rules (per-agent, this
  * unit) and the Phase-6 standalone Automations (§152): ONE trigger union, ONE
@@ -85,7 +85,7 @@ export const campaignRuleActionSchema = z.discriminatedUnion("kind", [
     label: z.string().min(1).max(60).optional(),
   }),
   /** Notify the team — the run row + `automation.rule.run.v1` Logs row ARE the
-   *  Phase-1 notification surface (no notification transport exists yet — DEC-073
+   *  Phase-1 notification surface (no notification transport exists yet — DEC-074
    *  documented default; real channels are Phase 6+). */
   z.object({ kind: z.literal("notify_team"), note: z.string().min(1).max(200).optional() }),
   z.object({ kind: z.literal("add_tag"), tag: z.string().min(1).max(60) }),

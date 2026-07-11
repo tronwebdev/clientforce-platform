@@ -1,5 +1,5 @@
 /**
- * The sequence-quiet sweep (R1, DEC-073) — the ONE trigger needing more than
+ * The sequence-quiet sweep (R1, DEC-074) — the ONE trigger needing more than
  * a bus subscription ("sequence completed + N days quiet"). Deterministic
  * poll, NOT Temporal workflow surgery: DONE enrollments whose last touch
  * (enrollment update or any message) is ≥ N days old fire their campaign's

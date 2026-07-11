@@ -130,7 +130,7 @@ describe("validateEvent", () => {
     ).toThrow(/Invalid payload for "list.member.removed.v1"/);
   });
 
-  // R1 (DEC-073): one per-agent rule evaluation outcome — the CampaignRuleRun
+  // R1 (DEC-074): one per-agent rule evaluation outcome — the CampaignRuleRun
   // row's Logs twin. The payload shape is a contract (A9 names ossify).
   it("accepts automation.rule.run.v1 with the full payload contract", () => {
     const event = validateEvent({

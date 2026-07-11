@@ -443,7 +443,7 @@ model Automation {          // standalone When → If → Then rules
 }
 model AutomationRun { id String @id @default(cuid()) workspaceId String automationId String status String detail Json ranAt DateTime @default(now()) }
 
-model CampaignRule {         // R1 (DEC-073): per-agent automation rules (ARCHITECTURE §151)
+model CampaignRule {         // R1 (DEC-074): per-agent automation rules (ARCHITECTURE §151)
   id          String @id @default(cuid())
   workspaceId String
   campaignId  String                            // → Campaign (cascade) — the campaign-scoped sibling of Automation (§152)
@@ -531,7 +531,7 @@ enum SuppressionReason { UNSUBSCRIBED BOUNCED SPAM_COMPLAINT MANUAL }
 > prefix is stripped + audited unless the message genuinely threads to a prior
 > send (`In-Reply-To`/`References` = prior `providerMessageId`).
 
-> **R1 amendment (PR #86, DEC-073):** `CampaignRule` + `CampaignRuleRun` land
+> **R1 amendment (PR #86, DEC-074):** `CampaignRule` + `CampaignRuleRun` land
 > ADDITIVELY as the per-agent automation-rules layer (ARCHITECTURE §151) —
 > `Automation`/`AutomationRun` stay byte-untouched for the Phase-6 standalone
 > engine (§152). Both layers share ONE typed trigger/condition/action

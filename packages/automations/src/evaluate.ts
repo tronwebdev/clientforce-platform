@@ -1,5 +1,5 @@
 /**
- * The rule evaluator (R1, DEC-073) — ONE evaluation pass per event: load the
+ * The rule evaluator (R1, DEC-074) — ONE evaluation pass per event: load the
  * campaign's enabled rules in row order, match trigger + condition, execute
  * actions through the shared executors, record one `CampaignRuleRun` per
  * matched rule, publish one `automation.rule.run.v1` per run row.

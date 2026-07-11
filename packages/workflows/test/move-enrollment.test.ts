@@ -1,5 +1,5 @@
 /**
- * R1 (DEC-073): `moveEnrollmentToNode` — the "move to sequence/branch" rule
+ * R1 (DEC-074): `moveEnrollmentToNode` — the "move to sequence/branch" rule
  * action's host side, against real Postgres with a capturing fake Temporal
  * client (the engine's Temporal seam is what's under test; the workflow
  * walker's `startNodeId` behavior rides the Temporal time-skipping suite).

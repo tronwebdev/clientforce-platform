@@ -53,7 +53,7 @@ export async function startCampaignWorkflow(
 }
 
 /**
- * R1 (DEC-073): a moved enrollment runs under a NEW workflow id (see
+ * R1 (DEC-074): a moved enrollment runs under a NEW workflow id (see
  * `moveEnrollmentToNode`), stored on `Enrollment.workflowId` — callers that
  * know the stored id pass it; the default stays the enroll-time id so every
  * pre-R1 call site behaves identically.
@@ -104,7 +104,7 @@ export interface MoveEnrollmentParams {
 }
 
 /**
- * R1 (DEC-073): the "move to sequence/branch" rule action — restart an
+ * R1 (DEC-074): the "move to sequence/branch" rule action — restart an
  * enrollment's durable run at a target graph node. Mirrors the enroll-time
  * input assembly (enrollments.controller): live campaign graph re-validated
  * on the way in, first ACTIVE sender. The old run is cancelled (cooperative;

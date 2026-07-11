@@ -71,7 +71,7 @@ export async function campaignWorkflow(
     enrollmentId: input.enrollmentId,
   };
 
-  // R1 (DEC-073): a rules "move" starts the run at its target node.
+  // R1 (DEC-074): a rules "move" starts the run at its target node.
   const startAt: NodeId = input.startNodeId ?? input.graph.entry;
   let current: NodeId | undefined = startAt;
   let lastNode: NodeId = startAt;

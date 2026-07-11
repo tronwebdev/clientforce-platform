@@ -35,7 +35,7 @@ export const temporalSignalConsumer: ConsumerHook = {
  * logged, not thrown — a missing/finished workflow must not dead-letter the
  * event (the Event row is already persisted for the timeline either way).
  *
- * R1 (DEC-073) — `gate`: the injected precedence seam. Bus fan-out is
+ * R1 (DEC-074) — `gate`: the injected precedence seam. Bus fan-out is
  * parallel (`Promise.all`), so the campaign-rules evaluator can't order
  * itself before this consumer; instead the gate AWAITS that evaluation and
  * resolves false when a TERMINAL rule action already handled the reply —
