@@ -37,6 +37,8 @@ export const BRIEF_TALKING_POINTS_MIN = 3;
 export const BRIEF_TALKING_POINTS_MAX = 6;
 export const BRIEF_MUST_SAY_MAX = 5;
 export const BRIEF_NEVER_SAY_MAX = 10; // mirrors NEVER_SAY_MAX (M1a strategy)
+// G2 (DEC-071): the email brief's subject direction — a hint, never copy.
+export const BRIEF_SUBJECT_HINT_MAX = 120;
 
 export const stepBriefSchema = z.object({
   objective: z.string().min(1).max(200),
@@ -46,6 +48,7 @@ export const stepBriefSchema = z.object({
     .max(BRIEF_TALKING_POINTS_MAX),
   mustSay: z.array(z.string().min(1).max(120)).max(BRIEF_MUST_SAY_MAX).optional(),
   neverSay: z.array(z.string().min(1).max(80)).max(BRIEF_NEVER_SAY_MAX).optional(),
+  subjectHint: z.string().min(1).max(BRIEF_SUBJECT_HINT_MAX).optional(),
 });
 
 const stepNode = z.object({
@@ -146,15 +149,16 @@ export function validateGraph(input: unknown): CampaignGraph {
     }
   }
 
-  // G1 (DEC-070): guided steps are briefs-composed-at-send — sms ONLY this
-  // unit (guided email is G2); the brief and body copy are mutually exclusive
-  // so a step never has two sources of truth.
+  // G1 (DEC-070) / G2 (DEC-071): guided steps are briefs-composed-at-send —
+  // legal on sms and email; the brief and body copy are mutually exclusive so
+  // a step never has two sources of truth, and subjectHint is email-only (an
+  // sms message has no subject to hint at).
   for (const node of graph.nodes) {
     if (node.type !== "step") continue;
     if (node.mode === "guided") {
-      if (node.channel !== "sms") {
+      if (node.channel !== "sms" && node.channel !== "email") {
         throw new GraphValidationError(
-          `step "${node.id}" is guided on channel "${node.channel}" — guided mode is sms-only this phase`,
+          `step "${node.id}" is guided on channel "${node.channel}" — guided mode is email/sms-only this phase`,
         );
       }
       if (!node.brief) {
@@ -163,6 +167,11 @@ export function validateGraph(input: unknown): CampaignGraph {
       if (node.content.body !== undefined || node.content.subject !== undefined) {
         throw new GraphValidationError(
           `guided step "${node.id}" must not carry body/subject copy — the composer writes it at send time`,
+        );
+      }
+      if (node.channel === "sms" && node.brief.subjectHint !== undefined) {
+        throw new GraphValidationError(
+          `guided sms step "${node.id}" carries a subjectHint — subject hints are email-only`,
         );
       }
     } else if (node.brief) {

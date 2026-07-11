@@ -86,6 +86,8 @@ const EVENT_ROW: Record<string, { icon: string; bg: string; fg: string; label: (
   "email.replied.v1": { icon: "↩", bg: "rgba(54,215,237,.16)", fg: "#1192A6", label: (p) => `Replied${p.intent ? ` — classified “${intentTint(String(p.intent)).label}”` : ""}` },
   "email.bounced.v1": { icon: "⚠", bg: "rgba(224,121,107,.14)", fg: "#C9543F", label: () => "Email hard-bounced" },
   "email.spam_reported.v1": { icon: "⚠", bg: "rgba(224,121,107,.14)", fg: "#C9543F", label: () => "Marked as spam" },
+  // G2 (DEC-071): the guided email composer refused — this lead paused, nothing sent.
+  "email.compose_refused.v1": { icon: "⚠", bg: "rgba(232,196,91,.2)", fg: "#9A6B12", label: (p) => `Email not sent — composer refused (${String(p.reason ?? "checks failed")}); lead paused` },
   // C2.9: goal-completion events carry the campaign's terminal label — it
   // renders verbatim; older events fall back to the raw stages.
   "lead.stage_changed.v1": { icon: "✦", bg: "rgba(53,232,52,.14)", fg: "#16A82A", label: (p) => (p.label ? `Stage changed — ${String(p.label)}` : `Stage changed${p.fromStage ? ` — ${String(p.fromStage)} → ${String(p.toStage)}` : ""}`) },

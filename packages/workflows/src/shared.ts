@@ -68,6 +68,38 @@ export function nextAfter(graph: CampaignGraph, nodeId: NodeId): NodeId | undefi
 }
 
 /**
+ * G2 (DEC-071): a step's 1-based position among MAIN-SEQUENCE steps (the web
+ * `mainPath` walk: entry → edges, branch → default case, cycle-guarded).
+ * Feeds the guided composer's arc-role awareness — the M1a role ladder is
+ * positional (first = OPENER, last = BREAKUP). Reply-strategy steps are not
+ * on the main path and return undefined (they compose role-free — but stay
+ * scripted this phase anyway, DEC-070(7)).
+ */
+export function mainStepPosition(
+  graph: CampaignGraph,
+  stepId: NodeId,
+): { index: number; count: number } | undefined {
+  const byId = new Map(graph.nodes.map((n) => [n.id, n]));
+  const next = new Map<string, string>();
+  for (const e of graph.edges) if (!next.has(e.from)) next.set(e.from, e.to);
+  const seen = new Set<string>();
+  const stepsInOrder: string[] = [];
+  let cur: string | undefined = graph.entry;
+  while (cur && !seen.has(cur)) {
+    seen.add(cur);
+    const node = byId.get(cur);
+    if (!node) break;
+    if (node.type === "step") stepsInOrder.push(node.id);
+    cur =
+      node.type === "branch"
+        ? node.cases.find((c) => c.when === "default")?.goto
+        : next.get(cur);
+  }
+  const at = stepsInOrder.indexOf(stepId);
+  return at === -1 ? undefined : { index: at + 1, count: stepsInOrder.length };
+}
+
+/**
  * Resolve a reply branch: matching intent case first, else the default case.
  * Mirrors the T4 executor's semantics (`resolveBranch`) so the durable run
  * routes exactly like the dry-run.

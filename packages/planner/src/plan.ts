@@ -92,10 +92,12 @@ export async function planCampaign(deps: PlanDeps, target: PlanTarget): Promise<
   const strategy = selectStrategy(agent.goal, agent.category);
   const rider = guardrailsRiderOf(agent.guardrails);
   const neverSay = rider.strategy?.neverSay ?? [];
-  // G1 (DEC-070): guided briefs need a live sms channel to compose into —
-  // a guided agent without an ACTIVE Twilio sender plans scripted (honest
-  // absence, the DEC-061 pattern).
-  const guided = rider.composeMode === "guided" && Boolean(smsSender);
+  // G2 (DEC-071): guided email needs no extra sender, so composeMode alone
+  // decides guided planning (G1 additionally required an ACTIVE Twilio
+  // sender because sms was the only guided channel). The sms-sender check
+  // still gates whether sms STEPS are plannable at all (DEC-061 honest
+  // absence, via allowedChannels above).
+  const guided = rider.composeMode === "guided";
 
   // F1 (DEC-068): outcome-aware regen — the same loader + pure compute the
   // rollup endpoint uses, so the prompt cites the endpoint's own numbers.
@@ -234,7 +236,13 @@ export const REQUIRED_BRANCH_INTENTS: ReadonlyArray<{ intent: Intent; pipeline: 
  *  (regression protection); the merge-token rule applies to SCRIPTED copy
  *  only (guided briefs carry no copy — the composer personalizes from real
  *  lead fields at send time), and the neverSay scan covers brief text too (a
- *  brief that INSTRUCTS a banned phrase fails generation). */
+ *  brief that INSTRUCTS a banned phrase fails generation).
+ *  G2 (DEC-071): the merge-token rule re-scopes to scripted MAIN-SEQUENCE
+ *  steps — under v7 a guided agent's main sequence is all-guided while
+ *  reply-strategy steps stay scripted email, and strategy steps never
+ *  carried the token contract (they answer a lead's actual words); scripted
+ *  agents' graphs validate exactly as before. The neverSay scan covers
+ *  `subjectHint` too. */
 export function validateAll(
   input: unknown,
   allowedChannels: string[] = ["email"],
@@ -310,11 +318,32 @@ export function validateAll(
       );
     }
   }
-  // Merge tokens live in SCRIPTED copy; an all-guided graph has none at plan
-  // time by design (documented default, DEC-070).
-  const scripted = steps.filter((s) => s.mode !== "guided");
-  if (scripted.length > 0) {
-    const copy = scripted
+  // Merge tokens live in SCRIPTED MAIN-SEQUENCE copy; an all-guided main
+  // sequence has none at plan time by design (documented default, DEC-070),
+  // and reply-strategy PATHS (branch-case targets + their follow-ups) never
+  // carried the token contract (G2, DEC-071). Main sequence = the same walk
+  // every surface uses: entry → edges, branch → default case, cycle-guarded.
+  const mainStepIds = new Set<string>();
+  {
+    const byId = new Map(graph.nodes.map((n) => [n.id, n]));
+    const next = new Map<string, string>();
+    for (const e of graph.edges) if (!next.has(e.from)) next.set(e.from, e.to);
+    const seen = new Set<string>();
+    let cur: string | undefined = graph.entry;
+    while (cur && !seen.has(cur)) {
+      seen.add(cur);
+      const node = byId.get(cur);
+      if (!node) break;
+      if (node.type === "step") mainStepIds.add(node.id);
+      cur =
+        node.type === "branch"
+          ? node.cases.find((c) => c.when === "default")?.goto
+          : next.get(cur);
+    }
+  }
+  const scriptedMain = steps.filter((s) => s.mode !== "guided" && mainStepIds.has(s.id));
+  if (scriptedMain.length > 0) {
+    const copy = scriptedMain
       .map((s) => `${s.content.subject ?? ""}\n${s.content.body ?? ""}`)
       .join("\n");
     for (const token of REQUIRED_TOKENS) {
@@ -326,11 +355,11 @@ export function validateAll(
   // M1a: case-insensitive substring scan per step — names every hit so the
   // repair round-trip knows exactly what to remove.
   // G1: a guided step's BRIEF text is scanned too (objective + talking
-  // points + mustSay).
+  // points + mustSay); G2 adds subjectHint.
   const hits: string[] = [];
   for (const step of steps) {
     const brief = step.brief
-      ? `${step.brief.objective}\n${step.brief.talkingPoints.join("\n")}\n${(step.brief.mustSay ?? []).join("\n")}`
+      ? `${step.brief.objective}\n${step.brief.talkingPoints.join("\n")}\n${(step.brief.mustSay ?? []).join("\n")}\n${step.brief.subjectHint ?? ""}`
       : "";
     const text = `${step.content.subject ?? ""}\n${step.content.body ?? ""}\n${brief}`.toLowerCase();
     for (const term of neverSay) {

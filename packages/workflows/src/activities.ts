@@ -11,6 +11,7 @@ import {
   sendStep,
   SendBlockedError,
   type EmailSender,
+  type EmailStepComposer,
   type SmsSender,
   type SmsStepComposer,
 } from "@clientforce/channels";
@@ -34,10 +35,15 @@ export interface ActivityDeps {
    */
   composeSms?: SmsStepComposer;
   /**
-   * G1: persists + fans out one catalog event (the refusal writes
-   * `sms.compose_refused.v1` — the Logs tab's amber row). Optional so tests
-   * and bus-less environments stay wired-free; the enrollment pause persists
-   * regardless.
+   * G2 (DEC-071): the guided-email composer seam (`createEmailStepComposer`
+   * in the worker) — same honest-absence contract as `composeSms`.
+   */
+  composeEmail?: EmailStepComposer;
+  /**
+   * G1/G2: persists + fans out one catalog event (the refusal writes the
+   * channel's `*.compose_refused.v1` — the Logs tab's amber row). Optional so
+   * tests and bus-less environments stay wired-free; the enrollment pause
+   * persists regardless.
    */
   publishComposeRefused?: (event: {
     workspaceId: string;
@@ -45,6 +51,8 @@ export interface ActivityDeps {
     contactId: string;
     campaignId: string;
     stepNodeId: string;
+    /** G2: "email" | "sms" — picks the catalog twin at publish time. */
+    channel: string;
     reason: string;
     detail?: string;
   }) => Promise<void>;
@@ -127,6 +135,9 @@ export function createActivities(deps: ActivityDeps) {
       brief?: StepBrief;
       /** G1: the graph version the brief came from (Message.meta provenance). */
       graphVersion?: number | null;
+      /** G2 (DEC-071): the step's main-sequence position (workflow-computed)
+       *  — feeds the email composer's M1a arc role. */
+      position?: { index: number; count: number };
     }): Promise<SendOutcome> {
       const existing = await withTenant(prisma, { workspaceId: params.workspaceId }, (tx) =>
         tx.message.findFirst({
@@ -207,6 +218,43 @@ export function createActivities(deps: ActivityDeps) {
             },
           );
         } else {
+          // G2 (DEC-071): a guided EMAIL step composes per lead BEFORE the
+          // byte-untouched sendStep boundary — same placement as G1's sms
+          // path: after the idempotency check (replays never re-spend a
+          // model call), before any rail.
+          let content = params.content;
+          let composed: { mode: "guided"; briefVersion: number | null; composerVersion: string } | undefined;
+          if (params.mode === "guided") {
+            if (!params.brief) {
+              throw new ComposeRefusedError(
+                "COMPOSER_UNCONFIGURED",
+                `guided step ${params.stepNodeId} carries no brief — graphs are validated at persist time`,
+              );
+            }
+            if (!deps.composeEmail) {
+              throw new ComposeRefusedError(
+                "COMPOSER_UNCONFIGURED",
+                "no email composer configured on this worker (ANTHROPIC_API_KEY absent)",
+              );
+            }
+            const result = await deps.composeEmail({
+              workspaceId: params.workspaceId,
+              agentId: params.agentId,
+              campaignId: params.campaignId,
+              contactId: params.contactId,
+              enrollmentId: params.enrollmentId,
+              stepNodeId: params.stepNodeId,
+              brief: params.brief,
+              position: params.position,
+              threaded: params.content.threaded,
+            });
+            content = { ...params.content, subject: result.subject, body: result.body };
+            composed = {
+              mode: "guided",
+              briefVersion: params.graphVersion ?? null,
+              composerVersion: result.composerVersion,
+            };
+          }
           message = await sendStep(
             { prisma, transport, now: deps.now, allowlist: deps.allowlist },
             {
@@ -217,7 +265,8 @@ export function createActivities(deps: ActivityDeps) {
               contactId: params.contactId,
               senderId: params.senderId,
               stepNodeId: params.stepNodeId,
-              content: params.content,
+              content,
+              ...(composed ? { composed } : {}),
             },
           );
         }
@@ -335,11 +384,11 @@ export function createActivities(deps: ActivityDeps) {
     },
 
     /**
-     * G1 (DEC-070): the composer refused after its bounded retry — pause THAT
-     * lead's enrollment with the typed reason (user-visible on the Logs tab
-     * via `Enrollment.meta.blocked`) AND write the `sms.compose_refused.v1`
-     * Event row (amber Logs row). Never a silent skip: other leads on the
-     * same step keep composing/sending.
+     * G1 (DEC-070) / G2 (DEC-071): the composer refused after its bounded
+     * retry — pause THAT lead's enrollment with the typed reason
+     * (user-visible on the Logs tab via `Enrollment.meta.blocked`) AND write
+     * the channel's `*.compose_refused.v1` Event row (amber Logs row). Never
+     * a silent skip: other leads on the same step keep composing/sending.
      */
     async recordComposeRefused(params: {
       workspaceId: string;
@@ -347,6 +396,10 @@ export function createActivities(deps: ActivityDeps) {
       contactId: string;
       campaignId: string;
       nodeId: string;
+      /** G2: "email" | "sms" — routes to the channel's catalog event.
+       *  Optional for replay-compat with in-flight pre-G2 workflows (absent
+       *  = "sms", the only guided channel that existed). */
+      channel?: string;
       reason: string;
       detail: string;
     }): Promise<void> {
@@ -364,6 +417,7 @@ export function createActivities(deps: ActivityDeps) {
         { status: "PAUSED", currentNode: params.nodeId },
       );
       if (deps.publishComposeRefused) {
+        const channel = params.channel ?? "sms";
         await deps
           .publishComposeRefused({
             workspaceId: params.workspaceId,
@@ -371,12 +425,13 @@ export function createActivities(deps: ActivityDeps) {
             contactId: params.contactId,
             campaignId: params.campaignId,
             stepNodeId: params.nodeId,
+            channel,
             reason: params.reason,
             detail: params.detail,
           })
           .catch((err: unknown) => {
             console.warn(
-              `[workflows] sms.compose_refused publish failed for ${params.enrollmentId}: ` +
+              `[workflows] ${channel}.compose_refused publish failed for ${params.enrollmentId}: ` +
                 `${err instanceof Error ? err.message : String(err)} — pause persisted regardless`,
             );
           });

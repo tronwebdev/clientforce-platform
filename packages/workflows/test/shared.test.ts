@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { BranchNode, CampaignGraph } from "@clientforce/core";
-import { delayToMs, nextAfter, resolveReplyBranch, workflowIdFor } from "../src/shared";
+import { delayToMs, mainStepPosition, nextAfter, resolveReplyBranch, workflowIdFor } from "../src/shared";
 
 describe("workflowIdFor", () => {
   it("is deterministic per enrollment (start-by-id dedupe)", () => {
@@ -112,5 +112,47 @@ describe("resolveReplyBranch (mirrors the T4 executor semantics)", () => {
       const r = resolveReplyBranch(node, intent);
       expect(r, intent).toMatchObject({ matched: "default", chosen: { goto: "nudge" } });
     }
+  });
+});
+
+// ── G2 (DEC-071): main-sequence position (the composer's arc-role input) ─────
+describe("mainStepPosition (entry → edges, branch → default case)", () => {
+  const graph: CampaignGraph = {
+    entry: "s1",
+    nodes: [
+      { id: "s1", type: "step", channel: "email", content: {} },
+      { id: "d1", type: "delay", amount: 1, unit: "days" },
+      { id: "s2", type: "step", channel: "sms", content: {} },
+      {
+        id: "br",
+        type: "branch",
+        on: "reply",
+        cases: [
+          { when: { intent: "objection_price" }, goto: "reframe", pipeline: "replied" },
+          { when: "default", goto: "s3" },
+        ],
+      },
+      { id: "reframe", type: "step", channel: "email", content: { threaded: true } },
+      { id: "s3", type: "step", channel: "email", content: {} },
+      { id: "end1", type: "end" },
+    ],
+    edges: [
+      { from: "s1", to: "d1" },
+      { from: "d1", to: "s2" },
+      { from: "s2", to: "br" },
+      { from: "reframe", to: "br" }, // loop-back (cycle-guarded walk)
+      { from: "s3", to: "end1" },
+    ],
+  };
+
+  it("indexes main-sequence steps across the branch's DEFAULT case, 1-based", () => {
+    expect(mainStepPosition(graph, "s1")).toEqual({ index: 1, count: 3 });
+    expect(mainStepPosition(graph, "s2")).toEqual({ index: 2, count: 3 });
+    expect(mainStepPosition(graph, "s3")).toEqual({ index: 3, count: 3 });
+  });
+
+  it("reply-strategy steps are NOT on the main path — undefined (role-free)", () => {
+    expect(mainStepPosition(graph, "reframe")).toBeUndefined();
+    expect(mainStepPosition(graph, "no-such-node")).toBeUndefined();
   });
 });

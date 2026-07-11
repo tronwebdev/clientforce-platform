@@ -277,20 +277,29 @@ describe("validateAll guided steps (G1, DEC-070)", () => {
     );
   });
 
-  it("the merge-token rule scopes to SCRIPTED copy — guided briefs never carry tokens, remaining scripted steps still must", () => {
+  it("the merge-token rule scopes to scripted MAIN-SEQUENCE copy (G2 rescope, DEC-071) — strategy steps never carried the token contract", () => {
     // Guided main opener: strip the scripted MAIN steps so the only scripted
-    // copy left is the (token-less) reply-strategy steps.
+    // copy left is the (token-less) reply-strategy steps — under v7 every
+    // guided agent's graph looks like this, so it must VALIDATE.
     const g = guided();
     g.entry = "step-2";
     g.nodes = g.nodes.filter((n) => n.id !== "step-1" && n.id !== "delay-1");
     g.edges = g.edges.filter((e) => e.from !== "step-1" && e.from !== "delay-1");
-    // The rule ignores the guided brief but still bites on scripted copy…
-    expect(() => validateAll(g, ["email", "sms"], [], true)).toThrow(/merge token/);
-    // …and is satisfied by tokens in ANY scripted step (the v6 prompt keeps
-    // instructing tokens in email bodies, reply-strategy steps included).
-    const close = g.nodes.find((n) => n.id === "step-close");
-    if (close?.type === "step") close.content.body += " {{firstName}} — door stays open at {{company}}.";
     expect(() => validateAll(g, ["email", "sms"], [], true)).not.toThrow();
+    // …while a token-less scripted MAIN step still bites (the pre-G2 rule,
+    // scoped): swap the guided opener back to scripted copy without tokens.
+    const g2 = guided();
+    g2.nodes = g2.nodes.map((n) =>
+      n.id === "step-2" && n.type === "step"
+        ? { id: "step-2", type: "step" as const, channel: "email" as const, content: { subject: "s", body: "no tokens here" } }
+        : n,
+    );
+    g2.nodes = g2.nodes.map((n) =>
+      n.id === "step-1" && n.type === "step"
+        ? { ...n, content: { subject: "s", body: "no tokens here either" } }
+        : n,
+    );
+    expect(() => validateAll(g2, ["email", "sms"], [], true)).toThrow(/merge token/);
   });
 
   it("the neverSay scan covers BRIEF text (objective + talking points + mustSay)", () => {
@@ -301,6 +310,80 @@ describe("validateAll guided steps (G1, DEC-070)", () => {
     }
     expect(() => validateAll(g, ["email", "sms"], ["rock-bottom prices"], true)).toThrow(
       /"rock-bottom prices" in step-2/,
+    );
+  });
+});
+
+describe("validateAll guided EMAIL steps (G2, DEC-071)", () => {
+  /** goodGraph with BOTH main steps guided (v7's shape): email opener brief
+   *  with subjectHint + sms follow-up brief. Strategy steps stay scripted. */
+  const guidedEmail = (): CampaignGraph => {
+    const g = goodGraph();
+    g.nodes = g.nodes.map((n) => {
+      if (n.id === "step-1" && n.type === "step") {
+        return {
+          id: "step-1",
+          type: "step" as const,
+          channel: "email" as const,
+          mode: "guided" as const,
+          content: {},
+          brief: {
+            objective: "Earn a reply about the audit",
+            talkingPoints: ["free growth audit", "results in 7 days", "no commitment"],
+            subjectHint: "where bookings leak",
+          },
+        };
+      }
+      if (n.id === "step-2" && n.type === "step") {
+        return {
+          id: "step-2",
+          type: "step" as const,
+          channel: "email" as const,
+          mode: "guided" as const,
+          content: { threaded: true },
+          brief: {
+            objective: "Close the loop politely",
+            talkingPoints: ["easy out", "door stays open", "one-line reply is enough"],
+          },
+        };
+      }
+      return n;
+    });
+    return g;
+  };
+
+  it("accepts an all-guided main sequence (email briefs + subjectHint) for a guided agent — email-only workspaces included", () => {
+    expect(() => validateAll(guidedEmail(), ["email"], [], true)).not.toThrow();
+  });
+
+  it("REJECTS guided email steps for a scripted agent — same regression protection as G1", () => {
+    expect(() => validateAll(guidedEmail(), ["email"], [], false)).toThrow(/composes scripted/);
+  });
+
+  it("a guided email step carrying body/subject copy fails — the brief is the only source of truth", () => {
+    const g = guidedEmail();
+    const step = g.nodes.find((n) => n.id === "step-1");
+    if (step?.type === "step") step.content = { subject: "sneaky", body: "copy" };
+    expect(() => validateAll(g, ["email"], [], true)).toThrow(/must not carry body\/subject copy/);
+  });
+
+  it("subjectHint is email-only — an sms brief carrying one fails loudly", () => {
+    const g = guidedEmail();
+    const step = g.nodes.find((n) => n.id === "step-2");
+    if (step?.type === "step") {
+      (step as { channel: string }).channel = "sms";
+      step.brief!.subjectHint = "no subjects in sms";
+      step.content = {};
+    }
+    expect(() => validateAll(g, ["email", "sms"], [], true)).toThrow(/subject hints are email-only/);
+  });
+
+  it("the neverSay scan covers subjectHint too", () => {
+    const g = guidedEmail();
+    const step = g.nodes.find((n) => n.id === "step-1");
+    if (step?.type === "step" && step.brief) step.brief.subjectHint = "rock-bottom prices inside";
+    expect(() => validateAll(g, ["email"], ["rock-bottom prices"], true)).toThrow(
+      /"rock-bottom prices" in step-1/,
     );
   });
 });

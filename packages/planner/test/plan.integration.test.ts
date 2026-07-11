@@ -238,41 +238,52 @@ function craftGraph(audit: string, price: string, dirty: string): object {
 }
 
 /**
- * G1 (DEC-070): what a model following the v6 guided prompt emits — the v5
- * playbook shape VERBATIM (six-case branch + strategy steps) with the main
- * sequence's sms step flipped to mode:"guided" carrying a BRIEF (grounded
- * talking points, no copy); email steps — main AND reply-strategy — stay
- * fully scripted. `dirtyBrief` plants a banned term in a talking point (the
- * neverSay scan covers brief text too). Derived from craftGraph so the fake
- * tracks the playbook shape by construction.
+ * G2 (DEC-071): what a model following the v7 guided prompt emits — the v5
+ * playbook shape VERBATIM (six-case branch + strategy steps) with EVERY
+ * main-sequence step flipped to mode:"guided" carrying a BRIEF (grounded
+ * talking points, no copy); email briefs also carry `subjectHint`, sms briefs
+ * never do; reply-strategy steps stay fully scripted email. When the prompt
+ * allows sms, step-2 is a guided SMS brief (both channels proven); an
+ * email-only prompt keeps every step email. `dirtyBrief` plants a banned term
+ * in a talking point (the neverSay scan covers brief text too). Derived from
+ * craftGraph so the fake tracks the playbook shape by construction.
  */
-function guidedGraph(audit: string, dirtyBrief: string): object {
+function guidedGraph(audit: string, dirtyBrief: string, smsAllowed: boolean): object {
   const base = craftGraph(audit, "the audit pays for itself", "") as {
     nodes: Array<Record<string, unknown> & { id: string }>;
   };
+  const MAIN = new Map<string, { objective: string; hintable: boolean }>([
+    ["step-1", { objective: "Earn a reply about the audit", hintable: true }],
+    ["step-2", { objective: "Earn a quick yes/no reply about the audit", hintable: true }],
+    ["step-3", { objective: "Make the call feel effortless", hintable: true }],
+    ["step-4", { objective: "Close the loop politely with an easy out", hintable: true }],
+  ]);
   return {
     ...base,
-    nodes: base.nodes.map((n) =>
-      n.id === "step-2"
-        ? {
-            id: "step-2",
-            type: "step",
-            channel: "sms",
-            mode: "guided",
-            content: {},
-            brief: {
-              objective: "Earn a quick yes/no reply about the audit",
-              talkingPoints: [
-                `the ${audit} shows where bookings leak${dirtyBrief}`,
-                "results land within 7 days",
-                "no commitment to look",
-              ],
-              mustSay: [],
-              neverSay: [],
-            },
-          }
-        : n,
-    ),
+    nodes: base.nodes.map((n) => {
+      const main = MAIN.get(n.id);
+      if (!main) return n;
+      const channel = n.id === "step-2" && smsAllowed ? "sms" : "email";
+      return {
+        id: n.id,
+        type: "step",
+        channel,
+        mode: "guided",
+        content: {},
+        brief: {
+          objective: main.objective,
+          talkingPoints: [
+            `the ${audit} shows where bookings leak${n.id === "step-2" ? dirtyBrief : ""}`,
+            "results land within 7 days",
+            "no commitment to look",
+          ],
+          mustSay: [],
+          neverSay: [],
+          // v7: subjectHint on EMAIL briefs only.
+          ...(channel === "email" ? { subjectHint: "where bookings leak" } : {}),
+        },
+      };
+    }),
   };
 }
 
@@ -294,10 +305,15 @@ function fakeGraph(prompt: string): object {
   );
   const violate = banMode === "always" || (banMode === "once" && !isRepair);
 
-  // G1: v4-shaped prompts (guided) get the brief-carrying shape; the ban, when
-  // violating, lands INSIDE the brief (proves the scan covers brief text).
-  if (prompt.includes('Sms steps: mode "guided"')) {
-    return guidedGraph(audit, violate && terms.length > 0 ? ` (never ${terms[0]})` : "");
+  // G2: v7-shaped prompts (guided) get the all-guided-briefs shape; the ban,
+  // when violating, lands INSIDE a brief (proves the scan covers brief text).
+  // Channel choice follows the prompt's own channels line (honest absence).
+  if (prompt.includes('EVERY one mode "guided"')) {
+    return guidedGraph(
+      audit,
+      violate && terms.length > 0 ? ` (never ${terms[0]})` : "",
+      !prompt.includes('"email" ONLY.'),
+    );
   }
 
   const dirty = violate && terms.length > 0 ? ` We offer ${terms[0]}.` : "";
@@ -711,46 +727,57 @@ describe.skipIf(!hasInfra)("planCampaign integration", () => {
     expect(lastPrompt).not.toContain("guided");
   });
 
-  // ── G1 (DEC-070): guided mode — briefs for sms steps, composed at send ─────
+  // ── G1 (DEC-070) / G2 (DEC-071): guided mode — briefs composed at send ─────
 
-  it("GUIDED: plans BRIEFS for sms steps (email stays scripted); brief survives all 3 layers", async () => {
+  it("GUIDED: plans BRIEFS for EVERY main step (email briefs carry subjectHint; strategy steps stay scripted); briefs survive all 3 layers", async () => {
     const result = await planCampaign(deps(), { workspaceId: wsC, agentId: guidedAgentId });
 
-    // The prompt was the v4 guided variant.
-    expect(lastPrompt).toContain('Sms steps: mode "guided"');
+    // The prompt was the v7 guided variant (both channels available in wsC).
+    expect(lastPrompt).toContain('EVERY one mode "guided"');
 
     const steps = result.graph.nodes.filter((n): n is StepNode => n.type === "step");
-    const smsSteps = steps.filter((s) => s.channel === "sms");
-    const emailSteps = steps.filter((s) => s.channel === "email");
-    expect(smsSteps.length).toBeGreaterThanOrEqual(1);
-    for (const s of smsSteps) {
-      expect(s.mode).toBe("guided");
+    const guidedSteps = steps.filter((s) => s.mode === "guided");
+    const scriptedSteps = steps.filter((s) => s.mode === undefined);
+    expect(guidedSteps.filter((s) => s.channel === "sms").length).toBeGreaterThanOrEqual(1);
+    expect(guidedSteps.filter((s) => s.channel === "email").length).toBeGreaterThanOrEqual(1);
+    for (const s of guidedSteps) {
       expect(s.brief).toBeDefined();
       expect(s.brief!.talkingPoints.length).toBeGreaterThanOrEqual(3);
       expect(s.brief!.talkingPoints.length).toBeLessThanOrEqual(6);
       expect(s.content.body).toBeUndefined(); // briefs, never copy
+      expect(s.content.subject).toBeUndefined();
+      // G2: subjectHint rides EMAIL briefs only.
+      if (s.channel === "email") expect(s.brief!.subjectHint).toBeTruthy();
+      else expect(s.brief!.subjectHint).toBeUndefined();
       // DEC-015 grounding holds for brief material too (the fake lifts the
       // fact from the prompt's context block).
       expect(JSON.stringify(s.brief)).toContain(FACT_AUDIT);
     }
-    for (const s of emailSteps) {
-      expect(s.mode).toBeUndefined();
+    // Reply-strategy steps stay fully scripted email (DEC-070(7) — the
+    // reply-draft wave owns guided replies).
+    expect(scriptedSteps.length).toBeGreaterThanOrEqual(1);
+    for (const s of scriptedSteps) {
+      expect(s.channel).toBe("email");
       expect(s.content.body).toBeTruthy();
     }
     // Persisted like any other version — the graph row is real.
     expect(result.graphRow.source).toBe("AI");
   });
 
-  it("GUIDED: a guided agent WITHOUT an active Twilio sender plans scripted (honest absence)", async () => {
+  it("GUIDED: a guided agent WITHOUT an active Twilio sender plans guided EMAIL briefs (G2 — email needs no extra sender)", async () => {
     const result = await planCampaign(deps(), { workspaceId: wsA, agentId: guidedNoSmsAgentId });
-    // The v3 prompt: no guided step instruction (the guardrails JSON echo may
-    // carry the composeMode string — that's the honest raw rider, not an
-    // instruction).
-    expect(lastPrompt).not.toContain('Sms steps: mode "guided"');
+    // v7 renders regardless of the sms sender; the channels line stays honest.
+    expect(lastPrompt).toContain('EVERY one mode "guided"');
     expect(lastPrompt).toContain('- Channel: "email" ONLY.');
     const steps = result.graph.nodes.filter((n): n is StepNode => n.type === "step");
-    expect(steps.every((s) => s.mode === undefined && s.brief === undefined)).toBe(true);
     expect(steps.every((s) => s.channel === "email")).toBe(true);
+    const guidedSteps = steps.filter((s) => s.mode === "guided");
+    expect(guidedSteps.length).toBeGreaterThanOrEqual(3);
+    for (const s of guidedSteps) {
+      expect(s.brief).toBeDefined();
+      expect(s.brief!.subjectHint).toBeTruthy();
+      expect(s.content.body).toBeUndefined();
+    }
   });
 
   it("GUIDED: a banned phrase in a BRIEF walks the bounded repair → clean briefs persisted", async () => {

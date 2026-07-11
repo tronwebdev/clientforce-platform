@@ -21,6 +21,7 @@ import type { GraphNode, NodeId } from "@clientforce/core";
 import type { createActivities } from "./activities";
 import {
   delayToMs,
+  mainStepPosition,
   nextAfter,
   resolveReplyBranch,
   REPLY_SIGNAL,
@@ -114,10 +115,15 @@ export async function campaignWorkflow(
             mode: node.mode,
             brief: node.brief,
             graphVersion: input.graphVersion ?? null,
+            // G2 (DEC-071): main-sequence position → the email composer's
+            // M1a arc role (pure walk; undefined for strategy steps).
+            ...(node.mode === "guided"
+              ? { position: mainStepPosition(input.graph, node.id) }
+              : {}),
           });
         } catch (err) {
-          // G1: composer refusal — pause THIS lead with the typed reason +
-          // the sms.compose_refused.v1 Logs row; never a silent skip.
+          // G1/G2: composer refusal — pause THIS lead with the typed reason +
+          // the channel's *.compose_refused.v1 Logs row; never a silent skip.
           const refused = typedFailureOf(err, "ComposeRefusedError");
           if (refused) {
             await acts.recordComposeRefused({
@@ -125,6 +131,7 @@ export async function campaignWorkflow(
               contactId: input.contactId,
               campaignId: input.campaignId,
               nodeId: node.id,
+              channel: node.channel,
               reason: refused.reason,
               detail: refused.detail,
             });
