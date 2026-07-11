@@ -4,6 +4,8 @@ import type { TokenUsage } from "./types";
 export interface TextParams {
   model: string;
   system?: string;
+  /** G1: cacheable second system block (see CompleteRequest.cachedContext). */
+  cachedContext?: string;
   prompt: string;
   maxTokens: number;
   temperature?: number;
@@ -22,6 +24,8 @@ export interface TextResult {
 export interface ToolParams {
   model: string;
   system?: string;
+  /** G1: cacheable second system block (see CompleteRequest.cachedContext). */
+  cachedContext?: string;
   prompt: string;
   maxTokens: number;
   temperature?: number;

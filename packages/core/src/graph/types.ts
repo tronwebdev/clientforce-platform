@@ -36,12 +36,36 @@ export interface StepContent {
   threaded?: boolean;
 }
 
+/**
+ * G1 (DEC-068): a guided step's BRIEF — talking points, not finished copy.
+ * The composer renders the real message per lead at send time; the planner
+ * emits briefs only when the agent's `composeMode` is "guided".
+ */
+export interface StepBrief {
+  /** What this step must achieve for the sequence (1–200 chars). */
+  objective: string;
+  /** 3–6 talking points the composed message draws from. */
+  talkingPoints: string[];
+  /** Strings that MUST appear verbatim in every composed message (≤5). */
+  mustSay?: string[];
+  /** Strings that must NEVER appear (≤10 — mirrors the M1a strategy caps). */
+  neverSay?: string[];
+}
+
 /** A channel send. */
 export interface StepNode {
   id: NodeId;
   type: "step";
   channel: Channel;
   content: StepContent;
+  /**
+   * G1 (DEC-068): absent = "scripted" — legacy graphs parse byte-identical.
+   * "guided" steps carry a `brief` instead of body copy and are composed per
+   * lead at send time; legal on channel "sms" ONLY this unit (email = G2).
+   */
+  mode?: "scripted" | "guided";
+  /** Present exactly when `mode` is "guided". */
+  brief?: StepBrief;
   /** Optional pipeline-stage move on send. */
   pipelineOnSend?: string;
 }

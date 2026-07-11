@@ -35,6 +35,13 @@ export interface SendSmsStepParams {
   senderId: string;
   stepNodeId: string;
   content: StepContent;
+  /**
+   * G1 (DEC-068): provenance of guided copy, merged into `Message.meta` at
+   * persist time. PASS-THROUGH ONLY — no rail reads it; the boundary neither
+   * knows nor cares who wrote the copy. Absent on scripted sends (meta stays
+   * byte-identical to pre-G1).
+   */
+  composed?: { mode: "guided"; briefVersion: number | null; composerVersion: string };
 }
 
 /** The literal opt-out line — the sms `unsubscribeFooter`. Never disableable. */
@@ -128,7 +135,12 @@ export async function sendSmsStep(deps: SendSmsDeps, params: SendSmsStepParams):
         inReplyToId: priorSms?.id ?? null,
         stepNodeId: params.stepNodeId,
         sentAt: now,
-        meta: { senderId: params.senderId, segments, optOutLine: !priorSms },
+        meta: {
+          senderId: params.senderId,
+          segments,
+          optOutLine: !priorSms,
+          ...(params.composed ?? {}),
+        },
       },
     }),
   );

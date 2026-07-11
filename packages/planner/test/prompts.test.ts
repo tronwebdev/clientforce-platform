@@ -9,7 +9,9 @@ import { BANNED_OPENERS, OPENER_WORD_CAP, selectStrategy } from "@clientforce/co
 import {
   PLANNER_PROMPT_NAME,
   PLANNER_PROMPT_VERSION,
+  PLANNER_PROMPT_VERSION_GUIDED,
   PLANNER_SYSTEM,
+  PLANNER_SYSTEM_GUIDED,
   renderPlannerPrompt,
 } from "../src/prompts";
 
@@ -77,5 +79,52 @@ describe("planner prompt v3 (selling craft)", () => {
     expect(v2).not.toContain("NEVER SAY");
     // …while the graph contract both versions share is intact.
     expect(v2).toContain("GRAPH REQUIREMENTS:");
+  });
+});
+
+describe("planner prompt v4 — guided sms briefs (G1, DEC-068)", () => {
+  const guidedVars = {
+    ...baseVars,
+    channels:
+      '"email" or "sms" — mix channels where the sequence benefits; sms steps have NO subject, body ≤ 300 characters, one clear ask.',
+    arcLabel: fixture.arc.label,
+    arcDescription: fixture.arc.description,
+    arcRoles: fixture.arc.roles.map((r, i) => `  ${i + 1}. ${r}`).join("\n"),
+    toneHints: fixture.toneHints,
+    strategyNotes: "(none)",
+    neverSay: "(none)",
+  };
+
+  it("is pinned at version 4, registered beside v2/v3 (append-only registry)", () => {
+    expect(PLANNER_PROMPT_VERSION_GUIDED).toBe(4);
+    expect(renderPlannerPrompt(guidedVars, true)).toContain('Sms steps: mode "guided"');
+  });
+
+  it("v4 instructs briefs for sms steps and scripted copy for email steps", () => {
+    const v4 = renderPlannerPrompt(guidedVars, true);
+    expect(v4).toContain('"brief" (objective + 3-6 talkingPoints + optional mustSay/neverSay)');
+    expect(v4).toContain("EMPTY content — no subject, no body, no merge tokens");
+    expect(v4).toContain('Email steps: content has "subject" and "body"');
+    // The shared head/tail is intact — STRATEGY block + graph contract.
+    expect(v4).toContain("STRATEGY (the selling method for this agent — follow it):");
+    expect(v4).toContain("GRAPH REQUIREMENTS:");
+  });
+
+  it("SCRIPTED REGRESSION: v3 renders with ZERO guided material — byte-stable step bullet", () => {
+    const v3 = renderPlannerPrompt(guidedVars, false);
+    expect(v3).not.toContain("guided");
+    expect(v3).not.toContain("brief");
+    // The exact M1a step bullet (rendered), untouched by the shared-head refactor.
+    expect(v3).toContain(
+      '- 3-4 "step" nodes; each content has "subject" and "body"; use {{firstName}} and {{company}} in the body (and subject where natural).',
+    );
+  });
+
+  it("the guided SYSTEM addendum extends the scripted system verbatim (prefix-stable)", () => {
+    expect(PLANNER_SYSTEM_GUIDED.startsWith(PLANNER_SYSTEM)).toBe(true);
+    expect(PLANNER_SYSTEM_GUIDED).toContain("GUIDED SMS BRIEFS");
+    expect(PLANNER_SYSTEM_GUIDED).toContain("never write sms body text");
+    // The scripted system itself carries none of it.
+    expect(PLANNER_SYSTEM).not.toContain("GUIDED");
   });
 });

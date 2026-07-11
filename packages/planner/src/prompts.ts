@@ -14,6 +14,9 @@ import { BANNED_OPENERS, OPENER_WORD_CAP } from "@clientforce/core";
  */
 export const PLANNER_PROMPT_NAME = "planner.campaign";
 export const PLANNER_PROMPT_VERSION = 3; // M1a (DEC-065): selling-craft playbook + STRATEGY block
+// G1 (DEC-068): guided agents render v4 — v3 plus the GUIDED SMS BRIEFS rules.
+// Scripted agents keep rendering v3 byte-identical (regression requirement).
+export const PLANNER_PROMPT_VERSION_GUIDED = 4;
 
 export const PLANNER_SYSTEM =
   "You are a campaign planner for an outbound email agent. You design a short, effective email sequence as a " +
@@ -39,6 +42,22 @@ export const PLANNER_SYSTEM =
   "- Subject lines follow the step's role: opener = a specific fragment of the observation, at most 6 words, " +
   'never "quick question", never clickbait; value/proof = name the concrete outcome; breakup = signals ' +
   "closure. Never ALL CAPS, never exclamation marks.";
+
+/**
+ * G1 (DEC-068): the guided addendum — appended to the system prompt ONLY for
+ * guided agents; scripted planning keeps the exact system above.
+ */
+export const PLANNER_SYSTEM_GUIDED =
+  PLANNER_SYSTEM +
+  "\n" +
+  "GUIDED SMS BRIEFS (this agent composes SMS per lead at send time):\n" +
+  '- Every sms step is mode:"guided" and carries a "brief" INSTEAD of copy — never write sms body text.\n' +
+  "- A brief = objective (what this step must achieve, following the step's ROLE above) + 3-6 talkingPoints " +
+  "(concrete, grounded in the business context — facts the composed message may draw from, not sentences to " +
+  "paste) + optional mustSay (ONLY compliance-critical strings that must appear verbatim, e.g. a real " +
+  "deadline — at most 5) + optional neverSay (step-specific bans — at most 10).\n" +
+  "- Talking points obey the same grounding rule as copy: facts from the business context only.\n" +
+  "- Email steps in the same sequence stay fully scripted with subject and body as usual.";
 
 let registered = false;
 function ensureRegistered(): void {
@@ -68,10 +87,9 @@ GRAPH REQUIREMENTS:
 - Edges connect the flow; sequential nodes (step/delay/action) have exactly ONE outgoing edge; branch routing lives in the branch cases, not edges.
 - Every factual claim in copy must trace to the business context above.`,
   });
-  registerPrompt({
-    name: PLANNER_PROMPT_NAME,
-    version: PLANNER_PROMPT_VERSION,
-    template: `Design an outbound campaign graph for this agent.
+  // v3 and v4 share head/tail so the two can never drift — v3's RENDERED bytes
+  // are unchanged from M1a (the scripted regression pins this).
+  const head = `Design an outbound campaign graph for this agent.
 
 GOAL: {{goal}}
 
@@ -91,12 +109,29 @@ GUARDRAILS (constraints the plan must respect):
 
 GRAPH REQUIREMENTS:
 - Channel: {{channels}}
-- {{stepCount}} "step" nodes; each content has "subject" and "body"; use {{tokens}} in the body (and subject where natural).
-- At least one "delay" node between sends (1-4 days).
+`;
+  const tail = `- At least one "delay" node between sends (1-4 days).
 - Exactly one "branch" node with on="reply": a case for {"intent":"interested"} routing to an "end" (or booking "action") path, and a "default" case continuing the follow-up sequence.
 - Finish every path with an "end" node. Node ids are short slugs (e.g. "step-1", "delay-1", "branch-reply").
 - Edges connect the flow; sequential nodes (step/delay/action) have exactly ONE outgoing edge; branch routing lives in the branch cases, not edges.
-- Every factual claim in copy must trace to the business context above.`,
+- Every factual claim in copy must trace to the business context above.`;
+  registerPrompt({
+    name: PLANNER_PROMPT_NAME,
+    version: PLANNER_PROMPT_VERSION,
+    template:
+      head +
+      `- {{stepCount}} "step" nodes; each content has "subject" and "body"; use {{tokens}} in the body (and subject where natural).\n` +
+      tail,
+  });
+  // G1 (DEC-068): the guided variant — sms steps become briefs, email steps
+  // stay scripted. Registered append-only beside v2/v3.
+  registerPrompt({
+    name: PLANNER_PROMPT_NAME,
+    version: PLANNER_PROMPT_VERSION_GUIDED,
+    template:
+      head +
+      `- {{stepCount}} "step" nodes. Email steps: content has "subject" and "body"; use {{tokens}} in the body (and subject where natural). Sms steps: mode "guided" with a "brief" (objective + 3-6 talkingPoints + optional mustSay/neverSay) and EMPTY content — no subject, no body, no merge tokens (the composer writes per-lead copy at send time).\n` +
+      tail,
   });
 }
 
@@ -118,7 +153,12 @@ export function renderPlannerPrompt(vars: {
   strategyNotes: string;
   /** Comma-joined quoted ban list; "(none)" default. */
   neverSay: string;
-}): string {
+}, guided = false): string {
   ensureRegistered();
-  return renderPrompt(PLANNER_PROMPT_NAME, PLANNER_PROMPT_VERSION, vars);
+  // G1 (DEC-068): guided agents render v4; scripted agents keep v3 verbatim.
+  return renderPrompt(
+    PLANNER_PROMPT_NAME,
+    guided ? PLANNER_PROMPT_VERSION_GUIDED : PLANNER_PROMPT_VERSION,
+    vars,
+  );
 }

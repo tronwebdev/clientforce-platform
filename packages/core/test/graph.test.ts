@@ -81,6 +81,59 @@ describe("validateGraph", () => {
     expect(() => validateGraph(bad)).toThrow(/Duplicate node id "n1"/);
   });
 
+  // ── G1 (DEC-068): guided steps — briefs composed at send, sms-only ─────────
+  const asGuided = (over: object): CampaignGraph => ({
+    ...sample,
+    nodes: sample.nodes.map((n) =>
+      n.id === "n2"
+        ? {
+            id: "n2",
+            type: "step" as const,
+            channel: "sms" as const,
+            content: {},
+            mode: "guided" as const,
+            brief: { objective: "earn a reply", talkingPoints: ["a", "b", "c"] },
+            ...over,
+          }
+        : n,
+    ),
+  });
+
+  it("G1: accepts a guided sms step with a brief and empty content (legacy nodes untouched)", () => {
+    const graph = validateGraph(asGuided({}));
+    const step = graph.nodes.find((n) => n.id === "n2");
+    expect(step).toMatchObject({ mode: "guided", brief: { objective: "earn a reply" } });
+  });
+
+  it("G1: rejects guided on any channel but sms (guided email is G2)", () => {
+    expect(() => validateGraph(asGuided({ channel: "email" }))).toThrow(/sms-only/);
+  });
+
+  it("G1: rejects a guided step without a brief", () => {
+    expect(() => validateGraph(asGuided({ brief: undefined }))).toThrow(/must carry a brief/);
+  });
+
+  it("G1: rejects a guided step carrying body/subject copy (one source of truth)", () => {
+    expect(() => validateGraph(asGuided({ content: { body: "fixed copy" } }))).toThrow(
+      /must not carry body\/subject copy/,
+    );
+  });
+
+  it("G1: rejects a brief on a step that is not mode guided", () => {
+    expect(() => validateGraph(asGuided({ mode: undefined }))).toThrow(/not mode:"guided"/);
+  });
+
+  it("G1: enforces the 3–6 talking-point bounds at the zod layer", () => {
+    expect(() =>
+      validateGraph(asGuided({ brief: { objective: "x", talkingPoints: ["a", "b"] } })),
+    ).toThrow(GraphValidationError);
+    expect(() =>
+      validateGraph(
+        asGuided({ brief: { objective: "x", talkingPoints: ["a", "b", "c", "d", "e", "f", "g"] } }),
+      ),
+    ).toThrow(GraphValidationError);
+  });
+
   it("rejects a sequential node with no outgoing edge", () => {
     const bad = { ...sample, edges: sample.edges.filter((e) => e.from !== "n2") };
     expect(() => validateGraph(bad)).toThrow(/node "n2" \(step\) must have exactly one outgoing edge/);

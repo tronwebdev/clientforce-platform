@@ -159,6 +159,66 @@ function craftGraph(audit: string, price: string, dirty: string): object {
   };
 }
 
+/**
+ * G1 (DEC-068): what a model following the v4 guided prompt emits — the sms
+ * step becomes mode:"guided" with a BRIEF (grounded talking points, no copy);
+ * email steps stay fully scripted. `dirtyBrief` plants a banned term in a
+ * talking point (the neverSay scan covers brief text too).
+ */
+function guidedGraph(audit: string, dirtyBrief: string): object {
+  return {
+    entry: "step-1",
+    nodes: [
+      {
+        id: "step-1",
+        type: "step",
+        channel: "email",
+        content: {
+          subject: "where bookings leak",
+          body: `Noticed {{company}} still books most patients by phone — our ${audit} shows where bookings leak, {{firstName}}. Worth a look?`,
+        },
+      },
+      { id: "delay-1", type: "delay", amount: 2, unit: "days" },
+      {
+        id: "step-2",
+        type: "step",
+        channel: "sms",
+        mode: "guided",
+        content: {},
+        brief: {
+          objective: "Earn a quick yes/no reply about the audit",
+          talkingPoints: [`the ${audit} shows where bookings leak${dirtyBrief}`, "results land within 7 days", "no commitment to look"],
+          mustSay: [],
+          neverSay: [],
+        },
+      },
+      {
+        id: "branch-reply",
+        type: "branch",
+        on: "reply",
+        cases: [
+          { when: { intent: "interested" }, goto: mode === "broken" ? "nowhere" : "end-won" },
+          { when: "default", goto: "step-3" },
+        ],
+      },
+      {
+        id: "step-3",
+        type: "step",
+        channel: "email",
+        content: { subject: "closing the file", body: `Closing the file on {{company}}, {{firstName}} — no worries either way.` },
+      },
+      { id: "end-won", type: "end" },
+      { id: "end-lost", type: "end" },
+    ],
+    edges: [
+      { from: "step-1", to: "delay-1" },
+      { from: "delay-1", to: "step-2" },
+      { from: "step-2", to: "branch-reply" },
+      { from: "step-3", to: "end-lost" },
+    ],
+  };
+}
+
 function fakeGraph(prompt: string): object {
   // Grounding simulation: only use facts that actually appear in the prompt's
   // context block (as the real prompt instructs the model).
@@ -176,6 +236,13 @@ function fakeGraph(prompt: string): object {
     (m) => m[1]!,
   );
   const violate = banMode === "always" || (banMode === "once" && !isRepair);
+
+  // G1: v4-shaped prompts (guided) get the brief-carrying shape; the ban, when
+  // violating, lands INSIDE the brief (proves the scan covers brief text).
+  if (prompt.includes('Sms steps: mode "guided"')) {
+    return guidedGraph(audit, violate && terms.length > 0 ? ` (never ${terms[0]})` : "");
+  }
+
   const dirty = violate && terms.length > 0 ? ` We offer ${terms[0]}.` : "";
   return craftGraph(audit, price, dirty);
 }
@@ -259,9 +326,12 @@ describe.skipIf(!hasInfra)("planCampaign integration", () => {
   let agencyId: string;
   let wsA: string;
   let wsB: string;
+  let wsC: string;
   let agentId: string;
   let emptyAgentId: string;
   let craftAgentId: string;
+  let guidedAgentId: string;
+  let guidedNoSmsAgentId: string;
   const deps = () => ({ prisma: app, gateway });
 
   beforeEach(() => {
@@ -321,6 +391,49 @@ describe.skipIf(!hasInfra)("planCampaign integration", () => {
       })
     ).id;
 
+    // G1 (DEC-068): guided fixtures — wsC has an ACTIVE Twilio sender (the
+    // guided precondition) + a guided agent; the no-sms guided agent lives in
+    // wsA (guided without a sender plans scripted — honest absence).
+    wsC = (
+      await owner.workspace.create({
+        data: { agencyId, name: "PC", slug: `plc-${suffix}`, settings: {} },
+      })
+    ).id;
+    await owner.senderConnection.create({
+      data: { workspaceId: wsC, type: "TWILIO_SMS", fromEmail: "+15005550006", fromName: "SMS" },
+    });
+    const guidedGuardrails = {
+      sendingWindow: { days: [1, 2, 3, 4, 5], start: "09:00", end: "17:00", timezone: "UTC" },
+      dailyCap: { email: 100, sms: 10 },
+      consent: null,
+      composeMode: "guided",
+      strategy: { neverSay: ["rock-bottom prices"] },
+      unsubscribeFooter: true,
+      suppressionCheck: true,
+    };
+    guidedAgentId = (
+      await owner.agent.create({
+        data: {
+          workspaceId: wsC,
+          name: "GuidedBooker",
+          goal: "book_appointments",
+          category: "Dental & Orthodontics",
+          guardrails: guidedGuardrails,
+        },
+      })
+    ).id;
+    guidedNoSmsAgentId = (
+      await owner.agent.create({
+        data: {
+          workspaceId: wsA,
+          name: "GuidedNoSms",
+          goal: "book_appointments",
+          category: "Dental & Orthodontics",
+          guardrails: guidedGuardrails,
+        },
+      })
+    ).id;
+
     // Stored BusinessContext (workspace layer) carrying the concrete facts the
     // planner's copy must trace to (DEC-015).
     const snapshot = {
@@ -331,29 +444,39 @@ describe.skipIf(!hasInfra)("planCampaign integration", () => {
       locator: "site",
       quote: "verbatim",
     };
+    const contextFields = {
+      offer: {
+        value: `We book dental appointments with a ${FACT_AUDIT}.`,
+        citations: [snapshot],
+        source: "distilled",
+      },
+      pricing: {
+        value: `Pricing starts at ${FACT_PRICE}.`,
+        citations: [snapshot],
+        source: "distilled",
+      },
+      usp: {
+        value: "Only we guarantee 15 new patients.",
+        citations: [snapshot],
+        source: "distilled",
+      },
+      icp: { value: "Dentists in Austin", citations: [], source: "typed" },
+    };
     await owner.businessContext.create({
       data: {
         workspaceId: wsA,
         agentId: null,
         status: "READY",
-        fields: {
-          offer: {
-            value: `We book dental appointments with a ${FACT_AUDIT}.`,
-            citations: [snapshot],
-            source: "distilled",
-          },
-          pricing: {
-            value: `Pricing starts at ${FACT_PRICE}.`,
-            citations: [snapshot],
-            source: "distilled",
-          },
-          usp: {
-            value: "Only we guarantee 15 new patients.",
-            citations: [snapshot],
-            source: "distilled",
-          },
-          icp: { value: "Dentists in Austin", citations: [], source: "typed" },
-        },
+        fields: contextFields,
+        rawSummary: "Dental growth business.",
+      },
+    });
+    await owner.businessContext.create({
+      data: {
+        workspaceId: wsC,
+        agentId: null,
+        status: "READY",
+        fields: contextFields,
         rawSummary: "Dental growth business.",
       },
     });
@@ -477,5 +600,66 @@ describe.skipIf(!hasInfra)("planCampaign integration", () => {
     expect(lastPrompt).toMatch(/NEVER SAY[^:]*: \(none\)/);
     expect(lastPrompt).toContain("Arc: Diagnose, then prescribe");
     expect(lastPrompt).toContain("default professional tone");
+    // G1 scripted regression: no guided material anywhere near a scripted plan.
+    expect(lastPrompt).not.toContain("guided");
+  });
+
+  // ── G1 (DEC-068): guided mode — briefs for sms steps, composed at send ─────
+
+  it("GUIDED: plans BRIEFS for sms steps (email stays scripted); brief survives all 3 layers", async () => {
+    const result = await planCampaign(deps(), { workspaceId: wsC, agentId: guidedAgentId });
+
+    // The prompt was the v4 guided variant.
+    expect(lastPrompt).toContain('Sms steps: mode "guided"');
+
+    const steps = result.graph.nodes.filter((n): n is StepNode => n.type === "step");
+    const smsSteps = steps.filter((s) => s.channel === "sms");
+    const emailSteps = steps.filter((s) => s.channel === "email");
+    expect(smsSteps.length).toBeGreaterThanOrEqual(1);
+    for (const s of smsSteps) {
+      expect(s.mode).toBe("guided");
+      expect(s.brief).toBeDefined();
+      expect(s.brief!.talkingPoints.length).toBeGreaterThanOrEqual(3);
+      expect(s.brief!.talkingPoints.length).toBeLessThanOrEqual(6);
+      expect(s.content.body).toBeUndefined(); // briefs, never copy
+      // DEC-015 grounding holds for brief material too (the fake lifts the
+      // fact from the prompt's context block).
+      expect(JSON.stringify(s.brief)).toContain(FACT_AUDIT);
+    }
+    for (const s of emailSteps) {
+      expect(s.mode).toBeUndefined();
+      expect(s.content.body).toBeTruthy();
+    }
+    // Persisted like any other version — the graph row is real.
+    expect(result.graphRow.source).toBe("AI");
+  });
+
+  it("GUIDED: a guided agent WITHOUT an active Twilio sender plans scripted (honest absence)", async () => {
+    const result = await planCampaign(deps(), { workspaceId: wsA, agentId: guidedNoSmsAgentId });
+    // The v3 prompt: no guided step instruction (the guardrails JSON echo may
+    // carry the composeMode string — that's the honest raw rider, not an
+    // instruction).
+    expect(lastPrompt).not.toContain('Sms steps: mode "guided"');
+    expect(lastPrompt).toContain('- Channel: "email" ONLY.');
+    const steps = result.graph.nodes.filter((n): n is StepNode => n.type === "step");
+    expect(steps.every((s) => s.mode === undefined && s.brief === undefined)).toBe(true);
+    expect(steps.every((s) => s.channel === "email")).toBe(true);
+  });
+
+  it("GUIDED: a banned phrase in a BRIEF walks the bounded repair → clean briefs persisted", async () => {
+    banMode = "once";
+    const result = await planCampaign(deps(), { workspaceId: wsC, agentId: guidedAgentId });
+    expect(toolCalls).toBe(2);
+    expect(JSON.stringify(result.graph).toLowerCase()).not.toContain("rock-bottom prices");
+  });
+
+  it("GUIDED: briefs still dirty after repair → typed failure, NOTHING persisted", async () => {
+    banMode = "always";
+    const before = await owner.campaignGraph.count({ where: { workspaceId: wsC } });
+    await expect(
+      planCampaign(deps(), { workspaceId: wsC, agentId: guidedAgentId }),
+    ).rejects.toThrow(PlannerError);
+    expect(toolCalls).toBe(2);
+    expect(await owner.campaignGraph.count({ where: { workspaceId: wsC } })).toBe(before);
   });
 });

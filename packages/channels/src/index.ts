@@ -73,3 +73,26 @@ export {
   type SmsThreadResolution,
 } from "./sms-inbound";
 export type { RenderedSms, SmsSender, SmsSendResult } from "./types";
+// ── G1 (DEC-068): guided SMS composer — briefs → per-lead copy at send time ──
+export {
+  checkComposedSms,
+  ComposeRefusedError,
+  composeSampleSms,
+  composeSms,
+  COMPOSER_PROMPT_NAME,
+  COMPOSER_PROMPT_VERSION,
+  COMPOSER_SYSTEM,
+  COMPOSER_VERSION,
+  createSmsStepComposer,
+  SAMPLE_LEAD,
+  SMS_COMPOSE_MAX_CHARS,
+  SMS_COMPOSE_TARGET_CHARS,
+  type ComposedSms,
+  type ComposeHistoryLine,
+  type ComposeLead,
+  type ComposeRefusalReason,
+  type ComposeSmsInputs,
+  type ComposeStepParams,
+  type ComposeViolation,
+  type SmsStepComposer,
+} from "./compose-sms";

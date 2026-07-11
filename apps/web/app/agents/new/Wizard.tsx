@@ -10,7 +10,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "rea
 // B9: the wizard's "＋ Add sender" opens the same connect flow Settings uses —
 // the prototype's binding is `openAddEmail: () => connectChannel('email')`.
 import { ConnectFlowDrawer } from "../../(shell)/settings/shared";
-import { BUSINESS_CATEGORIES, CONTEXT_FIELD_META, customTokensMissingFallback, GOAL_KEYS, goalTerminalLabel, requiredFieldsFor, type GoalKey } from "@clientforce/core";
+import { BRIEF_MUST_SAY_MAX, BRIEF_NEVER_SAY_MAX, BRIEF_TALKING_POINTS_MAX, BRIEF_TALKING_POINTS_MIN, BUSINESS_CATEGORIES, CONTEXT_FIELD_META, customTokensMissingFallback, GOAL_KEYS, goalTerminalLabel, GUIDED_SMS_CREDITS, requiredFieldsFor, type GoalKey } from "@clientforce/core";
 import type { CampaignGraph, ContactFieldDefDto, DraftState, GraphNode } from "@clientforce/core";
 
 /** Per-field one-liner under each gap row (registry-driven). */
@@ -299,6 +299,20 @@ export function Wizard() {
   const [editNode, setEditNode] = useState<GraphNode | null>(null);
   const [editSubject, setEditSubject] = useState("");
   const [editBody, setEditBody] = useState("");
+  // G1 (DEC-068): the guided step's BRIEF editor — bullets, never copy.
+  const [editBrief, setEditBrief] = useState<{ objective: string; talkingPoints: string[]; mustSay: string[]; neverSay: string[] } | null>(null);
+  const [briefPointInput, setBriefPointInput] = useState("");
+  const [briefMustInput, setBriefMustInput] = useState("");
+  const [briefNeverInput, setBriefNeverInput] = useState("");
+  // G1: sample preview — composes against the fixed sample lead (free at
+  // launch, Q-020 meters it); refusals are a designed display state.
+  const [previewBusy, setPreviewBusy] = useState(false);
+  const [preview, setPreview] = useState<
+    | { kind: "composed"; body: string; credits: number }
+    | { kind: "refused"; reason: string; detail: string }
+    | { kind: "error"; message: string }
+    | null
+  >(null);
   // C2.7: custom-field tokens — chip selection + the mandatory-fallback card.
   const [fieldDefs, setFieldDefs] = useState<ContactFieldDefDto[]>([]);
   const [customTokenKey, setCustomTokenKey] = useState<string | null>(null);
@@ -937,6 +951,42 @@ export function Wizard() {
 
   async function saveEditedStep() {
     if (!graph || !editNode || !agentId) return;
+    // G1 (DEC-068): a guided step saves its BRIEF (bullets, never copy) —
+    // content stays empty; the composer writes per-lead text at send time.
+    if (editBrief) {
+      if (!editBrief.objective.trim()) {
+        toast("Give the step an objective — it steers every composed message.");
+        return;
+      }
+      if (editBrief.talkingPoints.length < BRIEF_TALKING_POINTS_MIN) {
+        toast(`Add at least ${BRIEF_TALKING_POINTS_MIN} talking points — the composer needs material to draw from.`);
+        return;
+      }
+      const brief = {
+        objective: editBrief.objective.trim(),
+        talkingPoints: editBrief.talkingPoints,
+        ...(editBrief.mustSay.length > 0 ? { mustSay: editBrief.mustSay } : {}),
+        ...(editBrief.neverSay.length > 0 ? { neverSay: editBrief.neverSay } : {}),
+      };
+      const updatedGuided: CampaignGraph = {
+        ...graph,
+        nodes: graph.nodes.map((n) =>
+          n.id === editNode.id && n.type === "step" ? { ...n, brief } : n,
+        ),
+      };
+      setBusyMsg("Saving step…");
+      const guidedRow = await cf("planner/graph", {
+        method: "PUT",
+        body: JSON.stringify({ agentId, graph: updatedGuided }),
+      });
+      setGraph(updatedGuided);
+      setGraphSource(guidedRow.source ?? "MANUAL");
+      setGraphVersion(guidedRow.version ?? graphVersion + 1);
+      setEditNode(null);
+      setEditBrief(null);
+      setBusyMsg("");
+      return;
+    }
     // C2.7: custom tokens carry a MANDATORY fallback ({{custom.key|fallback}})
     // — reject at save time so a blank can never reach the send boundary.
     const missing = customTokensMissingFallback(`${editSubject} ${editBody}`);
@@ -962,6 +1012,29 @@ export function Wizard() {
     setGraphVersion(row.version ?? graphVersion + 1);
     setEditNode(null);
     setBusyMsg("");
+  }
+
+  /** G1 (DEC-068): sample preview — the api composes the CURRENT saved brief
+   *  against the fixed sample lead through the real checks. A refusal is a
+   *  designed display state, not an error. Free at launch (Q-020). */
+  async function sampleCompose() {
+    if (!agentId || !editNode || previewBusy) return;
+    setPreviewBusy(true);
+    setPreview(null);
+    try {
+      const res = await cf("planner/compose-preview", {
+        method: "POST",
+        body: JSON.stringify({ agentId, stepNodeId: editNode.id }),
+      });
+      if (res.composed) {
+        setPreview({ kind: "composed", body: res.composed.body, credits: res.credits ?? GUIDED_SMS_CREDITS });
+      } else if (res.refused) {
+        setPreview({ kind: "refused", reason: res.refused.reason, detail: res.refused.detail ?? "" });
+      }
+    } catch {
+      setPreview({ kind: "error", message: "Preview isn't available right now — AI composing may not be configured for this environment yet." });
+    }
+    setPreviewBusy(false);
   }
 
   /** ✦ Regenerate with AI — re-runs the planner; the next AI version replaces the view.
@@ -1041,6 +1114,7 @@ export function Wizard() {
     const created = updated.nodes.find((x) => x.id === stepId);
     if (created && created.type === "step") {
       setEditNode(created);
+      setEditBrief(null); // added steps are scripted email — never a stale brief
       setEditSubject(created.content.subject ?? "");
       setEditBody(created.content.body ?? "");
     }
@@ -1339,15 +1413,40 @@ export function Wizard() {
                             {/* P2.1 (DEC-061, §3 amendment): ChannelChip anatomy — sms
                                 steps reuse the card with channel-true icon + tint. */}
                             <span style={{ width: 38, height: 38, borderRadius: 11, flex: "none", background: n.channel === "sms" ? "rgba(54,215,237,.16)" : "rgba(53,232,52,.16)", color: n.channel === "sms" ? "#1192A6" : "#16A82A", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, fontWeight: 700 }}>{n.channel === "sms" ? "💬" : "✉"}</span>
-                            <div onClick={() => { setEditNode(n); setEditSubject(n.content.subject ?? ""); setEditBody(n.content.body ?? ""); }} style={{ flex: 1, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 14, padding: "16px 18px", boxShadow: "0 4px 16px rgba(14,21,18,.04)", cursor: "pointer" }}>
+                            <div onClick={() => { setEditNode(n); setPreview(null); if (n.mode === "guided" && n.brief) { setEditBrief({ objective: n.brief.objective, talkingPoints: [...n.brief.talkingPoints], mustSay: [...(n.brief.mustSay ?? [])], neverSay: [...(n.brief.neverSay ?? [])] }); } else { setEditBrief(null); setEditSubject(n.content.subject ?? ""); setEditBody(n.content.body ?? ""); } }} style={{ flex: 1, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 14, padding: "16px 18px", boxShadow: "0 4px 16px rgba(14,21,18,.04)", cursor: "pointer" }}>
                               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
                                 <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "#8A7F6B" }}>Step {idx}</span>
                                 <span style={{ fontSize: 12, fontWeight: 700, borderRadius: 8, padding: "3px 10px", background: n.channel === "sms" ? "rgba(54,215,237,.14)" : "rgba(53,232,52,.13)", color: n.channel === "sms" ? "#1192A6" : "#16A82A" }} data-testid="seq-channel-chip">{n.channel === "sms" ? "SMS" : "Email"}</span>
-                                <span style={{ fontSize: 11, fontWeight: 700, color: "#16A82A", background: "rgba(53,232,52,.12)", borderRadius: 7, padding: "3px 9px" }}>✦ AI draft</span>
+                                {/* G1 (DEC-068): guided steps compose at send — the card carries
+                                    the brief, never copy; credits figure is display-only (Q-020). */}
+                                {n.mode === "guided" ? (
+                                  <>
+                                    <span style={{ fontSize: 11, fontWeight: 700, color: "#1192A6", background: "rgba(54,215,237,.14)", borderRadius: 7, padding: "3px 9px" }} data-testid="seq-guided-tag">✦ Composed at send</span>
+                                    <span style={{ fontSize: 11, fontWeight: 700, color: "#8A7F6B", background: "#F2EEE4", borderRadius: 7, padding: "3px 9px" }} data-testid="seq-guided-credits">{GUIDED_SMS_CREDITS} credits / send</span>
+                                  </>
+                                ) : (
+                                  <span style={{ fontSize: 11, fontWeight: 700, color: "#16A82A", background: "rgba(53,232,52,.12)", borderRadius: 7, padding: "3px 9px" }}>✦ AI draft</span>
+                                )}
                                 <span style={{ marginLeft: "auto", fontSize: 13, color: "#9AA59E" }} data-testid="seq-edit">✎ Edit</span>
                               </div>
-                              <div style={{ fontSize: 15.5, fontWeight: 600, color: "#0E1512", marginBottom: 4 }}>{n.channel === "sms" ? "SMS message" : n.content.subject}</div>
-                              <div style={{ fontSize: 14, color: "#5C6B62", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{n.content.body}</div>
+                              {n.mode === "guided" && n.brief ? (
+                                <>
+                                  <div style={{ fontSize: 15.5, fontWeight: 600, color: "#0E1512", marginBottom: 6 }}>{n.brief.objective}</div>
+                                  <div style={{ display: "flex", flexDirection: "column", gap: 3 }} data-testid="seq-brief-points">
+                                    {n.brief.talkingPoints.map((p, i) => (
+                                      <div key={i} style={{ fontSize: 13.5, color: "#5C6B62", lineHeight: 1.45, display: "flex", gap: 8 }}>
+                                        <span style={{ color: "#1192A6", flex: "none" }}>•</span>
+                                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </>
+                              ) : (
+                                <>
+                                  <div style={{ fontSize: 15.5, fontWeight: 600, color: "#0E1512", marginBottom: 4 }}>{n.channel === "sms" ? "SMS message" : n.content.subject}</div>
+                                  <div style={{ fontSize: 14, color: "#5C6B62", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{n.content.body}</div>
+                                </>
+                              )}
                             </div>
                           </div>
                         );
@@ -1718,17 +1817,128 @@ export function Wizard() {
         <div onClick={() => setEditNode(null)} style={{ position: "fixed", inset: 0, background: "rgba(12,20,15,.4)", zIndex: 60 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ position: "absolute", top: 0, right: 0, bottom: 0, width: 560, maxWidth: "100%", background: "#fff", boxShadow: "-24px 0 70px rgba(0,0,0,.28)", display: "flex", flexDirection: "column" }} data-testid="step-editor">
             <div style={{ display: "flex", alignItems: "center", gap: 13, padding: "18px 22px", borderBottom: "1px solid #EBE3D6", background: "#fff", flex: "none" }}>
-              <span style={{ width: 40, height: 40, borderRadius: 12, flex: "none", background: "rgba(53,232,52,.16)", color: "#16A82A", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 19, fontWeight: 700 }}>✉</span>
+              <span style={{ width: 40, height: 40, borderRadius: 12, flex: "none", background: editBrief ? "rgba(54,215,237,.16)" : "rgba(53,232,52,.16)", color: editBrief ? "#1192A6" : "#16A82A", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 19, fontWeight: 700 }}>{editBrief ? "💬" : "✉"}</span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
                   <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "#8A7F6B" }}>Step {editStepIndex}</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, borderRadius: 8, padding: "2px 9px", background: "rgba(53,232,52,.13)", color: "#16A82A" }}>Email</span>
+                  {editBrief ? (
+                    <>
+                      <span style={{ fontSize: 12, fontWeight: 700, borderRadius: 8, padding: "2px 9px", background: "rgba(54,215,237,.14)", color: "#1192A6" }}>SMS</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "#1192A6", background: "rgba(54,215,237,.14)", borderRadius: 7, padding: "2px 9px" }}>✦ Composed at send</span>
+                    </>
+                  ) : (
+                    <span style={{ fontSize: 12, fontWeight: 700, borderRadius: 8, padding: "2px 9px", background: "rgba(53,232,52,.13)", color: "#16A82A" }}>Email</span>
+                  )}
                 </div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: "#0E1512", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{editSubject || "Untitled step"}</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: "#0E1512", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{editBrief ? (editBrief.objective || "Untitled brief") : (editSubject || "Untitled step")}</div>
               </div>
               <span onClick={() => setEditNode(null)} style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid #EBE3D6", display: "flex", alignItems: "center", justifyContent: "center", color: "#9AA59E", cursor: "pointer", flex: "none" }}>✕</span>
             </div>
 
+            {editBrief ? (
+              /* G1 (DEC-068): the BRIEF editor — the owner edits bullets, never
+                 copy; a composer renders the real message per lead at send
+                 time (designed surface — no prototype anchor; §3 drawer
+                 conventions). */
+              <div style={{ padding: 22, display: "flex", flexDirection: "column", gap: 18, flex: 1, overflow: "auto", minHeight: 0 }} data-testid="brief-editor">
+                <div style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12.5, color: "#0E6E7E", background: "rgba(54,215,237,.08)", border: "1px solid rgba(54,215,237,.28)", borderRadius: 11, padding: "11px 14px" }} data-testid="brief-note">
+                  <span style={{ fontSize: 13 }}>✦</span>
+                  <span>This step has no fixed text. At send time the AI composes a fresh SMS for each lead from these talking points — checked against your never-say list, length and grounding rules before anything sends. {GUIDED_SMS_CREDITS} credits per send.</span>
+                </div>
+
+                <div>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#5C6B62", marginBottom: 7 }}>Objective</label>
+                  <input value={editBrief.objective} maxLength={200} onChange={(e) => setEditBrief((b) => (b ? { ...b, objective: e.target.value } : b))} placeholder="What must this message achieve?" style={{ boxSizing: "border-box", width: "100%", borderRadius: 11, background: "#FBF7F0", border: "1px solid #EBE3D6", padding: "11px 14px", fontSize: 14, color: "#0E1512", fontFamily: "'Hanken Grotesk',sans-serif" }} data-testid="brief-objective" />
+                </div>
+
+                <div>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#5C6B62", marginBottom: 4 }}>Talking points <span style={{ fontWeight: 600, color: "#9AA59E" }}>· {editBrief.talkingPoints.length} of {BRIEF_TALKING_POINTS_MAX} (min {BRIEF_TALKING_POINTS_MIN})</span></label>
+                  <div style={{ fontSize: 12, color: "#9AA59E", marginBottom: 8 }}>Facts the message may draw from — the AI picks what fits each lead, it never pastes them as-is.</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                    {editBrief.talkingPoints.map((p, i) => (
+                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 9, background: "#FBF7F0", border: "1px solid #EBE3D6", borderRadius: 11, padding: "9px 12px" }} data-testid="brief-point-row">
+                        <span style={{ color: "#1192A6", flex: "none" }}>•</span>
+                        <span style={{ fontSize: 13.5, color: "#3B463F", flex: 1, lineHeight: 1.45 }}>{p}</span>
+                        <span onClick={() => setEditBrief((b) => (b ? { ...b, talkingPoints: b.talkingPoints.filter((_, j) => j !== i) } : b))} style={{ width: 20, height: 20, borderRadius: "50%", background: "#EBE3D6", color: "#5C6B62", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 11, cursor: "pointer", flex: "none" }} data-testid="brief-point-remove">✕</span>
+                      </div>
+                    ))}
+                  </div>
+                  {editBrief.talkingPoints.length < BRIEF_TALKING_POINTS_MAX ? (
+                    <input
+                      value={briefPointInput}
+                      maxLength={200}
+                      onChange={(e) => setBriefPointInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); const v = briefPointInput.trim(); if (v) { setEditBrief((b) => (b ? { ...b, talkingPoints: [...b.talkingPoints, v] } : b)); setBriefPointInput(""); } } }}
+                      placeholder="Add a talking point and press Enter"
+                      style={{ boxSizing: "border-box", width: "100%", marginTop: 8, height: 40, borderRadius: 11, background: "#fff", border: "1px dashed #C9D6CB", padding: "0 14px", fontSize: 13.5, color: "#0E1512", outline: "none", fontFamily: "'Hanken Grotesk',sans-serif" }}
+                      data-testid="brief-point-input"
+                    />
+                  ) : (
+                    <div style={{ fontSize: 12.5, color: "#9A6B12", background: "#FBEFD2", borderRadius: 9, padding: "8px 12px", marginTop: 8 }}>{BRIEF_TALKING_POINTS_MAX} of {BRIEF_TALKING_POINTS_MAX} — remove one to add another.</div>
+                  )}
+                </div>
+
+                {([
+                  { key: "mustSay" as const, label: "Must say", desc: "Strings every composed message includes verbatim — keep for compliance-critical facts only.", max: BRIEF_MUST_SAY_MAX, input: briefMustInput, setInput: setBriefMustInput, tint: "#0F7A28", bg: "rgba(53,232,52,.09)", tid: "brief-must" },
+                  { key: "neverSay" as const, label: "Never say", desc: "Hard bans for this step — checked on every composed message before it can send.", max: BRIEF_NEVER_SAY_MAX, input: briefNeverInput, setInput: setBriefNeverInput, tint: "#C9543F", bg: "rgba(224,121,107,.08)", tid: "brief-never" },
+                ]).map((s) => (
+                  <div key={s.key}>
+                    <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#5C6B62", marginBottom: 4 }}>{s.label} <span style={{ fontWeight: 600, color: "#9AA59E" }}>· optional</span></label>
+                    <div style={{ fontSize: 12, color: "#9AA59E", marginBottom: 8 }}>{s.desc}</div>
+                    {editBrief[s.key].length > 0 ? (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 8 }}>
+                        {editBrief[s.key].map((term) => (
+                          <span key={term} style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12.5, fontWeight: 600, color: s.tint, background: s.bg, border: "1px solid #EBE3D6", borderRadius: 100, padding: "5px 7px 5px 12px" }} data-testid={`${s.tid}-chip`}>
+                            {term}
+                            <span onClick={() => setEditBrief((b) => (b ? { ...b, [s.key]: b[s.key].filter((x) => x !== term) } : b))} style={{ width: 17, height: 17, borderRadius: "50%", background: "#EBE3D6", color: "#5C6B62", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 10, cursor: "pointer" }}>✕</span>
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                    {editBrief[s.key].length < s.max ? (
+                      <input
+                        value={s.input}
+                        maxLength={s.key === "mustSay" ? 120 : 80}
+                        onChange={(e) => s.setInput(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); const v = s.input.trim(); if (v && !editBrief[s.key].some((x) => x.toLowerCase() === v.toLowerCase())) { setEditBrief((b) => (b ? { ...b, [s.key]: [...b[s.key], v] } : b)); } s.setInput(""); } }}
+                        placeholder="Type a phrase and press Enter"
+                        style={{ boxSizing: "border-box", width: "100%", height: 38, borderRadius: 11, background: "#FBF7F0", border: "1px solid #EBE3D6", padding: "0 14px", fontSize: 13, color: "#0E1512", outline: "none", fontFamily: "'Hanken Grotesk',sans-serif" }}
+                        data-testid={`${s.tid}-input`}
+                      />
+                    ) : (
+                      <div style={{ fontSize: 12.5, color: "#9A6B12", background: "#FBEFD2", borderRadius: 9, padding: "8px 12px" }}>{s.max} of {s.max} — remove one to add another.</div>
+                    )}
+                  </div>
+                ))}
+
+                {/* sample preview — composes the SAVED brief via the real checks */}
+                <div style={{ border: "1px solid #EBE3D6", borderRadius: 13, overflow: "hidden" }} data-testid="sample-preview-card">
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 15px", background: "linear-gradient(90deg,rgba(54,215,237,.1),rgba(53,232,52,.07))", borderBottom: "1px solid #EBE3D6" }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: "#0E1512", flex: 1 }}>✦ Sample preview</span>
+                    <span onClick={() => void sampleCompose()} style={{ fontSize: 12.5, fontWeight: 700, color: previewBusy ? "#9AA59E" : "#0A0F0C", background: previewBusy ? "#ECE7DC" : GRAD, borderRadius: 9, padding: "7px 14px", cursor: previewBusy ? "default" : "pointer" }} data-testid="sample-preview-run">{previewBusy ? "Composing…" : "Compose sample"}</span>
+                  </div>
+                  <div style={{ padding: "12px 15px" }}>
+                    {preview === null && !previewBusy ? (
+                      <div style={{ fontSize: 12.5, color: "#9AA59E" }}>See what the composer writes for a sample lead (Jane Doe · Acme Dental) using the last saved brief. Free while guided mode is new.</div>
+                    ) : previewBusy ? (
+                      <div style={{ fontSize: 12.5, color: "#8A7F6B" }}>Composing against the sample lead…</div>
+                    ) : preview?.kind === "composed" ? (
+                      <div data-testid="sample-preview-result">
+                        <div style={{ background: "#FBF7F0", border: "1px solid #EBE3D6", borderRadius: 11, padding: "11px 14px", fontSize: 13.5, color: "#0E1512", lineHeight: 1.55, whiteSpace: "pre-wrap" }}>{preview.body}</div>
+                        <div style={{ fontSize: 11.5, color: "#9AA59E", marginTop: 7 }}>Sample lead: Jane Doe · Acme Dental — every real lead gets its own text. {preview.credits} credits per real send (display only for now).</div>
+                      </div>
+                    ) : preview?.kind === "refused" ? (
+                      <div style={{ border: "1px solid rgba(232,196,91,.48)", borderRadius: 11, background: "rgba(232,196,91,.08)", padding: "11px 14px" }} data-testid="sample-preview-refused">
+                        <div style={{ fontSize: 12.5, fontWeight: 700, color: "#9A6B12", marginBottom: 3 }}>⚠ Composer refused — nothing would send</div>
+                        <div style={{ fontSize: 12.5, color: "#8A7F6B", lineHeight: 1.5 }}>{preview.reason}{preview.detail ? ` — ${preview.detail}` : ""}. The same check pauses a real lead instead of sending unchecked copy.</div>
+                      </div>
+                    ) : preview?.kind === "error" ? (
+                      <div style={{ fontSize: 12.5, color: "#C9543F" }} data-testid="sample-preview-error">{preview.message}</div>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            ) : (
             <div style={{ padding: 22, display: "flex", flexDirection: "column", gap: 18, flex: 1, overflow: "auto", minHeight: 0 }}>
               <div>
                 <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#5C6B62", marginBottom: 7 }}>Subject line</label>
@@ -1793,11 +2003,16 @@ export function Wizard() {
                 ) : null}
               </div>
             </div>
+            )}
 
             <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 22px", borderTop: "1px solid #EBE3D6", background: "#fff", flex: "none" }}>
-              <span title="AI rewrite arrives with the sequence tools — use ✦ Regenerate for a full re-plan" style={{ fontSize: 13, fontWeight: 700, color: "#16A82A", background: "rgba(53,232,52,.1)", borderRadius: 10, padding: "9px 14px", cursor: "default" }}>✦ Rewrite with AI</span>
+              {editBrief ? (
+                <span style={{ fontSize: 12.5, color: "#9AA59E" }}>Bullets steer the AI — the copy itself is written per lead.</span>
+              ) : (
+                <span title="AI rewrite arrives with the sequence tools — use ✦ Regenerate for a full re-plan" style={{ fontSize: 13, fontWeight: 700, color: "#16A82A", background: "rgba(53,232,52,.1)", borderRadius: 10, padding: "9px 14px", cursor: "default" }}>✦ Rewrite with AI</span>
+              )}
               <span onClick={() => setEditNode(null)} style={{ marginLeft: "auto", fontSize: 14, fontWeight: 600, color: "#5C6B62", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 11, padding: "10px 18px", cursor: "pointer" }}>Cancel</span>
-              <span onClick={() => void saveEditedStep()} style={{ fontSize: 14, fontWeight: 700, color: "#0A0F0C", background: GRAD, borderRadius: 11, padding: "10px 22px", cursor: "pointer", boxShadow: "0 6px 16px rgba(53,232,52,.26)" }} data-testid="modal-save">Save step</span>
+              <span onClick={() => void saveEditedStep()} style={{ fontSize: 14, fontWeight: 700, color: "#0A0F0C", background: GRAD, borderRadius: 11, padding: "10px 22px", cursor: "pointer", boxShadow: "0 6px 16px rgba(53,232,52,.26)" }} data-testid="modal-save">{editBrief ? "Save brief" : "Save step"}</span>
             </div>
           </div>
         </div>

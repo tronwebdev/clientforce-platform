@@ -206,3 +206,12 @@ export const strategyBlockSchema = z.object({
   neverSay: z.array(z.string().min(1).max(80)).max(NEVER_SAY_MAX).optional(),
 });
 export type StrategyBlock = z.infer<typeof strategyBlockSchema>;
+
+// ── Guided compose credits (G1, DEC-068) ─────────────────────────────────────
+/**
+ * DISPLAY-ONLY at launch (Q-020 owns real metering): what one guided SMS
+ * composition costs in credits. Rendered on guided step cards + the sample
+ * preview; no `credits.consumed.v1` is emitted and no balance exists yet —
+ * a billing event with no ledger would be dishonest.
+ */
+export const GUIDED_SMS_CREDITS = 3;

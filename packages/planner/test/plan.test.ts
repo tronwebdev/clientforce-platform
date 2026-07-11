@@ -129,3 +129,70 @@ describe("validateAll neverSay gate (M1a, DEC-065 — the deterministic rail)", 
     expect(() => validateAll(goodGraph(), ["email"])).not.toThrow();
   });
 });
+
+describe("validateAll guided steps (G1, DEC-068)", () => {
+  const guided = (): CampaignGraph => {
+    const g = goodGraph();
+    g.nodes = g.nodes.map((n) =>
+      n.id === "step-2" && n.type === "step"
+        ? {
+            id: "step-2",
+            type: "step" as const,
+            channel: "sms" as const,
+            mode: "guided" as const,
+            content: {},
+            brief: {
+              objective: "Earn a reply about the audit",
+              talkingPoints: ["free growth audit", "results in 7 days", "no commitment"],
+            },
+          }
+        : n,
+    );
+    return g;
+  };
+
+  it("accepts a guided sms step for a guided agent (allowGuided=true)", () => {
+    expect(() => validateAll(guided(), ["email", "sms"], [], true)).not.toThrow();
+  });
+
+  it("REJECTS guided steps for a scripted agent — regression protection", () => {
+    expect(() => validateAll(guided(), ["email", "sms"], [], false)).toThrow(
+      /composes scripted/,
+    );
+  });
+
+  it("the merge-token rule applies to SCRIPTED copy only — an all-guided graph passes without tokens", () => {
+    const g = guided();
+    // Strip the scripted email step so ONLY the guided sms step sends.
+    g.entry = "step-2";
+    g.nodes = g.nodes.filter((n) => n.id !== "step-1" && n.id !== "delay-1");
+    g.nodes.push({ id: "delay-2", type: "delay", amount: 1, unit: "days" });
+    g.edges = [
+      { from: "step-2", to: "delay-2" },
+      { from: "delay-2", to: "branch-reply" },
+    ];
+    expect(() => validateAll(g, ["email", "sms"], [], true)).not.toThrow();
+    // …while a scripted step missing tokens still fails exactly as before.
+    const scripted = goodGraph();
+    (scripted.nodes[0] as { content: { subject: string; body: string } }).content = {
+      subject: "no tokens",
+      body: "no tokens here",
+    };
+    (scripted.nodes[2] as { content: { subject: string; body: string } }).content = {
+      subject: "none",
+      body: "none",
+    };
+    expect(() => validateAll(scripted, ["email"], [], false)).toThrow(/merge token/);
+  });
+
+  it("the neverSay scan covers BRIEF text (objective + talking points + mustSay)", () => {
+    const g = guided();
+    const step = g.nodes.find((n) => n.id === "step-2");
+    if (step?.type === "step" && step.brief) {
+      step.brief.talkingPoints = ["free growth audit", "rock-bottom prices pitch", "no commitment"];
+    }
+    expect(() => validateAll(g, ["email", "sms"], ["rock-bottom prices"], true)).toThrow(
+      /"rock-bottom prices" in step-2/,
+    );
+  });
+});

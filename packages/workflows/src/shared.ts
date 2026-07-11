@@ -23,6 +23,12 @@ export interface CampaignWorkflowInput {
   senderId: string;
   graph: CampaignGraph;
   /**
+   * G1 (DEC-068): the persisted CampaignGraph row's version at enrollment
+   * time — guided sends record it as `Message.meta.briefVersion` (which brief
+   * produced this copy). Optional: in-flight pre-G1 runs replay unchanged.
+   */
+  graphVersion?: number | null;
+  /**
    * Multiplier on every timer (delays + branch default timeout). 1 = real
    * time. Tests/live-proof pass e.g. 1/86400 so "1 day" becomes 1 second —
    * graph data never changes for testing (TEST_DELAY_SCALE env at start time).

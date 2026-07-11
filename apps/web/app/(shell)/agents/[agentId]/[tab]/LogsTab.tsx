@@ -27,6 +27,14 @@ const LOG_ROW: Record<string, { icon: string; bg: string; fg: string }> = {
   "email.spam_reported.v1": { icon: "⚠", bg: "rgba(224,121,107,.14)", fg: "#C9543F" },
   "lead.stage_changed.v1": { icon: "✦", bg: "rgba(53,232,52,.16)", fg: "#16A82A" },
   "lead.unsubscribed.v1": { icon: "⊘", bg: "rgba(224,121,107,.16)", fg: "#C9543F" },
+  // P2.1 sms rows (carry-along: the Logs feed rendered raw sms.* slugs —
+  // DEC-057's no-slug rule) + the G1 compose-refusal amber row (DEC-068).
+  "sms.sent.v1": { icon: "✆", bg: "#F2EEE4", fg: "#8A7F6B" },
+  "sms.delivered.v1": { icon: "✓", bg: "#F2EEE4", fg: "#8A7F6B" },
+  "sms.failed.v1": { icon: "⚠", bg: "rgba(224,121,107,.14)", fg: "#C9543F" },
+  "sms.replied.v1": { icon: "💬", bg: "rgba(54,215,237,.16)", fg: "#1192A6" },
+  "sms.opted_out.v1": { icon: "⊘", bg: "rgba(224,121,107,.16)", fg: "#C9543F" },
+  "sms.compose_refused.v1": { icon: "⚠", bg: "rgba(232,196,91,.2)", fg: "#9A6B12" },
 };
 
 function describe(e: LogEvent): string {
@@ -43,6 +51,12 @@ function describe(e: LogEvent): string {
     case "email.spam_reported.v1": return `${who} reported the email as spam.`;
     case "lead.stage_changed.v1": return `${who} moved ${p.fromStage ? `from ${String(p.fromStage)} ` : ""}to ${String(p.toStage ?? "a new stage")}${p.manual ? " (manual move)" : ""}.`;
     case "lead.unsubscribed.v1": return `${who} unsubscribed — suppressed from all sequences.`;
+    case "sms.sent.v1": return `Step SMS sent to ${who}.`;
+    case "sms.delivered.v1": return `SMS delivered to ${who}.`;
+    case "sms.failed.v1": return `SMS to ${who} failed${p.reason ? ` — ${String(p.reason)}` : ""}.`;
+    case "sms.replied.v1": return `${who} replied by SMS${p.intent ? ` — classified “${String(p.intent)}”` : ""}.`;
+    case "sms.opted_out.v1": return `${who} replied STOP — suppressed for SMS.`;
+    case "sms.compose_refused.v1": return `Composer refused the SMS for ${who} — ${String(p.reason ?? "checks failed")}${p.detail ? ` (${String(p.detail)})` : ""}. The lead is paused; nothing was sent.`;
     default: return `${e.type} — ${who}`;
   }
 }
