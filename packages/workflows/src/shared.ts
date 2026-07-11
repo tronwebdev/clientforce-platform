@@ -39,6 +39,14 @@ export interface CampaignWorkflowInput {
    * (the no-response path). Hours, scaled by delayScale. Default 72.
    */
   branchDefaultTimeoutHours?: number;
+  /**
+   * R1 (DEC-074): start the walk at this node instead of `graph.entry` —
+   * the "move to sequence/branch" rule action restarts an enrollment's run
+   * here (cancel old run → new run at the target). Optional: in-flight
+   * pre-R1 runs replay unchanged. Already-sent steps stay safe either way —
+   * sends are idempotent per (enrollmentId, stepNodeId).
+   */
+  startNodeId?: NodeId;
 }
 
 export type CampaignWorkflowResult =

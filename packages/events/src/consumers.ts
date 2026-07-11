@@ -34,10 +34,21 @@ export const temporalSignalConsumer: ConsumerHook = {
  * `signalEnrollmentReply` bound to a connected client. Signal failures are
  * logged, not thrown — a missing/finished workflow must not dead-letter the
  * event (the Event row is already persisted for the timeline either way).
+ *
+ * R1 (DEC-074) — `gate`: the injected precedence seam. Bus fan-out is
+ * parallel (`Promise.all`), so the campaign-rules evaluator can't order
+ * itself before this consumer; instead the gate AWAITS that evaluation and
+ * resolves false when a TERMINAL rule action already handled the reply —
+ * the graph strategy continuation for that event is then SKIPPED (a contact
+ * who tripped "not interested → end campaign" must not still receive the
+ * strategy reply). A gate FAILURE fails OPEN (signal proceeds, loudly
+ * logged): a rules bug must degrade to pre-R1 behavior, never take down
+ * reply handling.
  */
 export function createTemporalSignalConsumer(
   signal: (enrollmentId: string, intent: string) => Promise<void>,
   log: (msg: string) => void = console.warn,
+  gate?: (event: BusEvent) => Promise<boolean>,
 ): ConsumerHook {
   return {
     name: "temporal-signal",
@@ -45,6 +56,24 @@ export function createTemporalSignalConsumer(
       if (!event.type.endsWith(".replied.v1") || !event.enrollmentId) return;
       const intent = (event.payload as { intent?: string }).intent;
       if (!intent) return;
+      if (gate) {
+        let proceed = true;
+        try {
+          proceed = await gate(event);
+        } catch (err) {
+          log(
+            `[events] temporal-signal: rules gate failed for event ${event.id} ` +
+              `(${err instanceof Error ? err.message : String(err)}) — failing OPEN, signal proceeds`,
+          );
+        }
+        if (!proceed) {
+          log(
+            `[events] temporal-signal: gated for enrollment ${event.enrollmentId} — ` +
+              `a terminal campaign-rule action handled event ${event.id}; graph continuation skipped`,
+          );
+          return;
+        }
+      }
       try {
         await signal(event.enrollmentId, intent);
       } catch (err) {

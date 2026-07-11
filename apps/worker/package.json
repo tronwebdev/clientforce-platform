@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@clientforce/ai": "workspace:*",
+    "@clientforce/automations": "workspace:*",
     "@clientforce/channels": "workspace:*",
     "@clientforce/config": "workspace:*",
     "@clientforce/context": "workspace:*",

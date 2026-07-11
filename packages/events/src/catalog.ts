@@ -150,6 +150,20 @@ export const EVENT_SCHEMAS = {
   // ── Integrations ───────────────────────────────────────────────────────────
   "integration.connected.v1": z.object({ provider: z.string() }),
   "integration.sync_failed.v1": z.object({ provider: z.string(), error: z.string().optional() }),
+
+  // ── Automations (R1, DEC-074) ──────────────────────────────────────────────
+  // One per-agent rule evaluation outcome — the `CampaignRuleRun` row's Logs
+  // twin (fired · skipped_conflict · refused_depth · error, the core status
+  // set). Emitted per run row, never instead of it: the row is the history,
+  // this is the timeline surface. Mirrors how G1/G2 added compose_refused.
+  "automation.rule.run.v1": z.object({
+    ruleId: z.string().min(1),
+    runId: z.string().min(1),
+    status: z.string(),
+    /** The rule's trigger kind (e.g. "reply_classified") — for log rendering. */
+    trigger: z.string(),
+    detail: z.string().optional(),
+  }),
 } satisfies Record<string, z.ZodTypeAny>;
 
 /** The union of all versioned event-type strings. */
@@ -206,4 +220,5 @@ export const EVENT_TYPES = {
   CREDITS_LOW: "credits.low.v1",
   INTEGRATION_CONNECTED: "integration.connected.v1",
   INTEGRATION_SYNC_FAILED: "integration.sync_failed.v1",
+  AUTOMATION_RULE_RUN: "automation.rule.run.v1",
 } as const satisfies Record<string, EventType>;

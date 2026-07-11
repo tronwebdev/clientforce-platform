@@ -443,6 +443,23 @@ model Automation {          // standalone When → If → Then rules
 }
 model AutomationRun { id String @id @default(cuid()) workspaceId String automationId String status String detail Json ranAt DateTime @default(now()) }
 
+model CampaignRule {         // R1 (DEC-074): per-agent automation rules (ARCHITECTURE §151)
+  id          String @id @default(cuid())
+  workspaceId String
+  campaignId  String                            // → Campaign (cascade) — the campaign-scoped sibling of Automation (§152)
+  order       Int                               // evaluation order; first terminal action wins conflicts
+  trigger     Json                              // typed union in @clientforce/core (campaignRuleTriggerSchema)
+  condition   Json?                             // optional refinement (keyword_contains) — never the primary match
+  actions     Json                              // typed union, ordered; terminal = end · move · pause · suppress
+  enabled     Boolean @default(true)            // disabled rules never fire; flipping is instant, no re-plan
+  seededFrom  String?                           // goal-seed provenance (W2); seeds are rows like any other
+  runs        CampaignRuleRun[]
+}
+model CampaignRuleRun {      // R1: run history — mirrors AutomationRun; unique (ruleId, eventId) = redelivery idempotency
+  id String @id @default(cuid()) workspaceId String ruleId String enrollmentId String? contactId String?
+  eventId String status String detail Json depth Int @default(0) ranAt DateTime @default(now())
+}
+
 model Integration {
   id          String @id @default(cuid())
   workspaceId String
@@ -513,6 +530,20 @@ enum SuppressionReason { UNSUBSCRIBED BOUNCED SPAM_COMPLAINT MANUAL }
 > **verbatim** (no address → fail) · real threading only — a "Re:"/"Fwd:"
 > prefix is stripped + audited unless the message genuinely threads to a prior
 > send (`In-Reply-To`/`References` = prior `providerMessageId`).
+
+> **R1 amendment (PR #86, DEC-074):** `CampaignRule` + `CampaignRuleRun` land
+> ADDITIVELY as the per-agent automation-rules layer (ARCHITECTURE §151) —
+> `Automation`/`AutomationRun` stay byte-untouched for the Phase-6 standalone
+> engine (§152). Both layers share ONE typed trigger/condition/action
+> vocabulary (`@clientforce/core` `campaign-rules.ts`) and ONE evaluator
+> (`packages/automations`, mounted on the T2 automations consumer hook) —
+> never two evaluators, never two trigger vocabularies. Rules are a DISTINCT
+> entity (row order, goal seeds, wizard-draft lifecycle, graph interlock),
+> not `Automation` rows with a nullable campaignId. Each evaluation outcome
+> persists a `CampaignRuleRun` row and emits **`automation.rule.run.v1`**
+> `{ruleId, runId, status, trigger, detail?}` (append-only catalog entry —
+> the one new event kind this unit names, A9). Existing campaigns simply
+> have zero rules.
 
 Outbound **WebhookEndpoint** (`url`, `secret`, `events[]`) + delivery log; Zapier rides the same dispatcher.
 
