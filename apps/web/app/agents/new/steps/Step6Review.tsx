@@ -6,7 +6,7 @@
  */
 import type { CampaignGraph } from "@clientforce/core";
 import { mainSteps, strategyStepsOf } from "../../../../lib/graph-path";
-import { GOALS } from "../shared";
+import { GOALS, type CaptureState } from "../shared";
 
 interface Step6Props {
   goal: string | null;
@@ -15,7 +15,7 @@ interface Step6Props {
   csvImport: { listId: string; name: string; count: number } | null;
   /** W3-7: the real audience arithmetic (adds + referenced lists). */
   audienceTotal: number;
-  capture: { widget: boolean; form: boolean };
+  capture: CaptureState;
   allResolved: boolean;
   gapTotal: number;
   gapResolved: number;
@@ -31,7 +31,7 @@ export function Step6Review(props: Step6Props) {
                 { label: "Goal", value: GOALS.find((g) => g.key === goal)?.title ?? "—" },
                 { label: "Sequence", value: graph ? `${mainSteps(graph).length} steps · ${strategyStepsOf(graph).length ? `${strategyStepsOf(graph).length} reply strategies` : "reply branch"}` : "—" },
                 { label: "Contacts", value: pickedList || csvImport ? `${audienceTotal} enrolled at launch (incl. “${(pickedList ?? csvImport)!.name}”)` : `${audienceTotal} enrolled at launch` },
-                { label: "Lead capture", value: capture.widget || capture.form ? "Enabled" : "Off (optional)" },
+                { label: "Lead capture", value: capture.enabled ? "Enabled" : "Off (optional)" },
               ].map((c) => (
                 <div key={c.label} style={{ border: "1px solid #EBE3D6", borderRadius: 13, background: "#fff", padding: "14px 14px" }}>
                   <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", color: "#9AA59E", marginBottom: 6 }}>{c.label}</div>

@@ -138,6 +138,35 @@ export interface ManualEntry {
 }
 export const EMPTY_MANUAL: ManualEntry = { firstName: "", lastName: "", email: "", company: "", phone: "" };
 
+/**
+ * W3-9/W3-10 — step-4 lead-capture working set (visual only in P1: the
+ * config persists via draftState, no capture backend exists). `ap: null`
+ * means "no explicit choice" — the goal-fit default applies (existing-
+ * audience goals default OFF); the user's toggle always overrides.
+ */
+export interface CaptureState {
+  enabled: boolean;
+  ap: boolean | null;
+  apKeywords: string[];
+  apParams: Record<string, string>;
+  apSignals: Record<string, boolean>;
+  widget: boolean;
+  form: boolean;
+  embed: boolean;
+}
+/** Defaults are the prototype's own literals (A12) — keywords start EMPTY
+ *  (the proto's dental chips are sample data, never seeded as real config). */
+export const DEFAULT_CAPTURE: CaptureState = {
+  enabled: true,
+  ap: null,
+  apKeywords: [],
+  apParams: { location: "United States · Canada", industry: "Dental & Orthodontics", size: "1–50 staff", rating: "4.0 ★ +" },
+  apSignals: { api: true, news: true, reviews: true, social: true },
+  widget: false,
+  form: false,
+  embed: false,
+};
+
 /** G1/G2 brief-editor draft (channel-aware — email adds subjectHint). */
 export type BriefDraft = {
   channel: "email" | "sms";

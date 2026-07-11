@@ -15,7 +15,7 @@ import { BRIEF_TALKING_POINTS_MIN, CONTEXT_FIELD_META, customTokensMissingFallba
 import type { CampaignGraph, CampaignOutcomes, ContactFieldDefDto, DraftState, GraphNode } from "@clientforce/core";
 import { mainPath, mainSteps, replyBranchOf, strategyStepsOf } from "../../../lib/graph-path";
 import { goalFitOf } from "../../../lib/goal-fit";
-import { BSTEPS, BUILD_DELAYS, EMPTY_MANUAL, GRAD, cf, type AddMode, type AddedContact, type BriefDraft, type Citation, type ContextField, type Gap, type KnowledgeSource, type PreviewState, type SenderRow } from "./shared";
+import { BSTEPS, BUILD_DELAYS, DEFAULT_CAPTURE, EMPTY_MANUAL, GRAD, cf, type AddMode, type AddedContact, type BriefDraft, type CaptureState, type Citation, type ContextField, type Gap, type KnowledgeSource, type PreviewState, type SenderRow } from "./shared";
 import { BuildingScreen } from "./steps/BuildingScreen";
 import { Step1 } from "./steps/Step1Setup";
 import { Step2Sequence } from "./steps/Step2Sequence";
@@ -203,8 +203,9 @@ export function Wizard() {
   // existing contacts/view?listId= — display only; launch re-resolves fully).
   const [listSamples, setListSamples] = useState<Record<string, { name: string; email: string; company: string }[]>>({});
 
-  // step 4 — visual only (checkpoints §3)
-  const [capture, setCapture] = useState({ widget: false, form: false });
+  // step 4 — visual only (checkpoints §3): W3-9/W3-10 full config; `ap: null`
+  // means the goal-fit default applies until the user toggles (W3-10).
+  const [capture, setCapture] = useState<CaptureState>(DEFAULT_CAPTURE);
 
   // step 5
   const [senders, setSenders] = useState<SenderRow[]>([]);
@@ -253,7 +254,9 @@ export function Wizard() {
         if (ds.goalLabel) setGoalLabel(ds.goalLabel);
         if (ds.buildMethod) setBuildMethod(ds.buildMethod);
         if (ds.added) setAdded(ds.added);
-        if (ds.capture) setCapture(ds.capture);
+        // W3-9: old drafts carry only {widget, form} — merge over defaults;
+        // `ap` absent = no explicit choice, the goal-fit default applies.
+        if (ds.capture) setCapture({ ...DEFAULT_CAPTURE, ...ds.capture, ap: ds.capture.ap ?? null });
         if (typeof ds.dailyCap === "number") setDailyCap(ds.dailyCap);
         if (typeof ds.smsDailyCap === "number") setSmsDailyCap(ds.smsDailyCap);
         if (ds.windowStart) setWindowStart(ds.windowStart);
@@ -309,7 +312,16 @@ export function Wizard() {
         step,
         buildMethod,
         added,
-        capture,
+        capture: {
+          widget: capture.widget,
+          form: capture.form,
+          embed: capture.embed,
+          enabled: capture.enabled,
+          ...(capture.ap !== null ? { ap: capture.ap } : {}),
+          apKeywords: capture.apKeywords,
+          apParams: capture.apParams,
+          apSignals: capture.apSignals,
+        },
         dailyCap,
         smsDailyCap,
         windowStart,
@@ -562,6 +574,18 @@ export function Wizard() {
     for (const a of added) push(a.id, [a.firstName, a.lastName].filter(Boolean).join(" ") || a.email, a.email, a.company ?? "—");
     return rows.slice(0, 4);
   }, [added, pickedList, csvImport, listSamples]);
+
+  // W3-9: keyword suggestions derive from the agent's own distilled context
+  // fields (icp/services/offer values) — real data, never invented; empty
+  // until step-1 knowledge exists (the dropdown shows the honest absence).
+  const apSuggestions = useMemo(() => {
+    const texts = ["icp", "services", "offer"].map((k) => fields[k]?.value ?? "").join(" · ");
+    const parts = texts
+      .split(/[,;·\n]|\band\b/gi)
+      .map((x) => x.trim().replace(/[.]+$/, "").toLowerCase())
+      .filter((x) => x.length >= 3 && x.length <= 32 && /^[a-z0-9"'&() -]+$/i.test(x));
+    return [...new Set(parts)].filter((x) => !capture.apKeywords.some((k) => k.toLowerCase() === x)).slice(0, 6);
+  }, [fields, capture.apKeywords]);
 
   const stepValid = [
     Boolean(goal && name.trim() && agentId && allResolvedForNext()),
@@ -1398,7 +1422,7 @@ export function Wizard() {
           />
         ) : null}
 
-        {step === 3 ? <Step4Capture {...{ capture, setCapture }} /> : null}
+        {step === 3 ? <Step4Capture {...{ capture, setCapture, goal, goalFit: goalFitOf(goal), apSuggestions }} /> : null}
 
         {step === 4 ? (
           <Step5Guardrails

@@ -44,7 +44,25 @@ export const draftStateSchema = z.object({
     )
     .max(500)
     .optional(),
-  capture: z.object({ widget: z.boolean(), form: z.boolean() }).optional(),
+  capture: z
+    .object({
+      widget: z.boolean(),
+      form: z.boolean(),
+      /**
+       * W3-9/W3-10 additions — ALL optional so pre-W3 drafts parse
+       * unchanged. Visual-only config (checkpoints §3: toggle state
+       * persists, no capture backend): master toggle, the third inbound
+       * asset, and the auto-prospecting config. `ap` absent = no explicit
+       * user choice — the goal-fit default applies at render.
+       */
+      enabled: z.boolean().optional(),
+      embed: z.boolean().optional(),
+      ap: z.boolean().optional(),
+      apKeywords: z.array(z.string().max(60)).max(20).optional(),
+      apParams: z.record(z.string(), z.string().max(60)).optional(),
+      apSignals: z.record(z.string(), z.boolean()).optional(),
+    })
+    .optional(),
   /**
    * W3-1: step-3 CSV import lands in a list; the draft keeps only the
    * REFERENCE — name/count re-resolve from the server on resume, exactly
