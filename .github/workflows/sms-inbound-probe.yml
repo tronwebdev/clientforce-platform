@@ -35,18 +35,32 @@ jobs:
           msid="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name SMS-MESSAGING-SERVICE-SID --query value -o tsv)"
           echo "::add-mask::$sid"; echo "::add-mask::$token"; echo "::add-mask::$msid"
 
-          echo "== 1) Recent messages, ALL directions (opt-out auto-replies show as outbound-reply) =="
+          echo "== 1) Recent messages, ALL directions + service/number binding (booleans only) =="
+          export MSID="$msid"
+          # The platform service pool numbers, fetched first so each message can
+          # be checked against them without printing any number.
+          pool="$(curl -sf -u "$sid:$token" "https://messaging.twilio.com/v1/Services/$msid/PhoneNumbers?PageSize=20" \
+            | python3 -c 'import json,sys;print(",".join(n["phone_number"] for n in json.load(sys.stdin).get("phone_numbers",[])))')"
+          echo "::add-mask::$pool"
+          export POOL="$pool"
           curl -sf -u "$sid:$token" \
             "https://api.twilio.com/2010-04-01/Accounts/$sid/Messages.json?PageSize=15" \
             | python3 -c '
-          import json, sys
+          import json, os, sys
+          ours = os.environ.get("MSID", "")
+          pool = [p for p in os.environ.get("POOL", "").split(",") if p]
           msgs = json.load(sys.stdin).get("messages", [])
-          print(f"messages returned: {len(msgs)} (newest first)")
+          print(f"messages returned: {len(msgs)} (newest first); platform pool size: {len(pool)}")
           for m in msgs:
+              svc = m.get("messaging_service_sid")
+              inbound = m.get("direction") == "inbound"
+              endpoint = m.get("to") if inbound else m.get("from")
               print(
                   f"  sid={m.get('"'"'sid'"'"')} direction={m.get('"'"'direction'"'"')}"
                   f" status={m.get('"'"'status'"'"')} error={m.get('"'"'error_code'"'"')}"
                   f" created={m.get('"'"'date_created'"'"')}"
+                  f" | platform_service={svc == ours if svc else None}"
+                  f" platform_number={endpoint in pool}"
               )
           '
 
@@ -55,9 +69,22 @@ jobs:
             | python3 -c '
           import json, sys
           s = json.load(sys.stdin)
-          for k in ("inbound_request_url", "inbound_method", "fallback_url", "use_inbound_webhook_on_number", "sticky_sender"):
+          # friendly_name is a label, not a secret — it lets the owner confirm
+          # WHICH service the platform uses when the account has several.
+          for k in ("friendly_name", "inbound_request_url", "inbound_method", "fallback_url", "use_inbound_webhook_on_number", "sticky_sender"):
               print(f"{k}: {s.get(k)}")
           '
+
+          echo "== 2b) ALL messaging services on the account (with number counts) =="
+          services_json="$(curl -sf -u "$sid:$token" "https://messaging.twilio.com/v1/Services?PageSize=20")"
+          for svc_sid in $(echo "$services_json" | python3 -c 'import json,sys;[print(s["sid"]) for s in json.load(sys.stdin).get("services",[])]'); do
+            echo "::add-mask::$svc_sid"
+            name="$(echo "$services_json" | SVC="$svc_sid" python3 -c 'import json,os,sys;print(next(s["friendly_name"] for s in json.load(sys.stdin)["services"] if s["sid"]==os.environ["SVC"]))')"
+            count="$(curl -sf -u "$sid:$token" "https://messaging.twilio.com/v1/Services/$svc_sid/PhoneNumbers?PageSize=20" | python3 -c 'import json,sys;print(len(json.load(sys.stdin).get("phone_numbers",[])))')"
+            mark=""
+            [ "$svc_sid" = "$msid" ] && mark="  <-- PLATFORM SERVICE (SMS-MESSAGING-SERVICE-SID)"
+            echo "  $name: numbers=$count$mark"
+          done
 
           echo "== 3) Numbers attached to the service (count + per-number webhook override) =="
           curl -sf -u "$sid:$token" "https://messaging.twilio.com/v1/Services/$msid/PhoneNumbers?PageSize=20" \
@@ -68,6 +95,33 @@ jobs:
           for n in ns:
               print(f"  number sid={n.get('"'"'sid'"'"')} country={n.get('"'"'country_code'"'"')} capabilities={n.get('"'"'capabilities'"'"')}")
           '
+
+          echo "== 3b) Account + A2P approval status (does anything limit US-bound sends?) =="
+          curl -sf -u "$sid:$token" "https://api.twilio.com/2010-04-01/Accounts/$sid.json" \
+            | python3 -c '
+          import json, sys
+          a = json.load(sys.stdin)
+          print(f"account type: {a.get('"'"'type'"'"')}  status: {a.get('"'"'status'"'"')}  (Trial = sends only to VERIFIED numbers)")
+          '
+          curl -sf -u "$sid:$token" "https://messaging.twilio.com/v1/a2p/BrandRegistrations?PageSize=5" \
+            | python3 -c '
+          import json, sys
+          brands = json.load(sys.stdin).get("data", [])
+          print(f"A2P brand registrations: {len(brands)}")
+          for b in brands:
+              print(f"  brand status={b.get('"'"'status'"'"')} failure_reason={b.get('"'"'failure_reason'"'"') or None}")
+          ' || echo "  (brand registration list not available)"
+          curl -sf -u "$sid:$token" "https://messaging.twilio.com/v1/Services/$msid/Compliance/Usa2p" \
+            | python3 -c '
+          import json, sys
+          camps = json.load(sys.stdin).get("compliance", [])
+          print(f"A2P campaigns on the platform service: {len(camps)}")
+          for c in camps:
+              errs = c.get("errors") or []
+              print(f"  campaign_status={c.get('"'"'campaign_status'"'"')} errors={len(errs)}")
+              for e in errs[:3]:
+                  print(f"    error: {e.get('"'"'description'"'"') or e}")
+          ' || echo "  (no US A2P campaign resource on the platform service)"
 
           echo "== 4) Webhook delivery alerts (Twilio Monitor, newest first) =="
           curl -sf -u "$sid:$token" "https://monitor.twilio.com/v1/Alerts?PageSize=10" \

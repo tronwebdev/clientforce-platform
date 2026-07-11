@@ -1,0 +1,199 @@
+# P3.0 voice spike (DEC-064): drive the real-time loop end to end from a runner
+# and emit the ADR's latency/cost tables. Rides the P2.1 probe pattern — staging
+# OIDC → clientforce-kv — plus a cloudflared quick tunnel so Twilio can reach the
+# runner's Media Streams WebSocket. Prints only counts/latencies/masked fields;
+# never phone numbers or transcripts-with-PII (the owner number is KV-only).
+#
+# Modes (workflow_dispatch input):
+#   preflight      — secret presence + tunnel reachability + TwiML plumbing.
+#                    Runs today with NO new secrets (no Deepgram, no live answer).
+#   synthetic-call — scripted-caller harness over >=20 turns; live-brain if
+#                    DEEPGRAM-API-KEY is in KV, else fake-brain. Uploads metrics.
+#   demo-call      — place ONE real outbound call to SMS-TEST-NUMBER; record it.
+name: voice-live-spike
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "preflight | synthetic-call | demo-call"
+        required: true
+        default: "preflight"
+        type: choice
+        options: [preflight, synthetic-call, demo-call]
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  KEY_VAULT_NAME: ${{ vars.KEY_VAULT_NAME }}
+
+jobs:
+  spike:
+    name: voice loop — ${{ inputs.mode }}
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install + build (voice app and its deps)
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm --filter @clientforce/db build
+          pnpm --filter @clientforce/ai build
+          pnpm --filter voice build
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Resolve secrets from Key Vault (mask everything)
+        id: kv
+        run: |
+          set -euo pipefail
+          get() { az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name "$1" --query value -o tsv 2>/dev/null || true; }
+          ANTHROPIC="$(get ANTHROPIC-API-KEY)"
+          DEEPGRAM="$(get DEEPGRAM-API-KEY)"
+          TW_SID="$(get TWILIO-ACCOUNT-SID)"
+          TW_TOKEN="$(get TWILIO-AUTH-TOKEN)"
+          TW_FROM="$(get VOICE-FROM-NUMBER)"
+          TW_TO="$(get SMS-TEST-NUMBER)"
+          for v in "$ANTHROPIC" "$DEEPGRAM" "$TW_SID" "$TW_TOKEN" "$TW_FROM" "$TW_TO"; do
+            [ -n "$v" ] && echo "::add-mask::$v" || true
+          done
+          {
+            echo "anthropic=$ANTHROPIC"
+            echo "deepgram=$DEEPGRAM"
+            echo "tw_sid=$TW_SID"
+            echo "tw_token=$TW_TOKEN"
+            echo "tw_from=$TW_FROM"
+            echo "tw_to=$TW_TO"
+            echo "has_anthropic=$([ -n "$ANTHROPIC" ] && echo yes || echo no)"
+            echo "has_deepgram=$([ -n "$DEEPGRAM" ] && echo yes || echo no)"
+            echo "has_twilio=$([ -n "$TW_SID" ] && [ -n "$TW_TOKEN" ] && echo yes || echo no)"
+            echo "has_from=$([ -n "$TW_FROM" ] && echo yes || echo no)"
+            echo "has_to=$([ -n "$TW_TO" ] && echo yes || echo no)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Secret readiness report
+        run: |
+          echo "ANTHROPIC-API-KEY:  ${{ steps.kv.outputs.has_anthropic }}"
+          echo "DEEPGRAM-API-KEY:   ${{ steps.kv.outputs.has_deepgram }}  (owner-gated; add to unlock live STT/TTS)"
+          echo "TWILIO creds:       ${{ steps.kv.outputs.has_twilio }}"
+          echo "VOICE-FROM-NUMBER:  ${{ steps.kv.outputs.has_from }}  (Voice-capable sender for outbound calls)"
+          echo "SMS-TEST-NUMBER:    ${{ steps.kv.outputs.has_to }}  (owner demo destination)"
+
+      - name: Install cloudflared
+        if: inputs.mode != 'synthetic-call'
+        run: |
+          curl -fsSL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o /usr/local/bin/cloudflared
+          chmod +x /usr/local/bin/cloudflared
+          cloudflared --version
+
+      # ── preflight: prove the tunnel + TwiML plumbing, no Deepgram, no answer ──
+      - name: Preflight (tunnel + TwiML plumbing)
+        if: inputs.mode == 'preflight'
+        env:
+          DEEPGRAM_API_KEY: preflight-no-key
+          ANTHROPIC_API_KEY: ${{ steps.kv.outputs.anthropic }}
+        run: |
+          set -euo pipefail
+          PORT=8080 node apps/voice/dist/server.js &
+          SERVER_PID=$!
+          cloudflared tunnel --url http://localhost:8080 --no-autoupdate > cf.log 2>&1 &
+          CF_PID=$!
+          # Wait for the quick-tunnel URL to appear.
+          HOST=""
+          for i in $(seq 1 30); do
+            HOST="$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' cf.log | head -1 || true)"
+            [ -n "$HOST" ] && break
+            sleep 2
+          done
+          if [ -z "$HOST" ]; then echo "::error::tunnel URL never appeared"; cat cf.log; exit 1; fi
+          echo "tunnel up (host masked)"; echo "::add-mask::$HOST"
+          # The fresh *.trycloudflare.com hostname needs a moment to propagate to
+          # the runner's resolver — retry so a DNS race can't fail preflight.
+          echo "GET /health via tunnel (with retry for DNS propagation):"
+          health=""
+          for i in $(seq 1 15); do
+            health="$(curl -fsS --max-time 5 "$HOST/health" 2>/dev/null || true)"
+            [ -n "$health" ] && break
+            sleep 2
+          done
+          if [ -z "$health" ]; then echo "::error::tunnel never became reachable"; cat cf.log; exit 1; fi
+          echo "$health" | grep -q '"ok":true'
+          echo ""
+          echo "POST /twiml returns a <Stream> pointing at the wss media endpoint:"
+          curl -fsS --retry 3 --retry-all-errors -X POST "$HOST/twiml" | grep -q '<Stream url="wss://' && echo "  TwiML OK — Twilio would bridge audio to /media"
+          kill "$SERVER_PID" "$CF_PID" 2>/dev/null || true
+          echo "PREFLIGHT PASS: runner reachable from the public internet; TwiML plumbing valid."
+
+      # ── synthetic-call: >=20 turns, live-brain if Deepgram present ─────────────
+      - name: Synthetic call (scripted caller, >=20 turns)
+        if: inputs.mode == 'synthetic-call'
+        env:
+          ANTHROPIC_API_KEY: ${{ steps.kv.outputs.anthropic }}
+          DEEPGRAM_API_KEY: ${{ steps.kv.outputs.deepgram }}
+          METRICS_OUT: ./metrics.json
+          TURNS: "22"
+        run: |
+          node apps/voice/dist/run-synthetic.js
+          echo "----- metrics.json -----"
+          cat metrics.json
+          echo "----- persistence taste-test (dry run) -----"
+          METRICS_IN=./metrics.json node apps/voice/dist/persist.js
+
+      # ── demo-call: one real outbound call to the owner test number ────────────
+      - name: Demo call (one real outbound call, recorded)
+        if: inputs.mode == 'demo-call'
+        env:
+          DEEPGRAM_API_KEY: ${{ steps.kv.outputs.deepgram }}
+          ANTHROPIC_API_KEY: ${{ steps.kv.outputs.anthropic }}
+          TWILIO_ACCOUNT_SID: ${{ steps.kv.outputs.tw_sid }}
+          TWILIO_AUTH_TOKEN: ${{ steps.kv.outputs.tw_token }}
+          TWILIO_FROM: ${{ steps.kv.outputs.tw_from }}
+          TWILIO_TO: ${{ steps.kv.outputs.tw_to }}
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.kv.outputs.has_deepgram }}" != "yes" ]; then
+            echo "::error::DEEPGRAM-API-KEY missing — add it to Key Vault before a live demo call."; exit 1
+          fi
+          if [ "${{ steps.kv.outputs.has_from }}" != "yes" ] || [ "${{ steps.kv.outputs.has_to }}" != "yes" ]; then
+            echo "::error::VOICE-FROM-NUMBER and/or SMS-TEST-NUMBER missing."; exit 1
+          fi
+          # Tunnel first — it prints the URL even before the server is up.
+          cloudflared tunnel --url http://localhost:8080 --no-autoupdate > cf.log 2>&1 &
+          HOST=""
+          for i in $(seq 1 30); do
+            HOST="$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' cf.log | head -1 || true)"
+            [ -n "$HOST" ] && break; sleep 2
+          done
+          [ -n "$HOST" ] || { echo "::error::no tunnel"; cat cf.log; exit 1; }
+          echo "::add-mask::$HOST"
+          # Start the server once, with the real public host in its TwiML.
+          PORT=8080 PUBLIC_HOST="${HOST#https://}" METRICS_OUT=./metrics.json node apps/voice/dist/server.js &
+          sleep 3
+          PUBLIC_URL="$HOST" node apps/voice/dist/place-call.js
+          echo "call placed; holding to let the conversation run..."
+          sleep 90
+          echo "----- metrics.json -----"; cat metrics.json 2>/dev/null || echo "(no metrics — call may not have connected)"
+
+      - name: Upload artifacts (metrics + tunnel log)
+        if: always() && inputs.mode != 'preflight'
+        uses: actions/upload-artifact@v4
+        with:
+          name: voice-spike-${{ inputs.mode }}
+          path: |
+            metrics.json
+            cf.log
+          if-no-files-found: ignore

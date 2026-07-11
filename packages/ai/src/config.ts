@@ -41,11 +41,16 @@ export function loadConfig(overrides: Partial<AiConfig> = {}): AiConfig {
       planner: env("AI_MODEL_PLANNER") ?? "claude-opus-4-8",
       copy: env("AI_MODEL_COPY") ?? "claude-sonnet-5",
       classify: env("AI_MODEL_CLASSIFY") ?? "claude-sonnet-5",
+      // Voice is latency-bound (time-to-first-token gates time-to-first-audio),
+      // so it routes to the fastest tier by default (P3.0 spike).
+      voice: env("AI_MODEL_VOICE") ?? "claude-haiku-4-5",
     },
     maxTokens: {
       planner: envInt("AI_MAX_TOKENS_PLANNER", 8192),
       copy: envInt("AI_MAX_TOKENS_COPY", 2048),
       classify: envInt("AI_MAX_TOKENS_CLASSIFY", 1024),
+      // Spoken replies must stay short — ~2 sentences ≈ well under 300 tokens.
+      voice: envInt("AI_MAX_TOKENS_VOICE", 300),
     },
     timeoutMs: envInt("AI_TIMEOUT_MS", 60_000),
     maxRetries: envInt("AI_MAX_RETRIES", 3),
@@ -56,6 +61,7 @@ export function loadConfig(overrides: Partial<AiConfig> = {}): AiConfig {
     prices: {
       "claude-opus-4-8": { input: 15, output: 75 },
       "claude-sonnet-5": { input: 3, output: 15 },
+      "claude-haiku-4-5": { input: 1, output: 5 },
       "text-embedding-3-large": { input: 0.13, output: 0 },
     },
   };

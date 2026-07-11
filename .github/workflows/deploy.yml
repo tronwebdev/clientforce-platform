@@ -141,6 +141,13 @@ jobs:
           if [ "$twilio" = false ]; then
             echo "Twilio secrets not (fully) in Key Vault — SMS transport stays unconfigured (P2.1 owner step)."
           fi
+          # DEC-067: the SMS allow-list rides Key Vault (numbers never in the repo).
+          if az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name SMS-ALLOWLIST --query id -o tsv >/dev/null 2>&1; then
+            smsAllowlist=true
+          else
+            smsAllowlist=false
+            echo "SMS-ALLOWLIST not in Key Vault — no live SMS recipients anywhere (DEC-063)."
+          fi
           az deployment group create \
             --resource-group "$RG" \
             --template-file infra/main.bicep \
@@ -156,7 +163,8 @@ jobs:
               inboundTokenAvailable="$inboundToken" \
               sgWebhookKeyAvailable="$sgWebhookKey" \
               clerkSecretsAvailable="$clerk" \
-              twilioSecretsAvailable="$twilio"
+              twilioSecretsAvailable="$twilio" \
+              smsAllowlistAvailable="$smsAllowlist"
 
       # ── Expose the deployed web FQDN for the e2e job ──
       - name: Resolve web FQDN

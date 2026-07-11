@@ -51,8 +51,8 @@ param twilioSecretsAvailable bool = false
 @description('Twilio SMS sandbox (P2.1/DEC-061, same discipline as SENDGRID_SANDBOX): \'true\' everywhere by default; only an explicit production parameter flips it.')
 param smsSandbox string = 'true'
 
-@description('DEC-063: comma-separated E.164 allow-list for SMS recipients. Empty = no live SMS recipients anywhere; the owner\'s test number lands here in a logged DEC.')
-param smsAllowlist string = ''
+@description('DEC-063/067: whether Key Vault holds SMS-ALLOWLIST (comma-separated E.164 SMS recipients — phone numbers never live in this public repo). Probed by the pipeline; absent = no live SMS recipients anywhere.')
+param smsAllowlistAvailable bool = false
 
 param apiAppName string = 'clientforce-api'
 param workerAppName string = 'clientforce-worker'
@@ -158,10 +158,13 @@ var twilioEnv = twilioSecretsAvailable ? [
   { name: 'TWILIO_ACCOUNT_SID', secretRef: 'twilio-account-sid' }
   { name: 'TWILIO_AUTH_TOKEN', secretRef: 'twilio-auth-token' }
 ] : []
-var smsEnv = [
-  { name: 'SMS_SANDBOX', value: smsSandbox }
-  { name: 'CHANNELS_SMS_ALLOWLIST', value: smsAllowlist }
-]
+// DEC-067: the allow-list rides Key Vault (numbers never live in the repo).
+var smsAllowlistSecret = { name: 'sms-allowlist', keyVaultUrl: '${kvUri}secrets/SMS-ALLOWLIST', identity: uami.id }
+var smsAllowlistSecrets = smsAllowlistAvailable ? [smsAllowlistSecret] : []
+var smsEnv = concat(
+  [{ name: 'SMS_SANDBOX', value: smsSandbox }],
+  smsAllowlistAvailable ? [{ name: 'CHANNELS_SMS_ALLOWLIST', secretRef: 'sms-allowlist' }] : [],
+)
 
 // ── API (NestJS) — external ingress :3001 ───────────────────────────────────
 resource api 'Microsoft.App/containerApps@2024-03-01' = {
@@ -175,7 +178,7 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
       activeRevisionsMode: 'Single'
       ingress: { external: true, targetPort: 3001, transport: 'auto', allowInsecure: false }
       registries: registries
-      secrets: concat([dbUrlSecret, appDbUrlSecret, authDevSecret, redisUrlSecret, openaiKeySecret, anthropicKeySecret, sendgridKeySecret, fieldEncKeySecret], storageSecrets, temporalSecrets, inboundTokenSecrets, sgWebhookKeySecrets, clerkApiSecrets, twilioSecrets)
+      secrets: concat([dbUrlSecret, appDbUrlSecret, authDevSecret, redisUrlSecret, openaiKeySecret, anthropicKeySecret, sendgridKeySecret, fieldEncKeySecret], storageSecrets, temporalSecrets, inboundTokenSecrets, sgWebhookKeySecrets, clerkApiSecrets, twilioSecrets, smsAllowlistSecrets)
     }
     template: {
       containers: [
@@ -222,7 +225,7 @@ resource worker 'Microsoft.App/containerApps@2024-03-01' = {
     configuration: {
       activeRevisionsMode: 'Single'
       registries: registries
-      secrets: concat([dbUrlSecret, appDbUrlSecret, redisUrlSecret, openaiKeySecret, anthropicKeySecret, sendgridKeySecret, fieldEncKeySecret], storageSecrets, temporalSecrets, twilioSecrets)
+      secrets: concat([dbUrlSecret, appDbUrlSecret, redisUrlSecret, openaiKeySecret, anthropicKeySecret, sendgridKeySecret, fieldEncKeySecret], storageSecrets, temporalSecrets, twilioSecrets, smsAllowlistSecrets)
     }
     template: {
       containers: [

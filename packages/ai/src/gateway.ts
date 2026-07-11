@@ -8,6 +8,7 @@ import {
   StructuredOutputError,
   type AiTask,
   type CompleteRequest,
+  type StreamVoiceRequest,
   type TokenUsage,
   type UsageHook,
 } from "./types";
@@ -127,6 +128,62 @@ export class AiGateway {
     const reparsed = schema.safeParse(repaired.value);
     if (reparsed.success) return reparsed.data;
     throw new StructuredOutputError(reparsed.error.issues, repaired.value);
+  }
+
+  /**
+   * Streaming completion for the real-time voice loop (P3.0 spike). Yields
+   * text deltas as the model produces them. Unlike complete(), there are NO
+   * retries and no whole-request timeout: a half-spoken sentence can't be
+   * replayed, and turn latency is the caller's own metric — the caller owns
+   * recovery (apology line, re-prompt) and cancellation (abort the signal on
+   * barge-in). Usage is recorded through the same hook once the stream
+   * settles, so the cost log stays complete even on abort/error.
+   */
+  async *streamVoice(request: StreamVoiceRequest): AsyncIterable<string> {
+    const streamText = this.provider.streamText?.bind(this.provider);
+    if (!streamText) {
+      throw new AiProviderError("Provider does not support streaming", undefined, false);
+    }
+    const model = this.config.models.voice;
+    const started = Date.now();
+    const usage: TokenUsage = { inputTokens: 0, outputTokens: 0 };
+    let outcome: "ok" | "error" = "ok";
+    const controller = new AbortController();
+    const onCallerAbort = () => controller.abort();
+    request.signal?.addEventListener("abort", onCallerAbort, { once: true });
+    if (request.signal?.aborted) controller.abort();
+    try {
+      const stream = streamText({
+        model,
+        system: request.system,
+        turns: request.turns,
+        maxTokens: request.maxTokens ?? this.config.maxTokens.voice,
+        temperature: request.temperature,
+        signal: controller.signal,
+      });
+      for await (const event of stream) {
+        if (event.type === "delta") {
+          yield event.text;
+        } else {
+          usage.inputTokens += event.usage.inputTokens;
+          usage.outputTokens += event.usage.outputTokens;
+        }
+      }
+    } catch (err) {
+      outcome = "error";
+      throw err;
+    } finally {
+      request.signal?.removeEventListener("abort", onCallerAbort);
+      this.onUsage({
+        task: "voice",
+        model,
+        latencyMs: Date.now() - started,
+        usage,
+        estimatedCostUsd: estimateCostUsd(this.config, model, usage),
+        retries: 0,
+        outcome,
+      });
+    }
   }
 
   /** Embeddings at the pinned model + dimensions (1536 → hnsw-indexable). */

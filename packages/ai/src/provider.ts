@@ -38,6 +38,19 @@ export interface ToolResult {
   usage: TokenUsage;
 }
 
+/** Parameters for a streaming multi-turn completion (the `voice` route). */
+export interface StreamParams {
+  model: string;
+  system?: string;
+  turns: Array<{ role: "user" | "assistant"; content: string }>;
+  maxTokens: number;
+  temperature?: number;
+  signal: AbortSignal;
+}
+
+/** Events yielded by a streaming completion, in order; `done` is always last. */
+export type StreamEvent = { type: "delta"; text: string } | { type: "done"; usage: TokenUsage };
+
 /**
  * The seam the gateway talks through. Production = `AnthropicProvider`;
  * tests inject a mock — no network in CI, ever.
@@ -45,6 +58,8 @@ export interface ToolResult {
 export interface CompletionProvider {
   completeText(params: TextParams): Promise<TextResult>;
   completeTool(params: ToolParams): Promise<ToolResult>;
+  /** Optional — only the voice route streams (P3.0 spike). */
+  streamText?(params: StreamParams): AsyncIterable<StreamEvent>;
 }
 
 export interface EmbeddingsProvider {
