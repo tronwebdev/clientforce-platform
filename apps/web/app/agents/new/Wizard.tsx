@@ -10,6 +10,8 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "rea
 // B9: the wizard's "＋ Add sender" opens the same connect flow Settings uses —
 // the prototype's binding is `openAddEmail: () => connectChannel('email')`.
 import { ConnectFlowDrawer } from "../../(shell)/settings/shared";
+import { branchWhenLabel, intentTint } from "../../../lib/intents";
+import { mainPath, mainSteps, replyBranchOf, strategyStepsOf } from "../../../lib/graph-path";
 import { BUSINESS_CATEGORIES, CONTEXT_FIELD_META, customTokensMissingFallback, GOAL_KEYS, goalTerminalLabel, requiredFieldsFor, type GoalKey } from "@clientforce/core";
 import type { CampaignGraph, ContactFieldDefDto, DraftState, GraphNode } from "@clientforce/core";
 
@@ -595,9 +597,15 @@ export function Wizard() {
     return [...bySource.entries()].map(([id, v]) => ({ id, ...v }));
   }, [fields]);
 
+  // M1b (DEC-068): strategy steps are branch targets, not sequence steps —
+  // the drawer header names their intent instead of a bogus "Step N".
   const editStepIndex = useMemo(() => {
     if (!graph || !editNode) return 0;
-    return graph.nodes.filter((n) => n.type === "step").findIndex((n) => n.id === editNode.id) + 1;
+    return mainSteps(graph).findIndex((n) => n.id === editNode.id) + 1;
+  }, [graph, editNode]);
+  const editStrategyIntent = useMemo(() => {
+    if (!graph || !editNode) return null;
+    return strategyStepsOf(graph).find((s) => s.step.id === editNode.id)?.intent ?? null;
   }, [graph, editNode]);
 
   const branchCases = useMemo(() => {
@@ -1007,16 +1015,24 @@ export function Wizard() {
     }, 3000);
   }
 
-  /** + Add step: append delay + empty email step before the reply branch (MANUAL version). */
+  /** + Add step: append delay + empty email step before the reply branch (MANUAL version).
+   *  M1b: `last` walks the MAIN PATH — on a v4 graph the last node in the
+   *  step-filter is a reply-STRATEGY step (its edge goes to an end/branch
+   *  rejoin), and splicing after it would give the real last main step two
+   *  outgoing edges — an invalid graph. */
   async function addStep() {
     if (!graph || !agentId) return;
-    const steps = graph.nodes.filter((n) => n.type === "step");
+    const branch = replyBranchOf(graph) ?? graph.nodes.find((x) => x.type === "branch");
+    const pathToBranch = mainPath(graph);
+    const branchAt = branch ? pathToBranch.findIndex((x) => x.id === branch.id) : -1;
+    const steps = (branchAt >= 0 ? pathToBranch.slice(0, branchAt) : pathToBranch).filter(
+      (x) => x.type === "step",
+    );
     const last = steps[steps.length - 1];
     if (!last) return;
-    const n = steps.length + 1;
+    const n = mainSteps(graph).length + 1;
     const delayId = `delay-added-${n}`;
     const stepId = `step-added-${n}`;
-    const branch = graph.nodes.find((x) => x.type === "branch");
     const updated: CampaignGraph = {
       ...graph,
       nodes: [
@@ -1131,7 +1147,7 @@ export function Wizard() {
     setLimitsOpen(false);
   }
 
-  const stepCount = graph ? graph.nodes.filter((n) => n.type === "step").length : 0;
+  const stepCount = graph ? mainSteps(graph).length : 0;
 
   // ── deploying overlay (prototype: dark, spinner) ─────────────────────────
   if (deploying) {
@@ -1331,9 +1347,12 @@ export function Wizard() {
                       <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600, color: "#0E1512", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 11, padding: "9px 15px" }}>🕐 Mon–Fri · {parseInt(windowStart, 10)}–{parseInt(windowEnd, 10)} · {tzShort(timezone)} <span style={{ color: "#9AA59E" }}>⌄</span></span>
                       <span onClick={() => void regenerate()} style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 700, color: "#16A82A", background: "rgba(53,232,52,.1)", border: "1px solid rgba(53,232,52,.3)", borderRadius: 11, padding: "9px 15px", cursor: "pointer" }} data-testid="regenerate">✦ Regenerate with AI</span>
                     </div>
-                    {graph.nodes.map((n) => {
+                    {/* M1b (DEC-068): the sequence lists the MAIN PATH — reply-
+                        strategy steps live in their own section below (they
+                        belong to the branch, not the sequence). */}
+                    {mainPath(graph).map((n) => {
                       if (n.type === "step") {
-                        const idx = graph.nodes.filter((x) => x.type === "step").indexOf(n) + 1;
+                        const idx = mainSteps(graph).indexOf(n) + 1;
                         return (
                           <div key={n.id} style={{ display: "flex", gap: 14, alignItems: "flex-start" }} data-testid="seq-step">
                             {/* P2.1 (DEC-061, §3 amendment): ChannelChip anatomy — sms
@@ -1366,6 +1385,29 @@ export function Wizard() {
                       <span style={{ width: 2, height: 24, background: "#D8CFBE", marginLeft: 17, flex: "none" }} />
                       <span onClick={() => void addStep()} style={{ fontSize: 14, fontWeight: 600, color: "#16A82A", background: "#fff", border: "1.5px dashed #9FD8AC", borderRadius: 11, padding: "10px 18px", cursor: "pointer" }} data-testid="add-step">+ Add step</span>
                     </div>
+                    {/* M1b: reply-strategy steps — editable like sequence steps,
+                        labeled by their intent (designed grouping, flagged). */}
+                    {strategyStepsOf(graph).length > 0 ? (
+                      <>
+                        <div style={{ fontSize: 11.5, fontWeight: 700, color: "#8A7F6B", letterSpacing: ".07em", textTransform: "uppercase", margin: "26px 0 12px" }}>Reply strategies · sent when a reply classifies</div>
+                        {strategyStepsOf(graph).map(({ intent, step: sNode }) => {
+                          const tint = intentTint(intent);
+                          return (
+                            <div key={sNode.id} style={{ display: "flex", gap: 14, alignItems: "flex-start" }} data-testid="strategy-step">
+                              <span style={{ width: 38, height: 38, borderRadius: 11, flex: "none", background: tint.bg, color: tint.fg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, fontWeight: 700 }}>↩</span>
+                              <div onClick={() => { setEditNode(sNode); setEditSubject(sNode.content.subject ?? ""); setEditBody(sNode.content.body ?? ""); }} style={{ flex: 1, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 14, padding: "16px 18px", boxShadow: "0 4px 16px rgba(14,21,18,.04)", cursor: "pointer", marginBottom: 10 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: tint.fg }}>{tint.label}</span>
+                                  <span style={{ fontSize: 12, fontWeight: 700, borderRadius: 8, padding: "3px 10px", background: "rgba(53,232,52,.13)", color: "#16A82A" }}>Email · threaded</span>
+                                  <span style={{ marginLeft: "auto", fontSize: 13, color: "#9AA59E" }}>✎ Edit</span>
+                                </div>
+                                <div style={{ fontSize: 14, color: "#5C6B62", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{sNode.content.body}</div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </>
+                    ) : null}
                     <div style={{ fontSize: 12, color: "#9AA59E", textAlign: "center", marginTop: 14 }}>Graph v{graphVersion} · {graphSource === "MANUAL" ? "edited — new version saved (MANUAL)" : "AI-planned"}</div>
                   </div>
                 ) : (
@@ -1377,13 +1419,13 @@ export function Wizard() {
                       <div style={{ background: "#0C140F", borderRadius: 14, padding: "18px 20px" }}>
                         <div style={{ display: "flex", alignItems: "center", marginBottom: 14 }}>
                           <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: 12, fontWeight: 700, color: "#7FE8A0", textTransform: "uppercase", letterSpacing: ".08em" }}>Main sequence · {graph.nodes.filter((x) => x.type === "step").length} steps</div>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: "#7FE8A0", textTransform: "uppercase", letterSpacing: ".08em" }}>Main sequence · {mainSteps(graph).length} steps</div>
                             <div style={{ fontSize: 11.5, color: "rgba(255,255,255,.4)", marginTop: 2 }}>{added.length ? `${added.length} contact${added.length === 1 ? "" : "s"} enroll at launch` : "Contacts enroll at launch"} · Draft</div>
                           </div>
                           <span onClick={() => setSeqView("sequence")} style={{ fontSize: 11.5, fontWeight: 700, color: "#0A0F0C", background: "#7FE8A0", borderRadius: 8, padding: "4px 11px", cursor: "pointer" }}>View steps</span>
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: 6, overflowX: "auto", paddingBottom: 2 }}>
-                          {graph.nodes.filter((x) => x.type === "step").map((s, i, arr) => (
+                          {mainSteps(graph).map((s, i, arr) => (
                             <Fragment key={s.id}>
                               <div style={{ flex: "none", background: "rgba(255,255,255,.09)", borderRadius: 9, padding: "6px 11px", fontSize: 12, fontWeight: 600, color: "#fff", whiteSpace: "nowrap" }}>{s.type === "step" && s.channel === "sms" ? "💬 SMS" : `✉ ${s.type === "step" ? (s.content.subject ?? "") : ""}`}</div>
                               {i < arr.length - 1 ? <span style={{ color: "rgba(255,255,255,.25)", fontSize: 11, flex: "none" }}>→</span> : null}
@@ -1395,12 +1437,29 @@ export function Wizard() {
                     <div>
                       <div style={{ fontSize: 11.5, fontWeight: 700, color: "#8A7F6B", letterSpacing: ".07em", textTransform: "uppercase", marginBottom: 12 }}>Reply branch</div>
                       <div style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 14, overflow: "hidden", boxShadow: "0 4px 16px rgba(14,21,18,.04)" }}>
-                        {branchCases.map((c, i) => (
-                          <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", borderTop: i ? "1px solid #F2EEE4" : "none" }} data-testid="branch-rule">
-                            <span style={{ fontSize: 13, color: "#0E1512", flex: 1 }}>{c.when === "default" ? "Any other reply" : `Reply classified “${c.when.intent}”`}</span>
-                            <span style={{ fontSize: 12, fontWeight: 700, borderRadius: 8, padding: "4px 11px", background: c.when === "default" ? "#F2EEE4" : "#D7F5DD", color: c.when === "default" ? "#8A7F6B" : "#16A82A" }}>→ {c.goto === "end-won" ? "Mark interested — hand to you" : c.goto === "end-lost" ? "End sequence" : c.goto}</span>
-                          </div>
-                        ))}
+                        {branchCases.map((c, i) => {
+                          // M1b (DEC-068): when-labels come from the ONE intent
+                          // vocabulary (verbatim fallback for unknown values);
+                          // goto pills resolve the target node — a strategy
+                          // step renders its subject, raw node ids never show.
+                          const target = graph?.nodes.find((n) => n.id === c.goto);
+                          const gotoLabel =
+                            !target || target.type === "end"
+                              ? c.goto === "end-won"
+                                ? "Mark interested — hand to you"
+                                : "End sequence"
+                              : target.type === "step"
+                                ? `Send “${(target.content.subject?.trim() || target.content.body?.trim() || "reply").slice(0, 34)}${(target.content.subject?.trim() || target.content.body?.trim() || "").length > 34 ? "…" : ""}”`
+                                : target.type === "action"
+                                  ? target.action.replaceAll("_", " ")
+                                  : c.goto;
+                          return (
+                            <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", borderTop: i ? "1px solid #F2EEE4" : "none" }} data-testid="branch-rule">
+                              <span style={{ fontSize: 13, color: "#0E1512", flex: 1 }}>{branchWhenLabel(c.when)}</span>
+                              <span style={{ fontSize: 12, fontWeight: 700, borderRadius: 8, padding: "4px 11px", background: c.when === "default" ? "#F2EEE4" : "#D7F5DD", color: c.when === "default" ? "#8A7F6B" : "#16A82A", flex: "none" }}>→ {gotoLabel}</span>
+                            </div>
+                          );
+                        })}
                       </div>
                       <div style={{ fontSize: 12, color: "#9AA59E", marginTop: 10 }}>Replies are classified by intent (P1.7) — the branch fires the moment a lead answers.</div>
                     </div>
@@ -1689,7 +1748,7 @@ export function Wizard() {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 18 }}>
               {[
                 { label: "Goal", value: GOALS.find((g) => g.key === goal)?.title ?? "—" },
-                { label: "Sequence", value: graph ? `${graph.nodes.filter((n) => n.type === "step").length} steps · reply branch` : "—" },
+                { label: "Sequence", value: graph ? `${mainSteps(graph).length} steps · ${strategyStepsOf(graph).length ? `${strategyStepsOf(graph).length} reply strategies` : "reply branch"}` : "—" },
                 { label: "Contacts", value: pickedList ? `${added.length + pickedList.memberCount} enrolled at launch (incl. “${pickedList.name}”)` : `${added.length} enrolled at launch` },
                 { label: "Lead capture", value: capture.widget || capture.form ? "Enabled" : "Off (optional)" },
               ].map((c) => (
@@ -1721,7 +1780,7 @@ export function Wizard() {
               <span style={{ width: 40, height: 40, borderRadius: 12, flex: "none", background: "rgba(53,232,52,.16)", color: "#16A82A", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 19, fontWeight: 700 }}>✉</span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "#8A7F6B" }}>Step {editStepIndex}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "#8A7F6B" }}>{editStrategyIntent ? `${intentTint(editStrategyIntent).label} reply` : `Step ${editStepIndex}`}</span>
                   <span style={{ fontSize: 12, fontWeight: 700, borderRadius: 8, padding: "2px 9px", background: "rgba(53,232,52,.13)", color: "#16A82A" }}>Email</span>
                 </div>
                 <div style={{ fontSize: 16, fontWeight: 700, color: "#0E1512", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{editSubject || "Untitled step"}</div>
@@ -2004,9 +2063,9 @@ function BuildingScreen({ progress, sources, fields, graph, planFailed, onRetry,
   const pct = `${Math.round((bp / BSTEPS.length) * 100)}%`;
   const ready = sources.filter((s) => s.status === "READY").length;
   const fieldVal = (k: string) => fields[k]?.value;
-  const stepCount = graph ? graph.nodes.filter((n) => n.type === "step").length : 0;
+  const stepCount = graph ? mainSteps(graph).length : 0;
   const waitDays = graph
-    ? graph.nodes.reduce((acc, n) => (n.type === "delay" ? acc + (n.unit === "days" ? n.amount : 0) : acc), 0)
+    ? mainPath(graph).reduce((acc, n) => (n.type === "delay" ? acc + (n.unit === "days" ? n.amount : 0) : acc), 0)
     : 0;
   // "What we found" — same panel, live values (no invented metrics).
   const discovered = [

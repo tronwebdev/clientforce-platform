@@ -134,9 +134,26 @@ export function validateGraph(input: unknown): CampaignGraph {
 
   for (const node of graph.nodes) {
     if (node.type === "branch") {
+      // M1b (DEC-068): cases are KEYED by intent — a duplicate intent (or a
+      // second default) makes routing ambiguous; rejected loudly.
+      const seenIntents = new Set<string>();
+      let defaults = 0;
       for (const c of node.cases) {
         if (!ids.has(c.goto)) {
           throw new GraphValidationError(`branch "${node.id}" case goto "${c.goto}" is unknown`);
+        }
+        if (c.when === "default") {
+          defaults += 1;
+          if (defaults > 1) {
+            throw new GraphValidationError(`branch "${node.id}" has more than one default case`);
+          }
+        } else {
+          if (seenIntents.has(c.when.intent)) {
+            throw new GraphValidationError(
+              `branch "${node.id}" has duplicate cases for intent "${c.when.intent}"`,
+            );
+          }
+          seenIntents.add(c.when.intent);
         }
       }
       continue; // branches route via cases, not edges

@@ -7,6 +7,8 @@
  * cards carry no stat chips — §0 convention addition, flagged).
  */
 import type { AgentViewData } from "./AgentView";
+import { intentTint } from "./shared";
+import { mainPath, mainSteps, strategyStepsOf } from "../../../../../lib/graph-path";
 
 export function StepsTab({ view }: { view: AgentViewData | null }) {
   if (!view) {
@@ -34,7 +36,10 @@ export function StepsTab({ view }: { view: AgentViewData | null }) {
       </div>
     );
   }
-  const steps = graph.nodes.filter((n) => n.type === "step");
+  // M1b (DEC-068): the tab lists the MAIN PATH — reply-strategy steps render
+  // in their own group below (they belong to the branch, not the sequence).
+  const steps = mainSteps(graph);
+  const strategies = strategyStepsOf(graph);
   const w = view.guardrails?.sendingWindow;
   const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   const days = w ? `${dayNames[(w.days[0] ?? 1) - 1]}–${dayNames[(w.days[w.days.length - 1] ?? 5) - 1]}` : "Mon–Fri";
@@ -51,7 +56,7 @@ export function StepsTab({ view }: { view: AgentViewData | null }) {
         </span>
       </div>
 
-      {graph.nodes.map((n) => {
+      {mainPath(graph).map((n) => {
         if (n.type === "delay") {
           return (
             <div key={n.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "4px 0 4px 26px" }}>
@@ -88,13 +93,42 @@ export function StepsTab({ view }: { view: AgentViewData | null }) {
             <div key={n.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 0 4px 26px" }}>
               <span style={{ width: 2, height: 24, background: "#D8CFBE", marginLeft: 17, flex: "none" }} />
               <span style={{ display: "inline-flex", alignItems: "center", gap: 7, border: "1px solid rgba(54,215,237,.4)", borderRadius: 100, background: "rgba(54,215,237,.08)", padding: "5px 14px", fontSize: 12.5, fontWeight: 600, color: "#1192A6" }} data-testid="step-branch">
-                ⎇ on reply → {n.cases.map((c) => (c.when === "default" ? "default" : c.when.intent)).join(" · ")}
+                {/* M1b (DEC-068): vocabulary labels, verbatim fallback for unknown intents */}
+                ⎇ on reply → {n.cases.map((c) => (c.when === "default" ? "default" : intentTint(c.when.intent).label)).join(" · ")}
               </span>
             </div>
           );
         }
         return null;
       })}
+      {/* M1b (DEC-068): reply-strategy steps — grouped under the branch they
+          belong to, labeled by intent (designed grouping, flagged). */}
+      {strategies.length > 0 ? (
+        <>
+          <div style={{ fontSize: 11.5, fontWeight: 700, color: "#8A7F6B", letterSpacing: ".07em", textTransform: "uppercase", margin: "24px 0 12px" }} data-testid="strategy-group">
+            Reply strategies · sent when a reply classifies
+          </div>
+          {strategies.map(({ intent, step: sNode }) => {
+            const tint = intentTint(intent);
+            const stats = view.perStep[sNode.id];
+            return (
+              <div key={sNode.id} style={{ display: "flex", gap: 14, alignItems: "flex-start", marginBottom: 10 }} data-testid="strategy-step-card">
+                <span style={{ width: 38, height: 38, borderRadius: 11, flex: "none", background: tint.bg, color: tint.fg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, fontWeight: 700 }}>↩</span>
+                <div style={{ flex: 1, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 14, padding: "15px 18px", boxShadow: "0 4px 16px rgba(14,21,18,.04)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", color: tint.fg }}>{tint.label}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, borderRadius: 8, padding: "3px 10px", background: "rgba(53,232,52,.13)", color: "#16A82A" }}>Email · threaded</span>
+                    <span style={{ marginLeft: "auto", fontSize: 12, color: "#9AA59E" }} data-testid="strategy-step-stats">
+                      {stats ? `${stats.sent} sent · ${stats.replies} repl${stats.replies === 1 ? "y" : "ies"}` : "0 sent"}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 13.5, color: "#5C6B62", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{sNode.content.body}</div>
+                </div>
+              </div>
+            );
+          })}
+        </>
+      ) : null}
       <div style={{ fontSize: 12, color: "#9AA59E", marginTop: 16, paddingLeft: 48 }}>
         Graph v{view.graphVersion ?? "—"} · {view.graphSource === "MANUAL" ? "manually edited" : "AI-planned"} — editing lives in the Create Agent wizard this phase.
       </div>

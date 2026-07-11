@@ -9,6 +9,8 @@ import {
   parseGuardrails,
   selectStrategy,
   validateGraph,
+  type BranchCase,
+  type BranchNode,
   type CampaignGraph,
   type ContextFieldKey,
   type ContextFields,
@@ -16,6 +18,7 @@ import {
   type StepNode,
   type StrategyBlock,
 } from "@clientforce/core";
+import { IntentSchema, type Intent } from "@clientforce/events";
 import {
   withTenant,
   type Campaign,
@@ -190,6 +193,21 @@ export async function planCampaign(deps: PlanDeps, target: PlanTarget): Promise<
   return { campaign, graphRow, graph, dryRun };
 }
 
+/**
+ * M1b (DEC-068): the six reply-strategy intents every GENERATED graph's reply
+ * branch must case, with the stage pin each case must carry (the acceptance
+ * contract — interested closes as goal-met, not_interested closes as lost
+ * WITHOUT suppression, everything else records the conversation).
+ */
+export const REQUIRED_BRANCH_INTENTS: ReadonlyArray<{ intent: Intent; pipeline: string }> = [
+  { intent: "interested", pipeline: "booked" },
+  { intent: "objection_price", pipeline: "replied" },
+  { intent: "objection_timing", pipeline: "replied" },
+  { intent: "wrong_person", pipeline: "replied" },
+  { intent: "info_request", pipeline: "replied" },
+  { intent: "not_interested", pipeline: "lost" },
+];
+
 /** Shape + T4 semantics + P1.4 slice requirements, as one gate.
  *  P2.1 (DEC-061): `allowedChannels` widens per workspace capability — sms
  *  joins ONLY when an active Twilio sender exists (default stays email-only).
@@ -197,7 +215,13 @@ export async function planCampaign(deps: PlanDeps, target: PlanTarget): Promise<
  *  the prompt bans the strings, this gate PROVES they're absent (violation →
  *  the caller's bounded repair round-trip → typed failure). Manual edits via
  *  PUT /planner/graph are deliberately NOT checked — those are the owner's
- *  own typed words; this guards generation. */
+ *  own typed words; this guards generation.
+ *  M1b (DEC-068): the reply branch must carry the six-intent REPLY PLAYBOOK
+ *  (+ default), every case intent must be a member of the shared IntentSchema
+ *  (bounded taxonomy — no invented labels), the interested/not_interested
+ *  stage pins are enforced deterministically, and each strategy case must
+ *  route to a real strategy STEP. Legacy 1-branch graphs are untouched — this
+ *  gate runs at GENERATION only; execution back-compat lives in the workflow. */
 export function validateAll(
   input: unknown,
   allowedChannels: string[] = ["email"],
@@ -218,9 +242,53 @@ export function validateAll(
   if (!graph.nodes.some((n) => n.type === "delay")) {
     throw new GraphValidationError("Graph must contain at least one delay node");
   }
-  const replyBranch = graph.nodes.find((n) => n.type === "branch" && n.on === "reply");
-  if (!replyBranch) {
-    throw new GraphValidationError('Graph must contain a branch node with on="reply"');
+  const replyBranches = graph.nodes.filter(
+    (n): n is BranchNode => n.type === "branch" && n.on === "reply",
+  );
+  if (replyBranches.length !== 1) {
+    throw new GraphValidationError(
+      replyBranches.length === 0
+        ? 'Graph must contain a branch node with on="reply"'
+        : `Graph must contain exactly ONE branch node with on="reply", found ${replyBranches.length}`,
+    );
+  }
+  const replyBranch = replyBranches[0]!;
+
+  // M1b: every case intent must come from the shared enum — bounded taxonomy.
+  const stepIds = new Set(steps.map((s) => s.id));
+  const caseIntents = new Map<string, BranchCase>();
+  for (const c of replyBranch.cases) {
+    if (c.when === "default") continue;
+    if (!IntentSchema.safeParse(c.when.intent).success) {
+      throw new GraphValidationError(
+        `Reply branch case intent "${c.when.intent}" is not a known intent — use only: ${IntentSchema.options.join(", ")}`,
+      );
+    }
+    caseIntents.set(c.when.intent, c);
+  }
+  if (!replyBranch.cases.some((c) => c.when === "default")) {
+    throw new GraphValidationError('The reply branch must carry a "default" case');
+  }
+  // M1b: the six-intent REPLY PLAYBOOK, with deterministic stage pins.
+  for (const required of REQUIRED_BRANCH_INTENTS) {
+    const c = caseIntents.get(required.intent);
+    if (!c) {
+      throw new GraphValidationError(
+        `The reply branch is missing a case for intent "${required.intent}" — the REPLY PLAYBOOK requires cases for: ${REQUIRED_BRANCH_INTENTS.map((r) => r.intent).join(", ")} plus "default"`,
+      );
+    }
+    if (c.pipeline !== required.pipeline) {
+      throw new GraphValidationError(
+        `The reply branch case for intent "${required.intent}" must set "pipeline":"${required.pipeline}" (found ${c.pipeline ? `"${c.pipeline}"` : "none"})`,
+      );
+    }
+    // Strategy cases route to their strategy STEP; interested routes to the
+    // close path (end/action) — anything goes there.
+    if (required.intent !== "interested" && !stepIds.has(c.goto)) {
+      throw new GraphValidationError(
+        `The reply branch case for intent "${required.intent}" must route to its strategy "step" node (goto "${c.goto}" is not a step)`,
+      );
+    }
   }
   const copy = steps.map((s) => `${s.content.subject ?? ""}\n${s.content.body ?? ""}`).join("\n");
   for (const token of REQUIRED_TOKENS) {
