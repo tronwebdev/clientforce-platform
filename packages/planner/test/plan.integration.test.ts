@@ -734,5 +734,26 @@ describe.skipIf(!hasInfra)("planCampaign integration", () => {
     );
     expect(lastPrompt).not.toContain("- step-3"); // below the floor — omitted…
     expect(lastPrompt).toContain("Steps below 20 sends are omitted"); // …and said so.
+
+    // LAYERED prompt (v5, rebase delta): the outcomes section COEXISTS with
+    // the full six-case REPLY PLAYBOOK — it composes with the v4 text, never
+    // replaces it, and sits between STRATEGY and GUARDRAILS.
+    expect(lastPrompt).toContain("REPLY PLAYBOOK (one case per classified intent — EXACTLY these six");
+    for (const intent of [
+      "interested",
+      "objection_price",
+      "objection_timing",
+      "wrong_person",
+      "info_request",
+      "not_interested",
+    ]) {
+      expect(lastPrompt).toContain(`{"intent":"${intent}"}`);
+    }
+    expect(lastPrompt.indexOf("OBSERVED OUTCOMES")).toBeGreaterThan(lastPrompt.indexOf("STRATEGY"));
+    expect(lastPrompt.indexOf("OBSERVED OUTCOMES")).toBeLessThan(lastPrompt.indexOf("GUARDRAILS"));
+    // …and the planned graph still satisfies the playbook slice gate (the
+    // six-case branch validated by validateAll on the layered prompt's output).
+    const branch = v2.graph.nodes.find((n) => n.type === "branch");
+    expect(branch && branch.type === "branch" ? branch.cases.length : 0).toBeGreaterThanOrEqual(7);
   });
 });
