@@ -25,6 +25,7 @@ import {
   type CampaignGraph as CampaignGraphRow,
   type PrismaClient,
 } from "@clientforce/db";
+import { buildOutcomesPromptBlock, loadCampaignOutcomes } from "./outcomes";
 import { PLANNER_SYSTEM, renderPlannerPrompt } from "./prompts";
 
 export interface PlanDeps {
@@ -101,6 +102,15 @@ export async function planCampaign(deps: PlanDeps, target: PlanTarget): Promise<
   const block = strategyBlockOf(agent.guardrails);
   const neverSay = block?.neverSay ?? [];
 
+  // F1 (DEC-068): outcome-aware regen — the same loader + pure compute the
+  // rollup endpoint uses, so the prompt cites the endpoint's own numbers.
+  // Steps below the low-signal floor render nothing (first generations and
+  // young campaigns plan exactly as before).
+  const outcomes = await withTenant(prisma, { workspaceId }, (tx) =>
+    loadCampaignOutcomes(tx, agentId),
+  );
+  const outcomesBlock = buildOutcomesPromptBlock(outcomes);
+
   const prompt = renderPlannerPrompt({
     goal: agent.goal + (agent.instructions ? ` — ${agent.instructions}` : ""),
     context: contextText,
@@ -116,6 +126,7 @@ export async function planCampaign(deps: PlanDeps, target: PlanTarget): Promise<
     toneHints: strategy.toneHints,
     strategyNotes: block?.strategyNotes?.trim() || "(none)",
     neverSay: neverSay.length ? neverSay.map((t) => `"${t}"`).join(", ") : "(none)",
+    outcomes: outcomesBlock,
   });
 
   // Attempt 1 (shape is enforced + repaired inside completeStructured) …

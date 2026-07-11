@@ -41,6 +41,9 @@ export * from "./enrollments";
 // Agents DTOs (C2.2).
 export * from "./agents";
 
+// Outcome feedback v1 (F1, DEC-068) — signal gates, attribution, rollup DTO.
+export * from "./outcomes";
+
 // Contact custom fields (C2.7) — defs, values, {{custom.*}} token grammar.
 export * from "./contact-fields";
 export * from "./contact-lists";

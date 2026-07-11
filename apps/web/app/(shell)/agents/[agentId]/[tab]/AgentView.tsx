@@ -8,7 +8,7 @@
  */
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { CampaignGraph } from "@clientforce/core";
+import type { CampaignGraph, CampaignOutcomes } from "@clientforce/core";
 import { InboxTab } from "./InboxTab";
 import { LeadsTab } from "./LeadsTab";
 import { LogsTab } from "./LogsTab";
@@ -43,6 +43,10 @@ export interface AgentViewData {
 export function AgentView({ agentId, tab }: { agentId: string; tab: string }) {
   const router = useRouter();
   const [view, setView] = useState<AgentViewData | null>(null);
+  // F1 (DEC-068): the outcomes rollup — badge + stats source for the Steps
+  // tab. Fetched beside /view; a rollup failure never blocks the view
+  // (badges just stay absent — the honest none-state).
+  const [outcomes, setOutcomes] = useState<CampaignOutcomes | null>(null);
   const [error, setError] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
@@ -54,6 +58,11 @@ export function AgentView({ agentId, tab }: { agentId: string; tab: string }) {
       setError(false);
     } catch {
       setError(true);
+    }
+    try {
+      setOutcomes((await cf(`agents/${agentId}/outcomes`)) as CampaignOutcomes);
+    } catch {
+      setOutcomes(null);
     }
   }, [agentId]);
 
@@ -150,7 +159,7 @@ export function AgentView({ agentId, tab }: { agentId: string; tab: string }) {
         ) : tab === "inbox" ? (
           <InboxTab agentId={agentId} goalLabel={view?.agent.goalLabel} />
         ) : tab === "steps" ? (
-          <StepsTab view={view} />
+          <StepsTab view={view} outcomes={outcomes} />
         ) : tab === "leads" ? (
           <LeadsTab agentId={agentId} view={view} onChanged={refresh} />
         ) : tab === "settings" ? (
