@@ -70,9 +70,13 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Run guided email compose proof (sandbox transport; key masked)
+      - name: Run guided email compose proof (sandbox transport; keys masked)
         run: |
           set -euo pipefail
           key="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name ANTHROPIC-API-KEY --query value -o tsv)"
           echo "::add-mask::$key"
-          ANTHROPIC_API_KEY="$key" pnpm exec tsx packages/workflows/scripts/guided-email-live-proof.ts
+          # SANDBOX still authenticates against SendGrid (mail_settings.sandbox_mode
+          # validates the send without delivering) — same fetch as the other proofs.
+          sendgrid="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name SENDGRID-API-KEY --query value -o tsv)"
+          echo "::add-mask::$sendgrid"
+          ANTHROPIC_API_KEY="$key" SENDGRID_API_KEY="$sendgrid" pnpm exec tsx packages/workflows/scripts/guided-email-live-proof.ts
