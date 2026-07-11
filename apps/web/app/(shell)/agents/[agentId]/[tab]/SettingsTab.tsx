@@ -15,7 +15,15 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { NEVER_SAY_MAX, selectStrategy, STRATEGY_NOTES_MAX } from "@clientforce/core";
+import {
+  COMPLIANCE_STRINGS,
+  LANGUAGE_META,
+  LAUNCH_LANGUAGES,
+  NEVER_SAY_MAX,
+  selectStrategy,
+  STRATEGY_NOTES_MAX,
+  type LanguageCode,
+} from "@clientforce/core";
 import type { AgentViewData } from "./AgentView";
 import { cf, GRAD } from "./shared";
 
@@ -53,6 +61,10 @@ export function SettingsTab({ agentId, view, onChanged }: { agentId: string; vie
   const [neverSayInput, setNeverSayInput] = useState("");
   // G1 (DEC-070): per-agent compose mode — absent on the row = scripted.
   const [composeMode, setComposeMode] = useState<"scripted" | "guided">("scripted");
+  // L1 (DEC-071): output language rider — absent on the row = English.
+  const [language, setLanguage] = useState<LanguageCode>("en");
+  const [languageSource, setLanguageSource] = useState<"detected" | "owner" | undefined>();
+  const [langMenuOpen, setLangMenuOpen] = useState(false);
 
   const refresh = useCallback(async () => {
     const res = await cf("senders").catch(() => null);
@@ -72,6 +84,8 @@ export function SettingsTab({ agentId, view, onChanged }: { agentId: string; vie
     setNotes(g.strategy?.strategyNotes ?? "");
     setNeverSay(g.strategy?.neverSay ?? []);
     setComposeMode(g.composeMode ?? "scripted");
+    setLanguage(g.language ?? "en");
+    setLanguageSource(g.languageSource);
   }, [view?.guardrails]);
 
   async function saveGuardrails(next: {
@@ -80,6 +94,7 @@ export function SettingsTab({ agentId, view, onChanged }: { agentId: string; vie
     tracking?: { open: boolean; link: boolean };
     strategy?: { notes?: string; neverSay?: string[] };
     composeMode?: "scripted" | "guided";
+    language?: LanguageCode;
   }) {
     const g = view?.guardrails;
     const t = next.tracking ?? tracking;
@@ -96,6 +111,13 @@ export function SettingsTab({ agentId, view, onChanged }: { agentId: string; vie
     // carries it — an untouched legacy row stays byte-identical (absent =
     // scripted), and an unrelated edit never clobbers the mode.
     const outMode = next.composeMode ?? g?.composeMode;
+    // L1 (DEC-071): a pick here writes the language with source "owner"
+    // (sticky — the detector never overrides an owner choice); an unrelated
+    // edit carries the row's current rider through. The API additionally
+    // preserves a system-written rider when the payload omits it, so a stale
+    // read can't clobber a mid-flight detection either.
+    const outLanguage = next.language ?? g?.language;
+    const outLanguageSource = next.language ? ("owner" as const) : g?.languageSource;
     await cf(`agents/${agentId}`, {
       method: "PATCH",
       body: JSON.stringify({
@@ -114,6 +136,8 @@ export function SettingsTab({ agentId, view, onChanged }: { agentId: string; vie
           ...(g?.goalLabel ? { goalLabel: g.goalLabel } : {}),
           ...(strategy ? { strategy } : {}),
           ...(outMode ? { composeMode: outMode } : {}),
+          ...(outLanguage ? { language: outLanguage } : {}),
+          ...(outLanguage && outLanguageSource ? { languageSource: outLanguageSource } : {}),
           unsubscribeFooter: true,
           suppressionCheck: true,
         },
@@ -268,6 +292,87 @@ export function SettingsTab({ agentId, view, onChanged }: { agentId: string; vie
             <span style={{ fontSize: 11, fontWeight: 700, color: "#0F7A28", background: "#D7F5DD", borderRadius: 7, padding: "5px 10px", flex: "none" }}>🔒 Required</span>
           </div>
         ))}
+      </div>
+
+      <div style={{ ...label, marginTop: 8 }}>Language</div>
+
+      {/* L1 (DEC-071) — designed section, no prototype anchor (§0 card/label
+          conventions, DEC-065(6) precedent). The language is read at
+          generation time (planner/composer/distiller) and at send time only
+          to pick the pre-translated compliance constants below. */}
+      <div style={{ ...card, padding: "18px 20px", overflow: "visible" }} data-testid="settings-language">
+        <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 16, color: "#0E1512" }}>Output language</div>
+        <div style={{ fontSize: 12.5, color: "#9AA59E", marginTop: 2, marginBottom: 14 }}>What this agent writes in — sequences, reply drafts, and the compliance lines below. Your dashboard stays English.</div>
+        <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
+          <div style={{ flex: 1, position: "relative" }}>
+            <div
+              onClick={() => setLangMenuOpen((v) => !v)}
+              style={{ height: 44, borderRadius: 11, background: "#FBF7F0", border: `1px solid ${langMenuOpen ? "#35E834" : "#EBE3D6"}`, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 14px", fontSize: 14, color: "#0E1512", cursor: "pointer" }}
+              data-testid="language-select"
+            >
+              <span style={{ fontWeight: 600 }}>
+                {LANGUAGE_META[language].native}
+                {LANGUAGE_META[language].native !== LANGUAGE_META[language].label ? (
+                  <span style={{ color: "#9AA59E", fontWeight: 500 }}> · {LANGUAGE_META[language].label}</span>
+                ) : null}
+              </span>
+              <span style={{ color: "#9AA59E", fontSize: 11 }}>▾</span>
+            </div>
+            {langMenuOpen ? (
+              <div style={{ position: "absolute", top: 48, left: 0, right: 0, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 12, boxShadow: "0 14px 40px rgba(14,21,18,.14)", padding: 6, zIndex: 30 }} data-testid="language-menu">
+                {LAUNCH_LANGUAGES.map((code) => {
+                  const on = code === language;
+                  return (
+                    <div
+                      key={code}
+                      onClick={() => {
+                        setLangMenuOpen(false);
+                        if (code !== language) {
+                          setLanguage(code);
+                          setLanguageSource("owner");
+                          void saveGuardrails({ language: code });
+                        }
+                      }}
+                      style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 11px", borderRadius: 8, fontSize: 13.5, fontWeight: on ? 700 : 500, color: "#0E1512", background: on ? "rgba(53,232,52,.08)" : "transparent", cursor: "pointer" }}
+                      data-testid={`language-option-${code}`}
+                    >
+                      <span style={{ flex: 1 }}>
+                        {LANGUAGE_META[code].native}
+                        {LANGUAGE_META[code].native !== LANGUAGE_META[code].label ? (
+                          <span style={{ color: "#9AA59E", fontWeight: 500 }}> · {LANGUAGE_META[code].label}</span>
+                        ) : null}
+                      </span>
+                      {on ? <span style={{ color: "#16A82A", fontWeight: 800 }}>✓</span> : null}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
+            <div style={{ fontSize: 12, color: "#9AA59E", marginTop: 6 }} data-testid="language-provenance">
+              {languageSource === "detected"
+                ? "✦ Detected from this agent's content — change it any time."
+                : languageSource === "owner"
+                  ? "Set by you."
+                  : "Default — set from your content when an agent's sources clearly speak one language."}
+            </div>
+          </div>
+          <div style={{ flex: 1.3, background: "#FBF7F0", border: "1px solid #EBE3D6", borderRadius: 12, padding: "12px 14px" }} data-testid="language-compliance-preview">
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".08em", color: "#9AA59E", marginBottom: 8 }}>Compliance lines — always on, in this language</div>
+            <div style={{ display: "flex", gap: 8, alignItems: "baseline", marginBottom: 6 }}>
+              <span style={{ fontSize: 13, flex: "none" }}>✉</span>
+              <span style={{ fontSize: 12.5, color: "#0E1512", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>{COMPLIANCE_STRINGS[language].unsubscribeLabel}: reply.clientforce.io/u/…</span>
+            </div>
+            <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
+              <span style={{ fontSize: 13, flex: "none" }}>💬</span>
+              <span style={{ fontSize: 12.5, color: "#0E1512", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>{COMPLIANCE_STRINGS[language].smsOptOut}</span>
+            </div>
+            <div style={{ fontSize: 11.5, color: "#8A7F6B", marginTop: 8 }}>Rendered after your company address on every email · on the first SMS of each conversation. Pre-translated — never AI-written.</div>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12.5, color: "#8A7F6B", background: "rgba(53,232,52,.07)", borderRadius: 10, padding: "10px 13px", marginTop: 14 }} data-testid="language-footnote">
+          <span style={{ fontSize: 13 }}>ⓘ</span>
+          <span>Applies to future regenerations and sends — steps already planned keep their language until you regenerate the sequence; messages already sent are unchanged. The compliance lines switch at send time.</span>
+        </div>
       </div>
 
       <div style={{ ...label, marginTop: 8 }}>Message composing</div>

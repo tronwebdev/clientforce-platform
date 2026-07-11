@@ -37,6 +37,7 @@ import {
   createClassifyWorker,
   fixtureFor,
   ingestInboundEmail,
+  MULTILINGUAL_REPLY_FIXTURES,
   normalizeInboundParse,
   REPLY_INTENT_FIXTURES,
   SendGridSender,
@@ -151,6 +152,24 @@ async function main(): Promise<void> {
         throw new Error(`fixture pin missed: expected "${fixture.intent}", got "${verdict}"`);
     }
     stamp(`fixture matrix ✓ — all ${REPLY_INTENT_FIXTURES.length} labels pinned by the REAL model`);
+
+    // ── L1 (DEC-071): the multilingual pins vs the REAL model — a German and
+    // a French reply classify to their pinned intents with ZERO classifier
+    // code change (the understanding side of the loop is language-agnostic).
+    console.log("\n=== L1 LIVE PROOF · multilingual pinned fixtures ===");
+    for (const fixture of MULTILINGUAL_REPLY_FIXTURES) {
+      const verdict = await classifyReply(gateway, {
+        goal: "book_appointments",
+        replyText: fixture.reply,
+        engagement: [],
+      });
+      stamp(`[${fixture.language}] "${fixture.reply.slice(0, 48)}…" → ${verdict}`);
+      if (verdict !== fixture.intent)
+        throw new Error(
+          `multilingual pin missed (${fixture.language}): expected "${fixture.intent}", got "${verdict}"`,
+        );
+    }
+    stamp(`multilingual matrix ✓ — ${MULTILINGUAL_REPLY_FIXTURES.length} pins held by the REAL model`);
 
     console.log("\n=== P1.7 LIVE PROOF · inbound → classify → signal ===");
     const agent = await owner.agent.create({

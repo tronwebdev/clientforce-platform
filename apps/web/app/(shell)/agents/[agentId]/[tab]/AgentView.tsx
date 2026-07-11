@@ -8,7 +8,7 @@
  */
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { CampaignGraph, CampaignOutcomes } from "@clientforce/core";
+import type { CampaignGraph, CampaignOutcomes, LanguageCode } from "@clientforce/core";
 import { InboxTab } from "./InboxTab";
 import { LeadsTab } from "./LeadsTab";
 import { LogsTab } from "./LogsTab";
@@ -35,6 +35,9 @@ export interface AgentViewData {
     strategy?: { strategyNotes?: string; neverSay?: string[] };
     /** G1 (DEC-070): per-agent compose mode — absent = scripted. */
     composeMode?: "scripted" | "guided";
+    /** L1 (DEC-071): output language rider — absent = English. */
+    language?: LanguageCode;
+    languageSource?: "detected" | "owner";
     unsubscribeFooter: true;
     suppressionCheck: true;
   } | null;
