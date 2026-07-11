@@ -216,6 +216,7 @@ model Campaign {
   agent       Agent           @relation(fields: [agentId], references: [id], onDelete: Cascade)
   graphs      CampaignGraph[]
   enrollments Enrollment[]
+  rules       CampaignRule[]
 
   @@index([workspaceId])
   @@index([agentId])
@@ -441,6 +442,56 @@ model AutomationRun {
 
   @@index([workspaceId])
   @@index([automationId])
+}
+
+/// R1 (DEC-073): per-agent automation rules (ARCHITECTURE §151) — the
+/// campaign-scoped SIBLING of the standalone `Automation` (§152, Phase 6),
+/// sharing the typed trigger/condition/action unions in `@clientforce/core`
+/// but a DISTINCT entity: rules carry row order, goal-seed provenance,
+/// wizard-draft lifecycle, and the graph interlock (terminal-action skip) —
+/// none of which exists for account automations.
+model CampaignRule {
+  id          String            @id @default(cuid())
+  workspaceId String
+  campaignId  String
+  /// Evaluation order — ascending; first terminal action wins conflicts.
+  order       Int
+  trigger     Json
+  condition   Json?
+  actions     Json
+  enabled     Boolean           @default(true)
+  /// Goal-seed provenance (W2) — seeds are rows like any other.
+  seededFrom  String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  campaign    Campaign          @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  runs        CampaignRuleRun[]
+
+  @@index([workspaceId])
+  @@index([campaignId])
+}
+
+/// R1 (DEC-073): rule-run history, mirroring `AutomationRun`'s shape.
+/// Idempotency: unique (ruleId, eventId) — bus redelivery can't double-fire
+/// (eventId is the bus Event row id, or the sweep's synthetic fire-once key
+/// `quiet:<enrollmentId>` for the timer trigger).
+model CampaignRuleRun {
+  id           String       @id @default(cuid())
+  workspaceId  String
+  ruleId       String
+  enrollmentId String?
+  contactId    String?
+  eventId      String
+  status       String
+  detail       Json
+  /// Causation depth (rule → run automation → …); evaluator refuses > 2.
+  depth        Int          @default(0)
+  ranAt        DateTime     @default(now())
+  rule         CampaignRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+
+  @@unique([ruleId, eventId])
+  @@index([workspaceId])
+  @@index([ruleId])
 }
 
 model Integration {

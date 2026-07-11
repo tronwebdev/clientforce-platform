@@ -52,6 +52,10 @@ export * from "./contact-fields";
 export * from "./contact-lists";
 export * from "./contact-import";
 
+// Per-agent automation rules (R1, DEC-073) — trigger/condition/action unions,
+// terminal set, run statuses; shared with the Phase-6 Automations engine.
+export * from "./campaign-rules";
+
 /**
  * Narrow an arbitrary string to a branded {@link Id}. Real validation arrives
  * with the data model; this keeps the type honest without runtime cost.
