@@ -545,7 +545,7 @@ describe.skipIf(!hasInfra)("planCampaign integration", () => {
     expect(await owner.campaignGraph.count({ where: { workspaceId: wsA } })).toBe(before);
   });
 
-  // ── M1b (DEC-066): the six-intent REPLY PLAYBOOK ───────────────────────────
+  // ── M1b (DEC-068): the six-intent REPLY PLAYBOOK ───────────────────────────
 
   it("plans the six-case reply branch — every strategy intent routes to its path with its stage pin", async () => {
     const result = await planCampaign(deps(), { workspaceId: wsA, agentId: craftAgentId });

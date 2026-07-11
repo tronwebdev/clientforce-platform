@@ -1,5 +1,5 @@
 /**
- * The ONE intent display vocabulary (M1b, DEC-066) — shared by the Inbox
+ * The ONE intent display vocabulary (M1b, DEC-068) — shared by the Inbox
  * chips, the wizard step-2 Branches view, and the Steps-tab branch pill, the
  * DEC-034 "one enum, never fork" rule extended to labels.
  *
@@ -7,7 +7,7 @@
  * prototype's "Question", `not_interested` under "Not interested" (each chip
  * filters its legacy twin together with the M1b value). "Price objection" /
  * "Not now" / "Wrong person" are designed labels with no prototype anchor —
- * flagged in DEC-066, composed from the chip anatomy verbatim.
+ * flagged in DEC-068, composed from the chip anatomy verbatim.
  *
  * Unknown intent → the VERBATIM fallback (the C2.9 timeline rule): a value
  * this vocabulary doesn't know renders as itself in the neutral tint — never
@@ -29,7 +29,7 @@ export const INTENT_TINT: Record<string, IntentTint> = {
   not: { fg: "#C9543F", bg: "rgba(224,121,107,.14)", label: "Not interested" },
   ooo: { fg: "#8A7F6B", bg: "#F2EEE4", label: "Auto-reply" },
   unsubscribe: { fg: "#C9543F", bg: "rgba(224,121,107,.14)", label: "Unsubscribed" },
-  // ── M1b (DEC-066) strategy intents ─────────────────────────────────────────
+  // ── M1b (DEC-068) strategy intents ─────────────────────────────────────────
   objection_price: { fg: "#6E7A12", bg: "rgba(208,245,107,.4)", label: "Price objection" },
   objection_timing: { fg: "#A87B16", bg: "rgba(232,196,91,.2)", label: "Not now" },
   wrong_person: { fg: "#5C6B62", bg: "#F2EEE4", label: "Wrong person" },
@@ -47,7 +47,7 @@ export function intentTint(intent: string): IntentTint {
  * and its M1b twin land under one label. Order: the six strategy chips lead,
  * the bookkeeping chips (Replied fallback · Auto-reply) trail — "Replied"
  * moves behind Question/Not interested vs the prototype's relative order so
- * every strategy chip is on-screen at 1440 (deviation flagged in DEC-066;
+ * every strategy chip is on-screen at 1440 (deviation flagged in DEC-068;
  * the row stays horizontally scrollable per the prototype).
  */
 export const INBOX_CATS: ReadonlyArray<{ id: string; label: string; intents: readonly string[] }> = [

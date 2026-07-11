@@ -48,7 +48,7 @@ const STAGE_PILL: Record<string, { label: string; bg: string; fg: string }> = {
   unsub: { label: "Unsubscribed", bg: "rgba(224,121,107,.16)", fg: "#C9543F" },
   suppressed: { label: "Suppressed", bg: "#ECE7DC", fg: "#8A7F6B" },
   bounced: { label: "Bounced", bg: "rgba(224,121,107,.12)", fg: "#C9543F" },
-  // M1b (DEC-066): a not_interested reply closes the enrollment as stage
+  // M1b (DEC-068): a not_interested reply closes the enrollment as stage
   // `lost` — designed pill, no prototype anchor (flagged); NOT unsubscribed.
   lost: { label: "Closed", bg: "#ECE7DC", fg: "#5C6B62" },
 };
@@ -81,7 +81,7 @@ const EVENT_ROW: Record<string, { icon: string; bg: string; fg: string; label: (
   "email.delivered.v1": { icon: "✓", bg: "#F2EEE4", fg: "#8A7F6B", label: () => "Email delivered" },
   "email.opened.v1": { icon: "◔", bg: "#F2EEE4", fg: "#8A7F6B", label: (p) => `Opened${p.subject ? ` “${String(p.subject)}”` : ""}` },
   "email.clicked.v1": { icon: "🔗", bg: "rgba(54,215,237,.16)", fg: "#1192A6", label: () => "Clicked a link" },
-  // M1b (DEC-066): the classified intent renders through the vocabulary
+  // M1b (DEC-068): the classified intent renders through the vocabulary
   // (verbatim fallback) — the raw enum slug never surfaces (DEC-057 rule).
   "email.replied.v1": { icon: "↩", bg: "rgba(54,215,237,.16)", fg: "#1192A6", label: (p) => `Replied${p.intent ? ` — classified “${intentTint(String(p.intent)).label}”` : ""}` },
   "email.bounced.v1": { icon: "⚠", bg: "rgba(224,121,107,.14)", fg: "#C9543F", label: () => "Email hard-bounced" },

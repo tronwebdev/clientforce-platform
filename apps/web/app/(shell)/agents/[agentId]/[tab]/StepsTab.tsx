@@ -36,7 +36,7 @@ export function StepsTab({ view }: { view: AgentViewData | null }) {
       </div>
     );
   }
-  // M1b (DEC-066): the tab lists the MAIN PATH — reply-strategy steps render
+  // M1b (DEC-068): the tab lists the MAIN PATH — reply-strategy steps render
   // in their own group below (they belong to the branch, not the sequence).
   const steps = mainSteps(graph);
   const strategies = strategyStepsOf(graph);
@@ -93,7 +93,7 @@ export function StepsTab({ view }: { view: AgentViewData | null }) {
             <div key={n.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 0 4px 26px" }}>
               <span style={{ width: 2, height: 24, background: "#D8CFBE", marginLeft: 17, flex: "none" }} />
               <span style={{ display: "inline-flex", alignItems: "center", gap: 7, border: "1px solid rgba(54,215,237,.4)", borderRadius: 100, background: "rgba(54,215,237,.08)", padding: "5px 14px", fontSize: 12.5, fontWeight: 600, color: "#1192A6" }} data-testid="step-branch">
-                {/* M1b (DEC-066): vocabulary labels, verbatim fallback for unknown intents */}
+                {/* M1b (DEC-068): vocabulary labels, verbatim fallback for unknown intents */}
                 ⎇ on reply → {n.cases.map((c) => (c.when === "default" ? "default" : intentTint(c.when.intent).label)).join(" · ")}
               </span>
             </div>
@@ -101,7 +101,7 @@ export function StepsTab({ view }: { view: AgentViewData | null }) {
         }
         return null;
       })}
-      {/* M1b (DEC-066): reply-strategy steps — grouped under the branch they
+      {/* M1b (DEC-068): reply-strategy steps — grouped under the branch they
           belong to, labeled by intent (designed grouping, flagged). */}
       {strategies.length > 0 ? (
         <>

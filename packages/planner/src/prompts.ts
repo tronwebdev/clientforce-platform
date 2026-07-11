@@ -12,13 +12,13 @@ import { BANNED_OPENERS, OPENER_WORD_CAP } from "@clientforce/core";
  * per-agent STRATEGY block (arc + tone from the goal×category map, owner
  * strategyNotes, hard-banned neverSay strings). v2 stays registered.
  *
- * v4 (M1b, DEC-066): the REPLY PLAYBOOK — the reply branch carries one case
+ * v4 (M1b, DEC-068): the REPLY PLAYBOOK — the reply branch carries one case
  * per strategy intent (interested · objection_price · objection_timing ·
  * wrong_person · info_request · not_interested) + default, each with its
  * planned path and pinned pipeline stage. v2/v3 stay registered.
  */
 export const PLANNER_PROMPT_NAME = "planner.campaign";
-export const PLANNER_PROMPT_VERSION = 4; // M1b (DEC-066): six-intent REPLY PLAYBOOK branch strategies
+export const PLANNER_PROMPT_VERSION = 4; // M1b (DEC-068): six-intent REPLY PLAYBOOK branch strategies
 
 export const PLANNER_SYSTEM =
   "You are a campaign planner for an outbound email agent. You design a short, effective email sequence as a " +
@@ -113,7 +113,7 @@ GRAPH REQUIREMENTS:
 - Edges connect the flow; sequential nodes (step/delay/action) have exactly ONE outgoing edge; branch routing lives in the branch cases, not edges.
 - Every factual claim in copy must trace to the business context above.`,
   });
-  // v4 (M1b, DEC-066): the REPLY PLAYBOOK — branch cases keyed by the six
+  // v4 (M1b, DEC-068): the REPLY PLAYBOOK — branch cases keyed by the six
   // strategy intents, each with its planned path + deterministic stage pin.
   registerPrompt({
     name: PLANNER_PROMPT_NAME,

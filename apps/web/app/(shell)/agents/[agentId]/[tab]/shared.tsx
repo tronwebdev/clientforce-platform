@@ -34,7 +34,7 @@ export const cf = (path: string, init?: RequestInit) =>
   });
 
 /** Intent → Inbox category chips + per-intent tints: the ONE vocabulary
- *  module (M1b, DEC-066 — prototype `inboxCatDefs` + designed M1b labels,
+ *  module (M1b, DEC-068 — prototype `inboxCatDefs` + designed M1b labels,
  *  verbatim fallback for unknown intents). Re-exported for the tab imports. */
 export { INBOX_CATS, INTENT_TINT, intentTint, branchWhenLabel } from "../../../../../lib/intents";
 

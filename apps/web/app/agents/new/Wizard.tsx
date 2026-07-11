@@ -597,7 +597,7 @@ export function Wizard() {
     return [...bySource.entries()].map(([id, v]) => ({ id, ...v }));
   }, [fields]);
 
-  // M1b (DEC-066): strategy steps are branch targets, not sequence steps —
+  // M1b (DEC-068): strategy steps are branch targets, not sequence steps —
   // the drawer header names their intent instead of a bogus "Step N".
   const editStepIndex = useMemo(() => {
     if (!graph || !editNode) return 0;
@@ -1347,7 +1347,7 @@ export function Wizard() {
                       <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600, color: "#0E1512", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 11, padding: "9px 15px" }}>🕐 Mon–Fri · {parseInt(windowStart, 10)}–{parseInt(windowEnd, 10)} · {tzShort(timezone)} <span style={{ color: "#9AA59E" }}>⌄</span></span>
                       <span onClick={() => void regenerate()} style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 700, color: "#16A82A", background: "rgba(53,232,52,.1)", border: "1px solid rgba(53,232,52,.3)", borderRadius: 11, padding: "9px 15px", cursor: "pointer" }} data-testid="regenerate">✦ Regenerate with AI</span>
                     </div>
-                    {/* M1b (DEC-066): the sequence lists the MAIN PATH — reply-
+                    {/* M1b (DEC-068): the sequence lists the MAIN PATH — reply-
                         strategy steps live in their own section below (they
                         belong to the branch, not the sequence). */}
                     {mainPath(graph).map((n) => {
@@ -1438,7 +1438,7 @@ export function Wizard() {
                       <div style={{ fontSize: 11.5, fontWeight: 700, color: "#8A7F6B", letterSpacing: ".07em", textTransform: "uppercase", marginBottom: 12 }}>Reply branch</div>
                       <div style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 14, overflow: "hidden", boxShadow: "0 4px 16px rgba(14,21,18,.04)" }}>
                         {branchCases.map((c, i) => {
-                          // M1b (DEC-066): when-labels come from the ONE intent
+                          // M1b (DEC-068): when-labels come from the ONE intent
                           // vocabulary (verbatim fallback for unknown values);
                           // goto pills resolve the target node — a strategy
                           // step renders its subject, raw node ids never show.

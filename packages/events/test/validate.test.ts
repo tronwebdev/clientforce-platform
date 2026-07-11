@@ -32,7 +32,7 @@ describe("validateEvent", () => {
     ).toThrow(/Invalid payload for "email.replied.v1"/);
   });
 
-  it("rejects an intent outside the pinned label set (DEC-034/DEC-066)", () => {
+  it("rejects an intent outside the pinned label set (DEC-034/DEC-068)", () => {
     for (const bad of ["maybe", "not_now", "positive", "unknown", "objection", "price"]) {
       expect(() =>
         validateEvent({
@@ -44,7 +44,7 @@ describe("validateEvent", () => {
     }
   });
 
-  // M1b (DEC-066): the six-intent reply taxonomy is ADDITIVE — new values
+  // M1b (DEC-068): the six-intent reply taxonomy is ADDITIVE — new values
   // validate on both replied events, every legacy value still validates.
   it("accepts the M1b strategy intents AND every legacy intent (additive extension)", () => {
     const intents = [

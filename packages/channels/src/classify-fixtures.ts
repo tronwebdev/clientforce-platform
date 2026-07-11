@@ -1,5 +1,5 @@
 /**
- * Pinned reply→intent fixtures (M1b, DEC-066) — one verbatim reply per label
+ * Pinned reply→intent fixtures (M1b, DEC-068) — one verbatim reply per label
  * the v2 classifier may emit. These are a CONTRACT artifact, not test-local
  * data: the CI integration suite drives its deterministic fake with them, and
  * the live proof asserts the REAL model classifies each one to its pin — the

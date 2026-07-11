@@ -1,6 +1,6 @@
 /**
  * The prompt-layer before/after across the append-only registry (P1.1):
- * v4 (M1b, DEC-066) carries the six-intent REPLY PLAYBOOK; v3 (M1a, DEC-065)
+ * v4 (M1b, DEC-068) carries the six-intent REPLY PLAYBOOK; v3 (M1a, DEC-065)
  * carries the selling craft + STRATEGY block but no playbook; v2 carries
  * neither. All stay registered. Pure, no infra.
  */

@@ -41,7 +41,7 @@ const CHANNEL_OPTIONS = [
 /** C2.9 (DEC-059): `goalLabel` = the campaign goal's terminal wording — the
  *  booked category chip/tint renders it instead of the single-goal-era
  *  "Meeting booked" (a promote_offer agent reads "Purchase made").
- *  M1b (DEC-066): chips filter intent SETS (a legacy `question` thread and an
+ *  M1b (DEC-068): chips filter intent SETS (a legacy `question` thread and an
  *  `info_request` thread share the "Question" chip); an unknown intent value
  *  renders VERBATIM in the neutral tint — never "Unclassified", never a crash. */
 export function InboxTab({ agentId, goalLabel }: { agentId: string; goalLabel?: string }) {

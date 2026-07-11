@@ -1,5 +1,5 @@
 /**
- * Classifier v2 (M1b, DEC-066) — pure unit tests, no infra: the emission set
+ * Classifier v2 (M1b, DEC-068) — pure unit tests, no infra: the emission set
  * is bounded to the shared enum, every emission label has a pinned fixture,
  * the v2 prompt carries every label + the boundary rules, v1 stays registered
  * verbatim (append-only registry), and an out-of-set label from the model is
@@ -33,7 +33,7 @@ function fakeGateway(label: string, capture: { system?: string } = {}) {
 
 const ctx = { goal: "book_appointments", replyText: "hello", engagement: [] };
 
-describe("classifier v2 emission set (DEC-066)", () => {
+describe("classifier v2 emission set (DEC-068)", () => {
   it("every emission label is a member of the ONE shared IntentSchema (no fork)", () => {
     for (const label of CLASSIFY_EMISSION_LABELS) {
       expect(IntentSchema.safeParse(label).success, label).toBe(true);

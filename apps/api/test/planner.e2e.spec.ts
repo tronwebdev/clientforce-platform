@@ -21,7 +21,7 @@ const SECRET = process.env.AUTH_DEV_SECRET ?? "test-dev-secret";
 const suffix = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 
 const FACT = "free growth audit";
-// M1b (DEC-066): the fake emits the v4 shape — six-case REPLY PLAYBOOK with
+// M1b (DEC-068): the fake emits the v4 shape — six-case REPLY PLAYBOOK with
 // stage pins and strategy steps (validateAll requires it at generation).
 const goodGraph = (prompt: string) => ({
   entry: "step-1",

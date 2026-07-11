@@ -200,7 +200,7 @@ describe.skipIf(!hasInfra)("inbound thread resolution + side effects", () => {
     expect(intent).toBe("interested");
   });
 
-  // M1b (DEC-066): the pinned fixture matrix — every emission label's fixture
+  // M1b (DEC-068): the pinned fixture matrix — every emission label's fixture
   // classifies to its pin through the full classifyReply path (deterministic
   // fake here; the live proof runs the SAME fixtures against the real model).
   it("classifies every pinned fixture to its pinned intent (one per emission label)", async () => {

@@ -194,7 +194,7 @@ export async function planCampaign(deps: PlanDeps, target: PlanTarget): Promise<
 }
 
 /**
- * M1b (DEC-066): the six reply-strategy intents every GENERATED graph's reply
+ * M1b (DEC-068): the six reply-strategy intents every GENERATED graph's reply
  * branch must case, with the stage pin each case must carry (the acceptance
  * contract — interested closes as goal-met, not_interested closes as lost
  * WITHOUT suppression, everything else records the conversation).
@@ -216,7 +216,7 @@ export const REQUIRED_BRANCH_INTENTS: ReadonlyArray<{ intent: Intent; pipeline: 
  *  the caller's bounded repair round-trip → typed failure). Manual edits via
  *  PUT /planner/graph are deliberately NOT checked — those are the owner's
  *  own typed words; this guards generation.
- *  M1b (DEC-066): the reply branch must carry the six-intent REPLY PLAYBOOK
+ *  M1b (DEC-068): the reply branch must carry the six-intent REPLY PLAYBOOK
  *  (+ default), every case intent must be a member of the shared IntentSchema
  *  (bounded taxonomy — no invented labels), the interested/not_interested
  *  stage pins are enforced deterministically, and each strategy case must

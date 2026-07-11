@@ -1,5 +1,5 @@
 /**
- * Graph walking helpers (M1b, DEC-066). A v4 playbook graph carries reply-
+ * Graph walking helpers (M1b, DEC-068). A v4 playbook graph carries reply-
  * STRATEGY steps hanging off the reply branch — they are not main-sequence
  * steps, and any surface that counts or lists "the sequence" must walk the
  * MAIN PATH (entry → edges, branch → default case) instead of filtering all

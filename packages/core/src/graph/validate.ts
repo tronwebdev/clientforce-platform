@@ -134,7 +134,7 @@ export function validateGraph(input: unknown): CampaignGraph {
 
   for (const node of graph.nodes) {
     if (node.type === "branch") {
-      // M1b (DEC-066): cases are KEYED by intent — a duplicate intent (or a
+      // M1b (DEC-068): cases are KEYED by intent — a duplicate intent (or a
       // second default) makes routing ambiguous; rejected loudly.
       const seenIntents = new Set<string>();
       let defaults = 0;

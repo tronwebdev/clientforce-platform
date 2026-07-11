@@ -1,7 +1,7 @@
 /**
  * validateAll unit tests — the P1.4 slice requirements on top of the T4
  * validator: email-only, ≥1 delay, branch on reply, merge tokens present.
- * M1b (DEC-066): the six-intent REPLY PLAYBOOK — the generated reply branch
+ * M1b (DEC-068): the six-intent REPLY PLAYBOOK — the generated reply branch
  * must case all six strategy intents (+ default), intents come from the
  * shared enum only, the interested/not_interested stage pins are enforced,
  * and strategy cases route to real strategy steps. Pure, no infra.
@@ -117,7 +117,7 @@ describe("validateAll (P1.4 slice requirements)", () => {
   });
 });
 
-describe("validateAll REPLY PLAYBOOK gate (M1b, DEC-066)", () => {
+describe("validateAll REPLY PLAYBOOK gate (M1b, DEC-068)", () => {
   it("pins the six strategy intents with their stage effects (the acceptance contract)", () => {
     expect(REQUIRED_BRANCH_INTENTS).toEqual([
       { intent: "interested", pipeline: "booked" },

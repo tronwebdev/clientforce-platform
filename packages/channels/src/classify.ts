@@ -16,7 +16,7 @@ import { z } from "zod";
 import { INBOUND_CLASSIFY_QUEUE, type ClassifyJobData } from "./inbound";
 
 /**
- * M1b (DEC-066): the labels the v2 classifier may EMIT — the six reply-strategy
+ * M1b (DEC-068): the labels the v2 classifier may EMIT — the six reply-strategy
  * intents + the untouched side labels (`ooo` auto-reply, `unsubscribe`
  * compliance) + `replied` as the none-fits fallback. The legacy `booked` /
  * `question` / `not` stay in `IntentSchema` (old rows/graphs/chips remain
@@ -36,7 +36,7 @@ export const CLASSIFY_EMISSION_LABELS = [
 ] as const satisfies readonly Intent[];
 
 export const CLASSIFY_PROMPT_NAME = "inbound.classify";
-export const CLASSIFY_PROMPT_VERSION = 2; // M1b (DEC-066): six-intent reply taxonomy
+export const CLASSIFY_PROMPT_VERSION = 2; // M1b (DEC-068): six-intent reply taxonomy
 
 let registered = false;
 function classifySystem(): string {

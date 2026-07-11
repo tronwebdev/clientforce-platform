@@ -125,7 +125,7 @@ const branchGraph: CampaignGraph = {
   ],
 };
 
-/** M1b (DEC-066): a v4-planner-shaped graph — six-case reply branch, price
+/** M1b (DEC-068): a v4-planner-shaped graph — six-case reply branch, price
  *  reframe rejoins the branch (loop-back), not_interested closes as lost. */
 const playbookGraph: CampaignGraph = {
   entry: "s1",
@@ -272,7 +272,7 @@ describe("CampaignWorkflow (time-skipping Temporal)", () => {
     );
   }, 60_000);
 
-  // ── M1b (DEC-066): six-intent branch routing ────────────────────────────────
+  // ── M1b (DEC-068): six-intent branch routing ────────────────────────────────
 
   it("ACCEPTANCE: objection_price → value-reframe send → rejoin branch → interested → booked", async (t) => {
     if (!env) return t.skip();

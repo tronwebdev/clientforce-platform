@@ -13,7 +13,7 @@
  *   3. the workflow received the signal and completed via the interested
  *      branch — enrollment DONE, pipeline `booked`; `lead.stage_changed.v1`
  *      Event row persisted;
- *   4. (M1b, DEC-066) the pinned fixture MATRIX: every classifier-v2 emission
+ *   4. (M1b, DEC-068) the pinned fixture MATRIX: every classifier-v2 emission
  *      label's pinned reply classifies to its pin with the REAL model;
  *   5. (M1b) the objection path end-to-end on the six-case playbook graph:
  *      objection_price reply → REAL classify → branch routes the VALUE-REFRAME
@@ -138,7 +138,7 @@ async function main(): Promise<void> {
   });
 
   try {
-    // ── M1b (DEC-066) gate 4: the pinned fixture matrix vs the REAL model ────
+    // ── M1b (DEC-068) gate 4: the pinned fixture matrix vs the REAL model ────
     console.log("\n=== M1b LIVE PROOF · classifier-v2 pinned fixture matrix ===");
     for (const fixture of REPLY_INTENT_FIXTURES) {
       const verdict = await classifyReply(gateway, {
@@ -217,7 +217,7 @@ async function main(): Promise<void> {
       edges: [{ from: "s1", to: "br" }],
     };
 
-    // M1b (DEC-066): the v4-planner-shaped graph — six-case REPLY PLAYBOOK,
+    // M1b (DEC-068): the v4-planner-shaped graph — six-case REPLY PLAYBOOK,
     // price/info paths rejoin the branch, not_interested closes as `lost`.
     const playbookGraph: CampaignGraph = {
       entry: "s1",

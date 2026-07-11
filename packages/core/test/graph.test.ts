@@ -86,7 +86,7 @@ describe("validateGraph", () => {
     expect(() => validateGraph(bad)).toThrow(/node "n2" \(step\) must have exactly one outgoing edge/);
   });
 
-  // M1b (DEC-066): branch cases are keyed by intent — ambiguity is rejected.
+  // M1b (DEC-068): branch cases are keyed by intent — ambiguity is rejected.
   it("rejects duplicate intent cases within one branch", () => {
     const bad: CampaignGraph = {
       ...sample,

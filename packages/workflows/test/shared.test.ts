@@ -70,7 +70,7 @@ describe("resolveReplyBranch (mirrors the T4 executor semantics)", () => {
     expect(resolveReplyBranch(noDefault, "objection")).toBeUndefined();
   });
 
-  // ── M1b (DEC-066): six-case routing + legacy back-compat ────────────────────
+  // ── M1b (DEC-068): six-case routing + legacy back-compat ────────────────────
   const sixCase: BranchNode = {
     id: "br",
     type: "branch",

@@ -17,7 +17,7 @@ import { z } from "zod";
  * the Inbox for Suppression. Classifier, catalog, and the P1.8 Inbox UI all
  * share this one enum — do not fork it.
  *
- * M1b (DEC-066): the six-intent reply-strategy taxonomy joins ADDITIVELY —
+ * M1b (DEC-068): the six-intent reply-strategy taxonomy joins ADDITIVELY —
  * every pre-M1b value stays forever (old Message rows, old graphs, old events
  * remain valid); `question`/`not`/`booked` are retired from classifier
  * EMISSION only (superseded by `info_request`/`not_interested`/`interested`).
@@ -30,7 +30,7 @@ export const IntentSchema = z.enum([
   "not", // not interested (legacy — superseded by not_interested)
   "ooo", // auto-reply / out-of-office (prototype chip "Auto-reply")
   "unsubscribe", // demands removal — side effects, never a chip
-  // ── M1b (DEC-066) reply-strategy intents ──────────────────────────────────
+  // ── M1b (DEC-068) reply-strategy intents ──────────────────────────────────
   "objection_price", // "too expensive" / budget pushback → value-reframe branch
   "objection_timing", // "call me in March" → ack + delayed follow-up branch
   "wrong_person", // "I don't handle this" → referral-ask branch
