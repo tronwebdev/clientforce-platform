@@ -1,5 +1,6 @@
 /**
  * The prompt-layer before/after across the append-only registry (P1.1):
+ * v5 (F1, DEC-069) layers the OBSERVED OUTCOMES section on v4's playbook;
  * v4 (M1b, DEC-068) carries the six-intent REPLY PLAYBOOK; v3 (M1a, DEC-065)
  * carries the selling craft + STRATEGY block but no playbook; v2 carries
  * neither. All stay registered. Pure, no infra.
@@ -25,7 +26,7 @@ const baseVars = {
   channels: '"email" ONLY.',
 };
 
-function renderCurrent(strategyNotes = "(none)", neverSay = "(none)") {
+function renderCurrent(strategyNotes = "(none)", neverSay = "(none)", outcomes = "") {
   return renderPlannerPrompt({
     ...baseVars,
     arcLabel: fixture.arc.label,
@@ -34,12 +35,48 @@ function renderCurrent(strategyNotes = "(none)", neverSay = "(none)") {
     toneHints: fixture.toneHints,
     strategyNotes,
     neverSay,
+    outcomes,
   });
 }
 
-describe("planner prompt v4 (reply playbook)", () => {
-  it("is pinned at version 4", () => {
-    expect(PLANNER_PROMPT_VERSION).toBe(4);
+describe("planner prompt v5 (outcome-aware regen layered on the playbook)", () => {
+  it("is pinned at version 5", () => {
+    expect(PLANNER_PROMPT_VERSION).toBe(5);
+  });
+
+  it("renders the OBSERVED OUTCOMES block verbatim, between STRATEGY and GUARDRAILS, coexisting with the playbook", () => {
+    const block =
+      "OBSERVED OUTCOMES (live campaign data — confidence labeled per step):\n" +
+      "- step-1 (email): 62 sent · reply rate 4.8% · positive-intent 1.6% · opt-out 0% — confidence: ok (≥50 sends)\n";
+    const p = renderCurrent("(none)", "(none)", block);
+    expect(p).toContain(block);
+    expect(p.indexOf("OBSERVED OUTCOMES")).toBeGreaterThan(p.indexOf("STRATEGY"));
+    expect(p.indexOf("OBSERVED OUTCOMES")).toBeLessThan(p.indexOf("GUARDRAILS"));
+    // The layered prompt keeps the FULL v4 playbook contract intact.
+    expect(p).toContain("REPLY PLAYBOOK (one case per classified intent — EXACTLY these six");
+    expect(p).toContain('{"intent":"not_interested"}, "pipeline":"lost"');
+  });
+
+  it("an empty outcomes block leaves NO outcomes section (young campaigns plan exactly as v4 did)", () => {
+    const p = renderCurrent();
+    expect(p).not.toContain("OBSERVED OUTCOMES");
+    expect(p).toContain("REPLY PLAYBOOK");
+  });
+
+  it("BEFORE/AFTER: v4 (still registered) has the playbook but no outcomes slot", () => {
+    renderCurrent(); // ensure registration ran
+    const v4 = renderPrompt(PLANNER_PROMPT_NAME, 4, {
+      ...baseVars,
+      arcLabel: fixture.arc.label,
+      arcDescription: fixture.arc.description,
+      arcRoles: "  1. OPENER",
+      toneHints: fixture.toneHints,
+      strategyNotes: "(none)",
+      neverSay: "(none)",
+    });
+    expect(v4).toContain("REPLY PLAYBOOK");
+    expect(v4).not.toContain("OBSERVED OUTCOMES");
+    expect(v4).not.toContain("{{outcomes}}");
   });
 
   it("template carries the six-intent REPLY PLAYBOOK with stage pins and rejoin routes", () => {

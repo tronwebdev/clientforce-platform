@@ -22,6 +22,7 @@ import {
   withTenant,
   type PrismaClient,
 } from "@clientforce/db";
+import { loadCampaignOutcomes } from "../src/outcomes";
 import { planCampaign, PlannerError } from "../src/plan";
 
 const hasInfra = Boolean(process.env.APP_DATABASE_URL ?? process.env.DATABASE_URL);
@@ -604,5 +605,134 @@ describe.skipIf(!hasInfra)("planCampaign integration", () => {
     expect(lastPrompt).toMatch(/NEVER SAY[^:]*: \(none\)/);
     expect(lastPrompt).toContain("Arc: Diagnose, then prescribe");
     expect(lastPrompt).toContain("default professional tone");
+  });
+
+  // ── F1 (DEC-068): outcome-aware regen — the acceptance fixture ─────────────
+
+  it("regen carries OBSERVED OUTCOMES only above threshold, citing the rollup's own numbers", async () => {
+    const outcomesAgentId = (
+      await owner.agent.create({
+        data: {
+          workspaceId: wsA,
+          name: "Outcomes",
+          goal: "book_appointments",
+          category: "Dental & Orthodontics",
+          guardrails: {},
+        },
+      })
+    ).id;
+
+    // FIRST generation: no campaign exists when outcomes load → all-none →
+    // NO outcomes section at all (young campaigns plan exactly as v3 did).
+    const v1 = await planCampaign(deps(), { workspaceId: wsA, agentId: outcomesAgentId });
+    expect(v1.graphRow.version).toBe(1);
+    expect(lastPrompt).not.toContain("OBSERVED OUTCOMES");
+
+    // Seed the ledger: 62 sends on step-1 (ok; 3 distinct repliers, 1
+    // interested), 24 on step-2 (low; 1 opt-out), 7 on step-3 (below floor).
+    const campaignId = v1.campaign.id;
+    const base = Date.now() - 86_400_000;
+    const cid = (tag: string, i: number) => `f1c-${tag}${i}-${suffix}`;
+    const mid = (tag: string, i: number) => `f1m-${tag}${i}-${suffix}`;
+    const spec = [
+      { step: "step-1", tag: "a", n: 62 },
+      { step: "step-2", tag: "b", n: 24 },
+      { step: "step-3", tag: "c", n: 7 },
+    ];
+    const contacts = [];
+    const messages = [];
+    for (const { step, tag, n } of spec) {
+      for (let i = 0; i < n; i++) {
+        contacts.push({
+          id: cid(tag, i),
+          workspaceId: wsA,
+          source: "import",
+          optOut: {},
+          tags: [],
+          email: `f1-${tag}${i}-${suffix}@t.test`,
+        });
+        messages.push({
+          id: mid(tag, i),
+          workspaceId: wsA,
+          campaignId,
+          contactId: cid(tag, i),
+          channel: "email",
+          direction: "OUTBOUND" as const,
+          subject: "s",
+          body: "b",
+          stepNodeId: step,
+          sentAt: new Date(base + i * 1000),
+        });
+      }
+    }
+    await owner.contact.createMany({ data: contacts });
+    await owner.message.createMany({ data: messages });
+    for (const r of [
+      { i: 0, intent: "interested" },
+      { i: 1, intent: "replied" },
+      { i: 2, intent: "replied" },
+    ]) {
+      const rid = `f1r-${r.i}-${suffix}`;
+      await owner.message.create({
+        data: {
+          id: rid,
+          workspaceId: wsA,
+          campaignId,
+          contactId: cid("a", r.i),
+          channel: "email",
+          direction: "INBOUND",
+          body: "re",
+          inReplyToId: mid("a", r.i),
+          intent: r.intent,
+          sentAt: new Date(base + 100_000 + r.i * 1000),
+        },
+      });
+      await owner.event.create({
+        data: {
+          workspaceId: wsA,
+          type: "email.replied.v1",
+          contactId: cid("a", r.i),
+          campaignId,
+          payload: { messageId: rid, intent: r.intent },
+          occurredAt: new Date(base + 100_000 + r.i * 1000),
+        },
+      });
+    }
+    await owner.event.create({
+      data: {
+        workspaceId: wsA,
+        type: "lead.unsubscribed.v1",
+        contactId: cid("b", 0),
+        campaignId,
+        payload: { channel: "email" },
+        occurredAt: new Date(base + 200_000),
+      },
+    });
+
+    // The endpoint's own loader (the API calls exactly this) …
+    const rollup = await withTenant(app, { workspaceId: wsA }, (tx) =>
+      loadCampaignOutcomes(tx, outcomesAgentId),
+    );
+    const stepOf = (id: string) => rollup.steps.find((s) => s.stepNodeId === id)!;
+    const [s1, s2, s3] = [stepOf("step-1"), stepOf("step-2"), stepOf("step-3")];
+    expect(s1.signal).toBe("ok");
+    expect(s2.signal).toBe("low");
+    expect(s3.signal).toBe("none");
+    expect(s3.replyRatePct).toBeNull(); // min-n gate lives in the payload
+
+    // … is what the REGEN cites, verbatim, for low+ steps only.
+    const v2 = await planCampaign(deps(), { workspaceId: wsA, agentId: outcomesAgentId });
+    expect(v2.graphRow.version).toBe(2);
+    expect(lastPrompt).toContain("OBSERVED OUTCOMES");
+    expect(lastPrompt).toContain(
+      `- step-1 (email): ${s1.sent} sent · reply rate ${s1.replyRatePct}% · ` +
+        `positive-intent ${s1.positiveRatePct}% · opt-out ${s1.optOutRatePct}% — confidence: ok (≥50 sends)`,
+    );
+    expect(lastPrompt).toContain(
+      `- step-2 (email): ${s2.sent} sent · reply rate ${s2.replyRatePct}% · ` +
+        `positive-intent ${s2.positiveRatePct}% · opt-out ${s2.optOutRatePct}% — confidence: low (20–49 sends — directional only)`,
+    );
+    expect(lastPrompt).not.toContain("- step-3"); // below the floor — omitted…
+    expect(lastPrompt).toContain("Steps below 20 sends are omitted"); // …and said so.
   });
 });

@@ -2,15 +2,20 @@
 
 /**
  * Steps tab (checkpoints §4) — the persisted CampaignGraph, read-only (editing
- * stays in the wizard, noted in PROGRESS). Per-step sent/reply counts come
- * from live Message rows (checkpoints requirement; the prototype's sequence
- * cards carry no stat chips — §0 convention addition, flagged).
+ * stays in the wizard, noted in PROGRESS). Per-step counts + outcome badges
+ * come from the F1 rollup (`GET /agents/:id/outcomes`, DEC-068) — one source
+ * for the stats span, the badge, and the regen prompt. (The pre-F1 Message
+ * groupBy never attributed replies — INBOUND rows carry no stepNodeId; the
+ * rollup's last-sent-step attribution supersedes it.) The prototype's
+ * sequence cards carry no stat chips — §0 convention addition, flagged.
  */
+import type { CampaignOutcomes } from "@clientforce/core";
+import { OutcomeBadge } from "../../../../../components/OutcomeBadge";
 import type { AgentViewData } from "./AgentView";
 import { intentTint } from "./shared";
 import { mainPath, mainSteps, strategyStepsOf } from "../../../../../lib/graph-path";
 
-export function StepsTab({ view }: { view: AgentViewData | null }) {
+export function StepsTab({ view, outcomes }: { view: AgentViewData | null; outcomes: CampaignOutcomes | null }) {
   if (!view) {
     return (
       <div style={{ maxWidth: 820, margin: "0 auto", paddingLeft: 48 }} data-testid="steps-skeleton">
@@ -67,7 +72,9 @@ export function StepsTab({ view }: { view: AgentViewData | null }) {
         }
         if (n.type === "step") {
           const idx = steps.indexOf(n) + 1;
-          const stats = view.perStep[n.id];
+          const o = outcomes?.steps.find((s) => s.stepNodeId === n.id);
+          const sent = o?.sent ?? view.perStep[n.id]?.sent ?? 0;
+          const replies = o?.replies ?? 0;
           return (
             <div key={n.id} style={{ display: "flex", gap: 14, alignItems: "flex-start" }} data-testid="step-card">
               {/* P2.1 (DEC-061, §3/§4 amendment): ChannelChip anatomy — sms steps
@@ -77,9 +84,11 @@ export function StepsTab({ view }: { view: AgentViewData | null }) {
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
                   <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", color: "#8A7F6B" }}>Step {idx}</span>
                   <span style={{ fontSize: 12, fontWeight: 700, borderRadius: 8, padding: "3px 10px", background: n.channel === "sms" ? "rgba(54,215,237,.14)" : "rgba(53,232,52,.13)", color: n.channel === "sms" ? "#1192A6" : "#16A82A" }} data-testid="step-channel-chip">{n.channel === "sms" ? "SMS" : "Email"}</span>
+                  {/* F1 (DEC-068): outcome badge — none renders nothing (honest absence) */}
+                  <OutcomeBadge step={o} />
                   {/* live counts (checkpoints §4 wiring; no prototype anchor — §0 convention) */}
                   <span style={{ marginLeft: "auto", fontSize: 12, color: "#9AA59E" }} data-testid="step-stats">
-                    {stats ? `${stats.sent} sent · ${stats.replies} repl${stats.replies === 1 ? "y" : "ies"}` : "0 sent"}
+                    {sent > 0 ? `${sent} sent · ${replies} repl${replies === 1 ? "y" : "ies"}` : "0 sent"}
                   </span>
                 </div>
                 <div style={{ fontSize: 15, fontWeight: 600, color: "#0E1512", marginBottom: 4 }}>{n.channel === "sms" ? "SMS message" : n.content.subject}</div>

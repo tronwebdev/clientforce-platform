@@ -13,7 +13,8 @@ import { ConnectFlowDrawer } from "../../(shell)/settings/shared";
 import { branchWhenLabel, intentTint } from "../../../lib/intents";
 import { mainPath, mainSteps, replyBranchOf, strategyStepsOf } from "../../../lib/graph-path";
 import { BUSINESS_CATEGORIES, CONTEXT_FIELD_META, customTokensMissingFallback, GOAL_KEYS, goalTerminalLabel, requiredFieldsFor, type GoalKey } from "@clientforce/core";
-import type { CampaignGraph, ContactFieldDefDto, DraftState, GraphNode } from "@clientforce/core";
+import type { CampaignGraph, CampaignOutcomes, ContactFieldDefDto, DraftState, GraphNode } from "@clientforce/core";
+import { OutcomeBadge } from "../../../components/OutcomeBadge";
 
 /** Per-field one-liner under each gap row (registry-driven). */
 const FIELD_HINTS: Record<string, string> = Object.fromEntries(
@@ -288,6 +289,10 @@ export function Wizard() {
   const [graph, setGraph] = useState<CampaignGraph | null>(null);
   const [graphSource, setGraphSource] = useState("");
   const [graphVersion, setGraphVersion] = useState(1);
+  // F1 (DEC-068): per-step outcomes for the step-card badges. Fresh drafts
+  // report all-none (no badges — honest absence); a resumed/relaunched agent
+  // with live sends shows low/ok chips. Failure → null → no badges.
+  const [outcomes, setOutcomes] = useState<CampaignOutcomes | null>(null);
   const [seqView, setSeqView] = useState<"sequence" | "branches">("sequence");
   const [drafting, setDrafting] = useState(false);
   // building interstitial (prototype BSTEPS) — timed like the prototype, but the
@@ -542,6 +547,19 @@ export function Wizard() {
   useEffect(() => {
     if (step === 4) void cf("senders").then(setSenders).catch(() => {});
   }, [step]);
+
+  // F1 (DEC-068): step-2 outcome badges — refetch on entry and on every graph
+  // version bump (regen / manual edit) so badges track the sequence in view.
+  useEffect(() => {
+    if (step !== 1 || !agentId) return;
+    let cancelled = false;
+    cf(`agents/${agentId}/outcomes`)
+      .then((o) => !cancelled && setOutcomes(o as CampaignOutcomes))
+      .catch(() => !cancelled && setOutcomes(null));
+    return () => {
+      cancelled = true;
+    };
+  }, [step, agentId, graphVersion]);
 
   // DEC-026: the Upload-doc card is disabled-with-reason when storage is absent.
   useEffect(() => {
@@ -1363,6 +1381,8 @@ export function Wizard() {
                                 <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "#8A7F6B" }}>Step {idx}</span>
                                 <span style={{ fontSize: 12, fontWeight: 700, borderRadius: 8, padding: "3px 10px", background: n.channel === "sms" ? "rgba(54,215,237,.14)" : "rgba(53,232,52,.13)", color: n.channel === "sms" ? "#1192A6" : "#16A82A" }} data-testid="seq-channel-chip">{n.channel === "sms" ? "SMS" : "Email"}</span>
                                 <span style={{ fontSize: 11, fontWeight: 700, color: "#16A82A", background: "rgba(53,232,52,.12)", borderRadius: 7, padding: "3px 9px" }}>✦ AI draft</span>
+                                {/* F1 (DEC-068): outcome badge — fresh drafts are all-none → no chip */}
+                                <OutcomeBadge step={outcomes?.steps.find((s) => s.stepNodeId === n.id)} />
                                 <span style={{ marginLeft: "auto", fontSize: 13, color: "#9AA59E" }} data-testid="seq-edit">✎ Edit</span>
                               </div>
                               <div style={{ fontSize: 15.5, fontWeight: 600, color: "#0E1512", marginBottom: 4 }}>{n.channel === "sms" ? "SMS message" : n.content.subject}</div>
