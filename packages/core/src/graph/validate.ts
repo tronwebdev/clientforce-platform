@@ -32,11 +32,30 @@ const stepContentSchema = z.object({
     .optional(),
 });
 
+// G1 (DEC-070): the guided step's brief — talking points, never finished copy.
+export const BRIEF_TALKING_POINTS_MIN = 3;
+export const BRIEF_TALKING_POINTS_MAX = 6;
+export const BRIEF_MUST_SAY_MAX = 5;
+export const BRIEF_NEVER_SAY_MAX = 10; // mirrors NEVER_SAY_MAX (M1a strategy)
+
+export const stepBriefSchema = z.object({
+  objective: z.string().min(1).max(200),
+  talkingPoints: z
+    .array(z.string().min(1).max(200))
+    .min(BRIEF_TALKING_POINTS_MIN)
+    .max(BRIEF_TALKING_POINTS_MAX),
+  mustSay: z.array(z.string().min(1).max(120)).max(BRIEF_MUST_SAY_MAX).optional(),
+  neverSay: z.array(z.string().min(1).max(80)).max(BRIEF_NEVER_SAY_MAX).optional(),
+});
+
 const stepNode = z.object({
   id,
   type: z.literal("step"),
   channel: z.enum(["email", "sms", "whatsapp", "voice", "linkedin"]),
   content: stepContentSchema,
+  // G1 (DEC-070): absent = scripted — legacy graphs parse byte-identical.
+  mode: z.enum(["scripted", "guided"]).optional(),
+  brief: stepBriefSchema.optional(),
   pipelineOnSend: z.string().optional(),
 });
 
@@ -123,6 +142,32 @@ export function validateGraph(input: unknown): CampaignGraph {
     if (!ids.has(edge.to)) {
       throw new GraphValidationError(
         `edge to "${edge.to}" (from "${edge.from}") references an unknown node`,
+      );
+    }
+  }
+
+  // G1 (DEC-070): guided steps are briefs-composed-at-send — sms ONLY this
+  // unit (guided email is G2); the brief and body copy are mutually exclusive
+  // so a step never has two sources of truth.
+  for (const node of graph.nodes) {
+    if (node.type !== "step") continue;
+    if (node.mode === "guided") {
+      if (node.channel !== "sms") {
+        throw new GraphValidationError(
+          `step "${node.id}" is guided on channel "${node.channel}" — guided mode is sms-only this phase`,
+        );
+      }
+      if (!node.brief) {
+        throw new GraphValidationError(`guided step "${node.id}" must carry a brief`);
+      }
+      if (node.content.body !== undefined || node.content.subject !== undefined) {
+        throw new GraphValidationError(
+          `guided step "${node.id}" must not carry body/subject copy — the composer writes it at send time`,
+        );
+      }
+    } else if (node.brief) {
+      throw new GraphValidationError(
+        `step "${node.id}" carries a brief but is not mode:"guided"`,
       );
     }
   }

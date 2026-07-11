@@ -146,3 +146,34 @@ describe("strategy block (guardrails rider)", () => {
     ).toThrow();
   });
 });
+
+describe("composeMode (guardrails rider — G1, DEC-070)", () => {
+  const base = {
+    sendingWindow: { days: [1], start: "09:00", end: "17:00", timezone: "UTC" },
+    dailyCap: { email: 50 },
+    consent: null,
+    unsubscribeFooter: true,
+    suppressionCheck: true,
+  };
+
+  it("legacy rows parse unchanged — absent composeMode = scripted default", () => {
+    expect(parseGuardrails(base).composeMode).toBeUndefined();
+    expect(parseGuardrails({}).composeMode).toBeUndefined();
+  });
+
+  it("round-trips beside goalLabel and strategy (nothing clobbers anything)", () => {
+    const parsed = parseGuardrails({
+      ...base,
+      goalLabel: "Contract signed",
+      strategy: { neverSay: ["cheap"] },
+      composeMode: "guided",
+    });
+    expect(parsed.composeMode).toBe("guided");
+    expect(parsed.goalLabel).toBe("Contract signed");
+    expect(parsed.strategy?.neverSay).toEqual(["cheap"]);
+  });
+
+  it("a PRESENT-yet-invalid composeMode throws (A8 discipline)", () => {
+    expect(() => parseGuardrails({ ...base, composeMode: "freestyle" })).toThrow();
+  });
+});

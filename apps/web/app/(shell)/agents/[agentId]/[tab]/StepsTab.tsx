@@ -9,7 +9,7 @@
  * rollup's last-sent-step attribution supersedes it.) The prototype's
  * sequence cards carry no stat chips — §0 convention addition, flagged.
  */
-import type { CampaignOutcomes } from "@clientforce/core";
+import { GUIDED_SMS_CREDITS, type CampaignOutcomes } from "@clientforce/core";
 import { OutcomeBadge } from "../../../../../components/OutcomeBadge";
 import type { AgentViewData } from "./AgentView";
 import { intentTint } from "./shared";
@@ -72,6 +72,8 @@ export function StepsTab({ view, outcomes }: { view: AgentViewData | null; outco
         }
         if (n.type === "step") {
           const idx = steps.indexOf(n) + 1;
+          // G1 (DEC-070): a guided step renders its BRIEF, not copy.
+          const guided = n.mode === "guided" && n.brief;
           const o = outcomes?.steps.find((s) => s.stepNodeId === n.id);
           const sent = o?.sent ?? view.perStep[n.id]?.sent ?? 0;
           const replies = o?.replies ?? 0;
@@ -84,6 +86,14 @@ export function StepsTab({ view, outcomes }: { view: AgentViewData | null; outco
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
                   <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", color: "#8A7F6B" }}>Step {idx}</span>
                   <span style={{ fontSize: 12, fontWeight: 700, borderRadius: 8, padding: "3px 10px", background: n.channel === "sms" ? "rgba(54,215,237,.14)" : "rgba(53,232,52,.13)", color: n.channel === "sms" ? "#1192A6" : "#16A82A" }} data-testid="step-channel-chip">{n.channel === "sms" ? "SMS" : "Email"}</span>
+                  {/* G1 (DEC-070): guided step = brief card — objective + bullets,
+                      composed per lead at send time; credits display-only (Q-020). */}
+                  {guided ? (
+                    <>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "#1192A6", background: "rgba(54,215,237,.14)", borderRadius: 7, padding: "3px 9px" }} data-testid="step-guided-tag">✦ Composed at send</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "#8A7F6B", background: "#F2EEE4", borderRadius: 7, padding: "3px 9px" }} data-testid="step-guided-credits">{GUIDED_SMS_CREDITS} credits / send</span>
+                    </>
+                  ) : null}
                   {/* F1 (DEC-068): outcome badge — none renders nothing (honest absence) */}
                   <OutcomeBadge step={o} />
                   {/* live counts (checkpoints §4 wiring; no prototype anchor — §0 convention) */}
@@ -91,8 +101,24 @@ export function StepsTab({ view, outcomes }: { view: AgentViewData | null; outco
                     {sent > 0 ? `${sent} sent · ${replies} repl${replies === 1 ? "y" : "ies"}` : "0 sent"}
                   </span>
                 </div>
-                <div style={{ fontSize: 15, fontWeight: 600, color: "#0E1512", marginBottom: 4 }}>{n.channel === "sms" ? "SMS message" : n.content.subject}</div>
-                <div style={{ fontSize: 13.5, color: "#5C6B62", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{n.content.body}</div>
+                {guided ? (
+                  <>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: "#0E1512", marginBottom: 5 }}>{n.brief!.objective}</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 3 }} data-testid="step-brief-points">
+                      {n.brief!.talkingPoints.map((p, i) => (
+                        <div key={i} style={{ fontSize: 13, color: "#5C6B62", lineHeight: 1.45, display: "flex", gap: 8 }}>
+                          <span style={{ color: "#1192A6", flex: "none" }}>•</span>
+                          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: "#0E1512", marginBottom: 4 }}>{n.channel === "sms" ? "SMS message" : n.content.subject}</div>
+                    <div style={{ fontSize: 13.5, color: "#5C6B62", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{n.content.body}</div>
+                  </>
+                )}
               </div>
             </div>
           );

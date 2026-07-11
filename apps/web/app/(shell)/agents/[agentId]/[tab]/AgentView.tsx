@@ -33,6 +33,8 @@ export interface AgentViewData {
     goalLabel?: string;
     /** M1a (DEC-065): per-agent strategy rider — notes + never-say. */
     strategy?: { strategyNotes?: string; neverSay?: string[] };
+    /** G1 (DEC-070): per-agent compose mode — absent = scripted. */
+    composeMode?: "scripted" | "guided";
     unsubscribeFooter: true;
     suppressionCheck: true;
   } | null;

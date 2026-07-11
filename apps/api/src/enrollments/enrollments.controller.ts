@@ -59,7 +59,7 @@ export class EnrollmentsController {
     const dto = parse(createEnrollmentSchema, body);
     const workspaceId = this.tenant.workspaceId;
 
-    const { enrollment, campaignId, senderId, graph, existed } = await this.tenant.run(
+    const { enrollment, campaignId, senderId, graph, graphVersion, existed } = await this.tenant.run(
       async (tx) => {
         const [agent, contact] = await Promise.all([
           tx.agent.findUnique({ where: { id: dto.agentId } }),
@@ -127,6 +127,8 @@ export class EnrollmentsController {
           // Graphs are validated at persist time (P1.4); re-validate on the way
           // into the engine so a hand-edited row can never start a broken run.
           graph: validateGraph(graphRow.graph) as CampaignGraph,
+          // G1 (DEC-070): guided sends record which brief version wrote them.
+          graphVersion: graphRow.version,
           existed: Boolean(prior),
         };
       },
@@ -141,6 +143,7 @@ export class EnrollmentsController {
       contactId: dto.contactId,
       senderId,
       graph,
+      graphVersion,
       ...(Number.isFinite(scale) && scale > 0 ? { delayScale: scale } : {}),
     });
     return { ...enrollment, workflowId, workflowDeduped: deduped || existed };

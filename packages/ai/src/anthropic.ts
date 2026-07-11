@@ -110,7 +110,7 @@ export class AnthropicProvider implements CompletionProvider {
         {
           model: params.model,
           max_tokens: params.maxTokens,
-          ...(params.system ? { system: params.system } : {}),
+          ...systemBlocks(params),
           ...(params.temperature !== undefined ? { temperature: params.temperature } : {}),
           messages: [{ role: "user", content: params.prompt }],
           ...(toolFields ?? {}),
@@ -121,6 +121,30 @@ export class AnthropicProvider implements CompletionProvider {
       throw toProviderError(err);
     }
   }
+}
+
+/**
+ * G1 (DEC-070): when a cacheable context rides the call, `system` becomes an
+ * ordered block array — the static prompt first, the per-caller-stable context
+ * second with `cache_control` — so a fan-out over the same agent reuses the
+ * cached prefix and only the per-lead user turn is new tokens.
+ */
+function systemBlocks(
+  params: Pick<TextParams, "system" | "cachedContext">,
+): Pick<Anthropic.MessageCreateParams, "system"> | Record<string, never> {
+  if (params.cachedContext) {
+    return {
+      system: [
+        ...(params.system ? [{ type: "text" as const, text: params.system }] : []),
+        {
+          type: "text" as const,
+          text: params.cachedContext,
+          cache_control: { type: "ephemeral" as const },
+        },
+      ],
+    };
+  }
+  return params.system ? { system: params.system } : {};
 }
 
 /** Map SDK failures onto the gateway's typed, retryability-aware error. */

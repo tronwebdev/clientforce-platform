@@ -5,8 +5,16 @@
  * so a retried activity can never double-send.
  */
 import { ApplicationFailure } from "@temporalio/common";
-import { sendSmsStep, sendStep, SendBlockedError, type EmailSender, type SmsSender } from "@clientforce/channels";
-import { goalTerminalLabel, parseGuardrails, type StepContent } from "@clientforce/core";
+import {
+  ComposeRefusedError,
+  sendSmsStep,
+  sendStep,
+  SendBlockedError,
+  type EmailSender,
+  type SmsSender,
+  type SmsStepComposer,
+} from "@clientforce/channels";
+import { goalTerminalLabel, parseGuardrails, type StepBrief, type StepContent } from "@clientforce/core";
 import { withTenant, type Prisma, type PrismaClient } from "@clientforce/db";
 import type { SendOutcome } from "./shared";
 
@@ -18,6 +26,28 @@ export interface ActivityDeps {
   smsTransport?: SmsSender;
   /** DEC-063: sms allow-list (CHANNELS_SMS_ALLOWLIST resolved by the boundary when omitted). */
   smsAllowlist?: string[];
+  /**
+   * G1 (DEC-070): the guided-sms composer seam (`createSmsStepComposer` in
+   * the worker, prompt-driven fake in tests). Absent → guided steps refuse
+   * with the typed COMPOSER_UNCONFIGURED reason (honest absence, the
+   * smsTransport pattern) — never a silent skip.
+   */
+  composeSms?: SmsStepComposer;
+  /**
+   * G1: persists + fans out one catalog event (the refusal writes
+   * `sms.compose_refused.v1` — the Logs tab's amber row). Optional so tests
+   * and bus-less environments stay wired-free; the enrollment pause persists
+   * regardless.
+   */
+  publishComposeRefused?: (event: {
+    workspaceId: string;
+    enrollmentId: string;
+    contactId: string;
+    campaignId: string;
+    stepNodeId: string;
+    reason: string;
+    detail?: string;
+  }) => Promise<void>;
   /** Injectable clock (send-window tests). */
   now?: () => Date;
   /** §G allow-list override; resolves from CHANNELS_ALLOWLIST when omitted. */
@@ -91,6 +121,12 @@ export function createActivities(deps: ActivityDeps) {
       content: StepContent;
       /** P2.1: the step node's channel — "email" (default) or "sms". */
       channel?: string;
+      /** G1 (DEC-070): the step node's mode — absent = scripted. */
+      mode?: "scripted" | "guided";
+      /** G1: the guided step's brief (present exactly when mode is guided). */
+      brief?: StepBrief;
+      /** G1: the graph version the brief came from (Message.meta provenance). */
+      graphVersion?: number | null;
     }): Promise<SendOutcome> {
       const existing = await withTenant(prisma, { workspaceId: params.workspaceId }, (tx) =>
         tx.message.findFirst({
@@ -121,6 +157,41 @@ export function createActivities(deps: ActivityDeps) {
             tx.senderConnection.findFirst({ where: { type: "TWILIO_SMS", status: "ACTIVE" } }),
           );
           if (!smsSender) throw new SendBlockedError("SENDER_NOT_SMS", "no active TWILIO_SMS sender");
+
+          // G1 (DEC-070): a guided step composes per lead BEFORE the boundary
+          // — the rails below neither know nor care who wrote the copy. Runs
+          // after the idempotency check so replays never re-spend a model call.
+          let content = params.content;
+          let composed: { mode: "guided"; briefVersion: number | null; composerVersion: string } | undefined;
+          if (params.mode === "guided") {
+            if (!params.brief) {
+              throw new ComposeRefusedError(
+                "COMPOSER_UNCONFIGURED",
+                `guided step ${params.stepNodeId} carries no brief — graphs are validated at persist time`,
+              );
+            }
+            if (!deps.composeSms) {
+              throw new ComposeRefusedError(
+                "COMPOSER_UNCONFIGURED",
+                "no composer configured on this worker (ANTHROPIC_API_KEY absent)",
+              );
+            }
+            const result = await deps.composeSms({
+              workspaceId: params.workspaceId,
+              agentId: params.agentId,
+              campaignId: params.campaignId,
+              contactId: params.contactId,
+              enrollmentId: params.enrollmentId,
+              stepNodeId: params.stepNodeId,
+              brief: params.brief,
+            });
+            content = { body: result.body };
+            composed = {
+              mode: "guided",
+              briefVersion: params.graphVersion ?? null,
+              composerVersion: result.composerVersion,
+            };
+          }
           message = await sendSmsStep(
             { prisma, transport: deps.smsTransport, now: deps.now, allowlist: deps.smsAllowlist },
             {
@@ -131,7 +202,8 @@ export function createActivities(deps: ActivityDeps) {
               contactId: params.contactId,
               senderId: smsSender.id,
               stepNodeId: params.stepNodeId,
-              content: params.content,
+              content,
+              ...(composed ? { composed } : {}),
             },
           );
         } else {
@@ -157,6 +229,16 @@ export function createActivities(deps: ActivityDeps) {
             nonRetryable: true,
             message: err.message,
             details: [{ reason: err.reason, detail: err.message }],
+          });
+        }
+        // G1: a check-refusal is a decision, not an outage — never retried
+        // (infra/model errors are NOT this type; they keep normal retries).
+        if (err instanceof ComposeRefusedError) {
+          throw ApplicationFailure.create({
+            type: "ComposeRefusedError",
+            nonRetryable: true,
+            message: err.message,
+            details: [{ reason: err.reason, detail: err.detail }],
           });
         }
         throw err;
@@ -250,6 +332,55 @@ export function createActivities(deps: ActivityDeps) {
         }),
         { status, currentNode: params.nodeId },
       );
+    },
+
+    /**
+     * G1 (DEC-070): the composer refused after its bounded retry — pause THAT
+     * lead's enrollment with the typed reason (user-visible on the Logs tab
+     * via `Enrollment.meta.blocked`) AND write the `sms.compose_refused.v1`
+     * Event row (amber Logs row). Never a silent skip: other leads on the
+     * same step keep composing/sending.
+     */
+    async recordComposeRefused(params: {
+      workspaceId: string;
+      enrollmentId: string;
+      contactId: string;
+      campaignId: string;
+      nodeId: string;
+      reason: string;
+      detail: string;
+    }): Promise<void> {
+      await mergeMeta(
+        params,
+        (meta) => ({
+          ...meta,
+          blocked: {
+            nodeId: params.nodeId,
+            reason: params.reason,
+            detail: params.detail,
+            at: new Date().toISOString(),
+          },
+        }),
+        { status: "PAUSED", currentNode: params.nodeId },
+      );
+      if (deps.publishComposeRefused) {
+        await deps
+          .publishComposeRefused({
+            workspaceId: params.workspaceId,
+            enrollmentId: params.enrollmentId,
+            contactId: params.contactId,
+            campaignId: params.campaignId,
+            stepNodeId: params.nodeId,
+            reason: params.reason,
+            detail: params.detail,
+          })
+          .catch((err: unknown) => {
+            console.warn(
+              `[workflows] sms.compose_refused publish failed for ${params.enrollmentId}: ` +
+                `${err instanceof Error ? err.message : String(err)} — pause persisted regardless`,
+            );
+          });
+      }
     },
 
     /** Append a non-send event (branch routing, deferred actions) to the audit trail. */

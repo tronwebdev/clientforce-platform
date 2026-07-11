@@ -51,6 +51,8 @@ export function SettingsTab({ agentId, view, onChanged }: { agentId: string; vie
   const [notes, setNotes] = useState("");
   const [neverSay, setNeverSay] = useState<string[]>([]);
   const [neverSayInput, setNeverSayInput] = useState("");
+  // G1 (DEC-070): per-agent compose mode — absent on the row = scripted.
+  const [composeMode, setComposeMode] = useState<"scripted" | "guided">("scripted");
 
   const refresh = useCallback(async () => {
     const res = await cf("senders").catch(() => null);
@@ -69,6 +71,7 @@ export function SettingsTab({ agentId, view, onChanged }: { agentId: string; vie
     setTracking({ open: g.tracking?.openTracking ?? true, link: g.tracking?.linkTracking ?? true });
     setNotes(g.strategy?.strategyNotes ?? "");
     setNeverSay(g.strategy?.neverSay ?? []);
+    setComposeMode(g.composeMode ?? "scripted");
   }, [view?.guardrails]);
 
   async function saveGuardrails(next: {
@@ -76,6 +79,7 @@ export function SettingsTab({ agentId, view, onChanged }: { agentId: string; vie
     days?: boolean[];
     tracking?: { open: boolean; link: boolean };
     strategy?: { notes?: string; neverSay?: string[] };
+    composeMode?: "scripted" | "guided";
   }) {
     const g = view?.guardrails;
     const t = next.tracking ?? tracking;
@@ -88,6 +92,10 @@ export function SettingsTab({ agentId, view, onChanged }: { agentId: string; vie
             ...(outNever.length > 0 ? { neverSay: outNever } : {}),
           }
         : undefined;
+    // G1 (DEC-070): written when the owner sets it here OR the row already
+    // carries it — an untouched legacy row stays byte-identical (absent =
+    // scripted), and an unrelated edit never clobbers the mode.
+    const outMode = next.composeMode ?? g?.composeMode;
     await cf(`agents/${agentId}`, {
       method: "PATCH",
       body: JSON.stringify({
@@ -105,6 +113,7 @@ export function SettingsTab({ agentId, view, onChanged }: { agentId: string; vie
           tracking: { openTracking: t.open, linkTracking: t.link },
           ...(g?.goalLabel ? { goalLabel: g.goalLabel } : {}),
           ...(strategy ? { strategy } : {}),
+          ...(outMode ? { composeMode: outMode } : {}),
           unsubscribeFooter: true,
           suppressionCheck: true,
         },
@@ -259,6 +268,44 @@ export function SettingsTab({ agentId, view, onChanged }: { agentId: string; vie
             <span style={{ fontSize: 11, fontWeight: 700, color: "#0F7A28", background: "#D7F5DD", borderRadius: 7, padding: "5px 10px", flex: "none" }}>🔒 Required</span>
           </div>
         ))}
+      </div>
+
+      <div style={{ ...label, marginTop: 8 }}>Message composing</div>
+
+      {/* G1 (DEC-070) — designed section, no prototype anchor (§0 card/label
+          conventions, DEC-065(6) precedent). The mode is baked into each
+          planned step, so the toggle steers FUTURE generations/sends. */}
+      <div style={{ ...card, padding: "18px 20px" }} data-testid="settings-compose-mode">
+        <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 16, color: "#0E1512" }}>How this agent writes SMS</div>
+        <div style={{ fontSize: 12.5, color: "#9AA59E", marginTop: 2, marginBottom: 14 }}>Email steps stay scripted either way this phase.</div>
+        <div style={{ display: "flex", gap: 10 }}>
+          {(
+            [
+              { key: "scripted" as const, title: "Scripted", desc: "Sends each step's exact saved copy — what you see is what every lead gets." },
+              { key: "guided" as const, title: "✦ AI-guided", desc: "Steps carry talking points; the AI composes each SMS per lead at send time, checked before anything sends." },
+            ]
+          ).map((opt) => {
+            const on = composeMode === opt.key;
+            return (
+              <div
+                key={opt.key}
+                onClick={() => { if (composeMode !== opt.key) { setComposeMode(opt.key); void saveGuardrails({ composeMode: opt.key }); } }}
+                style={{ flex: 1, border: `1.5px solid ${on ? "#35E834" : "#EBE3D6"}`, background: on ? "rgba(53,232,52,.06)" : "#FBF7F0", borderRadius: 13, padding: "13px 15px", cursor: "pointer" }}
+                data-testid={`compose-mode-${opt.key}`}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                  <span style={{ width: 16, height: 16, borderRadius: "50%", border: `5px solid ${on ? "#16A82A" : "#D8CFBE"}`, background: "#fff", flex: "none", boxSizing: "border-box" }} />
+                  <span style={{ fontSize: 14, fontWeight: 700, color: "#0E1512" }}>{opt.title}</span>
+                </div>
+                <div style={{ fontSize: 12.5, color: "#8A7F6B", lineHeight: 1.5 }}>{opt.desc}</div>
+              </div>
+            );
+          })}
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12.5, color: "#8A7F6B", background: "rgba(53,232,52,.07)", borderRadius: 10, padding: "10px 13px", marginTop: 12 }} data-testid="compose-mode-footnote">
+          <span style={{ fontSize: 13 }}>ⓘ</span>
+          <span>Applies to future sends — sequences you generate from now on plan {composeMode === "guided" ? "guided" : "scripted"} SMS steps. Steps already planned keep their mode until you regenerate the sequence; messages already sent are unchanged.</span>
+        </div>
       </div>
 
       <div style={{ ...label, marginTop: 8 }}>Strategy</div>

@@ -66,6 +66,7 @@ export class AiGateway {
         .completeText({
           model,
           system: request.system,
+          cachedContext: request.cachedContext,
           prompt: request.prompt,
           maxTokens: request.maxTokens ?? this.config.maxTokens[task],
           temperature: request.temperature,
@@ -95,6 +96,7 @@ export class AiGateway {
     const toolParams = {
       model,
       system: request.system,
+      cachedContext: request.cachedContext,
       maxTokens: request.maxTokens ?? this.config.maxTokens[task],
       temperature: request.temperature,
       toolName: "emit_result",

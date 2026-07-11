@@ -22,9 +22,19 @@ import { BANNED_OPENERS, OPENER_WORD_CAP } from "@clientforce/core";
  * endpoint's own per-step numbers, rendered ONLY for steps at low+ signal
  * (min-n gates in @clientforce/core) and empty otherwise, so young campaigns
  * plan exactly as v4 did. v2/v3/v4 stay registered.
+ *
+ * v6 (G1, DEC-070): the GUIDED variant — v5's text with the main-sequence
+ * step bullet swapped so sms steps become mode:"guided" BRIEFS (objective +
+ * talking points, never copy; the composer writes per-lead text at send
+ * time). Rendered ONLY for guided agents with an active sms sender; scripted
+ * agents keep rendering v5 byte-identical. Derived from the v5 literal at
+ * registration so the two can never drift. v2/v3/v4/v5 stay registered.
  */
 export const PLANNER_PROMPT_NAME = "planner.campaign";
 export const PLANNER_PROMPT_VERSION = 5; // F1 (DEC-069): OBSERVED OUTCOMES block layered on the v4 playbook
+// G1 (DEC-070): guided agents render v6 — v5 plus the guided-sms-briefs step
+// rule. Scripted agents keep rendering v5 byte-identical (regression-pinned).
+export const PLANNER_PROMPT_VERSION_GUIDED = 6;
 
 export const PLANNER_SYSTEM =
   "You are a campaign planner for an outbound email agent. You design a short, effective email sequence as a " +
@@ -59,6 +69,22 @@ export const PLANNER_SYSTEM =
   "- A price objection is answered with VALUE, never money: no discount, no lower tier, no \"flexible " +
   "pricing\" — unless the business context itself contains such an offer, in which case cite it verbatim.\n" +
   "- A goodbye is graceful: accept the no, leave the door open, zero guilt, never mention unsubscribing.";
+
+/**
+ * G1 (DEC-070): the guided addendum — appended to the system prompt ONLY for
+ * guided agents; scripted planning keeps the exact system above.
+ */
+export const PLANNER_SYSTEM_GUIDED =
+  PLANNER_SYSTEM +
+  "\n" +
+  "GUIDED SMS BRIEFS (this agent composes SMS per lead at send time):\n" +
+  'Every MAIN-SEQUENCE sms step is mode:"guided" and carries a "brief" INSTEAD of copy — never write sms body text.\n' +
+  "- A brief = objective (what this step must achieve, following the step's ROLE above) + 3-6 talkingPoints " +
+  "(concrete, grounded in the business context — facts the composed message may draw from, not sentences to " +
+  "paste) + optional mustSay (ONLY compliance-critical strings that must appear verbatim, e.g. a real " +
+  "deadline — at most 5) + optional neverSay (step-specific bans — at most 10).\n" +
+  "- Talking points obey the same grounding rule as copy: facts from the business context only.\n" +
+  "- Email steps — main sequence AND reply-strategy steps — stay fully scripted with subject and body as usual.";
 
 let registered = false;
 function ensureRegistered(): void {
@@ -166,10 +192,7 @@ Reply-strategy steps set "threaded": true (they continue the thread).
   // only, built by buildOutcomesPromptBlock from the endpoint's own numbers)
   // or "" — the section header lives in the block, never dangling in the
   // template, so an empty block renders exactly the v4 prompt.
-  registerPrompt({
-    name: PLANNER_PROMPT_NAME,
-    version: 5,
-    template: `Design an outbound campaign graph for this agent.
+  const v5Template = `Design an outbound campaign graph for this agent.
 
 GOAL: {{goal}}
 
@@ -205,7 +228,23 @@ Reply-strategy steps set "threaded": true (they continue the thread).
 
 - Finish every non-rejoining path with an "end" node. Node ids are short slugs (e.g. "step-1", "branch-reply", "step-reframe-price").
 - Edges connect the flow; sequential nodes (step/delay/action) have exactly ONE outgoing edge; branch routing lives in the branch cases, not edges.
-- Every factual claim in copy must trace to the business context above.`,
+- Every factual claim in copy must trace to the business context above.`;
+  registerPrompt({ name: PLANNER_PROMPT_NAME, version: 5, template: v5Template });
+
+  // v6 (G1, DEC-070) = v5 VERBATIM with the main-sequence step bullet swapped
+  // for the guided rule — derived from the same literal so v5/v6 can't drift.
+  const v5StepBullet =
+    '- {{stepCount}} "step" nodes in the MAIN sequence; each content has "subject" and "body"; use {{tokens}} in the body (and subject where natural).';
+  if (!v5Template.includes(v5StepBullet)) {
+    throw new Error("planner prompt v6 derivation: v5 step bullet not found — realign the guided variant");
+  }
+  registerPrompt({
+    name: PLANNER_PROMPT_NAME,
+    version: PLANNER_PROMPT_VERSION_GUIDED,
+    template: v5Template.replace(
+      v5StepBullet,
+      '- {{stepCount}} "step" nodes in the MAIN sequence. Email steps: content has "subject" and "body"; use {{tokens}} in the body (and subject where natural). Sms steps: mode "guided" with a "brief" (objective + 3-6 talkingPoints + optional mustSay/neverSay) and EMPTY content — no subject, no body, no merge tokens (the composer writes per-lead copy at send time). Reply-strategy steps stay scripted email.',
+    ),
   });
 }
 
@@ -231,7 +270,12 @@ export function renderPlannerPrompt(vars: {
    *  "" when no step clears the low-signal floor (renders exactly the v4
    *  playbook prompt). */
   outcomes: string;
-}): string {
+}, guided = false): string {
   ensureRegistered();
-  return renderPrompt(PLANNER_PROMPT_NAME, PLANNER_PROMPT_VERSION, vars);
+  // G1 (DEC-070): guided agents render v6; scripted agents keep v5 verbatim.
+  return renderPrompt(
+    PLANNER_PROMPT_NAME,
+    guided ? PLANNER_PROMPT_VERSION_GUIDED : PLANNER_PROMPT_VERSION,
+    vars,
+  );
 }

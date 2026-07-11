@@ -38,15 +38,19 @@ const acts = proxyActivities<ReturnType<typeof createActivities>>({
     backoffCoefficient: 2,
     maximumAttempts: 5,
     // A SendBlockedError refusal is a decision, not an outage — never retried
-    // (a suppressed contact must never be retried into a send).
-    nonRetryableErrorTypes: ["SendBlockedError"],
+    // (a suppressed contact must never be retried into a send). G1: a
+    // ComposeRefusedError already spent its bounded retry inside the composer.
+    nonRetryableErrorTypes: ["SendBlockedError", "ComposeRefusedError"],
   },
 });
 
-function blockedReasonOf(err: unknown): { reason: string; detail: string } | undefined {
+function typedFailureOf(
+  err: unknown,
+  type: "SendBlockedError" | "ComposeRefusedError",
+): { reason: string; detail: string } | undefined {
   if (!(err instanceof ActivityFailure)) return undefined;
   const cause = err.cause;
-  if (!(cause instanceof ApplicationFailure) || cause.type !== "SendBlockedError") return undefined;
+  if (!(cause instanceof ApplicationFailure) || cause.type !== type) return undefined;
   const first = cause.details?.[0] as { reason?: string; detail?: string } | undefined;
   return { reason: first?.reason ?? "UNKNOWN", detail: first?.detail ?? cause.message };
 }
@@ -105,9 +109,28 @@ export async function campaignWorkflow(
             // P2.1 (DEC-061): ONE durable workflow drives both channels — the
             // activity routes by the step's channel.
             channel: node.channel,
+            // G1 (DEC-070): guided steps compose per lead inside the activity,
+            // before the unchanged boundary rails.
+            mode: node.mode,
+            brief: node.brief,
+            graphVersion: input.graphVersion ?? null,
           });
         } catch (err) {
-          const blocked = blockedReasonOf(err);
+          // G1: composer refusal — pause THIS lead with the typed reason +
+          // the sms.compose_refused.v1 Logs row; never a silent skip.
+          const refused = typedFailureOf(err, "ComposeRefusedError");
+          if (refused) {
+            await acts.recordComposeRefused({
+              ...base,
+              contactId: input.contactId,
+              campaignId: input.campaignId,
+              nodeId: node.id,
+              reason: refused.reason,
+              detail: refused.detail,
+            });
+            return { status: "blocked", node: node.id, reason: refused.reason };
+          }
+          const blocked = typedFailureOf(err, "SendBlockedError");
           if (!blocked) throw err;
           // Owner Logs-tab rule: the refusal is user-visible data on the
           // enrollment (amber row), and this path of the run ends here.

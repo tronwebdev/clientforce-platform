@@ -10,6 +10,14 @@ export type AiTask = "planner" | "copy" | "classify" | "voice";
 export interface CompleteRequest {
   /** System prompt (optional). */
   system?: string;
+  /**
+   * G1 (DEC-070): stable-per-caller context appended as a SECOND system block
+   * with provider prompt caching (`cache_control: ephemeral`) — a fan-out of
+   * calls sharing the same system + context reuses the cached prefix. Keep
+   * per-call material in `prompt`, never here. Ignored by providers without
+   * caching (test fakes).
+   */
+  cachedContext?: string;
   /** User prompt. Use the prompt registry to render versioned templates. */
   prompt: string;
   /** Override the task's default max output tokens. */

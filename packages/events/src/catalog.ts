@@ -63,6 +63,14 @@ export const EVENT_SCHEMAS = {
   "sms.failed.v1": z.object({ ...messageRef, reason: z.string().optional(), errorCode: z.string().optional() }),
   "sms.replied.v1": z.object({ ...messageRef, body: z.string(), intent: IntentSchema }),
   "sms.opted_out.v1": z.object({ ...messageRef, reason: z.string().optional() }),
+  // G1 (DEC-070): the guided composer refused after its bounded retry — the
+  // lead's enrollment paused, NOTHING was sent. Deliberately no messageId
+  // (no Message row exists — DEC-064: the catalog payload matches reality).
+  "sms.compose_refused.v1": z.object({
+    stepNodeId: z.string(),
+    reason: z.string(),
+    detail: z.string().optional(),
+  }),
 
   // ── Messaging · WhatsApp ───────────────────────────────────────────────────
   "whatsapp.sent.v1": z.object({ ...messageRef, templateId: z.string() }),
@@ -161,6 +169,7 @@ export const EVENT_TYPES = {
   SMS_FAILED: "sms.failed.v1",
   SMS_REPLIED: "sms.replied.v1",
   SMS_OPTED_OUT: "sms.opted_out.v1",
+  SMS_COMPOSE_REFUSED: "sms.compose_refused.v1",
   WHATSAPP_SENT: "whatsapp.sent.v1",
   WHATSAPP_DELIVERED: "whatsapp.delivered.v1",
   WHATSAPP_REPLIED: "whatsapp.replied.v1",

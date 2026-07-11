@@ -6,12 +6,16 @@ import {
   Inject,
   NotFoundException,
   Put,
+  ServiceUnavailableException,
   UnprocessableEntityException,
   Post,
   Query,
 } from "@nestjs/common";
+import type { AiGateway } from "@clientforce/ai";
+import { composeSampleSms, ComposeRefusedError, SAMPLE_LEAD } from "@clientforce/channels";
 import {
   campaignGraphSchema,
+  GUIDED_SMS_CREDITS,
   planRequestSchema,
   plannerGraphQuerySchema,
   validateGraph,
@@ -21,12 +25,18 @@ import { Role } from "@clientforce/db";
 import { createPlanQueue, type PlanTarget } from "@clientforce/planner";
 import type { ZodSchema } from "zod";
 import { Roles } from "../auth/decorators";
+import { PrismaService } from "../db/prisma.service";
 import { TenantClient } from "../db/tenant-client";
-import { PLAN_ENQUEUER, type PlanEnqueuer } from "./planner.providers";
+import { COMPOSER_GATEWAY, PLAN_ENQUEUER, type PlanEnqueuer } from "./planner.providers";
 
 const putGraphSchema = z.object({
   agentId: z.string().min(1),
   graph: campaignGraphSchema,
+});
+
+const composePreviewSchema = z.object({
+  agentId: z.string().min(1),
+  stepNodeId: z.string().min(1),
 });
 
 function parse<T>(schema: ZodSchema<T>, value: unknown): T {
@@ -49,7 +59,9 @@ function parse<T>(schema: ZodSchema<T>, value: unknown): T {
 export class PlannerController {
   constructor(
     private readonly tenant: TenantClient,
+    private readonly prisma: PrismaService,
     @Inject(PLAN_ENQUEUER) private readonly enqueuer: PlanEnqueuer,
+    @Inject(COMPOSER_GATEWAY) private readonly composerGateway: AiGateway | null,
   ) {}
 
   @Post("plan")
@@ -106,6 +118,68 @@ export class PlannerController {
       await tx.campaign.update({ where: { id: campaign.id }, data: { graphId: row.id } });
       return row;
     });
+  }
+
+  /**
+   * G1 (DEC-070): sample preview — compose a guided step's brief against the
+   * FIXED sample lead (no contact row, empty history) through the REAL
+   * deterministic checks. A check refusal is a legitimate outcome to DISPLAY,
+   * so it returns 200 `{refused}` rather than an error status; free at launch
+   * (Q-020 owns metering — the credits figure here is display-only).
+   */
+  @Post("compose-preview")
+  @Roles(Role.OWNER, Role.ADMIN, Role.AGENT)
+  async composePreview(@Body() body: unknown) {
+    const dto = parse(composePreviewSchema, body);
+    if (!this.composerGateway) {
+      throw new ServiceUnavailableException(
+        "AI composing isn't configured for this environment yet — ask your admin to finish AI setup.",
+      );
+    }
+    const workspaceId = this.tenant.workspaceId;
+    const step = await this.tenant.run(async (tx) => {
+      const campaign = await tx.campaign.findFirst({
+        where: { agentId: dto.agentId },
+        orderBy: { createdAt: "asc" },
+      });
+      const graphRow = campaign
+        ? await tx.campaignGraph.findFirst({
+            where: { campaignId: campaign.id },
+            orderBy: { version: "desc" },
+          })
+        : null;
+      if (!graphRow) throw new NotFoundException(`Agent ${dto.agentId} has no planned sequence`);
+      const graph = validateGraph(graphRow.graph);
+      const node = graph.nodes.find((n) => n.id === dto.stepNodeId);
+      if (!node || node.type !== "step" || node.mode !== "guided" || !node.brief) {
+        throw new UnprocessableEntityException(
+          `Step ${dto.stepNodeId} is not a guided step — previews compose briefs only`,
+        );
+      }
+      return node;
+    });
+    try {
+      // composeSampleSms tenant-scopes its own reads (withTenant on the app
+      // client) with the request's workspace — same RLS subject as tenant.run.
+      const composed = await composeSampleSms(
+        { prisma: this.prisma.app, gateway: this.composerGateway },
+        { workspaceId, agentId: dto.agentId, brief: step.brief! },
+      );
+      return {
+        composed: {
+          body: composed.body,
+          composerVersion: composed.composerVersion,
+          attempts: composed.attempts,
+        },
+        sampleLead: SAMPLE_LEAD,
+        credits: GUIDED_SMS_CREDITS,
+      };
+    } catch (err) {
+      if (err instanceof ComposeRefusedError) {
+        return { refused: { reason: err.reason, detail: err.detail }, sampleLead: SAMPLE_LEAD };
+      }
+      throw err;
+    }
   }
 
   /** Lazy BullMQ handle onto the planner queue — the API boots without Redis. */

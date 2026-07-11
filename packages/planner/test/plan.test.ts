@@ -245,3 +245,62 @@ describe("validateAll neverSay gate (M1a, DEC-065 — the deterministic rail)", 
     expect(() => validateAll(goodGraph(), ["email"])).not.toThrow();
   });
 });
+
+describe("validateAll guided steps (G1, DEC-070)", () => {
+  const guided = (): CampaignGraph => {
+    const g = goodGraph();
+    g.nodes = g.nodes.map((n) =>
+      n.id === "step-2" && n.type === "step"
+        ? {
+            id: "step-2",
+            type: "step" as const,
+            channel: "sms" as const,
+            mode: "guided" as const,
+            content: {},
+            brief: {
+              objective: "Earn a reply about the audit",
+              talkingPoints: ["free growth audit", "results in 7 days", "no commitment"],
+            },
+          }
+        : n,
+    );
+    return g;
+  };
+
+  it("accepts a guided sms step for a guided agent (allowGuided=true)", () => {
+    expect(() => validateAll(guided(), ["email", "sms"], [], true)).not.toThrow();
+  });
+
+  it("REJECTS guided steps for a scripted agent — regression protection", () => {
+    expect(() => validateAll(guided(), ["email", "sms"], [], false)).toThrow(
+      /composes scripted/,
+    );
+  });
+
+  it("the merge-token rule scopes to SCRIPTED copy — guided briefs never carry tokens, remaining scripted steps still must", () => {
+    // Guided main opener: strip the scripted MAIN steps so the only scripted
+    // copy left is the (token-less) reply-strategy steps.
+    const g = guided();
+    g.entry = "step-2";
+    g.nodes = g.nodes.filter((n) => n.id !== "step-1" && n.id !== "delay-1");
+    g.edges = g.edges.filter((e) => e.from !== "step-1" && e.from !== "delay-1");
+    // The rule ignores the guided brief but still bites on scripted copy…
+    expect(() => validateAll(g, ["email", "sms"], [], true)).toThrow(/merge token/);
+    // …and is satisfied by tokens in ANY scripted step (the v6 prompt keeps
+    // instructing tokens in email bodies, reply-strategy steps included).
+    const close = g.nodes.find((n) => n.id === "step-close");
+    if (close?.type === "step") close.content.body += " {{firstName}} — door stays open at {{company}}.";
+    expect(() => validateAll(g, ["email", "sms"], [], true)).not.toThrow();
+  });
+
+  it("the neverSay scan covers BRIEF text (objective + talking points + mustSay)", () => {
+    const g = guided();
+    const step = g.nodes.find((n) => n.id === "step-2");
+    if (step?.type === "step" && step.brief) {
+      step.brief.talkingPoints = ["free growth audit", "rock-bottom prices pitch", "no commitment"];
+    }
+    expect(() => validateAll(g, ["email", "sms"], ["rock-bottom prices"], true)).toThrow(
+      /"rock-bottom prices" in step-2/,
+    );
+  });
+});

@@ -54,6 +54,15 @@ export const guardrailsSchema = z.object({
    * the A8 rails below are untouched and the send boundary ignores it.
    */
   strategy: strategyBlockSchema.optional(),
+  /**
+   * G1 (DEC-070): per-agent compose mode — absent = "scripted" (default at
+   * creation; legacy rows parse unchanged; no migration, no wizard field).
+   * "guided" makes the PLANNER emit briefs for sms steps; each step's mode is
+   * baked into the graph node at plan time, so flipping this applies to
+   * future generations/sends — steps already planned keep their mode. Read
+   * at plan time only; the A8 rails below are untouched.
+   */
+  composeMode: z.enum(["scripted", "guided"]).optional(),
   unsubscribeFooter: z.literal(true),
   suppressionCheck: z.literal(true),
 });

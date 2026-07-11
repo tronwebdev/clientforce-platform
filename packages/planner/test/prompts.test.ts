@@ -11,7 +11,9 @@ import { BANNED_OPENERS, OPENER_WORD_CAP, selectStrategy } from "@clientforce/co
 import {
   PLANNER_PROMPT_NAME,
   PLANNER_PROMPT_VERSION,
+  PLANNER_PROMPT_VERSION_GUIDED,
   PLANNER_SYSTEM,
+  PLANNER_SYSTEM_GUIDED,
   renderPlannerPrompt,
 } from "../src/prompts";
 
@@ -155,5 +157,59 @@ describe("planner prompt v3 (selling craft — carried into v4)", () => {
     expect(v2).not.toContain("NEVER SAY");
     // …while the graph contract both versions share is intact.
     expect(v2).toContain("GRAPH REQUIREMENTS:");
+  });
+});
+
+describe("planner prompt v6 — guided sms briefs (G1, DEC-070; layered on v5)", () => {
+  const guidedVars = {
+    ...baseVars,
+    channels:
+      '"email" or "sms" — mix channels where the sequence benefits; sms steps have NO subject, body ≤ 300 characters, one clear ask.',
+    arcLabel: fixture.arc.label,
+    arcDescription: fixture.arc.description,
+    arcRoles: fixture.arc.roles.map((r, i) => `  ${i + 1}. ${r}`).join("\n"),
+    toneHints: fixture.toneHints,
+    strategyNotes: "(none)",
+    neverSay: "(none)",
+    outcomes: "",
+  };
+
+  it("is pinned at version 6, registered beside v2–v5 (append-only registry)", () => {
+    expect(PLANNER_PROMPT_VERSION_GUIDED).toBe(6);
+    expect(renderPlannerPrompt(guidedVars, true)).toContain('Sms steps: mode "guided"');
+  });
+
+  it("v6 instructs briefs for sms steps; email steps (main AND reply-strategy) stay scripted", () => {
+    const v6 = renderPlannerPrompt(guidedVars, true);
+    expect(v6).toContain('"brief" (objective + 3-6 talkingPoints + optional mustSay/neverSay)');
+    expect(v6).toContain("EMPTY content — no subject, no body, no merge tokens");
+    expect(v6).toContain('Email steps: content has "subject" and "body"');
+    expect(v6).toContain("Reply-strategy steps stay scripted email.");
+    // Everything ELSE is v5 verbatim (v6 derives from the same literal): the
+    // STRATEGY block, the six-case REPLY PLAYBOOK, the outcomes slot.
+    expect(v6).toContain("STRATEGY (the selling method for this agent — follow it):");
+    expect(v6).toContain("REPLY PLAYBOOK (one case per classified intent — EXACTLY these six");
+    const v5 = renderPlannerPrompt(guidedVars, false);
+    expect(v6.replace(/- 3-4 "step" nodes in the MAIN sequence\.[^\n]*/, "")).toBe(
+      v5.replace(/- 3-4 "step" nodes in the MAIN sequence;[^\n]*/, ""),
+    );
+  });
+
+  it("SCRIPTED REGRESSION: v5 renders with ZERO guided material — byte-stable step bullet", () => {
+    const v5 = renderPlannerPrompt(guidedVars, false);
+    expect(v5).not.toContain("guided");
+    expect(v5).not.toContain('"brief"');
+    // The exact F1 step bullet (rendered), untouched by the v6 derivation.
+    expect(v5).toContain(
+      '- 3-4 "step" nodes in the MAIN sequence; each content has "subject" and "body"; use {{firstName}} and {{company}} in the body (and subject where natural).',
+    );
+  });
+
+  it("the guided SYSTEM addendum extends the scripted system verbatim (prefix-stable)", () => {
+    expect(PLANNER_SYSTEM_GUIDED.startsWith(PLANNER_SYSTEM)).toBe(true);
+    expect(PLANNER_SYSTEM_GUIDED).toContain("GUIDED SMS BRIEFS");
+    expect(PLANNER_SYSTEM_GUIDED).toContain("never write sms body text");
+    // The scripted system itself carries none of it.
+    expect(PLANNER_SYSTEM).not.toContain("GUIDED SMS BRIEFS");
   });
 });

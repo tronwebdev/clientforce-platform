@@ -1,9 +1,8 @@
 import { randomUUID } from "node:crypto";
 import type { AiGateway } from "@clientforce/ai";
-import { mergeLayers, parseFields } from "@clientforce/context";
+import { loadMergedContextText } from "@clientforce/context";
 import {
   campaignGraphSchema,
-  CONTEXT_FIELD_META,
   execute,
   GraphValidationError,
   parseGuardrails,
@@ -12,8 +11,6 @@ import {
   type BranchCase,
   type BranchNode,
   type CampaignGraph,
-  type ContextFieldKey,
-  type ContextFields,
   type IntendedAction,
   type StepNode,
   type StrategyBlock,
@@ -26,7 +23,7 @@ import {
   type PrismaClient,
 } from "@clientforce/db";
 import { buildOutcomesPromptBlock, loadCampaignOutcomes } from "./outcomes";
-import { PLANNER_SYSTEM, renderPlannerPrompt } from "./prompts";
+import { PLANNER_SYSTEM, PLANNER_SYSTEM_GUIDED, renderPlannerPrompt } from "./prompts";
 
 export interface PlanDeps {
   /** RLS-subject client (`createAppPrismaClient`) — never the owner client. */
@@ -82,14 +79,8 @@ export async function planCampaign(deps: PlanDeps, target: PlanTarget): Promise<
   );
   const allowedChannels = smsSender ? ["email", "sms"] : ["email"];
 
-  const [workspaceRow, agentRow] = await withTenant(prisma, { workspaceId }, (tx) =>
-    Promise.all([
-      tx.businessContext.findFirst({ where: { workspaceId, agentId: null } }),
-      tx.businessContext.findFirst({ where: { workspaceId, agentId } }),
-    ]),
-  );
-  const merged = mergeLayers(parseFields(workspaceRow?.fields), parseFields(agentRow?.fields));
-  const contextText = renderContext(merged);
+  // G1 (DEC-070): the ONE shared renderer — the composer reads the same text.
+  const contextText = await loadMergedContextText(prisma, { workspaceId, agentId });
   if (!contextText) {
     throw new PlannerError(
       "BusinessContext is empty — run the distiller (and resolve gaps) before planning (DEC-015: copy must be grounded)",
@@ -99,8 +90,12 @@ export async function planCampaign(deps: PlanDeps, target: PlanTarget): Promise<
   // M1a (DEC-065): arc + tone derive from (goal, category) — both fixed at
   // creation; the strategy block rides guardrails Json (absent = defaults).
   const strategy = selectStrategy(agent.goal, agent.category);
-  const block = strategyBlockOf(agent.guardrails);
-  const neverSay = block?.neverSay ?? [];
+  const rider = guardrailsRiderOf(agent.guardrails);
+  const neverSay = rider.strategy?.neverSay ?? [];
+  // G1 (DEC-070): guided briefs need a live sms channel to compose into —
+  // a guided agent without an ACTIVE Twilio sender plans scripted (honest
+  // absence, the DEC-061 pattern).
+  const guided = rider.composeMode === "guided" && Boolean(smsSender);
 
   // F1 (DEC-068): outcome-aware regen — the same loader + pure compute the
   // rollup endpoint uses, so the prompt cites the endpoint's own numbers.
@@ -124,27 +119,28 @@ export async function planCampaign(deps: PlanDeps, target: PlanTarget): Promise<
     arcDescription: strategy.arc.description,
     arcRoles: strategy.arc.roles.map((r, i) => `  ${i + 1}. ${r}`).join("\n"),
     toneHints: strategy.toneHints,
-    strategyNotes: block?.strategyNotes?.trim() || "(none)",
+    strategyNotes: rider.strategy?.strategyNotes?.trim() || "(none)",
     neverSay: neverSay.length ? neverSay.map((t) => `"${t}"`).join(", ") : "(none)",
     outcomes: outcomesBlock,
-  });
+  }, guided);
+  const system = guided ? PLANNER_SYSTEM_GUIDED : PLANNER_SYSTEM;
 
   // Attempt 1 (shape is enforced + repaired inside completeStructured) …
   let candidate = await gateway.completeStructured(
     "planner",
-    { system: PLANNER_SYSTEM, prompt },
+    { system, prompt },
     campaignGraphSchema,
   );
   let graph: CampaignGraph;
   try {
-    graph = validateAll(candidate, allowedChannels, neverSay);
+    graph = validateAll(candidate, allowedChannels, neverSay, guided);
   } catch (err) {
     // … one bounded SEMANTIC repair: the model sees its graph + the error.
     const message = err instanceof Error ? err.message : String(err);
     candidate = await gateway.completeStructured(
       "planner",
       {
-        system: PLANNER_SYSTEM,
+        system,
         prompt:
           `${prompt}\n\n---\nYour previous graph FAILED validation.\n` +
           `Previous graph (JSON):\n${JSON.stringify(candidate)}\n` +
@@ -153,7 +149,7 @@ export async function planCampaign(deps: PlanDeps, target: PlanTarget): Promise<
       campaignGraphSchema,
     );
     try {
-      graph = validateAll(candidate, allowedChannels, neverSay);
+      graph = validateAll(candidate, allowedChannels, neverSay, guided);
     } catch (second) {
       throw new PlannerError(
         `Planner produced an invalid graph after one repair: ${second instanceof Error ? second.message : String(second)}`,
@@ -232,11 +228,18 @@ export const REQUIRED_BRANCH_INTENTS: ReadonlyArray<{ intent: Intent; pipeline: 
  *  (bounded taxonomy — no invented labels), the interested/not_interested
  *  stage pins are enforced deterministically, and each strategy case must
  *  route to a real strategy STEP. Legacy 1-branch graphs are untouched — this
- *  gate runs at GENERATION only; execution back-compat lives in the workflow. */
+ *  gate runs at GENERATION only; execution back-compat lives in the workflow.
+ *  G1 (DEC-070): `allowGuided` gates guided steps to guided agents — a
+ *  scripted agent's model emitting mode:"guided" is a validation failure
+ *  (regression protection); the merge-token rule applies to SCRIPTED copy
+ *  only (guided briefs carry no copy — the composer personalizes from real
+ *  lead fields at send time), and the neverSay scan covers brief text too (a
+ *  brief that INSTRUCTS a banned phrase fails generation). */
 export function validateAll(
   input: unknown,
   allowedChannels: string[] = ["email"],
   neverSay: string[] = [],
+  allowGuided = false,
 ): CampaignGraph {
   const graph = validateGraph(input);
 
@@ -248,6 +251,12 @@ export function validateAll(
       allowedChannels.length === 1
         ? `Phase 1 is email-only; steps ${disallowed.map((s) => s.id).join(", ")} use other channels`
         : `Steps ${disallowed.map((s) => s.id).join(", ")} use channels outside [${allowedChannels.join(", ")}]`,
+    );
+  }
+  const guidedSteps = steps.filter((s) => s.mode === "guided");
+  if (!allowGuided && guidedSteps.length > 0) {
+    throw new GraphValidationError(
+      `Steps ${guidedSteps.map((s) => s.id).join(", ")} are mode:"guided" but this agent composes scripted — emit scripted steps with full copy`,
     );
   }
   if (!graph.nodes.some((n) => n.type === "delay")) {
@@ -301,17 +310,29 @@ export function validateAll(
       );
     }
   }
-  const copy = steps.map((s) => `${s.content.subject ?? ""}\n${s.content.body ?? ""}`).join("\n");
-  for (const token of REQUIRED_TOKENS) {
-    if (!copy.includes(token)) {
-      throw new GraphValidationError(`Step copy must use the merge token ${token}`);
+  // Merge tokens live in SCRIPTED copy; an all-guided graph has none at plan
+  // time by design (documented default, DEC-070).
+  const scripted = steps.filter((s) => s.mode !== "guided");
+  if (scripted.length > 0) {
+    const copy = scripted
+      .map((s) => `${s.content.subject ?? ""}\n${s.content.body ?? ""}`)
+      .join("\n");
+    for (const token of REQUIRED_TOKENS) {
+      if (!copy.includes(token)) {
+        throw new GraphValidationError(`Step copy must use the merge token ${token}`);
+      }
     }
   }
   // M1a: case-insensitive substring scan per step — names every hit so the
   // repair round-trip knows exactly what to remove.
+  // G1: a guided step's BRIEF text is scanned too (objective + talking
+  // points + mustSay).
   const hits: string[] = [];
   for (const step of steps) {
-    const text = `${step.content.subject ?? ""}\n${step.content.body ?? ""}`.toLowerCase();
+    const brief = step.brief
+      ? `${step.brief.objective}\n${step.brief.talkingPoints.join("\n")}\n${(step.brief.mustSay ?? []).join("\n")}`
+      : "";
+    const text = `${step.content.subject ?? ""}\n${step.content.body ?? ""}\n${brief}`.toLowerCase();
     for (const term of neverSay) {
       if (term.trim() && text.includes(term.trim().toLowerCase())) {
         hits.push(`"${term}" in ${step.id}`);
@@ -326,25 +347,19 @@ export function validateAll(
   return graph;
 }
 
-/** Non-empty context values, labeled — the planner's only permitted fact source. */
-function renderContext(fields: ContextFields): string {
-  return Object.entries(fields)
-    .filter(([, v]) => v.value.trim().length > 0)
-    .map(([key, v]) => {
-      const label = CONTEXT_FIELD_META[key as ContextFieldKey]?.label ?? key;
-      return `- ${key} (${label}): ${v.value}`;
-    })
-    .join("\n");
-}
-
-/** The guardrails strategy rider, leniently: an unparsable row plans as legacy
- *  (no notes, no bans) rather than blocking the run — the send boundary is
- *  where strict guardrails parsing already lives. */
-function strategyBlockOf(guardrails: unknown): StrategyBlock | undefined {
+/** The guardrails riders (M1a strategy + G1 composeMode), leniently: an
+ *  unparsable row plans as legacy (no notes, no bans, scripted) rather than
+ *  blocking the run — the send boundary is where strict guardrails parsing
+ *  already lives. */
+function guardrailsRiderOf(guardrails: unknown): {
+  strategy?: StrategyBlock;
+  composeMode?: "scripted" | "guided";
+} {
   try {
-    return parseGuardrails(guardrails).strategy;
+    const parsed = parseGuardrails(guardrails);
+    return { strategy: parsed.strategy, composeMode: parsed.composeMode };
   } catch {
-    return undefined;
+    return {};
   }
 }
 

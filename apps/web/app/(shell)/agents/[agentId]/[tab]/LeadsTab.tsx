@@ -96,6 +96,8 @@ const EVENT_ROW: Record<string, { icon: string; bg: string; fg: string; label: (
   "sms.failed.v1": { icon: "⚠", bg: "rgba(224,121,107,.14)", fg: "#C9543F", label: (p) => `SMS failed${p.reason ? ` — ${String(p.reason)}` : ""}` },
   "sms.replied.v1": { icon: "💬", bg: "rgba(54,215,237,.16)", fg: "#1192A6", label: (p) => `Replied by SMS${p.intent ? ` — classified “${intentTint(String(p.intent)).label}”` : ""}` },
   "sms.opted_out.v1": { icon: "⊘", bg: "rgba(224,121,107,.16)", fg: "#C9543F", label: () => "Replied STOP — suppressed for SMS" },
+  // G1 (DEC-070): the guided composer refused — this lead paused, nothing sent.
+  "sms.compose_refused.v1": { icon: "⚠", bg: "rgba(232,196,91,.2)", fg: "#9A6B12", label: (p) => `SMS not sent — composer refused (${String(p.reason ?? "checks failed")}); lead paused` },
 
   // C2.8 (49-1): membership events render human — the slug never surfaces raw.
   "list.member.added.v1": { icon: "≣", bg: "rgba(53,232,52,.14)", fg: "#16A82A", label: (p) => `Added to ${String(p.listName ?? "a list")}` },

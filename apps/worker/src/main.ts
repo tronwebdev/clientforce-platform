@@ -6,7 +6,7 @@ import {
   AnthropicProvider,
   OpenAiEmbeddingsProvider,
 } from "@clientforce/ai";
-import { createClassifyWorker, SendGridSender , TwilioSmsSender} from "@clientforce/channels";
+import { createClassifyWorker, createSmsStepComposer, SendGridSender , TwilioSmsSender} from "@clientforce/channels";
 import { isConfigured } from "@clientforce/config";
 import { goalKeySchema, type GoalKey } from "@clientforce/core";
 import { createDistillQueue, createDistillWorker } from "@clientforce/context";
@@ -316,6 +316,17 @@ async function run(): Promise<void> {
       transport: new SendGridSender(),
       // P2.1 (DEC-061): sms steps route through Twilio (SMS_SANDBOX default ON).
       smsTransport: new TwilioSmsSender(),
+      // G1 (DEC-070): guided sms steps compose per lead on the copy route —
+      // key absent → guided steps refuse typed (COMPOSER_UNCONFIGURED), the
+      // same honest-absence pattern as the transports.
+      ...(process.env.ANTHROPIC_API_KEY
+        ? {
+            composeSms: createSmsStepComposer({
+              prisma: activityPrisma,
+              gateway: new AiGateway({ provider: new AnthropicProvider() }),
+            }),
+          }
+        : {}),
       ...(stageBus
         ? {
             publishStageChanged: async (change) => {
@@ -330,6 +341,22 @@ async function run(): Promise<void> {
                   toStage: change.toStage,
                   // C2.9: present on goal-completion moves (DEC-059).
                   ...(change.goalKey ? { goalKey: change.goalKey, label: change.label } : {}),
+                },
+              });
+            },
+            // G1: the composer refusal's Logs row (Event) — the pause itself
+            // persists in the activity regardless of the bus.
+            publishComposeRefused: async (refusal) => {
+              await stageBus.publish({
+                type: "sms.compose_refused.v1",
+                workspaceId: refusal.workspaceId,
+                contactId: refusal.contactId,
+                enrollmentId: refusal.enrollmentId,
+                campaignId: refusal.campaignId,
+                payload: {
+                  stepNodeId: refusal.stepNodeId,
+                  reason: refusal.reason,
+                  ...(refusal.detail ? { detail: refusal.detail } : {}),
                 },
               });
             },

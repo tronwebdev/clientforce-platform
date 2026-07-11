@@ -45,9 +45,10 @@ afterAll(async () => {
 });
 
 interface Recorded {
-  sends: Array<{ stepNodeId: string }>;
+  sends: Array<{ stepNodeId: string; mode?: string; brief?: unknown }>;
   progress: Array<{ currentNode: string; pipelineStage?: string }>;
   blocked: Array<{ nodeId: string; reason: string }>;
+  composeRefused: Array<{ nodeId: string; reason: string }>;
   actions: Array<{ nodeId: string; kind: string; detail: string }>;
   completed: Array<{ nodeId: string }>;
 }
@@ -55,9 +56,9 @@ interface Recorded {
 function recordedActivities(
   sendImpl?: (p: { stepNodeId: string }) => Promise<SendOutcome>,
 ): { calls: Recorded; acts: CampaignActivities } {
-  const calls: Recorded = { sends: [], progress: [], blocked: [], actions: [], completed: [] };
+  const calls: Recorded = { sends: [], progress: [], blocked: [], composeRefused: [], actions: [], completed: [] };
   const acts = {
-    async sendEnrollmentStep(p: { stepNodeId: string }) {
+    async sendEnrollmentStep(p: { stepNodeId: string; mode?: string; brief?: unknown }) {
       calls.sends.push(p);
       if (sendImpl) return sendImpl(p);
       return {
@@ -71,6 +72,9 @@ function recordedActivities(
     },
     async recordEnrollmentBlocked(p: { nodeId: string; reason: string }) {
       calls.blocked.push(p);
+    },
+    async recordComposeRefused(p: { nodeId: string; reason: string }) {
+      calls.composeRefused.push(p);
     },
     async recordIntendedAction(p: { nodeId: string; kind: string; detail: string }) {
       calls.actions.push(p);
@@ -445,4 +449,74 @@ describe("CampaignWorkflow (time-skipping Temporal)", () => {
     ]);
     expect(refused.calls.completed).toHaveLength(0);
   }, 240_000); // 120s flaked twice on slow CI runners (time-skipping env + worker restart)
+
+  it("G1: a guided step's brief reaches the activity; a ComposeRefusedError routes to recordComposeRefused and pauses THAT run", async (t) => {
+    if (!env) return t.skip();
+
+    const guidedGraph: CampaignGraph = {
+      entry: "g1",
+      nodes: [
+        {
+          id: "g1",
+          type: "step",
+          channel: "sms",
+          mode: "guided",
+          content: {},
+          brief: { objective: "earn a reply", talkingPoints: ["a", "b", "c"] },
+        },
+        { id: "end1", type: "end" },
+      ],
+      edges: [{ from: "g1", to: "end1" }],
+    };
+
+    // (a) happy path: mode + brief + graphVersion ride the send activity.
+    const ok = recordedActivities();
+    const tq1 = `tq-${++seq}`;
+    const worker1 = await makeWorker(ok.acts, tq1);
+    await worker1.runUntil(async () => {
+      const handle = await env!.client.workflow.start("campaignWorkflow", {
+        taskQueue: tq1,
+        workflowId: `t-guided-${seq}`,
+        args: [{ ...inputFor(guidedGraph, seq), graphVersion: 7 }],
+      });
+      await expect(handle.result()).resolves.toMatchObject({ status: "completed" });
+    });
+    expect(ok.calls.sends[0]).toMatchObject({
+      stepNodeId: "g1",
+      mode: "guided",
+      brief: expect.objectContaining({ objective: "earn a reply" }),
+      graphVersion: 7,
+    });
+
+    // (b) refusal: non-retryable — ONE attempt, recordComposeRefused (NOT the
+    // send-blocked path), run ends blocked with the typed reason.
+    const refusing = recordedActivities(async () => {
+      throw ApplicationFailure.create({
+        type: "ComposeRefusedError",
+        nonRetryable: true,
+        message: "Compose refused (NEVER_SAY_VIOLATION)",
+        details: [{ reason: "NEVER_SAY_VIOLATION", detail: 'contains "rock-bottom prices"' }],
+      });
+    });
+    const tq2 = `tq-${++seq}`;
+    const worker2 = await makeWorker(refusing.acts, tq2);
+    await worker2.runUntil(async () => {
+      const handle = await env!.client.workflow.start("campaignWorkflow", {
+        taskQueue: tq2,
+        workflowId: `t-guided-refused-${seq}`,
+        args: [inputFor(guidedGraph, seq)],
+      });
+      await expect(handle.result()).resolves.toMatchObject({
+        status: "blocked",
+        node: "g1",
+        reason: "NEVER_SAY_VIOLATION",
+      });
+    });
+    expect(refusing.calls.sends).toHaveLength(1); // the composer's own retry is INSIDE the activity
+    expect(refusing.calls.composeRefused).toEqual([
+      expect.objectContaining({ nodeId: "g1", reason: "NEVER_SAY_VIOLATION" }),
+    ]);
+    expect(refusing.calls.blocked).toHaveLength(0);
+    expect(refusing.calls.completed).toHaveLength(0);
+  }, 240_000);
 });
