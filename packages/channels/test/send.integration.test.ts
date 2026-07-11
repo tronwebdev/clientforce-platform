@@ -152,6 +152,68 @@ describe.skipIf(!hasInfra)("sendStep boundary integration", () => {
     expect(message.stepNodeId).toBe("step-1");
   });
 
+  it("L1 (DEC-071): a GERMAN agent's footer renders the pre-translated constants — address verbatim, label deterministic", async () => {
+    const germanAgentId = (
+      await owner.agent.create({
+        data: {
+          workspaceId: ws,
+          name: "Termine",
+          goal: "book_appointments",
+          guardrails: {
+            sendingWindow: { days: [1, 2, 3, 4, 5], start: "09:00", end: "17:00", timezone: "UTC" },
+            dailyCap: { email: 50 },
+            consent: null,
+            language: "de",
+            languageSource: "detected",
+            unsubscribeFooter: true,
+            suppressionCheck: true,
+          },
+        },
+      })
+    ).id;
+    const germanCampaignId = (
+      await owner.campaign.create({
+        data: { workspaceId: ws, agentId: germanAgentId, name: "primär", graphId: "g-de" },
+      })
+    ).id;
+    // Own contact — the threading tests key off the shared contact's latest
+    // message and must not see this send.
+    const germanContactId = (
+      await owner.contact.create({
+        data: {
+          workspaceId: ws,
+          source: "seed",
+          optOut: {},
+          tags: [],
+          email: `lead-de-${suffix}@t.test`,
+          firstName: "Britta",
+          company: "Berliner Dental",
+        },
+      })
+    ).id;
+
+    const message = await sendStep(
+      deps(),
+      params({
+        agentId: germanAgentId,
+        campaignId: germanCampaignId,
+        contactId: germanContactId,
+        content: { subject: "Ein kostenloses Audit für {{company}}", body: "Hallo {{firstName}}," },
+      }),
+    );
+    const email = transport.sent.at(-1)!;
+
+    // The German unsubscribe label from COMPLIANCE_STRINGS — never "Unsubscribe".
+    expect(email.body).toContain(`Abmelden: `);
+    expect(email.body).not.toContain("Unsubscribe:");
+    // The address stays VERBATIM (owner rule 2 — addresses are never translated)…
+    expect(email.body).toContain(ADDRESS);
+    // …the link itself and the machine headers are language-independent.
+    expect(email.body).toMatch(/Abmelden: https:\/\/reply\.clientforce\.io\/u\//);
+    expect(email.headers?.["List-Unsubscribe"]).toContain("reply.clientforce.io");
+    expect(message.body).toBe(email.body);
+  });
+
   it("owner rule 3: a threaded follow-up carries In-Reply-To/References and inherits the subject", async () => {
     const first = await withTenant(app, { workspaceId: ws }, (tx) =>
       tx.message.findFirstOrThrow({

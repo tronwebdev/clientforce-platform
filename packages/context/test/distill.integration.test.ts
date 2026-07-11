@@ -13,7 +13,7 @@ import {
   withTenant,
   type PrismaClient,
 } from "@clientforce/db";
-import { ingestSource, MemoryUploadStore } from "@clientforce/knowledge";
+import { ingestSource, MemoryUploadStore, uploadPathFor } from "@clientforce/knowledge";
 import { distill, parseFields } from "../src/distill";
 import { checkGaps } from "../src/gaps";
 
@@ -39,7 +39,9 @@ function fakeVector(text: string): number[] {
  * must drop.
  */
 const FILLS = ["offer", "usp", "tone", "pricing", "company_address"];
+let lastPrompt = "";
 function fakeCompleteTool(prompt: string): { input: unknown } {
+  lastPrompt = prompt;
   const ids = [...prompt.matchAll(/^\[([0-9a-f-]{36})\]$/gim)].map((m) => m[1]!);
   const requested = [...prompt.matchAll(/^- ([a-z_]+) — /gim)].map((m) => m[1]!);
   const fields = requested
@@ -51,10 +53,17 @@ function fakeCompleteTool(prompt: string): { input: unknown } {
     citations: ["00000000-0000-0000-0000-000000000000"],
   });
   fields.push({ key: "not_a_registry_key", value: "junk", citations: [ids[0]!] });
+  // L1 (DEC-071): a model following the v2 prompt writes the brief in the
+  // requested language — the fake honors the prompt's own rule line.
+  const rawSummary = prompt.includes("written in German (Deutsch)")
+    ? "Ein Zahnarzt-Wachstumsunternehmen — aus den eigenen Unterlagen destilliert."
+    : prompt.includes("written in French (Français)")
+      ? "Une entreprise de croissance dentaire — distillée à partir de ses propres documents."
+      : "A dental growth business distilled from evidence.";
   return {
     input: {
       fields,
-      rawSummary: "A dental growth business distilled from evidence.",
+      rawSummary,
       proposedAsks: [],
     },
   };
@@ -254,5 +263,142 @@ describe.skipIf(!hasInfra)("distill integration", () => {
     const row = await distill(deps(), { workspaceId: wsB });
     expect(parseFields(row.fields)).toEqual({});
     expect(row.rawSummary).toBe("");
+  });
+
+  // ── L1 (DEC-071): evidence-pack language detection ─────────────────────────
+
+  const GERMAN_SITE =
+    "Wir helfen Zahnarztpraxen dabei, mehr Termine zu buchen und weniger Ausfälle zu haben. " +
+    "Unsere Software erinnert Ihre Patienten automatisch und füllt freie Termine innerhalb weniger Stunden. " +
+    "Über zweihundert Praxen in Deutschland vertrauen bereits auf unsere Lösung. " +
+    "Die Einrichtung dauert nur einen Tag, und Ihr Team braucht keine Schulung. " +
+    "Vereinbaren Sie noch heute ein kostenloses Beratungsgespräch mit unseren Experten.";
+  const ENGLISH_DOC =
+    "We help dental practices book more appointments and cut no-shows. " +
+    "Our software reminds your patients automatically and fills open slots within hours. " +
+    "More than two hundred practices already trust our solution across the country. " +
+    "Setup takes a single day and your team needs no training at all. " +
+    "Book a free consultation with our experts today and see the revenue you are missing.";
+
+  const guardrailsOf = async (id: string) =>
+    (await owner.agent.findUniqueOrThrow({ where: { id }, select: { guardrails: true } }))
+      .guardrails as Record<string, unknown>;
+
+  const mkAgent = (workspaceId: string, name: string, guardrails: object = {}) =>
+    owner.agent.create({
+      data: { workspaceId, name, goal: "book_appointments", guardrails },
+    });
+
+  const mkAgentText = async (workspaceId: string, agent: string, label: string, text: string) => {
+    const src = await withTenant(app, { workspaceId }, (tx) =>
+      tx.knowledgeSource.create({
+        data: { workspaceId, agentId: agent, kind: "TEXT", label, meta: { text } },
+      }),
+    );
+    await ingestSource(
+      { prisma: app, gateway, store: new MemoryUploadStore() },
+      { sourceId: src.id, workspaceId },
+    );
+    return src;
+  };
+
+  it("GERMAN-site agent: distill detects de, writes the detected default, and briefs in German", async () => {
+    const agent = await mkAgent(wsA, "DE-Site");
+    await mkAgentText(wsA, agent.id, "german-site", GERMAN_SITE);
+
+    const row = await distill(deps(), { workspaceId: wsA, agentId: agent.id, goal: "book_appointments" });
+
+    const g = await guardrailsOf(agent.id);
+    expect(g.language).toBe("de");
+    expect(g.languageSource).toBe("detected");
+    // The v2 prompt carried the language rule; the brief came back German.
+    expect(lastPrompt).toContain("written in German (Deutsch)");
+    expect(row.rawSummary).toContain("Zahnarzt");
+  });
+
+  it("DOC-ONLY agent (German document, no website): detection is source-agnostic → de", async () => {
+    const agent = await mkAgent(wsA, "DE-DocOnly");
+    const store = new MemoryUploadStore();
+    const src = await withTenant(app, { workspaceId: wsA }, (tx) =>
+      tx.knowledgeSource.create({
+        data: { workspaceId: wsA, agentId: agent.id, kind: "DOCUMENT", label: "unterlagen.txt", meta: {} },
+      }),
+    );
+    const path = uploadPathFor(wsA, src.id, "unterlagen.txt");
+    await store.put(path, Buffer.from(GERMAN_SITE, "utf8"), "text/plain");
+    await withTenant(app, { workspaceId: wsA }, (tx) =>
+      tx.knowledgeSource.update({ where: { id: src.id }, data: { uri: path } }),
+    );
+    await ingestSource({ prisma: app, gateway, store }, { sourceId: src.id, workspaceId: wsA });
+
+    await distill(deps(), { workspaceId: wsA, agentId: agent.id, goal: "book_appointments" });
+
+    const g = await guardrailsOf(agent.id);
+    expect(g.language).toBe("de");
+    expect(g.languageSource).toBe("detected");
+  });
+
+  it("MIXED evidence (German site + English doc) → English default; a prior detector write is CLEARED", async () => {
+    const agent = await mkAgent(wsA, "Mixed");
+    await mkAgentText(wsA, agent.id, "german-first", GERMAN_SITE);
+    await distill(deps(), { workspaceId: wsA, agentId: agent.id, goal: "book_appointments" });
+    expect((await guardrailsOf(agent.id)).language).toBe("de"); // sequential wizard reality
+
+    await mkAgentText(wsA, agent.id, "english-later", ENGLISH_DOC);
+    await distill(deps(), { workspaceId: wsA, agentId: agent.id, goal: "book_appointments" });
+
+    const g = await guardrailsOf(agent.id);
+    expect(g.language).toBeUndefined(); // mixed pack → not confident → absent = English
+    expect(g.languageSource).toBeUndefined();
+    expect(lastPrompt).not.toContain("written in"); // v1 prompt again — English brief
+  });
+
+  it("AMBIGUOUS/thin evidence → English default (nothing written)", async () => {
+    const agent = await mkAgent(wsA, "Thin");
+    await mkAgentText(wsA, agent.id, "thin", "Beste Zahnarztpraxis Berlin best dental care.");
+    await distill(deps(), { workspaceId: wsA, agentId: agent.id, goal: "book_appointments" });
+
+    const g = await guardrailsOf(agent.id);
+    expect(g.language).toBeUndefined();
+    expect(g.languageSource).toBeUndefined();
+  });
+
+  it("owner-set language is STICKY: detection never touches it and the brief follows the owner", async () => {
+    const agent = await mkAgent(wsA, "OwnerFr", {
+      sendingWindow: { days: [1, 2, 3, 4, 5], start: "09:00", end: "17:00", timezone: "UTC" },
+      dailyCap: { email: 200 },
+      consent: null,
+      language: "fr",
+      languageSource: "owner",
+      unsubscribeFooter: true,
+      suppressionCheck: true,
+    });
+    await mkAgentText(wsA, agent.id, "german-site-owner-fr", GERMAN_SITE);
+
+    const row = await distill(deps(), { workspaceId: wsA, agentId: agent.id, goal: "book_appointments" });
+
+    const g = await guardrailsOf(agent.id);
+    expect(g.language).toBe("fr");
+    expect(g.languageSource).toBe("owner");
+    expect(lastPrompt).toContain("written in French (Français)");
+    expect(row.rawSummary).toContain("dentaire");
+  });
+
+  it("ENGLISH agent regression: v1 prompt byte-shape (no language rule), confident en recorded as detected", async () => {
+    const agent = await mkAgent(wsA, "EnDetected");
+    await mkAgentText(wsA, agent.id, "english-site", ENGLISH_DOC);
+    await distill(deps(), { workspaceId: wsA, agentId: agent.id, goal: "book_appointments" });
+
+    expect(lastPrompt).not.toContain("written in"); // the v1 literal — no language rule line
+    const g = await guardrailsOf(agent.id);
+    expect(g.language).toBe("en");
+    expect(g.languageSource).toBe("detected");
+    // Behavior identical to absent (= English) — the parse proves it.
+    expect((g as { unsubscribeFooter?: boolean }).unsubscribeFooter).toBe(true);
+  });
+
+  it("the WORKSPACE layer never detects (no agent to write to)", async () => {
+    await distill(deps(), { workspaceId: wsA });
+    expect(lastPrompt).not.toContain("written in");
   });
 });

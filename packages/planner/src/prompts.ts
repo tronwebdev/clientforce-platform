@@ -1,5 +1,11 @@
 import { registerPrompt, renderPrompt } from "@clientforce/ai";
-import { BANNED_OPENERS, OPENER_WORD_CAP } from "@clientforce/core";
+import {
+  BANNED_OPENERS,
+  DEFAULT_LANGUAGE,
+  languagePromptLabel,
+  OPENER_WORD_CAP,
+  type LanguageCode,
+} from "@clientforce/core";
 
 /**
  * Planner prompt (P1.4). Versioned in the P1.1 registry. Grounding rule
@@ -29,12 +35,23 @@ import { BANNED_OPENERS, OPENER_WORD_CAP } from "@clientforce/core";
  * time). Rendered ONLY for guided agents with an active sms sender; scripted
  * agents keep rendering v5 byte-identical. Derived from the v5 literal at
  * registration so the two can never drift. v2/v3/v4/v5 stay registered.
+ *
+ * v7/v8 (L1, DEC-071): the LANGUAGE variants — v5/v6 with an OUTPUT LANGUAGE
+ * section (all human-visible copy in the agent's language; machine
+ * identifiers and merge tokens stay English; the boundary appends compliance
+ * lines itself) inserted before GUARDRAILS. Rendered ONLY for non-English
+ * agents; English agents keep rendering v5/v6 byte-identical
+ * (regression-pinned). v7 derives from the v5 literal and v8 from v7 via the
+ * SAME guided bullet swap as v6, so none of the four can drift.
  */
 export const PLANNER_PROMPT_NAME = "planner.campaign";
 export const PLANNER_PROMPT_VERSION = 5; // F1 (DEC-069): OBSERVED OUTCOMES block layered on the v4 playbook
 // G1 (DEC-070): guided agents render v6 — v5 plus the guided-sms-briefs step
 // rule. Scripted agents keep rendering v5 byte-identical (regression-pinned).
 export const PLANNER_PROMPT_VERSION_GUIDED = 6;
+// L1 (DEC-071): non-English agents render v7 (scripted) / v8 (guided).
+export const PLANNER_PROMPT_VERSION_LANGUAGE = 7;
+export const PLANNER_PROMPT_VERSION_GUIDED_LANGUAGE = 8;
 
 export const PLANNER_SYSTEM =
   "You are a campaign planner for an outbound email agent. You design a short, effective email sequence as a " +
@@ -238,13 +255,43 @@ Reply-strategy steps set "threaded": true (they continue the thread).
   if (!v5Template.includes(v5StepBullet)) {
     throw new Error("planner prompt v6 derivation: v5 step bullet not found — realign the guided variant");
   }
+  const guidedStepBullet =
+    '- {{stepCount}} "step" nodes in the MAIN sequence. Email steps: content has "subject" and "body"; use {{tokens}} in the body (and subject where natural). Sms steps: mode "guided" with a "brief" (objective + 3-6 talkingPoints + optional mustSay/neverSay) and EMPTY content — no subject, no body, no merge tokens (the composer writes per-lead copy at send time). Reply-strategy steps stay scripted email.';
   registerPrompt({
     name: PLANNER_PROMPT_NAME,
     version: PLANNER_PROMPT_VERSION_GUIDED,
-    template: v5Template.replace(
-      v5StepBullet,
-      '- {{stepCount}} "step" nodes in the MAIN sequence. Email steps: content has "subject" and "body"; use {{tokens}} in the body (and subject where natural). Sms steps: mode "guided" with a "brief" (objective + 3-6 talkingPoints + optional mustSay/neverSay) and EMPTY content — no subject, no body, no merge tokens (the composer writes per-lead copy at send time). Reply-strategy steps stay scripted email.',
-    ),
+    template: v5Template.replace(v5StepBullet, guidedStepBullet),
+  });
+
+  // v7/v8 (L1, DEC-071) = v5/v6 VERBATIM with the OUTPUT LANGUAGE section
+  // inserted before GUARDRAILS — derived from the same literals so the four
+  // registered variants can never drift. {{languageLabel}} carries e.g.
+  // "German (Deutsch)"; the "{{ }}" braces below are inert (no word chars),
+  // and {{tokens}} renders the same token list the step bullet documents.
+  const guardrailsSeam = "GUARDRAILS (constraints the plan must respect):";
+  if (!v5Template.includes(guardrailsSeam)) {
+    throw new Error(
+      "planner prompt v7 derivation: v5 GUARDRAILS seam not found — realign the language variant",
+    );
+  }
+  const languageSection =
+    "OUTPUT LANGUAGE (the customer's language — non-negotiable):\n" +
+    "- Write ALL human-visible copy in {{languageLabel}}: every subject line, every body, and every brief — the MAIN sequence AND the reply-strategy steps.\n" +
+    '- Machine identifiers stay in English: node ids, "intent" values, "pipeline" values, channel names. Only the copy is {{languageLabel}}.\n' +
+    "- Merge tokens stay EXACTLY as given ({{tokens}}) — never translate the words inside {{ }} braces.\n" +
+    "- Industry terms this audience genuinely uses in English may stay English; everything else is natural, native-quality {{languageLabel}} — never a word-for-word translation of English phrasing.\n" +
+    "- Never write opt-out or unsubscribe lines in any language — the sending layer appends the compliant line in {{languageLabel}} itself.\n" +
+    "\n";
+  const v7Template = v5Template.replace(guardrailsSeam, languageSection + guardrailsSeam);
+  registerPrompt({
+    name: PLANNER_PROMPT_NAME,
+    version: PLANNER_PROMPT_VERSION_LANGUAGE,
+    template: v7Template,
+  });
+  registerPrompt({
+    name: PLANNER_PROMPT_NAME,
+    version: PLANNER_PROMPT_VERSION_GUIDED_LANGUAGE,
+    template: v7Template.replace(v5StepBullet, guidedStepBullet),
   });
 }
 
@@ -270,12 +317,21 @@ export function renderPlannerPrompt(vars: {
    *  "" when no step clears the low-signal floor (renders exactly the v4
    *  playbook prompt). */
   outcomes: string;
-}, guided = false): string {
+}, guided = false, language: LanguageCode = DEFAULT_LANGUAGE): string {
   ensureRegistered();
   // G1 (DEC-070): guided agents render v6; scripted agents keep v5 verbatim.
+  // L1 (DEC-071): non-English agents render the v7/v8 language variants;
+  // English agents keep rendering v5/v6 byte-identical.
+  if (language === "en") {
+    return renderPrompt(
+      PLANNER_PROMPT_NAME,
+      guided ? PLANNER_PROMPT_VERSION_GUIDED : PLANNER_PROMPT_VERSION,
+      vars,
+    );
+  }
   return renderPrompt(
     PLANNER_PROMPT_NAME,
-    guided ? PLANNER_PROMPT_VERSION_GUIDED : PLANNER_PROMPT_VERSION,
-    vars,
+    guided ? PLANNER_PROMPT_VERSION_GUIDED_LANGUAGE : PLANNER_PROMPT_VERSION_LANGUAGE,
+    { ...vars, languageLabel: languagePromptLabel(language) },
   );
 }

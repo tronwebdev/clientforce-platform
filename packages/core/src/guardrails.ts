@@ -6,6 +6,7 @@
  * never disableable.
  */
 import { z } from "zod";
+import { languageCodeSchema, languageSourceSchema } from "./language";
 import { strategyBlockSchema } from "./strategy";
 
 const timeHHMM = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "HH:MM");
@@ -63,6 +64,19 @@ export const guardrailsSchema = z.object({
    * at plan time only; the A8 rails below are untouched.
    */
   composeMode: z.enum(["scripted", "guided"]).optional(),
+  /**
+   * L1 (DEC-071): the agent's OUTPUT language — what it writes sequences,
+   * reply drafts, and compliance lines in (the app UI stays English). Rides
+   * this Json like `goalLabel`/`strategy`/`composeMode` — no migration;
+   * absent = English, legacy rows parse unchanged. `languageSource` records
+   * who set it: "detected" (the distiller's evidence-pack detection — may be
+   * overwritten by a later detection) or "owner" (Settings edit — sticky,
+   * never touched by the detector). Read at generation time by the planner /
+   * composer / distiller and at send time ONLY to pick the pre-translated
+   * compliance constants; the A8 rails below are untouched.
+   */
+  language: languageCodeSchema.optional(),
+  languageSource: languageSourceSchema.optional(),
   unsubscribeFooter: z.literal(true),
   suppressionCheck: z.literal(true),
 });

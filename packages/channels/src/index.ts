@@ -61,7 +61,14 @@ export {
   type ClassifyWorkerDeps,
 } from "./classify";
 // M1b (DEC-068): pinned reply→intent fixtures — the classification contract.
-export { REPLY_INTENT_FIXTURES, fixtureFor, type ReplyIntentFixture } from "./classify-fixtures";
+// L1 (DEC-071): + the multilingual pins (German/French replies, same intents).
+export {
+  MULTILINGUAL_REPLY_FIXTURES,
+  REPLY_INTENT_FIXTURES,
+  fixtureFor,
+  type MultilingualReplyFixture,
+  type ReplyIntentFixture,
+} from "./classify-fixtures";
 // ── P2.1 (DEC-061/062): the SMS channel ──────────────────────────────────────
 export { sendSmsStep, SMS_OPT_OUT_LINE, DEFAULT_SMS_DAILY_CAP, type SendSmsDeps, type SendSmsStepParams } from "./send-sms";
 export { TwilioSmsSender, parseTwilioConfig, smsSegmentCount, validateTwilioSignature, type TwilioSenderConfig } from "./twilio";
@@ -86,8 +93,10 @@ export {
   composeSms,
   COMPOSER_PROMPT_NAME,
   COMPOSER_PROMPT_VERSION,
+  COMPOSER_PROMPT_VERSION_LANGUAGE,
   COMPOSER_SYSTEM,
   COMPOSER_VERSION,
+  composerVersionFor,
   createSmsStepComposer,
   SAMPLE_LEAD,
   SMS_COMPOSE_MAX_CHARS,

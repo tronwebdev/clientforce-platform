@@ -16,6 +16,7 @@ import {
   type PrismaClient,
   type SenderConnection,
 } from "@clientforce/db";
+import { COMPLIANCE_STRINGS } from "@clientforce/core";
 import { sendSmsStep, SMS_OPT_OUT_LINE, type SendSmsDeps } from "../src/send-sms";
 import { applySmsStop, ingestInboundSms, isStopMessage, normalizeTwilioInbound } from "../src/sms-inbound";
 import { smsSegmentCount, validateTwilioSignature } from "../src/twilio";
@@ -156,6 +157,52 @@ describe.skipIf(!hasInfra)("sendSmsStep boundary integration", () => {
     const msg = await sendSmsStep(deps(), { ...base(), stepNodeId: "sms-2", content: { body: "Bump {{firstName}}" } });
     expect(msg.body).not.toContain(SMS_OPT_OUT_LINE);
     expect(msg.inReplyToId).not.toBeNull();
+  });
+
+  it("L1 (DEC-071): a GERMAN agent's first outbound carries the pre-translated STOP line — keyword STOP intact", async () => {
+    const agent = await owner.agent.findUniqueOrThrow({ where: { id: agentId } });
+    const germanAgentId = (
+      await owner.agent.create({
+        data: {
+          workspaceId: ws,
+          name: "SMS Termine",
+          goal: "book_appointments",
+          guardrails: {
+            ...(agent.guardrails as object),
+            language: "de",
+            languageSource: "detected",
+          },
+        },
+      })
+    ).id;
+    const germanCampaignId = (
+      await owner.campaign.create({
+        data: { workspaceId: ws, agentId: germanAgentId, name: "primär", graphId: "" },
+      })
+    ).id;
+    const germanEnrollment = await owner.enrollment.create({
+      data: {
+        workspaceId: ws,
+        campaignId: germanCampaignId,
+        contactId,
+        workflowId: `wf-sms-de-${suffix}`,
+        status: "ACTIVE",
+        pipelineStage: "new",
+        currentNode: "sms-1",
+      },
+    });
+
+    const msg = await sendSmsStep(deps(), {
+      ...base(),
+      agentId: germanAgentId,
+      campaignId: germanCampaignId,
+      enrollmentId: germanEnrollment.id,
+      content: { body: "Hallo {{firstName}}, kurze Frage von {{senderName}}." },
+    });
+    expect(msg.body.endsWith(COMPLIANCE_STRINGS.de.smsOptOut)).toBe(true);
+    expect(msg.body).toContain("STOP"); // the only keyword the Twilio rail honors
+    expect(msg.body).not.toContain(SMS_OPT_OUT_LINE); // never the English line
+    expect((msg.meta as { optOutLine?: boolean }).optOutLine).toBe(true);
   });
 
   it("refuses outside the sending window (typed)", async () => {
