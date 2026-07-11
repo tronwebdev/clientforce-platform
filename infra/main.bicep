@@ -163,7 +163,7 @@ var smsAllowlistSecret = { name: 'sms-allowlist', keyVaultUrl: '${kvUri}secrets/
 var smsAllowlistSecrets = smsAllowlistAvailable ? [smsAllowlistSecret] : []
 var smsEnv = concat(
   [{ name: 'SMS_SANDBOX', value: smsSandbox }],
-  smsAllowlistAvailable ? [{ name: 'CHANNELS_SMS_ALLOWLIST', secretRef: 'sms-allowlist' }] : [],
+  smsAllowlistAvailable ? [{ name: 'CHANNELS_SMS_ALLOWLIST', secretRef: 'sms-allowlist' }] : []
 )
 
 // ── API (NestJS) — external ingress :3001 ───────────────────────────────────
