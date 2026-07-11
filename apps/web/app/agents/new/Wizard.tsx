@@ -1911,8 +1911,11 @@ export function Wizard() {
                   </div>
                 ))}
 
-                {/* sample preview — composes the SAVED brief via the real checks */}
-                <div style={{ border: "1px solid #EBE3D6", borderRadius: 13, overflow: "hidden" }} data-testid="sample-preview-card">
+                {/* sample preview — composes the SAVED brief via the real checks.
+                    flex:none — inside the drawer's overflow column this card
+                    would otherwise flex-shrink to nothing (overflow:hidden
+                    gives it no intrinsic floor). */}
+                <div style={{ border: "1px solid #EBE3D6", borderRadius: 13, overflow: "hidden", flex: "none" }} data-testid="sample-preview-card">
                   <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 15px", background: "linear-gradient(90deg,rgba(54,215,237,.1),rgba(53,232,52,.07))", borderBottom: "1px solid #EBE3D6" }}>
                     <span style={{ fontSize: 13, fontWeight: 700, color: "#0E1512", flex: 1 }}>✦ Sample preview</span>
                     <span onClick={() => void sampleCompose()} style={{ fontSize: 12.5, fontWeight: 700, color: previewBusy ? "#9AA59E" : "#0A0F0C", background: previewBusy ? "#ECE7DC" : GRAD, borderRadius: 9, padding: "7px 14px", cursor: previewBusy ? "default" : "pointer" }} data-testid="sample-preview-run">{previewBusy ? "Composing…" : "Compose sample"}</span>
