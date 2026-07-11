@@ -231,6 +231,25 @@ describe("CampaignWorkflow (time-skipping Temporal)", () => {
     expect(calls.completed).toEqual([expect.objectContaining({ nodeId: "end1" })]);
   }, 60_000);
 
+  it("R1 (DEC-073): starts the walk at startNodeId — the rules move action's restart-at-node", async (t) => {
+    if (!env) return t.skip();
+    const tq = `tq-${++seq}`;
+    const { calls, acts } = recordedActivities();
+    const worker = await makeWorker(acts, tq);
+    await worker.runUntil(async () => {
+      const handle = await env!.client.workflow.start("campaignWorkflow", {
+        taskQueue: tq,
+        workflowId: `t-startnode-${seq}`,
+        args: [{ ...inputFor(linearGraph, seq), startNodeId: "s2" }],
+      });
+      const result = await handle.result();
+      expect(result).toMatchObject({ status: "completed", endNode: "end1" });
+    });
+    // The walk began AT s2 — s1 and the delay were never visited.
+    expect(calls.sends.map((s) => s.stepNodeId)).toEqual(["s2"]);
+    expect(calls.progress).not.toContainEqual(expect.objectContaining({ currentNode: "d1" }));
+  }, 60_000);
+
   it("routes a reply signal at the branch and moves the pipeline stage", async (t) => {
     if (!env) return t.skip();
     const tq = `tq-${++seq}`;

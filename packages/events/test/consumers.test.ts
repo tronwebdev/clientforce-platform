@@ -46,4 +46,32 @@ describe("createTemporalSignalConsumer", () => {
     await expect(consumer.handle(event({}))).resolves.toBeUndefined();
     expect(log).toHaveBeenCalledWith(expect.stringContaining("enr-1"));
   });
+
+  // R1 (DEC-073): the campaign-rules gate — rails → rules → graph continuation.
+  it("skips the signal when the rules gate answers false — a terminal rule action handled the reply", async () => {
+    const signal = vi.fn();
+    const log = vi.fn();
+    const consumer = createTemporalSignalConsumer(signal, log, async () => false);
+    await consumer.handle(event({}));
+    expect(signal).not.toHaveBeenCalled();
+    expect(log).toHaveBeenCalledWith(expect.stringContaining("gated"));
+  });
+
+  it("signals normally when the gate answers true", async () => {
+    const signal = vi.fn().mockResolvedValue(undefined);
+    const consumer = createTemporalSignalConsumer(signal, vi.fn(), async () => true);
+    await consumer.handle(event({}));
+    expect(signal).toHaveBeenCalledWith("enr-1", "interested");
+  });
+
+  it("fails OPEN when the gate itself throws — a rules bug must not break reply handling", async () => {
+    const signal = vi.fn().mockResolvedValue(undefined);
+    const log = vi.fn();
+    const consumer = createTemporalSignalConsumer(signal, log, async () => {
+      throw new Error("rules engine down");
+    });
+    await consumer.handle(event({}));
+    expect(signal).toHaveBeenCalledWith("enr-1", "interested");
+    expect(log).toHaveBeenCalledWith(expect.stringContaining("failing OPEN"));
+  });
 });

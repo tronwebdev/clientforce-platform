@@ -130,6 +130,33 @@ describe("validateEvent", () => {
     ).toThrow(/Invalid payload for "list.member.removed.v1"/);
   });
 
+  // R1 (DEC-073): one per-agent rule evaluation outcome — the CampaignRuleRun
+  // row's Logs twin. The payload shape is a contract (A9 names ossify).
+  it("accepts automation.rule.run.v1 with the full payload contract", () => {
+    const event = validateEvent({
+      workspaceId: "ws1",
+      contactId: "c1",
+      enrollmentId: "e1",
+      campaignId: "cmp1",
+      type: EVENT_TYPES.AUTOMATION_RULE_RUN,
+      payload: { ruleId: "r1", runId: "run1", status: "fired", trigger: "reply_classified" },
+    });
+    expect(event.type).toBe("automation.rule.run.v1");
+    expect(event.payload).toEqual({
+      ruleId: "r1",
+      runId: "run1",
+      status: "fired",
+      trigger: "reply_classified",
+    });
+    expect(() =>
+      validateEvent({
+        workspaceId: "ws1",
+        type: EVENT_TYPES.AUTOMATION_RULE_RUN,
+        payload: { status: "fired" },
+      }),
+    ).toThrow(/Invalid payload for "automation.rule.run.v1"/);
+  });
+
   it("lead.stage_changed.v1 carries optional { goalKey, label } (C2.9) and stays legacy-compatible", () => {
     // C2.9 (DEC-059): goal-completion moves carry the completing campaign's
     // goal + terminal label — additive optional fields, no version bump.
