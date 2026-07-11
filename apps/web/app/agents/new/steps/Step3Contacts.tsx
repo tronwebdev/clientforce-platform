@@ -1,18 +1,33 @@
 "use client";
 
 /**
- * Step 3 — Add contacts (W3 commit 0: pure move from Wizard.tsx).
- * Source cards + added list, the CSV modal, the C2.8 list picker and the
- * DEC-039a manual-add drawer. All state stays in the Wizard orchestrator.
+ * Step 3 — Add contacts (W3-1 · W3-7 · W3-8 + W3-10's step-3 tags).
+ * Three source cards per the prototype's `contactSources` literals; "Upload
+ * CSV" opens the REAL C2.5 import flow (the ONE shared component — never a
+ * wizard fork) as a modal over the step; the Audience preview card renders
+ * whichever sources are active with real counts; the C2.8 list picker and
+ * the DEC-039a manual drawer feed it. All state stays in the orchestrator.
  */
-import { GRAD, Modal, ModalActions, inp, manualInp, manualLbl, type AddedContact, type ManualEntry } from "../shared";
+import type { ContactFieldDefDto } from "@clientforce/core";
+import { ContactImportFlow } from "../../../../components/ContactImportFlow";
+import type { GoalFit } from "../../../../lib/goal-fit";
+import { GRAD, manualInp, manualLbl, type ManualEntry } from "../shared";
 import { EMPTY_MANUAL } from "../shared";
 
+/** Prototype `previewContacts` avatar tints, cycled by row index. */
+const AV_TINTS = ["rgba(53,232,52,.16)", "rgba(54,215,237,.16)", "rgba(208,245,107,.3)", "#F2EEE4"];
+
 interface Step3Props {
-  csvOpen: boolean;
-  setCsvOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  csvText: string;
-  setCsvText: React.Dispatch<React.SetStateAction<string>>;
+  importOpen: boolean;
+  setImportOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  csvImport: { listId: string; name: string; count: number } | null;
+  setCsvImport: React.Dispatch<React.SetStateAction<{ listId: string; name: string; count: number } | null>>;
+  importRows: { email: string | null; unsub: boolean }[] | null;
+  isAdmin: boolean;
+  fieldDefs: ContactFieldDefDto[];
+  refreshFieldDefs: () => void;
+  ensureImportList: (fileName: string) => Promise<{ id: string; name: string }>;
+  importCompleted: (listId: string | null) => void;
   listOpen: boolean;
   setListOpen: React.Dispatch<React.SetStateAction<boolean>>;
   wizardLists: { id: string; name: string; memberCount: number; archived: boolean }[];
@@ -26,52 +41,104 @@ interface Step3Props {
   setManual: React.Dispatch<React.SetStateAction<ManualEntry>>;
   manualQueue: ManualEntry[];
   setManualQueue: React.Dispatch<React.SetStateAction<ManualEntry[]>>;
-  added: AddedContact[];
   addContacts: (rows: Array<{ email: string; firstName?: string; lastName?: string; company?: string; phone?: string }>, src: "manual" | "csv") => Promise<void>;
+  audienceTotal: number;
+  audienceSample: { key: string; name: string; email: string; company: string; initials: string }[];
+  toast: (m: string) => void;
+  goalFit: GoalFit;
 }
 
 export function Step3Contacts(props: Step3Props) {
   const {
-    csvOpen, setCsvOpen, csvText, setCsvText, listOpen, setListOpen, wizardLists,
+    importOpen, setImportOpen, csvImport, setCsvImport, importRows, isAdmin, fieldDefs, refreshFieldDefs,
+    ensureImportList, importCompleted, listOpen, setListOpen, wizardLists,
     pickedList, setPickedList, listSearch, setListSearch, manualOpen, setManualOpen,
-    manual, setManual, manualQueue, setManualQueue, added, addContacts,
+    manual, setManual, manualQueue, setManualQueue, addContacts,
+    audienceTotal, audienceSample, toast, goalFit,
   } = props;
+  // W3-10: existing-audience goals highlight the two bring-your-own-audience
+  // sources ("FOR THIS GOAL" tag + soft-green border); the tag yields to the
+  // picked treatment (the ✕ occupies its corner).
+  const fitTag = goalFit === "existing_audience";
+  const cards = [
+    csvImport
+      ? { icon: "⬆", title: csvImport.name, desc: `${csvImport.count} contact${csvImport.count === 1 ? "" : "s"} enroll at launch · as of launch day`, iconbg: "rgba(53,232,52,.16)", act: () => setImportOpen(true), tid: "contacts-csv", picked: true, clear: () => setCsvImport(null), clearTid: "csv-import-clear", tag: false }
+      : { icon: "⬆", title: "Upload CSV", desc: "Import contacts from a .csv file.", iconbg: "rgba(53,232,52,.16)", act: () => setImportOpen(true), tid: "contacts-csv", picked: false, clear: null, clearTid: "", tag: fitTag },
+    // C2.8: picked treatment composes the goal-card selected state
+    // (the prototype shows only the resting card — flagged, DEC-055).
+    pickedList
+      ? { icon: "❒", title: pickedList.name, desc: `${pickedList.memberCount} contact${pickedList.memberCount === 1 ? "" : "s"} enroll at launch · as of launch day`, iconbg: "rgba(54,215,237,.16)", act: () => { setListSearch(""); setListOpen(true); }, tid: "contacts-list", picked: true, clear: () => setPickedList(null), clearTid: "picked-list-clear", tag: false }
+      : { icon: "❒", title: "Choose a list", desc: "Pick an existing saved list.", iconbg: "rgba(54,215,237,.16)", act: () => { setListSearch(""); setListOpen(true); }, tid: "contacts-list", picked: false, clear: null, clearTid: "", tag: fitTag },
+    { icon: "✎", title: "Add manually", desc: "Enter contacts one by one.", iconbg: "#F2EEE4", act: () => setManualOpen(true), tid: "contacts-manual", picked: false, clear: null, clearTid: "", tag: false },
+  ];
+  const shown = audienceSample.length;
   return (
     <>
-          <div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 18 }}>
-              {[
-                { icon: "⬆", title: "Upload CSV", desc: "Import contacts from a .csv file.", iconbg: "rgba(53,232,52,.16)", act: () => setCsvOpen(true), tid: "contacts-csv", picked: false },
-                // C2.8: picked treatment composes the goal-card selected state
-                // (the prototype shows only the resting card — flagged).
-                pickedList
-                  ? { icon: "❒", title: pickedList.name, desc: `${pickedList.memberCount} contact${pickedList.memberCount === 1 ? "" : "s"} enroll at launch · as of launch day`, iconbg: "rgba(54,215,237,.16)", act: () => { setListSearch(""); setListOpen(true); }, tid: "contacts-list", picked: true }
-                  : { icon: "❒", title: "Choose a list", desc: "Pick an existing saved list.", iconbg: "rgba(54,215,237,.16)", act: () => { setListSearch(""); setListOpen(true); }, tid: "contacts-list", picked: false },
-                { icon: "✎", title: "Add manually", desc: "Enter contacts one by one.", iconbg: "#F2EEE4", act: () => setManualOpen(true), tid: "contacts-manual", picked: false },
-              ].map((c) => (
-                <div key={c.tid} onClick={c.act} data-testid={c.tid} style={{ position: "relative", border: c.picked ? "2px solid #35E834" : "1px solid #EBE3D6", borderRadius: 13, background: c.picked ? "rgba(53,232,52,.07)" : "#fff", padding: "16px 14px", cursor: "pointer" }}>
-                  <div style={{ width: 36, height: 36, borderRadius: 10, background: c.iconbg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, marginBottom: 11 }}>{c.icon}</div>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: "#0E1512", marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.title}</div>
-                  <div style={{ fontSize: 13, color: "#8A7F6B", lineHeight: 1.4 }}>{c.desc}</div>
-                  {c.picked ? (
-                    <span onClick={(e) => { e.stopPropagation(); setPickedList(null); }} title="Remove list" style={{ position: "absolute", top: 10, right: 10, color: "#9AA59E", fontSize: 13, cursor: "pointer", padding: 4 }} data-testid="picked-list-clear">✕</span>
-                  ) : null}
+      <div style={{ maxWidth: 820 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 20 }}>
+          {cards.map((c) => (
+            <div key={c.tid} onClick={c.act} data-testid={c.tid} style={{ position: "relative", border: c.picked ? "2px solid #35E834" : c.tag ? "1px solid #9FD8AC" : "1px solid #EBE3D6", borderRadius: 14, background: c.picked ? "rgba(53,232,52,.07)" : "#fff", padding: 18, cursor: "pointer", boxShadow: "0 2px 8px rgba(14,21,18,.03)" }}>
+              <div style={{ width: 40, height: 40, borderRadius: 11, background: c.iconbg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 19, marginBottom: 12 }}>{c.icon}</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#0E1512", marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: c.picked ? 18 : 0 }}>{c.title}</div>
+              <div style={{ fontSize: 13, color: "#8A7F6B", lineHeight: 1.4 }}>{c.desc}</div>
+              {c.picked && c.clear ? (
+                <span onClick={(e) => { e.stopPropagation(); c.clear(); }} title="Remove" style={{ position: "absolute", top: 10, right: 10, color: "#9AA59E", fontSize: 13, cursor: "pointer", padding: 4 }} data-testid={c.clearTid}>✕</span>
+              ) : c.tag ? (
+                <span style={{ position: "absolute", top: 10, right: 10, fontSize: 9, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", color: "#0F7A28", background: "#D7F5DD", borderRadius: 6, padding: "2px 7px" }} data-testid={`${c.tid}-goal-tag`}>For this goal</span>
+              ) : null}
+            </div>
+          ))}
+        </div>
+
+        {/* W3-7: Audience preview — real counts from whichever sources are
+            active (the same arithmetic launch enrolls); honest empty state
+            before any source is chosen (designed body, no prototype anchor
+            for empty). */}
+        <div style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 16, boxShadow: "0 4px 16px rgba(14,21,18,.04)", overflow: "hidden" }} data-testid="audience-preview">
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 18px", borderBottom: "1px solid #F2EEE4" }}>
+            <span style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 16, color: "#0E1512", flex: 1 }}>Audience preview</span>
+            {audienceTotal > 0 ? (
+              <span style={{ fontSize: 12.5, fontWeight: 700, color: "#0F7A28", background: "#D7F5DD", borderRadius: 100, padding: "5px 13px" }} data-testid="audience-count">{audienceTotal} contact{audienceTotal === 1 ? "" : "s"} ready</span>
+            ) : null}
+          </div>
+          {audienceTotal === 0 ? (
+            <div style={{ padding: "26px 18px", textAlign: "center", fontSize: 13, color: "#9AA59E" }} data-testid="audience-empty">No contacts yet — upload a CSV, choose a list, or add them manually.</div>
+          ) : (
+            <>
+              {audienceSample.map((p, i) => (
+                <div key={p.key} style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 18px", borderBottom: "1px solid #F7F2EA" }} data-testid="audience-row">
+                  <span style={{ width: 34, height: 34, borderRadius: "50%", flex: "none", background: AV_TINTS[i % 4], color: "#0A0F0C", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12.5, fontWeight: 700 }}>{p.initials}</span>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: "#0E1512" }}>{p.name}</div>
+                    <div style={{ fontSize: 12.5, color: "#9AA59E" }}>{p.email}</div>
+                  </div>
+                  <span style={{ fontSize: 13, color: "#5C6B62" }}>{p.company}</span>
                 </div>
               ))}
-            </div>
-            {added.length > 0 ? (
-              <div style={{ border: "1px solid #EBE3D6", borderRadius: 13, background: "#fff" }} data-testid="contacts-added">
-                {added.map((a, i) => (
-                  <div key={`${a.email}-${i}`} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", borderTop: i ? "1px solid #F2EEE4" : "none", fontSize: 13.5, color: "#0E1512" }}>
-                    <span style={{ color: "#16A82A" }}>✓</span>
-                    {a.firstName ? `${a.firstName} · ` : ""}{a.email}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div style={{ fontSize: 13, color: "#9AA59E" }}>No contacts yet — add at least one to continue.</div>
-            )}
-          </div>
+              {audienceTotal > shown ? (
+                <div style={{ padding: "12px 18px", fontSize: 13, color: "#9AA59E", textAlign: "center" }} data-testid="audience-more">+ {audienceTotal - shown} more</div>
+              ) : null}
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* W3-1: THE C2.5 import flow, mounted over the wizard step (the agent
+          setup stays open underneath). Same component + semantics as the
+          Contacts mount; the wizard extras land the run in a referenceable
+          list (ensureDefaultList) and hand back the listId (importCompleted). */}
+      <ContactImportFlow
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        lists={wizardLists.filter((l) => !l.archived)}
+        fieldDefs={fieldDefs.filter((d) => !d.archived)}
+        refreshDefs={refreshFieldDefs}
+        isAdmin={isAdmin}
+        existingRows={importRows}
+        toast={toast}
+        onImported={(_result, listId) => importCompleted(listId)}
+        ensureDefaultList={ensureImportList}
+      />
 
       {/* list picker — designed; no saved lists exist yet in P1 */}
       {/* C2.8: live 480px list picker (prototype anatomy) — SNAPSHOT semantics:
@@ -115,32 +182,6 @@ export function Step3Contacts(props: Step3Props) {
             </div>
           </div>
         </div>
-      ) : null}
-
-      {/* CSV modal */}
-      {csvOpen ? (
-        <Modal onClose={() => setCsvOpen(false)} title="Upload CSV" tid="csv-modal">
-          <div style={{ fontSize: 12.5, color: "#8A7F6B", marginBottom: 8 }}>Paste rows as <code>email,firstName,lastName,company</code> — header row optional.</div>
-          <textarea value={csvText} onChange={(e) => setCsvText(e.target.value)} rows={7} style={{ ...inp, resize: "vertical", fontFamily: "monospace", fontSize: 12.5 }} data-testid="csv-text" placeholder={"email,firstName\njane@acme.io,Jane"} />
-          <ModalActions
-            onCancel={() => setCsvOpen(false)}
-            saveLabel="Import"
-            onSave={() => {
-              const rows = csvText
-                .split("\n")
-                .map((l) => l.trim())
-                .filter((l) => l && !l.toLowerCase().startsWith("email,"))
-                .map((l) => {
-                  const [email, firstName, lastName, company] = l.split(",").map((v) => v?.trim());
-                  return { email: email ?? "", firstName, lastName, company };
-                });
-              void addContacts(rows, "csv").then(() => {
-                setCsvOpen(false);
-                setCsvText("");
-              });
-            }}
-          />
-        </Modal>
       ) : null}
 
       {/* manual-add drawer — §3/DEC-039a: full prototype anatomy, multi-add session */}

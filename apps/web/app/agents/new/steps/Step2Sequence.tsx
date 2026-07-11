@@ -12,7 +12,7 @@ import type { CampaignGraph, CampaignOutcomes, ContactFieldDefDto, GraphNode } f
 import { OutcomeBadge } from "../../../../components/OutcomeBadge";
 import { branchWhenLabel, intentTint } from "../../../../lib/intents";
 import { mainPath, mainSteps, strategyStepsOf } from "../../../../lib/graph-path";
-import { GRAD, Modal, ModalActions, Stepper, tzShort, type AddedContact, type BriefDraft, type PreviewState } from "../shared";
+import { GRAD, Modal, ModalActions, Stepper, tzShort, type BriefDraft, type PreviewState } from "../shared";
 
 /** Personalization chips — the REAL merge-token set (P1.5 `renderTokens`);
  *  the prototype's `{{calendarLink}}` is omitted until a booking-link token exists. */
@@ -75,7 +75,8 @@ interface Step2Props {
   windowStart: string;
   windowEnd: string;
   timezone: string;
-  added: AddedContact[];
+  /** W3-7: the real audience arithmetic (adds + referenced lists). */
+  audienceTotal: number;
   editNode: GraphNode | null;
   setEditNode: React.Dispatch<React.SetStateAction<GraphNode | null>>;
   editSubject: string;
@@ -113,7 +114,7 @@ interface Step2Props {
 export function Step2Sequence(props: Step2Props) {
   const {
     drafting, graph, graphSource, graphVersion, outcomes, seqView, setSeqView, regenError, regenerate, addStep,
-    branchCases, windowStart, windowEnd, timezone, added,
+    branchCases, windowStart, windowEnd, timezone, audienceTotal,
     editNode, setEditNode, editSubject, setEditSubject, editBody, setEditBody, editBrief, setEditBrief,
     briefPointInput, setBriefPointInput, briefMustInput, setBriefMustInput, briefNeverInput, setBriefNeverInput,
     previewBusy, preview, setPreview, fieldDefs, customTokenKey, setCustomTokenKey, customFallback, setCustomFallback,
@@ -258,7 +259,7 @@ export function Step2Sequence(props: Step2Props) {
                         <div style={{ display: "flex", alignItems: "center", marginBottom: 14 }}>
                           <div style={{ flex: 1 }}>
                             <div style={{ fontSize: 12, fontWeight: 700, color: "#7FE8A0", textTransform: "uppercase", letterSpacing: ".08em" }}>Main sequence · {mainSteps(graph).length} steps</div>
-                            <div style={{ fontSize: 11.5, color: "rgba(255,255,255,.4)", marginTop: 2 }}>{added.length ? `${added.length} contact${added.length === 1 ? "" : "s"} enroll at launch` : "Contacts enroll at launch"} · Draft</div>
+                            <div style={{ fontSize: 11.5, color: "rgba(255,255,255,.4)", marginTop: 2 }}>{audienceTotal ? `${audienceTotal} contact${audienceTotal === 1 ? "" : "s"} enroll at launch` : "Contacts enroll at launch"} · Draft</div>
                           </div>
                           <span onClick={() => setSeqView("sequence")} style={{ fontSize: 11.5, fontWeight: 700, color: "#0A0F0C", background: "#7FE8A0", borderRadius: 8, padding: "4px 11px", cursor: "pointer" }}>View steps</span>
                         </div>

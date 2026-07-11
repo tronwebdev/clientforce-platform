@@ -14,6 +14,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BRIEF_TALKING_POINTS_MIN, CONTEXT_FIELD_META, customTokensMissingFallback, GOAL_KEYS, GUIDED_EMAIL_CREDITS, GUIDED_SMS_CREDITS, requiredFieldsFor, type GoalKey } from "@clientforce/core";
 import type { CampaignGraph, CampaignOutcomes, ContactFieldDefDto, DraftState, GraphNode } from "@clientforce/core";
 import { mainPath, mainSteps, replyBranchOf, strategyStepsOf } from "../../../lib/graph-path";
+import { goalFitOf } from "../../../lib/goal-fit";
 import { BSTEPS, BUILD_DELAYS, EMPTY_MANUAL, GRAD, cf, type AddMode, type AddedContact, type BriefDraft, type Citation, type ContextField, type Gap, type KnowledgeSource, type PreviewState, type SenderRow } from "./shared";
 import { BuildingScreen } from "./steps/BuildingScreen";
 import { Step1 } from "./steps/Step1Setup";
@@ -178,19 +179,29 @@ export function Wizard() {
   const [delayAmount, setDelayAmount] = useState(2);
 
   // step 3
-  const [csvOpen, setCsvOpen] = useState(false);
+  // W3-1: "Upload CSV" opens the REAL C2.5 import flow (shared component)
+  // as a modal over the step; the run lands in a list and the wizard keeps
+  // only the REFERENCE (B6: name/count/sample resolve live, never copied).
+  const [importOpen, setImportOpen] = useState(false);
+  const [csvImport, setCsvImport] = useState<{ listId: string; name: string; count: number } | null>(null);
+  // the import flow's review-step estimate + admin gating (same inputs the
+  // Contacts mount feeds it) — fetched when the modal first opens.
+  const [importRows, setImportRows] = useState<{ email: string | null; unsub: boolean }[] | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [listOpen, setListOpen] = useState(false);
   // C2.8: "Choose a list" — picked list enrolls its members at launch
   // (SNAPSHOT semantics: resolved at deploy time, same path as CSV adds).
   const [wizardLists, setWizardLists] = useState<{ id: string; name: string; memberCount: number; archived: boolean }[]>([]);
   const [pickedList, setPickedList] = useState<{ id: string; name: string; memberCount: number } | null>(null);
   const [listSearch, setListSearch] = useState("");
-  const [csvText, setCsvText] = useState("");
   const [manualOpen, setManualOpen] = useState(false);
   const [manual, setManual] = useState(EMPTY_MANUAL);
   // DEC-039a: multi-add — rows queue up "this session" and post together.
   const [manualQueue, setManualQueue] = useState<Array<typeof EMPTY_MANUAL>>([]);
   const [added, setAdded] = useState<AddedContact[]>([]);
+  // W3-7: audience-preview member rows per referenced list (first ~4, via the
+  // existing contacts/view?listId= — display only; launch re-resolves fully).
+  const [listSamples, setListSamples] = useState<Record<string, { name: string; email: string; company: string }[]>>({});
 
   // step 4 — visual only (checkpoints §3)
   const [capture, setCapture] = useState({ widget: false, form: false });
@@ -247,13 +258,16 @@ export function Wizard() {
         if (typeof ds.smsDailyCap === "number") setSmsDailyCap(ds.smsDailyCap);
         if (ds.windowStart) setWindowStart(ds.windowStart);
         if (ds.timezone) setTimezone(ds.timezone);
-        // C2.8: re-resolve the picked list from the server (name/count are
-        // truth, not draft copies — B6 rule); a deleted/archived list drops.
-        if (ds.pickedListId) {
+        // C2.8/W3-1: re-resolve the referenced lists from the server (name/
+        // count are truth, not draft copies — B6 rule); a deleted/archived
+        // list drops its reference.
+        if (ds.pickedListId || ds.csvListId) {
           void cf("lists")
             .then((ls: { id: string; name: string; memberCount: number; archived: boolean }[]) => {
-              const l = ls.find((x) => x.id === ds.pickedListId && !x.archived);
-              if (l) setPickedList({ id: l.id, name: l.name, memberCount: l.memberCount });
+              const picked = ls.find((x) => x.id === ds.pickedListId && !x.archived);
+              if (picked) setPickedList({ id: picked.id, name: picked.name, memberCount: picked.memberCount });
+              const csv = ls.find((x) => x.id === ds.csvListId && !x.archived);
+              if (csv) setCsvImport({ listId: csv.id, name: csv.name, count: csv.memberCount });
             })
             .catch(() => {});
         }
@@ -305,6 +319,7 @@ export function Wizard() {
         quietHours,
         ramp,
         ...(pickedList ? { pickedListId: pickedList.id } : {}),
+        ...(csvImport ? { csvListId: csvImport.listId } : {}),
         ...(goalLabel.trim() ? { goalLabel: goalLabel.trim() } : {}),
       };
       // M1a (DEC-065): category rides the same PATCH — it's a durable column
@@ -319,7 +334,7 @@ export function Wizard() {
         });
     }, 800);
     return () => clearTimeout(t);
-  }, [agentId, launched, resuming, building, step, buildMethod, added, capture, dailyCap, smsDailyCap, windowStart, windowEnd, timezone, sendDays, quietHours, ramp, pickedList, goalLabel, category, toast]);
+  }, [agentId, launched, resuming, building, step, buildMethod, added, capture, dailyCap, smsDailyCap, windowStart, windowEnd, timezone, sendDays, quietHours, ramp, pickedList, csvImport, goalLabel, category, toast]);
 
   // ── polling (A4: 5s) ────────────────────────────────────────────────────
   const readyCount = useRef(0);
@@ -431,6 +446,10 @@ export function Wizard() {
     void cf("contact-fields").then(setFieldDefs).catch(() => {});
     // C2.8: saved lists feed the step-3 picker.
     void cf("lists").then(setWizardLists).catch(() => {});
+    // W3-1: the import flow's custom-field CREATE row is admin-gated (C2.7).
+    void cf("me")
+      .then((m: { role?: string }) => setIsAdmin(m.role === "OWNER" || m.role === "ADMIN"))
+      .catch(() => {});
   }, []);
 
   // C2.7: the fallback card never survives switching steps/closing the editor.
@@ -438,6 +457,36 @@ export function Wizard() {
     setCustomTokenKey(null);
     setCustomFallback("");
   }, [editNode]);
+
+  // W3-1: the import flow's review step estimates dupes/suppression against
+  // the workspace rows (IMP-2 — the server stays authoritative). Fetched once
+  // when the modal first opens; the same call the Contacts screen makes.
+  useEffect(() => {
+    if (!importOpen || importRows !== null) return;
+    void cf("contacts/view")
+      .then((res: { rows: { email: string | null; unsub: boolean }[] }) => setImportRows(res.rows))
+      .catch(() => setImportRows([]));
+  }, [importOpen, importRows]);
+
+  // W3-7: first ~4 member rows per referenced list feed the audience preview
+  // (display only — launch re-resolves full membership live).
+  useEffect(() => {
+    const ids = [pickedList?.id, csvImport?.listId].filter((x): x is string => Boolean(x));
+    for (const id of ids) {
+      if (id in listSamples) continue;
+      setListSamples((s) => ({ ...s, [id]: [] }));
+      void cf(`contacts/view?listId=${id}`)
+        .then((res: { rows: { firstName: string | null; lastName: string | null; email: string | null; company: string | null }[] }) => {
+          const sample = res.rows.slice(0, 4).map((r) => ({
+            name: [r.firstName, r.lastName].filter(Boolean).join(" ") || (r.email ?? "Unknown"),
+            email: r.email ?? "—",
+            company: r.company ?? "—",
+          }));
+          setListSamples((s) => ({ ...s, [id]: sample }));
+        })
+        .catch(() => {});
+    }
+  }, [pickedList?.id, csvImport?.listId, listSamples]);
 
   // ── derived ──────────────────────────────────────────────────────────────
   // DEC-024: before any server report exists, seed the goal's required fields
@@ -494,11 +543,32 @@ export function Wizard() {
     return b && b.type === "branch" ? b.cases : [];
   }, [graph]);
 
+  // W3-7: the audience the wizard will enroll — REAL counts from every active
+  // source (manual adds + picked list + CSV-imported list; the same arithmetic
+  // launch resolves), plus up to 4 preview rows drawn from whichever sources
+  // are in play. Never an estimate, never a fake.
+  const audienceTotal = added.length + (pickedList?.memberCount ?? 0) + (csvImport?.count ?? 0);
+  const audienceSample = useMemo(() => {
+    const rows: { key: string; name: string; email: string; company: string; initials: string }[] = [];
+    const initialsOf = (name: string, email: string) => {
+      const parts = name.replace(/^dr\.?\s+/i, "").split(/\s+/).filter(Boolean);
+      const ab = `${parts[0]?.[0] ?? ""}${parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? "") : ""}`;
+      return (ab || email.slice(0, 2)).toUpperCase();
+    };
+    const push = (key: string, name: string, email: string, company: string) =>
+      rows.push({ key, name, email, company, initials: initialsOf(name, email) });
+    if (pickedList) for (const [i, r] of (listSamples[pickedList.id] ?? []).entries()) push(`picked-${i}`, r.name, r.email, r.company);
+    if (csvImport) for (const [i, r] of (listSamples[csvImport.listId] ?? []).entries()) push(`csv-${i}`, r.name, r.email, r.company);
+    for (const a of added) push(a.id, [a.firstName, a.lastName].filter(Boolean).join(" ") || a.email, a.email, a.company ?? "—");
+    return rows.slice(0, 4);
+  }, [added, pickedList, csvImport, listSamples]);
+
   const stepValid = [
     Boolean(goal && name.trim() && agentId && allResolvedForNext()),
     Boolean(graph),
-    // C2.8: a picked list is a contact source — it satisfies the step like adds do.
-    added.length > 0 || pickedList !== null,
+    // C2.8/W3-1: a referenced list (picked or CSV-imported) is a contact
+    // source — it satisfies the step exactly like manual adds do.
+    added.length > 0 || pickedList !== null || csvImport !== null,
     true,
     senders.length > 0,
     allResolved,
@@ -1028,13 +1098,57 @@ export function Wizard() {
     setDelayEdit(null);
   }
 
+  /** W3-1: a def created inside the import flow must land in the token
+   *  picker too — the same refetch the mount effect ran. */
+  function refreshFieldDefs() {
+    void cf("contact-fields").then(setFieldDefs).catch(() => {});
+  }
+
+  /** W3-1: the wizard's import lands in a referenceable list — with none
+   *  picked, one is created from the file name at import start (name
+   *  collisions get a numbered suffix; POST /lists 409s on duplicates). */
+  async function ensureImportList(fileName: string): Promise<{ id: string; name: string }> {
+    const base = fileName.replace(/\.[^.]+$/, "").trim().slice(0, 72) || "CSV import";
+    for (let i = 0; i < 20; i += 1) {
+      const listName = i === 0 ? base : `${base} (${i + 1})`;
+      try {
+        const created = await cf("lists", { method: "POST", body: JSON.stringify({ name: listName, origin: "csv_import" }) });
+        return { id: created.id as string, name: (created.name as string) ?? listName };
+      } catch (err) {
+        const status = err instanceof Error ? /:\s*(\d+)$/.exec(err.message)?.[1] : null;
+        if (status !== "409") throw err;
+      }
+    }
+    throw new Error("lists: 409");
+  }
+
+  /** W3-1/W3-7: an import run finished — re-resolve the list reference from
+   *  the server (count = the list's real memberCount, never a client tally)
+   *  and refresh the preview sample for that list. */
+  function importCompleted(listId: string | null) {
+    if (!listId) return;
+    void cf("lists")
+      .then((ls: { id: string; name: string; memberCount: number; archived: boolean }[]) => {
+        setWizardLists(ls);
+        const l = ls.find((x) => x.id === listId && !x.archived);
+        if (l) setCsvImport({ listId: l.id, name: l.name, count: l.memberCount });
+        setListSamples((s) => {
+          const next = { ...s };
+          delete next[listId];
+          return next;
+        });
+      })
+      .catch(() => {});
+  }
+
   async function addContacts(rows: Array<{ email: string; firstName?: string; lastName?: string; company?: string; phone?: string }>, src: "manual" | "csv") {
     for (const row of rows) {
       if (!row.email?.includes("@")) continue;
       try {
         const created = await cf("contacts", { method: "POST", body: JSON.stringify(row) });
         // 49-3: the source rides each entry so launch can tell the enrollment.
-        setAdded((a) => [...a, { id: created.id, email: row.email, firstName: row.firstName, src }]);
+        // W3-7: name/company ride too — the audience-preview rows render them.
+        setAdded((a) => [...a, { id: created.id, email: row.email, firstName: row.firstName, lastName: row.lastName, company: row.company, src }]);
       } catch {
         /* skip bad row */
       }
@@ -1057,6 +1171,12 @@ export function Wizard() {
     if (pickedList) {
       const members = ((await cf(`contacts/view?listId=${pickedList.id}`).catch(() => ({ rows: [] }))) as { rows: { id: string }[] }).rows;
       for (const m of members) origins.set(m.id, { kind: "list", listId: pickedList.id, listName: pickedList.name });
+    }
+    // W3-1: the CSV import's list resolves NOW too (reference, never a copy) —
+    // members added to that list after the import still enroll at launch.
+    if (csvImport) {
+      const members = ((await cf(`contacts/view?listId=${csvImport.listId}`).catch(() => ({ rows: [] }))) as { rows: { id: string }[] }).rows;
+      for (const m of members) origins.set(m.id, { kind: "csv", listId: csvImport.listId, listName: csvImport.name });
     }
     for (const c of added) origins.set(c.id, { kind: c.src ?? "manual" });
     let ok = 0;
@@ -1268,13 +1388,13 @@ export function Wizard() {
 
         {step === 1 ? (
           <Step2Sequence
-            {...{ drafting, graph, graphSource, graphVersion, outcomes, seqView, setSeqView, regenError, regenerate, addStep, branchCases, windowStart, windowEnd, timezone, added, editNode, setEditNode, editSubject, setEditSubject, editBody, setEditBody, editBrief, setEditBrief, briefPointInput, setBriefPointInput, briefMustInput, setBriefMustInput, briefNeverInput, setBriefNeverInput, previewBusy, preview, setPreview, fieldDefs, customTokenKey, setCustomTokenKey, customFallback, setCustomFallback, delayEdit, setDelayEdit, delayAmount, setDelayAmount, editStepIndex, editStrategyIntent, insertCustomToken, saveEditedStep, sampleCompose, saveDelay }}
+            {...{ drafting, graph, graphSource, graphVersion, outcomes, seqView, setSeqView, regenError, regenerate, addStep, branchCases, windowStart, windowEnd, timezone, audienceTotal, editNode, setEditNode, editSubject, setEditSubject, editBody, setEditBody, editBrief, setEditBrief, briefPointInput, setBriefPointInput, briefMustInput, setBriefMustInput, briefNeverInput, setBriefNeverInput, previewBusy, preview, setPreview, fieldDefs, customTokenKey, setCustomTokenKey, customFallback, setCustomFallback, delayEdit, setDelayEdit, delayAmount, setDelayAmount, editStepIndex, editStrategyIntent, insertCustomToken, saveEditedStep, sampleCompose, saveDelay }}
           />
         ) : null}
 
         {step === 2 ? (
           <Step3Contacts
-            {...{ csvOpen, setCsvOpen, csvText, setCsvText, listOpen, setListOpen, wizardLists, pickedList, setPickedList, listSearch, setListSearch, manualOpen, setManualOpen, manual, setManual, manualQueue, setManualQueue, added, addContacts }}
+            {...{ importOpen, setImportOpen, csvImport, setCsvImport, importRows, isAdmin, fieldDefs, refreshFieldDefs, ensureImportList, importCompleted, listOpen, setListOpen, wizardLists, pickedList, setPickedList, listSearch, setListSearch, manualOpen, setManualOpen, manual, setManual, manualQueue, setManualQueue, addContacts, audienceTotal, audienceSample, toast, goalFit: goalFitOf(goal) }}
           />
         ) : null}
 
@@ -1286,7 +1406,7 @@ export function Wizard() {
           />
         ) : null}
 
-        {step === 5 ? <Step6Review {...{ goal, graph, added, pickedList, capture, allResolved, gapTotal, gapResolved }} /> : null}
+        {step === 5 ? <Step6Review {...{ goal, graph, pickedList, csvImport, audienceTotal, capture, allResolved, gapTotal, gapResolved }} /> : null}
       </div>
       </div>
     </div>

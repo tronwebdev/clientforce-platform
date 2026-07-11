@@ -35,6 +35,9 @@ export const draftStateSchema = z.object({
         id: z.string(),
         email: z.string(),
         firstName: z.string().optional(),
+        /** W3-7: the audience-preview rows render name · email · company. */
+        lastName: z.string().optional(),
+        company: z.string().optional(),
         /** C2.8 (49-3): how the contact was added — drives enrollment provenance. */
         src: z.enum(["manual", "csv"]).optional(),
       }),
@@ -42,6 +45,12 @@ export const draftStateSchema = z.object({
     .max(500)
     .optional(),
   capture: z.object({ widget: z.boolean(), form: z.boolean() }).optional(),
+  /**
+   * W3-1: step-3 CSV import lands in a list; the draft keeps only the
+   * REFERENCE — name/count re-resolve from the server on resume, exactly
+   * like `pickedListId` (B6 rule: lists resolve live, never copied).
+   */
+  csvListId: z.string().optional(),
   dailyCap: z.number().int().min(1).max(10000).optional(),
   /** P2.1 (DEC-061): the sms daily cap (guardrails dailyCap.sms). */
   smsDailyCap: z.number().int().min(1).max(10000).optional(),

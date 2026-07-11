@@ -122,6 +122,9 @@ export interface AddedContact {
   id: string;
   email: string;
   firstName?: string;
+  /** W3-7: the audience-preview rows render name · email · company. */
+  lastName?: string;
+  company?: string;
   src?: "manual" | "csv";
 }
 
