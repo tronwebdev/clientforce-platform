@@ -96,6 +96,33 @@ jobs:
               print(f"  number sid={n.get('"'"'sid'"'"')} country={n.get('"'"'country_code'"'"')} capabilities={n.get('"'"'capabilities'"'"')}")
           '
 
+          echo "== 3b) Account + A2P approval status (does anything limit US-bound sends?) =="
+          curl -sf -u "$sid:$token" "https://api.twilio.com/2010-04-01/Accounts/$sid.json" \
+            | python3 -c '
+          import json, sys
+          a = json.load(sys.stdin)
+          print(f"account type: {a.get('"'"'type'"'"')}  status: {a.get('"'"'status'"'"')}  (Trial = sends only to VERIFIED numbers)")
+          '
+          curl -sf -u "$sid:$token" "https://messaging.twilio.com/v1/a2p/BrandRegistrations?PageSize=5" \
+            | python3 -c '
+          import json, sys
+          brands = json.load(sys.stdin).get("data", [])
+          print(f"A2P brand registrations: {len(brands)}")
+          for b in brands:
+              print(f"  brand status={b.get('"'"'status'"'"')} failure_reason={b.get('"'"'failure_reason'"'"') or None}")
+          ' || echo "  (brand registration list not available)"
+          curl -sf -u "$sid:$token" "https://messaging.twilio.com/v1/Services/$msid/Compliance/Usa2p" \
+            | python3 -c '
+          import json, sys
+          camps = json.load(sys.stdin).get("compliance", [])
+          print(f"A2P campaigns on the platform service: {len(camps)}")
+          for c in camps:
+              errs = c.get("errors") or []
+              print(f"  campaign_status={c.get('"'"'campaign_status'"'"')} errors={len(errs)}")
+              for e in errs[:3]:
+                  print(f"    error: {e.get('"'"'description'"'"') or e}")
+          ' || echo "  (no US A2P campaign resource on the platform service)"
+
           echo "== 4) Webhook delivery alerts (Twilio Monitor, newest first) =="
           curl -sf -u "$sid:$token" "https://monitor.twilio.com/v1/Alerts?PageSize=10" \
             | python3 -c '
