@@ -192,6 +192,15 @@ export const BANNED_OPENERS = [
   "To whom it may concern",
 ] as const;
 
+/**
+ * G2 (DEC-071): subject-line phrases a composed email may never carry — the
+ * playbook's named ban ("quick question") plus the opener list (any of those
+ * in a subject is the same template smell). Unlike BANNED_OPENERS this list
+ * is enforced DETERMINISTICALLY by the composer's post-compose subject check,
+ * not just the prompt; matched case-insensitively as substrings.
+ */
+export const BANNED_SUBJECT_PATTERNS = ["quick question", ...BANNED_OPENERS] as const;
+
 // ── Per-agent strategy block (rides guardrails Json — NO migration) ─────────
 export const NEVER_SAY_MAX = 10;
 export const STRATEGY_NOTES_MAX = 500;
@@ -207,11 +216,12 @@ export const strategyBlockSchema = z.object({
 });
 export type StrategyBlock = z.infer<typeof strategyBlockSchema>;
 
-// ── Guided compose credits (G1, DEC-070) ─────────────────────────────────────
+// ── Guided compose credits (G1 DEC-070 · G2 DEC-071) ─────────────────────────
 /**
- * DISPLAY-ONLY at launch (Q-020 owns real metering): what one guided SMS
- * composition costs in credits. Rendered on guided step cards + the sample
- * preview; no `credits.consumed.v1` is emitted and no balance exists yet —
- * a billing event with no ledger would be dishonest.
+ * DISPLAY-ONLY at launch (Q-020 owns real metering): what one guided
+ * composition costs in credits, per channel. Rendered on guided step cards +
+ * the sample preview; no `credits.consumed.v1` is emitted and no balance
+ * exists yet — a billing event with no ledger would be dishonest.
  */
 export const GUIDED_SMS_CREDITS = 3;
+export const GUIDED_EMAIL_CREDITS = 2;

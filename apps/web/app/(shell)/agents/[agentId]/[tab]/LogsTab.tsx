@@ -25,6 +25,8 @@ const LOG_ROW: Record<string, { icon: string; bg: string; fg: string }> = {
   "email.replied.v1": { icon: "↩", bg: "rgba(53,232,52,.16)", fg: "#16A82A" },
   "email.bounced.v1": { icon: "⚠", bg: "rgba(224,121,107,.14)", fg: "#C9543F" },
   "email.spam_reported.v1": { icon: "⚠", bg: "rgba(224,121,107,.14)", fg: "#C9543F" },
+  // G2 (DEC-071): the guided-email compose-refusal amber row (sms twin below).
+  "email.compose_refused.v1": { icon: "⚠", bg: "rgba(232,196,91,.2)", fg: "#9A6B12" },
   "lead.stage_changed.v1": { icon: "✦", bg: "rgba(53,232,52,.16)", fg: "#16A82A" },
   "lead.unsubscribed.v1": { icon: "⊘", bg: "rgba(224,121,107,.16)", fg: "#C9543F" },
   // P2.1 sms rows (carry-along: the Logs feed rendered raw sms.* slugs —
@@ -49,6 +51,7 @@ function describe(e: LogEvent): string {
     case "email.replied.v1": return `Reply received from ${who}${p.intent ? ` — classified “${intentTint(String(p.intent)).label}”` : ""}.`;
     case "email.bounced.v1": return `Email to ${who} hard-bounced.`;
     case "email.spam_reported.v1": return `${who} reported the email as spam.`;
+    case "email.compose_refused.v1": return `Composer refused the email for ${who} — ${String(p.reason ?? "checks failed")}${p.detail ? ` (${String(p.detail)})` : ""}. The lead is paused; nothing was sent.`;
     case "lead.stage_changed.v1": return `${who} moved ${p.fromStage ? `from ${String(p.fromStage)} ` : ""}to ${String(p.toStage ?? "a new stage")}${p.manual ? " (manual move)" : ""}.`;
     case "lead.unsubscribed.v1": return `${who} unsubscribed — suppressed from all sequences.`;
     case "sms.sent.v1": return `Step SMS sent to ${who}.`;

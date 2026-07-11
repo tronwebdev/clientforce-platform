@@ -55,6 +55,15 @@ export const EVENT_SCHEMAS = {
   "email.bounced.v1": z.object({ ...messageRef, reason: z.string().optional() }),
   "email.spam.v1": z.object({ ...messageRef }),
   "email.replied.v1": z.object({ ...messageRef, intent: IntentSchema }),
+  // G2 (DEC-071): the guided email composer refused after its bounded retry —
+  // the lead's enrollment paused, NOTHING was sent. Deliberately no messageId
+  // (no Message row exists — DEC-064: the catalog payload matches reality);
+  // the sms twin landed in G1 (DEC-070).
+  "email.compose_refused.v1": z.object({
+    stepNodeId: z.string(),
+    reason: z.string(),
+    detail: z.string().optional(),
+  }),
 
   // ── Messaging · SMS ────────────────────────────────────────────────────────
   "sms.sent.v1": z.object({ ...messageRef, segmentCount: z.number().int().nonnegative(), body: z.string().optional() }),
@@ -164,6 +173,7 @@ export const EVENT_TYPES = {
   EMAIL_BOUNCED: "email.bounced.v1",
   EMAIL_SPAM: "email.spam.v1",
   EMAIL_REPLIED: "email.replied.v1",
+  EMAIL_COMPOSE_REFUSED: "email.compose_refused.v1",
   SMS_SENT: "sms.sent.v1",
   SMS_DELIVERED: "sms.delivered.v1",
   SMS_FAILED: "sms.failed.v1",

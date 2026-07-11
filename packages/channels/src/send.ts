@@ -27,6 +27,13 @@ export interface SendStepParams {
   senderId: string;
   stepNodeId: string;
   content: StepContent;
+  /**
+   * G2 (DEC-071): provenance of guided copy, merged into `Message.meta` at
+   * persist time. PASS-THROUGH ONLY — no rail reads it; the boundary neither
+   * knows nor cares who wrote the copy. Absent on scripted sends (meta stays
+   * byte-identical to pre-G2). The sms twin landed in G1 (DEC-070).
+   */
+  composed?: { mode: "guided"; briefVersion: number | null; composerVersion: string };
 }
 
 const UNSUB_BASE = (): string =>
@@ -177,6 +184,9 @@ export async function sendStep(deps: SendDeps, params: SendStepParams): Promise<
           threaded: Boolean(prior),
           ...(rfcMessageId ? { rfcMessageId } : {}),
           ...(sanitized ? { sanitized: "stripped faux thread prefix (owner rule 3)" } : {}),
+          // G2 (DEC-071): guided provenance, pass-through only — absent on
+          // scripted sends, so their meta stays byte-identical.
+          ...(params.composed ?? {}),
         },
       },
     }),

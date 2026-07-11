@@ -50,6 +50,12 @@ export interface StepBrief {
   mustSay?: string[];
   /** Strings that must NEVER appear (≤10 — mirrors the M1a strategy caps). */
   neverSay?: string[];
+  /**
+   * G2 (DEC-071): EMAIL briefs only — a subject DIRECTION the composer may
+   * adapt per lead (planner-emitted, owner-editable), never pasted copy; the
+   * deterministic subject checks apply to whatever gets composed.
+   */
+  subjectHint?: string;
 }
 
 /** A channel send. */
@@ -61,7 +67,7 @@ export interface StepNode {
   /**
    * G1 (DEC-070): absent = "scripted" — legacy graphs parse byte-identical.
    * "guided" steps carry a `brief` instead of body copy and are composed per
-   * lead at send time; legal on channel "sms" ONLY this unit (email = G2).
+   * lead at send time; legal on channels "sms" (G1) and "email" (G2, DEC-071).
    */
   mode?: "scripted" | "guided";
   /** Present exactly when `mode` is "guided". */

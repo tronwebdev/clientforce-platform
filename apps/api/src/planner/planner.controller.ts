@@ -12,9 +12,15 @@ import {
   Query,
 } from "@nestjs/common";
 import type { AiGateway } from "@clientforce/ai";
-import { composeSampleSms, ComposeRefusedError, SAMPLE_LEAD } from "@clientforce/channels";
+import {
+  composeSampleEmail,
+  composeSampleSms,
+  ComposeRefusedError,
+  SAMPLE_LEAD,
+} from "@clientforce/channels";
 import {
   campaignGraphSchema,
+  GUIDED_EMAIL_CREDITS,
   GUIDED_SMS_CREDITS,
   planRequestSchema,
   plannerGraphQuerySchema,
@@ -23,6 +29,7 @@ import {
 import { z } from "zod";
 import { Role } from "@clientforce/db";
 import { createPlanQueue, type PlanTarget } from "@clientforce/planner";
+import { mainStepPosition } from "@clientforce/workflows";
 import type { ZodSchema } from "zod";
 import { Roles } from "../auth/decorators";
 import { PrismaService } from "../db/prisma.service";
@@ -121,11 +128,13 @@ export class PlannerController {
   }
 
   /**
-   * G1 (DEC-070): sample preview — compose a guided step's brief against the
-   * FIXED sample lead (no contact row, empty history) through the REAL
-   * deterministic checks. A check refusal is a legitimate outcome to DISPLAY,
-   * so it returns 200 `{refused}` rather than an error status; free at launch
-   * (Q-020 owns metering — the credits figure here is display-only).
+   * G1 (DEC-070) / G2 (DEC-071): sample preview — compose a guided step's
+   * brief against the FIXED sample lead (no contact row, empty history)
+   * through the REAL deterministic checks, routed by the step's channel
+   * (email previews return subject + body, arc-role aware). A check refusal
+   * is a legitimate outcome to DISPLAY, so it returns 200 `{refused}` rather
+   * than an error status; free at launch (Q-020 owns metering — the credits
+   * figure here is display-only).
    */
   @Post("compose-preview")
   @Roles(Role.OWNER, Role.ADMIN, Role.AGENT)
@@ -137,7 +146,7 @@ export class PlannerController {
       );
     }
     const workspaceId = this.tenant.workspaceId;
-    const step = await this.tenant.run(async (tx) => {
+    const { step, position } = await this.tenant.run(async (tx) => {
       const campaign = await tx.campaign.findFirst({
         where: { agentId: dto.agentId },
         orderBy: { createdAt: "asc" },
@@ -156,11 +165,29 @@ export class PlannerController {
           `Step ${dto.stepNodeId} is not a guided step — previews compose briefs only`,
         );
       }
-      return node;
+      // G2: the step's main-sequence position → the composer's M1a arc role.
+      return { step: node, position: mainStepPosition(graph, node.id) };
     });
     try {
-      // composeSampleSms tenant-scopes its own reads (withTenant on the app
-      // client) with the request's workspace — same RLS subject as tenant.run.
+      // The sample composers tenant-scope their own reads (withTenant on the
+      // app client) with the request's workspace — same RLS subject as
+      // tenant.run.
+      if (step.channel === "email") {
+        const composed = await composeSampleEmail(
+          { prisma: this.prisma.app, gateway: this.composerGateway },
+          { workspaceId, agentId: dto.agentId, brief: step.brief!, position },
+        );
+        return {
+          composed: {
+            subject: composed.subject,
+            body: composed.body,
+            composerVersion: composed.composerVersion,
+            attempts: composed.attempts,
+          },
+          sampleLead: SAMPLE_LEAD,
+          credits: GUIDED_EMAIL_CREDITS,
+        };
+      }
       const composed = await composeSampleSms(
         { prisma: this.prisma.app, gateway: this.composerGateway },
         { workspaceId, agentId: dto.agentId, brief: step.brief! },

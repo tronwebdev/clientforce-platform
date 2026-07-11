@@ -81,7 +81,7 @@ describe("validateGraph", () => {
     expect(() => validateGraph(bad)).toThrow(/Duplicate node id "n1"/);
   });
 
-  // ── G1 (DEC-070): guided steps — briefs composed at send, sms-only ─────────
+  // ── G1 (DEC-070) / G2 (DEC-071): guided steps — briefs composed at send ────
   const asGuided = (over: object): CampaignGraph => ({
     ...sample,
     nodes: sample.nodes.map((n) =>
@@ -105,8 +105,57 @@ describe("validateGraph", () => {
     expect(step).toMatchObject({ mode: "guided", brief: { objective: "earn a reply" } });
   });
 
-  it("G1: rejects guided on any channel but sms (guided email is G2)", () => {
-    expect(() => validateGraph(asGuided({ channel: "email" }))).toThrow(/sms-only/);
+  it("G2: accepts a guided EMAIL step; its brief may carry a subjectHint", () => {
+    const graph = validateGraph(
+      asGuided({
+        channel: "email",
+        brief: {
+          objective: "earn a reply",
+          talkingPoints: ["a", "b", "c"],
+          subjectHint: "where bookings leak",
+        },
+      }),
+    );
+    const step = graph.nodes.find((n) => n.id === "n2");
+    expect(step).toMatchObject({
+      channel: "email",
+      mode: "guided",
+      brief: { subjectHint: "where bookings leak" },
+    });
+  });
+
+  it("G1/G2: rejects guided on channels beyond email/sms (voice, whatsapp — later phases)", () => {
+    expect(() => validateGraph(asGuided({ channel: "whatsapp" }))).toThrow(/email\/sms-only/);
+    expect(() => validateGraph(asGuided({ channel: "voice" }))).toThrow(/email\/sms-only/);
+  });
+
+  it("G2: subjectHint is email-only — an sms brief carrying one is rejected", () => {
+    expect(() =>
+      validateGraph(
+        asGuided({
+          brief: {
+            objective: "earn a reply",
+            talkingPoints: ["a", "b", "c"],
+            subjectHint: "sms has no subject",
+          },
+        }),
+      ),
+    ).toThrow(/subject hints are email-only/);
+  });
+
+  it("G2: enforces the subjectHint length cap at the zod layer", () => {
+    expect(() =>
+      validateGraph(
+        asGuided({
+          channel: "email",
+          brief: {
+            objective: "x",
+            talkingPoints: ["a", "b", "c"],
+            subjectHint: "y".repeat(121),
+          },
+        }),
+      ),
+    ).toThrow(GraphValidationError);
   });
 
   it("G1: rejects a guided step without a brief", () => {

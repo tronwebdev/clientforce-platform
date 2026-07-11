@@ -29,12 +29,21 @@ import { BANNED_OPENERS, OPENER_WORD_CAP } from "@clientforce/core";
  * time). Rendered ONLY for guided agents with an active sms sender; scripted
  * agents keep rendering v5 byte-identical. Derived from the v5 literal at
  * registration so the two can never drift. v2/v3/v4/v5 stay registered.
+ *
+ * v7 (G2, DEC-071): guided goes BOTH-channel — every MAIN-sequence step
+ * (email AND sms) becomes a mode:"guided" brief; email briefs additionally
+ * carry `subjectHint` (a subject direction, never copy). Reply-strategy
+ * steps stay fully scripted email (guided replies = the reply-draft wave,
+ * DEC-070(7)). Derived from the same v5 literal as v6. Guided agents render
+ * v7 regardless of sms-sender presence (email needs no extra sender);
+ * scripted agents keep rendering v5 byte-identical. v2–v6 stay registered.
  */
 export const PLANNER_PROMPT_NAME = "planner.campaign";
 export const PLANNER_PROMPT_VERSION = 5; // F1 (DEC-069): OBSERVED OUTCOMES block layered on the v4 playbook
-// G1 (DEC-070): guided agents render v6 — v5 plus the guided-sms-briefs step
-// rule. Scripted agents keep rendering v5 byte-identical (regression-pinned).
-export const PLANNER_PROMPT_VERSION_GUIDED = 6;
+// G2 (DEC-071): guided agents render v7 — v5 plus the both-channel guided
+// briefs step rule. Scripted agents keep rendering v5 byte-identical
+// (regression-pinned). v6 (G1's sms-only variant) stays registered.
+export const PLANNER_PROMPT_VERSION_GUIDED = 7;
 
 export const PLANNER_SYSTEM =
   "You are a campaign planner for an outbound email agent. You design a short, effective email sequence as a " +
@@ -71,20 +80,26 @@ export const PLANNER_SYSTEM =
   "- A goodbye is graceful: accept the no, leave the door open, zero guilt, never mention unsubscribing.";
 
 /**
- * G1 (DEC-070): the guided addendum — appended to the system prompt ONLY for
- * guided agents; scripted planning keeps the exact system above.
+ * G1 (DEC-070) / G2 (DEC-071): the guided addendum — appended to the system
+ * prompt ONLY for guided agents; scripted planning keeps the exact system
+ * above. G2 widened it from sms-only to both channels (the G1 sms-only text
+ * lived here between #81 and this unit; the registry prompts v6/v7 track the
+ * same widening append-only).
  */
 export const PLANNER_SYSTEM_GUIDED =
   PLANNER_SYSTEM +
   "\n" +
-  "GUIDED SMS BRIEFS (this agent composes SMS per lead at send time):\n" +
-  'Every MAIN-SEQUENCE sms step is mode:"guided" and carries a "brief" INSTEAD of copy — never write sms body text.\n' +
+  "GUIDED BRIEFS (this agent composes each message per lead at send time):\n" +
+  'Every MAIN-SEQUENCE step — email and sms alike — is mode:"guided" and carries a "brief" INSTEAD of copy — never write step body text or subjects.\n' +
   "- A brief = objective (what this step must achieve, following the step's ROLE above) + 3-6 talkingPoints " +
   "(concrete, grounded in the business context — facts the composed message may draw from, not sentences to " +
   "paste) + optional mustSay (ONLY compliance-critical strings that must appear verbatim, e.g. a real " +
   "deadline — at most 5) + optional neverSay (step-specific bans — at most 10).\n" +
+  '- EMAIL step briefs also carry "subjectHint": a specific subject DIRECTION following the step role\'s ' +
+  'subject rule (at most 60 characters\' worth of direction — never "quick question", never clickbait); ' +
+  "the composer adapts it per lead, it is never pasted.\n" +
   "- Talking points obey the same grounding rule as copy: facts from the business context only.\n" +
-  "- Email steps — main sequence AND reply-strategy steps — stay fully scripted with subject and body as usual.";
+  "- Reply-strategy steps (the REPLY PLAYBOOK branch) stay fully scripted email with subject and body as usual.";
 
 let registered = false;
 function ensureRegistered(): void {
@@ -240,10 +255,22 @@ Reply-strategy steps set "threaded": true (they continue the thread).
   }
   registerPrompt({
     name: PLANNER_PROMPT_NAME,
-    version: PLANNER_PROMPT_VERSION_GUIDED,
+    version: 6,
     template: v5Template.replace(
       v5StepBullet,
       '- {{stepCount}} "step" nodes in the MAIN sequence. Email steps: content has "subject" and "body"; use {{tokens}} in the body (and subject where natural). Sms steps: mode "guided" with a "brief" (objective + 3-6 talkingPoints + optional mustSay/neverSay) and EMPTY content — no subject, no body, no merge tokens (the composer writes per-lead copy at send time). Reply-strategy steps stay scripted email.',
+    ),
+  });
+
+  // v7 (G2, DEC-071) = v5 VERBATIM with the step bullet swapped for the
+  // BOTH-channel guided rule — derived from the same literal so v5/v7 can't
+  // drift either. v6 stays registered above (append-only registry).
+  registerPrompt({
+    name: PLANNER_PROMPT_NAME,
+    version: PLANNER_PROMPT_VERSION_GUIDED,
+    template: v5Template.replace(
+      v5StepBullet,
+      '- {{stepCount}} "step" nodes in the MAIN sequence, EVERY one mode "guided" with a "brief" and EMPTY content — no subject, no body, no merge tokens (the composer writes per-lead copy at send time). A brief = objective (following the step\'s ROLE) + 3-6 talkingPoints + optional mustSay/neverSay. EMAIL step briefs ALSO carry "subjectHint": a specific subject direction following the role\'s subject rule — never "quick question", never clickbait. Sms step briefs carry NO subjectHint. Reply-strategy steps stay fully scripted email with "subject" and "body".',
     ),
   });
 }
@@ -272,7 +299,8 @@ export function renderPlannerPrompt(vars: {
   outcomes: string;
 }, guided = false): string {
   ensureRegistered();
-  // G1 (DEC-070): guided agents render v6; scripted agents keep v5 verbatim.
+  // G2 (DEC-071): guided agents render v7 (both-channel briefs); scripted
+  // agents keep v5 verbatim.
   return renderPrompt(
     PLANNER_PROMPT_NAME,
     guided ? PLANNER_PROMPT_VERSION_GUIDED : PLANNER_PROMPT_VERSION,
