@@ -1,0 +1,75 @@
+{
+  "agentId": "cmrfmxmvb00027d9fb76ac3z8",
+  "campaignId": "cmrfmxmve00047d9fwlz01l0z",
+  "graphVersion": 2,
+  "thresholds": {
+    "low": 20,
+    "ok": 50
+  },
+  "steps": [
+    {
+      "stepNodeId": "step-1",
+      "channel": "email",
+      "sent": 62,
+      "delivered": 55,
+      "replies": 3,
+      "positiveReplies": 1,
+      "optOuts": 0,
+      "replyRatePct": 4.8,
+      "positiveRatePct": 1.6,
+      "optOutRatePct": 0,
+      "signal": "ok"
+    },
+    {
+      "stepNodeId": "step-2",
+      "channel": "email",
+      "sent": 24,
+      "delivered": 20,
+      "replies": 0,
+      "positiveReplies": 0,
+      "optOuts": 1,
+      "replyRatePct": 0,
+      "positiveRatePct": 0,
+      "optOutRatePct": 4.2,
+      "signal": "low"
+    },
+    {
+      "stepNodeId": "step-3",
+      "channel": "email",
+      "sent": 7,
+      "delivered": 0,
+      "replies": 0,
+      "positiveReplies": 0,
+      "optOuts": 0,
+      "replyRatePct": null,
+      "positiveRatePct": null,
+      "optOutRatePct": null,
+      "signal": "none"
+    },
+    {
+      "stepNodeId": "step-4",
+      "channel": "email",
+      "sent": 0,
+      "delivered": 0,
+      "replies": 0,
+      "positiveReplies": 0,
+      "optOuts": 0,
+      "replyRatePct": null,
+      "positiveRatePct": null,
+      "optOutRatePct": null,
+      "signal": "none"
+    }
+  ],
+  "totals": {
+    "sent": 93,
+    "delivered": 75,
+    "replies": 3,
+    "positiveReplies": 1,
+    "optOuts": 1,
+    "replyRatePct": 3.2,
+    "positiveRatePct": 1.1,
+    "optOutRatePct": 1.1,
+    "signal": "ok",
+    "goalCompletions": 1
+  }
+}
