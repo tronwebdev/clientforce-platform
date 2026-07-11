@@ -313,6 +313,78 @@ describe("CampaignWorkflow (time-skipping Temporal)", () => {
     );
   }, 120_000);
 
+  it("L1 (DEC-072): a GERMAN graph executes identically — German copy sent, intent routes the branch, stage moves", async (t) => {
+    if (!env) return t.skip();
+    // The playbook shape with German copy — what planner v7 persists for a
+    // German agent. Routing keys (ids, intents, pipeline values) stay English
+    // machine identifiers; only the copy is German.
+    const germanGraph: CampaignGraph = {
+      entry: "s1",
+      nodes: [
+        {
+          id: "s1",
+          type: "step",
+          channel: "email",
+          content: { subject: "wo Termine verloren gehen", body: "Mir ist aufgefallen, dass {{company}} noch telefonisch bucht. Lohnt sich ein Blick, {{firstName}}?" },
+        },
+        {
+          id: "br",
+          type: "branch",
+          on: "reply",
+          cases: [
+            { when: { intent: "interested" }, goto: "end-a", pipeline: "booked" },
+            { when: { intent: "objection_price" }, goto: "reframe", pipeline: "replied" },
+            { when: { intent: "objection_timing" }, goto: "reframe", pipeline: "replied" },
+            { when: { intent: "wrong_person" }, goto: "close", pipeline: "replied" },
+            { when: { intent: "info_request" }, goto: "reframe", pipeline: "replied" },
+            { when: { intent: "not_interested" }, goto: "close", pipeline: "lost" },
+            { when: "default", goto: "end-b" },
+          ],
+        },
+        { id: "reframe", type: "step", channel: "email", content: { subject: "Re: wo Termine verloren gehen", body: "Verständlicher Einwand — Sie sehen die Zahl, bevor Sie etwas ausgeben.", threaded: true } },
+        { id: "close", type: "step", channel: "email", content: { subject: "Re: wo Termine verloren gehen", body: "Alles gut — die Tür bleibt offen.", threaded: true } },
+        { id: "end-a", type: "end" },
+        { id: "end-b", type: "end" },
+      ],
+      edges: [
+        { from: "s1", to: "br" },
+        { from: "reframe", to: "br" },
+        { from: "close", to: "end-b" },
+      ],
+    };
+    const tq = `tq-${++seq}`;
+    const { calls, acts } = recordedActivities();
+    const worker = await makeWorker(acts, tq);
+    await worker.runUntil(async () => {
+      const handle = await env!.client.workflow.start("campaignWorkflow", {
+        taskQueue: tq,
+        workflowId: `t-german-${seq}`,
+        args: [inputFor(germanGraph, seq)],
+      });
+      await waitFor(() => calls.sends.length === 1); // German opener out
+      // The intent arrives from classification of the GERMAN reply — the
+      // channels suite pins that mapping; the workflow routes the value.
+      await handle.signal(REPLY_SIGNAL, "objection_price");
+      await waitFor(() => calls.sends.length === 2); // German reframe out
+      await handle.signal(REPLY_SIGNAL, "interested");
+      const result = await handle.result();
+      expect(result).toMatchObject({ status: "completed", endNode: "end-a" });
+    });
+    // The sends carried the German copy end-to-end (persisted as rendered at
+    // the boundary — A6; the boundary appends the German footer, own suite).
+    const sent = calls.sends as Array<{ stepNodeId: string; content?: { subject?: string } }>;
+    expect(sent.map((s) => s.stepNodeId)).toEqual(["s1", "reframe"]);
+    expect(sent[0]!.content?.subject).toBe("wo Termine verloren gehen");
+    expect(sent[1]!.content?.subject).toBe("Re: wo Termine verloren gehen");
+    // Stage journey identical to the English acceptance: replied → booked.
+    expect(calls.progress).toContainEqual(
+      expect.objectContaining({ currentNode: "br", pipelineStage: "replied" }),
+    );
+    expect(calls.progress).toContainEqual(
+      expect.objectContaining({ currentNode: "br", pipelineStage: "booked" }),
+    );
+  }, 120_000);
+
   it("not_interested → graceful close send → enrollment completes with stage lost (no suppression path exists here)", async (t) => {
     if (!env) return t.skip();
     const tq = `tq-${++seq}`;

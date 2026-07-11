@@ -10,7 +10,7 @@ import { AiGateway } from "@clientforce/ai";
 import { createAppPrismaClient, createPrismaClient, type PrismaClient } from "@clientforce/db";
 import type { EventBus } from "@clientforce/events";
 import { applyUnsubscribeReply, classifyReply } from "../src/classify";
-import { REPLY_INTENT_FIXTURES } from "../src/classify-fixtures";
+import { MULTILINGUAL_REPLY_FIXTURES, REPLY_INTENT_FIXTURES } from "../src/classify-fixtures";
 import { ingestInboundEmail, normalizeInboundParse, resolveInboundThread } from "../src/inbound";
 
 const hasInfra = Boolean(process.env.APP_DATABASE_URL ?? process.env.DATABASE_URL);
@@ -27,7 +27,9 @@ const gateway = new AiGateway({
     completeTool: async (params: { prompt: string }) => ({
       input: {
         intent:
-          REPLY_INTENT_FIXTURES.find((f) => params.prompt.includes(f.reply))?.intent ??
+          [...REPLY_INTENT_FIXTURES, ...MULTILINGUAL_REPLY_FIXTURES].find((f) =>
+            params.prompt.includes(f.reply),
+          )?.intent ??
           (/remove me|stop emailing/i.test(params.prompt)
             ? "unsubscribe"
             : /book a call|interested/i.test(params.prompt)
@@ -211,6 +213,19 @@ describe.skipIf(!hasInfra)("inbound thread resolution + side effects", () => {
         engagement: [],
       });
       expect(intent, fixture.reply).toBe(fixture.intent);
+    }
+  });
+
+  // L1 (DEC-072): the multilingual pins ride the SAME path — no classifier
+  // code change; a German and a French reply classify to their pinned intents.
+  it("classifies the multilingual pinned fixtures (German + French) to their pins", async () => {
+    for (const fixture of MULTILINGUAL_REPLY_FIXTURES) {
+      const intent = await classifyReply(gateway, {
+        goal: "book_appointments",
+        replyText: fixture.reply,
+        engagement: [],
+      });
+      expect(intent, `${fixture.language}: ${fixture.reply}`).toBe(fixture.intent);
     }
   });
 

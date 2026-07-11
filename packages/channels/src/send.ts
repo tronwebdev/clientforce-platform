@@ -1,5 +1,11 @@
 import { parseFields } from "@clientforce/context";
-import { parseGuardrails, type Guardrails, type StepContent } from "@clientforce/core";
+import {
+  COMPLIANCE_STRINGS,
+  parseGuardrails,
+  resolveLanguage,
+  type Guardrails,
+  type StepContent,
+} from "@clientforce/core";
 import { withTenant, type Message, type PrismaClient } from "@clientforce/db";
 import { hasThreadPrefix, renderTokens, stripThreadPrefix, withReplyPrefix } from "./render";
 import { SendBlockedError, type EmailSender, type RenderedEmail } from "./types";
@@ -145,7 +151,11 @@ export async function sendStep(deps: SendDeps, params: SendStepParams): Promise<
     );
   }
   const unsubscribeUrl = `${UNSUB_BASE()}/${params.workspaceId}/${params.contactId}`;
-  const fullBody = `${body}\n\n--\n${companyAddress}\nUnsubscribe: ${unsubscribeUrl}`;
+  // L1 (DEC-072): the footer label is a PRE-TRANSLATED constant picked by the
+  // agent's language — deterministic, never AI-generated at send. English
+  // agents (absent rider) render the pre-L1 literal byte-identical.
+  const { unsubscribeLabel } = COMPLIANCE_STRINGS[resolveLanguage(guardrails)];
+  const fullBody = `${body}\n\n--\n${companyAddress}\n${unsubscribeLabel}: ${unsubscribeUrl}`;
 
   const rendered: RenderedEmail = {
     to: contact.email,

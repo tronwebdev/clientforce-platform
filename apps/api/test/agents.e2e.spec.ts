@@ -243,6 +243,55 @@ describe.skipIf(!hasDb)("Agents API e2e", () => {
       .expect(400); // PRESENT-yet-invalid never widens — designed 400 (DEC-065)
   });
 
+  it("L1 (DEC-072): a guardrails PATCH that OMITS language preserves the system-written rider; sending it writes it", async () => {
+    const base = {
+      sendingWindow: { days: [1, 2, 3, 4, 5], start: "09:00", end: "17:00", timezone: "UTC" },
+      dailyCap: { email: 200 },
+      consent: null,
+      unsubscribeFooter: true,
+      suppressionCheck: true,
+    };
+    // The distiller detected German mid-wizard (system write, not via PATCH).
+    const detected = await owner.agent.create({
+      data: {
+        workspaceId: ws,
+        name: "Termine",
+        goal: "book_appointments",
+        status: "DRAFT",
+        guardrails: { ...base, language: "de", languageSource: "detected" },
+      },
+    });
+
+    // The wizard's step-5 rebuild sends guardrails WITHOUT language — the
+    // detection must survive (the anti-clobber rule).
+    const rebuilt = await request(app.getHttpServer())
+      .patch(`/agents/${detected.id}`)
+      .set(asOwner())
+      .send({ guardrails: { ...base, dailyCap: { email: 150 } } });
+    expect(rebuilt.status).toBe(200);
+    expect(rebuilt.body.guardrails.language).toBe("de");
+    expect(rebuilt.body.guardrails.languageSource).toBe("detected");
+    expect(rebuilt.body.guardrails.dailyCap.email).toBe(150);
+
+    // The Settings Language row SENDS language — written as given (owner wins).
+    const flipped = await request(app.getHttpServer())
+      .patch(`/agents/${detected.id}`)
+      .set(asOwner())
+      .send({ guardrails: { ...base, language: "fr", languageSource: "owner" } });
+    expect(flipped.status).toBe(200);
+    expect(flipped.body.guardrails.language).toBe("fr");
+    expect(flipped.body.guardrails.languageSource).toBe("owner");
+
+    // A language outside the launch list is a designed 400 (A8 discipline).
+    await request(app.getHttpServer())
+      .patch(`/agents/${detected.id}`)
+      .set(asOwner())
+      .send({ guardrails: { ...base, language: "sv" } })
+      .expect(400);
+
+    await request(app.getHttpServer()).delete(`/agents/${detected.id}`).set(asOwner()).expect(200);
+  });
+
   it("a VIEWER can read but not mutate → 403", async () => {
     const viewer = { Authorization: `Bearer ${viewerToken}`, "x-workspace-id": ws };
     await request(app.getHttpServer()).get("/agents").set(viewer).expect(200);

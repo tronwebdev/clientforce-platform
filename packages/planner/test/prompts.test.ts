@@ -14,6 +14,8 @@ import {
   PLANNER_PROMPT_NAME,
   PLANNER_PROMPT_VERSION,
   PLANNER_PROMPT_VERSION_GUIDED,
+  PLANNER_PROMPT_VERSION_GUIDED_LANGUAGE,
+  PLANNER_PROMPT_VERSION_LANGUAGE,
   PLANNER_SYSTEM,
   PLANNER_SYSTEM_GUIDED,
   renderPlannerPrompt,
@@ -249,5 +251,89 @@ describe("planner prompt v7 — both-channel guided briefs (G2, DEC-071; layered
     expect(PLANNER_SYSTEM_GUIDED).toContain("Reply-strategy steps (the REPLY PLAYBOOK branch) stay fully scripted email");
     // The scripted system itself carries none of it.
     expect(PLANNER_SYSTEM).not.toContain("GUIDED BRIEFS");
+  });
+});
+
+describe("planner prompt v8/v9 — output language (L1, DEC-072; layered on v5/v7)", () => {
+  const vars = {
+    ...baseVars,
+    arcLabel: fixture.arc.label,
+    arcDescription: fixture.arc.description,
+    arcRoles: fixture.arc.roles.map((r, i) => `  ${i + 1}. ${r}`).join("\n"),
+    toneHints: fixture.toneHints,
+    strategyNotes: "(none)",
+    neverSay: "(none)",
+    outcomes: "",
+  };
+  const guidedVars = {
+    ...vars,
+    channels:
+      '"email" or "sms" — mix channels where the sequence benefits; sms steps have NO subject, body ≤ 300 characters, one clear ask.',
+  };
+  /** The RENDERED language section (labels substituted) — stripping it from a
+   *  v8/v9 render must recover the v5/v7 render byte-for-byte. */
+  const stripLanguageSection = (p: string) =>
+    p.replace(/OUTPUT LANGUAGE \(the customer's language — non-negotiable\):\n(?:- [^\n]*\n)+\n/, "");
+
+  it("is pinned at versions 8 (scripted) and 9 (guided), registered beside v2–v7 (the #83 reviewer renumber — G2 took v7)", () => {
+    expect(PLANNER_PROMPT_VERSION_LANGUAGE).toBe(8);
+    expect(PLANNER_PROMPT_VERSION_GUIDED_LANGUAGE).toBe(9);
+  });
+
+  it("v8 carries the OUTPUT LANGUAGE section with the agent's language, before GUARDRAILS", () => {
+    const p = renderPlannerPrompt(vars, false, "de");
+    expect(p).toContain("OUTPUT LANGUAGE (the customer's language — non-negotiable):");
+    expect(p).toContain("Write ALL human-visible copy in German (Deutsch)");
+    expect(p).toContain(
+      'Machine identifiers stay in English: node ids, "intent" values, "pipeline" values, channel names.',
+    );
+    // Merge tokens stay literal — the rule names the same token list the step
+    // bullet documents, and the inert {{ }} braces render as-is.
+    expect(p).toContain(
+      "Merge tokens stay EXACTLY as given ({{firstName}} and {{company}}) — never translate the words inside {{ }} braces.",
+    );
+    expect(p).toContain(
+      "the sending layer appends the compliant line in German (Deutsch) itself",
+    );
+    expect(p.indexOf("OUTPUT LANGUAGE")).toBeGreaterThan(p.indexOf("STRATEGY"));
+    expect(p.indexOf("OUTPUT LANGUAGE")).toBeLessThan(p.indexOf("GUARDRAILS"));
+    // Everything else is the v5 literal: playbook + strategy contract intact,
+    // and stripping the language section recovers v5 byte-for-byte.
+    expect(p).toContain("REPLY PLAYBOOK (one case per classified intent — EXACTLY these six");
+    expect(p).toContain("STRATEGY (the selling method for this agent — follow it):");
+    expect(stripLanguageSection(p)).toBe(renderPrompt(PLANNER_PROMPT_NAME, PLANNER_PROMPT_VERSION, vars));
+  });
+
+  it("v9 derives from G2's v7 LITERAL — both-channel guided semantics survive for non-English guided agents", () => {
+    const p = renderPlannerPrompt(guidedVars, true, "fr");
+    // The reviewer's re-derivation contract: v9 = v7 (both-channel guided,
+    // subjectHint and all) + the language section — NOT G1's v6 sms-only rule.
+    expect(p).toContain('EVERY one mode "guided" with a "brief" and EMPTY content');
+    expect(p).toContain('EMAIL step briefs ALSO carry "subjectHint"');
+    expect(p).toContain("Sms step briefs carry NO subjectHint.");
+    expect(p).not.toContain('Sms steps: mode "guided"'); // the v6 bullet is not v9's
+    expect(p).toContain("Write ALL human-visible copy in French (Français)");
+    // Stripping the language section recovers the v7 render byte-for-byte.
+    expect(stripLanguageSection(p)).toBe(
+      renderPrompt(PLANNER_PROMPT_NAME, PLANNER_PROMPT_VERSION_GUIDED, guidedVars),
+    );
+  });
+
+  it("ENGLISH REGRESSION: en renders v5/v7 BYTE-IDENTICAL — no language material anywhere", () => {
+    // The explicit-en render IS the registered v5/v7 render, byte for byte.
+    expect(renderPlannerPrompt(vars, false, "en")).toBe(
+      renderPrompt(PLANNER_PROMPT_NAME, PLANNER_PROMPT_VERSION, vars),
+    );
+    expect(renderPlannerPrompt(guidedVars, true, "en")).toBe(
+      renderPrompt(PLANNER_PROMPT_NAME, PLANNER_PROMPT_VERSION_GUIDED, guidedVars),
+    );
+    // …and the default (language omitted) is the same English render.
+    expect(renderPlannerPrompt(vars, false)).toBe(renderPlannerPrompt(vars, false, "en"));
+    expect(renderPlannerPrompt(vars, false, "en")).not.toContain("OUTPUT LANGUAGE");
+  });
+
+  it("every launch language renders its own prompt label", () => {
+    expect(renderPlannerPrompt(vars, false, "pl")).toContain("Polish (Polski)");
+    expect(renderPlannerPrompt(vars, false, "pt")).toContain("Portuguese (Português)");
   });
 });

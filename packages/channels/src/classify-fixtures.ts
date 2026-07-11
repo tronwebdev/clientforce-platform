@@ -65,3 +65,36 @@ export function fixtureFor(intent: Intent): ReplyIntentFixture {
   if (!hit) throw new Error(`No pinned reply fixture for intent "${intent}"`);
   return hit;
 }
+
+/**
+ * L1 (DEC-072): pinned MULTILINGUAL replies — proof the understanding side of
+ * the loop is language-agnostic with ZERO classifier code change: a German
+ * and a French inbound reply classify to the right intent and branch/stage
+ * exactly like their English siblings. A SEPARATE constant on purpose — the
+ * M1b matrix above pins exactly one reply per emission label (length-pinned
+ * in the classify suite), so these append beside it, not into it.
+ *
+ * Same contract discipline: the CI integration suites drive the deterministic
+ * fake with them, and the live proof asserts the REAL model classifies each
+ * one to its pin. Append-only — editing a pinned reply or label needs an
+ * owner-signed DEC.
+ */
+export interface MultilingualReplyFixture extends ReplyIntentFixture {
+  /** Launch-language code the reply is written in (display/log only). */
+  language: "de" | "fr";
+}
+
+export const MULTILINGUAL_REPLY_FIXTURES: readonly MultilingualReplyFixture[] = [
+  {
+    language: "de",
+    intent: "interested",
+    reply:
+      "Das klingt spannend — wie können wir diese Woche einen Termin vereinbaren?",
+  },
+  {
+    language: "fr",
+    intent: "objection_price",
+    reply:
+      "Merci, mais c'est trop cher pour nous — nous n'avons pas de budget pour ce genre de solution en ce moment.",
+  },
+] as const;

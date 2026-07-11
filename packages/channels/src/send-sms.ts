@@ -8,7 +8,13 @@
  * transport → `Message` persisted as rendered (A6, channel "sms",
  * segment count in meta).
  */
-import { parseGuardrails, type Guardrails, type StepContent } from "@clientforce/core";
+import {
+  COMPLIANCE_STRINGS,
+  parseGuardrails,
+  resolveLanguage,
+  type Guardrails,
+  type StepContent,
+} from "@clientforce/core";
 import { withTenant, type Message, type PrismaClient } from "@clientforce/db";
 import { renderTokens } from "./render";
 import { SendBlockedError, type RenderedSms, type SmsSender } from "./types";
@@ -44,8 +50,15 @@ export interface SendSmsStepParams {
   composed?: { mode: "guided"; briefVersion: number | null; composerVersion: string };
 }
 
-/** The literal opt-out line — the sms `unsubscribeFooter`. Never disableable. */
-export const SMS_OPT_OUT_LINE = "Reply STOP to opt out.";
+/**
+ * The literal ENGLISH opt-out line — the sms `unsubscribeFooter`. Never
+ * disableable. L1 (DEC-072): the boundary picks the agent language's
+ * pre-translated line from `COMPLIANCE_STRINGS` (this constant IS the `en`
+ * entry, re-exported for the tests/proofs that pin the English wire format);
+ * every translation keeps the literal keyword STOP — the only keyword the
+ * Twilio opt-out rail honors.
+ */
+export const SMS_OPT_OUT_LINE: string = COMPLIANCE_STRINGS.en.smsOptOut;
 
 /** Fallback campaign cap when guardrails carry no sms cap yet (conservative). */
 export const DEFAULT_SMS_DAILY_CAP = 50;
@@ -114,7 +127,7 @@ export async function sendSmsStep(deps: SendSmsDeps, params: SendSmsStepParams):
       orderBy: { sentAt: "desc" },
     }),
   );
-  if (!priorSms) body = `${body}\n${SMS_OPT_OUT_LINE}`;
+  if (!priorSms) body = `${body}\n${COMPLIANCE_STRINGS[resolveLanguage(guardrails)].smsOptOut}`;
 
   const rendered: RenderedSms = { to: phone, body };
   const { providerMessageId, segments } = await transport.send(rendered, sender);

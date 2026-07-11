@@ -14,8 +14,10 @@ import {
   checkComposedEmail,
   ComposeRefusedError,
   composeEmail,
+  COMPOSER_EMAIL_PROMPT_VERSION_LANGUAGE,
   COMPOSER_EMAIL_SYSTEM,
   COMPOSER_EMAIL_VERSION,
+  composerEmailVersionFor,
   EMAIL_COMPOSE_MAX_WORDS,
   EMAIL_SUBJECT_MAX_CHARS,
   type ComposeEmailInputs,
@@ -259,5 +261,43 @@ describe("composeEmail (bounded retry → typed refusal)", () => {
     expect(err).toBeInstanceOf(ComposeRefusedError);
     expect((err as ComposeRefusedError).reason).toBe("COMPOSED_FOOTER");
     expect(calls).toHaveLength(2);
+  });
+});
+
+describe("composer.email language (L1, DEC-072 — v2 for non-English, v1 byte-identical for English)", () => {
+  // German subject+body that pass every deterministic check: mustSay quoted
+  // verbatim, subject under the cap with no banned pattern, no bans, no
+  // tokens, no foreign URLs, no footer language.
+  const CLEAN_DE = {
+    subject: "wo Termine bei Acme Dental verloren gehen",
+    body: "Jane, die meisten Termine bei Acme Dental kommen noch telefonisch — unser free growth audit zeigt, wo sie verloren gehen. Kurz ansehen?",
+  };
+
+  it("GERMAN agent: the v2 prompt carries the language directive; provenance is @v2 (a German GUIDED agent never composes English bodies over a German footer)", async () => {
+    const { gateway, calls } = fakeGateway([CLEAN_DE]);
+    const out = await composeEmail(gateway, inputs({ language: "de" }));
+    expect(out.subject).toBe(CLEAN_DE.subject);
+    expect(out.body).toBe(CLEAN_DE.body);
+    expect(out.composerVersion).toBe(`composer.email@v${COMPOSER_EMAIL_PROMPT_VERSION_LANGUAGE}`);
+    expect(out.composerVersion).toBe(composerEmailVersionFor("de"));
+    // The v2 constraint line — subject AND body in the agent's language.
+    expect(calls[0]!.prompt).toContain(
+      "Write the ENTIRE email — subject AND body — in German (Deutsch); the lead reads German (Deutsch).",
+    );
+    // The deterministic checks run the same regardless of language.
+    expect(checkComposedEmail(CLEAN_DE.subject, CLEAN_DE.body, inputs({ language: "de" }))).toEqual([]);
+  });
+
+  it("ENGLISH REGRESSION: absent language and explicit 'en' render the v1 prompt BYTE-IDENTICAL, provenance @v1", async () => {
+    const { gateway, calls } = fakeGateway([CLEAN]);
+    const legacy = await composeEmail(gateway, inputs());
+    const { gateway: g2, calls: c2 } = fakeGateway([CLEAN]);
+    const explicit = await composeEmail(g2, inputs({ language: "en" }));
+
+    expect(c2[0]!.prompt).toBe(calls[0]!.prompt); // byte-identical prompt
+    expect(calls[0]!.prompt).not.toContain("Write the ENTIRE email");
+    expect(legacy.composerVersion).toBe(COMPOSER_EMAIL_VERSION);
+    expect(explicit.composerVersion).toBe(COMPOSER_EMAIL_VERSION);
+    expect(composerEmailVersionFor("en")).toBe(COMPOSER_EMAIL_VERSION);
   });
 });

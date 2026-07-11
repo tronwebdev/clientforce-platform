@@ -32,11 +32,18 @@ const suffix = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 // the DEC-015 assertion then traces them back to the stored BusinessContext.
 const FACT_AUDIT = "free growth audit";
 const FACT_PRICE = "99 dollars per booked appointment";
+// L1 (DEC-072): the German workspace's own facts — German evidence distills
+// to German values, so grounded German copy cites German strings.
+const FACT_AUDIT_DE = "kostenloses Wachstums-Audit";
+const FACT_PRICE_DE = "99 Euro pro gebuchtem Termin";
 
 /** "good" emits a valid graph; "broken" emits a dangling branch goto. */
 let mode: "good" | "broken" = "good";
 /** M1a: whether the fake violates the prompt's NEVER SAY list. */
 let banMode: "none" | "once" | "always" = "none";
+/** L1: whether the fake IGNORES the prompt's OUTPUT LANGUAGE (emits English
+ *  for a non-English agent) — "once" is repaired, "always" fails typed. */
+let languageMode: "honor" | "once" | "always" = "honor";
 let toolCalls = 0;
 let lastPrompt = "";
 
@@ -287,6 +294,101 @@ function guidedGraph(audit: string, dirtyBrief: string, smsAllowed: boolean): ob
   };
 }
 
+/**
+ * L1 (DEC-072): what a model following the v7 language prompt emits — the
+ * craftGraph shape VERBATIM (ids, edges, six-case playbook, stage pins) with
+ * every subject/body written in the agent's language. Machine identifiers and
+ * merge tokens stay exactly as the prompt instructs. The audit/price facts
+ * interpolate so grounding (DEC-015) still traces to the stored context.
+ */
+function localizedCraftGraph(lang: "de" | "fr", audit: string, price: string): object {
+  const t =
+    lang === "de"
+      ? {
+          s1subj: "wo Termine verloren gehen",
+          s1body: `Mir ist aufgefallen, dass {{company}} die meisten Patienten noch telefonisch bucht — genau dort entstehen die Ausfälle. Unser ${audit} zeigt Praxen, wo Termine verloren gehen, {{firstName}}. Lohnt sich ein kurzer Blick für Sie?`,
+          s2subj: "die Zahlen aus dem Audit",
+          s2body: `Unser ${audit} liefert eine Zahl: ${price} — gemessen, nicht versprochen. Möchten Sie die Kurzfassung für {{company}}, {{firstName}}?`,
+          s3subj: "ein Gespräch von 20 Minuten",
+          s3body: `Es ist ein Gespräch von 20 Minuten, {{firstName}} — keine Vorbereitung, keine Verpflichtung. Wäre das etwas für Sie?`,
+          s4subj: "ich schließe die Akte",
+          s4body: `Ich schließe die Akte zu {{company}}, {{firstName}} — kein Problem, so oder so.`,
+          reSubj: "Re: die Zahlen aus dem Audit",
+          reframe: `Verständlicher Einwand, {{firstName}} — unser ${audit} existiert genau dafür: Sie sehen die Zahl, bevor Sie etwas ausgeben. Möchten Sie sie sehen?`,
+          ack: `Verstanden, {{firstName}} — ich melde mich, wenn der Zeitpunkt für {{company}} besser passt. Klingt das fair für Sie?`,
+          follow: `Wie versprochen melde ich mich zurück, {{firstName}} — passt es jetzt besser für {{company}}?`,
+          referral: `Danke für die Offenheit, {{firstName}} — mit wem bei {{company}} sollte ich stattdessen sprechen?`,
+          answer: `Gute Frage, {{firstName}} — genau das deckt unser ${audit} ab. Möchten Sie die Kurzfassung sehen?`,
+          close: `Alles gut, {{firstName}} — ich schließe das hier ab. Falls {{company}} das Audit später möchte, bleibt die Tür für Sie offen.`,
+        }
+      : {
+          s1subj: "où les rendez-vous se perdent",
+          s1body: `J'ai remarqué que {{company}} réserve encore la plupart de ses patients par téléphone — c'est là que les absences apparaissent. Notre « ${audit} » montre aux cabinets où les rendez-vous se perdent, {{firstName}}. Un coup d'œil rapide vous intéresse ?`,
+          s2subj: "les chiffres de l'audit",
+          s2body: `Notre « ${audit} » donne un chiffre : ${price} — mesuré, jamais promis. Voulez-vous le résumé pour {{company}}, {{firstName}} ?`,
+          s3subj: "un appel de 20 minutes",
+          s3body: `C'est un appel de 20 minutes, {{firstName}} — aucune préparation, aucun engagement. Cela vous convient ?`,
+          s4subj: "je ferme le dossier",
+          s4body: `Je ferme le dossier {{company}}, {{firstName}} — aucun souci, quoi qu'il en soit.`,
+          reSubj: "Re: les chiffres de l'audit",
+          reframe: `Objection compréhensible, {{firstName}} — notre « ${audit} » existe pour cela : vous voyez le chiffre avant de dépenser quoi que ce soit. Voulez-vous le voir ?`,
+          ack: `Compris, {{firstName}} — je reviens vers vous quand le moment conviendra mieux à {{company}}. Cela vous semble juste ?`,
+          follow: `Comme promis, je reviens vers vous, {{firstName}} — est-ce un meilleur moment pour {{company}} ?`,
+          referral: `Merci pour votre franchise, {{firstName}} — à qui chez {{company}} devrais-je parler ?`,
+          answer: `Bonne question, {{firstName}} — c'est exactement ce que couvre notre « ${audit} ». Voulez-vous le résumé ?`,
+          close: `Très bien, {{firstName}} — je clos le dossier. Si {{company}} souhaite l'audit plus tard, la porte vous reste ouverte.`,
+        };
+  return {
+    entry: "step-1",
+    nodes: [
+      { id: "step-1", type: "step", channel: "email", content: { subject: t.s1subj, body: t.s1body } },
+      { id: "delay-1", type: "delay", amount: 2, unit: "days" },
+      { id: "step-2", type: "step", channel: "email", content: { subject: t.s2subj, body: t.s2body } },
+      {
+        id: "branch-reply",
+        type: "branch",
+        on: "reply",
+        cases: [
+          { when: { intent: "interested" }, goto: "end-won", pipeline: "booked" },
+          { when: { intent: "objection_price" }, goto: "step-reframe-price", pipeline: "replied" },
+          { when: { intent: "objection_timing" }, goto: "step-ack-timing", pipeline: "replied" },
+          { when: { intent: "wrong_person" }, goto: "step-referral", pipeline: "replied" },
+          { when: { intent: "info_request" }, goto: "step-answer", pipeline: "replied" },
+          { when: { intent: "not_interested" }, goto: "step-close", pipeline: "lost" },
+          { when: "default", goto: "step-3" },
+        ],
+      },
+      { id: "step-3", type: "step", channel: "email", content: { subject: t.s3subj, body: t.s3body } },
+      { id: "delay-2", type: "delay", amount: 4, unit: "days" },
+      { id: "step-4", type: "step", channel: "email", content: { subject: t.s4subj, body: t.s4body } },
+      { id: "step-reframe-price", type: "step", channel: "email", content: { subject: t.reSubj, body: t.reframe, threaded: true } },
+      { id: "step-ack-timing", type: "step", channel: "email", content: { subject: t.reSubj, body: t.ack, threaded: true } },
+      { id: "delay-timing", type: "delay", amount: 30, unit: "days" },
+      { id: "step-timing-follow", type: "step", channel: "email", content: { subject: t.reSubj, body: t.follow, threaded: true } },
+      { id: "step-referral", type: "step", channel: "email", content: { subject: t.reSubj, body: t.referral, threaded: true } },
+      { id: "step-answer", type: "step", channel: "email", content: { subject: t.reSubj, body: t.answer, threaded: true } },
+      { id: "step-close", type: "step", channel: "email", content: { subject: t.reSubj, body: t.close, threaded: true } },
+      { id: "end-won", type: "end" },
+      { id: "end-lost", type: "end" },
+    ],
+    edges: [
+      { from: "step-1", to: "delay-1" },
+      { from: "delay-1", to: "step-2" },
+      { from: "step-2", to: "branch-reply" },
+      { from: "step-3", to: "delay-2" },
+      { from: "delay-2", to: "step-4" },
+      { from: "step-4", to: "end-lost" },
+      { from: "step-reframe-price", to: "branch-reply" },
+      { from: "step-ack-timing", to: "delay-timing" },
+      { from: "delay-timing", to: "step-timing-follow" },
+      { from: "step-timing-follow", to: "branch-reply" },
+      { from: "step-referral", to: "end-lost" },
+      { from: "step-answer", to: "branch-reply" },
+      { from: "step-close", to: "end-lost" },
+    ],
+  };
+}
+
 function fakeGraph(prompt: string): object {
   // Grounding simulation: only use facts that actually appear in the prompt's
   // context block (as the real prompt instructs the model).
@@ -304,6 +406,27 @@ function fakeGraph(prompt: string): object {
     (m) => m[1]!,
   );
   const violate = banMode === "always" || (banMode === "once" && !isRepair);
+
+  // L1 (DEC-072): v8/v9-shaped prompts carry the OUTPUT LANGUAGE section — a
+  // compliant model writes the whole graph in that language (facts from the
+  // prompt's own context block, which a German workspace stores in German);
+  // the languageMode modes model a model that ignores the directive and emits
+  // English (the deterministic rail must catch it → repair → typed failure).
+  const langMatch = prompt.match(/Write ALL human-visible copy in ([A-Za-z]+) \(/);
+  if (langMatch) {
+    const ignore = languageMode === "always" || (languageMode === "once" && !isRepair);
+    if (!ignore) {
+      if (langMatch[1] === "German") {
+        return localizedCraftGraph(
+          "de",
+          prompt.includes(FACT_AUDIT_DE) ? FACT_AUDIT_DE : audit,
+          prompt.includes(FACT_PRICE_DE) ? FACT_PRICE_DE : price,
+        );
+      }
+      if (langMatch[1] === "French") return localizedCraftGraph("fr", audit, price);
+    }
+    // Ignoring the directive: fall through to the ENGLISH craft shape below.
+  }
 
   // G2: v7-shaped prompts (guided) get the all-guided-briefs shape; the ban,
   // when violating, lands INSIDE a brief (proves the scan covers brief text).
@@ -405,11 +528,15 @@ describe.skipIf(!hasInfra)("planCampaign integration", () => {
   let craftAgentId: string;
   let guidedAgentId: string;
   let guidedNoSmsAgentId: string;
+  let wsDE: string;
+  let germanAgentId: string;
+  let flipAgentId: string;
   const deps = () => ({ prisma: app, gateway });
 
   beforeEach(() => {
     mode = "good";
     banMode = "none";
+    languageMode = "honor";
     toolCalls = 0;
   });
 
@@ -551,6 +678,75 @@ describe.skipIf(!hasInfra)("planCampaign integration", () => {
         status: "READY",
         fields: contextFields,
         rawSummary: "Dental growth business.",
+      },
+    });
+
+    // L1 (DEC-072): a GERMAN workspace — German evidence distills to German
+    // field values, so grounded German copy cites German facts (DEC-015 holds
+    // across languages). The agent carries the detected language rider the
+    // distiller writes.
+    wsDE = (
+      await owner.workspace.create({
+        data: { agencyId, name: "PD", slug: `pld-${suffix}`, settings: {} },
+      })
+    ).id;
+    germanAgentId = (
+      await owner.agent.create({
+        data: {
+          workspaceId: wsDE,
+          name: "Termine",
+          goal: "book_appointments",
+          category: "Dental & Orthodontics",
+          guardrails: {
+            sendingWindow: { days: [1, 2, 3, 4, 5], start: "09:00", end: "17:00", timezone: "Europe/Berlin" },
+            dailyCap: { email: 200 },
+            consent: null,
+            language: "de",
+            languageSource: "detected",
+            unsubscribeFooter: true,
+            suppressionCheck: true,
+          },
+        },
+      })
+    ).id;
+    // The Settings-flip fixture: an ENGLISH agent (no language rider) in wsA —
+    // full valid guardrails, exactly what the wizard's create() seeds.
+    flipAgentId = (
+      await owner.agent.create({
+        data: {
+          workspaceId: wsA,
+          name: "Flipper",
+          goal: "book_appointments",
+          category: "Dental & Orthodontics",
+          guardrails: {
+            sendingWindow: { days: [1, 2, 3, 4, 5], start: "09:00", end: "17:00", timezone: "UTC" },
+            dailyCap: { email: 200 },
+            consent: null,
+            unsubscribeFooter: true,
+            suppressionCheck: true,
+          },
+        },
+      })
+    ).id;
+    await owner.businessContext.create({
+      data: {
+        workspaceId: wsDE,
+        agentId: null,
+        status: "READY",
+        fields: {
+          offer: {
+            value: `Wir buchen Zahnarzttermine mit unserem Programm "${FACT_AUDIT_DE}".`,
+            citations: [snapshot],
+            source: "distilled",
+          },
+          pricing: {
+            value: `Der Preis: ${FACT_PRICE_DE}.`,
+            citations: [snapshot],
+            source: "distilled",
+          },
+          icp: { value: "Zahnarztpraxen in Berlin", citations: [], source: "typed" },
+        },
+        rawSummary: "Ein Zahnarzt-Wachstumsunternehmen.",
       },
     });
   });
@@ -945,5 +1141,114 @@ describe.skipIf(!hasInfra)("planCampaign integration", () => {
     // six-case branch validated by validateAll on the layered prompt's output).
     const branch = v2.graph.nodes.find((n) => n.type === "branch");
     expect(branch && branch.type === "branch" ? branch.cases.length : 0).toBeGreaterThanOrEqual(7);
+  });
+
+  // ── L1 (DEC-072): agent output language ────────────────────────────────────
+
+  it("GERMAN agent: sequence + step previews + reply-strategy drafts are ENTIRELY German (the acceptance fixture)", async () => {
+    const result = await planCampaign(deps(), { workspaceId: wsDE, agentId: germanAgentId });
+
+    // The prompt was the v7 language variant with the full playbook intact.
+    expect(lastPrompt).toContain("OUTPUT LANGUAGE (the customer's language — non-negotiable):");
+    expect(lastPrompt).toContain("Write ALL human-visible copy in German (Deutsch)");
+    expect(lastPrompt).toContain("REPLY PLAYBOOK");
+
+    // MAIN sequence (wizard step-2 previews render exactly these nodes)…
+    const steps = result.graph.nodes.filter((n): n is StepNode => n.type === "step");
+    const byId = new Map(steps.map((s) => [s.id, s]));
+    expect(byId.get("step-1")!.content.subject).toBe("wo Termine verloren gehen");
+    expect(byId.get("step-1")!.content.body).toContain("Mir ist aufgefallen");
+    expect(byId.get("step-4")!.content.body).toContain("Ich schließe die Akte");
+    // …and the AI reply drafts (the six-case playbook's strategy steps).
+    expect(byId.get("step-reframe-price")!.content.body).toContain("Verständlicher Einwand");
+    expect(byId.get("step-close")!.content.body).toContain("bleibt die Tür für Sie offen");
+    expect(byId.get("step-referral")!.content.body).toContain("Danke für die Offenheit");
+
+    // Machine identifiers stayed English (branch cases route by shared enum).
+    const branch = result.graph.nodes.find((n) => n.type === "branch");
+    if (branch?.type !== "branch") throw new Error("no branch");
+    expect(branch.cases.find((c) => c.when !== "default" && c.when.intent === "not_interested"))
+      .toMatchObject({ pipeline: "lost" });
+
+    // Merge tokens stayed literal — renderTokens resolves them at send time.
+    const copy = JSON.stringify(result.graph);
+    expect(copy).toContain("{{firstName}}");
+    expect(copy).toContain("{{company}}");
+
+    // DEC-015 across languages: German facts traceable to the stored context.
+    const stored = await withTenant(app, { workspaceId: wsDE }, (tx) =>
+      tx.businessContext.findFirstOrThrow({ where: { workspaceId: wsDE, agentId: null } }),
+    );
+    const storedValues = JSON.stringify(stored.fields);
+    for (const fact of [FACT_AUDIT_DE, FACT_PRICE_DE]) {
+      expect(copy).toContain(fact);
+      expect(storedValues).toContain(fact);
+    }
+    expect(result.graphRow.source).toBe("AI");
+  });
+
+  it("GERMAN agent: the model IGNORING the language → deterministic rail → repair → German persisted (2 calls)", async () => {
+    languageMode = "once";
+    const result = await planCampaign(deps(), { workspaceId: wsDE, agentId: germanAgentId });
+    expect(toolCalls).toBe(2);
+    // The repair prompt named the mismatch deterministically…
+    expect(lastPrompt).toContain("FAILED validation");
+    expect(lastPrompt).toContain("output language is German (Deutsch)");
+    // …and the persisted graph is the German one.
+    const steps = result.graph.nodes.filter((n): n is StepNode => n.type === "step");
+    expect(steps.find((s) => s.id === "step-1")!.content.subject).toBe("wo Termine verloren gehen");
+  });
+
+  it("GERMAN agent: still English after the repair → typed failure, NOTHING persisted", async () => {
+    languageMode = "always";
+    const before = await owner.campaignGraph.count({ where: { workspaceId: wsDE } });
+    await expect(
+      planCampaign(deps(), { workspaceId: wsDE, agentId: germanAgentId }),
+    ).rejects.toThrow(PlannerError);
+    expect(toolCalls).toBe(2);
+    expect(await owner.campaignGraph.count({ where: { workspaceId: wsDE } })).toBe(before);
+  });
+
+  it("SETTINGS FLIP: an English agent flipped to French plans French on the NEXT regen", async () => {
+    // First generation — no language rider: the v5 prompt, English graph.
+    const v1 = await planCampaign(deps(), { workspaceId: wsA, agentId: flipAgentId });
+    expect(lastPrompt).not.toContain("OUTPUT LANGUAGE");
+    expect(v1.graphRow.version).toBe(1);
+
+    // The owner flips the Settings Language row to French (the PATCH writes
+    // the rider with source "owner").
+    const agent = await owner.agent.findUniqueOrThrow({ where: { id: flipAgentId } });
+    await owner.agent.update({
+      where: { id: flipAgentId },
+      data: {
+        guardrails: {
+          ...(agent.guardrails as object),
+          language: "fr",
+          languageSource: "owner",
+        } as object,
+      },
+    });
+
+    const v2 = await planCampaign(deps(), { workspaceId: wsA, agentId: flipAgentId });
+    expect(v2.graphRow.version).toBe(2);
+    expect(lastPrompt).toContain("Write ALL human-visible copy in French (Français)");
+    const steps = v2.graph.nodes.filter((n): n is StepNode => n.type === "step");
+    expect(steps.find((s) => s.id === "step-1")!.content.subject).toBe(
+      "où les rendez-vous se perdent",
+    );
+    expect(steps.find((s) => s.id === "step-close")!.content.body).toContain(
+      "la porte vous reste ouverte",
+    );
+    // Grounding still traces to wsA's ENGLISH context — quoted product facts
+    // stay verbatim inside French copy.
+    expect(JSON.stringify(v2.graph)).toContain(FACT_AUDIT);
+  });
+
+  it("validateAll language rail is UNARMED for English agents (byte-identical legacy behavior)", async () => {
+    // The English craft graph passes with the default/en language exactly as
+    // before this unit — planning the legacy agent exercises it end-to-end.
+    const result = await planCampaign(deps(), { workspaceId: wsA, agentId });
+    expect(result.graphRow.source).toBe("AI");
+    expect(lastPrompt).not.toContain("OUTPUT LANGUAGE");
   });
 });

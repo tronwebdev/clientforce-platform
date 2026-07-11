@@ -10,8 +10,10 @@ import {
   checkComposedSms,
   ComposeRefusedError,
   composeSms,
+  COMPOSER_PROMPT_VERSION_LANGUAGE,
   COMPOSER_SYSTEM,
   COMPOSER_VERSION,
+  composerVersionFor,
   SMS_COMPOSE_MAX_CHARS,
   type ComposeSmsInputs,
 } from "../src/compose-sms";
@@ -166,5 +168,43 @@ describe("composeSms (bounded retry → typed refusal)", () => {
     await composeSms(g2, inputs({ firstTouch: false, history: [{ channel: "sms", direction: "OUTBOUND", text: "hi" }] }));
     expect(c2[0]!.prompt).toContain("continues an existing thread");
     expect(c2[0]!.prompt).toContain("[sms · we sent] hi");
+  });
+});
+
+describe("composer language (L1, DEC-072 — v2 for non-English, v1 byte-identical for English)", () => {
+  // German copy that passes every deterministic check: mustSay quoted verbatim,
+  // no bans, no tokens, no foreign URLs, under the cap.
+  const CLEAN_DE =
+    "Jane, die meisten Termine bei Acme Dental kommen noch telefonisch — unser free growth audit zeigt, wo sie verloren gehen. Kurz ansehen?";
+
+  it("GERMAN agent: the v2 prompt carries the language constraint + the GERMAN opt-out quote; provenance is @v2", async () => {
+    const { gateway, calls } = fakeGateway([CLEAN_DE]);
+    const out = await composeSms(gateway, inputs({ language: "de" }));
+    expect(out.body).toBe(CLEAN_DE);
+    expect(out.composerVersion).toBe(`composer.sms@v${COMPOSER_PROMPT_VERSION_LANGUAGE}`);
+    expect(out.composerVersion).toBe(composerVersionFor("de"));
+    // The v2 constraint line…
+    expect(calls[0]!.prompt).toContain(
+      "Write the ENTIRE message in German (Deutsch) — the lead reads German (Deutsch).",
+    );
+    // …and the first-touch note quotes the ACTUAL German line the boundary
+    // appends — never the English one.
+    expect(calls[0]!.prompt).toContain("Antworten Sie mit STOP, um sich abzumelden.");
+    expect(calls[0]!.prompt).not.toContain("Reply STOP to opt out.");
+    // The deterministic checks run the same regardless of language.
+    expect(checkComposedSms(CLEAN_DE, inputs({ language: "de" }))).toEqual([]);
+  });
+
+  it("ENGLISH REGRESSION: absent language and explicit 'en' render the v1 prompt BYTE-IDENTICAL, provenance @v1", async () => {
+    const { gateway, calls } = fakeGateway([CLEAN]);
+    const legacy = await composeSms(gateway, inputs());
+    const { gateway: g2, calls: c2 } = fakeGateway([CLEAN]);
+    const explicit = await composeSms(g2, inputs({ language: "en" }));
+
+    expect(c2[0]!.prompt).toBe(calls[0]!.prompt); // byte-identical prompt
+    expect(calls[0]!.prompt).not.toContain("Write the ENTIRE message in");
+    expect(legacy.composerVersion).toBe(COMPOSER_VERSION);
+    expect(explicit.composerVersion).toBe(COMPOSER_VERSION);
+    expect(composerVersionFor("en")).toBe(COMPOSER_VERSION);
   });
 });

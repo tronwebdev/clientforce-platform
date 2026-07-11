@@ -5,7 +5,12 @@
  * from the G1 module so the sms composer's behavior stays byte-identical;
  * `compose-sms` re-exports everything here, so its public API is unchanged.
  */
-import { parseGuardrails, selectStrategy } from "@clientforce/core";
+import {
+  DEFAULT_LANGUAGE,
+  parseGuardrails,
+  selectStrategy,
+  type LanguageCode,
+} from "@clientforce/core";
 
 // ── Typed refusal ────────────────────────────────────────────────────────────
 export type ComposeRefusalReason =
@@ -118,17 +123,24 @@ export const SAMPLE_LEAD: ComposeLead = {
 };
 
 /** Agent-stable composer inputs from goal/category/guardrails — lenient like
- *  the planner's rider read: an unparsable row composes with defaults. */
+ *  the planner's rider read: an unparsable row composes with defaults
+ *  (English, no notes, no bans). L1 (DEC-072): both channel composers read
+ *  the language rider from here — the pair can never fork on it. */
 export function strategyOf(
   goal: string | null | undefined,
   category: string | null | undefined,
   guardrails: unknown,
-): { toneHints: string; strategyNotes?: string; neverSay: string[] } {
+): { toneHints: string; strategyNotes?: string; neverSay: string[]; language: LanguageCode } {
   const { toneHints } = selectStrategy(goal, category);
   try {
-    const block = parseGuardrails(guardrails).strategy;
-    return { toneHints, strategyNotes: block?.strategyNotes, neverSay: block?.neverSay ?? [] };
+    const parsed = parseGuardrails(guardrails);
+    return {
+      toneHints,
+      strategyNotes: parsed.strategy?.strategyNotes,
+      neverSay: parsed.strategy?.neverSay ?? [],
+      language: parsed.language ?? DEFAULT_LANGUAGE,
+    };
   } catch {
-    return { toneHints, neverSay: [] };
+    return { toneHints, neverSay: [], language: DEFAULT_LANGUAGE };
   }
 }

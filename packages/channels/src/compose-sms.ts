@@ -17,7 +17,13 @@
  */
 import { registerPrompt, renderPrompt, type AiGateway } from "@clientforce/ai";
 import { loadMergedContextText } from "@clientforce/context";
-import type { StepBrief } from "@clientforce/core";
+import {
+  COMPLIANCE_STRINGS,
+  DEFAULT_LANGUAGE,
+  languagePromptLabel,
+  type LanguageCode,
+  type StepBrief,
+} from "@clientforce/core";
 import { withTenant, type PrismaClient } from "@clientforce/db";
 import { z } from "zod";
 import {
@@ -51,8 +57,16 @@ export {
 // ── Versioning ───────────────────────────────────────────────────────────────
 export const COMPOSER_PROMPT_NAME = "composer.sms";
 export const COMPOSER_PROMPT_VERSION = 1;
+// L1 (DEC-072): non-English agents compose on v2 — v1 plus the language
+// constraint. English agents keep rendering v1 byte-identical.
+export const COMPOSER_PROMPT_VERSION_LANGUAGE = 2;
 /** Persisted into `Message.meta.composerVersion` on every guided send (A6). */
 export const COMPOSER_VERSION = `${COMPOSER_PROMPT_NAME}@v${COMPOSER_PROMPT_VERSION}`;
+/** The honest per-language provenance stamp — @v1 for English, @v2 otherwise. */
+export const composerVersionFor = (language: LanguageCode): string =>
+  language === "en"
+    ? COMPOSER_VERSION
+    : `${COMPOSER_PROMPT_NAME}@v${COMPOSER_PROMPT_VERSION_LANGUAGE}`;
 
 // ── Channel constraints (segment-aware: 1 GSM-7 segment = 160 chars) ─────────
 export const SMS_COMPOSE_TARGET_CHARS = 160;
@@ -76,6 +90,10 @@ export interface ComposeSmsInputs {
   /** True when no outbound SMS exists yet for this enrollment — the boundary
    *  will append the opt-out line, so the prompt reserves room for it. */
   firstTouch: boolean;
+  /** L1 (DEC-072): the agent's output language — absent = English (v1 prompt,
+   *  byte-identical). Non-English selects the v2 prompt and the first-touch
+   *  note quotes the actual pre-translated opt-out line the boundary appends. */
+  language?: LanguageCode;
 }
 
 export interface ComposedSms {
@@ -179,10 +197,7 @@ let registered = false;
 function ensureRegistered(): void {
   if (registered) return;
   registered = true;
-  registerPrompt({
-    name: COMPOSER_PROMPT_NAME,
-    version: COMPOSER_PROMPT_VERSION,
-    template: `Compose the SMS for this lead now.
+  const v1Template = `Compose the SMS for this lead now.
 
 STEP BRIEF (what this message must achieve):
 - Objective: {{objective}}
@@ -199,7 +214,26 @@ CONVERSATION SO FAR (oldest first):
 
 CONSTRAINTS:
 - Aim for at most {{targetChars}} characters; NEVER exceed {{maxChars}}.
-- {{firstTouchNote}}`,
+- {{firstTouchNote}}`;
+  registerPrompt({ name: COMPOSER_PROMPT_NAME, version: COMPOSER_PROMPT_VERSION, template: v1Template });
+
+  // v2 (L1, DEC-072) = v1 VERBATIM plus the language constraint — derived
+  // from the same literal so the two can never drift. Selected ONLY for
+  // non-English agents; English composes on v1 byte-identical.
+  const constraintsSeam = "CONSTRAINTS:";
+  if (!v1Template.includes(constraintsSeam)) {
+    throw new Error(
+      "composer prompt v2 derivation: v1 CONSTRAINTS seam not found — realign the language variant",
+    );
+  }
+  registerPrompt({
+    name: COMPOSER_PROMPT_NAME,
+    version: COMPOSER_PROMPT_VERSION_LANGUAGE,
+    template: v1Template.replace(
+      constraintsSeam,
+      constraintsSeam +
+        '\n- Write the ENTIRE message in {{composeLanguage}} — the lead reads {{composeLanguage}}. Never mix languages; "must say" strings stay verbatim exactly as given.',
+    ),
   });
 }
 
@@ -210,7 +244,8 @@ const composeOutputSchema = z.object({
 
 function renderComposerPrompt(inputs: ComposeSmsInputs): string {
   ensureRegistered();
-  return renderPrompt(COMPOSER_PROMPT_NAME, COMPOSER_PROMPT_VERSION, {
+  const language = inputs.language ?? DEFAULT_LANGUAGE;
+  const vars = {
     objective: inputs.brief.objective,
     talkingPoints: inputs.brief.talkingPoints.map((p) => `  - ${p}`).join("\n"),
     mustSay: (inputs.brief.mustSay ?? []).length
@@ -223,9 +258,18 @@ function renderComposerPrompt(inputs: ComposeSmsInputs): string {
     history: renderHistory(inputs.history),
     targetChars: SMS_COMPOSE_TARGET_CHARS,
     maxChars: SMS_COMPOSE_MAX_CHARS,
+    // The note quotes the ACTUAL pre-translated line the boundary appends for
+    // this agent's language — English renders the pre-L1 note byte-identical.
     firstTouchNote: inputs.firstTouch
-      ? 'This is the enrollment\'s first SMS: the platform appends "Reply STOP to opt out." after your text — keep it short enough to leave room, and never write your own opt-out line.'
+      ? `This is the enrollment's first SMS: the platform appends "${COMPLIANCE_STRINGS[language].smsOptOut}" after your text — keep it short enough to leave room, and never write your own opt-out line.`
       : "This continues an existing thread — do not re-introduce the business.",
+  };
+  if (language === "en") {
+    return renderPrompt(COMPOSER_PROMPT_NAME, COMPOSER_PROMPT_VERSION, vars);
+  }
+  return renderPrompt(COMPOSER_PROMPT_NAME, COMPOSER_PROMPT_VERSION_LANGUAGE, {
+    ...vars,
+    composeLanguage: languagePromptLabel(language),
   });
 }
 
@@ -247,7 +291,7 @@ export async function composeSms(gateway: AiGateway, inputs: ComposeSmsInputs): 
   const firstBody = first.body.trim();
   const firstViolations = checkComposedSms(firstBody, inputs);
   if (firstViolations.length === 0) {
-    return { body: firstBody, composerVersion: COMPOSER_VERSION, attempts: 1 };
+    return { body: firstBody, composerVersion: composerVersionFor(inputs.language ?? DEFAULT_LANGUAGE), attempts: 1 };
   }
 
   const retry = await gateway.completeStructured(
@@ -265,7 +309,7 @@ export async function composeSms(gateway: AiGateway, inputs: ComposeSmsInputs): 
   const retryBody = retry.body.trim();
   const retryViolations = checkComposedSms(retryBody, inputs);
   if (retryViolations.length === 0) {
-    return { body: retryBody, composerVersion: COMPOSER_VERSION, attempts: 2 };
+    return { body: retryBody, composerVersion: composerVersionFor(inputs.language ?? DEFAULT_LANGUAGE), attempts: 2 };
   }
   throw new ComposeRefusedError(
     retryViolations[0]!.reason,
@@ -364,6 +408,7 @@ export function createSmsStepComposer(deps: {
           text: `${m.subject ? `${m.subject} — ` : ""}${m.body}`.slice(0, 300),
         })),
       firstTouch: !priorSms,
+      language: strategy.language,
     };
     return composeSms(gateway, inputs);
   };
@@ -406,5 +451,6 @@ export async function composeSampleSms(
     lead: SAMPLE_LEAD,
     history: [],
     firstTouch: true,
+    language: strategy.language,
   });
 }

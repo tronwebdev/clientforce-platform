@@ -13,6 +13,12 @@ import {
 } from "@clientforce/core";
 import { withTenant, type BusinessContext, type PrismaClient } from "@clientforce/db";
 import { retrieve, type RetrievedChunk } from "@clientforce/knowledge";
+import {
+  agentLanguageRider,
+  applyDetectedLanguage,
+  detectionCorpus,
+  detectLanguage,
+} from "./agent-language";
 import { DISTILL_SYSTEM, renderDistillPrompt } from "./prompts";
 
 export interface DistillDeps {
@@ -91,6 +97,22 @@ export async function distill(deps: DistillDeps, target: DistillTarget): Promise
     const evidence = await gatherEvidence(deps, workspaceId, agentId, keys);
     const existing = parseFields(row.fields);
 
+    // L1 (DEC-072): detect the pack's dominant language (agent layer only —
+    // the workspace/Brand-kit layer has no agent to write to). Deterministic
+    // + confidence-gated: mixed or ambiguous evidence means English.
+    const detection = agentId ? detectLanguage(detectionCorpus(evidence, existing)) : null;
+    // The language THIS run generates user-facing phrasing in: an owner-set
+    // language always wins; otherwise a confident detection; otherwise English.
+    const agentRow = agentId
+      ? await withTenant(prisma, { workspaceId }, (tx) =>
+          tx.agent.findUnique({ where: { id: agentId }, select: { guardrails: true } }),
+        )
+      : null;
+    const rider = agentRow ? agentLanguageRider(agentRow.guardrails) : null;
+    const ownerLanguage = rider?.languageSource === "owner" ? rider.language : undefined;
+    const summaryLanguage =
+      ownerLanguage ?? (detection?.confident ? (detection.code ?? "en") : "en");
+
     const distilled: ContextFields = {};
     let rawSummary = "";
     let proposedAsks: ProposedAsk[] = parseAsks(row.proposedAsks).filter((a) => a.dismissed);
@@ -101,15 +123,18 @@ export async function distill(deps: DistillDeps, target: DistillTarget): Promise
         {
           system: DISTILL_SYSTEM,
           maxTokens: DISTILL_MAX_TOKENS,
-          prompt: renderDistillPrompt({
-            goal: goalLine(goal, target.customObjective),
-            fields: keys.map((k) => `- ${k} — ${CONTEXT_FIELD_META[k].hint}`).join("\n"),
-            evidence: evidence.map((c) => `[${c.id}]\n${c.content}`).join("\n\n"),
-            proposedAsksRule:
-              goal === "custom"
-                ? `- "proposedAsks": up to ${MAX_CUSTOM_GOAL_ASKS} short questions to ask the owner that the typed objective makes necessary and the evidence cannot answer. Otherwise return [].`
-                : '- "proposedAsks": return [].',
-          }),
+          prompt: renderDistillPrompt(
+            {
+              goal: goalLine(goal, target.customObjective),
+              fields: keys.map((k) => `- ${k} — ${CONTEXT_FIELD_META[k].hint}`).join("\n"),
+              evidence: evidence.map((c) => `[${c.id}]\n${c.content}`).join("\n\n"),
+              proposedAsksRule:
+                goal === "custom"
+                  ? `- "proposedAsks": up to ${MAX_CUSTOM_GOAL_ASKS} short questions to ask the owner that the typed objective makes necessary and the evidence cannot answer. Otherwise return [].`
+                  : '- "proposedAsks": return [].',
+            },
+            summaryLanguage,
+          ),
         },
         distillOutputSchema,
       );
@@ -153,7 +178,7 @@ export async function distill(deps: DistillDeps, target: DistillTarget): Promise
       if (!merged[key]) merged[key] = value;
     }
 
-    return await withTenant(prisma, { workspaceId }, (tx) =>
+    const updated = await withTenant(prisma, { workspaceId }, (tx) =>
       tx.businessContext.update({
         where: { id: row.id },
         data: {
@@ -166,6 +191,16 @@ export async function distill(deps: DistillDeps, target: DistillTarget): Promise
         },
       }),
     );
+
+    // L1 (DEC-072): persist the detection as the agent's default language —
+    // AFTER the distill committed (a failed run never moves the language).
+    // Owner-set values are never touched; ambiguous packs clear a previous
+    // detector write so sequential source-adds converge to English.
+    if (agentId && detection) {
+      await applyDetectedLanguage(prisma, { workspaceId, agentId }, detection);
+    }
+
+    return updated;
   } catch (err) {
     // Leave the previous fields intact; rethrow for the queue's retry policy.
     await withTenant(prisma, { workspaceId }, (tx) =>

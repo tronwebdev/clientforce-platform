@@ -9,7 +9,11 @@ import { describe, expect, it } from "vitest";
 import { AiGateway, renderPrompt } from "@clientforce/ai";
 import { IntentSchema } from "@clientforce/events";
 import { classifyReply, CLASSIFY_EMISSION_LABELS, CLASSIFY_PROMPT_NAME } from "../src/classify";
-import { REPLY_INTENT_FIXTURES, fixtureFor } from "../src/classify-fixtures";
+import {
+  MULTILINGUAL_REPLY_FIXTURES,
+  REPLY_INTENT_FIXTURES,
+  fixtureFor,
+} from "../src/classify-fixtures";
 
 /** Fake gateway that emits a fixed label and captures the system prompt. */
 function fakeGateway(label: string, capture: { system?: string } = {}) {
@@ -105,6 +109,29 @@ describe("classifier prompt v2 (append-only registry)", () => {
 
   it("each strategy intent round-trips through classifyReply (plumbing per label)", async () => {
     for (const f of REPLY_INTENT_FIXTURES) {
+      const intent = await classifyReply(fakeGateway(f.intent), {
+        ...ctx,
+        replyText: f.reply,
+      });
+      expect(intent).toBe(f.intent);
+    }
+  });
+});
+
+describe("multilingual pins (L1, DEC-072 — NO classifier code change)", () => {
+  it("every multilingual fixture pins an emission label and a launch language", () => {
+    expect(MULTILINGUAL_REPLY_FIXTURES.length).toBeGreaterThanOrEqual(2);
+    expect(MULTILINGUAL_REPLY_FIXTURES.map((f) => f.language).sort()).toEqual(["de", "fr"]);
+    for (const f of MULTILINGUAL_REPLY_FIXTURES) {
+      expect(CLASSIFY_EMISSION_LABELS).toContain(f.intent);
+      expect(f.reply.length).toBeGreaterThan(0);
+      // Separate constant on purpose — the M1b matrix stays one-per-label.
+      expect(REPLY_INTENT_FIXTURES.map((r) => r.reply)).not.toContain(f.reply);
+    }
+  });
+
+  it("a German and a French reply round-trip classifyReply UNCHANGED (same plumbing, same enum)", async () => {
+    for (const f of MULTILINGUAL_REPLY_FIXTURES) {
       const intent = await classifyReply(fakeGateway(f.intent), {
         ...ctx,
         replyText: f.reply,

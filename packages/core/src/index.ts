@@ -31,6 +31,9 @@ export * from "./planner";
 // Selling-strategy registry (M1a, DEC-065) — arcs, tone map, strategy block.
 export * from "./strategy";
 
+// Agent output language (L1, DEC-072) — launch list, detector, compliance map.
+export * from "./language";
+
 // Guardrails schema (P1.5, A8) + sender DTOs.
 export * from "./guardrails";
 export * from "./senders";

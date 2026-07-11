@@ -3,8 +3,10 @@ import type { AiGateway } from "@clientforce/ai";
 import { loadMergedContextText } from "@clientforce/context";
 import {
   campaignGraphSchema,
+  detectLanguage,
   execute,
   GraphValidationError,
+  languagePromptLabel,
   parseGuardrails,
   selectStrategy,
   validateGraph,
@@ -12,6 +14,7 @@ import {
   type BranchNode,
   type CampaignGraph,
   type IntendedAction,
+  type LanguageCode,
   type StepNode,
   type StrategyBlock,
 } from "@clientforce/core";
@@ -98,6 +101,9 @@ export async function planCampaign(deps: PlanDeps, target: PlanTarget): Promise<
   // still gates whether sms STEPS are plannable at all (DEC-061 honest
   // absence, via allowedChannels above).
   const guided = rider.composeMode === "guided";
+  // L1 (DEC-072): the agent's output language — absent = English, so every
+  // pre-L1 agent renders the v5/v7 prompts byte-identical.
+  const language = rider.language ?? "en";
 
   // F1 (DEC-068): outcome-aware regen — the same loader + pure compute the
   // rollup endpoint uses, so the prompt cites the endpoint's own numbers.
@@ -124,7 +130,7 @@ export async function planCampaign(deps: PlanDeps, target: PlanTarget): Promise<
     strategyNotes: rider.strategy?.strategyNotes?.trim() || "(none)",
     neverSay: neverSay.length ? neverSay.map((t) => `"${t}"`).join(", ") : "(none)",
     outcomes: outcomesBlock,
-  }, guided);
+  }, guided, language);
   const system = guided ? PLANNER_SYSTEM_GUIDED : PLANNER_SYSTEM;
 
   // Attempt 1 (shape is enforced + repaired inside completeStructured) …
@@ -135,7 +141,7 @@ export async function planCampaign(deps: PlanDeps, target: PlanTarget): Promise<
   );
   let graph: CampaignGraph;
   try {
-    graph = validateAll(candidate, allowedChannels, neverSay, guided);
+    graph = validateAll(candidate, allowedChannels, neverSay, guided, language);
   } catch (err) {
     // … one bounded SEMANTIC repair: the model sees its graph + the error.
     const message = err instanceof Error ? err.message : String(err);
@@ -151,7 +157,7 @@ export async function planCampaign(deps: PlanDeps, target: PlanTarget): Promise<
       campaignGraphSchema,
     );
     try {
-      graph = validateAll(candidate, allowedChannels, neverSay, guided);
+      graph = validateAll(candidate, allowedChannels, neverSay, guided, language);
     } catch (second) {
       throw new PlannerError(
         `Planner produced an invalid graph after one repair: ${second instanceof Error ? second.message : String(second)}`,
@@ -242,12 +248,20 @@ export const REQUIRED_BRANCH_INTENTS: ReadonlyArray<{ intent: Intent; pipeline: 
  *  reply-strategy steps stay scripted email, and strategy steps never
  *  carried the token contract (they answer a lead's actual words); scripted
  *  agents' graphs validate exactly as before. The neverSay scan covers
- *  `subjectHint` too. */
+ *  `subjectHint` too.
+ *  L1 (DEC-072): `language` arms the deterministic language rail — the same
+ *  detector the distiller uses runs over the generated copy (subjects +
+ *  bodies + brief text incl. subjectHint), and a CONFIDENT mismatch (e.g.
+ *  English copy from a German agent) fails validation → the bounded repair →
+ *  typed failure. Confidence-gated on purpose: quoted English proof points
+ *  inside German copy never trip it, and English agents ("en") skip the
+ *  check entirely — byte-identical legacy behavior. */
 export function validateAll(
   input: unknown,
   allowedChannels: string[] = ["email"],
   neverSay: string[] = [],
   allowGuided = false,
+  language: LanguageCode = "en",
 ): CampaignGraph {
   const graph = validateGraph(input);
 
@@ -373,20 +387,40 @@ export function validateAll(
       `Step copy contains banned phrases (agent strategy neverSay): ${hits.join(", ")} — rewrite those steps without the banned strings`,
     );
   }
+  // L1 (DEC-072): the deterministic language rail — prompt asks, this gate
+  // PROVES (the neverSay double-rail pattern). Only a CONFIDENT mismatch
+  // fails; English agents skip entirely.
+  if (language !== "en") {
+    const generatedText = steps
+      .map((s) => {
+        const brief = s.brief
+          ? `${s.brief.objective}\n${s.brief.talkingPoints.join("\n")}\n${s.brief.subjectHint ?? ""}`
+          : "";
+        return `${s.content.subject ?? ""}\n${s.content.body ?? ""}\n${brief}`;
+      })
+      .join("\n");
+    const detected = detectLanguage(generatedText);
+    if (detected.confident && detected.code !== language) {
+      throw new GraphValidationError(
+        `Step copy is written in ${detected.code ? languagePromptLabel(detected.code) : "another language"} but this agent's output language is ${languagePromptLabel(language)} — rewrite ALL subjects, bodies, and briefs in ${languagePromptLabel(language)} (machine identifiers and merge tokens stay as they are)`,
+      );
+    }
+  }
   return graph;
 }
 
-/** The guardrails riders (M1a strategy + G1 composeMode), leniently: an
- *  unparsable row plans as legacy (no notes, no bans, scripted) rather than
- *  blocking the run — the send boundary is where strict guardrails parsing
- *  already lives. */
+/** The guardrails riders (M1a strategy + G1 composeMode + L1 language),
+ *  leniently: an unparsable row plans as legacy (no notes, no bans, scripted,
+ *  English) rather than blocking the run — the send boundary is where strict
+ *  guardrails parsing already lives. */
 function guardrailsRiderOf(guardrails: unknown): {
   strategy?: StrategyBlock;
   composeMode?: "scripted" | "guided";
+  language?: LanguageCode;
 } {
   try {
     const parsed = parseGuardrails(guardrails);
-    return { strategy: parsed.strategy, composeMode: parsed.composeMode };
+    return { strategy: parsed.strategy, composeMode: parsed.composeMode, language: parsed.language };
   } catch {
     return {};
   }

@@ -25,8 +25,11 @@ import { loadMergedContextText } from "@clientforce/context";
 import {
   BANNED_OPENERS,
   BANNED_SUBJECT_PATTERNS,
+  DEFAULT_LANGUAGE,
+  languagePromptLabel,
   OPENER_WORD_CAP,
   selectStrategy,
+  type LanguageCode,
   type StepBrief,
 } from "@clientforce/core";
 import { withTenant, type PrismaClient } from "@clientforce/db";
@@ -55,8 +58,17 @@ export { ComposeRefusedError } from "./compose-shared";
 // ── Versioning ───────────────────────────────────────────────────────────────
 export const COMPOSER_EMAIL_PROMPT_NAME = "composer.email";
 export const COMPOSER_EMAIL_PROMPT_VERSION = 1;
+// L1 (DEC-072): non-English agents compose on v2 — v1 plus the language
+// constraint (the composer.sms@v2 treatment mirrored). English agents keep
+// rendering v1 byte-identical.
+export const COMPOSER_EMAIL_PROMPT_VERSION_LANGUAGE = 2;
 /** Persisted into `Message.meta.composerVersion` on every guided send (A6). */
 export const COMPOSER_EMAIL_VERSION = `${COMPOSER_EMAIL_PROMPT_NAME}@v${COMPOSER_EMAIL_PROMPT_VERSION}`;
+/** The honest per-language provenance stamp — @v1 for English, @v2 otherwise. */
+export const composerEmailVersionFor = (language: LanguageCode): string =>
+  language === "en"
+    ? COMPOSER_EMAIL_VERSION
+    : `${COMPOSER_EMAIL_PROMPT_NAME}@v${COMPOSER_EMAIL_PROMPT_VERSION_LANGUAGE}`;
 
 // ── Channel constraints (the planner's own email literals, DEC-071) ─────────
 /** The planner's scripted rule is "subject ≤60 chars" — composed output too. */
@@ -115,6 +127,10 @@ export interface ComposeEmailInputs {
   /** The step continues the thread — the boundary threads it onto the real
    *  prior message (owner rule 3); the prompt adjusts tone accordingly. */
   threaded?: boolean;
+  /** L1 (DEC-072): the agent's output language — absent = English (v1 prompt,
+   *  byte-identical). Non-English selects the v2 prompt: subject AND body in
+   *  the agent's language; the boundary appends its own in-language footer. */
+  language?: LanguageCode;
 }
 
 export interface ComposedEmail {
@@ -272,10 +288,7 @@ let registered = false;
 function ensureRegistered(): void {
   if (registered) return;
   registered = true;
-  registerPrompt({
-    name: COMPOSER_EMAIL_PROMPT_NAME,
-    version: COMPOSER_EMAIL_PROMPT_VERSION,
-    template: `Compose the email for this lead now.
+  const v1Template = `Compose the email for this lead now.
 
 STEP BRIEF (what this message must achieve):
 - Objective: {{objective}}
@@ -296,7 +309,32 @@ CONVERSATION SO FAR (oldest first):
 CONSTRAINTS:
 - Subject: at most {{subjectMaxChars}} characters.
 - Body: aim for at most {{targetWords}} words; NEVER exceed {{maxWords}}.
-- {{threadNote}}`,
+- {{threadNote}}`;
+  registerPrompt({
+    name: COMPOSER_EMAIL_PROMPT_NAME,
+    version: COMPOSER_EMAIL_PROMPT_VERSION,
+    template: v1Template,
+  });
+
+  // v2 (L1, DEC-072) = v1 VERBATIM plus the language constraint — the
+  // composer.sms@v2 treatment mirrored, derived from the same literal so the
+  // two can never drift. Selected ONLY for non-English agents; English
+  // composes on v1 byte-identical. Without this, a German GUIDED agent would
+  // compose English email bodies over a German footer.
+  const constraintsSeam = "CONSTRAINTS:";
+  if (!v1Template.includes(constraintsSeam)) {
+    throw new Error(
+      "composer.email prompt v2 derivation: v1 CONSTRAINTS seam not found — realign the language variant",
+    );
+  }
+  registerPrompt({
+    name: COMPOSER_EMAIL_PROMPT_NAME,
+    version: COMPOSER_EMAIL_PROMPT_VERSION_LANGUAGE,
+    template: v1Template.replace(
+      constraintsSeam,
+      constraintsSeam +
+        '\n- Write the ENTIRE email — subject AND body — in {{composeLanguage}}; the lead reads {{composeLanguage}}. Never mix languages; "must say" strings stay verbatim exactly as given.',
+    ),
   });
 }
 
@@ -309,7 +347,8 @@ const composeEmailOutputSchema = z.object({
 
 function renderComposerEmailPrompt(inputs: ComposeEmailInputs): string {
   ensureRegistered();
-  return renderPrompt(COMPOSER_EMAIL_PROMPT_NAME, COMPOSER_EMAIL_PROMPT_VERSION, {
+  const language = inputs.language ?? DEFAULT_LANGUAGE;
+  const vars = {
     objective: inputs.brief.objective,
     subjectHint: inputs.brief.subjectHint?.trim() || "(none — derive it from the objective)",
     talkingPoints: inputs.brief.talkingPoints.map((p) => `  - ${p}`).join("\n"),
@@ -330,6 +369,13 @@ function renderComposerEmailPrompt(inputs: ComposeEmailInputs): string {
     threadNote: inputs.threaded
       ? "This continues an existing email thread — do not re-introduce the business; the platform threads it onto the real prior message."
       : "This starts a fresh email thread.",
+  };
+  if (language === "en") {
+    return renderPrompt(COMPOSER_EMAIL_PROMPT_NAME, COMPOSER_EMAIL_PROMPT_VERSION, vars);
+  }
+  return renderPrompt(COMPOSER_EMAIL_PROMPT_NAME, COMPOSER_EMAIL_PROMPT_VERSION_LANGUAGE, {
+    ...vars,
+    composeLanguage: languagePromptLabel(language),
   });
 }
 
@@ -358,7 +404,7 @@ export async function composeEmail(
     return {
       subject: firstSubject,
       body: firstBody,
-      composerVersion: COMPOSER_EMAIL_VERSION,
+      composerVersion: composerEmailVersionFor(inputs.language ?? DEFAULT_LANGUAGE),
       attempts: 1,
     };
   }
@@ -383,7 +429,7 @@ export async function composeEmail(
     return {
       subject: retrySubject,
       body: retryBody,
-      composerVersion: COMPOSER_EMAIL_VERSION,
+      composerVersion: composerEmailVersionFor(inputs.language ?? DEFAULT_LANGUAGE),
       attempts: 2,
     };
   }
@@ -480,6 +526,7 @@ export function createEmailStepComposer(deps: {
         ? { arcRole: { ...params.position, role: arcRoleFor(arc.roles, params.position) } }
         : {}),
       threaded: params.threaded ?? false,
+      language: strategy.language,
     };
     return composeEmail(gateway, inputs);
   };
@@ -530,5 +577,6 @@ export async function composeSampleEmail(
     ...(params.position
       ? { arcRole: { ...params.position, role: arcRoleFor(arc.roles, params.position) } }
       : {}),
+    language: strategy.language,
   });
 }
