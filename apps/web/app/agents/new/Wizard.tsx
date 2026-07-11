@@ -12,7 +12,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { ConnectFlowDrawer } from "../../(shell)/settings/shared";
 import { branchWhenLabel, intentTint } from "../../../lib/intents";
 import { mainPath, mainSteps, replyBranchOf, strategyStepsOf } from "../../../lib/graph-path";
-import { BRIEF_MUST_SAY_MAX, BRIEF_NEVER_SAY_MAX, BRIEF_TALKING_POINTS_MAX, BRIEF_TALKING_POINTS_MIN, BUSINESS_CATEGORIES, CONTEXT_FIELD_META, customTokensMissingFallback, GOAL_KEYS, goalTerminalLabel, GUIDED_SMS_CREDITS, requiredFieldsFor, type GoalKey } from "@clientforce/core";
+import { BRIEF_MUST_SAY_MAX, BRIEF_NEVER_SAY_MAX, BRIEF_SUBJECT_HINT_MAX, BRIEF_TALKING_POINTS_MAX, BRIEF_TALKING_POINTS_MIN, BUSINESS_CATEGORIES, CONTEXT_FIELD_META, customTokensMissingFallback, GOAL_KEYS, goalTerminalLabel, GUIDED_EMAIL_CREDITS, GUIDED_SMS_CREDITS, requiredFieldsFor, type GoalKey } from "@clientforce/core";
 import type { CampaignGraph, CampaignOutcomes, ContactFieldDefDto, DraftState, GraphNode } from "@clientforce/core";
 import { OutcomeBadge } from "../../../components/OutcomeBadge";
 
@@ -307,15 +307,17 @@ export function Wizard() {
   const [editSubject, setEditSubject] = useState("");
   const [editBody, setEditBody] = useState("");
   // G1 (DEC-070): the guided step's BRIEF editor — bullets, never copy.
-  const [editBrief, setEditBrief] = useState<{ objective: string; talkingPoints: string[]; mustSay: string[]; neverSay: string[] } | null>(null);
+  // G2 (DEC-071): channel-aware — email briefs add the subjectHint field.
+  const [editBrief, setEditBrief] = useState<{ channel: "email" | "sms"; objective: string; subjectHint: string; talkingPoints: string[]; mustSay: string[]; neverSay: string[] } | null>(null);
   const [briefPointInput, setBriefPointInput] = useState("");
   const [briefMustInput, setBriefMustInput] = useState("");
   const [briefNeverInput, setBriefNeverInput] = useState("");
   // G1: sample preview — composes against the fixed sample lead (free at
   // launch, Q-020 meters it); refusals are a designed display state.
+  // G2: email previews carry a composed subject too.
   const [previewBusy, setPreviewBusy] = useState(false);
   const [preview, setPreview] = useState<
-    | { kind: "composed"; body: string; credits: number }
+    | { kind: "composed"; subject?: string; body: string; credits: number }
     | { kind: "refused"; reason: string; detail: string }
     | { kind: "error"; message: string }
     | null
@@ -993,6 +995,10 @@ export function Wizard() {
         talkingPoints: editBrief.talkingPoints,
         ...(editBrief.mustSay.length > 0 ? { mustSay: editBrief.mustSay } : {}),
         ...(editBrief.neverSay.length > 0 ? { neverSay: editBrief.neverSay } : {}),
+        // G2: subject hints are email-only (layer-2 rule) — never saved on sms.
+        ...(editBrief.channel === "email" && editBrief.subjectHint.trim()
+          ? { subjectHint: editBrief.subjectHint.trim() }
+          : {}),
       };
       const updatedGuided: CampaignGraph = {
         ...graph,
@@ -1053,7 +1059,13 @@ export function Wizard() {
         body: JSON.stringify({ agentId, stepNodeId: editNode.id }),
       });
       if (res.composed) {
-        setPreview({ kind: "composed", body: res.composed.body, credits: res.credits ?? GUIDED_SMS_CREDITS });
+        // G2: email previews carry a composed subject; per-channel credits.
+        setPreview({
+          kind: "composed",
+          ...(res.composed.subject ? { subject: res.composed.subject } : {}),
+          body: res.composed.body,
+          credits: res.credits ?? (editBrief?.channel === "email" ? GUIDED_EMAIL_CREDITS : GUIDED_SMS_CREDITS),
+        });
       } else if (res.refused) {
         setPreview({ kind: "refused", reason: res.refused.reason, detail: res.refused.detail ?? "" });
       }
@@ -1450,16 +1462,17 @@ export function Wizard() {
                             {/* P2.1 (DEC-061, §3 amendment): ChannelChip anatomy — sms
                                 steps reuse the card with channel-true icon + tint. */}
                             <span style={{ width: 38, height: 38, borderRadius: 11, flex: "none", background: n.channel === "sms" ? "rgba(54,215,237,.16)" : "rgba(53,232,52,.16)", color: n.channel === "sms" ? "#1192A6" : "#16A82A", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, fontWeight: 700 }}>{n.channel === "sms" ? "💬" : "✉"}</span>
-                            <div onClick={() => { setEditNode(n); setPreview(null); if (n.mode === "guided" && n.brief) { setEditBrief({ objective: n.brief.objective, talkingPoints: [...n.brief.talkingPoints], mustSay: [...(n.brief.mustSay ?? [])], neverSay: [...(n.brief.neverSay ?? [])] }); } else { setEditBrief(null); setEditSubject(n.content.subject ?? ""); setEditBody(n.content.body ?? ""); } }} style={{ flex: 1, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 14, padding: "16px 18px", boxShadow: "0 4px 16px rgba(14,21,18,.04)", cursor: "pointer" }}>
+                            <div onClick={() => { setEditNode(n); setPreview(null); if (n.mode === "guided" && n.brief) { setEditBrief({ channel: n.channel === "sms" ? "sms" : "email", objective: n.brief.objective, subjectHint: n.brief.subjectHint ?? "", talkingPoints: [...n.brief.talkingPoints], mustSay: [...(n.brief.mustSay ?? [])], neverSay: [...(n.brief.neverSay ?? [])] }); } else { setEditBrief(null); setEditSubject(n.content.subject ?? ""); setEditBody(n.content.body ?? ""); } }} style={{ flex: 1, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 14, padding: "16px 18px", boxShadow: "0 4px 16px rgba(14,21,18,.04)", cursor: "pointer" }}>
                               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
                                 <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "#8A7F6B" }}>Step {idx}</span>
                                 <span style={{ fontSize: 12, fontWeight: 700, borderRadius: 8, padding: "3px 10px", background: n.channel === "sms" ? "rgba(54,215,237,.14)" : "rgba(53,232,52,.13)", color: n.channel === "sms" ? "#1192A6" : "#16A82A" }} data-testid="seq-channel-chip">{n.channel === "sms" ? "SMS" : "Email"}</span>
-                                {/* G1 (DEC-070): guided steps compose at send — the card carries
-                                    the brief, never copy; credits figure is display-only (Q-020). */}
+                                {/* G1 (DEC-070) / G2 (DEC-071): guided steps compose at send —
+                                    the card carries the brief, never copy; per-channel credits
+                                    figure is display-only (Q-020). */}
                                 {n.mode === "guided" ? (
                                   <>
                                     <span style={{ fontSize: 11, fontWeight: 700, color: "#1192A6", background: "rgba(54,215,237,.14)", borderRadius: 7, padding: "3px 9px" }} data-testid="seq-guided-tag">✦ Composed at send</span>
-                                    <span style={{ fontSize: 11, fontWeight: 700, color: "#8A7F6B", background: "#F2EEE4", borderRadius: 7, padding: "3px 9px" }} data-testid="seq-guided-credits">{GUIDED_SMS_CREDITS} credits / send</span>
+                                    <span style={{ fontSize: 11, fontWeight: 700, color: "#8A7F6B", background: "#F2EEE4", borderRadius: 7, padding: "3px 9px" }} data-testid="seq-guided-credits">{n.channel === "sms" ? GUIDED_SMS_CREDITS : GUIDED_EMAIL_CREDITS} credits / send</span>
                                   </>
                                 ) : (
                                   <span style={{ fontSize: 11, fontWeight: 700, color: "#16A82A", background: "rgba(53,232,52,.12)", borderRadius: 7, padding: "3px 9px" }}>✦ AI draft</span>
@@ -1471,6 +1484,10 @@ export function Wizard() {
                               {n.mode === "guided" && n.brief ? (
                                 <>
                                   <div style={{ fontSize: 15.5, fontWeight: 600, color: "#0E1512", marginBottom: 6 }}>{n.brief.objective}</div>
+                                  {/* G2: the email brief's subject direction — a hint, never copy */}
+                                  {n.channel === "email" && n.brief.subjectHint ? (
+                                    <div style={{ fontSize: 13, color: "#8A7F6B", marginBottom: 6 }} data-testid="seq-brief-subject-hint">Subject hint: <span style={{ color: "#5C6B62", fontWeight: 600 }}>{n.brief.subjectHint}</span></div>
+                                  ) : null}
                                   <div style={{ display: "flex", flexDirection: "column", gap: 3 }} data-testid="seq-brief-points">
                                     {n.brief.talkingPoints.map((p, i) => (
                                       <div key={i} style={{ fontSize: 13.5, color: "#5C6B62", lineHeight: 1.45, display: "flex", gap: 8 }}>
@@ -1896,13 +1913,18 @@ export function Wizard() {
         <div onClick={() => setEditNode(null)} style={{ position: "fixed", inset: 0, background: "rgba(12,20,15,.4)", zIndex: 60 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ position: "absolute", top: 0, right: 0, bottom: 0, width: 560, maxWidth: "100%", background: "#fff", boxShadow: "-24px 0 70px rgba(0,0,0,.28)", display: "flex", flexDirection: "column" }} data-testid="step-editor">
             <div style={{ display: "flex", alignItems: "center", gap: 13, padding: "18px 22px", borderBottom: "1px solid #EBE3D6", background: "#fff", flex: "none" }}>
-              <span style={{ width: 40, height: 40, borderRadius: 12, flex: "none", background: editBrief ? "rgba(54,215,237,.16)" : "rgba(53,232,52,.16)", color: editBrief ? "#1192A6" : "#16A82A", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 19, fontWeight: 700 }}>{editBrief ? "💬" : "✉"}</span>
+              <span style={{ width: 40, height: 40, borderRadius: 12, flex: "none", background: editBrief?.channel === "sms" ? "rgba(54,215,237,.16)" : "rgba(53,232,52,.16)", color: editBrief?.channel === "sms" ? "#1192A6" : "#16A82A", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 19, fontWeight: 700 }}>{editBrief?.channel === "sms" ? "💬" : "✉"}</span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
                   <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "#8A7F6B" }}>{editStrategyIntent ? `${intentTint(editStrategyIntent).label} reply` : `Step ${editStepIndex}`}</span>
                   {editBrief ? (
+                    /* G2 (DEC-071): channel-true chips — the brief editor now serves email too */
                     <>
-                      <span style={{ fontSize: 12, fontWeight: 700, borderRadius: 8, padding: "2px 9px", background: "rgba(54,215,237,.14)", color: "#1192A6" }}>SMS</span>
+                      {editBrief.channel === "sms" ? (
+                        <span style={{ fontSize: 12, fontWeight: 700, borderRadius: 8, padding: "2px 9px", background: "rgba(54,215,237,.14)", color: "#1192A6" }}>SMS</span>
+                      ) : (
+                        <span style={{ fontSize: 12, fontWeight: 700, borderRadius: 8, padding: "2px 9px", background: "rgba(53,232,52,.13)", color: "#16A82A" }}>Email</span>
+                      )}
                       <span style={{ fontSize: 11, fontWeight: 700, color: "#1192A6", background: "rgba(54,215,237,.14)", borderRadius: 7, padding: "2px 9px" }}>✦ Composed at send</span>
                     </>
                   ) : (
@@ -1922,13 +1944,24 @@ export function Wizard() {
               <div style={{ padding: 22, display: "flex", flexDirection: "column", gap: 18, flex: 1, overflow: "auto", minHeight: 0 }} data-testid="brief-editor">
                 <div style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12.5, color: "#0E6E7E", background: "rgba(54,215,237,.08)", border: "1px solid rgba(54,215,237,.28)", borderRadius: 11, padding: "11px 14px" }} data-testid="brief-note">
                   <span style={{ fontSize: 13 }}>✦</span>
-                  <span>This step has no fixed text. At send time the AI composes a fresh SMS for each lead from these talking points — checked against your never-say list, length and grounding rules before anything sends. {GUIDED_SMS_CREDITS} credits per send.</span>
+                  <span>This step has no fixed text. At send time the AI composes a fresh {editBrief.channel === "sms" ? "SMS" : "email"} for each lead from these talking points — checked against your never-say list, {editBrief.channel === "sms" ? "length" : "subject rules, length"} and grounding rules before anything sends.{editBrief.channel === "email" ? " The unsubscribe footer is always added by the platform, never written by the AI." : ""} {editBrief.channel === "sms" ? GUIDED_SMS_CREDITS : GUIDED_EMAIL_CREDITS} credits per send.</span>
                 </div>
 
                 <div>
                   <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#5C6B62", marginBottom: 7 }}>Objective</label>
                   <input value={editBrief.objective} maxLength={200} onChange={(e) => setEditBrief((b) => (b ? { ...b, objective: e.target.value } : b))} placeholder="What must this message achieve?" style={{ boxSizing: "border-box", width: "100%", borderRadius: 11, background: "#FBF7F0", border: "1px solid #EBE3D6", padding: "11px 14px", fontSize: 14, color: "#0E1512", fontFamily: "'Hanken Grotesk',sans-serif" }} data-testid="brief-objective" />
                 </div>
+
+                {/* G2 (DEC-071): the email brief's subject hint — planner-emitted,
+                    owner-editable; a direction the composer adapts per lead,
+                    never pasted (deterministic subject checks still apply). */}
+                {editBrief.channel === "email" ? (
+                  <div>
+                    <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#5C6B62", marginBottom: 4 }}>Subject hint <span style={{ fontWeight: 600, color: "#9AA59E" }}>· optional</span></label>
+                    <div style={{ fontSize: 12, color: "#9AA59E", marginBottom: 8 }}>A direction for the subject line — the AI adapts it per lead. Subject rules (≤60 chars, no clickbait, no ALL CAPS) are checked on every composed email.</div>
+                    <input value={editBrief.subjectHint} maxLength={BRIEF_SUBJECT_HINT_MAX} onChange={(e) => setEditBrief((b) => (b ? { ...b, subjectHint: e.target.value } : b))} placeholder="e.g. where phone-only booking leaks patients" style={{ boxSizing: "border-box", width: "100%", borderRadius: 11, background: "#FBF7F0", border: "1px solid #EBE3D6", padding: "11px 14px", fontSize: 14, color: "#0E1512", fontFamily: "'Hanken Grotesk',sans-serif" }} data-testid="brief-subject-hint" />
+                  </div>
+                ) : null}
 
                 <div>
                   <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#5C6B62", marginBottom: 4 }}>Talking points <span style={{ fontWeight: 600, color: "#9AA59E" }}>· {editBrief.talkingPoints.length} of {BRIEF_TALKING_POINTS_MAX} (min {BRIEF_TALKING_POINTS_MIN})</span></label>
@@ -2006,8 +2039,12 @@ export function Wizard() {
                       <div style={{ fontSize: 12.5, color: "#8A7F6B" }}>Composing against the sample lead…</div>
                     ) : preview?.kind === "composed" ? (
                       <div data-testid="sample-preview-result">
+                        {/* G2: composed email previews carry the subject line too */}
+                        {preview.subject ? (
+                          <div style={{ background: "#FBF7F0", border: "1px solid #EBE3D6", borderRadius: 11, padding: "9px 14px", fontSize: 13, color: "#0E1512", fontWeight: 700, marginBottom: 7 }} data-testid="sample-preview-subject">{preview.subject}</div>
+                        ) : null}
                         <div style={{ background: "#FBF7F0", border: "1px solid #EBE3D6", borderRadius: 11, padding: "11px 14px", fontSize: 13.5, color: "#0E1512", lineHeight: 1.55, whiteSpace: "pre-wrap" }}>{preview.body}</div>
-                        <div style={{ fontSize: 11.5, color: "#9AA59E", marginTop: 7 }}>Sample lead: Jane Doe · Acme Dental — every real lead gets its own text. {preview.credits} credits per real send (display only for now).</div>
+                        <div style={{ fontSize: 11.5, color: "#9AA59E", marginTop: 7 }}>Sample lead: Jane Doe · Acme Dental — every real lead gets its own text.{preview.subject ? " The unsubscribe footer is appended at send time." : ""} {preview.credits} credits per real send (display only for now).</div>
                       </div>
                     ) : preview?.kind === "refused" ? (
                       <div style={{ border: "1px solid rgba(232,196,91,.48)", borderRadius: 11, background: "rgba(232,196,91,.08)", padding: "11px 14px" }} data-testid="sample-preview-refused">

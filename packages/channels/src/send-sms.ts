@@ -52,7 +52,7 @@ export interface SendSmsStepParams {
 
 /**
  * The literal ENGLISH opt-out line — the sms `unsubscribeFooter`. Never
- * disableable. L1 (DEC-071): the boundary picks the agent language's
+ * disableable. L1 (DEC-072): the boundary picks the agent language's
  * pre-translated line from `COMPLIANCE_STRINGS` (this constant IS the `en`
  * entry, re-exported for the tests/proofs that pin the English wire format);
  * every translation keeps the literal keyword STOP — the only keyword the

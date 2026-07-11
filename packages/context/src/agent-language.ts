@@ -1,5 +1,5 @@
 /**
- * Agent output-language detection (L1, DEC-071). The agent-layer distill
+ * Agent output-language detection (L1, DEC-072). The agent-layer distill
  * already holds the merged evidence pack — website chunks, uploaded-document
  * chunks, typed answers — so detection is source-agnostic by construction: a
  * doc-only agent detects from its documents, a typed-only agent from its
@@ -43,7 +43,7 @@ export function agentLanguageRider(
 /**
  * The detection corpus: every evidence chunk in this distill's pack plus the
  * layer's typed answers ("website crawl, uploaded documents, and typed
- * answers all count" — DEC-071).
+ * answers all count" — DEC-072).
  */
 export function detectionCorpus(evidence: RetrievedChunk[], fields: ContextFields): string {
   const typedValues = Object.values(fields)

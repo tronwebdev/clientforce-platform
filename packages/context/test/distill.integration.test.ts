@@ -53,7 +53,7 @@ function fakeCompleteTool(prompt: string): { input: unknown } {
     citations: ["00000000-0000-0000-0000-000000000000"],
   });
   fields.push({ key: "not_a_registry_key", value: "junk", citations: [ids[0]!] });
-  // L1 (DEC-071): a model following the v2 prompt writes the brief in the
+  // L1 (DEC-072): a model following the v2 prompt writes the brief in the
   // requested language — the fake honors the prompt's own rule line.
   const rawSummary = prompt.includes("written in German (Deutsch)")
     ? "Ein Zahnarzt-Wachstumsunternehmen — aus den eigenen Unterlagen destilliert."
@@ -265,7 +265,7 @@ describe.skipIf(!hasInfra)("distill integration", () => {
     expect(row.rawSummary).toBe("");
   });
 
-  // ── L1 (DEC-071): evidence-pack language detection ─────────────────────────
+  // ── L1 (DEC-072): evidence-pack language detection ─────────────────────────
 
   const GERMAN_SITE =
     "Wir helfen Zahnarztpraxen dabei, mehr Termine zu buchen und weniger Ausfälle zu haben. " +

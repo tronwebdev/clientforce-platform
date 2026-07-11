@@ -1,5 +1,5 @@
 /**
- * L1 (DEC-071) — the language registry, the deterministic detector, and the
+ * L1 (DEC-072) — the language registry, the deterministic detector, and the
  * compliance-strings map. Pure, no infra.
  *
  * The completeness suite is the unit's compliance gate: every launch language
@@ -85,7 +85,7 @@ describe("detectLanguage — the confidence gate (mixed/ambiguous → English de
   });
 });
 
-describe("COMPLIANCE_STRINGS — completeness (the vitest pin DEC-071 promises)", () => {
+describe("COMPLIANCE_STRINGS — completeness (the vitest pin DEC-072 promises)", () => {
   it("covers EXACTLY the launch language list", () => {
     expect(Object.keys(COMPLIANCE_STRINGS).sort()).toEqual([...LAUNCH_LANGUAGES].sort());
   });
@@ -120,7 +120,7 @@ describe("COMPLIANCE_STRINGS — completeness (the vitest pin DEC-071 promises)"
   });
 });
 
-describe("guardrails language rider (DEC-071 — goalLabel precedent, no migration)", () => {
+describe("guardrails language rider (DEC-072 — goalLabel precedent, no migration)", () => {
   const base = {
     sendingWindow: { days: [1, 2, 3], start: "09:00", end: "17:00", timezone: "UTC" },
     dailyCap: { email: 100 },

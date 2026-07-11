@@ -65,7 +65,7 @@ export const guardrailsSchema = z.object({
    */
   composeMode: z.enum(["scripted", "guided"]).optional(),
   /**
-   * L1 (DEC-071): the agent's OUTPUT language — what it writes sequences,
+   * L1 (DEC-072): the agent's OUTPUT language — what it writes sequences,
    * reply drafts, and compliance lines in (the app UI stays English). Rides
    * this Json like `goalLabel`/`strategy`/`composeMode` — no migration;
    * absent = English, legacy rows parse unchanged. `languageSource` records

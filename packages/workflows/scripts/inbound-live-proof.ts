@@ -153,7 +153,7 @@ async function main(): Promise<void> {
     }
     stamp(`fixture matrix ✓ — all ${REPLY_INTENT_FIXTURES.length} labels pinned by the REAL model`);
 
-    // ── L1 (DEC-071): the multilingual pins vs the REAL model — a German and
+    // ── L1 (DEC-072): the multilingual pins vs the REAL model — a German and
     // a French reply classify to their pinned intents with ZERO classifier
     // code change (the understanding side of the loop is language-agnostic).
     console.log("\n=== L1 LIVE PROOF · multilingual pinned fixtures ===");

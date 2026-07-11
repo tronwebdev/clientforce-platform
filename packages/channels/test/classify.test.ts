@@ -118,7 +118,7 @@ describe("classifier prompt v2 (append-only registry)", () => {
   });
 });
 
-describe("multilingual pins (L1, DEC-071 — NO classifier code change)", () => {
+describe("multilingual pins (L1, DEC-072 — NO classifier code change)", () => {
   it("every multilingual fixture pins an emission label and a launch language", () => {
     expect(MULTILINGUAL_REPLY_FIXTURES.length).toBeGreaterThanOrEqual(2);
     expect(MULTILINGUAL_REPLY_FIXTURES.map((f) => f.language).sort()).toEqual(["de", "fr"]);

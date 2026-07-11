@@ -7,7 +7,7 @@ import { DEFAULT_LANGUAGE, languagePromptLabel, type LanguageCode } from "@clien
  * pack, every fill cites chunk ids, and anything unsupported is OMITTED —
  * the gap checker turns omissions into gap rows. Never model priors.
  *
- * v2 (L1, DEC-071): the v1 literal + one rawSummary-language rule — the
+ * v2 (L1, DEC-072): the v1 literal + one rawSummary-language rule — the
  * distilled brief is user-facing (the wizard's About-your-business card), so
  * a non-English agent reads it in its language. Rendered ONLY for non-English
  * agents; English agents keep rendering v1 byte-identical (regression-pinned).
@@ -15,7 +15,7 @@ import { DEFAULT_LANGUAGE, languagePromptLabel, type LanguageCode } from "@clien
  */
 export const DISTILL_PROMPT_NAME = "context.distill";
 export const DISTILL_PROMPT_VERSION = 1;
-// L1 (DEC-071): non-English agents render v2 — v1 plus the summary-language rule.
+// L1 (DEC-072): non-English agents render v2 — v1 plus the summary-language rule.
 export const DISTILL_PROMPT_VERSION_LANGUAGE = 2;
 
 export const DISTILL_SYSTEM =
@@ -75,7 +75,7 @@ export function renderDistillPrompt(
     evidence: string;
     proposedAsksRule: string;
   },
-  /** L1 (DEC-071): the agent's effective language; "en" renders v1 byte-identical. */
+  /** L1 (DEC-072): the agent's effective language; "en" renders v1 byte-identical. */
   language: LanguageCode = DEFAULT_LANGUAGE,
 ): string {
   ensureRegistered();

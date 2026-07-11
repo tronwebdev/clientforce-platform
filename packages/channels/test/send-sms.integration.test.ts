@@ -159,7 +159,7 @@ describe.skipIf(!hasInfra)("sendSmsStep boundary integration", () => {
     expect(msg.inReplyToId).not.toBeNull();
   });
 
-  it("L1 (DEC-071): a GERMAN agent's first outbound carries the pre-translated STOP line — keyword STOP intact", async () => {
+  it("L1 (DEC-072): a GERMAN agent's first outbound carries the pre-translated STOP line — keyword STOP intact", async () => {
     const agent = await owner.agent.findUniqueOrThrow({ where: { id: agentId } });
     const germanAgentId = (
       await owner.agent.create({

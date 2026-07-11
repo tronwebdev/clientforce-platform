@@ -45,10 +45,10 @@ afterAll(async () => {
 });
 
 interface Recorded {
-  sends: Array<{ stepNodeId: string; mode?: string; brief?: unknown }>;
+  sends: Array<{ stepNodeId: string; mode?: string; brief?: unknown; channel?: string; position?: { index: number; count: number } }>;
   progress: Array<{ currentNode: string; pipelineStage?: string }>;
   blocked: Array<{ nodeId: string; reason: string }>;
-  composeRefused: Array<{ nodeId: string; reason: string }>;
+  composeRefused: Array<{ nodeId: string; channel?: string; reason: string }>;
   actions: Array<{ nodeId: string; kind: string; detail: string }>;
   completed: Array<{ nodeId: string }>;
 }
@@ -58,7 +58,7 @@ function recordedActivities(
 ): { calls: Recorded; acts: CampaignActivities } {
   const calls: Recorded = { sends: [], progress: [], blocked: [], composeRefused: [], actions: [], completed: [] };
   const acts = {
-    async sendEnrollmentStep(p: { stepNodeId: string; mode?: string; brief?: unknown }) {
+    async sendEnrollmentStep(p: { stepNodeId: string; mode?: string; brief?: unknown; channel?: string; position?: { index: number; count: number } }) {
       calls.sends.push(p);
       if (sendImpl) return sendImpl(p);
       return {
@@ -73,7 +73,7 @@ function recordedActivities(
     async recordEnrollmentBlocked(p: { nodeId: string; reason: string }) {
       calls.blocked.push(p);
     },
-    async recordComposeRefused(p: { nodeId: string; reason: string }) {
+    async recordComposeRefused(p: { nodeId: string; channel?: string; reason: string }) {
       calls.composeRefused.push(p);
     },
     async recordIntendedAction(p: { nodeId: string; kind: string; detail: string }) {
@@ -313,7 +313,7 @@ describe("CampaignWorkflow (time-skipping Temporal)", () => {
     );
   }, 120_000);
 
-  it("L1 (DEC-071): a GERMAN graph executes identically — German copy sent, intent routes the branch, stage moves", async (t) => {
+  it("L1 (DEC-072): a GERMAN graph executes identically — German copy sent, intent routes the branch, stage moves", async (t) => {
     if (!env) return t.skip();
     // The playbook shape with German copy — what planner v7 persists for a
     // German agent. Routing keys (ids, intents, pipeline values) stay English
@@ -586,9 +586,116 @@ describe("CampaignWorkflow (time-skipping Temporal)", () => {
     });
     expect(refusing.calls.sends).toHaveLength(1); // the composer's own retry is INSIDE the activity
     expect(refusing.calls.composeRefused).toEqual([
-      expect.objectContaining({ nodeId: "g1", reason: "NEVER_SAY_VIOLATION" }),
+      expect.objectContaining({ nodeId: "g1", channel: "sms", reason: "NEVER_SAY_VIOLATION" }),
     ]);
     expect(refusing.calls.blocked).toHaveLength(0);
     expect(refusing.calls.completed).toHaveLength(0);
   }, 240_000);
+
+  // ── G2 (DEC-071): guided email — mixed-mode fixture + channel-aware refusal ──
+
+  it("G2 MIXED-MODE: scripted step 1 + guided email follow-up run in order; the guided step carries its brief + main-sequence position", async (t) => {
+    if (!env) return t.skip();
+
+    const mixedGraph: CampaignGraph = {
+      entry: "s1",
+      nodes: [
+        { id: "s1", type: "step", channel: "email", content: { subject: "a", body: "b {{firstName}}" } },
+        { id: "d1", type: "delay", amount: 2, unit: "days" },
+        {
+          id: "g2",
+          type: "step",
+          channel: "email",
+          mode: "guided",
+          content: { threaded: true },
+          brief: {
+            objective: "close the loop",
+            talkingPoints: ["a", "b", "c"],
+            subjectHint: "closing the loop",
+          },
+        },
+        { id: "end1", type: "end" },
+      ],
+      edges: [
+        { from: "s1", to: "d1" },
+        { from: "d1", to: "g2" },
+        { from: "g2", to: "end1" },
+      ],
+    };
+
+    const { calls, acts } = recordedActivities();
+    const tq = `tq-${++seq}`;
+    const worker = await makeWorker(acts, tq);
+    await worker.runUntil(async () => {
+      const handle = await env!.client.workflow.start("campaignWorkflow", {
+        taskQueue: tq,
+        workflowId: `t-mixed-${seq}`,
+        args: [{ ...inputFor(mixedGraph, seq), graphVersion: 9 }],
+      });
+      await expect(handle.result()).resolves.toMatchObject({ status: "completed", endNode: "end1" });
+    });
+    // Both steps sent, in order, through ONE durable run.
+    expect(calls.sends.map((s) => s.stepNodeId)).toEqual(["s1", "g2"]);
+    // Step 1 rode scripted — no mode, no brief, no position.
+    expect(calls.sends[0]).toMatchObject({ stepNodeId: "s1", channel: "email" });
+    expect(calls.sends[0]!.mode).toBeUndefined();
+    expect(calls.sends[0]!.position).toBeUndefined();
+    // Step 2 rode guided with its brief AND the workflow-computed position
+    // (step 2 of 2 among main-sequence steps → the composer's BREAKUP role).
+    expect(calls.sends[1]).toMatchObject({
+      stepNodeId: "g2",
+      channel: "email",
+      mode: "guided",
+      brief: expect.objectContaining({ subjectHint: "closing the loop" }),
+      position: { index: 2, count: 2 },
+    });
+  }, 120_000);
+
+  it("G2: a guided EMAIL refusal routes to recordComposeRefused with channel email (the email.compose_refused.v1 twin)", async (t) => {
+    if (!env) return t.skip();
+
+    const guidedEmailGraph: CampaignGraph = {
+      entry: "g1",
+      nodes: [
+        {
+          id: "g1",
+          type: "step",
+          channel: "email",
+          mode: "guided",
+          content: {},
+          brief: { objective: "earn a reply", talkingPoints: ["a", "b", "c"] },
+        },
+        { id: "end1", type: "end" },
+      ],
+      edges: [{ from: "g1", to: "end1" }],
+    };
+
+    const refusing = recordedActivities(async () => {
+      throw ApplicationFailure.create({
+        type: "ComposeRefusedError",
+        nonRetryable: true,
+        message: "Compose refused (SUBJECT_RULE)",
+        details: [{ reason: "SUBJECT_RULE", detail: 'contains banned pattern(s): "quick question"' }],
+      });
+    });
+    const tq = `tq-${++seq}`;
+    const worker = await makeWorker(refusing.acts, tq);
+    await worker.runUntil(async () => {
+      const handle = await env!.client.workflow.start("campaignWorkflow", {
+        taskQueue: tq,
+        workflowId: `t-guided-email-refused-${seq}`,
+        args: [inputFor(guidedEmailGraph, seq)],
+      });
+      await expect(handle.result()).resolves.toMatchObject({
+        status: "blocked",
+        node: "g1",
+        reason: "SUBJECT_RULE",
+      });
+    });
+    expect(refusing.calls.sends).toHaveLength(1);
+    expect(refusing.calls.composeRefused).toEqual([
+      expect.objectContaining({ nodeId: "g1", channel: "email", reason: "SUBJECT_RULE" }),
+    ]);
+    expect(refusing.calls.blocked).toHaveLength(0);
+  }, 120_000);
 });

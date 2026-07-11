@@ -67,7 +67,7 @@ export function fixtureFor(intent: Intent): ReplyIntentFixture {
 }
 
 /**
- * L1 (DEC-071): pinned MULTILINGUAL replies — proof the understanding side of
+ * L1 (DEC-072): pinned MULTILINGUAL replies — proof the understanding side of
  * the loop is language-agnostic with ZERO classifier code change: a German
  * and a French inbound reply classify to the right intent and branch/stage
  * exactly like their English siblings. A SEPARATE constant on purpose — the

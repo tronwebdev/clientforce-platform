@@ -25,7 +25,7 @@ export {
   DISTILL_PROMPT_VERSION_LANGUAGE,
   DISTILL_SYSTEM,
 } from "./prompts";
-// L1 (DEC-071): evidence-pack language detection + the guardrails write rules.
+// L1 (DEC-072): evidence-pack language detection + the guardrails write rules.
 export {
   agentLanguageRider,
   applyDetectedLanguage,

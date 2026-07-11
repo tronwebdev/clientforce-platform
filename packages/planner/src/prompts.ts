@@ -36,22 +36,33 @@ import {
  * agents keep rendering v5 byte-identical. Derived from the v5 literal at
  * registration so the two can never drift. v2/v3/v4/v5 stay registered.
  *
- * v7/v8 (L1, DEC-071): the LANGUAGE variants — v5/v6 with an OUTPUT LANGUAGE
+ * v7 (G2, DEC-071): guided goes BOTH-channel — every MAIN-sequence step
+ * (email AND sms) becomes a mode:"guided" brief; email briefs additionally
+ * carry `subjectHint` (a subject direction, never copy). Reply-strategy
+ * steps stay fully scripted email (guided replies = the reply-draft wave,
+ * DEC-070(7)). Derived from the same v5 literal as v6. Guided agents render
+ * v7 regardless of sms-sender presence (email needs no extra sender);
+ * scripted agents keep rendering v5 byte-identical. v2–v6 stay registered.
+ *
+ * v8/v9 (L1, DEC-072): the LANGUAGE variants — v5/v7 with an OUTPUT LANGUAGE
  * section (all human-visible copy in the agent's language; machine
  * identifiers and merge tokens stay English; the boundary appends compliance
  * lines itself) inserted before GUARDRAILS. Rendered ONLY for non-English
- * agents; English agents keep rendering v5/v6 byte-identical
- * (regression-pinned). v7 derives from the v5 literal and v8 from v7 via the
- * SAME guided bullet swap as v6, so none of the four can drift.
+ * agents; English agents keep rendering v5/v7 byte-identical
+ * (regression-pinned). v8 derives from the v5 literal and v9 from **G2's v7
+ * literal** (both-channel guided — NOT G1's v6, so non-English guided agents
+ * keep both-channel semantics), via the same seam insert, so none of the
+ * registered variants can drift.
  */
 export const PLANNER_PROMPT_NAME = "planner.campaign";
 export const PLANNER_PROMPT_VERSION = 5; // F1 (DEC-069): OBSERVED OUTCOMES block layered on the v4 playbook
-// G1 (DEC-070): guided agents render v6 — v5 plus the guided-sms-briefs step
-// rule. Scripted agents keep rendering v5 byte-identical (regression-pinned).
-export const PLANNER_PROMPT_VERSION_GUIDED = 6;
-// L1 (DEC-071): non-English agents render v7 (scripted) / v8 (guided).
-export const PLANNER_PROMPT_VERSION_LANGUAGE = 7;
-export const PLANNER_PROMPT_VERSION_GUIDED_LANGUAGE = 8;
+// G2 (DEC-071): guided agents render v7 — v5 plus the both-channel guided
+// briefs step rule. Scripted agents keep rendering v5 byte-identical
+// (regression-pinned). v6 (G1's sms-only variant) stays registered.
+export const PLANNER_PROMPT_VERSION_GUIDED = 7;
+// L1 (DEC-072): non-English agents render v8 (scripted) / v9 (guided).
+export const PLANNER_PROMPT_VERSION_LANGUAGE = 8;
+export const PLANNER_PROMPT_VERSION_GUIDED_LANGUAGE = 9;
 
 export const PLANNER_SYSTEM =
   "You are a campaign planner for an outbound email agent. You design a short, effective email sequence as a " +
@@ -88,20 +99,26 @@ export const PLANNER_SYSTEM =
   "- A goodbye is graceful: accept the no, leave the door open, zero guilt, never mention unsubscribing.";
 
 /**
- * G1 (DEC-070): the guided addendum — appended to the system prompt ONLY for
- * guided agents; scripted planning keeps the exact system above.
+ * G1 (DEC-070) / G2 (DEC-071): the guided addendum — appended to the system
+ * prompt ONLY for guided agents; scripted planning keeps the exact system
+ * above. G2 widened it from sms-only to both channels (the G1 sms-only text
+ * lived here between #81 and this unit; the registry prompts v6/v7 track the
+ * same widening append-only).
  */
 export const PLANNER_SYSTEM_GUIDED =
   PLANNER_SYSTEM +
   "\n" +
-  "GUIDED SMS BRIEFS (this agent composes SMS per lead at send time):\n" +
-  'Every MAIN-SEQUENCE sms step is mode:"guided" and carries a "brief" INSTEAD of copy — never write sms body text.\n' +
+  "GUIDED BRIEFS (this agent composes each message per lead at send time):\n" +
+  'Every MAIN-SEQUENCE step — email and sms alike — is mode:"guided" and carries a "brief" INSTEAD of copy — never write step body text or subjects.\n' +
   "- A brief = objective (what this step must achieve, following the step's ROLE above) + 3-6 talkingPoints " +
   "(concrete, grounded in the business context — facts the composed message may draw from, not sentences to " +
   "paste) + optional mustSay (ONLY compliance-critical strings that must appear verbatim, e.g. a real " +
   "deadline — at most 5) + optional neverSay (step-specific bans — at most 10).\n" +
+  '- EMAIL step briefs also carry "subjectHint": a specific subject DIRECTION following the step role\'s ' +
+  'subject rule (at most 60 characters\' worth of direction — never "quick question", never clickbait); ' +
+  "the composer adapts it per lead, it is never pasted.\n" +
   "- Talking points obey the same grounding rule as copy: facts from the business context only.\n" +
-  "- Email steps — main sequence AND reply-strategy steps — stay fully scripted with subject and body as usual.";
+  "- Reply-strategy steps (the REPLY PLAYBOOK branch) stay fully scripted email with subject and body as usual.";
 
 let registered = false;
 function ensureRegistered(): void {
@@ -255,23 +272,39 @@ Reply-strategy steps set "threaded": true (they continue the thread).
   if (!v5Template.includes(v5StepBullet)) {
     throw new Error("planner prompt v6 derivation: v5 step bullet not found — realign the guided variant");
   }
-  const guidedStepBullet =
-    '- {{stepCount}} "step" nodes in the MAIN sequence. Email steps: content has "subject" and "body"; use {{tokens}} in the body (and subject where natural). Sms steps: mode "guided" with a "brief" (objective + 3-6 talkingPoints + optional mustSay/neverSay) and EMPTY content — no subject, no body, no merge tokens (the composer writes per-lead copy at send time). Reply-strategy steps stay scripted email.';
+  registerPrompt({
+    name: PLANNER_PROMPT_NAME,
+    version: 6,
+    template: v5Template.replace(
+      v5StepBullet,
+      '- {{stepCount}} "step" nodes in the MAIN sequence. Email steps: content has "subject" and "body"; use {{tokens}} in the body (and subject where natural). Sms steps: mode "guided" with a "brief" (objective + 3-6 talkingPoints + optional mustSay/neverSay) and EMPTY content — no subject, no body, no merge tokens (the composer writes per-lead copy at send time). Reply-strategy steps stay scripted email.',
+    ),
+  });
+
+  // v7 (G2, DEC-071) = v5 VERBATIM with the step bullet swapped for the
+  // BOTH-channel guided rule — derived from the same literal so v5/v7 can't
+  // drift either. v6 stays registered above (append-only registry).
+  const v7Template = v5Template.replace(
+    v5StepBullet,
+    '- {{stepCount}} "step" nodes in the MAIN sequence, EVERY one mode "guided" with a "brief" and EMPTY content — no subject, no body, no merge tokens (the composer writes per-lead copy at send time). A brief = objective (following the step\'s ROLE) + 3-6 talkingPoints + optional mustSay/neverSay. EMAIL step briefs ALSO carry "subjectHint": a specific subject direction following the role\'s subject rule — never "quick question", never clickbait. Sms step briefs carry NO subjectHint. Reply-strategy steps stay fully scripted email with "subject" and "body".',
+  );
   registerPrompt({
     name: PLANNER_PROMPT_NAME,
     version: PLANNER_PROMPT_VERSION_GUIDED,
-    template: v5Template.replace(v5StepBullet, guidedStepBullet),
+    template: v7Template,
   });
 
-  // v7/v8 (L1, DEC-071) = v5/v6 VERBATIM with the OUTPUT LANGUAGE section
-  // inserted before GUARDRAILS — derived from the same literals so the four
-  // registered variants can never drift. {{languageLabel}} carries e.g.
-  // "German (Deutsch)"; the "{{ }}" braces below are inert (no word chars),
-  // and {{tokens}} renders the same token list the step bullet documents.
+  // v8/v9 (L1, DEC-072) = v5/v7 VERBATIM with the OUTPUT LANGUAGE section
+  // inserted before GUARDRAILS. v9 derives from G2's v7 LITERAL (both-channel
+  // guided) — never G1's v6 — so a non-English guided agent keeps both-channel
+  // semantics; the seam is asserted against BOTH literals. {{languageLabel}}
+  // carries e.g. "German (Deutsch)"; the "{{ }}" braces below are inert (no
+  // word chars), and {{tokens}} renders the same token list the step bullet
+  // documents.
   const guardrailsSeam = "GUARDRAILS (constraints the plan must respect):";
-  if (!v5Template.includes(guardrailsSeam)) {
+  if (!v5Template.includes(guardrailsSeam) || !v7Template.includes(guardrailsSeam)) {
     throw new Error(
-      "planner prompt v7 derivation: v5 GUARDRAILS seam not found — realign the language variant",
+      "planner prompt v8/v9 derivation: GUARDRAILS seam not found in the v5/v7 literals — realign the language variants",
     );
   }
   const languageSection =
@@ -282,16 +315,15 @@ Reply-strategy steps set "threaded": true (they continue the thread).
     "- Industry terms this audience genuinely uses in English may stay English; everything else is natural, native-quality {{languageLabel}} — never a word-for-word translation of English phrasing.\n" +
     "- Never write opt-out or unsubscribe lines in any language — the sending layer appends the compliant line in {{languageLabel}} itself.\n" +
     "\n";
-  const v7Template = v5Template.replace(guardrailsSeam, languageSection + guardrailsSeam);
   registerPrompt({
     name: PLANNER_PROMPT_NAME,
     version: PLANNER_PROMPT_VERSION_LANGUAGE,
-    template: v7Template,
+    template: v5Template.replace(guardrailsSeam, languageSection + guardrailsSeam),
   });
   registerPrompt({
     name: PLANNER_PROMPT_NAME,
     version: PLANNER_PROMPT_VERSION_GUIDED_LANGUAGE,
-    template: v7Template.replace(v5StepBullet, guidedStepBullet),
+    template: v7Template.replace(guardrailsSeam, languageSection + guardrailsSeam),
   });
 }
 
@@ -319,9 +351,10 @@ export function renderPlannerPrompt(vars: {
   outcomes: string;
 }, guided = false, language: LanguageCode = DEFAULT_LANGUAGE): string {
   ensureRegistered();
-  // G1 (DEC-070): guided agents render v6; scripted agents keep v5 verbatim.
-  // L1 (DEC-071): non-English agents render the v7/v8 language variants;
-  // English agents keep rendering v5/v6 byte-identical.
+  // G2 (DEC-071): guided agents render v7 (both-channel briefs); scripted
+  // agents keep v5 verbatim.
+  // L1 (DEC-072): non-English agents render the v8/v9 language variants;
+  // English agents keep rendering v5/v7 byte-identical.
   if (language === "en") {
     return renderPrompt(
       PLANNER_PROMPT_NAME,

@@ -21,18 +21,43 @@ import {
   COMPLIANCE_STRINGS,
   DEFAULT_LANGUAGE,
   languagePromptLabel,
-  parseGuardrails,
-  selectStrategy,
   type LanguageCode,
   type StepBrief,
 } from "@clientforce/core";
 import { withTenant, type PrismaClient } from "@clientforce/db";
 import { z } from "zod";
+import {
+  buildCachedContext,
+  ComposeRefusedError,
+  HISTORY_TAKE,
+  renderHistory,
+  renderLead,
+  SAMPLE_LEAD,
+  strategyOf,
+  stripTrailingPunct,
+  TOKEN_SYNTAX_RE,
+  URL_RE,
+  type ComposeHistoryLine,
+  type ComposeLead,
+  type ComposeViolation,
+} from "./compose-shared";
+
+// G2 (DEC-071): the shared plumbing moved to ./compose-shared (the email
+// composer builds on the same pieces); re-exported here so G1 call sites and
+// the package surface stay byte-identical.
+export {
+  ComposeRefusedError,
+  SAMPLE_LEAD,
+  type ComposeHistoryLine,
+  type ComposeLead,
+  type ComposeRefusalReason,
+  type ComposeViolation,
+} from "./compose-shared";
 
 // ── Versioning ───────────────────────────────────────────────────────────────
 export const COMPOSER_PROMPT_NAME = "composer.sms";
 export const COMPOSER_PROMPT_VERSION = 1;
-// L1 (DEC-071): non-English agents compose on v2 — v1 plus the language
+// L1 (DEC-072): non-English agents compose on v2 — v1 plus the language
 // constraint. English agents keep rendering v1 byte-identical.
 export const COMPOSER_PROMPT_VERSION_LANGUAGE = 2;
 /** Persisted into `Message.meta.composerVersion` on every guided send (A6). */
@@ -48,42 +73,7 @@ export const SMS_COMPOSE_TARGET_CHARS = 160;
 /** Hard cap — the planner's existing sms literal ("body ≤ 300 characters"). */
 export const SMS_COMPOSE_MAX_CHARS = 300;
 
-// ── Typed refusal ────────────────────────────────────────────────────────────
-export type ComposeRefusalReason =
-  | "COMPOSER_UNCONFIGURED"
-  | "NEVER_SAY_VIOLATION"
-  | "MUST_SAY_MISSING"
-  | "TOO_LONG"
-  | "TOKEN_SYNTAX"
-  | "UNGROUNDED_URL";
-
-/** Composition failed its deterministic checks after the bounded retry. */
-export class ComposeRefusedError extends Error {
-  constructor(
-    readonly reason: ComposeRefusalReason,
-    readonly detail: string,
-  ) {
-    super(`Compose refused (${reason}): ${detail}`);
-    this.name = "ComposeRefusedError";
-  }
-}
-
 // ── Inputs ───────────────────────────────────────────────────────────────────
-export interface ComposeLead {
-  firstName?: string | null;
-  lastName?: string | null;
-  company?: string | null;
-  title?: string | null;
-  /** C2.7 custom field values (string values only are rendered). */
-  custom?: Record<string, unknown> | null;
-}
-
-export interface ComposeHistoryLine {
-  channel: string;
-  direction: "OUTBOUND" | "INBOUND";
-  text: string;
-}
-
 export interface ComposeSmsInputs {
   brief: StepBrief;
   /**
@@ -100,7 +90,7 @@ export interface ComposeSmsInputs {
   /** True when no outbound SMS exists yet for this enrollment — the boundary
    *  will append the opt-out line, so the prompt reserves room for it. */
   firstTouch: boolean;
-  /** L1 (DEC-071): the agent's output language — absent = English (v1 prompt,
+  /** L1 (DEC-072): the agent's output language — absent = English (v1 prompt,
    *  byte-identical). Non-English selects the v2 prompt and the first-touch
    *  note quotes the actual pre-translated opt-out line the boundary appends. */
   language?: LanguageCode;
@@ -114,16 +104,6 @@ export interface ComposedSms {
 }
 
 // ── Deterministic post-compose checks (pure — send path AND preview) ─────────
-export interface ComposeViolation {
-  reason: Exclude<ComposeRefusalReason, "COMPOSER_UNCONFIGURED">;
-  detail: string;
-}
-
-const TOKEN_SYNTAX_RE = /\{\{[^}]*\}\}/;
-const URL_RE = /(?:https?:\/\/|www\.)[^\s"'<>()\]]+/gi;
-
-const stripTrailingPunct = (u: string) => u.replace(/[.,;:!?]+$/, "");
-
 /**
  * Every check is a string operation — no model in the loop. Violations come
  * back named so the retry prompt (and the refusal detail) can say exactly
@@ -237,7 +217,7 @@ CONSTRAINTS:
 - {{firstTouchNote}}`;
   registerPrompt({ name: COMPOSER_PROMPT_NAME, version: COMPOSER_PROMPT_VERSION, template: v1Template });
 
-  // v2 (L1, DEC-071) = v1 VERBATIM plus the language constraint — derived
+  // v2 (L1, DEC-072) = v1 VERBATIM plus the language constraint — derived
   // from the same literal so the two can never drift. Selected ONLY for
   // non-English agents; English composes on v1 byte-identical.
   const constraintsSeam = "CONSTRAINTS:";
@@ -261,29 +241,6 @@ const composeOutputSchema = z.object({
   /** The finished SMS text — nothing else. */
   body: z.string().min(1),
 });
-
-function renderLead(lead: ComposeLead): string {
-  const custom = Object.entries(lead.custom ?? {})
-    .filter((e): e is [string, string] => typeof e[1] === "string" && e[1].trim() !== "")
-    .map(([k, v]) => `- ${k}: ${v}`);
-  const lines = [
-    `- First name: ${lead.firstName?.trim() || "(unknown)"}`,
-    `- Last name: ${lead.lastName?.trim() || "(unknown)"}`,
-    `- Company: ${lead.company?.trim() || "(unknown)"}`,
-    ...(lead.title?.trim() ? [`- Title: ${lead.title.trim()}`] : []),
-    ...custom,
-  ];
-  return lines.join("\n");
-}
-
-function renderHistory(history: ComposeHistoryLine[]): string {
-  if (history.length === 0) {
-    return "(first touch — no prior messages; identify the business naturally)";
-  }
-  return history
-    .map((h) => `- [${h.channel} · ${h.direction === "OUTBOUND" ? "we sent" : "they replied"}] ${h.text}`)
-    .join("\n");
-}
 
 function renderComposerPrompt(inputs: ComposeSmsInputs): string {
   ensureRegistered();
@@ -375,28 +332,6 @@ export interface ComposeStepParams {
  *  gateway; absent → the activity refuses typed (COMPOSER_UNCONFIGURED). */
 export type SmsStepComposer = (params: ComposeStepParams) => Promise<ComposedSms>;
 
-/** How much recent conversation the composer sees (the classifier's number). */
-const HISTORY_TAKE = 10;
-
-/**
- * Build the per-agent cacheable block: business context + derived tone +
- * owner strategy notes. Stable across every lead of one agent by
- * construction — the provider cache prefix depends on it.
- */
-function buildCachedContext(args: {
-  contextText: string;
-  toneHints: string;
-  strategyNotes?: string;
-}): string {
-  return [
-    "BUSINESS CONTEXT (the ONLY permitted source of facts — cite-worthy values distilled from the company's own materials):",
-    args.contextText,
-    "",
-    `TONE: ${args.toneHints}`,
-    ...(args.strategyNotes?.trim() ? [`OWNER STRATEGY NOTES: ${args.strategyNotes.trim()}`] : []),
-  ].join("\n");
-}
-
 export function createSmsStepComposer(deps: {
   /** RLS-subject client (`createAppPrismaClient`) — never the owner client. */
   prisma: PrismaClient;
@@ -484,13 +419,6 @@ export function createSmsStepComposer(deps: {
  * lead through the REAL checks — no contact row, no consent implications,
  * empty history (first touch). Free at launch; metering is Q-020.
  */
-export const SAMPLE_LEAD: ComposeLead = {
-  firstName: "Jane",
-  lastName: "Doe",
-  company: "Acme Dental",
-  title: "Practice manager",
-};
-
 export async function composeSampleSms(
   deps: { prisma: PrismaClient; gateway: AiGateway },
   params: { workspaceId: string; agentId: string; brief: StepBrief },
@@ -525,26 +453,4 @@ export async function composeSampleSms(
     firstTouch: true,
     language: strategy.language,
   });
-}
-
-/** Agent-stable composer inputs from goal/category/guardrails — lenient like
- *  the planner's rider read: an unparsable row composes with defaults
- *  (English, no notes, no bans). */
-function strategyOf(
-  goal: string | null | undefined,
-  category: string | null | undefined,
-  guardrails: unknown,
-): { toneHints: string; strategyNotes?: string; neverSay: string[]; language: LanguageCode } {
-  const { toneHints } = selectStrategy(goal, category);
-  try {
-    const parsed = parseGuardrails(guardrails);
-    return {
-      toneHints,
-      strategyNotes: parsed.strategy?.strategyNotes,
-      neverSay: parsed.strategy?.neverSay ?? [],
-      language: parsed.language ?? DEFAULT_LANGUAGE,
-    };
-  } catch {
-    return { toneHints, neverSay: [], language: DEFAULT_LANGUAGE };
-  }
 }

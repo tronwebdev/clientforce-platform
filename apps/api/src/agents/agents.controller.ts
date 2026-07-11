@@ -228,7 +228,7 @@ export class AgentsController {
         } catch {
           throw new BadRequestException("Guardrails failed A8 schema validation");
         }
-        // L1 (DEC-071): the language rider is SYSTEM-written too (the
+        // L1 (DEC-072): the language rider is SYSTEM-written too (the
         // distiller's detection runs while the wizard is open) — a caller
         // that OMITS it must not clobber it: the wizard's step-5 guardrails
         // rebuild and any stale-read compose would otherwise erase a

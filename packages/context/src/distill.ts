@@ -97,7 +97,7 @@ export async function distill(deps: DistillDeps, target: DistillTarget): Promise
     const evidence = await gatherEvidence(deps, workspaceId, agentId, keys);
     const existing = parseFields(row.fields);
 
-    // L1 (DEC-071): detect the pack's dominant language (agent layer only —
+    // L1 (DEC-072): detect the pack's dominant language (agent layer only —
     // the workspace/Brand-kit layer has no agent to write to). Deterministic
     // + confidence-gated: mixed or ambiguous evidence means English.
     const detection = agentId ? detectLanguage(detectionCorpus(evidence, existing)) : null;
@@ -192,7 +192,7 @@ export async function distill(deps: DistillDeps, target: DistillTarget): Promise
       }),
     );
 
-    // L1 (DEC-071): persist the detection as the agent's default language —
+    // L1 (DEC-072): persist the detection as the agent's default language —
     // AFTER the distill committed (a failed run never moves the language).
     // Owner-set values are never touched; ambiguous packs clear a previous
     // detector write so sequential source-adds converge to English.

@@ -152,7 +152,7 @@ describe.skipIf(!hasInfra)("sendStep boundary integration", () => {
     expect(message.stepNodeId).toBe("step-1");
   });
 
-  it("L1 (DEC-071): a GERMAN agent's footer renders the pre-translated constants — address verbatim, label deterministic", async () => {
+  it("L1 (DEC-072): a GERMAN agent's footer renders the pre-translated constants — address verbatim, label deterministic", async () => {
     const germanAgentId = (
       await owner.agent.create({
         data: {

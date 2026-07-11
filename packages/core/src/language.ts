@@ -1,5 +1,5 @@
 /**
- * Agent output language (L1, DEC-071) — the curated launch-language registry,
+ * Agent output language (L1, DEC-072) — the curated launch-language registry,
  * the deterministic language detector, and the pre-translated compliance
  * strings the send boundaries render.
  *
@@ -169,7 +169,7 @@ export const LANGUAGE_DETECT_MAX_CHARS = 20_000;
  * Detect the dominant launch language of a text corpus. Pure string work —
  * deterministic, so distill fixtures and the planner's language rail can pin
  * outcomes exactly. Mixed corpora (two languages both scoring high) fail the
- * margin gate on purpose: MIXED evidence means English default (DEC-071).
+ * margin gate on purpose: MIXED evidence means English default (DEC-072).
  */
 export function detectLanguage(text: string): LanguageDetection {
   const corpus = text.slice(0, LANGUAGE_DETECT_MAX_CHARS).toLowerCase();

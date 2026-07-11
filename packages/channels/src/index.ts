@@ -61,7 +61,7 @@ export {
   type ClassifyWorkerDeps,
 } from "./classify";
 // M1b (DEC-068): pinned reply→intent fixtures — the classification contract.
-// L1 (DEC-071): + the multilingual pins (German/French replies, same intents).
+// L1 (DEC-072): + the multilingual pins (German/French replies, same intents).
 export {
   MULTILINGUAL_REPLY_FIXTURES,
   REPLY_INTENT_FIXTURES,
@@ -110,3 +110,26 @@ export {
   type ComposeViolation,
   type SmsStepComposer,
 } from "./compose-sms";
+// ── G2 (DEC-071): guided EMAIL composer — subject + body, arc-role aware ─────
+export {
+  arcRoleFor,
+  checkComposedEmail,
+  composeEmail,
+  composeSampleEmail,
+  COMPOSED_FOOTER_PATTERNS,
+  COMPOSER_EMAIL_PROMPT_NAME,
+  COMPOSER_EMAIL_PROMPT_VERSION,
+  COMPOSER_EMAIL_PROMPT_VERSION_LANGUAGE,
+  COMPOSER_EMAIL_SYSTEM,
+  COMPOSER_EMAIL_VERSION,
+  composerEmailVersionFor,
+  createEmailStepComposer,
+  EMAIL_COMPOSE_MAX_WORDS,
+  EMAIL_COMPOSE_TARGET_WORDS,
+  EMAIL_SUBJECT_MAX_CHARS,
+  type ComposeArcRole,
+  type ComposedEmail,
+  type ComposeEmailInputs,
+  type ComposeEmailStepParams,
+  type EmailStepComposer,
+} from "./compose-email";

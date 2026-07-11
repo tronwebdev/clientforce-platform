@@ -6,7 +6,7 @@ import {
   AnthropicProvider,
   OpenAiEmbeddingsProvider,
 } from "@clientforce/ai";
-import { createClassifyWorker, createSmsStepComposer, SendGridSender , TwilioSmsSender} from "@clientforce/channels";
+import { createClassifyWorker, createEmailStepComposer, createSmsStepComposer, SendGridSender , TwilioSmsSender} from "@clientforce/channels";
 import { isConfigured } from "@clientforce/config";
 import { goalKeySchema, type GoalKey } from "@clientforce/core";
 import { createDistillQueue, createDistillWorker } from "@clientforce/context";
@@ -316,16 +316,24 @@ async function run(): Promise<void> {
       transport: new SendGridSender(),
       // P2.1 (DEC-061): sms steps route through Twilio (SMS_SANDBOX default ON).
       smsTransport: new TwilioSmsSender(),
-      // G1 (DEC-070): guided sms steps compose per lead on the copy route —
-      // key absent → guided steps refuse typed (COMPOSER_UNCONFIGURED), the
-      // same honest-absence pattern as the transports.
+      // G1 (DEC-070) / G2 (DEC-071): guided steps compose per lead on the
+      // copy route — key absent → guided steps refuse typed
+      // (COMPOSER_UNCONFIGURED), the same honest-absence pattern as the
+      // transports. One gateway serves both channel composers.
       ...(process.env.ANTHROPIC_API_KEY
-        ? {
-            composeSms: createSmsStepComposer({
-              prisma: activityPrisma,
-              gateway: new AiGateway({ provider: new AnthropicProvider() }),
-            }),
-          }
+        ? (() => {
+            const composeGateway = new AiGateway({ provider: new AnthropicProvider() });
+            return {
+              composeSms: createSmsStepComposer({
+                prisma: activityPrisma,
+                gateway: composeGateway,
+              }),
+              composeEmail: createEmailStepComposer({
+                prisma: activityPrisma,
+                gateway: composeGateway,
+              }),
+            };
+          })()
         : {}),
       ...(stageBus
         ? {
@@ -344,11 +352,15 @@ async function run(): Promise<void> {
                 },
               });
             },
-            // G1: the composer refusal's Logs row (Event) — the pause itself
-            // persists in the activity regardless of the bus.
+            // G1/G2: the composer refusal's Logs row (Event) — the pause
+            // itself persists in the activity regardless of the bus; the
+            // step's channel picks the catalog twin.
             publishComposeRefused: async (refusal) => {
               await stageBus.publish({
-                type: "sms.compose_refused.v1",
+                type:
+                  refusal.channel === "email"
+                    ? "email.compose_refused.v1"
+                    : "sms.compose_refused.v1",
                 workspaceId: refusal.workspaceId,
                 contactId: refusal.contactId,
                 enrollmentId: refusal.enrollmentId,

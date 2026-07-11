@@ -35,7 +35,7 @@ export interface AgentViewData {
     strategy?: { strategyNotes?: string; neverSay?: string[] };
     /** G1 (DEC-070): per-agent compose mode — absent = scripted. */
     composeMode?: "scripted" | "guided";
-    /** L1 (DEC-071): output language rider — absent = English. */
+    /** L1 (DEC-072): output language rider — absent = English. */
     language?: LanguageCode;
     languageSource?: "detected" | "owner";
     unsubscribeFooter: true;

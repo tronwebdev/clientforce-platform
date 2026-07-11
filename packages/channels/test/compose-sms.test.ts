@@ -171,7 +171,7 @@ describe("composeSms (bounded retry → typed refusal)", () => {
   });
 });
 
-describe("composer language (L1, DEC-071 — v2 for non-English, v1 byte-identical for English)", () => {
+describe("composer language (L1, DEC-072 — v2 for non-English, v1 byte-identical for English)", () => {
   // German copy that passes every deterministic check: mustSay quoted verbatim,
   // no bans, no tokens, no foreign URLs, under the cap.
   const CLEAN_DE =

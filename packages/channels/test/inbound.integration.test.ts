@@ -216,7 +216,7 @@ describe.skipIf(!hasInfra)("inbound thread resolution + side effects", () => {
     }
   });
 
-  // L1 (DEC-071): the multilingual pins ride the SAME path — no classifier
+  // L1 (DEC-072): the multilingual pins ride the SAME path — no classifier
   // code change; a German and a French reply classify to their pinned intents.
   it("classifies the multilingual pinned fixtures (German + French) to their pins", async () => {
     for (const fixture of MULTILINGUAL_REPLY_FIXTURES) {

@@ -9,7 +9,7 @@
  * rollup's last-sent-step attribution supersedes it.) The prototype's
  * sequence cards carry no stat chips — §0 convention addition, flagged.
  */
-import { GUIDED_SMS_CREDITS, type CampaignOutcomes } from "@clientforce/core";
+import { GUIDED_EMAIL_CREDITS, GUIDED_SMS_CREDITS, type CampaignOutcomes } from "@clientforce/core";
 import { OutcomeBadge } from "../../../../../components/OutcomeBadge";
 import type { AgentViewData } from "./AgentView";
 import { intentTint } from "./shared";
@@ -86,12 +86,13 @@ export function StepsTab({ view, outcomes }: { view: AgentViewData | null; outco
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
                   <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", color: "#8A7F6B" }}>Step {idx}</span>
                   <span style={{ fontSize: 12, fontWeight: 700, borderRadius: 8, padding: "3px 10px", background: n.channel === "sms" ? "rgba(54,215,237,.14)" : "rgba(53,232,52,.13)", color: n.channel === "sms" ? "#1192A6" : "#16A82A" }} data-testid="step-channel-chip">{n.channel === "sms" ? "SMS" : "Email"}</span>
-                  {/* G1 (DEC-070): guided step = brief card — objective + bullets,
-                      composed per lead at send time; credits display-only (Q-020). */}
+                  {/* G1 (DEC-070) / G2 (DEC-071): guided step = brief card — objective
+                      + bullets, composed per lead at send time; per-channel credits
+                      display-only (Q-020). */}
                   {guided ? (
                     <>
                       <span style={{ fontSize: 11, fontWeight: 700, color: "#1192A6", background: "rgba(54,215,237,.14)", borderRadius: 7, padding: "3px 9px" }} data-testid="step-guided-tag">✦ Composed at send</span>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: "#8A7F6B", background: "#F2EEE4", borderRadius: 7, padding: "3px 9px" }} data-testid="step-guided-credits">{GUIDED_SMS_CREDITS} credits / send</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "#8A7F6B", background: "#F2EEE4", borderRadius: 7, padding: "3px 9px" }} data-testid="step-guided-credits">{n.channel === "sms" ? GUIDED_SMS_CREDITS : GUIDED_EMAIL_CREDITS} credits / send</span>
                     </>
                   ) : null}
                   {/* F1 (DEC-068): outcome badge — none renders nothing (honest absence) */}
@@ -104,6 +105,10 @@ export function StepsTab({ view, outcomes }: { view: AgentViewData | null; outco
                 {guided ? (
                   <>
                     <div style={{ fontSize: 15, fontWeight: 600, color: "#0E1512", marginBottom: 5 }}>{n.brief!.objective}</div>
+                    {/* G2: the email brief's subject direction — a hint, never copy */}
+                    {n.channel === "email" && n.brief!.subjectHint ? (
+                      <div style={{ fontSize: 12.5, color: "#8A7F6B", marginBottom: 5 }} data-testid="step-brief-subject-hint">Subject hint: <span style={{ color: "#5C6B62", fontWeight: 600 }}>{n.brief!.subjectHint}</span></div>
+                    ) : null}
                     <div style={{ display: "flex", flexDirection: "column", gap: 3 }} data-testid="step-brief-points">
                       {n.brief!.talkingPoints.map((p, i) => (
                         <div key={i} style={{ fontSize: 13, color: "#5C6B62", lineHeight: 1.45, display: "flex", gap: 8 }}>

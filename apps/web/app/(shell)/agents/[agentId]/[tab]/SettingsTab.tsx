@@ -61,7 +61,7 @@ export function SettingsTab({ agentId, view, onChanged }: { agentId: string; vie
   const [neverSayInput, setNeverSayInput] = useState("");
   // G1 (DEC-070): per-agent compose mode — absent on the row = scripted.
   const [composeMode, setComposeMode] = useState<"scripted" | "guided">("scripted");
-  // L1 (DEC-071): output language rider — absent on the row = English.
+  // L1 (DEC-072): output language rider — absent on the row = English.
   const [language, setLanguage] = useState<LanguageCode>("en");
   const [languageSource, setLanguageSource] = useState<"detected" | "owner" | undefined>();
   const [langMenuOpen, setLangMenuOpen] = useState(false);
@@ -111,7 +111,7 @@ export function SettingsTab({ agentId, view, onChanged }: { agentId: string; vie
     // carries it — an untouched legacy row stays byte-identical (absent =
     // scripted), and an unrelated edit never clobbers the mode.
     const outMode = next.composeMode ?? g?.composeMode;
-    // L1 (DEC-071): a pick here writes the language with source "owner"
+    // L1 (DEC-072): a pick here writes the language with source "owner"
     // (sticky — the detector never overrides an owner choice); an unrelated
     // edit carries the row's current rider through. The API additionally
     // preserves a system-written rider when the payload omits it, so a stale
@@ -296,7 +296,7 @@ export function SettingsTab({ agentId, view, onChanged }: { agentId: string; vie
 
       <div style={{ ...label, marginTop: 8 }}>Language</div>
 
-      {/* L1 (DEC-071) — designed section, no prototype anchor (§0 card/label
+      {/* L1 (DEC-072) — designed section, no prototype anchor (§0 card/label
           conventions, DEC-065(6) precedent). The language is read at
           generation time (planner/composer/distiller) and at send time only
           to pick the pre-translated compliance constants below. */}
@@ -377,17 +377,18 @@ export function SettingsTab({ agentId, view, onChanged }: { agentId: string; vie
 
       <div style={{ ...label, marginTop: 8 }}>Message composing</div>
 
-      {/* G1 (DEC-070) — designed section, no prototype anchor (§0 card/label
-          conventions, DEC-065(6) precedent). The mode is baked into each
-          planned step, so the toggle steers FUTURE generations/sends. */}
+      {/* G1 (DEC-070) / G2 (DEC-071) — designed section, no prototype anchor
+          (§0 card/label conventions, DEC-065(6) precedent). The mode is baked
+          into each planned step, so the toggle steers FUTURE generations/
+          sends. G2 widened guided from sms-only to email + sms. */}
       <div style={{ ...card, padding: "18px 20px" }} data-testid="settings-compose-mode">
-        <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 16, color: "#0E1512" }}>How this agent writes SMS</div>
-        <div style={{ fontSize: 12.5, color: "#9AA59E", marginTop: 2, marginBottom: 14 }}>Email steps stay scripted either way this phase.</div>
+        <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 16, color: "#0E1512" }}>How this agent writes messages</div>
+        <div style={{ fontSize: 12.5, color: "#9AA59E", marginTop: 2, marginBottom: 14 }}>Applies to email and SMS sequence steps; replies to leads stay scripted this phase.</div>
         <div style={{ display: "flex", gap: 10 }}>
           {(
             [
               { key: "scripted" as const, title: "Scripted", desc: "Sends each step's exact saved copy — what you see is what every lead gets." },
-              { key: "guided" as const, title: "✦ AI-guided", desc: "Steps carry talking points; the AI composes each SMS per lead at send time, checked before anything sends." },
+              { key: "guided" as const, title: "✦ AI-guided", desc: "Steps carry talking points; the AI composes each email or SMS per lead at send time, checked before anything sends. Compliance footers are always added by the platform." },
             ]
           ).map((opt) => {
             const on = composeMode === opt.key;
@@ -409,7 +410,7 @@ export function SettingsTab({ agentId, view, onChanged }: { agentId: string; vie
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12.5, color: "#8A7F6B", background: "rgba(53,232,52,.07)", borderRadius: 10, padding: "10px 13px", marginTop: 12 }} data-testid="compose-mode-footnote">
           <span style={{ fontSize: 13 }}>ⓘ</span>
-          <span>Applies to future sends — sequences you generate from now on plan {composeMode === "guided" ? "guided" : "scripted"} SMS steps. Steps already planned keep their mode until you regenerate the sequence; messages already sent are unchanged.</span>
+          <span>Applies to future sends — sequences you generate from now on plan {composeMode === "guided" ? "guided" : "scripted"} steps. Steps already planned keep their mode until you regenerate the sequence; messages already sent are unchanged.</span>
         </div>
       </div>
 

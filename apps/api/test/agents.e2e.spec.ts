@@ -243,7 +243,7 @@ describe.skipIf(!hasDb)("Agents API e2e", () => {
       .expect(400); // PRESENT-yet-invalid never widens — designed 400 (DEC-065)
   });
 
-  it("L1 (DEC-071): a guardrails PATCH that OMITS language preserves the system-written rider; sending it writes it", async () => {
+  it("L1 (DEC-072): a guardrails PATCH that OMITS language preserves the system-written rider; sending it writes it", async () => {
     const base = {
       sendingWindow: { days: [1, 2, 3, 4, 5], start: "09:00", end: "17:00", timezone: "UTC" },
       dailyCap: { email: 200 },
