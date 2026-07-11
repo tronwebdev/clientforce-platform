@@ -1,0 +1,74 @@
+# G1 (DEC-068) guided-SMS staging proof: a REAL Sonnet-class composer renders
+# two leads' SMS from one brief through the full activity path — compose →
+# deterministic checks → the unchanged boundary rails — with the Twilio
+# transport in SANDBOX (nothing real is sent; carrier delivery was P2.1's
+# proof). Gates: variety, grounding, cage (length/tokens/opt-out/meta), and
+# the trap-brief refusal walk (retry → typed refusal → pause + Event row via
+# a REAL bus). Manual dispatch only; the API key comes from Key Vault OIDC.
+name: guided-sms-live-proof
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  TURBO_TELEMETRY_DISABLED: 1
+  DATABASE_URL: postgresql://postgres@localhost:5432/clientforce
+  APP_DATABASE_URL: postgresql://clientforce_app@localhost:5432/clientforce
+  REDIS_URL: redis://localhost:6379
+  KEY_VAULT_NAME: ${{ vars.KEY_VAULT_NAME }}
+
+jobs:
+  proof:
+    name: real compose ×2 leads · cage gates · trap-brief refusal
+    runs-on: ubuntu-latest
+    environment: staging
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: clientforce
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @clientforce/workflows... build
+      - run: pnpm --filter @clientforce/db db:migrate
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Run guided compose proof (sandbox transport; key masked)
+        run: |
+          set -euo pipefail
+          key="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name ANTHROPIC-API-KEY --query value -o tsv)"
+          echo "::add-mask::$key"
+          ANTHROPIC_API_KEY="$key" pnpm exec tsx packages/workflows/scripts/guided-sms-live-proof.ts
