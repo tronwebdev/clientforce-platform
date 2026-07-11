@@ -225,3 +225,23 @@ export type StrategyBlock = z.infer<typeof strategyBlockSchema>;
  */
 export const GUIDED_SMS_CREDITS = 3;
 export const GUIDED_EMAIL_CREDITS = 2;
+
+// ── Per-action credit prices (W3-3) ──────────────────────────────────────────
+/**
+ * DISPLAY-ONLY per-action credit prices for the wizard's COMPUTED launch
+ * estimate (W3-3: draft sequence composition × per-channel price × real
+ * audience count — never a hardcoded figure). The values MIRROR the db
+ * seed's `DEFAULT_CREDIT_PRICES` (packages/db/prisma/seed.ts); the editable
+ * `CreditPrice` table becomes the runtime source when the billing unit
+ * lands — until then nothing is emitted or charged off these (Q-020), and
+ * scripted sends price by channel here while guided sends keep their
+ * GUIDED_*_CREDITS display figures above.
+ */
+export const CREDIT_PRICES = {
+  email_send: 1,
+  sms_segment: 5,
+  whatsapp_msg: 8,
+  voice_minute: 40,
+  enrichment: 10,
+  signal_lead: 15,
+} as const;

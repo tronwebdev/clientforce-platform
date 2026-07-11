@@ -35,13 +35,40 @@ export const draftStateSchema = z.object({
         id: z.string(),
         email: z.string(),
         firstName: z.string().optional(),
+        /** W3-7: the audience-preview rows render name · email · company. */
+        lastName: z.string().optional(),
+        company: z.string().optional(),
         /** C2.8 (49-3): how the contact was added — drives enrollment provenance. */
         src: z.enum(["manual", "csv"]).optional(),
       }),
     )
     .max(500)
     .optional(),
-  capture: z.object({ widget: z.boolean(), form: z.boolean() }).optional(),
+  capture: z
+    .object({
+      widget: z.boolean(),
+      form: z.boolean(),
+      /**
+       * W3-9/W3-10 additions — ALL optional so pre-W3 drafts parse
+       * unchanged. Visual-only config (checkpoints §3: toggle state
+       * persists, no capture backend): master toggle, the third inbound
+       * asset, and the auto-prospecting config. `ap` absent = no explicit
+       * user choice — the goal-fit default applies at render.
+       */
+      enabled: z.boolean().optional(),
+      embed: z.boolean().optional(),
+      ap: z.boolean().optional(),
+      apKeywords: z.array(z.string().max(60)).max(20).optional(),
+      apParams: z.record(z.string(), z.string().max(60)).optional(),
+      apSignals: z.record(z.string(), z.boolean()).optional(),
+    })
+    .optional(),
+  /**
+   * W3-1: step-3 CSV import lands in a list; the draft keeps only the
+   * REFERENCE — name/count re-resolve from the server on resume, exactly
+   * like `pickedListId` (B6 rule: lists resolve live, never copied).
+   */
+  csvListId: z.string().optional(),
   dailyCap: z.number().int().min(1).max(10000).optional(),
   /** P2.1 (DEC-061): the sms daily cap (guardrails dailyCap.sms). */
   smsDailyCap: z.number().int().min(1).max(10000).optional(),
