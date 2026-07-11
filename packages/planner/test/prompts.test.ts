@@ -1,9 +1,11 @@
 /**
  * The prompt-layer before/after across the append-only registry (P1.1):
- * v5 (F1, DEC-069) layers the OBSERVED OUTCOMES section on v4's playbook;
- * v4 (M1b, DEC-068) carries the six-intent REPLY PLAYBOOK; v3 (M1a, DEC-065)
- * carries the selling craft + STRATEGY block but no playbook; v2 carries
- * neither. All stay registered. Pure, no infra.
+ * v7 (G2, DEC-071) makes every main-sequence step a guided brief (email
+ * briefs + subjectHint); v6 (G1, DEC-070) guided sms briefs only; v5 (F1,
+ * DEC-069) layers the OBSERVED OUTCOMES section on v4's playbook; v4 (M1b,
+ * DEC-068) carries the six-intent REPLY PLAYBOOK; v3 (M1a, DEC-065) carries
+ * the selling craft + STRATEGY block but no playbook; v2 carries neither.
+ * All stay registered. Pure, no infra.
  */
 import { describe, expect, it } from "vitest";
 import { renderPrompt } from "@clientforce/ai";
@@ -174,17 +176,15 @@ describe("planner prompt v6 — guided sms briefs (G1, DEC-070; layered on v5)",
     outcomes: "",
   };
 
-  it("is pinned at version 6, registered beside v2–v5 (append-only registry)", () => {
-    expect(PLANNER_PROMPT_VERSION_GUIDED).toBe(6);
-    expect(renderPlannerPrompt(guidedVars, true)).toContain('Sms steps: mode "guided"');
-  });
-
-  it("v6 instructs briefs for sms steps; email steps (main AND reply-strategy) stay scripted", () => {
-    const v6 = renderPlannerPrompt(guidedVars, true);
+  it("v6 stays REGISTERED beside v2–v5 (append-only registry), sms-briefs-only as G1 shipped it", () => {
+    renderPlannerPrompt(guidedVars, true); // ensure registration ran
+    const v6 = renderPrompt(PLANNER_PROMPT_NAME, 6, guidedVars);
+    expect(v6).toContain('Sms steps: mode "guided"');
     expect(v6).toContain('"brief" (objective + 3-6 talkingPoints + optional mustSay/neverSay)');
     expect(v6).toContain("EMPTY content — no subject, no body, no merge tokens");
     expect(v6).toContain('Email steps: content has "subject" and "body"');
     expect(v6).toContain("Reply-strategy steps stay scripted email.");
+    expect(v6).not.toContain("subjectHint"); // the hint is v7's (G2)
     // Everything ELSE is v5 verbatim (v6 derives from the same literal): the
     // STRATEGY block, the six-case REPLY PLAYBOOK, the outcomes slot.
     expect(v6).toContain("STRATEGY (the selling method for this agent — follow it):");
@@ -199,17 +199,55 @@ describe("planner prompt v6 — guided sms briefs (G1, DEC-070; layered on v5)",
     const v5 = renderPlannerPrompt(guidedVars, false);
     expect(v5).not.toContain("guided");
     expect(v5).not.toContain('"brief"');
-    // The exact F1 step bullet (rendered), untouched by the v6 derivation.
+    // The exact F1 step bullet (rendered), untouched by the v6/v7 derivations.
     expect(v5).toContain(
       '- 3-4 "step" nodes in the MAIN sequence; each content has "subject" and "body"; use {{firstName}} and {{company}} in the body (and subject where natural).',
     );
   });
+});
 
-  it("the guided SYSTEM addendum extends the scripted system verbatim (prefix-stable)", () => {
+describe("planner prompt v7 — both-channel guided briefs (G2, DEC-071; layered on v5)", () => {
+  const guidedVars = {
+    ...baseVars,
+    arcLabel: fixture.arc.label,
+    arcDescription: fixture.arc.description,
+    arcRoles: fixture.arc.roles.map((r, i) => `  ${i + 1}. ${r}`).join("\n"),
+    toneHints: fixture.toneHints,
+    strategyNotes: "(none)",
+    neverSay: "(none)",
+    outcomes: "",
+  };
+
+  it("is pinned at version 7 — guided agents render it (email needs no extra sender)", () => {
+    expect(PLANNER_PROMPT_VERSION_GUIDED).toBe(7);
+    const v7 = renderPlannerPrompt(guidedVars, true);
+    expect(v7).toContain('EVERY one mode "guided" with a "brief" and EMPTY content');
+  });
+
+  it("v7 instructs briefs for ALL main-sequence steps; email briefs carry subjectHint, sms briefs do not; strategy steps stay scripted", () => {
+    const v7 = renderPlannerPrompt(guidedVars, true);
+    expect(v7).toContain("no subject, no body, no merge tokens");
+    expect(v7).toContain('EMAIL step briefs ALSO carry "subjectHint"');
+    expect(v7).toContain('never "quick question", never clickbait');
+    expect(v7).toContain("Sms step briefs carry NO subjectHint.");
+    expect(v7).toContain('Reply-strategy steps stay fully scripted email with "subject" and "body".');
+    // Everything ELSE is v5 verbatim (v7 derives from the same literal): the
+    // STRATEGY block, the six-case REPLY PLAYBOOK, the outcomes slot.
+    expect(v7).toContain("STRATEGY (the selling method for this agent — follow it):");
+    expect(v7).toContain("REPLY PLAYBOOK (one case per classified intent — EXACTLY these six");
+    const v5 = renderPlannerPrompt(guidedVars, false);
+    expect(v7.replace(/- 3-4 "step" nodes in the MAIN sequence,[^\n]*/, "")).toBe(
+      v5.replace(/- 3-4 "step" nodes in the MAIN sequence;[^\n]*/, ""),
+    );
+  });
+
+  it("the guided SYSTEM addendum extends the scripted system verbatim (prefix-stable), both channels", () => {
     expect(PLANNER_SYSTEM_GUIDED.startsWith(PLANNER_SYSTEM)).toBe(true);
-    expect(PLANNER_SYSTEM_GUIDED).toContain("GUIDED SMS BRIEFS");
-    expect(PLANNER_SYSTEM_GUIDED).toContain("never write sms body text");
+    expect(PLANNER_SYSTEM_GUIDED).toContain("GUIDED BRIEFS");
+    expect(PLANNER_SYSTEM_GUIDED).toContain("email and sms alike");
+    expect(PLANNER_SYSTEM_GUIDED).toContain('"subjectHint"');
+    expect(PLANNER_SYSTEM_GUIDED).toContain("Reply-strategy steps (the REPLY PLAYBOOK branch) stay fully scripted email");
     // The scripted system itself carries none of it.
-    expect(PLANNER_SYSTEM).not.toContain("GUIDED SMS BRIEFS");
+    expect(PLANNER_SYSTEM).not.toContain("GUIDED BRIEFS");
   });
 });
