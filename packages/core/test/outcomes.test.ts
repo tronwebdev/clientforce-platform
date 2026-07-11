@@ -201,6 +201,15 @@ describe("computeOutcomes — reply attribution (LAST-SENT step)", () => {
     expect(steps[0]!.replies).toBe(0);
   });
 
+  it("an unattributable reply (no thread pointer, no prior send) counts in totals only", () => {
+    // The only outbound was sent AFTER the reply — last-sent-before finds nothing.
+    const m1 = out({ stepNodeId: "step-1", sentAt: at(100) });
+    const reply = inb({ inReplyToId: null, sentAt: at(10) });
+    const { steps, totals } = compute({ outbound: [m1], inbound: [reply], events: [replyEvt(reply.id)] });
+    expect(steps.every((s) => s.replies === 0)).toBe(true);
+    expect(totals.replies).toBe(1);
+  });
+
   it("excludes unsubscribe-intent replies from reply counts (DEC-034: side-effect label)", () => {
     const m1 = out({ stepNodeId: "step-1", sentAt: at(0) });
     const reply = inb({ inReplyToId: m1.id, intent: "unsubscribe", sentAt: at(10) });
@@ -222,6 +231,19 @@ describe("computeOutcomes — delivered + opt-out attribution", () => {
       events: [evt({ type: "email.delivered.v1", payload: { messageId: m1.id } })],
     });
     expect(steps[0]!.delivered).toBe(1);
+  });
+
+  it("counts delivered per MESSAGE, not per event — an at-least-once webhook retry can never report delivered > sent", () => {
+    const m1 = out({ stepNodeId: "step-1" });
+    const { steps, totals } = compute({
+      outbound: [m1],
+      events: [
+        evt({ type: "email.delivered.v1", payload: { messageId: m1.id } }),
+        evt({ type: "email.delivered.v1", payload: { messageId: m1.id } }), // provider retry, new event row
+      ],
+    });
+    expect(steps[0]!.delivered).toBe(1);
+    expect(totals.delivered).toBe(1);
   });
 
   it("reports delivered: null for channels without delivery telemetry (sms)", () => {

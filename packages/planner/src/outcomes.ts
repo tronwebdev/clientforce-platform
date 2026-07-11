@@ -72,6 +72,11 @@ export async function loadCampaignOutcomes(
     ...OUTCOME_EVENT_TYPES.goal,
   ];
 
+  // Scale bound (owner decision, F1: pre-launch, no warehouse): the whole
+  // campaign ledger is materialized per request — same shape the Inbox tab
+  // already accepts (it fetches these rows WITH bodies on a 5s poll). The
+  // Phase-10 analytics rollup (DATA_MODEL §8 MetricDaily) supersedes this
+  // read at scale; do not bolt silent caps on here (truncation would lie).
   const [messages, enrollments] = await Promise.all([
     tx.message.findMany({
       where: { campaignId: campaign.id },
@@ -89,13 +94,27 @@ export async function loadCampaignOutcomes(
     tx.enrollment.findMany({ where: { campaignId: campaign.id }, select: { id: true } }),
   ]);
 
-  // Opt-out events from the unsubscribe-reply path carry NO campaignId (F1
-  // plan §0.3) — fetch by campaign OR the campaign's enrollments; compute
-  // dedupes by event id.
+  // Opt-out events don't reliably carry a campaignId: the unsubscribe-reply
+  // path stamps only contact+enrollment (F1 plan §0.3), and two live emitters
+  // (contacts bulk-unsub on a lead with no ACTIVE/PAUSED enrollment; the SMS
+  // STOP fallback) stamp ONLY contactId. Fetch by campaign OR the campaign's
+  // enrollments OR — for opt-out types alone — unstamped events on contacts
+  // this campaign messaged; compute dedupes by event id and only attributes
+  // where one of THIS campaign's sends precedes the event.
+  const contactIds = [...new Set(messages.map((m) => m.contactId))];
   const events = await tx.event.findMany({
     where: {
       type: { in: eventTypes },
-      OR: [{ campaignId: campaign.id }, { enrollmentId: { in: enrollments.map((e) => e.id) } }],
+      OR: [
+        { campaignId: campaign.id },
+        { enrollmentId: { in: enrollments.map((e) => e.id) } },
+        {
+          type: { in: [...OUTCOME_EVENT_TYPES.optOut] },
+          campaignId: null,
+          enrollmentId: null,
+          contactId: { in: contactIds },
+        },
+      ],
     },
     select: {
       id: true,

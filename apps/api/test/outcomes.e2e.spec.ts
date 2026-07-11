@@ -177,6 +177,18 @@ describe.skipIf(!hasDb)("Outcomes rollup e2e (F1, DEC-068)", () => {
         },
       });
     }
+    // Bulk-unsub on a lead whose enrollment is not ACTIVE/PAUSED stamps ONLY
+    // contactId (contacts-view emitter) — proves the contact-scoped opt-out
+    // fetch arm. Second lead on step-2.
+    await owner.event.create({
+      data: {
+        workspaceId: ws,
+        type: "lead.unsubscribed.v1",
+        contactId: cid("b", 1),
+        payload: { source: "contacts-bulk" },
+        occurredAt: new Date(base + 250_000),
+      },
+    });
     // Opt-out from the unsubscribe-reply path: NO campaignId on the event —
     // proves the enrollment-scoped fetch (F1 plan §0.3).
     const enrollment = await owner.enrollment.create({
@@ -256,13 +268,52 @@ describe.skipIf(!hasDb)("Outcomes rollup e2e (F1, DEC-068)", () => {
       optOutRatePct: 0,
       signal: "ok",
     });
-    expect(s2).toMatchObject({ sent: 20, replies: 0, optOuts: 1, optOutRatePct: 5, signal: "low" });
+    // 2 opt-outs: one via the enrollment fetch arm, one via the contact-only
+    // arm (bulk-unsub emitter stamps neither campaignId nor enrollmentId).
+    expect(s2).toMatchObject({ sent: 20, replies: 0, optOuts: 2, optOutRatePct: 10, signal: "low" });
     // Below the floor: raw counts stay, every rate is null — no UI can render one.
     expect(s3).toMatchObject({ sent: 5, signal: "none", replyRatePct: null, positiveRatePct: null, optOutRatePct: null });
 
     // Goal completion: SEQUENCE only — totals carry it, no step row has the field.
-    expect(res.body.totals).toMatchObject({ sent: 75, replies: 2, optOuts: 1, goalCompletions: 1, signal: "ok" });
+    expect(res.body.totals).toMatchObject({ sent: 75, replies: 2, optOuts: 2, goalCompletions: 1, signal: "ok" });
     expect(s1).not.toHaveProperty("goalCompletions");
+  });
+
+  it("a malformed stored graph never breaks the rollup — steps empty, totals still honest", async () => {
+    const brokenAgent = await owner.agent.create({
+      data: { workspaceId: ws, name: "Broken graph", goal: "book_appointments", guardrails: {} },
+    });
+    const brokenCampaign = await owner.campaign.create({
+      data: { workspaceId: ws, agentId: brokenAgent.id, name: "Broken — primary", graphId: "" },
+    });
+    await owner.campaignGraph.create({
+      data: {
+        workspaceId: ws,
+        campaignId: brokenCampaign.id,
+        version: 1,
+        graph: { nodes: "not-a-graph" },
+        source: "MANUAL",
+      },
+    });
+    await owner.contact.create({
+      data: { id: `oc-x0-${suffix}`, workspaceId: ws, source: "import", optOut: {}, tags: [], email: `oc-x0-${suffix}@t.test` },
+    });
+    await owner.message.create({
+      data: {
+        workspaceId: ws,
+        campaignId: brokenCampaign.id,
+        contactId: `oc-x0-${suffix}`,
+        channel: "email",
+        direction: "OUTBOUND",
+        body: "b",
+        stepNodeId: "step-ghost",
+        sentAt: new Date(),
+      },
+    });
+    const res = await get(brokenAgent.id);
+    expect(res.status).toBe(200);
+    expect(res.body.steps).toEqual([]); // no renderable cards from a graph that can't parse
+    expect(res.body.totals).toMatchObject({ sent: 1, signal: "none" }); // the ledger still counts
   });
 
   it("an agent with no campaign reports honest zeros (never 404)", async () => {

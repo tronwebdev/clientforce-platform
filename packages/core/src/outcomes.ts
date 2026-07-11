@@ -202,14 +202,16 @@ export function computeOutcomes(input: ComputeOutcomesInput): {
 
   interface Bucket {
     sent: number;
-    delivered: number;
+    /** Distinct delivered messageIds — provider webhooks are at-least-once,
+     *  so a raw event count could report delivered > sent on a retry. */
+    delivered: Set<string>;
     repliers: Set<string>;
     positiveRepliers: Set<string>;
     optOuts: Set<string>;
   }
   const bucket = (): Bucket => ({
     sent: 0,
-    delivered: 0,
+    delivered: new Set(),
     repliers: new Set(),
     positiveRepliers: new Set(),
     optOuts: new Set(),
@@ -240,8 +242,9 @@ export function computeOutcomes(input: ComputeOutcomesInput): {
 
     if (deliveredTypes.has(event.type)) {
       const messageId = typeof payload.messageId === "string" ? payload.messageId : null;
-      const outbound = messageId ? outboundById.get(messageId) : undefined;
-      bucketFor(outbound?.stepNodeId).delivered += 1;
+      if (!messageId) continue;
+      const outbound = outboundById.get(messageId);
+      bucketFor(outbound?.stepNodeId).delivered.add(messageId);
       continue;
     }
 
@@ -297,7 +300,7 @@ export function computeOutcomes(input: ComputeOutcomesInput): {
 
   const steps: StepOutcomes[] = input.steps.map((s) => {
     const b = perStep.get(s.stepNodeId)!;
-    const delivered = trackedChannels.has(s.channel) ? b.delivered : null;
+    const delivered = trackedChannels.has(s.channel) ? b.delivered.size : null;
     return { stepNodeId: s.stepNodeId, channel: s.channel, ...finalize(b, delivered) };
   });
 
@@ -308,14 +311,14 @@ export function computeOutcomes(input: ComputeOutcomesInput): {
   const buckets = [...perStep.values(), unattributed];
   for (const b of buckets) {
     total.sent += b.sent;
-    total.delivered += b.delivered;
+    for (const m of b.delivered) total.delivered.add(m);
     for (const c of b.repliers) total.repliers.add(c);
     for (const c of b.positiveRepliers) total.positiveRepliers.add(c);
     for (const c of b.optOuts) total.optOuts.add(c);
   }
   const anyTracked = input.steps.some((s) => trackedChannels.has(s.channel));
   const totals: OutcomeTotals = {
-    ...finalize(total, anyTracked || total.delivered > 0 ? total.delivered : null),
+    ...finalize(total, anyTracked || total.delivered.size > 0 ? total.delivered.size : null),
     goalCompletions: goalCompleters.size,
   };
 
