@@ -43,9 +43,12 @@ export function intentTint(intent: string): IntentTint {
 }
 
 /**
- * Inbox category chips (prototype `inboxCatDefs` order preserved; the three
- * designed chips sit after the goal chip). Each chip FILTERS a set of intents
- * so a legacy thread and its M1b twin land under one label.
+ * Inbox category chips. Each chip FILTERS a set of intents so a legacy thread
+ * and its M1b twin land under one label. Order: the six strategy chips lead,
+ * the bookkeeping chips (Replied fallback · Auto-reply) trail — "Replied"
+ * moves behind Question/Not interested vs the prototype's relative order so
+ * every strategy chip is on-screen at 1440 (deviation flagged in DEC-066;
+ * the row stays horizontally scrollable per the prototype).
  */
 export const INBOX_CATS: ReadonlyArray<{ id: string; label: string; intents: readonly string[] }> = [
   { id: "all", label: "All", intents: [] },
@@ -54,9 +57,9 @@ export const INBOX_CATS: ReadonlyArray<{ id: string; label: string; intents: rea
   { id: "objection_price", label: "Price objection", intents: ["objection_price"] },
   { id: "objection_timing", label: "Not now", intents: ["objection_timing"] },
   { id: "wrong_person", label: "Wrong person", intents: ["wrong_person"] },
-  { id: "replied", label: "Replied", intents: ["replied"] },
   { id: "question", label: "Question", intents: ["question", "info_request"] },
   { id: "not", label: "Not interested", intents: ["not", "not_interested"] },
+  { id: "replied", label: "Replied", intents: ["replied"] },
   { id: "ooo", label: "Auto-reply", intents: ["ooo"] },
 ];
 
