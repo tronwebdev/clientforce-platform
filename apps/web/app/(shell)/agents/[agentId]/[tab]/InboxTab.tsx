@@ -6,7 +6,7 @@
  * list + reading pane rendering real Message bodies. A4: 5s polling.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CAT_TINT, cf, GRAD, INBOX_CATS, avTint, initials, timeAgo } from "./shared";
+import { cf, GRAD, INBOX_CATS, intentTint, avTint, initials, timeAgo } from "./shared";
 
 interface ThreadMessage {
   id: string;
@@ -40,12 +40,14 @@ const CHANNEL_OPTIONS = [
 
 /** C2.9 (DEC-059): `goalLabel` = the campaign goal's terminal wording — the
  *  booked category chip/tint renders it instead of the single-goal-era
- *  "Meeting booked" (a promote_offer agent reads "Purchase made"). */
+ *  "Meeting booked" (a promote_offer agent reads "Purchase made").
+ *  M1b (DEC-068): chips filter intent SETS (a legacy `question` thread and an
+ *  `info_request` thread share the "Question" chip); an unknown intent value
+ *  renders VERBATIM in the neutral tint — never "Unclassified", never a crash. */
 export function InboxTab({ agentId, goalLabel }: { agentId: string; goalLabel?: string }) {
   const cats = INBOX_CATS.map((c) => (c.id === "booked" && goalLabel ? { ...c, label: goalLabel } : c));
   const tintFor = (intent: string) => {
-    const t = CAT_TINT[intent];
-    if (!t) return null;
+    const t = intentTint(intent);
     return intent === "booked" && goalLabel ? { ...t, label: goalLabel } : t;
   };
   const [threads, setThreads] = useState<Thread[] | null>(null);
@@ -70,13 +72,19 @@ export function InboxTab({ agentId, goalLabel }: { agentId: string; goalLabel?: 
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { all: threads?.length ?? 0 };
-    for (const cat of INBOX_CATS) if (cat.id !== "all") c[cat.id] = 0;
-    for (const t of threads ?? []) if (t.intent && c[t.intent] !== undefined) c[t.intent]! += 1;
+    for (const catDef of INBOX_CATS) {
+      if (catDef.id === "all") continue;
+      c[catDef.id] = (threads ?? []).filter((t) => t.intent && catDef.intents.includes(t.intent)).length;
+    }
     return c;
   }, [threads]);
 
+  const catIntents = useMemo(
+    () => new Set(INBOX_CATS.find((c) => c.id === cat)?.intents ?? []),
+    [cat],
+  );
   const visible = useMemo(() => {
-    let list = (threads ?? []).filter((t) => cat === "all" || t.intent === cat);
+    let list = (threads ?? []).filter((t) => cat === "all" || (t.intent ? catIntents.has(t.intent) : false));
     // P2.1 (DEC-061, §4 amendment): the channel filter is FUNCTIONAL — a
     // thread matches when any of its messages used the channel.
     if (channel !== "all") list = list.filter((t) => (t.channels ?? ["email"]).includes(channel));
@@ -88,7 +96,7 @@ export function InboxTab({ agentId, goalLabel }: { agentId: string; goalLabel?: 
           : (a.contact?.firstName ?? "").localeCompare(b.contact?.firstName ?? ""),
     );
     return list;
-  }, [threads, cat, channel, sort]);
+  }, [threads, cat, catIntents, channel, sort]);
 
   const sel = useMemo(
     () => visible.find((t) => t.contactId === selId) ?? visible[0] ?? null,

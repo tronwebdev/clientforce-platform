@@ -1,12 +1,16 @@
 /**
  * validateAll unit tests — the P1.4 slice requirements on top of the T4
  * validator: email-only, ≥1 delay, branch on reply, merge tokens present.
- * Pure, no infra.
+ * M1b (DEC-068): the six-intent REPLY PLAYBOOK — the generated reply branch
+ * must case all six strategy intents (+ default), intents come from the
+ * shared enum only, the interested/not_interested stage pins are enforced,
+ * and strategy cases route to real strategy steps. Pure, no infra.
  */
 import { describe, expect, it } from "vitest";
-import { GraphValidationError, type CampaignGraph } from "@clientforce/core";
-import { validateAll } from "../src/plan";
+import { GraphValidationError, type BranchNode, type CampaignGraph } from "@clientforce/core";
+import { REQUIRED_BRANCH_INTENTS, validateAll } from "../src/plan";
 
+/** A v4-shaped graph: main sequence + six-case reply branch + strategy steps. */
 const goodGraph = (): CampaignGraph => ({
   entry: "step-1",
   nodes: [
@@ -31,10 +35,24 @@ const goodGraph = (): CampaignGraph => ({
       type: "branch",
       on: "reply",
       cases: [
-        { when: { intent: "interested" }, goto: "end-won" },
+        { when: { intent: "interested" }, goto: "end-won", pipeline: "booked" },
+        { when: { intent: "objection_price" }, goto: "step-reframe-price", pipeline: "replied" },
+        { when: { intent: "objection_timing" }, goto: "step-ack-timing", pipeline: "replied" },
+        { when: { intent: "wrong_person" }, goto: "step-referral", pipeline: "replied" },
+        { when: { intent: "info_request" }, goto: "step-answer", pipeline: "replied" },
+        { when: { intent: "not_interested" }, goto: "step-close", pipeline: "lost" },
         { when: "default", goto: "end-lost" },
       ],
     },
+    // Reply-strategy steps (M1b): price/info rejoin the branch; timing waits
+    // long then rejoins; wrong_person and not_interested close out.
+    { id: "step-reframe-price", type: "step", channel: "email", content: { body: "The audit pays for itself — one number says it.", threaded: true } },
+    { id: "step-ack-timing", type: "step", channel: "email", content: { body: "Understood — circling back later.", threaded: true } },
+    { id: "delay-timing", type: "delay", amount: 30, unit: "days" },
+    { id: "step-timing-follow", type: "step", channel: "email", content: { body: "Circling back as promised.", threaded: true } },
+    { id: "step-referral", type: "step", channel: "email", content: { body: "Who is the right person?", threaded: true } },
+    { id: "step-answer", type: "step", channel: "email", content: { body: "Here is the answer.", threaded: true } },
+    { id: "step-close", type: "step", channel: "email", content: { body: "No worries — door stays open.", threaded: true } },
     { id: "end-won", type: "end" },
     { id: "end-lost", type: "end" },
   ],
@@ -42,11 +60,21 @@ const goodGraph = (): CampaignGraph => ({
     { from: "step-1", to: "delay-1" },
     { from: "delay-1", to: "step-2" },
     { from: "step-2", to: "branch-reply" },
+    { from: "step-reframe-price", to: "branch-reply" },
+    { from: "step-ack-timing", to: "delay-timing" },
+    { from: "delay-timing", to: "step-timing-follow" },
+    { from: "step-timing-follow", to: "branch-reply" },
+    { from: "step-referral", to: "end-lost" },
+    { from: "step-answer", to: "branch-reply" },
+    { from: "step-close", to: "end-lost" },
   ],
 });
 
+const replyBranchOf = (g: CampaignGraph): BranchNode =>
+  g.nodes.find((n): n is BranchNode => n.type === "branch")!;
+
 describe("validateAll (P1.4 slice requirements)", () => {
-  it("accepts a well-formed email sequence", () => {
+  it("accepts a well-formed v4 sequence (six-case playbook + rejoin edges)", () => {
     expect(() => validateAll(goodGraph())).not.toThrow();
   });
 
@@ -58,17 +86,19 @@ describe("validateAll (P1.4 slice requirements)", () => {
 
   it("rejects a graph without a delay", () => {
     const g = goodGraph();
-    g.nodes = g.nodes.filter((n) => n.type !== "delay");
-    g.edges = [
-      { from: "step-1", to: "step-2" },
-      { from: "step-2", to: "branch-reply" },
-    ];
+    // Splice every delay node out of its path.
+    const next = new Map(g.edges.map((e) => [e.from, e.to]));
+    const delays = new Set(g.nodes.filter((n) => n.type === "delay").map((n) => n.id));
+    g.nodes = g.nodes.filter((n) => !delays.has(n.id));
+    g.edges = g.edges
+      .filter((e) => !delays.has(e.from))
+      .map((e) => (delays.has(e.to) ? { ...e, to: next.get(e.to)! } : e));
     expect(() => validateAll(g)).toThrow(/delay/);
   });
 
   it('rejects a graph without a branch on "reply"', () => {
     const g = goodGraph();
-    (g.nodes.find((n) => n.type === "branch") as { on: string }).on = "open";
+    replyBranchOf(g).on = "open" as BranchNode["on"];
     expect(() => validateAll(g)).toThrow(/on="reply"/);
   });
 
@@ -82,9 +112,89 @@ describe("validateAll (P1.4 slice requirements)", () => {
 
   it("still runs the T4 semantic pass (dangling branch goto)", () => {
     const g = goodGraph();
-    (g.nodes.find((n) => n.type === "branch") as { cases: { goto: string }[] }).cases[0]!.goto =
-      "nowhere";
+    replyBranchOf(g).cases[0]!.goto = "nowhere";
     expect(() => validateAll(g)).toThrow(GraphValidationError);
+  });
+});
+
+describe("validateAll REPLY PLAYBOOK gate (M1b, DEC-068)", () => {
+  it("pins the six strategy intents with their stage effects (the acceptance contract)", () => {
+    expect(REQUIRED_BRANCH_INTENTS).toEqual([
+      { intent: "interested", pipeline: "booked" },
+      { intent: "objection_price", pipeline: "replied" },
+      { intent: "objection_timing", pipeline: "replied" },
+      { intent: "wrong_person", pipeline: "replied" },
+      { intent: "info_request", pipeline: "replied" },
+      { intent: "not_interested", pipeline: "lost" },
+    ]);
+  });
+
+  it("names the missing intent when a playbook case is absent", () => {
+    const g = goodGraph();
+    const b = replyBranchOf(g);
+    b.cases = b.cases.filter((c) => c.when === "default" || c.when.intent !== "not_interested");
+    expect(() => validateAll(g)).toThrow(/missing a case for intent "not_interested"/);
+  });
+
+  it("rejects a case intent outside the shared enum (bounded taxonomy), naming it", () => {
+    const g = goodGraph();
+    const b = replyBranchOf(g);
+    b.cases = [...b.cases, { when: { intent: "angry" }, goto: "end-lost" }];
+    expect(() => validateAll(g)).toThrow(/"angry" is not a known intent/);
+  });
+
+  it("legacy enum values are legal case KEYS (additive rule) — the playbook cases must still all exist", () => {
+    const g = goodGraph();
+    const b = replyBranchOf(g);
+    // "question" is legacy-but-known: allowed as an extra case, not a substitute.
+    b.cases = [...b.cases, { when: { intent: "question" }, goto: "step-answer" }];
+    expect(() => validateAll(g)).not.toThrow();
+  });
+
+  it("enforces the interested → booked stage pin", () => {
+    const g = goodGraph();
+    const c = replyBranchOf(g).cases.find((x) => x.when !== "default" && x.when.intent === "interested")!;
+    delete c.pipeline;
+    expect(() => validateAll(g)).toThrow(/"interested" must set "pipeline":"booked"/);
+  });
+
+  it("enforces the not_interested → lost stage pin (found value named)", () => {
+    const g = goodGraph();
+    const c = replyBranchOf(g).cases.find(
+      (x) => x.when !== "default" && x.when.intent === "not_interested",
+    )!;
+    c.pipeline = "booked";
+    expect(() => validateAll(g)).toThrow(/"not_interested" must set "pipeline":"lost" \(found "booked"\)/);
+  });
+
+  it("requires a default case", () => {
+    const g = goodGraph();
+    const b = replyBranchOf(g);
+    b.cases = b.cases.filter((c) => c.when !== "default");
+    expect(() => validateAll(g)).toThrow(/must carry a "default" case/);
+  });
+
+  it("a strategy case must route to a strategy STEP (never straight to an end)", () => {
+    const g = goodGraph();
+    const c = replyBranchOf(g).cases.find(
+      (x) => x.when !== "default" && x.when.intent === "objection_price",
+    )!;
+    c.goto = "end-lost";
+    expect(() => validateAll(g)).toThrow(/"objection_price" must route to its strategy "step"/);
+  });
+
+  it("rejects a second reply branch (exactly one)", () => {
+    const g = goodGraph();
+    g.nodes = [
+      ...g.nodes,
+      {
+        id: "branch-2",
+        type: "branch",
+        on: "reply",
+        cases: [{ when: "default", goto: "end-lost" }],
+      },
+    ];
+    expect(() => validateAll(g)).toThrow(/exactly ONE branch node with on="reply", found 2/);
   });
 });
 
@@ -102,6 +212,12 @@ describe("validateAll neverSay gate (M1a, DEC-065 — the deterministic rail)", 
   it("catches a banned phrase in a SUBJECT", () => {
     expect(() => validateAll(goodGraph(), ["email"], ["Quick follow-up"])).toThrow(
       /"Quick follow-up" in step-2/,
+    );
+  });
+
+  it("scans reply-STRATEGY steps too (M1b — the rail covers the whole graph)", () => {
+    expect(() => validateAll(goodGraph(), ["email"], ["pays for itself"])).toThrow(
+      /"pays for itself" in step-reframe-price/,
     );
   });
 
@@ -130,7 +246,7 @@ describe("validateAll neverSay gate (M1a, DEC-065 — the deterministic rail)", 
   });
 });
 
-describe("validateAll guided steps (G1, DEC-068)", () => {
+describe("validateAll guided steps (G1, DEC-070)", () => {
   const guided = (): CampaignGraph => {
     const g = goodGraph();
     g.nodes = g.nodes.map((n) =>
@@ -161,28 +277,20 @@ describe("validateAll guided steps (G1, DEC-068)", () => {
     );
   });
 
-  it("the merge-token rule applies to SCRIPTED copy only — an all-guided graph passes without tokens", () => {
+  it("the merge-token rule scopes to SCRIPTED copy — guided briefs never carry tokens, remaining scripted steps still must", () => {
+    // Guided main opener: strip the scripted MAIN steps so the only scripted
+    // copy left is the (token-less) reply-strategy steps.
     const g = guided();
-    // Strip the scripted email step so ONLY the guided sms step sends.
     g.entry = "step-2";
     g.nodes = g.nodes.filter((n) => n.id !== "step-1" && n.id !== "delay-1");
-    g.nodes.push({ id: "delay-2", type: "delay", amount: 1, unit: "days" });
-    g.edges = [
-      { from: "step-2", to: "delay-2" },
-      { from: "delay-2", to: "branch-reply" },
-    ];
+    g.edges = g.edges.filter((e) => e.from !== "step-1" && e.from !== "delay-1");
+    // The rule ignores the guided brief but still bites on scripted copy…
+    expect(() => validateAll(g, ["email", "sms"], [], true)).toThrow(/merge token/);
+    // …and is satisfied by tokens in ANY scripted step (the v6 prompt keeps
+    // instructing tokens in email bodies, reply-strategy steps included).
+    const close = g.nodes.find((n) => n.id === "step-close");
+    if (close?.type === "step") close.content.body += " {{firstName}} — door stays open at {{company}}.";
     expect(() => validateAll(g, ["email", "sms"], [], true)).not.toThrow();
-    // …while a scripted step missing tokens still fails exactly as before.
-    const scripted = goodGraph();
-    (scripted.nodes[0] as { content: { subject: string; body: string } }).content = {
-      subject: "no tokens",
-      body: "no tokens here",
-    };
-    (scripted.nodes[2] as { content: { subject: string; body: string } }).content = {
-      subject: "none",
-      body: "none",
-    };
-    expect(() => validateAll(scripted, ["email"], [], false)).toThrow(/merge token/);
   });
 
   it("the neverSay scan covers BRIEF text (objective + talking points + mustSay)", () => {

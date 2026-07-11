@@ -207,7 +207,7 @@ export const strategyBlockSchema = z.object({
 });
 export type StrategyBlock = z.infer<typeof strategyBlockSchema>;
 
-// ── Guided compose credits (G1, DEC-068) ─────────────────────────────────────
+// ── Guided compose credits (G1, DEC-070) ─────────────────────────────────────
 /**
  * DISPLAY-ONLY at launch (Q-020 owns real metering): what one guided SMS
  * composition costs in credits. Rendered on guided step cards + the sample

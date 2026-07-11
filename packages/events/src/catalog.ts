@@ -16,15 +16,26 @@ import { z } from "zod";
  * `unsubscribe`, which never renders as a chip: an unsubscribe thread leaves
  * the Inbox for Suppression. Classifier, catalog, and the P1.8 Inbox UI all
  * share this one enum — do not fork it.
+ *
+ * M1b (DEC-068): the six-intent reply-strategy taxonomy joins ADDITIVELY —
+ * every pre-M1b value stays forever (old Message rows, old graphs, old events
+ * remain valid); `question`/`not`/`booked` are retired from classifier
+ * EMISSION only (superseded by `info_request`/`not_interested`/`interested`).
  */
 export const IntentSchema = z.enum([
-  "interested", // buying signal
-  "booked", // explicitly booked / accepted a time
-  "replied", // generic reply, none of the sharper labels fit
-  "question", // asks something / needs info before moving
-  "not", // not interested (prototype chip "Not interested")
+  "interested", // buying signal — routes the booking/close branch
+  "booked", // explicitly booked / accepted a time (legacy — no longer emitted)
+  "replied", // generic reply, none of the sharper labels fit (fallback — routes default)
+  "question", // asks something (legacy — superseded by info_request)
+  "not", // not interested (legacy — superseded by not_interested)
   "ooo", // auto-reply / out-of-office (prototype chip "Auto-reply")
   "unsubscribe", // demands removal — side effects, never a chip
+  // ── M1b (DEC-068) reply-strategy intents ──────────────────────────────────
+  "objection_price", // "too expensive" / budget pushback → value-reframe branch
+  "objection_timing", // "call me in March" → ack + delayed follow-up branch
+  "wrong_person", // "I don't handle this" → referral-ask branch
+  "info_request", // needs an answer before moving → answer-from-context + CTA branch
+  "not_interested", // clear decline → graceful close, stage lost, NO suppression
 ]);
 export type Intent = z.infer<typeof IntentSchema>;
 
@@ -52,7 +63,7 @@ export const EVENT_SCHEMAS = {
   "sms.failed.v1": z.object({ ...messageRef, reason: z.string().optional(), errorCode: z.string().optional() }),
   "sms.replied.v1": z.object({ ...messageRef, body: z.string(), intent: IntentSchema }),
   "sms.opted_out.v1": z.object({ ...messageRef, reason: z.string().optional() }),
-  // G1 (DEC-068): the guided composer refused after its bounded retry — the
+  // G1 (DEC-070): the guided composer refused after its bounded retry — the
   // lead's enrollment paused, NOTHING was sent. Deliberately no messageId
   // (no Message row exists — DEC-064: the catalog payload matches reality).
   "sms.compose_refused.v1": z.object({

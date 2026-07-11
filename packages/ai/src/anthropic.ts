@@ -124,7 +124,7 @@ export class AnthropicProvider implements CompletionProvider {
 }
 
 /**
- * G1 (DEC-068): when a cacheable context rides the call, `system` becomes an
+ * G1 (DEC-070): when a cacheable context rides the call, `system` becomes an
  * ordered block array — the static prompt first, the per-caller-stable context
  * second with `cache_control` — so a fan-out over the same agent reuses the
  * cached prefix and only the per-lead user turn is new tokens.

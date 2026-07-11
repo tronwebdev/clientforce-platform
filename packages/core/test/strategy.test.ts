@@ -147,7 +147,7 @@ describe("strategy block (guardrails rider)", () => {
   });
 });
 
-describe("composeMode (guardrails rider — G1, DEC-068)", () => {
+describe("composeMode (guardrails rider — G1, DEC-070)", () => {
   const base = {
     sendingWindow: { days: [1], start: "09:00", end: "17:00", timezone: "UTC" },
     dailyCap: { email: 50 },

@@ -36,7 +36,7 @@ export interface SendSmsStepParams {
   stepNodeId: string;
   content: StepContent;
   /**
-   * G1 (DEC-068): provenance of guided copy, merged into `Message.meta` at
+   * G1 (DEC-070): provenance of guided copy, merged into `Message.meta` at
    * persist time. PASS-THROUGH ONLY — no rail reads it; the boundary neither
    * knows nor cares who wrote the copy. Absent on scripted sends (meta stays
    * byte-identical to pre-G1).

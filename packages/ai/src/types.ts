@@ -11,7 +11,7 @@ export interface CompleteRequest {
   /** System prompt (optional). */
   system?: string;
   /**
-   * G1 (DEC-068): stable-per-caller context appended as a SECOND system block
+   * G1 (DEC-070): stable-per-caller context appended as a SECOND system block
    * with provider prompt caching (`cache_control: ephemeral`) — a fan-out of
    * calls sharing the same system + context reuses the cached prefix. Keep
    * per-call material in `prompt`, never here. Ignored by providers without

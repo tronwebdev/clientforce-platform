@@ -9,7 +9,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ContactListDto } from "@clientforce/core";
 import { AddToListMenu } from "@clientforce/ui";
 import type { AgentViewData } from "./AgentView";
-import { cf, GRAD, avTint, initials, timeAgo } from "./shared";
+import { cf, GRAD, avTint, initials, intentTint, timeAgo } from "./shared";
 
 interface Lead {
   id: string; // enrollmentId
@@ -48,6 +48,9 @@ const STAGE_PILL: Record<string, { label: string; bg: string; fg: string }> = {
   unsub: { label: "Unsubscribed", bg: "rgba(224,121,107,.16)", fg: "#C9543F" },
   suppressed: { label: "Suppressed", bg: "#ECE7DC", fg: "#8A7F6B" },
   bounced: { label: "Bounced", bg: "rgba(224,121,107,.12)", fg: "#C9543F" },
+  // M1b (DEC-068): a not_interested reply closes the enrollment as stage
+  // `lost` — designed pill, no prototype anchor (flagged); NOT unsubscribed.
+  lost: { label: "Closed", bg: "#ECE7DC", fg: "#5C6B62" },
 };
 
 function pillKey(l: Lead): string {
@@ -56,6 +59,7 @@ function pillKey(l: Lead): string {
   if (l.pipelineStage === "interested") return "interested";
   if (l.pipelineStage === "booked") return "booked";
   if (l.pipelineStage === "replied") return "replied";
+  if (l.pipelineStage === "lost") return "lost";
   return "active";
 }
 
@@ -65,6 +69,7 @@ const FILTERS = [
   { id: "replied", label: "Replied" },
   { id: "interested", label: "Interested" },
   { id: "booked", label: "Booked" },
+  { id: "lost", label: "Closed" },
   { id: "unsub", label: "Unsubscribed" },
   { id: "suppressed", label: "Suppressed" },
 ];
@@ -76,7 +81,9 @@ const EVENT_ROW: Record<string, { icon: string; bg: string; fg: string; label: (
   "email.delivered.v1": { icon: "✓", bg: "#F2EEE4", fg: "#8A7F6B", label: () => "Email delivered" },
   "email.opened.v1": { icon: "◔", bg: "#F2EEE4", fg: "#8A7F6B", label: (p) => `Opened${p.subject ? ` “${String(p.subject)}”` : ""}` },
   "email.clicked.v1": { icon: "🔗", bg: "rgba(54,215,237,.16)", fg: "#1192A6", label: () => "Clicked a link" },
-  "email.replied.v1": { icon: "↩", bg: "rgba(54,215,237,.16)", fg: "#1192A6", label: (p) => `Replied${p.intent ? ` — classified “${String(p.intent)}”` : ""}` },
+  // M1b (DEC-068): the classified intent renders through the vocabulary
+  // (verbatim fallback) — the raw enum slug never surfaces (DEC-057 rule).
+  "email.replied.v1": { icon: "↩", bg: "rgba(54,215,237,.16)", fg: "#1192A6", label: (p) => `Replied${p.intent ? ` — classified “${intentTint(String(p.intent)).label}”` : ""}` },
   "email.bounced.v1": { icon: "⚠", bg: "rgba(224,121,107,.14)", fg: "#C9543F", label: () => "Email hard-bounced" },
   "email.spam_reported.v1": { icon: "⚠", bg: "rgba(224,121,107,.14)", fg: "#C9543F", label: () => "Marked as spam" },
   // C2.9: goal-completion events carry the campaign's terminal label — it
@@ -87,9 +94,9 @@ const EVENT_ROW: Record<string, { icon: string; bg: string; fg: string; label: (
   "sms.sent.v1": { icon: "✆", bg: "#F2EEE4", fg: "#8A7F6B", label: () => "Step SMS sent" },
   "sms.delivered.v1": { icon: "✓", bg: "#F2EEE4", fg: "#8A7F6B", label: () => "SMS delivered" },
   "sms.failed.v1": { icon: "⚠", bg: "rgba(224,121,107,.14)", fg: "#C9543F", label: (p) => `SMS failed${p.reason ? ` — ${String(p.reason)}` : ""}` },
-  "sms.replied.v1": { icon: "💬", bg: "rgba(54,215,237,.16)", fg: "#1192A6", label: (p) => `Replied by SMS${p.intent ? ` — classified “${String(p.intent)}”` : ""}` },
+  "sms.replied.v1": { icon: "💬", bg: "rgba(54,215,237,.16)", fg: "#1192A6", label: (p) => `Replied by SMS${p.intent ? ` — classified “${intentTint(String(p.intent)).label}”` : ""}` },
   "sms.opted_out.v1": { icon: "⊘", bg: "rgba(224,121,107,.16)", fg: "#C9543F", label: () => "Replied STOP — suppressed for SMS" },
-  // G1 (DEC-068): the guided composer refused — this lead paused, nothing sent.
+  // G1 (DEC-070): the guided composer refused — this lead paused, nothing sent.
   "sms.compose_refused.v1": { icon: "⚠", bg: "rgba(232,196,91,.2)", fg: "#9A6B12", label: (p) => `SMS not sent — composer refused (${String(p.reason ?? "checks failed")}); lead paused` },
 
   // C2.8 (49-1): membership events render human — the slug never surfaces raw.

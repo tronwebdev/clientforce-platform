@@ -1,4 +1,4 @@
-# G1 (DEC-068) guided-SMS staging proof: a REAL Sonnet-class composer renders
+# G1 (DEC-070) guided-SMS staging proof: a REAL Sonnet-class composer renders
 # two leads' SMS from one brief through the full activity path — compose →
 # deterministic checks → the unchanged boundary rails — with the Twilio
 # transport in SANDBOX (nothing real is sent; carrier delivery was P2.1's

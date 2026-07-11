@@ -51,7 +51,7 @@ export function SettingsTab({ agentId, view, onChanged }: { agentId: string; vie
   const [notes, setNotes] = useState("");
   const [neverSay, setNeverSay] = useState<string[]>([]);
   const [neverSayInput, setNeverSayInput] = useState("");
-  // G1 (DEC-068): per-agent compose mode — absent on the row = scripted.
+  // G1 (DEC-070): per-agent compose mode — absent on the row = scripted.
   const [composeMode, setComposeMode] = useState<"scripted" | "guided">("scripted");
 
   const refresh = useCallback(async () => {
@@ -92,7 +92,7 @@ export function SettingsTab({ agentId, view, onChanged }: { agentId: string; vie
             ...(outNever.length > 0 ? { neverSay: outNever } : {}),
           }
         : undefined;
-    // G1 (DEC-068): written when the owner sets it here OR the row already
+    // G1 (DEC-070): written when the owner sets it here OR the row already
     // carries it — an untouched legacy row stays byte-identical (absent =
     // scripted), and an unrelated edit never clobbers the mode.
     const outMode = next.composeMode ?? g?.composeMode;
@@ -272,7 +272,7 @@ export function SettingsTab({ agentId, view, onChanged }: { agentId: string; vie
 
       <div style={{ ...label, marginTop: 8 }}>Message composing</div>
 
-      {/* G1 (DEC-068) — designed section, no prototype anchor (§0 card/label
+      {/* G1 (DEC-070) — designed section, no prototype anchor (§0 card/label
           conventions, DEC-065(6) precedent). The mode is baked into each
           planned step, so the toggle steers FUTURE generations/sends. */}
       <div style={{ ...card, padding: "18px 20px" }} data-testid="settings-compose-mode">

@@ -407,6 +407,8 @@ model Event {
 
   @@index([workspaceId, type, occurredAt])
   @@index([enrollmentId])
+  // F1 (DEC-068): the outcomes rollup filters campaign + type set per request.
+  @@index([workspaceId, campaignId, type])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

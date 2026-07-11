@@ -27,7 +27,7 @@ export interface ActivityDeps {
   /** DEC-063: sms allow-list (CHANNELS_SMS_ALLOWLIST resolved by the boundary when omitted). */
   smsAllowlist?: string[];
   /**
-   * G1 (DEC-068): the guided-sms composer seam (`createSmsStepComposer` in
+   * G1 (DEC-070): the guided-sms composer seam (`createSmsStepComposer` in
    * the worker, prompt-driven fake in tests). Absent → guided steps refuse
    * with the typed COMPOSER_UNCONFIGURED reason (honest absence, the
    * smsTransport pattern) — never a silent skip.
@@ -121,7 +121,7 @@ export function createActivities(deps: ActivityDeps) {
       content: StepContent;
       /** P2.1: the step node's channel — "email" (default) or "sms". */
       channel?: string;
-      /** G1 (DEC-068): the step node's mode — absent = scripted. */
+      /** G1 (DEC-070): the step node's mode — absent = scripted. */
       mode?: "scripted" | "guided";
       /** G1: the guided step's brief (present exactly when mode is guided). */
       brief?: StepBrief;
@@ -158,7 +158,7 @@ export function createActivities(deps: ActivityDeps) {
           );
           if (!smsSender) throw new SendBlockedError("SENDER_NOT_SMS", "no active TWILIO_SMS sender");
 
-          // G1 (DEC-068): a guided step composes per lead BEFORE the boundary
+          // G1 (DEC-070): a guided step composes per lead BEFORE the boundary
           // — the rails below neither know nor care who wrote the copy. Runs
           // after the idempotency check so replays never re-spend a model call.
           let content = params.content;
@@ -335,7 +335,7 @@ export function createActivities(deps: ActivityDeps) {
     },
 
     /**
-     * G1 (DEC-068): the composer refused after its bounded retry — pause THAT
+     * G1 (DEC-070): the composer refused after its bounded retry — pause THAT
      * lead's enrollment with the typed reason (user-visible on the Logs tab
      * via `Enrollment.meta.blocked`) AND write the `sms.compose_refused.v1`
      * Event row (amber Logs row). Never a silent skip: other leads on the

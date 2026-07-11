@@ -1,5 +1,5 @@
 /**
- * Merged BusinessContext → prompt text (G1, DEC-068). ONE renderer shared by
+ * Merged BusinessContext → prompt text (G1, DEC-070). ONE renderer shared by
  * the planner (P1.4) and the SMS composer so the two prompts can never fork on
  * what "the business context" says — both read the same labeled, non-empty
  * field lines (the model's only permitted fact source, DEC-015).

@@ -55,7 +55,7 @@ export const guardrailsSchema = z.object({
    */
   strategy: strategyBlockSchema.optional(),
   /**
-   * G1 (DEC-068): per-agent compose mode — absent = "scripted" (default at
+   * G1 (DEC-070): per-agent compose mode — absent = "scripted" (default at
    * creation; legacy rows parse unchanged; no migration, no wizard field).
    * "guided" makes the PLANNER emit briefs for sms steps; each step's mode is
    * baked into the graph node at plan time, so flipping this applies to

@@ -8,14 +8,45 @@
  * "opened twice, clicked, went cold" is visible at classification time.
  */
 import { Worker, type ConnectionOptions, type Job } from "bullmq";
+import { registerPrompt, renderPrompt, type AiGateway } from "@clientforce/ai";
 import { BULL_PREFIX, bullConnectionFromUrl } from "@clientforce/events";
-import type { AiGateway } from "@clientforce/ai";
 import { withTenant, type PrismaClient } from "@clientforce/db";
-import { IntentSchema, type EventBus, type Intent } from "@clientforce/events";
+import { type EventBus, type Intent } from "@clientforce/events";
 import { z } from "zod";
 import { INBOUND_CLASSIFY_QUEUE, type ClassifyJobData } from "./inbound";
 
-const CLASSIFY_SYSTEM = `You classify replies to B2B outreach emails for a sales inbox.
+/**
+ * M1b (DEC-068): the labels the v2 classifier may EMIT — the six reply-strategy
+ * intents + the untouched side labels (`ooo` auto-reply, `unsubscribe`
+ * compliance) + `replied` as the none-fits fallback. The legacy `booked` /
+ * `question` / `not` stay in `IntentSchema` (old rows/graphs/chips remain
+ * valid) but are retired from emission. `satisfies readonly Intent[]` pins
+ * every emission label to the shared enum — the sets can never fork.
+ */
+export const CLASSIFY_EMISSION_LABELS = [
+  "interested",
+  "objection_price",
+  "objection_timing",
+  "wrong_person",
+  "info_request",
+  "not_interested",
+  "replied",
+  "ooo",
+  "unsubscribe",
+] as const satisfies readonly Intent[];
+
+export const CLASSIFY_PROMPT_NAME = "inbound.classify";
+export const CLASSIFY_PROMPT_VERSION = 2; // M1b (DEC-068): six-intent reply taxonomy
+
+let registered = false;
+function classifySystem(): string {
+  if (!registered) {
+    registered = true;
+    // v1 (P1.7) stays registered VERBATIM — prompts are append-only code.
+    registerPrompt({
+      name: CLASSIFY_PROMPT_NAME,
+      version: 1,
+      template: `You classify replies to B2B outreach emails for a sales inbox.
 Choose EXACTLY ONE label:
 - "interested": buying signal — wants to proceed, asks for a call/demo/pricing with intent.
 - "booked": explicitly accepts or confirms a specific meeting/time.
@@ -24,9 +55,30 @@ Choose EXACTLY ONE label:
 - "ooo": auto-reply, out-of-office, autoresponder.
 - "unsubscribe": demands removal / stop emailing / legal-sounding opt-out.
 - "replied": none of the above fits.
-Judge ONLY from the reply text; the engagement history is context, not a label source.`;
+Judge ONLY from the reply text; the engagement history is context, not a label source.`,
+    });
+    registerPrompt({
+      name: CLASSIFY_PROMPT_NAME,
+      version: 2,
+      template: `You classify replies to B2B outreach messages for a sales inbox.
+Choose EXACTLY ONE label:
+- "interested": buying signal — wants to proceed, asks for a call/demo/pricing with intent, or explicitly accepts a proposed time.
+- "objection_price": pushes back on cost — too expensive, no budget, cheaper alternative. Engaged, but price is the stated blocker.
+- "objection_timing": open in principle but not now — asks to reconnect later, names a future date/quarter, mid-project. Written by a human (an autoresponder is "ooo").
+- "wrong_person": says they are not the right contact — doesn't own this decision, points to a colleague, role, or department.
+- "info_request": asks for information before moving — features, integrations, process, logistics. A genuine question without a clear buying signal.
+- "not_interested": clearly declines — not interested, happy with their current setup — WITHOUT demanding removal.
+- "ooo": auto-reply, out-of-office, autoresponder.
+- "unsubscribe": demands removal / stop emailing / legal-sounding opt-out.
+- "replied": none of the above fits.
+Boundaries: a decline that also demands removal is "unsubscribe", never "not_interested". "Too expensive" is "objection_price" even when phrased as a decline. A human asking to reconnect later is "objection_timing"; an automatic away-message is "ooo". A referral to a colleague is "wrong_person" even if polite about it.
+Judge ONLY from the reply text; the engagement history is context, not a label source.`,
+    });
+  }
+  return renderPrompt(CLASSIFY_PROMPT_NAME, CLASSIFY_PROMPT_VERSION, {});
+}
 
-const classifyOutputSchema = z.object({ intent: IntentSchema });
+const classifyOutputSchema = z.object({ intent: z.enum(CLASSIFY_EMISSION_LABELS) });
 
 export interface ClassifyContext {
   goal: string;
@@ -39,7 +91,7 @@ export async function classifyReply(gateway: AiGateway, ctx: ClassifyContext): P
   const out = await gateway.completeStructured(
     "classify",
     {
-      system: CLASSIFY_SYSTEM,
+      system: classifySystem(),
       maxTokens: 256,
       prompt: [
         `Campaign goal: ${ctx.goal}`,

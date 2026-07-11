@@ -1,7 +1,9 @@
 /**
- * M1a (DEC-065): the prompt-layer before/after — v3 carries the selling-craft
- * playbook + STRATEGY block; v2 (still registered, P1.1 append-only registry)
- * carries none of it. Pure, no infra.
+ * The prompt-layer before/after across the append-only registry (P1.1):
+ * v5 (F1, DEC-069) layers the OBSERVED OUTCOMES section on v4's playbook;
+ * v4 (M1b, DEC-068) carries the six-intent REPLY PLAYBOOK; v3 (M1a, DEC-065)
+ * carries the selling craft + STRATEGY block but no playbook; v2 carries
+ * neither. All stay registered. Pure, no infra.
  */
 import { describe, expect, it } from "vitest";
 import { renderPrompt } from "@clientforce/ai";
@@ -26,7 +28,7 @@ const baseVars = {
   channels: '"email" ONLY.',
 };
 
-function renderV3(strategyNotes = "(none)", neverSay = "(none)") {
+function renderCurrent(strategyNotes = "(none)", neverSay = "(none)", outcomes = "") {
   return renderPlannerPrompt({
     ...baseVars,
     arcLabel: fixture.arc.label,
@@ -35,14 +37,90 @@ function renderV3(strategyNotes = "(none)", neverSay = "(none)") {
     toneHints: fixture.toneHints,
     strategyNotes,
     neverSay,
+    outcomes,
   });
 }
 
-describe("planner prompt v3 (selling craft)", () => {
-  it("is pinned at version 3", () => {
-    expect(PLANNER_PROMPT_VERSION).toBe(3);
+describe("planner prompt v5 (outcome-aware regen layered on the playbook)", () => {
+  it("is pinned at version 5", () => {
+    expect(PLANNER_PROMPT_VERSION).toBe(5);
   });
 
+  it("renders the OBSERVED OUTCOMES block verbatim, between STRATEGY and GUARDRAILS, coexisting with the playbook", () => {
+    const block =
+      "OBSERVED OUTCOMES (live campaign data — confidence labeled per step):\n" +
+      "- step-1 (email): 62 sent · reply rate 4.8% · positive-intent 1.6% · opt-out 0% — confidence: ok (≥50 sends)\n";
+    const p = renderCurrent("(none)", "(none)", block);
+    expect(p).toContain(block);
+    expect(p.indexOf("OBSERVED OUTCOMES")).toBeGreaterThan(p.indexOf("STRATEGY"));
+    expect(p.indexOf("OBSERVED OUTCOMES")).toBeLessThan(p.indexOf("GUARDRAILS"));
+    // The layered prompt keeps the FULL v4 playbook contract intact.
+    expect(p).toContain("REPLY PLAYBOOK (one case per classified intent — EXACTLY these six");
+    expect(p).toContain('{"intent":"not_interested"}, "pipeline":"lost"');
+  });
+
+  it("an empty outcomes block leaves NO outcomes section (young campaigns plan exactly as v4 did)", () => {
+    const p = renderCurrent();
+    expect(p).not.toContain("OBSERVED OUTCOMES");
+    expect(p).toContain("REPLY PLAYBOOK");
+  });
+
+  it("BEFORE/AFTER: v4 (still registered) has the playbook but no outcomes slot", () => {
+    renderCurrent(); // ensure registration ran
+    const v4 = renderPrompt(PLANNER_PROMPT_NAME, 4, {
+      ...baseVars,
+      arcLabel: fixture.arc.label,
+      arcDescription: fixture.arc.description,
+      arcRoles: "  1. OPENER",
+      toneHints: fixture.toneHints,
+      strategyNotes: "(none)",
+      neverSay: "(none)",
+    });
+    expect(v4).toContain("REPLY PLAYBOOK");
+    expect(v4).not.toContain("OBSERVED OUTCOMES");
+    expect(v4).not.toContain("{{outcomes}}");
+  });
+
+  it("template carries the six-intent REPLY PLAYBOOK with stage pins and rejoin routes", () => {
+    const p = renderCurrent();
+    expect(p).toContain("REPLY PLAYBOOK (one case per classified intent — EXACTLY these six");
+    expect(p).toContain('{"intent":"interested"}, "pipeline":"booked"');
+    expect(p).toContain('{"intent":"objection_price"}, "pipeline":"replied" → a VALUE-REFRAME "step"');
+    expect(p).toContain("NEVER offer a discount, a lower price, or flexible pricing — unless the business context itself contains such an offer");
+    expect(p).toContain('{"intent":"objection_timing"}, "pipeline":"replied" → an ACKNOWLEDGE "step"');
+    expect(p).toContain('a "delay" node of 14-45 days');
+    expect(p).toContain('{"intent":"wrong_person"}, "pipeline":"replied" → a REFERRAL-ASK "step"');
+    expect(p).toContain('{"intent":"info_request"}, "pipeline":"replied" → an ANSWER "step"');
+    expect(p).toContain('{"intent":"not_interested"}, "pipeline":"lost" → a GRACEFUL-CLOSE "step"');
+    expect(p).toContain("never mention unsubscribing");
+    expect(p).toContain("BACK to the branch node");
+  });
+
+  it("system prompt carries the REPLY CRAFT rules (strategy steps exempt from the length ladder)", () => {
+    expect(PLANNER_SYSTEM).toContain("REPLY CRAFT");
+    expect(PLANNER_SYSTEM).toContain("exempt from the decreasing-length ladder");
+    expect(PLANNER_SYSTEM).toContain("A price objection is answered with VALUE, never money");
+    expect(PLANNER_SYSTEM).toContain("never mention unsubscribing");
+  });
+
+  it("BEFORE/AFTER: v3 (still registered) carries the STRATEGY block but no REPLY PLAYBOOK", () => {
+    renderCurrent(); // ensure registration ran
+    const v3 = renderPrompt(PLANNER_PROMPT_NAME, 3, {
+      ...baseVars,
+      arcLabel: fixture.arc.label,
+      arcDescription: fixture.arc.description,
+      arcRoles: "  1. OPENER",
+      toneHints: fixture.toneHints,
+      strategyNotes: "(none)",
+      neverSay: "(none)",
+    });
+    expect(v3).toContain("STRATEGY (the selling method");
+    expect(v3).not.toContain("REPLY PLAYBOOK");
+    expect(v3).toContain('a case for {"intent":"interested"}');
+  });
+});
+
+describe("planner prompt v3 (selling craft — carried into v4)", () => {
   it("system prompt carries the role ladder, opener discipline and banned openers", () => {
     expect(PLANNER_SYSTEM).toContain("SELLING CRAFT");
     expect(PLANNER_SYSTEM).toContain(`At most ${OPENER_WORD_CAP} words`);
@@ -56,7 +134,7 @@ describe("planner prompt v3 (selling craft)", () => {
   });
 
   it("template carries the STRATEGY block with arc, tone, notes and neverSay", () => {
-    const p = renderV3("Lead with the audit.", '"cheap", "guarantee"');
+    const p = renderCurrent("Lead with the audit.", '"cheap", "guarantee"');
     expect(p).toContain(`Arc: ${fixture.arc.label}`);
     expect(p).toContain(fixture.arc.roles[0]!);
     expect(p).toContain(fixture.arc.roles[fixture.arc.roles.length - 1]!);
@@ -66,13 +144,13 @@ describe("planner prompt v3 (selling craft)", () => {
   });
 
   it("absent strategy renders the '(none)' defaults", () => {
-    const p = renderV3();
+    const p = renderCurrent();
     expect(p).toContain("Owner strategy notes: (none)");
     expect(p).toMatch(/NEVER SAY .*: \(none\)/);
   });
 
   it("BEFORE/AFTER: v2 (still registered) carries no craft and no STRATEGY block", () => {
-    renderV3(); // ensure registration ran
+    renderCurrent(); // ensure registration ran
     const v2 = renderPrompt(PLANNER_PROMPT_NAME, 2, baseVars);
     expect(v2).not.toContain("STRATEGY");
     expect(v2).not.toContain("Arc:");
@@ -82,7 +160,7 @@ describe("planner prompt v3 (selling craft)", () => {
   });
 });
 
-describe("planner prompt v4 — guided sms briefs (G1, DEC-068)", () => {
+describe("planner prompt v6 — guided sms briefs (G1, DEC-070; layered on v5)", () => {
   const guidedVars = {
     ...baseVars,
     channels:
@@ -93,30 +171,37 @@ describe("planner prompt v4 — guided sms briefs (G1, DEC-068)", () => {
     toneHints: fixture.toneHints,
     strategyNotes: "(none)",
     neverSay: "(none)",
+    outcomes: "",
   };
 
-  it("is pinned at version 4, registered beside v2/v3 (append-only registry)", () => {
-    expect(PLANNER_PROMPT_VERSION_GUIDED).toBe(4);
+  it("is pinned at version 6, registered beside v2–v5 (append-only registry)", () => {
+    expect(PLANNER_PROMPT_VERSION_GUIDED).toBe(6);
     expect(renderPlannerPrompt(guidedVars, true)).toContain('Sms steps: mode "guided"');
   });
 
-  it("v4 instructs briefs for sms steps and scripted copy for email steps", () => {
-    const v4 = renderPlannerPrompt(guidedVars, true);
-    expect(v4).toContain('"brief" (objective + 3-6 talkingPoints + optional mustSay/neverSay)');
-    expect(v4).toContain("EMPTY content — no subject, no body, no merge tokens");
-    expect(v4).toContain('Email steps: content has "subject" and "body"');
-    // The shared head/tail is intact — STRATEGY block + graph contract.
-    expect(v4).toContain("STRATEGY (the selling method for this agent — follow it):");
-    expect(v4).toContain("GRAPH REQUIREMENTS:");
+  it("v6 instructs briefs for sms steps; email steps (main AND reply-strategy) stay scripted", () => {
+    const v6 = renderPlannerPrompt(guidedVars, true);
+    expect(v6).toContain('"brief" (objective + 3-6 talkingPoints + optional mustSay/neverSay)');
+    expect(v6).toContain("EMPTY content — no subject, no body, no merge tokens");
+    expect(v6).toContain('Email steps: content has "subject" and "body"');
+    expect(v6).toContain("Reply-strategy steps stay scripted email.");
+    // Everything ELSE is v5 verbatim (v6 derives from the same literal): the
+    // STRATEGY block, the six-case REPLY PLAYBOOK, the outcomes slot.
+    expect(v6).toContain("STRATEGY (the selling method for this agent — follow it):");
+    expect(v6).toContain("REPLY PLAYBOOK (one case per classified intent — EXACTLY these six");
+    const v5 = renderPlannerPrompt(guidedVars, false);
+    expect(v6.replace(/- 3-4 "step" nodes in the MAIN sequence\.[^\n]*/, "")).toBe(
+      v5.replace(/- 3-4 "step" nodes in the MAIN sequence;[^\n]*/, ""),
+    );
   });
 
-  it("SCRIPTED REGRESSION: v3 renders with ZERO guided material — byte-stable step bullet", () => {
-    const v3 = renderPlannerPrompt(guidedVars, false);
-    expect(v3).not.toContain("guided");
-    expect(v3).not.toContain("brief");
-    // The exact M1a step bullet (rendered), untouched by the shared-head refactor.
-    expect(v3).toContain(
-      '- 3-4 "step" nodes; each content has "subject" and "body"; use {{firstName}} and {{company}} in the body (and subject where natural).',
+  it("SCRIPTED REGRESSION: v5 renders with ZERO guided material — byte-stable step bullet", () => {
+    const v5 = renderPlannerPrompt(guidedVars, false);
+    expect(v5).not.toContain("guided");
+    expect(v5).not.toContain('"brief"');
+    // The exact F1 step bullet (rendered), untouched by the v6 derivation.
+    expect(v5).toContain(
+      '- 3-4 "step" nodes in the MAIN sequence; each content has "subject" and "body"; use {{firstName}} and {{company}} in the body (and subject where natural).',
     );
   });
 
@@ -125,6 +210,6 @@ describe("planner prompt v4 — guided sms briefs (G1, DEC-068)", () => {
     expect(PLANNER_SYSTEM_GUIDED).toContain("GUIDED SMS BRIEFS");
     expect(PLANNER_SYSTEM_GUIDED).toContain("never write sms body text");
     // The scripted system itself carries none of it.
-    expect(PLANNER_SYSTEM).not.toContain("GUIDED");
+    expect(PLANNER_SYSTEM).not.toContain("GUIDED SMS BRIEFS");
   });
 });

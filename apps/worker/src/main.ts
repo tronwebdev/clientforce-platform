@@ -316,7 +316,7 @@ async function run(): Promise<void> {
       transport: new SendGridSender(),
       // P2.1 (DEC-061): sms steps route through Twilio (SMS_SANDBOX default ON).
       smsTransport: new TwilioSmsSender(),
-      // G1 (DEC-068): guided sms steps compose per lead on the copy route —
+      // G1 (DEC-070): guided sms steps compose per lead on the copy route —
       // key absent → guided steps refuse typed (COMPOSER_UNCONFIGURED), the
       // same honest-absence pattern as the transports.
       ...(process.env.ANTHROPIC_API_KEY

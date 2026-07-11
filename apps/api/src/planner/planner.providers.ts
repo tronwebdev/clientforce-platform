@@ -26,7 +26,7 @@ class BullPlanEnqueuer implements PlanEnqueuer {
 }
 
 /**
- * G1 (DEC-068): the sample-preview composer runs IN the api process — one
+ * G1 (DEC-070): the sample-preview composer runs IN the api process — one
  * bounded Sonnet-class call per click (the api already carries
  * ANTHROPIC_API_KEY, DEC-027). Null when the key is absent: the endpoint
  * answers with a designed 503 naming the prerequisite (DEC-047 ladder),

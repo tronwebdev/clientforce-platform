@@ -81,7 +81,7 @@ describe("validateGraph", () => {
     expect(() => validateGraph(bad)).toThrow(/Duplicate node id "n1"/);
   });
 
-  // ── G1 (DEC-068): guided steps — briefs composed at send, sms-only ─────────
+  // ── G1 (DEC-070): guided steps — briefs composed at send, sms-only ─────────
   const asGuided = (over: object): CampaignGraph => ({
     ...sample,
     nodes: sample.nodes.map((n) =>
@@ -137,6 +137,84 @@ describe("validateGraph", () => {
   it("rejects a sequential node with no outgoing edge", () => {
     const bad = { ...sample, edges: sample.edges.filter((e) => e.from !== "n2") };
     expect(() => validateGraph(bad)).toThrow(/node "n2" \(step\) must have exactly one outgoing edge/);
+  });
+
+  // M1b (DEC-068): branch cases are keyed by intent — ambiguity is rejected.
+  it("rejects duplicate intent cases within one branch", () => {
+    const bad: CampaignGraph = {
+      ...sample,
+      nodes: sample.nodes.map((n) =>
+        n.id === "b1" && n.type === "branch"
+          ? {
+              ...n,
+              cases: [
+                { when: { intent: "interested" }, goto: "win" },
+                { when: { intent: "interested" }, goto: "d2" },
+                { when: "default", goto: "end1" },
+              ],
+            }
+          : n,
+      ),
+    };
+    expect(() => validateGraph(bad)).toThrow(/duplicate cases for intent "interested"/);
+  });
+
+  it("rejects more than one default case within one branch", () => {
+    const bad: CampaignGraph = {
+      ...sample,
+      nodes: sample.nodes.map((n) =>
+        n.id === "b1" && n.type === "branch"
+          ? {
+              ...n,
+              cases: [
+                { when: "default", goto: "end1" },
+                { when: "default", goto: "d2" },
+              ],
+            }
+          : n,
+      ),
+    };
+    expect(() => validateGraph(bad)).toThrow(/more than one default case/);
+  });
+
+  it("M1b six-case branch validates; a strategy path may rejoin the reply branch (loop-back edge)", () => {
+    const sixCase: CampaignGraph = {
+      entry: "s1",
+      nodes: [
+        { id: "s1", type: "step", channel: "email", content: { subject: "a", body: "b" } },
+        { id: "br", type: "branch", on: "reply", cases: [
+          { when: { intent: "interested" }, goto: "end-won", pipeline: "booked" },
+          { when: { intent: "objection_price" }, goto: "reframe", pipeline: "replied" },
+          { when: { intent: "objection_timing" }, goto: "ack" },
+          { when: { intent: "wrong_person" }, goto: "referral" },
+          { when: { intent: "info_request" }, goto: "answer" },
+          { when: { intent: "not_interested" }, goto: "close", pipeline: "lost" },
+          { when: "default", goto: "end-lost" },
+        ] },
+        { id: "reframe", type: "step", channel: "email", content: { body: "value" } },
+        { id: "ack", type: "step", channel: "email", content: { body: "later" } },
+        { id: "referral", type: "step", channel: "email", content: { body: "who?" } },
+        { id: "answer", type: "step", channel: "email", content: { body: "here" } },
+        { id: "close", type: "step", channel: "email", content: { body: "bye" } },
+        { id: "end-won", type: "end" },
+        { id: "end-lost", type: "end" },
+      ],
+      edges: [
+        { from: "s1", to: "br" },
+        { from: "reframe", to: "br" }, // loop-back: await the NEXT reply
+        { from: "ack", to: "br" },
+        { from: "referral", to: "end-lost" },
+        { from: "answer", to: "br" },
+        { from: "close", to: "end-lost" },
+      ],
+    };
+    expect(validateGraph(sixCase).entry).toBe("s1");
+    // Dry-run the objection_price → reframe loop: the same event resolves the
+    // branch each visit, so the executor's cycle guard bounds it — the
+    // RUNTIME loop is safe because step sends are idempotent per node (P1.6).
+    const actions = execute(sixCase, { events: { br: { intent: "interested" } } });
+    expect(actions.find((a) => a.kind === "branch")).toMatchObject({ matched: "intent:interested" });
+    expect(actions.find((a) => a.kind === "pipeline_move")).toMatchObject({ stage: "booked" });
   });
 });
 

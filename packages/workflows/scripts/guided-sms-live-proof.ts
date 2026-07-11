@@ -1,5 +1,5 @@
 /**
- * G1 (DEC-068) live guided-SMS proof — the brain is REAL, the wire is not:
+ * G1 (DEC-070) live guided-SMS proof — the brain is REAL, the wire is not:
  * a real Sonnet-class composer (Key Vault ANTHROPIC-API-KEY) renders two
  * leads' SMS from ONE brief through the full activity path — compose →
  * deterministic checks → the unchanged sendSmsStep rails → Message persisted

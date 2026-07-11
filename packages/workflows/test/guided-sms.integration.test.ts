@@ -1,5 +1,5 @@
 /**
- * G1 (DEC-068) acceptance integration: the guided loop END TO END against
+ * G1 (DEC-070) acceptance integration: the guided loop END TO END against
  * Postgres — brief → REAL createSmsStepComposer (prompt-driven fake gateway,
  * the M1a fixture pattern: no network) → deterministic checks → the UNCHANGED
  * sendSmsStep rails → Message persisted as rendered with `{mode,

@@ -16,7 +16,7 @@ export {
   type ProposedAsk,
 } from "./distill";
 export { checkGaps, coveredKeys, mergeLayers, type GapInput } from "./gaps";
-// G1 (DEC-068): the ONE context-text renderer shared by planner + composer.
+// G1 (DEC-070): the ONE context-text renderer shared by planner + composer.
 export { loadMergedContextText, renderContextText } from "./context-text";
 export { CONTEXT_QUEUE_NAME, createDistillQueue, createDistillWorker } from "./queue";
 export { DISTILL_PROMPT_NAME, DISTILL_PROMPT_VERSION, DISTILL_SYSTEM } from "./prompts";

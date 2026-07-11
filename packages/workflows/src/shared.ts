@@ -23,7 +23,7 @@ export interface CampaignWorkflowInput {
   senderId: string;
   graph: CampaignGraph;
   /**
-   * G1 (DEC-068): the persisted CampaignGraph row's version at enrollment
+   * G1 (DEC-070): the persisted CampaignGraph row's version at enrollment
    * time — guided sends record it as `Message.meta.briefVersion` (which brief
    * produced this copy). Optional: in-flight pre-G1 runs replay unchanged.
    */

@@ -37,7 +37,7 @@ export interface StepContent {
 }
 
 /**
- * G1 (DEC-068): a guided step's BRIEF — talking points, not finished copy.
+ * G1 (DEC-070): a guided step's BRIEF — talking points, not finished copy.
  * The composer renders the real message per lead at send time; the planner
  * emits briefs only when the agent's `composeMode` is "guided".
  */
@@ -59,7 +59,7 @@ export interface StepNode {
   channel: Channel;
   content: StepContent;
   /**
-   * G1 (DEC-068): absent = "scripted" — legacy graphs parse byte-identical.
+   * G1 (DEC-070): absent = "scripted" — legacy graphs parse byte-identical.
    * "guided" steps carry a `brief` instead of body copy and are composed per
    * lead at send time; legal on channel "sms" ONLY this unit (email = G2).
    */

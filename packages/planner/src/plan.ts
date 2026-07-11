@@ -8,17 +8,21 @@ import {
   parseGuardrails,
   selectStrategy,
   validateGraph,
+  type BranchCase,
+  type BranchNode,
   type CampaignGraph,
   type IntendedAction,
   type StepNode,
   type StrategyBlock,
 } from "@clientforce/core";
+import { IntentSchema, type Intent } from "@clientforce/events";
 import {
   withTenant,
   type Campaign,
   type CampaignGraph as CampaignGraphRow,
   type PrismaClient,
 } from "@clientforce/db";
+import { buildOutcomesPromptBlock, loadCampaignOutcomes } from "./outcomes";
 import { PLANNER_SYSTEM, PLANNER_SYSTEM_GUIDED, renderPlannerPrompt } from "./prompts";
 
 export interface PlanDeps {
@@ -75,7 +79,7 @@ export async function planCampaign(deps: PlanDeps, target: PlanTarget): Promise<
   );
   const allowedChannels = smsSender ? ["email", "sms"] : ["email"];
 
-  // G1 (DEC-068): the ONE shared renderer — the composer reads the same text.
+  // G1 (DEC-070): the ONE shared renderer — the composer reads the same text.
   const contextText = await loadMergedContextText(prisma, { workspaceId, agentId });
   if (!contextText) {
     throw new PlannerError(
@@ -88,30 +92,37 @@ export async function planCampaign(deps: PlanDeps, target: PlanTarget): Promise<
   const strategy = selectStrategy(agent.goal, agent.category);
   const rider = guardrailsRiderOf(agent.guardrails);
   const neverSay = rider.strategy?.neverSay ?? [];
-  // G1 (DEC-068): guided briefs need a live sms channel to compose into —
+  // G1 (DEC-070): guided briefs need a live sms channel to compose into —
   // a guided agent without an ACTIVE Twilio sender plans scripted (honest
   // absence, the DEC-061 pattern).
   const guided = rider.composeMode === "guided" && Boolean(smsSender);
 
-  const prompt = renderPlannerPrompt(
-    {
-      goal: agent.goal + (agent.instructions ? ` — ${agent.instructions}` : ""),
-      context: contextText,
-      guardrails: renderGuardrails(agent.guardrails),
-      stepCount: "3-4",
-      tokens: REQUIRED_TOKENS.join(" and "),
-      channels: smsSender
-        ? '"email" or "sms" — mix channels where the sequence benefits; sms steps have NO subject, body ≤ 300 characters, one clear ask.'
-        : '"email" ONLY.',
-      arcLabel: strategy.arc.label,
-      arcDescription: strategy.arc.description,
-      arcRoles: strategy.arc.roles.map((r, i) => `  ${i + 1}. ${r}`).join("\n"),
-      toneHints: strategy.toneHints,
-      strategyNotes: rider.strategy?.strategyNotes?.trim() || "(none)",
-      neverSay: neverSay.length ? neverSay.map((t) => `"${t}"`).join(", ") : "(none)",
-    },
-    guided,
+  // F1 (DEC-068): outcome-aware regen — the same loader + pure compute the
+  // rollup endpoint uses, so the prompt cites the endpoint's own numbers.
+  // Steps below the low-signal floor render nothing (first generations and
+  // young campaigns plan exactly as before).
+  const outcomes = await withTenant(prisma, { workspaceId }, (tx) =>
+    loadCampaignOutcomes(tx, agentId),
   );
+  const outcomesBlock = buildOutcomesPromptBlock(outcomes);
+
+  const prompt = renderPlannerPrompt({
+    goal: agent.goal + (agent.instructions ? ` — ${agent.instructions}` : ""),
+    context: contextText,
+    guardrails: renderGuardrails(agent.guardrails),
+    stepCount: "3-4",
+    tokens: REQUIRED_TOKENS.join(" and "),
+    channels: smsSender
+      ? '"email" or "sms" — mix channels where the sequence benefits; sms steps have NO subject, body ≤ 300 characters, one clear ask.'
+      : '"email" ONLY.',
+    arcLabel: strategy.arc.label,
+    arcDescription: strategy.arc.description,
+    arcRoles: strategy.arc.roles.map((r, i) => `  ${i + 1}. ${r}`).join("\n"),
+    toneHints: strategy.toneHints,
+    strategyNotes: rider.strategy?.strategyNotes?.trim() || "(none)",
+    neverSay: neverSay.length ? neverSay.map((t) => `"${t}"`).join(", ") : "(none)",
+    outcomes: outcomesBlock,
+  }, guided);
   const system = guided ? PLANNER_SYSTEM_GUIDED : PLANNER_SYSTEM;
 
   // Attempt 1 (shape is enforced + repaired inside completeStructured) …
@@ -189,6 +200,21 @@ export async function planCampaign(deps: PlanDeps, target: PlanTarget): Promise<
   return { campaign, graphRow, graph, dryRun };
 }
 
+/**
+ * M1b (DEC-068): the six reply-strategy intents every GENERATED graph's reply
+ * branch must case, with the stage pin each case must carry (the acceptance
+ * contract — interested closes as goal-met, not_interested closes as lost
+ * WITHOUT suppression, everything else records the conversation).
+ */
+export const REQUIRED_BRANCH_INTENTS: ReadonlyArray<{ intent: Intent; pipeline: string }> = [
+  { intent: "interested", pipeline: "booked" },
+  { intent: "objection_price", pipeline: "replied" },
+  { intent: "objection_timing", pipeline: "replied" },
+  { intent: "wrong_person", pipeline: "replied" },
+  { intent: "info_request", pipeline: "replied" },
+  { intent: "not_interested", pipeline: "lost" },
+];
+
 /** Shape + T4 semantics + P1.4 slice requirements, as one gate.
  *  P2.1 (DEC-061): `allowedChannels` widens per workspace capability — sms
  *  joins ONLY when an active Twilio sender exists (default stays email-only).
@@ -197,7 +223,13 @@ export async function planCampaign(deps: PlanDeps, target: PlanTarget): Promise<
  *  the caller's bounded repair round-trip → typed failure). Manual edits via
  *  PUT /planner/graph are deliberately NOT checked — those are the owner's
  *  own typed words; this guards generation.
- *  G1 (DEC-068): `allowGuided` gates guided steps to guided agents — a
+ *  M1b (DEC-068): the reply branch must carry the six-intent REPLY PLAYBOOK
+ *  (+ default), every case intent must be a member of the shared IntentSchema
+ *  (bounded taxonomy — no invented labels), the interested/not_interested
+ *  stage pins are enforced deterministically, and each strategy case must
+ *  route to a real strategy STEP. Legacy 1-branch graphs are untouched — this
+ *  gate runs at GENERATION only; execution back-compat lives in the workflow.
+ *  G1 (DEC-070): `allowGuided` gates guided steps to guided agents — a
  *  scripted agent's model emitting mode:"guided" is a validation failure
  *  (regression protection); the merge-token rule applies to SCRIPTED copy
  *  only (guided briefs carry no copy — the composer personalizes from real
@@ -221,21 +253,65 @@ export function validateAll(
         : `Steps ${disallowed.map((s) => s.id).join(", ")} use channels outside [${allowedChannels.join(", ")}]`,
     );
   }
-  const guided = steps.filter((s) => s.mode === "guided");
-  if (!allowGuided && guided.length > 0) {
+  const guidedSteps = steps.filter((s) => s.mode === "guided");
+  if (!allowGuided && guidedSteps.length > 0) {
     throw new GraphValidationError(
-      `Steps ${guided.map((s) => s.id).join(", ")} are mode:"guided" but this agent composes scripted — emit scripted steps with full copy`,
+      `Steps ${guidedSteps.map((s) => s.id).join(", ")} are mode:"guided" but this agent composes scripted — emit scripted steps with full copy`,
     );
   }
   if (!graph.nodes.some((n) => n.type === "delay")) {
     throw new GraphValidationError("Graph must contain at least one delay node");
   }
-  const replyBranch = graph.nodes.find((n) => n.type === "branch" && n.on === "reply");
-  if (!replyBranch) {
-    throw new GraphValidationError('Graph must contain a branch node with on="reply"');
+  const replyBranches = graph.nodes.filter(
+    (n): n is BranchNode => n.type === "branch" && n.on === "reply",
+  );
+  if (replyBranches.length !== 1) {
+    throw new GraphValidationError(
+      replyBranches.length === 0
+        ? 'Graph must contain a branch node with on="reply"'
+        : `Graph must contain exactly ONE branch node with on="reply", found ${replyBranches.length}`,
+    );
+  }
+  const replyBranch = replyBranches[0]!;
+
+  // M1b: every case intent must come from the shared enum — bounded taxonomy.
+  const stepIds = new Set(steps.map((s) => s.id));
+  const caseIntents = new Map<string, BranchCase>();
+  for (const c of replyBranch.cases) {
+    if (c.when === "default") continue;
+    if (!IntentSchema.safeParse(c.when.intent).success) {
+      throw new GraphValidationError(
+        `Reply branch case intent "${c.when.intent}" is not a known intent — use only: ${IntentSchema.options.join(", ")}`,
+      );
+    }
+    caseIntents.set(c.when.intent, c);
+  }
+  if (!replyBranch.cases.some((c) => c.when === "default")) {
+    throw new GraphValidationError('The reply branch must carry a "default" case');
+  }
+  // M1b: the six-intent REPLY PLAYBOOK, with deterministic stage pins.
+  for (const required of REQUIRED_BRANCH_INTENTS) {
+    const c = caseIntents.get(required.intent);
+    if (!c) {
+      throw new GraphValidationError(
+        `The reply branch is missing a case for intent "${required.intent}" — the REPLY PLAYBOOK requires cases for: ${REQUIRED_BRANCH_INTENTS.map((r) => r.intent).join(", ")} plus "default"`,
+      );
+    }
+    if (c.pipeline !== required.pipeline) {
+      throw new GraphValidationError(
+        `The reply branch case for intent "${required.intent}" must set "pipeline":"${required.pipeline}" (found ${c.pipeline ? `"${c.pipeline}"` : "none"})`,
+      );
+    }
+    // Strategy cases route to their strategy STEP; interested routes to the
+    // close path (end/action) — anything goes there.
+    if (required.intent !== "interested" && !stepIds.has(c.goto)) {
+      throw new GraphValidationError(
+        `The reply branch case for intent "${required.intent}" must route to its strategy "step" node (goto "${c.goto}" is not a step)`,
+      );
+    }
   }
   // Merge tokens live in SCRIPTED copy; an all-guided graph has none at plan
-  // time by design (documented default, DEC-068).
+  // time by design (documented default, DEC-070).
   const scripted = steps.filter((s) => s.mode !== "guided");
   if (scripted.length > 0) {
     const copy = scripted
@@ -248,8 +324,9 @@ export function validateAll(
     }
   }
   // M1a: case-insensitive substring scan per step — names every hit so the
-  // repair round-trip knows exactly what to remove. G1: a guided step's
-  // BRIEF text is scanned too (objective + talking points + mustSay).
+  // repair round-trip knows exactly what to remove.
+  // G1: a guided step's BRIEF text is scanned too (objective + talking
+  // points + mustSay).
   const hits: string[] = [];
   for (const step of steps) {
     const brief = step.brief

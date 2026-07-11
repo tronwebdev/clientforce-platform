@@ -11,12 +11,30 @@ import { BANNED_OPENERS, OPENER_WORD_CAP } from "@clientforce/core";
  * decreasing length, per-role subject rules, banned-opener list, and the
  * per-agent STRATEGY block (arc + tone from the goal×category map, owner
  * strategyNotes, hard-banned neverSay strings). v2 stays registered.
+ *
+ * v4 (M1b, DEC-068): the REPLY PLAYBOOK — the reply branch carries one case
+ * per strategy intent (interested · objection_price · objection_timing ·
+ * wrong_person · info_request · not_interested) + default, each with its
+ * planned path and pinned pipeline stage. v2/v3 stay registered.
+ *
+ * v5 (F1, DEC-069): outcome-aware regen LAYERED on the playbook — v4's text
+ * verbatim plus an OBSERVED OUTCOMES section ({{outcomes}}) citing the rollup
+ * endpoint's own per-step numbers, rendered ONLY for steps at low+ signal
+ * (min-n gates in @clientforce/core) and empty otherwise, so young campaigns
+ * plan exactly as v4 did. v2/v3/v4 stay registered.
+ *
+ * v6 (G1, DEC-070): the GUIDED variant — v5's text with the main-sequence
+ * step bullet swapped so sms steps become mode:"guided" BRIEFS (objective +
+ * talking points, never copy; the composer writes per-lead text at send
+ * time). Rendered ONLY for guided agents with an active sms sender; scripted
+ * agents keep rendering v5 byte-identical. Derived from the v5 literal at
+ * registration so the two can never drift. v2/v3/v4/v5 stay registered.
  */
 export const PLANNER_PROMPT_NAME = "planner.campaign";
-export const PLANNER_PROMPT_VERSION = 3; // M1a (DEC-065): selling-craft playbook + STRATEGY block
-// G1 (DEC-068): guided agents render v4 — v3 plus the GUIDED SMS BRIEFS rules.
-// Scripted agents keep rendering v3 byte-identical (regression requirement).
-export const PLANNER_PROMPT_VERSION_GUIDED = 4;
+export const PLANNER_PROMPT_VERSION = 5; // F1 (DEC-069): OBSERVED OUTCOMES block layered on the v4 playbook
+// G1 (DEC-070): guided agents render v6 — v5 plus the guided-sms-briefs step
+// rule. Scripted agents keep rendering v5 byte-identical (regression-pinned).
+export const PLANNER_PROMPT_VERSION_GUIDED = 6;
 
 export const PLANNER_SYSTEM =
   "You are a campaign planner for an outbound email agent. You design a short, effective email sequence as a " +
@@ -41,23 +59,32 @@ export const PLANNER_SYSTEM =
   "- Each message is SHORTER than the previous one.\n" +
   "- Subject lines follow the step's role: opener = a specific fragment of the observation, at most 6 words, " +
   'never "quick question", never clickbait; value/proof = name the concrete outcome; breakup = signals ' +
-  "closure. Never ALL CAPS, never exclamation marks.";
+  "closure. Never ALL CAPS, never exclamation marks.\n" +
+  "REPLY CRAFT (how classified replies are handled — the reply-branch strategy steps):\n" +
+  "- A strategy step answers the lead's actual situation first, stays under 80 words, keeps ONE " +
+  "call-to-action, and continues the SAME email thread. It belongs to the branch, not the main sequence — " +
+  "it is exempt from the decreasing-length ladder.\n" +
+  "- Objections are never argued with: acknowledge in one clause, reframe with evidence from the business " +
+  "context, ask one small question.\n" +
+  "- A price objection is answered with VALUE, never money: no discount, no lower tier, no \"flexible " +
+  "pricing\" — unless the business context itself contains such an offer, in which case cite it verbatim.\n" +
+  "- A goodbye is graceful: accept the no, leave the door open, zero guilt, never mention unsubscribing.";
 
 /**
- * G1 (DEC-068): the guided addendum — appended to the system prompt ONLY for
+ * G1 (DEC-070): the guided addendum — appended to the system prompt ONLY for
  * guided agents; scripted planning keeps the exact system above.
  */
 export const PLANNER_SYSTEM_GUIDED =
   PLANNER_SYSTEM +
   "\n" +
   "GUIDED SMS BRIEFS (this agent composes SMS per lead at send time):\n" +
-  '- Every sms step is mode:"guided" and carries a "brief" INSTEAD of copy — never write sms body text.\n' +
+  'Every MAIN-SEQUENCE sms step is mode:"guided" and carries a "brief" INSTEAD of copy — never write sms body text.\n' +
   "- A brief = objective (what this step must achieve, following the step's ROLE above) + 3-6 talkingPoints " +
   "(concrete, grounded in the business context — facts the composed message may draw from, not sentences to " +
   "paste) + optional mustSay (ONLY compliance-critical strings that must appear verbatim, e.g. a real " +
   "deadline — at most 5) + optional neverSay (step-specific bans — at most 10).\n" +
   "- Talking points obey the same grounding rule as copy: facts from the business context only.\n" +
-  "- Email steps in the same sequence stay fully scripted with subject and body as usual.";
+  "- Email steps — main sequence AND reply-strategy steps — stay fully scripted with subject and body as usual.";
 
 let registered = false;
 function ensureRegistered(): void {
@@ -87,9 +114,11 @@ GRAPH REQUIREMENTS:
 - Edges connect the flow; sequential nodes (step/delay/action) have exactly ONE outgoing edge; branch routing lives in the branch cases, not edges.
 - Every factual claim in copy must trace to the business context above.`,
   });
-  // v3 and v4 share head/tail so the two can never drift — v3's RENDERED bytes
-  // are unchanged from M1a (the scripted regression pins this).
-  const head = `Design an outbound campaign graph for this agent.
+  // v3 (M1a) stays registered — append-only registry.
+  registerPrompt({
+    name: PLANNER_PROMPT_NAME,
+    version: 3,
+    template: `Design an outbound campaign graph for this agent.
 
 GOAL: {{goal}}
 
@@ -109,29 +138,113 @@ GUARDRAILS (constraints the plan must respect):
 
 GRAPH REQUIREMENTS:
 - Channel: {{channels}}
-`;
-  const tail = `- At least one "delay" node between sends (1-4 days).
+- {{stepCount}} "step" nodes; each content has "subject" and "body"; use {{tokens}} in the body (and subject where natural).
+- At least one "delay" node between sends (1-4 days).
 - Exactly one "branch" node with on="reply": a case for {"intent":"interested"} routing to an "end" (or booking "action") path, and a "default" case continuing the follow-up sequence.
 - Finish every path with an "end" node. Node ids are short slugs (e.g. "step-1", "delay-1", "branch-reply").
 - Edges connect the flow; sequential nodes (step/delay/action) have exactly ONE outgoing edge; branch routing lives in the branch cases, not edges.
-- Every factual claim in copy must trace to the business context above.`;
+- Every factual claim in copy must trace to the business context above.`,
+  });
+  // v4 (M1b, DEC-068): the REPLY PLAYBOOK — branch cases keyed by the six
+  // strategy intents, each with its planned path + deterministic stage pin.
   registerPrompt({
     name: PLANNER_PROMPT_NAME,
-    version: PLANNER_PROMPT_VERSION,
-    template:
-      head +
-      `- {{stepCount}} "step" nodes; each content has "subject" and "body"; use {{tokens}} in the body (and subject where natural).\n` +
-      tail,
+    version: 4,
+    template: `Design an outbound campaign graph for this agent.
+
+GOAL: {{goal}}
+
+BUSINESS CONTEXT (the ONLY permitted source of facts — cite-worthy values distilled from the company's own materials):
+{{context}}
+
+STRATEGY (the selling method for this agent — follow it):
+- Arc: {{arcLabel}} — {{arcDescription}}
+- Step roles in order:
+{{arcRoles}}
+- Tone: {{toneHints}}
+- Owner strategy notes: {{strategyNotes}}
+- NEVER SAY (hard ban — these strings must not appear anywhere in any subject or body, in any casing): {{neverSay}}
+
+GUARDRAILS (constraints the plan must respect):
+{{guardrails}}
+
+GRAPH REQUIREMENTS:
+- Channel: {{channels}}
+- {{stepCount}} "step" nodes in the MAIN sequence; each content has "subject" and "body"; use {{tokens}} in the body (and subject where natural).
+- At least one "delay" node between main-sequence sends (1-4 days).
+- Exactly one "branch" node with on="reply" carrying the REPLY PLAYBOOK below, plus a "default" case that continues the follow-up sequence (which ends with the BREAKUP step).
+
+REPLY PLAYBOOK (one case per classified intent — EXACTLY these six, each with "pipeline" set as stated):
+- {"intent":"interested"}, "pipeline":"booked" → the close path: an "end" node (or a booking "action" node then "end").
+- {"intent":"objection_price"}, "pipeline":"replied" → a VALUE-REFRAME "step": re-anchor on the outcome and proof from the business context. NEVER offer a discount, a lower price, or flexible pricing — unless the business context itself contains such an offer. Its edge goes BACK to the branch node (await the next reply).
+- {"intent":"objection_timing"}, "pipeline":"replied" → an ACKNOWLEDGE "step" (respect their timeline, promise to circle back) → a "delay" node of 14-45 days → a short FOLLOW-UP "step" whose edge goes BACK to the branch node.
+- {"intent":"wrong_person"}, "pipeline":"replied" → a REFERRAL-ASK "step" (thank them, ask to be pointed to the right person) whose edge goes to an "end" node.
+- {"intent":"info_request"}, "pipeline":"replied" → an ANSWER "step" (answer from the business context ONLY, one clear CTA) whose edge goes BACK to the branch node.
+- {"intent":"not_interested"}, "pipeline":"lost" → a GRACEFUL-CLOSE "step" (accept the no, door open, no guilt, never mention unsubscribing) whose edge goes to an "end" node.
+Reply-strategy steps set "threaded": true (they continue the thread).
+
+- Finish every non-rejoining path with an "end" node. Node ids are short slugs (e.g. "step-1", "branch-reply", "step-reframe-price").
+- Edges connect the flow; sequential nodes (step/delay/action) have exactly ONE outgoing edge; branch routing lives in the branch cases, not edges.
+- Every factual claim in copy must trace to the business context above.`,
   });
-  // G1 (DEC-068): the guided variant — sms steps become briefs, email steps
-  // stay scripted. Registered append-only beside v2/v3.
+  // v5 (F1, DEC-069) = v4's playbook text VERBATIM + the OBSERVED OUTCOMES
+  // section. {{outcomes}} is either a complete self-labeled block (low+ steps
+  // only, built by buildOutcomesPromptBlock from the endpoint's own numbers)
+  // or "" — the section header lives in the block, never dangling in the
+  // template, so an empty block renders exactly the v4 prompt.
+  const v5Template = `Design an outbound campaign graph for this agent.
+
+GOAL: {{goal}}
+
+BUSINESS CONTEXT (the ONLY permitted source of facts — cite-worthy values distilled from the company's own materials):
+{{context}}
+
+STRATEGY (the selling method for this agent — follow it):
+- Arc: {{arcLabel}} — {{arcDescription}}
+- Step roles in order:
+{{arcRoles}}
+- Tone: {{toneHints}}
+- Owner strategy notes: {{strategyNotes}}
+- NEVER SAY (hard ban — these strings must not appear anywhere in any subject or body, in any casing): {{neverSay}}
+
+{{outcomes}}
+GUARDRAILS (constraints the plan must respect):
+{{guardrails}}
+
+GRAPH REQUIREMENTS:
+- Channel: {{channels}}
+- {{stepCount}} "step" nodes in the MAIN sequence; each content has "subject" and "body"; use {{tokens}} in the body (and subject where natural).
+- At least one "delay" node between main-sequence sends (1-4 days).
+- Exactly one "branch" node with on="reply" carrying the REPLY PLAYBOOK below, plus a "default" case that continues the follow-up sequence (which ends with the BREAKUP step).
+
+REPLY PLAYBOOK (one case per classified intent — EXACTLY these six, each with "pipeline" set as stated):
+- {"intent":"interested"}, "pipeline":"booked" → the close path: an "end" node (or a booking "action" node then "end").
+- {"intent":"objection_price"}, "pipeline":"replied" → a VALUE-REFRAME "step": re-anchor on the outcome and proof from the business context. NEVER offer a discount, a lower price, or flexible pricing — unless the business context itself contains such an offer. Its edge goes BACK to the branch node (await the next reply).
+- {"intent":"objection_timing"}, "pipeline":"replied" → an ACKNOWLEDGE "step" (respect their timeline, promise to circle back) → a "delay" node of 14-45 days → a short FOLLOW-UP "step" whose edge goes BACK to the branch node.
+- {"intent":"wrong_person"}, "pipeline":"replied" → a REFERRAL-ASK "step" (thank them, ask to be pointed to the right person) whose edge goes to an "end" node.
+- {"intent":"info_request"}, "pipeline":"replied" → an ANSWER "step" (answer from the business context ONLY, one clear CTA) whose edge goes BACK to the branch node.
+- {"intent":"not_interested"}, "pipeline":"lost" → a GRACEFUL-CLOSE "step" (accept the no, door open, no guilt, never mention unsubscribing) whose edge goes to an "end" node.
+Reply-strategy steps set "threaded": true (they continue the thread).
+
+- Finish every non-rejoining path with an "end" node. Node ids are short slugs (e.g. "step-1", "branch-reply", "step-reframe-price").
+- Edges connect the flow; sequential nodes (step/delay/action) have exactly ONE outgoing edge; branch routing lives in the branch cases, not edges.
+- Every factual claim in copy must trace to the business context above.`;
+  registerPrompt({ name: PLANNER_PROMPT_NAME, version: 5, template: v5Template });
+
+  // v6 (G1, DEC-070) = v5 VERBATIM with the main-sequence step bullet swapped
+  // for the guided rule — derived from the same literal so v5/v6 can't drift.
+  const v5StepBullet =
+    '- {{stepCount}} "step" nodes in the MAIN sequence; each content has "subject" and "body"; use {{tokens}} in the body (and subject where natural).';
+  if (!v5Template.includes(v5StepBullet)) {
+    throw new Error("planner prompt v6 derivation: v5 step bullet not found — realign the guided variant");
+  }
   registerPrompt({
     name: PLANNER_PROMPT_NAME,
     version: PLANNER_PROMPT_VERSION_GUIDED,
-    template:
-      head +
-      `- {{stepCount}} "step" nodes. Email steps: content has "subject" and "body"; use {{tokens}} in the body (and subject where natural). Sms steps: mode "guided" with a "brief" (objective + 3-6 talkingPoints + optional mustSay/neverSay) and EMPTY content — no subject, no body, no merge tokens (the composer writes per-lead copy at send time).\n` +
-      tail,
+    template: v5Template.replace(
+      v5StepBullet,
+      '- {{stepCount}} "step" nodes in the MAIN sequence. Email steps: content has "subject" and "body"; use {{tokens}} in the body (and subject where natural). Sms steps: mode "guided" with a "brief" (objective + 3-6 talkingPoints + optional mustSay/neverSay) and EMPTY content — no subject, no body, no merge tokens (the composer writes per-lead copy at send time). Reply-strategy steps stay scripted email.',
+    ),
   });
 }
 
@@ -153,9 +266,13 @@ export function renderPlannerPrompt(vars: {
   strategyNotes: string;
   /** Comma-joined quoted ban list; "(none)" default. */
   neverSay: string;
+  /** F1 (DEC-069): the OBSERVED OUTCOMES block from buildOutcomesPromptBlock —
+   *  "" when no step clears the low-signal floor (renders exactly the v4
+   *  playbook prompt). */
+  outcomes: string;
 }, guided = false): string {
   ensureRegistered();
-  // G1 (DEC-068): guided agents render v4; scripted agents keep v3 verbatim.
+  // G1 (DEC-070): guided agents render v6; scripted agents keep v5 verbatim.
   return renderPrompt(
     PLANNER_PROMPT_NAME,
     guided ? PLANNER_PROMPT_VERSION_GUIDED : PLANNER_PROMPT_VERSION,

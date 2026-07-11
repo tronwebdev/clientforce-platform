@@ -1,5 +1,5 @@
 /**
- * Guided SMS composer (G1, DEC-068). A guided step carries a BRIEF (talking
+ * Guided SMS composer (G1, DEC-070). A guided step carries a BRIEF (talking
  * points, never finished copy); this module renders the real message per lead
  * at send/reply/preview time on the `copy` route (Sonnet-class), then proves
  * the output with DETERMINISTIC checks — ban lists, mustSay, length, merge-

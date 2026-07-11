@@ -121,7 +121,7 @@ export class PlannerController {
   }
 
   /**
-   * G1 (DEC-068): sample preview — compose a guided step's brief against the
+   * G1 (DEC-070): sample preview — compose a guided step's brief against the
    * FIXED sample lead (no contact row, empty history) through the REAL
    * deterministic checks. A check refusal is a legitimate outcome to DISPLAY,
    * so it returns 200 `{refused}` rather than an error status; free at launch

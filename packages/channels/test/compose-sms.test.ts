@@ -1,5 +1,5 @@
 /**
- * G1 (DEC-068) composer unit tests — pure, no infra. The deterministic checks
+ * G1 (DEC-070) composer unit tests — pure, no infra. The deterministic checks
  * are string operations proven one by one; composeSms's bounded retry walks
  * clean-first-pass / retry-heals / retry-still-dirty → typed refusal, with a
  * prompt-driven fake provider (the M1a fixture pattern — no network, ever).

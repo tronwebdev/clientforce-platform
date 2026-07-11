@@ -6,7 +6,7 @@
  * no prototype anchor (flagged in the spec) — §0 convention copy used.
  */
 import { useCallback, useEffect, useState } from "react";
-import { cf } from "./shared";
+import { cf, intentTint } from "./shared";
 
 interface LogEvent {
   id: string;
@@ -28,7 +28,7 @@ const LOG_ROW: Record<string, { icon: string; bg: string; fg: string }> = {
   "lead.stage_changed.v1": { icon: "✦", bg: "rgba(53,232,52,.16)", fg: "#16A82A" },
   "lead.unsubscribed.v1": { icon: "⊘", bg: "rgba(224,121,107,.16)", fg: "#C9543F" },
   // P2.1 sms rows (carry-along: the Logs feed rendered raw sms.* slugs —
-  // DEC-057's no-slug rule) + the G1 compose-refusal amber row (DEC-068).
+  // DEC-057's no-slug rule) + the G1 compose-refusal amber row (DEC-070).
   "sms.sent.v1": { icon: "✆", bg: "#F2EEE4", fg: "#8A7F6B" },
   "sms.delivered.v1": { icon: "✓", bg: "#F2EEE4", fg: "#8A7F6B" },
   "sms.failed.v1": { icon: "⚠", bg: "rgba(224,121,107,.14)", fg: "#C9543F" },
@@ -46,7 +46,7 @@ function describe(e: LogEvent): string {
     case "email.delivered.v1": return `Email delivered to ${who}.`;
     case "email.opened.v1": return `${who} opened${p.subject ? ` “${String(p.subject)}”` : " an email"}.`;
     case "email.clicked.v1": return `${who} clicked a link.`;
-    case "email.replied.v1": return `Reply received from ${who}${p.intent ? ` — classified “${String(p.intent)}”` : ""}.`;
+    case "email.replied.v1": return `Reply received from ${who}${p.intent ? ` — classified “${intentTint(String(p.intent)).label}”` : ""}.`;
     case "email.bounced.v1": return `Email to ${who} hard-bounced.`;
     case "email.spam_reported.v1": return `${who} reported the email as spam.`;
     case "lead.stage_changed.v1": return `${who} moved ${p.fromStage ? `from ${String(p.fromStage)} ` : ""}to ${String(p.toStage ?? "a new stage")}${p.manual ? " (manual move)" : ""}.`;

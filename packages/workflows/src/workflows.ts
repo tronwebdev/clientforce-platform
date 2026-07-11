@@ -109,7 +109,7 @@ export async function campaignWorkflow(
             // P2.1 (DEC-061): ONE durable workflow drives both channels — the
             // activity routes by the step's channel.
             channel: node.channel,
-            // G1 (DEC-068): guided steps compose per lead inside the activity,
+            // G1 (DEC-070): guided steps compose per lead inside the activity,
             // before the unchanged boundary rails.
             mode: node.mode,
             brief: node.brief,

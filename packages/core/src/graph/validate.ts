@@ -32,7 +32,7 @@ const stepContentSchema = z.object({
     .optional(),
 });
 
-// G1 (DEC-068): the guided step's brief — talking points, never finished copy.
+// G1 (DEC-070): the guided step's brief — talking points, never finished copy.
 export const BRIEF_TALKING_POINTS_MIN = 3;
 export const BRIEF_TALKING_POINTS_MAX = 6;
 export const BRIEF_MUST_SAY_MAX = 5;
@@ -53,7 +53,7 @@ const stepNode = z.object({
   type: z.literal("step"),
   channel: z.enum(["email", "sms", "whatsapp", "voice", "linkedin"]),
   content: stepContentSchema,
-  // G1 (DEC-068): absent = scripted — legacy graphs parse byte-identical.
+  // G1 (DEC-070): absent = scripted — legacy graphs parse byte-identical.
   mode: z.enum(["scripted", "guided"]).optional(),
   brief: stepBriefSchema.optional(),
   pipelineOnSend: z.string().optional(),
@@ -146,7 +146,7 @@ export function validateGraph(input: unknown): CampaignGraph {
     }
   }
 
-  // G1 (DEC-068): guided steps are briefs-composed-at-send — sms ONLY this
+  // G1 (DEC-070): guided steps are briefs-composed-at-send — sms ONLY this
   // unit (guided email is G2); the brief and body copy are mutually exclusive
   // so a step never has two sources of truth.
   for (const node of graph.nodes) {
@@ -179,9 +179,26 @@ export function validateGraph(input: unknown): CampaignGraph {
 
   for (const node of graph.nodes) {
     if (node.type === "branch") {
+      // M1b (DEC-068): cases are KEYED by intent — a duplicate intent (or a
+      // second default) makes routing ambiguous; rejected loudly.
+      const seenIntents = new Set<string>();
+      let defaults = 0;
       for (const c of node.cases) {
         if (!ids.has(c.goto)) {
           throw new GraphValidationError(`branch "${node.id}" case goto "${c.goto}" is unknown`);
+        }
+        if (c.when === "default") {
+          defaults += 1;
+          if (defaults > 1) {
+            throw new GraphValidationError(`branch "${node.id}" has more than one default case`);
+          }
+        } else {
+          if (seenIntents.has(c.when.intent)) {
+            throw new GraphValidationError(
+              `branch "${node.id}" has duplicate cases for intent "${c.when.intent}"`,
+            );
+          }
+          seenIntents.add(c.when.intent);
         }
       }
       continue; // branches route via cases, not edges

@@ -16,6 +16,7 @@ import {
   type ImportContactsResult,
 } from "@clientforce/core";
 import { AddToListMenu, EmptyState, listGlyph } from "@clientforce/ui";
+import { intentTint } from "../../../lib/intents";
 
 const GRAD = "linear-gradient(135deg,#36D7ED 0%,#35E834 55%,#D0F56B 100%)";
 
@@ -117,7 +118,7 @@ const EVENT_ROW: Record<string, { icon: string; bg: string; fg: string; label: (
   "email.delivered.v1": { icon: "✓", bg: "#F2EEE4", fg: "#8A7F6B", label: () => "Email delivered" },
   "email.opened.v1": { icon: "◔", bg: "#F2EEE4", fg: "#8A7F6B", label: (p) => `Opened${p.subject ? ` “${String(p.subject)}”` : " an email"}` },
   "email.clicked.v1": { icon: "🔗", bg: "rgba(54,215,237,.16)", fg: "#1192A6", label: () => "Clicked a link" },
-  "email.replied.v1": { icon: "↩", bg: "rgba(54,215,237,.16)", fg: "#1192A6", label: (p) => `Replied${p.intent ? ` — classified “${String(p.intent)}”` : ""}` },
+  "email.replied.v1": { icon: "↩", bg: "rgba(54,215,237,.16)", fg: "#1192A6", label: (p) => `Replied${p.intent ? ` — classified “${intentTint(String(p.intent)).label}”` : ""}` },
   "email.bounced.v1": { icon: "⚠", bg: "rgba(224,121,107,.14)", fg: "#C9543F", label: () => "Email hard-bounced" },
   // C2.9: goal-completion events carry the campaign's terminal label — render
   // it verbatim; older events fall back to the raw stage.
@@ -127,7 +128,7 @@ const EVENT_ROW: Record<string, { icon: string; bg: string; fg: string; label: (
   "sms.sent.v1": { icon: "✆", bg: "#F2EEE4", fg: "#8A7F6B", label: () => "Step SMS sent" },
   "sms.delivered.v1": { icon: "✓", bg: "#F2EEE4", fg: "#8A7F6B", label: () => "SMS delivered" },
   "sms.failed.v1": { icon: "⚠", bg: "rgba(224,121,107,.14)", fg: "#C9543F", label: (p) => `SMS failed${p.reason ? ` — ${String(p.reason)}` : ""}` },
-  "sms.replied.v1": { icon: "💬", bg: "rgba(54,215,237,.16)", fg: "#1192A6", label: (p) => `Replied by SMS${p.intent ? ` — classified “${String(p.intent)}”` : ""}` },
+  "sms.replied.v1": { icon: "💬", bg: "rgba(54,215,237,.16)", fg: "#1192A6", label: (p) => `Replied by SMS${p.intent ? ` — classified “${intentTint(String(p.intent)).label}”` : ""}` },
   "sms.opted_out.v1": { icon: "⊘", bg: "rgba(224,121,107,.16)", fg: "#C9543F", label: () => "Replied STOP — suppressed for SMS" },
 
   // C2.8 (49-1): membership events render human — the slug never surfaces raw.

@@ -9,6 +9,7 @@
 export {
   planCampaign,
   PlannerError,
+  REQUIRED_BRANCH_INTENTS,
   validateAll,
   type PlanDeps,
   type PlanResult,
@@ -16,3 +17,5 @@ export {
 } from "./plan";
 export { createPlanQueue, createPlanWorker, PLANNER_QUEUE_NAME } from "./queue";
 export { PLANNER_PROMPT_NAME, PLANNER_PROMPT_VERSION, PLANNER_SYSTEM } from "./prompts";
+// F1 (DEC-068): shared by the rollup endpoint + outcome-aware regen.
+export { buildOutcomesPromptBlock, loadCampaignOutcomes } from "./outcomes";
