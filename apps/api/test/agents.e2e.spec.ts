@@ -292,6 +292,56 @@ describe.skipIf(!hasDb)("Agents API e2e", () => {
     await request(app.getHttpServer()).delete(`/agents/${detected.id}`).set(asOwner()).expect(200);
   });
 
+  it("G3 (DEC-075): a guardrails PATCH that OMITS composeMode preserves the stored rider; sending it writes it; the draft endpoint resolves it", async () => {
+    const base = {
+      sendingWindow: { days: [1, 2, 3, 4, 5], start: "09:00", end: "17:00", timezone: "UTC" },
+      dailyCap: { email: 200 },
+      consent: null,
+      unsubscribeFooter: true,
+      suppressionCheck: true,
+    };
+    const draft = await owner.agent.create({
+      data: { workspaceId: ws, name: "Guided draft", goal: "book_appointments", status: "DRAFT", guardrails: {} },
+    });
+
+    // Fresh drafts resolve scripted (absent = scripted, no key written).
+    const fresh = await request(app.getHttpServer()).get(`/agents/${draft.id}/draft`).set(asOwner());
+    expect(fresh.status).toBe(200);
+    expect(fresh.body.composeMode).toBe("scripted");
+
+    // The wizard's step-2 control SENDS composeMode — written as given.
+    const flipped = await request(app.getHttpServer())
+      .patch(`/agents/${draft.id}`)
+      .set(asOwner())
+      .send({ guardrails: { ...base, composeMode: "guided" } });
+    expect(flipped.status).toBe(200);
+    expect(flipped.body.guardrails.composeMode).toBe("guided");
+
+    // The wizard's step-5 rebuild sends guardrails WITHOUT composeMode — the
+    // mid-wizard flip must survive (the DEC-072 anti-clobber rule extended).
+    const rebuilt = await request(app.getHttpServer())
+      .patch(`/agents/${draft.id}`)
+      .set(asOwner())
+      .send({ guardrails: { ...base, dailyCap: { email: 150 } } });
+    expect(rebuilt.status).toBe(200);
+    expect(rebuilt.body.guardrails.composeMode).toBe("guided");
+    expect(rebuilt.body.guardrails.dailyCap.email).toBe(150);
+
+    // Resume hydration reads the rider resolved server-side.
+    const resumed = await request(app.getHttpServer()).get(`/agents/${draft.id}/draft`).set(asOwner());
+    expect(resumed.body.composeMode).toBe("guided");
+
+    // Flipping back writes scripted explicitly (never a silent key drop).
+    const back = await request(app.getHttpServer())
+      .patch(`/agents/${draft.id}`)
+      .set(asOwner())
+      .send({ guardrails: { ...base, composeMode: "scripted" } });
+    expect(back.status).toBe(200);
+    expect(back.body.guardrails.composeMode).toBe("scripted");
+
+    await request(app.getHttpServer()).delete(`/agents/${draft.id}`).set(asOwner()).expect(200);
+  });
+
   it("a VIEWER can read but not mutate → 403", async () => {
     const viewer = { Authorization: `Bearer ${viewerToken}`, "x-workspace-id": ws };
     await request(app.getHttpServer()).get("/agents").set(viewer).expect(200);

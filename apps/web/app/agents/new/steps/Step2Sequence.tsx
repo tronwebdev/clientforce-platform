@@ -77,6 +77,10 @@ interface Step2Props {
   timezone: string;
   /** W3-7: the real audience arithmetic (adds + referenced lists). */
   audienceTotal: number;
+  /** G3 (DEC-075): the guardrails composeMode rider — the toolbar's
+   *  Scripted | ✦ Guided control reads/writes the Settings toggle's field. */
+  composeMode: "scripted" | "guided";
+  setSequenceMode: (mode: "scripted" | "guided") => Promise<void>;
   editNode: GraphNode | null;
   setEditNode: React.Dispatch<React.SetStateAction<GraphNode | null>>;
   editSubject: string;
@@ -114,13 +118,19 @@ interface Step2Props {
 export function Step2Sequence(props: Step2Props) {
   const {
     drafting, graph, graphSource, graphVersion, outcomes, seqView, setSeqView, regenError, regenerate, addStep,
-    branchCases, windowStart, windowEnd, timezone, audienceTotal,
+    branchCases, windowStart, windowEnd, timezone, audienceTotal, composeMode, setSequenceMode,
     editNode, setEditNode, editSubject, setEditSubject, editBody, setEditBody, editBrief, setEditBrief,
     briefPointInput, setBriefPointInput, briefMustInput, setBriefMustInput, briefNeverInput, setBriefNeverInput,
     previewBusy, preview, setPreview, fieldDefs, customTokenKey, setCustomTokenKey, customFallback, setCustomFallback,
     delayEdit, setDelayEdit, delayAmount, setDelayAmount, editStepIndex, editStrategyIntent,
     insertCustomToken, saveEditedStep, sampleCompose, saveDelay,
   } = props;
+  // G3 (DEC-075): mode applies at the NEXT plan — when the planned steps
+  // don't match the selected mode, the existing Regenerate button carries the
+  // "Regenerate to apply" affordance instead of the sequence changing under
+  // the owner (one semantics with the Settings toggle, never two).
+  const guidedPlanned = graph ? mainSteps(graph).some((s) => s.mode === "guided") : false;
+  const modeMismatch = graph !== null && mainSteps(graph).length > 0 && (composeMode === "guided") !== guidedPlanned;
   return (
     <>
           <div style={{ maxWidth: 760 }}>
@@ -150,10 +160,29 @@ export function Step2Sequence(props: Step2Props) {
 
                 {seqView === "sequence" ? (
                   <div data-testid="sequence">
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
                       <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600, color: "#0E1512", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 11, padding: "9px 15px" }}>🕐 Mon–Fri · {parseInt(windowStart, 10)}–{parseInt(windowEnd, 10)} · {tzShort(timezone)} <span style={{ color: "#9AA59E" }}>⌄</span></span>
-                      <span onClick={() => void regenerate()} style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 700, color: "#16A82A", background: "rgba(53,232,52,.1)", border: "1px solid rgba(53,232,52,.3)", borderRadius: 11, padding: "9px 15px", cursor: "pointer" }} data-testid="regenerate">✦ Regenerate with AI</span>
+                      {/* G3 (DEC-075): Scripted | ✦ Guided — writes the SAME guardrails
+                          rider the Settings toggle owns; applies at the next plan. */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 2, background: "#F2EEE4", borderRadius: 11, padding: 3, marginLeft: "auto" }} data-testid="seq-mode-control">
+                        <span onClick={() => void setSequenceMode("scripted")} style={{ fontSize: 12.5, fontWeight: composeMode === "guided" ? 600 : 700, color: composeMode === "guided" ? "#8A7F6B" : "#0E1512", background: composeMode === "guided" ? "transparent" : "#fff", boxShadow: composeMode === "guided" ? "none" : "0 1px 4px rgba(14,21,18,.1)", borderRadius: 9, padding: "7px 13px", cursor: "pointer", whiteSpace: "nowrap" }} data-testid="seq-mode-scripted">Scripted</span>
+                        <span onClick={() => void setSequenceMode("guided")} style={{ fontSize: 12.5, fontWeight: composeMode === "guided" ? 700 : 600, color: composeMode === "guided" ? "#0E1512" : "#8A7F6B", background: composeMode === "guided" ? "#fff" : "transparent", boxShadow: composeMode === "guided" ? "0 1px 4px rgba(14,21,18,.1)" : "none", borderRadius: 9, padding: "7px 13px", cursor: "pointer", whiteSpace: "nowrap" }} data-testid="seq-mode-guided"><span style={{ color: "#1192A6" }}>✦</span> Guided</span>
+                      </div>
+                      <span onClick={() => void regenerate()} style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 700, color: "#16A82A", background: "rgba(53,232,52,.1)", border: "1px solid rgba(53,232,52,.3)", borderRadius: 11, padding: "9px 15px", cursor: "pointer", whiteSpace: "nowrap" }} data-testid="regenerate">{modeMismatch ? "✦ Regenerate to apply" : "✦ Regenerate with AI"}</span>
                     </div>
+                    {/* G3: guided explainer (canon) — the mismatch line renders only
+                        while planned steps predate the flip. Prototype copy names
+                        WhatsApp/voice; the build plans email + SMS only (honest
+                        absence, flagged in the fidelity log). */}
+                    {composeMode === "guided" ? (
+                      <div style={{ display: "flex", gap: 9, alignItems: "flex-start", fontSize: 12.5, color: "#5C6B62", background: "rgba(54,215,237,.07)", border: "1px solid rgba(54,215,237,.25)", borderRadius: 11, padding: "10px 14px", marginBottom: 16, lineHeight: 1.5 }} data-testid="seq-guided-banner">
+                        <span style={{ flex: "none", color: "#1192A6" }}>✦</span>
+                        <span>
+                          Email and SMS steps carry a <b>brief</b> instead of fixed copy — the AI composes a fresh message per lead at send time, inside your rails.
+                          {modeMismatch ? <span data-testid="regen-to-apply-note"> <b>These steps were planned as scripted</b> — hit ✦ Regenerate to apply guided composing.</span> : null}
+                        </span>
+                      </div>
+                    ) : null}
                     {/* M1b (DEC-068): the sequence lists the MAIN PATH — reply-
                         strategy steps live in their own section below (they
                         belong to the branch, not the sequence). */}
