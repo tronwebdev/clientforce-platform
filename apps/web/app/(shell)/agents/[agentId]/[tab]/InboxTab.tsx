@@ -16,6 +16,10 @@ interface ThreadMessage {
   body: string;
   intent: string | null;
   sentAt: string;
+  /** G3 (DEC-075): present ONLY when the send boundary recorded guided
+   *  compose provenance (Message.meta mode/composerVersion, G1/G2) —
+   *  absent provenance renders unmarked, never inferred. */
+  composed?: { composerVersion: string | null };
 }
 export interface Thread {
   contactId: string;
@@ -269,9 +273,18 @@ export function InboxTab({ agentId, goalLabel }: { agentId: string; goalLabel?: 
                       <div style={{ maxWidth: "80%", minWidth: 0 }}>
                         <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 5, justifyContent: inbound ? "flex-start" : "flex-end" }}>
                           <span style={{ fontSize: 12.5, fontWeight: 700, color: inbound ? "#0E1512" : "#16A82A" }}>{inbound ? [sel.contact?.firstName, sel.contact?.lastName].filter(Boolean).join(" ") || sel.contact?.email : "Agent"}</span>
+                          {/* G3 (DEC-075): guided compose provenance from the send
+                              boundary's meta — scripted/template messages carry no
+                              provenance and stay unmarked. */}
+                          {m.composed ? (
+                            <span style={{ fontSize: 10.5, fontWeight: 700, color: "#1192A6", background: "rgba(54,215,237,.14)", borderRadius: 6, padding: "2px 7px" }} data-testid="msg-composed-tag">✦ Composed</span>
+                          ) : null}
                           <span style={{ fontSize: 11.5, color: "#9AA59E" }}>{timeAgo(m.sentAt)}</span>
                         </div>
                         <div style={{ fontSize: 14, lineHeight: 1.55, color: "#243029", background: inbound ? "#fff" : "rgba(53,232,52,.08)", border: `1px solid ${inbound ? "#EBE3D6" : "rgba(53,232,52,.25)"}`, borderRadius: inbound ? "4px 14px 14px 14px" : "14px 4px 14px 14px", padding: "12px 15px", whiteSpace: "pre-wrap" }}>{m.body}</div>
+                        {m.composed ? (
+                          <div style={{ fontSize: 11.5, color: "#9AA59E", marginTop: 4, textAlign: "right" }} data-testid="msg-composed-line">composed from brief · checked against your rails</div>
+                        ) : null}
                       </div>
                     </div>
                   );
