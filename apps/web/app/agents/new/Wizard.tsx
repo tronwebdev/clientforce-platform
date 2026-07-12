@@ -143,6 +143,10 @@ export function Wizard() {
   const [graph, setGraph] = useState<CampaignGraph | null>(null);
   const [graphSource, setGraphSource] = useState("");
   const [graphVersion, setGraphVersion] = useState(1);
+  // G3 (DEC-075): the step-2 Scripted | ✦ Guided control — the SAME guardrails
+  // rider the Settings toggle owns (no new storage). The planner reads it at
+  // the NEXT plan; flipping never rewrites already-planned steps.
+  const [composeMode, setComposeMode] = useState<"scripted" | "guided">("scripted");
   // F1 (DEC-068): per-step outcomes for the step-card badges. Fresh drafts
   // report all-none (no badges — honest absence); a resumed/relaunched agent
   // with live sends shows low/ok chips. Failure → null → no badges.
@@ -251,6 +255,8 @@ export function Wizard() {
         setGoal(a.goal ?? null);
         if (a.category) setCategory(a.category);
         setInstructions(a.instructions ?? "");
+        // G3 (DEC-075): the mode control reflects the stored rider on resume.
+        if (a.composeMode === "guided") setComposeMode("guided");
         if (ds.goalLabel) setGoalLabel(ds.goalLabel);
         if (ds.buildMethod) setBuildMethod(ds.buildMethod);
         if (ds.added) setAdded(ds.added);
@@ -885,26 +891,51 @@ export function Wizard() {
     if (step === 4 && agentId) {
       await cf(`agents/${agentId}`, {
         method: "PATCH",
-        body: JSON.stringify({
-          guardrails: {
-            sendingWindow: {
-              days: sendDays.flatMap((on, i) => (on ? [i + 1] : [])),
-              start: windowStart,
-              end: windowEnd,
-              timezone,
-            },
-            dailyCap: { email: dailyCap, sms: smsDailyCap },
-            consent: null,
-            tracking: { openTracking: true, linkTracking: true },
-            // C2.9: custom goal's terminal label survives launch here (DEC-059).
-            ...(goal === "custom" && goalLabel.trim() ? { goalLabel: goalLabel.trim() } : {}),
-            unsubscribeFooter: true,
-            suppressionCheck: true,
-          },
-        }),
+        body: JSON.stringify({ guardrails: guardrailsPayload() }),
       });
     }
     setStep((s) => Math.min(5, s + 1));
+  }
+
+  /** A8 guardrails payload from wizard state (step-5 rebuild + limits modal).
+   *  `composeMode`/`language` are deliberately ABSENT — the API preserves the
+   *  stored riders when a payload omits them (DEC-072 / DEC-075); only the
+   *  step-2 mode control and the Settings rows write them, explicitly. */
+  function guardrailsPayload() {
+    return {
+      sendingWindow: {
+        days: sendDays.flatMap((on, i) => (on ? [i + 1] : [])),
+        start: windowStart,
+        end: windowEnd,
+        timezone,
+      },
+      dailyCap: { email: dailyCap, sms: smsDailyCap },
+      consent: null,
+      tracking: { openTracking: true, linkTracking: true },
+      // C2.9: custom goal's terminal label survives launch here (DEC-059).
+      ...(goal === "custom" && goalLabel.trim() ? { goalLabel: goalLabel.trim() } : {}),
+      unsubscribeFooter: true,
+      suppressionCheck: true,
+    };
+  }
+
+  /** G3 (DEC-075): the step-2 mode control — writes `composeMode` onto the
+   *  DRAFT guardrails immediately (the field the Settings toggle owns; one
+   *  semantics). Steps already planned keep their baked mode until the next
+   *  ✦ Regenerate — the control never rewrites a sequence in place. */
+  async function setSequenceMode(mode: "scripted" | "guided") {
+    if (!agentId || mode === composeMode) return;
+    const prev = composeMode;
+    setComposeMode(mode);
+    try {
+      await cf(`agents/${agentId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ guardrails: { ...guardrailsPayload(), composeMode: mode } }),
+      });
+    } catch {
+      setComposeMode(prev);
+      toast("Couldn't switch the composing mode — check your connection.");
+    }
   }
 
   /** C2.7: insert `{{custom.<key>|fallback}}` — only ever with the fallback
@@ -1220,23 +1251,7 @@ export function Wizard() {
     if (agentId) {
       await cf(`agents/${agentId}`, {
         method: "PATCH",
-        body: JSON.stringify({
-          guardrails: {
-            sendingWindow: {
-              days: sendDays.flatMap((on, i) => (on ? [i + 1] : [])),
-              start: windowStart,
-              end: windowEnd,
-              timezone,
-            },
-            dailyCap: { email: dailyCap, sms: smsDailyCap },
-            consent: null,
-            tracking: { openTracking: true, linkTracking: true },
-            // C2.9: custom goal's terminal label survives launch here (DEC-059).
-            ...(goal === "custom" && goalLabel.trim() ? { goalLabel: goalLabel.trim() } : {}),
-            unsubscribeFooter: true,
-            suppressionCheck: true,
-          },
-        }),
+        body: JSON.stringify({ guardrails: guardrailsPayload() }),
       }).catch(() => toast("Couldn't save limits — try again."));
     }
     setLimitsOpen(false);
@@ -1412,7 +1427,7 @@ export function Wizard() {
 
         {step === 1 ? (
           <Step2Sequence
-            {...{ drafting, graph, graphSource, graphVersion, outcomes, seqView, setSeqView, regenError, regenerate, addStep, branchCases, windowStart, windowEnd, timezone, audienceTotal, editNode, setEditNode, editSubject, setEditSubject, editBody, setEditBody, editBrief, setEditBrief, briefPointInput, setBriefPointInput, briefMustInput, setBriefMustInput, briefNeverInput, setBriefNeverInput, previewBusy, preview, setPreview, fieldDefs, customTokenKey, setCustomTokenKey, customFallback, setCustomFallback, delayEdit, setDelayEdit, delayAmount, setDelayAmount, editStepIndex, editStrategyIntent, insertCustomToken, saveEditedStep, sampleCompose, saveDelay }}
+            {...{ drafting, graph, graphSource, graphVersion, outcomes, seqView, setSeqView, regenError, regenerate, addStep, branchCases, windowStart, windowEnd, timezone, audienceTotal, composeMode, setSequenceMode, editNode, setEditNode, editSubject, setEditSubject, editBody, setEditBody, editBrief, setEditBrief, briefPointInput, setBriefPointInput, briefMustInput, setBriefMustInput, briefNeverInput, setBriefNeverInput, previewBusy, preview, setPreview, fieldDefs, customTokenKey, setCustomTokenKey, customFallback, setCustomFallback, delayEdit, setDelayEdit, delayAmount, setDelayAmount, editStepIndex, editStrategyIntent, insertCustomToken, saveEditedStep, sampleCompose, saveDelay }}
           />
         ) : null}
 

@@ -151,15 +151,26 @@ export class AgentViewController {
             lastAt: last.sentAt.toISOString(),
             preview: (last.body ?? "").slice(0, 140),
             messageCount: msgs.length,
-            messages: msgs.map((m) => ({
-              id: m.id,
-              direction: m.direction,
-              channel: m.channel,
-              subject: m.subject,
-              body: m.body,
-              intent: m.intent,
-              sentAt: m.sentAt.toISOString(),
-            })),
+            messages: msgs.map((m) => {
+              // G3 (DEC-075): composed-message provenance — the send
+              // boundary's pass-through meta ({mode, composerVersion},
+              // G1/G2) surfaces so the Inbox can mark AI-composed
+              // messages. Absent provenance stays absent: scripted rows
+              // gain no key and render unmarked, never inferred.
+              const mm = (m.meta ?? {}) as { mode?: string; composerVersion?: string };
+              return {
+                id: m.id,
+                direction: m.direction,
+                channel: m.channel,
+                subject: m.subject,
+                body: m.body,
+                intent: m.intent,
+                sentAt: m.sentAt.toISOString(),
+                ...(m.direction === "OUTBOUND" && mm.mode === "guided"
+                  ? { composed: { composerVersion: mm.composerVersion ?? null } }
+                  : {}),
+              };
+            }),
           };
         })
         .filter(Boolean);

@@ -191,10 +191,21 @@ export class AgentsController {
           instructions: true,
           status: true,
           draftState: true,
+          guardrails: true,
         },
       });
       if (!agent) throw new NotFoundException(`Agent ${id} not found`);
-      return agent;
+      // G3 (DEC-075): the wizard's step-2 mode control reads the SAME rider
+      // the Settings toggle owns — resolved server-side (absent = scripted)
+      // so the client never parses raw guardrails.
+      const { guardrails, ...row } = agent;
+      let composeMode: "scripted" | "guided" = "scripted";
+      try {
+        composeMode = parseGuardrails(guardrails).composeMode ?? "scripted";
+      } catch {
+        // Unparsable legacy row — the conservative default stands.
+      }
+      return { ...row, composeMode };
     });
   }
 
@@ -234,19 +245,25 @@ export class AgentsController {
         // rebuild and any stale-read compose would otherwise erase a
         // mid-wizard detection. A caller that SENDS language (the Settings
         // row) writes it as given.
-        if (parsedGuardrails.language === undefined) {
-          try {
-            const existing = parseGuardrails(agent.guardrails);
-            if (existing.language !== undefined) {
-              parsedGuardrails = {
-                ...parsedGuardrails,
-                language: existing.language,
-                languageSource: existing.languageSource,
-              };
-            }
-          } catch {
-            // Unparsable legacy row — nothing to preserve.
-          }
+        // G3 (DEC-075): composeMode gets the same rule — the wizard's step-2
+        // mode control writes it mid-wizard, and the step-5 rebuild (which
+        // omits it) must not reset the draft to scripted. The two mode
+        // controls always SEND it explicitly.
+        let existing: ReturnType<typeof parseGuardrails> | null = null;
+        try {
+          existing = parseGuardrails(agent.guardrails);
+        } catch {
+          // Unparsable legacy row — nothing to preserve.
+        }
+        if (parsedGuardrails.language === undefined && existing?.language !== undefined) {
+          parsedGuardrails = {
+            ...parsedGuardrails,
+            language: existing.language,
+            languageSource: existing.languageSource,
+          };
+        }
+        if (parsedGuardrails.composeMode === undefined && existing?.composeMode !== undefined) {
+          parsedGuardrails = { ...parsedGuardrails, composeMode: existing.composeMode };
         }
       }
       return tx.agent.update({

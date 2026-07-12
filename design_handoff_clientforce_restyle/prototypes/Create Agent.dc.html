@@ -486,10 +486,17 @@
 
             <!-- MAIN SEQUENCE VIEW -->
             <sc-if value="{{ isSeqView }}" hint-placeholder-val="{{ true }}">
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
                 <span style="display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#0E1512;background:#fff;border:1px solid #EBE3D6;border-radius:11px;padding:9px 15px;">🕐 Mon–Fri · 9–5 · EST <span style="color:#9AA59E;">⌄</span></span>
-                <span style="display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#16A82A;background:rgba(53,232,52,.1);border:1px solid rgba(53,232,52,.3);border-radius:11px;padding:9px 15px;">✦ Regenerate with AI</span>
+                <div style="display:flex;align-items:center;gap:2px;background:#F2EEE4;border-radius:11px;padding:3px;margin-left:auto;">
+                  <span onClick="{{ seqModeUI.onScripted }}" style="font-size:12.5px;font-weight:{{ seqModeUI.scriptedFw }};color:{{ seqModeUI.scriptedFg }};background:{{ seqModeUI.scriptedBg }};box-shadow:{{ seqModeUI.scriptedShadow }};border-radius:9px;padding:7px 13px;cursor:pointer;white-space:nowrap;">Scripted</span>
+                  <span onClick="{{ seqModeUI.onGuided }}" style="font-size:12.5px;font-weight:{{ seqModeUI.guidedFw }};color:{{ seqModeUI.guidedFg }};background:{{ seqModeUI.guidedBg }};box-shadow:{{ seqModeUI.guidedShadow }};border-radius:9px;padding:7px 13px;cursor:pointer;white-space:nowrap;"><span style="color:#1192A6;">✦</span> Guided</span>
+                </div>
+                <span style="display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#16A82A;background:rgba(53,232,52,.1);border:1px solid rgba(53,232,52,.3);border-radius:11px;padding:9px 15px;white-space:nowrap;">✦ Regenerate with AI</span>
               </div>
+              <sc-if value="{{ guidedOn }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;gap:9px;align-items:flex-start;font-size:12.5px;color:#5C6B62;background:rgba(54,215,237,.07);border:1px solid rgba(54,215,237,.25);border-radius:11px;padding:10px 14px;margin-bottom:16px;line-height:1.5;"><span style="flex:none;color:#1192A6;">✦</span><span>Email and SMS steps carry a <b>brief</b> instead of fixed copy — the AI composes a fresh message per lead at send time, inside your rails. WhatsApp templates and voice scripts stay as written.</span></div>
+              </sc-if>
               <sc-for list="{{ seq }}" as="s" hint-placeholder-count="5">
                 <sc-if value="{{ s.isDelay }}" hint-placeholder-val="{{ false }}">
                   <div style="display:flex;align-items:center;gap:12px;padding:4px 0 4px 26px;">
@@ -504,7 +511,8 @@
                       <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
                         <span style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#8A7F6B;">Step {{ s.n }}</span>
                         <span style="font-size:12px;font-weight:700;border-radius:8px;padding:3px 10px;background:{{ s.chipbg }};color:{{ s.chipfg }};">{{ s.channel }}</span>
-                        <span style="font-size:11px;font-weight:700;color:#16A82A;background:rgba(53,232,52,.12);border-radius:7px;padding:3px 9px;">✦ AI draft</span>
+                        <span style="font-size:11px;font-weight:700;color:{{ s.modeTagFg }};background:{{ s.modeTagBg }};border-radius:7px;padding:3px 9px;white-space:nowrap;">{{ s.modeTag }}</span>
+                        <sc-if value="{{ s.gStep }}" hint-placeholder-val="{{ false }}"><span style="font-size:11px;font-weight:700;color:#8A7F6B;background:#F2EEE4;border-radius:7px;padding:3px 9px;white-space:nowrap;">{{ s.gCredits }}</span></sc-if>
                         <span style="margin-left:auto;font-size:13px;color:#9AA59E;">✎ Edit</span>
                       </div>
                       <div style="font-size:15.5px;font-weight:600;color:#0E1512;margin-bottom:4px;">{{ s.title }}</div>
@@ -629,7 +637,7 @@
               <sc-for list="{{ contactSources }}" as="c" hint-placeholder-count="3">
                 <div onClick="{{ c.onClick }}" style="border-radius:14px;border:{{ c.border }};background:{{ c.bg }};padding:18px;cursor:pointer;box-shadow:0 2px 8px rgba(14,21,18,.03);" style-hover="border-color:#9FD8AC;">
                   <div style="width:40px;height:40px;border-radius:11px;background:{{ c.iconbg }};display:flex;align-items:center;justify-content:center;font-size:19px;margin-bottom:12px;">{{ c.icon }}</div>
-                  <div style="font-size:15px;font-weight:700;color:#0E1512;margin-bottom:3px;">{{ c.title }}</div>
+                  <div style="display:flex;align-items:center;gap:7px;margin-bottom:3px;"><span style="font-size:15px;font-weight:700;color:#0E1512;">{{ c.title }}</span><sc-if value="{{ c.rec }}" hint-placeholder-val="{{ false }}"><span style="font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#16A82A;background:rgba(53,232,52,.12);border-radius:6px;padding:2px 7px;white-space:nowrap;">For this goal</span></sc-if></div>
                   <div style="font-size:13px;color:#8A7F6B;line-height:1.4;">{{ c.desc }}</div>
                 </div>
               </sc-for>
@@ -663,14 +671,18 @@
                 </div>
               </div>
 
-              <div style="background:#fff;border:2px solid #35E834;border-radius:16px;padding:20px;box-shadow:0 4px 16px rgba(14,21,18,.04);">
+              <div style="background:#fff;border:{{ apCardBorder }};border-radius:16px;padding:20px;box-shadow:0 4px 16px rgba(14,21,18,.04);">
                 <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
                   <span style="width:36px;height:36px;border-radius:10px;background:rgba(53,232,52,.16);display:flex;align-items:center;justify-content:center;font-size:18px;flex:none;color:#16A82A;">⚲</span>
-                  <div style="flex:1;min-width:0;display:flex;align-items:center;gap:8px;"><span style="font-size:15px;font-weight:700;color:#0E1512;">Auto-prospecting</span><span style="font-size:11px;font-weight:700;color:#16A82A;background:rgba(53,232,52,.12);border-radius:7px;padding:2px 8px;">Recommended</span></div>
+                  <div style="flex:1;min-width:0;display:flex;align-items:center;gap:8px;"><span style="font-size:15px;font-weight:700;color:#0E1512;">Auto-prospecting</span><span style="font-size:11px;font-weight:700;color:{{ apBadgeFg }};background:{{ apBadgeBg }};border-radius:7px;padding:2px 8px;white-space:nowrap;">{{ apBadgeLabel }}</span></div>
                   <span onClick="{{ toggleAp }}" style="width:48px;height:28px;border-radius:100px;background:{{ apTogglebg }};position:relative;display:inline-block;flex:none;cursor:pointer;"><span style="position:absolute;top:3px;{{ apKnob }}:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);"></span></span>
                 </div>
-                <div style="font-size:13px;color:#5C6B62;line-height:1.5;margin-bottom:16px;">Your agent uses live signals to find matching leads and pull them into this campaign on demand.</div>
-
+                <div style="font-size:13px;color:#5C6B62;line-height:1.5;">Your agent uses live signals to find matching leads and pull them into this campaign on demand.</div>
+                <sc-if value="{{ apGoalNoteOn }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;gap:9px;align-items:flex-start;font-size:12.5px;color:#8A7F6B;background:#FBF7F0;border:1px solid #F2EEE4;border-radius:10px;padding:10px 13px;margin-top:12px;line-height:1.5;"><span style="flex:none;">{{ goalIcon }}</span><span><b style="color:#5C6B62;">{{ goalTitle }}:</b> {{ apGoalNote }}</span></div>
+                </sc-if>
+                <sc-if value="{{ apOn }}" hint-placeholder-val="{{ true }}">
+                <div style="margin-top:16px;">
                 <div style="font-size:11px;font-weight:700;color:#8A7F6B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Keywords</div>
                 <div style="position:relative;display:flex;flex-wrap:wrap;gap:7px;margin-bottom:16px;">
                   <sc-for list="{{ apKw }}" as="k" hint-placeholder-count="4">
@@ -712,6 +724,8 @@
                     <span onClick="{{ s.onToggle }}" style="display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:{{ s.fg }};background:{{ s.bg }};border:{{ s.border }};border-radius:100px;padding:6px 12px;cursor:pointer;">{{ s.icon }} {{ s.label }} <span style="font-size:11px;opacity:.7;">{{ s.mark }}</span></span>
                   </sc-for>
                 </div>
+                </div>
+                </sc-if>
               </div>
 
               <div>
@@ -741,6 +755,27 @@
                           </div>
                         </div>
                       </sc-if>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+
+              <div>
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;">
+                  <span style="font-size:13px;font-weight:700;color:#5C6B62;">Suggested automations</span>
+                  <span style="font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#1192A6;background:rgba(54,215,237,.14);border-radius:6px;padding:2px 7px;white-space:nowrap;">✦ {{ goalTitle }}</span>
+                </div>
+                <div style="font-size:12.5px;color:#9AA59E;margin-bottom:12px;">Other ways leads can flow into this campaign, matched to your goal and business.</div>
+                <div style="display:flex;flex-direction:column;gap:10px;">
+                  <sc-for list="{{ captureSuggestions }}" as="sug" hint-placeholder-count="2">
+                    <div style="display:flex;align-items:center;gap:12px;border:1.5px dashed #D8CFBE;background:#FDFBF7;border-radius:14px;padding:13px 16px;">
+                      <span style="width:38px;height:38px;border-radius:10px;background:{{ sug.iconbg }};display:flex;align-items:center;justify-content:center;font-size:17px;flex:none;">{{ sug.icon }}</span>
+                      <div style="flex:1;min-width:0;">
+                        <div style="font-size:13.5px;font-weight:700;color:#0E1512;">{{ sug.title }}</div>
+                        <div style="font-size:12px;color:#8A7F6B;line-height:1.45;">{{ sug.desc }}</div>
+                        <div style="font-size:11px;color:#9AA59E;margin-top:3px;">{{ sug.via }}</div>
+                      </div>
+                      <span style="font-size:12.5px;font-weight:700;color:#16A82A;border:1px solid #9FD8AC;border-radius:9px;padding:7px 13px;cursor:pointer;flex:none;" style-hover="background:rgba(53,232,52,.08);">{{ sug.cta }}</span>
                     </div>
                   </sc-for>
                 </div>
@@ -1070,7 +1105,7 @@
               </sc-for>
               <div style="display:flex;align-items:center;justify-content:space-between;padding-top:14px;margin-top:6px;border-top:2px solid #EBE3D6;">
                 <span style="font-size:15px;font-weight:700;color:#0E1512;">Total to launch</span>
-                <span style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:22px;color:#0E1512;">2,480 <span style="font-size:14px;color:#8A7F6B;font-weight:600;">credits</span></span>
+                <span style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:22px;color:#0E1512;">{{ costTotal }} <span style="font-size:14px;color:#8A7F6B;font-weight:600;">credits</span></span>
               </div>
             </div>
             <div style="display:flex;align-items:center;gap:14px;background:rgba(53,232,52,.07);border:1px solid rgba(53,232,52,.25);border-radius:14px;padding:16px 20px;">
@@ -1100,6 +1135,79 @@
           </div>
 
           <div style="padding:22px;display:flex;flex-direction:column;gap:18px;flex:1;overflow:auto;min-height:0;">
+            <!-- GUIDED BRIEF (email + SMS when guided mode is on) -->
+            <sc-if value="{{ isBriefEdit }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;gap:10px;align-items:flex-start;background:rgba(54,215,237,.07);border:1px solid rgba(54,215,237,.25);border-radius:12px;padding:12px 14px;">
+                <span style="flex:none;color:#1192A6;font-size:15px;">✦</span>
+                <span style="font-size:12.5px;color:#5C6B62;line-height:1.55;">{{ briefUI.explainer }}</span>
+              </div>
+              <div>
+                <div style="display:flex;align-items:center;margin-bottom:7px;">
+                  <label style="font-size:12px;font-weight:700;color:#5C6B62;flex:1;">Objective</label>
+                  <span style="font-size:11px;font-weight:700;color:#8A7F6B;background:#F2EEE4;border-radius:7px;padding:2px 8px;">{{ briefUI.credits }}</span>
+                </div>
+                <div style="border-radius:11px;background:#FBF7F0;border:1px solid #EBE3D6;padding:11px 14px;font-size:14px;color:#0E1512;">{{ briefUI.objective }}</div>
+              </div>
+              <sc-if value="{{ briefUI.isEmail }}" hint-placeholder-val="{{ false }}">
+                <div>
+                  <label style="display:block;font-size:12px;font-weight:700;color:#5C6B62;margin-bottom:7px;">Subject hint</label>
+                  <div style="border-radius:11px;background:#FBF7F0;border:1px solid #EBE3D6;padding:11px 14px;font-size:14px;color:#0E1512;">{{ briefUI.subjectHint }}</div>
+                  <div style="margin-top:6px;font-size:11.5px;color:#9AA59E;">A direction, not a subject — the AI adapts it per lead. Subject rules (≤60 chars, no clickbait, no ALL CAPS) are checked on every composed email.</div>
+                </div>
+              </sc-if>
+              <div>
+                <label style="display:block;font-size:12px;font-weight:700;color:#5C6B62;margin-bottom:7px;">Talking points <span style="font-weight:600;color:#9AA59E;">· {{ briefUI.pointCount }}</span></label>
+                <div style="display:flex;flex-direction:column;gap:7px;">
+                  <sc-for list="{{ briefUI.points }}" as="p" hint-placeholder-count="3">
+                    <div style="display:flex;align-items:center;gap:10px;border-radius:11px;background:#fff;border:1px solid #EBE3D6;padding:10px 13px;">
+                      <span style="width:6px;height:6px;border-radius:50%;background:#35E834;flex:none;"></span>
+                      <span style="font-size:13.5px;color:#3B463F;flex:1;">{{ p.label }}</span>
+                      <span style="color:#C2B79F;font-size:13px;cursor:pointer;">✕</span>
+                    </div>
+                  </sc-for>
+                  <span style="font-size:13px;font-weight:600;color:#16A82A;border:1.5px dashed #9FD8AC;border-radius:10px;padding:9px 13px;cursor:pointer;align-self:flex-start;">+ Add talking point</span>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div>
+                  <label style="display:block;font-size:12px;font-weight:700;color:#5C6B62;margin-bottom:7px;">Must say</label>
+                  <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                    <sc-for list="{{ briefUI.mustSay }}" as="m" hint-placeholder-count="1">
+                      <span style="font-size:12.5px;font-weight:600;color:#0F7A28;background:#D7F5DD;border-radius:8px;padding:5px 11px;">{{ m.label }} <span style="color:#7FB98D;">✕</span></span>
+                    </sc-for>
+                    <span style="font-size:12.5px;font-weight:600;color:#8A7F6B;border:1.5px dashed #D8CFBE;border-radius:8px;padding:5px 11px;cursor:pointer;">+ Add</span>
+                  </div>
+                </div>
+                <div>
+                  <label style="display:block;font-size:12px;font-weight:700;color:#5C6B62;margin-bottom:7px;">Never say</label>
+                  <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                    <sc-for list="{{ briefUI.neverSay }}" as="m" hint-placeholder-count="2">
+                      <span style="font-size:12.5px;font-weight:600;color:#C9543F;background:rgba(224,121,107,.14);border-radius:8px;padding:5px 11px;">{{ m.label }} <span style="color:#D99C90;">✕</span></span>
+                    </sc-for>
+                    <span style="font-size:12.5px;font-weight:600;color:#8A7F6B;border:1.5px dashed #D8CFBE;border-radius:8px;padding:5px 11px;cursor:pointer;">+ Add</span>
+                  </div>
+                </div>
+              </div>
+              <div style="border:1px solid #EBE3D6;border-radius:13px;overflow:hidden;">
+                <div style="display:flex;align-items:center;gap:12px;padding:13px 15px;background:linear-gradient(90deg,rgba(54,215,237,.1),rgba(53,232,52,.06));">
+                  <div style="flex:1;">
+                    <div style="font-size:13px;font-weight:700;color:#0E1512;">See what the composer writes</div>
+                    <div style="font-size:12px;color:#8A7F6B;">Sample lead: Maya Torres · Hilltop Smiles. Free while guided mode is new.</div>
+                  </div>
+                  <span onClick="{{ briefUI.onSample }}" style="font-size:12.5px;font-weight:700;color:#1192A6;border:1px solid rgba(54,215,237,.45);border-radius:9px;padding:7px 13px;cursor:pointer;white-space:nowrap;" style-hover="background:rgba(54,215,237,.08);">{{ briefUI.sampleBtn }}</span>
+                </div>
+                <sc-if value="{{ briefUI.sampleOpen }}" hint-placeholder-val="{{ false }}">
+                  <div style="padding:14px 15px;border-top:1px solid #EBE3D6;background:#FDFBF7;">
+                    <sc-if value="{{ briefUI.isEmail }}" hint-placeholder-val="{{ false }}">
+                      <div style="font-size:12px;color:#9AA59E;margin-bottom:2px;">Subject</div>
+                      <div style="font-size:13.5px;font-weight:700;color:#0E1512;margin-bottom:10px;">{{ briefUI.sampleSubject }}</div>
+                    </sc-if>
+                    <div style="font-size:13.5px;color:#3B463F;line-height:1.6;white-space:pre-wrap;">{{ briefUI.sampleBody }}</div>
+                    <div style="margin-top:10px;font-size:11.5px;color:#9AA59E;">Composed fresh per lead — every send is checked against your never-say list and grounding rules first.</div>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-if>
             <!-- EMAIL -->
             <sc-if value="{{ isEmailEdit }}" hint-placeholder-val="{{ false }}">
               <div>
@@ -1198,17 +1306,10 @@
             <div>
               <div style="font-size:11px;font-weight:700;color:#8A7F6B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Personalization</div>
               <div style="display:flex;flex-wrap:wrap;gap:7px;">
-                <sc-for list="{{ tokens }}" as="t" hint-placeholder-count="6">
-                  <span onClick="{{ t.onPick }}" style="font-size:12.5px;font-weight:600;color:#1192A6;background:{{ t.bg }};border:1px solid {{ t.border }};border-radius:8px;padding:5px 10px;cursor:pointer;">{{ t.label }}</span>
+                <sc-for list="{{ tokens }}" as="t" hint-placeholder-count="4">
+                  <span style="font-size:12.5px;font-weight:600;color:#1192A6;background:rgba(54,215,237,.12);border:1px solid rgba(54,215,237,.3);border-radius:8px;padding:5px 10px;cursor:pointer;">{{ t }}</span>
                 </sc-for>
               </div>
-              <sc-if value="{{ customTokenOpen }}" hint-placeholder-val="{{ false }}">
-                <div style="margin-top:10px;background:rgba(54,215,237,.06);border:1px solid rgba(54,215,237,.28);border-radius:11px;padding:12px 14px;">
-                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px;"><span style="font-size:11px;font-weight:800;color:#1192A6;text-transform:uppercase;letter-spacing:.05em;">Fallback for {{ customTokenLabel }}</span><span style="font-size:10px;font-weight:800;color:#C9543F;background:#FBEEEA;border-radius:100px;padding:2px 7px;">Required</span></div>
-                  <input value="{{ customFallback }}" onInput="{{ onCustomFallback }}" placeholder="e.g. your practice" style="width:100%;height:38px;border-radius:9px;background:#fff;border:1px solid rgba(54,215,237,.4);padding:0 12px;font-size:13px;color:#0E1512;" style-focus="border-color:#36D7ED;" />
-                  <div style="font-size:11.5px;color:#5C6B62;line-height:1.5;margin-top:7px;">Used when a contact has no <strong>{{ customTokenField }}</strong> value — custom tokens never render blank.</div>
-                </div>
-              </sc-if>
             </div>
           </div>
 
@@ -1456,6 +1557,14 @@
                   <span style="font-size:12.5px;font-weight:600;color:#16A82A;border:1.5px dashed #9FD8AC;border-radius:7px;padding:3px 9px;cursor:pointer;">+ keyword</span>
                 </div>
               </sc-if>
+              <sc-if value="{{ ruleUI.showIntent }}" hint-placeholder-val="{{ false }}">
+                <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;">
+                  <sc-for list="{{ ruleUI.intentChips }}" as="ic" hint-placeholder-count="7">
+                    <span onClick="{{ ic.onPick }}" style="font-size:12.5px;font-weight:700;color:{{ ic.fg }};background:{{ ic.bg }};border:{{ ic.border }};border-radius:100px;padding:5px 12px;cursor:pointer;white-space:nowrap;">{{ ic.label }}</span>
+                  </sc-for>
+                </div>
+                <div style="margin-top:7px;font-size:11.5px;color:#9AA59E;">Replies are classified by AI intent — no keyword lists to maintain.</div>
+              </sc-if>
               <sc-if value="{{ ruleUI.showDays }}" hint-placeholder-val="{{ false }}">
                 <div style="margin-top:8px;display:flex;align-items:center;gap:10px;">
                   <div style="border-radius:11px;background:#fff;border:1px solid #EBE3D6;padding:10px 14px;font-size:14px;font-weight:700;color:#0E1512;width:64px;text-align:center;">30</div>
@@ -1472,6 +1581,20 @@
                   <sc-for list="{{ ruleUI.thenOptions }}" as="o" hint-placeholder-count="6">
                     <div onClick="{{ o.onPick }}" style="padding:10px 14px;font-size:13.5px;color:#0E1512;cursor:pointer;display:flex;align-items:center;gap:8px;" style-hover="background:#FBF7F0;"><span style="width:14px;color:#16A82A;font-size:12px;"><sc-if value="{{ o.sel }}" hint-placeholder-val="{{ false }}">✓</sc-if></span>{{ o.label }}</div>
                   </sc-for>
+                </div>
+              </sc-if>
+              <sc-if value="{{ ruleUI.showAutomation }}" hint-placeholder-val="{{ false }}">
+                <div style="position:relative;margin-top:8px;">
+                  <div onClick="{{ ruleAutoDD }}" style="border-radius:11px;background:#fff;border:1px solid #EBE3D6;padding:11px 14px;font-size:13.5px;color:{{ ruleUI.autoColor }};display:flex;align-items:center;gap:8px;cursor:pointer;"><span style="flex:none;">⚡</span><span style="flex:1;">{{ ruleUI.autoSel }}</span><span style="color:#9AA59E;">▾</span></div>
+                  <sc-if value="{{ ruleUI.autoDDOpen }}" hint-placeholder-val="{{ false }}">
+                    <div style="position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1px solid #EBE3D6;border-radius:12px;box-shadow:0 16px 36px rgba(14,21,18,.18);z-index:20;overflow:hidden;">
+                      <sc-for list="{{ ruleUI.autoOptions }}" as="o" hint-placeholder-count="5">
+                        <div onClick="{{ o.onPick }}" style="padding:10px 14px;font-size:13.5px;color:#0E1512;cursor:pointer;display:flex;align-items:center;gap:9px;" style-hover="background:#FBF7F0;"><span style="width:24px;height:24px;border-radius:7px;background:{{ o.iconbg }};display:flex;align-items:center;justify-content:center;font-size:12px;flex:none;">{{ o.icon }}</span><span style="flex:1;">{{ o.label }}</span><sc-if value="{{ o.sel }}" hint-placeholder-val="{{ false }}"><span style="color:#16A82A;font-weight:700;">✓</span></sc-if></div>
+                      </sc-for>
+                      <div onClick="{{ ruleAutoNew }}" style="padding:10px 14px;font-size:13px;font-weight:700;color:#16A82A;cursor:pointer;border-top:1px solid #F2EEE4;" style-hover="background:#FBF7F0;">＋ New automation…</div>
+                    </div>
+                  </sc-if>
+                  <div style="margin-top:7px;font-size:11.5px;color:#9AA59E;">Runs one of your Automations for this contact when the rule fires.</div>
                 </div>
               </sc-if>
               <sc-if value="{{ ruleUI.showTarget }}" hint-placeholder-val="{{ false }}">
@@ -1747,7 +1870,7 @@
 </x-dc>
 <script type="text/x-dc" data-dc-script>
 class Component extends DCLogic {
-  state = { stepIndex: 0, sendDayState: [true, true, true, true, true, false, false], modal: null, delays: {}, inboundOn: { widget: false, form: false, embed: false }, inboundSel: { widget: null, form: null, embed: null }, openDD: null, apOn: true, apKeywords: ['dental clinic', 'orthodontist', 'pediatric dentistry', '"new patients"', 'implant dentistry'], apAddOpen: false, apParamDD: null, apParams: { location: 'United States · Canada', industry: 'Dental & Orthodontics', size: '1–50 staff', rating: '4.0 ★ +' }, apSignals: { api: true, news: true, reviews: true, social: true }, inboundExpanded: null, goal: 'reactivate', category: 'Dental & Orthodontics', buildMethod: 'ai', template: null, categoryOpen: false, channelsOn: {}, gaps: { usp: 'missing', pricing: 'missing', availability: 'missing' }, setupReveal: 0, templateExpanded: false, addSourceMode: null, tplFilter: 'all', building: false, buildProgress: 0, step2View: 'sequence', ruleOff: {}, ruleWhenSel: null, ruleThenSel: null, ruleDD: null, subNewStep: 0, subNewTrigger: null, subNewBuild: 'ai', subNewDD: null, csvStep: 0, guardToggles: { suppress: true, dnc: true, quietHours: true, throttle: true },
+  state = { stepIndex: 0, sendDayState: [true, true, true, true, true, false, false], modal: null, delays: {}, inboundOn: { widget: false, form: false, embed: false }, inboundSel: { widget: null, form: null, embed: null }, openDD: null, apOn: null, apKeywords: ['dental clinic', 'orthodontist', 'pediatric dentistry', '"new patients"', 'implant dentistry'], apAddOpen: false, apParamDD: null, apParams: { location: 'United States · Canada', industry: 'Dental & Orthodontics', size: '1–50 staff', rating: '4.0 ★ +' }, apSignals: { api: true, news: true, reviews: true, social: true }, inboundExpanded: null, goal: 'reactivate', category: 'Dental & Orthodontics', buildMethod: 'ai', template: null, categoryOpen: false, channelsOn: {}, gaps: { usp: 'missing', pricing: 'missing', availability: 'missing' }, setupReveal: 0, templateExpanded: false, addSourceMode: null, tplFilter: 'all', building: false, buildProgress: 0, step2View: 'sequence', ruleOff: {}, ruleWhenSel: null, ruleThenSel: null, ruleDD: null, subNewStep: 0, subNewTrigger: null, subNewBuild: 'ai', subNewDD: null, csvStep: 0, guardToggles: { suppress: true, dnc: true, quietHours: true, throttle: true },
     phoneConnected: false, waConnected: false, connectArea: '512', connectChoice: 'new', connectProvider: 'gmail', connectStep: 0,
     voicePersona: 'Ava — US English, warm', voiceDDOpen: false, manageLimitDraft: '',
     emailSenders: [
@@ -1796,11 +1919,16 @@ class Component extends DCLogic {
       { kind: 'step', channel: 'Email', title: 'Intro — Quick question about {{company}}',
         preview: "Hi {{firstName}}, noticed you're growing the team at {{company}} — looking to book more new-patient appointments this quarter?",
         subject: 'Quick question about {{company}}',
-        body: "Hi {{firstName}},\n\nNoticed {{company}} is growing — are you looking to book more new-patient appointments this quarter?\n\nWe run a free 15-minute growth audit that shows exactly how many we could fill for you. Worth a quick look?\n\n— {{senderName}}, BrightPath Growth" },
+        body: "Hi {{firstName}},\n\nNoticed {{company}} is growing — are you looking to book more new-patient appointments this quarter?\n\nWe run a free 15-minute growth audit that shows exactly how many we could fill for you. Worth a quick look?\n\n— {{senderName}}, BrightPath Growth",
+        brief: { objective: 'Open the conversation — get a first reply, not a booking', subjectHint: 'where phone-only booking leaks new patients', points: ['Clinics like {{company}} lose new patients to phone-only booking', 'We fill new-patient calendars on autopilot', 'Free 15-min growth audit is the only ask'], mustSay: ['free 15-min growth audit'], neverSay: ['guarantee', 'cheap'],
+          sampleSubject: 'Is front-desk phone tag costing Hilltop new patients?',
+          sample: "Hi Maya,\n\nMost clinics your size lose 6–10 new patients a month to phone-only booking — someone calls, nobody picks up, they book elsewhere.\n\nWe run a free 15-min growth audit that shows where Hilltop Smiles is leaking bookings and what to automate first. Worth a look?\n\n— Alex, BrightPath Growth" } },
       { kind: 'delay', amount: 2 },
       { kind: 'step', channel: 'SMS', title: 'SMS nudge — free audit',
         preview: "Hi {{firstName}}, quick one from BrightPath — want a free 15-min audit of {{company}}'s new-patient flow?",
-        message: "Hi {{firstName}}, quick one from BrightPath — want a free 15-min audit of {{company}}'s new-patient flow? Reply YES and I'll send details." },
+        message: "Hi {{firstName}}, quick one from BrightPath — want a free 15-min audit of {{company}}'s new-patient flow? Reply YES and I'll send details.",
+        brief: { objective: 'Nudge the unopened email — one line, one easy yes', points: ['Reference the audit offer, not the email', 'One question, answerable with YES', 'Keep it under one segment'], mustSay: [], neverSay: ['guarantee'],
+          sample: "Hi Maya — Alex from BrightPath. Want a free 15-min audit of Hilltop Smiles' new-patient flow? Reply YES and I'll set it up." } },
       { kind: 'delay', amount: 1 },
       { kind: 'step', channel: 'WhatsApp', title: 'WhatsApp — case study + buttons',
         preview: "Here's how we booked 18 appointments for a clinic like yours in 3 weeks. Want the breakdown?",
@@ -1811,7 +1939,10 @@ class Component extends DCLogic {
       { kind: 'step', channel: 'Email', title: 'Follow-up — A quick case study',
         preview: 'Thought this might help — how we booked 18 appointments for a similar clinic in 3 weeks.',
         subject: 'How we booked 18 appts in 3 weeks',
-        body: "Hi {{firstName}},\n\nSharing a quick case study — we recently helped a clinic similar to {{company}} book 18 new-patient appointments in 3 weeks.\n\nHappy to walk you through what we'd do for you on a 15-min call. Open to it?\n\n— {{senderName}}" },
+        body: "Hi {{firstName}},\n\nSharing a quick case study — we recently helped a clinic similar to {{company}} book 18 new-patient appointments in 3 weeks.\n\nHappy to walk you through what we'd do for you on a 15-min call. Open to it?\n\n— {{senderName}}",
+        brief: { objective: 'Prove it works — one concrete case study, soft ask', subjectHint: 'the 18-appointments-in-3-weeks result', points: ['18 booked appointments for a similar clinic in 3 weeks', 'One number, one outcome — no feature list', '15-min walkthrough call as the ask'], mustSay: [], neverSay: ['guarantee', 'cheap'],
+          sampleSubject: '18 new patients in 3 weeks — a clinic like yours',
+          sample: "Hi Maya,\n\nA dental clinic about Hilltop's size came to us with the same phone-tag problem. Three weeks later: 18 new-patient appointments booked, zero front-desk time.\n\nHappy to walk you through exactly what we'd copy over for you — 15 minutes. Open to it?\n\n— Alex" } },
       { kind: 'delay', amount: 3 },
       { kind: 'step', channel: 'Voice', title: 'AI voice call — Qualify & book',
         preview: 'Friendly check-in call to answer questions and book a slot on your calendar.',
@@ -1832,6 +1963,8 @@ class Component extends DCLogic {
           { channel: 'Email', short: 'Last chance', title: 'Last one — free audit still open', subject: 'Closing the loop', body: "Hi {{firstName}},\n\nI won't keep emailing — but the free growth audit for {{company}} is still on the table if the timing's better now.\n\nJust reply and we'll find a slot.\n\n— {{senderName}}" },
         ] },
     ];
+    const seqMode = this.state.seqMode || 'scripted';
+    const guidedOn = seqMode === 'guided';
     let sn = 0;
     const stepNo = seqRaw.map((r) => (r.kind === 'step' ? ++sn : null));
     const delayAmt = (idx, r) => (this.state.delays[idx] != null ? this.state.delays[idx] : r.amount);
@@ -1841,7 +1974,12 @@ class Component extends DCLogic {
         return { isDelay: true, isStep: false, label: `Wait ${a} ${a === 1 ? 'day' : 'days'}`, onEdit: () => this.setState({ modal: { kind: 'delay', i: idx } }) };
       }
       const t = chanTheme[r.channel];
-      return { isStep: true, isDelay: false, n: String(stepNo[idx]), channel: r.channel, icon: t.icon, iconbg: t.iconbg, iconfg: t.iconfg, chipbg: t.chipbg, chipfg: t.chipfg, title: r.title, preview: r.preview, onEdit: () => this.setState({ modal: { kind: 'step', i: idx } }) };
+      const gStep = guidedOn && !!r.brief;
+      return { isStep: true, isDelay: false, n: String(stepNo[idx]), channel: r.channel, icon: t.icon, iconbg: t.iconbg, iconfg: t.iconfg, chipbg: t.chipbg, chipfg: t.chipfg, title: r.title,
+        modeTag: gStep ? '✦ Composed at send' : '✦ AI draft', modeTagFg: gStep ? '#1192A6' : '#16A82A', modeTagBg: gStep ? 'rgba(54,215,237,.14)' : 'rgba(53,232,52,.12)',
+        gStep, gCredits: r.channel === 'SMS' ? '3 credits / send' : '2 credits / send',
+        preview: gStep ? 'Objective: ' + r.brief.objective : r.preview,
+        onEdit: () => this.setState({ modal: { kind: 'step', i: idx }, guidedSample: false }) };
     });
 
     const modal = this.state.modal;
@@ -1898,13 +2036,27 @@ class Component extends DCLogic {
     const embedSelected = !!this.state.inboundSel.embed;
     const embedName = this.state.inboundSel.embed || '';
     const anyInboundPreview = widgetSelected || embedSelected || formSelected;
-    const apOn = this.state.apOn;
+    const AP_GOAL_FIT = {
+      reactivate: { note: 'This agent re-engages people you already know — your lists and past customers are the audience, so prospecting brand-new leads usually isn’t needed.', crm: { icon: '⟳', iconbg: 'rgba(54,215,237,.16)', title: 'Sync lapsed patients from your CRM', desc: 'Auto-enroll contacts with no visit in 6+ months — they flow straight into this campaign.', via: 'Zapier · HubSpot · Dentrix', cta: 'Connect' } },
+      upsell: { note: 'Upsells go to your current clients — pull them from your lists or CRM rather than prospecting new leads.', crm: { icon: '⟳', iconbg: 'rgba(54,215,237,.16)', title: 'Sync active clients from your CRM', desc: 'Keep this campaign pointed at current clients who are due for an upgrade.', via: 'Zapier · HubSpot', cta: 'Connect' } },
+      reviews: { note: 'Review requests go to past customers — choose them from your lists rather than prospecting new leads.', crm: { icon: '✓', iconbg: 'rgba(53,232,52,.16)', title: 'Completed appointment → review ask', desc: 'After each completed visit, the patient is enrolled here for a review request.', via: 'Built-in automation', cta: 'Set up' } },
+    };
+    const apGoalFit = AP_GOAL_FIT[this.state.goal] || null;
+    const apGoalNote = apGoalFit ? apGoalFit.note : null;
+    const apOn = this.state.apOn === null ? !apGoalFit : this.state.apOn;
+    const captureSuggestions = apGoalFit ? [
+      apGoalFit.crm,
+      { icon: '🗓', iconbg: 'rgba(208,245,107,.3)', title: 'Re-enroll a list on a schedule', desc: 'Re-run this campaign for “Past patients” on the 1st of every month.', via: 'Built-in schedule', cta: 'Set up' },
+    ] : [
+      { icon: '⚡', iconbg: 'rgba(53,232,52,.16)', title: 'New form fill → enroll here', desc: 'Every submission on your site or landing pages joins this campaign automatically.', via: 'Zapier · Typeform · Webflow', cta: 'Connect' },
+      { icon: '📞', iconbg: 'rgba(54,215,237,.16)', title: 'Missed call → instant follow-up', desc: 'Text back anyone whose call the front desk misses and enroll them for follow-up.', via: 'Built-in automation', cta: 'Set up' },
+    ];
     const apKw = this.state.apKeywords.map((k, idx) => ({ label: k, onRemove: () => this.setState((s) => ({ apKeywords: s.apKeywords.filter((_, i) => i !== idx) })) }));
     const AP_SUGG = ['cosmetic dentistry', 'family dentist', 'dental implants', 'invisalign', 'teeth whitening', 'emergency dentist'];
     const apSuggestions = AP_SUGG.filter((x) => this.state.apKeywords.indexOf(x) === -1).map((x) => ({ label: x, onAdd: () => this.setState((s) => ({ apKeywords: s.apKeywords.concat([x]), apAddOpen: false })) }));
     const apAddOpen = this.state.apAddOpen;
     const toggleApAdd = () => this.setState((s) => ({ apAddOpen: !s.apAddOpen }));
-    const toggleAp = () => this.setState((s) => ({ apOn: !s.apOn }));
+    const toggleAp = () => this.setState({ apOn: !apOn });
     const PARAM_OPTS = { location: ['United States · Canada', 'United States only', 'United Kingdom', 'Australia', 'Europe (EU)', 'Global'], industry: ['Dental & Orthodontics', 'Healthcare & Wellness', 'Home Services', 'Real Estate', 'Veterinary', 'Med Spa'], size: ['1–10 staff', '1–50 staff', '11–50 staff', '51–200 staff', '200+ staff'], rating: ['Any rating', '3.0 ★ +', '4.0 ★ +', '4.5 ★ +'] };
     const apParamDefs = [ { key: 'location', label: 'Location' }, { key: 'industry', label: 'Industry' }, { key: 'size', label: 'Company size' }, { key: 'rating', label: 'Min. rating' } ];
     const apParamsUI = apParamDefs.map((p) => ({ key: p.key, label: p.label, value: this.state.apParams[p.key], ddOpen: this.state.apParamDD === p.key, onToggle: () => this.setState((s) => ({ apParamDD: s.apParamDD === p.key ? null : p.key })), options: PARAM_OPTS[p.key].map((o) => ({ label: o, sel: this.state.apParams[p.key] === o, onPick: () => this.setState((s) => ({ apParams: Object.assign({}, s.apParams, { [p.key]: o }), apParamDD: null })) })) }));
@@ -1914,7 +2066,7 @@ class Component extends DCLogic {
     const apTogglebg = apOn ? 'linear-gradient(135deg,#36D7ED,#35E834 60%,#D0F56B)' : '#E4EAE6';
     const apKnob = apOn ? 'right' : 'left';
     const captureReview = [
-      { label: 'Auto-prospecting', value: 'On · ~12 new leads / day', fg: '#16A82A' },
+      { label: 'Auto-prospecting', value: apOn ? 'On · ~12 new leads / day' : 'Off', fg: apOn ? '#16A82A' : '#9AA59E' },
     ].concat(inbound.map((o) => ({ label: o.label, value: o.on ? (o.sel || 'On — pick an asset') : 'Off', fg: o.on ? '#16A82A' : '#9AA59E' })));
 
     const goalDefs = [
@@ -2104,10 +2256,11 @@ class Component extends DCLogic {
       onOpen: () => this.setState({ modal: { kind: 'sub', sub: sc.id } }),
     }));
     const ruleDefs = [
-      { id: 'r1', when: 'Reply contains “interested” · “tell me more” · “yes please”', then: '→ Move to Interested — book a call', thenFg: '#16A82A', thenBg: '#D7F5DD' },
+      { id: 'r1', when: 'Reply classified “Interested” — AI intent, any channel', then: '→ Move to Interested — book a call', thenFg: '#16A82A', thenBg: '#D7F5DD' },
       { id: 'r2', when: 'Contact books a meeting via calendar link', then: '→ Mark converted · Notify team · End campaign', thenFg: '#1192A6', thenBg: 'rgba(54,215,237,.16)' },
       { id: 'r3', when: 'Reply contains “not interested” · “stop” · “unsubscribe”', then: '→ Suppress contact · End campaign', thenFg: '#C9543F', thenBg: 'rgba(224,121,107,.14)' },
       { id: 'r4', when: 'Full sequence complete + no reply for 30 days', then: '→ Move to Re-engagement sequence', thenFg: '#A87B16', thenBg: 'rgba(232,196,91,.2)' },
+      { id: 'r5', when: 'New form lead captured on your site', then: '→ Run automation: New lead welcome', thenFg: '#6E7A12', thenBg: 'rgba(208,245,107,.4)' },
     ];
     const branchRulesUI = ruleDefs.map((r) => {
       const off = !!this.state.ruleOff[r.id];
@@ -2120,12 +2273,30 @@ class Component extends DCLogic {
     const ruleIsNew = isRuleM && modal.rule === 'new';
     const ruleDef = (isRuleM && !ruleIsNew) ? ruleDefs.find((r) => r.id === modal.rule) : null;
     const ruleEdit = { title: ruleIsNew ? 'New automation rule' : 'Edit rule', whenDisplay: ruleDef ? ruleDef.when : 'e.g. Reply contains a keyword…', whenColor: ruleDef ? '#0E1512' : '#B7BDB6', thenDisplay: ruleDef ? ruleDef.then.replace('→ ', '') : 'Choose an action…', thenColor: ruleDef ? '#0E1512' : '#B7BDB6', saveLabel: ruleIsNew ? 'Create rule' : 'Save rule' };
-    const TRIGGERS = ['Reply received', 'Reply contains keyword', 'No reply for N days', 'Email opened', 'Link clicked', 'Meeting booked', 'Negative reply / unsubscribe', 'Form submitted'];
-    const ACTIONS = ['Move to sub-campaign', 'Mark as converted', 'Notify team', 'Add to suppression list', 'End campaign', 'Add a tag', 'Wait, then continue'];
+    const TRIGGERS = ['Reply classified as…', 'Reply received', 'Reply contains keyword', 'No reply for N days', 'Email opened', 'Link clicked', 'Meeting booked', 'Negative reply / unsubscribe', 'Form submitted'];
+    const ACTIONS = ['Move to sub-campaign', 'Run an automation', 'Mark as converted', 'Notify team', 'Add to suppression list', 'End campaign', 'Add a tag', 'Wait, then continue'];
+    const RULE_INTENTS = [
+      { label: 'Interested', fg: '#0F7A28', bg: '#D7F5DD' },
+      { label: 'Meeting booked', fg: '#1192A6', bg: 'rgba(54,215,237,.16)' },
+      { label: 'Price objection', fg: '#6E7A12', bg: 'rgba(208,245,107,.4)' },
+      { label: 'Not now', fg: '#A87B16', bg: 'rgba(232,196,91,.2)' },
+      { label: 'Wrong person', fg: '#5C6B62', bg: '#F2EEE4' },
+      { label: 'Question', fg: '#A87B16', bg: 'rgba(232,196,91,.2)' },
+      { label: 'Not interested', fg: '#C9543F', bg: 'rgba(224,121,107,.14)' },
+    ];
+    const AUTOMATIONS = [
+      { name: 'Auto-qualify hot replies', icon: '↩', iconbg: 'rgba(54,215,237,.14)' },
+      { name: 'Booked → create deal', icon: '📅', iconbg: 'rgba(53,232,52,.14)' },
+      { name: 'Re-engage cold leads', icon: '↪', iconbg: 'rgba(208,245,107,.35)' },
+      { name: 'New lead welcome', icon: '＋', iconbg: '#F2EEE4' },
+      { name: 'Notify on payment', icon: '🔔', iconbg: 'rgba(232,196,91,.2)' },
+    ];
     const rWhen = this.state.ruleWhenSel, rThen = this.state.ruleThenSel;
-    const ruleUI = { title: ruleIsNew ? 'New automation rule' : 'Edit rule', whenSel: rWhen || 'Select a trigger…', whenColor: rWhen ? '#0E1512' : '#B7BDB6', thenSel: rThen || 'Select an action…', thenColor: rThen ? '#0E1512' : '#B7BDB6', saveLabel: ruleIsNew ? 'Create rule' : 'Save rule', whenDDOpen: this.state.ruleDD === 'when', thenDDOpen: this.state.ruleDD === 'then', whenOptions: TRIGGERS.map((t) => ({ label: t, sel: rWhen === t, onPick: () => this.setState({ ruleWhenSel: t, ruleDD: null }) })), thenOptions: ACTIONS.map((t) => ({ label: t, sel: rThen === t, onPick: () => this.setState({ ruleThenSel: t, ruleDD: null }) })), showKeyword: rWhen === 'Reply contains keyword', showDays: rWhen === 'No reply for N days', showTarget: rThen === 'Move to sub-campaign', canSave: !!(rWhen && rThen) };
+    const ruleUI = { title: ruleIsNew ? 'New automation rule' : 'Edit rule', whenSel: rWhen || 'Select a trigger…', whenColor: rWhen ? '#0E1512' : '#B7BDB6', thenSel: rThen || 'Select an action…', thenColor: rThen ? '#0E1512' : '#B7BDB6', saveLabel: ruleIsNew ? 'Create rule' : 'Save rule', whenDDOpen: this.state.ruleDD === 'when', thenDDOpen: this.state.ruleDD === 'then', whenOptions: TRIGGERS.map((t) => ({ label: t, sel: rWhen === t, onPick: () => this.setState({ ruleWhenSel: t, ruleDD: null }) })), thenOptions: ACTIONS.map((t) => ({ label: t, sel: rThen === t, onPick: () => this.setState({ ruleThenSel: t, ruleDD: null }) })), showKeyword: rWhen === 'Reply contains keyword', showDays: rWhen === 'No reply for N days', showTarget: rThen === 'Move to sub-campaign', showIntent: rWhen === 'Reply classified as…', showAutomation: rThen === 'Run an automation', autoDDOpen: this.state.ruleDD === 'auto', autoSel: this.state.ruleAutoSel || 'Choose an automation…', autoColor: this.state.ruleAutoSel ? '#0E1512' : '#B7BDB6', intentChips: RULE_INTENTS.map((ic) => { const sel = (this.state.ruleIntentSel || 'Interested') === ic.label; return { label: ic.label, fg: sel ? ic.fg : '#5C6B62', bg: sel ? ic.bg : '#fff', border: sel ? '1.5px solid ' + ic.fg : '1px solid #EBE3D6', onPick: () => this.setState({ ruleIntentSel: ic.label }) }; }), autoOptions: AUTOMATIONS.map((a) => ({ label: a.name, icon: a.icon, iconbg: a.iconbg, sel: this.state.ruleAutoSel === a.name, onPick: () => this.setState({ ruleAutoSel: a.name, ruleDD: null }) })), canSave: !!(rWhen && rThen) };
     const ruleWhenDD = () => this.setState((s) => ({ ruleDD: s.ruleDD === 'when' ? null : 'when' }));
     const ruleThenDD = () => this.setState((s) => ({ ruleDD: s.ruleDD === 'then' ? null : 'then' }));
+    const ruleAutoDD = () => this.setState((s) => ({ ruleDD: s.ruleDD === 'auto' ? null : 'auto' }));
+    const ruleAutoNew = () => this.setState({ ruleDD: null });
     const isSubNewM = !!(modal && modal.kind === 'subnew');
     const sns = this.state.subNewStep;
     const subNew = { isStep0: sns === 0, isStep1: sns === 1, isStep2: sns === 2, isDone: sns === 3, isWizard: sns < 3, notStep0: sns !== 0, segs: [0,1,2].map((n) => ({ bg: n <= sns ? '#16A82A' : '#E4EAE6' })), stepLabel: 'Step ' + Math.min(sns + 1, 3) + ' of 3', triggerSel: this.state.subNewTrigger || 'Select a trigger…', triggerColor: this.state.subNewTrigger ? '#0E1512' : '#B7BDB6', triggerDDOpen: this.state.subNewDD === 'trigger', triggerOptions: TRIGGERS.map((t) => ({ label: t, sel: this.state.subNewTrigger === t, onPick: () => this.setState({ subNewTrigger: t, subNewDD: null }) })), aiCard: this.state.subNewBuild === 'ai', scratchCard: this.state.subNewBuild === 'scratch', aiBorder: this.state.subNewBuild === 'ai' ? '2px solid #35E834' : '1px solid #EBE3D6', aiBg: this.state.subNewBuild === 'ai' ? 'rgba(53,232,52,.07)' : '#fff', scratchBorder: this.state.subNewBuild === 'scratch' ? '2px solid #35E834' : '1px solid #EBE3D6', scratchBg: this.state.subNewBuild === 'scratch' ? 'rgba(53,232,52,.07)' : '#fff', primaryLabel: sns === 2 ? 'Create sub-campaign' : 'Continue', canNext: sns !== 0 || !!this.state.subNewTrigger, triggerReview: this.state.subNewTrigger || 'Not set', buildReview: this.state.subNewBuild === 'ai' ? 'AI-drafted sequence' : 'Build from scratch' };
@@ -2276,7 +2447,7 @@ class Component extends DCLogic {
       csvImportOpen: isCsvM, csv, csvNext, csvBack,
       listPickerOpen: isListM, lists,
       manualOpen: isManualM, manualAdded,
-      ruleUI, ruleWhenDD, ruleThenDD,
+      ruleUI, ruleWhenDD, ruleThenDD, ruleAutoDD, ruleAutoNew,
       subNewOpen: isSubNewM, subNew, subNewTriggerDD, subNewNext, subNewBack,
       subNewPickAi: () => this.setState({ subNewBuild: 'ai' }),
       subNewPickScratch: () => this.setState({ subNewBuild: 'scratch' }),
@@ -2340,7 +2511,7 @@ class Component extends DCLogic {
       connectors: [ { icon: '📁', label: 'Google Drive' }, { icon: '📝', label: 'Notion' }, { icon: '📦', label: 'Dropbox' }, { icon: '🔧', label: 'HubSpot' }, { icon: '📚', label: 'Confluence' }, { icon: '💻', label: 'GitHub' } ],
       templates: templatesUI, tplFilterTabs, templatesFiltered,
       gaps,
-      goalTitle,
+      goalTitle, goalIcon: selGoal ? selGoal.icon : '🎯',
       customGoalOn: this.state.goal === 'custom',
       customSuccess: this.state.customSuccess,
       onCustomSuccess: (e) => this.setState({ customSuccess: e.target.value }),
@@ -2356,24 +2527,25 @@ class Component extends DCLogic {
       addOpen: !!(modal && modal.kind === 'add'),
       delayOpen: isDelayM,
       edit,
-      isEmailEdit: isStepM && er.channel === 'Email',
-      isSmsEdit: isStepM && er.channel === 'SMS',
+      isEmailEdit: isStepM && er.channel === 'Email' && !(guidedOn && er.brief),
+      isSmsEdit: isStepM && er.channel === 'SMS' && !(guidedOn && er.brief),
+      isBriefEdit: isStepM && !!(guidedOn && er.brief && !modal.sub),
+      briefUI: (isStepM && guidedOn && er.brief) ? {
+        isEmail: er.channel === 'Email',
+        explainer: er.channel === 'Email'
+          ? 'This step has no fixed text. At send time the AI composes a fresh email for each lead from this brief — checked against your never-say list, subject rules and grounding before anything sends. The unsubscribe footer is always added by the platform, never written by the AI.'
+          : 'This step has no fixed text. At send time the AI composes a fresh SMS for each lead from this brief — checked against your never-say list, length and grounding before anything sends. The STOP line is always appended by the platform.',
+        objective: er.brief.objective, subjectHint: er.brief.subjectHint || '',
+        points: er.brief.points.map((p) => ({ label: p })), pointCount: er.brief.points.length + ' of 6 (min 3)',
+        mustSay: er.brief.mustSay.map((p) => ({ label: p })), neverSay: er.brief.neverSay.map((p) => ({ label: p })), hasMustNever: !!(er.brief.mustSay.length || er.brief.neverSay.length),
+        credits: er.channel === 'SMS' ? '3 credits / send' : '2 credits / send',
+        sampleOpen: !!this.state.guidedSample, sampleSubject: er.brief.sampleSubject || '', sampleBody: er.brief.sample,
+        onSample: () => this.setState((s) => ({ guidedSample: !s.guidedSample })),
+        sampleBtn: this.state.guidedSample ? 'Hide sample' : '✦ Preview a sample compose',
+      } : { points: [], mustSay: [], neverSay: [] },
       isWhatsappEdit: isStepM && er.channel === 'WhatsApp',
       isVoiceEdit: isStepM && er.channel === 'Voice',
-      tokens: ['{{firstName}}', '{{company}}', '{{senderName}}', '{{calendarLink}}'].map((label) => ({
-        label, bg: 'rgba(54,215,237,.12)', border: 'rgba(54,215,237,.3)',
-        onPick: () => this.setState({ customTokenKey: null }),
-      })).concat([{ k: 'industry', f: 'Industry' }, { k: 'plan', f: 'Plan' }].map((d) => ({
-        label: '{{custom.' + d.k + '}}',
-        bg: this.state.customTokenKey === d.k ? 'rgba(54,215,237,.24)' : 'rgba(54,215,237,.12)',
-        border: this.state.customTokenKey === d.k ? '#36D7ED' : 'rgba(54,215,237,.3)',
-        onPick: () => this.setState({ customTokenKey: this.state.customTokenKey === d.k ? null : d.k, customFallback: '' }),
-      }))),
-      customTokenOpen: !!this.state.customTokenKey,
-      customTokenLabel: '{{custom.' + (this.state.customTokenKey || '') + '}}',
-      customTokenField: this.state.customTokenKey === 'plan' ? 'Plan' : 'Industry',
-      customFallback: this.state.customFallback || '',
-      onCustomFallback: (e) => this.setState({ customFallback: e.target.value }),
+      tokens: ['{{firstName}}', '{{company}}', '{{senderName}}', '{{calendarLink}}'],
       addChannels,
       openAdd: () => this.setState({ modal: { kind: 'add' } }),
       closeModal: () => this.setState({ modal: null }),
@@ -2388,7 +2560,9 @@ class Component extends DCLogic {
       notFormSelected: !formSelected,
       selectedFormName, widgetSelected, widgetName, embedSelected, embedName, anyInboundPreview,
       apOn, apKw, apSuggestions, apAddOpen, toggleApAdd, toggleAp, apParamsUI, apSignalsUI, apSignalsLive, apTogglebg, apKnob,
-      previewEmpty: !this.state.apOn && !anyInboundPreview,
+      apBadgeLabel: apGoalFit ? 'Not typical for this goal' : 'Recommended', apBadgeFg: apGoalFit ? '#8A7F6B' : '#16A82A', apBadgeBg: apGoalFit ? '#F2EEE4' : 'rgba(53,232,52,.12)',
+      apCardBorder: apOn ? '2px solid #35E834' : '1px solid #EBE3D6', apGoalNoteOn: !!apGoalNote, apGoalNote, captureSuggestions,
+      previewEmpty: !apOn && !anyInboundPreview,
       captureReview,
       emailScore: '92',
       guard: (() => {
@@ -2460,9 +2634,9 @@ class Component extends DCLogic {
         { label: 'Links', value: '1 · safe domain', fg: '#16A82A', dot: '#35E834' },
       ],
       contactSources: [
-        { icon: '⬆', title: 'Upload CSV', desc: 'Import contacts from a .csv file.', border: '1px solid #EBE3D6', bg: '#fff', iconbg: 'rgba(53,232,52,.16)', onClick: () => this.setState({ modal: { kind: 'csvimport' }, csvStep: 0 }) },
-        { icon: '❒', title: 'Choose a list', desc: 'Pick an existing saved list.', border: '1px solid #EBE3D6', bg: '#fff', iconbg: 'rgba(54,215,237,.16)', onClick: () => this.setState({ modal: { kind: 'listpicker' } }) },
-        { icon: '✎', title: 'Add manually', desc: 'Enter contacts one by one.', border: '1px solid #EBE3D6', bg: '#fff', iconbg: '#F2EEE4', onClick: () => this.setState({ modal: { kind: 'manual' } }) },
+        { icon: '⬆', title: 'Upload CSV', desc: 'Import contacts from a .csv file.', rec: !!apGoalFit, border: apGoalFit ? '1px solid #9FD8AC' : '1px solid #EBE3D6', bg: '#fff', iconbg: 'rgba(53,232,52,.16)', onClick: () => this.setState({ modal: { kind: 'csvimport' }, csvStep: 0 }) },
+        { icon: '❒', title: 'Choose a list', desc: 'Pick an existing saved list.', rec: !!apGoalFit, border: apGoalFit ? '1px solid #9FD8AC' : '1px solid #EBE3D6', bg: '#fff', iconbg: 'rgba(54,215,237,.16)', onClick: () => this.setState({ modal: { kind: 'listpicker' } }) },
+        { icon: '✎', title: 'Add manually', desc: 'Enter contacts one by one.', rec: false, border: '1px solid #EBE3D6', bg: '#fff', iconbg: '#F2EEE4', onClick: () => this.setState({ modal: { kind: 'manual' } }) },
       ],
       previewContacts: [
         { name: 'Dr. Marcus Alvarez', email: 'm.alvarez@brightsmile.co', company: 'BrightSmile Dental', emoji: '🦷', avbg: 'rgba(53,232,52,.16)' },
@@ -2500,13 +2674,24 @@ class Component extends DCLogic {
         { label: 'Sequence', value: '5 steps' },
         { label: 'Audience', value: '240 contacts' },
       ],
+      seqModeUI: {
+        scriptedOn: !guidedOn, guidedOn,
+        scriptedBg: guidedOn ? 'transparent' : '#fff', scriptedShadow: guidedOn ? 'none' : '0 1px 4px rgba(14,21,18,.1)', scriptedFw: guidedOn ? '600' : '700', scriptedFg: guidedOn ? '#8A7F6B' : '#0E1512',
+        guidedBg: guidedOn ? '#fff' : 'transparent', guidedShadow: guidedOn ? '0 1px 4px rgba(14,21,18,.1)' : 'none', guidedFw: guidedOn ? '700' : '600', guidedFg: guidedOn ? '#0E1512' : '#8A7F6B',
+        onScripted: () => this.setState({ seqMode: 'scripted' }),
+        onGuided: () => this.setState({ seqMode: 'guided' }),
+      },
+      guidedOn,
       costRows: [
-        { label: 'Outbound sends (Email · SMS · WhatsApp)', value: '1,180 credits' },
+        guidedOn
+          ? { label: 'Outbound sends (Email · SMS composed at send · WhatsApp)', value: '1,540 credits' }
+          : { label: 'Outbound sends (Email · SMS · WhatsApp)', value: '1,180 credits' },
         { label: 'AI voice calls (240)', value: '960 credits' },
         { label: 'Auto-prospecting (~360 / mo)', value: '180 credits' },
         { label: 'Lead enrichment', value: '160 credits' },
         { label: 'Inbound forms & widgets', value: 'Included' },
       ],
+      costTotal: guidedOn ? '2,840' : '2,480',
     };
   }
 }
