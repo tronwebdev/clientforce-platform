@@ -346,7 +346,7 @@ describe.skipIf(!hasInfra)("campaign-rules engine (R1 W1)", () => {
     ]);
     const engine = createPerAgentRules(orphanDeps);
     const event = replyEvent("interested");
-    await engine.consumer(event);
+    await engine.consumer.handle(event);
 
     const run = await owner.campaignRuleRun.findFirstOrThrow({ where: { ruleId: rule.id } });
     expect(run.status).toBe("error");
