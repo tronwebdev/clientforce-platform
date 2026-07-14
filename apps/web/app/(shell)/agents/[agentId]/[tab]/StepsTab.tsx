@@ -40,7 +40,7 @@ import { StepEditorDrawer } from "../../../../../components/sequence/StepEditorD
 import { GRAD, LIVE_GRAPH_NOTICE, type BriefDraft, type PreviewState } from "../../../../../components/sequence/shared";
 import type { AgentViewData } from "./AgentView";
 import { cf, intentTint } from "./shared";
-import { mainPath, mainSteps, strategyStepsOf } from "../../../../../lib/graph-path";
+import { mainPath, mainSteps, replyBranchOf, strategyChains } from "../../../../../lib/graph-path";
 
 type StepNode = Extract<GraphNode, { type: "step" }>;
 
@@ -129,8 +129,10 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
   }
   // M1b (DEC-068): the tab lists the MAIN PATH — reply-strategy steps render
   // in their own group below (they belong to the branch, not the sequence).
+  // W3-4 W3: the group is CHAIN-TRUE (multi-step chains per case).
   const steps = mainSteps(graph);
-  const strategies = strategyStepsOf(graph);
+  const replyBranch = replyBranchOf(graph);
+  const chains = strategyChains(graph).filter((c) => c.steps.length > 0);
   const isDraft = view.agent.status === "DRAFT";
   const w = view.guardrails?.sendingWindow;
   const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -388,6 +390,30 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
     if (created && created.type === "step") openEditor(created, null);
   }
 
+  /** W3: append a step to a reply-strategy CHAIN (branch-case container).
+   *  Chain steps are threaded email replies — the strategy contract. */
+  async function handleAddToChain(branchId: string, intent: string) {
+    if (!graph || !branchId) return;
+    let result: { graph: CampaignGraph; stepId: string };
+    try {
+      result = addStepMutation(graph, {
+        container: { kind: "case", branchId, caseKey: intent },
+        channel: "email",
+        content: { body: "One more thought on this, {{firstName}} —", threaded: true },
+      });
+    } catch (err) {
+      setActionError(err instanceof GraphMutationError ? err.message : String(err));
+      return;
+    }
+    const failure = await putGraph(result.graph, "Adding step…");
+    if (failure) {
+      setActionError(failure);
+      return;
+    }
+    const created = result.graph.nodes.find((x) => x.id === result.stepId);
+    if (created && created.type === "step") openEditor(created, intent);
+  }
+
   async function saveDelay(delayId: string) {
     if (!graph) return;
     let updated: CampaignGraph;
@@ -497,6 +523,28 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
 
   const editStepIndex = editNode ? steps.findIndex((s) => s.id === editNode.id) + 1 : 0;
 
+  /** Delay row (Campaign View canon: pill → inline − / amount / + / Done,
+   *  clamp 1–30) — shared by the main path and W3's strategy chains. */
+  function renderDelayRow(n: Extract<GraphNode, { type: "delay" }>, indent: number, tidPrefix: string) {
+    const editing = delayEditId === n.id;
+    return (
+      <div key={n.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: `4px 0 4px ${indent}px` }}>
+        <span style={{ width: 2, height: 32, background: "#D8CFBE", marginLeft: 17, flex: "none" }} />
+        {editing ? (
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 9, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 100, padding: "4px 6px 4px 14px" }} data-testid={`${tidPrefix}-editor`}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "#8A7F6B" }}>⏱ Wait</span>
+            <span onClick={() => setDelayDraft((v) => Math.max(1, v - 1))} style={{ width: 24, height: 24, borderRadius: "50%", background: "#F2EEE4", color: "#5C6B62", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 700, cursor: "pointer" }} data-testid={`${tidPrefix}-dec`}>−</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: "#0E1512", minWidth: 48, textAlign: "center" }}>{delayDraft} {delayDraft === 1 ? n.unit.replace(/s$/, "") : n.unit}</span>
+            <span onClick={() => setDelayDraft((v) => Math.min(30, v + 1))} style={{ width: 24, height: 24, borderRadius: "50%", background: "#F2EEE4", color: "#5C6B62", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 700, cursor: "pointer" }} data-testid={`${tidPrefix}-inc`}>+</span>
+            <span onClick={() => void saveDelay(n.id)} style={{ fontSize: 12.5, fontWeight: 700, color: "#0A0F0C", background: GRAD, borderRadius: 100, padding: "5px 13px", cursor: "pointer" }} data-testid={`${tidPrefix}-done`}>Done</span>
+          </span>
+        ) : (
+          <span onClick={() => { setDelayEditId(n.id); setDelayDraft(n.amount); setAddOpen(false); }} style={{ fontSize: 13, fontWeight: 600, color: "#8A7F6B", background: "#F2EEE4", borderRadius: 100, padding: "5px 14px", cursor: "pointer" }} data-testid={tidPrefix}>⏱ Wait {n.amount} {n.amount === 1 ? n.unit.replace(/s$/, "") : n.unit} <span style={{ color: "#B6AB97", fontSize: 11 }}>✎</span></span>
+        )}
+      </div>
+    );
+  }
+
   // W2 ✦ provenance: a field stays marked while its value is still the
   // seeded/composed one — editing it clears the mark; Save confirms the rest.
   const seedMarks = (() => {
@@ -573,24 +621,7 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
       <>
       {mainPath(graph).map((n) => {
         if (n.type === "delay") {
-          const editing = delayEditId === n.id;
-          return (
-            <div key={n.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "4px 0 4px 26px" }}>
-              <span style={{ width: 2, height: 32, background: "#D8CFBE", marginLeft: 17, flex: "none" }} />
-              {editing ? (
-                /* Campaign View canon: inline − / amount / + / Done, clamp 1–30 */
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 9, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 100, padding: "4px 6px 4px 14px" }} data-testid="step-delay-editor">
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "#8A7F6B" }}>⏱ Wait</span>
-                  <span onClick={() => setDelayDraft((v) => Math.max(1, v - 1))} style={{ width: 24, height: 24, borderRadius: "50%", background: "#F2EEE4", color: "#5C6B62", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 700, cursor: "pointer" }} data-testid="step-delay-dec">−</span>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: "#0E1512", minWidth: 48, textAlign: "center" }}>{delayDraft} {delayDraft === 1 ? n.unit.replace(/s$/, "") : n.unit}</span>
-                  <span onClick={() => setDelayDraft((v) => Math.min(30, v + 1))} style={{ width: 24, height: 24, borderRadius: "50%", background: "#F2EEE4", color: "#5C6B62", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 700, cursor: "pointer" }} data-testid="step-delay-inc">+</span>
-                  <span onClick={() => void saveDelay(n.id)} style={{ fontSize: 12.5, fontWeight: 700, color: "#0A0F0C", background: GRAD, borderRadius: 100, padding: "5px 13px", cursor: "pointer" }} data-testid="step-delay-done">Done</span>
-                </span>
-              ) : (
-                <span onClick={() => { setDelayEditId(n.id); setDelayDraft(n.amount); setAddOpen(false); }} style={{ fontSize: 13, fontWeight: 600, color: "#8A7F6B", background: "#F2EEE4", borderRadius: 100, padding: "5px 14px", cursor: "pointer" }} data-testid="step-delay">⏱ Wait {n.amount} {n.amount === 1 ? n.unit.replace(/s$/, "") : n.unit} <span style={{ color: "#B6AB97", fontSize: 11 }}>✎</span></span>
-              )}
-            </div>
-          );
+          return renderDelayRow(n, 26, "step-delay");
         }
         if (n.type === "step") {
           const idx = steps.indexOf(n) + 1;
@@ -702,34 +733,74 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
         {busyMsg ? <span style={{ fontSize: 12.5, color: "#8A7F6B", alignSelf: "center" }} data-testid="steps-busy">{busyMsg}</span> : null}
       </div>
 
-      {/* M1b (DEC-068): reply-strategy steps — grouped under the branch they
-          belong to, labeled by intent; editable via the shared drawer (the
-          wizard already edits them; W3 adds chain-level editing). */}
-      {strategies.length > 0 ? (
+      {/* M1b (DEC-068) / W3-4 W3: reply-strategy CHAINS — grouped under the
+          branch they belong to, labeled by intent, chain-true (multi-step
+          chains within a branch render and edit; the standing W3-4 gap).
+          Mutations resolve their branch-case container by node id; reply
+          strategies stay scripted this phase (DEC-070(7)) so chain steps
+          carry no mode control. */}
+      {chains.length > 0 ? (
         <>
           <div style={{ fontSize: 11.5, fontWeight: 700, color: "#8A7F6B", letterSpacing: ".07em", textTransform: "uppercase", margin: "24px 0 12px" }} data-testid="strategy-group">
             Reply strategies · sent when a reply classifies
           </div>
-          {strategies.map(({ intent, step: sNode }) => {
+          {chains.map(({ intent, chain, steps: chainSteps }) => {
             const tint = intentTint(intent);
-            const stats = view.perStep[sNode.id];
+            const branchId = replyBranch?.id ?? "";
             return (
-              <div key={sNode.id} style={{ display: "flex", gap: 14, alignItems: "flex-start", marginBottom: 10 }} data-testid="strategy-step-card">
-                <span style={{ width: 38, height: 38, borderRadius: 11, flex: "none", background: tint.bg, color: tint.fg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, fontWeight: 700 }}>↩</span>
-                <div style={{ flex: 1, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 14, padding: "15px 18px", boxShadow: "0 4px 16px rgba(14,21,18,.04)" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", color: tint.fg }}>{tint.label}</span>
-                    <span style={{ fontSize: 12, fontWeight: 700, borderRadius: 8, padding: "3px 10px", background: "rgba(53,232,52,.13)", color: "#16A82A" }}>Email · threaded</span>
-                    <span style={{ marginLeft: "auto", fontSize: 12, color: "#9AA59E" }} data-testid="strategy-step-stats">
-                      {stats ? `${stats.sent} sent · ${stats.replies} repl${stats.replies === 1 ? "y" : "ies"}` : "0 sent"}
-                    </span>
-                    <span onClick={() => openEditor(sNode, intent)} style={{ fontSize: 13, fontWeight: 600, color: "#16A82A", cursor: "pointer", flex: "none" }} data-testid="strategy-step-edit">✎ Edit</span>
-                  </div>
-                  <div style={{ fontSize: 13.5, color: "#5C6B62", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{sNode.content.body}</div>
+              <div key={intent} style={{ marginBottom: 14 }} data-testid="strategy-chain">
+                {chain.map((cNode) => {
+                  if (cNode.type === "delay") {
+                    return renderDelayRow(cNode, 24, "strategy-delay");
+                  }
+                  if (cNode.type !== "step") return null;
+                  const sNode = cNode;
+                  const k = chainSteps.findIndex((s) => s.id === sNode.id) + 1;
+                  const stats = view.perStep[sNode.id];
+                  return (
+                    <div key={sNode.id} style={{ display: "flex", gap: 14, alignItems: "flex-start", marginBottom: 6 }} data-testid="strategy-step-card">
+                      <span style={{ width: 38, height: 38, borderRadius: 11, flex: "none", background: tint.bg, color: tint.fg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, fontWeight: 700 }}>↩</span>
+                      <div style={{ flex: 1, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 14, padding: "15px 18px", boxShadow: "0 4px 16px rgba(14,21,18,.04)" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", color: tint.fg }}>{tint.label}{chainSteps.length > 1 ? ` · step ${k} of ${chainSteps.length}` : ""}</span>
+                          <span style={{ fontSize: 12, fontWeight: 700, borderRadius: 8, padding: "3px 10px", background: "rgba(53,232,52,.13)", color: "#16A82A" }}>Email · threaded</span>
+                          <span style={{ marginLeft: "auto", fontSize: 12, color: "#9AA59E" }} data-testid="strategy-step-stats">
+                            {stats ? `${stats.sent} sent · ${stats.replies} repl${stats.replies === 1 ? "y" : "ies"}` : "0 sent"}
+                          </span>
+                          {chainSteps.length > 1 ? (
+                            <>
+                              <span onClick={k > 1 ? () => void handleMove(sNode.id, "up") : undefined} style={{ fontSize: 13, color: k > 1 ? "#5C6B62" : "#D8CFBE", cursor: k > 1 ? "pointer" : "default", flex: "none" }} data-testid="strategy-step-move-up">↑</span>
+                              <span onClick={k < chainSteps.length ? () => void handleMove(sNode.id, "down") : undefined} style={{ fontSize: 13, color: k < chainSteps.length ? "#5C6B62" : "#D8CFBE", cursor: k < chainSteps.length ? "pointer" : "default", flex: "none" }} data-testid="strategy-step-move-down">↓</span>
+                            </>
+                          ) : null}
+                          <span onClick={() => openEditor(sNode, intent)} style={{ fontSize: 13, fontWeight: 600, color: "#16A82A", cursor: "pointer", flex: "none" }} data-testid="strategy-step-edit">✎ Edit</span>
+                        </div>
+                        <div style={{ fontSize: 13.5, color: "#5C6B62", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{sNode.content.body}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+                {/* within-branch add — the sub-campaign drawer's indented
+                    dashed "+ Add step" anatomy; chain steps are threaded
+                    email replies (the strategy contract). */}
+                <div style={{ display: "flex", alignItems: "center", gap: 12, paddingLeft: 24, marginTop: 2 }}>
+                  <span style={{ width: 2, height: 18, background: "#D8CFBE", marginLeft: 17, flex: "none" }} />
+                  <span onClick={() => void handleAddToChain(branchId, intent)} style={{ fontSize: 13, fontWeight: 600, color: "#16A82A", background: "#fff", border: "1.5px dashed #9FD8AC", borderRadius: 10, padding: "7px 12px", cursor: "pointer" }} data-testid={`strategy-add-step-${intent}`}>+ Add step</span>
                 </div>
               </div>
             );
           })}
+
+          {/* W3-4 W3: NEW-branch authoring is GATED on R1's trigger vocabulary
+              (owner-locked 2026-07-14: later wave) — the canon card renders
+              with the honest capability disclosure, never a dead pick. */}
+          <div style={{ display: "flex", alignItems: "center", gap: 12, border: "1.5px dashed #D8CFBE", borderRadius: 14, background: "transparent", padding: "15px 18px", marginTop: 6, opacity: 0.75 }} data-testid="add-subcampaign-absent">
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#5C6B62" }}>Add a sub-campaign</div>
+              <div style={{ fontSize: 12.5, color: "#9AA59E", marginTop: 2 }}>Create a branch triggered by a specific contact behaviour or rule. Arrives with automation rules — its triggers use the same When→If→Then vocabulary.</div>
+            </div>
+            <span style={{ color: "#C2B79F", fontSize: 15, flex: "none" }}>›</span>
+          </div>
         </>
       ) : null}
       <div style={{ fontSize: 12, color: "#9AA59E", marginTop: 16, paddingLeft: 48 }}>
@@ -769,7 +840,7 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
         sampleCompose={sampleCompose}
         onClose={closeEditor}
         onSave={saveEditedStep}
-        onDelete={editStrategyIntent === null ? handleDelete : undefined}
+        onDelete={handleDelete}
         liveNotice={!isDraft}
         modeControl={
           editNode && editStrategyIntent === null && (editNode.channel === "email" || editNode.channel === "sms")
