@@ -117,7 +117,13 @@ export class EnrollmentsController {
               workflowId: workflowIdFor(id),
               pipelineStage: "new",
               // 49-3: provenance rides the run-audit meta — never a schema change.
-              meta: dto.origin ? { origin: dto.origin } : {},
+              // W3-4 (DEC-076): the enrolled graph version too — the run is
+              // pinned to it (Temporal input), so surfaces can say honestly
+              // which version a mid-sequence lead finishes on.
+              meta: {
+                ...(dto.origin ? { origin: dto.origin } : {}),
+                graphVersion: graphRow.version,
+              },
             },
           }));
         return {

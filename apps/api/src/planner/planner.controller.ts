@@ -24,11 +24,13 @@ import {
   GUIDED_SMS_CREDITS,
   planRequestSchema,
   plannerGraphQuerySchema,
+  repairGraph,
   validateGraph,
+  type CampaignGraph,
 } from "@clientforce/core";
 import { z } from "zod";
 import { Role } from "@clientforce/db";
-import { createPlanQueue, type PlanTarget } from "@clientforce/planner";
+import { createPlanQueue, validateEditedGraph, type PlanTarget } from "@clientforce/planner";
 import { mainStepPosition } from "@clientforce/workflows";
 import type { ZodSchema } from "zod";
 import { Roles } from "../auth/decorators";
@@ -85,22 +87,20 @@ export class PlannerController {
   }
 
   /**
-   * C2.3: a manual edit from the wizard's step editor persists as the NEXT
-   * graph version, source MANUAL — validated exactly like planner output.
+   * C2.3 / W3-4 (DEC-076): a manual edit persists as the NEXT graph version,
+   * source MANUAL — through the same three-layer discipline as planner output
+   * (shape zod → `validateGraph` → edit-policy layer) plus the deterministic
+   * `repairGraph` pass; repairs are reported, invalid graphs never persist.
+   * The copy rails (merge tokens · neverSay · language) stay generation-only:
+   * they judge the model's writing, not the owner's typed words (M1a stance).
+   * In-flight enrollments are untouched by construction — the graph is pinned
+   * into each run's Temporal input at start; the new version applies to new
+   * enrollments and rule moves only (the versioning semantics, DEC-076).
    */
   @Put("graph")
   @Roles(Role.OWNER, Role.ADMIN)
   async putGraph(@Body() body: unknown) {
     const dto = parse(putGraphSchema, body);
-    let graph;
-    try {
-      graph = validateGraph(dto.graph);
-    } catch (err) {
-      throw new UnprocessableEntityException({
-        message: "Invalid campaign graph",
-        detail: err instanceof Error ? err.message : String(err),
-      });
-    }
     const workspaceId = this.tenant.workspaceId;
     return this.tenant.run(async (tx) => {
       const campaign = await tx.campaign.findFirst({
@@ -111,8 +111,33 @@ export class PlannerController {
       const latest = await tx.campaignGraph.findFirst({
         where: { campaignId: campaign.id },
         orderBy: { version: "desc" },
-        select: { version: true },
       });
+      // DEC-061 capability rule, same as planning: sms steps only with an
+      // ACTIVE Twilio sender (channels the stored graph already uses stay legal).
+      const smsSender = await tx.senderConnection.findFirst({
+        where: { type: "TWILIO_SMS", status: "ACTIVE" },
+      });
+      let previous: CampaignGraph | null = null;
+      if (latest) {
+        try {
+          previous = validateGraph(latest.graph);
+        } catch {
+          previous = null; // an unreadable stored row must not brick edits
+        }
+      }
+      const { graph: repaired, repairs } = repairGraph(dto.graph as CampaignGraph);
+      let graph: CampaignGraph;
+      try {
+        graph = validateEditedGraph(previous, repaired, {
+          allowedChannels: smsSender ? ["email", "sms"] : ["email"],
+        });
+      } catch (err) {
+        throw new UnprocessableEntityException({
+          message: "Invalid campaign graph",
+          detail: err instanceof Error ? err.message : String(err),
+          ...(repairs.length > 0 ? { repaired: repairs } : {}),
+        });
+      }
       const row = await tx.campaignGraph.create({
         data: {
           workspaceId,
@@ -123,7 +148,7 @@ export class PlannerController {
         },
       });
       await tx.campaign.update({ where: { id: campaign.id }, data: { graphId: row.id } });
-      return row;
+      return { ...row, repaired: repairs };
     });
   }
 

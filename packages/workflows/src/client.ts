@@ -147,6 +147,7 @@ export async function moveEnrollmentToNode(
     if (!sender) throw new Error("NO_ACTIVE_SENDER");
     return {
       previousWorkflowId: enrollment.workflowId,
+      previousMeta: enrollment.meta,
       contactId: enrollment.contactId,
       campaignId: campaign.id,
       agentId: campaign.agentId,
@@ -187,7 +188,20 @@ export async function moveEnrollmentToNode(
   await withTenant(prisma, { workspaceId }, (tx) =>
     tx.enrollment.update({
       where: { id: enrollmentId },
-      data: { workflowId, status: "ACTIVE", currentNode: targetNodeId },
+      data: {
+        workflowId,
+        status: "ACTIVE",
+        currentNode: targetNodeId,
+        // W3-4 (DEC-076): a move adopts the LATEST graph — restamp the
+        // enrolled-version audit so surfaces stay honest about which version
+        // this lead now runs on.
+        meta: {
+          ...(typeof assembled.previousMeta === "object" && assembled.previousMeta !== null
+            ? (assembled.previousMeta as Record<string, unknown>)
+            : {}),
+          graphVersion: assembled.graphVersion,
+        },
+      },
     }),
   );
   return { workflowId, deduped };
