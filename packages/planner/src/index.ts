@@ -16,6 +16,9 @@ export {
   type PlanTarget,
 } from "./plan";
 export { createPlanQueue, createPlanWorker, PLANNER_QUEUE_NAME } from "./queue";
+// W3-4 (DEC-076): the manual-edit gate — same three-layer discipline as
+// generation, policy applied relative to the stored version.
+export { validateEditedGraph, type EditContext } from "./edit";
 export { PLANNER_PROMPT_NAME, PLANNER_PROMPT_VERSION, PLANNER_SYSTEM } from "./prompts";
 // F1 (DEC-068): shared by the rollup endpoint + outcome-aware regen.
 export { buildOutcomesPromptBlock, loadCampaignOutcomes } from "./outcomes";

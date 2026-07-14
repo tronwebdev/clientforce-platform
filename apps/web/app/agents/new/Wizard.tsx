@@ -11,9 +11,9 @@
  * actions (the orchestrator); each step renders from props.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BRIEF_TALKING_POINTS_MIN, CONTEXT_FIELD_META, customTokensMissingFallback, GOAL_KEYS, GUIDED_EMAIL_CREDITS, GUIDED_SMS_CREDITS, requiredFieldsFor, type GoalKey } from "@clientforce/core";
+import { addStep as addStepMutation, BRIEF_TALKING_POINTS_MIN, CONTEXT_FIELD_META, customTokensMissingFallback, GOAL_KEYS, GraphMutationError, GUIDED_EMAIL_CREDITS, GUIDED_SMS_CREDITS, requiredFieldsFor, updateDelay as updateDelayMutation, updateStepBrief, updateStepContent, type GoalKey } from "@clientforce/core";
 import type { CampaignGraph, CampaignOutcomes, ContactFieldDefDto, DraftState, GraphNode } from "@clientforce/core";
-import { mainPath, mainSteps, replyBranchOf, strategyStepsOf } from "../../../lib/graph-path";
+import { mainSteps, strategyStepsOf } from "../../../lib/graph-path";
 import { goalFitOf } from "../../../lib/goal-fit";
 import { BSTEPS, BUILD_DELAYS, DEFAULT_CAPTURE, EMPTY_MANUAL, GRAD, cf, type AddMode, type AddedContact, type BriefDraft, type CaptureState, type Citation, type ContextField, type Gap, type KnowledgeSource, type PreviewState, type SenderRow } from "./shared";
 import { BuildingScreen } from "./steps/BuildingScreen";
@@ -949,6 +949,28 @@ export function Wizard() {
     setCustomFallback("");
   }
 
+  /** W3-4 (DEC-076): the ONE write path — a graph produced by the shared core
+   *  mutation helpers, PUT through the three-layer edit gate; a 422 (or a
+   *  mutation refusal) surfaces as a toast, never a stuck busy state. */
+  async function putGraphEdit(updated: CampaignGraph, busy: string): Promise<boolean> {
+    setBusyMsg(busy);
+    try {
+      const row = await cf("planner/graph", {
+        method: "PUT",
+        body: JSON.stringify({ agentId, graph: updated }),
+      });
+      setGraph(updated);
+      setGraphSource(row.source ?? "MANUAL");
+      setGraphVersion(row.version ?? graphVersion + 1);
+      return true;
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Couldn't save the sequence — try again.");
+      return false;
+    } finally {
+      setBusyMsg("");
+    }
+  }
+
   async function saveEditedStep() {
     if (!graph || !editNode || !agentId) return;
     // G1 (DEC-070): a guided step saves its BRIEF (bullets, never copy) —
@@ -972,23 +994,17 @@ export function Wizard() {
           ? { subjectHint: editBrief.subjectHint.trim() }
           : {}),
       };
-      const updatedGuided: CampaignGraph = {
-        ...graph,
-        nodes: graph.nodes.map((n) =>
-          n.id === editNode.id && n.type === "step" ? { ...n, brief } : n,
-        ),
-      };
-      setBusyMsg("Saving step…");
-      const guidedRow = await cf("planner/graph", {
-        method: "PUT",
-        body: JSON.stringify({ agentId, graph: updatedGuided }),
-      });
-      setGraph(updatedGuided);
-      setGraphSource(guidedRow.source ?? "MANUAL");
-      setGraphVersion(guidedRow.version ?? graphVersion + 1);
-      setEditNode(null);
-      setEditBrief(null);
-      setBusyMsg("");
+      let updatedGuided: CampaignGraph;
+      try {
+        updatedGuided = updateStepBrief(graph, editNode.id, brief);
+      } catch (err) {
+        toast(err instanceof GraphMutationError ? err.message : String(err));
+        return;
+      }
+      if (await putGraphEdit(updatedGuided, "Saving step…")) {
+        setEditNode(null);
+        setEditBrief(null);
+      }
       return;
     }
     // C2.7: custom tokens carry a MANDATORY fallback ({{custom.key|fallback}})
@@ -998,24 +1014,14 @@ export function Wizard() {
       toast(`Add a fallback for {{custom.${missing[0]}}} — custom tokens never render blank.`);
       return;
     }
-    const updated: CampaignGraph = {
-      ...graph,
-      nodes: graph.nodes.map((n) =>
-        n.id === editNode.id && n.type === "step"
-          ? { ...n, content: { ...n.content, subject: editSubject, body: editBody } }
-          : n,
-      ),
-    };
-    setBusyMsg("Saving step…");
-    const row = await cf("planner/graph", {
-      method: "PUT",
-      body: JSON.stringify({ agentId, graph: updated }),
-    });
-    setGraph(updated);
-    setGraphSource(row.source ?? "MANUAL");
-    setGraphVersion(row.version ?? graphVersion + 1);
-    setEditNode(null);
-    setBusyMsg("");
+    let updated: CampaignGraph;
+    try {
+      updated = updateStepContent(graph, editNode.id, { subject: editSubject, body: editBody });
+    } catch (err) {
+      toast(err instanceof GraphMutationError ? err.message : String(err));
+      return;
+    }
+    if (await putGraphEdit(updated, "Saving step…")) setEditNode(null);
   }
 
   /** G1 (DEC-070): sample preview — the api composes the CURRENT saved brief
@@ -1090,46 +1096,20 @@ export function Wizard() {
     }, 3000);
   }
 
-  /** + Add step: append delay + empty email step before the reply branch (MANUAL version).
-   *  M1b: `last` walks the MAIN PATH — on a v4 graph the last node in the
-   *  step-filter is a reply-STRATEGY step (its edge goes to an end/branch
-   *  rejoin), and splicing after it would give the real last main step two
-   *  outgoing edges — an invalid graph. */
+  /** + Add step: append delay + email step before the reply branch (MANUAL
+   *  version) — via the shared core mutation (W3-4: one mutation layer for
+   *  both hosts; the main-sequence walk avoids the M1b strategy-step trap). */
   async function addStep() {
     if (!graph || !agentId) return;
-    const branch = replyBranchOf(graph) ?? graph.nodes.find((x) => x.type === "branch");
-    const pathToBranch = mainPath(graph);
-    const branchAt = branch ? pathToBranch.findIndex((x) => x.id === branch.id) : -1;
-    const steps = (branchAt >= 0 ? pathToBranch.slice(0, branchAt) : pathToBranch).filter(
-      (x) => x.type === "step",
-    );
-    const last = steps[steps.length - 1];
-    if (!last) return;
-    const n = mainSteps(graph).length + 1;
-    const delayId = `delay-added-${n}`;
-    const stepId = `step-added-${n}`;
-    const updated: CampaignGraph = {
-      ...graph,
-      nodes: [
-        ...graph.nodes.filter((x) => x.type !== "branch" && x.type !== "end"),
-        { id: delayId, type: "delay", amount: 2, unit: "days" },
-        { id: stepId, type: "step", channel: "email", content: { subject: `Follow-up ${n}`, body: "Hi {{firstName}}, one more thought for {{company}}…" } },
-        ...graph.nodes.filter((x) => x.type === "branch" || x.type === "end"),
-      ],
-      edges: [
-        ...graph.edges.filter((e) => !(branch && e.from === last.id && e.to === branch.id)),
-        { from: last.id, to: delayId },
-        { from: delayId, to: stepId },
-        ...(branch ? [{ from: stepId, to: branch.id }] : []),
-      ],
-    };
-    setBusyMsg("Adding step…");
-    const row = await cf("planner/graph", { method: "PUT", body: JSON.stringify({ agentId, graph: updated }) });
-    setGraph(updated);
-    setGraphSource(row.source ?? "MANUAL");
-    setGraphVersion(row.version ?? graphVersion + 1);
-    setBusyMsg("");
-    const created = updated.nodes.find((x) => x.id === stepId);
+    let result: { graph: CampaignGraph; stepId: string };
+    try {
+      result = addStepMutation(graph, { container: { kind: "main" }, channel: "email" });
+    } catch (err) {
+      toast(err instanceof GraphMutationError ? err.message : String(err));
+      return;
+    }
+    if (!(await putGraphEdit(result.graph, "Adding step…"))) return;
+    const created = result.graph.nodes.find((x) => x.id === result.stepId);
     if (created && created.type === "step") {
       setEditNode(created);
       setEditBrief(null); // added steps are scripted email — never a stale brief
@@ -1140,17 +1120,14 @@ export function Wizard() {
 
   async function saveDelay() {
     if (!graph || !delayEdit || !agentId) return;
-    const updated: CampaignGraph = {
-      ...graph,
-      nodes: graph.nodes.map((n) =>
-        n.id === delayEdit.id && n.type === "delay" ? { ...n, amount: delayAmount } : n,
-      ),
-    };
-    const row = await cf("planner/graph", { method: "PUT", body: JSON.stringify({ agentId, graph: updated }) });
-    setGraph(updated);
-    setGraphSource(row.source ?? "MANUAL");
-    setGraphVersion(row.version ?? graphVersion + 1);
-    setDelayEdit(null);
+    let updated: CampaignGraph;
+    try {
+      updated = updateDelayMutation(graph, delayEdit.id, delayAmount);
+    } catch (err) {
+      toast(err instanceof GraphMutationError ? err.message : String(err));
+      return;
+    }
+    if (await putGraphEdit(updated, "Saving delay…")) setDelayEdit(null);
   }
 
   /** W3-1: a def created inside the import flow must land in the token

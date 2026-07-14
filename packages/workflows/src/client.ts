@@ -184,11 +184,29 @@ export async function moveEnrollmentToNode(
     deduped = true;
   }
 
-  await withTenant(prisma, { workspaceId }, (tx) =>
-    tx.enrollment.update({
+  await withTenant(prisma, { workspaceId }, async (tx) => {
+    // W3-4 (DEC-076): a move adopts the LATEST graph — restamp the
+    // enrolled-version audit. Meta is merged against a FRESH read inside
+    // this transaction (the activities' mergeMeta discipline): the new run
+    // may already have written blocked/events audit during the two-RPC
+    // cancel/start window, and a stale snapshot would clobber it.
+    const fresh = await tx.enrollment.findUnique({
       where: { id: enrollmentId },
-      data: { workflowId, status: "ACTIVE", currentNode: targetNodeId },
-    }),
-  );
+      select: { meta: true },
+    });
+    const freshMeta =
+      typeof fresh?.meta === "object" && fresh.meta !== null
+        ? (fresh.meta as Record<string, unknown>)
+        : {};
+    await tx.enrollment.update({
+      where: { id: enrollmentId },
+      data: {
+        workflowId,
+        status: "ACTIVE",
+        currentNode: targetNodeId,
+        meta: { ...freshMeta, graphVersion: assembled.graphVersion },
+      },
+    });
+  });
   return { workflowId, deduped };
 }

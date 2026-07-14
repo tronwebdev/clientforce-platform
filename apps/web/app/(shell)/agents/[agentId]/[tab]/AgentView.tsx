@@ -164,7 +164,7 @@ export function AgentView({ agentId, tab }: { agentId: string; tab: string }) {
         ) : tab === "inbox" ? (
           <InboxTab agentId={agentId} goalLabel={view?.agent.goalLabel} />
         ) : tab === "steps" ? (
-          <StepsTab view={view} outcomes={outcomes} />
+          <StepsTab view={view} outcomes={outcomes} onChanged={refresh} />
         ) : tab === "leads" ? (
           <LeadsTab agentId={agentId} view={view} onChanged={refresh} />
         ) : tab === "settings" ? (

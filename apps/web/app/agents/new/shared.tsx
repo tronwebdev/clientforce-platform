@@ -6,7 +6,11 @@
  * one wizard step. No behavior change; every literal is the prototype's.
  */
 
-export const GRAD = "linear-gradient(135deg,#36D7ED 0%,#35E834 55%,#D0F56B 100%)";
+// W3-4 (DEC-076): GRAD + the sequence-editor types moved to the shared
+// sequence module (one definition, two hosts); re-exported here so every
+// pre-W3-4 wizard import keeps resolving.
+export { GRAD, type BriefDraft, type PreviewState } from "../../../components/sequence/shared";
+import { GRAD } from "../../../components/sequence/shared";
 
 export const cf = (path: string, init?: RequestInit) =>
   fetch(`/api/cf/${path}`, {
@@ -166,22 +170,6 @@ export const DEFAULT_CAPTURE: CaptureState = {
   form: false,
   embed: false,
 };
-
-/** G1/G2 brief-editor draft (channel-aware — email adds subjectHint). */
-export type BriefDraft = {
-  channel: "email" | "sms";
-  objective: string;
-  subjectHint: string;
-  talkingPoints: string[];
-  mustSay: string[];
-  neverSay: string[];
-};
-
-/** G1/G2 sample-preview display states (refusal is a designed state). */
-export type PreviewState =
-  | { kind: "composed"; subject?: string; body: string; credits: number }
-  | { kind: "refused"; reason: string; detail: string }
-  | { kind: "error"; message: string };
 
 /** DEC-039a drawer micro-caps label + 42px field. */
 export const manualLbl: React.CSSProperties = { display: "block", fontSize: 11, fontWeight: 800, color: "#9AA59E", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 6 };

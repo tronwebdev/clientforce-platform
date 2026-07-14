@@ -117,7 +117,13 @@ export class EnrollmentsController {
               workflowId: workflowIdFor(id),
               pipelineStage: "new",
               // 49-3: provenance rides the run-audit meta — never a schema change.
-              meta: dto.origin ? { origin: dto.origin } : {},
+              // W3-4 (DEC-076): the enrolled graph version too — the run is
+              // pinned to it (Temporal input), so surfaces can say honestly
+              // which version a mid-sequence lead finishes on.
+              meta: {
+                ...(dto.origin ? { origin: dto.origin } : {}),
+                graphVersion: graphRow.version,
+              },
             },
           }));
         return {
@@ -146,7 +152,29 @@ export class EnrollmentsController {
       graphVersion,
       ...(Number.isFinite(scale) && scale > 0 ? { delayScale: scale } : {}),
     });
-    return { ...enrollment, workflowId, workflowDeduped: deduped || existed };
+    // W3-4 (DEC-076): a RE-enroll whose prior run already closed starts a
+    // fresh run pinned to the LATEST graph (Temporal dedupes only while the
+    // old run is open) — restamp the audit so meta.graphVersion keeps naming
+    // the version the CURRENT run executes. A deduped start keeps the old
+    // stamp (the open run keeps its enrolled snapshot).
+    let row = enrollment;
+    if (existed && !deduped) {
+      row = await this.tenant.run(async (tx) => {
+        const fresh = await tx.enrollment.findUnique({
+          where: { id: enrollment.id },
+          select: { meta: true },
+        });
+        const freshMeta =
+          typeof fresh?.meta === "object" && fresh.meta !== null
+            ? (fresh.meta as Record<string, unknown>)
+            : {};
+        return tx.enrollment.update({
+          where: { id: enrollment.id },
+          data: { meta: { ...freshMeta, graphVersion } },
+        });
+      });
+    }
+    return { ...row, workflowId, workflowDeduped: deduped || existed };
   }
 
   @Get()
