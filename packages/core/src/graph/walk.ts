@@ -10,7 +10,14 @@
  * own pinned copy in `@clientforce/workflows` shared.ts (replay-load-bearing —
  * in-flight runs replay old code paths; never retarget that import).
  */
-import type { BranchCase, BranchNode, CampaignGraph, GraphNode, StepNode } from "./types";
+import type {
+  BranchCase,
+  BranchNode,
+  CampaignGraph,
+  GraphNode,
+  StepNode,
+  SubcampaignNode,
+} from "./types";
 
 /** Nodes along entry → default path, in flow order (cycle-guarded). */
 export function mainPath(graph: CampaignGraph): GraphNode[] {
@@ -128,6 +135,77 @@ export function chainForCase(
 ): GraphNode[] | undefined {
   const set = branchChains(graph).find((b) => b.branch.id === branchId);
   return set?.cases.find((c) => c.key === caseKey)?.chain;
+}
+
+export interface SubcampaignChain {
+  node: SubcampaignNode;
+  /**
+   * The container's own nodes, in flow order — the run from the container
+   * node's out-edge up to (exclusive) its end node. Same stop rules as the
+   * branch-case walk (end/branch/main-path/cycle), plus sibling subcampaign
+   * nodes: a container never swallows another container's head.
+   */
+  chain: GraphNode[];
+}
+
+/**
+ * Every sub-campaign container's chain (#90, DEC-077). A sub-campaign is a
+ * `SubcampaignNode`-headed chain DISJOINT from the main path — enrollments
+ * enter via an R1 rule's `move_to_node` targeting the container node, never
+ * via the in-graph walk (the workflow records `enter_subcampaign` and walks
+ * the chain).
+ */
+export function subcampaignChains(graph: CampaignGraph): SubcampaignChain[] {
+  const byId = new Map(graph.nodes.map((n) => [n.id, n]));
+  const next = new Map<string, string>();
+  for (const e of graph.edges) if (!next.has(e.from)) next.set(e.from, e.to);
+  const mainIds = new Set(mainPath(graph).map((n) => n.id));
+
+  const out: SubcampaignChain[] = [];
+  for (const node of graph.nodes) {
+    if (node.type !== "subcampaign") continue;
+    const chain: GraphNode[] = [];
+    const seen = new Set<string>([node.id]);
+    let cur: string | undefined = next.get(node.id);
+    while (cur && !seen.has(cur)) {
+      seen.add(cur);
+      if (mainIds.has(cur)) break;
+      const n = byId.get(cur);
+      if (!n || n.type === "end" || n.type === "branch" || n.type === "subcampaign") break;
+      chain.push(n);
+      cur = next.get(cur);
+    }
+    out.push({ node, chain });
+  }
+  return out;
+}
+
+/** One sub-campaign's chain (see {@link subcampaignChains}); undefined when unknown. */
+export function subcampaignChainOf(
+  graph: CampaignGraph,
+  subcampaignId: string,
+): GraphNode[] | undefined {
+  return subcampaignChains(graph).find((s) => s.node.id === subcampaignId)?.chain;
+}
+
+/**
+ * Node ids reachable from MORE than one container chain — branch cases
+ * (across ALL branches) and sub-campaign chains counted together. The
+ * cross-container superset of `branchChains().sharedNodeIds`: mutating a
+ * chain two containers reach would change both, so it refuses (#88 review
+ * round invariant, extended across container kinds by #90/DEC-077).
+ */
+export function sharedContainerNodeIds(graph: CampaignGraph): Set<string> {
+  const counts = new Map<string, number>();
+  for (const set of branchChains(graph)) {
+    for (const c of set.cases) {
+      for (const n of c.chain) counts.set(n.id, (counts.get(n.id) ?? 0) + 1);
+    }
+  }
+  for (const s of subcampaignChains(graph)) {
+    for (const n of s.chain) counts.set(n.id, (counts.get(n.id) ?? 0) + 1);
+  }
+  return new Set([...counts.entries()].filter(([, n]) => n > 1).map(([id]) => id));
 }
 
 /**

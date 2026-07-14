@@ -23,7 +23,13 @@ import type {
   StepContent,
   StepNode,
 } from "./types";
-import { branchChains, caseKeyOf, chainForCase, mainSequence } from "./walk";
+import {
+  caseKeyOf,
+  chainForCase,
+  mainSequence,
+  sharedContainerNodeIds,
+  subcampaignChainOf,
+} from "./walk";
 
 export class GraphMutationError extends Error {
   constructor(message: string) {
@@ -32,10 +38,14 @@ export class GraphMutationError extends Error {
   }
 }
 
-/** Where a mutation applies: the main sequence, or one branch case's chain. */
+/**
+ * Where a mutation applies: the main sequence, one branch case's chain, or —
+ * #90 (DEC-077) — one sub-campaign container's chain.
+ */
 export type SequenceContainer =
   | { kind: "main" }
-  | { kind: "case"; branchId: string; caseKey: string };
+  | { kind: "case"; branchId: string; caseKey: string }
+  | { kind: "subcampaign"; subcampaignId: string };
 
 /** First unused `<prefix>-N` id (deletes can never re-collide a fresh id). */
 export function freshNodeId(graph: CampaignGraph, prefix: string): string {
@@ -56,6 +66,13 @@ function outEdgeTarget(graph: CampaignGraph, id: string): string | undefined {
 /** The container's ordered nodes (see walk.ts) — throws on unknown containers. */
 export function containerNodes(graph: CampaignGraph, container: SequenceContainer): GraphNode[] {
   if (container.kind === "main") return mainSequence(graph);
+  if (container.kind === "subcampaign") {
+    const chain = subcampaignChainOf(graph, container.subcampaignId);
+    if (!chain) {
+      throw new GraphMutationError(`Unknown sub-campaign "${container.subcampaignId}"`);
+    }
+    return chain;
+  }
   const chain = chainForCase(graph, container.branchId, container.caseKey);
   if (!chain) {
     throw new GraphMutationError(
@@ -66,20 +83,23 @@ export function containerNodes(graph: CampaignGraph, container: SequenceContaine
 }
 
 /**
- * A chain shared by more than one branch case cannot be mutated through ONE
- * case's container — the sibling case's flow would change (or truncate)
- * without the owner touching it. Refuse loudly; branch-structure edits are
- * the planner's/rules' job, not the step editor's (review round, DEC-076).
+ * A chain reachable from more than one container cannot be mutated through
+ * ONE container — the sibling's flow would change (or truncate) without the
+ * owner touching it. Refuse loudly; branch-structure edits are the
+ * planner's/rules' job, not the step editor's (review round, DEC-076;
+ * extended across container kinds — case↔case on ANY branch pair,
+ * case↔sub-campaign, sub-campaign↔sub-campaign — by #90/DEC-077).
  */
 function assertChainNotShared(graph: CampaignGraph, container: SequenceContainer): void {
-  if (container.kind !== "case") return;
-  const set = branchChains(graph).find((b) => b.branch.id === container.branchId);
-  if (!set || set.sharedNodeIds.length === 0) return;
-  const chain = set.cases.find((c) => c.key === container.caseKey)?.chain ?? [];
-  const shared = new Set(set.sharedNodeIds);
+  if (container.kind === "main") return;
+  const shared = sharedContainerNodeIds(graph);
+  if (shared.size === 0) return;
+  const chain = containerNodes(graph, container);
   if (chain.some((n) => shared.has(n.id))) {
     throw new GraphMutationError(
-      "This reply path shares steps with another reply path — editing it here would change both. Regenerate the sequence to restructure it.",
+      container.kind === "subcampaign"
+        ? "This sub-campaign shares steps with another path — editing it here would change both. Regenerate the sequence to restructure it."
+        : "This reply path shares steps with another reply path — editing it here would change both. Regenerate the sequence to restructure it.",
     );
   }
 }
@@ -97,6 +117,12 @@ export function stepContainerOf(
       if (chainForCase(graph, node.id, key)?.some((n) => n.id === stepId)) {
         return { kind: "case", branchId: node.id, caseKey: key };
       }
+    }
+  }
+  for (const node of graph.nodes) {
+    if (node.type !== "subcampaign") continue;
+    if (subcampaignChainOf(graph, node.id)?.some((n) => n.id === stepId)) {
+      return { kind: "subcampaign", subcampaignId: node.id };
     }
   }
   return undefined;
@@ -121,18 +147,19 @@ function rebuildContainer(
 
   // The node the container exits into (branch/end/rejoin target).
   const tail = oldChain[oldChain.length - 1];
-  const exitId = tail
-    ? outEdgeTarget(graph, tail.id)
+  const exitId = tail ? outEdgeTarget(graph, tail.id) : undefined;
+  // Empty chains: the container's head reference already points at the exit
+  // (a case's goto; a sub-campaign node's own out-edge — its end node).
+  const headExit = tail
+    ? undefined
     : container.kind === "case"
-      ? undefined // empty case chain: goto already points at the exit
-      : undefined;
-  const headExit =
-    container.kind === "case" && !tail
       ? graph.nodes
           .filter((n): n is Extract<GraphNode, { type: "branch" }> => n.type === "branch")
           .find((n) => n.id === container.branchId)
           ?.cases.find((c) => caseKeyOf(c) === container.caseKey)?.goto
-      : undefined;
+      : container.kind === "subcampaign"
+        ? outEdgeTarget(graph, container.subcampaignId)
+        : undefined;
   const exit = exitId ?? headExit;
   if (!exit) throw new GraphMutationError("Container has no exit node — graph is malformed");
 
@@ -170,6 +197,11 @@ function rebuildContainer(
   const next: CampaignGraph = { entry: graph.entry, nodes, edges };
   if (container.kind === "main") {
     next.entry = headId;
+  } else if (container.kind === "subcampaign") {
+    // The container node's own out-edge IS the head reference.
+    next.edges = next.edges.map((e) =>
+      e.from === container.subcampaignId ? { ...e, to: headId } : e,
+    );
   } else {
     next.nodes = next.nodes.map((n) =>
       n.type === "branch" && n.id === container.branchId
@@ -239,6 +271,63 @@ export function addStep(
   newChain.push(step);
   const next = rebuildContainer(graph, container, chain, newChain);
   return { graph: next, stepId, ...(delayId ? { delayId } : {}) };
+}
+
+/** One seed step of a new sub-campaign chain — mirrors {@link AddStepParams}. */
+export interface SubcampaignSeedStep {
+  channel: Channel;
+  /** Scripted copy; ignored when a brief is given (blanks take addStep's sendable defaults). */
+  content?: StepContent;
+  /** Present = the seed step is guided (email/sms only). */
+  brief?: StepBrief;
+  /** Days before this step (skipped for the chain's first step; canon default 2). */
+  delayDays?: number;
+}
+
+export interface AddSubcampaignParams {
+  /** Owner-facing branch name — rides `SubcampaignNode.ref` (the Logs receipt on entry). */
+  name: string;
+  seed?: SubcampaignSeedStep[];
+}
+
+/**
+ * #90 (DEC-077): create a behaviour-triggered sub-campaign — a
+ * `SubcampaignNode`-headed chain terminated by its OWN end node, disjoint
+ * from the main path. Enrollments enter via an R1 rule's `move_to_node`
+ * targeting the container node id (the workflow records `enter_subcampaign`
+ * and walks the chain); the entry TRIGGER is R1's vocabulary and lives on
+ * the `CampaignRule` row, never in the graph — one authority per concern.
+ * Seed steps ride the ordinary {@link addStep} path (same id policy, same
+ * guided rails), so the chain grows exactly like any other container.
+ */
+export function addSubcampaign(
+  graph: CampaignGraph,
+  params: AddSubcampaignParams,
+): { graph: CampaignGraph; subcampaignId: string; stepIds: string[] } {
+  const name = params.name.trim();
+  if (!name) throw new GraphMutationError("A sub-campaign needs a name");
+  const subcampaignId = freshNodeId(graph, "subcampaign-added");
+  const endId = freshNodeId(graph, "end-added");
+  const head: GraphNode = { id: subcampaignId, type: "subcampaign", ref: name };
+  const terminator: GraphNode = { id: endId, type: "end" };
+  let next: CampaignGraph = {
+    ...graph,
+    nodes: [...graph.nodes, head, terminator],
+    edges: [...graph.edges, { from: subcampaignId, to: endId }],
+  };
+  const stepIds: string[] = [];
+  for (const s of params.seed ?? []) {
+    const added = addStep(next, {
+      container: { kind: "subcampaign", subcampaignId },
+      channel: s.channel,
+      content: s.content,
+      brief: s.brief,
+      delayDays: s.delayDays,
+    });
+    next = added.graph;
+    stepIds.push(added.stepId);
+  }
+  return { graph: next, subcampaignId, stepIds };
 }
 
 /**

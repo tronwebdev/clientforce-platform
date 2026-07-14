@@ -17,7 +17,7 @@ export class GraphValidationError extends Error {
 
 const id = z.string().min(1);
 
-const stepContentSchema = z.object({
+export const stepContentSchema = z.object({
   subject: z.string().optional(),
   body: z.string().optional(),
   template: z.string().optional(),
