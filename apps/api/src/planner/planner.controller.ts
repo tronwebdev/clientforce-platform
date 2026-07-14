@@ -62,6 +62,19 @@ const composePreviewSchema = z.object({
 
 type RuleTrigger = z.infer<typeof campaignRuleTriggerSchema>;
 
+/** The node ids a rule row's `move_to_node` actions point at (raw Json-tolerant). */
+function moveTargetIdsOf(actions: unknown): string[] {
+  if (!Array.isArray(actions)) return [];
+  return actions.flatMap((a) =>
+    typeof a === "object" &&
+    a !== null &&
+    (a as { kind?: unknown }).kind === "move_to_node" &&
+    typeof (a as { targetNodeId?: unknown }).targetNodeId === "string"
+      ? [(a as { targetNodeId: string }).targetNodeId]
+      : [],
+  );
+}
+
 /**
  * Trigger equality for the duplicate-branch refusal (#90, DEC-077): same kind
  * + same payload — `reply_classified` intents compare as SETS, `sequence_quiet`
@@ -156,11 +169,17 @@ export class PlannerController {
           previous = null; // an unreadable stored row must not brick edits
         }
       }
+      // #90 (DEC-077): nodes that enabled rules move contacts to must survive
+      // the edit — the orphaned-trigger guard.
+      const enabledRules = await tx.campaignRule.findMany({
+        where: { campaignId: campaign.id, enabled: true },
+      });
       const { graph: repaired, repairs } = repairGraph(dto.graph as CampaignGraph);
       let graph: CampaignGraph;
       try {
         graph = validateEditedGraph(previous, repaired, {
           allowedChannels: smsSender ? ["email", "sms"] : ["email"],
+          ruleTargetNodeIds: enabledRules.flatMap((r) => moveTargetIdsOf(r.actions)),
         });
       } catch (err) {
         throw new UnprocessableEntityException({
@@ -248,14 +267,7 @@ export class PlannerController {
       for (const rule of rules) {
         const trig = campaignRuleTriggerSchema.safeParse(rule.trigger);
         if (!trig.success) continue; // unparseable rows render as error state (R1)
-        const actions = Array.isArray(rule.actions) ? rule.actions : [];
-        const movesToSub = actions.some(
-          (a) =>
-            typeof a === "object" &&
-            a !== null &&
-            (a as { kind?: unknown }).kind === "move_to_node" &&
-            subIds.has(String((a as { targetNodeId?: unknown }).targetNodeId)),
-        );
+        const movesToSub = moveTargetIdsOf(rule.actions).some((id) => subIds.has(id));
         if (!movesToSub) continue;
         if (sameTrigger(trig.data, dto.trigger)) {
           throw new UnprocessableEntityException({
@@ -285,6 +297,7 @@ export class PlannerController {
         graph = validateEditedGraph(previous, repaired, {
           allowedChannels: smsSender ? ["email", "sms"] : ["email"],
           subcampaigns: "admit-new",
+          ruleTargetNodeIds: rules.flatMap((r) => moveTargetIdsOf(r.actions)),
         });
       } catch (err) {
         throw new UnprocessableEntityException({

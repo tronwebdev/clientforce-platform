@@ -355,3 +355,24 @@ describe("validateEditedGraph — sub-campaign containers (#90, DEC-077: the rep
     expect(() => validateEditedGraph(prev, blank, admit)).toThrow(/needs a name/);
   });
 });
+
+describe("validateEditedGraph — rule targets survive edits (#90, DEC-077: the orphaned-trigger guard)", () => {
+  it("refuses removing a node an enabled rule moves contacts to; already-orphaned targets never brick edits", async () => {
+    const { removeStep } = await import("@clientforce/core");
+    const prev = playbook();
+    const removed = removeStep(prev, "step-2");
+    expect(() =>
+      validateEditedGraph(prev, removed, { allowedChannels: ["email"], ruleTargetNodeIds: ["step-2"] }),
+    ).toThrow(/moves contacts to it/);
+    // The same edit passes when no rule targets the node…
+    expect(validateEditedGraph(prev, removed, emailOnly)).toBeTruthy();
+    // …and a target the STORED version didn't have either is tolerated (an
+    // already-orphaned rule renders as its own error state, R1).
+    expect(
+      validateEditedGraph(prev, removed, {
+        allowedChannels: ["email"],
+        ruleTargetNodeIds: ["node-long-gone"],
+      }),
+    ).toBeTruthy();
+  });
+});

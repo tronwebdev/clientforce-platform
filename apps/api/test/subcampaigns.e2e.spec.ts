@@ -14,8 +14,8 @@ import type { INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { CampaignGraph } from "@clientforce/core";
-import { createPrismaClient, type PrismaClient } from "@clientforce/db";
+import { removeStep, type CampaignGraph } from "@clientforce/core";
+import { createAppPrismaClient, createPrismaClient, withTenant, type PrismaClient } from "@clientforce/db";
 import type { CampaignWorkflowInput } from "@clientforce/workflows";
 import { AppModule } from "../src/app.module";
 import { signDevToken } from "../src/auth/dev-token-verifier";
@@ -79,9 +79,12 @@ describe.skipIf(!hasDb)("#90 sub-campaign creation e2e (DEC-077)", () => {
   let ownerToken: string;
   let subcampaignId = "";
 
+  let appClient: PrismaClient;
+
   beforeAll(async () => {
     process.env.AUTH_DEV_SECRET = SECRET;
     owner = createPrismaClient();
+    appClient = createAppPrismaClient();
     const agency = await owner.agency.create({
       data: { name: `sub-${suffix}`, slug: `sub-${suffix}`, branding: {} },
     });
@@ -134,6 +137,7 @@ describe.skipIf(!hasDb)("#90 sub-campaign creation e2e (DEC-077)", () => {
       await owner.user.deleteMany({ where: { id: { in: userIds } } });
     }
     await owner?.$disconnect();
+    await appClient?.$disconnect();
   });
 
   const asOwner = () => ({ Authorization: `Bearer ${ownerToken}`, "x-workspace-id": ws });
@@ -330,5 +334,68 @@ describe.skipIf(!hasDb)("#90 sub-campaign creation e2e (DEC-077)", () => {
       .send({ agentId, graph: dropped });
     expect(res.status).toBe(422);
     expect(res.body.detail).toMatch(/can't remove the sub-campaign "Interested follow-up"/);
+  });
+
+  it("a PUT that removes a node an enabled rule moves contacts to refuses 422 — no edit can orphan a trigger", async () => {
+    // A rule targeting a CHAIN step (not the container — that's already
+    // preserved): the general rule-target guard must hold for any node.
+    const chainRule = await owner.campaignRule.create({
+      data: {
+        workspaceId: ws,
+        campaignId,
+        order: 90,
+        trigger: { kind: "meeting_booked" },
+        actions: [{ kind: "move_to_node", targetNodeId: "step-added-1" }],
+        enabled: true,
+      },
+    });
+    const current = (
+      await request(app.getHttpServer()).get(`/planner/graph?agentId=${agentId}`).set(asOwner())
+    ).body.graph.graph as CampaignGraph;
+    // The REAL mutation removes the step cleanly — only the rule reference
+    // makes this edit unsafe, and only the gate can see that.
+    const removed = removeStep(current, "step-added-1");
+    const refused = await request(app.getHttpServer())
+      .put("/planner/graph")
+      .set(asOwner())
+      .send({ agentId, graph: removed });
+    expect(refused.status).toBe(422);
+    expect(refused.body.detail).toMatch(/an automation rule moves contacts to it/);
+    // Disable the rule → the same edit passes (retarget-or-disable path).
+    await owner.campaignRule.update({ where: { id: chainRule.id }, data: { enabled: false } });
+    const ok = await request(app.getHttpServer())
+      .put("/planner/graph")
+      .set(asOwner())
+      .send({ agentId, graph: removed });
+    expect(ok.status).toBe(200);
+  });
+
+  it("the branch and its rule land in ONE transaction — a mid-write failure persists neither (the withTenant mechanism, pinned)", async () => {
+    const versionBefore = await latestVersion();
+    const rulesBefore = await ruleCount();
+    await expect(
+      withTenant(appClient, { workspaceId: ws }, async (tx) => {
+        await tx.campaignGraph.create({
+          data: { workspaceId: ws, campaignId, version: 99, source: "MANUAL", graph: GRAPH_V1 },
+        });
+        await tx.campaignRule.create({
+          data: {
+            workspaceId: ws,
+            campaignId,
+            order: 99,
+            trigger: { kind: "meeting_booked" },
+            actions: [{ kind: "move_to_node", targetNodeId: "subcampaign-added-1" }],
+            enabled: true,
+          },
+        });
+        // Both writes are in — now the transaction dies mid-flight, exactly
+        // the failure the endpoint's single tenant.run guards against.
+        throw new Error("mid-write failure");
+      }),
+    ).rejects.toThrow("mid-write failure");
+    expect(await owner.campaignGraph.count({ where: { campaignId, version: 99 } })).toBe(0);
+    expect(await owner.campaignRule.count({ where: { campaignId, order: 99 } })).toBe(0);
+    expect(await latestVersion()).toBe(versionBefore);
+    expect(await ruleCount()).toBe(rulesBefore);
   });
 });

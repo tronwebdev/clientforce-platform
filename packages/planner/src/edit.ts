@@ -38,6 +38,13 @@ export interface EditContext {
    * survive under BOTH modes (deletion is a later unit's decision).
    */
   subcampaigns?: "preserve" | "admit-new";
+  /**
+   * #90 (DEC-077): node ids that ENABLED rules move contacts to
+   * (`CampaignRule.actions[].move_to_node.targetNodeId` — the stable-id
+   * policy's rule leg). An edit must not remove one; targets already absent
+   * from the stored version never brick unrelated edits.
+   */
+  ruleTargetNodeIds?: string[];
 }
 
 function replyBranches(graph: CampaignGraph): BranchNode[] {
@@ -199,6 +206,24 @@ export function validateEditedGraph(
       if (chain.some((n) => shared.has(n.id))) {
         throw new GraphValidationError(
           `Sub-campaign "${sub.ref}" shares steps with another path — a chain belongs to one container`,
+        );
+      }
+    }
+  }
+
+  // #90 (DEC-077): rule targets are load-bearing node references — the
+  // shared-chain discipline extended to the RULE side: a node an enabled
+  // rule's move_to_node points at must survive the edit, or the trigger
+  // would orphan (fire at a missing node). Targets the stored version
+  // didn't have either stay tolerated (an already-orphaned rule renders as
+  // its own error state; it must not brick unrelated edits).
+  if (previous && ctx.ruleTargetNodeIds && ctx.ruleTargetNodeIds.length > 0) {
+    const prevIds = new Set(previous.nodes.map((n) => n.id));
+    const nextIds = new Set(graph.nodes.map((n) => n.id));
+    for (const target of ctx.ruleTargetNodeIds) {
+      if (prevIds.has(target) && !nextIds.has(target)) {
+        throw new GraphValidationError(
+          `Node "${target}" can't be removed — an automation rule moves contacts to it (disable or retarget the rule first)`,
         );
       }
     }
