@@ -1,12 +1,17 @@
 /**
- * Place ONE outbound call via the Twilio REST API for the demo-call mode. On
- * answer, Twilio fetches TwiML from `${PUBLIC_URL}/twiml`, which returns a
- * <Connect><Stream> that bridges the call to this app's /media WebSocket.
+ * Place ONE outbound call for the demo-call rig (P3.1) — through the
+ * PRODUCTION dialer transport (`TwilioVoiceDialer`, VOICE_SANDBOX=false on
+ * the runner) to the owner's test number. On answer, Twilio fetches TwiML
+ * from `${PUBLIC_URL}/twiml`, which bridges to this service's /media socket.
+ * Product dials go through the api's rails; this CLI exists for the CI rig
+ * where the full api isn't running. Numbers are never printed.
  *
- * Env: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM (a Voice-capable
- *      number), TWILIO_TO (owner test number), PUBLIC_URL (https base of the
- *      tunnel). Numbers are never printed.
+ * Env: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, VOICE_FROM_NUMBER, TWILIO_TO,
+ *      PUBLIC_URL. Recording stays OFF (the owner-locked default) — the
+ *      transcript is the record.
  */
+import { TwilioVoiceDialer } from "@clientforce/channels";
+
 function requireEnv(name: string): string {
   const v = process.env[name];
   if (!v) throw new Error(`${name} is required`);
@@ -14,32 +19,11 @@ function requireEnv(name: string): string {
 }
 
 async function main(): Promise<void> {
-  const sid = requireEnv("TWILIO_ACCOUNT_SID");
-  const token = requireEnv("TWILIO_AUTH_TOKEN");
-  const from = requireEnv("TWILIO_FROM");
   const to = requireEnv("TWILIO_TO");
   const publicUrl = requireEnv("PUBLIC_URL").replace(/\/$/, "");
-
-  const body = new URLSearchParams({
-    To: to,
-    From: from,
-    Url: `${publicUrl}/twiml`,
-    Method: "POST",
-    Record: "true",
-    RecordingChannels: "dual",
-  });
-
-  const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Calls.json`, {
-    method: "POST",
-    headers: {
-      Authorization: `Basic ${Buffer.from(`${sid}:${token}`).toString("base64")}`,
-      "content-type": "application/x-www-form-urlencoded",
-    },
-    body,
-  });
-  const json = (await res.json()) as { sid?: string; status?: string; message?: string };
-  if (!res.ok) throw new Error(`Twilio call failed: ${res.status} ${json.message ?? ""}`);
-  console.log(`[place-call] callSid=${json.sid} status=${json.status} (recording enabled)`);
+  const dialer = new TwilioVoiceDialer();
+  const result = await dialer.placeCall({ to, twimlUrl: `${publicUrl}/twiml` });
+  console.log(`[place-call] callSid=${result.providerCallSid} sandbox=${result.sandbox}`);
 }
 
 void main().catch((err) => {

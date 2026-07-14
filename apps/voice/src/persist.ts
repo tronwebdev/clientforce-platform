@@ -1,28 +1,28 @@
 /**
- * Persistence taste-test (P3.0): map a call transcript onto `Message` rows with
- * channel "voice" — proving the Phase-1 data model absorbs voice with NO
- * migration. Every outbound turn is one OUTBOUND Message; every caller turn is
- * one INBOUND Message, exactly as email/SMS already persist (DATA_MODEL A6).
- *
- * Writes go through the RLS-subject client (`withTenant`) per CLAUDE.md — never
- * the owner client. Point it at a seeded demo workspace:
- *   WORKSPACE_ID, CAMPAIGN_ID, CONTACT_ID  (required to actually write)
- *   ENROLLMENT_ID                          (optional; Message.enrollmentId is nullable)
- *   METRICS_IN                             (default ./metrics.json)
- * With no IDs set it runs a DRY RUN and prints the rows it would insert, so the
- * CI workflow can exercise the mapping without a database.
+ * Transcript persistence (P3.1, DEC-078) — every caller turn one INBOUND
+ * Message, every agent turn one OUTBOUND Message, all `channel:"voice"`, via
+ * `withTenant` (RLS-subject client, per CLAUDE.md) — the spike-proven A6
+ * mapping, now IDEMPOTENT: `providerMessageId` = `voice:{callSid}:{index}` is
+ * unique, and `createMany({ skipDuplicates })` makes a retried finalize write
+ * each row exactly once. Transcripts persist regardless of the recording
+ * setting — the transcript is the always-on operational record.
  */
-import { readFileSync } from "node:fs";
-import { createAppPrismaClient, withTenant, Prisma } from "@clientforce/db";
+import { withTenant, type Prisma, type PrismaClient } from "@clientforce/db";
+import { COMPOSER_VOICE_VERSION } from "@clientforce/channels";
+import type { VoiceTurn } from "./session";
 
-interface TranscriptTurn {
-  turn: number;
-  user: string;
-  assistant: string;
-  bargedIn: boolean;
+export interface TranscriptTarget {
+  workspaceId: string;
+  campaignId: string;
+  contactId: string;
+  enrollmentId: string | null;
+  callId: string;
+  providerCallSid: string;
+  /** Wall-clock call start — turn atMs offsets are applied to it. */
+  startedAt: Date;
 }
 
-interface MessageRow {
+export interface VoiceMessageRow {
   workspaceId: string;
   campaignId: string;
   contactId: string;
@@ -30,82 +30,48 @@ interface MessageRow {
   channel: "voice";
   direction: "INBOUND" | "OUTBOUND";
   body: string;
-  intent: string | null;
+  providerMessageId: string;
+  intent: null;
   sentAt: Date;
   meta: Prisma.InputJsonValue;
 }
 
-function rowsFromTranscript(
-  transcript: TranscriptTurn[],
-  ctx: { workspaceId: string; campaignId: string; contactId: string; enrollmentId: string | null },
-): MessageRow[] {
-  const base = Date.now();
-  const rows: MessageRow[] = [];
-  for (const t of transcript) {
-    if (t.user) {
-      rows.push({
-        ...ctx,
-        channel: "voice",
-        direction: "INBOUND",
-        body: t.user,
-        intent: null,
-        sentAt: new Date(base + t.turn * 2000),
-        meta: { turn: t.turn, source: "voice-spike" },
-      });
-    }
-    if (t.assistant) {
-      rows.push({
-        ...ctx,
-        channel: "voice",
-        direction: "OUTBOUND",
-        body: t.assistant,
-        intent: null,
-        sentAt: new Date(base + t.turn * 2000 + 1000),
-        meta: { turn: t.turn, source: "voice-spike", bargedIn: t.bargedIn },
-      });
-    }
-  }
-  return rows;
+export function rowsFromTranscript(turns: VoiceTurn[], target: TranscriptTarget): VoiceMessageRow[] {
+  const base = target.startedAt.getTime();
+  return turns
+    .filter((t) => t.content.trim().length > 0)
+    .map((t, index) => ({
+      workspaceId: target.workspaceId,
+      campaignId: target.campaignId,
+      contactId: target.contactId,
+      enrollmentId: target.enrollmentId,
+      channel: "voice" as const,
+      direction: t.role === "user" ? ("INBOUND" as const) : ("OUTBOUND" as const),
+      body: t.content,
+      // Deterministic per (call, position) — the idempotency key.
+      providerMessageId: `voice:${target.providerCallSid}:${index}`,
+      intent: null,
+      sentAt: new Date(base + (t.atMs ?? index * 1000)),
+      meta: {
+        callId: target.callId,
+        turnIndex: index,
+        ...(t.role === "assistant" ? { composerVersion: COMPOSER_VOICE_VERSION } : {}),
+        ...(t.commitSource ? { commitSource: t.commitSource } : {}),
+        ...(t.refusalReason ? { refusalReason: t.refusalReason } : {}),
+      },
+    }));
 }
 
-async function main(): Promise<void> {
-  const metricsIn = process.env.METRICS_IN ?? "./metrics.json";
-  const report = JSON.parse(readFileSync(metricsIn, "utf8")) as { transcript?: TranscriptTurn[] };
-  const transcript = report.transcript ?? [];
-  const workspaceId = process.env.WORKSPACE_ID;
-  const campaignId = process.env.CAMPAIGN_ID;
-  const contactId = process.env.CONTACT_ID;
-  const enrollmentId = process.env.ENROLLMENT_ID ?? null;
-
-  if (!workspaceId || !campaignId || !contactId) {
-    const rows = rowsFromTranscript(transcript, {
-      workspaceId: "<workspace>",
-      campaignId: "<campaign>",
-      contactId: "<contact>",
-      enrollmentId,
-    });
-    console.log(
-      `[persist] DRY RUN — no WORKSPACE_ID/CAMPAIGN_ID/CONTACT_ID set. ` +
-        `${rows.length} voice Message rows would be written:`,
-    );
-    for (const r of rows) console.log(`  ${r.direction.padEnd(8)} voice  "${r.body.slice(0, 60)}"`);
-    return;
-  }
-
-  const rows = rowsFromTranscript(transcript, { workspaceId, campaignId, contactId, enrollmentId });
-  const prisma = createAppPrismaClient();
-  try {
-    const created = await withTenant(prisma, { workspaceId }, async (tx) => {
-      const result = await tx.message.createMany({ data: rows });
-      return result.count;
-    });
-    console.log(`[persist] wrote ${created} voice Message rows to workspace ${workspaceId}`);
-  } finally {
-    await prisma.$disconnect();
-  }
+/** Idempotent write — safe to run again on a retried finalize. */
+export async function persistTranscript(
+  prisma: PrismaClient,
+  turns: VoiceTurn[],
+  target: TranscriptTarget,
+): Promise<number> {
+  const rows = rowsFromTranscript(turns, target);
+  if (rows.length === 0) return 0;
+  const result = await withTenant(prisma, { workspaceId: target.workspaceId }, (tx) =>
+    tx.message.createMany({ data: rows, skipDuplicates: true }),
+  );
+  return result.count;
 }
-
-void main().catch((err) => {
-  console.error("[persist] failed:", (err as Error).message);
-  process.exitCode = 1;
-});
