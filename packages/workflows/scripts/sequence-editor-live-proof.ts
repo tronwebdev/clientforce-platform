@@ -343,13 +343,16 @@ async function main(): Promise<void> {
       );
 
       // The gate refuses a regression loudly and persists nothing: a
-      // candidate that drops the reply branch.
+      // STRUCTURALLY VALID candidate that drops the reply branch (s2 rewired
+      // straight to the end node), so the refusal comes from the POLICY
+      // layer's reply-branch-count rule — the deliberate extension point the
+      // #90 unit later extends — not from the structural layer.
       let refusal = "";
       try {
         const dropped: CampaignGraph = {
           ...v1,
           nodes: v1.nodes.filter((n) => n.id !== "br" && n.id !== "end-b"),
-          edges: v1.edges.filter((e) => e.to !== "br"),
+          edges: [...v1.edges.filter((e) => e.to !== "br"), { from: "s2", to: "end-a" }],
         };
         validateEditedGraph(v1, repairGraph(dropped).graph, { allowedChannels: ["email"] });
       } catch (err) {
