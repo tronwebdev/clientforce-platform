@@ -19,7 +19,10 @@ import {
   SAMPLE_LEAD,
 } from "@clientforce/channels";
 import {
+  addSubcampaign,
   campaignGraphSchema,
+  campaignRuleTriggerSchema,
+  createSubcampaignSchema,
   GUIDED_EMAIL_CREDITS,
   GUIDED_SMS_CREDITS,
   planRequestSchema,
@@ -29,6 +32,7 @@ import {
   validateGraph,
   type CampaignGraph,
 } from "@clientforce/core";
+import { IntentSchema } from "@clientforce/events";
 import { z } from "zod";
 import { Role } from "@clientforce/db";
 import { createPlanQueue, validateEditedGraph, type PlanTarget } from "@clientforce/planner";
@@ -55,6 +59,25 @@ const composePreviewSchema = z.object({
    */
   brief: stepBriefSchema.optional(),
 });
+
+type RuleTrigger = z.infer<typeof campaignRuleTriggerSchema>;
+
+/**
+ * Trigger equality for the duplicate-branch refusal (#90, DEC-077): same kind
+ * + same payload — `reply_classified` intents compare as SETS, `sequence_quiet`
+ * by its day count. Overlapping-but-different triggers coexist (R1 row order
+ * arbitrates multi-rule events); only an EQUAL trigger is a duplicate.
+ */
+function sameTrigger(a: RuleTrigger, b: RuleTrigger): boolean {
+  if (a.kind !== b.kind) return false;
+  if (a.kind === "reply_classified" && b.kind === "reply_classified") {
+    const setA = new Set(a.intents);
+    const setB = new Set(b.intents);
+    return setA.size === setB.size && [...setA].every((i) => setB.has(i));
+  }
+  if (a.kind === "sequence_quiet" && b.kind === "sequence_quiet") return a.days === b.days;
+  return true;
+}
 
 function parse<T>(schema: ZodSchema<T>, value: unknown): T {
   const result = schema.safeParse(value);
@@ -157,6 +180,151 @@ export class PlannerController {
       });
       await tx.campaign.update({ where: { id: campaign.id }, data: { graphId: row.id } });
       return { ...row, repaired: repairs };
+    });
+  }
+
+  /**
+   * #90 (DEC-077): "Add a sub-campaign" — a behaviour-triggered branch as ONE
+   * atomic decision: the graph gains a SubcampaignNode-headed chain through
+   * the SAME three-layer gate as every edit (with the creator's explicit
+   * `subcampaigns:"admit-new"` carve-out), and the container's entry trigger
+   * — R1's `campaignRuleTriggerSchema`, consumed verbatim — lands as a
+   * `CampaignRule` row whose terminal `move_to_node` targets the container.
+   * One `withTenant` transaction: a 422 persists neither the graph version
+   * nor the rule. The real #86 engine then routes enrollments in (cancel +
+   * restart at the container node; the graph itself never changes shape at
+   * trigger time — versioning semantics are DEC-076's, untouched).
+   */
+  @Post("subcampaign")
+  @Roles(Role.OWNER, Role.ADMIN)
+  async createSubcampaign(@Body() body: unknown) {
+    const dto = parse(createSubcampaignSchema, body);
+    // R1's documented contract: reply_classified intents are validated
+    // against IntentSchema at the API boundary (core keeps them opaque).
+    if (dto.trigger.kind === "reply_classified") {
+      const unknown = dto.trigger.intents.filter((i) => !IntentSchema.safeParse(i).success);
+      if (unknown.length > 0) {
+        throw new UnprocessableEntityException({
+          message: "Unknown trigger intents",
+          detail: `Intents ${unknown.join(", ")} are not in the taxonomy — use only: ${IntentSchema.options.join(", ")}`,
+        });
+      }
+    }
+    const workspaceId = this.tenant.workspaceId;
+    return this.tenant.run(async (tx) => {
+      const campaign = await tx.campaign.findFirst({
+        where: { agentId: dto.agentId },
+        orderBy: { createdAt: "asc" },
+      });
+      if (!campaign) throw new NotFoundException(`Agent ${dto.agentId} has no campaign`);
+      const latest = await tx.campaignGraph.findFirst({
+        where: { campaignId: campaign.id },
+        orderBy: { version: "desc" },
+      });
+      if (!latest) {
+        throw new NotFoundException(`Agent ${dto.agentId} has no sequence yet — draft one first`);
+      }
+      let previous: CampaignGraph;
+      try {
+        previous = validateGraph(latest.graph);
+      } catch {
+        // The creator MUTATES the stored graph (unlike PUT, whose client
+        // supplies the whole graph) — an unreadable row can't be extended.
+        throw new UnprocessableEntityException({
+          message: "Invalid campaign graph",
+          detail: "The stored sequence couldn't be read — regenerate it before adding a sub-campaign",
+        });
+      }
+
+      // Dup-trigger refusal: one entry trigger, one branch. Only ENABLED
+      // rules that move into an EXISTING sub-campaign container block; other
+      // rule kinds coexist (R1 row order arbitrates multi-rule events).
+      const subIds = new Set(
+        previous.nodes.filter((n) => n.type === "subcampaign").map((n) => n.id),
+      );
+      const rules = await tx.campaignRule.findMany({
+        where: { campaignId: campaign.id, enabled: true },
+      });
+      for (const rule of rules) {
+        const trig = campaignRuleTriggerSchema.safeParse(rule.trigger);
+        if (!trig.success) continue; // unparseable rows render as error state (R1)
+        const actions = Array.isArray(rule.actions) ? rule.actions : [];
+        const movesToSub = actions.some(
+          (a) =>
+            typeof a === "object" &&
+            a !== null &&
+            (a as { kind?: unknown }).kind === "move_to_node" &&
+            subIds.has(String((a as { targetNodeId?: unknown }).targetNodeId)),
+        );
+        if (!movesToSub) continue;
+        if (sameTrigger(trig.data, dto.trigger)) {
+          throw new UnprocessableEntityException({
+            message: "Duplicate trigger",
+            detail:
+              "A sub-campaign already enters on this trigger — edit that branch or pick a different trigger",
+          });
+        }
+      }
+
+      // The mutation, then the verbatim PUT gate chain.
+      let mutated: ReturnType<typeof addSubcampaign>;
+      try {
+        mutated = addSubcampaign(previous, { name: dto.name, seed: dto.seed });
+      } catch (err) {
+        throw new UnprocessableEntityException({
+          message: "Invalid sub-campaign",
+          detail: err instanceof Error ? err.message : String(err),
+        });
+      }
+      const smsSender = await tx.senderConnection.findFirst({
+        where: { type: "TWILIO_SMS", status: "ACTIVE" },
+      });
+      const { graph: repaired, repairs } = repairGraph(mutated.graph);
+      let graph: CampaignGraph;
+      try {
+        graph = validateEditedGraph(previous, repaired, {
+          allowedChannels: smsSender ? ["email", "sms"] : ["email"],
+          subcampaigns: "admit-new",
+        });
+      } catch (err) {
+        throw new UnprocessableEntityException({
+          message: "Invalid campaign graph",
+          detail: err instanceof Error ? err.message : String(err),
+          ...(repairs.length > 0 ? { repaired: repairs } : {}),
+        });
+      }
+
+      const maxOrder = await tx.campaignRule.aggregate({
+        where: { campaignId: campaign.id },
+        _max: { order: true },
+      });
+      const row = await tx.campaignGraph.create({
+        data: {
+          workspaceId,
+          campaignId: campaign.id,
+          version: latest.version + 1,
+          source: "MANUAL",
+          graph: graph as object,
+        },
+      });
+      await tx.campaign.update({ where: { id: campaign.id }, data: { graphId: row.id } });
+      const rule = await tx.campaignRule.create({
+        data: {
+          workspaceId,
+          campaignId: campaign.id,
+          order: (maxOrder._max.order ?? 0) + 1,
+          trigger: dto.trigger as object,
+          actions: [{ kind: "move_to_node", targetNodeId: mutated.subcampaignId }],
+          enabled: true,
+        },
+      });
+      return {
+        ...row,
+        repaired: repairs,
+        subcampaignId: mutated.subcampaignId,
+        stepIds: mutated.stepIds,
+        ruleId: rule.id,
+      };
     });
   }
 
