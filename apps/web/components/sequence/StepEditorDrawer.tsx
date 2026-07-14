@@ -98,6 +98,27 @@ export interface StepEditorDrawerProps {
   onDelete?: () => void;
   /** W3-4 (DEC-076): render the live-graph versioning notice (launched agents). */
   liveNotice?: boolean;
+  /** W3-4 W2: per-step Scripted | ✦ Guided override (designed addition — the
+   *  G3 segmented-control anatomy; the agent-level composeMode rider stays
+   *  the PLANNING default, this flips ONE step). */
+  modeControl?: { mode: "scripted" | "guided"; busy?: boolean; onFlip: (mode: "scripted" | "guided") => void };
+  /** W3-4 W2: ✦ provenance — AI-seeded/picked values render marked until the
+   *  owner edits or confirms them (owner-locked treatment, 2026-07-14).
+   *  Hosts clear a mark when its field changes. */
+  seedMarks?: { objective?: boolean; subjectHint?: boolean; points?: boolean[]; subject?: boolean; body?: boolean };
+  /** W3-4 W2: guided→scripted honest path — one sandbox compose drafts the
+   *  scripted copy (✦-marked), or the owner authors it; never a dead state. */
+  composeDraft?: { busy: boolean; run: () => void };
+  /** Honest note over the scripted editor when the step has no copy yet. */
+  scriptedEmptyNote?: string;
+  /** Save/gate rejection surfaced INSIDE the drawer (the overlay dims the page rows). */
+  footerError?: string | null;
+}
+
+/** The ✦-provenance tint (matches the guided/teal family). */
+const SEED_STYLE: React.CSSProperties = { border: "1px solid rgba(54,215,237,.55)", background: "rgba(54,215,237,.06)" };
+function SeedChip() {
+  return <span style={{ fontSize: 10, fontWeight: 800, color: "#1192A6", background: "rgba(54,215,237,.14)", borderRadius: 100, padding: "2px 7px", marginLeft: 6 }} data-testid="seed-chip">✦ AI-picked</span>;
 }
 
 export function StepEditorDrawer(props: StepEditorDrawerProps) {
@@ -107,6 +128,7 @@ export function StepEditorDrawer(props: StepEditorDrawerProps) {
     briefPointInput, setBriefPointInput, briefMustInput, setBriefMustInput, briefNeverInput, setBriefNeverInput,
     previewBusy, preview, fieldDefs, customTokenKey, setCustomTokenKey, customFallback, setCustomFallback,
     insertCustomToken, sampleCompose, onClose, onSave, onDelete, liveNotice,
+    modeControl, seedMarks, composeDraft, scriptedEmptyNote, footerError,
   } = props;
   if (!editNode || editNode.type !== "step") return null;
   return (
@@ -136,6 +158,18 @@ export function StepEditorDrawer(props: StepEditorDrawerProps) {
           <span onClick={onClose} style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid #EBE3D6", display: "flex", alignItems: "center", justifyContent: "center", color: "#9AA59E", cursor: "pointer", flex: "none" }}>✕</span>
         </div>
 
+        {/* W3-4 W2: per-step compose-mode override — hand-pick scripted vs
+            guided for THIS step (mixed-mode sequences already execute, G2). */}
+        {modeControl ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 22px", borderBottom: "1px solid #EBE3D6", background: "#fff", flex: "none" }} data-testid="step-mode-control">
+            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "#8A7F6B", flex: 1 }}>How this step is written</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 2, background: "#F2EEE4", borderRadius: 11, padding: 3, opacity: modeControl.busy ? 0.6 : 1 }}>
+              <span onClick={modeControl.busy || modeControl.mode === "scripted" ? undefined : () => modeControl.onFlip("scripted")} style={{ fontSize: 12.5, fontWeight: modeControl.mode === "guided" ? 600 : 700, color: modeControl.mode === "guided" ? "#8A7F6B" : "#0E1512", background: modeControl.mode === "guided" ? "transparent" : "#fff", boxShadow: modeControl.mode === "guided" ? "none" : "0 1px 4px rgba(14,21,18,.1)", borderRadius: 9, padding: "6px 12px", cursor: modeControl.busy || modeControl.mode === "scripted" ? "default" : "pointer", whiteSpace: "nowrap" }} data-testid="step-mode-scripted">Scripted</span>
+              <span onClick={modeControl.busy || modeControl.mode === "guided" ? undefined : () => modeControl.onFlip("guided")} style={{ fontSize: 12.5, fontWeight: modeControl.mode === "guided" ? 700 : 600, color: modeControl.mode === "guided" ? "#0E1512" : "#8A7F6B", background: modeControl.mode === "guided" ? "#fff" : "transparent", boxShadow: modeControl.mode === "guided" ? "0 1px 4px rgba(14,21,18,.1)" : "none", borderRadius: 9, padding: "6px 12px", cursor: modeControl.busy || modeControl.mode === "guided" ? "default" : "pointer", whiteSpace: "nowrap" }} data-testid="step-mode-guided"><span style={{ color: "#1192A6" }}>✦</span> Guided</span>
+            </div>
+          </div>
+        ) : null}
+
         {/* W3-4 (DEC-076): the honest versioning line on a launched agent's graph */}
         {liveNotice ? (
           <div style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12.5, color: "#5C6B62", background: "#FBF7F0", borderBottom: "1px solid #EBE3D6", padding: "10px 22px", flex: "none" }} data-testid="live-graph-notice">
@@ -156,8 +190,8 @@ export function StepEditorDrawer(props: StepEditorDrawerProps) {
             </div>
 
             <div>
-              <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#5C6B62", marginBottom: 7 }}>Objective</label>
-              <input value={editBrief.objective} maxLength={200} onChange={(e) => setEditBrief((b) => (b ? { ...b, objective: e.target.value } : b))} placeholder="What must this message achieve?" style={{ boxSizing: "border-box", width: "100%", borderRadius: 11, background: "#FBF7F0", border: "1px solid #EBE3D6", padding: "11px 14px", fontSize: 14, color: "#0E1512", fontFamily: "'Hanken Grotesk',sans-serif" }} data-testid="brief-objective" />
+              <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#5C6B62", marginBottom: 7 }}>Objective{seedMarks?.objective ? <SeedChip /> : null}</label>
+              <input value={editBrief.objective} maxLength={200} onChange={(e) => setEditBrief((b) => (b ? { ...b, objective: e.target.value } : b))} placeholder="What must this message achieve?" style={{ boxSizing: "border-box", width: "100%", borderRadius: 11, background: "#FBF7F0", border: "1px solid #EBE3D6", padding: "11px 14px", fontSize: 14, color: "#0E1512", fontFamily: "'Hanken Grotesk',sans-serif", ...(seedMarks?.objective ? SEED_STYLE : {}) }} data-testid="brief-objective" />
             </div>
 
             {/* G2 (DEC-071): the email brief's subject hint — planner-emitted,
@@ -165,9 +199,9 @@ export function StepEditorDrawer(props: StepEditorDrawerProps) {
                 never pasted (deterministic subject checks still apply). */}
             {editBrief.channel === "email" ? (
               <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#5C6B62", marginBottom: 4 }}>Subject hint <span style={{ fontWeight: 600, color: "#9AA59E" }}>· optional</span></label>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#5C6B62", marginBottom: 4 }}>Subject hint <span style={{ fontWeight: 600, color: "#9AA59E" }}>· optional</span>{seedMarks?.subjectHint ? <SeedChip /> : null}</label>
                 <div style={{ fontSize: 12, color: "#9AA59E", marginBottom: 8 }}>A direction for the subject line — the AI adapts it per lead. Subject rules (≤60 chars, no clickbait, no ALL CAPS) are checked on every composed email.</div>
-                <input value={editBrief.subjectHint} maxLength={BRIEF_SUBJECT_HINT_MAX} onChange={(e) => setEditBrief((b) => (b ? { ...b, subjectHint: e.target.value } : b))} placeholder="e.g. where phone-only booking leaks patients" style={{ boxSizing: "border-box", width: "100%", borderRadius: 11, background: "#FBF7F0", border: "1px solid #EBE3D6", padding: "11px 14px", fontSize: 14, color: "#0E1512", fontFamily: "'Hanken Grotesk',sans-serif" }} data-testid="brief-subject-hint" />
+                <input value={editBrief.subjectHint} maxLength={BRIEF_SUBJECT_HINT_MAX} onChange={(e) => setEditBrief((b) => (b ? { ...b, subjectHint: e.target.value } : b))} placeholder="e.g. where phone-only booking leaks patients" style={{ boxSizing: "border-box", width: "100%", borderRadius: 11, background: "#FBF7F0", border: "1px solid #EBE3D6", padding: "11px 14px", fontSize: 14, color: "#0E1512", fontFamily: "'Hanken Grotesk',sans-serif", ...(seedMarks?.subjectHint ? SEED_STYLE : {}) }} data-testid="brief-subject-hint" />
               </div>
             ) : null}
 
@@ -176,8 +210,8 @@ export function StepEditorDrawer(props: StepEditorDrawerProps) {
               <div style={{ fontSize: 12, color: "#9AA59E", marginBottom: 8 }}>Facts the message may draw from — the AI picks what fits each lead, it never pastes them as-is.</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
                 {editBrief.talkingPoints.map((p, i) => (
-                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 9, background: "#FBF7F0", border: "1px solid #EBE3D6", borderRadius: 11, padding: "9px 12px" }} data-testid="brief-point-row">
-                    <span style={{ color: "#1192A6", flex: "none" }}>•</span>
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 9, background: "#FBF7F0", border: "1px solid #EBE3D6", borderRadius: 11, padding: "9px 12px", ...(seedMarks?.points?.[i] ? SEED_STYLE : {}) }} data-testid="brief-point-row">
+                    <span style={{ color: "#1192A6", flex: "none" }}>{seedMarks?.points?.[i] ? "✦" : "•"}</span>
                     <span style={{ fontSize: 13.5, color: "#3B463F", flex: 1, lineHeight: 1.45 }}>{p}</span>
                     <span onClick={() => setEditBrief((b) => (b ? { ...b, talkingPoints: b.talkingPoints.filter((_, j) => j !== i) } : b))} style={{ width: 20, height: 20, borderRadius: "50%", background: "#EBE3D6", color: "#5C6B62", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 11, cursor: "pointer", flex: "none" }} data-testid="brief-point-remove">✕</span>
                   </div>
@@ -267,13 +301,25 @@ export function StepEditorDrawer(props: StepEditorDrawerProps) {
           </div>
         ) : (
         <div style={{ padding: 22, display: "flex", flexDirection: "column", gap: 18, flex: 1, overflow: "auto", minHeight: 0 }}>
+          {/* W3-4 W2: guided→scripted honest path — the step needs written
+              copy before it can save; draft it with one sandbox compose
+              (✦-marked until edited) or author it. Never a dead state. */}
+          {scriptedEmptyNote ? (
+            <div style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12.5, color: "#9A6B12", background: "rgba(232,196,91,.1)", border: "1px solid rgba(232,196,91,.4)", borderRadius: 11, padding: "11px 14px" }} data-testid="scripted-empty-note">
+              <span style={{ fontSize: 13 }}>✎</span>
+              <span style={{ flex: 1 }}>{scriptedEmptyNote}</span>
+              {composeDraft ? (
+                <span onClick={composeDraft.busy ? undefined : composeDraft.run} style={{ fontSize: 12.5, fontWeight: 700, color: composeDraft.busy ? "#9AA59E" : "#0A0F0C", background: composeDraft.busy ? "#ECE7DC" : GRAD, borderRadius: 9, padding: "6px 12px", cursor: composeDraft.busy ? "default" : "pointer", flex: "none", whiteSpace: "nowrap" }} data-testid="compose-draft">{composeDraft.busy ? "Composing…" : "✦ Compose a draft"}</span>
+              ) : null}
+            </div>
+          ) : null}
           <div>
-            <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#5C6B62", marginBottom: 7 }}>Subject line</label>
-            <input value={editSubject} onChange={(e) => setEditSubject(e.target.value)} style={{ boxSizing: "border-box", width: "100%", borderRadius: 11, background: "#FBF7F0", border: "1px solid #EBE3D6", padding: "11px 14px", fontSize: 14, color: "#0E1512", fontFamily: "'Hanken Grotesk',sans-serif" }} data-testid="edit-subject" />
+            <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#5C6B62", marginBottom: 7 }}>Subject line{seedMarks?.subject ? <SeedChip /> : null}</label>
+            <input value={editSubject} onChange={(e) => setEditSubject(e.target.value)} style={{ boxSizing: "border-box", width: "100%", borderRadius: 11, background: "#FBF7F0", border: "1px solid #EBE3D6", padding: "11px 14px", fontSize: 14, color: "#0E1512", fontFamily: "'Hanken Grotesk',sans-serif", ...(seedMarks?.subject ? SEED_STYLE : {}) }} data-testid="edit-subject" />
           </div>
           <div>
-            <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#5C6B62", marginBottom: 7 }}>Body</label>
-            <textarea value={editBody} onChange={(e) => setEditBody(e.target.value)} rows={8} style={{ boxSizing: "border-box", width: "100%", borderRadius: 11, background: "#FBF7F0", border: "1px solid #EBE3D6", padding: "13px 14px", fontSize: 14, color: "#3B463F", lineHeight: 1.6, minHeight: 150, resize: "vertical", fontFamily: "'Hanken Grotesk',sans-serif" }} data-testid="edit-body" />
+            <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#5C6B62", marginBottom: 7 }}>Body{seedMarks?.body ? <SeedChip /> : null}</label>
+            <textarea value={editBody} onChange={(e) => setEditBody(e.target.value)} rows={8} style={{ boxSizing: "border-box", width: "100%", borderRadius: 11, background: "#FBF7F0", border: "1px solid #EBE3D6", padding: "13px 14px", fontSize: 14, color: "#3B463F", lineHeight: 1.6, minHeight: 150, resize: "vertical", fontFamily: "'Hanken Grotesk',sans-serif", ...(seedMarks?.body ? SEED_STYLE : {}) }} data-testid="edit-body" />
             <div style={{ fontSize: 11.5, color: "#9AA59E", marginTop: 6 }}>The signature and compliance footer are added at send time.</div>
           </div>
 
@@ -332,6 +378,12 @@ export function StepEditorDrawer(props: StepEditorDrawerProps) {
         </div>
         )}
 
+        {footerError ? (
+          <div style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12.5, color: "#C9543F", background: "rgba(224,121,107,.07)", borderTop: "1px solid rgba(224,121,107,.35)", padding: "9px 22px", flex: "none" }} data-testid="drawer-error">
+            <span style={{ flex: "none" }}>⚠</span>
+            <span>{footerError}</span>
+          </div>
+        ) : null}
         <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 22px", borderTop: "1px solid #EBE3D6", background: "#fff", flex: "none" }}>
           {editBrief ? (
             <span style={{ fontSize: 12.5, color: "#9AA59E" }}>Bullets steer the AI — the copy itself is written per lead.</span>

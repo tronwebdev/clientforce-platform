@@ -15,18 +15,25 @@
 import { useEffect, useRef, useState } from "react";
 import {
   addStep as addStepMutation,
+  arcRoleAt,
+  BRIEF_TALKING_POINTS_MIN,
+  deriveBriefSeed,
   GraphMutationError,
   GUIDED_EMAIL_CREDITS,
   GUIDED_SMS_CREDITS,
   moveStep as moveStepMutation,
   removeStep as removeStepMutation,
+  selectStrategy,
+  setStepMode,
   updateDelay as updateDelayMutation,
+  updateStepBrief,
   updateStepContent,
   type CampaignGraph,
   type CampaignOutcomes,
   type Channel,
   type ContactFieldDefDto,
   type GraphNode,
+  type StepBrief,
 } from "@clientforce/core";
 import { OutcomeBadge } from "../../../../../components/OutcomeBadge";
 import { StepEditorDrawer } from "../../../../../components/sequence/StepEditorDrawer";
@@ -61,8 +68,14 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
   const [fieldDefs, setFieldDefs] = useState<ContactFieldDefDto[]>([]);
   const [customTokenKey, setCustomTokenKey] = useState<string | null>(null);
   const [customFallback, setCustomFallback] = useState("");
-  // ── G3 read-only brief viewer (guided steps stay view-only until W2) ──
-  const [briefNode, setBriefNode] = useState<StepNode | null>(null);
+  // ── W2: per-step mode flip — a STAGED mode change persists only on Save;
+  // ✦ provenance derives by comparison against the seed snapshot (a field
+  // stays marked while its value is still the AI-seeded/picked one). ──
+  const [pendingMode, setPendingMode] = useState<"guided" | "scripted" | null>(null);
+  const [drawerError, setDrawerError] = useState<string | null>(null);
+  const [draftBusy, setDraftBusy] = useState(false);
+  const seedRef = useRef<{ objective: string; subjectHint: string; points: string[] } | null>(null);
+  const draftRef = useRef<{ subject: string; body: string } | null>(null);
   // ── add-step picker + inline delay editor + write plumbing ──
   const [addOpen, setAddOpen] = useState(false);
   const [smsAvailable, setSmsAvailable] = useState(false);
@@ -128,45 +141,206 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
   const guidedPlanned = steps.some((s) => s.mode === "guided");
   const modeMismatch = steps.length > 0 && (composeMode === "guided") !== guidedPlanned;
 
-  // ── writes: core mutation → PUT through the three-layer edit gate ──
-  async function putGraph(updated: CampaignGraph, busy: string): Promise<boolean> {
+  // ── writes: core mutation → PUT through the three-layer edit gate.
+  // Returns null on success, the owner-readable failure otherwise — callers
+  // route it to the visible sink (page row vs. inside the open drawer). ──
+  async function putGraph(updated: CampaignGraph, busy: string): Promise<string | null> {
     setBusyMsg(busy);
-    setActionError(null);
     try {
       await cf("planner/graph", { method: "PUT", body: JSON.stringify({ agentId, graph: updated }) });
       await onChanged?.();
-      return true;
+      return null;
     } catch (err) {
       // The gate's 422 detail is owner-readable — surface it, never silent.
-      setActionError(err instanceof Error ? err.message : String(err));
-      return false;
+      return err instanceof Error ? err.message : String(err);
     } finally {
       setBusyMsg("");
     }
+  }
+
+  function closeEditor() {
+    setEditNode(null);
+    setEditStrategyIntent(null);
+    setPendingMode(null);
+    setDrawerError(null);
+    seedRef.current = null;
+    draftRef.current = null;
   }
 
   function openEditor(n: StepNode, strategyIntent: string | null) {
     setEditNode(n);
     setEditStrategyIntent(strategyIntent);
     setPreview(null);
-    setEditBrief(null);
-    setEditSubject(n.content.subject ?? "");
-    setEditBody(n.content.body ?? "");
+    setPendingMode(null);
+    setDrawerError(null);
+    seedRef.current = null;
+    draftRef.current = null;
+    // G1/G2: a guided step edits its BRIEF (the wizard's card seeding, verbatim).
+    if (n.mode === "guided" && n.brief) {
+      setEditBrief({
+        channel: n.channel === "sms" ? "sms" : "email",
+        objective: n.brief.objective,
+        subjectHint: n.brief.subjectHint ?? "",
+        talkingPoints: [...n.brief.talkingPoints],
+        mustSay: [...(n.brief.mustSay ?? [])],
+        neverSay: [...(n.brief.neverSay ?? [])],
+      });
+      setEditSubject("");
+      setEditBody("");
+    } else {
+      setEditBrief(null);
+      setEditSubject(n.content.subject ?? "");
+      setEditBody(n.content.body ?? "");
+    }
+  }
+
+  /** The staged brief, trimmed to the persistable shape (G2 layer-2 rules). */
+  function briefPayload(): StepBrief | null {
+    if (!editBrief) return null;
+    if (!editBrief.objective.trim()) {
+      setDrawerError("Give the step an objective — it steers every composed message.");
+      return null;
+    }
+    if (editBrief.talkingPoints.length < BRIEF_TALKING_POINTS_MIN) {
+      setDrawerError(`Add at least ${BRIEF_TALKING_POINTS_MIN} talking points — the composer needs material to draw from.`);
+      return null;
+    }
+    return {
+      objective: editBrief.objective.trim(),
+      talkingPoints: editBrief.talkingPoints,
+      ...(editBrief.mustSay.length > 0 ? { mustSay: editBrief.mustSay } : {}),
+      ...(editBrief.neverSay.length > 0 ? { neverSay: editBrief.neverSay } : {}),
+      ...(editBrief.channel === "email" && editBrief.subjectHint.trim()
+        ? { subjectHint: editBrief.subjectHint.trim() }
+        : {}),
+    };
+  }
+
+  /** W2: the per-step scripted⇄guided flip — STAGED until Save (DEC-076). */
+  async function flipMode(mode: "guided" | "scripted") {
+    if (!editNode || !graph || !view) return;
+    setDrawerError(null);
+    setPreview(null);
+    // Flipping BACK to the step's saved mode restores the saved values —
+    // an un-flip is an undo, never a re-derivation.
+    const savedMode = editNode.mode === "guided" ? "guided" : "scripted";
+    if (mode === savedMode) {
+      seedRef.current = null;
+      draftRef.current = null;
+      setPendingMode(null);
+      if (savedMode === "guided" && editNode.brief) {
+        setEditBrief({
+          channel: editNode.channel === "sms" ? "sms" : "email",
+          objective: editNode.brief.objective,
+          subjectHint: editNode.brief.subjectHint ?? "",
+          talkingPoints: [...editNode.brief.talkingPoints],
+          mustSay: [...(editNode.brief.mustSay ?? [])],
+          neverSay: [...(editNode.brief.neverSay ?? [])],
+        });
+        setEditSubject("");
+        setEditBody("");
+      } else {
+        setEditBrief(null);
+        setEditSubject(editNode.content.subject ?? "");
+        setEditBody(editNode.content.body ?? "");
+      }
+      return;
+    }
+    if (mode === "guided") {
+      // Seed the editable brief DETERMINISTICALLY from the step's own copy +
+      // its M1a arc role; every seeded value renders ✦-marked until edited or
+      // confirmed. The one-step compose (sandbox) proves it right below.
+      const idx = steps.findIndex((s) => s.id === editNode.id) + 1;
+      const arc = selectStrategy(view.agent.goal, view.agent.category ?? null).arc;
+      const seed = deriveBriefSeed(editNode, arcRoleAt(arc.roles, idx, steps.length));
+      const channel = editNode.channel === "sms" ? "sms" as const : "email" as const;
+      seedRef.current = {
+        objective: seed.objective,
+        subjectHint: channel === "email" ? (seed.subjectHint ?? "") : "",
+        points: [...seed.talkingPoints],
+      };
+      setEditBrief({
+        channel,
+        objective: seed.objective,
+        subjectHint: channel === "email" ? (seed.subjectHint ?? "") : "",
+        talkingPoints: [...seed.talkingPoints],
+        mustSay: [],
+        neverSay: [],
+      });
+      setPendingMode("guided");
+      if (seed.complete) {
+        // The ONE-STEP COMPOSE: the staged seed through the real sandbox
+        // composer — refusal is a designed display state, never hidden.
+        void sampleComposeStaged({
+          objective: seed.objective,
+          talkingPoints: seed.talkingPoints,
+          ...(channel === "email" && seed.subjectHint ? { subjectHint: seed.subjectHint } : {}),
+        });
+      }
+    } else {
+      // guided→scripted: the step needs body copy — compose a draft (real
+      // sandbox compose of the saved brief, ✦-marked) or author it.
+      setEditBrief(null);
+      setEditSubject("");
+      setEditBody("");
+      draftRef.current = null;
+      setPendingMode("scripted");
+    }
+  }
+
+  /** W2: one sandbox compose of the SAVED brief → scripted draft copy. */
+  async function composeDraftRun() {
+    if (!editNode || draftBusy) return;
+    setDraftBusy(true);
+    setDrawerError(null);
+    try {
+      const res = await cf("planner/compose-preview", {
+        method: "POST",
+        body: JSON.stringify({ agentId, stepNodeId: editNode.id }),
+      });
+      if (res.composed) {
+        const subject = res.composed.subject ?? "";
+        const body = res.composed.body ?? "";
+        draftRef.current = { subject, body };
+        setEditSubject(subject);
+        setEditBody(body);
+      } else if (res.refused) {
+        setDrawerError(`Composer refused — ${res.refused.reason}${res.refused.detail ? `: ${res.refused.detail}` : ""}. Write the copy yourself, or fix the brief and retry.`);
+      }
+    } catch {
+      setDrawerError("Drafting isn't available right now — AI composing may not be configured for this environment yet. You can write the copy yourself.");
+    }
+    setDraftBusy(false);
   }
 
   async function saveEditedStep() {
     if (!editNode || !graph) return;
+    setDrawerError(null);
     let updated: CampaignGraph;
     try {
-      updated = updateStepContent(graph, editNode.id, { subject: editSubject, body: editBody });
+      if (pendingMode === "guided") {
+        const brief = briefPayload();
+        if (!brief) return;
+        updated = setStepMode(graph, editNode.id, { mode: "guided", brief });
+      } else if (pendingMode === "scripted") {
+        updated = setStepMode(graph, editNode.id, {
+          mode: "scripted",
+          content: { ...(editSubject.trim() ? { subject: editSubject } : {}), body: editBody },
+        });
+      } else if (editBrief) {
+        const brief = briefPayload();
+        if (!brief) return;
+        updated = updateStepBrief(graph, editNode.id, brief);
+      } else {
+        updated = updateStepContent(graph, editNode.id, { subject: editSubject, body: editBody });
+      }
     } catch (err) {
-      setActionError(err instanceof GraphMutationError ? err.message : String(err));
+      setDrawerError(err instanceof GraphMutationError ? err.message : String(err));
       return;
     }
-    if (await putGraph(updated, "Saving step…")) {
-      setEditNode(null);
-      setEditStrategyIntent(null);
-    }
+    const failure = await putGraph(updated, "Saving step…");
+    if (failure) setDrawerError(failure);
+    else closeEditor();
   }
 
   async function handleDelete() {
@@ -178,10 +352,9 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
       setActionError(err instanceof GraphMutationError ? err.message : String(err));
       return;
     }
-    if (await putGraph(updated, "Deleting step…")) {
-      setEditNode(null);
-      setEditStrategyIntent(null);
-    }
+    const failure = await putGraph(updated, "Deleting step…");
+    if (failure) setDrawerError(failure);
+    else closeEditor();
   }
 
   async function handleMove(stepId: string, direction: "up" | "down") {
@@ -193,7 +366,7 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
       setActionError(err instanceof GraphMutationError ? err.message : String(err));
       return;
     }
-    await putGraph(updated, "Reordering…");
+    setActionError(await putGraph(updated, "Reordering…"));
   }
 
   async function handleAdd(channel: Channel) {
@@ -206,10 +379,13 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
       setActionError(err instanceof GraphMutationError ? err.message : String(err));
       return;
     }
-    if (await putGraph(result.graph, "Adding step…")) {
-      const created = result.graph.nodes.find((x) => x.id === result.stepId);
-      if (created && created.type === "step") openEditor(created, null);
+    const failure = await putGraph(result.graph, "Adding step…");
+    if (failure) {
+      setActionError(failure);
+      return;
     }
+    const created = result.graph.nodes.find((x) => x.id === result.stepId);
+    if (created && created.type === "step") openEditor(created, null);
   }
 
   async function saveDelay(delayId: string) {
@@ -221,7 +397,9 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
       setActionError(err instanceof GraphMutationError ? err.message : String(err));
       return;
     }
-    if (await putGraph(updated, "Saving delay…")) setDelayEditId(null);
+    const failure = await putGraph(updated, "Saving delay…");
+    if (failure) setActionError(failure);
+    else setDelayEditId(null);
   }
 
   /** ✦ Regenerate — the existing planner path (composeMode picks the pinned
@@ -264,15 +442,17 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
     }, 3000);
   }
 
-  async function sampleCompose() {
-    const node = briefNode ?? editNode;
+  /** W2: samples compose the STAGED brief (what the owner SEES), through the
+   *  real sandbox checks — a refusal is a designed display state. */
+  async function sampleComposeStaged(staged: StepBrief | null) {
+    const node = editNode;
     if (!node || previewBusy) return;
     setPreviewBusy(true);
     setPreview(null);
     try {
       const res = await cf("planner/compose-preview", {
         method: "POST",
-        body: JSON.stringify({ agentId, stepNodeId: node.id }),
+        body: JSON.stringify({ agentId, stepNodeId: node.id, ...(staged ? { brief: staged } : {}) }),
       });
       if (res.composed) {
         setPreview({
@@ -290,6 +470,21 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
     setPreviewBusy(false);
   }
 
+  async function sampleCompose() {
+    if (!editNode || !editBrief) return;
+    if (editBrief.talkingPoints.length < BRIEF_TALKING_POINTS_MIN || !editBrief.objective.trim()) {
+      setPreview({ kind: "error", message: `The brief needs an objective and at least ${BRIEF_TALKING_POINTS_MIN} talking points before a sample can compose.` });
+      return;
+    }
+    await sampleComposeStaged({
+      objective: editBrief.objective.trim(),
+      talkingPoints: editBrief.talkingPoints,
+      ...(editBrief.mustSay.length > 0 ? { mustSay: editBrief.mustSay } : {}),
+      ...(editBrief.neverSay.length > 0 ? { neverSay: editBrief.neverSay } : {}),
+      ...(editBrief.channel === "email" && editBrief.subjectHint.trim() ? { subjectHint: editBrief.subjectHint.trim() } : {}),
+    });
+  }
+
   /** C2.7: insert `{{custom.<key>|fallback}}` — only ever with the fallback. */
   function insertCustomToken() {
     const fb = customFallback.trim();
@@ -301,6 +496,27 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
   }
 
   const editStepIndex = editNode ? steps.findIndex((s) => s.id === editNode.id) + 1 : 0;
+
+  // W2 ✦ provenance: a field stays marked while its value is still the
+  // seeded/composed one — editing it clears the mark; Save confirms the rest.
+  const seedMarks = (() => {
+    if (editBrief && seedRef.current) {
+      const s = seedRef.current;
+      return {
+        objective: editBrief.objective === s.objective,
+        subjectHint: s.subjectHint !== "" && editBrief.subjectHint === s.subjectHint,
+        points: editBrief.talkingPoints.map((p) => s.points.includes(p)),
+      };
+    }
+    if (!editBrief && draftRef.current) {
+      const d = draftRef.current;
+      return {
+        subject: d.subject !== "" && editSubject === d.subject,
+        body: d.body !== "" && editBody === d.body,
+      };
+    }
+    return undefined;
+  })();
 
   return (
     <div style={{ maxWidth: 820, margin: "0 auto", paddingLeft: 48 }} data-testid="steps">
@@ -406,13 +622,10 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
                   {/* W3-4: reorder — designed addition (canon has no reorder). */}
                   <span onClick={idx > 1 ? () => void handleMove(n.id, "up") : undefined} style={{ fontSize: 13, color: idx > 1 ? "#5C6B62" : "#D8CFBE", cursor: idx > 1 ? "pointer" : "default", flex: "none" }} data-testid="step-move-up">↑</span>
                   <span onClick={idx < steps.length ? () => void handleMove(n.id, "down") : undefined} style={{ fontSize: 13, color: idx < steps.length ? "#5C6B62" : "#D8CFBE", cursor: idx < steps.length ? "pointer" : "default", flex: "none" }} data-testid="step-move-down">↓</span>
-                  {/* Campaign View canon: the green ✎ Edit link is the click target.
-                      Guided briefs stay view-only until W2 (brief editing wave). */}
-                  {guided ? (
-                    <span onClick={() => { setBriefNode(n); setPreview(null); }} style={{ fontSize: 12, fontWeight: 600, color: "#1192A6", cursor: "pointer", flex: "none" }} data-testid="step-view-brief">View brief ›</span>
-                  ) : (
-                    <span onClick={() => openEditor(n, null)} style={{ fontSize: 13, fontWeight: 600, color: "#16A82A", cursor: "pointer", flex: "none" }} data-testid="step-edit">✎ Edit</span>
-                  )}
+                  {/* Campaign View canon: the green ✎ Edit link is the click
+                      target — W2: guided briefs edit here too (the wizard
+                      brief editor, same component). */}
+                  <span onClick={() => openEditor(n, null)} style={{ fontSize: 13, fontWeight: 600, color: "#16A82A", cursor: "pointer", flex: "none" }} data-testid="step-edit">✎ Edit</span>
                 </div>
                 {guided ? (
                   <>
@@ -525,7 +738,10 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
       </>
       )}
 
-      {/* W3-4: the SHARED step editor drawer (wizard step-2's component). */}
+      {/* W3-4: the SHARED step editor drawer (wizard step-2's component) —
+          W2 adds the per-step mode override, ✦ seed provenance (marks derive
+          by comparison with the seed snapshot) and the guided→scripted
+          compose-a-draft path. */}
       <StepEditorDrawer
         editNode={editNode}
         editStepIndex={editStepIndex}
@@ -551,143 +767,29 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
         setCustomFallback={setCustomFallback}
         insertCustomToken={insertCustomToken}
         sampleCompose={sampleCompose}
-        onClose={() => { setEditNode(null); setEditStrategyIntent(null); }}
+        onClose={closeEditor}
         onSave={saveEditedStep}
         onDelete={editStrategyIntent === null ? handleDelete : undefined}
         liveNotice={!isDraft}
+        modeControl={
+          editNode && editStrategyIntent === null && (editNode.channel === "email" || editNode.channel === "sms")
+            ? {
+                mode: pendingMode ?? (editNode.mode === "guided" ? "guided" : "scripted"),
+                busy: busyMsg !== "",
+                onFlip: (m) => void flipMode(m),
+              }
+            : undefined
+        }
+        seedMarks={seedMarks}
+        composeDraft={pendingMode === "scripted" ? { busy: draftBusy, run: () => void composeDraftRun() } : undefined}
+        scriptedEmptyNote={
+          pendingMode === "scripted"
+            ? "This step has no written copy yet — scripted steps send exactly what you save. Compose a draft with AI (marked until you edit or confirm it) or write it below."
+            : undefined
+        }
+        footerError={drawerError}
       />
 
-      {/* G3 (DEC-075): READ-ONLY brief drawer — guided steps stay view-only
-          until W2 (brief editing on the dashboard) replaces this with the
-          shared editor. Anatomy unchanged from G3. */}
-      {briefNode?.brief ? (() => {
-        const b = briefNode.brief!;
-        const sms = briefNode.channel === "sms";
-        const stepNo = steps.indexOf(briefNode) + 1;
-        const briefSent = outcomes?.steps.find((s) => s.stepNodeId === briefNode.id)?.sent ?? view.perStep[briefNode.id]?.sent ?? 0;
-        return (
-          <div onClick={() => setBriefNode(null)} style={{ position: "fixed", inset: 0, background: "rgba(12,20,15,.4)", zIndex: 60 }}>
-            <div onClick={(e) => e.stopPropagation()} style={{ position: "absolute", top: 0, right: 0, bottom: 0, width: 560, maxWidth: "100%", background: "#fff", boxShadow: "-24px 0 70px rgba(0,0,0,.28)", display: "flex", flexDirection: "column" }} data-testid="brief-viewer">
-              <div style={{ display: "flex", alignItems: "center", gap: 13, padding: "18px 22px", borderBottom: "1px solid #EBE3D6", background: "#fff", flex: "none" }}>
-                <span style={{ width: 40, height: 40, borderRadius: 12, flex: "none", background: sms ? "rgba(54,215,237,.16)" : "rgba(53,232,52,.16)", color: sms ? "#1192A6" : "#16A82A", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 19, fontWeight: 700 }}>{sms ? "💬" : "✉"}</span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "#8A7F6B" }}>Step {stepNo > 0 ? stepNo : "—"}</span>
-                    {sms ? (
-                      <span style={{ fontSize: 12, fontWeight: 700, borderRadius: 8, padding: "2px 9px", background: "rgba(54,215,237,.14)", color: "#1192A6" }}>SMS</span>
-                    ) : (
-                      <span style={{ fontSize: 12, fontWeight: 700, borderRadius: 8, padding: "2px 9px", background: "rgba(53,232,52,.13)", color: "#16A82A" }}>Email</span>
-                    )}
-                    <span style={{ fontSize: 11, fontWeight: 700, color: "#1192A6", background: "rgba(54,215,237,.14)", borderRadius: 7, padding: "2px 9px" }}>✦ Composed at send</span>
-                  </div>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: "#0E1512", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.objective || "Untitled brief"}</div>
-                </div>
-                <span onClick={() => setBriefNode(null)} style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid #EBE3D6", display: "flex", alignItems: "center", justifyContent: "center", color: "#9AA59E", cursor: "pointer", flex: "none" }} data-testid="brief-viewer-close">✕</span>
-              </div>
-
-              <div style={{ padding: 22, display: "flex", flexDirection: "column", gap: 18, flex: 1, overflow: "auto", minHeight: 0 }}>
-                <div style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12.5, color: "#0E6E7E", background: "rgba(54,215,237,.08)", border: "1px solid rgba(54,215,237,.28)", borderRadius: 11, padding: "11px 14px" }} data-testid="brief-viewer-note">
-                  <span style={{ fontSize: 13 }}>✦</span>
-                  <span>This step has no fixed text. At send time the AI composes a fresh {sms ? "SMS" : "email"} for each lead from these talking points — checked against your never-say list, {sms ? "length" : "subject rules, length"} and grounding rules before anything sends.{sms ? " The STOP line is always appended by the platform." : " The unsubscribe footer is always added by the platform, never written by the AI."} {sms ? GUIDED_SMS_CREDITS : GUIDED_EMAIL_CREDITS} credits per send.</span>
-                </div>
-
-                <div>
-                  <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#5C6B62", marginBottom: 7 }}>Objective</label>
-                  <div style={{ borderRadius: 11, background: "#FBF7F0", border: "1px solid #EBE3D6", padding: "11px 14px", fontSize: 14, color: "#0E1512" }} data-testid="brief-viewer-objective">{b.objective}</div>
-                </div>
-
-                {!sms && b.subjectHint ? (
-                  <div>
-                    <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#5C6B62", marginBottom: 4 }}>Subject hint</label>
-                    <div style={{ fontSize: 12, color: "#9AA59E", marginBottom: 8 }}>A direction for the subject line — the AI adapts it per lead. Subject rules (≤60 chars, no clickbait, no ALL CAPS) are checked on every composed email.</div>
-                    <div style={{ borderRadius: 11, background: "#FBF7F0", border: "1px solid #EBE3D6", padding: "11px 14px", fontSize: 14, color: "#0E1512" }} data-testid="brief-viewer-subject-hint">{b.subjectHint}</div>
-                  </div>
-                ) : null}
-
-                <div>
-                  <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#5C6B62", marginBottom: 7 }}>Talking points <span style={{ fontWeight: 600, color: "#9AA59E" }}>· {b.talkingPoints.length}</span></label>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-                    {b.talkingPoints.map((p, i) => (
-                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 9, background: "#FBF7F0", border: "1px solid #EBE3D6", borderRadius: 11, padding: "9px 12px" }} data-testid="brief-viewer-point">
-                        <span style={{ color: "#1192A6", flex: "none" }}>•</span>
-                        <span style={{ fontSize: 13.5, color: "#3B463F", flex: 1, lineHeight: 1.45 }}>{p}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {(b.mustSay?.length ?? 0) > 0 || (b.neverSay?.length ?? 0) > 0 ? (
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                    {([
-                      { label: "Must say", terms: b.mustSay ?? [], tint: "#0F7A28", bg: "rgba(53,232,52,.09)", tid: "brief-viewer-must" },
-                      { label: "Never say", terms: b.neverSay ?? [], tint: "#C9543F", bg: "rgba(224,121,107,.08)", tid: "brief-viewer-never" },
-                    ]).map((s) => (
-                      <div key={s.label}>
-                        <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#5C6B62", marginBottom: 7 }}>{s.label}</label>
-                        {s.terms.length > 0 ? (
-                          <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
-                            {s.terms.map((term) => (
-                              <span key={term} style={{ display: "inline-flex", alignItems: "center", fontSize: 12.5, fontWeight: 600, color: s.tint, background: s.bg, border: "1px solid #EBE3D6", borderRadius: 100, padding: "5px 12px" }} data-testid={`${s.tid}-chip`}>{term}</span>
-                            ))}
-                          </div>
-                        ) : (
-                          <div style={{ fontSize: 12.5, color: "#9AA59E" }}>None for this step.</div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-
-                {/* Honest sends line — count only; per-message surfaces are the
-                    lead threads (no step-scoped message list exists this phase). */}
-                <div style={{ fontSize: 12.5, color: "#8A7F6B", background: "#FBF7F0", border: "1px solid #EBE3D6", borderRadius: 11, padding: "10px 14px" }} data-testid="brief-viewer-sent">
-                  {briefSent > 0
-                    ? `${briefSent} message${briefSent === 1 ? "" : "s"} sent from this brief — each composed per lead; sent copies live on each lead's timeline.`
-                    : "No sends from this step yet."}
-                </div>
-
-                <div style={{ border: "1px solid #EBE3D6", borderRadius: 13, overflow: "hidden", flex: "none" }} data-testid="brief-viewer-preview-card">
-                  <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 15px", background: "linear-gradient(90deg,rgba(54,215,237,.1),rgba(53,232,52,.07))", borderBottom: "1px solid #EBE3D6" }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: "#0E1512", flex: 1 }}>✦ Sample preview</span>
-                    <span onClick={() => void sampleCompose()} style={{ fontSize: 12.5, fontWeight: 700, color: previewBusy ? "#9AA59E" : "#0A0F0C", background: previewBusy ? "#ECE7DC" : GRAD, borderRadius: 9, padding: "7px 14px", cursor: previewBusy ? "default" : "pointer" }} data-testid="brief-viewer-preview-run">{previewBusy ? "Composing…" : "Compose sample"}</span>
-                  </div>
-                  <div style={{ padding: "12px 15px" }}>
-                    {preview === null && !previewBusy ? (
-                      <div style={{ fontSize: 12.5, color: "#9AA59E" }}>See what the composer writes for a sample lead (Jane Doe · Acme Dental) using the saved brief. Free while guided mode is new.</div>
-                    ) : previewBusy ? (
-                      <div style={{ fontSize: 12.5, color: "#8A7F6B" }}>Composing against the sample lead…</div>
-                    ) : preview?.kind === "composed" ? (
-                      <div data-testid="brief-viewer-preview-result">
-                        {preview.subject ? (
-                          <div style={{ background: "#FBF7F0", border: "1px solid #EBE3D6", borderRadius: 11, padding: "9px 14px", fontSize: 13, color: "#0E1512", fontWeight: 700, marginBottom: 7 }}>{preview.subject}</div>
-                        ) : null}
-                        <div style={{ background: "#FBF7F0", border: "1px solid #EBE3D6", borderRadius: 11, padding: "11px 14px", fontSize: 13.5, color: "#0E1512", lineHeight: 1.55, whiteSpace: "pre-wrap" }}>{preview.body}</div>
-                        <div style={{ fontSize: 11.5, color: "#9AA59E", marginTop: 7 }}>Sample lead: Jane Doe · Acme Dental — every real lead gets its own text.{preview.subject ? " The unsubscribe footer is appended at send time." : ""} {preview.credits} credits per real send (display only for now).</div>
-                      </div>
-                    ) : preview?.kind === "refused" ? (
-                      <div style={{ border: "1px solid rgba(232,196,91,.48)", borderRadius: 11, background: "rgba(232,196,91,.08)", padding: "11px 14px" }} data-testid="brief-viewer-preview-refused">
-                        <div style={{ fontSize: 12.5, fontWeight: 700, color: "#9A6B12", marginBottom: 3 }}>⚠ Composer refused — nothing would send</div>
-                        <div style={{ fontSize: 12.5, color: "#8A7F6B", lineHeight: 1.5 }}>{preview.reason}{preview.detail ? ` — ${preview.detail}` : ""}. The same check pauses a real lead instead of sending unchecked copy.</div>
-                      </div>
-                    ) : preview?.kind === "error" ? (
-                      <div style={{ fontSize: 12.5, color: "#C9543F" }} data-testid="brief-viewer-preview-error">{preview.message}</div>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 22px", borderTop: "1px solid #EBE3D6", background: "#fff", flex: "none" }}>
-                {isDraft ? (
-                  <a href={`/agents/new?agent=${view.agent.id}`} style={{ textDecoration: "none", fontSize: 13, fontWeight: 700, color: "#16A82A", background: "rgba(53,232,52,.1)", border: "1px solid rgba(53,232,52,.3)", borderRadius: 10, padding: "9px 14px" }} data-testid="brief-viewer-edit-link">✎ Edit in campaign setup</a>
-                ) : (
-                  <span style={{ fontSize: 12.5, color: "#9AA59E" }} data-testid="brief-viewer-readonly-note">Read-only — brief editing on this tab arrives with the guided-editing wave (W2).</span>
-                )}
-                <span onClick={() => setBriefNode(null)} style={{ marginLeft: "auto", fontSize: 14, fontWeight: 600, color: "#5C6B62", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 11, padding: "10px 18px", cursor: "pointer" }} data-testid="brief-viewer-done">Close</span>
-              </div>
-            </div>
-          </div>
-        );
-      })() : null}
     </div>
   );
 }

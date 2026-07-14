@@ -25,6 +25,7 @@ import {
   planRequestSchema,
   plannerGraphQuerySchema,
   repairGraph,
+  stepBriefSchema,
   validateGraph,
   type CampaignGraph,
 } from "@clientforce/core";
@@ -46,6 +47,13 @@ const putGraphSchema = z.object({
 const composePreviewSchema = z.object({
   agentId: z.string().min(1),
   stepNodeId: z.string().min(1),
+  /**
+   * W3-4 (DEC-076): a STAGED brief — the per-step mode flip composes its
+   * seed before anything persists (the one-step compose, sandbox). Absent =
+   * the saved graph's brief, exactly as before. Same fixed sample lead, same
+   * real deterministic checks, still zero send path.
+   */
+  brief: stepBriefSchema.optional(),
 });
 
 function parse<T>(schema: ZodSchema<T>, value: unknown): T {
@@ -185,13 +193,29 @@ export class PlannerController {
       if (!graphRow) throw new NotFoundException(`Agent ${dto.agentId} has no planned sequence`);
       const graph = validateGraph(graphRow.graph);
       const node = graph.nodes.find((n) => n.id === dto.stepNodeId);
-      if (!node || node.type !== "step" || node.mode !== "guided" || !node.brief) {
+      if (!node || node.type !== "step") {
+        throw new UnprocessableEntityException(
+          `Step ${dto.stepNodeId} is not a step — previews compose briefs only`,
+        );
+      }
+      // W3-4 (DEC-076): a staged brief previews an UNSAVED flip/edit; without
+      // one the step must already be guided (the pre-W3-4 contract, unchanged).
+      if (!dto.brief && (node.mode !== "guided" || !node.brief)) {
         throw new UnprocessableEntityException(
           `Step ${dto.stepNodeId} is not a guided step — previews compose briefs only`,
         );
       }
+      if (node.channel !== "email" && node.channel !== "sms") {
+        throw new UnprocessableEntityException(
+          `Step ${dto.stepNodeId} is on channel "${node.channel}" — guided composing is email/sms-only this phase`,
+        );
+      }
+      if (dto.brief?.subjectHint !== undefined && node.channel === "sms") {
+        throw new UnprocessableEntityException("Subject hints are email-only — an SMS brief cannot carry one");
+      }
+      const staged = dto.brief ? { ...node, brief: dto.brief } : node;
       // G2: the step's main-sequence position → the composer's M1a arc role.
-      return { step: node, position: mainStepPosition(graph, node.id) };
+      return { step: staged, position: mainStepPosition(graph, node.id) };
     });
     try {
       // The sample composers tenant-scope their own reads (withTenant on the
