@@ -212,6 +212,39 @@ describe("validateEditedGraph — rejects regressions loudly", () => {
     expect(() => validateEditedGraph(prev, invented, emailOnly)).toThrow(/not a known intent/);
   });
 
+  it("checks playbook coverage PER BRANCH — duplicate intents across branches never clobber (review round)", () => {
+    // Two reply branches (a raw-API shape validateGraph permits) carrying the
+    // SAME intent with different pipelines: the flattened-map bug either
+    // false-rejected b1's pin or false-accepted dropping it. Matched by
+    // branch id, both survive an unrelated edit.
+    const prev: CampaignGraph = {
+      entry: "n1",
+      nodes: [
+        { id: "n1", type: "step", channel: "email", content: { subject: "Hi", body: "Intro" } },
+        { id: "d1", type: "delay", amount: 1, unit: "days" },
+        { id: "b1", type: "branch", on: "reply", cases: [{ when: { intent: "interested" }, goto: "end1", pipeline: "booked" }, { when: "default", goto: "b2" }] },
+        { id: "b2", type: "branch", on: "reply", cases: [{ when: { intent: "interested" }, goto: "end1", pipeline: "replied" }, { when: "default", goto: "end1" }] },
+        { id: "end1", type: "end" },
+      ],
+      edges: [
+        { from: "n1", to: "d1" },
+        { from: "d1", to: "b1" },
+      ],
+    };
+    const edited = updateStepContent(prev, "n1", { body: "Edited intro" });
+    expect(validateEditedGraph(prev, edited, emailOnly)).toBeTruthy();
+    // dropping b1's pin (pipeline booked → replied) is still caught per-branch
+    const rePinned: CampaignGraph = {
+      ...edited,
+      nodes: edited.nodes.map((n) =>
+        n.id === "b1" && n.type === "branch"
+          ? { ...n, cases: n.cases.map((c) => (c.when !== "default" ? { ...c, pipeline: "replied" } : c)) }
+          : n,
+      ),
+    };
+    expect(() => validateEditedGraph(prev, rePinned, emailOnly)).toThrow(/must keep "pipeline":"booked"/);
+  });
+
   it("rejects losing the default case", () => {
     const prev = legacy();
     const noDefault: CampaignGraph = {

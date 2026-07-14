@@ -404,14 +404,26 @@ describe("mutate · containers + repair", () => {
       ...playbook(),
       edges: [
         ...playbook().edges,
-        { from: "step-1", to: "delay-1" }, // duplicate
-        { from: "step-2", to: "step-3" }, // extra out-edge from a sequential node
-        { from: "ghost", to: "step-1" }, // dangling
+        { from: "step-1", to: "delay-1" }, // duplicate — unambiguous
+        { from: "ghost", to: "step-1" }, // dangling — unambiguous
       ],
     };
     const { graph, repairs } = repairGraph(messy);
-    expect(repairs).toHaveLength(3);
+    expect(repairs).toHaveLength(2);
     expect(validateGraph(graph)).toBeTruthy();
+  });
+
+  it("repairGraph leaves an AMBIGUOUS fork for validation to reject loudly (review round)", () => {
+    // A sequential node with out-edges to two DIFFERENT targets has no
+    // unambiguous correction — repairing it order-dependently would silently
+    // reroute the live graph; it must stay a loud rejection.
+    const forked: CampaignGraph = {
+      ...playbook(),
+      edges: [...playbook().edges, { from: "step-2", to: "step-3" }],
+    };
+    const { graph, repairs } = repairGraph(forked);
+    expect(repairs).toEqual([]);
+    expect(() => validateGraph(graph)).toThrow(/exactly one outgoing edge/);
   });
 
   it("repairGraph trims empty brief chip entries; a clean graph is returned as-is", () => {
@@ -437,6 +449,70 @@ describe("mutate · containers + repair", () => {
     const clean = playbook();
     expect(repairGraph(clean).graph).toBe(clean);
     expect(repairGraph(clean).repairs).toEqual([]);
+  });
+
+  it("refuses to mutate a chain SHARED by multiple branch cases (review round)", () => {
+    // rich(): objection_price and objection_timing both goto shared-s —
+    // editing one case's chain would silently change the sibling's flow.
+    expect(() => moveStep(rich(), "shared-s", "up")).toThrow(/shares steps with another reply path/);
+    expect(() => removeStep(rich(), "shared-s")).toThrow(/shares steps with another reply path/);
+    expect(() =>
+      addStep(rich(), {
+        container: { kind: "case", branchId: "b1", caseKey: "objection_price" },
+        channel: "email",
+        content: { body: "x", threaded: true },
+      }),
+    ).toThrow(/shares steps with another reply path/);
+    // the NON-shared chain on the same branch stays fully editable
+    expect(
+      addStep(rich(), {
+        container: { kind: "case", branchId: "b1", caseKey: "interested" },
+        channel: "email",
+        content: { body: "ok", threaded: true },
+      }).stepId,
+    ).toBe("step-added-1");
+  });
+
+  it("a mid-chain step's FOLLOWING delay is the next step's gap — never absorbed (review round)", () => {
+    // adjacent steps: removing s2 must not steal d1 (s3's 5-day wait).
+    const adjacent: CampaignGraph = {
+      entry: "s1",
+      nodes: [
+        { id: "s1", type: "step", channel: "email", content: { subject: "a", body: "a" } },
+        { id: "s2", type: "step", channel: "email", content: { subject: "b", body: "b" } },
+        { id: "d1", type: "delay", amount: 5, unit: "days" },
+        { id: "s3", type: "step", channel: "email", content: { subject: "c", body: "c" } },
+        { id: "b1", type: "branch", on: "reply", cases: [{ when: "default", goto: "end1" }] },
+        { id: "end1", type: "end" },
+      ],
+      edges: [
+        { from: "s1", to: "s2" },
+        { from: "s2", to: "d1" },
+        { from: "d1", to: "s3" },
+        { from: "s3", to: "b1" },
+      ],
+    };
+    const graph = removeStep(adjacent, "s2");
+    expect(mainSequence(graph).map((n) => n.id)).toEqual(["s1", "d1", "s3"]);
+    expect(validateGraph(graph)).toBeTruthy();
+  });
+
+  it("refuses a case-head removal that would leave the reply path starting with a wait (review round)", () => {
+    // chain [c1-s1, c1-d1, c1-s2] where c1-d1 is the graph's ONLY delay:
+    // absorbing it breaks the ≥1-delay guarantee, keeping it would head the
+    // chain with a delay — a typed refusal, never a 422 surprise.
+    const base = rich();
+    const oneDelay: CampaignGraph = {
+      ...base,
+      nodes: base.nodes.filter((n) => n.id !== "d1"),
+      edges: base.edges.flatMap((e) => {
+        if (e.to === "d1") return [{ from: e.from, to: "b1" }];
+        if (e.from === "d1") return [];
+        return [e];
+      }),
+    };
+    expect(validateGraph(oneDelay)).toBeTruthy();
+    expect(() => removeStep(oneDelay, "c1-s1")).toThrow(/starting with a wait/);
   });
 
   it("every mutation leaves untouched nodes byte-identical", () => {

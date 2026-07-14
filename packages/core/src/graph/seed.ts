@@ -43,10 +43,12 @@ function detokenize(text: string): string {
     .trim();
 }
 
-const NOISE_PREFIXES = [
-  "hi", "hey", "hello", "dear", "thanks", "thank you", "best", "cheers",
-  "regards", "warm regards", "talk soon", "ps", "p.s",
-];
+// Word-boundary anchored — "Highlights…"/"Best-in-class…" are substantive
+// sentences, not greetings (review round, DEC-076).
+const NOISE_RE = new RegExp(
+  `^(?:${["hi", "hey", "hello", "dear", "thanks", "thank you", "best", "cheers", "regards", "warm regards", "talk soon", "ps", "p\\.s"].join("|")})(?![\\w-])`,
+  "i",
+);
 
 /**
  * Derive the editable brief seed from a scripted step's own copy. Purely
@@ -62,7 +64,7 @@ export function deriveBriefSeed(step: StepNode, arcRole?: string): BriefSeedResu
     .map((s) => detokenize(s))
     .map((s) => s.replace(/[\s—–-]+$/, "").trim())
     .filter((s) => s.length >= 10)
-    .filter((s) => !NOISE_PREFIXES.some((p) => s.toLowerCase().startsWith(p)))
+    .filter((s) => !NOISE_RE.test(s))
     .map((s) => (s.length > 200 ? `${s.slice(0, 199)}…` : s));
   const talkingPoints = [...new Set(sentences)].slice(0, BRIEF_TALKING_POINTS_MAX);
 

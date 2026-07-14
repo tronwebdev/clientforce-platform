@@ -147,7 +147,6 @@ export async function moveEnrollmentToNode(
     if (!sender) throw new Error("NO_ACTIVE_SENDER");
     return {
       previousWorkflowId: enrollment.workflowId,
-      previousMeta: enrollment.meta,
       contactId: enrollment.contactId,
       campaignId: campaign.id,
       agentId: campaign.agentId,
@@ -185,24 +184,29 @@ export async function moveEnrollmentToNode(
     deduped = true;
   }
 
-  await withTenant(prisma, { workspaceId }, (tx) =>
-    tx.enrollment.update({
+  await withTenant(prisma, { workspaceId }, async (tx) => {
+    // W3-4 (DEC-076): a move adopts the LATEST graph — restamp the
+    // enrolled-version audit. Meta is merged against a FRESH read inside
+    // this transaction (the activities' mergeMeta discipline): the new run
+    // may already have written blocked/events audit during the two-RPC
+    // cancel/start window, and a stale snapshot would clobber it.
+    const fresh = await tx.enrollment.findUnique({
+      where: { id: enrollmentId },
+      select: { meta: true },
+    });
+    const freshMeta =
+      typeof fresh?.meta === "object" && fresh.meta !== null
+        ? (fresh.meta as Record<string, unknown>)
+        : {};
+    await tx.enrollment.update({
       where: { id: enrollmentId },
       data: {
         workflowId,
         status: "ACTIVE",
         currentNode: targetNodeId,
-        // W3-4 (DEC-076): a move adopts the LATEST graph — restamp the
-        // enrolled-version audit so surfaces stay honest about which version
-        // this lead now runs on.
-        meta: {
-          ...(typeof assembled.previousMeta === "object" && assembled.previousMeta !== null
-            ? (assembled.previousMeta as Record<string, unknown>)
-            : {}),
-          graphVersion: assembled.graphVersion,
-        },
+        meta: { ...freshMeta, graphVersion: assembled.graphVersion },
       },
-    }),
-  );
+    });
+  });
   return { workflowId, deduped };
 }

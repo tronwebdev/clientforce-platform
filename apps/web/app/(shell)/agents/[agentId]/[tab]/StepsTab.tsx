@@ -76,6 +76,11 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
   const [draftBusy, setDraftBusy] = useState(false);
   const seedRef = useRef<{ objective: string; subjectHint: string; points: string[] } | null>(null);
   const draftRef = useRef<{ subject: string; body: string } | null>(null);
+  // Review round (DEC-076): async compose calls are uncancellable fetches —
+  // the epoch fences their resolutions so a close/reopen/flip can never let
+  // one step's AI output land in another step's editor.
+  const editEpochRef = useRef(0);
+  const mountedRef = useRef(true);
   // ── add-step picker + inline delay editor + write plumbing ──
   const [addOpen, setAddOpen] = useState(false);
   const [smsAvailable, setSmsAvailable] = useState(false);
@@ -96,7 +101,9 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
         setSmsAvailable(rows.some((r) => r.type === "TWILIO_SMS" && r.status === "ACTIVE")),
       )
       .catch(() => setSmsAvailable(false));
+    mountedRef.current = true;
     return () => {
+      mountedRef.current = false;
       if (pollRef.current) clearInterval(pollRef.current);
     };
   }, []);
@@ -161,6 +168,7 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
   }
 
   function closeEditor() {
+    editEpochRef.current += 1;
     setEditNode(null);
     setEditStrategyIntent(null);
     setPendingMode(null);
@@ -170,6 +178,7 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
   }
 
   function openEditor(n: StepNode, strategyIntent: string | null) {
+    editEpochRef.current += 1;
     setEditNode(n);
     setEditStrategyIntent(strategyIntent);
     setPreview(null);
@@ -221,6 +230,7 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
   /** W2: the per-step scripted⇄guided flip — STAGED until Save (DEC-076). */
   async function flipMode(mode: "guided" | "scripted") {
     if (!editNode || !graph || !view) return;
+    editEpochRef.current += 1;
     setDrawerError(null);
     setPreview(null);
     // Flipping BACK to the step's saved mode restores the saved values —
@@ -293,6 +303,7 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
   /** W2: one sandbox compose of the SAVED brief → scripted draft copy. */
   async function composeDraftRun() {
     if (!editNode || draftBusy) return;
+    const epoch = editEpochRef.current;
     setDraftBusy(true);
     setDrawerError(null);
     try {
@@ -300,6 +311,7 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
         method: "POST",
         body: JSON.stringify({ agentId, stepNodeId: editNode.id }),
       });
+      if (editEpochRef.current !== epoch) return; // editor moved on — drop the stale draft
       if (res.composed) {
         const subject = res.composed.subject ?? "";
         const body = res.composed.body ?? "";
@@ -310,9 +322,12 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
         setDrawerError(`Composer refused — ${res.refused.reason}${res.refused.detail ? `: ${res.refused.detail}` : ""}. Write the copy yourself, or fix the brief and retry.`);
       }
     } catch {
-      setDrawerError("Drafting isn't available right now — AI composing may not be configured for this environment yet. You can write the copy yourself.");
+      if (editEpochRef.current === epoch) {
+        setDrawerError("Drafting isn't available right now — AI composing may not be configured for this environment yet. You can write the copy yourself.");
+      }
+    } finally {
+      setDraftBusy(false);
     }
-    setDraftBusy(false);
   }
 
   async function saveEditedStep() {
@@ -351,7 +366,8 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
     try {
       updated = removeStepMutation(graph, editNode.id);
     } catch (err) {
-      setActionError(err instanceof GraphMutationError ? err.message : String(err));
+      // The drawer overlay covers the page rows — refusals surface IN it.
+      setDrawerError(err instanceof GraphMutationError ? err.message : String(err));
       return;
     }
     const failure = await putGraph(updated, "Deleting step…");
@@ -442,6 +458,7 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
       setRegenError(err instanceof Error ? err.message : String(err));
       return;
     }
+    if (!mountedRef.current) return; // unmounted mid-POST — never arm a leaked poll
     const before = view?.graphVersion ?? 0;
     pollRef.current = setInterval(async () => {
       try {
@@ -473,6 +490,7 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
   async function sampleComposeStaged(staged: StepBrief | null) {
     const node = editNode;
     if (!node || previewBusy) return;
+    const epoch = editEpochRef.current;
     setPreviewBusy(true);
     setPreview(null);
     try {
@@ -480,6 +498,7 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
         method: "POST",
         body: JSON.stringify({ agentId, stepNodeId: node.id, ...(staged ? { brief: staged } : {}) }),
       });
+      if (editEpochRef.current !== epoch) return; // editor moved on — drop the stale preview
       if (res.composed) {
         setPreview({
           kind: "composed",
@@ -491,9 +510,12 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
         setPreview({ kind: "refused", reason: res.refused.reason, detail: res.refused.detail ?? "" });
       }
     } catch {
-      setPreview({ kind: "error", message: "Preview isn't available right now — AI composing may not be configured for this environment yet." });
+      if (editEpochRef.current === epoch) {
+        setPreview({ kind: "error", message: "Preview isn't available right now — AI composing may not be configured for this environment yet." });
+      }
+    } finally {
+      setPreviewBusy(false);
     }
-    setPreviewBusy(false);
   }
 
   async function sampleCompose() {
@@ -535,7 +557,9 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
             <span style={{ fontSize: 13, fontWeight: 600, color: "#8A7F6B" }}>⏱ Wait</span>
             <span onClick={() => setDelayDraft((v) => Math.max(1, v - 1))} style={{ width: 24, height: 24, borderRadius: "50%", background: "#F2EEE4", color: "#5C6B62", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 700, cursor: "pointer" }} data-testid={`${tidPrefix}-dec`}>−</span>
             <span style={{ fontSize: 14, fontWeight: 700, color: "#0E1512", minWidth: 48, textAlign: "center" }}>{delayDraft} {delayDraft === 1 ? n.unit.replace(/s$/, "") : n.unit}</span>
-            <span onClick={() => setDelayDraft((v) => Math.min(30, v + 1))} style={{ width: 24, height: 24, borderRadius: "50%", background: "#F2EEE4", color: "#5C6B62", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 700, cursor: "pointer" }} data-testid={`${tidPrefix}-inc`}>+</span>
+            {/* clamp cap honors a stored amount above the canon's 30 (planner
+                emits 14–45d re-engagement waits) — + never snaps a wait down */}
+            <span onClick={() => setDelayDraft((v) => Math.min(Math.max(30, n.amount), v + 1))} style={{ width: 24, height: 24, borderRadius: "50%", background: "#F2EEE4", color: "#5C6B62", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 700, cursor: "pointer" }} data-testid={`${tidPrefix}-inc`}>+</span>
             <span onClick={() => void saveDelay(n.id)} style={{ fontSize: 12.5, fontWeight: 700, color: "#0A0F0C", background: GRAD, borderRadius: 100, padding: "5px 13px", cursor: "pointer" }} data-testid={`${tidPrefix}-done`}>Done</span>
           </span>
         ) : (

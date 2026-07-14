@@ -23,7 +23,7 @@ import type {
   StepContent,
   StepNode,
 } from "./types";
-import { caseKeyOf, chainForCase, mainSequence } from "./walk";
+import { branchChains, caseKeyOf, chainForCase, mainSequence } from "./walk";
 
 export class GraphMutationError extends Error {
   constructor(message: string) {
@@ -63,6 +63,25 @@ export function containerNodes(graph: CampaignGraph, container: SequenceContaine
     );
   }
   return chain;
+}
+
+/**
+ * A chain shared by more than one branch case cannot be mutated through ONE
+ * case's container — the sibling case's flow would change (or truncate)
+ * without the owner touching it. Refuse loudly; branch-structure edits are
+ * the planner's/rules' job, not the step editor's (review round, DEC-076).
+ */
+function assertChainNotShared(graph: CampaignGraph, container: SequenceContainer): void {
+  if (container.kind !== "case") return;
+  const set = branchChains(graph).find((b) => b.branch.id === container.branchId);
+  if (!set || set.sharedNodeIds.length === 0) return;
+  const chain = set.cases.find((c) => c.key === container.caseKey)?.chain ?? [];
+  const shared = new Set(set.sharedNodeIds);
+  if (chain.some((n) => shared.has(n.id))) {
+    throw new GraphMutationError(
+      "This reply path shares steps with another reply path — editing it here would change both. Regenerate the sequence to restructure it.",
+    );
+  }
 }
 
 /** The container a step lives in, or undefined (e.g. an orphan node). */
@@ -199,6 +218,7 @@ export function addStep(
   if (params.brief && channel !== "email" && channel !== "sms") {
     throw new GraphMutationError(`Guided steps are email/sms-only — "${channel}" cannot carry a brief`);
   }
+  assertChainNotShared(graph, container);
   const chain = containerNodes(graph, container);
   const stepId = freshNodeId(graph, "step-added");
   const n = chain.filter((c) => c.type === "step").length + 1;
@@ -239,6 +259,7 @@ export function removeStep(graph: CampaignGraph, stepId: string): CampaignGraph 
   }
   const container = stepContainerOf(graph, stepId);
   if (!container) throw new GraphMutationError(`Step "${stepId}" is not on an editable path`);
+  assertChainNotShared(graph, container);
   const chain = containerNodes(graph, container);
   if (container.kind === "case" && chain.filter((c) => c.type === "step").length <= 1) {
     throw new GraphMutationError(
@@ -252,9 +273,11 @@ export function removeStep(graph: CampaignGraph, stepId: string): CampaignGraph 
   const idx = chain.findIndex((c) => c.id === stepId);
   const newChain = chain.filter((c) => c.id !== stepId);
   // Absorb the step's gap-delay (the add-step pair inverse): the preceding
-  // delay, or — for a chain-head step — the following one (a chain must not
-  // start with a leading wait). Never the graph's last delay.
-  const gap = chain[idx - 1]?.type === "delay" ? chain[idx - 1] : chain[idx + 1];
+  // delay, or — for the chain-HEAD step ONLY — the following one (a chain
+  // must not start with a leading wait; a mid-chain step's following delay
+  // belongs to the NEXT step and stays). Never the graph's last delay.
+  const gap =
+    chain[idx - 1]?.type === "delay" ? chain[idx - 1] : idx === 0 ? chain[idx + 1] : undefined;
   if (gap?.type === "delay") {
     const delayCount = graph.nodes.filter((n) => n.type === "delay").length;
     const referenced =
@@ -266,6 +289,13 @@ export function removeStep(graph: CampaignGraph, stepId: string): CampaignGraph 
       // it stays in oldChain so its edges/nodes are cleaned up.
       return rebuildContainer(graph, container, chain, newChain);
     }
+  }
+  // The kept gap must never become a CASE chain's head — the case goto would
+  // point at a delay (a leading wait, and the playbook contract wants steps).
+  if (container.kind === "case" && newChain[0]?.type === "delay") {
+    throw new GraphMutationError(
+      "Removing this step would leave the reply path starting with a wait (its delay is the sequence's only one) — edit the step instead",
+    );
   }
   return rebuildContainer(graph, container, chain, newChain);
 }
@@ -281,6 +311,7 @@ export function moveStep(
 ): CampaignGraph {
   const container = stepContainerOf(graph, stepId);
   if (!container) throw new GraphMutationError(`Step "${stepId}" is not on an editable path`);
+  assertChainNotShared(graph, container);
   const chain = containerNodes(graph, container);
   const stepIdxs = chain
     .map((n, i) => ({ n, i }))
@@ -418,13 +449,12 @@ export function repairGraph(input: CampaignGraph): { graph: CampaignGraph; repai
   const repairs: string[] = [];
   const ids = new Set(input.nodes.map((n) => n.id));
 
-  // Drop edges referencing unknown nodes, duplicate edges, and (for
-  // sequential nodes) any out-edge past the first.
+  // Drop edges referencing unknown nodes and exact-duplicate edges. A
+  // sequential node with out-edges to DIFFERENT targets is an ambiguous fork
+  // — no unambiguous correction exists, so it falls through to validation's
+  // loud rejection instead of an order-dependent silent reroute (review
+  // round, DEC-076).
   const seenEdges = new Set<string>();
-  const outSeen = new Set<string>();
-  const sequential = new Set(
-    input.nodes.filter((n) => n.type === "step" || n.type === "delay" || n.type === "action").map((n) => n.id),
-  );
   const edges = input.edges.filter((e) => {
     if (!ids.has(e.from) || !ids.has(e.to)) {
       repairs.push(`dropped edge ${e.from} → ${e.to} (unknown node)`);
@@ -436,13 +466,6 @@ export function repairGraph(input: CampaignGraph): { graph: CampaignGraph; repai
       return false;
     }
     seenEdges.add(key);
-    if (sequential.has(e.from)) {
-      if (outSeen.has(e.from)) {
-        repairs.push(`dropped extra outgoing edge from ${e.from} (sequential nodes have exactly one)`);
-        return false;
-      }
-      outSeen.add(e.from);
-    }
     return true;
   });
 

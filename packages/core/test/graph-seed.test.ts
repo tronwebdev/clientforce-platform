@@ -44,6 +44,15 @@ describe("deriveBriefSeed", () => {
     expect(deriveBriefSeed(step({ body: RICH_BODY })).objective).toBe("Get a reply about: Quick idea for their company");
   });
 
+  it("the noise filter is word-boundary anchored — 'Highlights…'/'Best-in-class…' survive (review round)", () => {
+    const seed = deriveBriefSeed(step({ body: "Highlights from our launch: 40% faster onboarding for every clinic. Best-in-class teams already use it daily. Thanksgiving bookings doubled for early adopters." }));
+    expect(seed.talkingPoints).toHaveLength(3);
+    expect(seed.complete).toBe(true);
+    // real greetings/signoffs still drop
+    const greeting = deriveBriefSeed(step({ body: "Best,\nThe team. Hi there, hope all is well with everyone today." }));
+    expect(greeting.talkingPoints).toHaveLength(0);
+  });
+
   it("a thin body seeds an INCOMPLETE brief — nothing is fabricated to fill it", () => {
     const seed = deriveBriefSeed(step({ body: "Hi {{firstName}}, quick nudge." }));
     expect(seed.complete).toBe(false);

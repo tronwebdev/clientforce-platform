@@ -94,14 +94,22 @@ export function validateEditedGraph(
 
     // Playbook no-regression: every (intent → pipeline / routes-to-step /
     // default) contract the previous reply branches carried must survive.
-    const nextCases = new Map(
-      replyBranches(graph).flatMap((b) =>
-        b.cases.filter((c) => c.when !== "default").map((c) => [(c.when as { intent: string }).intent, c] as const),
-      ),
-    );
+    // Checked PER BRANCH (matched by stable node id, falling back to the
+    // whole set) — a flattened map would let duplicate intents across
+    // branches clobber each other (review round, DEC-076).
+    const nextReplyBranches = replyBranches(graph);
+    const casesOf = (bs: BranchNode[]) =>
+      new Map(
+        bs.flatMap((b) =>
+          b.cases.filter((c) => c.when !== "default").map((c) => [(c.when as { intent: string }).intent, c] as const),
+        ),
+      );
     const nextStepIds = new Set(steps.map((s) => s.id));
-    const nextHasDefault = replyBranches(graph).some((b) => b.cases.some((c) => c.when === "default"));
     for (const b of replyBranches(previous)) {
+      const counterpart = nextReplyBranches.find((nb) => nb.id === b.id);
+      const scope = counterpart ? [counterpart] : nextReplyBranches;
+      const nextCases = casesOf(scope);
+      const nextHasDefault = scope.some((nb) => nb.cases.some((c) => c.when === "default"));
       for (const c of b.cases) {
         if (c.when === "default") {
           if (!nextHasDefault) {
