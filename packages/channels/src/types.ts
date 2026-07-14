@@ -68,7 +68,11 @@ export type SendBlockReason =
   | "RECIPIENT_NOT_ALLOWLISTED"
   // P2.1 (DEC-061): SMS-boundary extensions.
   | "CONTACT_NO_PHONE"
-  | "SENDER_NOT_SMS";
+  | "SENDER_NOT_SMS"
+  // P3.1 (DEC-078): voice dial-boundary extension — Aura-2 voices are
+  // English-only, so non-English agents refuse honestly (Q-023 tracks
+  // non-English voice; the disclosure constants already ship translated).
+  | "VOICE_LANGUAGE_UNSUPPORTED";
 
 export class SendBlockedError extends Error {
   constructor(

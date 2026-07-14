@@ -24,7 +24,11 @@ export type ComposeRefusalReason =
   // subject rule, or the composed text carried unsubscribe/footer language
   // (the footer is the boundary's job, forever).
   | "SUBJECT_RULE"
-  | "COMPOSED_FOOTER";
+  | "COMPOSED_FOOTER"
+  // P3.1 (DEC-078): voice-only — a spoken turn carried unspeakable material
+  // (a URL read aloud, markdown/formatting, emoji). Spoken register is a
+  // deterministic check, not a style preference.
+  | "SPOKEN_REGISTER";
 
 /** Composition failed its deterministic checks after the bounded retry. */
 export class ComposeRefusedError extends Error {
