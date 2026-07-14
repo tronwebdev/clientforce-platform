@@ -1,0 +1,71 @@
+# W3-4 (DEC-076) deferred proof — issue #89: the Temporal live receipt for
+# graph versioning. A REAL CampaignWorkflow on a local Temporal dev server
+# (downloaded by @temporalio/testing) walks the #88 editor's semantics:
+# contact A enrolls on v1 and finishes on it while the edit lands MANUAL v2
+# through the real three-layer gate mid-run (Temporal-history pin receipt);
+# a NEW enrollment walks the edited graph — the flipped-to-guided step
+# composes (real Sonnet-class, Key Vault ANTHROPIC-API-KEY) → deterministic
+# checks → the unchanged sendStep boundary → CAN-SPAM footer exactly once —
+# with the SendGrid transport in SANDBOX (nothing delivered). Manual
+# dispatch only.
+name: sequence-editor-live-proof
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  TURBO_TELEMETRY_DISABLED: 1
+  DATABASE_URL: postgresql://postgres@localhost:5432/clientforce
+  APP_DATABASE_URL: postgresql://clientforce_app@localhost:5432/clientforce
+  KEY_VAULT_NAME: ${{ vars.KEY_VAULT_NAME }}
+
+jobs:
+  proof:
+    name: durable versioning walk · mid-sequence pin · guided compose on the edited graph
+    runs-on: ubuntu-latest
+    environment: staging
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: clientforce
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @clientforce/workflows... build
+      - run: pnpm --filter @clientforce/db db:migrate
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Run sequence-editor versioning proof (sandbox transport; keys masked)
+        run: |
+          set -euo pipefail
+          key="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name ANTHROPIC-API-KEY --query value -o tsv)"
+          echo "::add-mask::$key"
+          # SANDBOX still authenticates against SendGrid (mail_settings.sandbox_mode
+          # validates the send without delivering) — same fetch as the other proofs.
+          sendgrid="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name SENDGRID-API-KEY --query value -o tsv)"
+          echo "::add-mask::$sendgrid"
+          ANTHROPIC_API_KEY="$key" SENDGRID_API_KEY="$sendgrid" pnpm exec tsx packages/workflows/scripts/sequence-editor-live-proof.ts
