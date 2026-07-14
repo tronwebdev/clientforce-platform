@@ -410,7 +410,12 @@ export function SettingsTab({ agentId, view, onChanged }: { agentId: string; vie
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12.5, color: "#8A7F6B", background: "rgba(53,232,52,.07)", borderRadius: 10, padding: "10px 13px", marginTop: 12 }} data-testid="compose-mode-footnote">
           <span style={{ fontSize: 13 }}>ⓘ</span>
-          <span>Applies to future sends — sequences you generate from now on plan {composeMode === "guided" ? "guided" : "scripted"} steps. Steps already planned keep their mode until you regenerate the sequence; messages already sent are unchanged.</span>
+          <span>
+            Applies to future sends — sequences you generate from now on plan {composeMode === "guided" ? "guided" : "scripted"} steps. Steps already planned keep their mode until you regenerate the sequence; messages already sent are unchanged.{" "}
+            {/* W3-4 (DEC-076): the toggle is no longer inert post-launch —
+                deep-link to the Steps tab's ✦ Regenerate (closes W3-12). */}
+            <a href={`/agents/${agentId}/steps`} style={{ color: "#16A82A", fontWeight: 700, textDecoration: "none" }} data-testid="compose-mode-regen-link">Regenerate in the Steps tab ›</a>
+          </span>
         </div>
       </div>
 
