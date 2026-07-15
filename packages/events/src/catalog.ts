@@ -169,6 +169,14 @@ export const EVENT_SCHEMAS = {
     /** The configured daily limit the ramp finished at. */
     target: z.number().int(),
   }),
+  // P5 W2 (DEC-084): the pause/resume audit — the lead.stage_changed pattern
+  // (typed from→to, written by the manage endpoint, rendered in the drawer
+  // activity timeline). ACTIVE↔PAUSED only; DISABLED is not an owner toggle.
+  "sender.status_changed.v1": z.object({
+    senderId: z.string().min(1),
+    from: z.string(),
+    to: z.string(),
+  }),
 
   // ── Billing ────────────────────────────────────────────────────────────────
   "payment.received.v1": z.object({ amount: z.number().int(), channel: z.string().optional() }),
@@ -246,6 +254,7 @@ export const EVENT_TYPES = {
   SENDER_HEALTH_COLLAPSED: "sender.health_collapsed.v1",
   SENDER_HEALTH_RECOVERED: "sender.health_recovered.v1",
   SENDER_WARMUP_COMPLETED: "sender.warmup_completed.v1",
+  SENDER_STATUS_CHANGED: "sender.status_changed.v1",
   PAYMENT_RECEIVED: "payment.received.v1",
   CREDITS_CONSUMED: "credits.consumed.v1",
   CREDITS_LOW: "credits.low.v1",
