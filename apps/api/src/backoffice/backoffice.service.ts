@@ -1,10 +1,13 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import {
   resolveCreditPrice,
+  type AdoptionQueryDto,
+  type AdoptionSummary,
   type BackofficeAgencyRow,
   type BackofficeAuditRow,
   type BackofficeWorkspaceRow,
   type CreditPriceUpsertDto,
+  type FunnelStep,
   type ReconciliationQueryDto,
   type ReconciliationRow,
   type TenantStatusName,
@@ -369,6 +372,81 @@ export class BackofficeService {
       });
       return created;
     });
+  }
+
+  // ── B1 W3 (DEC-081): product adoption, computed from the local telemetry store ─
+
+  /** Activation funnel · DAU/WAU · feature adoption, from `TelemetryEvent`. */
+  async adoption(q: AdoptionQueryDto): Promise<AdoptionSummary> {
+    const to = q.to ? new Date(q.to) : new Date();
+    const from = q.from ? new Date(q.from) : new Date(to.getTime() - 30 * 86_400_000);
+    const range = { gte: from, lte: to };
+
+    const distinctBy = async (field: "workspaceId" | "actorId", name: string) =>
+      (
+        await this.prisma.telemetryEvent.findMany({
+          where: { name, occurredAt: range, [field]: { not: null } },
+          distinct: [field],
+          select: { [field]: true },
+        })
+      ).length;
+
+    // signup counts users; the rest count workspaces reaching each milestone.
+    const counts = [
+      { step: "signup", count: await distinctBy("actorId", "product.signup.v1") },
+      { step: "agent", count: await distinctBy("workspaceId", "product.agent_created.v1") },
+      { step: "launch", count: await distinctBy("workspaceId", "product.agent_launched.v1") },
+      { step: "first send", count: await distinctBy("workspaceId", "product.send.v1") },
+      { step: "first reply", count: await distinctBy("workspaceId", "product.reply.v1") },
+      { step: "goal", count: await distinctBy("workspaceId", "product.goal.v1") },
+    ];
+    const funnel: FunnelStep[] = counts.map((s, i) => ({
+      step: s.step,
+      count: s.count,
+      conversionPct:
+        i === 0 || counts[i - 1]!.count === 0
+          ? null
+          : Math.round((s.count / counts[i - 1]!.count) * 1000) / 10,
+    }));
+
+    const activeWorkspaces = async (windowMs: number) =>
+      (
+        await this.prisma.telemetryEvent.findMany({
+          where: { occurredAt: { gte: new Date(to.getTime() - windowMs) }, workspaceId: { not: null } },
+          distinct: ["workspaceId"],
+          select: { workspaceId: true },
+        })
+      ).length;
+    const dau = await activeWorkspaces(86_400_000);
+    const wau = await activeWorkspaces(7 * 86_400_000);
+
+    const featureEvents = await this.prisma.telemetryEvent.findMany({
+      where: { name: "feature.first_used.v1", occurredAt: range },
+      select: { props: true, workspaceId: true },
+    });
+    const byFeature = new Map<string, Set<string>>();
+    for (const e of featureEvents) {
+      const feature = (e.props as { feature?: string } | null)?.feature;
+      if (!feature || !e.workspaceId) continue;
+      (byFeature.get(feature) ?? byFeature.set(feature, new Set()).get(feature)!).add(e.workspaceId);
+    }
+    const featureAdoption = [...byFeature.entries()]
+      .map(([feature, ws]) => ({ feature, workspaces: ws.size }))
+      .sort((a, b) => b.workspaces - a.workspaces);
+
+    // Statistical-honesty floor (the F1 pattern): below sample size → "low data".
+    const SAMPLE_FLOOR = 5;
+    const totalEvents = await this.prisma.telemetryEvent.count({ where: { occurredAt: range } });
+
+    return {
+      from: from.toISOString(),
+      to: to.toISOString(),
+      funnel,
+      dau,
+      wau,
+      featureAdoption,
+      lowData: totalEvents < SAMPLE_FLOOR,
+    };
   }
 
   /** Write one append-only audit row inside the caller's transaction. */

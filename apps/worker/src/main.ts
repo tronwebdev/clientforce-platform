@@ -13,10 +13,18 @@ import { goalKeySchema, type GoalKey } from "@clientforce/core";
 import { createDistillQueue, createDistillWorker } from "@clientforce/context";
 import {
   createAppPrismaClient,
+  createBackofficePrismaClient,
   createPrismaClient,
   withTenant,
+  type Prisma,
   type PrismaClient,
 } from "@clientforce/db";
+import {
+  createRecorder,
+  createTelemetryConsumer,
+  resolveSink,
+  type TelemetryStore,
+} from "@clientforce/telemetry";
 import {
   createPerAgentRules,
   runSequenceQuietSweep,
@@ -170,6 +178,30 @@ function startKnowledgeWorkers(): void {
     },
   };
   const rules = createPerAgentRules(ruleDeps);
+
+  // B1 W3 (DEC-081): the 4th consumer — product telemetry. Domain sends/replies
+  // become PII-free telemetry, dual-written to the backoffice-only TelemetryEvent
+  // store (via the RLS-exempt role) and forwarded to the configured sink
+  // (NoopSink unless POSTHOG_* is set). Never breaks the bus.
+  const telemetryDb = createBackofficePrismaClient();
+  const telemetryStore: TelemetryStore = {
+    async save(r) {
+      await telemetryDb.telemetryEvent.create({
+        data: {
+          name: r.name,
+          actorType: r.actorType,
+          actorId: r.actorId ?? null,
+          workspaceId: r.workspaceId ?? null,
+          agencyId: r.agencyId ?? null,
+          entityId: r.entityId ?? null,
+          props: r.props as Prisma.InputJsonValue,
+          occurredAt: new Date(r.occurredAt),
+        },
+      });
+    },
+  };
+  const recordTelemetry = createRecorder(resolveSink(), telemetryStore);
+
   const bus = new EventBus({
     prisma,
     connection: bullConnectionFromUrl(process.env.REDIS_URL),
@@ -192,6 +224,7 @@ function startKnowledgeWorkers(): void {
       ),
       rules.consumer,
       dispatcherConsumer,
+      createTelemetryConsumer({ record: recordTelemetry }),
     ],
   });
   busRef.current = bus;

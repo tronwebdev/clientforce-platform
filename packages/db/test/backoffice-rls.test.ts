@@ -80,10 +80,15 @@ describe.skipIf(!hasDb)("backoffice RLS-exempt access", () => {
 
   it("app role cannot read the backoffice tables (REVOKEd)", async () => {
     await expect(app.platformStaff.findMany()).rejects.toThrow();
+    // B1 W3 (DEC-081): product telemetry is internal-only — the tenant/RLS-subject
+    // role cannot read TelemetryEvent, so product events can never surface in
+    // tenant-facing Analytics.
+    await expect(app.telemetryEvent.findMany()).rejects.toThrow();
   });
 
   it("backoffice role can read the backoffice tables", async () => {
     // Does not throw (grant present); count is environment-dependent.
     await expect(backoffice.platformStaff.count()).resolves.toBeTypeOf("number");
+    await expect(backoffice.telemetryEvent.count()).resolves.toBeTypeOf("number");
   });
 });

@@ -221,6 +221,9 @@ importers:
       '@clientforce/planner':
         specifier: workspace:*
         version: link:../../packages/planner
+      '@clientforce/telemetry':
+        specifier: workspace:*
+        version: link:../../packages/telemetry
       '@clientforce/workflows':
         specifier: workspace:*
         version: link:../../packages/workflows
@@ -441,6 +444,19 @@ importers:
       ioredis:
         specifier: ^5.4.1
         version: 5.11.1
+      zod:
+        specifier: ^3.24.1
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.5
+        version: 22.20.0
+
+  packages/telemetry:
+    dependencies:
+      '@clientforce/events':
+        specifier: workspace:*
+        version: link:../events
       zod:
         specifier: ^3.24.1
         version: 3.25.76
