@@ -146,6 +146,24 @@ class AudioPump {
   }
 }
 
+/**
+ * Trim near-silence padding off both clip edges so a scripted pause equals
+ * its TRUE acoustic gap. Run 8 localized the residual mid-utterance events
+ * here: Aura clips carry ~300-400ms of edge padding, so a nominal 900ms
+ * pause measured ~1400-1600ms between WORDS — squarely at the 1500ms
+ * UtteranceEnd threshold, which then fired mid-utterance by design. In mulaw
+ * the low-amplitude codes live at 0x70-0x7f / 0xf0-0xff; keep 60ms of edge.
+ */
+function trimEdgeSilence(audio: Buffer): Buffer {
+  const isQuiet = (b: number) => (b & 0x70) === 0x70; // |linear| ≲ 500 of 8159
+  const keep = 8 * 60; // 60ms of mulaw/8k
+  let start = 0;
+  while (start < audio.length && isQuiet(audio[start]!)) start++;
+  let end = audio.length;
+  while (end > start && isQuiet(audio[end - 1]!)) end--;
+  return audio.subarray(Math.max(0, start - keep), Math.min(audio.length, end + keep));
+}
+
 /** Synthesize a caller segment once; cached across sessions. */
 const segmentAudioCache = new Map<string, Buffer>();
 async function callerAudio(apiKey: string, text: string): Promise<Buffer> {
@@ -155,7 +173,7 @@ async function callerAudio(apiKey: string, text: string): Promise<Buffer> {
   for await (const chunk of synthesizeAura(apiKey, CALLER_VOICE, text, new AbortController().signal)) {
     chunks.push(chunk);
   }
-  const audio = Buffer.concat(chunks);
+  const audio = trimEdgeSilence(Buffer.concat(chunks));
   segmentAudioCache.set(text, audio);
   return audio;
 }
