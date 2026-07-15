@@ -7,7 +7,7 @@ import {
   AnthropicProvider,
   OpenAiEmbeddingsProvider,
 } from "@clientforce/ai";
-import { createClassifyWorker, createEmailStepComposer, createSmsStepComposer, SendGridSender , TwilioSmsSender, ensureWarmupCompletion, recomputeSenderHealth, runSenderDnsCheck } from "@clientforce/channels";
+import { createClassifyWorker, createEmailStepComposer, createSmsStepComposer, SendGridSender , TwilioSmsSender, applyWarmupHealthInterlock, ensureWarmupCompletion, recomputeSenderHealth, runSenderDnsCheck } from "@clientforce/channels";
 import { isConfigured } from "@clientforce/config";
 import { goalKeySchema, type GoalKey } from "@clientforce/core";
 import { createDistillQueue, createDistillWorker } from "@clientforce/context";
@@ -395,6 +395,14 @@ function startSenderHealthSweep(deps: SenderSweepDeps): void {
         if (result?.transition) {
           transitions++;
           console.log(`[worker] sender-health ${result.transition}: sender=${s.id} score=${result.snapshot.score ?? "n/a"}`);
+        }
+        // Owner-locked interlock: a complaint/bounce spike holds the ramp.
+        const hold = await applyWarmupHealthInterlock(
+          { prisma: deps.prisma },
+          { workspaceId: s.workspaceId, senderId: s.id },
+        );
+        if (hold.changed) {
+          console.log(`[worker] warmup ${hold.holding ? "HELD (spike)" : "resumed"}: sender=${s.id}`);
         }
         const warmup = await ensureWarmupCompletion(
           { prisma: deps.prisma, publish: deps.publish },

@@ -162,7 +162,7 @@ export class SendersController {
       channel: senderLedgerChannel(sender),
       now,
     });
-    const computed = computeSenderHealth(sample, persisted?.state);
+    const computed = computeSenderHealth(sample);
     return {
       senderId: id,
       fromEmail: sender.fromEmail,

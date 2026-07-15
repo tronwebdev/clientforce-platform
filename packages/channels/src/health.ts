@@ -1,26 +1,29 @@
 /**
- * P5 W1 (DEC-083): the sender health engine — a DETERMINISTIC 0–100 score from
- * event-ledger aggregates (windowed bounce / spam-complaint / delivery / reply
- * rates). Documented weights, no AI, and no invented numbers below the sample
+ * P5 W1 (DEC-083, formula LOCKED by owner 2026-07-15): the sender health
+ * engine — a DETERMINISTIC 0–100 score from event-ledger aggregates (rolling
+ * 7-day per-sender rates). No AI, and no invented numbers below the sample
  * floor (the F1 statistical-honesty pattern: `SIGNAL_MIN_SENDS` reused — a
- * low-volume sender is "low data", never a fake score).
+ * low-volume sender is "warming / low data", never a fake score).
  *
- * Formula (weights are the owner-sign-off constants on the PR plan comment):
- * each signal maps to a 0–100 component, health = the weighted mean.
- *   bounce   (w .40): 100 at 0%, 0 at ≥6% — 2× the DEC-019 breach level (3%)
- *   spam     (w .35): 100 at 0%, 0 at ≥0.2% — 2× the DEC-019 breach (0.1%)
- *   delivery (w .15): 100 at ≥98% delivered, 0 at ≤85%; EXCLUDED (weights
- *            renormalized) when no delivery signal exists in the window —
- *            missing webhook instrumentation must never read as failure
- *   reply    (w .10): 100 at ≥2% reply rate, scaling linearly below
+ * PENALTY MODEL (owner-locked constants in `HEALTH_SIGNALS` — config, not
+ * logic): start at 100, subtract each signal's weighted penalty; the penalty
+ * scales LINEARLY between the signal's healthy→danger bounds (0 at/below
+ * healthy, the full weight at/above danger):
+ *   spam-complaint rate — healthy <0.1% · danger >0.3% · weight 40
+ *   hard-bounce rate    — healthy <2%   · danger >5%   · weight 30
+ *   delivery rate       — healthy >95%  · danger <90%  · weight 20
+ *                         (no penalty when NO delivery signal exists in the
+ *                         window — missing webhooks must never read as failure)
+ *   reply/engagement    — weight 10, BONUS ONLY (adds back up to 10, clamped
+ *                         at 100; its absence never drives a pause)
  *
- * State machine (hysteresis so scores hovering at the line don't flap):
- *   score < 40           → unhealthy (auto-pause: boundary refuses typed)
- *   score ≥ 55           → healthy
- *   40–54                → keeps the prior state
- *   sample below floor   → low_data — NEVER gated: a collapsed sender that
- *                          stops sending drains to low_data after the window
- *                          passes and may send again (reversibility; DEC-083)
+ * Bands (owner-locked cutoffs — the W2 ring states):
+ *   healthy ≥ 80 · warming/watch 60–79 · at-risk 40–59 · auto-pause < 40
+ * `< 40` is the SENDER_UNHEALTHY refusal threshold — a SHARP line (the
+ * four-band model replaces the earlier hysteresis: 40–59 is a sendable
+ * at-risk band, not a sticky-paused zone). Below the sample floor → low_data,
+ * NEVER gated: a collapsed sender that stops sending drains to low_data after
+ * the window passes and may send again (reversibility; DEC-083).
  *
  * SMS senders score on their channel's ledger twins (failed ≈ bounce,
  * opted_out ≈ complaint). Transitions emit catalog events; per-send refusals
@@ -32,19 +35,26 @@ import type { EventType } from "@clientforce/events";
 
 /** Rolling aggregation window. */
 export const HEALTH_WINDOW_DAYS = 7;
-/** Component zero-points (rates at which a component score hits 0). */
-export const BOUNCE_ZERO_AT = 0.06;
-export const SPAM_ZERO_AT = 0.002;
-export const DELIVERY_FULL_AT = 0.98;
-export const DELIVERY_ZERO_AT = 0.85;
-export const REPLY_FULL_AT = 0.02;
-/** Component weights (renormalized when the delivery signal is absent). */
-export const HEALTH_WEIGHTS = { bounce: 0.4, spam: 0.35, delivery: 0.15, reply: 0.1 } as const;
-/** Auto-pause / recovery thresholds (hysteresis band between them). */
-export const HEALTH_COLLAPSE_BELOW = 40;
-export const HEALTH_RECOVER_AT = 55;
+
+/** LOCKED (owner 2026-07-15): per-signal bounds + weights — config constants. */
+export const HEALTH_SIGNALS = {
+  /** Complaint rate: 0 penalty ≤0.1%, full 40 ≥0.3%. */
+  spam: { healthy: 0.001, danger: 0.003, weight: 40 },
+  /** Hard-bounce rate: 0 penalty ≤2%, full 30 ≥5%. */
+  bounce: { healthy: 0.02, danger: 0.05, weight: 30 },
+  /** Delivery rate (higher is better): 0 penalty ≥95%, full 20 ≤90%. */
+  delivery: { healthy: 0.95, danger: 0.9, weight: 20 },
+  /** Engagement bonus: up to +10 at ≥2% reply rate — never a penalty. */
+  reply: { weight: 10, fullAt: 0.02 },
+} as const;
+
+/** LOCKED band floors: healthy ≥80 · watch 60–79 · at-risk 40–59 · paused <40. */
+export const HEALTH_BANDS = { healthy: 80, watch: 60, atRisk: 40 } as const;
+/** The SENDER_UNHEALTHY refusal threshold (sharp — recovery is ≥ this line). */
+export const HEALTH_AUTO_PAUSE_BELOW = HEALTH_BANDS.atRisk;
 
 export type HealthGateState = "healthy" | "unhealthy" | "low_data";
+export type HealthBand = "healthy" | "watch" | "at_risk" | "paused";
 
 export interface LedgerSample {
   sent: number;
@@ -58,6 +68,8 @@ export interface HealthComputation {
   /** 0–100, or null below the sample floor (never a fake score). */
   score: number | null;
   state: HealthGateState;
+  /** Owner-locked display band; null below the sample floor. */
+  band: HealthBand | null;
   /** F1 min-n gate over `sent`: none <20 · low 20–49 · ok ≥50. */
   floor: OutcomeSignal;
   /** Rates over `sent`; null below the floor (no fake precision either). */
@@ -76,13 +88,20 @@ export interface HealthSnapshot extends HealthComputation {
 
 const clamp01 = (n: number): number => Math.min(1, Math.max(0, n));
 
+export function healthBandFor(score: number): HealthBand {
+  if (score >= HEALTH_BANDS.healthy) return "healthy";
+  if (score >= HEALTH_BANDS.watch) return "watch";
+  if (score >= HEALTH_BANDS.atRisk) return "at_risk";
+  return "paused";
+}
+
 /** Pure score math — fixture-tested, the single computation both tenant land and the backoffice consume. */
-export function computeSenderHealth(sample: LedgerSample, prior?: HealthGateState): HealthComputation {
+export function computeSenderHealth(sample: LedgerSample): HealthComputation {
   const floor = outcomeSignal(sample.sent);
   if (floor === "none") {
     // Below the sample floor there is no honest score — and no gate: low_data
     // must never refuse, or a fresh sender could never earn a sample.
-    return { score: null, state: "low_data", floor, rates: null };
+    return { score: null, state: "low_data", band: null, floor, rates: null };
   }
 
   const bounceRate = sample.bounced / sample.sent;
@@ -91,38 +110,25 @@ export function computeSenderHealth(sample: LedgerSample, prior?: HealthGateStat
   const deliverySignal = sample.delivered + sample.bounced > 0;
   const deliveryRate = deliverySignal ? sample.delivered / sample.sent : null;
 
-  const components = {
-    bounce: 100 * clamp01(1 - bounceRate / BOUNCE_ZERO_AT),
-    spam: 100 * clamp01(1 - spamRate / SPAM_ZERO_AT),
-    delivery:
-      deliveryRate === null
-        ? null
-        : 100 * clamp01((deliveryRate - DELIVERY_ZERO_AT) / (DELIVERY_FULL_AT - DELIVERY_ZERO_AT)),
-    reply: 100 * clamp01(replyRate / REPLY_FULL_AT),
-  };
+  const { spam, bounce, delivery, reply } = HEALTH_SIGNALS;
+  const spamPenalty = spam.weight * clamp01((spamRate - spam.healthy) / (spam.danger - spam.healthy));
+  const bouncePenalty =
+    bounce.weight * clamp01((bounceRate - bounce.healthy) / (bounce.danger - bounce.healthy));
+  const deliveryPenalty =
+    deliveryRate === null
+      ? 0 // no delivery signal in the window — never penalize missing instrumentation
+      : delivery.weight * clamp01((delivery.healthy - deliveryRate) / (delivery.healthy - delivery.danger));
+  const replyBonus = reply.weight * clamp01(replyRate / reply.fullAt);
 
-  let weighted = 0;
-  let totalWeight = 0;
-  for (const key of ["bounce", "spam", "delivery", "reply"] as const) {
-    const component = components[key];
-    if (component === null) continue; // delivery signal absent — renormalize
-    weighted += HEALTH_WEIGHTS[key] * component;
-    totalWeight += HEALTH_WEIGHTS[key];
-  }
-  const score = Math.round(weighted / totalWeight);
-
-  const state: HealthGateState =
-    score < HEALTH_COLLAPSE_BELOW
-      ? "unhealthy"
-      : score >= HEALTH_RECOVER_AT
-        ? "healthy"
-        : prior === "unhealthy"
-          ? "unhealthy"
-          : "healthy";
+  const score = Math.round(
+    Math.min(100, Math.max(0, 100 - spamPenalty - bouncePenalty - deliveryPenalty + replyBonus)),
+  );
+  const band = healthBandFor(score);
 
   return {
     score,
-    state,
+    state: band === "paused" ? "unhealthy" : "healthy",
+    band,
     floor,
     rates: { bounce: bounceRate, spam: spamRate, delivery: deliveryRate, reply: replyRate },
   };
@@ -244,7 +250,7 @@ export async function recomputeSenderHealth(
     channel,
     now,
   });
-  const computed = computeSenderHealth(sample, prior?.state);
+  const computed = computeSenderHealth(sample);
 
   const snapshot: HealthSnapshot = {
     v: 1,

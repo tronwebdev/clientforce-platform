@@ -15,7 +15,12 @@ import {
   recomputeSenderHealth,
   type HealthRecomputeDeps,
 } from "../src/health";
-import { ensureWarmupCompletion, WARMUP_DAYS } from "../src/warmup";
+import {
+  applyWarmupHealthInterlock,
+  ensureWarmupCompletion,
+  warmupCapFor,
+  WARMUP_DAYS,
+} from "../src/warmup";
 
 const hasInfra = Boolean(process.env.APP_DATABASE_URL ?? process.env.DATABASE_URL);
 const suffix = `hlth-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
@@ -194,6 +199,55 @@ describe.skipIf(!hasInfra)("sender health engine integration", () => {
     expect(drained?.transition).toBe("recovered");
     const recovery = published.find((e) => e.type === "sender.health_recovered.v1");
     expect(recovery?.payload).toMatchObject({ lowData: true });
+  });
+
+  it("health interlock (owner pin): a bounce spike mid-warmup HOLDS the ramp; clearing resumes it", async () => {
+    const T = new Date();
+    // Day 5 of the ramp (cap 100 on curve v2), generous limit so the curve binds.
+    const senderId = await makeSender({
+      dailyLimit: 10_000,
+      warmupState: { startedAt: new Date(T.getTime() - 4 * DAY_MS).toISOString(), curve: "v2" },
+    });
+    // A spike: 8% bounce — at/over the 5% danger bound.
+    await seedLedger(senderId, { sent: 100, delivered: 90, bounced: 8 });
+    await recomputeSenderHealth(deps(), { workspaceId: ws, senderId });
+    const opened = await applyWarmupHealthInterlock(
+      { prisma: app, now: () => T },
+      { workspaceId: ws, senderId },
+    );
+    expect(opened).toEqual({ holding: true, changed: true });
+
+    // Three days pass while the hold is open: the ramp day FREEZES at 5
+    // (without the hold it would be day 8 → cap 250).
+    const T3 = new Date(T.getTime() + 3 * DAY_MS);
+    const heldSender = await owner.senderConnection.findUniqueOrThrow({ where: { id: senderId } });
+    expect(warmupCapFor(heldSender, T3)).toMatchObject({ day: 5, cap: 100, holding: true });
+
+    // The spike clears (window replaced by a clean sample) → the hold closes,
+    // banking 3 days of held time; the ramp resumes from where it stood.
+    await owner.event.deleteMany({ where: { workspaceId: ws, senderId } });
+    await owner.message.deleteMany({ where: { workspaceId: ws, senderId } });
+    await seedLedger(senderId, { sent: 60, delivered: 58, replied: 2 });
+    await recomputeSenderHealth(deps(), { workspaceId: ws, senderId });
+    const closed = await applyWarmupHealthInterlock(
+      { prisma: app, now: () => T3 },
+      { workspaceId: ws, senderId },
+    );
+    expect(closed).toEqual({ holding: false, changed: true });
+    const resumed = await owner.senderConnection.findUniqueOrThrow({ where: { id: senderId } });
+    expect(warmupCapFor(resumed, T3)).toMatchObject({ day: 5, cap: 100, holding: false });
+    // Three MORE days with the hold closed → the ramp advances again (day 8).
+    expect(warmupCapFor(resumed, new Date(T3.getTime() + 3 * DAY_MS))).toMatchObject({
+      day: 8,
+      cap: 250,
+      holding: false,
+    });
+    // Idempotent: nothing to change when there's no spike and no open hold.
+    const noop = await applyWarmupHealthInterlock(
+      { prisma: app, now: () => T3 },
+      { workspaceId: ws, senderId },
+    );
+    expect(noop).toEqual({ holding: false, changed: false });
   });
 
   it("warmup completion: aged-past-curve ramp stamps completedAt once; stale completion stays silent", async () => {

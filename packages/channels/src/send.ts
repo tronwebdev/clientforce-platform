@@ -7,7 +7,7 @@ import {
   type StepContent,
 } from "@clientforce/core";
 import { withTenant, type Message, type PrismaClient, type SenderConnection } from "@clientforce/db";
-import { HEALTH_COLLAPSE_BELOW, HEALTH_RECOVER_AT, parseHealthState } from "./health";
+import { HEALTH_AUTO_PAUSE_BELOW, parseHealthState } from "./health";
 import { hasThreadPrefix, renderTokens, stripThreadPrefix, withReplyPrefix } from "./render";
 import { assertTenantActive } from "./tenant-status";
 import { SendBlockedError, type EmailSender, type RenderedEmail } from "./types";
@@ -84,7 +84,7 @@ export async function sendStep(deps: SendDeps, params: SendStepParams): Promise<
   if (health?.state === "unhealthy") {
     throw new SendBlockedError(
       "SENDER_UNHEALTHY",
-      `health ${health.score ?? "?"}/100 — auto-paused below ${HEALTH_COLLAPSE_BELOW}, resumes at ${HEALTH_RECOVER_AT}`,
+      `health ${health.score ?? "?"}/100 — auto-paused below ${HEALTH_AUTO_PAUSE_BELOW}`,
     );
   }
 

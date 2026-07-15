@@ -11,7 +11,7 @@ import type { INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { DnsCheckDeps, EmailSender, RenderedEmail } from "@clientforce/channels";
+import { WARMUP_CURVE_VERSION, type DnsCheckDeps, type EmailSender, type RenderedEmail } from "@clientforce/channels";
 import { createPrismaClient, type PrismaClient } from "@clientforce/db";
 import { AppModule } from "../src/app.module";
 import { signDevToken } from "../src/auth/dev-token-verifier";
@@ -135,13 +135,13 @@ describe.skipIf(!hasDb)("Sender health API e2e (P5 W1)", () => {
     await owner.$disconnect();
   });
 
-  it("POST /senders stamps the warmup ramp on a FRESH sender (day 1, curve v1)", async () => {
+  it("POST /senders stamps the warmup ramp on a FRESH sender (day 1, current curve)", async () => {
     const res = await request(app.getHttpServer())
       .post("/senders")
       .set(asOwner())
       .send({ type: "CF_MANAGED", fromEmail: `fresh-${suffix}@send.clientforce.io`, fromName: "Fresh" });
     expect(res.status).toBe(201);
-    expect(res.body.warmupState?.curve).toBe("v1");
+    expect(res.body.warmupState?.curve).toBe(WARMUP_CURVE_VERSION);
     expect(res.body.warmupState?.startedAt).toBeTruthy();
   });
 

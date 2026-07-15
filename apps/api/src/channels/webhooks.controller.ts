@@ -16,6 +16,7 @@ import type { Queue } from "bullmq";
 import {
   applyEmailEvent,
   applySmsStop,
+  applyWarmupHealthInterlock,
   ingestInboundEmail,
   ingestInboundSms,
   isStopMessage,
@@ -115,6 +116,8 @@ export class WebhooksController {
           { prisma: this.prisma.app, publish: (input) => this.publisher.publish(input) },
           { workspaceId, senderId },
         );
+        // Owner-locked interlock: a spike holds a mid-warmup ramp immediately.
+        await applyWarmupHealthInterlock({ prisma: this.prisma.app }, { workspaceId, senderId });
       } catch (err) {
         // The webhook must ack regardless — the 10-minute sweep is the floor.
         console.error(`[webhooks] sender-health fast path failed for sender=${senderId}`, err);

@@ -133,7 +133,21 @@ describe.skipIf(!hasInfra)("send boundary — deliverability rails (P5 W1)", () 
     ).id;
     agentId = (
       await owner.agent.create({
-        data: { workspaceId: ws, name: "Probe", goal: "book_appointments", guardrails: {} },
+        data: {
+          workspaceId: ws,
+          name: "Probe",
+          goal: "book_appointments",
+          // Explicit caps: campaign email 300 / sms 100 keep headroom above the
+          // per-sender warmup seeds, so the WARMUP rail (not the campaign cap)
+          // is provably the one that fires in the day-N fixtures.
+          guardrails: {
+            sendingWindow: { days: [1, 2, 3, 4, 5, 6, 7], start: "00:00", end: "23:59", timezone: "UTC" },
+            dailyCap: { email: 300, sms: 100 },
+            consent: null,
+            unsubscribeFooter: true,
+            suppressionCheck: true,
+          },
+        },
       })
     ).id;
     campaignId = (
@@ -221,7 +235,7 @@ describe.skipIf(!hasInfra)("send boundary — deliverability rails (P5 W1)", () 
 
   it("warmup day-N fixture: day 3 cap is enforced per-sender at the boundary; day N+1 raises it", async () => {
     const day = 3;
-    const cap = warmupCurveCap(day, 200)!; // 200-limit sender, day 3
+    const cap = warmupCurveCap(day, 200)!; // curve v2 day 3 = 50 (locked table)
     const startedAt = new Date(IN_WINDOW().getTime() - (day - 1) * DAY_MS).toISOString();
     const senderId = await makeSender({ warmupState: { startedAt, curve: "v1" } });
     await seedSentToday(senderId, cap); // exactly at cap → next refuses
@@ -249,7 +263,7 @@ describe.skipIf(!hasInfra)("send boundary — deliverability rails (P5 W1)", () 
 
   it("pre-W1 regression pin: no warmupState → no ramp; no healthState → no gate", async () => {
     const senderId = await makeSender(); // neither field set — the legacy shape
-    await seedSentToday(senderId, 25); // day-1 curve cap (10) would refuse if a ramp applied
+    await seedSentToday(senderId, 60); // day-1 curve cap (50) would refuse if a ramp applied
     const message = await sendStep(deps(), params(senderId));
     expect(message.senderId).toBe(senderId);
   });
