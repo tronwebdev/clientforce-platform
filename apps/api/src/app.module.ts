@@ -19,6 +19,8 @@ import { ContactsController } from "./contacts/contacts.controller";
 import { ContactsViewController } from "./contacts/contacts-view.controller";
 import { ContactFieldsController } from "./contacts/contact-fields.controller";
 import { ContactListsController } from "./contacts/contact-lists.controller";
+import { ContactValidationController } from "./contacts/contact-validation.controller";
+import { validationProviders } from "./contacts/validation.providers";
 import { BusOrInlinePublisher, EVENTS_PUBLISHER } from "./events/publisher";
 
 @Module({
@@ -34,13 +36,15 @@ import { BusOrInlinePublisher, EVENTS_PUBLISHER } from "./events/publisher";
     BackofficeModule,
     SystemModule,
   ],
-  controllers: [HealthController, MeController, WorkspacesController, ContactsController, ContactsViewController, ContactFieldsController, ContactListsController],
+  controllers: [HealthController, MeController, WorkspacesController, ContactsController, ContactsViewController, ContactFieldsController, ContactListsController, ContactValidationController],
   providers: [
     // Order matters: authenticate + resolve tenancy first, then enforce RBAC.
     { provide: APP_GUARD, useClass: AuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
     // C2.8: membership events (bus with Redis, inline persist without).
     { provide: EVENTS_PUBLISHER, useClass: BusOrInlinePublisher },
+    // LH1 (DEC-087): validation queue + light-pass MX seam (tests override).
+    ...validationProviders,
   ],
 })
 export class AppModule {}

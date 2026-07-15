@@ -14,6 +14,9 @@ import {
 } from "@clientforce/core";
 import { AddToListMenu, EmptyState, listGlyph } from "@clientforce/ui";
 import { ContactImportFlow, fieldCreateFailureCopy } from "../../../components/ContactImportFlow";
+// LH1 (DEC-087): the ONE verdict-chip treatment (rows chip action-relevant
+// states only; the drawer shows all four — §0-flagged designed addition).
+import { VERDICT_CHIP } from "../../../components/validation";
 import { intentTint } from "../../../lib/intents";
 
 const GRAD = "linear-gradient(135deg,#36D7ED 0%,#35E834 55%,#D0F56B 100%)";
@@ -40,6 +43,8 @@ export interface ContactRow {
   lists?: { id: string; name: string }[];
   /** C2.9: the completing campaign's terminal wording (per-row pills/chips). */
   goal?: { key: string; label: string; pill: string } | null;
+  /** LH1 (DEC-087): valid | risky | invalid | unverified (default). */
+  emailVerdict?: string;
   createdAt: string;
   stage: string | null;
   enrollmentStatus: string | null;
@@ -751,7 +756,15 @@ export function ContactsView() {
                     <span style={{ width: 36, height: 36, borderRadius: "50%", flex: "none", background: avTint(c.id), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "#0A0F0C" }}>{initials(c)}</span>
                     <span style={{ minWidth: 0 }}>
                       <span style={{ display: "block", fontWeight: 600, fontSize: 14.5, color: "#0E1512", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fullName(c)}</span>
-                      <span style={{ display: "block", fontSize: 12.5, color: "#9AA59E", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.email}</span>
+                      <span style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+                        <span style={{ fontSize: 12.5, color: "#9AA59E", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.email}</span>
+                        {/* LH1: verdict chip — action-relevant states only (valid stays quiet) */}
+                        {c.email && c.emailVerdict && c.emailVerdict !== "valid" && VERDICT_CHIP[c.emailVerdict] ? (
+                          <span title={VERDICT_CHIP[c.emailVerdict]!.title} style={{ flex: "none", fontSize: 10.5, fontWeight: 700, padding: "2px 8px", borderRadius: 100, background: VERDICT_CHIP[c.emailVerdict]!.bg, color: VERDICT_CHIP[c.emailVerdict]!.fg }} data-testid="verdict-chip">
+                            {VERDICT_CHIP[c.emailVerdict]!.label}
+                          </span>
+                        ) : null}
+                      </span>
                     </span>
                   </div>
                   <div style={{ padding: "11px 12px", fontSize: 14, color: "#3B463F", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.company ?? "—"}</div>
@@ -822,6 +835,12 @@ export function ContactsView() {
                   <div style={{ fontSize: 13, color: "#9AA59E" }}>{drawer.email}</div>
                   <div style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 7, flexWrap: "wrap" }}>
                     <span style={{ display: "inline-flex", padding: "4px 11px", borderRadius: 100, fontSize: 12, fontWeight: 600, background: ST[st!]!.sbg, color: ST[st!]!.sfg }} data-testid="drawer-pill">{st === "Booked" ? drawer.goal?.pill ?? wsPill : st}</span>
+                    {/* LH1: the drawer shows the FULL verdict state, valid included */}
+                    {drawer.email && drawer.emailVerdict && VERDICT_CHIP[drawer.emailVerdict] ? (
+                      <span title={VERDICT_CHIP[drawer.emailVerdict]!.title} style={{ display: "inline-flex", padding: "4px 11px", borderRadius: 100, fontSize: 12, fontWeight: 600, background: VERDICT_CHIP[drawer.emailVerdict]!.bg, color: VERDICT_CHIP[drawer.emailVerdict]!.fg }} data-testid="drawer-verdict-chip">
+                        {VERDICT_CHIP[drawer.emailVerdict]!.label}
+                      </span>
+                    ) : null}
                   </div>
                 </div>
                 <span onClick={() => setDrawerId(null)} style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid #EBE3D6", color: "#9AA59E", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flex: "none" }}>✕</span>

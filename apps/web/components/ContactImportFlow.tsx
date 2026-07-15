@@ -23,14 +23,17 @@
  * start; `onImported` — hands the caller the server result + the listId the
  * run landed in (the wizard resolves count/sample live from it — B6 rule).
  */
-import { useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   importContactRowSchema,
   type ContactFieldDefDto,
   type ImportContactRow,
   type ImportContactsResult,
+  type ValidationBatchReport,
+  type ValidationBatchRow,
 } from "@clientforce/core";
 import { listGlyph } from "@clientforce/ui";
+import { ValidationReportCard } from "./validation";
 
 const GRAD = "linear-gradient(135deg,#36D7ED 0%,#35E834 55%,#D0F56B 100%)";
 
@@ -130,6 +133,31 @@ export function ContactImportFlow({ open, onClose, lists, fieldDefs, refreshDefs
   const [csvListDD, setCsvListDD] = useState(false);
   /** Wizard mount: the list the run auto-created (sticky for retries). */
   const ensuredListRef = useRef<{ id: string; name: string } | null>(null);
+  // LH1 (DEC-087): the ASYNC validation pass — one client key per import run
+  // (retries reuse it) so every chunk lands on ONE ValidationBatch; the done
+  // modal polls the batch report progressively (A4 cadence). Validation
+  // never blocks the import — these states only feed the honest report card.
+  const valKeyRef = useRef<string | null>(null);
+  const [valBatchId, setValBatchId] = useState<string | null>(null);
+  const [valReport, setValReport] = useState<ValidationBatchReport | null>(null);
+  const [valInvalidRows, setValInvalidRows] = useState<ValidationBatchRow[] | null>(null);
+
+  useEffect(() => {
+    if (!open || csvStep !== 3 || !valBatchId) return;
+    let dead = false;
+    const poll = async () => {
+      const report = (await cf(`contacts/validation-batches/${valBatchId}`).catch(() => null)) as ValidationBatchReport | null;
+      if (dead || !report) return;
+      setValReport(report);
+      if (report.counts.pending === 0 && report.counts.invalid > 0) {
+        const detail = (await cf(`contacts/validation-batches/${valBatchId}/rows?outcome=invalid&take=8`).catch(() => null)) as { rows: ValidationBatchRow[] } | null;
+        if (!dead && detail) setValInvalidRows(detail.rows);
+      }
+    };
+    void poll();
+    const t = setInterval(() => void poll(), 5000);
+    return () => { dead = true; clearInterval(t); };
+  }, [open, csvStep, valBatchId]);
 
   function loadCsv(name: string, text: string) {
     const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
@@ -235,18 +263,23 @@ export function ContactImportFlow({ open, onClose, lists, fieldDefs, refreshDefs
     sentRowsRef.current = rowsToSend;
     setImporting(true);
     setImportProg({ done: 0, total: rowsToSend.length });
+    // LH1: one validation-batch key per run — retries reuse it, so retried
+    // rows join the SAME batch and the report stays whole. Captured locally:
+    // closing the modal mid-run resets the ref but must not disturb the loop.
+    const valKey = (valKeyRef.current ??= crypto.randomUUID());
     const agg: ImportContactsResult = { ...base, failed: [...prefailed] };
     for (let start = 0; start < rowsToSend.length; start += CLIENT_CHUNK) {
       const chunk = rowsToSend.slice(start, start + CLIENT_CHUNK);
       try {
         const res = (await cf("contacts/import", {
           method: "POST",
-          body: JSON.stringify({ rows: chunk, ...(listId ? { listId } : {}) }),
+          body: JSON.stringify({ rows: chunk, ...(listId ? { listId } : {}), validationBatchKey: valKey }),
         })) as ImportContactsResult;
         agg.created += res.created;
         agg.skippedDuplicates += res.skippedDuplicates;
         agg.suppressed += res.suppressed;
         agg.failed.push(...res.failed.map((f) => ({ ...f, index: start + f.index })));
+        if (res.validationBatchId) setValBatchId(res.validationBatchId);
       } catch {
         // The chunk is one transaction — a failed call imported none of it.
         chunk.forEach((row, i) => agg.failed.push({ index: start + i, email: row.email, reason: "Network error — row not imported" }));
@@ -290,6 +323,10 @@ export function ContactImportFlow({ open, onClose, lists, fieldDefs, refreshDefs
     setCsvListDD(false);
     setReviewSnap(null);
     ensuredListRef.current = null;
+    valKeyRef.current = null;
+    setValBatchId(null);
+    setValReport(null);
+    setValInvalidRows(null);
     if (importing) {
       // DEC-058: continue in the background; the chunk loop only reads locals
       // and refs, so resetting the wizard state above is safe. Completion
@@ -535,7 +572,11 @@ export function ContactImportFlow({ open, onClose, lists, fieldDefs, refreshDefs
                           {hasFails ? `${res.created} imported · ${res.failed.length} failed` : `${res.created} contact${res.created === 1 ? "" : "s"} imported`}
                         </div>
                         <div style={{ fontSize: 13.5, color: "#5C6B62", lineHeight: 1.5, maxWidth: 380, margin: "0 auto 18px" }}>
-                          {hasFails ? "The rows below didn't import. You can retry just those rows." : "They're ready to enroll in a campaign."}
+                          {hasFails
+                            ? "The rows below didn't import. You can retry just those rows."
+                            : valBatchId
+                              ? "Email validation is running — contacts become sendable as they clear."
+                              : "They're ready to enroll in a campaign."}
                         </div>
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8, textAlign: "left" }}>
                           {tiles.map((t) => (
@@ -554,6 +595,13 @@ export function ContactImportFlow({ open, onClose, lists, fieldDefs, refreshDefs
                               </div>
                             ))}
                           </div>
+                        ) : null}
+                        {/* LH1 (DEC-087): the validation report — §0-flagged designed
+                            addition (the prototype's done modal predates validation).
+                            Progressive + honest: pending line while verdicts land,
+                            honest held states, counts verbatim, exclusions CSV. */}
+                        {valBatchId ? (
+                          <ValidationReportCard batchId={valBatchId} report={valReport} invalidRows={valInvalidRows} />
                         ) : null}
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 22px", borderTop: "1px solid #EBE3D6" }}>

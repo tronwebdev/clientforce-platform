@@ -68,6 +68,9 @@ importers:
       '@clientforce/planner':
         specifier: workspace:*
         version: link:../../packages/planner
+      '@clientforce/validation':
+        specifier: workspace:*
+        version: link:../../packages/validation
       '@clientforce/workflows':
         specifier: workspace:*
         version: link:../../packages/workflows
