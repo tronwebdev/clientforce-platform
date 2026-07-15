@@ -177,14 +177,24 @@ jobs:
           esac
           echo "leg=$LEG"
           if [ -n "$ISO" ] && [ "$ISO" != "US" ]; then
-            echo "enabling low-risk dialing for $ISO..."
-            curl -fsS -X POST "https://voice.twilio.com/v1/DialingPermissions/BulkCountryUpdates" \
+            # BEST-EFFORT: DialingPermissions is parent-account-managed — a
+            # subaccount/trial principal gets 401 here even with creds that
+            # place calls fine. Never fail the run on it; the dial itself is
+            # the authoritative check (Twilio 21215 = geo still blocked, a
+            # console-side toggle only the owner can flip).
+            echo "enabling low-risk dialing for $ISO (best-effort)..."
+            CODE=$(curl -sS -X POST "https://voice.twilio.com/v1/DialingPermissions/BulkCountryUpdates" \
               -u "$TWILIO_ACCOUNT_SID:$TWILIO_AUTH_TOKEN" \
               --data-urlencode "UpdateRequest=[{\"iso_code\":\"$ISO\",\"low_risk_numbers_enabled\":true}]" \
-              -o /dev/null -w "  BulkCountryUpdates HTTP %{http_code}\n"
-            curl -fsS "https://voice.twilio.com/v1/DialingPermissions/Countries/$ISO" \
+              -o /dev/null -w "%{http_code}" || echo "000")
+            echo "  BulkCountryUpdates HTTP $CODE"
+            if [ "$CODE" != "200" ] && [ "$CODE" != "201" ]; then
+              echo "::warning::Geo Permissions API returned $CODE — if the dial fails with Twilio 21215, enable $ISO in console → Voice → Geo Permissions (parent account)."
+            fi
+            curl -sS "https://voice.twilio.com/v1/DialingPermissions/Countries/$ISO" \
               -u "$TWILIO_ACCOUNT_SID:$TWILIO_AUTH_TOKEN" \
-              | python3 -c 'import json,sys; d=json.load(sys.stdin); print(f"  {d[\"iso_code\"]}: low_risk_numbers_enabled={d[\"low_risk_numbers_enabled\"]}")'
+              | python3 -c 'import json,sys; d=json.load(sys.stdin); print(f"  {d.get(\"iso_code\",\"?\")}: low_risk_numbers_enabled={d.get(\"low_risk_numbers_enabled\",\"unknown\")}")' \
+              || echo "  (permission state not readable from this principal)"
           fi
           # Allow-list append (product rail; harmless for the standalone demo
           # leg, which places the call directly). Tolerates a read-only KV
@@ -232,9 +242,18 @@ jobs:
           if [ "${{ inputs.variant }}" = "named" ]; then export DEMO_SPOKEN_NAME="Ava"; fi
           PORT=8080 PUBLIC_HOST="${HOST#https://}" node apps/voice/dist/server.js &
           sleep 3
-          PUBLIC_URL="$HOST" node apps/voice/dist/place-call.js
+          PUBLIC_URL="$HOST" node apps/voice/dist/place-call.js | tee place-call.out
+          CALL_SID="$(sed -n 's/.*callSid=\(CA[a-zA-Z0-9]*\).*/\1/p' place-call.out | head -1)"
           echo "call placed (${{ inputs.variant }} variant); holding for the conversation..."
           sleep 90
+          # Authoritative provider verdict for the report (status + duration;
+          # error code surfaces a geo block as Twilio 21215/13227 explicitly).
+          if [ -n "$CALL_SID" ]; then
+            curl -sS "https://api.twilio.com/2010-04-01/Accounts/$TWILIO_ACCOUNT_SID/Calls/$CALL_SID.json" \
+              -u "$TWILIO_ACCOUNT_SID:$TWILIO_AUTH_TOKEN" \
+              | python3 -c 'import json,sys; d=json.load(sys.stdin); print(f"call status={d.get(\"status\")} duration={d.get(\"duration\")}s answered_by={d.get(\"answered_by\")}")' \
+              || echo "(call status not readable)"
+          fi
           echo "----- metrics.json -----"; cat metrics.json 2>/dev/null || echo "(no metrics — call may not have connected)"
           # Leg framing for the report (owner directive 2026-07-15): on an
           # international leg, perceived latency is NOT gating — PSTN RTT
