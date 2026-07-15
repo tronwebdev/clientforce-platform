@@ -3,6 +3,7 @@ import type {
   BackofficeAgencyRow,
   BackofficeAuditRow,
   BackofficeStaff,
+  ReconciliationRow,
 } from "@clientforce/core";
 import { API_URL, STAFF_SESSION_COOKIE } from "./config";
 
@@ -42,4 +43,12 @@ export async function fetchAuditLog(): Promise<BackofficeAuditRow[]> {
   const res = await fetch(`${API_URL}/backoffice/audit-log`, { headers, cache: "no-store" });
   if (!res.ok) return [];
   return (await res.json()) as BackofficeAuditRow[];
+}
+
+export async function fetchReconciliation(): Promise<ReconciliationRow[]> {
+  const headers = await staffHeaders();
+  if (!headers) return [];
+  const res = await fetch(`${API_URL}/backoffice/reconciliation`, { headers, cache: "no-store" });
+  if (!res.ok) return [];
+  return (await res.json()) as ReconciliationRow[];
 }

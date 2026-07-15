@@ -95,3 +95,93 @@ export interface BackofficeAuditRow {
   metadata: unknown;
   createdAt: string;
 }
+
+// ── B1 W2 (DEC-080): usage · reconciliation · credit-price editor ─────────────
+
+/** A row from the effective-dated `CreditPrice` table (agencyId null = default). */
+export interface CreditPriceRow {
+  agencyId: string | null;
+  action: string;
+  credits: number;
+  effectiveFrom: string | Date;
+}
+
+/**
+ * Resolve the effective credit price for `(agencyId, action)` at time `at`:
+ * the newest row whose `effectiveFrom <= at`, with a per-agency override beating
+ * the platform default (`agencyId = null`). Returns `null` if none applies. Pure
+ * — the credit-price editor and any cost estimate read the same rule.
+ */
+export function resolveCreditPrice(
+  rows: CreditPriceRow[],
+  opts: { agencyId?: string | null; action: string; at?: Date },
+): number | null {
+  const atMs = (opts.at ?? new Date()).getTime();
+  const agencyId = opts.agencyId ?? null;
+  const applicable = rows.filter(
+    (r) =>
+      r.action === opts.action &&
+      new Date(r.effectiveFrom).getTime() <= atMs &&
+      (r.agencyId === null || r.agencyId === agencyId),
+  );
+  if (applicable.length === 0) return null;
+  applicable.sort((a, b) => {
+    // Agency-specific override wins over the platform default…
+    const override = Number(b.agencyId !== null) - Number(a.agencyId !== null);
+    if (override !== 0) return override;
+    // …then the newest effective date.
+    return new Date(b.effectiveFrom).getTime() - new Date(a.effectiveFrom).getTime();
+  });
+  return applicable[0]!.credits;
+}
+
+/** Append an effective-dated credit price (platform default when agencyId null). */
+export const creditPriceUpsertSchema = z.object({
+  agencyId: z.string().min(1).nullable().optional(),
+  action: z.string().trim().min(1).max(60),
+  credits: z.number().int().min(0),
+  effectiveFrom: z.string().datetime().optional(),
+});
+export type CreditPriceUpsertDto = z.infer<typeof creditPriceUpsertSchema>;
+
+export const usageQuerySchema = z.object({
+  scope: z.enum(["agency", "workspace"]),
+  id: z.string().min(1),
+  from: z.string().datetime().optional(),
+  to: z.string().datetime().optional(),
+});
+export type UsageQueryDto = z.infer<typeof usageQuerySchema>;
+
+export const reconciliationQuerySchema = z.object({
+  provider: z.string().trim().min(1).max(40).optional(),
+  month: z
+    .string()
+    .regex(/^\d{4}-\d{2}$/, "month must be YYYY-MM")
+    .optional(),
+});
+export type ReconciliationQueryDto = z.infer<typeof reconciliationQuerySchema>;
+
+export interface UsageRollup {
+  scope: "agency" | "workspace";
+  id: string;
+  from: string;
+  to: string;
+  sendsByChannel: Record<string, number>;
+  voiceMinutes: number;
+  creditBurn: number; // absolute sum of negative ledger deltas
+  creditGranted: number; // sum of positive ledger deltas
+  aiSpendCredits: null; // honest absence — AI spend is not metered yet
+  lowData: boolean; // below the sample floor → don't over-read the numbers
+}
+
+export interface ReconciliationRow {
+  provider: string;
+  metric: string;
+  month: string; // YYYY-MM
+  meteredQuantity: number | null; // null = we don't meter this metric yet
+  invoiceQuantity: number | null;
+  invoiceAmount: number | null; // integer minor units
+  variance: number | null; // metered - invoice
+  variancePct: number | null;
+  matchesInvoice: boolean | null;
+}

@@ -300,6 +300,60 @@ async function main(): Promise<void> {
     }
   }
 
+  // B1 W2 (DEC-080): a reconciliation fixture — a provider invoice plus the
+  // matching metered usage, so the backoffice reconciliation view shows a real
+  // zero-variance match on a fresh staging DB (June 2026), plus a deliberate
+  // voice-minutes variance to exercise the mismatch path. Idempotent.
+  const PERIOD_START = new Date("2026-06-01T00:00:00.000Z");
+  const PERIOD_END = new Date("2026-06-30T23:59:59.000Z");
+  const SENT_AT = new Date("2026-06-15T12:00:00.000Z");
+  const TARGET_SENDS = 3;
+  const demoAgent = await prisma.agent.findFirst({ where: { workspaceId: primary.id } });
+  const demoContact = await prisma.contact.findFirst({ where: { workspaceId: primary.id } });
+  if (demoAgent && demoContact) {
+    const campaign =
+      (await prisma.campaign.findFirst({ where: { workspaceId: primary.id, agentId: demoAgent.id } })) ??
+      (await prisma.campaign.create({
+        data: { workspaceId: primary.id, agentId: demoAgent.id, name: `${demoAgent.name} — primary`, graphId: "" },
+      }));
+    const seededSends = await prisma.message.count({
+      where: {
+        workspaceId: primary.id,
+        channel: "email",
+        direction: "OUTBOUND",
+        sentAt: { gte: PERIOD_START, lte: PERIOD_END },
+      },
+    });
+    if (seededSends < TARGET_SENDS) {
+      await prisma.message.createMany({
+        data: Array.from({ length: TARGET_SENDS - seededSends }, (_v, i) => ({
+          workspaceId: primary.id,
+          campaignId: campaign.id,
+          contactId: demoContact.id,
+          channel: "email",
+          direction: "OUTBOUND" as const,
+          subject: `Reconciliation fixture ${i + 1}`,
+          body: "seed fixture — metered usage for the reconciliation demo",
+          sentAt: SENT_AT,
+          stepNodeId: "seed-fixture",
+        })),
+      });
+    }
+    for (const inv of [
+      { provider: "sendgrid", metric: "email_sends", quantity: TARGET_SENDS, amount: 300 },
+      { provider: "twilio", metric: "voice_minutes", quantity: 10, amount: 1200 },
+    ]) {
+      const exists = await prisma.providerInvoice.findFirst({
+        where: { provider: inv.provider, metric: inv.metric, periodStart: PERIOD_START },
+      });
+      if (!exists) {
+        await prisma.providerInvoice.create({
+          data: { ...inv, periodStart: PERIOD_START, periodEnd: PERIOD_END, source: "manual" },
+        });
+      }
+    }
+  }
+
   const totalContacts = WORKSPACES.reduce((n, w) => n + w.contacts.length, 0);
   const staffCount = await prisma.platformStaff.count();
   console.log(

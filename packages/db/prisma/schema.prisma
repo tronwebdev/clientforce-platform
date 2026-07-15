@@ -825,3 +825,22 @@ model BackofficeAuditLog {
   @@index([operatorId])
   @@index([createdAt])
 }
+
+// Provider invoices (B1 W2, DEC-080) — the reconciliation fixture store. Platform-
+// global, backoffice-only (REVOKEd from clientforce_app). We reconcile our metered
+// usage (from the event ledger) against these per provider per month; this is the
+// FR-BILL-04 enforcement prerequisite, not the enforcement itself.
+model ProviderInvoice {
+  id          String   @id @default(cuid())
+  provider    String // "sendgrid" | "twilio" | "anthropic" | …
+  periodStart DateTime
+  periodEnd   DateTime
+  metric      String // "email_sends" | "sms_segments" | "voice_minutes" | …
+  quantity    Int // provider-reported quantity
+  amount      Int // provider-reported amount, integer minor units (cents)
+  currency    String   @default("USD")
+  source      String   @default("manual") // "manual" | "csv" | "api" (provenance)
+  createdAt   DateTime @default(now())
+
+  @@index([provider, periodStart])
+}
