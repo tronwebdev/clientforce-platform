@@ -3,25 +3,25 @@
  * for the ADR's #1 finding (Deepgram endpointing fragmenting real speech into
  * "…we run" / "afternoon," / "sales." and the agent replying mid-utterance).
  *
- * Rules (the plan-comment proposal, revised by certification runs 3/4):
+ * Rules (the plan-comment proposal, revised by certification runs 3–5):
  * 1. A speech_final phrase ending in a QUESTION MARK → COMMIT NOW.
- *    Interrogative punctuation is structure-driven and safe to trust; runs
- *    3/4 proved periods are NOT — smart_format's punctuator writes "." off
- *    the same mid-thought pause the endpointer saw ("…we run." on the ADR's
- *    fragment), so a period fast-path replies mid-utterance.
- * 2. Everything else → wait for UtteranceEnd (silence-anchored server-side,
- *    word-timestamp-based — no client VAD race). A caller who trails off
- *    still gets a reply after utterance_end_ms of true silence; the ack clip
- *    masks the wait.
- * 3. The continuation-window hold remains ONLY as a wall-clock backstop for
- *    a missed UtteranceEnd event.
- * 4. SpeechStarted cancels a pending hold — the caller kept going.
+ *    Interrogative punctuation is structure-driven and safe to trust; the
+ *    runs proved periods are NOT — smart_format's punctuator writes "." off
+ *    the same mid-thought pause the endpointer saw ("…we run."), so a period
+ *    fast-path replies mid-utterance.
+ * 2. Everything else commits ONLY at UtteranceEnd — silence-anchored
+ *    server-side on word timestamps, so it CANNOT fire while the caller is
+ *    speaking. Run 5 killed the wall-clock backstop hold that remained:
+ *    Deepgram doesn't always re-emit SpeechStarted for a resumed fragment,
+ *    so any client-side timer eventually fires mid-utterance. No timer, no
+ *    race surface. A caller who trails off gets a reply after
+ *    utterance_end_ms of true silence; the ack clip masks the wait.
  *
- * Pure event machine — timers injected, so the ADR's real fragmented call is
- * a deterministic unit fixture.
+ * Pure event machine — the ADR's real fragmented call is a deterministic
+ * unit fixture.
  */
 
-export type TurnCommitSource = "speech_final" | "utterance_end" | "continuation_expiry";
+export type TurnCommitSource = "speech_final" | "utterance_end";
 
 export interface TurnCommit {
   text: string;
@@ -31,11 +31,8 @@ export interface TurnCommit {
 }
 
 export interface TurnGateOptions {
-  continuationWindowMs: number;
   onCommit: (commit: TurnCommit) => void;
-  /** Injectable for deterministic tests; default real timers. */
-  setTimer?: (fn: () => void, ms: number) => unknown;
-  clearTimer?: (handle: unknown) => void;
+  /** Injectable for deterministic tests. */
   now?: () => number;
 }
 
@@ -45,71 +42,40 @@ const QUESTION_RE = /\?["')\]]?$/;
 
 export class TurnGate {
   private pending = "";
-  private holdHandle: unknown;
-  private readonly setTimer: (fn: () => void, ms: number) => unknown;
-  private readonly clearTimer: (handle: unknown) => void;
   private readonly now: () => number;
 
   constructor(private readonly opts: TurnGateOptions) {
-    this.setTimer = opts.setTimer ?? ((fn, ms) => setTimeout(fn, ms));
-    this.clearTimer = opts.clearTimer ?? ((h) => clearTimeout(h as NodeJS.Timeout));
     this.now = opts.now ?? Date.now;
   }
 
-  /** A finalized STT fragment (is_final). Accumulates; evaluates on speech_final. */
+  /** A finalized STT fragment (is_final). Accumulates; questions commit fast. */
   onFinal(text: string, speechFinal: boolean): void {
     const t = text.trim();
-    if (t) {
-      this.pending = this.pending ? `${this.pending} ${t}` : t;
-      this.clearHold();
-    }
+    if (t) this.pending = this.pending ? `${this.pending} ${t}` : t;
     if (!this.pending) return;
-    if (speechFinal) this.evaluate();
+    if (speechFinal && QUESTION_RE.test(this.pending)) {
+      this.commit("speech_final"); // rule 1 — a question, reply now
+    }
   }
 
-  /** Deepgram's hard stop — the caller is truly silent. Commit what's pending. */
+  /** Deepgram's silence-anchored stop — the caller is truly done. */
   onUtteranceEnd(): void {
     if (this.pending) this.commit("utterance_end");
   }
 
-  /** VAD onset — the caller resumed; whatever we were holding continues. */
+  /** VAD onset — nothing to cancel anymore; kept for interface clarity. */
   onSpeechStarted(): void {
-    this.clearHold();
+    // rule 2: commits are silence-anchored server-side; no client state here.
   }
 
   /** Anything buffered but uncommitted (call teardown → transcript tail). */
   flushPending(): string {
     const rest = this.pending;
     this.pending = "";
-    this.clearHold();
     return rest;
   }
 
-  private evaluate(): void {
-    if (QUESTION_RE.test(this.pending)) {
-      this.commit("speech_final"); // rule 1 — a question, reply now
-    } else {
-      this.armHold(); // rules 2/3 — UtteranceEnd commits; this hold backstops
-    }
-  }
-
-  private armHold(): void {
-    this.clearHold();
-    this.holdHandle = this.setTimer(() => {
-      this.holdHandle = undefined;
-      if (this.pending) this.commit("continuation_expiry"); // rule 3's soft twin
-    }, this.opts.continuationWindowMs);
-  }
-
-  private clearHold(): void {
-    if (this.holdHandle !== undefined) {
-      this.clearTimer(this.holdHandle);
-      this.holdHandle = undefined;
-    }
-  }
-
   private commit(source: TurnCommitSource): void {
-    this.clearHold();
     const text = this.pending;
     this.pending = "";
     this.opts.onCommit({ text, source, committedAt: this.now() });

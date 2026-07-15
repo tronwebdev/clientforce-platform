@@ -87,11 +87,7 @@ const wss = new WebSocketServer({ server: httpServer, path: "/media" });
 wss.on("connection", (ws: WebSocket) => {
   const deepgramKey = requireEnv("DEEPGRAM_API_KEY");
   const metrics = new MetricsCollector();
-  metrics.configEcho = {
-    stt: config.stt,
-    continuationWindowMs: config.continuationWindowMs,
-    ackAfterMs: config.ackAfterMs,
-  };
+  metrics.configEcho = { stt: config.stt, ackAfterMs: config.ackAfterMs };
   const gateway = createVoiceGateway(metrics);
   let streamSid = "";
   let session: CallSession | undefined;
@@ -156,7 +152,6 @@ wss.on("connection", (ws: WebSocket) => {
             disclosure: context.disclosure,
             neverSay: context.neverSay,
             sttParams: config.stt,
-            continuationWindowMs: config.continuationWindowMs,
             ackAfterMs: config.ackAfterMs,
             ackClips,
             idleTimeoutMs: config.idleTimeoutMs,

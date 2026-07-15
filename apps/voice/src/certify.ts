@@ -169,12 +169,7 @@ async function runSession(apiKey: string, sessionIndex: number): Promise<Session
   const config = loadVoiceConfig();
   const context = demoCallContext();
   const metrics = new MetricsCollector();
-  metrics.configEcho = {
-    stt: config.stt,
-    continuationWindowMs: config.continuationWindowMs,
-    ackAfterMs: config.ackAfterMs,
-    session: sessionIndex,
-  };
+  metrics.configEcho = { stt: config.stt, ackAfterMs: config.ackAfterMs, session: sessionIndex };
   const gateway = createVoiceGateway(metrics);
   const ackClips = await loadAckClips(apiKey, context.ttsModel, config.ackPhrases, synthesizeAura);
 
@@ -196,7 +191,6 @@ async function runSession(apiKey: string, sessionIndex: number): Promise<Session
     disclosure: context.disclosure,
     neverSay: context.neverSay,
     sttParams: config.stt,
-    continuationWindowMs: config.continuationWindowMs,
     ackAfterMs: config.ackAfterMs,
     ackClips,
     idleTimeoutMs: 0, // the bot controls pacing

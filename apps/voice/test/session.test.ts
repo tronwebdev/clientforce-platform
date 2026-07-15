@@ -81,7 +81,6 @@ function makeSession(over: Partial<CallSessionDeps> & { provider?: CompletionPro
     disclosure: "Hi, this is an AI assistant calling on behalf of Acme. Is now a quick moment?",
     neverSay: ["limited time"],
     sttParams: { model: "nova-2", endpointingMs: 500, utteranceEndMs: 1500, smartFormat: true },
-    continuationWindowMs: 900,
     ackAfterMs: 0,
     ackClips: [],
     idleTimeoutMs: 0,

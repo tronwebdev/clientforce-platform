@@ -24,8 +24,6 @@ export interface VoiceServiceConfig {
     utteranceEndMs: number;
     smartFormat: boolean;
   };
-  /** Application-level turn-commit (TurnGate). */
-  continuationWindowMs: number;
   /** Latency masking: ack clip plays if no reply audio within this window. */
   ackAfterMs: number;
   /** Rotating short verbal acknowledgments — pre-rendered per voice, constant. */
@@ -47,16 +45,6 @@ export function loadVoiceConfig(): VoiceServiceConfig {
       utteranceEndMs: envInt("VOICE_STT_UTTERANCE_END_MS", 1500),
       smartFormat: process.env.VOICE_STT_SMART_FORMAT !== "false",
     },
-    // The FALLBACK hold for a mid-thought fragment. Deepgram's silence-
-    // anchored UtteranceEnd (1500ms) is the primary commit path for
-    // trailing-off callers; this wall-clock hold only backstops a missed
-    // event. Cert run 3 (29381035994) proved 900ms races Deepgram's
-    // SpeechStarted tail latency on adversarial intra-utterance pauses
-    // (hold expiry ~1400ms vs pause 900ms + VAD tail >500ms → 12
-    // mid-utterance commits); 2000ms puts expiry at ~2500ms, beyond any
-    // observed VAD tail, while UtteranceEnd keeps the caller-visible
-    // trailing-off latency at ~1500ms.
-    continuationWindowMs: envInt("VOICE_CONTINUATION_WINDOW_MS", 2000),
     ackAfterMs: envInt("VOICE_ACK_AFTER_MS", 400),
     ackPhrases: ["Mm-hm.", "Right.", "Okay."],
     idleTimeoutMs: envInt("VOICE_IDLE_TIMEOUT_MS", 60_000),

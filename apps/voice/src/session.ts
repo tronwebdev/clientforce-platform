@@ -52,7 +52,6 @@ export interface CallSessionDeps {
   /** Deterministic ban list for the per-sentence checks. */
   neverSay: string[];
   sttParams: SttParams;
-  continuationWindowMs: number;
   ackAfterMs: number;
   /** Pre-rendered ack clips (mulaw) — empty disables masking (tests/cert modes). */
   ackClips: Buffer[];
@@ -92,10 +91,7 @@ export class CallSession {
   constructor(private readonly deps: CallSessionDeps) {
     this.openStt = deps.openStt ?? openSttStream;
     this.synthesize = deps.synthesize ?? synthesizeAura;
-    this.gate = new TurnGate({
-      continuationWindowMs: deps.continuationWindowMs,
-      onCommit: (commit) => this.onTurnCommit(commit),
-    });
+    this.gate = new TurnGate({ onCommit: (commit) => this.onTurnCommit(commit) });
   }
 
   start(): void {
@@ -180,10 +176,9 @@ export class CallSession {
     this.stt?.sendAudio(mulaw);
   }
 
-  /** VAD onset. Cancels a gate hold; if the agent is mid-utterance, barge-in. */
+  /** VAD onset — if the agent is mid-utterance, this is a barge-in. */
   private onSpeechStarted(): void {
     this.speechStartedAt = Date.now();
-    this.gate.onSpeechStarted();
     this.armIdleTimer();
     if (this.speaking) this.bargeIn();
   }
