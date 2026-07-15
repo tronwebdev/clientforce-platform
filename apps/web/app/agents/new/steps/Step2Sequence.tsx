@@ -6,16 +6,29 @@
  * the 560px step/brief editor drawer and the delay modal. All state stays in
  * the Wizard orchestrator.
  */
-import { Fragment } from "react";
-import { GUIDED_EMAIL_CREDITS, GUIDED_SMS_CREDITS } from "@clientforce/core";
-import type { CampaignGraph, CampaignOutcomes, ContactFieldDefDto, GraphNode } from "@clientforce/core";
+import { Fragment, useState } from "react";
+import { GUIDED_EMAIL_CREDITS, GUIDED_SMS_CREDITS, subcampaignChains } from "@clientforce/core";
+import type { CampaignGraph, CampaignOutcomes, CampaignRuleTrigger, ContactFieldDefDto, GraphNode } from "@clientforce/core";
 import { OutcomeBadge } from "../../../../components/OutcomeBadge";
 import { StepEditorDrawer } from "../../../../components/sequence/StepEditorDrawer";
+import { chainMeta, stepPillText, SubcampaignSection } from "../../../../components/sequence/SubcampaignCards";
+import { SubcampaignCreator, type SubcampaignCreated } from "../../../../components/sequence/SubcampaignCreator";
 import { branchWhenLabel, intentTint } from "../../../../lib/intents";
 import { mainPath, mainSteps, strategyStepsOf } from "../../../../lib/graph-path";
-import { Modal, ModalActions, Stepper, tzShort, type BriefDraft, type PreviewState } from "../shared";
+import { suggestedBranches, triggerChip } from "../../../../lib/triggers";
+import { cf, Modal, ModalActions, Stepper, tzShort, type BriefDraft, type PreviewState } from "../shared";
 
 type BranchCases = Extract<GraphNode, { type: "branch" }>["cases"];
+
+/** W2 (#94): the wizard's IN-SESSION created-rules state — trigger chips (and
+ *  the ✦ AI chip, known provenance) for containers created THIS session;
+ *  containers from a resumed draft fall back to "Rule pending" (honest). */
+export interface WizardSubRule {
+  ruleId: string;
+  targetNodeId: string;
+  trigger: CampaignRuleTrigger;
+  ai: boolean;
+}
 
 interface Step2Props {
   drafting: boolean;
@@ -70,6 +83,18 @@ interface Step2Props {
   saveEditedStep: () => Promise<void>;
   sampleCompose: () => Promise<void>;
   saveDelay: () => Promise<void>;
+  /** W2 (#94): the shared sub-campaign creator's host inputs (orchestrator
+   *  state, the wizard idiom) — agentId is real mid-flow (B5 implicit draft). */
+  agentId: string | null;
+  goal: string | null;
+  /** Live email-sender scan — the trigger picker's honest-absence input. */
+  emailConnected: boolean;
+  subRules: WizardSubRule[];
+  subNewOpen: boolean;
+  setSubNewOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  subNewPrefill: { name: string; trigger: CampaignRuleTrigger } | null;
+  setSubNewPrefill: React.Dispatch<React.SetStateAction<{ name: string; trigger: CampaignRuleTrigger } | null>>;
+  onSubcampaignCreated: (created: SubcampaignCreated) => void;
 }
 
 export function Step2Sequence(props: Step2Props) {
@@ -81,13 +106,36 @@ export function Step2Sequence(props: Step2Props) {
     previewBusy, preview, setPreview, fieldDefs, customTokenKey, setCustomTokenKey, customFallback, setCustomFallback,
     delayEdit, setDelayEdit, delayAmount, setDelayAmount, editStepIndex, editStrategyIntent,
     insertCustomToken, saveEditedStep, sampleCompose, saveDelay,
+    agentId, goal, emailConnected, subRules, subNewOpen, setSubNewOpen, subNewPrefill, setSubNewPrefill, onSubcampaignCreated,
   } = props;
+  // W2 (#94): ephemeral popover/expansion UI — never persisted, so it stays
+  // local instead of riding the orchestrator (the state there is cross-step).
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const [subExpandedId, setSubExpandedId] = useState<string | null>(null);
   // G3 (DEC-075): mode applies at the NEXT plan — when the planned steps
   // don't match the selected mode, the existing Regenerate button carries the
   // "Regenerate to apply" affordance instead of the sequence changing under
   // the owner (one semantics with the Settings toggle, never two).
   const guidedPlanned = graph ? mainSteps(graph).some((s) => s.mode === "guided") : false;
   const modeMismatch = graph !== null && mainSteps(graph).length > 0 && (composeMode === "guided") !== guidedPlanned;
+  // W2 (#94): sub-campaign containers → canon cards. Chips come from the
+  // in-session created-rules state; unknown containers (resumed drafts)
+  // render "Rule pending" — honest absence, never a guessed trigger.
+  const subChains = graph ? subcampaignChains(graph) : [];
+  const subCards = subChains.map(({ node, chain }) => {
+    const meta = chainMeta(chain);
+    const rule = subRules.find((r) => r.targetNodeId === node.id);
+    return {
+      id: node.id,
+      name: node.ref,
+      chip: rule ? triggerChip(rule.trigger) : null,
+      ai: rule?.ai ?? false,
+      pills: meta.steps.map(stepPillText),
+      stepCount: meta.steps.length,
+      days: meta.days,
+    };
+  });
+  const expandedSub = subExpandedId ? subChains.find((s) => s.node.id === subExpandedId) : undefined;
   return (
     <>
           <div style={{ maxWidth: 760 }}>
@@ -240,6 +288,42 @@ export function Step2Sequence(props: Step2Props) {
                     <div>
                       <div style={{ display: "flex", alignItems: "center", marginBottom: 12 }}>
                         <div style={{ fontSize: 11.5, fontWeight: 700, color: "#8A7F6B", letterSpacing: ".07em", textTransform: "uppercase", flex: 1 }}>Campaign flow</div>
+                        {/* W2 (#94): "✦ Suggest more branches" — DESIGNED
+                            ADDITION (canon affordance). The suggestions are
+                            rule-based from the goal (deterministic, flagged
+                            honestly in the panel copy); the AI draft only
+                            happens if the owner picks it in the creator. */}
+                        <div style={{ position: "relative" }}>
+                          <span onClick={() => setSuggestOpen((v) => !v)} style={{ fontSize: 12.5, fontWeight: 700, color: "#16A82A", cursor: "pointer" }} data-testid="suggest-branches">✦ Suggest more branches</span>
+                          {suggestOpen ? (
+                            <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 300, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 13, boxShadow: "0 16px 44px rgba(0,0,0,.18)", zIndex: 20, padding: "13px 15px" }} data-testid="suggest-panel">
+                              <div style={{ fontSize: 13, fontWeight: 700, color: "#0E1512", textTransform: "none", letterSpacing: 0 }}>Suggested branches</div>
+                              <div style={{ fontSize: 11.5, fontWeight: 400, color: "#9AA59E", marginTop: 2, lineHeight: 1.45, textTransform: "none", letterSpacing: 0 }}>Deterministic suggestions from your goal — AI drafts the steps if you want.</div>
+                              {suggestedBranches(goal).map((s) => (
+                                <div key={s.name} style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }} data-testid="suggest-row">
+                                  <span style={{ flex: 1, minWidth: 0 }}>
+                                    <span style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: "#0E1512", textTransform: "none", letterSpacing: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</span>
+                                    <span style={{ display: "block", fontSize: 11, fontWeight: 400, color: "#8A7F6B", textTransform: "none", letterSpacing: 0 }}>{triggerChip(s.trigger)}</span>
+                                  </span>
+                                  <span
+                                    onClick={() => {
+                                      // Opens the SHARED creator prefilled at the
+                                      // build step — review + the same POST gate
+                                      // still run; nothing is created silently.
+                                      setSuggestOpen(false);
+                                      setSubNewPrefill(s);
+                                      setSubNewOpen(true);
+                                    }}
+                                    style={{ fontSize: 12, fontWeight: 700, color: "#16A82A", background: "rgba(53,232,52,.1)", border: "1px solid rgba(53,232,52,.3)", borderRadius: 8, padding: "5px 12px", cursor: "pointer", flex: "none" }}
+                                    data-testid="suggest-add"
+                                  >
+                                    Add
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
                       </div>
                       <div style={{ background: "#0C140F", borderRadius: 14, padding: "18px 20px" }}>
                         <div style={{ display: "flex", alignItems: "center", marginBottom: 14 }}>
@@ -288,6 +372,52 @@ export function Step2Sequence(props: Step2Props) {
                       </div>
                       <div style={{ fontSize: 12, color: "#9AA59E", marginTop: 10 }}>Replies are classified by intent (P1.7) — the branch fires the moment a lead answers.</div>
                     </div>
+
+                    {/* W2 (#94): sub-campaigns — the canon grid (chips from
+                        in-session state, ✦ AI chip = known this-session
+                        provenance) + the live add card, via the SHARED
+                        section (one anatomy, two hosts). */}
+                    <SubcampaignSection
+                      cards={subCards}
+                      expandedId={subExpandedId}
+                      onEdit={(id) => setSubExpandedId((v) => (v === id ? null : id))}
+                      onAdd={() => {
+                        setSubNewPrefill(null);
+                        setSubNewOpen(true);
+                      }}
+                      expanded={
+                        expandedSub ? (
+                          <div style={{ marginTop: 12 }} data-testid="subcampaign-expanded">
+                            <div style={{ fontSize: 11.5, fontWeight: 700, color: "#8A7F6B", letterSpacing: ".07em", textTransform: "uppercase", marginBottom: 10 }}>{expandedSub.node.ref} · steps</div>
+                            {expandedSub.chain.map((cNode) => {
+                              if (cNode.type === "delay") {
+                                return (
+                                  <div key={cNode.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "4px 0 4px 24px" }}>
+                                    <span style={{ width: 2, height: 30, background: "#D8CFBE", marginLeft: 17, flex: "none" }} />
+                                    <span onClick={() => { setDelayEdit(cNode); setDelayAmount(cNode.amount); }} style={{ fontSize: 13, fontWeight: 600, color: "#8A7F6B", background: "#F2EEE4", borderRadius: 100, padding: "5px 14px", cursor: "pointer" }} data-testid="sub-delay">⏱ Wait {cNode.amount} {cNode.amount === 1 ? cNode.unit.replace(/s$/, "") : cNode.unit} <span style={{ color: "#C2B79F" }}>✎</span></span>
+                                  </div>
+                                );
+                              }
+                              if (cNode.type !== "step") return null;
+                              const sNode = cNode;
+                              return (
+                                <div key={sNode.id} style={{ display: "flex", gap: 14, alignItems: "flex-start", marginBottom: 6 }} data-testid="subcampaign-step-card">
+                                  <span style={{ width: 38, height: 38, borderRadius: 11, flex: "none", background: sNode.channel === "sms" ? "rgba(54,215,237,.16)" : "rgba(53,232,52,.16)", color: sNode.channel === "sms" ? "#1192A6" : "#16A82A", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, fontWeight: 700 }}>{sNode.channel === "sms" ? "💬" : "✉"}</span>
+                                  <div onClick={() => { setEditNode(sNode); setPreview(null); if (sNode.mode === "guided" && sNode.brief) { setEditBrief({ channel: sNode.channel === "sms" ? "sms" : "email", objective: sNode.brief.objective, subjectHint: sNode.brief.subjectHint ?? "", talkingPoints: [...sNode.brief.talkingPoints], mustSay: [...(sNode.brief.mustSay ?? [])], neverSay: [...(sNode.brief.neverSay ?? [])] }); } else { setEditBrief(null); setEditSubject(sNode.content.subject ?? ""); setEditBody(sNode.content.body ?? ""); } }} style={{ flex: 1, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 14, padding: "16px 18px", boxShadow: "0 4px 16px rgba(14,21,18,.04)", cursor: "pointer" }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                                      <span style={{ fontSize: 12, fontWeight: 700, borderRadius: 8, padding: "3px 10px", background: sNode.channel === "sms" ? "rgba(54,215,237,.14)" : "rgba(53,232,52,.13)", color: sNode.channel === "sms" ? "#1192A6" : "#16A82A" }}>{sNode.channel === "sms" ? "SMS" : sNode.content.threaded ? "Email · threaded" : "Email"}</span>
+                                      <span style={{ marginLeft: "auto", fontSize: 13, color: "#9AA59E" }} data-testid="subcampaign-step-edit">✎ Edit</span>
+                                    </div>
+                                    <div style={{ fontSize: 15.5, fontWeight: 600, color: "#0E1512", marginBottom: 4 }}>{sNode.mode === "guided" && sNode.brief ? sNode.brief.objective : sNode.channel === "sms" ? "SMS message" : (sNode.content.subject ?? "Threaded reply")}</div>
+                                    <div style={{ fontSize: 14, color: "#5C6B62", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{sNode.mode === "guided" && sNode.brief ? sNode.brief.talkingPoints.join(" · ") : sNode.content.body}</div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : null
+                      }
+                    />
                   </div>
                 )}
               </>
@@ -324,6 +454,23 @@ export function Step2Sequence(props: Step2Props) {
         onClose={() => setEditNode(null)}
         onSave={saveEditedStep}
       />
+      {/* W2 (#94): the SHARED sub-campaign creator (one component, two hosts
+          — host deltas ride props). The wizard only ever edits DRAFT agents
+          (launched agents redirect out), so isDraft is true — no DEC-076
+          notice; lead capture has no backend in P1 → honest false. */}
+      {agentId ? (
+        <SubcampaignCreator
+          open={subNewOpen}
+          onClose={() => setSubNewOpen(false)}
+          agentId={agentId}
+          isDraft={true}
+          cf={cf}
+          connected={{ email: emailConnected, leadCapture: false }}
+          goal={goal}
+          prefill={subNewPrefill}
+          onCreated={onSubcampaignCreated}
+        />
+      ) : null}
       {/* delay modal */}
       {delayEdit ? (
         <Modal onClose={() => setDelayEdit(null)} title="Edit delay" tid="delay-modal">

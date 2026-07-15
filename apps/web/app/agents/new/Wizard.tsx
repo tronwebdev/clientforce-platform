@@ -11,8 +11,10 @@
  * actions (the orchestrator); each step renders from props.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { addStep as addStepMutation, BRIEF_TALKING_POINTS_MIN, CONTEXT_FIELD_META, customTokensMissingFallback, GOAL_KEYS, GraphMutationError, GUIDED_EMAIL_CREDITS, GUIDED_SMS_CREDITS, requiredFieldsFor, updateDelay as updateDelayMutation, updateStepBrief, updateStepContent, type GoalKey } from "@clientforce/core";
-import type { CampaignGraph, CampaignOutcomes, ContactFieldDefDto, DraftState, GraphNode } from "@clientforce/core";
+import { addStep as addStepMutation, BRIEF_TALKING_POINTS_MIN, CONTEXT_FIELD_META, customTokensMissingFallback, GOAL_KEYS, GraphMutationError, GUIDED_EMAIL_CREDITS, GUIDED_SMS_CREDITS, requiredFieldsFor, subcampaignChains, updateDelay as updateDelayMutation, updateStepBrief, updateStepContent, type GoalKey } from "@clientforce/core";
+import type { CampaignGraph, CampaignOutcomes, CampaignRuleTrigger, ContactFieldDefDto, DraftState, GraphNode } from "@clientforce/core";
+import type { SubcampaignCreated } from "../../../components/sequence/SubcampaignCreator";
+import type { WizardSubRule } from "./steps/Step2Sequence";
 import { mainSteps, strategyStepsOf } from "../../../lib/graph-path";
 import { goalFitOf } from "../../../lib/goal-fit";
 import { BSTEPS, BUILD_DELAYS, DEFAULT_CAPTURE, EMPTY_MANUAL, GRAD, cf, type AddMode, type AddedContact, type BriefDraft, type CaptureState, type Citation, type ContextField, type Gap, type KnowledgeSource, type PreviewState, type SenderRow } from "./shared";
@@ -181,6 +183,13 @@ export function Wizard() {
   const [customFallback, setCustomFallback] = useState("");
   const [delayEdit, setDelayEdit] = useState<GraphNode | null>(null);
   const [delayAmount, setDelayAmount] = useState(2);
+  // W2 (#94): the sub-campaign creator (shared component) + the wizard's
+  // IN-SESSION created-rules state — trigger chips (and known-provenance
+  // ✦ AI chips) for branches created this session; resumed drafts render
+  // "Rule pending" (honest absence — provenance isn't persisted).
+  const [subNewOpen, setSubNewOpen] = useState(false);
+  const [subNewPrefill, setSubNewPrefill] = useState<{ name: string; trigger: CampaignRuleTrigger } | null>(null);
+  const [subRules, setSubRules] = useState<WizardSubRule[]>([]);
 
   // step 3
   // W3-1: "Upload CSV" opens the REAL C2.5 import flow (shared component)
@@ -441,7 +450,9 @@ export function Wizard() {
   }, [agentId, refreshKnowledge, refreshContext]);
 
   useEffect(() => {
-    if (step === 4) void cf("senders").then(setSenders).catch(() => {});
+    // W2 (#94): step 2 needs the live sender scan too — the sub-campaign
+    // creator's email-backed triggers disable honestly without one.
+    if (step === 1 || step === 4) void cf("senders").then(setSenders).catch(() => {});
   }, [step]);
 
   // F1 (DEC-068): step-2 outcome badges — refetch on entry and on every graph
@@ -547,9 +558,16 @@ export function Wizard() {
 
   // M1b (DEC-068): strategy steps are branch targets, not sequence steps —
   // the drawer header names their intent instead of a bogus "Step N".
+  // W2 (#94): sub-campaign chain steps take their position WITHIN the container.
   const editStepIndex = useMemo(() => {
     if (!graph || !editNode) return 0;
-    return mainSteps(graph).findIndex((n) => n.id === editNode.id) + 1;
+    const main = mainSteps(graph).findIndex((n) => n.id === editNode.id) + 1;
+    if (main > 0) return main;
+    for (const { chain } of subcampaignChains(graph)) {
+      const k = chain.filter((n) => n.type === "step").findIndex((n) => n.id === editNode.id) + 1;
+      if (k > 0) return k;
+    }
+    return 0;
   }, [graph, editNode]);
   const editStrategyIntent = useMemo(() => {
     if (!graph || !editNode) return null;
@@ -1130,6 +1148,19 @@ export function Wizard() {
     if (await putGraphEdit(updated, "Saving delay…")) setDelayEdit(null);
   }
 
+  /** W2 (#94): the creator's POST returned the persisted graph row — set it
+   *  directly (the putGraphEdit pattern: no refetch race) and record the
+   *  entry rule in the in-session state that feeds the branch cards. */
+  function subcampaignCreated(created: SubcampaignCreated) {
+    setGraph(created.graph);
+    setGraphSource(created.source);
+    setGraphVersion(created.version);
+    setSubRules((rs) => [
+      ...rs.filter((r) => r.ruleId !== created.ruleId),
+      { ruleId: created.ruleId, targetNodeId: created.subcampaignId, trigger: created.trigger, ai: created.builtWithAI },
+    ]);
+  }
+
   /** W3-1: a def created inside the import flow must land in the token
    *  picker too — the same refetch the mount effect ran. */
   function refreshFieldDefs() {
@@ -1404,7 +1435,7 @@ export function Wizard() {
 
         {step === 1 ? (
           <Step2Sequence
-            {...{ drafting, graph, graphSource, graphVersion, outcomes, seqView, setSeqView, regenError, regenerate, addStep, branchCases, windowStart, windowEnd, timezone, audienceTotal, composeMode, setSequenceMode, editNode, setEditNode, editSubject, setEditSubject, editBody, setEditBody, editBrief, setEditBrief, briefPointInput, setBriefPointInput, briefMustInput, setBriefMustInput, briefNeverInput, setBriefNeverInput, previewBusy, preview, setPreview, fieldDefs, customTokenKey, setCustomTokenKey, customFallback, setCustomFallback, delayEdit, setDelayEdit, delayAmount, setDelayAmount, editStepIndex, editStrategyIntent, insertCustomToken, saveEditedStep, sampleCompose, saveDelay }}
+            {...{ drafting, graph, graphSource, graphVersion, outcomes, seqView, setSeqView, regenError, regenerate, addStep, branchCases, windowStart, windowEnd, timezone, audienceTotal, composeMode, setSequenceMode, editNode, setEditNode, editSubject, setEditSubject, editBody, setEditBody, editBrief, setEditBrief, briefPointInput, setBriefPointInput, briefMustInput, setBriefMustInput, briefNeverInput, setBriefNeverInput, previewBusy, preview, setPreview, fieldDefs, customTokenKey, setCustomTokenKey, customFallback, setCustomFallback, delayEdit, setDelayEdit, delayAmount, setDelayAmount, editStepIndex, editStrategyIntent, insertCustomToken, saveEditedStep, sampleCompose, saveDelay, agentId, goal, emailConnected: senders.some((s) => s.type !== "TWILIO_SMS" && s.status === "ACTIVE"), subRules, subNewOpen, setSubNewOpen, subNewPrefill, setSubNewPrefill, onSubcampaignCreated: subcampaignCreated }}
           />
         ) : null}
 
