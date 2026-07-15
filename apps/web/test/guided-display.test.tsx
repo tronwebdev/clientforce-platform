@@ -248,13 +248,14 @@ describe("defect B — Steps tab card summaries key off the rider (2026-07-15 Ca
     expect(html).toContain("✦ Regenerate to apply");
   });
 
-  it("MIXED plan under a guided rider: baked truth per card + the canon banner WITHOUT the mismatch line", () => {
+  it("MIXED plan under a guided rider: baked truth per card + the canon banner WITHOUT the mismatch line; the deliberate scripted step tags '✦ AI draft' (hasModeTag = guidedOn)", () => {
     const html = renderToStaticMarkup(<StepsTab view={view(mixedGraph(), "guided")} outcomes={null} />);
     expect(html).toContain("Nudge the unopened email with one easy yes");
     expect(html).toContain("phone tag");
     expect(html).not.toContain('data-testid="step-brief-pending"');
     expect(html).toContain('data-testid="steps-guided-banner"');
     expect(html).not.toContain('data-testid="steps-regen-to-apply-note"');
+    expect(html).toContain('data-testid="step-aidraft-tag"');
   });
 
   it("no rider (legacy scripted agent): cards byte-stable — copy, no guided chips, no banner, no mode tags (canon: tags render only under guided)", () => {

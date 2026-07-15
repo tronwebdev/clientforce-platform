@@ -832,9 +832,11 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
                       <span style={{ fontSize: 11, fontWeight: 700, color: "#1192A6", background: "rgba(54,215,237,.14)", borderRadius: 7, padding: "3px 9px" }} data-testid="step-guided-tag">✦ Composed at send</span>
                       <span style={{ fontSize: 11, fontWeight: 700, color: "#8A7F6B", background: "#F2EEE4", borderRadius: 7, padding: "3px 9px" }} data-testid="step-guided-credits">{n.channel === "sms" ? GUIDED_SMS_CREDITS : GUIDED_EMAIL_CREDITS} credits / send</span>
                     </>
-                  ) : gd?.kind === "aidraft" ? (
-                    // DEC-086 canon mapping: a non-briefable channel under a
-                    // guided rider stays as written — tagged "✦ AI draft".
+                  ) : composeMode === "guided" ? (
+                    // DEC-086 canon mapping (hasModeTag = guidedOn): any card
+                    // NOT composing at send under a guided rider — a deliberate
+                    // per-step scripted flip in a mixed plan, or a non-briefable
+                    // channel — sends as written and tags "✦ AI draft".
                     <span style={{ fontSize: 11, fontWeight: 700, color: "#16A82A", background: "rgba(53,232,52,.12)", borderRadius: 7, padding: "3px 9px" }} data-testid="step-aidraft-tag">✦ AI draft</span>
                   ) : null}
                   {/* F1 (DEC-068): outcome badge — none renders nothing (honest absence) */}
