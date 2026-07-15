@@ -288,6 +288,107 @@ describe.skipIf(!hasDb)("Sender health API e2e (P5 W1)", () => {
     expect(restored.body.providerMessageId).toBeTruthy();
   });
 
+  it("W2 pause/resume: typed, audited, role-gated — and the events feed carries the audit", async () => {
+    const sender = await owner.senderConnection.create({
+      data: {
+        workspaceId: ws,
+        type: "CF_MANAGED",
+        fromEmail: `pausable-${suffix}@send.clientforce.io`,
+        fromName: "Pausable",
+        dailyLimit: 200,
+      },
+    });
+
+    const viewerTry = await request(app.getHttpServer())
+      .patch(`/senders/${sender.id}`)
+      .set(asViewer())
+      .send({ status: "PAUSED" });
+    expect(viewerTry.status).toBe(403);
+
+    const paused = await request(app.getHttpServer())
+      .patch(`/senders/${sender.id}`)
+      .set(asOwner())
+      .send({ status: "PAUSED" });
+    expect(paused.status).toBe(200);
+    expect(paused.body.status).toBe("PAUSED");
+    // …the boundary refuses it on the EXISTING rail (status ≠ ACTIVE)…
+    const refused = await request(app.getHttpServer())
+      .post("/senders/test-send")
+      .set(asOwner())
+      .send({ senderId: sender.id, agentId, to: TEST_INBOX });
+    expect(refused.status).toBe(422);
+    expect(refused.body.reason).toBe("SENDER_DISABLED");
+    // …and the audit landed as ONE typed Event row.
+    const audits = await owner.event.findMany({
+      where: { workspaceId: ws, type: "sender.status_changed.v1", senderId: sender.id },
+    });
+    expect(audits).toHaveLength(1);
+    expect(audits[0]?.payload).toMatchObject({ senderId: sender.id, from: "ACTIVE", to: "PAUSED" });
+
+    const resumed = await request(app.getHttpServer())
+      .patch(`/senders/${sender.id}`)
+      .set(asOwner())
+      .send({ status: "ACTIVE", dailyLimit: 300 });
+    expect(resumed.body).toMatchObject({ status: "ACTIVE", dailyLimit: 300 });
+
+    // The drawer activity feed returns the audit rows, newest first.
+    const events = await request(app.getHttpServer()).get(`/senders/${sender.id}/events`).set(asOwner());
+    expect(events.status).toBe(200);
+    const types = (events.body as Array<{ type: string }>).map((e) => e.type);
+    expect(types.filter((t) => t === "sender.status_changed.v1")).toHaveLength(2);
+    expect((events.body as Array<{ payload: { to?: string } }>)[0]?.payload.to).toBe("ACTIVE");
+
+    // DISABLED is a provisioning state, not an owner toggle.
+    await owner.senderConnection.update({ where: { id: sender.id }, data: { status: "DISABLED" } });
+    const disabledTry = await request(app.getHttpServer())
+      .patch(`/senders/${sender.id}`)
+      .set(asOwner())
+      .send({ status: "ACTIVE" });
+    expect(disabledTry.status).toBe(400);
+
+    // Body must carry status and/or dailyLimit.
+    const emptyTry = await request(app.getHttpServer()).patch(`/senders/${sender.id}`).set(asOwner()).send({});
+    expect(emptyTry.status).toBe(400);
+  });
+
+  it("W2 health detail carries the canon tiles: This week = the 7-day sample, All time = every send", async () => {
+    const sender = await owner.senderConnection.create({
+      data: {
+        workspaceId: ws,
+        type: "CF_MANAGED",
+        fromEmail: `tiles-${suffix}@send.clientforce.io`,
+        fromName: "Tiles",
+        dailyLimit: 200,
+      },
+    });
+    const campaign = await owner.campaign.create({
+      data: { workspaceId: ws, agentId, name: "tiles", graphId: "g1" },
+    });
+    const contact = await owner.contact.create({
+      data: { workspaceId: ws, source: "seed", optOut: {}, tags: [], email: `tiles-${suffix}@t.test` },
+    });
+    const mk = (daysAgo: number, n: number) =>
+      owner.message.createMany({
+        data: Array.from({ length: n }, () => ({
+          workspaceId: ws,
+          campaignId: campaign.id,
+          contactId: contact.id,
+          channel: "email",
+          direction: "OUTBOUND" as const,
+          body: "tile probe",
+          senderId: sender.id,
+          sentAt: new Date(Date.now() - daysAgo * 86_400_000),
+          meta: { senderId: sender.id },
+        })),
+      });
+    await mk(1, 3); // inside the window
+    await mk(30, 4); // aged out — all-time only
+    const res = await request(app.getHttpServer()).get(`/senders/${sender.id}/health`).set(asOwner());
+    expect(res.status).toBe(200);
+    expect(res.body.sample.sent).toBe(3);
+    expect(res.body.sentAllTime).toBe(7);
+  });
+
   it("SMS senders have no DNS posture: dns-check → 400, honest not fake", async () => {
     const sms = await owner.senderConnection.create({
       data: {

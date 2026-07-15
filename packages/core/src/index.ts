@@ -37,6 +37,9 @@ export * from "./language";
 // Guardrails schema (P1.5, A8) + sender DTOs.
 export * from "./guardrails";
 export * from "./senders";
+// P5 W2 (DEC-084): the sender-health band contract (owner-locked cutoffs) —
+// ONE source for the channels engine, the Settings ring, and the B1-W4 fleet.
+export * from "./sender-health";
 
 // Enrollment DTOs (P1.6).
 export * from "./enrollments";

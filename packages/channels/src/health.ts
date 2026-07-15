@@ -30,8 +30,22 @@
  * stay uncataloged (the TENANT_SUSPENDED precedent).
  */
 import { Prisma, withTenant, type PrismaClient, type SenderConnection } from "@clientforce/db";
-import { outcomeSignal, type OutcomeSignal } from "@clientforce/core";
+import {
+  HEALTH_AUTO_PAUSE_BELOW,
+  HEALTH_BANDS,
+  healthBandFor,
+  outcomeSignal,
+  type HealthBand,
+  type HealthGateState,
+  type OutcomeSignal,
+} from "@clientforce/core";
 import type { EventType } from "@clientforce/events";
+
+// P5 W2 (DEC-084): the band contract lives in core (one source for the
+// engine, the Settings ring, and the B1-W4 fleet view) — re-exported here so
+// every W1 import path keeps working.
+export { HEALTH_AUTO_PAUSE_BELOW, HEALTH_BANDS, healthBandFor };
+export type { HealthBand, HealthGateState };
 
 /** Rolling aggregation window. */
 export const HEALTH_WINDOW_DAYS = 7;
@@ -47,14 +61,6 @@ export const HEALTH_SIGNALS = {
   /** Engagement bonus: up to +10 at ≥2% reply rate — never a penalty. */
   reply: { weight: 10, fullAt: 0.02 },
 } as const;
-
-/** LOCKED band floors: healthy ≥80 · watch 60–79 · at-risk 40–59 · paused <40. */
-export const HEALTH_BANDS = { healthy: 80, watch: 60, atRisk: 40 } as const;
-/** The SENDER_UNHEALTHY refusal threshold (sharp — recovery is ≥ this line). */
-export const HEALTH_AUTO_PAUSE_BELOW = HEALTH_BANDS.atRisk;
-
-export type HealthGateState = "healthy" | "unhealthy" | "low_data";
-export type HealthBand = "healthy" | "watch" | "at_risk" | "paused";
 
 export interface LedgerSample {
   sent: number;
@@ -87,13 +93,6 @@ export interface HealthSnapshot extends HealthComputation {
 }
 
 const clamp01 = (n: number): number => Math.min(1, Math.max(0, n));
-
-export function healthBandFor(score: number): HealthBand {
-  if (score >= HEALTH_BANDS.healthy) return "healthy";
-  if (score >= HEALTH_BANDS.watch) return "watch";
-  if (score >= HEALTH_BANDS.atRisk) return "at_risk";
-  return "paused";
-}
 
 /** Pure score math — fixture-tested, the single computation both tenant land and the backoffice consume. */
 export function computeSenderHealth(sample: LedgerSample): HealthComputation {

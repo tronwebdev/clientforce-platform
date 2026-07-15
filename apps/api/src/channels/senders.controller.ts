@@ -6,6 +6,7 @@ import {
   Inject,
   NotFoundException,
   Param,
+  Patch,
   Post,
   UnprocessableEntityException,
 } from "@nestjs/common";
@@ -23,12 +24,13 @@ import {
   type DnsCheckDeps,
   type EmailSender,
 } from "@clientforce/channels";
-import { createSenderSchema, createSmsSenderSchema, testSendSchema } from "@clientforce/core";
+import { createSenderSchema, createSmsSenderSchema, testSendSchema, updateSenderSchema } from "@clientforce/core";
 import { encryptField, Role, type Prisma } from "@clientforce/db";
 import type { ZodSchema } from "zod";
 import { Roles } from "../auth/decorators";
 import { PrismaService } from "../db/prisma.service";
 import { TenantClient } from "../db/tenant-client";
+import { EVENTS_PUBLISHER, type EventsPublisher } from "../events/publisher";
 import { DNS_CHECK_DEPS, EMAIL_TRANSPORT } from "./channels.providers";
 
 function parse<T>(schema: ZodSchema<T>, value: unknown): T {
@@ -55,6 +57,7 @@ export class SendersController {
     private readonly prisma: PrismaService,
     @Inject(EMAIL_TRANSPORT) private readonly transport: EmailSender,
     @Inject(DNS_CHECK_DEPS) private readonly dnsDeps: DnsCheckDeps,
+    @Inject(EVENTS_PUBLISHER) private readonly publisher: EventsPublisher,
   ) {}
 
   @Post()
@@ -145,7 +148,8 @@ export class SendersController {
    * P5 W1 (DEC-083): the score endpoint — fresh, deterministic computation
    * from the ledger (persisted snapshot echoed alongside). B1-W4's backoffice
    * fleet view consumes THIS same computation via the shared channels service;
-   * the score math must never fork.
+   * the score math must never fork. W2 adds `sentAllTime` (the canon drawer's
+   * "All time" tile; `sample.sent` over the 7-day window is "This week").
    */
   @Get(":id/health")
   async health(@Param("id") id: string) {
@@ -163,6 +167,11 @@ export class SendersController {
       now,
     });
     const computed = computeSenderHealth(sample);
+    const sentAllTime = await this.tenant.run((tx) =>
+      tx.message.count({
+        where: { senderId: id, channel: senderLedgerChannel(sender), direction: "OUTBOUND" },
+      }),
+    );
     return {
       senderId: id,
       fromEmail: sender.fromEmail,
@@ -171,10 +180,72 @@ export class SendersController {
       computedAt: now.toISOString(),
       ...computed,
       sample,
+      sentAllTime,
       persisted,
       warmup: warmupProgressFor(sender, now),
       domainAuthStatus: sender.domainAuthStatus,
     };
+  }
+
+  /**
+   * P5 W2 (DEC-084): pause/resume (typed, audited) + the daily-limit edit.
+   * Status moves ACTIVE↔PAUSED only — a PAUSED sender refuses at the existing
+   * `SENDER_DISABLED` rail (status ≠ ACTIVE), so no boundary change rides
+   * this. Every status flip writes one `sender.status_changed.v1` Event row
+   * (the lead.stage_changed manual-move audit pattern).
+   */
+  @Patch(":id")
+  @Roles(Role.OWNER, Role.ADMIN)
+  async update(@Param("id") id: string, @Body() body: unknown) {
+    const dto = parse(updateSenderSchema, body);
+    const workspaceId = this.tenant.workspaceId;
+    const sender = await this.tenant.run((tx) =>
+      tx.senderConnection.findFirst({ where: { id, workspaceId } }),
+    );
+    if (!sender) throw new NotFoundException(`Sender ${id} not found`);
+    if (dto.status && sender.status === "DISABLED") {
+      throw new BadRequestException("A disabled sender can't be paused or resumed here");
+    }
+    const updated = await this.tenant.run((tx) =>
+      tx.senderConnection.update({
+        where: { id },
+        data: {
+          ...(dto.status ? { status: dto.status } : {}),
+          ...(dto.dailyLimit ? { dailyLimit: dto.dailyLimit } : {}),
+        },
+      }),
+    );
+    if (dto.status && dto.status !== sender.status) {
+      await this.publisher.publish({
+        workspaceId,
+        type: "sender.status_changed.v1",
+        senderId: id,
+        payload: { senderId: id, from: sender.status, to: dto.status },
+      });
+    }
+    return updated;
+  }
+
+  /**
+   * P5 W2 (DEC-084): the drawer activity timeline — this sender's ledger rows
+   * (health collapses/recoveries, warmup completion, pause/resume), newest
+   * first, off the W1 `Event.senderId` index.
+   */
+  @Get(":id/events")
+  async events(@Param("id") id: string) {
+    const workspaceId = this.tenant.workspaceId;
+    const sender = await this.tenant.run((tx) =>
+      tx.senderConnection.findFirst({ where: { id, workspaceId }, select: { id: true } }),
+    );
+    if (!sender) throw new NotFoundException(`Sender ${id} not found`);
+    return this.tenant.run((tx) =>
+      tx.event.findMany({
+        where: { workspaceId, senderId: id },
+        orderBy: { occurredAt: "desc" },
+        take: 50,
+        select: { id: true, type: true, payload: true, occurredAt: true },
+      }),
+    );
   }
 
   /**
