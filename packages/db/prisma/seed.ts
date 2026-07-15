@@ -133,6 +133,22 @@ async function main(): Promise<void> {
     create: { email: "tronwebng@gmail.com", name: "Godswill" },
   });
 
+  // B1 W1 (DEC-079): platform-staff allow-list — the backoffice's own identities,
+  // owner-managed and DISTINCT from tenant `User`s. The real owner account is a
+  // platform ADMIN; a dedicated ops OPERATOR (no tenant membership anywhere)
+  // proves the surface is not tied to any tenant login. `update: {}` keeps it
+  // idempotent and never disturbs a status flip made in the backoffice.
+  await prisma.platformStaff.upsert({
+    where: { email: "tronwebng@gmail.com" },
+    update: {},
+    create: { email: "tronwebng@gmail.com", name: "Godswill", role: "ADMIN" },
+  });
+  await prisma.platformStaff.upsert({
+    where: { email: "ops@clientforce.io" },
+    update: {},
+    create: { email: "ops@clientforce.io", name: "Platform Ops", role: "OPERATOR" },
+  });
+
   for (const ws of WORKSPACES) {
     const workspace = await prisma.workspace.upsert({
       where: { agencyId_slug: { agencyId: agency.id, slug: ws.slug } },
@@ -285,10 +301,12 @@ async function main(): Promise<void> {
   }
 
   const totalContacts = WORKSPACES.reduce((n, w) => n + w.contacts.length, 0);
+  const staffCount = await prisma.platformStaff.count();
   console.log(
     `Seeded agency=${agency.slug} owner=${user.email} ` +
       `(${WORKSPACES.length} workspaces, ${totalContacts} contacts, ` +
-      `${DEFAULT_PIPELINE_STAGES.length} stages/ws, ${PLAN_TIERS.length} plans, ${DEFAULT_CREDIT_PRICES.length} credit prices).`,
+      `${DEFAULT_PIPELINE_STAGES.length} stages/ws, ${PLAN_TIERS.length} plans, ` +
+      `${DEFAULT_CREDIT_PRICES.length} credit prices, ${staffCount} platform staff).`,
   );
 }
 
