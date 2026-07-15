@@ -1,0 +1,78 @@
+# #90 (DEC-077) W3 live proof: branch creation on a launched agent → the
+# REAL R1 engine routes a new enrollment into the created branch (terminal
+# move_to_node: cancel + restart at the container, interlock live) → the
+# GUIDED step inside the branch composes (real Sonnet-class, Key Vault
+# ANTHROPIC-API-KEY) → deterministic checks → the unchanged boundary →
+# CAN-SPAM footer exactly once — through REAL durable runs on a local
+# Temporal dev server, SendGrid transport in SANDBOX (nothing delivered).
+# The mid-sequence contact finishes on its enrolled version (DEC-076
+# re-proven on the new shape); the refusal walk rejects loudly persisting
+# nothing. Manual dispatch only.
+name: subcampaign-live-proof
+
+on:
+  workflow_dispatch: {}
+  # TEMPORARY (W3 iteration only, removed before merge): a brand-new workflow
+  # file is not dispatchable by filename until it exists on the default
+  # branch, so pre-merge proof runs fire on push from the PR branch instead.
+  push:
+    branches:
+      - claude/sub-campaign-branch-creation-8sog4z
+    paths:
+      - .github/workflows/subcampaign-live-proof.yml
+      - packages/workflows/scripts/subcampaign-live-proof.ts
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  TURBO_TELEMETRY_DISABLED: 1
+  DATABASE_URL: postgresql://postgres@localhost:5432/clientforce
+  APP_DATABASE_URL: postgresql://clientforce_app@localhost:5432/clientforce
+  KEY_VAULT_NAME: ${{ vars.KEY_VAULT_NAME }}
+
+jobs:
+  proof:
+    name: branch created · R1 routes the enrollment · guided compose in-branch · refusals loud
+    runs-on: ubuntu-latest
+    environment: staging
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: clientforce
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @clientforce/workflows... build
+      - run: pnpm --filter @clientforce/db db:migrate
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Run sub-campaign live proof (sandbox transport; keys masked)
+        run: |
+          set -euo pipefail
+          key="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name ANTHROPIC-API-KEY --query value -o tsv)"
+          echo "::add-mask::$key"
+          sendgrid="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name SENDGRID-API-KEY --query value -o tsv)"
+          echo "::add-mask::$sendgrid"
+          ANTHROPIC_API_KEY="$key" SENDGRID_API_KEY="$sendgrid" pnpm exec tsx packages/workflows/scripts/subcampaign-live-proof.ts
