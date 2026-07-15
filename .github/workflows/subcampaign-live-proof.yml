@@ -12,15 +12,6 @@ name: subcampaign-live-proof
 
 on:
   workflow_dispatch: {}
-  # TEMPORARY (W3 iteration only, removed before merge): a brand-new workflow
-  # file is not dispatchable by filename until it exists on the default
-  # branch, so pre-merge proof runs fire on push from the PR branch instead.
-  push:
-    branches:
-      - claude/sub-campaign-branch-creation-8sog4z
-    paths:
-      - .github/workflows/subcampaign-live-proof.yml
-      - packages/workflows/scripts/subcampaign-live-proof.ts
 
 permissions:
   id-token: write
