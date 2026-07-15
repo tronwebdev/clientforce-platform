@@ -2,6 +2,8 @@ import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
 const SESSION_COOKIE = "cf_session";
+// B1 W1 (DEC-079): the platform backoffice is a SEPARATE rail on its own cookie.
+const STAFF_SESSION_COOKIE = "cf_staff_session";
 // A3 (DEC-060): dual-mode — Clerk only when the publishable key is configured;
 // otherwise the legacy cookie guard runs byte-identically (CI/e2e: zero Clerk env).
 const clerkEnabled = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
@@ -70,8 +72,47 @@ export function devRail(req: NextRequest): boolean {
     .some((c) => c.name.startsWith("__client_uat") && c.value !== "" && c.value !== "0");
 }
 
+/** Is this a backoffice path (its own auth rail)? */
+function isBackofficePath(pathname: string): boolean {
+  return (
+    pathname.startsWith("/backoffice") ||
+    pathname.startsWith("/api/bo") ||
+    pathname.startsWith("/api/staff-auth")
+  );
+}
+
+function isStaffPublic(pathname: string): boolean {
+  return pathname === "/backoffice/login" || pathname.startsWith("/api/staff-auth/");
+}
+
+/**
+ * Backoffice guard (B1 W1, DEC-079): gates `/backoffice/*` pages on the staff
+ * cookie — a TENANT `cf_session` grants nothing here. The `/api/bo` proxy and
+ * `/api/staff-auth` routes handle their own auth (401/redirect), so XHR/API
+ * paths pass through rather than being redirected.
+ */
+export function backofficeMiddleware(req: NextRequest): NextResponse {
+  const { pathname } = req.nextUrl;
+  if (pathname.startsWith("/api/")) return NextResponse.next();
+  const session = req.cookies.get(STAFF_SESSION_COOKIE)?.value;
+  if (!session && !isStaffPublic(pathname)) {
+    const url = req.nextUrl.clone();
+    url.pathname = "/backoffice/login";
+    url.searchParams.set("next", pathname);
+    return NextResponse.redirect(url);
+  }
+  if (session && pathname === "/backoffice/login") {
+    const url = req.nextUrl.clone();
+    url.pathname = "/backoffice/tenants";
+    url.search = "";
+    return NextResponse.redirect(url);
+  }
+  return NextResponse.next();
+}
+
 /** Dispatches per mode; named export keeps the legacy guard unit-testable. */
 export function middleware(req: NextRequest, event: NextFetchEvent) {
+  if (isBackofficePath(req.nextUrl.pathname)) return backofficeMiddleware(req);
   if (!clerkEnabled || devRail(req)) return legacyMiddleware(req);
   return clerkGuard(req, event);
 }
