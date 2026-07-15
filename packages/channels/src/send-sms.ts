@@ -18,7 +18,7 @@ import {
 import { withTenant, type Message, type PrismaClient, type SenderConnection } from "@clientforce/db";
 import { HEALTH_AUTO_PAUSE_BELOW, parseHealthState } from "./health";
 import { renderTokens } from "./render";
-import { assertTenantActive } from "./tenant-status";
+import { assertChannelLive, assertTenantActive } from "./tenant-status";
 import { SendBlockedError, type RenderedSms, type SmsSender } from "./types";
 import { warmupCapFor } from "./warmup";
 
@@ -76,6 +76,8 @@ export async function sendSmsStep(deps: SendSmsDeps, params: SendSmsStepParams):
   // B1 W1 (DEC-079): platform suspension is tenant-wide — the SMS boundary
   // refuses a suspended workspace/agency exactly like the email one.
   await assertTenantActive(prisma, params.workspaceId);
+  // B1 W4 (DEC-082): the per-agency/per-channel kill switch — same boundary.
+  await assertChannelLive(prisma, params.workspaceId, "sms");
 
   const [sender, contact, agent] = await withTenant(prisma, ctx, (tx) =>
     Promise.all([

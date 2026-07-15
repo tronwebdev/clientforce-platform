@@ -21,3 +21,29 @@ export async function assertTenantActive(prisma: PrismaClient, workspaceId: stri
     throw new SendBlockedError("TENANT_SUSPENDED", "agency suspended");
   }
 }
+
+/**
+ * B1 W4 (DEC-082): the per-agency/per-channel kill switch, enforced at the send
+ * boundary exactly like `assertTenantActive` — an ACTIVE `KillSwitch` for the
+ * workspace's agency + channel throws a typed `CHANNEL_KILLED`; clearing it
+ * restores sending. Same machinery as TENANT_SUSPENDED, one more reason — no
+ * fork. `KillSwitch` is app-READABLE (write-only revoked), so this runs on the
+ * RLS-subject client.
+ */
+export async function assertChannelLive(
+  prisma: PrismaClient,
+  workspaceId: string,
+  channel: string,
+): Promise<void> {
+  const ws = await prisma.workspace.findUnique({
+    where: { id: workspaceId },
+    select: { agencyId: true },
+  });
+  if (!ws) return;
+  const kill = await prisma.killSwitch.findUnique({
+    where: { agencyId_channel: { agencyId: ws.agencyId, channel } },
+  });
+  if (kill?.active) {
+    throw new SendBlockedError("CHANNEL_KILLED", `${channel} killed: ${kill.reason}`);
+  }
+}

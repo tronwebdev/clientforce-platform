@@ -9,7 +9,7 @@ import {
 import { withTenant, type Message, type PrismaClient, type SenderConnection } from "@clientforce/db";
 import { HEALTH_AUTO_PAUSE_BELOW, parseHealthState } from "./health";
 import { hasThreadPrefix, renderTokens, stripThreadPrefix, withReplyPrefix } from "./render";
-import { assertTenantActive } from "./tenant-status";
+import { assertChannelLive, assertTenantActive } from "./tenant-status";
 import { SendBlockedError, type EmailSender, type RenderedEmail } from "./types";
 import { warmupCapFor } from "./warmup";
 
@@ -64,6 +64,8 @@ export async function sendStep(deps: SendDeps, params: SendStepParams): Promise<
   // B1 W1 (DEC-079): platform suspension is the first gate — a suspended
   // workspace/agency refuses before any per-recipient work.
   await assertTenantActive(prisma, params.workspaceId);
+  // B1 W4 (DEC-082): the per-agency/per-channel kill switch — same boundary.
+  await assertChannelLive(prisma, params.workspaceId, "email");
 
   const [sender, contact, agent, workspaceContext] = await withTenant(prisma, ctx, (tx) =>
     Promise.all([
