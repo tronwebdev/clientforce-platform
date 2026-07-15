@@ -41,6 +41,10 @@ on:
         description: "certify: paired-bot sessions (>=6 ≈ 114 turns)"
         required: false
         default: "6"
+      to_number:
+        description: "demo-call: E.164 override for the test number (blank = KV SMS-TEST-NUMBER). Masked before any logging; enables the geo permission for its country first."
+        required: false
+        default: ""
 
 permissions:
   id-token: write
@@ -77,15 +81,19 @@ jobs:
 
       - name: Resolve secrets from Key Vault (mask everything)
         id: kv
+        env:
+          TO_OVERRIDE: ${{ inputs.to_number }}
         run: |
           set -euo pipefail
+          # Mask the dispatch-time override before ANY other output can echo it.
+          [ -n "$TO_OVERRIDE" ] && echo "::add-mask::$TO_OVERRIDE"
           get() { az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name "$1" --query value -o tsv 2>/dev/null || true; }
           ANTHROPIC="$(get ANTHROPIC-API-KEY)"
           DEEPGRAM="$(get DEEPGRAM-API-KEY)"
           TW_SID="$(get TWILIO-ACCOUNT-SID)"
           TW_TOKEN="$(get TWILIO-AUTH-TOKEN)"
           TW_FROM="$(get VOICE-FROM-NUMBER)"
-          TW_TO="$(get SMS-TEST-NUMBER)"
+          TW_TO="${TO_OVERRIDE:-$(get SMS-TEST-NUMBER)}"
           for v in "$ANTHROPIC" "$DEEPGRAM" "$TW_SID" "$TW_TOKEN" "$TW_FROM" "$TW_TO"; do
             [ -n "$v" ] && echo "::add-mask::$v" || true
           done
@@ -148,6 +156,51 @@ jobs:
           chmod +x /usr/local/bin/cloudflared
           cloudflared --version
 
+      # Owner directive 2026-07-15 (international demo leg): enable the target
+      # country in Twilio Voice Geo Permissions before dialing — the dial fails
+      # without it — and append the number to the product allow-list rail
+      # (VOICE-ALLOWLIST in KV, the DEC-063-analog list assertDialAllowed reads
+      # via CHANNELS_VOICE_ALLOWLIST). Prints country flags and outcomes only —
+      # never numbers.
+      - name: Geo permissions + allow-list (demo-call)
+        if: inputs.mode == 'demo-call'
+        env:
+          TWILIO_ACCOUNT_SID: ${{ steps.kv.outputs.tw_sid }}
+          TWILIO_AUTH_TOKEN: ${{ steps.kv.outputs.tw_token }}
+          TW_TO: ${{ steps.kv.outputs.tw_to }}
+        run: |
+          set -euo pipefail
+          case "$TW_TO" in
+            +234*) ISO="NG"; LEG="international (NG)";;
+            +1*)   ISO="US"; LEG="domestic (US)";;
+            *)     ISO="";   LEG="unknown-prefix";;
+          esac
+          echo "leg=$LEG"
+          if [ -n "$ISO" ] && [ "$ISO" != "US" ]; then
+            echo "enabling low-risk dialing for $ISO..."
+            curl -fsS -X POST "https://voice.twilio.com/v1/DialingPermissions/BulkCountryUpdates" \
+              -u "$TWILIO_ACCOUNT_SID:$TWILIO_AUTH_TOKEN" \
+              --data-urlencode "UpdateRequest=[{\"iso_code\":\"$ISO\",\"low_risk_numbers_enabled\":true}]" \
+              -o /dev/null -w "  BulkCountryUpdates HTTP %{http_code}\n"
+            curl -fsS "https://voice.twilio.com/v1/DialingPermissions/Countries/$ISO" \
+              -u "$TWILIO_ACCOUNT_SID:$TWILIO_AUTH_TOKEN" \
+              | python3 -c 'import json,sys; d=json.load(sys.stdin); print(f"  {d[\"iso_code\"]}: low_risk_numbers_enabled={d[\"low_risk_numbers_enabled\"]}")'
+          fi
+          # Allow-list append (product rail; harmless for the standalone demo
+          # leg, which places the call directly). Tolerates a read-only KV
+          # principal — reports instead of failing the run.
+          CURRENT="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name VOICE-ALLOWLIST --query value -o tsv 2>/dev/null || true)"
+          case ",$CURRENT," in
+            *",$TW_TO,"*) echo "allow-list: number already present";;
+            *)
+              NEW="${CURRENT:+$CURRENT,}$TW_TO"
+              if az keyvault secret set --vault-name "$KEY_VAULT_NAME" --name VOICE-ALLOWLIST --value "$NEW" -o none 2>/dev/null; then
+                echo "allow-list: number appended to VOICE-ALLOWLIST"
+              else
+                echo "::warning::allow-list: KV principal cannot set VOICE-ALLOWLIST — append it manually in Key Vault"
+              fi;;
+          esac
+
       - name: Demo call (production service, ${{ inputs.variant }} disclosure variant)
         if: inputs.mode == 'demo-call'
         env:
@@ -183,6 +236,24 @@ jobs:
           echo "call placed (${{ inputs.variant }} variant); holding for the conversation..."
           sleep 90
           echo "----- metrics.json -----"; cat metrics.json 2>/dev/null || echo "(no metrics — call may not have connected)"
+          # Leg framing for the report (owner directive 2026-07-15): on an
+          # international leg, perceived latency is NOT gating — PSTN RTT
+          # inflates it; the cert table's US-measured TTFA stands as the
+          # latency evidence. This leg judges disclosure audibility, barge-in
+          # and flow.
+          case "${{ steps.kv.outputs.tw_to }}" in
+            +234*) LEG="international (NG) — latency NON-GATING on this leg";;
+            +1*)   LEG="domestic (US) — perceived-latency confirmation leg";;
+            *)     LEG="unknown prefix";;
+          esac
+          {
+            echo "## demo-call — ${{ inputs.variant }} variant"
+            echo "- leg: $LEG"
+            echo "- judge on this leg: disclosure audibility · barge-in · conversational flow"
+            echo '```json'
+            cat metrics.json 2>/dev/null || echo "(no metrics)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload artifacts
         if: always() && inputs.mode != 'preflight'
