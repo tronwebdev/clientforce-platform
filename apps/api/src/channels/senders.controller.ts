@@ -5,17 +5,31 @@ import {
   Get,
   Inject,
   NotFoundException,
+  Param,
   Post,
   UnprocessableEntityException,
 } from "@nestjs/common";
-import { SendBlockedError, sendStep, type EmailSender } from "@clientforce/channels";
+import {
+  SendBlockedError,
+  computeSenderHealth,
+  loadSenderLedgerSample,
+  initialWarmupState,
+  parseHealthState,
+  runSenderDnsCheck,
+  sendStep,
+  senderLedgerChannel,
+  warmupProgressFor,
+  HEALTH_WINDOW_DAYS,
+  type DnsCheckDeps,
+  type EmailSender,
+} from "@clientforce/channels";
 import { createSenderSchema, createSmsSenderSchema, testSendSchema } from "@clientforce/core";
 import { encryptField, Role, type Prisma } from "@clientforce/db";
 import type { ZodSchema } from "zod";
 import { Roles } from "../auth/decorators";
 import { PrismaService } from "../db/prisma.service";
 import { TenantClient } from "../db/tenant-client";
-import { EMAIL_TRANSPORT } from "./channels.providers";
+import { DNS_CHECK_DEPS, EMAIL_TRANSPORT } from "./channels.providers";
 
 function parse<T>(schema: ZodSchema<T>, value: unknown): T {
   const result = schema.safeParse(value);
@@ -40,6 +54,7 @@ export class SendersController {
     private readonly tenant: TenantClient,
     private readonly prisma: PrismaService,
     @Inject(EMAIL_TRANSPORT) private readonly transport: EmailSender,
+    @Inject(DNS_CHECK_DEPS) private readonly dnsDeps: DnsCheckDeps,
   ) {}
 
   @Post()
@@ -60,6 +75,10 @@ export class SendersController {
             fromName: sms.fromName,
             ...(sms.dailyLimit ? { dailyLimit: sms.dailyLimit } : {}),
             credentialsEnc: new Uint8Array(encryptField(JSON.stringify({ messagingServiceSid: sms.messagingServiceSid }))),
+            // P5 W1 (DEC-083): NEW senders ramp from day 1 (carrier reputation
+            // warms like domain reputation); pre-W1 senders never gain a ramp
+            // retroactively (warmup is triggered, DEC-019).
+            warmupState: initialWarmupState(new Date()) as unknown as Prisma.InputJsonValue,
           },
         }),
       );
@@ -81,6 +100,8 @@ export class SendersController {
           replyTo: dto.replyTo ?? null,
           ...(dto.dailyLimit ? { dailyLimit: dto.dailyLimit } : {}),
           sendingWindow: (dto.sendingWindow ?? undefined) as Prisma.InputJsonValue | undefined,
+          // P5 W1 (DEC-083): fresh senders ramp per the warmup curve from day 1.
+          warmupState: initialWarmupState(new Date()) as unknown as Prisma.InputJsonValue,
         },
       }),
     );
@@ -90,6 +111,7 @@ export class SendersController {
   list() {
     // C2.3: wizard step 5 shows the live "Daily sending" bar per sender —
     // sends record `meta.senderId` at the boundary (P1.5), so count today's.
+    // (The JSON-path count is W3's measured index/perf pass — untouched here.)
     return this.tenant.run(async (tx) => {
       const senders = await tx.senderConnection.findMany({ orderBy: { createdAt: "asc" } });
       const dayStart = new Date();
@@ -106,8 +128,77 @@ export class SendersController {
           }),
         ),
       );
-      return senders.map((s, i) => ({ ...s, sentToday: counts[i] ?? 0 }));
+      // P5 W1 (DEC-083): additive read-model fields — the persisted health
+      // snapshot (null until the first sweep; never invented) and the warmup
+      // projection (null = no ramp, the pre-W1 senders).
+      const now = new Date();
+      return senders.map((s, i) => ({
+        ...s,
+        sentToday: counts[i] ?? 0,
+        health: parseHealthState(s.healthState),
+        warmup: warmupProgressFor(s, now),
+      }));
     });
+  }
+
+  /**
+   * P5 W1 (DEC-083): the score endpoint — fresh, deterministic computation
+   * from the ledger (persisted snapshot echoed alongside). B1-W4's backoffice
+   * fleet view consumes THIS same computation via the shared channels service;
+   * the score math must never fork.
+   */
+  @Get(":id/health")
+  async health(@Param("id") id: string) {
+    const workspaceId = this.tenant.workspaceId;
+    const sender = await this.tenant.run((tx) =>
+      tx.senderConnection.findFirst({ where: { id, workspaceId } }),
+    );
+    if (!sender) throw new NotFoundException(`Sender ${id} not found`);
+    const now = new Date();
+    const persisted = parseHealthState(sender.healthState);
+    const sample = await loadSenderLedgerSample(this.prisma.app, {
+      workspaceId,
+      senderId: id,
+      channel: senderLedgerChannel(sender),
+      now,
+    });
+    const computed = computeSenderHealth(sample);
+    return {
+      senderId: id,
+      fromEmail: sender.fromEmail,
+      status: sender.status,
+      windowDays: HEALTH_WINDOW_DAYS,
+      computedAt: now.toISOString(),
+      ...computed,
+      sample,
+      persisted,
+      warmup: warmupProgressFor(sender, now),
+      domainAuthStatus: sender.domainAuthStatus,
+    };
+  }
+
+  /**
+   * P5 W1 (DEC-083): on-demand DNS re-verification (the drawer's "Re-check
+   * DNS" gains a real endpoint in W2). Real lookups through the injected
+   * deps; the fresh result REPLACES `domainAuthStatus` — never cached-as-
+   * verified. 400 for SMS senders (no DNS posture — honest, not a fake pass).
+   */
+  @Post(":id/dns-check")
+  @Roles(Role.OWNER, Role.ADMIN)
+  async dnsCheck(@Param("id") id: string) {
+    const workspaceId = this.tenant.workspaceId;
+    const sender = await this.tenant.run((tx) =>
+      tx.senderConnection.findFirst({ where: { id, workspaceId } }),
+    );
+    if (!sender) throw new NotFoundException(`Sender ${id} not found`);
+    if (sender.type === "TWILIO_SMS") {
+      throw new BadRequestException("SMS senders have no DNS posture to verify");
+    }
+    const status = await runSenderDnsCheck(
+      { ...this.dnsDeps, prisma: this.prisma.app },
+      { workspaceId, senderId: id },
+    );
+    return { senderId: id, domainAuthStatus: status };
   }
 
   @Post("test-send")

@@ -73,7 +73,12 @@ export type SendBlockReason =
   // SUSPENDED agency — refuses every send at the boundary; reactivation
   // restores it. The kill switch reuses this same machinery (W4 extends the
   // detail, never forks the path).
-  | "TENANT_SUSPENDED";
+  | "TENANT_SUSPENDED"
+  // P5 W1 (DEC-083): health auto-pause. A sender whose ledger-derived health
+  // snapshot is `unhealthy` refuses every send; recovery (score back over the
+  // hysteresis line) or the window draining restores it — reversible, and the
+  // enrollment disposition stays PAUSED like every non-suppression refusal.
+  | "SENDER_UNHEALTHY";
 
 export class SendBlockedError extends Error {
   constructor(

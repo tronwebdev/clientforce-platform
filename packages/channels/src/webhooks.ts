@@ -121,7 +121,20 @@ export interface BusEventInput {
   contactId?: string;
   enrollmentId?: string;
   campaignId?: string;
+  /** P5 W1 (DEC-083): sender attribution for per-sender health rollups. */
+  senderId?: string;
   payload: Record<string, unknown>;
+}
+
+/** Sender attribution off a Message row — the column, meta for pre-backfill rows. */
+export function messageSenderId(message: Message): string | null {
+  if (message.senderId) return message.senderId;
+  const meta = message.meta;
+  if (meta && typeof meta === "object" && !Array.isArray(meta)) {
+    const fromMeta = (meta as Record<string, unknown>).senderId;
+    if (typeof fromMeta === "string" && fromMeta) return fromMeta;
+  }
+  return null;
 }
 
 const TYPED_EVENT: Partial<Record<NormalizedEmailEvent["type"], EventType>> = {
@@ -139,11 +152,15 @@ const TYPED_EVENT: Partial<Record<NormalizedEmailEvent["type"], EventType>> = {
  * Suppressing events additionally emit `lead.unsubscribed.v1`.
  */
 export function toBusEvents(event: NormalizedEmailEvent, message: Message): BusEventInput[] {
+  const senderId = messageSenderId(message);
   const base = {
     workspaceId: message.workspaceId,
     contactId: message.contactId,
     ...(message.enrollmentId ? { enrollmentId: message.enrollmentId } : {}),
     campaignId: message.campaignId,
+    // P5 W1 (DEC-083): provider events inherit the message's sender, so the
+    // health engine's per-sender rollup is one indexed Event scan.
+    ...(senderId ? { senderId } : {}),
   };
   const out: BusEventInput[] = [];
   const typed = TYPED_EVENT[event.type];

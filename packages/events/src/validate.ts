@@ -11,6 +11,9 @@ export interface EventInput<T extends EventType = EventType> {
   contactId?: string | null;
   enrollmentId?: string | null;
   campaignId?: string | null;
+  /** P5 W1 (DEC-083): sender attribution — set on provider-lifecycle and
+   * sender-deliverability events so per-sender rollups are one indexed scan. */
+  senderId?: string | null;
   payload: EventPayloads[T];
   occurredAt?: Date;
 }
@@ -22,6 +25,7 @@ export interface ValidatedEvent<T extends EventType = EventType> {
   contactId: string | null;
   enrollmentId: string | null;
   campaignId: string | null;
+  senderId: string | null;
   payload: EventPayloads[T];
   occurredAt?: Date;
 }
@@ -42,6 +46,7 @@ const EnvelopeSchema = z.object({
   contactId: z.string().nullish(),
   enrollmentId: z.string().nullish(),
   campaignId: z.string().nullish(),
+  senderId: z.string().nullish(),
   occurredAt: z.date().optional(),
 });
 
@@ -76,6 +81,7 @@ export function validateEvent(input: unknown): ValidatedEvent {
     contactId: env.data.contactId ?? null,
     enrollmentId: env.data.enrollmentId ?? null,
     campaignId: env.data.campaignId ?? null,
+    senderId: env.data.senderId ?? null,
     payload: parsed.data as EventPayloads[EventType],
     ...(env.data.occurredAt ? { occurredAt: env.data.occurredAt } : {}),
   };

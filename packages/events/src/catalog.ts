@@ -142,6 +142,34 @@ export const EVENT_SCHEMAS = {
     removedBy: z.string(),
   }),
 
+  // ── Sender deliverability (P5 W1, DEC-083) ─────────────────────────────────
+  // State TRANSITIONS of the ledger-derived health engine and the warmup
+  // scheduler — emitted by the worker sweep / webhook fast path, never per
+  // refused send (send-rail refusals stay uncataloged, the TENANT_SUSPENDED
+  // precedent: they live on `Enrollment.meta.blocked`).
+  "sender.health_collapsed.v1": z.object({
+    senderId: z.string().min(1),
+    /** The score that crossed the auto-pause line (0–100). */
+    score: z.number(),
+    windowDays: z.number().int(),
+    bounceRate: z.number().optional(),
+    spamRate: z.number().optional(),
+  }),
+  "sender.health_recovered.v1": z.object({
+    senderId: z.string().min(1),
+    windowDays: z.number().int(),
+    /** Present on a scored recovery; absent when the window drained. */
+    score: z.number().optional(),
+    /** True when the gate cleared because the sample fell below the floor. */
+    lowData: z.boolean().optional(),
+  }),
+  "sender.warmup_completed.v1": z.object({
+    senderId: z.string().min(1),
+    days: z.number().int(),
+    /** The configured daily limit the ramp finished at. */
+    target: z.number().int(),
+  }),
+
   // ── Billing ────────────────────────────────────────────────────────────────
   "payment.received.v1": z.object({ amount: z.number().int(), channel: z.string().optional() }),
   "credits.consumed.v1": z.object({ amount: z.number().int(), channel: z.string(), balance: z.number().int() }),
@@ -215,6 +243,9 @@ export const EVENT_TYPES = {
   LEAD_UNSUBSCRIBED: "lead.unsubscribed.v1",
   LIST_MEMBER_ADDED: "list.member.added.v1",
   LIST_MEMBER_REMOVED: "list.member.removed.v1",
+  SENDER_HEALTH_COLLAPSED: "sender.health_collapsed.v1",
+  SENDER_HEALTH_RECOVERED: "sender.health_recovered.v1",
+  SENDER_WARMUP_COMPLETED: "sender.warmup_completed.v1",
   PAYMENT_RECEIVED: "payment.received.v1",
   CREDITS_CONSUMED: "credits.consumed.v1",
   CREDITS_LOW: "credits.low.v1",
