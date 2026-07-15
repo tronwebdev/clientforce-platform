@@ -24,6 +24,7 @@ import {
   type LanguageCode,
 } from "@clientforce/core";
 import { withTenant, type Agent, type Contact, type PrismaClient } from "@clientforce/db";
+import { assertTenantActive } from "./tenant-status";
 import { SendBlockedError } from "./types";
 
 export interface DialVoiceDeps {
@@ -79,6 +80,10 @@ export async function assertDialAllowed(
   const now = deps.now?.() ?? new Date();
   const ctx = { workspaceId: params.workspaceId };
 
+  // B1 W1 (DEC-079): platform suspension is the first gate — a call IS a send,
+  // so the dial boundary refuses a suspended workspace/agency like sms/email.
+  await assertTenantActive(prisma, params.workspaceId);
+
   const [contact, agent] = await withTenant(prisma, ctx, (tx) =>
     Promise.all([
       tx.contact.findUnique({ where: { id: params.contactId } }),
@@ -92,7 +97,7 @@ export async function assertDialAllowed(
   const guardrails = parseGuardrails(agent.guardrails);
   const language = resolveLanguage(guardrails);
   // D8: Aura-2 voices are English-only — refuse honestly rather than run a
-  // bilingual-broken call. Q-023 tracks non-English voice.
+  // bilingual-broken call. Q-025 tracks non-English voice.
   if (language !== DEFAULT_LANGUAGE) {
     throw new SendBlockedError("VOICE_LANGUAGE_UNSUPPORTED", language);
   }

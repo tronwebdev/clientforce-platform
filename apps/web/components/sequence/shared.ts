@@ -7,6 +7,26 @@
 
 export const GRAD = "linear-gradient(135deg,#36D7ED 0%,#35E834 55%,#D0F56B 100%)";
 
+/**
+ * W2 (#94): typed `cf` failure. The API's owner-readable `detail`/`message`
+ * rides the error object (the sub-campaign creator renders a 422's detail
+ * verbatim — the #88 error-handling precedent, never a stuck busy state);
+ * `message` stays exactly `path: status` so every existing sink and matcher
+ * (toasts, ensureImportList's 409 regex) is untouched. ONE class here — both
+ * hosts' cf helpers throw it, so `instanceof` holds across the shared
+ * components regardless of which host's cf a prop carries.
+ */
+export class CfError extends Error {
+  constructor(
+    path: string,
+    readonly status: number,
+    readonly detail: string | null,
+  ) {
+    super(`${path}: ${status}`);
+    this.name = "CfError";
+  }
+}
+
 /** G1/G2 brief-editor draft (channel-aware — email adds subjectHint). */
 export type BriefDraft = {
   channel: "email" | "sms";

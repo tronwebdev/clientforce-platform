@@ -45,7 +45,7 @@ export interface VoicePersona {
   label: string;
   /** Prototype-style descriptor, e.g. "US English, warm". */
   descriptor: string;
-  /** Deepgram Aura-2 model id (all English — Q-023 tracks non-English voice). */
+  /** Deepgram Aura-2 model id (all English — Q-025 tracks non-English voice). */
   ttsModel: string;
 }
 

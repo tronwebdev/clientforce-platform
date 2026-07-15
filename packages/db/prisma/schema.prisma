@@ -813,3 +813,56 @@ model MetricDaily {
   @@unique([workspaceId, date, agentId, channel, metric])
   @@index([workspaceId, date])
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §9 Platform backoffice — the internal operator surface (B1 W1, DEC-079)
+//
+// These tables are DELIBERATELY NOT tenant-scoped: no `workspaceId`, no RLS
+// policy, no tenant relation. Cross-tenant read is the backoffice's purpose.
+// They are reached only by the platform-staff auth rail and the RLS-exempt
+// `clientforce_backoffice` role; the migration REVOKEs them from the RLS-subject
+// `clientforce_app` role so no tenant/feature path can touch them at the DB layer.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Allow-listed platform operators (owner-managed), distinct from tenant `User`s.
+// A tenant credential is never in this table, so it can never open the backoffice.
+model PlatformStaff {
+  id        String               @id @default(cuid())
+  email     String               @unique
+  name      String?
+  role      PlatformStaffRole    @default(OPERATOR)
+  status    PlatformStaffStatus  @default(ACTIVE)
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+  auditLog  BackofficeAuditLog[]
+}
+
+enum PlatformStaffRole {
+  OPERATOR
+  ADMIN
+}
+
+enum PlatformStaffStatus {
+  ACTIVE
+  DISABLED
+}
+
+// Append-only audit trail: every backoffice mutation writes one row
+// (operator, action, target, reason). Never updated, never deleted.
+model BackofficeAuditLog {
+  id            String        @id @default(cuid())
+  operatorId    String
+  operator      PlatformStaff @relation(fields: [operatorId], references: [id])
+  // Denormalized so the audit row survives even if the staff row is later renamed.
+  operatorEmail String
+  action        String // e.g. "agency.suspend", "workspace.credit.adjust"
+  targetType    String // "agency" | "workspace"
+  targetId      String
+  reason        String?
+  metadata      Json? // typed context: { before, after, delta, balanceAfter, … }
+  createdAt     DateTime      @default(now())
+
+  @@index([targetType, targetId])
+  @@index([operatorId])
+  @@index([createdAt])
+}

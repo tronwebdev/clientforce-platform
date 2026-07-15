@@ -1,6 +1,8 @@
 /** Shared bits for the Agent view tabs (C2.4). Plain module (no "use client")
  * so the server route can import TABS for validation. */
 
+import { CfError } from "../../../../../components/sequence/shared";
+
 export const TABS = [
   { id: "inbox", label: "Inbox", icon: "✉", wired: true },
   // P3.1 (DEC-078): the voice channel shipped — Calls goes live.
@@ -25,12 +27,20 @@ export const GOAL_EMOJI: Record<string, string> = {
   custom: "✎",
 };
 
+// W2 (#94): failures throw the shared CfError — message stays `path: status`
+// (existing toasts/matchers untouched); the API's owner-readable `detail`
+// rides the object for surfaces that render it (the sub-campaign creator).
 export const cf = (path: string, init?: RequestInit) =>
   fetch(`/api/cf/${path}`, {
     headers: { "Content-Type": "application/json" },
     ...init,
   }).then(async (r) => {
-    if (!r.ok) throw new Error(`${path}: ${r.status}`);
+    if (!r.ok) {
+      const body = (await r.json().catch(() => null)) as { detail?: unknown; message?: unknown } | null;
+      const detail =
+        typeof body?.detail === "string" ? body.detail : typeof body?.message === "string" ? body.message : null;
+      throw new CfError(path, r.status, detail);
+    }
     return r.json();
   });
 

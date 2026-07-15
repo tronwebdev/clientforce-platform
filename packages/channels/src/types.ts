@@ -69,8 +69,13 @@ export type SendBlockReason =
   // P2.1 (DEC-061): SMS-boundary extensions.
   | "CONTACT_NO_PHONE"
   | "SENDER_NOT_SMS"
+  // B1 W1 (DEC-079): platform suspension. A SUSPENDED workspace — or its
+  // SUSPENDED agency — refuses every send at the boundary; reactivation
+  // restores it. The kill switch reuses this same machinery (W4 extends the
+  // detail, never forks the path).
+  | "TENANT_SUSPENDED"
   // P3.1 (DEC-078): voice dial-boundary extension — Aura-2 voices are
-  // English-only, so non-English agents refuse honestly (Q-023 tracks
+  // English-only, so non-English agents refuse honestly (Q-025 tracks
   // non-English voice; the disclosure constants already ship translated).
   | "VOICE_LANGUAGE_UNSUPPORTED";
 

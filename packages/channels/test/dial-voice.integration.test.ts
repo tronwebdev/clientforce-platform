@@ -1,9 +1,10 @@
 /**
  * P3.1 (DEC-078) dial-boundary integration: the voice rails end-to-end
  * against Postgres — happy clearance, then the full refusal matrix in the
- * send-sms rail order: no phone → language gate (D8) → calling window →
- * per-campaign cap → opt-out/suppression (D5: sms consent blocks voice too —
- * the number is shared) → allow-list. Skips without infra.
+ * send-sms rail order: tenant suspension (DEC-079, first gate) → no phone →
+ * language gate (D8) → calling window → per-campaign cap → opt-out/suppression
+ * (D5: sms consent blocks voice too — the number is shared) → allow-list.
+ * Skips without infra.
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
@@ -102,6 +103,16 @@ describe.skipIf(!hasInfra)("assertDialAllowed boundary integration", () => {
     expect(clearance.phone).toBe(PHONE);
     expect(clearance.language).toBe("en");
     expect(clearance.guardrails.dailyCap.voice).toBe(2);
+  });
+
+  it("TENANT_SUSPENDED (DEC-079): a suspended workspace — or agency — never dials", async () => {
+    await owner.workspace.update({ where: { id: ws }, data: { status: "SUSPENDED" } });
+    expect(await reasonOf(assertDialAllowed(deps(), base()))).toBe("TENANT_SUSPENDED");
+    await owner.workspace.update({ where: { id: ws }, data: { status: "ACTIVE" } });
+    await owner.agency.update({ where: { id: agencyId }, data: { status: "SUSPENDED" } });
+    expect(await reasonOf(assertDialAllowed(deps(), base()))).toBe("TENANT_SUSPENDED");
+    await owner.agency.update({ where: { id: agencyId }, data: { status: "ACTIVE" } });
+    expect(await reasonOf(assertDialAllowed(deps(), base()))).toBe("(allowed)");
   });
 
   it("CONTACT_NO_PHONE: a contact without a phone never dials", async () => {

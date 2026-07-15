@@ -44,7 +44,7 @@ carry DEC-078(7).
 - Outcome vocabulary is the deterministic call-status set
   (Completed/No answer/Busy/Failed/Canceled) — the canon's
   Booked/Interested/Voicemail outcomes require call tools + voicemail
-  detection (Q-022). Pill styling reuses the canon's `callOut` colors.
+  detection (Q-024). Pill styling reuses the canon's `callOut` colors.
 - The dark recording player + "⬇ Recording" are honest-absent: recording is
   OFF by default (owner lock) and this unit ships constants only — the
   transcript is the record.

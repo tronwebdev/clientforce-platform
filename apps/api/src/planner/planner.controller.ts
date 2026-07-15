@@ -548,4 +548,57 @@ export class PlannerController {
       return { campaign, graph };
     });
   }
+
+  /**
+   * W2 (#94): the sub-campaign cards' trigger chips — a READ of R1 rows for
+   * DISPLAY only, not rules CRUD (R1 CRUD stays out of scope): the enabled
+   * rules whose `move_to_node` targets a sub-campaign container in the
+   * current graph, as `[{ruleId, targetNodeId, trigger}]` in evaluation
+   * order. Triggers parse through the canonical `campaignRuleTriggerSchema`;
+   * unparseable rows contribute nothing here (they render as their own error
+   * state on the rules surface — the R1 rule). Query schema is the
+   * `plannerGraphQuerySchema` pattern (agentId), reused verbatim.
+   */
+  @Get("subcampaign-rules")
+  @Roles(Role.OWNER, Role.ADMIN, Role.AGENT)
+  async subcampaignRules(@Query() query: unknown) {
+    const dto = parse(plannerGraphQuerySchema, query ?? {});
+    return this.tenant.run(async (tx) => {
+      const campaign = await tx.campaign.findFirst({
+        where: { agentId: dto.agentId },
+        orderBy: { createdAt: "asc" },
+      });
+      if (!campaign) return [];
+      const graphRow = await tx.campaignGraph.findFirst({
+        where: { campaignId: campaign.id },
+        orderBy: { version: "desc" },
+      });
+      let subIds = new Set<string>();
+      if (graphRow) {
+        try {
+          subIds = new Set(
+            validateGraph(graphRow.graph)
+              .nodes.filter((n) => n.type === "subcampaign")
+              .map((n) => n.id),
+          );
+        } catch {
+          subIds = new Set(); // unreadable stored graph → no display targets
+        }
+      }
+      if (subIds.size === 0) return [];
+      const rules = await tx.campaignRule.findMany({
+        where: { campaignId: campaign.id, enabled: true },
+        orderBy: { order: "asc" },
+      });
+      const out: Array<{ ruleId: string; targetNodeId: string; trigger: RuleTrigger }> = [];
+      for (const rule of rules) {
+        const trig = campaignRuleTriggerSchema.safeParse(rule.trigger);
+        if (!trig.success) continue;
+        const target = moveTargetIdsOf(rule.actions).find((id) => subIds.has(id));
+        if (!target) continue;
+        out.push({ ruleId: rule.id, targetNodeId: target, trigger: trig.data });
+      }
+      return out;
+    });
+  }
 }

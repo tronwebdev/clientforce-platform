@@ -9,6 +9,7 @@ import { HealthController } from "./health.controller";
 import { ChannelsModule } from "./channels/channels.module";
 import { ContextModule } from "./context/context.module";
 import { EnrollmentsModule } from "./enrollments/enrollments.module";
+import { BackofficeModule } from "./backoffice/backoffice.module";
 import { KnowledgeModule } from "./knowledge/knowledge.module";
 import { MeController } from "./me/me.controller";
 import { WorkspacesController } from "./workspaces/workspaces.controller";
@@ -31,6 +32,7 @@ import { BusOrInlinePublisher, EVENTS_PUBLISHER } from "./events/publisher";
     PlannerModule,
     ChannelsModule,
     EnrollmentsModule,
+    BackofficeModule,
     SystemModule,
     VoiceModule,
   ],
