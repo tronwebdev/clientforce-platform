@@ -45,6 +45,7 @@ export {
   parseHealthState,
   recomputeSenderHealth,
   senderLedgerChannel,
+  spikeSignals,
   type HealthBand,
   type HealthComputation,
   type HealthGateState,
@@ -81,6 +82,12 @@ export {
   type DnsRecordStatus,
   type DomainAuthStatus,
 } from "./dns-check";
+// P5 W3 (DEC-085): suppression-list hygiene (case dedupe + opt-out sync).
+export {
+  runSuppressionHygiene,
+  SUPPRESSION_AGING_BOUNCE_DAYS,
+  type SuppressionHygieneResult,
+} from "./suppression-hygiene";
 export {
   messageSenderId,
   resolveEventMessage,

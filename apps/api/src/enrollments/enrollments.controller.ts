@@ -26,6 +26,7 @@ import { workflowIdFor } from "@clientforce/workflows";
 import type { ZodSchema } from "zod";
 import { Roles } from "../auth/decorators";
 import { TenantClient } from "../db/tenant-client";
+import { EVENTS_PUBLISHER, type EventsPublisher } from "../events/publisher";
 import { WORKFLOW_ENGINE, type WorkflowEngine } from "./workflow-engine";
 
 function parse<T>(schema: ZodSchema<T>, value: unknown): T {
@@ -51,6 +52,7 @@ export class EnrollmentsController {
   constructor(
     private readonly tenant: TenantClient,
     @Inject(WORKFLOW_ENGINE) private readonly engine: WorkflowEngine,
+    @Inject(EVENTS_PUBLISHER) private readonly publisher: EventsPublisher,
   ) {}
 
   @Post()
@@ -194,22 +196,25 @@ export class EnrollmentsController {
   }
 
   /**
-   * C2.4 manual stage move (lead drawer "Move" / inbox "Move to"): persists the
-   * stage and writes the lead.stage_changed.v1 Event row directly (no bus in
-   * the API process — Logs and the drawer timeline read Event rows).
+   * C2.4 manual stage move (lead drawer "Move" / inbox "Move to" / the P5-W3
+   * pipeline-board drag). P5 W3 (DEC-085): the stage_changed event now goes
+   * through the EVENTS PUBLISHER (bus with Redis, inline persist without) —
+   * the Event row still lands for Logs/timelines, AND the campaign rules that
+   * listen to lead.stage_changed.v1 (e.g. meeting_booked) fire for HUMAN
+   * moves exactly like machine moves. Behavior upgrade, regression-pinned.
    */
   @Patch(":id")
   @Roles(Role.OWNER, Role.ADMIN)
   async move(@Param("id") id: string, @Body() body: { pipelineStage?: string }) {
     const stage = String(body?.pipelineStage ?? "").trim();
     if (!stage || stage.length > 40) throw new BadRequestException("pipelineStage required");
-    return this.tenant.run(async (tx) => {
+    const moved = await this.tenant.run(async (tx) => {
       const enrollment = await tx.enrollment.findUnique({
         where: { id },
         include: { campaign: { select: { agent: { select: { goal: true, guardrails: true } } } } },
       });
       if (!enrollment) throw new NotFoundException(`Enrollment ${id} not found`);
-      if (enrollment.pipelineStage === stage) return enrollment;
+      if (enrollment.pipelineStage === stage) return { updated: enrollment, event: null };
       const { campaign, ...bare } = enrollment;
       const updated = await tx.enrollment.update({
         where: { id },
@@ -218,18 +223,20 @@ export class EnrollmentsController {
       // C2.9 (DEC-059): goal-completion moves carry the campaign goal + its
       // terminal label — timelines render the label verbatim.
       const goal = stage === "booked" ? goalMeta(campaign.agent.goal, campaign.agent.guardrails) : null;
-      await tx.event.create({
-        data: {
+      return {
+        updated,
+        event: {
           workspaceId: this.tenant.workspaceId,
-          type: "lead.stage_changed.v1",
+          type: "lead.stage_changed.v1" as const,
           contactId: bare.contactId,
           enrollmentId: bare.id,
           campaignId: bare.campaignId,
           payload: { fromStage: bare.pipelineStage, toStage: stage, manual: true, ...(goal ?? {}) },
         },
-      });
-      return updated;
+      };
     });
+    if (moved.event) await this.publisher.publish(moved.event);
+    return moved.updated;
   }
 
   @Post(":id/signal-reply")

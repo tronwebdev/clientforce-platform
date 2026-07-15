@@ -92,6 +92,15 @@ export function describeSenderEvent(type: string, payload: Record<string, unknow
       return payload.to === "PAUSED"
         ? { icon: "⏸", fg: "#8A7F6B", bg: "#F2EEE4", text: "Sender paused" }
         : { icon: "▶", fg: "#16A82A", bg: "rgba(53,232,52,.16)", text: "Sender resumed" };
+    case "sender.spike_detected.v1": {
+      const pct = typeof payload.rate === "number" ? `${(payload.rate * 100).toFixed(1)}%` : "?";
+      return {
+        icon: "⚠",
+        fg: "#9A6B12",
+        bg: "rgba(232,196,91,.2)",
+        text: `${payload.signal === "spam" ? "Complaint" : "Bounce"} spike — ${pct} in the window (over the danger line)`,
+      };
+    }
     default:
       return null;
   }

@@ -118,7 +118,8 @@ async function run(
         if (!contact) throw new Error(`MISSING_CONTACT: ${ctx.contactId}`);
         const optOut = { ...((contact.optOut ?? {}) as Record<string, unknown>) };
         const addresses: Array<{ channel: string; address: string }> = [
-          ...(contact.email ? [{ channel: "email", address: contact.email }] : []),
+          // P5 W3 (DEC-085): email suppression addresses are stored lowercase.
+          ...(contact.email ? [{ channel: "email", address: contact.email.toLowerCase() }] : []),
           ...(contact.phone ? [{ channel: "sms", address: contact.phone }] : []),
         ];
         for (const { channel, address } of addresses) {

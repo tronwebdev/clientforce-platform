@@ -97,9 +97,12 @@ export async function sendStep(deps: SendDeps, params: SendStepParams): Promise<
   // suppressionCheck (A8, literal true): Contact.optOut AND Suppression rows.
   const optOut = (contact.optOut ?? {}) as { email?: boolean };
   if (optOut.email) throw new SendBlockedError("OPTED_OUT", contact.email);
+  // P5 W3 (DEC-085): the suppression rail matches case-insensitively — rows
+  // are stored lowercase (writers + hygiene sweep normalize), so a mixed-case
+  // contact can never slip past its suppression. Rail order unchanged.
   const suppressed = await withTenant(prisma, ctx, (tx) =>
     tx.suppression.findFirst({
-      where: { workspaceId: params.workspaceId, channel: "email", address: contact.email! },
+      where: { workspaceId: params.workspaceId, channel: "email", address: contact.email!.toLowerCase() },
     }),
   );
   if (suppressed) throw new SendBlockedError("SUPPRESSED", suppressed.reason);

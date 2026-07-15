@@ -250,6 +250,29 @@ describe.skipIf(!hasInfra)("sender health engine integration", () => {
     expect(noop).toEqual({ holding: false, changed: false });
   });
 
+  it("W3 spike alerts: rising edge per signal emits ONCE; sustained spike stays quiet; clearing re-arms", async () => {
+    published = [];
+    const senderId = await makeSender();
+    // Bounce spike (8% ≥ the 5% danger bound), spam clean.
+    await seedLedger(senderId, { sent: 100, delivered: 90, bounced: 8 });
+    await recomputeSenderHealth(deps(), { workspaceId: ws, senderId });
+    await recomputeSenderHealth(deps(), { workspaceId: ws, senderId }); // sustained — no re-emit
+    let spikes = published.filter((e) => e.type === "sender.spike_detected.v1");
+    expect(spikes).toHaveLength(1);
+    expect(spikes[0]?.payload).toMatchObject({ senderId, signal: "bounce", windowDays: 7 });
+    // The spike clears, then returns → a NEW edge emits again.
+    await owner.event.deleteMany({ where: { workspaceId: ws, senderId, type: "email.bounced.v1" } });
+    await recomputeSenderHealth(deps(), { workspaceId: ws, senderId });
+    await owner.event.createMany({
+      data: Array.from({ length: 8 }, (_, i) => ({
+        workspaceId: ws, type: "email.bounced.v1", senderId, payload: { messageId: `respike-${i}` },
+      })),
+    });
+    await recomputeSenderHealth(deps(), { workspaceId: ws, senderId });
+    spikes = published.filter((e) => e.type === "sender.spike_detected.v1");
+    expect(spikes).toHaveLength(2);
+  });
+
   it("warmup completion: aged-past-curve ramp stamps completedAt once; stale completion stays silent", async () => {
     published = [];
     // Completed long ago (started 100 days back) → stamp, NO event.

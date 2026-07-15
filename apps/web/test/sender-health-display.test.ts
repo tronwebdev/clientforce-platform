@@ -119,6 +119,15 @@ describe("describeSenderEvent — mapped types only (DEC-057, no raw slugs)", ()
     expect(describeSenderEvent("sender.status_changed.v1", { from: "ACTIVE", to: "PAUSED" })?.text).toBe("Sender paused");
     expect(describeSenderEvent("sender.status_changed.v1", { from: "PAUSED", to: "ACTIVE" })?.text).toBe("Sender resumed");
   });
+  it("W3: spike alerts render with the measured rate", () => {
+    expect(describeSenderEvent("sender.spike_detected.v1", { signal: "spam", rate: 0.004 })?.text).toContain(
+      "Complaint spike — 0.4%",
+    );
+    expect(describeSenderEvent("sender.spike_detected.v1", { signal: "bounce", rate: 0.08 })?.text).toContain(
+      "Bounce spike — 8.0%",
+    );
+  });
+
   it("unmapped types render NOTHING (never a raw slug)", () => {
     expect(describeSenderEvent("email.bounced.v1", {})).toBeNull();
   });
