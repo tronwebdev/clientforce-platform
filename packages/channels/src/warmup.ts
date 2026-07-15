@@ -26,7 +26,7 @@
  */
 import { Prisma, withTenant, type PrismaClient, type SenderConnection } from "@clientforce/db";
 import type { EventType } from "@clientforce/events";
-import { HEALTH_SIGNALS, parseHealthState } from "./health";
+import { parseHealthState, spikeSignals } from "./health";
 
 /** Curve length in days — also the prototype canon ("Day N of 45"). */
 export const WARMUP_DAYS = 45;
@@ -213,10 +213,9 @@ export async function applyWarmupHealthInterlock(
   }
 
   const health = parseHealthState(sender.healthState);
-  const rates = health?.rates ?? null;
-  const spike =
-    rates !== null &&
-    (rates.spam >= HEALTH_SIGNALS.spam.danger || rates.bounce >= HEALTH_SIGNALS.bounce.danger);
+  // The one spike predicate (shared with the W3 alert events).
+  const signals = spikeSignals(health?.rates ?? null);
+  const spike = signals.bounce || signals.spam;
 
   let next: WarmupState | null = null;
   if (spike && !state.holdStartedAt) {

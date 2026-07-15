@@ -13,6 +13,7 @@ import type { CampaignGraph, CampaignOutcomes, LanguageCode } from "@clientforce
 import CallsTab from "./CallsTab";
 import { InboxTab } from "./InboxTab";
 import { LeadsTab } from "./LeadsTab";
+import { PipelineTab } from "./PipelineTab";
 import { LogsTab } from "./LogsTab";
 import { SettingsTab } from "./SettingsTab";
 import { StepsTab } from "./StepsTab";
@@ -173,6 +174,8 @@ export function AgentView({ agentId, tab }: { agentId: string; tab: string }) {
           <StepsTab view={view} outcomes={outcomes} onChanged={refresh} />
         ) : tab === "leads" ? (
           <LeadsTab agentId={agentId} view={view} onChanged={refresh} />
+        ) : tab === "pipeline" ? (
+          <PipelineTab agentId={agentId} onChanged={refresh} />
         ) : tab === "settings" ? (
           <SettingsTab agentId={agentId} view={view} onChanged={refresh} />
         ) : tab === "logs" ? (

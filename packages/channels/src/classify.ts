@@ -203,11 +203,11 @@ export async function applyUnsubscribeReply(
     const contact = await tx.contact.findUnique({ where: { id: contactId } });
     if (contact?.email) {
       const existing = await tx.suppression.findFirst({
-        where: { workspaceId, channel: "email", address: contact.email },
+        where: { workspaceId, channel: "email", address: contact.email.toLowerCase() },
       });
       if (!existing) {
         await tx.suppression.create({
-          data: { workspaceId, channel: "email", address: contact.email, reason: "UNSUBSCRIBED" },
+          data: { workspaceId, channel: "email", address: contact.email.toLowerCase(), reason: "UNSUBSCRIBED" },
         });
       }
       const optOut = (contact.optOut ?? {}) as Record<string, unknown>;

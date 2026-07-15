@@ -201,11 +201,12 @@ export class ContactsViewController {
         const optOut = { ...((contact.optOut ?? {}) as object), email: true };
         await tx.contact.update({ where: { id }, data: { optOut } });
         if (contact.email) {
+          // P5 W3 (DEC-085): email suppression addresses are stored lowercase.
           await tx.suppression.upsert({
             where: {
-              workspaceId_channel_address: { workspaceId, channel: "email", address: contact.email },
+              workspaceId_channel_address: { workspaceId, channel: "email", address: contact.email.toLowerCase() },
             },
-            create: { workspaceId, channel: "email", address: contact.email, reason: "MANUAL", source: "contacts-bulk" },
+            create: { workspaceId, channel: "email", address: contact.email.toLowerCase(), reason: "MANUAL", source: "contacts-bulk" },
             update: {},
           });
         }

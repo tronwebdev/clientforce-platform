@@ -9,6 +9,9 @@ export const TABS = [
   { id: "calls", label: "Calls", icon: "☎", wired: true },
   { id: "steps", label: "Steps", icon: "⋔", wired: true },
   { id: "leads", label: "Leads", icon: "☺", wired: true },
+  // P5 W3 (DEC-085): the Pipeline board — owner-directed designed addition
+  // (Q-024 ANSWERED: a Campaign View tab, not a Leads-table extension).
+  { id: "pipeline", label: "Pipeline", icon: "▦", wired: true },
   { id: "preview", label: "Preview", icon: "◉", wired: false },
   { id: "stats", label: "Stats", icon: "▤", wired: false },
   { id: "settings", label: "Settings", icon: "⚙", wired: true },
