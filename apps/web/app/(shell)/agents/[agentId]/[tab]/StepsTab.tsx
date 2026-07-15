@@ -25,11 +25,13 @@ import {
   removeStep as removeStepMutation,
   selectStrategy,
   setStepMode,
+  subcampaignChains,
   updateDelay as updateDelayMutation,
   updateStepBrief,
   updateStepContent,
   type CampaignGraph,
   type CampaignOutcomes,
+  type CampaignRuleTrigger,
   type Channel,
   type ContactFieldDefDto,
   type GraphNode,
@@ -37,10 +39,13 @@ import {
 } from "@clientforce/core";
 import { OutcomeBadge } from "../../../../../components/OutcomeBadge";
 import { StepEditorDrawer } from "../../../../../components/sequence/StepEditorDrawer";
+import { chainMeta, stepPillText, SubcampaignSection } from "../../../../../components/sequence/SubcampaignCards";
+import { SubcampaignCreator, type SubcampaignCreated } from "../../../../../components/sequence/SubcampaignCreator";
 import { GRAD, LIVE_GRAPH_NOTICE, type BriefDraft, type PreviewState } from "../../../../../components/sequence/shared";
 import type { AgentViewData } from "./AgentView";
 import { cf, intentTint } from "./shared";
 import { mainPath, mainSteps, replyBranchOf, strategyChains } from "../../../../../lib/graph-path";
+import { triggerChip } from "../../../../../lib/triggers";
 
 type StepNode = Extract<GraphNode, { type: "step" }>;
 
@@ -92,21 +97,56 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
   const [drafting, setDrafting] = useState(false);
   const [regenError, setRegenError] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // ── W2 (#94): sub-campaigns — the creator modal, the container grid's rule
+  // rows (the lightweight subcampaign-rules READ; rules CRUD stays out of
+  // scope), inline chain editing, and the email-connectivity honest-absence
+  // input for the trigger picker. ──
+  const [emailAvailable, setEmailAvailable] = useState(false);
+  const [subRules, setSubRules] = useState<Array<{ ruleId: string; targetNodeId: string; trigger: CampaignRuleTrigger }>>([]);
+  const [subNewOpen, setSubNewOpen] = useState(false);
+  const [subExpandedId, setSubExpandedId] = useState<string | null>(null);
+  // The open editor's sub-campaign container (null = main/strategy) — sub
+  // steps get no mode control (flipMode's arc seed is main-sequence-derived).
+  const [editSubId, setEditSubId] = useState<string | null>(null);
 
   useEffect(() => {
     void cf("contact-fields").then(setFieldDefs).catch(() => {});
     // DEC-061 capability rule — sms steps are addable only with an ACTIVE Twilio sender.
     void cf("senders")
-      .then((rows: Array<{ type?: string; status?: string }>) =>
-        setSmsAvailable(rows.some((r) => r.type === "TWILIO_SMS" && r.status === "ACTIVE")),
-      )
-      .catch(() => setSmsAvailable(false));
+      .then((rows: Array<{ type?: string; status?: string }>) => {
+        setSmsAvailable(rows.some((r) => r.type === "TWILIO_SMS" && r.status === "ACTIVE"));
+        // W2 (#94): email-backed triggers need a live email sender (honest absence).
+        setEmailAvailable(rows.some((r) => r.type !== "TWILIO_SMS" && r.status === "ACTIVE"));
+      })
+      .catch(() => {
+        setSmsAvailable(false);
+        setEmailAvailable(false);
+      });
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
       if (pollRef.current) clearInterval(pollRef.current);
     };
   }, []);
+
+  // W2 (#94): the container cards' trigger chips read the enabled entry rules
+  // (re-pulled on every graph version bump — creation lands as a new version).
+  const rulesAgentId = view?.agent.id ?? null;
+  const rulesGraphVersion = view?.graphVersion ?? 0;
+  useEffect(() => {
+    if (!rulesAgentId) return;
+    let cancelled = false;
+    cf(`planner/subcampaign-rules?agentId=${rulesAgentId}`)
+      .then((rows: Array<{ ruleId: string; targetNodeId: string; trigger: CampaignRuleTrigger }>) => {
+        if (!cancelled) setSubRules(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setSubRules([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [rulesAgentId, rulesGraphVersion]);
 
   if (!view) {
     return (
@@ -171,16 +211,18 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
     editEpochRef.current += 1;
     setEditNode(null);
     setEditStrategyIntent(null);
+    setEditSubId(null);
     setPendingMode(null);
     setDrawerError(null);
     seedRef.current = null;
     draftRef.current = null;
   }
 
-  function openEditor(n: StepNode, strategyIntent: string | null) {
+  function openEditor(n: StepNode, strategyIntent: string | null, subcampaignId: string | null = null) {
     editEpochRef.current += 1;
     setEditNode(n);
     setEditStrategyIntent(strategyIntent);
+    setEditSubId(subcampaignId);
     setPreview(null);
     setPendingMode(null);
     setDrawerError(null);
@@ -430,6 +472,26 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
     if (created && created.type === "step") openEditor(created, intent);
   }
 
+  /** W2 (#94): append a step to a sub-campaign container's chain — the same
+   *  addStep mutation with the subcampaign container, through the same gate. */
+  async function handleAddToSub(subcampaignId: string) {
+    if (!graph) return;
+    let result: { graph: CampaignGraph; stepId: string };
+    try {
+      result = addStepMutation(graph, { container: { kind: "subcampaign", subcampaignId }, channel: "email" });
+    } catch (err) {
+      setActionError(err instanceof GraphMutationError ? err.message : String(err));
+      return;
+    }
+    const failure = await putGraph(result.graph, "Adding step…");
+    if (failure) {
+      setActionError(failure);
+      return;
+    }
+    const created = result.graph.nodes.find((x) => x.id === result.stepId);
+    if (created && created.type === "step") openEditor(created, null, subcampaignId);
+  }
+
   async function saveDelay(delayId: string) {
     if (!graph) return;
     let updated: CampaignGraph;
@@ -543,7 +605,31 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
     setCustomFallback("");
   }
 
-  const editStepIndex = editNode ? steps.findIndex((s) => s.id === editNode.id) + 1 : 0;
+  // W2 (#94): sub-campaign chains — containers + rule chips + inline editing.
+  const subChains = subcampaignChains(graph);
+  const subCards = subChains.map(({ node, chain }) => {
+    const meta = chainMeta(chain);
+    const rule = subRules.find((r) => r.targetNodeId === node.id);
+    return {
+      id: node.id,
+      name: node.ref,
+      // "Rule pending" fallback when no enabled rule row matches (honest absence).
+      chip: rule ? triggerChip(rule.trigger) : null,
+      pills: meta.steps.map(stepPillText),
+      stepCount: meta.steps.length,
+      days: meta.days,
+    };
+  });
+  const expandedSub = subExpandedId ? subChains.find((s) => s.node.id === subExpandedId) : undefined;
+
+  const editStepIndex = editNode
+    ? editSubId
+      ? (subChains
+          .find((s) => s.node.id === editSubId)
+          ?.chain.filter((n): n is StepNode => n.type === "step")
+          .findIndex((s) => s.id === editNode.id) ?? -1) + 1
+      : steps.findIndex((s) => s.id === editNode.id) + 1
+    : 0;
 
   /** Delay row (Campaign View canon: pill → inline − / amount / + / Done,
    *  clamp 1–30) — shared by the main path and W3's strategy chains. */
@@ -815,18 +901,62 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
             );
           })}
 
-          {/* W3-4 W3: NEW-branch authoring is GATED on R1's trigger vocabulary
-              (owner-locked 2026-07-14: later wave) — the canon card renders
-              with the honest capability disclosure, never a dead pick. */}
-          <div style={{ display: "flex", alignItems: "center", gap: 12, border: "1.5px dashed #D8CFBE", borderRadius: 14, background: "transparent", padding: "15px 18px", marginTop: 6, opacity: 0.75 }} data-testid="add-subcampaign-absent">
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#5C6B62" }}>Add a sub-campaign</div>
-              <div style={{ fontSize: 12.5, color: "#9AA59E", marginTop: 2 }}>Create a branch triggered by a specific contact behaviour or rule. Arrives with automation rules — its triggers use the same When→If→Then vocabulary.</div>
-            </div>
-            <span style={{ color: "#C2B79F", fontSize: 15, flex: "none" }}>›</span>
-          </div>
         </>
       ) : null}
+
+      {/* W2 (#94): sub-campaigns — the W3-4 honest-absence card goes LIVE
+          (R1's trigger vocabulary shipped). Canon cards in a 2-col grid with
+          the entry-rule trigger chip, then the dashed add card opening the
+          shared creator. Rendered outside the reply-chains block — containers
+          exist independently of reply strategies. NO ✦ AI chip here:
+          provenance isn't persisted, so the canon chip awaits a persisted
+          provenance field (DEC note) — never rendered from guesswork. */}
+      <SubcampaignSection
+        cards={subCards}
+        expandedId={subExpandedId}
+        onEdit={(id) => setSubExpandedId((v) => (v === id ? null : id))}
+        onAdd={() => setSubNewOpen(true)}
+        expanded={
+          expandedSub ? (
+            <div style={{ marginTop: 12 }} data-testid="subcampaign-expanded">
+              <div style={{ fontSize: 11.5, fontWeight: 700, color: "#8A7F6B", letterSpacing: ".07em", textTransform: "uppercase", marginBottom: 10 }}>
+                {expandedSub.node.ref} · steps
+              </div>
+              {expandedSub.chain.map((cNode) => {
+                if (cNode.type === "delay") return renderDelayRow(cNode, 24, "sub-delay");
+                if (cNode.type !== "step") return null;
+                const sNode = cNode;
+                const k =
+                  expandedSub.chain.filter((n): n is StepNode => n.type === "step").findIndex((s) => s.id === sNode.id) + 1;
+                const stats = view.perStep[sNode.id];
+                return (
+                  <div key={sNode.id} style={{ display: "flex", gap: 14, alignItems: "flex-start", marginBottom: 6 }} data-testid="subcampaign-step-card">
+                    <span style={{ width: 38, height: 38, borderRadius: 11, flex: "none", background: sNode.channel === "sms" ? "rgba(54,215,237,.16)" : "rgba(53,232,52,.16)", color: sNode.channel === "sms" ? "#1192A6" : "#16A82A", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, fontWeight: 700 }}>{sNode.channel === "sms" ? "💬" : "✉"}</span>
+                    <div style={{ flex: 1, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 14, padding: "15px 18px", boxShadow: "0 4px 16px rgba(14,21,18,.04)" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", color: "#8A7F6B" }}>Step {k}</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, borderRadius: 8, padding: "3px 10px", background: sNode.channel === "sms" ? "rgba(54,215,237,.14)" : "rgba(53,232,52,.13)", color: sNode.channel === "sms" ? "#1192A6" : "#16A82A" }}>{sNode.channel === "sms" ? "SMS" : sNode.content.threaded ? "Email · threaded" : "Email"}</span>
+                        <span style={{ marginLeft: "auto", fontSize: 12, color: "#9AA59E" }} data-testid="subcampaign-step-stats">
+                          {stats ? `${stats.sent} sent · ${stats.replies} repl${stats.replies === 1 ? "y" : "ies"}` : "0 sent"}
+                        </span>
+                        <span onClick={() => openEditor(sNode, null, expandedSub.node.id)} style={{ fontSize: 13, fontWeight: 600, color: "#16A82A", cursor: "pointer", flex: "none" }} data-testid="subcampaign-step-edit">✎ Edit</span>
+                      </div>
+                      <div style={{ fontSize: 15, fontWeight: 600, color: "#0E1512", marginBottom: 4 }}>{sNode.mode === "guided" && sNode.brief ? sNode.brief.objective : sNode.channel === "sms" ? "SMS message" : (sNode.content.subject ?? "Threaded reply")}</div>
+                      <div style={{ fontSize: 13.5, color: "#5C6B62", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{sNode.mode === "guided" && sNode.brief ? sNode.brief.talkingPoints.join(" · ") : sNode.content.body}</div>
+                    </div>
+                  </div>
+                );
+              })}
+              {/* within-container add — the canon sub-drawer's indented dashed anatomy */}
+              <div style={{ display: "flex", alignItems: "center", gap: 12, paddingLeft: 24, marginTop: 2 }}>
+                <span style={{ width: 2, height: 18, background: "#D8CFBE", marginLeft: 17, flex: "none" }} />
+                <span onClick={() => void handleAddToSub(expandedSub.node.id)} style={{ fontSize: 13, fontWeight: 600, color: "#16A82A", background: "#fff", border: "1.5px dashed #9FD8AC", borderRadius: 10, padding: "7px 12px", cursor: "pointer" }} data-testid="subcampaign-add-step">+ Add step</span>
+              </div>
+            </div>
+          ) : null
+        }
+      />
+
       <div style={{ fontSize: 12, color: "#9AA59E", marginTop: 16, paddingLeft: 48 }}>
         Graph v{view.graphVersion ?? "—"} · {view.graphSource === "MANUAL" ? "edited — new version saved (MANUAL)" : "AI-planned"}
       </div>
@@ -867,7 +997,9 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
         onDelete={handleDelete}
         liveNotice={!isDraft}
         modeControl={
-          editNode && editStrategyIntent === null && (editNode.channel === "email" || editNode.channel === "sms")
+          // W2 (#94): sub-campaign chain steps carry no mode control — the
+          // flip's brief seed derives from the MAIN sequence's arc position.
+          editNode && editStrategyIntent === null && editSubId === null && (editNode.channel === "email" || editNode.channel === "sms")
             ? {
                 mode: pendingMode ?? (editNode.mode === "guided" ? "guided" : "scripted"),
                 busy: busyMsg !== "",
@@ -883,6 +1015,29 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
             : undefined
         }
         footerError={drawerError}
+      />
+
+      {/* W2 (#94): the SHARED sub-campaign creator (one component, two hosts
+          — host deltas ride props). Launched agents render the DEC-076
+          notice inside it (isDraft); lead capture has no backend in P1 →
+          honest false. */}
+      <SubcampaignCreator
+        open={subNewOpen}
+        onClose={() => setSubNewOpen(false)}
+        agentId={agentId}
+        isDraft={isDraft}
+        cf={cf}
+        connected={{ email: emailAvailable, leadCapture: false }}
+        goal={view.agent.goal ?? null}
+        onCreated={(created: SubcampaignCreated) => {
+          // The rule row is known from the response — no refetch race; the
+          // graph re-pull (onChanged) brings the new container into view.
+          setSubRules((rs) => [
+            ...rs.filter((r) => r.ruleId !== created.ruleId),
+            { ruleId: created.ruleId, targetNodeId: created.subcampaignId, trigger: created.trigger },
+          ]);
+          void onChanged?.();
+        }}
       />
 
     </div>

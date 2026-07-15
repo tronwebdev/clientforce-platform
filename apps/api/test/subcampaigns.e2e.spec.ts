@@ -490,4 +490,54 @@ describe.skipIf(!hasDb)("#90 sub-campaign creation e2e (DEC-077)", () => {
     expect(res.status).toBe(422);
     expect(res.body.detail).toMatch(/must end at an end node/);
   });
+
+  it("W2 (#94): GET /planner/subcampaign-rules lists the entry rules (display READ of R1 rows) and skips non-subcampaign rows", async () => {
+    // Noise the listing must skip: an enabled rule moving to a MAIN node, and
+    // an enabled row whose trigger doesn't parse (renders as its own error
+    // state on the rules surface, never here). The earlier disabled chain
+    // rule (order 90) is excluded by the enabled filter.
+    const mainRule = await owner.campaignRule.create({
+      data: {
+        workspaceId: ws,
+        campaignId,
+        order: 91,
+        trigger: { kind: "meeting_booked" },
+        actions: [{ kind: "move_to_node", targetNodeId: "step-1" }],
+        enabled: true,
+      },
+    });
+    const bogusRule = await owner.campaignRule.create({
+      data: {
+        workspaceId: ws,
+        campaignId,
+        order: 92,
+        trigger: { kind: "when_pigs_fly" },
+        actions: [{ kind: "move_to_node", targetNodeId: subcampaignId }],
+        enabled: true,
+      },
+    });
+    try {
+      const res = await request(app.getHttpServer())
+        .get(`/planner/subcampaign-rules?agentId=${agentId}`)
+        .set(asOwner());
+      expect(res.status).toBe(200);
+      const rules = await owner.campaignRule.findMany({ where: { campaignId }, orderBy: { order: "asc" } });
+      const entry1 = rules.find((r) => r.order === 1)!;
+      const entry2 = rules.find((r) => r.order === 2)!;
+      expect(res.body).toEqual([
+        {
+          ruleId: entry1.id,
+          targetNodeId: "subcampaign-added-1",
+          trigger: { kind: "reply_classified", intents: ["interested"] },
+        },
+        {
+          ruleId: entry2.id,
+          targetNodeId: "subcampaign-added-2",
+          trigger: { kind: "reply_classified", intents: ["interested", "booked"] },
+        },
+      ]);
+    } finally {
+      await owner.campaignRule.deleteMany({ where: { id: { in: [mainRule.id, bogusRule.id] } } });
+    }
+  });
 });
