@@ -450,7 +450,7 @@ export class CallSession {
       }, bargeInAfterMs);
     }
     try {
-      const commit: TurnCommit = { text: userText, source: "speech_final", committedAt: Date.now() };
+      const commit: TurnCommit = { text: userText, source: "utterance_end", committedAt: Date.now() };
       this.turns.push({ role: "user", content: userText, atMs: Date.now() - (this.startedAtMs || Date.now()) });
       await this.respond(commit);
     } finally {

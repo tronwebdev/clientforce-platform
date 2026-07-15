@@ -1,9 +1,9 @@
 /**
- * TurnGate (P3.1) — deterministic unit fixtures for the turn-commit rules as
- * revised by certification runs 3–5: a speech_final QUESTION commits fast;
- * everything else commits ONLY at the silence-anchored UtteranceEnd (no
- * client-side timer exists — no race surface). The ADR's real fragmented
- * call must produce exactly ONE merged commit.
+ * TurnGate (P3.1) — deterministic unit fixtures for THE commit rule arrived
+ * at by certification runs 3–7: a turn commits ONLY at the silence-anchored
+ * UtteranceEnd; every punctuation/timer fast path was falsified in a real
+ * run (see the source header). The ADR's real fragmented call must produce
+ * exactly ONE merged commit.
  */
 import { describe, expect, it } from "vitest";
 import { TurnGate, type TurnCommit } from "../src/turn-gate";
@@ -21,69 +21,42 @@ function harness() {
   };
 }
 
-describe("TurnGate — rule 1: only QUESTIONS commit immediately (runs 3-5)", () => {
-  it("a speech_final phrase ending in ? commits with zero added latency", () => {
+describe("TurnGate — silence-anchored commits only (runs 3-7)", () => {
+  it("no punctuation ever fast-commits — periods and question marks alike", () => {
     const h = harness();
-    h.gate.onFinal("Hey, who is this?", true);
-    expect(h.commits).toHaveLength(1);
-    expect(h.commits[0]!.text).toBe("Hey, who is this?");
-    expect(h.commits[0]!.source).toBe("speech_final");
-  });
-
-  it("a question mark inside a closing quote still counts", () => {
-    const h = harness();
-    h.gate.onFinal('You mean "now?"', true);
-    expect(h.commits).toHaveLength(1);
-  });
-
-  it("a PERIOD never fast-commits — smart_format writes '.' off mid-thought pauses", () => {
-    const h = harness();
+    // Run 4's falsifier: pause-derived period on a fragment.
     h.gate.onFinal("So we are doing currently, we run.", true);
     expect(h.commits).toHaveLength(0);
-    h.gate.onUtteranceEnd();
-    expect(h.commits).toHaveLength(1);
-    expect(h.commits[0]!.source).toBe("utterance_end");
+    // Run 7's falsifier: pause-derived "?" on an interrogative prefix.
+    const h2 = harness();
+    h2.gate.onFinal("How is that different from?", true);
+    expect(h2.commits).toHaveLength(0);
+    h2.gate.onFinal("what we use now?", true);
+    h2.gate.onUtteranceEnd();
+    expect(h2.commits).toHaveLength(1);
+    expect(h2.commits[0]!.text).toBe("How is that different from? what we use now?");
   });
 
-  it("an interim (non-speech_final) question does not fast-commit yet", () => {
+  it('the ADR fragmentation case: "…we run." / "afternoon," / "sales." → ONE merged commit', () => {
     const h = harness();
-    h.gate.onFinal("what does it do?", false);
-    expect(h.commits).toHaveLength(0);
-    h.gate.onFinal("", true); // the closing speech_final arrives empty
-    expect(h.commits).toHaveLength(1); // pending ends with ? and is now final
-  });
-});
-
-describe("TurnGate — the ADR fragmentation case (the #1 finding)", () => {
-  it('"…we run." / "afternoon," / "sales." → exactly ONE merged commit at true silence', () => {
-    const h = harness();
-    // Fragment 1: speech_final, punctuator may even write "." — NEVER a
-    // commit (runs 3-5: the period is pause-derived, not semantic).
     h.gate.onFinal("So we are doing currently, we run.", true);
-    expect(h.commits).toHaveLength(0);
     h.gate.onSpeechStarted(); // caller resumes — a no-op for the gate
-    // Fragment 2: still mid-thought ("afternoon,") → still nothing.
     h.gate.onFinal("afternoon,", true);
-    expect(h.commits).toHaveLength(0);
     h.gate.onSpeechStarted();
-    // Fragment 3 + Deepgram's silence-anchored UtteranceEnd → ONE merged commit.
     h.gate.onFinal("sales.", true);
     expect(h.commits).toHaveLength(0);
-    h.gate.onUtteranceEnd();
+    h.gate.onUtteranceEnd(); // 1500ms of TRUE silence — now, and only now
     expect(h.commits).toHaveLength(1);
     expect(h.commits[0]!.text).toBe("So we are doing currently, we run. afternoon, sales.");
     expect(h.commits[0]!.source).toBe("utterance_end");
   });
-});
 
-describe("TurnGate — rule 2: silence-anchored commits", () => {
   it("a trailing-off caller still gets a reply at UtteranceEnd", () => {
     const h = harness();
     h.gate.onFinal("I guess we could", true);
     expect(h.commits).toHaveLength(0);
     h.gate.onUtteranceEnd();
     expect(h.commits).toHaveLength(1);
-    expect(h.commits[0]!.source).toBe("utterance_end");
     expect(h.commits[0]!.text).toBe("I guess we could");
   });
 
@@ -93,7 +66,7 @@ describe("TurnGate — rule 2: silence-anchored commits", () => {
     expect(h.commits).toHaveLength(0);
   });
 
-  it("interim finals accumulate silently until silence commits the merge", () => {
+  it("interim and speech_final finals accumulate identically until silence", () => {
     const h = harness();
     h.gate.onFinal("we are on a", false);
     h.gate.onFinal("legacy tool.", true);
@@ -107,13 +80,15 @@ describe("TurnGate — rule 2: silence-anchored commits", () => {
     const h = harness();
     h.gate.onFinal("", true);
     h.gate.onFinal("   ", false);
+    h.gate.onUtteranceEnd();
     expect(h.commits).toHaveLength(0);
   });
 
   it("commit anchors at the committing event's clock (the ADR anchor)", () => {
     const h = harness();
+    h.gate.onFinal("Sounds good.", true);
     h.tick(500);
-    h.gate.onFinal("Is that right?", true);
+    h.gate.onUtteranceEnd();
     expect(h.commits[0]!.committedAt).toBe(1_500);
   });
 
@@ -122,7 +97,7 @@ describe("TurnGate — rule 2: silence-anchored commits", () => {
     h.gate.onFinal("one last", true);
     expect(h.gate.flushPending()).toBe("one last");
     expect(h.gate.flushPending()).toBe("");
-    h.gate.onUtteranceEnd(); // nothing left to commit
+    h.gate.onUtteranceEnd();
     expect(h.commits).toHaveLength(0);
   });
 });
