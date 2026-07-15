@@ -221,6 +221,9 @@ importers:
       '@clientforce/planner':
         specifier: workspace:*
         version: link:../../packages/planner
+      '@clientforce/telemetry':
+        specifier: workspace:*
+        version: link:../../packages/telemetry
       '@clientforce/workflows':
         specifier: workspace:*
         version: link:../../packages/workflows

@@ -21,6 +21,7 @@
     "@clientforce/events": "workspace:*",
     "@clientforce/knowledge": "workspace:*",
     "@clientforce/planner": "workspace:*",
+    "@clientforce/telemetry": "workspace:*",
     "@clientforce/workflows": "workspace:*",
     "@temporalio/worker": "1.19.0"
   },

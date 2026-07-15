@@ -31,7 +31,6 @@ export const NoopSink: TelemetrySink = { capture() {} };
 /** Dev: logs event names + ids only (never bodies/PII). */
 export const LogSink: TelemetrySink = {
   capture(e) {
-    // eslint-disable-next-line no-console
     console.log(`[telemetry] ${e.name} ws=${e.workspaceId ?? "-"} actor=${e.actorId ?? "-"}`);
   },
 };
