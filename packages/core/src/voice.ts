@@ -182,6 +182,18 @@ export function parseWorkspaceVoiceDefaults(settings: unknown): WorkspaceVoiceDe
   return parsed.success ? parsed.data : {};
 }
 
+// ── REST DTOs (A2 — zod schemas shared by api + web) ─────────────────────────
+export const dialCallBodySchema = z.object({
+  contactId: z.string().min(1),
+});
+export type DialCallBody = z.infer<typeof dialCallBodySchema>;
+
+/** PATCH /voice/defaults — null clears the workspace default spoken name. */
+export const voiceDefaultsPatchSchema = z.object({
+  spokenName: spokenNameSchema.nullable().optional(),
+});
+export type VoiceDefaultsPatch = z.infer<typeof voiceDefaultsPatchSchema>;
+
 // ── Call-time resolution (PURE — owner-locked chain) ─────────────────────────
 export type SpokenNameSource = "agent" | "workspace" | "default";
 

@@ -3,7 +3,8 @@
 
 export const TABS = [
   { id: "inbox", label: "Inbox", icon: "✉", wired: true },
-  { id: "calls", label: "Calls", icon: "☎", wired: false },
+  // P3.1 (DEC-078): the voice channel shipped — Calls goes live.
+  { id: "calls", label: "Calls", icon: "☎", wired: true },
   { id: "steps", label: "Steps", icon: "⋔", wired: true },
   { id: "leads", label: "Leads", icon: "☺", wired: true },
   { id: "preview", label: "Preview", icon: "◉", wired: false },

@@ -2,13 +2,15 @@
 
 /**
  * Agent view (C2.4, checkpoints §4) — record header + 8-tab bar ported from
- * `Campaign View.dc.html`; 5 tabs wired (inbox·steps·leads·settings·logs),
- * 3 inert-but-visible (calls·preview·stats). A4: 5s polling on Inbox/Logs and
- * the open lead drawer. Prototype literals bind composition; values are live.
+ * `Campaign View.dc.html`; 6 tabs wired (inbox·calls·steps·leads·settings·
+ * logs — Calls went live in P3.1/DEC-078), 2 inert-but-visible
+ * (preview·stats). A4: 5s polling on Inbox/Calls/Logs and the open lead
+ * drawer. Prototype literals bind composition; values are live.
  */
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CampaignGraph, CampaignOutcomes, LanguageCode } from "@clientforce/core";
+import CallsTab from "./CallsTab";
 import { InboxTab } from "./InboxTab";
 import { LeadsTab } from "./LeadsTab";
 import { LogsTab } from "./LogsTab";
@@ -26,7 +28,7 @@ export interface AgentViewData {
   dailyCap: number | null;
   guardrails: {
     sendingWindow: { days: number[]; start: string; end: string; timezone: string };
-    dailyCap: { email: number; sms?: number };
+    dailyCap: { email: number; sms?: number; voice?: number };
     consent?: { attestedBy: string; attestedAt: string } | null;
     tracking?: { openTracking: boolean; linkTracking: boolean };
     /** C2.9 (DEC-059): custom-goal terminal label riding the Json. */
@@ -38,6 +40,8 @@ export interface AgentViewData {
     /** L1 (DEC-072): output language rider — absent = English. */
     language?: LanguageCode;
     languageSource?: "detected" | "owner";
+    /** P3.1 (DEC-078): voice rider — spoken name (+confirmed) & persona. */
+    voice?: { spokenName?: string; spokenNameConfirmed?: boolean; voicePersonaId?: string };
     unsubscribeFooter: true;
     suppressionCheck: true;
   } | null;
@@ -163,6 +167,8 @@ export function AgentView({ agentId, tab }: { agentId: string; tab: string }) {
           </div>
         ) : tab === "inbox" ? (
           <InboxTab agentId={agentId} goalLabel={view?.agent.goalLabel} />
+        ) : tab === "calls" ? (
+          <CallsTab agentId={agentId} />
         ) : tab === "steps" ? (
           <StepsTab view={view} outcomes={outcomes} onChanged={refresh} />
         ) : tab === "leads" ? (
@@ -179,10 +185,10 @@ export function AgentView({ agentId, tab }: { agentId: string; tab: string }) {
   );
 }
 
-/** Calls/Preview/Stats — visible, disabled-with-reason (§4: never deleted). */
+/** Preview/Stats — visible, disabled-with-reason (§4: never deleted).
+ *  P3.1 (DEC-078): the calls placeholder retired — CallsTab is live. */
 function InertTab({ tab }: { tab: string }) {
   const copy: Record<string, { icon: string; title: string; body: string }> = {
-    calls: { icon: "☎", title: "Calls arrive with the voice channel", body: "AI voice calls, transcripts and outcomes land here when the voice channel ships — your email sequence keeps running meanwhile." },
     preview: { icon: "◉", title: "Preview arrives with a later phase", body: "A live render of every step as the lead sees it." },
     stats: { icon: "▤", title: "Stats arrive with a later phase", body: "Deliverability, reply and booking analytics across the sequence." },
   };

@@ -182,7 +182,11 @@ export function DrawerShell({ width, title, onClose, children, footer, z, shadow
 export type FlowField = { label: string; ph: string; sel?: boolean; pw?: boolean };
 export type FlowStep =
   | { kind: "auth"; title: string; authLabel: string; perms: string[] }
-  | { kind: "fields"; title: string; cta?: string; verify?: boolean; fields: FlowField[] }
+  // P3.1 (DEC-078): `spoken` marks the optional workspace-default spoken-name
+  // step of the number flows (owner-locked capture moment a — D0 holds: the
+  // wizard never grows a field). Live in the twilio path; the buy path shows
+  // the same step as designed placeholders.
+  | { kind: "fields"; title: string; cta?: string; verify?: boolean; spoken?: boolean; fields: FlowField[] }
   | { kind: "select"; title: string; selects: { label: string; value: string }[] }
   | { kind: "dns"; title: string; records: { type: string; host: string; value: string }[] }
   | { kind: "summary"; title: string; cta?: string; summary: string[] };
@@ -226,11 +230,15 @@ export const FLOWS: Record<string, FlowDef> = {
     ],
     steps: {
       twilio: [
-        { kind: "fields", title: "Twilio SMS sender", cta: "Add SMS sender", fields: [{ label: "Phone number", ph: "+15125550148" }, { label: "Label", ph: "Clinic SMS" }, { label: "Messaging service SID", ph: "MG0123456789abcdef0123456789abcdef" }] },
+        { kind: "fields", title: "Twilio SMS sender", fields: [{ label: "Phone number", ph: "+15125550148" }, { label: "Label", ph: "Clinic SMS" }, { label: "Messaging service SID", ph: "MG0123456789abcdef0123456789abcdef" }] },
+        // P3.1 (DEC-078, owner-locked capture): optional workspace default —
+        // blank = the "an AI assistant" default wording, no blocked calls.
+        { kind: "fields", title: "Who should calls say they are?", cta: "Add SMS sender", spoken: true, fields: [{ label: "Spoken name (optional)", ph: "Ava — leave blank for “an AI assistant”" }] },
       ],
       buy: [
         { kind: "fields", title: "Search numbers", cta: "Search", fields: [{ label: "Country", ph: "United States", sel: true }, { label: "Area code or prefix", ph: "512" }, { label: "Capabilities", ph: "Voice & WhatsApp", sel: true }] },
         { kind: "select", title: "Pick a number", selects: [{ label: "Available number", value: "+1 (512) 555-0148" }, { label: "Capabilities", value: "Voice, SMS & WhatsApp" }] },
+        { kind: "fields", title: "Who should calls say they are?", spoken: true, fields: [{ label: "Spoken name (optional)", ph: "Ava — leave blank for “an AI assistant”" }] },
         { kind: "summary", title: "Confirm purchase", cta: "Buy number", summary: ["+1 (512) 555-0148", "Voice, SMS & WhatsApp", "$1.15 / mo plus usage"] },
       ],
       port: [
@@ -295,6 +303,8 @@ export function ConnectFlowDrawer({ channel, onClose, toast, onMailerCreated }: 
   const [smsPhone, setSmsPhone] = useState("");
   const [smsLabel, setSmsLabel] = useState("");
   const [smsSid, setSmsSid] = useState("");
+  // P3.1 (DEC-078): the optional workspace-default spoken name (capture a).
+  const [voiceName, setVoiceName] = useState("");
   const [busy, setBusy] = useState(false);
 
   const def = FLOWS[ch];
@@ -344,10 +354,17 @@ export function ConnectFlowDrawer({ channel, onClose, toast, onMailerCreated }: 
     }
     if (isSmsLive) {
       // P2.1 (DEC-061): this flow actually creates the TWILIO_SMS sender.
+      // P3.1 (DEC-078): a non-blank spoken name additionally seeds the
+      // workspace default (blank = default wording — never blocks the add).
       if (busy) return;
       setBusy(true);
       cf("senders", { method: "POST", body: JSON.stringify({ type: "TWILIO_SMS", phone: smsPhone.trim(), fromName: smsLabel.trim(), messagingServiceSid: smsSid.trim() }) })
         .then(async () => {
+          if (voiceName.trim()) {
+            await cf("voice/defaults", { method: "PATCH", body: JSON.stringify({ spokenName: voiceName.trim() }) }).catch(() =>
+              toast("Number added, but the spoken name was rejected — use a plain first name (no titles)."),
+            );
+          }
           await onMailerCreated?.();
           onClose();
           toast("SMS sender added — Twilio number connected");
@@ -446,7 +463,18 @@ export function ConnectFlowDrawer({ channel, onClose, toast, onMailerCreated }: 
             ) : null}
 
             {cur.kind === "fields" ? (
-              isSmsLive ? (
+              cur.spoken && isSmsLive ? (
+                <>
+                  {/* P3.1 (DEC-078): the LIVE optional spoken-name capture. */}
+                  <div style={{ marginBottom: 13 }}>
+                    <label style={lbl}>Spoken name (optional)</label>
+                    <input value={voiceName} onChange={(e) => setVoiceName(e.target.value)} placeholder="Ava — leave blank for “an AI assistant”" style={{ ...inp, height: 44 }} data-testid="voice-spoken-name" />
+                  </div>
+                  <div style={{ fontSize: 12, color: "#8A7F6B", lineHeight: 1.5 }}>
+                    AI calls open with “Hi, this is {voiceName.trim() ? voiceName.trim() + ", an AI assistant" : "an AI assistant"} calling on behalf of…”. A plain first name only — agents can override it in their Voice settings.
+                  </div>
+                </>
+              ) : isSmsLive ? (
                 <>
                   {/* live inputs — this flow actually creates the SMS sender */}
                   <div style={{ marginBottom: 13 }}>
