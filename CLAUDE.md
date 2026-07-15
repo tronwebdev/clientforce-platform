@@ -22,6 +22,10 @@ backoffice…). **Read `PROGRESS.md` first** for exactly where things stand.
   `ARCHITECTURE.md` / `BUILD_PLAN.md` — system design + the phased plan.
 - `UI_PORTING_RULES.md` + `DESIGN_TOKENS.md` + `design_handoff_.../prototypes/` —
   port UI from the prototype; atom conflict → token doc wins; composition → prototype wins.
+- `KICKOFF_TEMPLATE.md` — standing conventions every unit prompt inherits (DEC-claim
+  rule, the send-boundary/no-planner-prompt rails, the ⭑ backoffice-coverage ride-along).
+- `CHECKLIST_B1_BACKOFFICE_COVERAGE.md` — the five backoffice spines × surface coverage;
+  the reference the ride-along line points at (extend a spine, never a per-feature panel).
 
 ## Stack (locked — see handoff §A; don't relitigate)
 - **Monorepo:** Turborepo + pnpm, Node 22, TypeScript strict everywhere.

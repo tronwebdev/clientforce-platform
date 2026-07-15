@@ -61,6 +61,10 @@ describe.skipIf(!hasDb)("backoffice RLS-exempt access", () => {
   afterAll(async () => {
     if (owner && agencyId) {
       await owner.contact.deleteMany({ where: { workspaceId: { in: [wsA, wsB] } } });
+      // KillSwitch/FeatureFlag carry no FK to Agency/Workspace (backoffice tables),
+      // so the agency cascade won't reach them — delete explicitly.
+      await owner.killSwitch.deleteMany({ where: { agencyId } });
+      await owner.featureFlag.deleteMany({ where: { workspaceId: { in: [wsA, wsB] } } });
       await owner.agency.delete({ where: { id: agencyId } }).catch(() => undefined);
     }
     await owner?.$disconnect();
@@ -90,5 +94,42 @@ describe.skipIf(!hasDb)("backoffice RLS-exempt access", () => {
     // Does not throw (grant present); count is environment-dependent.
     await expect(backoffice.platformStaff.count()).resolves.toBeTypeOf("number");
     await expect(backoffice.telemetryEvent.count()).resolves.toBeTypeOf("number");
+  });
+
+  // B1 W4 (DEC-082): KillSwitch/FeatureFlag are the deliberate exception — they
+  // are backoffice-WRITTEN but app-READABLE. The send boundary (RLS-subject app
+  // role) READS KillSwitch to enforce the kill switch, so the app keeps SELECT
+  // but loses every write. This is NOT the fully-revoked pattern of the tables
+  // above; pinning both halves guards against a copy-paste REVOKE ALL regression.
+  it("app role CAN read KillSwitch/FeatureFlag (SELECT kept — the boundary reads them)", async () => {
+    // Seed one of each via the ONLY writer (the backoffice role).
+    await backoffice.killSwitch.create({
+      data: { agencyId, channel: `email-${suffix}`, active: true, reason: "rls pin" },
+    });
+    await backoffice.featureFlag.create({
+      data: { workspaceId: wsA, key: `pin-${suffix}`, enabled: true },
+    });
+    // The app role reads them (no throw) — this is what `assertChannelLive` and
+    // the feature gates depend on.
+    const ks = await app.killSwitch.findMany({ where: { agencyId } });
+    expect(ks.length).toBeGreaterThan(0);
+    const ff = await app.featureFlag.findMany({ where: { workspaceId: wsA } });
+    expect(ff.length).toBeGreaterThan(0);
+  });
+
+  it("app role CANNOT write KillSwitch/FeatureFlag (INSERT/UPDATE/DELETE REVOKEd)", async () => {
+    await expect(
+      app.killSwitch.create({
+        data: { agencyId, channel: `sms-${suffix}`, active: true, reason: "should fail" },
+      }),
+    ).rejects.toThrow();
+    await expect(
+      app.featureFlag.create({ data: { workspaceId: wsA, key: `nope-${suffix}`, enabled: true } }),
+    ).rejects.toThrow();
+  });
+
+  it("backoffice role can read + write KillSwitch/FeatureFlag", async () => {
+    await expect(backoffice.killSwitch.count()).resolves.toBeTypeOf("number");
+    await expect(backoffice.featureFlag.count()).resolves.toBeTypeOf("number");
   });
 });

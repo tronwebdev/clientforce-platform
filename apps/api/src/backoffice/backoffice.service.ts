@@ -1,4 +1,13 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
+import { loadConfig } from "@clientforce/ai";
+import {
+  CLASSIFY_PROMPT_NAME,
+  CLASSIFY_PROMPT_VERSION,
+  COMPOSER_EMAIL_PROMPT_NAME,
+  COMPOSER_EMAIL_PROMPT_VERSION,
+  COMPOSER_PROMPT_NAME,
+  COMPOSER_PROMPT_VERSION,
+} from "@clientforce/channels";
 import {
   resolveCreditPrice,
   type AdoptionQueryDto,
@@ -7,16 +16,26 @@ import {
   type BackofficeAuditRow,
   type BackofficeWorkspaceRow,
   type CreditPriceUpsertDto,
+  type FeatureFlagRow,
+  type FeatureFlagSetDto,
+  type FleetHealthView,
   type FunnelStep,
+  type ImpersonateDto,
+  type ImpersonationMessage,
+  type ImpersonationSession,
+  type KillSwitchRow,
+  type KillSwitchSetDto,
   type ReconciliationQueryDto,
   type ReconciliationRow,
   type TenantStatusName,
   type UsageQueryDto,
   type UsageRollup,
+  type VersionPins,
 } from "@clientforce/core";
-import type { Prisma } from "@clientforce/db";
+import type { KillSwitch, Prisma } from "@clientforce/db";
 import { BackofficeDb } from "./backoffice-db.service";
 import type { BackofficeStaffContext } from "./request";
+import { SenderHealthClient } from "./sender-health";
 
 /** Which of our metered signals backs each provider/metric (null = not metered). */
 type MeteredMetric = "email_sends" | "sms_segments" | "voice_minutes";
@@ -36,7 +55,10 @@ type SuspendableStatus = "ACTIVE" | "SUSPENDED";
  */
 @Injectable()
 export class BackofficeService {
-  constructor(private readonly db: BackofficeDb) {}
+  constructor(
+    private readonly db: BackofficeDb,
+    private readonly senderHealth: SenderHealthClient,
+  ) {}
 
   private get prisma() {
     return this.db.client;
@@ -446,6 +468,214 @@ export class BackofficeService {
       wau,
       featureAdoption,
       lowData: totalEvents < SAMPLE_FLOOR,
+    };
+  }
+
+  // ── B1 W4 (DEC-082): kill switch · flags · impersonation · fleet health ─────
+
+  /** Every kill switch (any channel, any agency), stablest order for the UI. */
+  async listKillSwitches(): Promise<KillSwitchRow[]> {
+    const rows = await this.prisma.killSwitch.findMany({
+      orderBy: [{ agencyId: "asc" }, { channel: "asc" }],
+    });
+    return rows.map((r) => this.toKillSwitchRow(r));
+  }
+
+  /**
+   * Set/clear a per-agency/per-channel kill switch (audited, reversible). Upsert
+   * on the `(agencyId, channel)` unique — `active:false` KEEPS the row (so its
+   * history/reason survives) but lets the send boundary through. The boundary
+   * (`assertChannelLive`) reads this exact row; W1's suspend/reactivate is the
+   * pattern, one scope narrower.
+   */
+  async setKillSwitch(operator: BackofficeStaffContext, dto: KillSwitchSetDto): Promise<KillSwitchRow> {
+    const row = await this.prisma.$transaction(async (tx) => {
+      const prior = await tx.killSwitch.findUnique({
+        where: { agencyId_channel: { agencyId: dto.agencyId, channel: dto.channel } },
+      });
+      const saved = await tx.killSwitch.upsert({
+        where: { agencyId_channel: { agencyId: dto.agencyId, channel: dto.channel } },
+        create: { agencyId: dto.agencyId, channel: dto.channel, active: dto.active, reason: dto.reason },
+        update: { active: dto.active, reason: dto.reason },
+      });
+      await this.audit(tx, operator, {
+        action: dto.active ? "channel.kill" : "channel.restore",
+        targetType: "agency",
+        targetId: dto.agencyId,
+        reason: dto.reason,
+        metadata: { channel: dto.channel, before: prior?.active ?? false, after: dto.active },
+      });
+      return saved;
+    });
+    return this.toKillSwitchRow(row);
+  }
+
+  /** Per-tenant feature flags for one workspace (stable order for the UI). */
+  async listFlags(workspaceId: string): Promise<FeatureFlagRow[]> {
+    const rows = await this.prisma.featureFlag.findMany({
+      where: { workspaceId },
+      orderBy: { key: "asc" },
+    });
+    return rows.map((r) => ({ key: r.key, enabled: r.enabled, updatedAt: r.updatedAt.toISOString() }));
+  }
+
+  /** Set a per-tenant feature flag (upsert on `(workspaceId, key)`, audited). */
+  async setFlag(
+    operator: BackofficeStaffContext,
+    workspaceId: string,
+    dto: FeatureFlagSetDto,
+  ): Promise<FeatureFlagRow> {
+    const row = await this.prisma.$transaction(async (tx) => {
+      const ws = await tx.workspace.findUnique({ where: { id: workspaceId } });
+      if (!ws) throw new NotFoundException("Workspace not found");
+      const prior = await tx.featureFlag.findUnique({
+        where: { workspaceId_key: { workspaceId, key: dto.key } },
+      });
+      const saved = await tx.featureFlag.upsert({
+        where: { workspaceId_key: { workspaceId, key: dto.key } },
+        create: { workspaceId, key: dto.key, enabled: dto.enabled },
+        update: { enabled: dto.enabled },
+      });
+      await this.audit(tx, operator, {
+        action: "flag.set",
+        targetType: "workspace",
+        targetId: workspaceId,
+        metadata: { key: dto.key, before: prior?.enabled ?? false, after: dto.enabled },
+      });
+      return saved;
+    });
+    return { key: row.key, enabled: row.enabled, updatedAt: row.updatedAt.toISOString() };
+  }
+
+  /**
+   * Start a READ-ONLY impersonation session (FR-ADMIN-05): audit `impersonate.start`
+   * and return a banner-marked session. There is NO token and NO write path — the
+   * operator only reads tenant content (via `impersonationMessages`); the audit row
+   * is the accountable anchor for the whole session.
+   */
+  async startImpersonation(
+    operator: BackofficeStaffContext,
+    dto: ImpersonateDto,
+  ): Promise<ImpersonationSession> {
+    return this.prisma.$transaction(async (tx) => {
+      const ws = await tx.workspace.findUnique({
+        where: { id: dto.workspaceId },
+        include: { agency: true },
+      });
+      if (!ws) throw new NotFoundException("Workspace not found");
+      const audit = await this.audit(tx, operator, {
+        action: "impersonate.start",
+        targetType: "workspace",
+        targetId: dto.workspaceId,
+        reason: dto.reason,
+        metadata: { agencyId: ws.agencyId, mode: "read-only" },
+      });
+      return {
+        workspaceId: ws.id,
+        workspace: { id: ws.id, name: ws.name, slug: ws.slug, status: ws.status as TenantStatusName },
+        agency: { id: ws.agency.id, name: ws.agency.name },
+        readOnly: true as const,
+        startedAt: audit.createdAt.toISOString(),
+        auditId: audit.id,
+      };
+    });
+  }
+
+  /**
+   * Read-only message rows for the impersonation viewer. Bodies are truncated to
+   * a preview — enough for support to see the thread, no write path anywhere.
+   */
+  async impersonationMessages(workspaceId: string, limit = 50): Promise<ImpersonationMessage[]> {
+    const rows = await this.prisma.message.findMany({
+      where: { workspaceId },
+      orderBy: { sentAt: "desc" },
+      take: Math.min(limit, 200),
+    });
+    return rows.map((m) => ({
+      id: m.id,
+      channel: m.channel,
+      direction: m.direction,
+      subject: m.subject,
+      preview: m.body.slice(0, 200),
+      sentAt: m.sentAt.toISOString(),
+      contactId: m.contactId,
+    }));
+  }
+
+  /**
+   * Fleet sender health (FR-ADMIN-04) + abuse/deliverability outliers. Health
+   * scores are CONSUMED from P5-W1's endpoint via `SenderHealthClient` — the
+   * backoffice NEVER recomputes them; when P5-W1 isn't wired the view says so
+   * (`health.wired:false`). Outliers ARE a backoffice concern: bounce/spam/SMS-
+   * failure counts per workspace over the last 7d, above a floor.
+   */
+  async fleetHealth(): Promise<FleetHealthView> {
+    const health = await this.senderHealth.scores();
+
+    const since = new Date(Date.now() - 7 * 86_400_000);
+    const OUTLIER_METRICS: Record<string, string> = {
+      "email.bounced.v1": "bounces",
+      "email.spam.v1": "spam",
+      "sms.failed.v1": "sms_failures",
+    };
+    const OUTLIER_FLOOR = 5; // below this per workspace/metric it isn't an outlier.
+
+    const grouped = await this.prisma.event.groupBy({
+      by: ["workspaceId", "type"],
+      where: { type: { in: Object.keys(OUTLIER_METRICS) }, occurredAt: { gte: since } },
+      _count: { _all: true },
+    });
+    const flagged = grouped.filter((g) => g._count._all >= OUTLIER_FLOOR);
+    const workspaceIds = [...new Set(flagged.map((g) => g.workspaceId))];
+    const wsRows = workspaceIds.length
+      ? await this.prisma.workspace.findMany({
+          where: { id: { in: workspaceIds } },
+          select: { id: true, agencyId: true },
+        })
+      : [];
+    const agencyByWorkspace = new Map(wsRows.map((w) => [w.id, w.agencyId]));
+
+    const outliers = flagged
+      .map((g) => ({
+        agencyId: agencyByWorkspace.get(g.workspaceId) ?? "unknown",
+        workspaceId: g.workspaceId,
+        metric: OUTLIER_METRICS[g.type]!,
+        count: g._count._all,
+      }))
+      .sort((a, b) => b.count - a.count);
+
+    const totalSignals = grouped.reduce((s, g) => s + g._count._all, 0);
+    return { health, outliers, lowData: totalSignals < OUTLIER_FLOOR };
+  }
+
+  /**
+   * Model + prompt version-pin visibility (FR-ADMIN-06), READ-ONLY. Sourced from
+   * the live AI config (per-task model routing, env-overridable per deploy) and
+   * the code-pinned prompt versions. `scope:"platform"` is honest: these pins are
+   * platform-global today, not per-tenant.
+   */
+  versionPins(): VersionPins {
+    const config = loadConfig();
+    return {
+      scope: "platform",
+      models: Object.entries(config.models).map(([task, model]) => ({ task, model })),
+      embeddingModel: config.embeddingModel,
+      prompts: [
+        { name: COMPOSER_EMAIL_PROMPT_NAME, version: COMPOSER_EMAIL_PROMPT_VERSION },
+        { name: COMPOSER_PROMPT_NAME, version: COMPOSER_PROMPT_VERSION },
+        { name: CLASSIFY_PROMPT_NAME, version: CLASSIFY_PROMPT_VERSION },
+      ],
+    };
+  }
+
+  private toKillSwitchRow(r: KillSwitch): KillSwitchRow {
+    return {
+      id: r.id,
+      agencyId: r.agencyId,
+      channel: r.channel,
+      active: r.active,
+      reason: r.reason,
+      updatedAt: r.updatedAt.toISOString(),
     };
   }
 

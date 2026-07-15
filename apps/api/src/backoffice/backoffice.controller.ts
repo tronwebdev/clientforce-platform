@@ -17,6 +17,9 @@ import {
   backofficeReasonSchema,
   creditAdjustmentSchema,
   creditPriceUpsertSchema,
+  featureFlagSetSchema,
+  impersonateSchema,
+  killSwitchSetSchema,
   reconciliationQuerySchema,
   tenantListQuerySchema,
   usageQuerySchema,
@@ -167,5 +170,50 @@ export class BackofficeController {
   @Get("adoption")
   adoption(@Query() query: Record<string, string>) {
     return this.svc.adoption(parse(adoptionQuerySchema, query));
+  }
+
+  // ── B1 W4 (DEC-082): kill switch · flags · impersonation · fleet health ──────
+
+  @Get("kill-switches")
+  killSwitches() {
+    return this.svc.listKillSwitches();
+  }
+
+  @Post("kill-switches")
+  setKillSwitch(@Body() body: unknown, @Req() req: BackofficeRequest) {
+    const dto = parse(killSwitchSetSchema, body);
+    return this.svc.setKillSwitch(req.staff!, dto);
+  }
+
+  @Get("workspaces/:id/flags")
+  flags(@Param("id") id: string) {
+    return this.svc.listFlags(id);
+  }
+
+  @Post("workspaces/:id/flags")
+  setFlag(@Param("id") id: string, @Body() body: unknown, @Req() req: BackofficeRequest) {
+    const dto = parse(featureFlagSetSchema, body);
+    return this.svc.setFlag(req.staff!, id, dto);
+  }
+
+  @Post("impersonate")
+  impersonate(@Body() body: unknown, @Req() req: BackofficeRequest) {
+    const dto = parse(impersonateSchema, body);
+    return this.svc.startImpersonation(req.staff!, dto);
+  }
+
+  @Get("workspaces/:id/messages")
+  impersonationMessages(@Param("id") id: string) {
+    return this.svc.impersonationMessages(id);
+  }
+
+  @Get("fleet-health")
+  fleetHealth() {
+    return this.svc.fleetHealth();
+  }
+
+  @Get("version-pins")
+  versionPins() {
+    return this.svc.versionPins();
   }
 }

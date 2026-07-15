@@ -51,6 +51,12 @@ export default async function BackofficeConsoleLayout({ children }: { children: 
           <NavLink href="/backoffice/reconciliation" label="Reconciliation" />
           <NavLink href="/backoffice/pricing" label="Credit pricing" />
           <NavLink href="/backoffice/adoption" label="Adoption" />
+          <NavSection label="Operations" />
+          <NavLink href="/backoffice/fleet" label="Fleet health" />
+          <NavLink href="/backoffice/kill-switches" label="Kill switches" />
+          <NavLink href="/backoffice/flags" label="Feature flags" />
+          <NavLink href="/backoffice/impersonate" label="Impersonate" />
+          <NavSection label="Trail" />
           <NavLink href="/backoffice/audit" label="Audit log" />
         </nav>
 
@@ -101,5 +107,23 @@ function NavLink({ href, label }: { href: string; label: string }) {
     >
       {label}
     </Link>
+  );
+}
+
+/** A quiet nav divider label — groups the W4 operations rail apart from the W1-W3 items. */
+function NavSection({ label }: { label: string }) {
+  return (
+    <div
+      style={{
+        padding: "12px 10px 4px",
+        fontSize: 10,
+        fontWeight: 700,
+        letterSpacing: 0.5,
+        textTransform: "uppercase",
+        color: "#8a938d",
+      }}
+    >
+      {label}
+    </div>
   );
 }
