@@ -493,6 +493,9 @@ importers:
       '@clientforce/ai':
         specifier: workspace:*
         version: link:../ai
+      '@clientforce/automations':
+        specifier: workspace:*
+        version: link:../automations
       '@clientforce/events':
         specifier: workspace:*
         version: link:../events

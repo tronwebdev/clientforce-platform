@@ -10,14 +10,22 @@
 // sequence module (one definition, two hosts); re-exported here so every
 // pre-W3-4 wizard import keeps resolving.
 export { GRAD, type BriefDraft, type PreviewState } from "../../../components/sequence/shared";
-import { GRAD } from "../../../components/sequence/shared";
+import { CfError, GRAD } from "../../../components/sequence/shared";
 
+// W2 (#94): failures throw the shared CfError — message stays `path: status`
+// (existing toasts/matchers untouched); the API's owner-readable `detail`
+// rides the object for surfaces that render it (the sub-campaign creator).
 export const cf = (path: string, init?: RequestInit) =>
   fetch(`/api/cf/${path}`, {
     headers: { "Content-Type": "application/json" },
     ...init,
   }).then(async (r) => {
-    if (!r.ok) throw new Error(`${path}: ${r.status}`);
+    if (!r.ok) {
+      const body = (await r.json().catch(() => null)) as { detail?: unknown; message?: unknown } | null;
+      const detail =
+        typeof body?.detail === "string" ? body.detail : typeof body?.message === "string" ? body.message : null;
+      throw new CfError(path, r.status, detail);
+    }
     return r.json();
   });
 
@@ -94,6 +102,8 @@ export interface KnowledgeSource {
 }
 export interface SenderRow {
   id: string;
+  /** SenderType — W2 (#94): the email-vs-TWILIO_SMS scan feeds the creator. */
+  type?: string;
   fromEmail: string;
   fromName?: string | null;
   dailyLimit: number;
