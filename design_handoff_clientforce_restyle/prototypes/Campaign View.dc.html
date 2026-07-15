@@ -300,8 +300,22 @@
             <sc-if value="{{ isSeqView }}" hint-placeholder-val="{{ true }}">
               <div style="max-width:820px;margin:0 auto;padding-left:48px;display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
                 <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:18px;color:#0E1512;">Main sequence <span style="font-size:14px;font-weight:600;color:#9AA59E;">· 5 steps · 4 channels</span></div>
-                <span style="display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#0E1512;background:#fff;border:1px solid #EBE3D6;border-radius:11px;padding:9px 15px;">🕐 Mon–Fri · 9:00–18:00 · CT <span style="color:#9AA59E;">⌄</span></span>
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <div style="display:flex;align-items:center;gap:2px;background:#F2EEE4;border-radius:11px;padding:3px;">
+                    <span onClick="{{ seqModeUI.onScripted }}" style="font-size:12.5px;font-weight:{{ seqModeUI.scriptedFw }};color:{{ seqModeUI.scriptedFg }};background:{{ seqModeUI.scriptedBg }};box-shadow:{{ seqModeUI.scriptedShadow }};border-radius:9px;padding:6px 13px;cursor:pointer;">Scripted</span>
+                    <span onClick="{{ seqModeUI.onGuided }}" style="font-size:12.5px;font-weight:{{ seqModeUI.guidedFw }};color:{{ seqModeUI.guidedFg }};background:{{ seqModeUI.guidedBg }};box-shadow:{{ seqModeUI.guidedShadow }};border-radius:9px;padding:6px 13px;cursor:pointer;">✦ Guided</span>
+                  </div>
+                  <span style="display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#0E1512;background:#fff;border:1px solid #EBE3D6;border-radius:11px;padding:9px 15px;">🕐 Mon–Fri · 9:00–18:00 · CT <span style="color:#9AA59E;">⌄</span></span>
+                </div>
               </div>
+              <sc-if value="{{ guidedOn }}" hint-placeholder-val="{{ false }}">
+                <div style="max-width:820px;margin:0 auto 16px;padding-left:48px;">
+                  <div style="display:flex;gap:9px;align-items:flex-start;font-size:12.5px;color:#5C6B62;line-height:1.5;background:rgba(54,215,237,.07);border:1px solid rgba(54,215,237,.25);border-radius:11px;padding:11px 14px;">
+                    <span style="flex:none;color:#1192A6;font-size:14px;">✦</span>
+                    <span>Email and SMS steps carry a <strong style="color:#0E1512;">brief</strong> instead of fixed copy — the AI composes a fresh message per lead at send time, inside your rails. WhatsApp templates and voice scripts stay as written.</span>
+                  </div>
+                </div>
+              </sc-if>
               <div style="max-width:820px;margin:0 auto;padding-left:48px;">
                 <sc-for list="{{ seq }}" as="s" hint-placeholder-count="9">
                   <sc-if value="{{ s.isDelay }}" hint-placeholder-val="{{ false }}">
@@ -328,6 +342,9 @@
                         <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
                           <span style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#8A7F6B;">Step {{ s.n }}</span>
                           <span style="font-size:12px;font-weight:700;border-radius:8px;padding:3px 10px;background:{{ s.chipbg }};color:{{ s.chipfg }};">{{ s.channel }}</span>
+                          <sc-if value="{{ s.hasModeTag }}" hint-placeholder-val="{{ false }}">
+                            <span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;border-radius:8px;padding:3px 10px;background:{{ s.modeTagBg }};color:{{ s.modeTagFg }};">{{ s.modeTag }}</span>
+                          </sc-if>
                           <span onClick="{{ s.onEdit }}" style="margin-left:auto;font-size:13px;font-weight:600;color:#16A82A;cursor:pointer;">✎ Edit</span>
                         </div>
                         <div style="font-size:15px;font-weight:600;color:#0E1512;margin-bottom:4px;">{{ s.title }}</div>
@@ -548,7 +565,7 @@
                     <div style="padding:22px;">
                       <div style="display:flex;align-items:center;gap:12px;padding-bottom:16px;border-bottom:1px solid #F2EEE4;margin-bottom:18px;">
                         <span style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#36D7ED,#35E834);color:#0A0F0C;display:flex;align-items:center;justify-content:center;font-weight:700;">JM</span>
-                        <div><div style="font-weight:600;font-size:15px;color:#0E1512;">Jordan Mensah <span style="color:#9AA59E;font-weight:400;">&lt;<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="91fbfee3f5f0ffd1f3e3f8f6f9e5e1f0e5f9bff2fe">[email&#160;protected]</a>&gt;</span></div><div style="font-size:13px;color:#9AA59E;">to Dr. Marcus Alvarez · {{ prev.subject }}</div></div>
+                        <div><div style="font-weight:600;font-size:15px;color:#0E1512;">Jordan Mensah <span style="color:#9AA59E;font-weight:400;">&lt;<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="acc6c3dec8cdc2eccedec5cbc4d8dccdd8c482cfc3">[email&#160;protected]</a>&gt;</span></div><div style="font-size:13px;color:#9AA59E;">to Dr. Marcus Alvarez · {{ prev.subject }}</div></div>
                       </div>
                       <div style="font-size:15px;line-height:1.7;color:#3B463F;white-space:pre-wrap;">{{ prev.body }}</div>
                     </div>
@@ -1457,6 +1474,13 @@ class Component extends DCLogic {
     function chanIconBg(c) {
       return c === 'Email' ? 'rgba(53,232,52,.16)' : c === 'SMS' ? 'rgba(54,215,237,.16)' : c === 'WhatsApp' ? 'rgba(208,245,107,.45)' : grad;
     }
+    const seqMode = this.state.seqMode || 'guided';
+    const guidedOn = seqMode === 'guided';
+    const BRIEFS = {
+      'Intro email': { objective: 'Open the conversation — get a first reply, not a booking' },
+      'SMS nudge — free audit': { objective: 'Nudge the unopened email — one line, one easy yes' },
+      'Follow-up': { objective: 'Prove it works — one concrete case study, soft ask' },
+    };
     let sn = 0;
     const seqAll = this.state.seqItems;
     const seq = seqAll.map((r, idx) => {
@@ -1473,10 +1497,16 @@ class Component extends DCLogic {
       };
       sn += 1; const t = chan[r.channel];
       const cardTitle = (r.channel === 'Email' && r.subject) ? r.subject : r.title;
+      const brief = BRIEFS[r.title];
+      const gStep = guidedOn && !!brief;
       return {
         isStep: true, isDelay: false, n: String(sn), channel: r.channel,
         icon: t.icon, iconbg: chanIconBg(r.channel), iconfg: t.chipfg, chipbg: t.chipbg, chipfg: t.chipfg,
-        title: cardTitle, preview: r.body,
+        title: cardTitle, preview: gStep ? 'Objective: ' + brief.objective : r.body,
+        hasModeTag: guidedOn,
+        modeTag: gStep ? '✦ Composed at send' : '✦ AI draft',
+        modeTagBg: gStep ? 'rgba(54,215,237,.14)' : 'rgba(53,232,52,.12)',
+        modeTagFg: gStep ? '#1192A6' : '#16A82A',
         onEdit: () => this.setState({
           delayEditIdx: null, addTypeOpen: false,
           stepEditor: { idx: idx, channel: r.channel, title: r.title || '', subject: r.subject || '', body: r.body || '', buttons: (r.buttons || []).slice() },
@@ -1882,6 +1912,13 @@ class Component extends DCLogic {
       branchTabWeight: this.state.stepsView === 'branches' ? 700 : 500, branchTabColor: this.state.stepsView === 'branches' ? '#0E1512' : '#8A7F6B', branchTabLine: this.state.stepsView === 'branches' ? '#16A82A' : 'transparent',
       branchBadgeFg: this.state.stepsView === 'branches' ? '#fff' : '#8A7F6B', branchBadgeBg: this.state.stepsView === 'branches' ? '#0E1512' : '#F2EEE4', branchCount: '2',
       seq, flowPills, subCampaigns, rules,
+      guidedOn,
+      seqModeUI: {
+        scriptedBg: guidedOn ? 'transparent' : '#fff', scriptedShadow: guidedOn ? 'none' : '0 1px 4px rgba(14,21,18,.1)', scriptedFw: guidedOn ? 600 : 700, scriptedFg: guidedOn ? '#8A7F6B' : '#0E1512',
+        guidedBg: guidedOn ? '#fff' : 'transparent', guidedShadow: guidedOn ? '0 1px 4px rgba(14,21,18,.1)' : 'none', guidedFw: guidedOn ? 700 : 600, guidedFg: guidedOn ? '#0E1512' : '#8A7F6B',
+        onScripted: () => this.setState({ seqMode: 'scripted' }),
+        onGuided: () => this.setState({ seqMode: 'guided' }),
+      },
       stepEditor, addTypeOptions, addTypeOpen: this.state.addTypeOpen,
       emailScore, emailVerdict, emailChecks,
       onAddStep: () => this.setState((s) => ({ addTypeOpen: !s.addTypeOpen, stepEditor: null, delayEditIdx: null })),
