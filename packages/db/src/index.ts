@@ -47,6 +47,23 @@ export function createAppPrismaClient(options: CreatePrismaClientOptions = {}): 
 }
 
 /**
+ * RLS-EXEMPT backoffice client (B1 W1, DEC-079) — connects as the dedicated
+ * `clientforce_backoffice` role, which carries `BYPASSRLS`. Its cross-tenant
+ * reach is the platform backoffice's whole purpose: deliberate, scoped, audited.
+ *
+ * Prefers BACKOFFICE_DATABASE_URL; falls back to DATABASE_URL (the owner
+ * superuser also bypasses RLS) so CI/local run without extra wiring. This client
+ * is for the backoffice service ONLY — never wire it onto a tenant request path;
+ * tenant data always flows through `createAppPrismaClient` + `withTenant`.
+ */
+export function createBackofficePrismaClient(
+  options: CreatePrismaClientOptions = {},
+): PrismaClient {
+  const url = options.url ?? process.env.BACKOFFICE_DATABASE_URL ?? process.env.DATABASE_URL;
+  return createPrismaClient({ ...options, url });
+}
+
+/**
  * Execute `fn` inside a tenant-scoped transaction. The RLS GUCs are set
  * transaction-locally (`set_config(..., true)`), so they cannot leak across
  * pooled connections. Returns whatever `fn` returns.

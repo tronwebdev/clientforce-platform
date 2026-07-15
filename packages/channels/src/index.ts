@@ -31,6 +31,8 @@ export {
   type RenderedEmail,
   type SendBlockReason,
 } from "./types";
+// B1 W1 (DEC-079): platform-suspension gate shared by the email + SMS boundaries.
+export { assertTenantActive } from "./tenant-status";
 export {
   resolveEventMessage,
   toBusEvents,

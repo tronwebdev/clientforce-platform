@@ -68,7 +68,12 @@ export type SendBlockReason =
   | "RECIPIENT_NOT_ALLOWLISTED"
   // P2.1 (DEC-061): SMS-boundary extensions.
   | "CONTACT_NO_PHONE"
-  | "SENDER_NOT_SMS";
+  | "SENDER_NOT_SMS"
+  // B1 W1 (DEC-079): platform suspension. A SUSPENDED workspace — or its
+  // SUSPENDED agency — refuses every send at the boundary; reactivation
+  // restores it. The kill switch reuses this same machinery (W4 extends the
+  // detail, never forks the path).
+  | "TENANT_SUSPENDED";
 
 export class SendBlockedError extends Error {
   constructor(
