@@ -575,7 +575,9 @@ export function ContactImportFlow({ open, onClose, lists, fieldDefs, refreshDefs
                           {hasFails
                             ? "The rows below didn't import. You can retry just those rows."
                             : valBatchId
-                              ? "Email validation is running — contacts become sendable as they clear."
+                              ? valReport?.status === "completed"
+                                ? "Email validation finished — the report below has the breakdown."
+                                : "Email validation is running — contacts become sendable as they clear."
                               : "They're ready to enroll in a campaign."}
                         </div>
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8, textAlign: "left" }}>

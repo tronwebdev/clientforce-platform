@@ -1,0 +1,8 @@
+email,excluded_because,detail
+bad-0@lh1demo.test,invalid,mailbox_not_found
+bad-1@lh1demo.test,invalid,mailbox_not_found
+bad-2@lh1demo.test,invalid,mailbox_not_found
+bad-3@lh1demo.test,invalid,mailbox_not_found
+bad-4@lh1demo.test,invalid,mailbox_not_found
+bad-5@lh1demo.test,invalid,mailbox_not_found
+suppressed-vip@lh1demo.test,already suppressed,suppression
