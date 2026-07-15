@@ -8,6 +8,7 @@ import {
 } from "@clientforce/core";
 import { withTenant, type Message, type PrismaClient } from "@clientforce/db";
 import { hasThreadPrefix, renderTokens, stripThreadPrefix, withReplyPrefix } from "./render";
+import { assertTenantActive } from "./tenant-status";
 import { SendBlockedError, type EmailSender, type RenderedEmail } from "./types";
 
 export interface SendDeps {
@@ -57,6 +58,10 @@ export async function sendStep(deps: SendDeps, params: SendStepParams): Promise<
   const { prisma, transport } = deps;
   const now = deps.now?.() ?? new Date();
   const ctx = { workspaceId: params.workspaceId };
+
+  // B1 W1 (DEC-079): platform suspension is the first gate — a suspended
+  // workspace/agency refuses before any per-recipient work.
+  await assertTenantActive(prisma, params.workspaceId);
 
   const [sender, contact, agent, workspaceContext] = await withTenant(prisma, ctx, (tx) =>
     Promise.all([

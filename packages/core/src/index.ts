@@ -56,6 +56,10 @@ export * from "./contact-import";
 // terminal set, run statuses; shared with the Phase-6 Automations engine.
 export * from "./campaign-rules";
 
+// Platform backoffice DTOs (B1 W1, DEC-079) — the internal operator surface;
+// cross-tenant, platform-staff auth, never tenant-scoped.
+export * from "./backoffice";
+
 /**
  * Narrow an arbitrary string to a branded {@link Id}. Real validation arrives
  * with the data model; this keeps the type honest without runtime cost.

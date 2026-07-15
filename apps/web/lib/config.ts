@@ -10,3 +10,7 @@ export const DEV_AUDIENCE = "clientforce";
 
 export const SESSION_COOKIE = "cf_session";
 export const WORKSPACE_COOKIE = "cf_workspace";
+
+// B1 W1 (DEC-079): the platform backoffice runs on a SEPARATE session cookie —
+// a tenant `cf_session` never opens the operator surface and vice-versa.
+export const STAFF_SESSION_COOKIE = "cf_staff_session";
