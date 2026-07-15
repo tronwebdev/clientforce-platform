@@ -11,6 +11,7 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import {
+  adoptionQuerySchema,
   auditQuerySchema,
   backofficeLoginSchema,
   backofficeReasonSchema,
@@ -159,5 +160,12 @@ export class BackofficeController {
   setCreditPrice(@Body() body: unknown, @Req() req: BackofficeRequest) {
     const dto = parse(creditPriceUpsertSchema, body);
     return this.svc.setCreditPrice(req.staff!, dto);
+  }
+
+  // ── B1 W3 (DEC-081): product adoption ───────────────────────────────────────
+
+  @Get("adoption")
+  adoption(@Query() query: Record<string, string>) {
+    return this.svc.adoption(parse(adoptionQuerySchema, query));
   }
 }

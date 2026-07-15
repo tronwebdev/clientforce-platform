@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import type {
+  AdoptionSummary,
   BackofficeAgencyRow,
   BackofficeAuditRow,
   BackofficeStaff,
@@ -51,4 +52,12 @@ export async function fetchReconciliation(): Promise<ReconciliationRow[]> {
   const res = await fetch(`${API_URL}/backoffice/reconciliation`, { headers, cache: "no-store" });
   if (!res.ok) return [];
   return (await res.json()) as ReconciliationRow[];
+}
+
+export async function fetchAdoption(): Promise<AdoptionSummary | null> {
+  const headers = await staffHeaders();
+  if (!headers) return null;
+  const res = await fetch(`${API_URL}/backoffice/adoption`, { headers, cache: "no-store" });
+  if (!res.ok) return null;
+  return (await res.json()) as AdoptionSummary;
 }

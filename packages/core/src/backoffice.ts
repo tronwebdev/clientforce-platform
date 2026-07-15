@@ -174,6 +174,30 @@ export interface UsageRollup {
   lowData: boolean; // below the sample floor → don't over-read the numbers
 }
 
+// ── B1 W3 (DEC-081): product telemetry + adoption dashboards ─────────────────
+
+export const adoptionQuerySchema = z.object({
+  from: z.string().datetime().optional(),
+  to: z.string().datetime().optional(),
+});
+export type AdoptionQueryDto = z.infer<typeof adoptionQuerySchema>;
+
+export interface FunnelStep {
+  step: string;
+  count: number;
+  conversionPct: number | null; // vs the previous step; null for the first / when prior is 0
+}
+
+export interface AdoptionSummary {
+  from: string;
+  to: string;
+  funnel: FunnelStep[]; // signup → agent → launch → first send → first reply → goal
+  dau: number; // active workspaces in the last 24h
+  wau: number; // active workspaces in the last 7d
+  featureAdoption: { feature: string; workspaces: number }[];
+  lowData: boolean; // below the sample floor → don't over-read the numbers
+}
+
 export interface ReconciliationRow {
   provider: string;
   metric: string;
