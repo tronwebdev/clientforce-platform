@@ -120,14 +120,15 @@ describe.skipIf(!hasDb)("W3-4 sequence editor e2e (DEC-076)", () => {
     await owner.senderConnection.create({
       data: { workspaceId: ws, type: "CF_MANAGED", fromEmail: "agent@send.clientforce.io", fromName: "Sam" },
     });
+    // LH1 (DEC-087): validated fixtures — the gate holds unverified contacts.
     contactA = (
       await owner.contact.create({
-        data: { workspaceId: ws, source: "import", optOut: {}, tags: [], email: `a-${suffix}@t.test`, firstName: "Ada" },
+        data: { workspaceId: ws, source: "import", optOut: {}, tags: [], email: `a-${suffix}@t.test`, firstName: "Ada", emailVerdict: "valid" },
       })
     ).id;
     contactB = (
       await owner.contact.create({
-        data: { workspaceId: ws, source: "import", optOut: {}, tags: [], email: `b-${suffix}@t.test`, firstName: "Bea" },
+        data: { workspaceId: ws, source: "import", optOut: {}, tags: [], email: `b-${suffix}@t.test`, firstName: "Bea", emailVerdict: "valid" },
       })
     ).id;
     const u1 = await owner.user.create({

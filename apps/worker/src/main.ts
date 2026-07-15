@@ -47,7 +47,9 @@ import { createPlanWorker } from "@clientforce/planner";
 import {
   createValidationQueue,
   createValidationWorker,
+  enqueueValidationBatch,
   sweepValidationBatches,
+  upsertValidationBatch,
   ZeroBounceProvider,
   type ValidationEventInput,
 } from "@clientforce/validation";
@@ -56,10 +58,13 @@ import {
   cancelWorkflowById,
   connectTemporalClient,
   createActivities,
+  drainEnrollmentHolds,
   moveEnrollmentToNode,
   signalEnrollmentReply,
+  startCampaignWorkflow,
   TASK_QUEUE,
   WORKFLOWS_PATH,
+  type DrainDeps,
 } from "@clientforce/workflows";
 
 /**
@@ -454,18 +459,79 @@ function startValidationWorker(deps: {
   publish: (e: ValidationEventInput) => Promise<void>;
 }): void {
   const provider = new ZeroBounceProvider();
-  const worker = createValidationWorker({
+  const queueForDrain = createValidationQueue();
+  // LH1 W3 (DEC-087): the hold drain — verdicts landing release held
+  // contacts into their sequences through the SAME gate the api uses.
+  // The engine defers loudly when Temporal isn't configured (holds stay
+  // pending for the next pass — never a silent drop).
+  const drainDeps: DrainDeps = {
     prisma: deps.prisma,
-    ownerPrisma: deps.ownerPrisma,
-    provider,
-    publish: deps.publish,
-    resolveMx: (domain) => resolveMx(domain),
-  });
+    engine: {
+      start: async (input) => {
+        const client = await temporalClient();
+        if (!client) throw new Error("TEMPORAL_ADDRESS not configured — drain deferred");
+        return startCampaignWorkflow(client, input);
+      },
+    },
+    publish: async (e) => deps.publish(e as ValidationEventInput),
+    enqueueValidation: async (workspaceId, contactId, email) => {
+      const { batchId } = await upsertValidationBatch(deps.prisma, {
+        workspaceId,
+        source: "single",
+        contacts: [{ contactId, email }],
+      });
+      await enqueueValidationBatch(queueForDrain, { workspaceId, batchId });
+    },
+  };
+  const worker = createValidationWorker(
+    {
+      prisma: deps.prisma,
+      ownerPrisma: deps.ownerPrisma,
+      provider,
+      publish: deps.publish,
+      resolveMx: (domain) => resolveMx(domain),
+    },
+    {
+      onVerdictsLanded: async (r) => {
+        const d = await drainEnrollmentHolds(drainDeps, { workspaceId: r.workspaceId });
+        if (d.released + d.refused > 0) {
+          console.log(
+            `[worker] enrollment drain ws=${r.workspaceId}: ${d.released} released · ${d.refused} refused · ${d.capHeld} cap-held · ${d.stillHeld} still held`,
+          );
+        }
+      },
+    },
+  );
   worker.on("failed", (job, err) => {
     console.error(
       `[worker] validation turn failed batch=${job?.data.batchId ?? "?"}: ${err.message} (held batches resume via the requeue sweep)`,
     );
   });
+  // Drain sweep (2 min): day-rollover releases cap-overflow holds; deferred
+  // engine starts retry; workspaces with pending holds discovered cross-tenant
+  // on the owner client (the sweep precedent), drained tenant-scoped.
+  const drainSweep = async (): Promise<void> => {
+    const wsRows = await deps.ownerPrisma.enrollmentHold.groupBy({
+      by: ["workspaceId"],
+      where: { status: "pending" },
+      _count: { _all: true },
+    });
+    for (const row of wsRows) {
+      const d = await drainEnrollmentHolds(drainDeps, { workspaceId: row.workspaceId }).catch((err: unknown) => {
+        console.error(`[worker] enrollment drain failed ws=${row.workspaceId}`, err);
+        return null;
+      });
+      if (d && d.released + d.refused > 0) {
+        console.log(
+          `[worker] enrollment drain ws=${row.workspaceId}: ${d.released} released · ${d.refused} refused · ${d.capHeld} cap-held · ${d.stillHeld} still held`,
+        );
+      }
+    }
+  };
+  void drainSweep().catch((err: unknown) => console.error("[worker] enrollment drain sweep failed", err));
+  setInterval(() => {
+    void drainSweep().catch((err: unknown) => console.error("[worker] enrollment drain sweep failed", err));
+  }, 2 * 60_000);
   if (process.env.ZEROBOUNCE_API_KEY) {
     void provider
       .preflight()
@@ -478,9 +544,8 @@ function startValidationWorker(deps: {
       "[worker] ZEROBOUNCE_API_KEY not set — validation batches hold with the typed provider refusal (LH1 owner step)",
     );
   }
-  const queue = createValidationQueue();
   const sweep = async (): Promise<void> => {
-    const n = await sweepValidationBatches(deps.ownerPrisma, queue);
+    const n = await sweepValidationBatches(deps.ownerPrisma, queueForDrain);
     if (n > 0) console.log(`[worker] validation requeue sweep: ${n} batch(es) enqueued`);
   };
   void sweep().catch((err: unknown) => console.error("[worker] validation sweep failed", err));

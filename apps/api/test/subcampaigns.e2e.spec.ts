@@ -113,7 +113,8 @@ describe.skipIf(!hasDb)("#90 sub-campaign creation e2e (DEC-077)", () => {
     });
     contactId = (
       await owner.contact.create({
-        data: { workspaceId: ws, source: "import", optOut: {}, tags: [], email: `c-${suffix}@t.test`, firstName: "Cam" },
+        // LH1 (DEC-087): validated fixture — the gate holds unverified contacts.
+        data: { workspaceId: ws, source: "import", optOut: {}, tags: [], email: `c-${suffix}@t.test`, firstName: "Cam", emailVerdict: "valid" },
       })
     ).id;
     const u1 = await owner.user.create({

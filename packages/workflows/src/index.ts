@@ -8,6 +8,8 @@
 export * from "./shared";
 export * from "./activities";
 export * from "./client";
+// LH1 W3 (DEC-087): the ONE enrollment gate + hold drain (host-side only).
+export * from "./enroll";
 
 /** Pass to `Worker.create({ workflowsPath })` — resolves next to this build. */
 export const WORKFLOWS_PATH = require.resolve("./workflows");

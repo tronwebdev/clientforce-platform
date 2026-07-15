@@ -48,6 +48,10 @@ export type EnrollmentHoldReason = (typeof ENROLLMENT_HOLD_REASONS)[number];
 export const ENROLL_BLOCK_REASONS = ["CONTACT_INVALID"] as const;
 export type EnrollBlockReason = (typeof ENROLL_BLOCK_REASONS)[number];
 
+/** The one CONTACT_INVALID refusal message — gate throws it, surfaces match it. */
+export const CONTACT_INVALID_MESSAGE =
+  "Contact email is invalid — excluded from enrollment (list hygiene)";
+
 /**
  * The progressive batch report (GET /contacts/validation-batches/:id) — the
  * import report's data: "1,240 valid · 87 risky (held) · 43 invalid

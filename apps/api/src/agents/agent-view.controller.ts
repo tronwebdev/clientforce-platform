@@ -1,5 +1,5 @@
 import { Controller, Get, NotFoundException, Param, Query } from "@nestjs/common";
-import { goalTerminalLabel, goalTerminalPill, parseGuardrails, validateGraph, type CampaignGraph } from "@clientforce/core";
+import { goalTerminalLabel, goalTerminalPill, parseGuardrails, validateGraph, type CampaignGraph, type ValidationProgress } from "@clientforce/core";
 import { TenantClient } from "../db/tenant-client";
 
 /**
@@ -175,6 +175,40 @@ export class AgentViewController {
         })
         .filter(Boolean);
       return { threads };
+    });
+  }
+
+  /**
+   * LH1 W3 (DEC-087): the campaign-dashboard validation chip's data — held
+   * counts by reason + typed refusals for the agent's primary campaign.
+   * Honest progress, never a blocking state: "Validating N — sending starts
+   * as they clear."
+   */
+  @Get(":id/validation-progress")
+  async validationProgress(@Param("id") id: string): Promise<ValidationProgress> {
+    return this.tenant.run(async (tx) => {
+      const campaign = await tx.campaign.findFirst({
+        where: { agentId: id },
+        orderBy: { createdAt: "asc" },
+        select: { id: true },
+      });
+      const empty: ValidationProgress = { heldUnverified: 0, heldRisky: 0, heldCapOverflow: 0, refusedInvalid: 0 };
+      if (!campaign) return empty;
+      const groups = await tx.enrollmentHold.groupBy({
+        by: ["status", "reason"],
+        where: { campaignId: campaign.id },
+        _count: { _all: true },
+      });
+      const count = (status: string, reason?: string): number =>
+        groups
+          .filter((g) => g.status === status && (reason === undefined || g.reason === reason))
+          .reduce((n, g) => n + g._count._all, 0);
+      return {
+        heldUnverified: count("pending", "unverified"),
+        heldRisky: count("pending", "risky_held"),
+        heldCapOverflow: count("pending", "cap_overflow"),
+        refusedInvalid: count("refused"),
+      };
     });
   }
 
