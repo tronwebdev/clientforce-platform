@@ -68,16 +68,10 @@ jobs:
           node-version: 22
           cache: pnpm
 
-      - name: Install + build (voice service and its deps)
+      - name: Install + build (voice service + its full dependency closure)
         run: |
           pnpm install --frozen-lockfile
-          pnpm --filter @clientforce/db build
-          pnpm --filter @clientforce/core build
-          pnpm --filter @clientforce/ai build
-          pnpm --filter @clientforce/events build
-          pnpm --filter @clientforce/context build
-          pnpm --filter @clientforce/channels build
-          pnpm --filter voice build
+          pnpm --filter "voice..." build
 
       - name: Azure login (OIDC)
         uses: azure/login@v2
