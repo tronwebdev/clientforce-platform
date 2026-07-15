@@ -44,6 +44,13 @@ for name in TEMPORAL-ADDRESS TEMPORAL-NAMESPACE TEMPORAL-API-KEY INBOUND-PARSE-T
   fi
 done
 
+# LH1 (DEC-087): ZeroBounce key — OPTIONAL the same way (vendor spine).
+# Absent = validation batches hold with the typed provider refusal; contacts
+# stay unverified + held at the enrollment gate, never silently enrolled.
+if ! grep -qxF "ZEROBOUNCE-API-KEY" <<<"$present"; then
+  echo "::warning::Key Vault secret ZEROBOUNCE-API-KEY not present — email validation stays held this deploy (LH1 owner step)."
+fi
+
 # Verify the DEPLOY identity itself can do everything the pipeline needs, before
 # anything destructive runs. This is the read-only "is all access in?" gate:
 # push to ACR, create the Container Apps/identity/job, and (the non-obvious one)

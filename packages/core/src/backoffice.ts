@@ -168,6 +168,9 @@ export interface UsageRollup {
   to: string;
   sendsByChannel: Record<string, number>;
   voiceMinutes: number;
+  /** LH1 (DEC-087): PAID email verifications (platform COGS — free to the
+   *  tenant, owner-ruled 2026-07-15; visibility + fair-use, never a charge). */
+  emailValidations: number;
   creditBurn: number; // absolute sum of negative ledger deltas
   creditGranted: number; // sum of positive ledger deltas
   aiSpendCredits: null; // honest absence — AI spend is not metered yet

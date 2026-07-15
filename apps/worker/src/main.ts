@@ -1,4 +1,4 @@
-import { resolveTxt } from "node:dns/promises";
+import { resolveMx, resolveTxt } from "node:dns/promises";
 import { join } from "node:path";
 import { NativeConnection, Worker } from "@temporalio/worker";
 import {
@@ -44,6 +44,13 @@ import {
   createUploadStoreFromEnv,
 } from "@clientforce/knowledge";
 import { createPlanWorker } from "@clientforce/planner";
+import {
+  createValidationQueue,
+  createValidationWorker,
+  sweepValidationBatches,
+  ZeroBounceProvider,
+  type ValidationEventInput,
+} from "@clientforce/validation";
 import {
   cancelEnrollmentWorkflow,
   cancelWorkflowById,
@@ -237,6 +244,15 @@ function startKnowledgeWorkers(): void {
   startSenderHealthSweep({ prisma, ownerPrisma: owner, publish: ruleDeps.publish });
   startSenderDnsSweep({ prisma, ownerPrisma: owner });
   startSuppressionHygieneSweep({ prisma, ownerPrisma: owner });
+  // LH1 (DEC-087): async email validation — batches from the api resolve
+  // here through the pinned free-filter pipeline + the ZeroBounce adapter.
+  startValidationWorker({
+    prisma,
+    ownerPrisma: owner,
+    publish: async (e: ValidationEventInput) => {
+      await ruleDeps.publish(e as Parameters<EventBus["publish"]>[0]);
+    },
+  });
 
   // Distilling/classifying need real completions; without the key those
   // workers stay off (ingest + bus are unaffected) and jobs wait in Redis.
@@ -422,6 +438,56 @@ function startSenderHealthSweep(deps: SenderSweepDeps): void {
   setInterval(() => {
     void sweep().catch((err: unknown) => console.error("[worker] sender-health sweep failed", err));
   }, 10 * 60_000);
+}
+
+/**
+ * Email-validation worker + requeue sweep (LH1, DEC-087). The vendor-spine
+ * boot preflight probes ZeroBounce (log-only — a dead provider never crashes
+ * the worker: batches hold with the typed refusal and contacts stay
+ * `unverified` + held at the enrollment gate). The sweep re-enqueues batches
+ * with no live job: created while Redis was down, held past their UTC-day
+ * boundary (allowance/ceiling), provider-down cool-offs, crash orphans.
+ */
+function startValidationWorker(deps: {
+  prisma: PrismaClient;
+  ownerPrisma: PrismaClient;
+  publish: (e: ValidationEventInput) => Promise<void>;
+}): void {
+  const provider = new ZeroBounceProvider();
+  const worker = createValidationWorker({
+    prisma: deps.prisma,
+    ownerPrisma: deps.ownerPrisma,
+    provider,
+    publish: deps.publish,
+    resolveMx: (domain) => resolveMx(domain),
+  });
+  worker.on("failed", (job, err) => {
+    console.error(
+      `[worker] validation turn failed batch=${job?.data.batchId ?? "?"}: ${err.message} (held batches resume via the requeue sweep)`,
+    );
+  });
+  if (process.env.ZEROBOUNCE_API_KEY) {
+    void provider
+      .preflight()
+      .then((r) => console.log(`[worker] validation preflight: ${r.detail}`))
+      .catch((err: unknown) =>
+        console.error("[worker] validation preflight FAILED — batches will hold typed", err),
+      );
+  } else {
+    console.log(
+      "[worker] ZEROBOUNCE_API_KEY not set — validation batches hold with the typed provider refusal (LH1 owner step)",
+    );
+  }
+  const queue = createValidationQueue();
+  const sweep = async (): Promise<void> => {
+    const n = await sweepValidationBatches(deps.ownerPrisma, queue);
+    if (n > 0) console.log(`[worker] validation requeue sweep: ${n} batch(es) enqueued`);
+  };
+  void sweep().catch((err: unknown) => console.error("[worker] validation sweep failed", err));
+  setInterval(() => {
+    void sweep().catch((err: unknown) => console.error("[worker] validation sweep failed", err));
+  }, 5 * 60_000);
+  console.log("[worker] email-validation worker started (LH1)");
 }
 
 /**

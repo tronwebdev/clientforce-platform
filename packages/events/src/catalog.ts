@@ -194,6 +194,45 @@ export const EVENT_SCHEMAS = {
     windowDays: z.number().int(),
   }),
 
+  // ── List hygiene / email validation (LH1, DEC-087) ────────────────────────
+  // The enrollment GATE refused a contact — typed, never silent. Unlike
+  // send-rail refusals (which live on `Enrollment.meta.blocked`), a gate
+  // refusal has NO enrollment row to carry it, so it is cataloged — the
+  // G1/G2 compose_refused precedent. The Event row's campaignId/contactId
+  // columns put it in the campaign Logs feed.
+  "contact.enrollment_refused.v1": z.object({
+    reason: z.string(), // CONTACT_INVALID
+    detail: z.string().optional(),
+    /** Enrollment provenance kind (manual | csv | list) or "drain". */
+    origin: z.string().optional(),
+  }),
+  // One async validation run finished (all items resolved) — the batch's
+  // Logs/metering twin: the B1-W2 usage rollup reads billed counts off the
+  // verdict cache rows; this event is the timeline surface. Emitted once
+  // per batch (guarded transition), never per chunk.
+  "validation.batch_completed.v1": z.object({
+    batchId: z.string().min(1),
+    source: z.string(),
+    total: z.number().int().nonnegative(),
+    valid: z.number().int().nonnegative(),
+    risky: z.number().int().nonnegative(),
+    invalid: z.number().int().nonnegative(),
+    skippedSuppressed: z.number().int().nonnegative(),
+    /** Paid provider verifications (≤ total — free filters run first). */
+    billed: z.number().int().nonnegative(),
+    cacheHits: z.number().int().nonnegative(),
+  }),
+  // Validation for a batch is HELD (workspace allowance / platform spend
+  // ceiling / provider down) — the honest "validation queued" state. Rising
+  // edge per batch-hold episode; contacts stay `unverified` + held at the
+  // gate, NOTHING silently enrolls. The ceiling variant doubles as the
+  // vendor-spine cost alert.
+  "validation.paused.v1": z.object({
+    batchId: z.string().min(1),
+    reason: z.string(), // workspace_allowance | platform_spend_ceiling | provider_unavailable
+    pendingCount: z.number().int().nonnegative(),
+  }),
+
   // ── Billing ────────────────────────────────────────────────────────────────
   "payment.received.v1": z.object({ amount: z.number().int(), channel: z.string().optional() }),
   "credits.consumed.v1": z.object({ amount: z.number().int(), channel: z.string(), balance: z.number().int() }),
@@ -267,6 +306,9 @@ export const EVENT_TYPES = {
   LEAD_UNSUBSCRIBED: "lead.unsubscribed.v1",
   LIST_MEMBER_ADDED: "list.member.added.v1",
   LIST_MEMBER_REMOVED: "list.member.removed.v1",
+  CONTACT_ENROLLMENT_REFUSED: "contact.enrollment_refused.v1",
+  VALIDATION_BATCH_COMPLETED: "validation.batch_completed.v1",
+  VALIDATION_PAUSED: "validation.paused.v1",
   SENDER_HEALTH_COLLAPSED: "sender.health_collapsed.v1",
   SENDER_HEALTH_RECOVERED: "sender.health_recovered.v1",
   SENDER_WARMUP_COMPLETED: "sender.warmup_completed.v1",

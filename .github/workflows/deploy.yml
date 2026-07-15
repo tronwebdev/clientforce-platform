@@ -148,6 +148,13 @@ jobs:
             smsAllowlist=false
             echo "SMS-ALLOWLIST not in Key Vault — no live SMS recipients anywhere (DEC-063)."
           fi
+          # LH1 (DEC-087): ZeroBounce key — vendor-spine conditional wiring.
+          if az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name ZEROBOUNCE-API-KEY --query id -o tsv >/dev/null 2>&1; then
+            zerobounce=true
+          else
+            zerobounce=false
+            echo "ZEROBOUNCE-API-KEY not in Key Vault — email validation holds batches with the typed provider refusal (LH1 owner step)."
+          fi
           az deployment group create \
             --resource-group "$RG" \
             --template-file infra/main.bicep \
@@ -164,7 +171,8 @@ jobs:
               sgWebhookKeyAvailable="$sgWebhookKey" \
               clerkSecretsAvailable="$clerk" \
               twilioSecretsAvailable="$twilio" \
-              smsAllowlistAvailable="$smsAllowlist"
+              smsAllowlistAvailable="$smsAllowlist" \
+              zerobounceSecretAvailable="$zerobounce"
 
       # ── Expose the deployed web FQDN for the e2e job ──
       - name: Resolve web FQDN
