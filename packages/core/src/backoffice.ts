@@ -176,12 +176,21 @@ export interface UsageRollup {
 
 // ── B1 W4 (DEC-082): fleet health · kill switch · impersonation · flags ──────
 
-export const SEND_CHANNELS = ["email", "sms", "whatsapp", "voice"] as const;
+/**
+ * The channels the kill switch ENFORCES — deliberately NOT the full send
+ * vocabulary. A kill switch is only offered for a channel whose send boundary
+ * actually calls `assertChannelLive` (email + SMS today); offering `voice`/
+ * `whatsapp` here would ship a silent no-op, since those paths don't gate yet
+ * (Q-025, owner ruling 2026-07-15). Each channel RE-ENTERS this list via the
+ * ride-along on the PR that wires its boundary rail (voice → P3.2 rail port;
+ * WhatsApp → its finish PR) — the CHECKLIST_B1_BACKOFFICE_COVERAGE rule.
+ */
+export const KILL_SWITCH_CHANNELS = ["email", "sms"] as const;
 
 /** Set/clear a per-agency/per-channel kill switch (audited, reversible). */
 export const killSwitchSetSchema = z.object({
   agencyId: z.string().min(1),
-  channel: z.enum(SEND_CHANNELS),
+  channel: z.enum(KILL_SWITCH_CHANNELS),
   active: z.boolean(),
   reason: z.string().trim().min(3).max(500),
 });

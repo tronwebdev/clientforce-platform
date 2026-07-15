@@ -27,7 +27,7 @@
 |---|---|---|---|---|---|
 | Email channel | ✓ email.* | ✓ send | ✓ | ✓ sender | ✓ |
 | SMS channel | ✓ sms.* | ✓ segment | ✓ | ✓ sender | ✓ |
-| Voice (#93, pending) | ✓ call.* | ✓ minute | ⚠ Q-025 (enum-present, rail NOT yet ported) | n/a (number) | ✓ |
+| Voice (#93, pending) | ✓ call.* | ✓ minute | ⚠ pending its rail (P3.2) — NOT in the enum | n/a (number) | ✓ |
 | Agents / campaigns | ✓ lead.*, stage_changed | ✓ regen | via channel | — | ✓ |
 | Contacts / lists | ✓ list.member.* | — | — | — | ✓ |
 | Sequence editor (#90) | ✓ (graph events) | ✓ regen | via channel | — | ✓ |
@@ -41,7 +41,8 @@ through the channel it sends on, not a separate switch.
 Each of these must wire into the relevant spine IN THE SAME PR that builds it — never a
 later backoffice retrofit:
 
-- **WhatsApp finish** → emit whatsapp.* catalog events · port the refusal rail (killable).
+- **WhatsApp finish** → emit whatsapp.* catalog events · port the refusal rail, and RE-ENTER
+  `KILL_SWITCH_CHANNELS` in the same PR (killable). Until then WhatsApp is NOT in the kill-switch enum (Q-025).
 - **Voice graph nodes (P3.2)** → inherits voice's spine coverage; no new work if it reuses call.* + the rail.
 - **Widget / Forms / Proposals** → emit catalog events · register credit deltas for any billable action · proposals' Stripe path emits payment events.
 - **Lead Finder / prospecting** → emit discovery events · credit delta per enriched/signal lead · per-source kill via the boundary pattern if it sends.
@@ -88,11 +89,12 @@ CI-green). Citations are code + the test that pins them.
   W1's manual grants today (DEC-080; Q-020 for guided-compose display-only credits). The **spine** is
   proven; the per-action deltas ride on the billing unit. No new Q — already tracked.
 
-- **Caveat B / Gap — voice & WhatsApp kill switches are enum-present but unenforced → Q-025.**
-  The kill-switch enum (`SEND_CHANNELS` = email/sms/whatsapp/voice) offers four channels, but
-  `assertChannelLive` — the enforcement gate — is wired into the **email + SMS** boundaries only.
-  No voice or WhatsApp send/dispatch path calls it (grep across `apps/voice`/`packages/voice` is empty;
-  WhatsApp sending isn't built). So a kill switch set for `voice`/`whatsapp` is presently a **silent
-  no-op**. The grid's "Voice … ✓ (rail ported)" was premature — corrected to ⚠ Q-025 above. Per the
-  ride-along rule, each channel wires `assertChannelLive` into its send boundary in the SAME PR that
-  builds/finishes that channel's sending. **Q-025** files the interim mitigation decision.
+- **Gap → Q-025 (RESOLVED in this PR — owner ruling 2026-07-15).** The kill-switch enum originally
+  offered email/sms/whatsapp/voice, but `assertChannelLive` — the enforcement gate — is wired into the
+  **email + SMS** boundaries only (no voice/WhatsApp path calls it; grep across `apps/voice`/`packages/voice`
+  is empty, WhatsApp sending isn't built), so `voice`/`whatsapp` switches would be **silent no-ops**.
+  **Ruling: narrow the enum, don't ship a no-op.** `SEND_CHANNELS` → **`KILL_SWITCH_CHANNELS = ["email","sms"]`**
+  (the core DTO + the kill-switch UI import it; a DTO test pins that voice/whatsapp are now *rejected*).
+  Each channel RE-ENTERS the enum via the ride-along on the PR that wires its boundary rail (voice → P3.2
+  rail port; WhatsApp → its finish PR) — the very rule this checklist establishes. The Voice grid cell is
+  now ⚠ *pending its rail*, not ✓.

@@ -45,8 +45,14 @@ describe("resolveCreditPrice", () => {
 });
 
 describe("W4 request DTOs (DEC-082)", () => {
-  it("killSwitchSetSchema accepts a known channel + reason, rejects the rest", () => {
+  it("killSwitchSetSchema accepts only ENFORCED channels (email, sms) — Q-025 narrowing", () => {
     expect(killSwitchSetSchema.safeParse({ agencyId: "a1", channel: "email", active: true, reason: "abuse" }).success).toBe(true);
+    expect(killSwitchSetSchema.safeParse({ agencyId: "a1", channel: "sms", active: true, reason: "abuse" }).success).toBe(true);
+    // voice/whatsapp are DELIBERATELY rejected — their send boundary doesn't call
+    // assertChannelLive yet, so a switch there would be a silent no-op (Q-025).
+    // They re-enter the enum via the ride-along on the PR that wires their rail.
+    expect(killSwitchSetSchema.safeParse({ agencyId: "a1", channel: "voice", active: true, reason: "abuse" }).success).toBe(false);
+    expect(killSwitchSetSchema.safeParse({ agencyId: "a1", channel: "whatsapp", active: true, reason: "abuse" }).success).toBe(false);
     // Unknown channel is rejected (enum-guarded — no free-form channel).
     expect(killSwitchSetSchema.safeParse({ agencyId: "a1", channel: "carrier-pigeon", active: true, reason: "abuse" }).success).toBe(false);
     // A reason is mandatory (audited) — too short fails.

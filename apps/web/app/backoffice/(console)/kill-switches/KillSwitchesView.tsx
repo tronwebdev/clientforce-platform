@@ -1,10 +1,12 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import type { BackofficeAgencyRow, KillSwitchRow } from "@clientforce/core";
+import { KILL_SWITCH_CHANNELS, type BackofficeAgencyRow, type KillSwitchRow } from "@clientforce/core";
 import { Button, Modal, Pill, Toast } from "@clientforce/ui";
 
-const CHANNELS = ["email", "sms", "whatsapp", "voice"] as const;
+// Only the channels whose send boundary enforces the switch (email + SMS today).
+// voice/whatsapp re-enter when they wire assertChannelLive — Q-025 / the ride-along.
+const CHANNELS = KILL_SWITCH_CHANNELS;
 type Channel = (typeof CHANNELS)[number];
 
 async function bo(path: string, init?: RequestInit): Promise<unknown> {
