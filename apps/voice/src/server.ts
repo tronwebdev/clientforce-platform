@@ -154,6 +154,7 @@ wss.on("connection", (ws: WebSocket) => {
             sttParams: config.stt,
             ackAfterMs: config.ackAfterMs,
             ackClips,
+            stallAbandonMs: config.stallAbandonMs,
             idleTimeoutMs: config.idleTimeoutMs,
             maxCallMs: config.maxCallMs,
             sendAudio: (mulaw) => {

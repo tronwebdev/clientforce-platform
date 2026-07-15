@@ -55,6 +55,9 @@ export interface CallSessionDeps {
   ackAfterMs: number;
   /** Pre-rendered ack clips (mulaw) — empty disables masking (tests/cert modes). */
   ackClips: Buffer[];
+  /** Yield the floor when a reply makes no audio progress for this long
+   *  (cert run 6: never resume speech over a caller after a stall). 0 = off. */
+  stallAbandonMs: number;
   idleTimeoutMs: number;
   maxCallMs: number;
   /** Queue mulaw/8k audio to the caller. */
@@ -85,6 +88,7 @@ export class CallSession {
   private idleTimer?: NodeJS.Timeout;
   private maxTimer?: NodeJS.Timeout;
   private startedAtMs = 0;
+  private turnLastAudioAt = 0;
   private readonly openStt: typeof openSttStream;
   private readonly synthesize: Synthesize;
 
@@ -241,6 +245,23 @@ export class CallSession {
       }, this.deps.ackAfterMs);
     }
 
+    // Stall-abandon (cert run 6): a reply that makes no AUDIO progress for
+    // stallAbandonMs yields the floor — a stalled agent must NEVER resume
+    // speaking over a caller who has mentally taken the turn (the run showed
+    // exactly that: vendor token-rate stalls >2.5s, then a resume burst the
+    // caller talks over). The turn is counted honestly (stalledTurns).
+    this.turnLastAudioAt = Date.now();
+    let stallTimer: NodeJS.Timeout | undefined;
+    if (this.deps.stallAbandonMs > 0) {
+      stallTimer = setInterval(() => {
+        if (abort.signal.aborted) return;
+        if (Date.now() - this.turnLastAudioAt > this.deps.stallAbandonMs) {
+          metric.stalled = true;
+          abort.abort();
+        }
+      }, 250);
+    }
+
     try {
       const stream = this.deps.gateway.streamVoice({
         system: this.deps.systemPrompt,
@@ -270,15 +291,18 @@ export class CallSession {
       }
     } finally {
       if (ackTimer) clearTimeout(ackTimer);
+      if (stallTimer) clearInterval(stallTimer);
       // A refused turn already recorded its fallback text + assistant turn in
       // checkAndSpeak — don't double-push or mislabel it as a barge-in.
       if (!metric.refusalReason) {
         metric.assistantText = assistantText;
-        metric.bargedIn = abort.signal.aborted;
+        metric.bargedIn = abort.signal.aborted && !metric.stalled;
         if (!abort.signal.aborted) metric.roundTripMs = Date.now() - anchor;
         this.turns.push({
           role: "assistant",
-          content: assistantText || "[no reply]",
+          content: metric.stalled
+            ? `${assistantText} [stalled]`.trim()
+            : assistantText || "[no reply]",
           atMs: Date.now() - this.startedAtMs,
         });
       }
@@ -331,7 +355,9 @@ export class CallSession {
     return false;
   }
 
-  /** Speak one sentence; first REPLY audio byte of the turn stamps TTFA. */
+  /** Speak one sentence; first REPLY audio byte of the turn stamps TTFA.
+   *  One retry on a transient TTS failure (idempotent — same sentence) before
+   *  the event counts as dropped audio (cert run 6's Aura hiccups). */
   private async speakChunk(
     text: string,
     metric: TurnMetric,
@@ -340,14 +366,22 @@ export class CallSession {
   ): Promise<void> {
     if (signal.aborted || !text) return;
     this.deps.metrics.addTtsChars(text.length);
-    try {
-      for await (const chunk of this.synthesize(this.deps.deepgramKey, this.deps.ttsModel, text, signal)) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        for await (const chunk of this.synthesize(this.deps.deepgramKey, this.deps.ttsModel, text, signal)) {
+          if (signal.aborted) return;
+          if (metric.ttfaMs === undefined) metric.ttfaMs = Date.now() - anchor;
+          this.turnLastAudioAt = Date.now();
+          this.deps.sendAudio(chunk);
+        }
+        return;
+      } catch (err) {
         if (signal.aborted) return;
-        if (metric.ttfaMs === undefined) metric.ttfaMs = Date.now() - anchor;
-        this.deps.sendAudio(chunk);
-      }
-    } catch (err) {
-      if (!signal.aborted) {
+        if (attempt === 0 && metric.ttfaMs === undefined) {
+          // Nothing spoken yet — a clean regenerate is inaudible to the caller.
+          console.error(`[tts] retrying sentence after: ${(err as Error).message}`);
+          continue;
+        }
         this.deps.metrics.dropped(metric.turn, `tts: ${(err as Error).message}`);
         throw err;
       }

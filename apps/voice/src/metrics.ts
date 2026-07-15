@@ -25,6 +25,8 @@ export interface TurnMetric {
   /** Turn commit → last reply byte queued, ms (full-turn round trip). */
   roundTripMs?: number;
   bargedIn: boolean;
+  /** The reply made no audio progress and yielded the floor (stall-abandon). */
+  stalled?: boolean;
   /** Set when the per-turn checks tripped and the fallback line was spoken. */
   refusalReason?: string;
 }
@@ -127,6 +129,7 @@ export class MetricsCollector {
       bargeIns: this.bargeIns,
       droppedAudio: this.droppedAudio,
       refusals: this.turns.filter((t) => t.refusalReason).map((t) => ({ turn: t.turn, reason: t.refusalReason })),
+      stalledTurns: this.turns.filter((t) => t.stalled).length,
       disclosureCompleted: this.disclosureCompleted,
       cost: this.cost(),
       config: this.configEcho,

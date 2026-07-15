@@ -193,6 +193,7 @@ async function runSession(apiKey: string, sessionIndex: number): Promise<Session
     sttParams: config.stt,
     ackAfterMs: config.ackAfterMs,
     ackClips,
+    stallAbandonMs: config.stallAbandonMs,
     idleTimeoutMs: 0, // the bot controls pacing
     maxCallMs: 0,
     sendAudio: (mulaw) => {
@@ -338,6 +339,7 @@ async function main(): Promise<void> {
   const totalDropped = results.reduce((n, r) => n + r.report.droppedAudio.length, 0);
   const totalMidUtterance = results.reduce((n, r) => n + r.midUtteranceReplies, 0);
   const totalBargeIns = results.reduce((n, r) => n + r.report.bargeIns.length, 0);
+  const totalStalled = results.reduce((n, r) => n + r.report.stalledTurns, 0);
   const costPerMin = results.map((r) => r.report.cost.perMinuteUsd);
   const ackRates = results.map((r) => r.report.ackRate);
 
@@ -356,6 +358,7 @@ async function main(): Promise<void> {
     midUtteranceReplies: totalMidUtterance,
     midUtteranceGateMet: totalMidUtterance === 0,
     bargeIns: totalBargeIns,
+    stalledTurns: totalStalled,
     ackRateMean: ackRates.reduce((a, b) => a + b, 0) / ackRates.length,
     costPerMinuteUsdMean: costPerMin.reduce((a, b) => a + b, 0) / costPerMin.length,
     config: results[0]?.report.config ?? {},
@@ -387,7 +390,7 @@ async function main(): Promise<void> {
     `| Dropped audio | 0 | ${gate.droppedAudio} | ${gate.droppedGateMet ? "✅" : "❌"} |`,
     `| Mid-utterance replies | 0 | ${gate.midUtteranceReplies} | ${gate.midUtteranceGateMet ? "✅" : "❌"} |`,
     "",
-    `Barge-ins exercised: ${gate.bargeIns} · ack rate: ${(gate.ackRateMean * 100).toFixed(0)}% · est. cost/min: $${gate.costPerMinuteUsdMean.toFixed(3)}`,
+    `Barge-ins exercised: ${gate.bargeIns} · stalled turns yielded: ${gate.stalledTurns} · ack rate: ${(gate.ackRateMean * 100).toFixed(0)}% · est. cost/min: $${gate.costPerMinuteUsdMean.toFixed(3)}`,
     "",
     "Config: " + "`" + JSON.stringify(gate.config) + "`",
   ].join("\n");

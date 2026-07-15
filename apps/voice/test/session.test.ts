@@ -83,6 +83,7 @@ function makeSession(over: Partial<CallSessionDeps> & { provider?: CompletionPro
     sttParams: { model: "nova-2", endpointingMs: 500, utteranceEndMs: 1500, smartFormat: true },
     ackAfterMs: 0,
     ackClips: [],
+    stallAbandonMs: 0,
     idleTimeoutMs: 0,
     maxCallMs: 0,
     sendAudio: (b) => audio.push(b),
@@ -202,6 +203,38 @@ describe("latency masking — the ack clip", () => {
     s.metrics.markCallStart();
     await s.session.driveTurn("hello?");
     expect(s.metrics.turns[0]!.ackAtMs).toBeUndefined();
+  });
+});
+
+describe("stall-abandon — never resume speech over the caller", () => {
+  it("a reply with no audio progress past stallAbandonMs yields the floor", async () => {
+    // The provider stalls 600ms before its first token — past the 200ms
+    // abandon bound, the turn is cut and marked stalled (not a barge-in).
+    const s = makeSession({
+      provider: slowProvider("This reply arrives far too late to speak.", 600),
+      stallAbandonMs: 200,
+    });
+    s.metrics.markCallStart();
+    await s.session.driveTurn("are you still there");
+    const m = s.metrics.turns[0]!;
+    expect(m.stalled).toBe(true);
+    expect(m.bargedIn).toBe(false);
+    expect(m.ttfaMs).toBeUndefined(); // it never spoke — no TTFA sample
+    expect(s.metrics.report().stalledTurns).toBe(1);
+    const last = s.session.transcript().at(-1)!;
+    expect(last.role).toBe("assistant");
+    expect(last.content).toContain("[stalled]");
+  });
+
+  it("a healthy reply is never cut by the watchdog", async () => {
+    const s = makeSession({
+      provider: slowProvider("Quick. Reply.", 5),
+      stallAbandonMs: 500,
+    });
+    s.metrics.markCallStart();
+    await s.session.driveTurn("hi");
+    expect(s.metrics.turns[0]!.stalled).toBeUndefined();
+    expect(s.metrics.turns[0]!.roundTripMs).toBeGreaterThanOrEqual(0);
   });
 });
 
