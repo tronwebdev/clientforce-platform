@@ -8,7 +8,7 @@
  */
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { CampaignGraph, CampaignOutcomes, LanguageCode } from "@clientforce/core";
+import type { CampaignGraph, CampaignOutcomes, LanguageCode, ValidationProgress } from "@clientforce/core";
 import { InboxTab } from "./InboxTab";
 import { LeadsTab } from "./LeadsTab";
 import { PipelineTab } from "./PipelineTab";
@@ -53,6 +53,9 @@ export function AgentView({ agentId, tab }: { agentId: string; tab: string }) {
   // tab. Fetched beside /view; a rollup failure never blocks the view
   // (badges just stay absent — the honest none-state).
   const [outcomes, setOutcomes] = useState<CampaignOutcomes | null>(null);
+  // LH1 W3 (DEC-087): the validation-progress chip — held counts by reason.
+  // A fetch failure keeps the chip absent (honest none-state, never fake).
+  const [valProgress, setValProgress] = useState<ValidationProgress | null>(null);
   const [error, setError] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
@@ -75,6 +78,20 @@ export function AgentView({ agentId, tab }: { agentId: string; tab: string }) {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    // A4 cadence, chip data only: holds drain progressively as verdicts land.
+    const poll = async () => {
+      try {
+        setValProgress((await cf(`agents/${agentId}/validation-progress`)) as ValidationProgress);
+      } catch {
+        setValProgress(null);
+      }
+    };
+    void poll();
+    const t = setInterval(() => void poll(), 5000);
+    return () => clearInterval(t);
+  }, [agentId]);
 
   const active = view?.agent.status === "ACTIVE";
 
@@ -125,6 +142,20 @@ export function AgentView({ agentId, tab }: { agentId: string; tab: string }) {
           </div>
         </div>
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 14 }}>
+          {/* LH1 W3 (DEC-087): validation-progress chip — §0-flagged designed
+              addition. Renders only while something is held/refused; honest
+              progressive copy, never a blocking state. */}
+          {valProgress && valProgress.heldUnverified + valProgress.heldRisky + valProgress.heldCapOverflow > 0 ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(232,196,91,.14)", border: "1px solid rgba(232,196,91,.4)", borderRadius: 11, padding: "8px 14px" }} data-testid="validation-chip" title={`${valProgress.heldRisky} held (risky policy) · ${valProgress.heldCapOverflow} queued (daily enrollment cap) · ${valProgress.refusedInvalid} excluded (invalid)`}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "#9A6B12" }}>
+                {valProgress.heldUnverified > 0
+                  ? `Validating ${valProgress.heldUnverified} contact${valProgress.heldUnverified === 1 ? "" : "s"} — sending starts as they clear`
+                  : valProgress.heldCapOverflow > 0
+                    ? `${valProgress.heldCapOverflow} queued (daily enrollment cap)`
+                    : `${valProgress.heldRisky} held (risky addresses)`}
+              </span>
+            </div>
+          ) : null}
           <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 11, padding: "8px 14px" }} data-testid="daily-sends">
             <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase", color: "#8A7F6B" }}>Daily sends</span>
             <span style={{ fontSize: 14, fontWeight: 700, color: "#0E1512" }}>{view?.sentToday ?? 0} / {view?.dailyCap ?? "—"}</span>

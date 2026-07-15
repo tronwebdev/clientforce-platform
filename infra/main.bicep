@@ -54,6 +54,12 @@ param smsSandbox string = 'true'
 @description('DEC-063/067: whether Key Vault holds SMS-ALLOWLIST (comma-separated E.164 SMS recipients — phone numbers never live in this public repo). Probed by the pipeline; absent = no live SMS recipients anywhere.')
 param smsAllowlistAvailable bool = false
 
+@description('LH1 (DEC-087): whether Key Vault holds the ZeroBounce key. Probed by the pipeline; absent = email-validation batches hold with the typed provider refusal (contacts stay unverified + held at the enrollment gate — never silently enrolled).')
+param zerobounceSecretAvailable bool = false
+
+@description('LH1 (DEC-087): the Key Vault secret NAME holding the ZeroBounce key. Canonical: ZEROBOUNCE-API-KEY; the pipeline passes ASMITH-KEY-L1 when only the owner\'s original upload (2026-07-15) exists — normalize when convenient.')
+param zerobounceSecretName string = 'ZEROBOUNCE-API-KEY'
+
 param apiAppName string = 'clientforce-api'
 param workerAppName string = 'clientforce-worker'
 param webAppName string = 'clientforce-web'
@@ -161,6 +167,13 @@ var twilioEnv = twilioSecretsAvailable ? [
 // DEC-067: the allow-list rides Key Vault (numbers never live in the repo).
 var smsAllowlistSecret = { name: 'sms-allowlist', keyVaultUrl: '${kvUri}secrets/SMS-ALLOWLIST', identity: uami.id }
 var smsAllowlistSecrets = smsAllowlistAvailable ? [smsAllowlistSecret] : []
+// LH1 (DEC-087): ZeroBounce — validation runs in the WORKER only (the api
+// enqueues batches; it never talks to the provider).
+var zerobounceSecret = { name: 'zerobounce-api-key', keyVaultUrl: '${kvUri}secrets/${zerobounceSecretName}', identity: uami.id }
+var zerobounceSecrets = zerobounceSecretAvailable ? [zerobounceSecret] : []
+var zerobounceEnv = zerobounceSecretAvailable ? [
+  { name: 'ZEROBOUNCE_API_KEY', secretRef: 'zerobounce-api-key' }
+] : []
 var smsEnv = concat(
   [{ name: 'SMS_SANDBOX', value: smsSandbox }],
   smsAllowlistAvailable ? [{ name: 'CHANNELS_SMS_ALLOWLIST', secretRef: 'sms-allowlist' }] : []
@@ -225,7 +238,7 @@ resource worker 'Microsoft.App/containerApps@2024-03-01' = {
     configuration: {
       activeRevisionsMode: 'Single'
       registries: registries
-      secrets: concat([dbUrlSecret, appDbUrlSecret, redisUrlSecret, openaiKeySecret, anthropicKeySecret, sendgridKeySecret, fieldEncKeySecret], storageSecrets, temporalSecrets, twilioSecrets, smsAllowlistSecrets)
+      secrets: concat([dbUrlSecret, appDbUrlSecret, redisUrlSecret, openaiKeySecret, anthropicKeySecret, sendgridKeySecret, fieldEncKeySecret], storageSecrets, temporalSecrets, twilioSecrets, smsAllowlistSecrets, zerobounceSecrets)
     }
     template: {
       containers: [
@@ -246,7 +259,7 @@ resource worker 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'FIELD_ENCRYPTION_KEY', secretRef: 'field-encryption-key' }
             { name: 'CHANNELS_ALLOWLIST', value: 'tronwebng@gmail.com' }
             { name: 'SENDGRID_SANDBOX', value: sendgridSandbox }
-          ], storageEnv, temporalEnv, twilioEnv, smsEnv)
+          ], storageEnv, temporalEnv, twilioEnv, smsEnv, zerobounceEnv)
         }
       ]
       scale: { minReplicas: 1, maxReplicas: 1 }

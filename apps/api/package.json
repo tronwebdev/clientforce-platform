@@ -20,6 +20,7 @@
     "@clientforce/events": "workspace:*",
     "@clientforce/knowledge": "workspace:*",
     "@clientforce/planner": "workspace:*",
+    "@clientforce/validation": "workspace:*",
     "@clientforce/workflows": "workspace:*",
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",

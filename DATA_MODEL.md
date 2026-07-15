@@ -265,11 +265,18 @@ model Contact {             // a person in the workspace's CRM (deduped)
                                                 // ContactFieldDef.key — never mixed with enrichment
   tags        String[]
   optOut      Json                              // { email:false, sms:false, whatsapp:false }
+  // LH1 (DEC-087): the validation verdict of record — valid | risky | invalid |
+  // unverified (default). The enrollment gate reads this; the Suppression
+  // ledger stays authoritative and a verdict NEVER un-suppresses.
+  emailVerdict          String @default("unverified")
+  emailVerdictCheckedAt DateTime?
+  emailVerdictSource    String?                 // zerobounce | cache | syntax | mx
   lists       ContactListMember[]
   enrollments Enrollment[]
   events      ActivityEvent[]
   @@index([workspaceId, email])
   @@index([workspaceId, phone])
+  @@index([workspaceId, emailVerdict])
 }
 
 model ContactFieldDef {      // C2.7 (docs/PLAN_CUSTOM_FIELDS.md): workspace custom field
@@ -326,6 +333,69 @@ model ContactListMember {
 }
 
 enum EnrollmentStatus { ACTIVE PAUSED DONE UNSUBSCRIBED BOUNCED }
+
+// LH1 (DEC-087): list hygiene — email validation at every ingress. One
+// validation spine (ZeroBounce behind a swappable adapter), one enrollment
+// gate; async, never blocking a flow. `Campaign` additionally gains
+// `enrollmentDailyCap Int?` + `enrollmentCapEnabled Boolean @default(true)`
+// (the per-day-per-campaign enrollment cap — bounds the QUEUE feeding the
+// send caps; effective send volume stays min(warmup curve, dailyLimit)).
+
+model EmailValidationVerdict {  // workspace-scoped verdict cache (TTL ~90d)
+  id          String  @id @default(cuid())
+  workspaceId String
+  address     String                            // normalized lowercase — the cache key
+  verdict     String                            // valid | risky | invalid
+  subStatus   String?                           // provider sub-status (report detail)
+  source      String                            // zerobounce | syntax | mx
+  checkedAt   DateTime @default(now())
+  expiresAt   DateTime
+  billedAt    DateTime?                         // set ONLY on a PAID provider call — the COGS meter
+  costMicros  Int      @default(0)              // (B1-W2 usage + zerobounce reconciliation read billedAt)
+  @@unique([workspaceId, address])
+}
+
+model ValidationBatch {         // one async validation run (a CSV import, a single add)
+  id          String  @id @default(cuid())
+  workspaceId String
+  clientKey   String?                           // web import idempotency key — all chunks, ONE batch
+  source      String                            // csv_import | manual | single
+  status      String  @default("queued")        // queued | running | held | completed
+  heldReason  String?                           // workspace_allowance | platform_spend_ceiling | provider_unavailable
+  listId      String?
+  claimedUntil DateTime?                        // chunk-claim lease (double-billing guard)
+  completedAt DateTime?
+  items       ValidationBatchItem[]
+  @@unique([workspaceId, clientKey])
+}
+
+model ValidationBatchItem {     // per-row report outcome, landing progressively
+  id          String  @id @default(cuid())
+  workspaceId String
+  batchId     String
+  contactId   String
+  address     String
+  outcome     String  @default("pending")       // pending | valid | risky | invalid | skipped_suppressed
+  via         String?                           // zerobounce | cache | syntax | mx | suppression
+  detail      String?
+  billed      Boolean @default(false)
+  @@unique([batchId, contactId])
+}
+
+model EnrollmentHold {          // the gate's hold queue — a persisted INTENT to enroll
+  id           String @id @default(cuid())      // (owns NO workflow; becomes an Enrollment only back
+  workspaceId  String                           //  through the gate as verdicts land / the cap frees)
+  campaignId   String
+  agentId      String
+  contactId    String
+  senderId     String?
+  origin       Json?
+  reason       String                           // unverified | risky_held | cap_overflow
+  status       String @default("pending")       // pending | released | refused
+  refusalCode  String?                          // CONTACT_INVALID
+  enrollmentId String?                          // set when released
+  @@unique([campaignId, contactId])
+}
 ```
 
 ### 4.1 Message — the durable message store (`PHASE1_HANDOFF.md §A6`; migration in P1.5)
@@ -544,6 +614,21 @@ enum SuppressionReason { UNSUBSCRIBED BOUNCED SPAM_COMPLAINT MANUAL }
 > `{ruleId, runId, status, trigger, detail?}` (append-only catalog entry —
 > the one new event kind this unit names, A9). Existing campaigns simply
 > have zero rules.
+
+> **LH1 amendment (DEC-087):** three append-only catalog entries.
+> **`contact.enrollment_refused.v1`** `{reason, detail?, origin?}` — the
+> enrollment GATE refused a contact (typed, never silent); cataloged because
+> a gate refusal has no Enrollment row to carry `meta.blocked` (the
+> compose_refused precedent) — the Event row's campaignId/contactId columns
+> put it in the campaign Logs feed. **`validation.batch_completed.v1`**
+> `{batchId, source, total, valid, risky, invalid, skippedSuppressed,
+> billed, cacheHits}` — one async validation run finished (guarded
+> transition, exactly once; `billed` counts unique paid ADDRESSES).
+> **`validation.paused.v1`** `{batchId, reason, pendingCount}` — a batch
+> HELD (allowance / spend ceiling / provider down): the honest "validation
+> queued" state, rising-edge per hold episode; the ceiling variant doubles
+> as the vendor-spine cost alert. Send-boundary rails are untouched — the
+> gate lives at enrollment; suppression stays authoritative at the boundary.
 
 Outbound **WebhookEndpoint** (`url`, `secret`, `events[]`) + delivery log; Zapier rides the same dispatcher.
 

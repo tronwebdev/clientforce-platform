@@ -38,11 +38,15 @@ import type { BackofficeStaffContext } from "./request";
 import { SenderHealthClient } from "./sender-health";
 
 /** Which of our metered signals backs each provider/metric (null = not metered). */
-type MeteredMetric = "email_sends" | "sms_segments" | "voice_minutes";
+type MeteredMetric = "email_sends" | "sms_segments" | "voice_minutes" | "email_validations";
 const METERED: Record<string, MeteredMetric> = {
   email_sends: "email_sends",
   sms_segments: "sms_segments",
   voice_minutes: "voice_minutes",
+  // LH1 (DEC-087): paid ZeroBounce verifications — billedAt on the verdict
+  // cache is the meter (free-filter verdicts carry no billedAt), so the
+  // rollup + a seeded zerobounce ProviderInvoice reconcile per FR-BILL-04.
+  email_validations: "email_validations",
 };
 
 type SuspendableStatus = "ACTIVE" | "SUSPENDED";
@@ -246,7 +250,7 @@ export class BackofficeService {
           );
     if (workspaceIds.length === 0) throw new NotFoundException("No workspaces for that scope");
 
-    const [sends, calls, ledger] = await Promise.all([
+    const [sends, calls, ledger, emailValidations] = await Promise.all([
       this.prisma.message.groupBy({
         by: ["channel"],
         where: { workspaceId: { in: workspaceIds }, direction: "OUTBOUND", sentAt: { gte: from, lte: to } },
@@ -259,6 +263,11 @@ export class BackofficeService {
       this.prisma.creditLedger.findMany({
         where: { workspaceId: { in: workspaceIds }, createdAt: { gte: from, lte: to } },
         select: { delta: true },
+      }),
+      // LH1 (DEC-087): paid verifications only (billedAt set) — cache hits
+      // and free-filter verdicts cost the platform nothing and don't count.
+      this.prisma.emailValidationVerdict.count({
+        where: { workspaceId: { in: workspaceIds }, billedAt: { gte: from, lte: to } },
       }),
     ]);
 
@@ -279,6 +288,7 @@ export class BackofficeService {
       to: to.toISOString(),
       sendsByChannel,
       voiceMinutes: Math.round(voiceSeconds / 60),
+      emailValidations,
       creditBurn,
       creditGranted,
       aiSpendCredits: null, // honest absence — AI spend is not metered yet
@@ -342,6 +352,11 @@ export class BackofficeService {
         return sum + (typeof p.durationSec === "number" ? p.durationSec : 0);
       }, 0);
       return Math.round(seconds / 60);
+    }
+    if (kind === "email_validations") {
+      return this.prisma.emailValidationVerdict.count({
+        where: { billedAt: { gte: start, lte: end } },
+      });
     }
     const channel = kind === "email_sends" ? "email" : "sms";
     return this.prisma.message.count({
