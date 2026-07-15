@@ -227,19 +227,20 @@ export type ImpersonateDto = z.infer<typeof impersonateSchema>;
 
 /**
  * P5-W1's sender health-score contract (FR-ADMIN-04). The backoffice CONSUMES
- * this — it never recomputes health. `SenderHealthClient` is injected; until
- * P5-W1 is on main it returns `wired: false` and the fleet view shows an honest
- * "pending P5-W1", never a second computation.
+ * P5-W1's SHARED `computeSenderHealth` (packages/channels) per sender — it never
+ * recomputes the score a second time (DEC-083's rail: "the score math must never
+ * fork"). `score`/`status` are P5-W1's outputs verbatim.
  */
 export interface SenderHealthScore {
   senderId: string;
   workspaceId: string;
-  score: number; // 0..100, P5-W1's number
-  status: string; // "healthy" | "at_risk" | "critical" (P5-W1's vocabulary)
+  score: number | null; // 0..100, or null below P5-W1's sample floor (never a fake score)
+  status: string; // P5-W1's band: "healthy" | "watch" | "at_risk" | "paused", or "low_data"
 }
 
 export interface FleetHealthView {
-  health: { wired: boolean; scores: SenderHealthScore[] }; // from P5-W1 (interlock)
+  // `wired` = P5-W1's computation ran (true since P5-W1 is on main + consumed in-process).
+  health: { wired: boolean; scores: SenderHealthScore[] };
   outliers: { agencyId: string; workspaceId: string; metric: string; count: number }[]; // backoffice thresholds
   lowData: boolean;
 }

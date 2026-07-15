@@ -19,11 +19,13 @@ auth, RLS-exempt client, audited mutations).
    **never a fork** of the send path.
 2. **Impersonation is READ-ONLY** — banner-marked in the UI, an audit row per
    session, and **no write path to tenant content** whatsoever.
-3. **Fleet sender-health CONSUMES P5-W1's health-score endpoint** — health is
-   computed ONCE, by P5-W1. P5-W1 is **not on main yet**, so the backoffice codes
-   against its **contract** (a `SenderHealthClient` interface + DTO) and **pins the
-   interlock**; when P5-W1 isn't wired, the score is an honest absence
-   ("pending P5-W1"), never a second computation in the backoffice.
+3. **Fleet sender-health CONSUMES P5-W1's computation** — health is computed ONCE,
+   by P5-W1. **Update: P5-W1 merged mid-build (#100, DEC-083)**, so `SenderHealthClient`
+   now consumes P5-W1's SHARED `computeSenderHealth` per sender IN-PROCESS (via the
+   RLS-exempt client) — never a second computation, never a fork; below P5-W1's sample
+   floor the score is an honest `null`/`low_data`, never fake. (The pre-merge design
+   was an `SENDER_HEALTH_URL` seam with honest "pending"; the seam's own comment
+   promised "only this class changes when P5-W1 lands" — it did.)
 4. **Feature flags + version-pin visibility are READ-ONLY where they must be** —
    flags are per-tenant toggles (audited); model/prompt version pins are
    display-only.

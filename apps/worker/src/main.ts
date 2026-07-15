@@ -1,3 +1,4 @@
+import { resolveTxt } from "node:dns/promises";
 import { join } from "node:path";
 import { NativeConnection, Worker } from "@temporalio/worker";
 import {
@@ -6,7 +7,7 @@ import {
   AnthropicProvider,
   OpenAiEmbeddingsProvider,
 } from "@clientforce/ai";
-import { createClassifyWorker, createEmailStepComposer, createSmsStepComposer, SendGridSender , TwilioSmsSender} from "@clientforce/channels";
+import { createClassifyWorker, createEmailStepComposer, createSmsStepComposer, SendGridSender , TwilioSmsSender, applyWarmupHealthInterlock, ensureWarmupCompletion, recomputeSenderHealth, runSenderDnsCheck } from "@clientforce/channels";
 import { isConfigured } from "@clientforce/config";
 import { goalKeySchema, type GoalKey } from "@clientforce/core";
 import { createDistillQueue, createDistillWorker } from "@clientforce/context";
@@ -230,6 +231,11 @@ function startKnowledgeWorkers(): void {
   bus.startConsumer();
   console.log("[worker] event-bus consumer started (P1.7 temporal-signal + R1 campaign rules live)");
   startSequenceQuietSweep({ ...ruleDeps, ownerPrisma: owner });
+  // P5 W1 (DEC-083): sender health recompute + warmup completion (10 min) and
+  // DNS re-verification (6 h) — the stranded-source-sweep pattern: cross-tenant
+  // discovery on the owner client, tenant-scoped writes, resilient per sender.
+  startSenderHealthSweep({ prisma, ownerPrisma: owner, publish: ruleDeps.publish });
+  startSenderDnsSweep({ prisma, ownerPrisma: owner });
 
   // Distilling/classifying need real completions; without the key those
   // workers stay off (ingest + bus are unaffected) and jobs wait in Redis.
@@ -350,6 +356,107 @@ function startSequenceQuietSweep(deps: QuietSweepDeps): void {
       console.error("[worker] sequence-quiet sweep failed", err),
     );
   }, 60 * 60_000);
+}
+
+/** Cap per sweep pass — logged when hit, never silently truncated. */
+const SENDER_SWEEP_TAKE = 500;
+
+interface SenderSweepDeps {
+  prisma: PrismaClient;
+  ownerPrisma: PrismaClient;
+  publish: (input: Parameters<EventBus["publish"]>[0]) => Promise<void>;
+}
+
+/**
+ * Sender health sweep (P5 W1, DEC-083): on boot + every 10 minutes, recompute
+ * every sender's ledger-derived health snapshot (collapse/recovery transitions
+ * emit their catalog events exactly once — the guarded persist in
+ * `recomputeSenderHealth`) and stamp finished warmup ramps. The SendGrid
+ * webhook path additionally recomputes on bounce/spam for immediate collapse;
+ * this sweep is the cadence floor (recovery, SMS senders, drain-to-low-data).
+ */
+function startSenderHealthSweep(deps: SenderSweepDeps): void {
+  const sweep = async (): Promise<void> => {
+    const senders = await deps.ownerPrisma.senderConnection.findMany({
+      select: { id: true, workspaceId: true },
+      take: SENDER_SWEEP_TAKE,
+      orderBy: { createdAt: "asc" },
+    });
+    if (senders.length === SENDER_SWEEP_TAKE) {
+      console.warn(`[worker] sender-health sweep hit the ${SENDER_SWEEP_TAKE}-sender page cap — split the sweep before this is real`);
+    }
+    let transitions = 0;
+    for (const s of senders) {
+      try {
+        const result = await recomputeSenderHealth(
+          { prisma: deps.prisma, publish: deps.publish },
+          { workspaceId: s.workspaceId, senderId: s.id },
+        );
+        if (result?.transition) {
+          transitions++;
+          console.log(`[worker] sender-health ${result.transition}: sender=${s.id} score=${result.snapshot.score ?? "n/a"}`);
+        }
+        // Owner-locked interlock: a complaint/bounce spike holds the ramp.
+        const hold = await applyWarmupHealthInterlock(
+          { prisma: deps.prisma },
+          { workspaceId: s.workspaceId, senderId: s.id },
+        );
+        if (hold.changed) {
+          console.log(`[worker] warmup ${hold.holding ? "HELD (spike)" : "resumed"}: sender=${s.id}`);
+        }
+        const warmup = await ensureWarmupCompletion(
+          { prisma: deps.prisma, publish: deps.publish },
+          { workspaceId: s.workspaceId, senderId: s.id },
+        );
+        if (warmup.completed) {
+          console.log(`[worker] warmup complete: sender=${s.id}${warmup.emitted ? "" : " (stamped silently — aged out unobserved)"}`);
+        }
+      } catch (err) {
+        console.error(`[worker] sender-health sweep failed for sender=${s.id}`, err);
+      }
+    }
+    if (transitions > 0) console.log(`[worker] sender-health sweep: ${transitions} transition(s)`);
+  };
+  void sweep().catch((err: unknown) => console.error("[worker] sender-health sweep failed", err));
+  setInterval(() => {
+    void sweep().catch((err: unknown) => console.error("[worker] sender-health sweep failed", err));
+  }, 10 * 60_000);
+}
+
+/**
+ * Sender DNS sweep (P5 W1, DEC-083): on boot + every 6 hours, re-verify
+ * SPF/DKIM/DMARC per email sender with REAL lookups (SendGrid domain auth +
+ * `_dmarc` TXT). Every pass REPLACES `domainAuthStatus` — an unreachable
+ * provider writes `unchecked` with the reason, never a stale "verified".
+ */
+function startSenderDnsSweep(deps: { prisma: PrismaClient; ownerPrisma: PrismaClient }): void {
+  const sweep = async (): Promise<void> => {
+    const senders = await deps.ownerPrisma.senderConnection.findMany({
+      where: { type: { not: "TWILIO_SMS" } },
+      select: { id: true, workspaceId: true },
+      take: SENDER_SWEEP_TAKE,
+      orderBy: { createdAt: "asc" },
+    });
+    for (const s of senders) {
+      try {
+        await runSenderDnsCheck(
+          {
+            prisma: deps.prisma,
+            resolveTxt,
+            ...(process.env.SENDGRID_API_KEY ? { sendgridApiKey: process.env.SENDGRID_API_KEY } : {}),
+          },
+          { workspaceId: s.workspaceId, senderId: s.id },
+        );
+      } catch (err) {
+        console.error(`[worker] sender-dns sweep failed for sender=${s.id}`, err);
+      }
+    }
+    if (senders.length > 0) console.log(`[worker] sender-dns sweep: ${senders.length} sender(s) re-checked`);
+  };
+  void sweep().catch((err: unknown) => console.error("[worker] sender-dns sweep failed", err));
+  setInterval(() => {
+    void sweep().catch((err: unknown) => console.error("[worker] sender-dns sweep failed", err));
+  }, 6 * 3_600_000);
 }
 
 async function enqueueRedistill(

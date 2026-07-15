@@ -71,7 +71,7 @@ CI-green). Citations are code + the test that pins them.
 | 1 · Event ledger | `fleetHealth` groups `Event` by `type` for outliers; W2 `usage` reads `Message` + `Event`; W3 `adoption` reads `TelemetryEvent` — all generic `groupBy`/`findMany`, no per-feature branch | `backoffice.service.ts` (`fleetHealth`/`usage`/`adoption`); `backoffice-fleet`/`-usage`/`-adoption` e2e |
 | 2 · Credit ledger | `usage` sums `CreditLedger.delta` (burn/granted) generically — any delta type is picked up | `backoffice-usage.e2e.spec.ts`; **caveat below** |
 | 3 · Send-boundary refusal enum | `assertChannelLive` beside `assertTenantActive` at the email + SMS boundaries; kill switch = one `KillSwitch` row, no send-path fork | `send.ts:66` / `send-sms.ts:78`; `backoffice-fleet.e2e.spec.ts` (kill→`CHANNEL_KILLED` 422→restore); **Q-025 below** |
-| 4 · Health endpoint (P5-W1) | `SenderHealthClient` fetches P5-W1's endpoint; unset → honest `wired:false`, never a second computation | `sender-health.ts`; `backoffice-fleet.e2e.spec.ts` (`wired:false` pending) |
+| 4 · Health endpoint (P5-W1) | `SenderHealthClient` consumes P5-W1's shared `computeSenderHealth` per sender IN-PROCESS (never forks the score math; DEC-083, P5-W1 merged #100) | `sender-health.ts`; `backoffice-fleet.e2e.spec.ts` (real scores from the shared fn) |
 | 5 · RLS-exempt read | `createBackofficePrismaClient` (BYPASSRLS) reads every tenant's rows with no GUC | `backoffice-rls.test.ts` (reads both tenants; app fails closed) |
 
 ### Grid cells — proven, with two honest caveats

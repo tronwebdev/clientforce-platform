@@ -55,7 +55,6 @@ describe.skipIf(!hasDb)("Platform backoffice W4 e2e (fleet · kill switch · fla
   beforeAll(async () => {
     process.env.AUTH_DEV_SECRET = SECRET;
     process.env.CHANNELS_ALLOWLIST = TEST_INBOX;
-    delete process.env.SENDER_HEALTH_URL; // P5-W1 not wired → fleet health reports pending.
     owner = createPrismaClient();
 
     const agency = await owner.agency.create({
@@ -279,12 +278,18 @@ describe.skipIf(!hasDb)("Platform backoffice W4 e2e (fleet · kill switch · fla
 
   // ── Fleet health (consume P5-W1) + version pins ──────────────────────────────
 
-  it("fleet health consumes P5-W1 (wired:false unset) and surfaces outliers", async () => {
+  it("fleet health CONSUMES P5-W1's shared computation + surfaces outliers", async () => {
     const res = await request(app.getHttpServer()).get("/backoffice/fleet-health").set(staff());
     expect(res.status).toBe(200);
-    // P5-W1 not wired → honest pending, NEVER a second health computation.
-    expect(res.body.health.wired).toBe(false);
-    expect(res.body.health.scores).toEqual([]);
+    // P5-W1 is on main → the backoffice consumes `computeSenderHealth` in-process
+    // (never a SECOND computation). The seeded sender appears with P5-W1's output;
+    // below the sample floor its score is null / status low_data — honest, not fake.
+    expect(res.body.health.wired).toBe(true);
+    const scored = res.body.health.scores.find((s: { senderId: string }) => s.senderId === senderId);
+    expect(scored).toBeTruthy();
+    expect(scored.workspaceId).toBe(wsA);
+    expect(["healthy", "watch", "at_risk", "paused", "low_data"]).toContain(scored.status);
+    expect(scored.score === null || typeof scored.score === "number").toBe(true);
     // The 6 seeded bounces make wsA a deliverability outlier (backoffice threshold).
     const outlier = res.body.outliers.find(
       (o: { workspaceId: string; metric: string }) => o.workspaceId === wsA && o.metric === "bounces",

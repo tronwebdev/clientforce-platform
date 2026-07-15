@@ -58,6 +58,7 @@ export class EventBus {
           contactId: validated.contactId,
           enrollmentId: validated.enrollmentId,
           campaignId: validated.campaignId,
+          senderId: validated.senderId,
           payload: validated.payload as Prisma.InputJsonValue,
           ...(validated.occurredAt ? { occurredAt: validated.occurredAt } : {}),
         },
@@ -71,6 +72,7 @@ export class EventBus {
       contactId: row.contactId,
       enrollmentId: row.enrollmentId,
       campaignId: row.campaignId,
+      senderId: row.senderId,
       payload: row.payload,
       occurredAt: row.occurredAt.toISOString(),
     };

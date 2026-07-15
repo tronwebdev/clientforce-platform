@@ -34,7 +34,56 @@ export {
 // B1 W1 (DEC-079): platform-suspension gate shared by the email + SMS boundaries.
 // B1 W4 (DEC-082): + the per-agency/per-channel kill-switch gate.
 export { assertTenantActive, assertChannelLive } from "./tenant-status";
+// P5 W1 (DEC-083): sender health engine + warmup scheduler + DNS verification.
 export {
+  HEALTH_AUTO_PAUSE_BELOW,
+  HEALTH_BANDS,
+  HEALTH_SIGNALS,
+  HEALTH_WINDOW_DAYS,
+  computeSenderHealth,
+  healthBandFor,
+  loadSenderLedgerSample,
+  parseHealthState,
+  recomputeSenderHealth,
+  senderLedgerChannel,
+  type HealthBand,
+  type HealthComputation,
+  type HealthGateState,
+  type HealthRecomputeDeps,
+  type HealthRecomputeResult,
+  type HealthSnapshot,
+  type LedgerSample,
+} from "./health";
+export {
+  WARMUP_COMPLETION_EMIT_WINDOW_MS,
+  WARMUP_CURVE_VERSION,
+  WARMUP_DAYS,
+  WARMUP_FULL_CAP,
+  WARMUP_STEP_CAPS,
+  applyWarmupHealthInterlock,
+  ensureWarmupCompletion,
+  initialWarmupState,
+  parseWarmupState,
+  warmupCapFor,
+  warmupCurveCap,
+  warmupDay,
+  warmupEffectiveDay,
+  warmupProgressFor,
+  type ActiveWarmup,
+  type WarmupCompletionDeps,
+  type WarmupProgress,
+  type WarmupState,
+} from "./warmup";
+export {
+  checkSenderDns,
+  runSenderDnsCheck,
+  type DnsCheckDeps,
+  type DnsRecordState,
+  type DnsRecordStatus,
+  type DomainAuthStatus,
+} from "./dns-check";
+export {
+  messageSenderId,
   resolveEventMessage,
   toBusEvents,
   type BusEventInput,

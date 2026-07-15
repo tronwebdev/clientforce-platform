@@ -53,9 +53,8 @@ function SenderHealth({ health }: { health: FleetHealthView | null }) {
         <div style={{ padding: "16px 20px", fontSize: 13, color: "#5b6560", display: "flex", gap: 10, alignItems: "center" }}>
           <span style={{ width: 8, height: 8, borderRadius: 8, background: "#c9a13f", flexShrink: 0 }} />
           <span>
-            <strong style={{ color: "#0e1512" }}>Pending P5-W1.</strong> The deliverability health-score
-            service isn’t wired yet (<code style={{ fontFamily: "monospace" }}>SENDER_HEALTH_URL</code> unset).
-            When it lands, scores appear here — the backoffice consumes them, never recomputes.
+            <strong style={{ color: "#0e1512" }}>Sender health temporarily unavailable.</strong> The ledger
+            read failed this pass — scores come from P5-W1&rsquo;s shared computation, never recomputed here.
           </span>
         </div>
       </Card>
@@ -80,7 +79,7 @@ function SenderHealth({ health }: { health: FleetHealthView | null }) {
               <tr key={s.senderId} style={{ borderTop: "1px solid var(--cf-color-hairline, #ebe3d6)" }}>
                 <Td mono>{s.senderId}</Td>
                 <Td mono>{s.workspaceId}</Td>
-                <Td>{s.score}</Td>
+                <Td>{s.score ?? "—"}</Td>
                 <Td>{s.status}</Td>
               </tr>
             ))}
