@@ -47,6 +47,9 @@ export default async function BackofficeConsoleLayout({ children }: { children: 
 
         <nav style={{ display: "flex", flexDirection: "column", gap: 2 }}>
           <NavLink href="/backoffice/tenants" label="Tenants" />
+          <NavLink href="/backoffice/usage" label="Usage" />
+          <NavLink href="/backoffice/reconciliation" label="Reconciliation" />
+          <NavLink href="/backoffice/pricing" label="Credit pricing" />
           <NavLink href="/backoffice/audit" label="Audit log" />
         </nav>
 
