@@ -15,10 +15,12 @@ import {
   type Guardrails,
   type StepContent,
 } from "@clientforce/core";
-import { withTenant, type Message, type PrismaClient } from "@clientforce/db";
+import { withTenant, type Message, type PrismaClient, type SenderConnection } from "@clientforce/db";
+import { HEALTH_COLLAPSE_BELOW, HEALTH_RECOVER_AT, parseHealthState } from "./health";
 import { renderTokens } from "./render";
 import { assertTenantActive } from "./tenant-status";
 import { SendBlockedError, type RenderedSms, type SmsSender } from "./types";
+import { warmupCapFor } from "./warmup";
 
 export interface SendSmsDeps {
   /** RLS-subject client (`createAppPrismaClient`) — never the owner client. */
@@ -86,12 +88,21 @@ export async function sendSmsStep(deps: SendSmsDeps, params: SendSmsStepParams):
   if (!agent) throw new Error(`Agent ${params.agentId} not found`);
   if (sender.type !== "TWILIO_SMS") throw new SendBlockedError("SENDER_NOT_SMS", sender.type);
   if (sender.status !== "ACTIVE") throw new SendBlockedError("SENDER_DISABLED", sender.status);
+  // P5 W1 (DEC-083): health auto-pause — the email gate's exact twin (SMS
+  // health scores on sms.failed/sms.opted_out, the carrier-side signals).
+  const health = parseHealthState(sender.healthState);
+  if (health?.state === "unhealthy") {
+    throw new SendBlockedError(
+      "SENDER_UNHEALTHY",
+      `health ${health.score ?? "?"}/100 — auto-paused below ${HEALTH_COLLAPSE_BELOW}, resumes at ${HEALTH_RECOVER_AT}`,
+    );
+  }
   const phone = contact?.phone ? normalizePhone(contact.phone) : "";
   if (!contact || !phone) throw new SendBlockedError("CONTACT_NO_PHONE", params.contactId);
 
   const guardrails = parseGuardrails(agent.guardrails);
   assertInsideWindow(guardrails, now);
-  await assertUnderSmsCaps(deps, params, guardrails, sender.dailyLimit, now);
+  await assertUnderSmsCaps(deps, params, guardrails, sender, now);
 
   // suppressionCheck (A8, literal true): Contact.optOut.sms AND Suppression rows.
   const optOut = (contact.optOut ?? {}) as { sms?: boolean };
@@ -152,6 +163,8 @@ export async function sendSmsStep(deps: SendSmsDeps, params: SendSmsStepParams):
         providerMessageId,
         inReplyToId: priorSms?.id ?? null,
         stepNodeId: params.stepNodeId,
+        // P5 W1 (DEC-083): sender attribution column — the email twin.
+        senderId: params.senderId,
         sentAt: now,
         meta: {
           senderId: params.senderId,
@@ -185,7 +198,7 @@ async function assertUnderSmsCaps(
   deps: SendSmsDeps,
   params: SendSmsStepParams,
   guardrails: Guardrails,
-  senderDailyLimit: number,
+  sender: SenderConnection,
   now: Date,
 ): Promise<void> {
   const dayStart = new Date(now);
@@ -209,7 +222,21 @@ async function assertUnderSmsCaps(
   if (campaignCount >= cap) {
     throw new SendBlockedError("DAILY_CAP_REACHED", `campaign sms cap ${cap}`);
   }
-  if (workspaceCount >= senderDailyLimit) {
-    throw new SendBlockedError("DAILY_CAP_REACHED", `sender limit ${senderDailyLimit}`);
+  if (workspaceCount >= sender.dailyLimit) {
+    throw new SendBlockedError("DAILY_CAP_REACHED", `sender limit ${sender.dailyLimit}`);
+  }
+  // P5 W1 (DEC-083): warmup ramp — the email twin; per-SENDER count against
+  // min(warmup cap, configured daily limit). Carrier reputation ramps too.
+  const warmup = warmupCapFor(sender, now);
+  if (warmup) {
+    const senderCount = await withTenant(deps.prisma, { workspaceId: params.workspaceId }, (tx) =>
+      tx.message.count({ where: { ...where, senderId: sender.id } }),
+    );
+    if (senderCount >= warmup.cap) {
+      throw new SendBlockedError(
+        "DAILY_CAP_REACHED",
+        `warmup cap ${warmup.cap} (day ${warmup.day} of ${warmup.days})`,
+      );
+    }
   }
 }

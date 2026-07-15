@@ -44,6 +44,7 @@ export class BusOrInlinePublisher implements EventsPublisher {
           contactId: validated.contactId,
           enrollmentId: validated.enrollmentId,
           campaignId: validated.campaignId,
+          senderId: validated.senderId,
           payload: validated.payload as Prisma.InputJsonValue,
         },
       }),

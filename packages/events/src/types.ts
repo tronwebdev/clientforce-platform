@@ -11,6 +11,8 @@ export interface BusEvent {
   contactId: string | null;
   enrollmentId: string | null;
   campaignId: string | null;
+  /** P5 W1 (DEC-083): sender attribution (null on non-sender events). */
+  senderId: string | null;
   payload: unknown;
   /** ISO-8601 timestamp. */
   occurredAt: string;

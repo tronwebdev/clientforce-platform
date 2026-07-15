@@ -20,9 +20,11 @@ import {
   ingestInboundSms,
   isStopMessage,
   MalformedInboundError,
+  messageSenderId,
   normalizeInboundParse,
   normalizeSendGridEvents,
   normalizeTwilioInbound,
+  recomputeSenderHealth,
   resolveEventMessage,
   resolveSmsStopFallback,
   toBusEvents,
@@ -85,6 +87,10 @@ export class WebhooksController {
 
     let applied = 0;
     let published = 0;
+    // P5 W1 (DEC-083): bounce/spam touch sender reputation — collect the
+    // distinct senders and recompute their health AFTER the events land, so a
+    // collapsing sender auto-pauses within one webhook delivery, not one sweep.
+    const healthTouched = new Map<string, string>();
     for (const event of events) {
       // Events carry no tenant — resolve through the persisted Message row
       // (owner-client unique lookup), then apply tenant-scoped.
@@ -97,6 +103,21 @@ export class WebhooksController {
       for (const busEvent of toBusEvents(event, message)) {
         await this.publisher.publish(busEvent);
         published++;
+      }
+      if (event.type === "bounce" || event.type === "spam_report") {
+        const senderId = messageSenderId(message);
+        if (senderId) healthTouched.set(senderId, message.workspaceId);
+      }
+    }
+    for (const [senderId, workspaceId] of healthTouched) {
+      try {
+        await recomputeSenderHealth(
+          { prisma: this.prisma.app, publish: (input) => this.publisher.publish(input) },
+          { workspaceId, senderId },
+        );
+      } catch (err) {
+        // The webhook must ack regardless — the 10-minute sweep is the floor.
+        console.error(`[webhooks] sender-health fast path failed for sender=${senderId}`, err);
       }
     }
     return { received: events.length, suppressionsApplied: applied, eventsPublished: published };
