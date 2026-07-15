@@ -174,6 +174,105 @@ export interface UsageRollup {
   lowData: boolean; // below the sample floor → don't over-read the numbers
 }
 
+// ── B1 W4 (DEC-082): fleet health · kill switch · impersonation · flags ──────
+
+export const SEND_CHANNELS = ["email", "sms", "whatsapp", "voice"] as const;
+
+/** Set/clear a per-agency/per-channel kill switch (audited, reversible). */
+export const killSwitchSetSchema = z.object({
+  agencyId: z.string().min(1),
+  channel: z.enum(SEND_CHANNELS),
+  active: z.boolean(),
+  reason: z.string().trim().min(3).max(500),
+});
+export type KillSwitchSetDto = z.infer<typeof killSwitchSetSchema>;
+
+export interface KillSwitchRow {
+  id: string;
+  agencyId: string;
+  channel: string;
+  active: boolean;
+  reason: string;
+  updatedAt: string;
+}
+
+/** Set a per-tenant feature flag (audited). */
+export const featureFlagSetSchema = z.object({
+  key: z.string().trim().min(1).max(80),
+  enabled: z.boolean(),
+});
+export type FeatureFlagSetDto = z.infer<typeof featureFlagSetSchema>;
+
+export interface FeatureFlagRow {
+  key: string;
+  enabled: boolean;
+  updatedAt: string;
+}
+
+/** Start a read-only impersonation session (audited, banner-marked). */
+export const impersonateSchema = z.object({
+  workspaceId: z.string().min(1),
+  reason: z.string().trim().min(3).max(500),
+});
+export type ImpersonateDto = z.infer<typeof impersonateSchema>;
+
+/**
+ * P5-W1's sender health-score contract (FR-ADMIN-04). The backoffice CONSUMES
+ * this — it never recomputes health. `SenderHealthClient` is injected; until
+ * P5-W1 is on main it returns `wired: false` and the fleet view shows an honest
+ * "pending P5-W1", never a second computation.
+ */
+export interface SenderHealthScore {
+  senderId: string;
+  workspaceId: string;
+  score: number; // 0..100, P5-W1's number
+  status: string; // "healthy" | "at_risk" | "critical" (P5-W1's vocabulary)
+}
+
+export interface FleetHealthView {
+  health: { wired: boolean; scores: SenderHealthScore[] }; // from P5-W1 (interlock)
+  outliers: { agencyId: string; workspaceId: string; metric: string; count: number }[]; // backoffice thresholds
+  lowData: boolean;
+}
+
+/**
+ * A started read-only impersonation session (FR-ADMIN-05). The START is audited
+ * (`impersonate.start`); the returned session is banner-marked (`readOnly: true`)
+ * and carries NO token or write path to tenant content — the operator only reads.
+ */
+export interface ImpersonationSession {
+  workspaceId: string;
+  workspace: { id: string; name: string; slug: string; status: TenantStatusName };
+  agency: { id: string; name: string };
+  readOnly: true;
+  startedAt: string;
+  auditId: string;
+}
+
+/** One read-only message row in the impersonation viewer (body truncated to a preview). */
+export interface ImpersonationMessage {
+  id: string;
+  channel: string;
+  direction: "OUTBOUND" | "INBOUND";
+  subject: string | null;
+  preview: string;
+  sentAt: string;
+  contactId: string;
+}
+
+/**
+ * Model + prompt version-pin visibility (FR-ADMIN-06), READ-ONLY. These pins are
+ * platform-global today (model routing is env-overridable per deploy; prompt
+ * versions are code constants) — `scope: "platform"` says so honestly rather
+ * than implying a per-tenant pin that doesn't exist yet.
+ */
+export interface VersionPins {
+  scope: "platform";
+  models: { task: string; model: string }[];
+  embeddingModel: string;
+  prompts: { name: string; version: number }[];
+}
+
 // ── B1 W3 (DEC-081): product telemetry + adoption dashboards ─────────────────
 
 export const adoptionQuerySchema = z.object({

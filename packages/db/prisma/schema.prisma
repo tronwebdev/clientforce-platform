@@ -866,3 +866,38 @@ model TelemetryEvent {
   @@index([name, occurredAt])
   @@index([workspaceId, occurredAt])
 }
+
+// Per-agency / per-channel kill switch (B1 W4, DEC-082). Presence + active = the
+// channel is killed for that agency; the send boundary refuses `CHANNEL_KILLED`
+// (extends the SendBlockReason enum — the W1 TENANT_SUSPENDED pattern, no fork).
+// Backoffice-WRITTEN, app-READABLE: unlike the fully-revoked W1-W3 tables, the
+// RLS-subject `clientforce_app` role keeps SELECT (the send boundary reads it to
+// enforce the switch) but loses INSERT/UPDATE/DELETE. Typed, reversible, audited.
+model KillSwitch {
+  id        String   @id @default(cuid())
+  agencyId  String
+  channel   String // "email" | "sms" | "whatsapp" | "voice"
+  active    Boolean  @default(true)
+  reason    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([agencyId, channel])
+  @@index([agencyId])
+}
+
+// Per-tenant feature flags (B1 W4, DEC-082). Workspace-scoped toggles set by the
+// operator (audited). Backoffice-WRITTEN, app-READABLE: `clientforce_app` keeps
+// SELECT (feature gates read it) but loses INSERT/UPDATE/DELETE — only the
+// backoffice mutates flags.
+model FeatureFlag {
+  id          String   @id @default(cuid())
+  workspaceId String
+  key         String
+  enabled     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([workspaceId, key])
+  @@index([workspaceId])
+}

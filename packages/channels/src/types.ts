@@ -73,7 +73,10 @@ export type SendBlockReason =
   // SUSPENDED agency — refuses every send at the boundary; reactivation
   // restores it. The kill switch reuses this same machinery (W4 extends the
   // detail, never forks the path).
-  | "TENANT_SUSPENDED";
+  | "TENANT_SUSPENDED"
+  // B1 W4 (DEC-082): the per-agency/per-channel kill switch — same boundary
+  // machinery as TENANT_SUSPENDED, one more typed reason. Reversible.
+  | "CHANNEL_KILLED";
 
 export class SendBlockedError extends Error {
   constructor(

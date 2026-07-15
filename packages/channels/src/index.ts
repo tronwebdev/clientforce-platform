@@ -32,7 +32,8 @@ export {
   type SendBlockReason,
 } from "./types";
 // B1 W1 (DEC-079): platform-suspension gate shared by the email + SMS boundaries.
-export { assertTenantActive } from "./tenant-status";
+// B1 W4 (DEC-082): + the per-agency/per-channel kill-switch gate.
+export { assertTenantActive, assertChannelLive } from "./tenant-status";
 export {
   resolveEventMessage,
   toBusEvents,
