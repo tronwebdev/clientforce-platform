@@ -337,3 +337,70 @@ describe("planner prompt v8/v9 — output language (L1, DEC-072; layered on v5/v
     expect(renderPlannerPrompt(vars, false, "pt")).toContain("Portuguese (Português)");
   });
 });
+
+describe("arc invariant — guided relaxes WORDING only (DEC-086)", () => {
+  const vars = {
+    ...baseVars,
+    arcLabel: fixture.arc.label,
+    arcDescription: fixture.arc.description,
+    arcRoles: fixture.arc.roles.map((r, i) => `  ${i + 1}. ${r}`).join("\n"),
+    toneHints: fixture.toneHints,
+    strategyNotes: "(none)",
+    neverSay: "(none)",
+    outcomes: "",
+  };
+
+  /** The structural craft rules — the arc contract every plan obeys. */
+  const STRUCTURAL_RULES = [
+    "OPENER (always the FIRST step)",
+    "BREAKUP (always the LAST step",
+    "the BREAKUP is never dropped",
+    "- ONE call-to-action per message — never two asks in one email.",
+    "- Each message is SHORTER than the previous one.",
+    "- VALUE/PROOF: one concrete proof point",
+    "- OBJECTION-PREEMPT: name the prospect's most likely hesitation",
+  ];
+  const count = (haystack: string, needle: string) => haystack.split(needle).length - 1;
+
+  it("every structural craft rule appears in the guided SYSTEM exactly as often as in scripted — the addendum adds zero structural material", () => {
+    for (const rule of STRUCTURAL_RULES) {
+      expect(count(PLANNER_SYSTEM, rule), rule).toBeGreaterThan(0);
+      expect(count(PLANNER_SYSTEM_GUIDED, rule), rule).toBe(count(PLANNER_SYSTEM, rule));
+    }
+    for (const opener of BANNED_OPENERS) {
+      expect(count(PLANNER_SYSTEM_GUIDED, opener), opener).toBe(count(PLANNER_SYSTEM, opener));
+    }
+  });
+
+  it("the guided addendum swaps the wording CARRIER only — briefs follow the step's ROLE; no role/CTA/length/timing directives of its own", () => {
+    const addendum = PLANNER_SYSTEM_GUIDED.slice(PLANNER_SYSTEM.length);
+    expect(addendum).toContain('carries a "brief" INSTEAD of copy');
+    expect(addendum).toContain("following the step's ROLE above");
+    // wording-only: the addendum may not restate or override the arc's
+    // structural rules (they live once, in the shared scripted system).
+    for (const banned of ["call-to-action", "SHORTER", "OPENER", "BREAKUP", "delay"]) {
+      expect(addendum, `addendum must not carry "${banned}"`).not.toContain(banned);
+    }
+  });
+
+  it("v7 renders v5 verbatim except ONE line — the copy-carrier bullet (scripted subject/body ⇄ guided brief)", () => {
+    const scripted = renderPlannerPrompt(vars, false).split("\n");
+    const guided = renderPlannerPrompt(vars, true).split("\n");
+    expect(guided.length).toBe(scripted.length);
+    const diff = scripted
+      .map((line, i) => ({ line, i, other: guided[i]! }))
+      .filter((x) => x.line !== x.other);
+    expect(diff).toHaveLength(1);
+    // the scripted side of the seam carries copy; the guided side carries
+    // the brief tied to the step ROLE — same slot, different wording carrier.
+    expect(diff[0]!.line).toContain('"subject" and "body"');
+    expect(diff[0]!.other).toContain('mode "guided" with a "brief"');
+    expect(diff[0]!.other).toContain("following the step's ROLE");
+  });
+
+  it("a guided plan keeps the scripted timing requirement — the delay bullet is byte-shared", () => {
+    const delayBullet = '- At least one "delay" node between main-sequence sends (1-4 days).';
+    expect(renderPlannerPrompt(vars, false)).toContain(delayBullet);
+    expect(renderPlannerPrompt(vars, true)).toContain(delayBullet);
+  });
+});
