@@ -217,7 +217,7 @@ export class CallSession {
   private async respond(commit: TurnCommit): Promise<void> {
     const turn = ++this.turnCount;
     const anchor = commit.committedAt; // the ADR's TTFA anchor
-    const chunker = new SentenceChunker();
+    const chunker = new SentenceChunker(true); // eager first chunk — TTFA lever
     const abort = new AbortController();
     this.ttsAbort = abort;
     this.speaking = true;
