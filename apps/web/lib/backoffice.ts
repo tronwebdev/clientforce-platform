@@ -4,7 +4,10 @@ import type {
   BackofficeAgencyRow,
   BackofficeAuditRow,
   BackofficeStaff,
+  FleetHealthView,
+  KillSwitchRow,
   ReconciliationRow,
+  VersionPins,
 } from "@clientforce/core";
 import { API_URL, STAFF_SESSION_COOKIE } from "./config";
 
@@ -60,4 +63,30 @@ export async function fetchAdoption(): Promise<AdoptionSummary | null> {
   const res = await fetch(`${API_URL}/backoffice/adoption`, { headers, cache: "no-store" });
   if (!res.ok) return null;
   return (await res.json()) as AdoptionSummary;
+}
+
+// ── B1 W4 (DEC-082): fleet health · version pins · kill switches ──────────────
+
+export async function fetchFleetHealth(): Promise<FleetHealthView | null> {
+  const headers = await staffHeaders();
+  if (!headers) return null;
+  const res = await fetch(`${API_URL}/backoffice/fleet-health`, { headers, cache: "no-store" });
+  if (!res.ok) return null;
+  return (await res.json()) as FleetHealthView;
+}
+
+export async function fetchVersionPins(): Promise<VersionPins | null> {
+  const headers = await staffHeaders();
+  if (!headers) return null;
+  const res = await fetch(`${API_URL}/backoffice/version-pins`, { headers, cache: "no-store" });
+  if (!res.ok) return null;
+  return (await res.json()) as VersionPins;
+}
+
+export async function fetchKillSwitches(): Promise<KillSwitchRow[]> {
+  const headers = await staffHeaders();
+  if (!headers) return [];
+  const res = await fetch(`${API_URL}/backoffice/kill-switches`, { headers, cache: "no-store" });
+  if (!res.ok) return [];
+  return (await res.json()) as KillSwitchRow[];
 }

@@ -9,7 +9,7 @@
  * Honest deviations from the prototype (fidelity-logged, DEC-078):
  * - Outcome vocabulary is the REAL deterministic set (D4: completed /
  *   no_answer / busy / failed / canceled) — the prototype's Booked/
- *   Interested/Voicemail need call tools + voicemail detection (Q-025).
+ *   Interested/Voicemail need call tools + voicemail detection (Q-026).
  * - The recording player renders only when a recording exists; recording is
  *   OFF by default (owner lock), so the transcript is the record.
  * - The ✦ AI summary card needs a summarizer no unit has shipped — absent.

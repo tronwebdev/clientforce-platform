@@ -54,6 +54,31 @@ export const fmtDate = (iso: string) =>
 
 // ── live sender shape (GET /api/cf/senders) ────────────────────────────────
 
+/** Persisted health snapshot (P5 W1 `healthState`, DEC-083 amended shape). */
+export interface SenderHealth {
+  score: number | null;
+  state: "healthy" | "unhealthy" | "low_data";
+  band: "healthy" | "watch" | "at_risk" | "paused" | null;
+  floor: "none" | "low" | "ok";
+  windowDays: number;
+  computedAt: string;
+  sample: { sent: number; delivered: number; bounced: number; spam: number; replied: number };
+  rates: { bounce: number; spam: number; delivery: number | null; reply: number } | null;
+}
+
+/** Warmup projection (P5 W1 `warmupProgressFor`). */
+export interface SenderWarmup {
+  active: boolean;
+  day: number;
+  days: number;
+  currentCap: number;
+  target: number;
+  pct: number;
+  holding: boolean;
+  startedAt: string;
+  completedAt?: string;
+}
+
 export interface Sender {
   id: string;
   type: string;
@@ -67,24 +92,44 @@ export interface Sender {
   warmupState: Record<string, unknown> | null;
   dedicatedIp: string | null;
   createdAt: string;
+  /** P5 W2 (DEC-084): additive read-model fields from the list endpoint. */
+  health: SenderHealth | null;
+  warmup: SenderWarmup | null;
 }
 
+export type AuthState = "verified" | "failed" | "unchecked";
 export interface AuthRow {
   key: "SPF" | "DKIM" | "DMARC";
+  status: AuthState;
   pass: boolean;
   detail: string | null;
+  /** Copyable record to publish — present on failed rows (P5 W1 checker). */
+  expected: string | null;
 }
 
-/** Parse `domainAuthStatus` Json — values may be booleans or `{ pass, detail }` objects. */
+/**
+ * Parse `domainAuthStatus` Json — the P5-W1 checker's `{ status, pass,
+ * detail, expected }` records, plus every legacy shape (booleans, bare
+ * `{ pass, detail }`). An ABSENT record is `unchecked` (never checked ≠
+ * failed — the never-fake-a-fail rule), matching the checker's own state.
+ */
 export function authRows(s: Sender): AuthRow[] {
   const auth = (s.domainAuthStatus ?? {}) as Record<string, unknown>;
   return (["spf", "dkim", "dmarc"] as const).map((k) => {
     const v = auth[k];
     const obj = typeof v === "object" && v !== null ? (v as Record<string, unknown>) : null;
-    const pass = v === true || obj?.pass === true;
+    const status: AuthState =
+      obj?.status === "verified" || obj?.status === "failed" || obj?.status === "unchecked"
+        ? obj.status
+        : v === true || obj?.pass === true
+          ? "verified"
+          : v === false || obj?.pass === false
+            ? "failed"
+            : "unchecked";
     const detail =
       obj && typeof obj.detail === "string" ? obj.detail : obj && typeof obj.record === "string" ? obj.record : null;
-    return { key: k.toUpperCase() as AuthRow["key"], pass, detail };
+    const expected = obj && typeof obj.expected === "string" ? obj.expected : null;
+    return { key: k.toUpperCase() as AuthRow["key"], status, pass: status === "verified", detail, expected };
   });
 }
 export const authPasses = (s: Sender) => authRows(s).filter((r) => r.pass).length;

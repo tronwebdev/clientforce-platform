@@ -74,13 +74,16 @@ export type SendBlockReason =
   // restores it. The kill switch reuses this same machinery (W4 extends the
   // detail, never forks the path).
   | "TENANT_SUSPENDED"
+  // B1 W4 (DEC-082): the per-agency/per-channel kill switch — same boundary
+  // machinery as TENANT_SUSPENDED, one more typed reason. Reversible.
+  | "CHANNEL_KILLED"
   // P5 W1 (DEC-083): health auto-pause. A sender whose ledger-derived health
   // snapshot is `unhealthy` refuses every send; recovery (score back over the
   // hysteresis line) or the window draining restores it — reversible, and the
   // enrollment disposition stays PAUSED like every non-suppression refusal.
   | "SENDER_UNHEALTHY"
   // P3.1 (DEC-078): voice dial-boundary extension — Aura-2 voices are
-  // English-only, so non-English agents refuse honestly (Q-026 tracks
+  // English-only, so non-English agents refuse honestly (Q-027 tracks
   // non-English voice; the disclosure constants already ship translated).
   | "VOICE_LANGUAGE_UNSUPPORTED";
 

@@ -115,6 +115,19 @@ describe.skipIf(!hasInfra)("assertDialAllowed boundary integration", () => {
     expect(await reasonOf(assertDialAllowed(deps(), base()))).toBe("(allowed)");
   });
 
+  it('CHANNEL_KILLED (DEC-082 ride-along): an ACTIVE agency "voice" kill switch blocks the dial', async () => {
+    await owner.killSwitch.create({
+      data: { agencyId, channel: "voice", active: true, reason: "abuse review" },
+    });
+    expect(await reasonOf(assertDialAllowed(deps(), base()))).toBe("CHANNEL_KILLED");
+    await owner.killSwitch.update({
+      where: { agencyId_channel: { agencyId, channel: "voice" } },
+      data: { active: false },
+    });
+    expect(await reasonOf(assertDialAllowed(deps(), base()))).toBe("(allowed)");
+    await owner.killSwitch.deleteMany({ where: { agencyId } });
+  });
+
   it("CONTACT_NO_PHONE: a contact without a phone never dials", async () => {
     const noPhone = await owner.contact.create({
       data: { workspaceId: ws, source: "test", optOut: {}, tags: [], email: `np-${suffix}@t.test` },
