@@ -101,8 +101,8 @@ function makeSession(over: Partial<CallSessionDeps> & { provider?: CompletionPro
 }
 
 describe("disclosure — spoken FIRST, a constant, before any composed turn", () => {
-  it("start() speaks the disclosure before the brain is ever invoked", async () => {
-    const streamCalls: string[] = [];
+  it("start() speaks the disclosure before any COMPOSED turn (the warm-up primer is not one)", async () => {
+    const systemsSeen: string[] = [];
     const provider: CompletionProvider = {
       completeText: async () => {
         throw new Error("not used");
@@ -110,8 +110,8 @@ describe("disclosure — spoken FIRST, a constant, before any composed turn", ()
       completeTool: async () => {
         throw new Error("not used");
       },
-      streamText: async function* (): AsyncIterable<StreamEvent> {
-        streamCalls.push("brain");
+      streamText: async function* (p: StreamParams): AsyncIterable<StreamEvent> {
+        systemsSeen.push(p.system ?? "");
         yield { type: "done", usage: { inputTokens: 1, outputTokens: 1 } };
       },
     };
@@ -119,7 +119,9 @@ describe("disclosure — spoken FIRST, a constant, before any composed turn", ()
     s.session.start();
     await vi.waitFor(() => expect(s.counter.spoken.length).toBeGreaterThan(0));
     expect(s.counter.spoken[0]).toContain("Hi, this is an AI assistant calling on behalf of Acme.");
-    expect(streamCalls).toHaveLength(0); // no composed turn yet
+    // The connection warm-up may run (fixed primer prompt, never the call's
+    // system prompt) — but NO composed turn exists before the disclosure.
+    expect(systemsSeen.filter((sys) => sys === "SYSTEM")).toHaveLength(0);
     await vi.waitFor(() => expect(s.metrics.disclosureCompleted).toBe(true));
     const transcript = s.session.transcript();
     expect(transcript[0]!.role).toBe("assistant");

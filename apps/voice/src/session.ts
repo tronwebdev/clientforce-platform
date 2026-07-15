@@ -112,7 +112,27 @@ export class CallSession {
     if (this.deps.maxCallMs > 0) {
       this.maxTimer = setTimeout(() => this.endPolitely("max_duration"), this.deps.maxCallMs);
     }
+    void this.warmBrainConnection();
     void this.speakDisclosure();
+  }
+
+  /**
+   * Pre-warm the LLM connection while the disclosure plays — the call's first
+   * real reply then rides a pooled connection instead of paying TLS setup
+   * (a first-turn TTFA tail the certification run surfaced). Usage logs
+   * through the same hook, so cost stays honest; failures are irrelevant.
+   */
+  private async warmBrainConnection(): Promise<void> {
+    try {
+      const stream = this.deps.gateway.streamVoice({
+        system: "Reply with exactly: ok",
+        turns: [{ role: "user", content: "ok" }],
+        maxTokens: 4,
+      });
+      for await (const delta of stream) void delta;
+    } catch {
+      // a warm-up must never affect the call
+    }
   }
 
   /**

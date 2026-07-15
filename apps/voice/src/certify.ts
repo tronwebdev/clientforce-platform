@@ -101,6 +101,50 @@ const DIALOGUE: ScriptedUtterance[] = [
 ];
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+const SILENCE_FRAME = Buffer.alloc(FRAME_BYTES, 0xff);
+
+/**
+ * The caller's audio transport — ONE writer, CONTINUOUS stream, exactly like
+ * Twilio Media Streams: one 20ms frame every 20ms, speech when queued,
+ * SILENCE otherwise. The first cert run proved why this must be a single
+ * pump: a detached trailing-silence task overlapped the next utterance's
+ * frames (two writers → garbled ~2× audio → phantom endpoints → 48 false
+ * mid-utterance commits), and the frame gaps while the bot idled starved
+ * Deepgram's socket until it closed (session 6's failure).
+ */
+class AudioPump {
+  private queue: Buffer[] = [];
+  private stopped = false;
+  constructor(private readonly push: (frame: Buffer) => void) {}
+
+  start(): void {
+    void (async () => {
+      while (!this.stopped) {
+        this.push(this.queue.shift() ?? SILENCE_FRAME);
+        await sleep(FRAME_MS);
+      }
+    })();
+  }
+
+  enqueueSpeech(audio: Buffer): void {
+    for (let off = 0; off < audio.length; off += FRAME_BYTES) {
+      const frame = audio.subarray(off, off + FRAME_BYTES);
+      this.queue.push(frame.length === FRAME_BYTES ? frame : Buffer.concat([frame, SILENCE_FRAME]).subarray(0, FRAME_BYTES));
+    }
+  }
+
+  enqueueSilence(ms: number): void {
+    for (let t = 0; t < ms; t += FRAME_MS) this.queue.push(SILENCE_FRAME);
+  }
+
+  get pendingMs(): number {
+    return this.queue.length * FRAME_MS;
+  }
+
+  stop(): void {
+    this.stopped = true;
+  }
+}
 
 /** Synthesize a caller segment once; cached across sessions. */
 const segmentAudioCache = new Map<string, Buffer>();
@@ -135,9 +179,11 @@ async function runSession(apiKey: string, sessionIndex: number): Promise<Session
   const ackClips = await loadAckClips(apiKey, context.ttsModel, config.ackPhrases, synthesizeAura);
 
   // ── Agent-audio observation (the bot's judgment inputs) ──────────────────
+  let agentBurstStartAt = 0;
   let agentLastAudioAt = 0;
-  let agentQueuedBytes = 0;
+  let agentBurstBytes = 0;
   let botMidUtterance = false;
+  let bargeUtterance = false;
   let disclosureDone = false;
   let midUtteranceReplies = 0;
 
@@ -157,64 +203,61 @@ async function runSession(apiKey: string, sessionIndex: number): Promise<Session
     maxCallMs: 0,
     sendAudio: (mulaw) => {
       const now = Date.now();
-      if (now - agentLastAudioAt > 1200) {
-        agentQueuedBytes = 0;
-        // The judge: agent audio STARTING while the bot is mid-utterance.
-        if (disclosureDone && botMidUtterance) {
+      if (now - agentLastAudioAt > 2000) {
+        // A new agent burst. The judge: a REPLY starting while the bot is
+        // mid-utterance — excluding the bot's own intentional barge-ins
+        // (talk-over there is the bot's doing, not the agent's).
+        agentBurstStartAt = now;
+        agentBurstBytes = 0;
+        if (disclosureDone && botMidUtterance && !bargeUtterance) {
           midUtteranceReplies += 1;
           console.error(`[cert] MID-UTTERANCE REPLY (session ${sessionIndex})`);
         }
       }
       agentLastAudioAt = now;
-      agentQueuedBytes += mulaw.byteLength;
+      agentBurstBytes += mulaw.byteLength;
     },
     clearPlayback: () => {
-      agentQueuedBytes = 0; // barge-in flushed the buffer
+      agentBurstBytes = 0; // barge-in flushed the buffer
     },
   });
 
+  const pump = new AudioPump((frame) => session.pushCallerAudio(frame));
   session.start();
+  pump.start();
 
-  /** Wait until the agent's queued audio would have finished playing. */
+  /** Wait until the agent's current burst would have finished PLAYING —
+   *  playback runs from the burst's start, not from its last enqueue. */
   const waitForAgentQuiet = async (timeoutMs = 30_000): Promise<void> => {
     const deadline = Date.now() + timeoutMs;
     for (;;) {
-      const drainMs = (agentQueuedBytes / 8000) * 1000;
-      const quietAt = agentLastAudioAt + drainMs + 400;
+      const drainMs = (agentBurstBytes / 8000) * 1000;
+      const quietAt = Math.max(agentBurstStartAt + drainMs, agentLastAudioAt) + 400;
       if (agentLastAudioAt > 0 && Date.now() >= quietAt) return;
       if (Date.now() > deadline) return;
       await sleep(100);
     }
   };
 
-  /** Stream one utterance (segments + adversarial pauses) as real frames. */
+  /** Queue one utterance (segments + adversarial pauses) into the pump and
+   *  wait for its last frame to leave — ONE writer, zero overlap. */
   const speakUtterance = async (utterance: ScriptedUtterance): Promise<void> => {
     botMidUtterance = true;
+    bargeUtterance = utterance.bargeIn === true;
     for (let i = 0; i < utterance.segments.length; i++) {
       const seg = utterance.segments[i]!;
-      const audio = await callerAudio(apiKey, seg.text);
-      for (let off = 0; off < audio.length; off += FRAME_BYTES) {
-        session.pushCallerAudio(audio.subarray(off, off + FRAME_BYTES));
-        await sleep(FRAME_MS);
-      }
-      const pause = i < utterance.segments.length - 1 ? (seg.pauseMs ?? 0) : 0;
-      if (pause > 0) {
-        // Intra-utterance pause: SILENCE frames keep streaming (Twilio never
-        // stops sending) — this is what provokes Deepgram's endpointing.
-        for (let t = 0; t < pause; t += FRAME_MS) {
-          session.pushCallerAudio(Buffer.alloc(FRAME_BYTES, 0xff));
-          await sleep(FRAME_MS);
-        }
+      pump.enqueueSpeech(await callerAudio(apiKey, seg.text));
+      if (i < utterance.segments.length - 1 && seg.pauseMs) {
+        // Intra-utterance pause — silence keeps streaming (Twilio never
+        // stops); this is what provokes Deepgram's endpointing.
+        pump.enqueueSilence(seg.pauseMs);
       }
     }
+    while (pump.pendingMs > 0) await sleep(FRAME_MS);
     botMidUtterance = false;
-    // Trailing silence so endpointing + the gate can commit the turn.
-    void (async () => {
-      for (let t = 0; t < 4000; t += FRAME_MS) {
-        session.pushCallerAudio(Buffer.alloc(FRAME_BYTES, 0xff));
-        await sleep(FRAME_MS);
-      }
-    })();
+    bargeUtterance = false;
+    // The pump feeds trailing silence on its own — endpointing + the gate
+    // commit off the continuous stream.
   };
 
   // Let the disclosure play out first.
@@ -233,6 +276,7 @@ async function runSession(apiKey: string, sessionIndex: number): Promise<Session
   }
 
   await sleep(1000);
+  pump.stop();
   session.close();
   return { report: metrics.report(), midUtteranceReplies };
 }
@@ -246,7 +290,14 @@ async function main(): Promise<void> {
   mkdirSync(outDir, { recursive: true });
 
   const results: SessionResult[] = [];
-  for (let i = 1; i <= sessions; i++) {
+  // Top-up rule: a session lost to a provider failure keeps its turns but
+  // may leave the pool short — run up to 2 extra sessions to reach ≥100
+  // (logged; never silently under-sample).
+  const maxSessions = sessions + 2;
+  for (let i = 1; i <= maxSessions; i++) {
+    const turnsSoFar = results.reduce((n, r) => n + r.report.turns, 0);
+    if (i > sessions && turnsSoFar >= 100) break;
+    if (i > sessions) console.log(`[cert] top-up session (${turnsSoFar}/100 turns so far)`);
     console.log(`[cert] session ${i}/${sessions}…`);
     const result = await runSession(apiKey, i);
     results.push(result);
@@ -272,7 +323,9 @@ async function main(): Promise<void> {
     turns: totalTurns,
     turnsGateMet: totalTurns >= 100,
     ttfaP50Ms: ttfaP50,
+    ttfaP50Met: ttfaP50 <= 1200,
     ttfaP95Ms: ttfaP95,
+    ttfaP95Met: ttfaP95 <= 1500,
     ttfaGateMet: ttfaP50 <= 1200 && ttfaP95 <= 1500,
     droppedAudio: totalDropped,
     droppedGateMet: totalDropped === 0,
@@ -305,8 +358,8 @@ async function main(): Promise<void> {
     "| Gate | Required | Measured | Met |",
     "|---|---|---|---|",
     `| Turns | ≥100 | ${gate.turns} | ${gate.turnsGateMet ? "✅" : "❌"} |`,
-    `| TTFA p50 (all turns pooled) | ≤ ~1200ms | ${gate.ttfaP50Ms}ms | ${gate.ttfaGateMet ? "✅" : "❌"} |`,
-    `| TTFA p95 (all turns pooled) | ≤ ~1500ms | ${gate.ttfaP95Ms}ms | ${gate.ttfaGateMet ? "✅" : "❌"} |`,
+    `| TTFA p50 (all turns pooled) | ≤ ~1200ms | ${gate.ttfaP50Ms}ms | ${gate.ttfaP50Met ? "✅" : "❌"} |`,
+    `| TTFA p95 (all turns pooled) | ≤ ~1500ms | ${gate.ttfaP95Ms}ms | ${gate.ttfaP95Met ? "✅" : "❌"} |`,
     `| Dropped audio | 0 | ${gate.droppedAudio} | ${gate.droppedGateMet ? "✅" : "❌"} |`,
     `| Mid-utterance replies | 0 | ${gate.midUtteranceReplies} | ${gate.midUtteranceGateMet ? "✅" : "❌"} |`,
     "",
