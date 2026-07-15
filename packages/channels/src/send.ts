@@ -6,10 +6,12 @@ import {
   type Guardrails,
   type StepContent,
 } from "@clientforce/core";
-import { withTenant, type Message, type PrismaClient } from "@clientforce/db";
+import { withTenant, type Message, type PrismaClient, type SenderConnection } from "@clientforce/db";
+import { HEALTH_AUTO_PAUSE_BELOW, parseHealthState } from "./health";
 import { hasThreadPrefix, renderTokens, stripThreadPrefix, withReplyPrefix } from "./render";
 import { assertTenantActive } from "./tenant-status";
 import { SendBlockedError, type EmailSender, type RenderedEmail } from "./types";
+import { warmupCapFor } from "./warmup";
 
 export interface SendDeps {
   /** RLS-subject client (`createAppPrismaClient`) — never the owner client. */
@@ -75,12 +77,22 @@ export async function sendStep(deps: SendDeps, params: SendStepParams): Promise<
   if (!contact?.email) throw new Error(`Contact ${params.contactId} not found or has no email`);
   if (!agent) throw new Error(`Agent ${params.agentId} not found`);
   if (sender.status !== "ACTIVE") throw new SendBlockedError("SENDER_DISABLED", sender.status);
+  // P5 W1 (DEC-083): health auto-pause — a collapsed sender refuses before any
+  // per-recipient work. Reads the persisted ledger snapshot only (recomputed by
+  // the worker sweep + the webhook fast path); reversible on recovery/drain.
+  const health = parseHealthState(sender.healthState);
+  if (health?.state === "unhealthy") {
+    throw new SendBlockedError(
+      "SENDER_UNHEALTHY",
+      `health ${health.score ?? "?"}/100 — auto-paused below ${HEALTH_AUTO_PAUSE_BELOW}`,
+    );
+  }
 
   const guardrails = parseGuardrails(agent.guardrails);
   // A8: literal-true flags are structurally guaranteed by the schema; the
   // checks below are the enforcement those flags promise.
   assertInsideWindow(guardrails, now);
-  await assertUnderCaps(deps, params, guardrails, sender.dailyLimit, now);
+  await assertUnderCaps(deps, params, guardrails, sender, now);
 
   // suppressionCheck (A8, literal true): Contact.optOut AND Suppression rows.
   const optOut = (contact.optOut ?? {}) as { email?: boolean };
@@ -193,6 +205,10 @@ export async function sendStep(deps: SendDeps, params: SendStepParams): Promise<
         providerMessageId,
         inReplyToId: prior?.id ?? null,
         stepNodeId: params.stepNodeId,
+        // P5 W1 (DEC-083): sender attribution as a real, indexed column —
+        // per-sender warmup caps + health rollups query it. meta.senderId
+        // stays for every existing reader (compat).
+        senderId: params.senderId,
         sentAt: now,
         meta: {
           senderId: params.senderId,
@@ -229,7 +245,7 @@ async function assertUnderCaps(
   deps: SendDeps,
   params: SendStepParams,
   guardrails: Guardrails,
-  senderDailyLimit: number,
+  sender: SenderConnection,
   now: Date,
 ): Promise<void> {
   const dayStart = new Date(now);
@@ -252,8 +268,24 @@ async function assertUnderCaps(
   if (campaignCount >= guardrails.dailyCap.email) {
     throw new SendBlockedError("DAILY_CAP_REACHED", `campaign cap ${guardrails.dailyCap.email}`);
   }
-  if (workspaceCount >= senderDailyLimit) {
-    throw new SendBlockedError("DAILY_CAP_REACHED", `sender limit ${senderDailyLimit}`);
+  if (workspaceCount >= sender.dailyLimit) {
+    throw new SendBlockedError("DAILY_CAP_REACHED", `sender limit ${sender.dailyLimit}`);
+  }
+  // P5 W1 (DEC-083): warmup ramp — effective cap = min(warmup cap, configured
+  // daily limit); both checks run, so whichever is lower refuses first. The
+  // warmup count is per-SENDER (the denormalized `senderId` column), unlike
+  // the legacy workspace-wide sender-limit check above, which stays untouched.
+  const warmup = warmupCapFor(sender, now);
+  if (warmup) {
+    const senderCount = await withTenant(deps.prisma, { workspaceId: params.workspaceId }, (tx) =>
+      tx.message.count({ where: { ...where, senderId: sender.id } }),
+    );
+    if (senderCount >= warmup.cap) {
+      throw new SendBlockedError(
+        "DAILY_CAP_REACHED",
+        `warmup cap ${warmup.cap} (day ${warmup.day} of ${warmup.days})`,
+      );
+    }
   }
 }
 

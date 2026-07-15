@@ -97,7 +97,7 @@ export async function assertDialAllowed(
   const guardrails = parseGuardrails(agent.guardrails);
   const language = resolveLanguage(guardrails);
   // D8: Aura-2 voices are English-only — refuse honestly rather than run a
-  // bilingual-broken call. Q-025 tracks non-English voice.
+  // bilingual-broken call. Q-026 tracks non-English voice.
   if (language !== DEFAULT_LANGUAGE) {
     throw new SendBlockedError("VOICE_LANGUAGE_UNSUPPORTED", language);
   }

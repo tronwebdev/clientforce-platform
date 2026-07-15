@@ -401,6 +401,9 @@ model Event {
   contactId    String?
   enrollmentId String?
   campaignId   String?
+  /// P5 W1 (DEC-083): sender attribution (backfilled via payload.messageId →
+  /// Message) — the health engine's per-sender window rollup is one index scan.
+  senderId     String?
   payload      Json
   occurredAt   DateTime @default(now())
   createdAt    DateTime @default(now())
@@ -410,6 +413,8 @@ model Event {
   @@index([enrollmentId])
   // F1 (DEC-068): the outcomes rollup filters campaign + type set per request.
   @@index([workspaceId, campaignId, type])
+  // P5 W1 (DEC-083): the health window rollup (sender + type set + window).
+  @@index([workspaceId, senderId, type, occurredAt])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -530,6 +535,10 @@ model SenderConnection {
   dedicatedIp      String?
   ipPoolId         String?
   subuser          String?
+  /// P5 W1 (DEC-083): deterministic health snapshot ({ v, score, state, floor,
+  /// sample, rates, computedAt }) — written by the worker sweep + webhook fast
+  /// path from ledger aggregates; the send boundary reads `state` only.
+  healthState      Json?
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 
@@ -568,11 +577,15 @@ model Message {
   inReplyToId       String?
   intent            String?
   stepNodeId        String?
+  /// P5 W1 (DEC-083): sender attribution as a real column (backfilled from
+  /// meta.senderId, which stays for compat) — warmup caps + health rollups.
+  senderId          String?
   sentAt            DateTime
   meta              Json?
 
   @@index([workspaceId, contactId, sentAt])
   @@index([workspaceId, campaignId, sentAt])
+  @@index([workspaceId, senderId, channel, sentAt])
 }
 
 enum MessageDirection {
