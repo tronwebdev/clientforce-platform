@@ -5,6 +5,7 @@ import {
   campaignGraphSchema,
   detectLanguage,
   execute,
+  graftSubcampaigns,
   GraphValidationError,
   languagePromptLabel,
   parseGuardrails,
@@ -171,7 +172,7 @@ export async function planCampaign(deps: PlanDeps, target: PlanTarget): Promise<
   );
   const dryRun = execute(graph, { events: branchEvents });
 
-  const { campaign, graphRow } = await withTenant(prisma, { workspaceId }, async (tx) => {
+  const { campaign, graphRow, persisted } = await withTenant(prisma, { workspaceId }, async (tx) => {
     const graphRowId = randomUUID();
     let campaignRow = await tx.campaign.findFirst({
       where: { agentId },
@@ -188,24 +189,50 @@ export async function planCampaign(deps: PlanDeps, target: PlanTarget): Promise<
         data: { graphId: graphRowId },
       });
     }
-    const latest = await tx.campaignGraph.aggregate({
+    const latest = await tx.campaignGraph.findFirst({
       where: { campaignId: campaignRow.id },
-      _max: { version: true },
+      orderBy: { version: "desc" },
     });
+    // #90 (DEC-077): a re-plan must not orphan sub-campaigns — their enabled
+    // entry rules fire `move_to_node` at container node ids. The planner
+    // knows nothing of containers (no prompt changes, the standing hard no),
+    // so the stored ones graft onto the fresh graph deterministically; a
+    // graft that cannot produce a valid graph fails the plan LOUDLY rather
+    // than silently killing the owner's branches. An unreadable stored row
+    // keeps the pre-graft behavior (the same tolerance the edit gate grants).
+    let persistGraph = graph;
+    if (latest) {
+      let stored: CampaignGraph | null = null;
+      try {
+        stored = validateGraph(latest.graph);
+      } catch {
+        stored = null;
+      }
+      if (stored && stored.nodes.some((n) => n.type === "subcampaign")) {
+        try {
+          persistGraph = graftSubcampaigns(graph, stored).graph;
+          validateGraph(persistGraph);
+        } catch (err) {
+          throw new PlannerError(
+            `Re-plan would orphan this agent's sub-campaigns and could not carry them over: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+      }
+    }
     const row = await tx.campaignGraph.create({
       data: {
         id: graphRowId,
         workspaceId,
         campaignId: campaignRow.id,
-        version: (latest._max.version ?? 0) + 1,
-        graph: graph as object,
+        version: (latest?.version ?? 0) + 1,
+        graph: persistGraph as object,
         source: "AI",
       },
     });
-    return { campaign: campaignRow, graphRow: row };
+    return { campaign: campaignRow, graphRow: row, persisted: persistGraph };
   });
 
-  return { campaign, graphRow, graph, dryRun };
+  return { campaign, graphRow, graph: persisted, dryRun };
 }
 
 /**

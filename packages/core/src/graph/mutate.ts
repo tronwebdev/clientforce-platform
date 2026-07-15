@@ -23,7 +23,14 @@ import type {
   StepContent,
   StepNode,
 } from "./types";
-import { branchChains, caseKeyOf, chainForCase, mainSequence } from "./walk";
+import {
+  caseKeyOf,
+  chainForCase,
+  mainSequence,
+  sharedContainerNodeIds,
+  subcampaignChainOf,
+  subcampaignChains,
+} from "./walk";
 
 export class GraphMutationError extends Error {
   constructor(message: string) {
@@ -32,10 +39,14 @@ export class GraphMutationError extends Error {
   }
 }
 
-/** Where a mutation applies: the main sequence, or one branch case's chain. */
+/**
+ * Where a mutation applies: the main sequence, one branch case's chain, or —
+ * #90 (DEC-077) — one sub-campaign container's chain.
+ */
 export type SequenceContainer =
   | { kind: "main" }
-  | { kind: "case"; branchId: string; caseKey: string };
+  | { kind: "case"; branchId: string; caseKey: string }
+  | { kind: "subcampaign"; subcampaignId: string };
 
 /** First unused `<prefix>-N` id (deletes can never re-collide a fresh id). */
 export function freshNodeId(graph: CampaignGraph, prefix: string): string {
@@ -56,6 +67,13 @@ function outEdgeTarget(graph: CampaignGraph, id: string): string | undefined {
 /** The container's ordered nodes (see walk.ts) — throws on unknown containers. */
 export function containerNodes(graph: CampaignGraph, container: SequenceContainer): GraphNode[] {
   if (container.kind === "main") return mainSequence(graph);
+  if (container.kind === "subcampaign") {
+    const chain = subcampaignChainOf(graph, container.subcampaignId);
+    if (!chain) {
+      throw new GraphMutationError(`Unknown sub-campaign "${container.subcampaignId}"`);
+    }
+    return chain;
+  }
   const chain = chainForCase(graph, container.branchId, container.caseKey);
   if (!chain) {
     throw new GraphMutationError(
@@ -66,20 +84,26 @@ export function containerNodes(graph: CampaignGraph, container: SequenceContaine
 }
 
 /**
- * A chain shared by more than one branch case cannot be mutated through ONE
- * case's container — the sibling case's flow would change (or truncate)
- * without the owner touching it. Refuse loudly; branch-structure edits are
- * the planner's/rules' job, not the step editor's (review round, DEC-076).
+ * A chain reachable from more than one container cannot be mutated through
+ * ONE container — the sibling's flow would change (or truncate) without the
+ * owner touching it. Refuse loudly; branch-structure edits are the
+ * planner's/rules' job, not the step editor's (review round, DEC-076;
+ * extended across container kinds — case↔case on ANY branch pair,
+ * case↔sub-campaign, sub-campaign↔sub-campaign — by #90/DEC-077).
  */
-function assertChainNotShared(graph: CampaignGraph, container: SequenceContainer): void {
-  if (container.kind !== "case") return;
-  const set = branchChains(graph).find((b) => b.branch.id === container.branchId);
-  if (!set || set.sharedNodeIds.length === 0) return;
-  const chain = set.cases.find((c) => c.key === container.caseKey)?.chain ?? [];
-  const shared = new Set(set.sharedNodeIds);
+function assertChainNotShared(
+  graph: CampaignGraph,
+  container: SequenceContainer,
+  chain: GraphNode[],
+): void {
+  if (container.kind === "main") return;
+  const shared = sharedContainerNodeIds(graph);
+  if (shared.size === 0) return;
   if (chain.some((n) => shared.has(n.id))) {
     throw new GraphMutationError(
-      "This reply path shares steps with another reply path — editing it here would change both. Regenerate the sequence to restructure it.",
+      container.kind === "subcampaign"
+        ? "This sub-campaign shares steps with another path — editing it here would change both. Regenerate the sequence to restructure it."
+        : "This reply path shares steps with another reply path — editing it here would change both. Regenerate the sequence to restructure it.",
     );
   }
 }
@@ -97,6 +121,12 @@ export function stepContainerOf(
       if (chainForCase(graph, node.id, key)?.some((n) => n.id === stepId)) {
         return { kind: "case", branchId: node.id, caseKey: key };
       }
+    }
+  }
+  for (const node of graph.nodes) {
+    if (node.type !== "subcampaign") continue;
+    if (subcampaignChainOf(graph, node.id)?.some((n) => n.id === stepId)) {
+      return { kind: "subcampaign", subcampaignId: node.id };
     }
   }
   return undefined;
@@ -121,18 +151,19 @@ function rebuildContainer(
 
   // The node the container exits into (branch/end/rejoin target).
   const tail = oldChain[oldChain.length - 1];
-  const exitId = tail
-    ? outEdgeTarget(graph, tail.id)
+  const exitId = tail ? outEdgeTarget(graph, tail.id) : undefined;
+  // Empty chains: the container's head reference already points at the exit
+  // (a case's goto; a sub-campaign node's own out-edge — its end node).
+  const headExit = tail
+    ? undefined
     : container.kind === "case"
-      ? undefined // empty case chain: goto already points at the exit
-      : undefined;
-  const headExit =
-    container.kind === "case" && !tail
       ? graph.nodes
           .filter((n): n is Extract<GraphNode, { type: "branch" }> => n.type === "branch")
           .find((n) => n.id === container.branchId)
           ?.cases.find((c) => caseKeyOf(c) === container.caseKey)?.goto
-      : undefined;
+      : container.kind === "subcampaign"
+        ? outEdgeTarget(graph, container.subcampaignId)
+        : undefined;
   const exit = exitId ?? headExit;
   if (!exit) throw new GraphMutationError("Container has no exit node — graph is malformed");
 
@@ -170,6 +201,11 @@ function rebuildContainer(
   const next: CampaignGraph = { entry: graph.entry, nodes, edges };
   if (container.kind === "main") {
     next.entry = headId;
+  } else if (container.kind === "subcampaign") {
+    // The container node's own out-edge IS the head reference.
+    next.edges = next.edges.map((e) =>
+      e.from === container.subcampaignId ? { ...e, to: headId } : e,
+    );
   } else {
     next.nodes = next.nodes.map((n) =>
       n.type === "branch" && n.id === container.branchId
@@ -218,17 +254,23 @@ export function addStep(
   if (params.brief && channel !== "email" && channel !== "sms") {
     throw new GraphMutationError(`Guided steps are email/sms-only — "${channel}" cannot carry a brief`);
   }
-  assertChainNotShared(graph, container);
   const chain = containerNodes(graph, container);
+  assertChainNotShared(graph, container, chain);
   const stepId = freshNodeId(graph, "step-added");
   const n = chain.filter((c) => c.type === "step").length + 1;
   const defaultContent: StepContent =
     channel === "email"
       ? { subject: `Follow-up ${n}`, body: "Hi {{firstName}}, one more thought for {{company}}…" }
       : { body: "Hi {{firstName}} — quick follow-up about {{company}}." };
+  // A bodyless scripted step can't send — blanks take the sendable defaults
+  // (riders like `threaded` survive; a real body wins outright).
+  const provided = params.content ?? {};
+  const content: StepContent = provided.body?.trim()
+    ? provided
+    : { ...defaultContent, ...Object.fromEntries(Object.entries(provided).filter(([k, v]) => v !== undefined && v !== "" && k !== "body")) };
   const step: StepNode = params.brief
     ? { id: stepId, type: "step", channel, content: {}, mode: "guided", brief: params.brief }
-    : { id: stepId, type: "step", channel, content: params.content ?? defaultContent };
+    : { id: stepId, type: "step", channel, content };
 
   const newChain: GraphNode[] = [...chain];
   let delayId: string | undefined;
@@ -239,6 +281,156 @@ export function addStep(
   newChain.push(step);
   const next = rebuildContainer(graph, container, chain, newChain);
   return { graph: next, stepId, ...(delayId ? { delayId } : {}) };
+}
+
+/** One seed step of a new sub-campaign chain — mirrors {@link AddStepParams}. */
+export interface SubcampaignSeedStep {
+  channel: Channel;
+  /** Scripted copy; ignored when a brief is given (blanks take addStep's sendable defaults). */
+  content?: StepContent;
+  /** Present = the seed step is guided (email/sms only). */
+  brief?: StepBrief;
+  /** Days before this step (skipped for the chain's first step; canon default 2). */
+  delayDays?: number;
+}
+
+export interface AddSubcampaignParams {
+  /** Owner-facing branch name — rides `SubcampaignNode.ref` (the Logs receipt on entry). */
+  name: string;
+  seed?: SubcampaignSeedStep[];
+}
+
+/**
+ * #90 (DEC-077): create a behaviour-triggered sub-campaign — a
+ * `SubcampaignNode`-headed chain terminated by its OWN end node, disjoint
+ * from the main path. Enrollments enter via an R1 rule's `move_to_node`
+ * targeting the container node id (the workflow records `enter_subcampaign`
+ * and walks the chain); the entry TRIGGER is R1's vocabulary and lives on
+ * the `CampaignRule` row, never in the graph — one authority per concern.
+ * Seed steps ride the ordinary {@link addStep} path (same id policy, same
+ * guided rails), so the chain grows exactly like any other container.
+ */
+export function addSubcampaign(
+  graph: CampaignGraph,
+  params: AddSubcampaignParams,
+): { graph: CampaignGraph; subcampaignId: string; stepIds: string[] } {
+  const name = params.name.trim();
+  if (!name) throw new GraphMutationError("A sub-campaign needs a name");
+  const subcampaignId = freshNodeId(graph, "subcampaign-added");
+  const endId = freshNodeId(graph, "end-added");
+  const head: GraphNode = { id: subcampaignId, type: "subcampaign", ref: name };
+  const terminator: GraphNode = { id: endId, type: "end" };
+  let next: CampaignGraph = {
+    ...graph,
+    nodes: [...graph.nodes, head, terminator],
+    edges: [...graph.edges, { from: subcampaignId, to: endId }],
+  };
+  const stepIds: string[] = [];
+  for (const s of params.seed ?? []) {
+    const added = addStep(next, {
+      container: { kind: "subcampaign", subcampaignId },
+      channel: s.channel,
+      content: s.content,
+      brief: s.brief,
+      delayDays: s.delayDays,
+    });
+    next = added.graph;
+    stepIds.push(added.stepId);
+  }
+  return { graph: next, subcampaignId, stepIds };
+}
+
+/**
+ * #90 (DEC-077): carry the stored graph's sub-campaign containers onto a
+ * freshly PLANNED graph — the regenerate path's container preservation. The
+ * planner knows nothing of sub-campaigns (no prompt changes, the standing
+ * hard no), so without this a re-plan would drop every container and leave
+ * its enabled entry rule firing `move_to_node` at a missing node.
+ *
+ * Container node ids are LOAD-BEARING (`CampaignRule.targetNodeId`, send
+ * idempotency, per-step stats) and copy over verbatim; the fresh graph's
+ * ids reference nothing outside itself yet, so on a collision it is the
+ * FRESH node that gets renamed (`<id>-r2`-style first-free).
+ */
+export function graftSubcampaigns(
+  fresh: CampaignGraph,
+  stored: CampaignGraph,
+): { graph: CampaignGraph; grafted: string[]; renamedFreshIds: Record<string, string> } {
+  const containers = subcampaignChains(stored);
+  if (containers.length === 0) return { graph: fresh, grafted: [], renamedFreshIds: {} };
+
+  // The container subgraph: head + chain + its exit end node (a well-formed
+  // container's own terminator). A malformed exit (rejoin/branch/nothing)
+  // gets a fresh terminator instead — the graft never imports stored-main
+  // nodes, and the result must stand alone.
+  const carryNodes: GraphNode[] = [];
+  const carryEdges: Array<{ from: string; to: string }> = [];
+  const carriedIds = new Set<string>();
+  const grafted: string[] = [];
+  const storedEdgeTarget = (from: string) => stored.edges.find((e) => e.from === from)?.to;
+  for (const { node, chain } of containers) {
+    grafted.push(node.id);
+    const members = [node, ...chain];
+    const tail = members[members.length - 1]!;
+    const exitId = storedEdgeTarget(tail.id);
+    const exit = exitId ? stored.nodes.find((n) => n.id === exitId) : undefined;
+    for (const m of members) {
+      if (carriedIds.has(m.id)) continue; // a (malformed) shared member carries once
+      carryNodes.push(m);
+      carriedIds.add(m.id);
+    }
+    for (let i = 0; i < members.length - 1; i += 1) {
+      carryEdges.push({ from: members[i]!.id, to: members[i + 1]!.id });
+    }
+    if (exit && exit.type === "end" && !carriedIds.has(exit.id)) {
+      carryNodes.push(exit);
+      carriedIds.add(exit.id);
+      carryEdges.push({ from: tail.id, to: exit.id });
+    } else if (exit && exit.type === "end") {
+      carryEdges.push({ from: tail.id, to: exit.id });
+    } else {
+      // Malformed stored exit — terminate the graft honestly.
+      const endId = freshNodeId(
+        { entry: fresh.entry, nodes: [...fresh.nodes, ...carryNodes], edges: [] },
+        "end-added",
+      );
+      carryNodes.push({ id: endId, type: "end" });
+      carriedIds.add(endId);
+      carryEdges.push({ from: tail.id, to: endId });
+    }
+  }
+
+  // Rename colliding FRESH ids (entry, edges and branch gotos follow).
+  const renamedFreshIds: Record<string, string> = {};
+  const taken = new Set<string>([...fresh.nodes.map((n) => n.id), ...carriedIds]);
+  const renameOf = (id: string): string => {
+    if (!carriedIds.has(id)) return id;
+    if (!renamedFreshIds[id]) {
+      let n = 2;
+      while (taken.has(`${id}-r${n}`)) n += 1;
+      renamedFreshIds[id] = `${id}-r${n}`;
+      taken.add(renamedFreshIds[id]);
+    }
+    return renamedFreshIds[id];
+  };
+  const freshNodes = fresh.nodes.map((n) => {
+    const id = renameOf(n.id);
+    const renamed = id === n.id ? n : { ...n, id };
+    return renamed.type === "branch"
+      ? { ...renamed, cases: renamed.cases.map((c) => ({ ...c, goto: renameOf(c.goto) })) }
+      : renamed;
+  });
+  const freshEdges = fresh.edges.map((e) => ({ from: renameOf(e.from), to: renameOf(e.to) }));
+
+  return {
+    graph: {
+      entry: renameOf(fresh.entry),
+      nodes: [...freshNodes, ...carryNodes],
+      edges: [...freshEdges, ...carryEdges],
+    },
+    grafted,
+    renamedFreshIds,
+  };
 }
 
 /**
@@ -259,8 +451,8 @@ export function removeStep(graph: CampaignGraph, stepId: string): CampaignGraph 
   }
   const container = stepContainerOf(graph, stepId);
   if (!container) throw new GraphMutationError(`Step "${stepId}" is not on an editable path`);
-  assertChainNotShared(graph, container);
   const chain = containerNodes(graph, container);
+  assertChainNotShared(graph, container, chain);
   if (container.kind === "case" && chain.filter((c) => c.type === "step").length <= 1) {
     throw new GraphMutationError(
       "This reply strategy needs at least one step — edit it instead of deleting",
@@ -311,8 +503,8 @@ export function moveStep(
 ): CampaignGraph {
   const container = stepContainerOf(graph, stepId);
   if (!container) throw new GraphMutationError(`Step "${stepId}" is not on an editable path`);
-  assertChainNotShared(graph, container);
   const chain = containerNodes(graph, container);
+  assertChainNotShared(graph, container, chain);
   const stepIdxs = chain
     .map((n, i) => ({ n, i }))
     .filter(({ n }) => n.type === "step")
