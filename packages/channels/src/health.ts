@@ -90,6 +90,21 @@ export interface HealthSnapshot extends HealthComputation {
   sample: LedgerSample;
   /** Set when the sender entered `unhealthy`; cleared on recovery/drain. */
   collapsedAt?: string;
+  /** P5 W3 (DEC-085): per-signal spike flags (rate at/over its danger bound)
+   * — the edge detector for `sender.spike_detected.v1` and the state the
+   * warmup interlock reads. Absent on pre-W3 snapshots (no spike). */
+  spikes?: { bounce: boolean; spam: boolean };
+}
+
+/** A SPIKE = a measured rate at/over its owner-locked DANGER bound — the one
+ * predicate shared by the alert events and the warmup interlock hold. */
+export function spikeSignals(
+  rates: HealthComputation["rates"],
+): { bounce: boolean; spam: boolean } {
+  return {
+    bounce: rates !== null && rates.bounce >= HEALTH_SIGNALS.bounce.danger,
+    spam: rates !== null && rates.spam >= HEALTH_SIGNALS.spam.danger,
+  };
 }
 
 const clamp01 = (n: number): number => Math.min(1, Math.max(0, n));
@@ -250,6 +265,7 @@ export async function recomputeSenderHealth(
     now,
   });
   const computed = computeSenderHealth(sample);
+  const spikes = spikeSignals(computed.rates);
 
   const snapshot: HealthSnapshot = {
     v: 1,
@@ -257,6 +273,7 @@ export async function recomputeSenderHealth(
     windowDays: HEALTH_WINDOW_DAYS,
     computedAt: now.toISOString(),
     sample,
+    spikes,
     ...(computed.state === "unhealthy" ? { collapsedAt: prior?.collapsedAt ?? now.toISOString() } : {}),
   };
 
@@ -284,6 +301,25 @@ export async function recomputeSenderHealth(
     }),
   );
   if (updated.count === 0) return { snapshot, transition: null };
+
+  // P5 W3 (DEC-085): spike alerts — rising edge per signal, so a sustained
+  // spike emits once, not once per recompute.
+  for (const signal of ["bounce", "spam"] as const) {
+    if (spikes[signal] && !prior?.spikes?.[signal] && snapshot.rates) {
+      await deps.publish({
+        workspaceId: params.workspaceId,
+        type: "sender.spike_detected.v1",
+        senderId: params.senderId,
+        payload: {
+          senderId: params.senderId,
+          signal,
+          rate: snapshot.rates[signal],
+          threshold: HEALTH_SIGNALS[signal].danger,
+          windowDays: HEALTH_WINDOW_DAYS,
+        },
+      });
+    }
+  }
 
   if (transitioned === "collapsed" && snapshot.score !== null) {
     await deps.publish({

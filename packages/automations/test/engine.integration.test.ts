@@ -466,6 +466,26 @@ describe.skipIf(!hasInfra)("campaign-rules engine (R1 W1)", () => {
     published.length = 0;
     await evaluateEventForRules(deps(), bookedEvent(`evt-${suffix}-stage-2`));
     expect(published.filter((p) => p.type === "lead.stage_changed.v1")).toHaveLength(0);
+
+    // P5 W3 (DEC-085) regression pin: a MANUAL stage move (board drag / drawer
+    // move — now bus-published with `manual: true`) matches the same
+    // meeting_booked listeners: the rule evaluates and records its run.
+    const manualEventId = `evt-${suffix}-manual-drag`;
+    await evaluateEventForRules(deps(), {
+      id: manualEventId,
+      workspaceId: ws,
+      type: "lead.stage_changed.v1",
+      contactId,
+      enrollmentId,
+      campaignId,
+      senderId: null,
+      payload: { fromStage: "interested", toStage: "booked", manual: true },
+      occurredAt: new Date().toISOString(),
+    } as BusEvent);
+    const manualRuns = await owner.campaignRuleRun.findMany({
+      where: { workspaceId: ws, eventId: manualEventId },
+    });
+    expect(manualRuns.length).toBeGreaterThanOrEqual(1);
   });
 
   it("SWEEP: sequence_quiet fires once, ever, per (rule, enrollment) — hourly polls are no-ops after", async () => {

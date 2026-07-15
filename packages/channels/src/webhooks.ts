@@ -70,12 +70,13 @@ export async function applyEmailEvent(
   await withTenant(prisma, { workspaceId }, async (tx) => {
     await tx.suppression.upsert({
       where: {
-        workspaceId_channel_address: { workspaceId, channel: "email", address: event.email },
+        // P5 W3 (DEC-085): suppression addresses are stored lowercase.
+        workspaceId_channel_address: { workspaceId, channel: "email", address: event.email.toLowerCase() },
       },
       create: {
         workspaceId,
         channel: "email",
-        address: event.email,
+        address: event.email.toLowerCase(),
         reason,
         source: "webhook",
       },

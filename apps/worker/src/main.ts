@@ -7,7 +7,7 @@ import {
   AnthropicProvider,
   OpenAiEmbeddingsProvider,
 } from "@clientforce/ai";
-import { createClassifyWorker, createEmailStepComposer, createSmsStepComposer, SendGridSender , TwilioSmsSender, applyWarmupHealthInterlock, ensureWarmupCompletion, recomputeSenderHealth, runSenderDnsCheck } from "@clientforce/channels";
+import { createClassifyWorker, createEmailStepComposer, createSmsStepComposer, SendGridSender , TwilioSmsSender, applyWarmupHealthInterlock, ensureWarmupCompletion, recomputeSenderHealth, runSenderDnsCheck, runSuppressionHygiene } from "@clientforce/channels";
 import { isConfigured } from "@clientforce/config";
 import { goalKeySchema, type GoalKey } from "@clientforce/core";
 import { createDistillQueue, createDistillWorker } from "@clientforce/context";
@@ -236,6 +236,7 @@ function startKnowledgeWorkers(): void {
   // discovery on the owner client, tenant-scoped writes, resilient per sender.
   startSenderHealthSweep({ prisma, ownerPrisma: owner, publish: ruleDeps.publish });
   startSenderDnsSweep({ prisma, ownerPrisma: owner });
+  startSuppressionHygieneSweep({ prisma, ownerPrisma: owner });
 
   // Distilling/classifying need real completions; without the key those
   // workers stay off (ingest + bus are unaffected) and jobs wait in Redis.
@@ -421,6 +422,27 @@ function startSenderHealthSweep(deps: SenderSweepDeps): void {
   setInterval(() => {
     void sweep().catch((err: unknown) => console.error("[worker] sender-health sweep failed", err));
   }, 10 * 60_000);
+}
+
+/**
+ * Suppression hygiene sweep (P5 W3, DEC-085): on boot + daily — case-duplicate
+ * merge + address normalization (the boundary matches lowercase), opt-out
+ * sync, and an aging-bounce count (visibility only; expiry is a product
+ * decision, never automated here).
+ */
+function startSuppressionHygieneSweep(deps: { prisma: PrismaClient; ownerPrisma: PrismaClient }): void {
+  const sweep = async (): Promise<void> => {
+    const r = await runSuppressionHygiene(deps);
+    if (r.caseDuplicatesMerged + r.addressesNormalized + r.optOutsRepaired > 0 || r.agingBounces > 0) {
+      console.log(
+        `[worker] suppression hygiene: ${r.scanned} scanned · ${r.caseDuplicatesMerged} case-dupes merged · ${r.addressesNormalized} normalized · ${r.optOutsRepaired} opt-outs repaired · ${r.agingBounces} aging bounces (>90d, counted only)`,
+      );
+    }
+  };
+  void sweep().catch((err: unknown) => console.error("[worker] suppression hygiene failed", err));
+  setInterval(() => {
+    void sweep().catch((err: unknown) => console.error("[worker] suppression hygiene failed", err));
+  }, 24 * 3_600_000);
 }
 
 /**
