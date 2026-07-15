@@ -331,6 +331,37 @@ describe.skipIf(!hasInfra)("campaign-rules engine (R1 W1)", () => {
     expect(await owner.automationRun.count({ where: { workspaceId: ws } })).toBe(0);
   });
 
+  it("HONEST ABSENCE (#90, DEC-077): an orphaned sub-campaign entry rule — move_to_node at a node the live graph no longer carries — records a typed error, moves nothing, and the graph continuation stays open", async () => {
+    // The engine seam throws exactly what moveEnrollmentToNode throws when
+    // the target is missing from the latest graph (packages/workflows pins
+    // that refusal; here we pin the evaluator's walk of it).
+    const orphanDeps: RuleEngineDeps = {
+      ...deps(),
+      moveEnrollment: async (params) => {
+        throw new Error(`TARGET_NODE_MISSING: ${params.targetNodeId}`);
+      },
+    };
+    const rule = await addRule(1, { kind: "reply_classified", intents: ["interested"] }, [
+      { kind: "move_to_node", targetNodeId: "subcampaign-added-1" },
+    ]);
+    const engine = createPerAgentRules(orphanDeps);
+    const event = replyEvent("interested");
+    await engine.consumer.handle(event);
+
+    const run = await owner.campaignRuleRun.findFirstOrThrow({ where: { ruleId: rule.id } });
+    expect(run.status).toBe("error");
+    expect(JSON.stringify(run.detail)).toContain("TARGET_NODE_MISSING: subcampaign-added-1");
+    // Nothing moved, nothing cancelled, enrollment untouched…
+    expect(moved).toHaveLength(0);
+    expect(cancelled).toHaveLength(0);
+    const row = await owner.enrollment.findUniqueOrThrow({ where: { id: enrollmentId } });
+    expect(row.status).toBe("ACTIVE");
+    expect(row.workflowId).toBe(workflowId);
+    // …and the FAILED terminal does not gate the in-graph reply routing —
+    // the enrollment keeps its normal flow (the no-op path, never a strand).
+    expect(await engine.shouldContinueGraph(event)).toBe(true);
+  });
+
   it("INERTNESS: rules never fire for PAUSED (or UNSUBSCRIBED) enrollments — no rows, no actions, gate open", async () => {
     await addRule(1, { kind: "reply_classified", intents: ["not_interested"] }, [
       { kind: "end_enrollment" },
