@@ -15,7 +15,10 @@ import {
   backofficeLoginSchema,
   backofficeReasonSchema,
   creditAdjustmentSchema,
+  creditPriceUpsertSchema,
+  reconciliationQuerySchema,
   tenantListQuerySchema,
+  usageQuerySchema,
 } from "@clientforce/core";
 import type { ZodSchema } from "zod";
 import { Public } from "../auth/decorators";
@@ -133,5 +136,28 @@ export class BackofficeController {
       ...(targetId ? { targetId } : {}),
     });
     return this.svc.listAudit(filter);
+  }
+
+  // ── B1 W2 (DEC-080): usage · reconciliation · credit-price editor ───────────
+
+  @Get("usage")
+  usage(@Query() query: Record<string, string>) {
+    return this.svc.usage(parse(usageQuerySchema, query));
+  }
+
+  @Get("reconciliation")
+  reconciliation(@Query() query: Record<string, string>) {
+    return this.svc.reconciliation(parse(reconciliationQuerySchema, query));
+  }
+
+  @Get("credit-prices")
+  creditPrices(@Query("agencyId") agencyId?: string) {
+    return this.svc.listCreditPrices(agencyId || undefined);
+  }
+
+  @Post("credit-prices")
+  setCreditPrice(@Body() body: unknown, @Req() req: BackofficeRequest) {
+    const dto = parse(creditPriceUpsertSchema, body);
+    return this.svc.setCreditPrice(req.staff!, dto);
   }
 }

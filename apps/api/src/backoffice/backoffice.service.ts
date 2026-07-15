@@ -1,13 +1,27 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
-import type {
-  BackofficeAgencyRow,
-  BackofficeAuditRow,
-  BackofficeWorkspaceRow,
-  TenantStatusName,
+import {
+  resolveCreditPrice,
+  type BackofficeAgencyRow,
+  type BackofficeAuditRow,
+  type BackofficeWorkspaceRow,
+  type CreditPriceUpsertDto,
+  type ReconciliationQueryDto,
+  type ReconciliationRow,
+  type TenantStatusName,
+  type UsageQueryDto,
+  type UsageRollup,
 } from "@clientforce/core";
 import type { Prisma } from "@clientforce/db";
 import { BackofficeDb } from "./backoffice-db.service";
 import type { BackofficeStaffContext } from "./request";
+
+/** Which of our metered signals backs each provider/metric (null = not metered). */
+type MeteredMetric = "email_sends" | "sms_segments" | "voice_minutes";
+const METERED: Record<string, MeteredMetric> = {
+  email_sends: "email_sends",
+  sms_segments: "sms_segments",
+  voice_minutes: "voice_minutes",
+};
 
 type SuspendableStatus = "ACTIVE" | "SUSPENDED";
 
@@ -191,6 +205,170 @@ export class BackofficeService {
       metadata: r.metadata,
       createdAt: r.createdAt.toISOString(),
     }));
+  }
+
+  // ── B1 W2 (DEC-080): usage · reconciliation · credit-price editor ──────────
+
+  /** Per-tenant consumption, on-demand from the event + credit ledgers. */
+  async usage(q: UsageQueryDto): Promise<UsageRollup> {
+    const to = q.to ? new Date(q.to) : new Date();
+    const from = q.from ? new Date(q.from) : new Date(to.getTime() - 30 * 86_400_000);
+    const workspaceIds =
+      q.scope === "workspace"
+        ? [q.id]
+        : (await this.prisma.workspace.findMany({ where: { agencyId: q.id }, select: { id: true } })).map(
+            (w) => w.id,
+          );
+    if (workspaceIds.length === 0) throw new NotFoundException("No workspaces for that scope");
+
+    const [sends, calls, ledger] = await Promise.all([
+      this.prisma.message.groupBy({
+        by: ["channel"],
+        where: { workspaceId: { in: workspaceIds }, direction: "OUTBOUND", sentAt: { gte: from, lte: to } },
+        _count: { _all: true },
+      }),
+      this.prisma.event.findMany({
+        where: { workspaceId: { in: workspaceIds }, type: "call.completed.v1", occurredAt: { gte: from, lte: to } },
+        select: { payload: true },
+      }),
+      this.prisma.creditLedger.findMany({
+        where: { workspaceId: { in: workspaceIds }, createdAt: { gte: from, lte: to } },
+        select: { delta: true },
+      }),
+    ]);
+
+    const sendsByChannel: Record<string, number> = {};
+    for (const s of sends) sendsByChannel[s.channel] = s._count._all;
+    const voiceSeconds = calls.reduce((sum, e) => {
+      const p = (e.payload ?? {}) as Record<string, unknown>;
+      return sum + (typeof p.durationSec === "number" ? p.durationSec : 0);
+    }, 0);
+    const creditBurn = ledger.filter((l) => l.delta < 0).reduce((s, l) => s - l.delta, 0);
+    const creditGranted = ledger.filter((l) => l.delta > 0).reduce((s, l) => s + l.delta, 0);
+    const signals = Object.values(sendsByChannel).reduce((a, b) => a + b, 0) + calls.length + ledger.length;
+
+    return {
+      scope: q.scope,
+      id: q.id,
+      from: from.toISOString(),
+      to: to.toISOString(),
+      sendsByChannel,
+      voiceMinutes: Math.round(voiceSeconds / 60),
+      creditBurn,
+      creditGranted,
+      aiSpendCredits: null, // honest absence — AI spend is not metered yet
+      lowData: signals < 5,
+    };
+  }
+
+  /** Our metered usage vs the seeded provider invoices, per provider per month. */
+  async reconciliation(q: ReconciliationQueryDto): Promise<ReconciliationRow[]> {
+    const invoices = await this.prisma.providerInvoice.findMany({
+      where: q.provider ? { provider: q.provider } : {},
+      orderBy: { periodStart: "desc" },
+    });
+    const rows: ReconciliationRow[] = [];
+    for (const inv of invoices) {
+      const month = inv.periodStart.toISOString().slice(0, 7);
+      if (q.month && month !== q.month) continue;
+      const metered = await this.meteredUsage(inv.metric, inv.periodStart, inv.periodEnd);
+      if (metered === null) {
+        // We don't meter this metric yet — reconcile honestly as "not metered".
+        rows.push({
+          provider: inv.provider,
+          metric: inv.metric,
+          month,
+          meteredQuantity: null,
+          invoiceQuantity: inv.quantity,
+          invoiceAmount: inv.amount,
+          variance: null,
+          variancePct: null,
+          matchesInvoice: null,
+        });
+        continue;
+      }
+      const variance = metered - inv.quantity;
+      rows.push({
+        provider: inv.provider,
+        metric: inv.metric,
+        month,
+        meteredQuantity: metered,
+        invoiceQuantity: inv.quantity,
+        invoiceAmount: inv.amount,
+        variance,
+        variancePct: inv.quantity !== 0 ? Math.round((variance / inv.quantity) * 1000) / 10 : null,
+        matchesInvoice: variance === 0,
+      });
+    }
+    return rows;
+  }
+
+  /** The metered quantity for a reconciliation metric in a period (null = not metered). */
+  private async meteredUsage(metric: string, start: Date, end: Date): Promise<number | null> {
+    const kind = METERED[metric];
+    if (!kind) return null;
+    if (kind === "voice_minutes") {
+      const calls = await this.prisma.event.findMany({
+        where: { type: "call.completed.v1", occurredAt: { gte: start, lte: end } },
+        select: { payload: true },
+      });
+      const seconds = calls.reduce((sum, e) => {
+        const p = (e.payload ?? {}) as Record<string, unknown>;
+        return sum + (typeof p.durationSec === "number" ? p.durationSec : 0);
+      }, 0);
+      return Math.round(seconds / 60);
+    }
+    const channel = kind === "email_sends" ? "email" : "sms";
+    return this.prisma.message.count({
+      where: { direction: "OUTBOUND", channel, sentAt: { gte: start, lte: end } },
+    });
+  }
+
+  /** Effective credit prices (defaults + optional agency overrides) + full history. */
+  async listCreditPrices(agencyId?: string) {
+    const rows = await this.prisma.creditPrice.findMany({
+      where: agencyId ? { OR: [{ agencyId }, { agencyId: null }] } : {},
+      orderBy: [{ action: "asc" }, { effectiveFrom: "desc" }],
+    });
+    const priceRows = rows.map((r) => ({
+      agencyId: r.agencyId,
+      action: r.action,
+      credits: r.credits,
+      effectiveFrom: r.effectiveFrom,
+    }));
+    const actions = [...new Set(rows.map((r) => r.action))].sort();
+    const effective = actions.map((action) => ({
+      action,
+      credits: resolveCreditPrice(priceRows, { agencyId: agencyId ?? null, action }),
+    }));
+    return { agencyId: agencyId ?? null, effective, history: rows };
+  }
+
+  /** Append an effective-dated credit price (audited); never updates in place. */
+  async setCreditPrice(operator: BackofficeStaffContext, dto: CreditPriceUpsertDto) {
+    const agencyId = dto.agencyId ?? null;
+    const effectiveFrom = dto.effectiveFrom ? new Date(dto.effectiveFrom) : new Date();
+    return this.prisma.$transaction(async (tx) => {
+      const prior = await tx.creditPrice.findFirst({
+        where: { agencyId, action: dto.action },
+        orderBy: { effectiveFrom: "desc" },
+      });
+      const created = await tx.creditPrice.create({
+        data: { agencyId, action: dto.action, credits: dto.credits, effectiveFrom },
+      });
+      await this.audit(tx, operator, {
+        action: "price.set",
+        targetType: agencyId ? "agency" : "platform",
+        targetId: agencyId ?? "platform",
+        metadata: {
+          action: dto.action,
+          credits: dto.credits,
+          priorCredits: prior?.credits ?? null,
+          effectiveFrom: effectiveFrom.toISOString(),
+        },
+      });
+      return created;
+    });
   }
 
   /** Write one append-only audit row inside the caller's transaction. */
