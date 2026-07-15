@@ -23,11 +23,6 @@
 name: voice-certification
 
 on:
-  # TEMPORARY (the #89 pattern): a new workflow isn't dispatchable until it
-  # exists on the default branch — this push trigger runs the pre-merge
-  # certification proof from the PR branch. REMOVE BEFORE MERGE.
-  push:
-    branches: [claude/bold-ramanujan-27zpmx]
   workflow_dispatch:
     inputs:
       mode:
@@ -56,7 +51,7 @@ env:
 
 jobs:
   voice:
-    name: voice — ${{ inputs.mode || 'certify (pre-merge push)' }}
+    name: voice — ${{ inputs.mode }}
     runs-on: ubuntu-latest
     environment: staging
     steps:
@@ -130,7 +125,7 @@ jobs:
 
       # ── certify: the >=100-turn paired-bot run through the PRODUCTION session ─
       - name: Certification run (paired-bot, STT-in-the-loop)
-        if: inputs.mode == 'certify' || github.event_name == 'push'
+        if: inputs.mode == 'certify'
         env:
           ANTHROPIC_API_KEY: ${{ steps.kv.outputs.anthropic }}
           DEEPGRAM_API_KEY: ${{ steps.kv.outputs.deepgram }}
@@ -193,7 +188,7 @@ jobs:
         if: always() && inputs.mode != 'preflight'
         uses: actions/upload-artifact@v4
         with:
-          name: voice-${{ inputs.mode || 'certify' }}-${{ inputs.mode == 'demo-call' && inputs.variant || 'run' }}
+          name: voice-${{ inputs.mode }}-${{ inputs.mode == 'demo-call' && inputs.variant || 'run' }}
           path: |
             cert/
             metrics.json
