@@ -10,6 +10,7 @@ import { Fragment, useState } from "react";
 import { GUIDED_EMAIL_CREDITS, GUIDED_SMS_CREDITS, subcampaignChains } from "@clientforce/core";
 import type { CampaignGraph, CampaignOutcomes, CampaignRuleTrigger, ContactFieldDefDto, GraphNode } from "@clientforce/core";
 import { OutcomeBadge } from "../../../../components/OutcomeBadge";
+import { guidedCardDisplay } from "../../../../components/sequence/shared";
 import { StepEditorDrawer } from "../../../../components/sequence/StepEditorDrawer";
 import { chainMeta, stepPillText, SubcampaignSection } from "../../../../components/sequence/SubcampaignCards";
 import { SubcampaignCreator, type SubcampaignCreated } from "../../../../components/sequence/SubcampaignCreator";
@@ -87,6 +88,9 @@ interface Step2Props {
    *  state, the wizard idiom) — agentId is real mid-flow (B5 implicit draft). */
   agentId: string | null;
   goal: string | null;
+  /** DEC-086: the pending-card seed derivation needs the M1a arc — a pure
+   *  function of (goal, category), so the display can never drift from it. */
+  category: string | null;
   /** Live email-sender scan — the trigger picker's honest-absence input. */
   emailConnected: boolean;
   subRules: WizardSubRule[];
@@ -106,7 +110,7 @@ export function Step2Sequence(props: Step2Props) {
     previewBusy, preview, setPreview, fieldDefs, customTokenKey, setCustomTokenKey, customFallback, setCustomFallback,
     delayEdit, setDelayEdit, delayAmount, setDelayAmount, editStepIndex, editStrategyIntent,
     insertCustomToken, saveEditedStep, sampleCompose, saveDelay,
-    agentId, goal, emailConnected, subRules, subNewOpen, setSubNewOpen, subNewPrefill, setSubNewPrefill, onSubcampaignCreated,
+    agentId, goal, category, emailConnected, subRules, subNewOpen, setSubNewOpen, subNewPrefill, setSubNewPrefill, onSubcampaignCreated,
   } = props;
   // W2 (#94): ephemeral popover/expansion UI — never persisted, so it stays
   // local instead of riding the orchestrator (the state there is cross-step).
@@ -118,6 +122,10 @@ export function Step2Sequence(props: Step2Props) {
   // the owner (one semantics with the Settings toggle, never two).
   const guidedPlanned = graph ? mainSteps(graph).some((s) => s.mode === "guided") : false;
   const modeMismatch = graph !== null && mainSteps(graph).length > 0 && (composeMode === "guided") !== guidedPlanned;
+  // DEC-086: display keys off the SELECTED mode — while the plan predates a
+  // guided flip, cards render the pending guided treatment (never the
+  // scripted body); the banner + "✦ Regenerate to apply" carry the honesty.
+  const pendingGuided = composeMode === "guided" && modeMismatch;
   // W2 (#94): sub-campaign containers → canon cards. Chips come from the
   // in-session created-rules state; unknown containers (resumed drafts)
   // render "Rule pending" — honest absence, never a guessed trigger.
@@ -194,6 +202,10 @@ export function Step2Sequence(props: Step2Props) {
                     {mainPath(graph).map((n) => {
                       if (n.type === "step") {
                         const idx = mainSteps(graph).indexOf(n) + 1;
+                        // DEC-086: chips + summary resolve from the SELECTED
+                        // mode (pending seed = the drawer flip's derivation);
+                        // baked-guided cards keep the G1/G2 anatomy verbatim.
+                        const gd = guidedCardDisplay(n, pendingGuided, { index: idx, count: mainSteps(graph).length }, { goal, category });
                         return (
                           <div key={n.id} style={{ display: "flex", gap: 14, alignItems: "flex-start" }} data-testid="seq-step">
                             {/* P2.1 (DEC-061, §3 amendment): ChannelChip anatomy — sms
@@ -205,8 +217,9 @@ export function Step2Sequence(props: Step2Props) {
                                 <span style={{ fontSize: 12, fontWeight: 700, borderRadius: 8, padding: "3px 10px", background: n.channel === "sms" ? "rgba(54,215,237,.14)" : "rgba(53,232,52,.13)", color: n.channel === "sms" ? "#1192A6" : "#16A82A" }} data-testid="seq-channel-chip">{n.channel === "sms" ? "SMS" : "Email"}</span>
                                 {/* G1 (DEC-070) / G2 (DEC-071): guided steps compose at send —
                                     the card carries the brief, never copy; per-channel credits
-                                    figure is display-only (Q-020). */}
-                                {n.mode === "guided" ? (
+                                    figure is display-only (Q-020). DEC-086: pending cards (plan
+                                    predates the guided flip) carry the same tag. */}
+                                {gd && gd.kind !== "aidraft" ? (
                                   <>
                                     <span style={{ fontSize: 11, fontWeight: 700, color: "#1192A6", background: "rgba(54,215,237,.14)", borderRadius: 7, padding: "3px 9px" }} data-testid="seq-guided-tag">✦ Composed at send</span>
                                     <span style={{ fontSize: 11, fontWeight: 700, color: "#8A7F6B", background: "#F2EEE4", borderRadius: 7, padding: "3px 9px" }} data-testid="seq-guided-credits">{n.channel === "sms" ? GUIDED_SMS_CREDITS : GUIDED_EMAIL_CREDITS} credits / send</span>
@@ -218,21 +231,28 @@ export function Step2Sequence(props: Step2Props) {
                                 <OutcomeBadge step={outcomes?.steps.find((s) => s.stepNodeId === n.id)} />
                                 <span style={{ marginLeft: "auto", fontSize: 13, color: "#9AA59E" }} data-testid="seq-edit">✎ Edit</span>
                               </div>
-                              {n.mode === "guided" && n.brief ? (
+                              {gd?.kind === "brief" ? (
                                 <>
-                                  <div style={{ fontSize: 15.5, fontWeight: 600, color: "#0E1512", marginBottom: 6 }}>{n.brief.objective}</div>
+                                  <div style={{ fontSize: 15.5, fontWeight: 600, color: "#0E1512", marginBottom: 6 }}>{gd.brief.objective}</div>
                                   {/* G2: the email brief's subject direction — a hint, never copy */}
-                                  {n.channel === "email" && n.brief.subjectHint ? (
-                                    <div style={{ fontSize: 13, color: "#8A7F6B", marginBottom: 6 }} data-testid="seq-brief-subject-hint">Subject hint: <span style={{ color: "#5C6B62", fontWeight: 600 }}>{n.brief.subjectHint}</span></div>
+                                  {n.channel === "email" && gd.brief.subjectHint ? (
+                                    <div style={{ fontSize: 13, color: "#8A7F6B", marginBottom: 6 }} data-testid="seq-brief-subject-hint">Subject hint: <span style={{ color: "#5C6B62", fontWeight: 600 }}>{gd.brief.subjectHint}</span></div>
                                   ) : null}
                                   <div style={{ display: "flex", flexDirection: "column", gap: 3 }} data-testid="seq-brief-points">
-                                    {n.brief.talkingPoints.map((p, i) => (
+                                    {gd.brief.talkingPoints.map((p, i) => (
                                       <div key={i} style={{ fontSize: 13.5, color: "#5C6B62", lineHeight: 1.45, display: "flex", gap: 8 }}>
                                         <span style={{ color: "#1192A6", flex: "none" }}>•</span>
                                         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p}</span>
                                       </div>
                                     ))}
                                   </div>
+                                </>
+                              ) : gd?.kind === "pending" ? (
+                                <>
+                                  {/* DEC-086: canon guided preview — "Objective: …", never
+                                      the scripted body while guided is selected. */}
+                                  <div style={{ fontSize: 15.5, fontWeight: 600, color: "#0E1512", marginBottom: 4 }}>{n.channel === "sms" ? "SMS message" : n.content.subject}</div>
+                                  <div style={{ fontSize: 14, color: "#5C6B62", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }} data-testid="seq-brief-pending">Objective: {gd.objective}</div>
                                 </>
                               ) : (
                                 <>

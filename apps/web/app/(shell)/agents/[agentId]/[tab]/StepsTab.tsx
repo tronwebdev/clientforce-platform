@@ -41,7 +41,7 @@ import { OutcomeBadge } from "../../../../../components/OutcomeBadge";
 import { StepEditorDrawer } from "../../../../../components/sequence/StepEditorDrawer";
 import { chainMeta, stepPillText, SubcampaignSection } from "../../../../../components/sequence/SubcampaignCards";
 import { SubcampaignCreator, type SubcampaignCreated } from "../../../../../components/sequence/SubcampaignCreator";
-import { GRAD, LIVE_GRAPH_NOTICE, type BriefDraft, type PreviewState } from "../../../../../components/sequence/shared";
+import { GRAD, guidedCardDisplay, LIVE_GRAPH_NOTICE, type BriefDraft, type PreviewState } from "../../../../../components/sequence/shared";
 import type { AgentViewData } from "./AgentView";
 import { cf, intentTint } from "./shared";
 import { mainPath, mainSteps, replyBranchOf, strategyChains } from "../../../../../lib/graph-path";
@@ -97,6 +97,12 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
   const [drafting, setDrafting] = useState(false);
   const [regenError, setRegenError] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // ── DEC-086: the canon Scripted | ✦ Guided control on the sequence header
+  // (2026-07-15 Campaign View canon) — writes the SAME guardrails rider the
+  // Settings toggle owns, with its full-payload preservation discipline.
+  // Optimistic until the refreshed view confirms the write, then the store
+  // is the only truth (rollback + visible error on failure). ──
+  const [modeOverride, setModeOverride] = useState<"scripted" | "guided" | null>(null);
   // ── W2 (#94): sub-campaigns — the creator modal, the container grid's rule
   // rows (the lightweight subcampaign-rules READ; rules CRUD stays out of
   // scope), inline chain editing, and the email-connectivity honest-absence
@@ -128,6 +134,14 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
       if (pollRef.current) clearInterval(pollRef.current);
     };
   }, []);
+
+  // DEC-086: optimistic until the refreshed view carries the flipped rider,
+  // then the store is the only truth (a Settings-tab change can never lose
+  // to a stale override).
+  const viewMode = view?.guardrails?.composeMode ?? "scripted";
+  useEffect(() => {
+    if (modeOverride && viewMode === modeOverride) setModeOverride(null);
+  }, [viewMode, modeOverride]);
 
   // W2 (#94): the container cards' trigger chips read the enabled entry rules
   // (re-pulled on every graph version bump — creation lands as a new version).
@@ -186,9 +200,15 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
   const days = w ? `${dayNames[(w.days[0] ?? 1) - 1]}–${dayNames[(w.days[w.days.length - 1] ?? 5) - 1]}` : "Mon–Fri";
   // G3 (DEC-075): mode applies at the NEXT plan — mismatch flips the
   // Regenerate label (one semantics with the Settings toggle, never two).
-  const composeMode = view.guardrails?.composeMode ?? "scripted";
+  const storedMode = view.guardrails?.composeMode ?? "scripted";
+  const composeMode = modeOverride ?? storedMode;
   const guidedPlanned = steps.some((s) => s.mode === "guided");
   const modeMismatch = steps.length > 0 && (composeMode === "guided") !== guidedPlanned;
+  // DEC-086: display keys off the SELECTED mode — while the plan predates a
+  // guided flip, cards render the pending guided treatment (never the
+  // scripted body); the banner below + "✦ Regenerate to apply" carry the
+  // honesty (a mixed sequence is deliberate per-step state → baked truth).
+  const pendingGuided = composeMode === "guided" && modeMismatch;
 
   // ── writes: core mutation → PUT through the three-layer edit gate.
   // Returns null on success, the owner-readable failure otherwise — callers
@@ -204,6 +224,40 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
       return err instanceof Error ? err.message : String(err);
     } finally {
       setBusyMsg("");
+    }
+  }
+
+  /** DEC-086: the header control's write — the SAME rider the Settings
+   *  toggle owns, assembled with its full-payload preservation discipline
+   *  (an edit here must never erase another surface's write); mode applies
+   *  at the NEXT plan (DEC-075 semantics, byte-untouched). */
+  async function setSequenceMode(mode: "scripted" | "guided") {
+    if (!view || mode === composeMode) return;
+    const g = view.guardrails;
+    setModeOverride(mode);
+    try {
+      await cf(`agents/${agentId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          guardrails: {
+            sendingWindow: g?.sendingWindow ?? { days: [1, 2, 3, 4, 5], start: "09:00", end: "17:00", timezone: "UTC" },
+            dailyCap: g?.dailyCap ?? { email: 200 },
+            consent: g?.consent ?? null,
+            tracking: g?.tracking ?? { openTracking: true, linkTracking: true },
+            ...(g?.goalLabel ? { goalLabel: g.goalLabel } : {}),
+            ...(g?.strategy ? { strategy: g.strategy } : {}),
+            composeMode: mode,
+            ...(g?.language ? { language: g.language } : {}),
+            ...(g?.language && g.languageSource ? { languageSource: g.languageSource } : {}),
+            unsubscribeFooter: true,
+            suppressionCheck: true,
+          },
+        }),
+      });
+      await onChanged?.();
+    } catch {
+      setModeOverride(null); // rollback to the stored truth — never silent
+      setActionError("Couldn't switch the composing mode — check your connection.");
     }
   }
 
@@ -684,6 +738,13 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
           <span style={{ fontSize: 14, fontWeight: 600, color: "#9AA59E" }}> · {steps.length} steps · Email</span>
         </span>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
+          {/* DEC-086: the canon Scripted | ✦ Guided control (2026-07-15
+              Campaign View canon) — persisted selected state from the
+              stored rider; one field, one semantics with Settings. */}
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 2, background: "#F2EEE4", borderRadius: 11, padding: 3 }} data-testid="steps-mode-control">
+            <span onClick={() => void setSequenceMode("scripted")} style={{ fontSize: 12.5, fontWeight: composeMode === "guided" ? 600 : 700, color: composeMode === "guided" ? "#8A7F6B" : "#0E1512", background: composeMode === "guided" ? "transparent" : "#fff", boxShadow: composeMode === "guided" ? "none" : "0 1px 4px rgba(14,21,18,.1)", borderRadius: 9, padding: "6px 13px", cursor: "pointer", whiteSpace: "nowrap" }} data-testid="steps-mode-scripted">Scripted</span>
+            <span onClick={() => void setSequenceMode("guided")} style={{ fontSize: 12.5, fontWeight: composeMode === "guided" ? 700 : 600, color: composeMode === "guided" ? "#0E1512" : "#8A7F6B", background: composeMode === "guided" ? "#fff" : "transparent", boxShadow: composeMode === "guided" ? "0 1px 4px rgba(14,21,18,.1)" : "none", borderRadius: 9, padding: "6px 13px", cursor: "pointer", whiteSpace: "nowrap" }} data-testid="steps-mode-guided"><span style={{ color: "#1192A6" }}>✦</span> Guided</span>
+          </span>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600, color: "#0E1512", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 11, padding: "9px 15px" }}>
             🕐 {days} · {w ? `${w.start}–${w.end}` : "9:00–17:00"} · {w?.timezone ?? "UTC"} ⌄
           </span>
@@ -700,6 +761,21 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
         <div style={{ display: "flex", gap: 9, alignItems: "flex-start", fontSize: 12.5, color: "#5C6B62", background: "#FBF7F0", border: "1px solid #EBE3D6", borderRadius: 11, padding: "10px 14px", marginBottom: 14, lineHeight: 1.5 }} data-testid="live-graph-banner">
           <span style={{ flex: "none" }}>⏱</span>
           <span>{LIVE_GRAPH_NOTICE}</span>
+        </div>
+      ) : null}
+
+      {/* DEC-086: the guided explainer (2026-07-15 Campaign View canon —
+          renders whenever guided is selected); the mismatch line rides it
+          only while planned steps predate the flip (wizard parity). Canon's
+          WhatsApp/voice sentence stays dropped — the build plans email +
+          SMS only this phase (the DEC-075 honest absence, restated). */}
+      {composeMode === "guided" ? (
+        <div style={{ display: "flex", gap: 9, alignItems: "flex-start", fontSize: 12.5, color: "#5C6B62", background: "rgba(54,215,237,.07)", border: "1px solid rgba(54,215,237,.25)", borderRadius: 11, padding: "11px 14px", marginBottom: 14, lineHeight: 1.5 }} data-testid="steps-guided-banner">
+          <span style={{ flex: "none", color: "#1192A6", fontSize: 14 }}>✦</span>
+          <span>
+            Email and SMS steps carry a <strong style={{ color: "#0E1512" }}>brief</strong> instead of fixed copy — the AI composes a fresh message per lead at send time, inside your rails.
+            {pendingGuided ? <span data-testid="steps-regen-to-apply-note"> <b>These steps were planned as scripted</b> — hit ✦ Regenerate to apply guided composing.</span> : null}
+          </span>
         </div>
       ) : null}
 
@@ -736,7 +812,9 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
         if (n.type === "step") {
           const idx = steps.indexOf(n) + 1;
           // G1 (DEC-070): a guided step renders its BRIEF, not copy.
-          const guided = n.mode === "guided" && n.brief;
+          // DEC-086: resolved from the SELECTED mode too — a scripted plan
+          // under a guided rider renders the pending treatment, never the body.
+          const gd = guidedCardDisplay(n, pendingGuided, { index: idx, count: steps.length }, { goal: view.agent.goal, category: view.agent.category ?? null });
           const o = outcomes?.steps.find((s) => s.stepNodeId === n.id);
           const sent = o?.sent ?? view.perStep[n.id]?.sent ?? 0;
           const replies = o?.replies ?? 0;
@@ -749,11 +827,15 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
                   <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", color: "#8A7F6B" }}>Step {idx}</span>
                   <span style={{ fontSize: 12, fontWeight: 700, borderRadius: 8, padding: "3px 10px", background: n.channel === "sms" ? "rgba(54,215,237,.14)" : "rgba(53,232,52,.13)", color: n.channel === "sms" ? "#1192A6" : "#16A82A" }} data-testid="step-channel-chip">{n.channel === "sms" ? "SMS" : "Email"}</span>
-                  {guided ? (
+                  {gd && gd.kind !== "aidraft" ? (
                     <>
                       <span style={{ fontSize: 11, fontWeight: 700, color: "#1192A6", background: "rgba(54,215,237,.14)", borderRadius: 7, padding: "3px 9px" }} data-testid="step-guided-tag">✦ Composed at send</span>
                       <span style={{ fontSize: 11, fontWeight: 700, color: "#8A7F6B", background: "#F2EEE4", borderRadius: 7, padding: "3px 9px" }} data-testid="step-guided-credits">{n.channel === "sms" ? GUIDED_SMS_CREDITS : GUIDED_EMAIL_CREDITS} credits / send</span>
                     </>
+                  ) : gd?.kind === "aidraft" ? (
+                    // DEC-086 canon mapping: a non-briefable channel under a
+                    // guided rider stays as written — tagged "✦ AI draft".
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "#16A82A", background: "rgba(53,232,52,.12)", borderRadius: 7, padding: "3px 9px" }} data-testid="step-aidraft-tag">✦ AI draft</span>
                   ) : null}
                   {/* F1 (DEC-068): outcome badge — none renders nothing (honest absence) */}
                   <OutcomeBadge step={o} />
@@ -768,20 +850,27 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
                       brief editor, same component). */}
                   <span onClick={() => openEditor(n, null)} style={{ fontSize: 13, fontWeight: 600, color: "#16A82A", cursor: "pointer", flex: "none" }} data-testid="step-edit">✎ Edit</span>
                 </div>
-                {guided ? (
+                {gd?.kind === "brief" ? (
                   <>
-                    <div style={{ fontSize: 15, fontWeight: 600, color: "#0E1512", marginBottom: 5 }}>{n.brief!.objective}</div>
-                    {n.channel === "email" && n.brief!.subjectHint ? (
-                      <div style={{ fontSize: 12.5, color: "#8A7F6B", marginBottom: 5 }} data-testid="step-brief-subject-hint">Subject hint: <span style={{ color: "#5C6B62", fontWeight: 600 }}>{n.brief!.subjectHint}</span></div>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: "#0E1512", marginBottom: 5 }}>{gd.brief.objective}</div>
+                    {n.channel === "email" && gd.brief.subjectHint ? (
+                      <div style={{ fontSize: 12.5, color: "#8A7F6B", marginBottom: 5 }} data-testid="step-brief-subject-hint">Subject hint: <span style={{ color: "#5C6B62", fontWeight: 600 }}>{gd.brief.subjectHint}</span></div>
                     ) : null}
                     <div style={{ display: "flex", flexDirection: "column", gap: 3 }} data-testid="step-brief-points">
-                      {n.brief!.talkingPoints.map((p, i) => (
+                      {gd.brief.talkingPoints.map((p, i) => (
                         <div key={i} style={{ fontSize: 13, color: "#5C6B62", lineHeight: 1.45, display: "flex", gap: 8 }}>
                           <span style={{ color: "#1192A6", flex: "none" }}>•</span>
                           <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p}</span>
                         </div>
                       ))}
                     </div>
+                  </>
+                ) : gd?.kind === "pending" ? (
+                  <>
+                    {/* DEC-086: canon guided preview — "Objective: …", never
+                        the scripted body while guided is selected. */}
+                    <div style={{ fontSize: 15, fontWeight: 600, color: "#0E1512", marginBottom: 4 }}>{n.channel === "sms" ? "SMS message" : n.content.subject}</div>
+                    <div style={{ fontSize: 13.5, color: "#5C6B62", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }} data-testid="step-brief-pending">Objective: {gd.objective}</div>
                   </>
                 ) : (
                   <>
