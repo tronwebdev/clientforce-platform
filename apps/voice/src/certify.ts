@@ -226,13 +226,36 @@ async function runSession(apiKey: string, sessionIndex: number): Promise<Session
   session.start();
   pump.start();
 
-  /** Wait until the agent's current burst would have finished PLAYING —
-   *  playback runs from the burst's start, not from its last enqueue. */
-  const waitForAgentQuiet = async (timeoutMs = 30_000): Promise<void> => {
+  /**
+   * Wait until agent audio NEWER than `sinceTs` appears — the reply to the
+   * bot's last utterance beginning. Without this the bot reads STALE burst
+   * timestamps during the reply's LLM latency, declares "quiet", and talks
+   * straight over the nascent reply (the second cert run's cascade: every
+   * reply barge-aborted within ~90-400ms, sessions collapsing to 7 turns).
+   */
+  const waitForReplyStart = async (sinceTs: number, timeoutMs = 15_000): Promise<boolean> => {
+    const deadline = Date.now() + timeoutMs;
+    while (agentLastAudioAt <= sinceTs) {
+      if (Date.now() > deadline) {
+        console.log("[cert] no reply audio within 15s — moving on");
+        return false;
+      }
+      await sleep(50);
+    }
+    return true;
+  };
+
+  /**
+   * Wait until the agent's current burst finished PLAYING and stayed silent
+   * past the inter-sentence margin — sentence-chunked TTS legitimately gaps
+   * ~1-2s between chunks while the LLM streams; only >2.5s of audio-silence
+   * (past the drain estimate) is end-of-turn.
+   */
+  const waitForAgentQuiet = async (timeoutMs = 45_000): Promise<void> => {
     const deadline = Date.now() + timeoutMs;
     for (;;) {
       const drainMs = (agentBurstBytes / 8000) * 1000;
-      const quietAt = Math.max(agentBurstStartAt + drainMs, agentLastAudioAt) + 400;
+      const quietAt = Math.max(agentBurstStartAt + drainMs, agentLastAudioAt + 2_500);
       if (agentLastAudioAt > 0 && Date.now() >= quietAt) return;
       if (Date.now() > deadline) return;
       await sleep(100);
@@ -260,22 +283,29 @@ async function runSession(apiKey: string, sessionIndex: number): Promise<Session
     // commit off the continuous stream.
   };
 
-  // Let the disclosure play out first.
+  // Let the disclosure begin and play out first.
+  await waitForReplyStart(0);
   await waitForAgentQuiet();
   disclosureDone = true;
 
+  let lastSpokeAt = 0;
   for (const utterance of DIALOGUE) {
-    if (utterance.bargeIn) {
-      // Real barge-in: start talking ~1s into the agent's reply.
-      await sleep(1000);
-    } else {
+    if (utterance.bargeIn && lastSpokeAt > 0) {
+      // Real barge-in: wait for the reply to the PREVIOUS utterance to begin,
+      // then start talking ~1s into it — a genuine mid-reply interrupt.
+      if (await waitForReplyStart(lastSpokeAt)) await sleep(1000);
+    } else if (lastSpokeAt > 0) {
+      // Turn-taking: the reply begins, then finishes, then the bot speaks.
+      await waitForReplyStart(lastSpokeAt);
       await waitForAgentQuiet();
     }
+    lastSpokeAt = Date.now();
     await speakUtterance(utterance);
-    await waitForAgentQuiet();
   }
+  // Let the final reply land before teardown.
+  await waitForReplyStart(lastSpokeAt);
+  await waitForAgentQuiet();
 
-  await sleep(1000);
   pump.stop();
   session.close();
   return { report: metrics.report(), midUtteranceReplies };
