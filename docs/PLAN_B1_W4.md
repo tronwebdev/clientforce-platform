@@ -28,7 +28,14 @@ auth, RLS-exempt client, audited mutations).
    flags are per-tenant toggles (audited); model/prompt version pins are
    display-only.
 
-## Data model (additive only; all backoffice-only, REVOKEd from `clientforce_app`)
+## Data model (additive only)
+
+> **Access-model refinement (found at build):** unlike the fully-REVOKEd W1–W3
+> backoffice tables, `KillSwitch` and `FeatureFlag` are **app-READABLE** — the send
+> boundary reads `KillSwitch` on the RLS-subject `clientforce_app` client
+> (`assertChannelLive`, no GUC → no RLS policy), and feature gates read
+> `FeatureFlag`. So `clientforce_app` KEEPS `SELECT` but loses INSERT/UPDATE/DELETE
+> (only the backoffice writes). Both halves are RLS-regression-pinned.
 
 ```prisma
 model KillSwitch {            // per-agency / per-channel; presence+active = killed
@@ -73,17 +80,18 @@ Reason enum extended, path unchanged — exactly the W1 `TENANT_SUSPENDED` shape
   `*.compose_refused.v1`) — thresholds + human review, no ML (v1).
 - **Kill switch** — `GET /backoffice/kill-switches`, `POST /backoffice/kill-switches`
   (set/clear per agency+channel, typed, reversible, audited).
-- **Impersonation** — `POST /backoffice/impersonate` (audited session start) +
-  read-only `GET /backoffice/workspaces/:id/threads` · `/messages/:id` ·
-  delivery diagnostics. No write endpoints.
+- **Impersonation** — `POST /backoffice/impersonate` (audited session start,
+  `impersonate.start`) + read-only `GET /backoffice/workspaces/:id/messages`
+  (rendered previews). No write endpoints.
 - **Feature flags** — `GET/POST /backoffice/workspaces/:id/flags` (audited) +
   `GET /backoffice/version-pins` (read-only model/prompt pin visibility).
 
 ## UI (backoffice)
 
-`/backoffice/fleet` (health + outliers) · `/backoffice/kill-switches` (toggles) ·
-`/backoffice/impersonate/:workspaceId` (read-only thread/log viewer, **banner**) ·
-`/backoffice/flags`. Statistical-honesty + honest-absence throughout.
+`/backoffice/fleet` (health + outliers + version pins) · `/backoffice/kill-switches`
+(per-agency/per-channel toggles) · `/backoffice/impersonate` (workspace picker →
+read-only message viewer, **banner**) · `/backoffice/flags` (workspace picker +
+per-flag toggles). Statistical-honesty + honest-absence throughout.
 
 ## Acceptance
 
@@ -95,7 +103,8 @@ Reason enum extended, path unchanged — exactly the W1 `TENANT_SUSPENDED` shape
 - fleet health consumes the P5-W1 contract (interlock pinned); the backoffice does
   not recompute the health score (honest "pending" when P5-W1 is unwired);
 - feature flags toggle per tenant (audited); version pins are read-only;
-- RLS regression pinned (new tables REVOKEd from `clientforce_app`); API suite
+- RLS regression pinned: `clientforce_app` is SELECT-only on `KillSwitch`/`FeatureFlag`
+  (write REVOKEd), the W1–W3 backoffice tables stay fully REVOKEd; API suite
   green vs real Postgres; §8 build evidence under `docs/fidelity/b1-w4/`.
 
 ## Explicitly out (per the unit's scope fences)
