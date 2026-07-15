@@ -23,6 +23,12 @@
 name: voice-certification
 
 on:
+  # DEC-088: the scheduled cert monitor — a weekly ≥100-turn run against the
+  # amended gate (p95 ≤2.0s + ack-mask invariant, mid-utterance ≤7%) so the
+  # accepted STT-layer residual and the vendor latency tail stay measured,
+  # never assumed. Mondays 06:00 UTC.
+  schedule:
+    - cron: "0 6 * * 1"
   workflow_dispatch:
     inputs:
       mode:
@@ -55,9 +61,12 @@ env:
 
 jobs:
   voice:
-    name: voice — ${{ inputs.mode }}
+    name: voice — ${{ github.event_name == 'schedule' && 'certify (scheduled monitor)' || inputs.mode }}
     runs-on: ubuntu-latest
     environment: staging
+    env:
+      # schedule events carry no inputs — the monitor always runs certify.
+      MODE: ${{ github.event_name == 'schedule' && 'certify' || inputs.mode }}
     steps:
       - uses: actions/checkout@v4
 
@@ -112,7 +121,7 @@ jobs:
 
       # ── preflight: the Deepgram vendor probe — key proven live ──────────────
       - name: Deepgram preflight (presence + one live STT/TTS round-trip)
-        if: inputs.mode == 'preflight'
+        if: env.MODE == 'preflight'
         env:
           DEEPGRAM_API_KEY: ${{ steps.kv.outputs.deepgram }}
         run: |
@@ -133,7 +142,7 @@ jobs:
 
       # ── certify: the >=100-turn paired-bot run through the PRODUCTION session ─
       - name: Certification run (paired-bot, STT-in-the-loop)
-        if: inputs.mode == 'certify'
+        if: env.MODE == 'certify'
         env:
           ANTHROPIC_API_KEY: ${{ steps.kv.outputs.anthropic }}
           DEEPGRAM_API_KEY: ${{ steps.kv.outputs.deepgram }}
@@ -150,7 +159,7 @@ jobs:
 
       # ── demo-call: one real PSTN call through the production service ─────────
       - name: Install cloudflared
-        if: inputs.mode == 'demo-call'
+        if: env.MODE == 'demo-call'
         run: |
           curl -fsSL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o /usr/local/bin/cloudflared
           chmod +x /usr/local/bin/cloudflared
@@ -163,13 +172,23 @@ jobs:
       # via CHANNELS_VOICE_ALLOWLIST). Prints country flags and outcomes only —
       # never numbers.
       - name: Geo permissions + allow-list (demo-call)
-        if: inputs.mode == 'demo-call'
+        if: env.MODE == 'demo-call'
         env:
           TWILIO_ACCOUNT_SID: ${{ steps.kv.outputs.tw_sid }}
           TWILIO_AUTH_TOKEN: ${{ steps.kv.outputs.tw_token }}
           TW_TO: ${{ steps.kv.outputs.tw_to }}
         run: |
           set -euo pipefail
+          # AUTH PROBE FIRST — a rotated token / suspended account 401s (Twilio
+          # 20003) on everything downstream; fail here with the precise fix.
+          ACC=$(curl -sS -w "\n%{http_code}" "https://api.twilio.com/2010-04-01/Accounts/$TWILIO_ACCOUNT_SID.json" \
+            -u "$TWILIO_ACCOUNT_SID:$TWILIO_AUTH_TOKEN")
+          CODE="${ACC##*$'\n'}"
+          if [ "$CODE" != "200" ]; then
+            echo "::error::Twilio rejected the Key Vault credentials (HTTP $CODE, error 20003 = Authenticate). Fix in console: Account → API keys & tokens → copy the LIVE auth token, then update the TWILIO-AUTH-TOKEN secret in clientforce-kv. Also confirm the account is not suspended."
+            exit 1
+          fi
+          printf '%s' "${ACC%$'\n'*}" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(f"twilio account: status={d.get(\"status\")} type={d.get(\"type\")}")'
           case "$TW_TO" in
             +234*) ISO="NG"; LEG="international (NG)";;
             +1*)   ISO="US"; LEG="domestic (US)";;
@@ -212,7 +231,7 @@ jobs:
           esac
 
       - name: Demo call (production service, ${{ inputs.variant }} disclosure variant)
-        if: inputs.mode == 'demo-call'
+        if: env.MODE == 'demo-call'
         env:
           DEEPGRAM_API_KEY: ${{ steps.kv.outputs.deepgram }}
           ANTHROPIC_API_KEY: ${{ steps.kv.outputs.anthropic }}
@@ -275,10 +294,10 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload artifacts
-        if: always() && inputs.mode != 'preflight'
+        if: always() && env.MODE != 'preflight'
         uses: actions/upload-artifact@v4
         with:
-          name: voice-${{ inputs.mode }}-${{ inputs.mode == 'demo-call' && inputs.variant || 'run' }}
+          name: voice-${{ env.MODE }}-${{ env.MODE == 'demo-call' && inputs.variant || 'run' }}
           path: |
             cert/
             metrics.json
