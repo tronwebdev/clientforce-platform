@@ -235,4 +235,35 @@ describe.skipIf(!hasDb)("Enrollments API e2e", () => {
       .send({ intent: "interested" })
       .expect(403);
   });
+
+  // P5 W3 (DEC-085): the board's data + move rails.
+  it("GET /pipeline-stages lists the workspace defaults, ordered", async () => {
+    await owner.pipelineStage.createMany({
+      data: [
+        { workspaceId: ws, key: "new", label: "New", order: 1 },
+        { workspaceId: ws, key: "booked", label: "Booked", order: 5 },
+        { workspaceId: ws, key: "contacted", label: "Contacted", order: 2 },
+      ],
+    });
+    const res = await request(app.getHttpServer()).get("/pipeline-stages").set(asOwner());
+    expect(res.status).toBe(200);
+    expect(res.body.map((s: { key: string }) => s.key)).toEqual(["new", "contacted", "booked"]);
+  });
+
+  it("PATCH /enrollments/:id (board drag / drawer move) publishes lead.stage_changed.v1 with `manual` PRESERVED", async () => {
+    const res = await request(app.getHttpServer())
+      .patch(`/enrollments/${enrollmentId}`)
+      .set(asOwner())
+      .send({ pipelineStage: "contacted" });
+    expect(res.status).toBe(200);
+    expect(res.body.pipelineStage).toBe("contacted");
+    // The event went through the PUBLISHER (validated against the catalog —
+    // the W3 schema addition keeps `manual` instead of stripping it).
+    const events = await owner.event.findMany({
+      where: { workspaceId: ws, type: "lead.stage_changed.v1", enrollmentId },
+      orderBy: { occurredAt: "desc" },
+    });
+    expect(events.length).toBeGreaterThanOrEqual(1);
+    expect(events[0]?.payload).toMatchObject({ toStage: "contacted", manual: true });
+  });
 });

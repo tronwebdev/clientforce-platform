@@ -112,9 +112,11 @@ export class SendersController {
 
   @Get()
   list() {
-    // C2.3: wizard step 5 shows the live "Daily sending" bar per sender —
-    // sends record `meta.senderId` at the boundary (P1.5), so count today's.
-    // (The JSON-path count is W3's measured index/perf pass — untouched here.)
+    // C2.3: wizard step 5 shows the live "Daily sending" bar per sender.
+    // P5 W3 (DEC-085) perf pass: the count moved from the unindexed
+    // `meta.senderId` JSON-path scan to the W1 `senderId` column (covered by
+    // [workspaceId, senderId, channel, sentAt]; the migration backfilled every
+    // historical row from meta) — before/after numbers in the §8 evidence.
     return this.tenant.run(async (tx) => {
       const senders = await tx.senderConnection.findMany({ orderBy: { createdAt: "asc" } });
       const dayStart = new Date();
@@ -123,10 +125,10 @@ export class SendersController {
         senders.map((s) =>
           tx.message.count({
             where: {
-              channel: "email",
+              senderId: s.id,
+              channel: s.type === "TWILIO_SMS" ? "sms" : "email",
               direction: "OUTBOUND",
               sentAt: { gte: dayStart },
-              meta: { path: ["senderId"], equals: s.id },
             },
           }),
         ),

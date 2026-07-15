@@ -123,6 +123,10 @@ export const EVENT_SCHEMAS = {
     toStage: z.string(),
     goalKey: z.string().optional(),
     label: z.string().optional(),
+    /** P5 W3 (DEC-085): true for human moves (board drag / drawer move) — the
+     * manual writers now publish through the bus, and validation must not
+     * strip the flag their timeline copy renders. */
+    manual: z.boolean().optional(),
   }),
   "lead.unsubscribed.v1": z.object({ channel: z.string().optional() }),
 
@@ -176,6 +180,18 @@ export const EVENT_SCHEMAS = {
     senderId: z.string().min(1),
     from: z.string(),
     to: z.string(),
+  }),
+  // P5 W3 (DEC-085): a deliverability spike — a windowed complaint or
+  // hard-bounce rate at/over its owner-locked DANGER bound. Edge-triggered
+  // per signal (rising edge only, the collapse/recovery pattern); the same
+  // predicate that holds a mid-warmup ramp. B1-W4's fleet view consumes these
+  // straight off the ledger — no backoffice-specific emission path.
+  "sender.spike_detected.v1": z.object({
+    senderId: z.string().min(1),
+    signal: z.enum(["bounce", "spam"]),
+    rate: z.number(),
+    threshold: z.number(),
+    windowDays: z.number().int(),
   }),
 
   // ── Billing ────────────────────────────────────────────────────────────────
@@ -255,6 +271,7 @@ export const EVENT_TYPES = {
   SENDER_HEALTH_RECOVERED: "sender.health_recovered.v1",
   SENDER_WARMUP_COMPLETED: "sender.warmup_completed.v1",
   SENDER_STATUS_CHANGED: "sender.status_changed.v1",
+  SENDER_SPIKE_DETECTED: "sender.spike_detected.v1",
   PAYMENT_RECEIVED: "payment.received.v1",
   CREDITS_CONSUMED: "credits.consumed.v1",
   CREDITS_LOW: "credits.low.v1",
