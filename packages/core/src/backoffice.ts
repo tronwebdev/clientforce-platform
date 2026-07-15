@@ -174,6 +174,115 @@ export interface UsageRollup {
   lowData: boolean; // below the sample floor → don't over-read the numbers
 }
 
+// ── B1 W4 (DEC-082): fleet health · kill switch · impersonation · flags ──────
+
+/**
+ * The channels the kill switch ENFORCES — deliberately NOT the full send
+ * vocabulary. A kill switch is only offered for a channel whose send boundary
+ * actually calls `assertChannelLive` (email + SMS today); offering `voice`/
+ * `whatsapp` here would ship a silent no-op, since those paths don't gate yet
+ * (Q-025, owner ruling 2026-07-15). Each channel RE-ENTERS this list via the
+ * ride-along on the PR that wires its boundary rail (voice → P3.2 rail port;
+ * WhatsApp → its finish PR) — the CHECKLIST_B1_BACKOFFICE_COVERAGE rule.
+ */
+export const KILL_SWITCH_CHANNELS = ["email", "sms"] as const;
+
+/** Set/clear a per-agency/per-channel kill switch (audited, reversible). */
+export const killSwitchSetSchema = z.object({
+  agencyId: z.string().min(1),
+  channel: z.enum(KILL_SWITCH_CHANNELS),
+  active: z.boolean(),
+  reason: z.string().trim().min(3).max(500),
+});
+export type KillSwitchSetDto = z.infer<typeof killSwitchSetSchema>;
+
+export interface KillSwitchRow {
+  id: string;
+  agencyId: string;
+  channel: string;
+  active: boolean;
+  reason: string;
+  updatedAt: string;
+}
+
+/** Set a per-tenant feature flag (audited). */
+export const featureFlagSetSchema = z.object({
+  key: z.string().trim().min(1).max(80),
+  enabled: z.boolean(),
+});
+export type FeatureFlagSetDto = z.infer<typeof featureFlagSetSchema>;
+
+export interface FeatureFlagRow {
+  key: string;
+  enabled: boolean;
+  updatedAt: string;
+}
+
+/** Start a read-only impersonation session (audited, banner-marked). */
+export const impersonateSchema = z.object({
+  workspaceId: z.string().min(1),
+  reason: z.string().trim().min(3).max(500),
+});
+export type ImpersonateDto = z.infer<typeof impersonateSchema>;
+
+/**
+ * P5-W1's sender health-score contract (FR-ADMIN-04). The backoffice CONSUMES
+ * P5-W1's SHARED `computeSenderHealth` (packages/channels) per sender — it never
+ * recomputes the score a second time (DEC-083's rail: "the score math must never
+ * fork"). `score`/`status` are P5-W1's outputs verbatim.
+ */
+export interface SenderHealthScore {
+  senderId: string;
+  workspaceId: string;
+  score: number | null; // 0..100, or null below P5-W1's sample floor (never a fake score)
+  status: string; // P5-W1's band: "healthy" | "watch" | "at_risk" | "paused", or "low_data"
+}
+
+export interface FleetHealthView {
+  // `wired` = P5-W1's computation ran (true since P5-W1 is on main + consumed in-process).
+  health: { wired: boolean; scores: SenderHealthScore[] };
+  outliers: { agencyId: string; workspaceId: string; metric: string; count: number }[]; // backoffice thresholds
+  lowData: boolean;
+}
+
+/**
+ * A started read-only impersonation session (FR-ADMIN-05). The START is audited
+ * (`impersonate.start`); the returned session is banner-marked (`readOnly: true`)
+ * and carries NO token or write path to tenant content — the operator only reads.
+ */
+export interface ImpersonationSession {
+  workspaceId: string;
+  workspace: { id: string; name: string; slug: string; status: TenantStatusName };
+  agency: { id: string; name: string };
+  readOnly: true;
+  startedAt: string;
+  auditId: string;
+}
+
+/** One read-only message row in the impersonation viewer (body truncated to a preview). */
+export interface ImpersonationMessage {
+  id: string;
+  channel: string;
+  direction: "OUTBOUND" | "INBOUND";
+  subject: string | null;
+  preview: string;
+  sentAt: string;
+  contactId: string;
+}
+
+/**
+ * Model + prompt version-pin visibility (FR-ADMIN-06), READ-ONLY. These pins are
+ * platform-global today (model routing is env-overridable per deploy; prompt
+ * versions are code constants) — `scope: "platform"` says so honestly rather
+ * than implying a per-tenant pin that doesn't exist yet.
+ */
+export interface VersionPins {
+  scope: "platform";
+  models: { task: string; model: string }[];
+  embeddingModel: string;
+  prompts: { name: string; version: number }[];
+}
+
 // ── B1 W3 (DEC-081): product telemetry + adoption dashboards ─────────────────
 
 export const adoptionQuerySchema = z.object({
