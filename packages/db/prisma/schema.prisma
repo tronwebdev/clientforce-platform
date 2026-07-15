@@ -844,3 +844,25 @@ model ProviderInvoice {
 
   @@index([provider, periodStart])
 }
+
+// Product telemetry (B1 W3, DEC-081) — the local, PII-free adoption store.
+// Platform-global, backoffice-only (REVOKEd from clientforce_app). Powers the
+// activation funnel / DAU-WAU / feature-adoption / cohort-retention dashboards
+// and the sample floor; dual-written with the PostHog forward. PRIVACY RAIL:
+// `props` carries ids + enums/counts ONLY — never bodies, contact PII, or
+// knowledge content (enforced by the @clientforce/telemetry catalog + pinned test).
+model TelemetryEvent {
+  id          String   @id @default(cuid())
+  name        String // versioned type, e.g. "product.agent_launched.v1"
+  actorType   String // "operator" | "user" | "system"
+  actorId     String?
+  workspaceId String?
+  agencyId    String?
+  entityId    String?
+  props       Json
+  occurredAt  DateTime
+  createdAt   DateTime @default(now())
+
+  @@index([name, occurredAt])
+  @@index([workspaceId, occurredAt])
+}
