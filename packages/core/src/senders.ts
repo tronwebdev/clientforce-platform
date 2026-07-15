@@ -43,3 +43,19 @@ export const testSendSchema = z.object({
   to: z.string().email(),
 });
 export type TestSendDto = z.infer<typeof testSendSchema>;
+
+/**
+ * P5 W2 (DEC-084): Settings-side sender management — pause/resume (typed,
+ * audited via `sender.status_changed.v1`) + the daily-limit edit. Status here
+ * moves only between ACTIVE and PAUSED: DISABLED is a provisioning state, not
+ * an owner toggle.
+ */
+export const updateSenderSchema = z
+  .object({
+    status: z.enum(["ACTIVE", "PAUSED"]).optional(),
+    dailyLimit: z.number().int().min(1).max(10_000).optional(),
+  })
+  .refine((v) => v.status !== undefined || v.dailyLimit !== undefined, {
+    message: "Provide status and/or dailyLimit",
+  });
+export type UpdateSenderDto = z.infer<typeof updateSenderSchema>;

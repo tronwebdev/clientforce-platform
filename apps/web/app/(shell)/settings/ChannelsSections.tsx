@@ -3,9 +3,13 @@
 /**
  * Settings — wired Communication sections (checkpoints §6): Email senders,
  * Clientforce Mailer senders, Suppression list, plus the 500px sender detail
- * drawer. Live data only — the prototype's health score / ISP reputation /
- * blacklists / token expiry / week & all-time counts have no backend and are
- * omitted (never faked). A4: 5s polling on senders and suppressions.
+ * drawer. P5 W2 (DEC-084): the prototype's Sending-health card (ring · score
+ * · week/all-time) and Warm-up schedule card are now LIVE from the W1 engine
+ * (ring states = the owner-locked bands); DNS re-check is a real endpoint
+ * with honest verified/failed/unchecked states + copyable expected records;
+ * pause/resume is typed + audited (designed addition — the prototype footer
+ * has no pause control, flagged). ISP reputation / blacklists / token expiry
+ * still have no backend and stay omitted (never faked). A4: 5s polling.
  */
 import { useCallback, useEffect, useState, type CSSProperties } from "react";
 import { EmptyState } from "@clientforce/ui";
@@ -33,9 +37,11 @@ import {
   tableCard,
   tbodyRow,
   theadRow,
+  type AuthRow,
   type Pair,
   type Sender,
 } from "./shared";
+import { describeSenderEvent, ringDisplay, sendingPill, warmupPill } from "./health-display";
 
 // ── shared sender plumbing ──────────────────────────────────────────────────
 
@@ -58,10 +64,11 @@ function useSenders() {
   return { senders, error, refresh };
 }
 
-/** Derived display status (SenderStatus enum → prototype vocabulary; no stored field invented). */
+/** Receiving-column status (SenderStatus enum → prototype vocabulary; the
+ * Sending column is health-aware via `sendingPill` — DEC-084). */
 const SEND_STATUS: Record<string, { label: string } & Pair> = {
   ACTIVE: { label: "Good", ...PAIR.good },
-  PAUSED: { label: "Warming", ...PAIR.warn },
+  PAUSED: { label: "Paused", ...PAIR.neutral },
   DISABLED: { label: "Needs verification", ...PAIR.warn },
 };
 const sendStatus = (s: Sender) => SEND_STATUS[s.status] ?? { label: s.status, ...PAIR.neutral };
@@ -118,7 +125,8 @@ export function EmailSendersSection({ toast }: { toast: (m: string) => void }) {
           </div>
         ) : (
           (rows ?? []).map((s) => {
-            const st = sendStatus(s);
+            const sending = sendingPill(s);
+            const receiving = sendStatus(s);
             const prov = PROVIDER[s.type] ?? { sub: s.type, logo: "#7A8A80" };
             return (
               <div key={s.id} onClick={() => setDrawer(s)} style={{ ...tbodyRow(EMAIL_GRID), fontSize: 13, color: "#0E1512", cursor: "pointer" }} data-testid="email-sender-row">
@@ -132,11 +140,11 @@ export function EmailSendersSection({ toast }: { toast: (m: string) => void }) {
                     <span style={{ display: "block", fontSize: 12, color: "#9AA59E" }}>{prov.sub}</span>
                   </span>
                 </span>
-                <span><span style={{ fontSize: 11.5, fontWeight: 600, color: st.fg, background: st.bg, borderRadius: 100, padding: "4px 9px" }}>{st.label}</span></span>
-                <span><span style={{ fontSize: 11.5, fontWeight: 600, color: st.fg, background: st.bg, borderRadius: 100, padding: "4px 9px" }}>{st.label}</span></span>
+                <span><span style={{ fontSize: 11.5, fontWeight: 600, color: sending.fg, background: sending.bg, borderRadius: 100, padding: "4px 9px" }} data-testid="sending-pill">{sending.label}</span></span>
+                <span><span style={{ fontSize: 11.5, fontWeight: 600, color: receiving.fg, background: receiving.bg, borderRadius: 100, padding: "4px 9px" }}>{receiving.label}</span></span>
                 <span style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                   {authRows(s).map((a) => (
-                    <span key={a.key} style={{ ...authBadge, color: a.pass ? PAIR.good.fg : PAIR.bad.fg, background: a.pass ? PAIR.good.bg : PAIR.bad.bg }}>{a.key}</span>
+                    <span key={a.key} style={{ ...authBadge, color: a.status === "verified" ? PAIR.good.fg : a.status === "failed" ? PAIR.bad.fg : PAIR.neutral.fg, background: a.status === "verified" ? PAIR.good.bg : a.status === "failed" ? PAIR.bad.bg : PAIR.neutral.bg }}>{a.key}</span>
                   ))}
                 </span>
                 <span style={{ color: "#5C6B62", fontSize: 12.5 }}>{s.dailyLimit.toLocaleString()} / day</span>
@@ -147,7 +155,7 @@ export function EmailSendersSection({ toast }: { toast: (m: string) => void }) {
         )}
       </div>
       {flowOpen ? <ConnectFlowDrawer channel="email" onClose={() => setFlowOpen(false)} toast={toast} onMailerCreated={refresh} /> : null}
-      {drawer ? <SenderDetailDrawer sender={drawer} onClose={() => setDrawer(null)} toast={toast} /> : null}
+      {drawer ? <SenderDetailDrawer sender={drawer} onClose={() => setDrawer(null)} toast={toast} onChanged={refresh} /> : null}
     </div>
   );
 }
@@ -188,7 +196,7 @@ export function SmsSendersSection({ toast }: { toast: (m: string) => void }) {
           </div>
         ) : (
           (rows ?? []).map((s) => {
-            const st = sendStatus(s);
+            const st = sendingPill(s);
             return (
               <div key={s.id} onClick={() => setDrawer(s)} style={{ ...tbodyRow(SMS_GRID), fontSize: 13, color: "#0E1512", cursor: "pointer" }} data-testid="sms-sender-row">
                 <span style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
@@ -196,7 +204,7 @@ export function SmsSendersSection({ toast }: { toast: (m: string) => void }) {
                   <span style={{ fontWeight: 600, fontFamily: "monospace", fontSize: 12.5 }}>{s.fromEmail}</span>
                 </span>
                 <span style={{ color: "#3B463F" }}>{s.fromName ?? "—"}</span>
-                <span><span style={{ fontSize: 11.5, fontWeight: 600, color: st.fg, background: st.bg, borderRadius: 100, padding: "4px 9px" }}>{st.label}</span></span>
+                <span><span style={{ fontSize: 11.5, fontWeight: 600, color: st.fg, background: st.bg, borderRadius: 100, padding: "4px 9px" }} data-testid="sending-pill">{st.label}</span></span>
                 <span style={{ color: "#5C6B62", fontSize: 12.5 }}>{s.dailyLimit.toLocaleString()} / day</span>
                 <span style={{ fontFamily: "monospace", fontSize: 11.5, color: "#8A7F6B" }}>{s.id.slice(0, 8)}</span>
               </div>
@@ -205,7 +213,7 @@ export function SmsSendersSection({ toast }: { toast: (m: string) => void }) {
         )}
       </div>
       {flowOpen ? <ConnectFlowDrawer channel="phone" onClose={() => setFlowOpen(false)} toast={toast} onMailerCreated={refresh} /> : null}
-      {drawer ? <SenderDetailDrawer sender={drawer} onClose={() => setDrawer(null)} toast={toast} /> : null}
+      {drawer ? <SenderDetailDrawer sender={drawer} onClose={() => setDrawer(null)} toast={toast} onChanged={refresh} /> : null}
     </div>
   );
 }
@@ -263,39 +271,141 @@ export function MailerSendersSection({ toast }: { toast: (m: string) => void }) 
         )}
       </div>
       {flowOpen ? <ConnectFlowDrawer channel="mailer" onClose={() => setFlowOpen(false)} toast={toast} onMailerCreated={refresh} /> : null}
-      {drawer ? <SenderDetailDrawer sender={drawer} onClose={() => setDrawer(null)} toast={toast} /> : null}
+      {drawer ? <SenderDetailDrawer sender={drawer} onClose={() => setDrawer(null)} toast={toast} onChanged={refresh} /> : null}
     </div>
   );
 }
 
-// ── SENDER DETAIL DRAWER (spec 3.7, 500px — live fields only) ──────────────
+// ── SENDER DETAIL DRAWER (spec 3.7, 500px — the P5 cards are LIVE) ──────────
 
 const subCard: CSSProperties = { background: "#fff", border: "1px solid #EBE3D6", borderRadius: 14, padding: "16px 18px", boxSizing: "border-box" };
+const tinyLabel: CSSProperties = { fontSize: 10.5, fontWeight: 700, color: "#9AA59E", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 2 };
 
-/** Prettify a Json key for the generic warm-up rows (`currentLimit` → "Current limit"). */
-const prettyKey = (k: string) => {
-  const s = k.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/[_-]+/g, " ").toLowerCase();
-  return s.charAt(0).toUpperCase() + s.slice(1);
-};
+/** GET /senders/:id/health — the fresh computation + the drawer-only tiles. */
+interface SenderDetail {
+  score: number | null;
+  state: "healthy" | "unhealthy" | "low_data";
+  band: "healthy" | "watch" | "at_risk" | "paused" | null;
+  sample: { sent: number };
+  sentAllTime: number;
+  warmup: Sender["warmup"];
+  domainAuthStatus: Record<string, unknown> | null;
+}
+interface SenderEvent { id: string; type: string; payload: Record<string, unknown>; occurredAt: string }
 
-function SenderDetailDrawer({ sender, onClose, toast }: { sender: Sender; onClose: () => void; toast: (m: string) => void }) {
-  const isMailer = sender.type === "CF_MANAGED";
+function SenderDetailDrawer({ sender, onClose, toast, onChanged }: { sender: Sender; onClose: () => void; toast: (m: string) => void; onChanged?: () => void | Promise<void> }) {
+  const [live, setLive] = useState<Sender>(sender);
+  const [detail, setDetail] = useState<SenderDetail | null>(null);
+  const [activity, setActivity] = useState<SenderEvent[] | null>(null);
+  const [busy, setBusy] = useState<"" | "dns" | "status" | "limit">("");
+  const [limitEdit, setLimitEdit] = useState<string | null>(null);
+
+  const isMailer = live.type === "CF_MANAGED";
   // 54-1 (review): drawer blocks gate by sender TYPE — an SMS sender has no
   // SPF/DKIM/DMARC story; its trust rails are A2P registration + the STOP
   // double rail, so the domain-auth card simply doesn't render.
-  const isSms = sender.type === "TWILIO_SMS";
-  const prov = PROVIDER[sender.type];
-  const st = DETAIL_STATUS[sender.status] ?? { label: sender.status, ...PAIR.neutral };
-  const passes = authPasses(sender);
-  const barColor = passes === 3 ? "#16A82A" : "#E8C45B";
-  const pct = Math.min(100, Math.round((sender.sentToday / Math.max(1, sender.dailyLimit)) * 100));
-  const warmupEntries = sender.warmupState && typeof sender.warmupState === "object" ? Object.entries(sender.warmupState) : [];
-  const providerChip = isMailer ? "Clientforce Mailer" : isSms ? "Twilio SMS" : (prov?.sub ?? sender.type);
+  const isSms = live.type === "TWILIO_SMS";
+  const prov = PROVIDER[live.type];
+  const st = DETAIL_STATUS[live.status] ?? { label: live.status, ...PAIR.neutral };
+  const providerChip = isMailer ? "Clientforce Mailer" : isSms ? "Twilio SMS" : (prov?.sub ?? live.type);
+
+  const refreshDetail = useCallback(async () => {
+    try {
+      const d = (await cf(`senders/${sender.id}/health`)) as SenderDetail;
+      setDetail(d);
+      setLive((prev) => ({
+        ...prev,
+        warmup: d.warmup,
+        domainAuthStatus: d.domainAuthStatus ?? prev.domainAuthStatus,
+        health: prev.health
+          ? { ...prev.health, score: d.score, state: d.state, band: d.band }
+          : prev.health,
+      }));
+    } catch {
+      /* the list snapshot stays — honest fallback, no invented freshness */
+    }
+  }, [sender.id]);
+  const refreshActivity = useCallback(async () => {
+    try {
+      setActivity((await cf(`senders/${sender.id}/events`)) as SenderEvent[]);
+    } catch {
+      setActivity([]);
+    }
+  }, [sender.id]);
+  useEffect(() => {
+    void refreshDetail();
+    void refreshActivity();
+  }, [refreshDetail, refreshActivity]);
+
+  // The ring prefers the fresh computation; the list snapshot is the fallback.
+  const ring = ringDisplay(
+    detail ? ({ score: detail.score, state: detail.state, band: detail.band } as Sender["health"]) : live.health,
+  );
+  const pct = Math.min(100, Math.round((live.sentToday / Math.max(1, live.dailyLimit)) * 100));
+
+  async function setStatus(to: "ACTIVE" | "PAUSED") {
+    if (busy) return;
+    setBusy("status");
+    try {
+      const updated = (await cf(`senders/${sender.id}`, { method: "PATCH", body: JSON.stringify({ status: to }) })) as { status: string };
+      setLive((prev) => ({ ...prev, status: updated.status }));
+      await Promise.all([refreshActivity(), onChanged?.()]);
+      toast(to === "PAUSED" ? "Sender paused — sends refuse until you resume" : "Sender resumed");
+    } catch {
+      toast("Couldn’t update the sender — try again.");
+    } finally {
+      setBusy("");
+    }
+  }
+  async function saveLimit() {
+    const n = Number(limitEdit);
+    if (!Number.isInteger(n) || n < 1 || n > 10_000 || busy) return;
+    setBusy("limit");
+    try {
+      const updated = (await cf(`senders/${sender.id}`, { method: "PATCH", body: JSON.stringify({ dailyLimit: n }) })) as { dailyLimit: number };
+      setLive((prev) => ({ ...prev, dailyLimit: updated.dailyLimit }));
+      setLimitEdit(null);
+      await Promise.all([refreshDetail(), onChanged?.()]);
+      toast(`Daily limit set to ${updated.dailyLimit.toLocaleString()} / day`);
+    } catch {
+      toast("Couldn’t update the daily limit — try again.");
+    } finally {
+      setBusy("");
+    }
+  }
+  async function recheckDns() {
+    if (busy) return;
+    setBusy("dns");
+    try {
+      const res = (await cf(`senders/${sender.id}/dns-check`, { method: "POST" })) as { domainAuthStatus: Record<string, unknown> };
+      setLive((prev) => ({ ...prev, domainAuthStatus: res.domainAuthStatus }));
+      toast("DNS re-checked");
+    } catch {
+      toast("Couldn’t re-check DNS — try again.");
+    } finally {
+      setBusy("");
+    }
+  }
+  function copyExpected(a: AuthRow) {
+    if (!a.expected) return;
+    void navigator.clipboard?.writeText(a.expected).then(
+      () => toast(`${a.key} record copied — publish it at your DNS provider`),
+      () => toast("Couldn’t copy — select the record text manually"),
+    );
+  }
 
   return (
     <DrawerShell width={500} title="Sender details" onClose={onClose} z={57} shadow="-28px 0 70px rgba(0,0,0,.30)" testid="sender-drawer"
       footer={
         <div style={{ background: "#fff", padding: "14px 20px", borderTop: "1px solid #EBE3D6", flex: "none", display: "flex", flexDirection: "column", gap: 8 }}>
+          {/* pause/resume — designed addition (no prototype footer control); typed + audited via sender.status_changed.v1 */}
+          {live.status !== "DISABLED" ? (
+            <span
+              onClick={() => void setStatus(live.status === "PAUSED" ? "ACTIVE" : "PAUSED")}
+              style={{ textAlign: "center", fontSize: 14, fontWeight: 600, color: "#0E1512", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 12, padding: 12, cursor: "pointer" }}
+              data-testid="pause-resume-sender"
+            >{busy === "status" ? "Saving…" : live.status === "PAUSED" ? "Resume sender" : "Pause sender"}</span>
+          ) : null}
           <span
             onClick={() => toast("Sender removal arrives with a later phase")}
             title="Sender removal arrives with a later phase — no delete endpoint yet"
@@ -319,55 +429,90 @@ function SenderDetailDrawer({ sender, onClose, toast }: { sender: Sender; onClos
               )}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: "#0E1512", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{sender.fromEmail}</div>
-              <div style={{ fontSize: 12.5, color: "#9AA59E" }}>{sender.fromName ?? "—"}</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#0E1512", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{live.fromEmail}</div>
+              <div style={{ fontSize: 12.5, color: "#9AA59E" }}>{live.fromName ?? "—"}</div>
             </div>
             <span style={{ fontSize: 11, fontWeight: 700, color: st.fg, background: st.bg, borderRadius: 100, padding: "4px 11px", flex: "none" }} data-testid="sender-status-pill">{st.label}</span>
           </div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 12, paddingTop: 12, borderTop: "1px solid #F2EEE4" }}>
             <span style={{ fontSize: 11, fontWeight: 700, color: "#5C6B62", background: "#F2EEE4", borderRadius: 7, padding: "3px 9px" }}>{providerChip}</span>
-            {sender.dedicatedIp ? <span style={{ fontSize: 11, fontWeight: 700, color: "#1192A6", background: "rgba(54,215,237,.16)", borderRadius: 7, padding: "3px 9px" }}>Dedicated IP</span> : null}
+            {live.dedicatedIp ? <span style={{ fontSize: 11, fontWeight: 700, color: "#1192A6", background: "rgba(54,215,237,.16)", borderRadius: 7, padding: "3px 9px" }}>Dedicated IP</span> : null}
           </div>
         </div>
 
-        {/* sends today — live fields only; the prototype's reputation ring/score has no backend */}
-        <div style={subCard} data-testid="sender-sends">
-          <div style={{ ...microLabel, marginBottom: 13 }}>Sending</div>
+        {/* sending health — LIVE (P5 W1 engine; ring states = the locked bands) */}
+        <div style={subCard} data-testid="sender-health-card">
+          <div style={{ ...microLabel, marginBottom: 13 }}>Sending health</div>
           <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 14 }}>
+            <div style={{ width: 58, height: 58, borderRadius: "50%", border: `4px solid ${ring.color}`, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flex: "none", boxSizing: "border-box" }}>
+              <span style={{ fontSize: 17, fontWeight: 800, color: ring.color }} data-testid="health-score">{ring.score}</span>
+            </div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontFamily: BRICO, fontSize: 24, fontWeight: 800, color: "#0E1512", lineHeight: 1 }}>{sender.sentToday.toLocaleString()}</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: ring.color }} data-testid="health-label">{ring.label}</div>
+              <div style={{ fontSize: 12, color: "#9AA59E" }}>{ring.sub}</div>
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontFamily: BRICO, fontSize: 24, fontWeight: 800, color: "#0E1512", lineHeight: 1 }}>{live.sentToday.toLocaleString()}</div>
               <div style={{ fontSize: 11, color: "#9AA59E" }}>sends today</div>
             </div>
           </div>
-          <div>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: "#5C6B62" }}>Daily limit</span>
-              <span style={{ fontSize: 12, color: "#9AA59E" }}>{sender.sentToday.toLocaleString()} / {sender.dailyLimit.toLocaleString()}</span>
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: "#5C6B62" }}>
+                Daily limit
+                {limitEdit === null ? (
+                  <span onClick={() => setLimitEdit(String(live.dailyLimit))} title="Edit daily limit" style={{ marginLeft: 6, fontSize: 11, color: "#16A82A", cursor: "pointer", fontWeight: 600 }} data-testid="edit-daily-limit">Edit</span>
+                ) : null}
+              </span>
+              {limitEdit === null ? (
+                <span style={{ fontSize: 12, color: "#9AA59E" }}>{live.sentToday.toLocaleString()} / {live.dailyLimit.toLocaleString()}</span>
+              ) : (
+                <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <input value={limitEdit} onChange={(e) => setLimitEdit(e.target.value)} inputMode="numeric" style={{ ...inp, height: 28, width: 90, fontSize: 12, padding: "0 8px" }} data-testid="daily-limit-input" />
+                  <span onClick={() => void saveLimit()} style={{ fontSize: 11.5, fontWeight: 700, color: "#16A82A", cursor: "pointer" }} data-testid="daily-limit-save">{busy === "limit" ? "…" : "Save"}</span>
+                  <span onClick={() => setLimitEdit(null)} style={{ fontSize: 11.5, color: "#9AA59E", cursor: "pointer" }}>Cancel</span>
+                </span>
+              )}
             </div>
             <div style={{ height: 7, borderRadius: 100, background: "#F2EEE4", overflow: "hidden" }}>
-              <div style={{ height: "100%", width: `${pct}%`, borderRadius: 100, background: barColor }} />
+              <div style={{ height: "100%", width: `${pct}%`, borderRadius: 100, background: ring.color }} />
             </div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, borderTop: "1px solid #F2EEE4", paddingTop: 12 }}>
+            <div><div style={tinyLabel}>This week</div><div style={{ fontSize: 18, fontWeight: 700, color: "#0E1512", fontFamily: BRICO }} data-testid="sent-week">{detail ? detail.sample.sent.toLocaleString() : "—"}</div></div>
+            <div><div style={tinyLabel}>All time</div><div style={{ fontSize: 18, fontWeight: 700, color: "#0E1512", fontFamily: BRICO }} data-testid="sent-all-time">{detail ? detail.sentAllTime.toLocaleString() : "—"}</div></div>
           </div>
         </div>
 
-        {/* warm-up — only when the live Json carries data; rendered generically */}
-        {warmupEntries.length > 0 ? (
+        {/* warm-up schedule — LIVE (curve v2 + the health-interlock hold) */}
+        {live.warmup ? (
           <div style={subCard} data-testid="sender-warmup">
-            <div style={{ ...microLabel, marginBottom: 12 }}>Warm-up schedule</div>
-            {warmupEntries.map(([k, v]) => (
-              <div key={k} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #F2EEE4", gap: 14 }}>
-                <span style={{ fontSize: 12.5, color: "#5C6B62", flex: "none" }}>{prettyKey(k)}</span>
-                <span style={{ fontSize: 12.5, fontWeight: 600, color: "#0E1512", textAlign: "right", minWidth: 0, wordBreak: "break-word" }}>{typeof v === "object" && v !== null ? JSON.stringify(v) : String(v)}</span>
-              </div>
-            ))}
+            <div style={{ display: "flex", alignItems: "center", marginBottom: 12 }}>
+              <div style={{ ...microLabel, flex: 1 }}>Warm-up schedule</div>
+              {(() => { const wp = warmupPill(live.warmup); return (
+                <span style={{ fontSize: 11, fontWeight: 700, color: wp.fg, background: wp.bg, borderRadius: 100, padding: "3px 10px" }} data-testid="warmup-pill">{wp.label}</span>
+              ); })()}
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 13 }}>
+              <div><div style={tinyLabel}>Day</div><div style={{ fontSize: 20, fontWeight: 800, color: "#0E1512", fontFamily: BRICO }}>{live.warmup.day}</div></div>
+              <div><div style={tinyLabel}>Current limit</div><div style={{ fontSize: 13, fontWeight: 700, color: "#0E1512" }}>{live.warmup.currentCap.toLocaleString()} / day</div></div>
+              <div><div style={tinyLabel}>Target</div><div style={{ fontSize: 13, fontWeight: 700, color: "#0E1512" }}>{live.warmup.target.toLocaleString()} / day</div></div>
+            </div>
+            <div style={{ height: 7, borderRadius: 100, background: "#F2EEE4", overflow: "hidden", marginBottom: 5 }}>
+              <div style={{ height: "100%", width: `${live.warmup.pct}%`, borderRadius: 100, background: "linear-gradient(90deg,#36D7ED,#35E834)" }} />
+            </div>
+            <div style={{ fontSize: 11, color: "#9AA59E", textAlign: "right" }} data-testid="warmup-caption">
+              Day {live.warmup.day} of {live.warmup.days}
+              {live.warmup.completedAt ? " — Complete" : live.warmup.holding ? " — held (deliverability spike)" : ""}
+            </div>
           </div>
         ) : null}
 
         {/* dedicated IP — the IP only; blacklist/reputation rows have no backend */}
-        {sender.dedicatedIp ? (
+        {live.dedicatedIp ? (
           <div style={subCard} data-testid="sender-dedicated-ip">
             <div style={{ ...microLabel, marginBottom: 10 }}>Dedicated IP</div>
-            <div style={{ fontFamily: "monospace", fontSize: 13.5, fontWeight: 600, color: "#0E1512", background: "#F7F9F8", border: "1px solid #EBE3D6", borderRadius: 9, padding: "9px 13px" }}>{sender.dedicatedIp}</div>
+            <div style={{ fontFamily: "monospace", fontSize: 13.5, fontWeight: 600, color: "#0E1512", background: "#F7F9F8", border: "1px solid #EBE3D6", borderRadius: 9, padding: "9px 13px" }}>{live.dedicatedIp}</div>
           </div>
         ) : null}
 
@@ -396,26 +541,59 @@ function SenderDetailDrawer({ sender, onClose, toast }: { sender: Sender; onClos
           <div style={{ display: "flex", alignItems: "center", marginBottom: 12 }}>
             <div style={{ ...microLabel, flex: 1 }}>Domain authentication</div>
             <span
-              onClick={() => toast("Re-checking DNS records…")}
-              title="DNS re-check endpoint arrives with the OAuth tiers"
+              onClick={() => void recheckDns()}
               style={{ fontSize: 12, fontWeight: 600, color: "#16A82A", cursor: "pointer" }}
               data-testid="recheck-dns"
-            >Re-check DNS</span>
+            >{busy === "dns" ? "Checking…" : "Re-check DNS"}</span>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {authRows(sender).map((a) => (
-              <div key={a.key} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "#FBF7F0", borderRadius: 10 }}>
-                <span style={{ fontSize: 14, color: a.pass ? "#16A82A" : "#C9543F", fontWeight: 800, width: 18, textAlign: "center" }}>{a.pass ? "✓" : "✕"}</span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "#0E1512" }}>{a.key}</div>
-                  {a.detail ? <div style={{ fontSize: 11, color: "#9AA59E", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.detail}</div> : null}
+            {authRows(live).map((a) => {
+              const chip = a.status === "verified" ? { label: "Pass", ...PAIR.good } : a.status === "failed" ? { label: "Fail", ...PAIR.bad } : { label: "Unchecked", ...PAIR.warn };
+              const icon = a.status === "verified" ? { glyph: "✓", color: "#16A82A" } : a.status === "failed" ? { glyph: "✕", color: "#C9543F" } : { glyph: "–", color: "#A87B16" };
+              return (
+                <div key={a.key} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "#FBF7F0", borderRadius: 10 }} data-testid={`dns-row-${a.key.toLowerCase()}`}>
+                  <span style={{ fontSize: 14, color: icon.color, fontWeight: 800, width: 18, textAlign: "center" }}>{icon.glyph}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#0E1512" }}>{a.key}</div>
+                    {a.detail ? <div style={{ fontSize: 11, color: "#9AA59E", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={a.detail}>{a.detail}</div> : null}
+                    {a.status === "failed" && a.expected ? (
+                      <div onClick={() => copyExpected(a)} style={{ fontSize: 11, fontWeight: 600, color: "#16A82A", cursor: "pointer", marginTop: 2 }} title={a.expected} data-testid={`copy-expected-${a.key.toLowerCase()}`}>⧉ Copy expected record</div>
+                    ) : null}
+                  </div>
+                  <span style={{ fontSize: 10.5, fontWeight: 700, color: chip.fg, background: chip.bg, borderRadius: 6, padding: "2px 8px", flex: "none" }}>{chip.label}</span>
                 </div>
-                <span style={{ fontSize: 10.5, fontWeight: 700, color: a.pass ? PAIR.good.fg : PAIR.bad.fg, background: a.pass ? PAIR.good.bg : PAIR.bad.bg, borderRadius: 6, padding: "2px 8px", flex: "none" }}>{a.pass ? "Pass" : "Fail"}</span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
         )}
+
+        {/* activity — health transitions, warm-up completion, pause/resume
+            (designed addition: sender events carry no agent/campaign context,
+            so the agent Logs tab can't surface them; the ledger rows land here) */}
+        <div style={subCard} data-testid="sender-activity">
+          <div style={{ ...microLabel, marginBottom: 12 }}>Activity</div>
+          {activity === null ? (
+            <div style={{ fontSize: 12.5, color: "#9AA59E" }}>Loading…</div>
+          ) : (() => {
+            const rows = activity
+              .map((e) => ({ e, d: describeSenderEvent(e.type, e.payload) }))
+              .filter((r): r is { e: SenderEvent; d: NonNullable<ReturnType<typeof describeSenderEvent>> } => r.d !== null);
+            return rows.length === 0 ? (
+              <div style={{ fontSize: 12.5, color: "#9AA59E" }} data-testid="activity-empty">No activity yet — health changes, warm-up milestones and pauses land here.</div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {rows.slice(0, 12).map(({ e, d }) => (
+                  <div key={e.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", background: "#FBF7F0", borderRadius: 10 }} data-testid="activity-row">
+                    <span style={{ width: 22, height: 22, borderRadius: 7, background: d.bg, color: d.fg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, flex: "none" }}>{d.icon}</span>
+                    <span style={{ flex: 1, fontSize: 12.5, color: "#0E1512", minWidth: 0 }}>{d.text}</span>
+                    <span style={{ fontSize: 11, color: "#9AA59E", flex: "none" }}>{fmtDate(e.occurredAt)}</span>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+        </div>
         {/* "Used by agents" card omitted — no sender↔agent assignment model this phase */}
       </div>
     </DrawerShell>
