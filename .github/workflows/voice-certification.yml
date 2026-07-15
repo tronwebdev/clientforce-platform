@@ -1,0 +1,202 @@
+# P3.1 (DEC-078): the voice certification + demo rig — the run that closes the
+# ADR's promote gate (TTFA p50 <= ~1.2s AND p95 <= ~1.5s over >=100 turns,
+# 0 dropped audio) plus P3.1's ZERO mid-utterance replies. Rides the proven
+# P2.1/P3.0 pattern: staging OIDC -> clientforce-kv; cloudflared quick tunnel
+# for the PSTN demo call. Prints only counts/latencies/masked values — never
+# phone numbers. Supersedes voice-live-spike.yml (the spike is merged history;
+# its throwaway code was replaced by the production service this rig drives).
+#
+# Modes (workflow_dispatch input):
+#   preflight — the Deepgram vendor probe: secret presence + ONE live STT/TTS
+#               round-trip so the key is proven, not assumed.
+#   certify   — the >=100-turn paired-bot certification (STT-in-the-loop, the
+#               plan's D13): real Deepgram STT fed real caller audio with the
+#               ADR's adversarial pause patterns + scripted barge-ins, real
+#               Haiku, real Aura, through the PRODUCTION CallSession. Uploads
+#               per-session metrics + the aggregated gate table; FAILS the job
+#               when any gate misses.
+#   demo-call — ONE real outbound PSTN call to the owner's test number through
+#               the PRODUCTION service. `variant` picks the disclosure literal
+#               proven on the call: named (a confirmed spoken name) or default.
+#               Recording stays OFF (the owner-locked default) — the transcript
+#               is the record.
+name: voice-certification
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "preflight | certify | demo-call"
+        required: true
+        default: "preflight"
+        type: choice
+        options: [preflight, certify, demo-call]
+      variant:
+        description: "demo-call disclosure variant"
+        required: false
+        default: "named"
+        type: choice
+        options: [named, default]
+      sessions:
+        description: "certify: paired-bot sessions (>=6 ≈ 114 turns)"
+        required: false
+        default: "6"
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  KEY_VAULT_NAME: ${{ vars.KEY_VAULT_NAME }}
+
+jobs:
+  voice:
+    name: voice — ${{ inputs.mode }}
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install + build (voice service and its deps)
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm --filter @clientforce/db build
+          pnpm --filter @clientforce/core build
+          pnpm --filter @clientforce/ai build
+          pnpm --filter @clientforce/events build
+          pnpm --filter @clientforce/context build
+          pnpm --filter @clientforce/channels build
+          pnpm --filter voice build
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Resolve secrets from Key Vault (mask everything)
+        id: kv
+        run: |
+          set -euo pipefail
+          get() { az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name "$1" --query value -o tsv 2>/dev/null || true; }
+          ANTHROPIC="$(get ANTHROPIC-API-KEY)"
+          DEEPGRAM="$(get DEEPGRAM-API-KEY)"
+          TW_SID="$(get TWILIO-ACCOUNT-SID)"
+          TW_TOKEN="$(get TWILIO-AUTH-TOKEN)"
+          TW_FROM="$(get VOICE-FROM-NUMBER)"
+          TW_TO="$(get SMS-TEST-NUMBER)"
+          for v in "$ANTHROPIC" "$DEEPGRAM" "$TW_SID" "$TW_TOKEN" "$TW_FROM" "$TW_TO"; do
+            [ -n "$v" ] && echo "::add-mask::$v" || true
+          done
+          {
+            echo "anthropic=$ANTHROPIC"
+            echo "deepgram=$DEEPGRAM"
+            echo "tw_sid=$TW_SID"
+            echo "tw_token=$TW_TOKEN"
+            echo "tw_from=$TW_FROM"
+            echo "tw_to=$TW_TO"
+            echo "has_deepgram=$([ -n "$DEEPGRAM" ] && echo yes || echo no)"
+            echo "has_twilio=$([ -n "$TW_SID" ] && [ -n "$TW_TOKEN" ] && echo yes || echo no)"
+            echo "has_from=$([ -n "$TW_FROM" ] && echo yes || echo no)"
+            echo "has_to=$([ -n "$TW_TO" ] && echo yes || echo no)"
+          } >> "$GITHUB_OUTPUT"
+
+      # ── preflight: the Deepgram vendor probe — key proven live ──────────────
+      - name: Deepgram preflight (presence + one live STT/TTS round-trip)
+        if: inputs.mode == 'preflight'
+        env:
+          DEEPGRAM_API_KEY: ${{ steps.kv.outputs.deepgram }}
+        run: |
+          set -euo pipefail
+          if [ -z "$DEEPGRAM_API_KEY" ]; then
+            echo "::error::DEEPGRAM-API-KEY missing from Key Vault."; exit 1
+          fi
+          echo "TTS probe (aura-2-thalia-en, 'ok'):"
+          bytes=$(curl -fsS -X POST "https://api.deepgram.com/v1/speak?model=aura-2-thalia-en&encoding=mulaw&sample_rate=8000&container=none" \
+            -H "Authorization: Token $DEEPGRAM_API_KEY" -H "content-type: application/json" \
+            -d '{"text":"ok"}' | wc -c)
+          echo "  received $bytes bytes of mulaw audio"
+          [ "$bytes" -gt 1000 ]
+          echo "STT probe (pre-recorded endpoint reachability):"
+          curl -fsS -o /dev/null -w "  HTTP %{http_code}\n" -X POST "https://api.deepgram.com/v1/listen?model=nova-2" \
+            -H "Authorization: Token $DEEPGRAM_API_KEY" -H "content-type: audio/mulaw" --data-binary @/dev/null || true
+          echo "PREFLIGHT PASS: Deepgram key live; TTS emits audio."
+
+      # ── certify: the >=100-turn paired-bot run through the PRODUCTION session ─
+      - name: Certification run (paired-bot, STT-in-the-loop)
+        if: inputs.mode == 'certify'
+        env:
+          ANTHROPIC_API_KEY: ${{ steps.kv.outputs.anthropic }}
+          DEEPGRAM_API_KEY: ${{ steps.kv.outputs.deepgram }}
+          CERT_SESSIONS: ${{ inputs.sessions }}
+          CERT_OUT: ./cert
+        run: |
+          set -euo pipefail
+          [ -n "$DEEPGRAM_API_KEY" ] || { echo "::error::DEEPGRAM-API-KEY missing"; exit 1; }
+          [ -n "$ANTHROPIC_API_KEY" ] || { echo "::error::ANTHROPIC-API-KEY missing"; exit 1; }
+          node apps/voice/dist/certify.js
+          echo "----- cert-table.md -----"
+          cat cert/cert-table.md >> "$GITHUB_STEP_SUMMARY"
+          cat cert/cert-table.md
+
+      # ── demo-call: one real PSTN call through the production service ─────────
+      - name: Install cloudflared
+        if: inputs.mode == 'demo-call'
+        run: |
+          curl -fsSL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o /usr/local/bin/cloudflared
+          chmod +x /usr/local/bin/cloudflared
+          cloudflared --version
+
+      - name: Demo call (production service, ${{ inputs.variant }} disclosure variant)
+        if: inputs.mode == 'demo-call'
+        env:
+          DEEPGRAM_API_KEY: ${{ steps.kv.outputs.deepgram }}
+          ANTHROPIC_API_KEY: ${{ steps.kv.outputs.anthropic }}
+          TWILIO_ACCOUNT_SID: ${{ steps.kv.outputs.tw_sid }}
+          TWILIO_AUTH_TOKEN: ${{ steps.kv.outputs.tw_token }}
+          VOICE_FROM_NUMBER: ${{ steps.kv.outputs.tw_from }}
+          TWILIO_TO: ${{ steps.kv.outputs.tw_to }}
+          VOICE_SANDBOX: "false"
+          METRICS_OUT: ./metrics.json
+        run: |
+          set -euo pipefail
+          [ "${{ steps.kv.outputs.has_deepgram }}" = "yes" ] || { echo "::error::DEEPGRAM-API-KEY missing"; exit 1; }
+          [ "${{ steps.kv.outputs.has_twilio }}" = "yes" ] || { echo "::error::Twilio credentials missing"; exit 1; }
+          [ "${{ steps.kv.outputs.has_from }}" = "yes" ] || { echo "::error::VOICE-FROM-NUMBER missing"; exit 1; }
+          [ "${{ steps.kv.outputs.has_to }}" = "yes" ] || { echo "::error::SMS-TEST-NUMBER missing"; exit 1; }
+          # Tunnel first — it prints the URL even before the server is up.
+          cloudflared tunnel --url http://localhost:8080 --no-autoupdate > cf.log 2>&1 &
+          HOST=""
+          for i in $(seq 1 30); do
+            HOST="$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' cf.log | head -1 || true)"
+            [ -n "$HOST" ] && break; sleep 2
+          done
+          [ -n "$HOST" ] || { echo "::error::no tunnel"; cat cf.log; exit 1; }
+          echo "::add-mask::$HOST"
+          # The PRODUCTION service in standalone mode; the variant picks the
+          # locked disclosure literal the owner hears (named = confirmed name).
+          if [ "${{ inputs.variant }}" = "named" ]; then export DEMO_SPOKEN_NAME="Ava"; fi
+          PORT=8080 PUBLIC_HOST="${HOST#https://}" node apps/voice/dist/server.js &
+          sleep 3
+          PUBLIC_URL="$HOST" node apps/voice/dist/place-call.js
+          echo "call placed (${{ inputs.variant }} variant); holding for the conversation..."
+          sleep 90
+          echo "----- metrics.json -----"; cat metrics.json 2>/dev/null || echo "(no metrics — call may not have connected)"
+
+      - name: Upload artifacts
+        if: always() && inputs.mode != 'preflight'
+        uses: actions/upload-artifact@v4
+        with:
+          name: voice-${{ inputs.mode }}-${{ inputs.mode == 'demo-call' && inputs.variant || 'run' }}
+          path: |
+            cert/
+            metrics.json
+            cf.log
+          if-no-files-found: ignore

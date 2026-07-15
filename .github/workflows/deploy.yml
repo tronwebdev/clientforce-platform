@@ -148,6 +148,19 @@ jobs:
             smsAllowlist=false
             echo "SMS-ALLOWLIST not in Key Vault — no live SMS recipients anywhere (DEC-063)."
           fi
+          # P3.1 (DEC-078): the voice from-number + allow-list, same discipline.
+          if az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name VOICE-FROM-NUMBER --query id -o tsv >/dev/null 2>&1; then
+            voiceFrom=true
+          else
+            voiceFrom=false
+            echo "VOICE-FROM-NUMBER not in Key Vault — the dialer stays unconfigured (dials refuse typed)."
+          fi
+          if az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name VOICE-ALLOWLIST --query id -o tsv >/dev/null 2>&1; then
+            voiceAllowlist=true
+          else
+            voiceAllowlist=false
+            echo "VOICE-ALLOWLIST not in Key Vault — no live voice recipients anywhere (DEC-063 analog)."
+          fi
           az deployment group create \
             --resource-group "$RG" \
             --template-file infra/main.bicep \
@@ -164,7 +177,9 @@ jobs:
               sgWebhookKeyAvailable="$sgWebhookKey" \
               clerkSecretsAvailable="$clerk" \
               twilioSecretsAvailable="$twilio" \
-              smsAllowlistAvailable="$smsAllowlist"
+              smsAllowlistAvailable="$smsAllowlist" \
+              voiceFromAvailable="$voiceFrom" \
+              voiceAllowlistAvailable="$voiceAllowlist"
 
       # ── Expose the deployed web FQDN for the e2e job ──
       - name: Resolve web FQDN

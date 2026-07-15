@@ -54,6 +54,18 @@ param smsSandbox string = 'true'
 @description('DEC-063/067: whether Key Vault holds SMS-ALLOWLIST (comma-separated E.164 SMS recipients — phone numbers never live in this public repo). Probed by the pipeline; absent = no live SMS recipients anywhere.')
 param smsAllowlistAvailable bool = false
 
+@description('P3.1 (DEC-078): whether Key Vault holds VOICE-FROM-NUMBER (the platform Voice-capable sender). Absent = the dialer is unconfigured; dials refuse typed.')
+param voiceFromAvailable bool = false
+
+@description('P3.1 (DEC-078, DEC-063 analog): whether Key Vault holds VOICE-ALLOWLIST (comma-separated E.164 voice recipients — numbers never live in this repo). Absent = no live voice recipients anywhere.')
+param voiceAllowlistAvailable bool = false
+
+@description('P3.1 (DEC-078): voice dial sandbox (the SMS_SANDBOX twin): \'true\' everywhere by default; only an explicit production parameter flips it.')
+param voiceSandbox string = 'true'
+
+@description('P3.1 (DEC-078): the deployed voice service public https base (empty until the voice container ships — Azure placement is measured-latency-driven, ARCHITECTURE §2.7; the cert/demo rig runs it on a runner meanwhile).')
+param voiceServiceUrl string = ''
+
 param apiAppName string = 'clientforce-api'
 param workerAppName string = 'clientforce-worker'
 param webAppName string = 'clientforce-web'
@@ -165,6 +177,17 @@ var smsEnv = concat(
   [{ name: 'SMS_SANDBOX', value: smsSandbox }],
   smsAllowlistAvailable ? [{ name: 'CHANNELS_SMS_ALLOWLIST', secretRef: 'sms-allowlist' }] : []
 )
+// P3.1 (DEC-078): voice dialer wiring — same conditional discipline.
+var voiceFromSecret = { name: 'voice-from-number', keyVaultUrl: '${kvUri}secrets/VOICE-FROM-NUMBER', identity: uami.id }
+var voiceFromSecrets = voiceFromAvailable ? [voiceFromSecret] : []
+var voiceAllowlistSecret = { name: 'voice-allowlist', keyVaultUrl: '${kvUri}secrets/VOICE-ALLOWLIST', identity: uami.id }
+var voiceAllowlistSecrets = voiceAllowlistAvailable ? [voiceAllowlistSecret] : []
+var voiceEnv = concat(
+  [{ name: 'VOICE_SANDBOX', value: voiceSandbox }],
+  empty(voiceServiceUrl) ? [] : [{ name: 'VOICE_SERVICE_URL', value: voiceServiceUrl }],
+  voiceFromAvailable ? [{ name: 'VOICE_FROM_NUMBER', secretRef: 'voice-from-number' }] : [],
+  voiceAllowlistAvailable ? [{ name: 'CHANNELS_VOICE_ALLOWLIST', secretRef: 'voice-allowlist' }] : []
+)
 
 // ── API (NestJS) — external ingress :3001 ───────────────────────────────────
 resource api 'Microsoft.App/containerApps@2024-03-01' = {
@@ -178,7 +201,7 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
       activeRevisionsMode: 'Single'
       ingress: { external: true, targetPort: 3001, transport: 'auto', allowInsecure: false }
       registries: registries
-      secrets: concat([dbUrlSecret, appDbUrlSecret, authDevSecret, redisUrlSecret, openaiKeySecret, anthropicKeySecret, sendgridKeySecret, fieldEncKeySecret], storageSecrets, temporalSecrets, inboundTokenSecrets, sgWebhookKeySecrets, clerkApiSecrets, twilioSecrets, smsAllowlistSecrets)
+      secrets: concat([dbUrlSecret, appDbUrlSecret, authDevSecret, redisUrlSecret, openaiKeySecret, anthropicKeySecret, sendgridKeySecret, fieldEncKeySecret], storageSecrets, temporalSecrets, inboundTokenSecrets, sgWebhookKeySecrets, clerkApiSecrets, twilioSecrets, smsAllowlistSecrets, voiceFromSecrets, voiceAllowlistSecrets)
     }
     template: {
       containers: [
@@ -206,7 +229,7 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
             // A3 (DEC-060a): env-controlled sandbox; 'true' everywhere except
             // an explicit production parameter — see the param description.
             { name: 'SENDGRID_SANDBOX', value: sendgridSandbox }
-          ], storageEnv, temporalEnv, inboundTokenEnv, sgWebhookKeyEnv, clerkApiEnv, twilioEnv, smsEnv)
+          ], storageEnv, temporalEnv, inboundTokenEnv, sgWebhookKeyEnv, clerkApiEnv, twilioEnv, smsEnv, voiceEnv)
         }
       ]
       scale: { minReplicas: 1, maxReplicas: 3 }

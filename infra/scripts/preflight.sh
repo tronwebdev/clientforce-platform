@@ -44,6 +44,15 @@ for name in TEMPORAL-ADDRESS TEMPORAL-NAMESPACE TEMPORAL-API-KEY INBOUND-PARSE-T
   fi
 done
 
+# P3.1 (DEC-078): the voice vendor trio — OPTIONAL (conditional Bicep wiring;
+# the dial boundary refuses typed while unconfigured). DEEPGRAM-API-KEY is
+# consumed by the voice service / certification rig, not the api container.
+for name in DEEPGRAM-API-KEY VOICE-FROM-NUMBER VOICE-ALLOWLIST; do
+  if ! grep -qxF "$name" <<<"$present"; then
+    echo "::warning::Key Vault secret $name not present — voice dialing/certification stays disabled this deploy (P3.1 owner step)."
+  fi
+done
+
 # Verify the DEPLOY identity itself can do everything the pipeline needs, before
 # anything destructive runs. This is the read-only "is all access in?" gate:
 # push to ACR, create the Container Apps/identity/job, and (the non-obvious one)
