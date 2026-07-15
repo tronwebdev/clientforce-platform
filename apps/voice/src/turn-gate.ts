@@ -3,13 +3,18 @@
  * for the ADR's #1 finding (Deepgram endpointing fragmenting real speech into
  * "…we run" / "afternoon," / "sales." and the agent replying mid-utterance).
  *
- * Rules (the plan-comment proposal, owner sign-off):
- * 1. A speech_final phrase ending in terminal punctuation → COMMIT NOW
- *    (faster than the spike, which always waited the full utterance_end).
- * 2. A speech_final phrase ending mid-thought → HOLD up to the continuation
- *    window; more speech merges and re-evaluates.
- * 3. UtteranceEnd (true silence) → commit whatever is pending — a caller who
- *    trails off still gets a reply.
+ * Rules (the plan-comment proposal, revised by certification runs 3/4):
+ * 1. A speech_final phrase ending in a QUESTION MARK → COMMIT NOW.
+ *    Interrogative punctuation is structure-driven and safe to trust; runs
+ *    3/4 proved periods are NOT — smart_format's punctuator writes "." off
+ *    the same mid-thought pause the endpointer saw ("…we run." on the ADR's
+ *    fragment), so a period fast-path replies mid-utterance.
+ * 2. Everything else → wait for UtteranceEnd (silence-anchored server-side,
+ *    word-timestamp-based — no client VAD race). A caller who trails off
+ *    still gets a reply after utterance_end_ms of true silence; the ack clip
+ *    masks the wait.
+ * 3. The continuation-window hold remains ONLY as a wall-clock backstop for
+ *    a missed UtteranceEnd event.
  * 4. SpeechStarted cancels a pending hold — the caller kept going.
  *
  * Pure event machine — timers injected, so the ADR's real fragmented call is
@@ -34,8 +39,9 @@ export interface TurnGateOptions {
   now?: () => number;
 }
 
-/** Terminal sentence punctuation, optionally inside a closing quote/bracket. */
-const TERMINAL_RE = /[.!?…]["')\]]?$/;
+/** Interrogative ending, optionally inside a closing quote/bracket — the ONLY
+ *  punctuation trusted for a fast commit (see the header). */
+const QUESTION_RE = /\?["')\]]?$/;
 
 export class TurnGate {
   private pending = "";
@@ -80,10 +86,10 @@ export class TurnGate {
   }
 
   private evaluate(): void {
-    if (TERMINAL_RE.test(this.pending)) {
-      this.commit("speech_final"); // rule 1 — complete thought, reply now
+    if (QUESTION_RE.test(this.pending)) {
+      this.commit("speech_final"); // rule 1 — a question, reply now
     } else {
-      this.armHold(); // rule 2 — mid-thought; give the caller the window
+      this.armHold(); // rules 2/3 — UtteranceEnd commits; this hold backstops
     }
   }
 

@@ -39,7 +39,7 @@ function harness(continuationWindowMs = 900) {
   };
 }
 
-describe("TurnGate — rule 1: terminal punctuation commits immediately", () => {
+describe("TurnGate — rule 1: only QUESTIONS commit immediately (runs 3/4)", () => {
   it("a speech_final phrase ending in ? commits with zero added latency", () => {
     const h = harness();
     h.gate.onFinal("Hey, who is this?", true);
@@ -49,32 +49,45 @@ describe("TurnGate — rule 1: terminal punctuation commits immediately", () => 
     expect(h.holdArmed()).toBe(false);
   });
 
-  it("terminal punctuation inside a closing quote still counts", () => {
+  it("a question mark inside a closing quote still counts", () => {
     const h = harness();
-    h.gate.onFinal('He said "stop."', true);
+    h.gate.onFinal('You mean "now?"', true);
     expect(h.commits).toHaveLength(1);
+  });
+
+  it("a PERIOD does NOT fast-commit — smart_format writes '.' off mid-thought pauses", () => {
+    const h = harness();
+    h.gate.onFinal("So we are doing currently, we run.", true);
+    expect(h.commits).toHaveLength(0);
+    expect(h.holdArmed()).toBe(true); // the backstop — UtteranceEnd is the commit path
+    h.gate.onUtteranceEnd();
+    expect(h.commits).toHaveLength(1);
+    expect(h.commits[0]!.source).toBe("utterance_end");
   });
 });
 
 describe("TurnGate — the ADR fragmentation case (the #1 finding)", () => {
-  it('"…we run" / "afternoon," / "sales." → exactly ONE merged commit', () => {
+  it('"…we run." / "afternoon," / "sales." → exactly ONE merged commit at true silence', () => {
     const h = harness();
-    // Fragment 1: speech_final but mid-thought → hold, no commit.
-    h.gate.onFinal("So we are doing currently, we run", true);
+    // Fragment 1: speech_final, punctuator may even write "." — NEVER a
+    // commit (runs 3/4: the period is pause-derived, not semantic).
+    h.gate.onFinal("So we are doing currently, we run.", true);
     expect(h.commits).toHaveLength(0);
     expect(h.holdArmed()).toBe(true);
-    // Caller resumes — the hold is cancelled.
+    // Caller resumes — the backstop hold is cancelled.
     h.gate.onSpeechStarted();
     expect(h.holdArmed()).toBe(false);
-    // Fragment 2: still mid-thought ("afternoon,") → hold again.
+    // Fragment 2: still mid-thought ("afternoon,") → still nothing.
     h.gate.onFinal("afternoon,", true);
     expect(h.commits).toHaveLength(0);
     h.gate.onSpeechStarted();
-    // Fragment 3 closes the thought → ONE commit with the merged utterance.
+    // Fragment 3 + Deepgram's silence-anchored UtteranceEnd → ONE merged commit.
     h.gate.onFinal("sales.", true);
+    expect(h.commits).toHaveLength(0);
+    h.gate.onUtteranceEnd();
     expect(h.commits).toHaveLength(1);
-    expect(h.commits[0]!.text).toBe("So we are doing currently, we run afternoon, sales.");
-    expect(h.commits[0]!.source).toBe("speech_final");
+    expect(h.commits[0]!.text).toBe("So we are doing currently, we run. afternoon, sales.");
+    expect(h.commits[0]!.source).toBe("utterance_end");
   });
 });
 
@@ -104,10 +117,14 @@ describe("TurnGate — rule 2/3: holds and fallbacks", () => {
     expect(h.commits).toHaveLength(0);
   });
 
-  it("interim (non-speech_final) finals accumulate silently — no hold, no commit", () => {
+  it("interim (non-speech_final) finals accumulate silently until silence commits", () => {
     const h = harness();
     h.gate.onFinal("we are on a", false);
+    expect(h.commits).toHaveLength(0);
+    expect(h.holdArmed()).toBe(false); // interim finals never arm the backstop
     h.gate.onFinal("legacy tool.", true);
+    expect(h.commits).toHaveLength(0); // a period never fast-commits (runs 3/4)
+    h.gate.onUtteranceEnd();
     expect(h.commits).toHaveLength(1);
     expect(h.commits[0]!.text).toBe("we are on a legacy tool.");
   });
@@ -123,7 +140,7 @@ describe("TurnGate — rule 2/3: holds and fallbacks", () => {
   it("commit anchors at the committing event's clock (the ADR anchor)", () => {
     const h = harness();
     h.tick(500);
-    h.gate.onFinal("Sounds good.", true);
+    h.gate.onFinal("Is that right?", true);
     expect(h.commits[0]!.committedAt).toBe(1_500);
   });
 
