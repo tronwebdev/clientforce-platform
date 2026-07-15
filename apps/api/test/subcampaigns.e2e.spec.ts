@@ -19,6 +19,7 @@ import { createAppPrismaClient, createPrismaClient, withTenant, type PrismaClien
 import type { CampaignWorkflowInput } from "@clientforce/workflows";
 import { AppModule } from "../src/app.module";
 import { signDevToken } from "../src/auth/dev-token-verifier";
+import { PrismaService } from "../src/db/prisma.service";
 import { WORKFLOW_ENGINE, type WorkflowEngine } from "../src/enrollments/workflow-engine";
 
 const hasDb = Boolean(process.env.APP_DATABASE_URL ?? process.env.DATABASE_URL);
@@ -397,5 +398,96 @@ describe.skipIf(!hasDb)("#90 sub-campaign creation e2e (DEC-077)", () => {
     expect(await owner.campaignRule.count({ where: { campaignId, order: 99 } })).toBe(0);
     expect(await latestVersion()).toBe(versionBefore);
     expect(await ruleCount()).toBe(rulesBefore);
+  });
+
+  it("ENDPOINT-THROUGH atomicity: the rule write dying AFTER the graph write rolls the whole creation back", async () => {
+    // A second app whose prisma proxies the real clients but poisons the
+    // FIRST campaignRule.create inside a transaction — the endpoint's graph
+    // row lands first, then the rule write dies mid-transaction.
+    const armed = { fail: true };
+    const poisonTx = (tx: Record<string | symbol, unknown>) =>
+      new Proxy(tx, {
+        get(t, prop, r) {
+          if (prop === "campaignRule" && armed.fail) {
+            const real = Reflect.get(t, prop, r) as Record<string | symbol, unknown>;
+            return new Proxy(real, {
+              get(cr, m, rr) {
+                if (m === "create") {
+                  return async () => {
+                    armed.fail = false;
+                    throw new Error("poisoned mid-write failure");
+                  };
+                }
+                return Reflect.get(cr, m, rr);
+              },
+            });
+          }
+          return Reflect.get(t, prop, r);
+        },
+      });
+    const poisonedPrisma = {
+      admin: owner,
+      app: new Proxy(appClient, {
+        get(target, prop, receiver) {
+          if (prop === "$transaction") {
+            // withTenant passes a bare callback — no transaction options.
+            return (fn: (tx: unknown) => Promise<unknown>) =>
+              (target.$transaction as (f: (tx: unknown) => Promise<unknown>) => Promise<unknown>)(
+                (tx) => fn(poisonTx(tx as Record<string | symbol, unknown>)),
+              );
+          }
+          return Reflect.get(target, prop, receiver);
+        },
+      }),
+    };
+    const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider(WORKFLOW_ENGINE)
+      .useValue(engine)
+      .overrideProvider(PrismaService)
+      .useValue(poisonedPrisma)
+      .compile();
+    const app2 = moduleRef.createNestApplication();
+    await app2.init();
+    try {
+      const versionBefore = await latestVersion();
+      const rulesBefore = await ruleCount();
+      const res = await request(app2.getHttpServer())
+        .post("/planner/subcampaign")
+        .set(asOwner())
+        .send({ agentId, name: "Poisoned", trigger: { kind: "opted_out" } });
+      expect(res.status).toBeGreaterThanOrEqual(500);
+      // NEITHER write survived — the graph row rolled back with the rule.
+      expect(await latestVersion()).toBe(versionBefore);
+      expect(await ruleCount()).toBe(rulesBefore);
+      expect(
+        await owner.campaignGraph.count({
+          where: { campaignId, version: versionBefore + 1 },
+        }),
+      ).toBe(0);
+      const campaign = await owner.campaign.findUniqueOrThrow({ where: { id: campaignId } });
+      const pointed = await owner.campaignGraph.findUniqueOrThrow({ where: { id: campaign.graphId } });
+      expect(pointed.version).toBe(versionBefore);
+    } finally {
+      await app2.close();
+    }
+  });
+
+  it("a LATER plain PUT can't regress a STORED container (well-formedness holds on every write)", async () => {
+    const current = (
+      await request(app.getHttpServer()).get(`/planner/graph?agentId=${agentId}`).set(asOwner())
+    ).body.graph.graph as CampaignGraph;
+    // Rewire the stored container's exit from its own end node into the main
+    // sequence — the shape the creator's gate refuses must stay refused.
+    const tail = current.edges.find((e) => e.to === "end-added-1")!.from;
+    const rejoining: CampaignGraph = {
+      ...current,
+      edges: current.edges.map((e) => (e.from === tail ? { ...e, to: "step-1" } : e)),
+    };
+    const res = await request(app.getHttpServer())
+      .put("/planner/graph")
+      .set(asOwner())
+      .send({ agentId, graph: rejoining });
+    expect(res.status).toBe(422);
+    expect(res.body.detail).toMatch(/must end at an end node/);
   });
 });

@@ -29,6 +29,7 @@ import {
   mainSequence,
   sharedContainerNodeIds,
   subcampaignChainOf,
+  subcampaignChains,
 } from "./walk";
 
 export class GraphMutationError extends Error {
@@ -90,11 +91,14 @@ export function containerNodes(graph: CampaignGraph, container: SequenceContaine
  * extended across container kinds — case↔case on ANY branch pair,
  * case↔sub-campaign, sub-campaign↔sub-campaign — by #90/DEC-077).
  */
-function assertChainNotShared(graph: CampaignGraph, container: SequenceContainer): void {
+function assertChainNotShared(
+  graph: CampaignGraph,
+  container: SequenceContainer,
+  chain: GraphNode[],
+): void {
   if (container.kind === "main") return;
   const shared = sharedContainerNodeIds(graph);
   if (shared.size === 0) return;
-  const chain = containerNodes(graph, container);
   if (chain.some((n) => shared.has(n.id))) {
     throw new GraphMutationError(
       container.kind === "subcampaign"
@@ -250,17 +254,23 @@ export function addStep(
   if (params.brief && channel !== "email" && channel !== "sms") {
     throw new GraphMutationError(`Guided steps are email/sms-only — "${channel}" cannot carry a brief`);
   }
-  assertChainNotShared(graph, container);
   const chain = containerNodes(graph, container);
+  assertChainNotShared(graph, container, chain);
   const stepId = freshNodeId(graph, "step-added");
   const n = chain.filter((c) => c.type === "step").length + 1;
   const defaultContent: StepContent =
     channel === "email"
       ? { subject: `Follow-up ${n}`, body: "Hi {{firstName}}, one more thought for {{company}}…" }
       : { body: "Hi {{firstName}} — quick follow-up about {{company}}." };
+  // A bodyless scripted step can't send — blanks take the sendable defaults
+  // (riders like `threaded` survive; a real body wins outright).
+  const provided = params.content ?? {};
+  const content: StepContent = provided.body?.trim()
+    ? provided
+    : { ...defaultContent, ...Object.fromEntries(Object.entries(provided).filter(([k, v]) => v !== undefined && v !== "" && k !== "body")) };
   const step: StepNode = params.brief
     ? { id: stepId, type: "step", channel, content: {}, mode: "guided", brief: params.brief }
-    : { id: stepId, type: "step", channel, content: params.content ?? defaultContent };
+    : { id: stepId, type: "step", channel, content };
 
   const newChain: GraphNode[] = [...chain];
   let delayId: string | undefined;
@@ -331,6 +341,99 @@ export function addSubcampaign(
 }
 
 /**
+ * #90 (DEC-077): carry the stored graph's sub-campaign containers onto a
+ * freshly PLANNED graph — the regenerate path's container preservation. The
+ * planner knows nothing of sub-campaigns (no prompt changes, the standing
+ * hard no), so without this a re-plan would drop every container and leave
+ * its enabled entry rule firing `move_to_node` at a missing node.
+ *
+ * Container node ids are LOAD-BEARING (`CampaignRule.targetNodeId`, send
+ * idempotency, per-step stats) and copy over verbatim; the fresh graph's
+ * ids reference nothing outside itself yet, so on a collision it is the
+ * FRESH node that gets renamed (`<id>-r2`-style first-free).
+ */
+export function graftSubcampaigns(
+  fresh: CampaignGraph,
+  stored: CampaignGraph,
+): { graph: CampaignGraph; grafted: string[]; renamedFreshIds: Record<string, string> } {
+  const containers = subcampaignChains(stored);
+  if (containers.length === 0) return { graph: fresh, grafted: [], renamedFreshIds: {} };
+
+  // The container subgraph: head + chain + its exit end node (a well-formed
+  // container's own terminator). A malformed exit (rejoin/branch/nothing)
+  // gets a fresh terminator instead — the graft never imports stored-main
+  // nodes, and the result must stand alone.
+  const carryNodes: GraphNode[] = [];
+  const carryEdges: Array<{ from: string; to: string }> = [];
+  const carriedIds = new Set<string>();
+  const grafted: string[] = [];
+  const storedEdgeTarget = (from: string) => stored.edges.find((e) => e.from === from)?.to;
+  for (const { node, chain } of containers) {
+    grafted.push(node.id);
+    const members = [node, ...chain];
+    const tail = members[members.length - 1]!;
+    const exitId = storedEdgeTarget(tail.id);
+    const exit = exitId ? stored.nodes.find((n) => n.id === exitId) : undefined;
+    for (const m of members) {
+      if (carriedIds.has(m.id)) continue; // a (malformed) shared member carries once
+      carryNodes.push(m);
+      carriedIds.add(m.id);
+    }
+    for (let i = 0; i < members.length - 1; i += 1) {
+      carryEdges.push({ from: members[i]!.id, to: members[i + 1]!.id });
+    }
+    if (exit && exit.type === "end" && !carriedIds.has(exit.id)) {
+      carryNodes.push(exit);
+      carriedIds.add(exit.id);
+      carryEdges.push({ from: tail.id, to: exit.id });
+    } else if (exit && exit.type === "end") {
+      carryEdges.push({ from: tail.id, to: exit.id });
+    } else {
+      // Malformed stored exit — terminate the graft honestly.
+      const endId = freshNodeId(
+        { entry: fresh.entry, nodes: [...fresh.nodes, ...carryNodes], edges: [] },
+        "end-added",
+      );
+      carryNodes.push({ id: endId, type: "end" });
+      carriedIds.add(endId);
+      carryEdges.push({ from: tail.id, to: endId });
+    }
+  }
+
+  // Rename colliding FRESH ids (entry, edges and branch gotos follow).
+  const renamedFreshIds: Record<string, string> = {};
+  const taken = new Set<string>([...fresh.nodes.map((n) => n.id), ...carriedIds]);
+  const renameOf = (id: string): string => {
+    if (!carriedIds.has(id)) return id;
+    if (!renamedFreshIds[id]) {
+      let n = 2;
+      while (taken.has(`${id}-r${n}`)) n += 1;
+      renamedFreshIds[id] = `${id}-r${n}`;
+      taken.add(renamedFreshIds[id]);
+    }
+    return renamedFreshIds[id];
+  };
+  const freshNodes = fresh.nodes.map((n) => {
+    const id = renameOf(n.id);
+    const renamed = id === n.id ? n : { ...n, id };
+    return renamed.type === "branch"
+      ? { ...renamed, cases: renamed.cases.map((c) => ({ ...c, goto: renameOf(c.goto) })) }
+      : renamed;
+  });
+  const freshEdges = fresh.edges.map((e) => ({ from: renameOf(e.from), to: renameOf(e.to) }));
+
+  return {
+    graph: {
+      entry: renameOf(fresh.entry),
+      nodes: [...freshNodes, ...carryNodes],
+      edges: [...freshEdges, ...carryEdges],
+    },
+    grafted,
+    renamedFreshIds,
+  };
+}
+
+/**
  * Remove a step, splicing its chain (its preceding gap-delay goes with it
  * unless it is the graph's LAST delay — generated graphs always carry one and
  * the edit gate preserves that). Refuses to remove the graph's only step, or
@@ -348,8 +451,8 @@ export function removeStep(graph: CampaignGraph, stepId: string): CampaignGraph 
   }
   const container = stepContainerOf(graph, stepId);
   if (!container) throw new GraphMutationError(`Step "${stepId}" is not on an editable path`);
-  assertChainNotShared(graph, container);
   const chain = containerNodes(graph, container);
+  assertChainNotShared(graph, container, chain);
   if (container.kind === "case" && chain.filter((c) => c.type === "step").length <= 1) {
     throw new GraphMutationError(
       "This reply strategy needs at least one step — edit it instead of deleting",
@@ -400,8 +503,8 @@ export function moveStep(
 ): CampaignGraph {
   const container = stepContainerOf(graph, stepId);
   if (!container) throw new GraphMutationError(`Step "${stepId}" is not on an editable path`);
-  assertChainNotShared(graph, container);
   const chain = containerNodes(graph, container);
+  assertChainNotShared(graph, container, chain);
   const stepIdxs = chain
     .map((n, i) => ({ n, i }))
     .filter(({ n }) => n.type === "step")

@@ -10,7 +10,9 @@ import { describe, expect, it } from "vitest";
 import {
   addStep,
   addSubcampaign,
+  chainForCase,
   containerNodes,
+  graftSubcampaigns,
   GraphMutationError,
   moveStep,
   removeStep,
@@ -227,5 +229,134 @@ describe("shared-chain refusal — across container kinds", () => {
     const graph = crossShared();
     const { graph: next } = addSubcampaign(graph, { name: "Fresh", seed: [{ channel: "email" }] });
     expect(() => validateGraph(next)).not.toThrow();
+  });
+});
+
+describe("review-round pins (#92)", () => {
+  it("a present-but-blank seed content takes the sendable defaults; riders survive", () => {
+    const { graph, stepIds } = addSubcampaign(stored(), {
+      name: "Blanks",
+      seed: [
+        { channel: "email", content: {} },
+        { channel: "email", content: { threaded: true } },
+        { channel: "email", content: { subject: "Custom subject", body: "  " } },
+      ],
+    });
+    const [s1, s2, s3] = stepIds.map((id) => graph.nodes.find((n) => n.id === id));
+    expect(s1?.type === "step" && s1.content.body?.trim()).toBeTruthy();
+    expect(s2?.type === "step" && s2.content.body?.trim()).toBeTruthy();
+    expect(s2?.type === "step" && s2.content.threaded).toBe(true);
+    expect(s3?.type === "step" && s3.content.body?.trim()).toBeTruthy();
+    expect(s3?.type === "step" && s3.content.subject).toBe("Custom subject");
+    expect(() => validateGraph(graph)).not.toThrow();
+  });
+
+  it("a case chain STOPS at a sub-campaign head — case mutations never rewire the container", () => {
+    const base = stored();
+    const withSub = addSubcampaign(base, { name: "Target", seed: [] });
+    // Point a reply case's goto at the container head (a malformed shape the
+    // gate refuses to persist — the mutation layer must still not corrupt it).
+    const graph: CampaignGraph = {
+      ...withSub.graph,
+      nodes: withSub.graph.nodes.map((n) =>
+        n.type === "branch" && n.id === "branch-reply"
+          ? {
+              ...n,
+              cases: n.cases.map((c) =>
+                c.when !== "default" && c.when.intent === "objection_price"
+                  ? { ...c, goto: withSub.subcampaignId }
+                  : c,
+              ),
+            }
+          : n,
+      ),
+    };
+    // The case chain is EMPTY (stops at the head, exclusive)…
+    expect(chainForCase(graph, "branch-reply", "objection_price")).toEqual([]);
+    // …so adding a step to the case grows the CASE, and the container's own
+    // out-edge (head → its end node) survives byte-identical.
+    const before = graph.edges.find((e) => e.from === withSub.subcampaignId);
+    const added = addStep(graph, {
+      container: { kind: "case", branchId: "branch-reply", caseKey: "objection_price" },
+      channel: "email",
+      content: { body: "Case step.", threaded: true },
+    });
+    const after = added.graph.edges.find((e) => e.from === withSub.subcampaignId);
+    expect(after).toEqual(before);
+  });
+});
+
+describe("graftSubcampaigns — regenerate carries containers (#92 review round)", () => {
+  const fresh = (): CampaignGraph => stored();
+
+  it("carries every container (head + chain + own end) onto the fresh graph, ids verbatim", () => {
+    const prev = addSubcampaign(stored(), {
+      name: "Interested follow-up",
+      seed: [{ channel: "email", content: { subject: "Booking?", body: "Grab a slot." } }],
+    });
+    const { graph, grafted, renamedFreshIds } = graftSubcampaigns(fresh(), prev.graph);
+    expect(grafted).toEqual([prev.subcampaignId]);
+    expect(renamedFreshIds).toEqual({});
+    expect(graph.nodes.find((n) => n.id === prev.subcampaignId)).toMatchObject({
+      type: "subcampaign",
+      ref: "Interested follow-up",
+    });
+    expect(subcampaignChainOf(graph, prev.subcampaignId)!.map((n) => n.id)).toEqual(["step-added-1"]);
+    expect(graph.nodes.some((n) => n.id === "end-added-1")).toBe(true);
+    expect(() => validateGraph(graph)).not.toThrow();
+    // The fresh main path is untouched.
+    expect(graph.entry).toBe("step-1");
+  });
+
+  it("renames COLLIDING fresh ids (container ids are load-bearing rule targets)", () => {
+    const prev = addSubcampaign(stored(), { name: "Keep my id", seed: [{ channel: "email" }] });
+    // A fresh graph that (pathologically) reuses the container's step id.
+    const freshWithCollision: CampaignGraph = {
+      entry: "step-added-1",
+      nodes: [
+        { id: "step-added-1", type: "step", channel: "email", content: { subject: "Hi", body: "Fresh intro." } },
+        { id: "delay-1", type: "delay", amount: 2, unit: "days" },
+        {
+          id: "branch-reply",
+          type: "branch",
+          on: "reply",
+          cases: [
+            { when: { intent: "interested" }, goto: "step-added-1", pipeline: "booked" },
+            { when: "default", goto: "end-1" },
+          ],
+        },
+        { id: "end-1", type: "end" },
+      ],
+      edges: [
+        { from: "step-added-1", to: "delay-1" },
+        { from: "delay-1", to: "branch-reply" },
+      ],
+    };
+    const { graph, renamedFreshIds } = graftSubcampaigns(freshWithCollision, prev.graph);
+    const renamed = renamedFreshIds["step-added-1"]!;
+    expect(renamed).toBeTruthy();
+    // Entry, edges and branch gotos all follow the rename…
+    expect(graph.entry).toBe(renamed);
+    expect(graph.edges.some((e) => e.from === renamed && e.to === "delay-1")).toBe(true);
+    const branch = graph.nodes.find((n) => n.type === "branch" && n.id === "branch-reply");
+    expect(branch?.type === "branch" && branch.cases[0]!.goto).toBe(renamed);
+    // …while the CONTAINER keeps its load-bearing ids verbatim.
+    expect(subcampaignChainOf(graph, prev.subcampaignId)!.map((n) => n.id)).toEqual(["step-added-1"]);
+    expect(() => validateGraph(graph)).not.toThrow();
+  });
+
+  it("is a no-op passthrough when the stored graph has no containers", () => {
+    const f = fresh();
+    const { graph, grafted } = graftSubcampaigns(f, stored());
+    expect(grafted).toEqual([]);
+    expect(graph).toBe(f);
+  });
+
+  it("carries EMPTY containers and multiple containers", () => {
+    let prevGraph = addSubcampaign(stored(), { name: "One", seed: [] }).graph;
+    prevGraph = addSubcampaign(prevGraph, { name: "Two", seed: [{ channel: "email" }] }).graph;
+    const { graph, grafted } = graftSubcampaigns(fresh(), prevGraph);
+    expect(grafted).toEqual(["subcampaign-added-1", "subcampaign-added-2"]);
+    expect(() => validateGraph(graph)).not.toThrow();
   });
 });

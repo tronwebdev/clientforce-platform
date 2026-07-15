@@ -8,6 +8,7 @@
  */
 import { z } from "zod";
 import { campaignRuleTriggerSchema } from "../campaign-rules";
+import type { SubcampaignSeedStep } from "./mutate";
 import { stepBriefSchema, stepContentSchema } from "./validate";
 
 export const SUBCAMPAIGN_NAME_MAX = 80;
@@ -33,3 +34,8 @@ export const createSubcampaignSchema = z.object({
 
 export type SubcampaignSeedStepInput = z.infer<typeof subcampaignSeedStepSchema>;
 export type CreateSubcampaignInput = z.infer<typeof createSubcampaignSchema>;
+
+// Compile-time drift guard: every DTO seed step is a valid mutation seed step
+// (the zod channel subset narrows the mutation's wider Channel).
+const _seedShapeCheck: SubcampaignSeedStep = {} as SubcampaignSeedStepInput;
+void _seedShapeCheck;

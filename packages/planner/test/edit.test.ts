@@ -376,3 +376,89 @@ describe("validateEditedGraph — rule targets survive edits (#90, DEC-077: the 
     ).toBeTruthy();
   });
 });
+
+describe("validateEditedGraph — container well-formedness holds on EVERY write (#92 review round)", () => {
+  const admit = { allowedChannels: ["email"], subcampaigns: "admit-new" as const };
+  const storedWithSub = () => {
+    const prev = playbook();
+    const created = addSubcampaign(prev, {
+      name: "Interested follow-up",
+      seed: [{ channel: "email", content: { subject: "Booking?", body: "Grab a slot." } }],
+    });
+    // the persisted stored version (came through the creator)
+    return validateEditedGraph(prev, created.graph, admit);
+  };
+
+  it("a LATER plain edit can't regress a stored container into a main rejoin", () => {
+    const stored = storedWithSub();
+    const rejoining = {
+      ...stored,
+      edges: stored.edges.map((e) =>
+        e.from === "step-added-1" ? { ...e, to: "step-2" } : e,
+      ),
+    };
+    expect(() => validateEditedGraph(stored, rejoining, emailOnly)).toThrow(/must end at an end node/);
+  });
+
+  it("a LATER plain edit can't point a reply case INTO a stored container's chain (shared) or AT its head", () => {
+    const stored = storedWithSub();
+    const retarget = (intent: string, goto: string) => ({
+      ...stored,
+      nodes: stored.nodes.map((n) =>
+        n.type === "branch" && n.id === "branch-reply"
+          ? {
+              ...n,
+              cases: n.cases.map((c) =>
+                c.when !== "default" && c.when.intent === intent ? { ...c, goto } : c,
+              ),
+            }
+          : n,
+      ),
+    });
+    expect(() =>
+      validateEditedGraph(stored, retarget("objection_price", "step-added-1"), emailOnly),
+    ).toThrow(/shares steps with another path/);
+    // "interested" previously routed to an end node, so the routes-to-step
+    // playbook rule stays quiet — the CONTAINER rule is what refuses here.
+    expect(() =>
+      validateEditedGraph(stored, retarget("interested", "subcampaign-added-1"), emailOnly),
+    ).toThrow(/is a reply case's goto/);
+  });
+
+  it("a LATER plain edit can't splice an edge INTO a stored container head", () => {
+    const stored = storedWithSub();
+    const spliced = {
+      ...stored,
+      edges: stored.edges.map((e) =>
+        e.from === "step-reframe" ? { ...e, to: "subcampaign-added-1" } : e,
+      ),
+    };
+    expect(() => validateEditedGraph(stored, spliced, emailOnly)).toThrow(/is spliced into another flow/);
+  });
+
+  it("previous=null (unreadable stored row) never bricks a graph that carries sub-campaigns", () => {
+    const stored = storedWithSub();
+    // The PUT path's tolerance: the same graph round-trips with previous=null.
+    expect(validateEditedGraph(null, stored, emailOnly)).toBeTruthy();
+    // …but a MALFORMED container still refuses even then.
+    const rejoining = {
+      ...stored,
+      edges: stored.edges.map((e) => (e.from === "step-added-1" ? { ...e, to: "step-2" } : e)),
+    };
+    expect(() => validateEditedGraph(null, rejoining, emailOnly)).toThrow(/must end at an end node/);
+  });
+
+  it("a guarantee the stored version already lacked never bricks an unrelated edit (legacy tolerance)", () => {
+    const stored = storedWithSub();
+    // Malformed STORED shape (imagine a raw legacy row): chain rejoins main.
+    const malformedStored = {
+      ...stored,
+      edges: stored.edges.map((e) => (e.from === "step-added-1" ? { ...e, to: "step-2" } : e)),
+    };
+    // An unrelated copy edit on top of that stored shape still passes…
+    const edited = updateStepContent(malformedStored, "step-1", { body: "tweak" });
+    expect(validateEditedGraph(malformedStored, edited, emailOnly)).toBeTruthy();
+    // …and FIXING it back to well-formed is of course legal too.
+    expect(validateEditedGraph(malformedStored, stored, emailOnly)).toBeTruthy();
+  });
+});

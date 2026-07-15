@@ -87,34 +87,55 @@ export interface BranchChains {
   sharedNodeIds: string[];
 }
 
-/**
- * Every branch's per-case chains. Chain walk stops (exclusive) at end nodes,
- * branch nodes, main-path nodes (rejoins), and cycles — those belong to the
- * flow the chain exits INTO, not to the chain.
- */
-export function branchChains(graph: CampaignGraph): BranchChains[] {
+/** One shared walk index per graph — chain walks all read the same maps. */
+interface WalkIndex {
+  byId: Map<string, GraphNode>;
+  next: Map<string, string>;
+  mainIds: Set<string>;
+}
+
+function walkIndexOf(graph: CampaignGraph): WalkIndex {
   const byId = new Map(graph.nodes.map((n) => [n.id, n]));
   const next = new Map<string, string>();
   for (const e of graph.edges) if (!next.has(e.from)) next.set(e.from, e.to);
-  const mainIds = new Set(mainPath(graph).map((n) => n.id));
+  return { byId, next, mainIds: new Set(mainPath(graph).map((n) => n.id)) };
+}
 
+/**
+ * The ONE container chain walk: the run of nodes from `start` up to
+ * (exclusive) end nodes, branch nodes, subcampaign nodes (container heads
+ * belong to their container, never to another chain — #90/DEC-077),
+ * main-path nodes (rejoins), and cycles — those belong to the flow the
+ * chain exits INTO, not to the chain. `skip` excludes the walk's own head.
+ */
+function walkChain(index: WalkIndex, start: string | undefined, skip?: string): GraphNode[] {
+  const chain: GraphNode[] = [];
+  const seen = new Set<string>(skip ? [skip] : []);
+  let cur = start;
+  while (cur && !seen.has(cur)) {
+    seen.add(cur);
+    if (index.mainIds.has(cur)) break;
+    const n = index.byId.get(cur);
+    if (!n || n.type === "end" || n.type === "branch" || n.type === "subcampaign") break;
+    chain.push(n);
+    cur = index.next.get(cur);
+  }
+  return chain;
+}
+
+/**
+ * Every branch's per-case chains (see {@link walkChain} for the stop rules —
+ * one shared walk, so a case chain never swallows a sub-campaign head).
+ */
+export function branchChains(graph: CampaignGraph): BranchChains[] {
+  const index = walkIndexOf(graph);
   const out: BranchChains[] = [];
   for (const node of graph.nodes) {
     if (node.type !== "branch") continue;
     const cases: BranchCaseChain[] = [];
     const counts = new Map<string, number>();
     for (const c of node.cases) {
-      const chain: GraphNode[] = [];
-      const seen = new Set<string>();
-      let cur: string | undefined = c.goto;
-      while (cur && !seen.has(cur)) {
-        seen.add(cur);
-        if (mainIds.has(cur)) break;
-        const n = byId.get(cur);
-        if (!n || n.type === "end" || n.type === "branch") break;
-        chain.push(n);
-        cur = next.get(cur);
-      }
+      const chain = walkChain(index, c.goto);
       for (const n of chain) counts.set(n.id, (counts.get(n.id) ?? 0) + 1);
       cases.push({ key: caseKeyOf(c), case: c, chain });
     }
@@ -156,28 +177,30 @@ export interface SubcampaignChain {
  * the chain).
  */
 export function subcampaignChains(graph: CampaignGraph): SubcampaignChain[] {
-  const byId = new Map(graph.nodes.map((n) => [n.id, n]));
-  const next = new Map<string, string>();
-  for (const e of graph.edges) if (!next.has(e.from)) next.set(e.from, e.to);
-  const mainIds = new Set(mainPath(graph).map((n) => n.id));
-
+  const index = walkIndexOf(graph);
   const out: SubcampaignChain[] = [];
   for (const node of graph.nodes) {
     if (node.type !== "subcampaign") continue;
-    const chain: GraphNode[] = [];
-    const seen = new Set<string>([node.id]);
-    let cur: string | undefined = next.get(node.id);
-    while (cur && !seen.has(cur)) {
-      seen.add(cur);
-      if (mainIds.has(cur)) break;
-      const n = byId.get(cur);
-      if (!n || n.type === "end" || n.type === "branch" || n.type === "subcampaign") break;
-      chain.push(n);
-      cur = next.get(cur);
-    }
-    out.push({ node, chain });
+    out.push({ node, chain: walkChain(index, index.next.get(node.id), node.id) });
   }
   return out;
+}
+
+/**
+ * The node a sub-campaign container exits into — its chain tail's out-edge
+ * target (the container node's own out-edge for an empty chain). A
+ * well-formed container exits into its OWN end node; anything else (a main
+ * rejoin, a branch, a cycle back into the chain, nothing) is the malformed
+ * shape the edit gate refuses.
+ */
+export function subcampaignExitOf(
+  graph: CampaignGraph,
+  subcampaignId: string,
+): GraphNode | undefined {
+  const chain = subcampaignChainOf(graph, subcampaignId) ?? [];
+  const tailId = chain.length > 0 ? chain[chain.length - 1]!.id : subcampaignId;
+  const exitId = graph.edges.find((e) => e.from === tailId)?.to;
+  return exitId ? graph.nodes.find((n) => n.id === exitId) : undefined;
 }
 
 /** One sub-campaign's chain (see {@link subcampaignChains}); undefined when unknown. */

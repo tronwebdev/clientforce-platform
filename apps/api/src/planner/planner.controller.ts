@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Body,
+  ConflictException,
   Controller,
   Get,
   Inject,
@@ -21,6 +22,7 @@ import {
 import {
   addSubcampaign,
   campaignGraphSchema,
+  campaignRuleActionSchema,
   campaignRuleTriggerSchema,
   createSubcampaignSchema,
   GUIDED_EMAIL_CREDITS,
@@ -34,8 +36,13 @@ import {
 } from "@clientforce/core";
 import { IntentSchema } from "@clientforce/events";
 import { z } from "zod";
-import { Role } from "@clientforce/db";
-import { createPlanQueue, validateEditedGraph, type PlanTarget } from "@clientforce/planner";
+import { Role, type Prisma } from "@clientforce/db";
+import {
+  createPlanQueue,
+  validateEditedGraph,
+  type EditContext,
+  type PlanTarget,
+} from "@clientforce/planner";
 import { mainStepPosition } from "@clientforce/workflows";
 import type { ZodSchema } from "zod";
 import { Roles } from "../auth/decorators";
@@ -62,17 +69,15 @@ const composePreviewSchema = z.object({
 
 type RuleTrigger = z.infer<typeof campaignRuleTriggerSchema>;
 
-/** The node ids a rule row's `move_to_node` actions point at (raw Json-tolerant). */
+/**
+ * The node ids a rule row's `move_to_node` actions point at — parsed through
+ * the canonical R1 action union (the same read `packages/automations` does);
+ * an unparseable row contributes nothing (it renders as its own error state).
+ */
 function moveTargetIdsOf(actions: unknown): string[] {
-  if (!Array.isArray(actions)) return [];
-  return actions.flatMap((a) =>
-    typeof a === "object" &&
-    a !== null &&
-    (a as { kind?: unknown }).kind === "move_to_node" &&
-    typeof (a as { targetNodeId?: unknown }).targetNodeId === "string"
-      ? [(a as { targetNodeId: string }).targetNodeId]
-      : [],
-  );
+  const parsed = z.array(campaignRuleActionSchema).safeParse(actions);
+  if (!parsed.success) return [];
+  return parsed.data.flatMap((a) => (a.kind === "move_to_node" ? [a.targetNodeId] : []));
 }
 
 /**
@@ -80,16 +85,78 @@ function moveTargetIdsOf(actions: unknown): string[] {
  * + same payload — `reply_classified` intents compare as SETS, `sequence_quiet`
  * by its day count. Overlapping-but-different triggers coexist (R1 row order
  * arbitrates multi-rule events); only an EQUAL trigger is a duplicate.
+ * Exhaustive over the union — a new trigger kind fails compilation here.
  */
 function sameTrigger(a: RuleTrigger, b: RuleTrigger): boolean {
   if (a.kind !== b.kind) return false;
-  if (a.kind === "reply_classified" && b.kind === "reply_classified") {
-    const setA = new Set(a.intents);
-    const setB = new Set(b.intents);
-    return setA.size === setB.size && [...setA].every((i) => setB.has(i));
+  switch (a.kind) {
+    case "reply_classified": {
+      const other = b as Extract<RuleTrigger, { kind: "reply_classified" }>;
+      const setA = new Set(a.intents);
+      const setB = new Set(other.intents);
+      return setA.size === setB.size && [...setA].every((i) => setB.has(i));
+    }
+    case "sequence_quiet":
+      return a.days === (b as Extract<RuleTrigger, { kind: "sequence_quiet" }>).days;
+    case "meeting_booked":
+    case "opted_out":
+    case "email_opened":
+    case "link_clicked":
+    case "lead_captured":
+      return true;
   }
-  if (a.kind === "sequence_quiet" && b.kind === "sequence_quiet") return a.days === b.days;
-  return true;
+}
+
+/**
+ * The ONE manual-edit persistence chain (#90 review round): repairGraph →
+ * validateEditedGraph → next MANUAL version + graphId pointer. Both writers
+ * (`PUT /planner/graph`, `POST /planner/subcampaign`) ride it; a version
+ * collision (two writers raced the same `latest`) surfaces as a typed 409
+ * instead of a raw P2002 500.
+ */
+async function persistManualEdit(
+  tx: Prisma.TransactionClient,
+  params: {
+    workspaceId: string;
+    campaignId: string;
+    latestVersion: number;
+    previous: CampaignGraph | null;
+    candidate: CampaignGraph;
+    ctx: EditContext;
+  },
+) {
+  const { graph: repaired, repairs } = repairGraph(params.candidate);
+  let graph: CampaignGraph;
+  try {
+    graph = validateEditedGraph(params.previous, repaired, params.ctx);
+  } catch (err) {
+    throw new UnprocessableEntityException({
+      message: "Invalid campaign graph",
+      detail: err instanceof Error ? err.message : String(err),
+      ...(repairs.length > 0 ? { repaired: repairs } : {}),
+    });
+  }
+  let row;
+  try {
+    row = await tx.campaignGraph.create({
+      data: {
+        workspaceId: params.workspaceId,
+        campaignId: params.campaignId,
+        version: params.latestVersion + 1,
+        source: "MANUAL",
+        graph: graph as object,
+      },
+    });
+  } catch (err) {
+    if ((err as { code?: string }).code === "P2002") {
+      throw new ConflictException({
+        message: "The sequence changed underneath this edit — reload and try again",
+      });
+    }
+    throw err;
+  }
+  await tx.campaign.update({ where: { id: params.campaignId }, data: { graphId: row.id } });
+  return { row, repairs };
 }
 
 function parse<T>(schema: ZodSchema<T>, value: unknown): T {
@@ -174,30 +241,17 @@ export class PlannerController {
       const enabledRules = await tx.campaignRule.findMany({
         where: { campaignId: campaign.id, enabled: true },
       });
-      const { graph: repaired, repairs } = repairGraph(dto.graph as CampaignGraph);
-      let graph: CampaignGraph;
-      try {
-        graph = validateEditedGraph(previous, repaired, {
+      const { row, repairs } = await persistManualEdit(tx, {
+        workspaceId,
+        campaignId: campaign.id,
+        latestVersion: latest?.version ?? 0,
+        previous,
+        candidate: dto.graph as CampaignGraph,
+        ctx: {
           allowedChannels: smsSender ? ["email", "sms"] : ["email"],
           ruleTargetNodeIds: enabledRules.flatMap((r) => moveTargetIdsOf(r.actions)),
-        });
-      } catch (err) {
-        throw new UnprocessableEntityException({
-          message: "Invalid campaign graph",
-          detail: err instanceof Error ? err.message : String(err),
-          ...(repairs.length > 0 ? { repaired: repairs } : {}),
-        });
-      }
-      const row = await tx.campaignGraph.create({
-        data: {
-          workspaceId,
-          campaignId: campaign.id,
-          version: (latest?.version ?? 0) + 1,
-          source: "MANUAL",
-          graph: graph as object,
         },
       });
-      await tx.campaign.update({ where: { id: campaign.id }, data: { graphId: row.id } });
       return { ...row, repaired: repairs };
     });
   }
@@ -278,7 +332,7 @@ export class PlannerController {
         }
       }
 
-      // The mutation, then the verbatim PUT gate chain.
+      // The mutation, then the ONE shared persistence chain.
       let mutated: ReturnType<typeof addSubcampaign>;
       try {
         mutated = addSubcampaign(previous, { name: dto.name, seed: dto.seed });
@@ -291,36 +345,23 @@ export class PlannerController {
       const smsSender = await tx.senderConnection.findFirst({
         where: { type: "TWILIO_SMS", status: "ACTIVE" },
       });
-      const { graph: repaired, repairs } = repairGraph(mutated.graph);
-      let graph: CampaignGraph;
-      try {
-        graph = validateEditedGraph(previous, repaired, {
+      const { row, repairs } = await persistManualEdit(tx, {
+        workspaceId,
+        campaignId: campaign.id,
+        latestVersion: latest.version,
+        previous,
+        candidate: mutated.graph,
+        ctx: {
           allowedChannels: smsSender ? ["email", "sms"] : ["email"],
           subcampaigns: "admit-new",
           ruleTargetNodeIds: rules.flatMap((r) => moveTargetIdsOf(r.actions)),
-        });
-      } catch (err) {
-        throw new UnprocessableEntityException({
-          message: "Invalid campaign graph",
-          detail: err instanceof Error ? err.message : String(err),
-          ...(repairs.length > 0 ? { repaired: repairs } : {}),
-        });
-      }
+        },
+      });
 
       const maxOrder = await tx.campaignRule.aggregate({
         where: { campaignId: campaign.id },
         _max: { order: true },
       });
-      const row = await tx.campaignGraph.create({
-        data: {
-          workspaceId,
-          campaignId: campaign.id,
-          version: latest.version + 1,
-          source: "MANUAL",
-          graph: graph as object,
-        },
-      });
-      await tx.campaign.update({ where: { id: campaign.id }, data: { graphId: row.id } });
       const rule = await tx.campaignRule.create({
         data: {
           workspaceId,
