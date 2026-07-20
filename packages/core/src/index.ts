@@ -67,6 +67,10 @@ export * from "./campaign-rules";
 // cross-tenant, platform-staff auth, never tenant-scoped.
 export * from "./backoffice";
 
+// List hygiene — email validation at every ingress (LH1, DEC-087): the
+// verdict enum of record, batch report DTOs, gate refusal/hold vocabulary.
+export * from "./validation";
+
 /**
  * Narrow an arbitrary string to a branded {@link Id}. Real validation arrives
  * with the data model; this keeps the type honest without runtime cost.

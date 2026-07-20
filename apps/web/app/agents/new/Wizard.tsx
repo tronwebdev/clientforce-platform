@@ -11,9 +11,10 @@
  * actions (the orchestrator); each step renders from props.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { addStep as addStepMutation, BRIEF_TALKING_POINTS_MIN, CONTEXT_FIELD_META, customTokensMissingFallback, GOAL_KEYS, GraphMutationError, GUIDED_EMAIL_CREDITS, GUIDED_SMS_CREDITS, requiredFieldsFor, subcampaignChains, updateDelay as updateDelayMutation, updateStepBrief, updateStepContent, type GoalKey } from "@clientforce/core";
+import { addStep as addStepMutation, BRIEF_TALKING_POINTS_MIN, CONTACT_INVALID_MESSAGE, CONTEXT_FIELD_META, customTokensMissingFallback, GOAL_KEYS, GraphMutationError, GUIDED_EMAIL_CREDITS, GUIDED_SMS_CREDITS, requiredFieldsFor, subcampaignChains, updateDelay as updateDelayMutation, updateStepBrief, updateStepContent, type GoalKey } from "@clientforce/core";
 import type { CampaignGraph, CampaignOutcomes, CampaignRuleTrigger, ContactFieldDefDto, DraftState, GraphNode } from "@clientforce/core";
 import type { SubcampaignCreated } from "../../../components/sequence/SubcampaignCreator";
+import { CfError } from "../../../components/sequence/shared";
 import type { WizardSubRule } from "./steps/Step2Sequence";
 import { mainSteps, strategyStepsOf } from "../../../lib/graph-path";
 import { goalFitOf } from "../../../lib/goal-fit";
@@ -240,6 +241,10 @@ export function Wizard() {
   const [launched, setLaunched] = useState(false);
   const [enrolled, setEnrolled] = useState(0);
   const [enrollTarget, setEnrollTarget] = useState(0); // C2.8: adds + list snapshot
+  // LH1 W3 (DEC-087): the gate's honest launch outcomes — held contacts flow
+  // in as verdicts return (never a blocking spinner), invalid are excluded.
+  const [enrollHeld, setEnrollHeld] = useState({ unverified: 0, risky_held: 0, cap_overflow: 0 });
+  const [enrollRefused, setEnrollRefused] = useState(0);
 
   // ── B6: draft resume ("Continue setup" → /agents/new?agent=<id>) ─────────
   // Durable state (name/goal/instructions/sources/gaps/context/graph) refetches
@@ -1242,14 +1247,27 @@ export function Wizard() {
       for (const m of members) origins.set(m.id, { kind: "csv", listId: csvImport.listId, listName: csvImport.name });
     }
     for (const c of added) origins.set(c.id, { kind: c.src ?? "manual" });
+    // LH1 W3 (DEC-087): the enrollment gate answers per contact — enrolled
+    // now, HELD (unverified/risky/cap — a 200: the launch completed, sending
+    // starts as they clear), or typed-refused (invalid, excluded). Launch
+    // never blocks on validation.
     let ok = 0;
+    let refused = 0;
+    const held = { unverified: 0, risky_held: 0, cap_overflow: 0 };
     for (const [contactId, origin] of origins) {
       await cf("enrollments", { method: "POST", body: JSON.stringify({ agentId, contactId, origin }) })
-        .then(() => { ok += 1; })
-        .catch(() => {});
+        .then((res: { held?: boolean; reason?: keyof typeof held }) => {
+          if (res.held && res.reason && res.reason in held) held[res.reason] += 1;
+          else ok += 1;
+        })
+        .catch((err: unknown) => {
+          if (err instanceof CfError && err.status === 422 && err.detail === CONTACT_INVALID_MESSAGE) refused += 1;
+        });
     }
     setEnrollTarget(origins.size);
     setEnrolled(ok);
+    setEnrollHeld(held);
+    setEnrollRefused(refused);
     setDeploying(false);
     setLaunched(true);
   }
@@ -1300,11 +1318,37 @@ export function Wizard() {
         <div style={{ fontSize: 15.5, color: "rgba(255,255,255,.6)", maxWidth: 440, lineHeight: 1.55, marginBottom: 22, animation: "cfFadeUp .5s .42s both" }}>
           <strong style={{ color: "#fff", fontWeight: 600 }}>{name}</strong> is now reaching {enrolled} contact{enrolled === 1 ? "" : "s"} over email. First sends go out in the next scheduled window.
         </div>
-        {enrolled < enrollTarget ? (
-          <div style={{ fontSize: 12.5, color: "#E8C45B", marginBottom: 18, animation: "cfFadeUp .5s .47s both" }} data-testid="enroll-warning">
-            ⚠ {enrollTarget - enrolled} of {enrollTarget} contacts couldn&apos;t be enrolled — retry from the agent&apos;s Leads tab.
+        {/* LH1 W3 (DEC-087): honest gate outcomes — held contacts FLOW IN as
+            verdicts return (never a blocking state); invalid are excluded. */}
+        {enrollHeld.unverified > 0 ? (
+          <div style={{ fontSize: 12.5, color: "#D0F56B", marginBottom: 8, animation: "cfFadeUp .5s .45s both" }} data-testid="enroll-validating">
+            Validating {enrollHeld.unverified} contact{enrollHeld.unverified === 1 ? "" : "s"} — sending starts as they clear.
           </div>
         ) : null}
+        {enrollHeld.risky_held > 0 ? (
+          <div style={{ fontSize: 12.5, color: "#E8C45B", marginBottom: 8, animation: "cfFadeUp .5s .46s both" }} data-testid="enroll-risky-held">
+            {enrollHeld.risky_held} risky address{enrollHeld.risky_held === 1 ? "" : "es"} held (workspace policy).
+          </div>
+        ) : null}
+        {enrollHeld.cap_overflow > 0 ? (
+          <div style={{ fontSize: 12.5, color: "#E8C45B", marginBottom: 8, animation: "cfFadeUp .5s .46s both" }} data-testid="enroll-cap-queued">
+            {enrollHeld.cap_overflow} queued by the daily enrollment cap — they enroll tomorrow.
+          </div>
+        ) : null}
+        {enrollRefused > 0 ? (
+          <div style={{ fontSize: 12.5, color: "#E0796B", marginBottom: 8, animation: "cfFadeUp .5s .47s both" }} data-testid="enroll-refused">
+            {enrollRefused} invalid address{enrollRefused === 1 ? "" : "es"} excluded (list hygiene).
+          </div>
+        ) : null}
+        {(() => {
+          const accounted = enrolled + enrollHeld.unverified + enrollHeld.risky_held + enrollHeld.cap_overflow + enrollRefused;
+          const failedN = enrollTarget - accounted;
+          return failedN > 0 ? (
+            <div style={{ fontSize: 12.5, color: "#E8C45B", marginBottom: 18, animation: "cfFadeUp .5s .47s both" }} data-testid="enroll-warning">
+              ⚠ {failedN} of {enrollTarget} contacts couldn&apos;t be enrolled — retry from the agent&apos;s Leads tab.
+            </div>
+          ) : null;
+        })()}
         <div style={{ display: "flex", gap: 9, marginBottom: 32, animation: "cfFadeUp .5s .52s both" }}>
           {[`${stepCount}-step sequence`, "Email", `${enrolled} contact${enrolled === 1 ? "" : "s"}`].map((chip) => (
             <span key={chip} style={{ fontSize: 12.5, fontWeight: 600, color: "#D0F56B", background: "rgba(208,245,107,.12)", border: "1px solid rgba(208,245,107,.25)", borderRadius: 100, padding: "7px 15px" }}>{chip}</span>

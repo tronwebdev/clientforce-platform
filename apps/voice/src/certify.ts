@@ -2,7 +2,7 @@
  * Certification harness (P3.1, DEC-078) — the ≥100-turn run that closes the
  * ADR's promote gate, as AMENDED by the owner rulings of 2026-07-15 after the
  * 7-run falsification trail: TTFA p50 ≤ 1.2s AND p95 ≤ 2.0s with the ack-mask
- * invariant ≥95% (DEC-087), 0 dropped audio, and mid-utterance replies ≤7% of
+ * invariant ≥95% (DEC-089), 0 dropped audio, and mid-utterance replies ≤7% of
  * turns (DEC-088 — the residual is STT-layer, VAD-bounded), measured from the
  * turn-committing STT event (the ADR's anchor). A scheduled run keeps the
  * gate monitored on main (DEC-088).
@@ -368,7 +368,7 @@ async function main(): Promise<void> {
   const ttfaP95 = percentile(allTtfa, 95);
   const ackRateMean = ackRates.reduce((a, b) => a + b, 0) / ackRates.length;
   // Owner-ruled amendments (2026-07-15, after the 7-run falsification trail):
-  // - DEC-087: p95 ≤ 2000ms — the 1729-1958ms band is a stable VENDOR
+  // - DEC-089: p95 ≤ 2000ms — the 1729-1958ms band is a stable VENDOR
   //   first-token tail, with the ack clip pinned as an INVARIANT (≥95% of
   //   turns masked) so the caller never hears the tail as silence.
   // - DEC-088: mid-utterance residual ≤7% of turns — the remaining 4-7/~110
@@ -416,14 +416,14 @@ async function main(): Promise<void> {
 
   writeFileSync(join(outDir, "cert-table.json"), JSON.stringify({ pass, ...gate }, null, 2));
   const md = [
-    `# P3.1 certification — ${pass ? "PASS" : "FAIL"} (amended gate: DEC-087/DEC-088)`,
+    `# P3.1 certification — ${pass ? "PASS" : "FAIL"} (amended gate: DEC-089/DEC-088)`,
     "",
     "| Gate | Required | Measured | Met |",
     "|---|---|---|---|",
     `| Turns | ≥100 | ${gate.turns} | ${gate.turnsGateMet ? "✅" : "❌"} |`,
     `| TTFA p50 (all turns pooled) | ≤ 1200ms | ${gate.ttfaP50Ms}ms | ${gate.ttfaP50Met ? "✅" : "❌"} |`,
-    `| TTFA p95 (all turns pooled) | ≤ 2000ms (DEC-087) | ${gate.ttfaP95Ms}ms | ${gate.ttfaP95Met ? "✅" : "❌"} |`,
-    `| Ack-mask invariant | ≥95% of turns (DEC-087) | ${(gate.ackRateMean * 100).toFixed(0)}% | ${gate.ackMaskGateMet ? "✅" : "❌"} |`,
+    `| TTFA p95 (all turns pooled) | ≤ 2000ms (DEC-089) | ${gate.ttfaP95Ms}ms | ${gate.ttfaP95Met ? "✅" : "❌"} |`,
+    `| Ack-mask invariant | ≥95% of turns (DEC-089) | ${(gate.ackRateMean * 100).toFixed(0)}% | ${gate.ackMaskGateMet ? "✅" : "❌"} |`,
     `| Dropped audio | 0 | ${gate.droppedAudio} | ${gate.droppedGateMet ? "✅" : "❌"} |`,
     `| Mid-utterance replies | ≤7% of turns (DEC-088) | ${gate.midUtteranceReplies} (${(gate.midUtteranceRate * 100).toFixed(1)}%) | ${gate.midUtteranceGateMet ? "✅" : "❌"} |`,
     "",

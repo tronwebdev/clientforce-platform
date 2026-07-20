@@ -120,6 +120,9 @@ describe.skipIf(!hasDb)("Enrollments API e2e", () => {
           tags: [],
           email: `lead-${suffix}@t.test`,
           firstName: "Dara",
+          // LH1 (DEC-087): the gate holds unverified contacts — this suite
+          // asserts the ENROLLMENT semantics, so its fixture is validated.
+          emailVerdict: "valid",
         },
       })
     ).id;

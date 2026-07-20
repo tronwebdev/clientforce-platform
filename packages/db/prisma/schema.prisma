@@ -211,6 +211,13 @@ model Campaign {
   name        String
   graphId     String
   status      CampaignStatus  @default(ACTIVE)
+  /// LH1 (DEC-087): per-day-per-campaign enrollment cap — bounds the QUEUE
+  /// feeding the send caps (effective send volume stays min(warmup curve,
+  /// dailyLimit) — untouched). null = the platform default constant
+  /// (`ENROLLMENT_DAILY_CAP_DEFAULT`); enforced at the enrollment gate for
+  /// EVERY source. Default ON; owner-flippable per campaign.
+  enrollmentDailyCap   Int?
+  enrollmentCapEnabled Boolean @default(true)
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
   agent       Agent           @relation(fields: [agentId], references: [id], onDelete: Cascade)
@@ -302,6 +309,14 @@ model Contact {
   custom      Json             @default("{}")
   tags        String[]
   optOut      Json
+  /// LH1 (DEC-087): email-validation verdict — valid | risky | invalid |
+  /// unverified (default; `EMAIL_VERDICTS` in @clientforce/core is the
+  /// enum of record). The enrollment gate reads this. The suppression
+  /// ledger stays authoritative: a verdict NEVER un-suppresses.
+  emailVerdict          String    @default("unverified")
+  emailVerdictCheckedAt DateTime?
+  /// zerobounce | cache | syntax | mx — which pass produced the verdict.
+  emailVerdictSource    String?
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
   lists       ContactListMember[]
@@ -310,6 +325,7 @@ model Contact {
 
   @@index([workspaceId, email])
   @@index([workspaceId, phone])
+  @@index([workspaceId, emailVerdict])
 }
 
 model Enrollment {
@@ -388,6 +404,109 @@ enum EnrollmentStatus {
   DONE
   UNSUBSCRIBED
   BOUNCED
+}
+
+/// LH1 (DEC-087): workspace-scoped verdict cache — one row per normalized
+/// address; re-imports/re-enrolls inside the TTL (~90d) never re-bill the
+/// provider. `billedAt` is the COGS meter: set only when a PAID provider
+/// call produced the verdict (free-filter verdicts carry billedAt = null),
+/// so allowance/ceiling/usage counts are one indexed count away.
+model EmailValidationVerdict {
+  id          String    @id @default(cuid())
+  workspaceId String
+  /// Lowercased, trimmed address — the cache key.
+  address     String
+  /// valid | risky | invalid (an unknown-yet address simply has no row).
+  verdict     String
+  /// Provider sub-status (e.g. "mailbox_not_found") — report row detail.
+  subStatus   String?
+  /// zerobounce | syntax | mx — which pass wrote it.
+  source      String
+  checkedAt   DateTime  @default(now())
+  expiresAt   DateTime
+  billedAt    DateTime?
+  costMicros  Int       @default(0)
+
+  @@unique([workspaceId, address])
+  @@index([workspaceId, billedAt])
+  @@index([billedAt])
+}
+
+/// LH1 (DEC-087): one async validation run (a CSV import, a single add).
+/// Validation NEVER blocks a flow — batches carry honest progress and honest
+/// holds (allowance / spend ceiling / provider down), and the report reads
+/// item outcomes progressively as chunks return.
+model ValidationBatch {
+  id          String                @id @default(cuid())
+  workspaceId String
+  /// Client idempotency key (the web import flow's uuid) — every chunk of
+  /// one import lands on ONE batch.
+  clientKey   String?
+  /// csv_import | manual | single
+  source      String
+  /// queued | running | held | completed
+  status      String                @default("queued")
+  /// workspace_allowance | platform_spend_ceiling | provider_unavailable
+  heldReason  String?
+  listId      String?
+  /// Optimistic chunk-claim lease — a second worker turn on the same batch
+  /// skips instead of double-billing the provider.
+  claimedUntil DateTime?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  completedAt DateTime?
+  items       ValidationBatchItem[]
+
+  @@unique([workspaceId, clientKey])
+  @@index([workspaceId, status])
+}
+
+model ValidationBatchItem {
+  id          String          @id @default(cuid())
+  workspaceId String
+  batchId     String
+  contactId   String
+  address     String
+  /// pending | valid | risky | invalid | skipped_suppressed
+  outcome     String          @default("pending")
+  /// zerobounce | cache | syntax | mx | suppression
+  via         String?
+  detail      String?
+  billed      Boolean         @default(false)
+  updatedAt   DateTime        @updatedAt
+  batch       ValidationBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@unique([batchId, contactId])
+  @@index([workspaceId])
+  @@index([batchId, outcome])
+}
+
+/// LH1 (DEC-087): the enrollment gate's hold queue — a persisted INTENT to
+/// enroll that drains progressively as verdicts return and the daily cap
+/// frees. A hold owns no workflow; it becomes an Enrollment only back
+/// through the gate. Reasons: unverified (validation pending) · risky_held
+/// (workspace policy, default hold) · cap_overflow (drains next day).
+model EnrollmentHold {
+  id           String   @id @default(cuid())
+  workspaceId  String
+  campaignId   String
+  agentId      String
+  contactId    String
+  senderId     String?
+  origin       Json?
+  reason       String
+  /// pending | released | refused
+  status       String   @default("pending")
+  /// Typed refusal code when refused (CONTACT_INVALID).
+  refusalCode  String?
+  /// The Enrollment created when this hold released.
+  enrollmentId String?
+  requestedAt  DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([campaignId, contactId])
+  @@index([workspaceId, status])
+  @@index([campaignId, status])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

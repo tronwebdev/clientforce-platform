@@ -160,6 +160,22 @@ jobs:
           else
             voiceAllowlist=false
             echo "VOICE-ALLOWLIST not in Key Vault — no live voice recipients anywhere (DEC-063 analog)."
+          # LH1 (DEC-087): ZeroBounce key — vendor-spine conditional wiring.
+          # Canonical name first; the owner stored the key as ASMITH-KEY-L1
+          # (message, 2026-07-15) — accepted as a fallback so staging lights
+          # up without a vault rename. Normalizing to ZEROBOUNCE-API-KEY is
+          # the documented owner step.
+          zerobounce=false
+          zerobounceSecretName=ZEROBOUNCE-API-KEY
+          for name in ZEROBOUNCE-API-KEY ASMITH-KEY-L1; do
+            if az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name "$name" --query id -o tsv >/dev/null 2>&1; then
+              zerobounce=true
+              zerobounceSecretName="$name"
+              break
+            fi
+          done
+          if [ "$zerobounce" = false ]; then
+            echo "ZeroBounce key not in Key Vault (checked ZEROBOUNCE-API-KEY, ASMITH-KEY-L1) — email validation holds batches with the typed provider refusal (LH1 owner step)."
           fi
           az deployment group create \
             --resource-group "$RG" \
@@ -180,6 +196,8 @@ jobs:
               smsAllowlistAvailable="$smsAllowlist" \
               voiceFromAvailable="$voiceFrom" \
               voiceAllowlistAvailable="$voiceAllowlist"
+              zerobounceSecretAvailable="$zerobounce" \
+              zerobounceSecretName="$zerobounceSecretName"
 
       # ── Expose the deployed web FQDN for the e2e job ──
       - name: Resolve web FQDN

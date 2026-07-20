@@ -107,6 +107,9 @@ export class ContactsViewController {
           source: c.source,
           custom: c.custom ?? {},
           lists: listsBy.get(c.id) ?? [],
+          // LH1 (DEC-087): the validation verdict chip (valid | risky |
+          // invalid | unverified) — suppression/unsub stays its own signal.
+          emailVerdict: c.emailVerdict,
           createdAt: c.createdAt.toISOString(),
           stage: enr?.pipelineStage ?? null,
           // C2.9: the completing campaign's terminal wording (per-row pills +

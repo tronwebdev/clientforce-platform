@@ -43,6 +43,10 @@ const LOG_ROW: Record<string, { icon: string; bg: string; fg: string }> = {
   "call.failed.v1": { icon: "⚠", bg: "rgba(224,121,107,.14)", fg: "#C9543F" },
   "call.refused.v1": { icon: "⊘", bg: "rgba(232,196,91,.2)", fg: "#9A6B12" },
   "voice.compose_refused.v1": { icon: "⚠", bg: "rgba(232,196,91,.2)", fg: "#9A6B12" },
+  // LH1 W3 (DEC-087): the enrollment gate's typed refusal — a red row (the
+  // contact never entered the sequence; unlike compose refusals nothing is
+  // paused, because nothing was enrolled).
+  "contact.enrollment_refused.v1": { icon: "⊘", bg: "rgba(224,121,107,.14)", fg: "#C9543F" },
 };
 
 function describe(e: LogEvent): string {
@@ -71,6 +75,7 @@ function describe(e: LogEvent): string {
     case "call.failed.v1": return `AI call to ${who} didn't complete${p.reason ? ` — ${String(p.reason).replace(/_/g, " ")}` : ""}.`;
     case "call.refused.v1": return `Dial to ${who} refused — ${String(p.reason ?? "rails blocked it")}. Nothing was dialed.`;
     case "voice.compose_refused.v1": return `A spoken turn for ${who} tripped its checks — ${String(p.reason ?? "check failed")}; the agent used the fallback line and the call continued.`;
+    case "contact.enrollment_refused.v1": return `Enrollment refused for ${who} — ${p.reason === "CONTACT_INVALID" ? "invalid email address (list hygiene)" : String(p.reason ?? "refused")}${p.detail ? ` (${String(p.detail)})` : ""}. Nothing was enrolled or sent.`;
     default: return `${e.type} — ${who}`;
   }
 }

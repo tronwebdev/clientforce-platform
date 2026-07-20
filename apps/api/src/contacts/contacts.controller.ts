@@ -5,6 +5,7 @@ import {
   Get,
   Inject,
   NotFoundException,
+  Optional,
   Param,
   Patch,
   Post,
@@ -13,11 +14,23 @@ import {
 } from "@nestjs/common";
 import { contactCustomValuesSchema, importContactsSchema } from "@clientforce/core";
 import { EVENT_TYPES } from "@clientforce/events";
+import {
+  checkMxDomains,
+  domainOf,
+  enqueueValidationBatch,
+  normalizeEmail,
+  syntaxValid,
+  upsertValidationBatch,
+  type ValidationJob,
+} from "@clientforce/validation";
+import type { Queue } from "bullmq";
 import { EVENTS_PUBLISHER, type EventsPublisher } from "../events/publisher";
 import { Role, type Prisma } from "@clientforce/db";
 import { Roles } from "../auth/decorators";
 import type { AuthenticatedRequest } from "../auth/request-context";
+import { PrismaService } from "../db/prisma.service";
 import { TenantClient } from "../db/tenant-client";
+import { VALIDATION_LIGHT_DEPS, VALIDATION_QUEUE, type ValidationLightDeps } from "./validation.providers";
 
 interface CreateContactDto {
   email?: string;
@@ -41,7 +54,10 @@ interface CreateContactDto {
 export class ContactsController {
   constructor(
     private readonly tenant: TenantClient,
+    private readonly prisma: PrismaService,
     @Inject(EVENTS_PUBLISHER) private readonly publisher: EventsPublisher,
+    @Optional() @Inject(VALIDATION_QUEUE) private readonly validationQueue: Queue<ValidationJob> | null,
+    @Optional() @Inject(VALIDATION_LIGHT_DEPS) private readonly lightDeps: ValidationLightDeps | null,
   ) {}
 
   /**
@@ -128,6 +144,7 @@ export class ContactsController {
       let created = 0;
       let suppressed = 0;
       const createdIds: string[] = [];
+      const createdContacts: Array<{ contactId: string; email: string }> = [];
       for (const b of creatable) {
         const c = await tx.contact.create({
           data: {
@@ -147,6 +164,7 @@ export class ContactsController {
           },
         });
         createdIds.push(c.id);
+        createdContacts.push({ contactId: c.id, email: b.email });
         created += 1;
         if (suppressedSet.has(b.email)) suppressed += 1;
       }
@@ -163,8 +181,27 @@ export class ContactsController {
           list = { id: row.id, name: row.name, origin: row.origin };
         }
       }
-      return { created, skippedDuplicates, suppressed, failed, createdIds, list };
+      return { created, skippedDuplicates, suppressed, failed, createdIds, createdContacts, list };
     });
+
+    // LH1 (DEC-087): the ASYNC validation pass — never blocks the import.
+    // Created rows land `unverified` and queue for validation; every chunk of
+    // one import attaches to ONE batch via the client key. Without Redis the
+    // batch row still lands and the worker's requeue sweep picks it up.
+    let validationBatchId: string | undefined;
+    if (result.createdContacts.length > 0) {
+      const { batchId } = await upsertValidationBatch(this.prisma.app, {
+        workspaceId,
+        source: "csv_import",
+        ...(dto.validationBatchKey ? { clientKey: dto.validationBatchKey } : {}),
+        ...(dto.listId ? { listId: dto.listId } : {}),
+        contacts: result.createdContacts,
+      });
+      validationBatchId = batchId;
+      if (this.validationQueue) {
+        await enqueueValidationBatch(this.validationQueue, { workspaceId, batchId });
+      }
+    }
 
     // Membership events publish after the transaction commits (C2.8 join points).
     if (result.list) {
@@ -187,6 +224,7 @@ export class ContactsController {
       skippedDuplicates: result.skippedDuplicates,
       suppressed: result.suppressed,
       failed: result.failed,
+      ...(validationBatchId ? { validationBatchId } : {}),
     };
   }
 
@@ -210,11 +248,46 @@ export class ContactsController {
     });
   }
 
+  /**
+   * LH1 (DEC-087): manual/form/widget adds get the LIGHT pass INLINE (cache →
+   * suppression flag → syntax → MX) — fast, free, never blocking: light-pass
+   * trouble degrades to `unverified`, and anything unresolved queues for the
+   * full async provider verdict. Future ingress sources (form/widget) create
+   * through this same seam and inherit the pass — no per-source forks.
+   */
   @Post()
   @Roles(Role.OWNER, Role.ADMIN, Role.AGENT)
-  create(@Req() req: AuthenticatedRequest, @Body() body: CreateContactDto) {
+  async create(@Req() req: AuthenticatedRequest, @Body() body: CreateContactDto) {
     const workspaceId = req.auth!.activeWorkspaceId;
-    return this.tenant.run(async (tx) => {
+    const email = body.email?.trim() ? body.email.trim() : null;
+    const address = email ? normalizeEmail(email) : null;
+
+    let verdict: { value: string; source: string } | null = null;
+    let suppressed = false;
+    if (address) {
+      const [cached, suppression] = await this.tenant.run(async (tx) =>
+        Promise.all([
+          tx.emailValidationVerdict.findUnique({
+            where: { workspaceId_address: { workspaceId, address } },
+          }),
+          tx.suppression.findFirst({ where: { channel: "email", address }, select: { id: true } }),
+        ]),
+      );
+      suppressed = Boolean(suppression);
+      if (cached && cached.expiresAt > new Date()) {
+        verdict = { value: cached.verdict, source: "cache" };
+      } else if (!syntaxValid(address)) {
+        verdict = { value: "invalid", source: "syntax" };
+      } else if (this.lightDeps?.resolveMx) {
+        const domain = domainOf(address);
+        if (domain) {
+          const mx = await checkMxDomains([domain], this.lightDeps.resolveMx).catch(() => null);
+          if (mx?.get(domain) === "none") verdict = { value: "invalid", source: "mx" };
+        }
+      }
+    }
+
+    const contact = await this.tenant.run(async (tx) => {
       const custom = await validateCustom(tx, body.custom);
       return tx.contact.create({
         data: {
@@ -222,16 +295,38 @@ export class ContactsController {
           source: "manual",
           optOut: {},
           tags: [],
-          email: body.email ?? null,
+          email,
           firstName: body.firstName ?? null,
           lastName: body.lastName ?? null,
           company: body.company ?? null,
           phone: body.phone ?? null,
           title: body.title ?? null,
           ...(custom ? { custom: custom as Prisma.InputJsonValue } : {}),
+          ...(verdict
+            ? {
+                emailVerdict: verdict.value,
+                emailVerdictCheckedAt: new Date(),
+                emailVerdictSource: verdict.source,
+              }
+            : {}),
         },
       });
     });
+
+    // Unresolved by the light pass → queue the real-time provider verdict
+    // (suppressed rows never queue — the free-filter stance: never pay to
+    // validate what can't be sent to anyway).
+    if (address && !verdict && !suppressed) {
+      const { batchId } = await upsertValidationBatch(this.prisma.app, {
+        workspaceId,
+        source: "single",
+        contacts: [{ contactId: contact.id, email: address }],
+      });
+      if (this.validationQueue) {
+        await enqueueValidationBatch(this.validationQueue, { workspaceId, batchId });
+      }
+    }
+    return { ...contact, suppressed };
   }
 
   /** C2.7: custom-value edit (detail drawer). Values merge; defs never change here. */

@@ -11,20 +11,18 @@ import {
   Query,
   UnprocessableEntityException,
 } from "@nestjs/common";
-import { randomUUID } from "node:crypto";
 import {
   createEnrollmentSchema,
   goalTerminalLabel,
   listEnrollmentsQuerySchema,
   parseGuardrails,
   signalReplySchema,
-  validateGraph,
-  type CampaignGraph,
 } from "@clientforce/core";
 import { Role } from "@clientforce/db";
-import { workflowIdFor } from "@clientforce/workflows";
+import { enrollContact, type EnrollEventInput } from "@clientforce/workflows";
 import type { ZodSchema } from "zod";
 import { Roles } from "../auth/decorators";
+import { PrismaService } from "../db/prisma.service";
 import { TenantClient } from "../db/tenant-client";
 import { EVENTS_PUBLISHER, type EventsPublisher } from "../events/publisher";
 import { WORKFLOW_ENGINE, type WorkflowEngine } from "./workflow-engine";
@@ -46,11 +44,19 @@ function parse<T>(schema: ZodSchema<T>, value: unknown): T {
  * idempotent, so re-enrolling or crash-retrying never double-runs). The
  * signal-reply endpoint is the dev/testing surface until P1.7 wires the
  * inbound classifier to the same signal.
+ *
+ * LH1 W3 (DEC-087): creation goes through the SHARED enrollment gate
+ * (`enrollContact` in @clientforce/workflows — the drain uses the same fn):
+ * `invalid` refuses typed (422 CONTACT_INVALID + a cataloged Logs row),
+ * `unverified`/`risky`(policy)/cap-overflow HOLD (a 201 with `held: true` —
+ * the flow completed; sending starts as the contact clears). Pre-LH1
+ * resolution errors keep their exact messages and statuses.
  */
 @Controller("enrollments")
 export class EnrollmentsController {
   constructor(
     private readonly tenant: TenantClient,
+    private readonly prisma: PrismaService,
     @Inject(WORKFLOW_ENGINE) private readonly engine: WorkflowEngine,
     @Inject(EVENTS_PUBLISHER) private readonly publisher: EventsPublisher,
   ) {}
@@ -60,123 +66,40 @@ export class EnrollmentsController {
   async create(@Body() body: unknown) {
     const dto = parse(createEnrollmentSchema, body);
     const workspaceId = this.tenant.workspaceId;
+    const scale = Number(process.env.TEST_DELAY_SCALE);
 
-    const { enrollment, campaignId, senderId, graph, graphVersion, existed } = await this.tenant.run(
-      async (tx) => {
-        const [agent, contact] = await Promise.all([
-          tx.agent.findUnique({ where: { id: dto.agentId } }),
-          tx.contact.findUnique({ where: { id: dto.contactId } }),
-        ]);
-        if (!agent) throw new NotFoundException(`Agent ${dto.agentId} not found`);
-        if (!contact) throw new NotFoundException(`Contact ${dto.contactId} not found`);
-
-        // A5: one agent = one auto-created primary campaign (first by createdAt).
-        const campaign = await tx.campaign.findFirst({
-          where: { agentId: dto.agentId },
-          orderBy: { createdAt: "asc" },
-        });
-        if (!campaign) {
-          throw new UnprocessableEntityException(
-            "Agent has no campaign — plan the campaign first (P1.4)",
-          );
-        }
-        const graphRow = await tx.campaignGraph.findFirst({
-          where: { campaignId: campaign.id },
-          orderBy: { version: "desc" },
-        });
-        if (!graphRow) {
-          throw new UnprocessableEntityException(
-            "Campaign has no graph yet — plan the campaign first (P1.4)",
-          );
-        }
-
-        const sender = dto.senderId
-          ? await tx.senderConnection.findUnique({ where: { id: dto.senderId } })
-          : await tx.senderConnection.findFirst({
-              where: { status: "ACTIVE" },
-              orderBy: { createdAt: "asc" },
-            });
-        if (!sender || sender.status !== "ACTIVE") {
-          throw new UnprocessableEntityException(
-            "No active sender connection — connect a sender in Settings first (P1.5)",
-          );
-        }
-
-        // Idempotent create on (campaignId, contactId) — re-enroll returns the
-        // existing row and re-issues the (deduped) workflow start.
-        const prior = await tx.enrollment.findUnique({
-          where: { campaignId_contactId: { campaignId: campaign.id, contactId: contact.id } },
-        });
-        const id = prior?.id ?? randomUUID();
-        const row =
-          prior ??
-          (await tx.enrollment.create({
-            data: {
-              id,
-              workspaceId,
-              campaignId: campaign.id,
-              contactId: contact.id,
-              workflowId: workflowIdFor(id),
-              pipelineStage: "new",
-              // 49-3: provenance rides the run-audit meta — never a schema change.
-              // W3-4 (DEC-076): the enrolled graph version too — the run is
-              // pinned to it (Temporal input), so surfaces can say honestly
-              // which version a mid-sequence lead finishes on.
-              meta: {
-                ...(dto.origin ? { origin: dto.origin } : {}),
-                graphVersion: graphRow.version,
-              },
-            },
-          }));
-        return {
-          enrollment: row,
-          campaignId: campaign.id,
-          senderId: sender.id,
-          // Graphs are validated at persist time (P1.4); re-validate on the way
-          // into the engine so a hand-edited row can never start a broken run.
-          graph: validateGraph(graphRow.graph) as CampaignGraph,
-          // G1 (DEC-070): guided sends record which brief version wrote them.
-          graphVersion: graphRow.version,
-          existed: Boolean(prior),
-        };
+    const outcome = await enrollContact(
+      {
+        prisma: this.prisma.app,
+        engine: this.engine,
+        publish: (e: EnrollEventInput) => this.publisher.publish(e),
+      },
+      {
+        workspaceId,
+        agentId: dto.agentId,
+        contactId: dto.contactId,
+        ...(dto.senderId ? { senderId: dto.senderId } : {}),
+        ...(dto.origin ? { origin: dto.origin } : {}),
+        ...(Number.isFinite(scale) && scale > 0 ? { delayScale: scale } : {}),
       },
     );
-
-    const scale = Number(process.env.TEST_DELAY_SCALE);
-    const { workflowId, deduped } = await this.engine.start({
-      workspaceId,
-      enrollmentId: enrollment.id,
-      campaignId,
-      agentId: dto.agentId,
-      contactId: dto.contactId,
-      senderId,
-      graph,
-      graphVersion,
-      ...(Number.isFinite(scale) && scale > 0 ? { delayScale: scale } : {}),
-    });
-    // W3-4 (DEC-076): a RE-enroll whose prior run already closed starts a
-    // fresh run pinned to the LATEST graph (Temporal dedupes only while the
-    // old run is open) — restamp the audit so meta.graphVersion keeps naming
-    // the version the CURRENT run executes. A deduped start keeps the old
-    // stamp (the open run keeps its enrolled snapshot).
-    let row = enrollment;
-    if (existed && !deduped) {
-      row = await this.tenant.run(async (tx) => {
-        const fresh = await tx.enrollment.findUnique({
-          where: { id: enrollment.id },
-          select: { meta: true },
-        });
-        const freshMeta =
-          typeof fresh?.meta === "object" && fresh.meta !== null
-            ? (fresh.meta as Record<string, unknown>)
-            : {};
-        return tx.enrollment.update({
-          where: { id: enrollment.id },
-          data: { meta: { ...freshMeta, graphVersion } },
-        });
-      });
+    switch (outcome.kind) {
+      case "enrolled":
+        return {
+          ...outcome.enrollment,
+          workflowId: outcome.workflowId,
+          workflowDeduped: outcome.workflowDeduped,
+        };
+      case "held":
+        return { held: true, holdId: outcome.holdId, reason: outcome.reason };
+      case "refused":
+        throw new UnprocessableEntityException({ reason: outcome.code, message: outcome.message });
+      case "error":
+        if (outcome.code === "AGENT_NOT_FOUND" || outcome.code === "CONTACT_NOT_FOUND") {
+          throw new NotFoundException(outcome.message);
+        }
+        throw new UnprocessableEntityException(outcome.message);
     }
-    return { ...row, workflowId, workflowDeduped: deduped || existed };
   }
 
   @Get()

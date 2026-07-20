@@ -52,6 +52,14 @@ for name in DEEPGRAM-API-KEY VOICE-FROM-NUMBER VOICE-ALLOWLIST; do
     echo "::warning::Key Vault secret $name not present — voice dialing/certification stays disabled this deploy (P3.1 owner step)."
   fi
 done
+# LH1 (DEC-087): ZeroBounce key — OPTIONAL the same way (vendor spine).
+# Absent = validation batches hold with the typed provider refusal; contacts
+# stay unverified + held at the enrollment gate, never silently enrolled.
+# Canonical name first; ASMITH-KEY-L1 is the owner's original upload
+# (2026-07-15) — accepted so staging works before the vault is normalized.
+if ! grep -qxF "ZEROBOUNCE-API-KEY" <<<"$present" && ! grep -qxF "ASMITH-KEY-L1" <<<"$present"; then
+  echo "::warning::ZeroBounce key not present (checked ZEROBOUNCE-API-KEY, ASMITH-KEY-L1) — email validation stays held this deploy (LH1 owner step)."
+fi
 
 # Verify the DEPLOY identity itself can do everything the pipeline needs, before
 # anything destructive runs. This is the read-only "is all access in?" gate:
