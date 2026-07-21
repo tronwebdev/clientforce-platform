@@ -31,6 +31,12 @@ import {
   type QuietSweepDeps,
 } from "@clientforce/automations";
 import {
+  SlackAdapter,
+  createIntegrationNotifier,
+  createNotifyTeamTransport,
+  type IntegrationsDeps,
+} from "@clientforce/integrations";
+import {
   bullConnectionFromUrl,
   createRedisClient,
   createTemporalSignalConsumer,
@@ -168,8 +174,21 @@ function startKnowledgeWorkers(): void {
   // Late-bound: the rules deps need the bus, the bus's consumer list needs
   // the rules — the holder breaks the construction cycle.
   const busRef: { current?: EventBus } = {};
+  // INT W1 (DEC-093): the integrations spine deps — the Slack adapter reads
+  // SLACK_CLIENT_ID/SECRET from env (Key Vault-backed); without them the
+  // notifier simply finds no connected rows (connect is refused API-side).
+  const integrationsDeps: IntegrationsDeps = {
+    prisma,
+    publish: async (input) => {
+      if (busRef.current) await busRef.current.publish(input);
+    },
+    adapters: { slack: new SlackAdapter() },
+  };
   const ruleDeps = {
     prisma,
+    // INT W1 (Q-042 Slack half): notify_team delivers to the connected Slack
+    // channel; absent connection keeps the run-row transport byte-identical.
+    notifyTransport: createNotifyTeamTransport(integrationsDeps),
     publish: async (input: Parameters<EventBus["publish"]>[0]) => {
       if (busRef.current) await busRef.current.publish(input);
     },
@@ -237,6 +256,10 @@ function startKnowledgeWorkers(): void {
       rules.consumer,
       dispatcherConsumer,
       createTelemetryConsumer({ record: recordTelemetry }),
+      // INT W1 (DEC-093): workspace notifications — Slack posts on new
+      // replies / meetings booked / goals completed, per-workspace channel
+      // + toggles; idempotent per event, never dead-letters the bus.
+      createIntegrationNotifier(integrationsDeps),
     ],
   });
   busRef.current = bus;

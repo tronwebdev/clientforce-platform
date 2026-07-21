@@ -91,7 +91,9 @@ const ACTION_GROUPS: Record<(typeof ACCOUNT_ACTION_KINDS)[number], { group: stri
   suppress_contact: { group: "Update the lead", desc: "Opt the contact out everywhere" },
   set_stage: { group: "Update the lead", desc: "Move the pipeline stage" },
   add_tag: { group: "Update the lead", desc: "Apply a tag to the contact" },
-  notify_team: { group: "Notify the team", desc: "A run row + Logs entry for the team" },
+  // INT W1 (DEC-093, Q-042): posts to the connected Slack channel; without a
+  // Slack connection the run row + Logs entry remain the transport of record.
+  notify_team: { group: "Notify the team", desc: "Slack post when connected · always a run row + Logs entry" },
   run_automation: { group: "Flow & integrations", desc: "Chain another automation" },
 };
 
@@ -166,7 +168,10 @@ export const ABSENT_ACTIONS: ReadonlyArray<import("./triggers").AbsentPickerEntr
   { group: "Revenue & CRM", icon: "❒", label: "Send proposal", desc: "Send a proposal to sign", reason: "Arrives with proposals & payments" },
   { group: "Revenue & CRM", icon: "🧾", label: "Send invoice / payment link", desc: "Request a payment", reason: "Arrives with proposals & payments" },
   { group: "Revenue & CRM", icon: "🧾", label: "Send receipt", desc: "Confirm a payment", reason: "Arrives with proposals & payments" },
-  { group: "Notify the team", icon: "#", label: "Notify Slack", desc: "Post to a channel", reason: "Arrives with Slack notifications" },
+  // INT W1 (DEC-093): "Notify Slack" left this ledger — it plugged behind the
+  // EXPRESSIBLE notify_team action (Q-042's recorded design: same action, real
+  // transport once Slack is connected), so a separate absent card would shadow
+  // a live capability. Email internal alert stays honestly absent (Q-046).
   { group: "Notify the team", icon: "✉", label: "Email internal alert", desc: "Email the team", reason: "Arrives with email alerts" },
   { group: "Flow & integrations", icon: "⏱", label: "Wait", desc: "Pause between actions", reason: "Multi-step chains arrive with automations v2" },
   { group: "Flow & integrations", icon: "⏰", label: "Wait until time", desc: "Hold until a set time", reason: "Multi-step chains arrive with automations v2" },

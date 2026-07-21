@@ -61,6 +61,16 @@ if ! grep -qxF "ZEROBOUNCE-API-KEY" <<<"$present" && ! grep -qxF "ASMITH-KEY-L1"
   echo "::warning::ZeroBounce key not present (checked ZEROBOUNCE-API-KEY, ASMITH-KEY-L1) — email validation stays held this deploy (LH1 owner step)."
 fi
 
+# INT W1 (DEC-093): the Slack app pair — OPTIONAL (vendor spine). Absent =
+# the Integrations page refuses Slack connect with the typed honest
+# owner-clock state ("app credentials not configured"), never a broken
+# redirect; existing connections keep posting (tokens live in the DB).
+for name in SLACK-CLIENT-ID SLACK-CLIENT-SECRET; do
+  if ! grep -qxF "$name" <<<"$present"; then
+    echo "::warning::Key Vault secret $name not present — Slack connect stays disabled this deploy (INT W1 owner step: create the Slack app)."
+  fi
+done
+
 # Verify the DEPLOY identity itself can do everything the pipeline needs, before
 # anything destructive runs. This is the read-only "is all access in?" gate:
 # push to ACR, create the Container Apps/identity/job, and (the non-obvious one)

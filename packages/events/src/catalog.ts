@@ -258,8 +258,45 @@ export const EVENT_SCHEMAS = {
   "credits.low.v1": z.object({ balance: z.number().int() }),
 
   // ── Integrations ───────────────────────────────────────────────────────────
-  "integration.connected.v1": z.object({ provider: z.string() }),
+  // INT W1 (DEC-093): the connect/disconnect/health audit rides the ledger —
+  // spine 1, no backoffice-specific emission path. `accountLabel` is an
+  // ADDITIVE optional field on the pre-existing connected event (no version
+  // bump); `sync_failed` stays the DELIVERY-failure row (a probe failure is a
+  // status transition, not a sync).
+  "integration.connected.v1": z.object({ provider: z.string(), accountLabel: z.string().optional() }),
   "integration.sync_failed.v1": z.object({ provider: z.string(), error: z.string().optional() }),
+  // The user disconnected (`reason: "user"`) or a dead token forced it
+  // (`reason: "revoked"`) — the row is deleted on user disconnect; this ledger
+  // row is what outlives it (the automation.deleted stance).
+  "integration.disconnected.v1": z.object({
+    provider: z.string(),
+    reason: z.enum(["user", "revoked"]).optional(),
+  }),
+  // Probe-backed status transitions ONLY (the sender.status_changed pattern —
+  // written on an ACTUAL change, never per probe sweep).
+  "integration.status_changed.v1": z.object({
+    provider: z.string(),
+    from: z.enum(["connected", "unhealthy", "revoked"]),
+    to: z.enum(["connected", "unhealthy", "revoked"]),
+  }),
+  // One outbound notification delivered (Slack post, later webhook POST …) —
+  // the drawer audit trail + Logs twin of an IntegrationDelivery row.
+  // `kind`: new_reply | meeting_booked | goal_completed | notify_team (W1).
+  "integration.notified.v1": z.object({
+    provider: z.string(),
+    kind: z.string(),
+    /** Human-readable destination ("#clientforce-alerts") — never a secret. */
+    target: z.string().optional(),
+    /** The catalog event id that caused this delivery (redelivery dedupe key). */
+    sourceEventId: z.string().optional(),
+  }),
+  // Rising-edge per hold episode when the per-workspace daily delivery
+  // allowance trips — the vendor-spine cost-alert twin (validation.paused
+  // precedent); deliveries resume silently next day.
+  "integration.delivery_held.v1": z.object({
+    provider: z.string(),
+    reason: z.string(), // workspace_delivery_allowance
+  }),
 
   // ── Automations (R1, DEC-074) ──────────────────────────────────────────────
   // One per-agent rule evaluation outcome — the `CampaignRuleRun` row's Logs
@@ -360,6 +397,10 @@ export const EVENT_TYPES = {
   CREDITS_LOW: "credits.low.v1",
   INTEGRATION_CONNECTED: "integration.connected.v1",
   INTEGRATION_SYNC_FAILED: "integration.sync_failed.v1",
+  INTEGRATION_DISCONNECTED: "integration.disconnected.v1",
+  INTEGRATION_STATUS_CHANGED: "integration.status_changed.v1",
+  INTEGRATION_NOTIFIED: "integration.notified.v1",
+  INTEGRATION_DELIVERY_HELD: "integration.delivery_held.v1",
   AUTOMATION_RULE_RUN: "automation.rule.run.v1",
   AUTOMATION_STATUS_CHANGED: "automation.status_changed.v1",
   AUTOMATION_DELETED: "automation.deleted.v1",

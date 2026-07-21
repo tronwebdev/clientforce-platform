@@ -62,6 +62,9 @@ importers:
       '@clientforce/events':
         specifier: workspace:*
         version: link:../../packages/events
+      '@clientforce/integrations':
+        specifier: workspace:*
+        version: link:../../packages/integrations
       '@clientforce/knowledge':
         specifier: workspace:*
         version: link:../../packages/knowledge
@@ -230,6 +233,9 @@ importers:
       '@clientforce/events':
         specifier: workspace:*
         version: link:../../packages/events
+      '@clientforce/integrations':
+        specifier: workspace:*
+        version: link:../../packages/integrations
       '@clientforce/knowledge':
         specifier: workspace:*
         version: link:../../packages/knowledge
@@ -388,6 +394,25 @@ importers:
       ioredis:
         specifier: ^5.4.1
         version: 5.11.1
+      zod:
+        specifier: ^3.24.1
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.5
+        version: 22.20.0
+
+  packages/integrations:
+    dependencies:
+      '@clientforce/core':
+        specifier: workspace:*
+        version: link:../core
+      '@clientforce/db':
+        specifier: workspace:*
+        version: link:../db
+      '@clientforce/events':
+        specifier: workspace:*
+        version: link:../events
       zod:
         specifier: ^3.24.1
         version: 3.25.76
