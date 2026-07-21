@@ -63,8 +63,11 @@ param voiceAllowlistAvailable bool = false
 @description('P3.1 (DEC-078): voice dial sandbox (the SMS_SANDBOX twin): \'true\' everywhere by default; only an explicit production parameter flips it.')
 param voiceSandbox string = 'true'
 
-@description('P3.1 (DEC-078): the deployed voice service public https base (empty until the voice container ships — Azure placement is measured-latency-driven, ARCHITECTURE §2.7; the cert/demo rig runs it on a runner meanwhile).')
+@description('P3.1 (DEC-078): explicit override for the voice service public https base. Normally EMPTY — when deployVoiceService is true the template derives it from the voice app\'s deterministic FQDN; set this only to point the api at a voice service living elsewhere.')
 param voiceServiceUrl string = ''
+
+@description('P3.1 deploy (DEC-090): ship the clientforce-voice container app. The pipeline passes true only when Key Vault holds BOTH DEEPGRAM-API-KEY (the service cannot run without it) AND the Twilio pair (the /twiml + /media access gate derives its token from TWILIO-AUTH-TOKEN — deploying ungated on a public FQDN is never acceptable).')
+param deployVoiceService bool = false
 @description('LH1 (DEC-087): whether Key Vault holds the ZeroBounce key. Probed by the pipeline; absent = email-validation batches hold with the typed provider refusal (contacts stay unverified + held at the enrollment gate — never silently enrolled).')
 param zerobounceSecretAvailable bool = false
 
@@ -75,6 +78,7 @@ param apiAppName string = 'clientforce-api'
 param workerAppName string = 'clientforce-worker'
 param webAppName string = 'clientforce-web'
 param migrateJobName string = 'clientforce-migrate'
+param voiceAppName string = 'clientforce-voice'
 
 // ── Existing platform resources (referenced, not created) ───────────────────
 resource kv 'Microsoft.KeyVault/vaults@2023-07-01' existing = { name: keyVaultName }
@@ -194,12 +198,19 @@ var voiceFromSecret = { name: 'voice-from-number', keyVaultUrl: '${kvUri}secrets
 var voiceFromSecrets = voiceFromAvailable ? [voiceFromSecret] : []
 var voiceAllowlistSecret = { name: 'voice-allowlist', keyVaultUrl: '${kvUri}secrets/VOICE-ALLOWLIST', identity: uami.id }
 var voiceAllowlistSecrets = voiceAllowlistAvailable ? [voiceAllowlistSecret] : []
+// P3.1 deploy (DEC-090): Container Apps FQDNs are deterministic
+// (<app>.<env default domain>), which breaks the chicken-and-egg between the
+// api's VOICE_SERVICE_URL and the voice app's own ingress — derived, never
+// hand-configured; the explicit param stays as an override.
+var voiceFqdn = '${voiceAppName}.${env.properties.defaultDomain}'
+var voiceServiceBase = !empty(voiceServiceUrl) ? voiceServiceUrl : (deployVoiceService ? 'https://${voiceFqdn}' : '')
 var voiceEnv = concat(
   [{ name: 'VOICE_SANDBOX', value: voiceSandbox }],
-  empty(voiceServiceUrl) ? [] : [{ name: 'VOICE_SERVICE_URL', value: voiceServiceUrl }],
+  empty(voiceServiceBase) ? [] : [{ name: 'VOICE_SERVICE_URL', value: voiceServiceBase }],
   voiceFromAvailable ? [{ name: 'VOICE_FROM_NUMBER', secretRef: 'voice-from-number' }] : [],
   voiceAllowlistAvailable ? [{ name: 'CHANNELS_VOICE_ALLOWLIST', secretRef: 'voice-allowlist' }] : []
 )
+var deepgramKeySecret = { name: 'deepgram-api-key', keyVaultUrl: '${kvUri}secrets/DEEPGRAM-API-KEY', identity: uami.id }
 
 // ── API (NestJS) — external ingress :3001 ───────────────────────────────────
 resource api 'Microsoft.App/containerApps@2024-03-01' = {
@@ -321,6 +332,60 @@ resource web 'Microsoft.App/containerApps@2024-03-01' = {
   }
 }
 
+// ── Voice call-session service (P3.1 deploy, DEC-090) — external ingress ────
+// :8080, WebSocket media streams ride the same ingress (Container Apps
+// supports ws on transport auto). Twilio reaches POST /twiml then opens
+// wss://<fqdn>/media — both gated on the token derived from
+// TWILIO-AUTH-TOKEN (never an open LLM/TTS bridge on a public FQDN).
+// Single replica: a call is one long-lived socket pinned to its replica;
+// scale-out needs no cross-replica state but staging load is one demo call.
+// D11's §2.7 latency-by-measurement stands: this staging placement is the
+// measuring instrument, not the go-live placement ruling.
+resource voice 'Microsoft.App/containerApps@2024-03-01' = if (deployVoiceService) {
+  name: voiceAppName
+  location: location
+  identity: idConfig
+  dependsOn: [kvRole, acrRole]
+  properties: {
+    managedEnvironmentId: env.id
+    configuration: {
+      activeRevisionsMode: 'Single'
+      ingress: { external: true, targetPort: 8080, transport: 'auto', allowInsecure: false }
+      registries: registries
+      secrets: concat([appDbUrlSecret, redisUrlSecret, anthropicKeySecret, deepgramKeySecret], twilioSecrets)
+    }
+    template: {
+      containers: [
+        {
+          name: 'voice'
+          image: '${acrLoginServer}/clientforce-voice:${imageTag}'
+          resources: { cpu: json('0.5'), memory: '1Gi' }
+          env: concat([
+            { name: 'PORT', value: '8080' }
+            // The service renders its own TwiML/wss URLs from this host.
+            { name: 'PUBLIC_HOST', value: voiceFqdn }
+            // Product mode: transcripts/Call finalize through the RLS-subject
+            // client only (withTenant) — never the owner client.
+            { name: 'APP_DATABASE_URL', secretRef: 'app-database-url' }
+            { name: 'ANTHROPIC_API_KEY', secretRef: 'anthropic-api-key' }
+            { name: 'DEEPGRAM_API_KEY', secretRef: 'deepgram-api-key' }
+            { name: 'REDIS_URL', secretRef: 'redis-url' }
+            // Same cluster flag as api/worker — the events bus MUST agree.
+            { name: 'REDIS_CLUSTER', value: 'true' }
+            // Per-call metrics dump — container-local scratch, evidence
+            // surfaces via the numbers-only `[metrics] summary` log line.
+            { name: 'METRICS_OUT', value: '/tmp/metrics.json' }
+          ], twilioSecretsAvailable ? [
+            // The /twiml + /media access gate (deriveVoiceMediaToken).
+            { name: 'TWILIO_AUTH_TOKEN', secretRef: 'twilio-auth-token' }
+          ] : [])
+        }
+      ]
+      scale: { minReplicas: 1, maxReplicas: 1 }
+    }
+  }
+}
+
 // ── Migration job (prisma migrate deploy + seed), triggered by the pipeline ──
 resource migrateJob 'Microsoft.App/jobs@2024-03-01' = {
   name: migrateJobName
@@ -353,3 +418,6 @@ resource migrateJob 'Microsoft.App/jobs@2024-03-01' = {
 output apiFqdn string = api.properties.configuration.ingress.fqdn
 output webFqdn string = web.properties.configuration.ingress.fqdn
 output migrateJobName string = migrateJob.name
+// Deterministic (not read off the conditional resource — that would fail the
+// deployment when deployVoiceService is false).
+output voiceFqdn string = deployVoiceService ? voiceFqdn : ''
