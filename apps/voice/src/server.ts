@@ -18,6 +18,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { writeFileSync } from "node:fs";
 import { WebSocketServer, type WebSocket } from "ws";
+import { deriveVoiceMediaToken, voiceMediaTokenValid } from "@clientforce/channels";
 import { createAppPrismaClient, type PrismaClient } from "@clientforce/db";
 import { EVENT_TYPES } from "@clientforce/events";
 import { loadVoiceConfig } from "./config";
@@ -33,6 +34,14 @@ import { outboundClear, outboundMedia, type TwilioInboundMessage } from "./twili
 const config = loadVoiceConfig();
 const METRICS_OUT = process.env.METRICS_OUT ?? "./metrics.json";
 
+// Deployed-service access gate (P3.1 deploy): with TWILIO_AUTH_TOKEN in the
+// env, /twiml and /media require the derived `t=` token — an ungated public
+// FQDN would let anyone run sessions on the platform's vendor keys. Without
+// the env (local dev, the cert harness, the runner rig) the gate is off.
+const mediaToken = process.env.TWILIO_AUTH_TOKEN
+  ? deriveVoiceMediaToken(process.env.TWILIO_AUTH_TOKEN)
+  : undefined;
+
 function requireEnv(name: string): string {
   const v = process.env[name];
   if (!v) throw new Error(`${name} is required`);
@@ -40,7 +49,7 @@ function requireEnv(name: string): string {
 }
 
 /** TwiML connecting the call to our Media Stream, context bound as parameters. */
-function twiml(host: string, params: Record<string, string>): string {
+function twiml(streamUrl: string, params: Record<string, string>): string {
   const parameters = Object.entries(params)
     .filter(([, v]) => v)
     .map(([k, v]) => `      <Parameter name="${k}" value="${v}" />`)
@@ -48,11 +57,16 @@ function twiml(host: string, params: Record<string, string>): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Connect>
-    <Stream url="wss://${host}/media">
+    <Stream url="${streamUrl}">
 ${parameters}
     </Stream>
   </Connect>
 </Response>`;
+}
+
+/** The wss endpoint, carrying the gate token when the gate is on. */
+function mediaStreamUrl(host: string, token: string | undefined): string {
+  return `wss://${host}/media${token ? `?t=${token}` : ""}`;
 }
 
 const prisma: PrismaClient | undefined =
@@ -64,11 +78,20 @@ const publisher: VoiceEventsPublisher | undefined = prisma
 const httpServer = createServer((req: IncomingMessage, res: ServerResponse) => {
   if (req.method === "POST" && req.url?.startsWith("/twiml")) {
     const url = new URL(req.url, `http://${config.publicHost}`);
+    if (!voiceMediaTokenValid(mediaToken, url.searchParams.get("t"))) {
+      res.writeHead(403);
+      res.end("forbidden");
+      return;
+    }
     res.writeHead(200, { "content-type": "text/xml" });
     res.end(
-      twiml(config.publicHost, {
+      twiml(mediaStreamUrl(config.publicHost, mediaToken), {
         callId: url.searchParams.get("callId") ?? "",
         workspaceId: url.searchParams.get("workspaceId") ?? "",
+        // Demo rig only: picks the disclosure variant of the FIXTURE context
+        // per call (a deployed container can't flip env between dials). A
+        // product call (callId+workspaceId bound) never reads it.
+        demoVariant: url.searchParams.get("demoVariant") ?? "",
       }),
     );
     return;
@@ -84,7 +107,13 @@ const httpServer = createServer((req: IncomingMessage, res: ServerResponse) => {
 
 const wss = new WebSocketServer({ server: httpServer, path: "/media" });
 
-wss.on("connection", (ws: WebSocket) => {
+wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
+  const wsUrl = new URL(req.url ?? "/media", `http://${config.publicHost}`);
+  if (!voiceMediaTokenValid(mediaToken, wsUrl.searchParams.get("t"))) {
+    console.error("[ws] refused: missing/invalid media token");
+    ws.close(1008, "unauthorized");
+    return;
+  }
   const deepgramKey = requireEnv("DEEPGRAM_API_KEY");
   const metrics = new MetricsCollector();
   metrics.configEcho = { stt: config.stt, ackAfterMs: config.ackAfterMs };
@@ -106,6 +135,26 @@ wss.on("connection", (ws: WebSocket) => {
     } catch (err) {
       console.error("[metrics] write failed", (err as Error).message);
     }
+    // Numbers-only summary line so a DEPLOYED service surfaces the call's
+    // evidence through container logs (the runner can't read METRICS_OUT
+    // inside the container). Never transcript text, never numbers dialed.
+    console.log(
+      `[metrics] summary ${JSON.stringify({
+        endReason,
+        turns: report.turns,
+        callSeconds: report.callSeconds,
+        ttfaMs: report.ttfaMs,
+        roundTripMs: report.roundTripMs,
+        ackRate: report.ackRate,
+        commitSources: report.commitSources,
+        bargeIns: report.bargeIns.length,
+        droppedAudio: report.droppedAudio.length,
+        stalledTurns: report.stalledTurns,
+        refusals: report.refusals.length,
+        disclosureCompleted: report.disclosureCompleted,
+        costPerMinuteUsd: Math.round(report.cost.perMinuteUsd * 1000) / 1000,
+      })}`,
+    );
     if (prisma && publisher && context && session) {
       void finalizeCall({
         prisma,
@@ -138,8 +187,10 @@ wss.on("connection", (ws: WebSocket) => {
           if (prisma && params.callId && params.workspaceId) {
             context = await loadCallContextScoped(prisma, params.workspaceId, params.callId);
           } else {
-            context = demoCallContext();
-            console.log("[voice] standalone context (no callId/workspaceId on the stream)");
+            context = demoCallContext(params.demoVariant);
+            console.log(
+              `[voice] standalone context (no callId/workspaceId on the stream) variant=${context.disclosureVariant}`,
+            );
           }
           const ackClips = await loadAckClips(deepgramKey, context.ttsModel, config.ackPhrases, synthesizeAura);
           startedAt = new Date();

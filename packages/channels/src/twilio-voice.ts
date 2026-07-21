@@ -9,9 +9,36 @@
  * platform `VOICE_FROM_NUMBER` env (KV `VOICE-FROM-NUMBER`) this unit —
  * per-tenant voice numbers are future work.
  */
-import { createHash } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 
 const TWILIO_API = "https://api.twilio.com/2010-04-01";
+
+/**
+ * Media-stream access token for the DEPLOYED voice service (P3.1 deploy).
+ * The service sits on a public FQDN; an ungated /twiml + /media would let
+ * anyone run STT/LLM/TTS sessions on the platform's vendor keys. Both dial
+ * sides already hold TWILIO_AUTH_TOKEN, so the gate derives a deterministic
+ * token from it (no new secret; rotates with the credential): dialers append
+ * `t=<token>` to the TwiML URL, the service refuses /twiml and /media
+ * without it. No TWILIO_AUTH_TOKEN in the service env = gate off (local dev,
+ * the cert harness, the runner rig).
+ */
+export function deriveVoiceMediaToken(twilioAuthToken: string): string {
+  return createHmac("sha256", twilioAuthToken)
+    .update("clientforce-voice-media")
+    .digest("hex")
+    .slice(0, 32);
+}
+
+/** Constant-time check; an unset expected token means the gate is off. */
+export function voiceMediaTokenValid(
+  expected: string | undefined,
+  presented: string | null | undefined,
+): boolean {
+  if (!expected) return true;
+  if (!presented || presented.length !== expected.length) return false;
+  return timingSafeEqual(Buffer.from(presented), Buffer.from(expected));
+}
 
 export interface PlaceCallParams {
   to: string;

@@ -18,9 +18,20 @@ import {
 } from "@clientforce/core";
 import type { CallContext } from "./runtime";
 
-export function demoCallContext(): CallContext {
+/**
+ * @param variant demo disclosure variant riding the TwiML stream parameter
+ *   (`named` | `default`) — a DEPLOYED container can't flip env between
+ *   dials. Any other/absent value falls back to the DEMO_SPOKEN_NAME env
+ *   (the runner rig + certification harness path, unchanged).
+ */
+export function demoCallContext(variant?: string): CallContext {
   const businessName = process.env.DEMO_BUSINESS_NAME ?? "Clientforce";
-  const spokenNameEnv = process.env.DEMO_SPOKEN_NAME?.trim();
+  const spokenNameEnv =
+    variant === "named"
+      ? (process.env.DEMO_SPOKEN_NAME?.trim() || "Ava")
+      : variant === "default"
+        ? undefined
+        : process.env.DEMO_SPOKEN_NAME?.trim();
   const resolved = resolveSpokenName(
     spokenNameEnv ? { spokenName: spokenNameEnv, spokenNameConfirmed: true } : null,
     null,

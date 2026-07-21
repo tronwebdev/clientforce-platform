@@ -206,8 +206,10 @@ export {
   type DialVoiceParams,
 } from "./dial-voice";
 export {
+  deriveVoiceMediaToken,
   outcomeFromTwilioStatus,
   TwilioVoiceDialer,
+  voiceMediaTokenValid,
   type PlaceCallParams,
   type PlaceCallResult,
   type VoiceDialer,

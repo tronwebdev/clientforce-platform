@@ -31,6 +31,7 @@ import { AnyFilesInterceptor } from "@nestjs/platform-express";
 import type { Request } from "express";
 import {
   assertDialAllowed,
+  deriveVoiceMediaToken,
   outcomeFromTwilioStatus,
   SendBlockedError,
   validateTwilioSignature,
@@ -115,9 +116,15 @@ export class VoiceController {
 
     const voiceServiceUrl = (process.env.VOICE_SERVICE_URL ?? "").replace(/\/$/, "");
     const apiPublicUrl = (process.env.PUBLIC_API_URL ?? "").replace(/\/$/, "");
+    // The deployed voice service gates /twiml + /media on the token derived
+    // from the shared Twilio credential (P3.1 deploy) — same gate-off
+    // semantics as the service: no auth token, no `t=` appended.
+    const gateToken = process.env.TWILIO_AUTH_TOKEN
+      ? `&t=${deriveVoiceMediaToken(process.env.TWILIO_AUTH_TOKEN)}`
+      : "";
     const result = await this.dialer.placeCall({
       to: clearance.phone,
-      twimlUrl: `${voiceServiceUrl}/twiml?callId=${call.id}&workspaceId=${workspaceId}`,
+      twimlUrl: `${voiceServiceUrl}/twiml?callId=${call.id}&workspaceId=${workspaceId}${gateToken}`,
       ...(apiPublicUrl
         ? { statusCallbackUrl: `${apiPublicUrl}/webhooks/twilio-voice-status` }
         : {}),
