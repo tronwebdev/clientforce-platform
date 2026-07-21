@@ -347,6 +347,42 @@ describe("streamVoice (P3.0 spike route)", () => {
     expect(chunks).toEqual(["one "]);
     expect(err).toBeInstanceOf(AiProviderError);
     expect(records).toHaveLength(1);
+    // A caller-driven abort is the session working as designed — the usage
+    // record says `aborted`, never `error` (P3.1 deploy: the demo-call log
+    // read two barged-in turns as failures).
+    expect(records[0]).toMatchObject({ task: "voice", outcome: "aborted" });
+  });
+
+  it("a provider failure WITHOUT an abort stays outcome=error", async () => {
+    const records: UsageRecord[] = [];
+    const gw = new AiGateway({
+      provider: {
+        completeText: async () => {
+          throw new Error("not used");
+        },
+        completeTool: async () => {
+          throw new Error("not used");
+        },
+        streamText: async function* () {
+          yield { type: "delta", text: "one " };
+          throw new AiProviderError("socket dropped", undefined, false);
+        },
+      },
+      config: fastConfig,
+      onUsage: (r) => records.push(r),
+    });
+    const err = await (async () => {
+      try {
+        for await (const _ of gw.streamVoice({ turns: [{ role: "user", content: "x" }] })) {
+          // drain
+        }
+        return null;
+      } catch (e) {
+        return e;
+      }
+    })();
+    expect(err).toBeInstanceOf(AiProviderError);
+    expect(records).toHaveLength(1);
     expect(records[0]).toMatchObject({ task: "voice", outcome: "error" });
   });
 

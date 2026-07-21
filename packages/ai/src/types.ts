@@ -58,7 +58,10 @@ export interface UsageRecord {
   /** Estimated cost in USD (logging only — from the config price table). */
   estimatedCostUsd: number;
   retries: number;
-  outcome: "ok" | "error";
+  /** `aborted` = the caller cancelled a voice stream (barge-in / stall-abandon /
+   *  teardown) mid-flight — expected behavior, distinct from a provider error
+   *  so demo/cert logs never read a yielded turn as a failure. */
+  outcome: "ok" | "error" | "aborted";
 }
 
 export type UsageHook = (record: UsageRecord) => void;
