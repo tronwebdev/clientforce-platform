@@ -282,16 +282,24 @@ jobs:
           fi
           PUBLIC_URL="$HOST" node apps/voice/dist/place-call.js | tee place-call.out
           CALL_SID="$(sed -n 's/.*callSid=\(CA[a-zA-Z0-9]*\).*/\1/p' place-call.out | head -1)"
-          echo "call placed (${{ inputs.variant }} variant); holding for the conversation..."
-          sleep 90
-          # Authoritative provider verdict for the report (status + duration;
-          # error code surfaces a geo block as Twilio 21215/13227 explicitly).
-          if [ -n "$CALL_SID" ]; then
-            curl -sS "https://api.twilio.com/2010-04-01/Accounts/$TWILIO_ACCOUNT_SID/Calls/$CALL_SID.json" \
+          echo "call placed (${{ inputs.variant }} variant); holding until the call ENDS..."
+          # Hold until the call reaches a TERMINAL state (up to 6 min) — the
+          # first live call outlived a fixed 90s hold and the runner killed
+          # the server MID-CONVERSATION (2026-07-21). Then give the session a
+          # beat to finalize metrics.
+          STATUS="unknown"
+          for i in $(seq 1 72); do
+            sleep 5
+            STATUS=$(curl -sS "https://api.twilio.com/2010-04-01/Accounts/$TWILIO_ACCOUNT_SID/Calls/$CALL_SID.json" \
               -u "$TWILIO_ACCOUNT_SID:$TWILIO_AUTH_TOKEN" \
-              | python3 -c 'import json,sys; d=json.load(sys.stdin); print("call status=%s duration=%ss answered_by=%s" % (d.get("status"), d.get("duration"), d.get("answered_by")))' \
-              || echo "(call status not readable)"
-          fi
+              | python3 -c 'import json,sys; print(json.load(sys.stdin).get("status","unknown"))' || echo unknown)
+            case "$STATUS" in completed|failed|busy|no-answer|canceled) break;; esac
+          done
+          sleep 5
+          curl -sS "https://api.twilio.com/2010-04-01/Accounts/$TWILIO_ACCOUNT_SID/Calls/$CALL_SID.json" \
+            -u "$TWILIO_ACCOUNT_SID:$TWILIO_AUTH_TOKEN" \
+            | python3 -c 'import json,sys; d=json.load(sys.stdin); print("call status=%s duration=%ss answered_by=%s" % (d.get("status"), d.get("duration"), d.get("answered_by")))' \
+            || echo "(call status not readable)"
           echo "----- metrics.json -----"; cat metrics.json 2>/dev/null || echo "(no metrics — call may not have connected)"
           # Leg framing for the report (owner directive 2026-07-15): on an
           # international leg, perceived latency is NOT gating — PSTN RTT
