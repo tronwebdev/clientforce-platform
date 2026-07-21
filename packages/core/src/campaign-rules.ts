@@ -44,6 +44,19 @@ export const campaignRuleTriggerSchema = z.discriminatedUnion("kind", [
     /** Days of quiet after the sequence completed before the rule fires (once, ever, per enrollment). */
     days: z.number().int().min(1).max(365),
   }),
+  /** INT W2 (DEC-094): a booked meeting MOVED — `calendar.rescheduled.v1`. */
+  z.object({ kind: z.literal("meeting_rescheduled") }),
+  /** INT W2: a booked meeting fell through — `calendar.canceled.v1` (payload
+   *  reason folds the canon's canceled + no-show into ONE kind). */
+  z.object({ kind: z.literal("meeting_canceled") }),
+  /** INT W2: time-relative — fires when now >= startAt - hours for a booked
+   *  Meeting row. NEVER a bus event: the meeting sweep evaluates it (the
+   *  sequence_quiet pattern); fire-once per (meeting, startAt) — a reschedule
+   *  re-arms it. */
+  z.object({
+    kind: z.literal("before_meeting"),
+    hours: z.number().int().min(1).max(336),
+  }),
 ]);
 export type CampaignRuleTrigger = z.infer<typeof campaignRuleTriggerSchema>;
 export type CampaignRuleTriggerKind = CampaignRuleTrigger["kind"];
@@ -89,6 +102,12 @@ export const campaignRuleActionSchema = z.discriminatedUnion("kind", [
    *  documented default; real channels are Phase 6+). */
   z.object({ kind: z.literal("notify_team"), note: z.string().min(1).max(200).optional() }),
   z.object({ kind: z.literal("add_tag"), tag: z.string().min(1).max(60) }),
+  /** INT W2 (DEC-094): NOT a send — flags the enrollment so the NEXT
+   *  boundary-gated composed message carries the workspace booking link as a
+   *  mustSay entry (grounded by construction; cleared on send). Sends stay
+   *  out of rule actions BY DESIGN (Q-039); save-time 422 when no booking
+   *  link is configured. */
+  z.object({ kind: z.literal("send_booking_link") }),
   /** Run one of the account-level Automations for the contact (resolved LIVE —
    *  missing/disabled renders an error state and never fires silently). Executes
    *  the automation's actions through the SAME union at causation depth + 1. */
@@ -127,6 +146,7 @@ export const ACCOUNT_ACTION_KINDS = [
   "set_stage",
   "notify_team",
   "add_tag",
+  "send_booking_link",
   "run_automation",
 ] as const satisfies readonly CampaignRuleActionKind[];
 
@@ -154,7 +174,11 @@ export function sameTrigger(a: CampaignRuleTrigger, b: CampaignRuleTrigger): boo
     }
     case "sequence_quiet":
       return a.days === (b as Extract<CampaignRuleTrigger, { kind: "sequence_quiet" }>).days;
+    case "before_meeting":
+      return a.hours === (b as Extract<CampaignRuleTrigger, { kind: "before_meeting" }>).hours;
     case "meeting_booked":
+    case "meeting_rescheduled":
+    case "meeting_canceled":
     case "opted_out":
     case "email_opened":
     case "link_clicked":

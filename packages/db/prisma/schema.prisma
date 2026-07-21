@@ -682,6 +682,38 @@ model IntegrationDelivery {
   @@index([workspaceId, createdAt])
 }
 
+// INT W2 (DEC-094): one row per detected booking — the CURRENT state of a
+// meeting (reschedules update startAt, cancels flip status) + the
+// before_meeting sweep anchor. Bookings arrive via provider webhooks
+// (Calendly detection tier now; more providers later); unique
+// (workspaceId, provider, externalId) = webhook redelivery idempotency.
+// contactId NULL = an invitee we could not correlate (honest "not our lead").
+model Meeting {
+  id           String    @id @default(cuid())
+  workspaceId  String
+  contactId    String?
+  enrollmentId String?
+  campaignId   String?
+  provider     String
+  externalId   String
+  /// booked | canceled | no_show
+  status       String    @default("booked")
+  title        String?
+  startAt      DateTime
+  endAt        DateTime?
+  timezone     String?
+  inviteeEmail String?
+  rescheduleUrl String?
+  cancelUrl    String?
+  meta         Json?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([workspaceId, provider, externalId])
+  @@index([workspaceId, status, startAt])
+  @@index([workspaceId])
+}
+
 // P1.5: the three-tier sender model (issue P1.5; replaces the T1 `Sender`
 // placeholder — DEC-030). Per-tenant credentials live ONLY in credentialsEnc
 // (AES-256-GCM under the FIELD-ENCRYPTION-KEY master key); CF_MANAGED shared

@@ -17,7 +17,7 @@ import { z } from "zod";
  * prototype canon; anything not in this list is honest-absent there and the
  * API refuses it typed — the picker↔vocabulary drift test pins the two ends.
  */
-export const INTEGRATION_PROVIDERS = ["slack"] as const;
+export const INTEGRATION_PROVIDERS = ["slack", "gcal", "calendly"] as const;
 export const integrationProviderSchema = z.enum(INTEGRATION_PROVIDERS);
 export type IntegrationProvider = z.infer<typeof integrationProviderSchema>;
 
@@ -67,8 +67,38 @@ export const slackConfigSchema = z
   .strict();
 export type SlackConfig = z.infer<typeof slackConfigSchema>;
 
+/**
+ * INT W2 (DEC-094): Google Calendar — the picked calendar (its OWN timeZone
+ * from calendarList, stored at picker time) + whether composed copy may carry
+ * a deterministic open-slots line.
+ */
+export const gcalConfigSchema = z
+  .object({
+    calendar: z.object({ id: z.string().min(1), name: z.string().min(1), timeZone: z.string().min(1) }).strict().optional(),
+    offerSlots: z.boolean().optional(),
+  })
+  .strict();
+export type GcalConfig = z.infer<typeof gcalConfigSchema>;
+
+/**
+ * INT W2: Calendly, two honest tiers — the scheduling LINK works day one
+ * (config only); booking DETECTION additionally needs the API-token connect
+ * (webhookToken = the per-workspace capability-URL token; detection reflects
+ * a LIVE webhook subscription, never assumed).
+ */
+export const calendlyConfigSchema = z
+  .object({
+    schedulingUrl: z.string().url().max(500).optional(),
+    webhookToken: z.string().min(1).optional(),
+    detection: z.boolean().optional(),
+  })
+  .strict();
+export type CalendlyConfig = z.infer<typeof calendlyConfigSchema>;
+
 export const integrationConfigSchemas: Record<IntegrationProvider, z.ZodTypeAny> = {
   slack: slackConfigSchema,
+  gcal: gcalConfigSchema,
+  calendly: calendlyConfigSchema,
 };
 
 export const updateIntegrationSchema = z.object({
@@ -105,4 +135,9 @@ export const INTEGRATION_REFUSALS = {
     "This integration's app credentials are not configured on the platform yet — connecting is disabled until the owner setup completes",
   NOT_CONNECTED: "This integration is not connected",
   STATE_INVALID: "The OAuth state token is invalid or expired — restart the connect flow",
+  BOOKING_NOT_CONFIGURED:
+    "No booking link is configured — connect Calendly (paste your scheduling link) first",
+  CALENDLY_LINK_INVALID: "That scheduling link isn't reachable — check the URL and try again",
+  CALENDLY_TOKEN_REQUIRED_FOR_DETECTION:
+    "Booking detection needs a Calendly API token (available on paid Calendly plans) — the link keeps working without it",
 } as const;
