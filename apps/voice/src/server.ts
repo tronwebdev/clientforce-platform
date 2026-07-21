@@ -94,7 +94,16 @@ const httpServer = createServer((req: IncomingMessage, res: ServerResponse) => {
   }
   if (req.url === "/health") {
     res.writeHead(200, { "content-type": "application/json" });
-    res.end(JSON.stringify({ ok: true, host: config.publicHost, mode: prisma ? "product" : "standalone" }));
+    res.end(
+      JSON.stringify({
+        ok: true,
+        host: config.publicHost,
+        mode: prisma ? "product" : "standalone",
+        // The deploy stamps the git SHA (bicep IMAGE_SHA) — lets callers
+        // assert the serving revision is the intended one (DEC-090).
+        sha: process.env.IMAGE_SHA ?? "unknown",
+      }),
+    );
     return;
   }
   res.writeHead(404);

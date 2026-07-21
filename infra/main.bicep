@@ -375,6 +375,11 @@ resource voice 'Microsoft.App/containerApps@2024-03-01' = if (deployVoiceService
             // Per-call metrics dump — container-local scratch, evidence
             // surfaces via the numbers-only `[metrics] summary` log line.
             { name: 'METRICS_OUT', value: '/tmp/metrics.json' }
+            // DEC-090 amendment (owner, 2026-07-21): /health echoes the git
+            // SHA baked at deploy time so the demo preflight can ASSERT the
+            // serving revision is the provisioned one — a dial never runs
+            // against an unverified revision after the deploy-clash question.
+            { name: 'IMAGE_SHA', value: imageTag }
           ], twilioSecretsAvailable ? [
             // The /twiml + /media access gate (deriveVoiceMediaToken).
             { name: 'TWILIO_AUTH_TOKEN', secretRef: 'twilio-auth-token' }
