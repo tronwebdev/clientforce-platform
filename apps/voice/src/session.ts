@@ -291,6 +291,9 @@ export class CallSession {
     this.speakingTurn = turn;
 
     let assistantText = "";
+    // Pacing gaps are INTRA-turn only — across turns the caller is speaking
+    // and silence is correct (the first run counted those as 31s "gaps").
+    this.lastAudioSentAt = 0;
     const metric: TurnMetric = {
       turn,
       userText: commit.text,
