@@ -127,16 +127,31 @@ export class SlackAdapter implements OAuthIntegrationAdapter {
   }
 
   async listChannels(creds: IntegrationCredentials): Promise<SlackChannel[]> {
-    const url = new URL(`${this.apiBase}/conversations.list`);
-    url.searchParams.set("types", "public_channel");
-    url.searchParams.set("exclude_archived", "true");
-    url.searchParams.set("limit", "200");
-    const data = await this.call(url.toString(), { method: "GET", headers: this.bearer(creds) }, true);
-    const channels = Array.isArray(data.channels) ? (data.channels as Array<{ id?: string; name?: string }>) : [];
-    return channels
-      .filter((c): c is { id: string; name: string } => typeof c.id === "string" && typeof c.name === "string")
-      .map((c) => ({ id: c.id, name: c.name }))
-      .sort((a, b) => a.name.localeCompare(b.name));
+    // Follow the cursor to completion (review-round hardening): a workspace
+    // past one page must never get a silently partial picker. Bounded at 25
+    // pages (5,000 channels) — beyond that we refuse typed, never truncate.
+    const collected: SlackChannel[] = [];
+    let cursor: string | undefined;
+    for (let page = 0; page < 25; page += 1) {
+      const url = new URL(`${this.apiBase}/conversations.list`);
+      url.searchParams.set("types", "public_channel");
+      url.searchParams.set("exclude_archived", "true");
+      url.searchParams.set("limit", "200");
+      if (cursor) url.searchParams.set("cursor", cursor);
+      const data = await this.call(url.toString(), { method: "GET", headers: this.bearer(creds) }, true);
+      const channels = Array.isArray(data.channels) ? (data.channels as Array<{ id?: string; name?: string }>) : [];
+      for (const c of channels) {
+        if (typeof c.id === "string" && typeof c.name === "string") collected.push({ id: c.id, name: c.name });
+      }
+      const next = (data.response_metadata as { next_cursor?: string } | undefined)?.next_cursor;
+      if (!next) return collected.sort((a, b) => a.name.localeCompare(b.name));
+      cursor = next;
+    }
+    throw new IntegrationProviderError(
+      "PROVIDER_UNAVAILABLE",
+      "slack channel list exceeded 5,000 entries — refusing to return a partial list",
+      true,
+    );
   }
 
   async postMessage(creds: IntegrationCredentials, params: { channelId: string; text: string }): Promise<void> {

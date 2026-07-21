@@ -32,6 +32,7 @@ import {
 } from "@clientforce/core";
 import { Role, type Prisma } from "@clientforce/db";
 import {
+  IntegrationDeliveryError,
   IntegrationProviderError,
   IntegrationRefusedError,
   SlackAdapter,
@@ -97,6 +98,14 @@ export class IntegrationsController {
       }
       throw new BadGatewayException({ message: "Provider unavailable", detail: err.message });
     }
+    // Review-round hardening: the vendor's request/config refusals
+    // (invalid_code, code_already_used, missing_scope …) are ROUTINE on the
+    // connect/options paths — typed 422 with the owner-readable detail,
+    // never a raw 500 (the message carries the vendor error name only,
+    // never token bytes).
+    if (err instanceof IntegrationDeliveryError) {
+      throw new UnprocessableEntityException({ message: "Provider refused the request", detail: err.message });
+    }
     throw err;
   }
 
@@ -122,14 +131,14 @@ export class IntegrationsController {
   @Roles(Role.OWNER, Role.ADMIN)
   connect(@Param("provider") rawProvider: string): { authorizeUrl: string } {
     const provider = this.provider(rawProvider);
-    const adapter = adapterFor(this.deps, provider);
-    if (!adapter.configured) {
-      throw new UnprocessableEntityException({
-        message: "Integration not configured",
-        detail: INTEGRATION_REFUSALS.NOT_CONFIGURED,
-      });
-    }
     try {
+      const adapter = adapterFor(this.deps, provider);
+      if (!adapter.configured) {
+        throw new UnprocessableEntityException({
+          message: "Integration not configured",
+          detail: INTEGRATION_REFUSALS.NOT_CONFIGURED,
+        });
+      }
       const state = mintOAuthState(this.tenant.workspaceId, provider);
       return { authorizeUrl: adapter.authorizeUrl({ redirectUri: redirectUriFor(provider), state }) };
     } catch (err) {

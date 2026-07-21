@@ -28,6 +28,7 @@ import type { Prisma } from "@clientforce/db";
 import { AppModule } from "../src/app.module";
 import { signDevToken } from "../src/auth/dev-token-verifier";
 import { INTEGRATIONS_DEPS } from "../src/integrations/integrations.providers";
+import { mintOAuthState } from "../src/integrations/oauth-state";
 
 const hasDb = Boolean(process.env.APP_DATABASE_URL ?? process.env.DATABASE_URL);
 const SECRET = process.env.AUTH_DEV_SECRET ?? "test-dev-secret";
@@ -179,6 +180,41 @@ describe.skipIf(!hasDb)("integrations e2e (INT W1, DEC-093)", () => {
     const start = await asOwner(api().post("/integrations/slack/connect")).expect(201);
     const stateA = new URL(start.body.authorizeUrl).searchParams.get("state") as string;
     await asOwnerB(api().post("/integrations/slack/complete")).send({ code: "c", state: stateA }).expect(422);
+
+    // a genuinely EXPIRED state refuses (review-round pin: the exp branch,
+    // exercised through the real endpoint — same-process secret, valid MAC)
+    const expired = mintOAuthState(wsA, "slack", Date.now() - 10 * 60 * 1000 - 1);
+    const expiredRes = await asOwner(api().post("/integrations/slack/complete"))
+      .send({ code: "c", state: expired })
+      .expect(422);
+    expect(expiredRes.body.detail).toContain("state");
+  });
+
+  it("routine OAuth exchange refusals are typed 422s with the vendor error name, never 500s", async () => {
+    // The refreshed-callback case: the code was already consumed — Slack
+    // answers 200 {ok:false, error:"code_already_used"} (review-round pin).
+    const start = await asOwner(api().post("/integrations/slack/connect")).expect(201);
+    const state = new URL(start.body.authorizeUrl).searchParams.get("state") as string;
+    script.exchange = () => ({ ok: false, error: "code_already_used" });
+    try {
+      const res = await asOwner(api().post("/integrations/slack/complete"))
+        .send({ code: "stale-code", state })
+        .expect(422);
+      expect(res.body.detail).toContain("code_already_used");
+    } finally {
+      delete script.exchange;
+    }
+  });
+
+  it("a wired-out provider adapter refuses typed, never a 500 (the W2 regression tripwire)", async () => {
+    const live = deps.adapters.slack;
+    delete deps.adapters.slack;
+    try {
+      const res = await asOwner(api().post("/integrations/slack/connect")).expect(422);
+      expect(res.body.detail).toBe("Unknown integration provider");
+    } finally {
+      deps.adapters.slack = live;
+    }
   });
 
   it("the full connect walk: probe-backed connected row, tokens encrypted, ledger audit", async () => {
@@ -220,6 +256,15 @@ describe.skipIf(!hasDb)("integrations e2e (INT W1, DEC-093)", () => {
       .send({ config: { channel: { id: "C1" } } })
       .expect(400);
     expect(bad.body.message).toBe("Validation failed");
+    // strict at every level (review-round pin): a typo'd toggle key refuses
+    // loudly — never silently stripped into a config that "took".
+    const typo = await asOwner(api().patch("/integrations/slack"))
+      .send({ config: { notifications: { meeting_boked: true } } })
+      .expect(400);
+    expect(typo.body.message).toBe("Validation failed");
+    await asOwner(api().patch("/integrations/slack"))
+      .send({ config: { unknown_top_level: true } })
+      .expect(400);
     const ok = await asOwner(api().patch("/integrations/slack"))
       .send({ config: { channel: { id: "C1", name: "alerts" }, notifications: { goal_completed: false } } })
       .expect(200);

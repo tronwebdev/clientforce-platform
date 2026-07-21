@@ -48,17 +48,23 @@ export type SlackNotificationKind = (typeof SLACK_NOTIFICATION_KINDS)[number];
  * Per-provider user config (`Integration.config`). Secrets NEVER ride here —
  * config is returned verbatim by the list/detail endpoints.
  */
-export const slackConfigSchema = z.object({
-  /** The channel Clientforce posts to — picked per workspace (drawer step 2). */
-  channel: z.object({ id: z.string().min(1), name: z.string().min(1) }).optional(),
-  notifications: z
-    .object({
-      new_reply: z.boolean().optional(),
-      meeting_booked: z.boolean().optional(),
-      goal_completed: z.boolean().optional(),
-    })
-    .optional(),
-});
+export const slackConfigSchema = z
+  .object({
+    /** The channel Clientforce posts to — picked per workspace (drawer step 2). */
+    channel: z.object({ id: z.string().min(1), name: z.string().min(1) }).strict().optional(),
+    notifications: z
+      .object({
+        new_reply: z.boolean().optional(),
+        meeting_booked: z.boolean().optional(),
+        goal_completed: z.boolean().optional(),
+      })
+      .strict()
+      .optional(),
+  })
+  // Strict at every level (the contact-fields precedent + review-round pin):
+  // a typo'd toggle key must refuse loudly at the boundary, never be
+  // silently stripped into a config that "took" but does nothing.
+  .strict();
 export type SlackConfig = z.infer<typeof slackConfigSchema>;
 
 export const integrationConfigSchemas: Record<IntegrationProvider, z.ZodTypeAny> = {

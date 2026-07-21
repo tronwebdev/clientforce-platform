@@ -334,4 +334,108 @@ describe.skipIf(!hasInfra)("integrations spine (INT W1)", () => {
     const adapter = scriptedSlack({ authTest: () => ({ ok: false, error: "invalid_auth" }) });
     await expect(adapter.probe({ accessToken: "x" })).rejects.toBeInstanceOf(IntegrationProviderError);
   });
+
+  it("reconnect after revoke: the upsert UPDATE branch resets status, swaps the token, preserves config", async () => {
+    const ws = await newWorkspace("reconnect");
+    const events: EventInput[] = [];
+    const script: { exchange?: () => unknown; authTest?: () => unknown } = {};
+    const deps = makeDeps(scriptedSlack(script), events);
+    const row = await connect(deps, ws);
+    await configure(ws, row.id, { channel: { id: "C1", name: "alerts" }, notifications: { goal_completed: false } });
+
+    script.authTest = () => ({ ok: false, error: "invalid_auth" });
+    await probeIntegration(deps, { workspaceId: ws, provider: "slack" }); // → revoked
+    delete script.authTest;
+
+    script.exchange = () => ({
+      ok: true,
+      access_token: "stubtok-second",
+      scope: "chat:write",
+      team: { id: "T1", name: "Bright" },
+    });
+    const again = await connect(deps, ws); // the Reconnect repair — UPDATE branch
+    expect(again.id).toBe(row.id);
+    expect(again.status).toBe("connected");
+    expect(again.scopes).toEqual(["chat:write"]);
+    const raw = await owner.integration.findUniqueOrThrow({ where: { id: row.id } });
+    expect(JSON.parse(decryptField(Buffer.from(raw.credentialsEnc as Uint8Array))).accessToken).toBe("stubtok-second");
+    // config survives the reconnect — the stored channel + toggle opt-outs
+    // are the user's, never clobbered by the OAuth round-trip.
+    expect(raw.config).toMatchObject({ channel: { id: "C1", name: "alerts" }, notifications: { goal_completed: false } });
+  });
+
+  it("bus outage: every operation still lands its row state; publish failures only log", async () => {
+    const ws = await newWorkspace("busdown");
+    const logs: string[] = [];
+    const deps = makeDeps(scriptedSlack({}), [], {
+      publish: async () => {
+        throw new Error("bus down");
+      },
+      log: (m) => logs.push(m),
+    });
+    const row = await connect(deps, ws);
+    expect(row.status).toBe("connected");
+    await configure(ws, row.id, { channel: { id: "C1", name: "alerts" } });
+    const res = await deliverSlack(deps, { workspaceId: ws, kind: "new_reply", text: "x", sourceEventId: "bd-1" });
+    expect(res).toMatchObject({ delivered: true, target: "#alerts" });
+    expect(await owner.integrationDelivery.count({ where: { workspaceId: ws, status: "delivered" } })).toBe(1);
+    await probeIntegration(deps, { workspaceId: ws, provider: "slack" });
+    await disconnectIntegration(deps, { workspaceId: ws, provider: "slack" });
+    expect(await owner.integration.findFirst({ where: { workspaceId: ws } })).toBeNull();
+    expect(logs.some((l) => l.includes("event publish failed"))).toBe(true);
+  });
+
+  it("a pending claim owns the key: the second deliverer skips the vendor call (at-most-once)", async () => {
+    const ws = await newWorkspace("pending");
+    const events: EventInput[] = [];
+    const deps = makeDeps(scriptedSlack({}), events);
+    const row = await connect(deps, ws);
+    await configure(ws, row.id, { channel: { id: "C1", name: "alerts" } });
+    // Simulate a crashed-mid-delivery claim: a pending row already holds the key.
+    await owner.integrationDelivery.create({
+      data: { workspaceId: ws, integrationId: row.id, sourceEventId: "pend-1", kind: "new_reply", status: "pending", detail: {} },
+    });
+    const posts: string[] = [];
+    const spyAdapter = scriptedSlack({
+      postMessage: () => {
+        posts.push("posted");
+        return { ok: true };
+      },
+    });
+    const res = await deliverSlack(makeDeps(spyAdapter, events), {
+      workspaceId: ws,
+      kind: "new_reply",
+      text: "x",
+      sourceEventId: "pend-1",
+    });
+    expect(res.delivered).toBe(false);
+    expect(res.detail).toContain("in flight");
+    expect(posts).toHaveLength(0); // the vendor was never called
+  });
+
+  it("honest-absence pins: unknown provider refuses typed; unwired adapter skips without touching the DB", async () => {
+    const { adapterFor, IntegrationRefusedError } = await import("../src/service");
+    expect(() => adapterFor({ prisma: app, adapters: {} }, "slack")).toThrowError(IntegrationRefusedError);
+    const ws = await newWorkspace("unwired");
+    const res = await deliverSlack(
+      { prisma: app, adapters: {} },
+      { workspaceId: ws, kind: "new_reply", text: "x", sourceEventId: "uw-1" },
+    );
+    expect(res).toEqual({ delivered: false, detail: "slack adapter not wired" });
+    expect(await owner.integrationDelivery.count({ where: { workspaceId: ws } })).toBe(0);
+  });
+
+  it("notifier consumer NEVER dead-letters: a DB outage resolves with a loud log (review-round pin)", async () => {
+    const logs: string[] = [];
+    const broken = {
+      prisma: { $transaction: async () => Promise.reject(new Error("db down")) } as never,
+      adapters: { slack: scriptedSlack({}) },
+      log: (m: string) => logs.push(m),
+    };
+    const notifier = createIntegrationNotifier(broken);
+    await expect(
+      notifier.handle(busEvent("ws-any", "email.replied.v1", { messageId: "m", intent: "interested" }, "e-db-down")),
+    ).resolves.toBeUndefined();
+    expect(logs.some((l) => l.includes("notifier failed"))).toBe(true);
+  });
 });
