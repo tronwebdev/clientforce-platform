@@ -197,6 +197,19 @@ describe.skipIf(!hasInfra)("meeting rules (INT W2)", () => {
       expect(await owner.campaignRuleRun.count({ where: { ruleId: early.id } })).toBe(1);
     });
 
+    it("a PAUSED enrollment stays inert on the sweep path (the bus-path inertness, mirrored)", async () => {
+      const rule = await addRule(0, { kind: "before_meeting", hours: 24 }, [
+        { kind: "add_tag", tag: "pre-meeting" },
+      ]);
+      await addMeeting({ startAt: hoursFromNow(20) });
+      await owner.enrollment.update({ where: { id: enrollmentId }, data: { status: "PAUSED" } });
+      expect((await runBeforeMeetingSweep(sweepDeps(), NOW)).fired).toBe(0);
+      expect(await owner.campaignRuleRun.count({ where: { ruleId: rule.id } })).toBe(0);
+      // Resuming re-arms nothing retroactively wrong — the same key simply fires now.
+      await owner.enrollment.update({ where: { id: enrollmentId }, data: { status: "ACTIVE" } });
+      expect((await runBeforeMeetingSweep(sweepDeps(), NOW)).fired).toBe(1);
+    });
+
     it("account pass: an Automation before_meeting rule fires once per (automation, meeting, startAt)", async () => {
       const automation = await owner.automation.create({
         data: {

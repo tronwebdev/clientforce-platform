@@ -28,6 +28,10 @@ const MEETING_BATCH = 200;
 
 const actionsSchema = z.array(campaignRuleActionSchema).min(1);
 
+/** The evaluator's inertness set (evaluate.ts FIREABLE_STATUSES) — a paused or
+ *  removed contact stays inert on the sweep path exactly like the bus path. */
+const FIREABLE_STATUSES = new Set(["ACTIVE", "DONE"]);
+
 /** The deps ARE the quiet sweep's (owner discovery + tenant-scoped engine). */
 export type MeetingSweepDeps = QuietSweepDeps;
 
@@ -88,6 +92,7 @@ export async function runBeforeMeetingSweep(
       checked += 1;
       const due = rules.filter((r) => now.getTime() >= meeting.startAt.getTime() - r.hours * HOUR_MS);
       if (due.length === 0) continue;
+      if (!(await enrollmentFireable(deps, meeting.enrollmentId))) continue;
       const ctx: RunContext = {
         workspaceId,
         campaignId,
@@ -150,6 +155,7 @@ export async function runBeforeMeetingSweep(
       checked += 1;
       const due = rules.filter((r) => now.getTime() >= meeting.startAt.getTime() - r.hours * HOUR_MS);
       if (due.length === 0) continue;
+      if (!(await enrollmentFireable(deps, meeting.enrollmentId))) continue;
       const ctx: RunContext = {
         workspaceId,
         campaignId: meeting.campaignId,
@@ -171,4 +177,15 @@ export async function runBeforeMeetingSweep(
     }
   }
   return { checked, fired };
+}
+
+/** Meetings without an enrollment ref still fire (actions guard themselves);
+ *  a referenced enrollment must be ACTIVE/DONE — the bus-path inertness. */
+async function enrollmentFireable(deps: MeetingSweepDeps, enrollmentId: string | null): Promise<boolean> {
+  if (!enrollmentId) return true;
+  const enrollment = await deps.ownerPrisma.enrollment.findUnique({
+    where: { id: enrollmentId },
+    select: { status: true },
+  });
+  return Boolean(enrollment && FIREABLE_STATUSES.has(enrollment.status));
 }
