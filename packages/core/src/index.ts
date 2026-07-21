@@ -34,6 +34,10 @@ export * from "./strategy";
 // Agent output language (L1, DEC-072) — launch list, detector, compliance map.
 export * from "./language";
 
+// Voice constants + spoken-name resolution (P3.1, DEC-078) — disclosure
+// literals, recording constants, personas, the locked resolution chain.
+export * from "./voice";
+
 // Guardrails schema (P1.5, A8) + sender DTOs.
 export * from "./guardrails";
 export * from "./senders";

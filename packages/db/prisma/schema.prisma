@@ -712,6 +712,47 @@ enum MessageDirection {
   INBOUND
 }
 
+// P3.1 (DEC-078): one row per phone call — the Calls tab's backing data.
+// Transcript turns live on Message(channel:"voice") rows carrying
+// meta.callId (the spike-proven mapping, no Message change); this row holds
+// the call-level facts: status/outcome, duration, cost, and the disclosure
+// record. `providerCallSid` is the idempotency key against Twilio callbacks.
+// No FK constraints — Message-style loose references + indexes.
+model Call {
+  id              String     @id @default(cuid())
+  workspaceId     String
+  campaignId      String
+  agentId         String
+  contactId       String
+  enrollmentId    String?
+  direction       MessageDirection
+  status          CallStatus @default(QUEUED)
+  /// Deterministic call-status outcome (D4): completed | no_answer | busy |
+  /// failed | canceled. Richer lead outcomes arrive with call tools (P3.2+).
+  outcome         String?
+  providerCallSid String?    @unique
+  startedAt       DateTime?
+  endedAt         DateTime?
+  durationSec     Int?
+  /// Estimated cost, logging-grade (gateway precedent — never billing).
+  costUsd         Float?
+  /// disclosureVariant/disclosureCompleted/spokenNameSource, endpointing
+  /// params, per-leg cost breakdown, turn counts.
+  meta            Json?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  @@index([workspaceId, agentId, createdAt])
+  @@index([workspaceId, contactId, createdAt])
+}
+
+enum CallStatus {
+  QUEUED
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+}
+
 // P1.5 (handoff A7): checked at the send boundary together with
 // Contact.optOut; unsubscribe/bounce/spam events write rows here.
 model Suppression {

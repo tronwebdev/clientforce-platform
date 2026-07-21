@@ -192,3 +192,39 @@ export {
   type ComposeEmailStepParams,
   type EmailStepComposer,
 } from "./compose-email";
+// ── P3.1 (DEC-078): the voice channel — dial rails, dialer, live composer ────
+// (buildCachedContext/strategyOf were package-internal until the voice
+// runtime needed them — same G1/G2 shared plumbing, now on the surface.)
+export { buildCachedContext, strategyOf } from "./compose-shared";
+export {
+  assertDialAllowed,
+  assertInsideCallingWindow,
+  DEFAULT_VOICE_DAILY_CAP,
+  DEFAULT_VOICE_WORKSPACE_DAILY_CAP,
+  type DialClearance,
+  type DialVoiceDeps,
+  type DialVoiceParams,
+} from "./dial-voice";
+export {
+  deriveVoiceMediaToken,
+  outcomeFromTwilioStatus,
+  TwilioVoiceDialer,
+  voiceMediaTokenValid,
+  type PlaceCallParams,
+  type PlaceCallResult,
+  type VoiceDialer,
+} from "./twilio-voice";
+export {
+  buildVoiceSystemPrompt,
+  checkComposedVoiceTurn,
+  COMPOSER_VOICE_PROMPT_NAME,
+  COMPOSER_VOICE_PROMPT_VERSION,
+  COMPOSER_VOICE_SYSTEM,
+  COMPOSER_VOICE_VERSION,
+  deriveCallBrief,
+  mustSayCoverage,
+  VOICE_FAILURE_GOODBYE,
+  VOICE_FALLBACK_LINE,
+  VOICE_TURN_MAX_CHARS,
+  type ComposeVoiceInputs,
+} from "./compose-voice";

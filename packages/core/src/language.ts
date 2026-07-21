@@ -67,39 +67,97 @@ export interface ComplianceStrings {
   /** The full SMS opt-out line appended to an enrollment's first outbound
    *  (P2.1 DEC-062). Must contain the literal keyword "STOP". */
   smsOptOut: string;
+  /**
+   * P3.1 (DEC-078, owner-locked 2026-07-14): the opening call disclosure —
+   * spoken FIRST on every outbound call, before any composed turn, never
+   * composed or AI-translated. Four segments so the recording sentence can
+   * branch on the workspace flag; `renderVoiceDisclosure` (voice.ts) joins
+   * them and the English join is byte-equal to the locked literals (pinned).
+   * `{spokenName}`/`{businessName}` are substituted deterministically.
+   */
+  voiceDisclosureNamed: string;
+  voiceDisclosureDefault: string;
+  voiceRecordingNotice: string;
+  voiceDisclosureClose: string;
 }
 
 export const COMPLIANCE_STRINGS: Record<LanguageCode, ComplianceStrings> = {
   // en values are byte-equal to the pre-L1 literals — English sends are
   // wire-identical (pinned by test).
-  en: { unsubscribeLabel: "Unsubscribe", smsOptOut: "Reply STOP to opt out." },
+  en: {
+    unsubscribeLabel: "Unsubscribe",
+    smsOptOut: "Reply STOP to opt out.",
+    voiceDisclosureNamed:
+      "Hi, this is {spokenName}, an AI assistant calling on behalf of {businessName}.",
+    voiceDisclosureDefault: "Hi, this is an AI assistant calling on behalf of {businessName}.",
+    voiceRecordingNotice: "This call may be recorded for quality.",
+    voiceDisclosureClose: "Is now a quick moment?",
+  },
   es: {
     unsubscribeLabel: "Cancelar suscripción",
     smsOptOut: "Responde STOP para darte de baja.",
+    voiceDisclosureNamed:
+      "Hola, soy {spokenName}, un asistente de IA que llama en nombre de {businessName}.",
+    voiceDisclosureDefault: "Hola, soy un asistente de IA que llama en nombre de {businessName}.",
+    voiceRecordingNotice: "Esta llamada puede ser grabada por motivos de calidad.",
+    voiceDisclosureClose: "¿Es un buen momento?",
   },
   fr: {
     unsubscribeLabel: "Se désinscrire",
     smsOptOut: "Répondez STOP pour vous désabonner.",
+    voiceDisclosureNamed:
+      "Bonjour, je suis {spokenName}, un assistant IA qui appelle de la part de {businessName}.",
+    voiceDisclosureDefault:
+      "Bonjour, je suis un assistant IA qui appelle de la part de {businessName}.",
+    voiceRecordingNotice: "Cet appel peut être enregistré à des fins de qualité.",
+    voiceDisclosureClose: "Est-ce un bon moment ?",
   },
   de: {
     unsubscribeLabel: "Abmelden",
     smsOptOut: "Antworten Sie mit STOP, um sich abzumelden.",
+    voiceDisclosureNamed:
+      "Hallo, hier ist {spokenName}, ein KI-Assistent, der im Auftrag von {businessName} anruft.",
+    voiceDisclosureDefault:
+      "Hallo, hier ist ein KI-Assistent, der im Auftrag von {businessName} anruft.",
+    voiceRecordingNotice: "Dieses Gespräch kann zu Qualitätszwecken aufgezeichnet werden.",
+    voiceDisclosureClose: "Passt es gerade kurz?",
   },
   it: {
     unsubscribeLabel: "Annulla l'iscrizione",
     smsOptOut: "Rispondi STOP per annullare l'iscrizione.",
+    voiceDisclosureNamed:
+      "Salve, sono {spokenName}, un assistente IA che chiama per conto di {businessName}.",
+    voiceDisclosureDefault: "Salve, sono un assistente IA che chiama per conto di {businessName}.",
+    voiceRecordingNotice: "Questa chiamata potrebbe essere registrata per motivi di qualità.",
+    voiceDisclosureClose: "È un buon momento?",
   },
   pt: {
     unsubscribeLabel: "Cancelar inscrição",
     smsOptOut: "Responda STOP para cancelar.",
+    voiceDisclosureNamed:
+      "Olá, aqui é {spokenName}, um assistente de IA ligando em nome de {businessName}.",
+    voiceDisclosureDefault: "Olá, aqui é um assistente de IA ligando em nome de {businessName}.",
+    voiceRecordingNotice: "Esta chamada pode ser gravada para fins de qualidade.",
+    voiceDisclosureClose: "É um bom momento?",
   },
   nl: {
     unsubscribeLabel: "Afmelden",
     smsOptOut: "Antwoord STOP om je af te melden.",
+    voiceDisclosureNamed:
+      "Hallo, u spreekt met {spokenName}, een AI-assistent die belt namens {businessName}.",
+    voiceDisclosureDefault:
+      "Hallo, u spreekt met een AI-assistent die belt namens {businessName}.",
+    voiceRecordingNotice: "Dit gesprek kan worden opgenomen voor kwaliteitsdoeleinden.",
+    voiceDisclosureClose: "Schikt het nu even?",
   },
   pl: {
     unsubscribeLabel: "Wypisz się",
     smsOptOut: "Odpowiedz STOP, aby się wypisać.",
+    voiceDisclosureNamed:
+      "Dzień dobry, mówi {spokenName}, asystent AI dzwoniący w imieniu {businessName}.",
+    voiceDisclosureDefault: "Dzień dobry, mówi asystent AI dzwoniący w imieniu {businessName}.",
+    voiceRecordingNotice: "Ta rozmowa może być nagrywana w celu zapewnienia jakości.",
+    voiceDisclosureClose: "Czy to dobry moment?",
   },
 };
 

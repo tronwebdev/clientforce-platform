@@ -6,16 +6,19 @@
     "build": "tsc -p tsconfig.json",
     "dev": "tsx watch src/server.ts",
     "start": "node dist/server.js",
-    "synthetic": "node dist/run-synthetic.js",
+    "certify": "node dist/certify.js",
     "place-call": "node dist/place-call.js",
-    "persist": "node dist/persist.js",
     "lint": "eslint .",
     "test": "vitest run --passWithNoTests",
     "clean": "rm -rf dist .turbo"
   },
   "dependencies": {
     "@clientforce/ai": "workspace:*",
+    "@clientforce/channels": "workspace:*",
+    "@clientforce/context": "workspace:*",
+    "@clientforce/core": "workspace:*",
     "@clientforce/db": "workspace:*",
+    "@clientforce/events": "workspace:*",
     "ws": "^8.18.0"
   },
   "devDependencies": {

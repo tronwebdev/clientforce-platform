@@ -74,6 +74,7 @@ jobs:
             [clientforce-worker]=apps/worker/Dockerfile
             [clientforce-web]=apps/web/Dockerfile
             [clientforce-migrate]=packages/db/Dockerfile
+            [clientforce-voice]=apps/voice/Dockerfile
           )
           for name in "${!IMAGES[@]}"; do
             ref="$ACR_LOGIN_SERVER/$name:$IMAGE_TAG"
@@ -148,6 +149,30 @@ jobs:
             smsAllowlist=false
             echo "SMS-ALLOWLIST not in Key Vault — no live SMS recipients anywhere (DEC-063)."
           fi
+          # P3.1 (DEC-078): the voice from-number + allow-list, same discipline.
+          if az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name VOICE-FROM-NUMBER --query id -o tsv >/dev/null 2>&1; then
+            voiceFrom=true
+          else
+            voiceFrom=false
+            echo "VOICE-FROM-NUMBER not in Key Vault — the dialer stays unconfigured (dials refuse typed)."
+          fi
+          if az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name VOICE-ALLOWLIST --query id -o tsv >/dev/null 2>&1; then
+            voiceAllowlist=true
+          else
+            voiceAllowlist=false
+            echo "VOICE-ALLOWLIST not in Key Vault — no live voice recipients anywhere (DEC-063 analog)."
+          fi
+          # P3.1 deploy (DEC-090): the voice container ships only when the
+          # vault holds BOTH the Deepgram key (the service can't run without
+          # it) AND the Twilio pair (the /twiml + /media access gate derives
+          # from TWILIO-AUTH-TOKEN — an ungated public LLM/TTS bridge never
+          # deploys).
+          if [ "$twilio" = true ] && az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name DEEPGRAM-API-KEY --query id -o tsv >/dev/null 2>&1; then
+            deployVoice=true
+          else
+            deployVoice=false
+            echo "DEEPGRAM-API-KEY and/or Twilio pair missing from Key Vault — the voice service does not deploy (dials refuse typed; the api keeps no VOICE_SERVICE_URL)."
+          fi
           # LH1 (DEC-087): ZeroBounce key — vendor-spine conditional wiring.
           # Canonical name first; the owner stored the key as ASMITH-KEY-L1
           # (message, 2026-07-15) — accepted as a fallback so staging lights
@@ -182,6 +207,9 @@ jobs:
               clerkSecretsAvailable="$clerk" \
               twilioSecretsAvailable="$twilio" \
               smsAllowlistAvailable="$smsAllowlist" \
+              voiceFromAvailable="$voiceFrom" \
+              voiceAllowlistAvailable="$voiceAllowlist" \
+              deployVoiceService="$deployVoice" \
               zerobounceSecretAvailable="$zerobounce" \
               zerobounceSecretName="$zerobounceSecretName"
 
@@ -192,6 +220,12 @@ jobs:
           web="$(az containerapp show --name clientforce-web --resource-group "$RG" --query "properties.configuration.ingress.fqdn" -o tsv)"
           echo "web=$web" >> "$GITHUB_OUTPUT"
           echo "web FQDN: $web"
+          # P3.1 deploy: surface the voice service FQDN when it shipped.
+          voice="$(az containerapp show --name clientforce-voice --resource-group "$RG" --query "properties.configuration.ingress.fqdn" -o tsv 2>/dev/null || true)"
+          if [ -n "$voice" ]; then
+            echo "voice FQDN: $voice"
+            curl -fsS "https://$voice/health" && echo || echo "::warning::voice /health not answering yet"
+          fi
 
       # ── Run migrations (+ seed) inside the environment ──
       - name: Run migration job

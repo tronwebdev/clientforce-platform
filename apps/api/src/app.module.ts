@@ -15,6 +15,7 @@ import { MeController } from "./me/me.controller";
 import { WorkspacesController } from "./workspaces/workspaces.controller";
 import { PlannerModule } from "./planner/planner.module";
 import { SystemModule } from "./system/system.module";
+import { VoiceModule } from "./voice/voice.module";
 import { ContactsController } from "./contacts/contacts.controller";
 import { ContactsViewController } from "./contacts/contacts-view.controller";
 import { ContactFieldsController } from "./contacts/contact-fields.controller";
@@ -35,6 +36,7 @@ import { BusOrInlinePublisher, EVENTS_PUBLISHER } from "./events/publisher";
     EnrollmentsModule,
     BackofficeModule,
     SystemModule,
+    VoiceModule,
   ],
   controllers: [HealthController, MeController, WorkspacesController, ContactsController, ContactsViewController, ContactFieldsController, ContactListsController, ContactValidationController],
   providers: [

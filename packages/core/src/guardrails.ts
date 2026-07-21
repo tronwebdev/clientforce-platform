@@ -8,6 +8,7 @@
 import { z } from "zod";
 import { languageCodeSchema, languageSourceSchema } from "./language";
 import { strategyBlockSchema } from "./strategy";
+import { voiceRiderSchema } from "./voice";
 
 const timeHHMM = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "HH:MM");
 
@@ -37,7 +38,12 @@ export const guardrailsSchema = z.object({
   sendingWindow: sendingWindowSchema,
   // P2.1 (DEC-061): per-channel caps — sms OPTIONAL and additive; legacy
   // rows parse unchanged. A8 literals below stay untouched.
-  dailyCap: z.object({ email: z.number().int().min(1), sms: z.number().int().min(1).optional() }),
+  // P3.1 (DEC-078): voice cap, same additive pattern.
+  dailyCap: z.object({
+    email: z.number().int().min(1),
+    sms: z.number().int().min(1).optional(),
+    voice: z.number().int().min(1).optional(),
+  }),
   consent: z.object({ attestedBy: z.string().min(1), attestedAt: z.string().min(1) }).nullable(),
   tracking: trackingSchema.default({ openTracking: true, linkTracking: true }),
   /**
@@ -77,6 +83,15 @@ export const guardrailsSchema = z.object({
    */
   language: languageCodeSchema.optional(),
   languageSource: languageSourceSchema.optional(),
+  /**
+   * P3.1 (DEC-078): per-agent voice settings — spoken name (+ its confirmed
+   * flag: an unconfirmed value is the ✦ suggestion, never spoken) and the TTS
+   * persona. Rides this Json like `goalLabel`/`strategy`/`composeMode` — no
+   * migration; absent = workspace default → default literal (the locked
+   * resolution chain in voice.ts). D0 holds: never a wizard field. The A8
+   * rails below are untouched.
+   */
+  voice: voiceRiderSchema.optional(),
   unsubscribeFooter: z.literal(true),
   suppressionCheck: z.literal(true),
 });

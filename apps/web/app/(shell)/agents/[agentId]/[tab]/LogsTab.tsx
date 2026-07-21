@@ -37,6 +37,12 @@ const LOG_ROW: Record<string, { icon: string; bg: string; fg: string }> = {
   "sms.replied.v1": { icon: "💬", bg: "rgba(54,215,237,.16)", fg: "#1192A6" },
   "sms.opted_out.v1": { icon: "⊘", bg: "rgba(224,121,107,.16)", fg: "#C9543F" },
   "sms.compose_refused.v1": { icon: "⚠", bg: "rgba(232,196,91,.2)", fg: "#9A6B12" },
+  // P3.1 (DEC-078): voice — ☎ maps to lucide `phone` (icon table).
+  "call.started.v1": { icon: "☎", bg: "rgba(53,232,52,.14)", fg: "#0F7A28" },
+  "call.completed.v1": { icon: "☎", bg: "rgba(53,232,52,.14)", fg: "#0F7A28" },
+  "call.failed.v1": { icon: "⚠", bg: "rgba(224,121,107,.14)", fg: "#C9543F" },
+  "call.refused.v1": { icon: "⊘", bg: "rgba(232,196,91,.2)", fg: "#9A6B12" },
+  "voice.compose_refused.v1": { icon: "⚠", bg: "rgba(232,196,91,.2)", fg: "#9A6B12" },
   // LH1 W3 (DEC-087): the enrollment gate's typed refusal — a red row (the
   // contact never entered the sequence; unlike compose refusals nothing is
   // paused, because nothing was enrolled).
@@ -64,6 +70,11 @@ function describe(e: LogEvent): string {
     case "sms.replied.v1": return `${who} replied by SMS${p.intent ? ` — classified “${String(p.intent)}”` : ""}.`;
     case "sms.opted_out.v1": return `${who} replied STOP — suppressed for SMS.`;
     case "sms.compose_refused.v1": return `Composer refused the SMS for ${who} — ${String(p.reason ?? "checks failed")}${p.detail ? ` (${String(p.detail)})` : ""}. The lead is paused; nothing was sent.`;
+    case "call.started.v1": return `AI call to ${who} connected.`;
+    case "call.completed.v1": return `AI call with ${who} completed${p.durationSec ? ` — ${Math.floor(Number(p.durationSec) / 60)}:${String(Number(p.durationSec) % 60).padStart(2, "0")}` : ""}. Transcript in the Calls tab.`;
+    case "call.failed.v1": return `AI call to ${who} didn't complete${p.reason ? ` — ${String(p.reason).replace(/_/g, " ")}` : ""}.`;
+    case "call.refused.v1": return `Dial to ${who} refused — ${String(p.reason ?? "rails blocked it")}. Nothing was dialed.`;
+    case "voice.compose_refused.v1": return `A spoken turn for ${who} tripped its checks — ${String(p.reason ?? "check failed")}; the agent used the fallback line and the call continued.`;
     case "contact.enrollment_refused.v1": return `Enrollment refused for ${who} — ${p.reason === "CONTACT_INVALID" ? "invalid email address (list hygiene)" : String(p.reason ?? "refused")}${p.detail ? ` (${String(p.detail)})` : ""}. Nothing was enrolled or sent.`;
     default: return `${e.type} — ${who}`;
   }

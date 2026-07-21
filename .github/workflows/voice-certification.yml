@@ -1,0 +1,441 @@
+# P3.1 (DEC-078): the voice certification + demo rig — the run that closes the
+# ADR's promote gate (TTFA p50 <= ~1.2s AND p95 <= ~1.5s over >=100 turns,
+# 0 dropped audio) plus P3.1's ZERO mid-utterance replies, amended by the
+# owner rulings (DEC-089/DEC-088). Rides the proven P2.1/P3.0 pattern:
+# staging OIDC -> clientforce-kv. The PSTN demo call dials through the
+# DEPLOYED clientforce-voice container app (P3.1 deploy — the runner+tunnel
+# rig is retired for demo calls). Prints only counts/latencies/masked values —
+# never phone numbers. Supersedes voice-live-spike.yml (the spike is merged
+# history; its throwaway code was replaced by the production service).
+#
+# Modes (workflow_dispatch input):
+#   preflight — the Deepgram vendor probe: secret presence + ONE live STT/TTS
+#               round-trip so the key is proven, not assumed.
+#   certify   — the >=100-turn paired-bot certification (STT-in-the-loop, the
+#               plan's D13): real Deepgram STT fed real caller audio with the
+#               ADR's adversarial pause patterns + scripted barge-ins, real
+#               Haiku, real Aura, through the PRODUCTION CallSession. Uploads
+#               per-session metrics + the aggregated gate table; FAILS the job
+#               when any gate misses.
+#   demo-call — ONE real outbound PSTN call to the owner's test number through
+#               the PRODUCTION service. `variant` picks the disclosure literal
+#               proven on the call: named (a confirmed spoken name) or default.
+#               Recording stays OFF (the owner-locked default) — the transcript
+#               is the record.
+name: voice-certification
+
+on:
+  # DEC-088: the scheduled cert monitor — a weekly ≥100-turn run against the
+  # amended gate (p95 ≤2.0s + ack-mask invariant, mid-utterance ≤7%) so the
+  # accepted STT-layer residual and the vendor latency tail stay measured,
+  # never assumed. Mondays 06:00 UTC.
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "preflight | certify | demo-call | diagnose"
+        required: true
+        default: "preflight"
+        type: choice
+        options: [preflight, certify, demo-call, diagnose]
+      variant:
+        description: "demo-call disclosure variant"
+        required: false
+        default: "named"
+        type: choice
+        options: [named, default]
+      sessions:
+        description: "certify: paired-bot sessions (>=6 ≈ 114 turns)"
+        required: false
+        default: "6"
+      to_number:
+        description: "demo-call: E.164 override for the test number (blank = KV SMS-TEST-NUMBER). Masked before any logging; enables the geo permission for its country first."
+        required: false
+        default: ""
+      call_sid:
+        description: "diagnose: a CAxxxx call SID to pull Twilio status + error notifications for (blank = service probes only)."
+        required: false
+        default: ""
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  KEY_VAULT_NAME: ${{ vars.KEY_VAULT_NAME }}
+  RG: ${{ vars.AZURE_RESOURCE_GROUP }}
+
+jobs:
+  voice:
+    name: voice — ${{ github.event_name == 'schedule' && 'certify (scheduled monitor)' || inputs.mode }}
+    runs-on: ubuntu-latest
+    environment: staging
+    env:
+      # schedule events carry no inputs — the monitor always runs certify.
+      MODE: ${{ github.event_name == 'schedule' && 'certify' || inputs.mode }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install + build (voice service + its full dependency closure)
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm --filter "voice..." build
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Resolve secrets from Key Vault (mask everything)
+        id: kv
+        env:
+          TO_OVERRIDE: ${{ inputs.to_number }}
+        run: |
+          set -euo pipefail
+          # Mask the dispatch-time override before ANY other output can echo it.
+          [ -n "$TO_OVERRIDE" ] && echo "::add-mask::$TO_OVERRIDE"
+          get() { az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name "$1" --query value -o tsv 2>/dev/null || true; }
+          ANTHROPIC="$(get ANTHROPIC-API-KEY)"
+          DEEPGRAM="$(get DEEPGRAM-API-KEY)"
+          TW_SID="$(get TWILIO-ACCOUNT-SID)"
+          TW_TOKEN="$(get TWILIO-AUTH-TOKEN)"
+          TW_FROM="$(get VOICE-FROM-NUMBER)"
+          TW_TO="${TO_OVERRIDE:-$(get SMS-TEST-NUMBER)}"
+          for v in "$ANTHROPIC" "$DEEPGRAM" "$TW_SID" "$TW_TOKEN" "$TW_FROM" "$TW_TO"; do
+            [ -n "$v" ] && echo "::add-mask::$v" || true
+          done
+          {
+            echo "anthropic=$ANTHROPIC"
+            echo "deepgram=$DEEPGRAM"
+            echo "tw_sid=$TW_SID"
+            echo "tw_token=$TW_TOKEN"
+            echo "tw_from=$TW_FROM"
+            echo "tw_to=$TW_TO"
+            echo "has_deepgram=$([ -n "$DEEPGRAM" ] && echo yes || echo no)"
+            echo "has_twilio=$([ -n "$TW_SID" ] && [ -n "$TW_TOKEN" ] && echo yes || echo no)"
+            echo "has_from=$([ -n "$TW_FROM" ] && echo yes || echo no)"
+            echo "has_to=$([ -n "$TW_TO" ] && echo yes || echo no)"
+          } >> "$GITHUB_OUTPUT"
+
+      # ── preflight: the Deepgram vendor probe — key proven live ──────────────
+      - name: Deepgram preflight (presence + one live STT/TTS round-trip)
+        if: env.MODE == 'preflight'
+        env:
+          DEEPGRAM_API_KEY: ${{ steps.kv.outputs.deepgram }}
+        run: |
+          set -euo pipefail
+          if [ -z "$DEEPGRAM_API_KEY" ]; then
+            echo "::error::DEEPGRAM-API-KEY missing from Key Vault."; exit 1
+          fi
+          echo "TTS probe (aura-2-thalia-en, 'ok'):"
+          bytes=$(curl -fsS -X POST "https://api.deepgram.com/v1/speak?model=aura-2-thalia-en&encoding=mulaw&sample_rate=8000&container=none" \
+            -H "Authorization: Token $DEEPGRAM_API_KEY" -H "content-type: application/json" \
+            -d '{"text":"ok"}' | wc -c)
+          echo "  received $bytes bytes of mulaw audio"
+          [ "$bytes" -gt 1000 ]
+          echo "STT probe (pre-recorded endpoint reachability):"
+          curl -fsS -o /dev/null -w "  HTTP %{http_code}\n" -X POST "https://api.deepgram.com/v1/listen?model=nova-2" \
+            -H "Authorization: Token $DEEPGRAM_API_KEY" -H "content-type: audio/mulaw" --data-binary @/dev/null || true
+          echo "PREFLIGHT PASS: Deepgram key live; TTS emits audio."
+
+      # ── certify: the >=100-turn paired-bot run through the PRODUCTION session ─
+      - name: Certification run (paired-bot, STT-in-the-loop)
+        if: env.MODE == 'certify'
+        env:
+          ANTHROPIC_API_KEY: ${{ steps.kv.outputs.anthropic }}
+          DEEPGRAM_API_KEY: ${{ steps.kv.outputs.deepgram }}
+          CERT_SESSIONS: ${{ inputs.sessions || '6' }}
+          CERT_OUT: ./cert
+        run: |
+          set -euo pipefail
+          [ -n "$DEEPGRAM_API_KEY" ] || { echo "::error::DEEPGRAM-API-KEY missing"; exit 1; }
+          [ -n "$ANTHROPIC_API_KEY" ] || { echo "::error::ANTHROPIC-API-KEY missing"; exit 1; }
+          node apps/voice/dist/certify.js
+          echo "----- cert-table.md -----"
+          cat cert/cert-table.md >> "$GITHUB_STEP_SUMMARY"
+          cat cert/cert-table.md
+
+      # ── demo-call: one real PSTN call through the DEPLOYED production
+      #    service (P3.1 deploy, DEC-090). The runner+tunnel rig is retired for
+      #    demo calls: the 2026-07-21 call proved its two failure classes (a
+      #    bad QUIC-fallback quick tunnel serving 1033s, and the job teardown
+      #    killing the server while the call was live). The runner now only
+      #    places the call and watches Twilio status — the service lives on
+      #    Azure and outlives the job. Owner directive: no calls until
+      #    deployed — the FQDN resolve below IS that gate. ──────────────────
+
+      # ── diagnose: NO dialing — post-mortem a call SID (Twilio status +
+      #    error notifications) + the deployed service's console logs + the
+      #    full probe ladder (health / 403 / tokened TwiML / wss handshake).
+      #    Built for the 2026-07-21 1s-drop investigation; keeps every future
+      #    "why did that call break" answerable without ringing anyone. ──────
+      - name: Diagnose (no dial — call post-mortem + service probes)
+        if: env.MODE == 'diagnose'
+        env:
+          TWILIO_ACCOUNT_SID: ${{ steps.kv.outputs.tw_sid }}
+          TWILIO_AUTH_TOKEN: ${{ steps.kv.outputs.tw_token }}
+          CALL_SID: ${{ inputs.call_sid }}
+        run: |
+          set -euo pipefail
+          if [ -n "$CALL_SID" ]; then
+            echo "── Twilio post-mortem for $CALL_SID ──"
+            curl -sS "https://api.twilio.com/2010-04-01/Accounts/$TWILIO_ACCOUNT_SID/Calls/$CALL_SID.json" \
+              -u "$TWILIO_ACCOUNT_SID:$TWILIO_AUTH_TOKEN" \
+              | python3 -c 'import json,sys; d=json.load(sys.stdin); print("call status=%s duration=%ss answered_by=%s start=%s end=%s" % (d.get("status"), d.get("duration"), d.get("answered_by"), d.get("start_time"), d.get("end_time")))' \
+              || echo "(call not readable)"
+            curl -sS "https://api.twilio.com/2010-04-01/Accounts/$TWILIO_ACCOUNT_SID/Calls/$CALL_SID/Notifications.json" \
+              -u "$TWILIO_ACCOUNT_SID:$TWILIO_AUTH_TOKEN" \
+              | python3 -c 'import json,sys; ns=json.load(sys.stdin).get("notifications",[]); print("twilio notifications: none (no TwiML/stream errors on this call)" if not ns else "twilio notifications:"); [print("  code=%s level=%s text=%s" % (n.get("error_code"), n.get("log"), (n.get("message_text") or "")[:300])) for n in ns]' \
+              || echo "(notifications not readable)"
+          fi
+          echo "── service console logs (gate refusals / stream lifecycle / metrics) ──"
+          az containerapp logs show --name clientforce-voice --resource-group "$RG" --type console --tail 300 2>/dev/null \
+            | grep -oE '\[(ws|call|voice|metrics|stt|session)\][^"]*' | tail -40 \
+            || echo "(no matching service log lines in the tail window)"
+          echo "── service probe ladder ──"
+          FQDN="$(az containerapp show --name clientforce-voice --resource-group "$RG" --query "properties.configuration.ingress.fqdn" -o tsv 2>/dev/null || true)"
+          [ -n "$FQDN" ] || { echo "::error::clientforce-voice is not deployed in $RG"; exit 1; }
+          BASE="https://$FQDN"
+          echo "health: $(curl -fsS "$BASE/health" || echo UNREACHABLE)"
+          TOKEN=$(python3 -c 'import hmac,hashlib,os; print(hmac.new(os.environ["TWILIO_AUTH_TOKEN"].encode(),b"clientforce-voice-media",hashlib.sha256).hexdigest()[:32])')
+          echo "::add-mask::$TOKEN"
+          echo "untokened /twiml: HTTP $(curl -sS -X POST -o /dev/null -w "%{http_code}" "$BASE/twiml" || echo 000) (expect 403)"
+          BODY=$(curl -sS -X POST "$BASE/twiml?t=$TOKEN" || true)
+          case "$BODY" in
+            *"wss://$FQDN/media/"*) echo "tokened /twiml: 200, PATH-form stream URL (query-strip fix LIVE)";;
+            *"wss://$FQDN/media?t="*) echo "tokened /twiml: 200, QUERY-form stream URL (fix NOT deployed yet)";;
+            *) echo "tokened /twiml: unexpected body";;
+          esac
+          # Informational wss ladder — reports what EACH url form does against
+          # whatever image is live. Admission = the socket opens AND survives
+          # (the server completes the handshake before the gate runs, so a
+          # 1008 right after open still means refused).
+          MEDIA_TOKEN="$TOKEN" NODE_PATH=apps/voice/node_modules node -e '
+            const W = require("ws");
+            const base = process.argv[1];
+            const probe = (label, url) => new Promise((resolve) => {
+              const s = new W(url);
+              let closed = null;
+              s.on("close", (c) => { closed = c; });
+              s.on("error", (e) => { if (closed === null) closed = "err:" + e.message; });
+              setTimeout(() => { const admitted = s.readyState === W.OPEN; try { s.terminate(); } catch {} console.log(label + ": " + (admitted ? "ADMITTED (open, survived)" : "refused — " + closed)); resolve(); }, 900);
+            });
+            (async () => {
+              await probe("wss untokened /media        ", base + "/media");
+              await probe("wss query-form /media?t=…   ", base + "/media?t=" + process.env.MEDIA_TOKEN);
+              await probe("wss path-form /media/<token>", base + "/media/" + process.env.MEDIA_TOKEN);
+              process.exit(0);
+            })();
+          ' "wss://$FQDN"
+
+      # Owner directive 2026-07-15 (international demo leg): enable the target
+      # country in Twilio Voice Geo Permissions before dialing — the dial fails
+      # without it — and append the number to the product allow-list rail
+      # (VOICE-ALLOWLIST in KV, the DEC-063-analog list assertDialAllowed reads
+      # via CHANNELS_VOICE_ALLOWLIST). Prints country flags and outcomes only —
+      # never numbers.
+      - name: Geo permissions + allow-list (demo-call)
+        if: env.MODE == 'demo-call'
+        env:
+          TWILIO_ACCOUNT_SID: ${{ steps.kv.outputs.tw_sid }}
+          TWILIO_AUTH_TOKEN: ${{ steps.kv.outputs.tw_token }}
+          TW_TO: ${{ steps.kv.outputs.tw_to }}
+        run: |
+          set -euo pipefail
+          # AUTH PROBE FIRST — a rotated token / suspended account 401s (Twilio
+          # 20003) on everything downstream; fail here with the precise fix.
+          ACC=$(curl -sS -w "\n%{http_code}" "https://api.twilio.com/2010-04-01/Accounts/$TWILIO_ACCOUNT_SID.json" \
+            -u "$TWILIO_ACCOUNT_SID:$TWILIO_AUTH_TOKEN")
+          CODE="${ACC##*$'\n'}"
+          if [ "$CODE" != "200" ]; then
+            echo "::error::Twilio rejected the Key Vault credentials (HTTP $CODE, error 20003 = Authenticate). Fix in console: Account → API keys & tokens → copy the LIVE auth token, then update the TWILIO-AUTH-TOKEN secret in clientforce-kv. Also confirm the account is not suspended."
+            exit 1
+          fi
+          printf '%s' "${ACC%$'\n'*}" | python3 -c 'import json,sys; d=json.load(sys.stdin); print("twilio account: status=%s type=%s" % (d.get("status"), d.get("type")))'
+          case "$TW_TO" in
+            +234*) ISO="NG"; LEG="international (NG)";;
+            +1*)   ISO="US"; LEG="domestic (US)";;
+            *)     ISO="";   LEG="unknown-prefix";;
+          esac
+          echo "leg=$LEG"
+          if [ -n "$ISO" ] && [ "$ISO" != "US" ]; then
+            # BEST-EFFORT: DialingPermissions is parent-account-managed — a
+            # subaccount/trial principal gets 401 here even with creds that
+            # place calls fine. Never fail the run on it; the dial itself is
+            # the authoritative check (Twilio 21215 = geo still blocked, a
+            # console-side toggle only the owner can flip).
+            echo "enabling low-risk dialing for $ISO (best-effort)..."
+            CODE=$(curl -sS -X POST "https://voice.twilio.com/v1/DialingPermissions/BulkCountryUpdates" \
+              -u "$TWILIO_ACCOUNT_SID:$TWILIO_AUTH_TOKEN" \
+              --data-urlencode "UpdateRequest=[{\"iso_code\":\"$ISO\",\"low_risk_numbers_enabled\":true}]" \
+              -o /dev/null -w "%{http_code}" || echo "000")
+            echo "  BulkCountryUpdates HTTP $CODE"
+            if [ "$CODE" != "200" ] && [ "$CODE" != "201" ]; then
+              echo "::warning::Geo Permissions API returned $CODE — if the dial fails with Twilio 21215, enable $ISO in console → Voice → Geo Permissions (parent account)."
+            fi
+            curl -sS "https://voice.twilio.com/v1/DialingPermissions/Countries/$ISO" \
+              -u "$TWILIO_ACCOUNT_SID:$TWILIO_AUTH_TOKEN" \
+              | python3 -c 'import json,sys; d=json.load(sys.stdin); print("  %s: low_risk_numbers_enabled=%s" % (d.get("iso_code","?"), d.get("low_risk_numbers_enabled","unknown")))' \
+              || echo "  (permission state not readable from this principal)"
+          fi
+          # Allow-list append (product rail; harmless for the standalone demo
+          # leg, which places the call directly). Tolerates a read-only KV
+          # principal — reports instead of failing the run.
+          CURRENT="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name VOICE-ALLOWLIST --query value -o tsv 2>/dev/null || true)"
+          case ",$CURRENT," in
+            *",$TW_TO,"*) echo "allow-list: number already present";;
+            *)
+              NEW="${CURRENT:+$CURRENT,}$TW_TO"
+              if az keyvault secret set --vault-name "$KEY_VAULT_NAME" --name VOICE-ALLOWLIST --value "$NEW" -o none 2>/dev/null; then
+                echo "allow-list: number appended to VOICE-ALLOWLIST"
+              else
+                echo "::warning::allow-list: KV principal cannot set VOICE-ALLOWLIST — append it manually in Key Vault"
+              fi;;
+          esac
+
+      - name: Demo call (deployed production service, ${{ inputs.variant }} disclosure variant)
+        if: env.MODE == 'demo-call'
+        env:
+          TWILIO_ACCOUNT_SID: ${{ steps.kv.outputs.tw_sid }}
+          TWILIO_AUTH_TOKEN: ${{ steps.kv.outputs.tw_token }}
+          VOICE_FROM_NUMBER: ${{ steps.kv.outputs.tw_from }}
+          TWILIO_TO: ${{ steps.kv.outputs.tw_to }}
+          VOICE_SANDBOX: "false"
+          DEMO_VARIANT: ${{ inputs.variant }}
+        run: |
+          set -euo pipefail
+          [ "${{ steps.kv.outputs.has_twilio }}" = "yes" ] || { echo "::error::Twilio credentials missing"; exit 1; }
+          [ "${{ steps.kv.outputs.has_from }}" = "yes" ] || { echo "::error::VOICE-FROM-NUMBER missing"; exit 1; }
+          [ "${{ steps.kv.outputs.has_to }}" = "yes" ] || { echo "::error::SMS-TEST-NUMBER missing"; exit 1; }
+          # THE no-calls-until-deployed gate: the deployed service must exist,
+          # answer /health, and hold its access gate BEFORE anyone's phone
+          # rings. Every probe hits the same public FQDN Twilio will use.
+          FQDN="$(az containerapp show --name clientforce-voice --resource-group "$RG" --query "properties.configuration.ingress.fqdn" -o tsv 2>/dev/null || true)"
+          if [ -z "$FQDN" ]; then
+            echo "::error::clientforce-voice is not deployed in $RG — run the Deploy (staging) workflow first. No calls until deployed."
+            exit 1
+          fi
+          BASE="https://$FQDN"
+          echo "voice service: $BASE"
+          HEALTH=$(curl -fsS "$BASE/health" || true)
+          echo "health: $HEALTH"
+          [ -n "$HEALTH" ] || { echo "::error::voice /health not answering — not dialing."; exit 1; }
+          # Access-gate proof, negative then positive: an untokened /twiml
+          # must 403 (the gate holds), the tokened preflight must 200 with a
+          # wss stream URL (the exact request Twilio will make).
+          TOKEN=$(python3 -c 'import hmac,hashlib,os; print(hmac.new(os.environ["TWILIO_AUTH_TOKEN"].encode(),b"clientforce-voice-media",hashlib.sha256).hexdigest()[:32])')
+          echo "::add-mask::$TOKEN"
+          CODE=$(curl -sS -X POST -o /dev/null -w "%{http_code}" "$BASE/twiml" || echo 000)
+          if [ "$CODE" != "403" ]; then
+            echo "::error::untokened /twiml returned HTTP $CODE (expected 403) — the media gate is not holding; not dialing."
+            exit 1
+          fi
+          echo "gate preflight: untokened /twiml refused (403)"
+          BODY=$(curl -fsS -X POST "$BASE/twiml?t=$TOKEN&demoVariant=${{ inputs.variant }}")
+          case "$BODY" in
+            *"wss://$FQDN/media/"*) echo "twiml preflight: 200 with PATH-form wss stream URL (${{ inputs.variant }} variant bound)";;
+            *) echo "::error::tokened /twiml answered without the PATH-form wss stream URL — the query-strip fix is not deployed; not dialing."; exit 1;;
+          esac
+          # wss HANDSHAKE preflight (the leg the first deployed dial died on):
+          # the exact upgrade Twilio will attempt must be ADMITTED through the
+          # Azure ingress (open AND survive — the server completes any
+          # handshake before the gate runs, so 1008-after-open means refused),
+          # and an untokened upgrade must NOT be admitted — proven BEFORE any
+          # phone rings. A probe socket sends no stream, so the service leaves
+          # no metrics surface for it.
+          MEDIA_TOKEN="$TOKEN" NODE_PATH=apps/voice/node_modules node -e '
+            const W = require("ws");
+            const base = process.argv[1];
+            const probe = (url) => new Promise((resolve) => {
+              const s = new W(url);
+              let closed = null;
+              s.on("close", (c) => { closed = c; });
+              s.on("error", (e) => { if (closed === null) closed = "err:" + e.message; });
+              setTimeout(() => { const admitted = s.readyState === W.OPEN; try { s.terminate(); } catch {} resolve(admitted ? "admitted" : "refused " + closed); }, 900);
+            });
+            (async () => {
+              const bad = await probe(base + "/media");
+              const good = await probe(base + "/media/" + process.env.MEDIA_TOKEN);
+              console.log("wss preflight: untokened=" + bad + " tokened-path=" + good);
+              if (bad === "admitted") { console.error("wss preflight FAIL: untokened upgrade admitted — gate not holding"); process.exit(1); }
+              if (good !== "admitted") { console.error("wss preflight FAIL: tokened path-form not admitted — Twilio would drop at answer; not dialing"); process.exit(1); }
+              process.exit(0);
+            })();
+          ' "wss://$FQDN"
+          PUBLIC_URL="$BASE" node apps/voice/dist/place-call.js | tee place-call.out
+          CALL_SID="$(sed -n 's/.*callSid=\(CA[a-zA-Z0-9]*\).*/\1/p' place-call.out | head -1)"
+          echo "call placed (${{ inputs.variant }} variant); holding until the call ENDS..."
+          # Hold until the call reaches a TERMINAL state (up to 6 min) — the
+          # first live call outlived a fixed 90s hold and the runner killed
+          # the server MID-CONVERSATION (2026-07-21). Then give the session a
+          # beat to finalize metrics.
+          STATUS="unknown"
+          for i in $(seq 1 72); do
+            sleep 5
+            STATUS=$(curl -sS "https://api.twilio.com/2010-04-01/Accounts/$TWILIO_ACCOUNT_SID/Calls/$CALL_SID.json" \
+              -u "$TWILIO_ACCOUNT_SID:$TWILIO_AUTH_TOKEN" \
+              | python3 -c 'import json,sys; print(json.load(sys.stdin).get("status","unknown"))' || echo unknown)
+            case "$STATUS" in completed|failed|busy|no-answer|canceled) break;; esac
+          done
+          sleep 5
+          VERDICT=$(curl -sS "https://api.twilio.com/2010-04-01/Accounts/$TWILIO_ACCOUNT_SID/Calls/$CALL_SID.json" \
+            -u "$TWILIO_ACCOUNT_SID:$TWILIO_AUTH_TOKEN" \
+            | python3 -c 'import json,sys; d=json.load(sys.stdin); print("call status=%s duration=%ss answered_by=%s" % (d.get("status"), d.get("duration"), d.get("answered_by")))' \
+            || echo "(call status not readable)")
+          echo "$VERDICT"
+          # Twilio error notifications (11200 TwiML fetch fail, 31920-class
+          # stream handshake fail, …) — a silent 1s drop becomes attributable.
+          curl -sS "https://api.twilio.com/2010-04-01/Accounts/$TWILIO_ACCOUNT_SID/Calls/$CALL_SID/Notifications.json" \
+            -u "$TWILIO_ACCOUNT_SID:$TWILIO_AUTH_TOKEN" \
+            | python3 -c 'import json,sys; ns=json.load(sys.stdin).get("notifications",[]); print("twilio notifications: none (no TwiML/stream errors on this call)" if not ns else "twilio notifications:"); [print("  code=%s level=%s text=%s" % (n.get("error_code"), n.get("log"), (n.get("message_text") or "")[:200])) for n in ns]' \
+            || echo "(notifications not readable)"
+          # Service-side evidence: the session finalizes INSIDE the container
+          # now — pull the numbers-only `[metrics] summary` line from its
+          # console logs (never transcript text, never numbers dialed).
+          # Best-effort with retries: log ingestion lags the call end.
+          SUMMARY=""
+          for i in $(seq 1 8); do
+            SUMMARY=$(az containerapp logs show --name clientforce-voice --resource-group "$RG" --type console --tail 300 2>/dev/null \
+              | grep -o '\[metrics\] summary {.*}' | tail -1 || true)
+            [ -n "$SUMMARY" ] && break; sleep 5
+          done
+          echo "----- service metrics -----"
+          if [ -n "$SUMMARY" ]; then echo "$SUMMARY"; else echo "::warning::no [metrics] summary line surfaced in container logs yet — check az containerapp logs manually"; fi
+          # Leg framing for the report (owner directive 2026-07-15): on an
+          # international leg, perceived latency is NOT gating — PSTN RTT
+          # inflates it; the cert table's US-measured TTFA stands as the
+          # latency evidence. This leg judges disclosure audibility, barge-in
+          # and flow.
+          case "${{ steps.kv.outputs.tw_to }}" in
+            +234*) LEG="international (NG) — latency NON-GATING on this leg";;
+            +1*)   LEG="domestic (US) — perceived-latency confirmation leg";;
+            *)     LEG="unknown prefix";;
+          esac
+          {
+            echo "## demo-call — ${{ inputs.variant }} variant (deployed service)"
+            echo "- leg: $LEG"
+            echo "- judge on this leg: disclosure audibility · barge-in · conversational flow"
+            echo "- provider verdict: $VERDICT"
+            echo '```json'
+            if [ -n "$SUMMARY" ]; then echo "${SUMMARY#\[metrics\] summary }"; else echo "(no service metrics surfaced yet)"; fi
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload artifacts
+        if: always() && env.MODE != 'preflight'
+        uses: actions/upload-artifact@v4
+        with:
+          name: voice-${{ env.MODE }}-${{ env.MODE == 'demo-call' && inputs.variant || 'run' }}
+          path: |
+            cert/
+            place-call.out
+          if-no-files-found: ignore
