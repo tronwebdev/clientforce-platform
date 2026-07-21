@@ -577,6 +577,21 @@ model Integration {                             // INT W1 (DEC-093): LIVE — on
   // + lastProbeAt · lastSyncAt · connectedById (audit)
 }
 
+model Meeting {                                 // INT W2 (DEC-094): CURRENT booking state + the before_meeting sweep anchor
+  id           String @id @default(cuid())
+  workspaceId  String
+  contactId    String?                          // NULL = an invitee we could not correlate (honest "not our lead")
+  enrollmentId String?
+  campaignId   String?
+  provider     String                           // calendly (detection tier) now; more later
+  externalId   String                           // the invitee URI — moves on reschedule (ONE row per chain)
+  status       String @default("booked")        // booked | canceled | no_show (guarded transitions; cancel ≠ stage change)
+  startAt      DateTime                         // reschedules update this — the sweep key re-arms
+  // + endAt? · timezone? · inviteeEmail? · rescheduleUrl? · cancelUrl? · title? · meta
+  // @@unique([workspaceId, provider, externalId]) — webhook redelivery idempotency
+  // @@index([workspaceId, status, startAt]) — the before_meeting sweep scan
+}
+
 model IntegrationDelivery {                     // INT W1 (DEC-093): outbound delivery audit + redelivery idempotency
   id            String @id @default(cuid())
   workspaceId   String

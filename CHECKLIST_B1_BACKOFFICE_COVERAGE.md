@@ -32,7 +32,7 @@
 | Contacts / lists | ✓ list.member.* | — | — | — | ✓ |
 | Sequence editor (#90) | ✓ (graph events) | ✓ regen | via channel | — | ✓ |
 | Sub-campaign rules (R1) | ✓ rule fires | — | — | — | ✓ |
-| Integrations (INT W1: Slack; W2–W4 extend this row) | ✓ integration.* (connect/disconnect audit · status transitions · deliveries · holds) | — (no billable action; Slack posts are free — the allowance is a storm brake, not a meter) | n/a (notifications to the OWNER's OWN Slack, not a lead-facing send path; revisit if a lead-facing integration send ever exists) | n/a (probe-backed Integration.status, not the sender score contract) | ✓ (Integration + IntegrationDelivery are workspace-scoped RLS tables) |
+| Integrations (INT W1 Slack · W2 calendar/booking; W3–W4 extend this row) | ✓ integration.* + calendar.* (connect/disconnect audit · status transitions · deliveries · holds · bookings/reschedules/cancels; the booking's stage change rides the EXISTING lead.stage_changed.v1) | — (no billable action; Slack posts are free — the allowance is a storm brake, not a meter) | n/a (notifications to the OWNER's OWN Slack, not a lead-facing send path; revisit if a lead-facing integration send ever exists) | n/a (probe-backed Integration.status, not the sender score contract) | ✓ (Integration + IntegrationDelivery are workspace-scoped RLS tables) |
 
 Blank = not applicable to that spine (correct, not a gap). "via channel" = killable
 through the channel it sends on, not a separate switch.
