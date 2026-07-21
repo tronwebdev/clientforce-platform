@@ -24,6 +24,7 @@ import { EVENT_TYPES } from "@clientforce/events";
 import { loadVoiceConfig } from "./config";
 import { loadAckClips } from "./ack";
 import { createVoiceEventsPublisher, type VoiceEventsPublisher } from "./events";
+import { mediaStreamUrl, parseMediaRequest } from "./media-url";
 import { MetricsCollector } from "./metrics";
 import { CallSession, type CallEndReason } from "./session";
 import { synthesizeAura } from "./deepgram";
@@ -64,11 +65,6 @@ ${parameters}
 </Response>`;
 }
 
-/** The wss endpoint, carrying the gate token when the gate is on. */
-function mediaStreamUrl(host: string, token: string | undefined): string {
-  return `wss://${host}/media${token ? `?t=${token}` : ""}`;
-}
-
 const prisma: PrismaClient | undefined =
   process.env.APP_DATABASE_URL || process.env.DATABASE_URL ? createAppPrismaClient() : undefined;
 const publisher: VoiceEventsPublisher | undefined = prisma
@@ -105,12 +101,20 @@ const httpServer = createServer((req: IncomingMessage, res: ServerResponse) => {
   res.end("not found");
 });
 
-const wss = new WebSocketServer({ server: httpServer, path: "/media" });
+// No `path` option: the gate token rides the PATH (`/media/<token>`) because
+// Twilio's <Stream> handshake is not guaranteed to preserve query strings —
+// the 2026-07-21 first deployed dial dropped at answer exactly that way.
+// Path matching + token validation happen together in the connection handler.
+const wss = new WebSocketServer({ server: httpServer });
 
 wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
-  const wsUrl = new URL(req.url ?? "/media", `http://${config.publicHost}`);
-  if (!voiceMediaTokenValid(mediaToken, wsUrl.searchParams.get("t"))) {
-    console.error("[ws] refused: missing/invalid media token");
+  const media = parseMediaRequest(req.url ?? "");
+  if (!media.isMedia || !voiceMediaTokenValid(mediaToken, media.token)) {
+    console.error(
+      media.isMedia
+        ? "[ws] refused: missing/invalid media token"
+        : "[ws] refused: not a /media upgrade",
+    );
     ws.close(1008, "unauthorized");
     return;
   }
@@ -128,6 +132,10 @@ wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
     if (finalized) return;
     finalized = true;
     session?.close();
+    // A socket that never carried a stream (the workflow's wss handshake
+    // preflight, a scanner) leaves no metrics surface — a 0-turn summary
+    // here would masquerade as the real call's evidence in container logs.
+    if (!streamSid) return;
     const report = metrics.report();
     try {
       writeFileSync(METRICS_OUT, JSON.stringify(report, null, 2));

@@ -34,11 +34,11 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "preflight | certify | demo-call"
+        description: "preflight | certify | demo-call | diagnose"
         required: true
         default: "preflight"
         type: choice
-        options: [preflight, certify, demo-call]
+        options: [preflight, certify, demo-call, diagnose]
       variant:
         description: "demo-call disclosure variant"
         required: false
@@ -51,6 +51,10 @@ on:
         default: "6"
       to_number:
         description: "demo-call: E.164 override for the test number (blank = KV SMS-TEST-NUMBER). Masked before any logging; enables the geo permission for its country first."
+        required: false
+        default: ""
+      call_sid:
+        description: "diagnose: a CAxxxx call SID to pull Twilio status + error notifications for (blank = service probes only)."
         required: false
         default: ""
 
@@ -169,6 +173,70 @@ jobs:
       #    Azure and outlives the job. Owner directive: no calls until
       #    deployed — the FQDN resolve below IS that gate. ──────────────────
 
+      # ── diagnose: NO dialing — post-mortem a call SID (Twilio status +
+      #    error notifications) + the deployed service's console logs + the
+      #    full probe ladder (health / 403 / tokened TwiML / wss handshake).
+      #    Built for the 2026-07-21 1s-drop investigation; keeps every future
+      #    "why did that call break" answerable without ringing anyone. ──────
+      - name: Diagnose (no dial — call post-mortem + service probes)
+        if: env.MODE == 'diagnose'
+        env:
+          TWILIO_ACCOUNT_SID: ${{ steps.kv.outputs.tw_sid }}
+          TWILIO_AUTH_TOKEN: ${{ steps.kv.outputs.tw_token }}
+          CALL_SID: ${{ inputs.call_sid }}
+        run: |
+          set -euo pipefail
+          if [ -n "$CALL_SID" ]; then
+            echo "── Twilio post-mortem for $CALL_SID ──"
+            curl -sS "https://api.twilio.com/2010-04-01/Accounts/$TWILIO_ACCOUNT_SID/Calls/$CALL_SID.json" \
+              -u "$TWILIO_ACCOUNT_SID:$TWILIO_AUTH_TOKEN" \
+              | python3 -c 'import json,sys; d=json.load(sys.stdin); print("call status=%s duration=%ss answered_by=%s start=%s end=%s" % (d.get("status"), d.get("duration"), d.get("answered_by"), d.get("start_time"), d.get("end_time")))' \
+              || echo "(call not readable)"
+            curl -sS "https://api.twilio.com/2010-04-01/Accounts/$TWILIO_ACCOUNT_SID/Calls/$CALL_SID/Notifications.json" \
+              -u "$TWILIO_ACCOUNT_SID:$TWILIO_AUTH_TOKEN" \
+              | python3 -c 'import json,sys; ns=json.load(sys.stdin).get("notifications",[]); print("twilio notifications: none (no TwiML/stream errors on this call)" if not ns else "twilio notifications:"); [print("  code=%s level=%s text=%s" % (n.get("error_code"), n.get("log"), (n.get("message_text") or "")[:300])) for n in ns]' \
+              || echo "(notifications not readable)"
+          fi
+          echo "── service console logs (gate refusals / stream lifecycle / metrics) ──"
+          az containerapp logs show --name clientforce-voice --resource-group "$RG" --type console --tail 300 2>/dev/null \
+            | grep -oE '\[(ws|call|voice|metrics|stt|session)\][^"]*' | tail -40 \
+            || echo "(no matching service log lines in the tail window)"
+          echo "── service probe ladder ──"
+          FQDN="$(az containerapp show --name clientforce-voice --resource-group "$RG" --query "properties.configuration.ingress.fqdn" -o tsv 2>/dev/null || true)"
+          [ -n "$FQDN" ] || { echo "::error::clientforce-voice is not deployed in $RG"; exit 1; }
+          BASE="https://$FQDN"
+          echo "health: $(curl -fsS "$BASE/health" || echo UNREACHABLE)"
+          TOKEN=$(python3 -c 'import hmac,hashlib,os; print(hmac.new(os.environ["TWILIO_AUTH_TOKEN"].encode(),b"clientforce-voice-media",hashlib.sha256).hexdigest()[:32])')
+          echo "::add-mask::$TOKEN"
+          echo "untokened /twiml: HTTP $(curl -sS -X POST -o /dev/null -w "%{http_code}" "$BASE/twiml" || echo 000) (expect 403)"
+          BODY=$(curl -sS -X POST "$BASE/twiml?t=$TOKEN" || true)
+          case "$BODY" in
+            *"wss://$FQDN/media/"*) echo "tokened /twiml: 200, PATH-form stream URL (query-strip fix LIVE)";;
+            *"wss://$FQDN/media?t="*) echo "tokened /twiml: 200, QUERY-form stream URL (fix NOT deployed yet)";;
+            *) echo "tokened /twiml: unexpected body";;
+          esac
+          # Informational wss ladder — reports what EACH url form does against
+          # whatever image is live. Admission = the socket opens AND survives
+          # (the server completes the handshake before the gate runs, so a
+          # 1008 right after open still means refused).
+          MEDIA_TOKEN="$TOKEN" NODE_PATH=apps/voice/node_modules node -e '
+            const W = require("ws");
+            const base = process.argv[1];
+            const probe = (label, url) => new Promise((resolve) => {
+              const s = new W(url);
+              let closed = null;
+              s.on("close", (c) => { closed = c; });
+              s.on("error", (e) => { if (closed === null) closed = "err:" + e.message; });
+              setTimeout(() => { const admitted = s.readyState === W.OPEN; try { s.terminate(); } catch {} console.log(label + ": " + (admitted ? "ADMITTED (open, survived)" : "refused — " + closed)); resolve(); }, 900);
+            });
+            (async () => {
+              await probe("wss untokened /media        ", base + "/media");
+              await probe("wss query-form /media?t=…   ", base + "/media?t=" + process.env.MEDIA_TOKEN);
+              await probe("wss path-form /media/<token>", base + "/media/" + process.env.MEDIA_TOKEN);
+              process.exit(0);
+            })();
+          ' "wss://$FQDN"
+
       # Owner directive 2026-07-15 (international demo leg): enable the target
       # country in Twilio Voice Geo Permissions before dialing — the dial fails
       # without it — and append the number to the product allow-list rail
@@ -274,9 +342,35 @@ jobs:
           echo "gate preflight: untokened /twiml refused (403)"
           BODY=$(curl -fsS -X POST "$BASE/twiml?t=$TOKEN&demoVariant=${{ inputs.variant }}")
           case "$BODY" in
-            *"wss://$FQDN/media"*) echo "twiml preflight: 200 with wss stream URL (${{ inputs.variant }} variant bound)";;
-            *) echo "::error::tokened /twiml answered without the expected wss stream URL — not dialing."; exit 1;;
+            *"wss://$FQDN/media/"*) echo "twiml preflight: 200 with PATH-form wss stream URL (${{ inputs.variant }} variant bound)";;
+            *) echo "::error::tokened /twiml answered without the PATH-form wss stream URL — the query-strip fix is not deployed; not dialing."; exit 1;;
           esac
+          # wss HANDSHAKE preflight (the leg the first deployed dial died on):
+          # the exact upgrade Twilio will attempt must be ADMITTED through the
+          # Azure ingress (open AND survive — the server completes any
+          # handshake before the gate runs, so 1008-after-open means refused),
+          # and an untokened upgrade must NOT be admitted — proven BEFORE any
+          # phone rings. A probe socket sends no stream, so the service leaves
+          # no metrics surface for it.
+          MEDIA_TOKEN="$TOKEN" NODE_PATH=apps/voice/node_modules node -e '
+            const W = require("ws");
+            const base = process.argv[1];
+            const probe = (url) => new Promise((resolve) => {
+              const s = new W(url);
+              let closed = null;
+              s.on("close", (c) => { closed = c; });
+              s.on("error", (e) => { if (closed === null) closed = "err:" + e.message; });
+              setTimeout(() => { const admitted = s.readyState === W.OPEN; try { s.terminate(); } catch {} resolve(admitted ? "admitted" : "refused " + closed); }, 900);
+            });
+            (async () => {
+              const bad = await probe(base + "/media");
+              const good = await probe(base + "/media/" + process.env.MEDIA_TOKEN);
+              console.log("wss preflight: untokened=" + bad + " tokened-path=" + good);
+              if (bad === "admitted") { console.error("wss preflight FAIL: untokened upgrade admitted — gate not holding"); process.exit(1); }
+              if (good !== "admitted") { console.error("wss preflight FAIL: tokened path-form not admitted — Twilio would drop at answer; not dialing"); process.exit(1); }
+              process.exit(0);
+            })();
+          ' "wss://$FQDN"
           PUBLIC_URL="$BASE" node apps/voice/dist/place-call.js | tee place-call.out
           CALL_SID="$(sed -n 's/.*callSid=\(CA[a-zA-Z0-9]*\).*/\1/p' place-call.out | head -1)"
           echo "call placed (${{ inputs.variant }} variant); holding until the call ENDS..."
@@ -298,6 +392,12 @@ jobs:
             | python3 -c 'import json,sys; d=json.load(sys.stdin); print("call status=%s duration=%ss answered_by=%s" % (d.get("status"), d.get("duration"), d.get("answered_by")))' \
             || echo "(call status not readable)")
           echo "$VERDICT"
+          # Twilio error notifications (11200 TwiML fetch fail, 31920-class
+          # stream handshake fail, …) — a silent 1s drop becomes attributable.
+          curl -sS "https://api.twilio.com/2010-04-01/Accounts/$TWILIO_ACCOUNT_SID/Calls/$CALL_SID/Notifications.json" \
+            -u "$TWILIO_ACCOUNT_SID:$TWILIO_AUTH_TOKEN" \
+            | python3 -c 'import json,sys; ns=json.load(sys.stdin).get("notifications",[]); print("twilio notifications: none (no TwiML/stream errors on this call)" if not ns else "twilio notifications:"); [print("  code=%s level=%s text=%s" % (n.get("error_code"), n.get("log"), (n.get("message_text") or "")[:200])) for n in ns]' \
+            || echo "(notifications not readable)"
           # Service-side evidence: the session finalizes INSIDE the container
           # now — pull the numbers-only `[metrics] summary` line from its
           # console logs (never transcript text, never numbers dialed).
