@@ -24,7 +24,7 @@ export interface VoiceServiceConfig {
     utteranceEndMs: number;
     smartFormat: boolean;
   };
-  /** DEC-091: reply TTS transport — `stream` (persistent Aura websocket, the
+  /** DEC-092: reply TTS transport — `stream` (persistent Aura websocket, the
    *  inter-sentence-gap killer) or `https` (per-sentence fetch; also the
    *  automatic in-call fallback when the stream transport fails). */
   ttsTransport: "stream" | "https";

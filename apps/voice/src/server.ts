@@ -170,7 +170,7 @@ wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
         refusals: report.refusals.length,
         disclosureCompleted: report.disclosureCompleted,
         costPerMinuteUsd: Math.round(report.cost.perMinuteUsd * 1000) / 1000,
-        // DEC-091 pacing block — the audible layer, measured per call.
+        // DEC-092 pacing block — the audible layer, measured per call.
         ttsTransport: report.ttsTransport,
         ttsSentences: report.ttsSentences,
         audioSendGaps: report.audioSendGaps,

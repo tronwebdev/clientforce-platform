@@ -535,17 +535,17 @@ model Event {
 ## 6. Automations, integrations, channels
 
 ```prisma
-model Automation {          // standalone When → If → Then rules
+model Automation {          // account-scope When → If → Then rules — LIVE on the ONE R1 evaluator (R1-UI, DEC-091)
   id          String @id @default(cuid())
   workspaceId String
   name        String
   enabled     Boolean @default(true)
-  trigger     Json                              // { event:"email.replied.v1", filter:{...} }
-  conditions  Json                              // [{ field, op, value }]  (AND)
-  actions     Json                              // [{ type, params }]  ordered
+  trigger     Json                              // R1-UI (DEC-091): the ONE core union (campaignRuleTriggerSchema) — the pre-R1 {event, filter} sketch is superseded
+  conditions  Json                              // R1-UI (DEC-091): campaignRuleConditionSchema[], max ONE this phase (multi-AND stays reserved)
+  actions     Json                              // R1-UI (DEC-091): the ONE core action union, ordered; ACCOUNT_ACTION_KINDS at the boundary (no move_to_node, no sends)
   runs        AutomationRun[]
 }
-model AutomationRun { id String @id @default(cuid()) workspaceId String automationId String status String detail Json ranAt DateTime @default(now()) }
+model AutomationRun { id String @id @default(cuid()) workspaceId String automationId String eventId String? status String detail Json ranAt DateTime @default(now()) } // R1-UI (DEC-091): +eventId, unique (automationId, eventId) — redelivery idempotency, mirrors CampaignRuleRun
 
 model CampaignRule {         // R1 (DEC-074): per-agent automation rules (ARCHITECTURE §151)
   id          String @id @default(cuid())
@@ -663,6 +663,26 @@ enum SuppressionReason { UNSUBSCRIBED BOUNCED SPAM_COMPLAINT MANUAL }
 > queued" state, rising-edge per hold episode; the ceiling variant doubles
 > as the vendor-spine cost alert. Send-boundary rails are untouched — the
 > gate lives at enrollment; suppression stays authoritative at the boundary.
+
+> **R1-UI amendment (PR #105, DEC-091):** the account surface goes LIVE NOW on
+> the ONE evaluator — the R1 amendment's "`Automation`/`AutomationRun` stay
+> byte-untouched for the Phase-6 standalone engine" sentence is SUPERSEDED
+> (the models woke early; §6's original `{event, filter}` sketch comments are
+> corrected in place above). `Automation.trigger/conditions/actions` carry the
+> SAME core unions as `CampaignRule` (one vocabulary, one executor — scope is
+> the storage parent, never a fork; DEC-074 D1's distinct-models ruling stands;
+> `conditions` = an array holding at most ONE entry this phase, multi-AND
+> reserved). `AutomationRun` gains additive `eventId` + unique
+> (automationId, eventId) — the CampaignRuleRun redelivery idempotency
+> mirrored; every run now emits `automation.rule.run.v1` carrying the additive
+> optional **`scope`** rider (`"account"`; absent = campaign — byte-compatible).
+> Two append-only catalog entries: **`automation.status_changed.v1`**
+> `{automationId, from, to}` (ACTUAL flips only — the sender.status_changed
+> pattern) and **`automation.deleted.v1`** `{automationId, name, trigger}`
+> (the ledger outlives the row — delete audit). The account action set is
+> `ACCOUNT_ACTION_KINDS` = the union minus `move_to_node` (campaign-scoped,
+> typed 422 at the boundary); NO send actions exist at account scope BY
+> DESIGN — sends ride move_to_node → graph steps → the unchanged boundary.
 
 Outbound **WebhookEndpoint** (`url`, `secret`, `events[]`) + delivery log; Zapier rides the same dispatcher.
 

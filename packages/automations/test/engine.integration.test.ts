@@ -549,3 +549,325 @@ describe.skipIf(!hasInfra)("campaign-rules engine (R1 W1)", () => {
     expect(await owner.campaignRuleRun.count({ where: { workspaceId: ws } })).toBe(0);
   });
 });
+
+/**
+ * R1-UI (DEC-091): the ACCOUNT pass — workspace `Automation` rows live on the
+ * SAME evaluator: campaign rules first, one shared terminal state across
+ * scopes, unique (automationId, eventId) idempotency, `scope:"account"` on
+ * the ledger twin, the same quiet sweep with the same fire-once key.
+ */
+describe.skipIf(!hasInfra)("account rules engine (R1-UI, DEC-091)", () => {
+  let owner: PrismaClient;
+  let app: PrismaClient;
+  let agencyId: string;
+  let ws: string;
+  let campaignId: string;
+  let contactId: string;
+  let enrollmentId: string;
+  let workflowId: string;
+  const sfx = `r1ui-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+
+  const published: Array<{ type: string; payload: unknown }> = [];
+  const cancelled: Array<{ enrollmentId: string; workflowId: string }> = [];
+  const deps = (): RuleEngineDeps => ({
+    prisma: app,
+    publish: async (input) => {
+      published.push({ type: input.type, payload: input.payload });
+    },
+    cancelWorkflow: async (params) => {
+      cancelled.push({ enrollmentId: params.enrollmentId, workflowId: params.workflowId });
+    },
+    log: () => undefined,
+  });
+
+  let eventSeq = 0;
+  const replyEvent = (intent: string, over: Partial<BusEvent> = {}): BusEvent => ({
+    id: `evt-${sfx}-${++eventSeq}`,
+    workspaceId: ws,
+    type: "email.replied.v1",
+    contactId,
+    enrollmentId,
+    campaignId,
+    senderId: null,
+    payload: { messageId: `m-${sfx}`, intent },
+    occurredAt: new Date().toISOString(),
+    ...over,
+  });
+
+  const addAutomation = async (
+    trigger: unknown,
+    actions: unknown,
+    over: { enabled?: boolean; conditions?: unknown; name?: string } = {},
+  ) =>
+    owner.automation.create({
+      data: {
+        workspaceId: ws,
+        name: over.name ?? "account rule",
+        trigger: trigger as never,
+        conditions: (over.conditions ?? []) as never,
+        actions: actions as never,
+        ...(over.enabled !== undefined ? { enabled: over.enabled } : {}),
+      },
+    });
+
+  beforeAll(async () => {
+    owner = createPrismaClient();
+    app = createAppPrismaClient();
+    const agency = await owner.agency.create({ data: { name: sfx, slug: sfx, branding: {} } });
+    agencyId = agency.id;
+    ws = (await owner.workspace.create({ data: { agencyId, name: "r1ui", slug: sfx, settings: {} } })).id;
+    const agentId = (
+      await owner.agent.create({
+        data: { workspaceId: ws, name: "AccountRules", goal: "book_appointments", guardrails: {} },
+      })
+    ).id;
+    campaignId = (
+      await owner.campaign.create({ data: { workspaceId: ws, agentId, name: "primary", graphId: "" } })
+    ).id;
+    contactId = (
+      await owner.contact.create({
+        data: {
+          workspaceId: ws,
+          source: "test",
+          optOut: {},
+          tags: [],
+          email: `lead-${sfx}@allowed.test`,
+        },
+      })
+    ).id;
+    workflowId = `enroll-test-${sfx}`;
+    enrollmentId = (
+      await owner.enrollment.create({
+        data: {
+          workspaceId: ws,
+          campaignId,
+          contactId,
+          workflowId,
+          pipelineStage: "new",
+          meta: {},
+        },
+      })
+    ).id;
+  });
+
+  beforeEach(async () => {
+    published.length = 0;
+    cancelled.length = 0;
+    await owner.campaignRuleRun.deleteMany({ where: { workspaceId: ws } });
+    await owner.campaignRule.deleteMany({ where: { workspaceId: ws } });
+    await owner.automationRun.deleteMany({ where: { workspaceId: ws } });
+    await owner.automation.deleteMany({ where: { workspaceId: ws } });
+    await owner.suppression.deleteMany({ where: { workspaceId: ws } });
+    await owner.enrollment.update({
+      where: { id: enrollmentId },
+      data: { status: "ACTIVE", pipelineStage: "new", workflowId, meta: {} },
+    });
+    await owner.contact.update({ where: { id: contactId }, data: { optOut: {}, tags: [] } });
+  });
+
+  afterAll(async () => {
+    if (owner && agencyId) {
+      await owner.agency.delete({ where: { id: agencyId } }).catch(() => undefined);
+    }
+    await owner?.$disconnect();
+    await app?.$disconnect();
+  });
+
+  it("an enabled account rule fires on a campaign event — AutomationRun row (eventId set) + scope:'account' ledger twin", async () => {
+    const automation = await addAutomation(
+      { kind: "reply_classified", intents: ["interested"] },
+      [{ kind: "add_tag", tag: "hot-account" }],
+    );
+    const event = replyEvent("interested");
+    const summary = await evaluateEventForRules(deps(), event);
+    expect(summary.matched).toBe(1);
+    expect(summary.runs).toEqual([
+      expect.objectContaining({ ruleId: automation.id, status: "fired", scope: "account" }),
+    ]);
+
+    const runs = await owner.automationRun.findMany({ where: { automationId: automation.id } });
+    expect(runs).toHaveLength(1);
+    expect(runs[0]!.eventId).toBe(event.id);
+    expect(runs[0]!.status).toBe("fired");
+
+    const ledger = published.filter((p) => p.type === "automation.rule.run.v1");
+    expect(ledger).toHaveLength(1);
+    expect(ledger[0]!.payload).toMatchObject({
+      ruleId: automation.id,
+      status: "fired",
+      trigger: "reply_classified",
+      scope: "account",
+    });
+    const contact = await owner.contact.findUniqueOrThrow({ where: { id: contactId } });
+    expect(contact.tags).toContain("hot-account");
+  });
+
+  it("a campaign-LESS event evaluates account rules (campaign rules untouched)", async () => {
+    const automation = await addAutomation({ kind: "lead_captured" }, [
+      { kind: "add_tag", tag: "captured" },
+    ]);
+    const summary = await evaluateEventForRules(deps(), {
+      id: `evt-${sfx}-capture`,
+      workspaceId: ws,
+      type: "form.submitted.v1",
+      contactId,
+      enrollmentId: null,
+      campaignId: null,
+      senderId: null,
+      payload: { formId: "f1", fields: {} },
+      occurredAt: new Date().toISOString(),
+    } as BusEvent);
+    expect(summary.matched).toBe(1);
+    expect(summary.runs[0]).toMatchObject({ ruleId: automation.id, status: "fired", scope: "account" });
+    expect(await owner.campaignRuleRun.count({ where: { workspaceId: ws } })).toBe(0);
+    const contact = await owner.contact.findUniqueOrThrow({ where: { id: contactId } });
+    expect(contact.tags).toContain("captured");
+  });
+
+  it("CROSS-SCOPE first-terminal-wins: a campaign terminal suppresses the account terminal (non-terminal actions still run)", async () => {
+    await owner.campaignRule.create({
+      data: {
+        workspaceId: ws,
+        campaignId,
+        order: 1,
+        trigger: { kind: "reply_classified", intents: ["not_interested"] } as never,
+        actions: [{ kind: "end_enrollment" }] as never,
+      },
+    });
+    const automation = await addAutomation(
+      { kind: "reply_classified", intents: ["not_interested"] },
+      [
+        { kind: "add_tag", tag: "closed-lost" },
+        { kind: "suppress_contact" },
+      ],
+    );
+    const summary = await evaluateEventForRules(deps(), replyEvent("not_interested"));
+    expect(summary.terminalFired).toBe(true);
+
+    const accountRun = await owner.automationRun.findFirstOrThrow({
+      where: { automationId: automation.id },
+    });
+    expect(accountRun.status).toBe("skipped_conflict");
+    const outcomes = (accountRun.detail as { actions: Array<{ kind: string; outcome: string }> }).actions;
+    expect(outcomes).toEqual([
+      expect.objectContaining({ kind: "add_tag", outcome: "executed" }),
+      expect.objectContaining({ kind: "suppress_contact", outcome: "skipped_conflict" }),
+    ]);
+    // No suppression row — the campaign terminal won.
+    expect(await owner.suppression.count({ where: { workspaceId: ws } })).toBe(0);
+  });
+
+  it("an account terminal alone gates the graph continuation (memoized gate, both hooks racing)", async () => {
+    await addAutomation({ kind: "reply_classified", intents: ["not_interested"] }, [
+      { kind: "end_enrollment" },
+    ]);
+    const engine = createPerAgentRules(deps());
+    const event = replyEvent("not_interested");
+    const [, shouldContinue] = await Promise.all([
+      engine.consumer.handle(event),
+      engine.shouldContinueGraph(event),
+    ]);
+    expect(shouldContinue).toBe(false);
+    expect(cancelled).toEqual([{ enrollmentId, workflowId }]);
+    expect((await owner.enrollment.findUniqueOrThrow({ where: { id: enrollmentId } })).status).toBe("DONE");
+  });
+
+  it("IDEMPOTENCY: unique (automationId, eventId) — a redelivery records nothing new", async () => {
+    const automation = await addAutomation(
+      { kind: "reply_classified", intents: ["interested"] },
+      [{ kind: "add_tag", tag: "once" }],
+    );
+    const event = replyEvent("interested");
+    const first = await evaluateEventForRules(deps(), event);
+    expect(first.runs[0]).toMatchObject({ ruleId: automation.id, status: "fired" });
+    const publishesAfterFirst = published.length;
+
+    const second = await evaluateEventForRules(deps(), event);
+    expect(second.runs[0]).toMatchObject({ ruleId: automation.id, status: "already_recorded", scope: "account" });
+    expect(await owner.automationRun.count({ where: { automationId: automation.id } })).toBe(1);
+    expect(published.length).toBe(publishesAfterFirst);
+  });
+
+  it("DISABLED and INVALID-SHAPE automations never fire (invalid skips loudly, no row)", async () => {
+    await addAutomation(
+      { kind: "reply_classified", intents: ["interested"] },
+      [{ kind: "add_tag", tag: "never" }],
+      { enabled: false, name: "off" },
+    );
+    await addAutomation({ bogus: true }, [{ kind: "notify_team" }], { name: "broken" });
+    const summary = await evaluateEventForRules(deps(), replyEvent("interested"));
+    expect(summary.matched).toBe(0);
+    expect(await owner.automationRun.count({ where: { workspaceId: ws } })).toBe(0);
+    expect((await owner.contact.findUniqueOrThrow({ where: { id: contactId } })).tags).toEqual([]);
+  });
+
+  it("automation.* event types NEVER evaluate — the loop-safety guard", async () => {
+    await addAutomation({ kind: "lead_captured" }, [{ kind: "add_tag", tag: "loop" }]);
+    const summary = await evaluateEventForRules(deps(), {
+      id: `evt-${sfx}-loopguard`,
+      workspaceId: ws,
+      type: "automation.status_changed.v1",
+      contactId,
+      enrollmentId: null,
+      campaignId: null,
+      senderId: null,
+      payload: { automationId: "x", from: "enabled", to: "disabled" },
+      occurredAt: new Date().toISOString(),
+    } as BusEvent);
+    expect(summary.matched).toBe(0);
+    expect(await owner.automationRun.count({ where: { workspaceId: ws } })).toBe(0);
+  });
+
+  it("SWEEP: an account sequence_quiet rule fires once, ever, per (automation, enrollment)", async () => {
+    const automation = await addAutomation({ kind: "sequence_quiet", days: 2 }, [
+      { kind: "add_tag", tag: "quiet-account" },
+    ]);
+    const past = new Date(Date.now() - 3 * 86_400_000);
+    await owner.enrollment.update({
+      where: { id: enrollmentId },
+      data: { status: "DONE" },
+    });
+    // Raw-SQL the timestamp back — Prisma's @updatedAt stamps `now()` on update.
+    await owner.$executeRaw`UPDATE "Enrollment" SET "updatedAt" = ${past} WHERE "id" = ${enrollmentId}`;
+
+    const sweepDeps = { ...deps(), ownerPrisma: owner };
+    const first = await runSequenceQuietSweep(sweepDeps);
+    expect(first.fired).toBe(1);
+    const runs = await owner.automationRun.findMany({ where: { automationId: automation.id } });
+    expect(runs).toHaveLength(1);
+    expect(runs[0]!.eventId).toBe(quietEventIdFor(enrollmentId));
+    expect((await owner.contact.findUniqueOrThrow({ where: { id: contactId } })).tags).toContain(
+      "quiet-account",
+    );
+
+    await owner.$executeRaw`UPDATE "Enrollment" SET "updatedAt" = ${past} WHERE "id" = ${enrollmentId}`;
+    const second = await runSequenceQuietSweep(sweepDeps);
+    expect(second.fired).toBe(0);
+    expect(await owner.automationRun.count({ where: { automationId: automation.id } })).toBe(1);
+  });
+
+  it("NESTED run_automation rows now carry the scope:'account' ledger twin (trigger 'run_automation')", async () => {
+    const target = await addAutomation({ kind: "lead_captured" }, [{ kind: "notify_team" }], {
+      name: "target",
+    });
+    await owner.campaignRule.create({
+      data: {
+        workspaceId: ws,
+        campaignId,
+        order: 1,
+        trigger: { kind: "reply_classified", intents: ["interested"] } as never,
+        actions: [{ kind: "run_automation", automationId: target.id }] as never,
+      },
+    });
+    await evaluateEventForRules(deps(), replyEvent("interested"));
+    const nested = published.filter(
+      (p) =>
+        p.type === "automation.rule.run.v1" &&
+        (p.payload as { ruleId?: string }).ruleId === target.id,
+    );
+    expect(nested).toHaveLength(1);
+    expect(nested[0]!.payload).toMatchObject({ scope: "account", trigger: "run_automation", status: "fired" });
+    // lead_captured doesn't match a reply event — only the nested run exists.
+    expect(await owner.automationRun.count({ where: { automationId: target.id } })).toBe(1);
+  });
+});

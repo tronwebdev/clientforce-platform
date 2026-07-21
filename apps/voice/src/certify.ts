@@ -212,7 +212,7 @@ async function runSession(apiKey: string, sessionIndex: number): Promise<Session
     disclosure: context.disclosure,
     neverSay: context.neverSay,
     sttParams: config.stt,
-    // DEC-091: certification exercises the PRODUCTION transport (streaming
+    // DEC-092: certification exercises the PRODUCTION transport (streaming
     // Aura ws) — the cert table certifies what the deployed service runs.
     ttsTransport: config.ttsTransport,
     ackAfterMs: config.ackAfterMs,

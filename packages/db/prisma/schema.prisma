@@ -559,11 +559,19 @@ model AutomationRun {
   id           String     @id @default(cuid())
   workspaceId  String
   automationId String
+  /// R1-UI (DEC-091, additive): the bus Event row id (or the sweep's synthetic
+  /// fire-once key `quiet:<enrollmentId>`) for DIRECT account-rule fires —
+  /// unique (automationId, eventId) = redelivery idempotency, the
+  /// CampaignRuleRun pattern. NULL on nested `run_automation` rows (their
+  /// idempotency lives in the outer rule's (ruleId, eventId) key) and on
+  /// pre-DEC-091 history.
+  eventId      String?
   status       String
   detail       Json
   ranAt        DateTime   @default(now())
   automation   Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
 
+  @@unique([automationId, eventId])
   @@index([workspaceId])
   @@index([automationId])
 }

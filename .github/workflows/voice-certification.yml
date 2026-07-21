@@ -146,7 +146,7 @@ jobs:
           echo "STT probe (pre-recorded endpoint reachability):"
           curl -fsS -o /dev/null -w "  HTTP %{http_code}\n" -X POST "https://api.deepgram.com/v1/listen?model=nova-2" \
             -H "Authorization: Token $DEEPGRAM_API_KEY" -H "content-type: audio/mulaw" --data-binary @/dev/null || true
-          # DEC-091 gate (owner ruling 2026-07-21): the structural fix rides
+          # DEC-092 gate (owner ruling 2026-07-21): the structural fix rides
           # Aura's STREAMING TTS websocket — prove the API delivers audio
           # with OUR key before a line of the transport is built. Fails loud:
           # a failure here = the Cartesia jump, posted before building.

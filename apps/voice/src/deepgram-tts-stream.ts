@@ -1,5 +1,5 @@
 /**
- * Streaming Aura TTS over ONE persistent websocket per call (DEC-091, owner
+ * Streaming Aura TTS over ONE persistent websocket per call (DEC-092, owner
  * fix ruling 2026-07-21). The measured cause of the audible start-stop was
  * the per-sentence HTTPS round-trip (connect + TTFB between every sentence);
  * here each sentence is a `Speak` + `Flush` on a hot socket — the

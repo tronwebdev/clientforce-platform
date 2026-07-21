@@ -359,7 +359,7 @@ resource voice 'Microsoft.App/containerApps@2024-03-01' = if (deployVoiceService
         {
           name: 'voice'
           image: '${acrLoginServer}/clientforce-voice:${imageTag}'
-          // DEC-091 (owner fix ruling, 2026-07-21): a FULL core — fractional
+          // DEC-092 (owner fix ruling, 2026-07-21): a FULL core — fractional
           // vCPU rides a 50ms/100ms CFS quota that can stall the realtime
           // audio pump at millisecond granularity while per-minute metrics
           // read ~4%; the known-good spike ran on full cores.

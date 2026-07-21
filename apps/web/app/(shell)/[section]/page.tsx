@@ -8,7 +8,6 @@ const TITLES: Record<string, string> = {
   help: "Help",
   stats: "Stats",
   integrations: "Integrations",
-  automations: "Automations",
   settings: "Settings",
   "lead-finder": "Lead Finder",
   proposals: "Proposals",

@@ -73,7 +73,7 @@ export interface CallSessionDeps {
   /** Injectable for the harness/tests; default the real Deepgram clients. */
   openStt?: typeof openSttStream;
   synthesize?: Synthesize;
-  /** DEC-091: reply TTS transport (default `stream`); https = legacy/fallback. */
+  /** DEC-092: reply TTS transport (default `stream`); https = legacy/fallback. */
   ttsTransport?: "stream" | "https";
   /** Injectable stream factory for tests. */
   openTtsStream?: (deps: TtsStreamDeps) => TtsStream;
@@ -97,7 +97,7 @@ export class CallSession {
   private turnLastAudioAt = 0;
   private readonly openStt: typeof openSttStream;
   private readonly synthesize: Synthesize;
-  // ── DEC-091: streaming TTS transport + pacing instrumentation ──
+  // ── DEC-092: streaming TTS transport + pacing instrumentation ──
   private ttsStream?: TtsStream;
   private ttsStreamFailed = false;
   /** Routing context for stream audio: the speak currently in flight. */
@@ -161,7 +161,7 @@ export class CallSession {
   start(): void {
     this.deps.metrics.markCallStart();
     this.startedAtMs = Date.now();
-    // DEC-091 instrumentation: event-loop stalls are the invisible half of
+    // DEC-092 instrumentation: event-loop stalls are the invisible half of
     // audible choppiness on a shared/fractional core — measured per call.
     this.loopDelay = monitorEventLoopDelay({ resolution: 10 });
     this.loopDelay.enable();
@@ -258,7 +258,7 @@ export class CallSession {
     const turn = this.speakingTurn;
     this.deps.clearPlayback(); // drop already-queued audio immediately
     this.ttsAbort?.abort(); // cancel LLM+TTS generation
-    this.ttsStream?.clear(); // drop server-side buffered TTS audio (DEC-091)
+    this.ttsStream?.clear(); // drop server-side buffered TTS audio (DEC-092)
     this.speaking = false;
     this.deps.metrics.bargeIns.push({
       turn,
@@ -329,7 +329,7 @@ export class CallSession {
         if (Date.now() - this.turnLastAudioAt > this.deps.stallAbandonMs) {
           metric.stalled = true;
           abort.abort();
-          this.ttsStream?.clear(); // a stalled stream must not resume later (DEC-091)
+          this.ttsStream?.clear(); // a stalled stream must not resume later (DEC-092)
         }
       }, 250);
     }
@@ -438,7 +438,7 @@ export class CallSession {
   ): Promise<void> {
     if (signal.aborted || !text) return;
     this.deps.metrics.addTtsChars(text.length);
-    // DEC-091: streaming transport first — ONE hot socket per call, each
+    // DEC-092: streaming transport first — ONE hot socket per call, each
     // sentence a Speak+Flush; the inter-sentence cost collapses from an
     // HTTPS connect+TTFB to a flush round-trip (the audible-gap killer).
     const stream = this.ensureTtsStream();

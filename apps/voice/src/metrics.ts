@@ -70,7 +70,7 @@ export class MetricsCollector {
   disclosureCompleted = false;
   /** Echoed into the report so every run is reproducible. */
   configEcho: Record<string, unknown> = {};
-  // ── DEC-091 pacing instrumentation — makes the audible layer measurable ──
+  // ── DEC-092 pacing instrumentation — makes the audible layer measurable ──
   /** Per-sentence TTS delivery timings (speak → first audio / fully flushed). */
   private ttsSentenceFirstAudioMs: number[] = [];
   private ttsSentenceFlushedMs: number[] = [];
@@ -163,7 +163,7 @@ export class MetricsCollector {
       disclosureCompleted: this.disclosureCompleted,
       cost: this.cost(),
       config: this.configEcho,
-      // DEC-091 pacing block — the layer the ear hears, now measured.
+      // DEC-092 pacing block — the layer the ear hears, now measured.
       ttsTransport: this.ttsTransportUsed,
       ttsSentences: this.ttsSentenceStats(),
       audioSendGaps: { over200: this.audioSendGapsOver200, maxMs: this.maxAudioSendGapMs },

@@ -31,6 +31,29 @@ export function triggerLabel(kind: CampaignRuleTriggerKind): string {
   return TRIGGER_LABELS[kind];
 }
 
+/** R1-UI (DEC-091, additive): canon card/drawer glyphs per kind
+ *  (`Automations.dc.html` TRIG catalog where a twin exists). */
+export const TRIGGER_ICONS: Record<CampaignRuleTriggerKind, string> = {
+  reply_classified: "↩",
+  sequence_quiet: "⏳",
+  email_opened: "◔",
+  link_clicked: "🔗",
+  meeting_booked: "📅",
+  opted_out: "⊘",
+  lead_captured: "⊞",
+};
+
+/** R1-UI (DEC-091, additive): canon picker descriptions per kind. */
+export const TRIGGER_DESCRIPTIONS: Record<CampaignRuleTriggerKind, string> = {
+  reply_classified: "A reply is classified with an intent",
+  sequence_quiet: "No response after N days",
+  email_opened: "A lead opens an email",
+  link_clicked: "A lead clicks a link",
+  meeting_booked: "A meeting is scheduled",
+  opted_out: "A lead opts out",
+  lead_captured: "A form, widget or LinkedIn lead arrives",
+};
+
 /** The card-chip text for a concrete trigger (canon: "💬 Reply: Interested",
  *  "⏱ No reply · 30 days"; parameterless kinds render their label). */
 export function triggerChip(trigger: CampaignRuleTrigger): string {
@@ -62,6 +85,94 @@ export const TRIGGER_OPTIONS: readonly TriggerOption[] = (
     "lead_captured",
   ] as const satisfies readonly CampaignRuleTriggerKind[]
 ).map((kind) => ({ kind, label: TRIGGER_LABELS[kind], chip: triggerChip }));
+
+// ── W2 builder picker (R1-UI, DEC-091) ──────────────────────────────────────
+// The grouped trigger picker renders TWO registries: the ENGINE kinds
+// (derived from the core union — the vocabulary verbatim, a new kind fails
+// compilation in TRIGGER_GROUP and lights up automatically) and the canon
+// `Automations.dc.html` TRIG entries the engine can't express yet, rendered
+// as HONEST-ABSENT disabled cards whose reasons name the future capability.
+// Canon entries that FOLD into an engine kind are never listed absent:
+// Positive reply / Objection / Question / OOO ride `reply_classified`'s
+// intent multi-pick; Form / widget / LinkedIn-profile captures are the ONE
+// `lead_captured` kind (three producers). The absent set is the Q-030+
+// picker↔vocabulary ledger the ⭑ ride-along closes feature-by-feature.
+
+/** Canon picker group per engine kind (groups from the canon TRIG catalog). */
+export const TRIGGER_GROUP: Record<CampaignRuleTriggerKind, string> = {
+  reply_classified: "Replies & conversations",
+  sequence_quiet: "Replies & conversations",
+  email_opened: "Email engagement",
+  link_clicked: "Email engagement",
+  meeting_booked: "Meetings",
+  opted_out: "Lead lifecycle",
+  lead_captured: "Forms & widget",
+};
+
+/** Canon group order (`Automations.dc.html` TRIG_GROUPS, verbatim). */
+export const TRIGGER_PICKER_GROUPS: readonly string[] = [
+  "Replies & conversations",
+  "Email engagement",
+  "Voice & calls",
+  "Meetings",
+  "Lead lifecycle",
+  "Lead Finder & prospecting",
+  "Forms & widget",
+  "LinkedIn",
+  "Proposals & revenue",
+  "Schedule & system",
+];
+
+/** One honest-absent picker card: a canon entry with no engine twin. */
+export interface AbsentPickerEntry {
+  group: string;
+  icon: string;
+  label: string;
+  desc: string;
+  /** Owner-readable reason naming the future capability (honest absence). */
+  reason: string;
+}
+
+export const ABSENT_TRIGGERS: readonly AbsentPickerEntry[] = [
+  { group: "Replies & conversations", icon: "↩", label: "Reply received", desc: "A lead replies on any channel", reason: "Arrives with raw-reply rules — today use “Reply classified as…”" },
+  { group: "Replies & conversations", icon: "💬", label: "Inbound message", desc: "New inbound SMS or WhatsApp", reason: "Arrives with inbox rules" },
+  { group: "Email engagement", icon: "⚠", label: "Email bounced", desc: "A message hard-bounces", reason: "Arrives with deliverability triggers" },
+  { group: "Email engagement", icon: "🚫", label: "Spam complaint", desc: "Marked as spam", reason: "Arrives with deliverability triggers" },
+  { group: "Voice & calls", icon: "☎", label: "AI call completed", desc: "A voice call finishes", reason: "Arrives with voice campaigns" },
+  { group: "Voice & calls", icon: "✦", label: "Call: interested", desc: "Call outcome is interested", reason: "Arrives with voice campaigns" },
+  { group: "Voice & calls", icon: "🎙", label: "Voicemail left", desc: "AI leaves a voicemail", reason: "Arrives with voice campaigns" },
+  { group: "Voice & calls", icon: "✖", label: "Call not answered", desc: "No pick-up on a call", reason: "Arrives with voice campaigns" },
+  { group: "Voice & calls", icon: "↺", label: "Callback requested", desc: "A lead asks for a callback", reason: "Arrives with voice campaigns" },
+  { group: "Meetings", icon: "⟳", label: "Meeting rescheduled", desc: "A meeting moves", reason: "Arrives with calendar sync" },
+  { group: "Meetings", icon: "✕", label: "Meeting canceled / no-show", desc: "A meeting falls through", reason: "Arrives with calendar sync" },
+  { group: "Meetings", icon: "⏰", label: "Before a meeting", desc: "A set time before a meeting", reason: "Arrives with calendar sync" },
+  { group: "Lead lifecycle", icon: "＋", label: "Contact created", desc: "A new contact is added", reason: "Arrives with lifecycle triggers" },
+  { group: "Lead lifecycle", icon: "✦", label: "Lead qualified", desc: "A lead is marked qualified", reason: "Arrives with lifecycle triggers" },
+  { group: "Lead lifecycle", icon: "⇄", label: "Status changed", desc: "A contact's status changes", reason: "Arrives with lifecycle triggers" },
+  { group: "Lead lifecycle", icon: "◆", label: "Lead score crosses", desc: "Score passes a threshold", reason: "Arrives with lead scoring" },
+  { group: "Lead lifecycle", icon: "⌗", label: "Tag added", desc: "A tag is applied", reason: "Arrives with lifecycle triggers" },
+  { group: "Lead lifecycle", icon: "⌫", label: "Tag removed", desc: "A tag is removed", reason: "Arrives with lifecycle triggers" },
+  { group: "Lead lifecycle", icon: "☰", label: "Added to a list", desc: "A contact joins a list", reason: "Arrives with lifecycle triggers" },
+  { group: "Lead lifecycle", icon: "✓", label: "Sequence completed", desc: "A lead finishes a sequence", reason: "Arrives with lifecycle triggers" },
+  { group: "Lead Finder & prospecting", icon: "⚲", label: "New lead found", desc: "Lead Finder surfaces a match", reason: "Arrives with Lead Finder" },
+  { group: "Lead Finder & prospecting", icon: "✦", label: "Auto-prospected lead", desc: "The agent auto-enrolls a lead", reason: "Arrives with Lead Finder" },
+  { group: "Lead Finder & prospecting", icon: "◎", label: "High-fit ICP match", desc: "A strong-fit lead appears", reason: "Arrives with Lead Finder" },
+  { group: "Lead Finder & prospecting", icon: "⚯", label: "Lead enriched", desc: "New data is appended", reason: "Arrives with enrichment" },
+  { group: "Lead Finder & prospecting", icon: "⬆", label: "Import completed", desc: "A CSV import finishes", reason: "Arrives with import triggers" },
+  { group: "Forms & widget", icon: "💬", label: "Widget chat started", desc: "A visitor opens chat", reason: "Arrives with widget chat rules" },
+  { group: "LinkedIn", icon: "in", label: "Connection accepted", desc: "A LinkedIn invite is accepted", reason: "Arrives with the LinkedIn channel" },
+  { group: "LinkedIn", icon: "in", label: "LinkedIn reply", desc: "A reply on LinkedIn", reason: "Arrives with the LinkedIn channel" },
+  { group: "Proposals & revenue", icon: "❒", label: "Proposal sent", desc: "A proposal goes out", reason: "Arrives with proposals & payments" },
+  { group: "Proposals & revenue", icon: "◔", label: "Proposal viewed", desc: "A prospect opens it", reason: "Arrives with proposals & payments" },
+  { group: "Proposals & revenue", icon: "✓", label: "Proposal accepted", desc: "A proposal is signed", reason: "Arrives with proposals & payments" },
+  { group: "Proposals & revenue", icon: "＄", label: "Payment succeeded", desc: "A payment is received", reason: "Arrives with proposals & payments" },
+  { group: "Proposals & revenue", icon: "⚠", label: "Payment failed", desc: "A charge fails", reason: "Arrives with proposals & payments" },
+  { group: "Proposals & revenue", icon: "🧾", label: "Invoice overdue", desc: "An invoice passes due", reason: "Arrives with proposals & payments" },
+  { group: "Schedule & system", icon: "🕘", label: "On a schedule", desc: "A recurring date & time", reason: "Arrives with scheduled automations" },
+  { group: "Schedule & system", icon: "⚯", label: "Incoming webhook", desc: "An external system pings us", reason: "Arrives with the webhooks integration" },
+  { group: "Schedule & system", icon: "⚠", label: "Sender health drops", desc: "Deliverability falls", reason: "Arrives with sender-health triggers" },
+  { group: "Schedule & system", icon: "⏸", label: "Agent paused / limit hit", desc: "An agent stops sending", reason: "Arrives with agent-status triggers" },
+];
 
 /** Honest-absence inputs the hosts provide (live senders scan · P1 has no
  *  capture backend, so hosts pass `leadCapture: false`). */

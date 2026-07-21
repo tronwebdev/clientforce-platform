@@ -1,5 +1,5 @@
 /**
- * DEC-091 — the streaming Aura TTS transport against a local mock of the
+ * DEC-092 — the streaming Aura TTS transport against a local mock of the
  * Deepgram speak-websocket protocol (Speak/Flush/Clear/Close in, binary
  * audio + Flushed/Cleared out). The live API contract itself is proven by
  * the preflight ws probe; these tests pin OUR client's semantics: ordered

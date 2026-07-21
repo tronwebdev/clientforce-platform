@@ -249,7 +249,7 @@ describe("provider failure — never a hung line", () => {
   });
 });
 
-describe("DEC-091 — streaming TTS transport (hot socket per call)", () => {
+describe("DEC-092 — streaming TTS transport (hot socket per call)", () => {
   const fakeStream = (opts: { failSpeak?: boolean } = {}) => {
     const state = { spoken: [] as string[], cleared: 0, closed: 0 };
     const make = (deps: TtsStreamDeps) =>
