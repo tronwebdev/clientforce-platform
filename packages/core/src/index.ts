@@ -71,6 +71,10 @@ export * from "./backoffice";
 // verdict enum of record, batch report DTOs, gate refusal/hold vocabulary.
 export * from "./validation";
 
+// Integrations (INT W1, DEC-093) — the ONE provider registry, probe-backed
+// connection states, per-provider config schemas, typed refusal vocabulary.
+export * from "./integrations";
+
 /**
  * Narrow an arbitrary string to a branded {@link Id}. Real validation arrives
  * with the data model; this keeps the type honest without runtime cost.

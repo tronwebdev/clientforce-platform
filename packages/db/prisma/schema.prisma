@@ -626,17 +626,60 @@ model CampaignRuleRun {
   @@index([ruleId])
 }
 
+// INT W1 (DEC-093): the ONE connection model — one row per (workspace,
+// provider), status PROBE-BACKED (connected | unhealthy | revoked — never
+// "connected" without a live token probe; user disconnect DELETES the row,
+// the ledger keeps the audit). Tokens live ONLY in credentialsEnc
+// (AES-256-GCM under FIELD-ENCRYPTION-KEY — the SenderConnection/DEC-030
+// rule; the pre-W1 `credentials Json` column is retired in place, additive
+// schema: new code never reads or writes it).
 model Integration {
-  id          String   @id @default(cuid())
-  workspaceId String
-  provider    String
-  status      String   @default("connected")
-  credentials Json
-  config      Json
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String   @id @default(cuid())
+  workspaceId   String
+  provider      String
+  status        String   @default("connected")
+  credentials   Json     @default("{}")
+  config        Json
+  /// Field-encrypted vendor tokens ({ accessToken, ... } per adapter).
+  credentialsEnc Bytes?
+  /// Vendor-side account display ("BrightPath workspace") — probe-sourced.
+  accountLabel  String?
+  /// Scopes the vendor actually GRANTED at the token exchange (drawer list).
+  scopes        String[] @default([])
+  lastProbeAt   DateTime?
+  /// Newest successful outbound delivery/sync — the drawer "Last sync".
+  lastSyncAt    DateTime?
+  connectedById String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
+  deliveries IntegrationDelivery[]
+
+  @@unique([workspaceId, provider])
   @@index([workspaceId])
+}
+
+// INT W1 (DEC-093): one row per outbound integration delivery attempt (Slack
+// post now; webhook POST in W3) — the drawer audit trail + the redelivery
+// idempotency ledger. Unique (integrationId, sourceEventId, kind) dedupes bus
+// redeliveries (Postgres NULLs are distinct, so manual test deliveries with a
+// NULL source never collide).
+model IntegrationDelivery {
+  id            String   @id @default(cuid())
+  workspaceId   String
+  integrationId String
+  integration   Integration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  /// The catalog Event row that caused this delivery (NULL for manual tests).
+  sourceEventId String?
+  /// new_reply | meeting_booked | goal_completed | notify_team (W1).
+  kind          String
+  /// pending (claimed pre-send — the at-most-once rail) | delivered | failed | held
+  status        String
+  detail        Json?
+  createdAt     DateTime @default(now())
+
+  @@unique([integrationId, sourceEventId, kind])
+  @@index([workspaceId, createdAt])
 }
 
 // P1.5: the three-tier sender model (issue P1.5; replaces the T1 `Sender`

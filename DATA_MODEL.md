@@ -564,13 +564,28 @@ model CampaignRuleRun {      // R1: run history — mirrors AutomationRun; uniqu
   eventId String status String detail Json depth Int @default(0) ranAt DateTime @default(now())
 }
 
-model Integration {
+model Integration {                             // INT W1 (DEC-093): LIVE — one row per (workspace, provider), @@unique
   id          String @id @default(cuid())
   workspaceId String
-  provider    String                            // hubspot | salesforce | gcal | calendly | stripe | slack | zapier | webhook | sendgrid | twilio …
-  status      String  @default("connected")
-  credentials Json                              // encrypted (Key Vault ref)
-  config      Json                              // events subscribed, field maps
+  provider    String                            // the LIVE set is @clientforce/core INTEGRATION_PROVIDERS (wave-gated: slack W1 · gcal/calendly W2 · stripe/webhook W3 · hubspot W4)
+  status      String  @default("connected")     // PROBE-BACKED honest states: connected | unhealthy | revoked (never "connected" without a live token probe; user disconnect DELETES the row)
+  credentials Json    @default("{}")            // RETIRED in place (INT W1) — never read or written; tokens live in credentialsEnc
+  credentialsEnc Bytes?                         // AES-256-GCM under FIELD-ENCRYPTION-KEY (the SenderConnection/DEC-030 rule)
+  config      Json                              // per-provider user config (Slack: channel + notification toggles) — never secrets
+  accountLabel String?                          // vendor-side display, probe-refreshed
+  scopes      String[]                          // what the vendor actually GRANTED
+  // + lastProbeAt · lastSyncAt · connectedById (audit)
+}
+
+model IntegrationDelivery {                     // INT W1 (DEC-093): outbound delivery audit + redelivery idempotency
+  id            String @id @default(cuid())
+  workspaceId   String
+  integrationId String                          // → Integration (cascade)
+  sourceEventId String?                         // the causing catalog Event id (NULL for manual tests)
+  kind          String                          // new_reply | meeting_booked | goal_completed | notify_team (W1)
+  status        String                          // pending (pre-send claim, at-most-once) | delivered | failed | held
+  detail        Json?
+  // @@unique([integrationId, sourceEventId, kind]) — bus redeliveries dedupe
 }
 
 model SenderConnection {     // P1.5: the three-tier sender model (replaces `Sender` — DEC-030)

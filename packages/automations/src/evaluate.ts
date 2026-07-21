@@ -232,8 +232,8 @@ export async function executeMatchedRules(
       // The G2 pattern: a typed refusal row, never a silent loop.
       status = "refused_depth";
     } else {
-      for (const action of rule.actions) {
-        outcomes.push(await executeAction(deps, ctx, rule.id, action));
+      for (const [i, action] of rule.actions.entries()) {
+        outcomes.push(await executeAction(deps, ctx, rule.id, action, `#a:${i}`));
       }
       const anyConflict = outcomes.some((o) => o.outcome === "skipped_conflict");
       const anyRefused = outcomes.some((o) => o.outcome === "refused_depth");
@@ -342,8 +342,8 @@ export async function executeMatchedAccountRules(
     if (ctx.depth > MAX_RULE_CAUSATION_DEPTH) {
       status = "refused_depth";
     } else {
-      for (const action of rule.actions) {
-        outcomes.push(await executeAction(deps, ctx, rule.id, action));
+      for (const [i, action] of rule.actions.entries()) {
+        outcomes.push(await executeAction(deps, ctx, rule.id, action, `#a:${i}`));
       }
       const anyConflict = outcomes.some((o) => o.outcome === "skipped_conflict");
       const anyRefused = outcomes.some((o) => o.outcome === "refused_depth");

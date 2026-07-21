@@ -19,6 +19,7 @@
     "@clientforce/core": "workspace:*",
     "@clientforce/db": "workspace:*",
     "@clientforce/events": "workspace:*",
+    "@clientforce/integrations": "workspace:*",
     "@clientforce/knowledge": "workspace:*",
     "@clientforce/planner": "workspace:*",
     "@clientforce/telemetry": "workspace:*",

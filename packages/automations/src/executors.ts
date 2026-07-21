@@ -45,6 +45,12 @@ export async function executeAction(
   ctx: RunContext,
   ruleId: string,
   action: CampaignRuleAction,
+  // INT W1 review round: the action's position path ("#a:0", nested
+  // "#a:1#auto:<id>#a:0") — deterministic from STORED rule content, so a
+  // redelivered event regenerates the same keys, while two notify_team
+  // actions under one rule (direct or via run_automation) get DISTINCT
+  // transport dedupe keys instead of silently collapsing to one delivery.
+  actionPath = "",
 ): Promise<ActionOutcomeRecord> {
   // Row order, first terminal wins — later terminal actions no-op with a
   // logged outcome; non-terminal actions still run (unit semantics §2).
@@ -52,7 +58,7 @@ export async function executeAction(
     return { kind: action.kind, outcome: "skipped_conflict" };
   }
   try {
-    const outcome = await run(deps, ctx, ruleId, action);
+    const outcome = await run(deps, ctx, ruleId, action, actionPath);
     if (isTerminalAction(action) && outcome.outcome === "executed") {
       ctx.terminalState.fired = true;
       outcome.terminal = true;
@@ -72,6 +78,7 @@ async function run(
   ctx: RunContext,
   ruleId: string,
   action: CampaignRuleAction,
+  actionPath: string,
 ): Promise<ActionOutcomeRecord> {
   const log = deps.log ?? console.warn;
   switch (action.kind) {
@@ -205,12 +212,41 @@ async function run(
       return { kind: action.kind, outcome: "executed", detail: `${fromStage} → ${action.stage}` };
     }
 
-    case "notify_team":
+    case "notify_team": {
+      // The run row + Logs row remain the transport of record (Q-042's
+      // documented default); a wired Slack transport (INT W1) is ADDITIVE —
+      // delivery evidence rides the detail, and a transport failure never
+      // changes the outcome (a flaky vendor must not fail the rule).
+      if (!deps.notifyTransport) {
+        return {
+          kind: action.kind,
+          outcome: "executed",
+          ...(action.note ? { detail: action.note } : {}),
+        };
+      }
+      let suffix: string;
+      try {
+        const res = await deps.notifyTransport({
+          workspaceId: ctx.workspaceId,
+          sourceKey: `${ctx.eventId}#rule:${ruleId}${actionPath}`,
+          ...(action.note ? { note: action.note } : {}),
+          contactId: ctx.contactId,
+        });
+        // A delivered:true WITH a detail is the dedupe pre-check path (a
+        // genuine redelivery skip) — surface it so the run row never reads
+        // as a fresh delivery that didn't happen.
+        suffix = res.delivered
+          ? `delivered to Slack${res.target ? ` ${res.target}` : ""}${res.detail ? ` (${res.detail})` : ""}`
+          : `Slack delivery skipped${res.detail ? ` (${res.detail})` : ""}`;
+      } catch (err) {
+        suffix = `Slack delivery failed (${err instanceof Error ? err.message : String(err)})`;
+      }
       return {
         kind: action.kind,
         outcome: "executed",
-        ...(action.note ? { detail: action.note } : {}),
+        detail: [action.note, suffix].filter(Boolean).join(" · "),
       };
+    }
 
     case "add_tag": {
       if (!ctx.contactId) return { kind: action.kind, outcome: "error", detail: "NO_CONTACT" };
@@ -263,8 +299,10 @@ async function run(
       }
       const nested: ActionOutcomeRecord[] = [];
       const nestedCtx: RunContext = { ...ctx, depth };
-      for (const nestedAction of parsed.data) {
-        nested.push(await executeAction(deps, nestedCtx, ruleId, nestedAction));
+      for (const [i, nestedAction] of parsed.data.entries()) {
+        nested.push(
+          await executeAction(deps, nestedCtx, ruleId, nestedAction, `${actionPath}#auto:${automation.id}#a:${i}`),
+        );
       }
       const anyError = nested.some((o) => o.outcome === "error" || o.outcome === "refused_depth");
       await recordAutomationRun(deps, ctx, automation.id, anyError ? "error" : "fired", {
