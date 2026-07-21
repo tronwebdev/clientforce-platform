@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import { INTEGRATION_PROVIDERS } from "@clientforce/core";
 import {
   DETAIL_MAX,
+  apiErrorDetail,
   decideCallback,
   resultQuery,
   truncateDetail,
@@ -65,6 +66,26 @@ describe("resultQuery (outcome → /integrations redirect query)", () => {
     const decoded = decodeURIComponent(q.slice("error=".length));
     expect(decoded).toHaveLength(DETAIL_MAX);
     expect(decoded.endsWith("…")).toBe(true);
+  });
+});
+
+describe("apiErrorDetail (non-OK API body → redirect detail)", () => {
+  it("a string detail wins — even when a message is present", () => {
+    expect(apiErrorDetail({ detail: "state mismatch — restart the connect flow", message: "Conflict" }, 409)).toBe(
+      "state mismatch — restart the connect flow",
+    );
+  });
+
+  it("falls back to a string message when detail is absent or non-string", () => {
+    expect(apiErrorDetail({ message: "Unauthorized" }, 401)).toBe("Unauthorized");
+    expect(apiErrorDetail({ detail: 42, message: "Bad Request" }, 400)).toBe("Bad Request");
+  });
+
+  it("null / non-object / non-string-field bodies → the honest status fallback", () => {
+    expect(apiErrorDetail(null, 502)).toBe("Connect failed (502)");
+    expect(apiErrorDetail(undefined, 500)).toBe("Connect failed (500)");
+    expect(apiErrorDetail("boom", 500)).toBe("Connect failed (500)");
+    expect(apiErrorDetail({ detail: 42, message: ["x"] }, 422)).toBe("Connect failed (422)");
   });
 });
 

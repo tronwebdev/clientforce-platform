@@ -16,16 +16,15 @@ import {
   INTEGRATION_PROVIDERS,
   INTEGRATION_STATUSES,
   SLACK_NOTIFICATION_KINDS,
+  type SlackNotificationKind,
 } from "@clientforce/core";
 import {
   CATEGORY_LABELS,
+  DRAWER_CONTENT,
   INTEGRATION_CATALOG,
   INTEGRATION_CATEGORIES,
   MANAGED_TWILIO_HREF,
-  SLACK_AUTH_PERMS,
   SLACK_NOTIFICATION_LABELS,
-  SLACK_SETUP_STEPS,
-  SLACK_SYNC_ROWS,
   TILE,
   catalogEntry,
   healthLine,
@@ -92,28 +91,35 @@ describe("registry drift (lib/integrations vs @clientforce/core)", () => {
   });
 });
 
-describe("Slack drawer content maps (drift-guarded against core)", () => {
-  it("the what's-syncing rows are SLACK_NOTIFICATION_KINDS exactly, in order", () => {
-    expect(SLACK_SYNC_ROWS.map((r) => r.kind)).toEqual([...SLACK_NOTIFICATION_KINDS]);
+describe("per-provider drawer content (DRAWER_CONTENT, drift-guarded against core)", () => {
+  it("DRAWER_CONTENT covers exactly the core provider union — set equality (runtime drift pin)", () => {
+    // The compile-time pin is the NON-Partial Record satisfies; this holds the
+    // same contract at runtime so a cast can never smuggle a gap through.
+    expect(new Set(Object.keys(DRAWER_CONTENT))).toEqual(new Set(INTEGRATION_PROVIDERS));
+  });
+
+  it("the slack what's-syncing rows are SLACK_NOTIFICATION_KINDS exactly, in order", () => {
+    expect(DRAWER_CONTENT.slack.syncRows.map((r) => r.kind)).toEqual([...SLACK_NOTIFICATION_KINDS]);
     expect(new Set(Object.keys(SLACK_NOTIFICATION_LABELS))).toEqual(new Set(SLACK_NOTIFICATION_KINDS));
-    const labels = SLACK_SYNC_ROWS.map((r) => r.label);
+    const labels = DRAWER_CONTENT.slack.syncRows.map((r) => r.label);
     for (const l of labels) expect(l.length).toBeGreaterThan(0);
     expect(new Set(labels).size).toBe(labels.length);
   });
 
-  it("the auth-step perms list is the dispatch-locked pair", () => {
-    expect(SLACK_AUTH_PERMS).toEqual([
+  it("the slack auth-step perms list is the dispatch-locked pair", () => {
+    expect(DRAWER_CONTENT.slack.authPerms).toEqual([
       "Post alerts to the channel you pick",
       "See your public channel list",
     ]);
   });
 
-  it("the setup timeline has three steps with copy", () => {
-    expect(SLACK_SETUP_STEPS).toHaveLength(3);
-    for (const s of SLACK_SETUP_STEPS) {
+  it("the slack setup timeline has three steps with copy, and the picker fetches channels", () => {
+    expect(DRAWER_CONTENT.slack.setupSteps).toHaveLength(3);
+    for (const s of DRAWER_CONTENT.slack.setupSteps) {
       expect(s.title.length).toBeGreaterThan(0);
       expect(s.desc.length).toBeGreaterThan(0);
     }
+    expect(DRAWER_CONTENT.slack.optionsKind).toBe("channels");
   });
 });
 
@@ -180,6 +186,31 @@ describe("Slack config helpers (full-payload-preserving PATCH bodies)", () => {
     const out = slackConfigPayload({});
     expect("channel" in out).toBe(false);
     expect(out.notifications).toEqual({ new_reply: true, meeting_booked: true, goal_completed: true });
+  });
+
+  it("a drawer draft seeded from a stored config with goal_completed:false round-trips false through the payload builder", () => {
+    // The post-OAuth re-seed path (IntegrationDrawer): the row lands after a
+    // null-row mount, the draft re-seeds from the REAL stored config, and the
+    // wizard's "Finish & connect" builds its PATCH from that draft — a stored
+    // opt-out must survive the round-trip, never be clobbered back to ON.
+    const stored = parseSlackConfig({
+      channel: { id: "C7", name: "wins" },
+      notifications: { goal_completed: false },
+    });
+    // Exactly the drawer's seed: one toggle per sync row, ON unless explicitly false.
+    const toggles = Object.fromEntries(
+      DRAWER_CONTENT.slack.syncRows.map((r) => [r.kind, notificationOn(stored, r.kind)]),
+    ) as Record<SlackNotificationKind, boolean>;
+    expect(toggles).toEqual({ new_reply: true, meeting_booked: true, goal_completed: false });
+    // Exactly the drawer's saveConfig: channel included only when the draft has one.
+    const payload = slackConfigPayload(stored, {
+      ...(stored.channel ? { channel: stored.channel } : {}),
+      notifications: toggles,
+    });
+    expect(payload).toEqual({
+      channel: { id: "C7", name: "wins" },
+      notifications: { new_reply: true, meeting_booked: true, goal_completed: false },
+    });
   });
 });
 

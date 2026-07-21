@@ -291,9 +291,10 @@ export function IntegrationsView({ role }: { role: Role }) {
         </div>
       )}
 
-      {drawerEntry && (
+      {drawerEntry && drawerEntry.availability.kind === "live" && (
         <IntegrationDrawer
           entry={drawerEntry}
+          provider={drawerEntry.availability.provider}
           row={byProvider.get(drawerEntry.id) ?? null}
           bootMode={drawerBoot}
           canManage={canManage}

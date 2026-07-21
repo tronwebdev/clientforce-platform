@@ -126,7 +126,7 @@ export function catalogEntry(id: string): CatalogEntry | null {
   return INTEGRATION_CATALOG.find((e) => e.id === id) ?? null;
 }
 
-// ── Slack drawer canon content ──────────────────────────────────────────────
+// ── per-provider drawer content (keyed by the ONE core union) ───────────────
 
 /** Display labels for the engine's three notification kinds (drift-guarded). */
 export const SLACK_NOTIFICATION_LABELS: Record<SlackNotificationKind, string> = {
@@ -135,22 +135,41 @@ export const SLACK_NOTIFICATION_LABELS: Record<SlackNotificationKind, string> = 
   goal_completed: "Goal completed alerts",
 };
 
-/** The "What's syncing" rows — derived from the core union, never a fork. */
-export const SLACK_SYNC_ROWS: ReadonlyArray<{ kind: SlackNotificationKind; label: string }> =
-  SLACK_NOTIFICATION_KINDS.map((kind) => ({ kind, label: SLACK_NOTIFICATION_LABELS[kind] }));
+/** Everything provider-specific the detail drawer renders. */
+export interface DrawerContent {
+  /** Auth-step "Clientforce will be able to" list (dispatch-locked copy). */
+  authPerms: readonly string[];
+  /** The "What's syncing" rows — derived from the core union, never a fork. */
+  syncRows: ReadonlyArray<{ kind: SlackNotificationKind; label: string }>;
+  /** Setup timeline copy (connected mode renders it all-✓ per the prototype). */
+  setupSteps: ReadonlyArray<{ title: string; desc: string }>;
+  /** Which option list the drawer's picker fetches (`GET …/options?kind=`). */
+  optionsKind: string;
+}
 
-/** Auth-step "Clientforce will be able to" list (dispatch-locked copy). */
-export const SLACK_AUTH_PERMS: readonly string[] = [
-  "Post alerts to the channel you pick",
-  "See your public channel list",
-];
-
-/** Setup timeline copy (connected mode renders it all-✓ per the prototype). */
-export const SLACK_SETUP_STEPS: ReadonlyArray<{ title: string; desc: string }> = [
-  { title: "Sign in with Slack", desc: "Authorize Clientforce via secure OAuth." },
-  { title: "Pick a channel", desc: "Where Clientforce posts updates." },
-  { title: "Confirm & go live", desc: "Review and start syncing automatically." },
-];
+/**
+ * Drawer content keyed by the core `IntegrationProvider` union via a
+ * NON-Partial `Record` — when a wave adds a provider to core
+ * `INTEGRATION_PROVIDERS` (W2's gcal, …), a missing entry here is a COMPILE
+ * error, so the drawer can never silently render Slack copy for another
+ * provider. A runtime drift pin in `test/integrations.test.ts` holds the
+ * key set equal to the core union from the other direction.
+ */
+export const DRAWER_CONTENT = {
+  slack: {
+    authPerms: [
+      "Post alerts to the channel you pick",
+      "See your public channel list",
+    ],
+    syncRows: SLACK_NOTIFICATION_KINDS.map((kind) => ({ kind, label: SLACK_NOTIFICATION_LABELS[kind] })),
+    setupSteps: [
+      { title: "Sign in with Slack", desc: "Authorize Clientforce via secure OAuth." },
+      { title: "Pick a channel", desc: "Where Clientforce posts updates." },
+      { title: "Confirm & go live", desc: "Review and start syncing automatically." },
+    ],
+    optionsKind: "channels",
+  },
+} satisfies Record<IntegrationProvider, DrawerContent>;
 
 // ── honest status display (probe-backed vocabulary → pill copy) ─────────────
 
