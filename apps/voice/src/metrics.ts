@@ -70,9 +70,39 @@ export class MetricsCollector {
   disclosureCompleted = false;
   /** Echoed into the report so every run is reproducible. */
   configEcho: Record<string, unknown> = {};
+  // ── DEC-091 pacing instrumentation — makes the audible layer measurable ──
+  /** Per-sentence TTS delivery timings (speak → first audio / fully flushed). */
+  private ttsSentenceFirstAudioMs: number[] = [];
+  private ttsSentenceFlushedMs: number[] = [];
+  /** Outbound-audio pacing: gaps >200ms between queued chunks mid-speech. */
+  audioSendGapsOver200 = 0;
+  maxAudioSendGapMs = 0;
+  /** Event-loop delay percentiles (ms), set once at session close. */
+  eventLoopMs: { p50: number; p95: number; max: number } | undefined;
+  /** The TTS transport the call actually used (stream | https | stream→https). */
+  ttsTransportUsed = "https";
 
   markCallStart(): void {
     this.startedAt = Date.now();
+  }
+
+  addTtsSentence(firstAudioMs: number, flushedMs: number): void {
+    this.ttsSentenceFirstAudioMs.push(firstAudioMs);
+    this.ttsSentenceFlushedMs.push(flushedMs);
+  }
+
+  audioSendGap(gapMs: number): void {
+    if (gapMs > 200) this.audioSendGapsOver200 += 1;
+    if (gapMs > this.maxAudioSendGapMs) this.maxAudioSendGapMs = gapMs;
+  }
+
+  ttsSentenceStats() {
+    return {
+      n: this.ttsSentenceFirstAudioMs.length,
+      firstAudioP50: percentile(this.ttsSentenceFirstAudioMs, 50),
+      firstAudioMax: Math.max(0, ...this.ttsSentenceFirstAudioMs),
+      flushedP50: percentile(this.ttsSentenceFlushedMs, 50),
+    };
   }
 
   addSttAudio(bytes: number): void {
@@ -133,6 +163,11 @@ export class MetricsCollector {
       disclosureCompleted: this.disclosureCompleted,
       cost: this.cost(),
       config: this.configEcho,
+      // DEC-091 pacing block — the layer the ear hears, now measured.
+      ttsTransport: this.ttsTransportUsed,
+      ttsSentences: this.ttsSentenceStats(),
+      audioSendGaps: { over200: this.audioSendGapsOver200, maxMs: this.maxAudioSendGapMs },
+      eventLoopMs: this.eventLoopMs ?? null,
       transcript: this.turns.map((t) => ({
         turn: t.turn,
         user: t.userText,

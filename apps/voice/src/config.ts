@@ -24,6 +24,10 @@ export interface VoiceServiceConfig {
     utteranceEndMs: number;
     smartFormat: boolean;
   };
+  /** DEC-091: reply TTS transport — `stream` (persistent Aura websocket, the
+   *  inter-sentence-gap killer) or `https` (per-sentence fetch; also the
+   *  automatic in-call fallback when the stream transport fails). */
+  ttsTransport: "stream" | "https";
   /** Latency masking: ack clip plays if no reply audio within this window. */
   ackAfterMs: number;
   /** Yield the floor when a reply makes no audio progress for this long —
@@ -48,6 +52,7 @@ export function loadVoiceConfig(): VoiceServiceConfig {
       utteranceEndMs: envInt("VOICE_STT_UTTERANCE_END_MS", 1500),
       smartFormat: process.env.VOICE_STT_SMART_FORMAT !== "false",
     },
+    ttsTransport: process.env.VOICE_TTS_TRANSPORT === "https" ? "https" : "stream",
     ackAfterMs: envInt("VOICE_ACK_AFTER_MS", 400),
     stallAbandonMs: envInt("VOICE_STALL_ABANDON_MS", 3000),
     ackPhrases: ["Mm-hm.", "Right.", "Okay."],

@@ -10,6 +10,7 @@ import { AiGateway } from "@clientforce/ai";
 import type { CompletionProvider, StreamEvent, StreamParams } from "@clientforce/ai";
 import { VOICE_FALLBACK_LINE, VOICE_FAILURE_GOODBYE } from "@clientforce/channels";
 import { CallSession, type CallSessionDeps } from "../src/session";
+import type { TtsStream, TtsStreamDeps } from "../src/deepgram-tts-stream";
 import { MetricsCollector } from "../src/metrics";
 import type { Synthesize } from "../src/deepgram";
 
@@ -245,5 +246,88 @@ describe("provider failure — never a hung line", () => {
     await s.session.driveTurn("hi there");
     await vi.waitFor(() => expect(s.ends).toContain("provider_failure"), { timeout: 5000 });
     expect(s.counter.spoken).toContain(VOICE_FAILURE_GOODBYE);
+  });
+});
+
+describe("DEC-091 — streaming TTS transport (hot socket per call)", () => {
+  const fakeStream = (opts: { failSpeak?: boolean } = {}) => {
+    const state = { spoken: [] as string[], cleared: 0, closed: 0 };
+    const make = (deps: TtsStreamDeps) =>
+      ({
+        get alive() {
+          return !opts.failSpeak;
+        },
+        speak: async (text: string) => {
+          if (opts.failSpeak) throw new Error("stream transport down");
+          state.spoken.push(text);
+          for (let i = 0; i < 3; i++) {
+            await sleep(5);
+            deps.onAudio(Buffer.alloc(160, 0x7f));
+          }
+          return { firstAudioMs: 5, flushedMs: 15 };
+        },
+        clear: () => {
+          state.cleared++;
+        },
+        close: () => {
+          state.closed++;
+        },
+      }) as unknown as TtsStream;
+    return { state, make };
+  };
+
+  it("replies speak through the stream — one speak per sentence, audio forwarded, https carries only the disclosure", async () => {
+    const fake = fakeStream();
+    const s = makeSession({ ttsTransport: "stream", openTtsStream: fake.make });
+    s.metrics.markCallStart();
+    await s.session.driveTurn("hi");
+    expect(fake.state.spoken.length).toBeGreaterThan(0);
+    for (const replySentence of fake.state.spoken) {
+      expect(s.counter.spoken).not.toContain(replySentence);
+    }
+    expect(s.metrics.ttsTransportUsed).toBe("stream");
+    expect(s.metrics.ttsSentenceStats().n).toBeGreaterThan(0);
+    expect(s.metrics.turns[0]!.ttfaMs).toBeGreaterThanOrEqual(0);
+    s.session.close();
+    expect(fake.state.closed).toBeGreaterThan(0);
+  });
+
+  it("stream death falls back to https mid-call — never a dead line, honestly labeled", async () => {
+    const fake = fakeStream({ failSpeak: true });
+    const s = makeSession({ ttsTransport: "stream", openTtsStream: fake.make });
+    s.metrics.markCallStart();
+    await s.session.driveTurn("hi");
+    expect(s.metrics.turns[0]!.ttfaMs).toBeGreaterThanOrEqual(0);
+    expect(s.counter.spoken.length).toBeGreaterThan(0); // the reply reached https synthesis
+    expect(s.metrics.ttsTransportUsed).toBe("stream→https");
+    s.session.close();
+  });
+
+  it("barge-in clears the stream's server-side buffer too", async () => {
+    const state = { cleared: 0 };
+    const make = (deps: TtsStreamDeps) =>
+      ({
+        alive: true,
+        speak: async (_text: string) => {
+          for (let i = 0; i < 12; i++) {
+            await sleep(10); // slow in-flight speak so the barge lands mid-sentence
+            deps.onAudio(Buffer.alloc(160, 0x7f));
+          }
+          return { firstAudioMs: 10, flushedMs: 120 };
+        },
+        clear: () => {
+          state.cleared++;
+        },
+        close: () => {},
+      }) as unknown as TtsStream;
+    const s = makeSession({
+      ttsTransport: "stream",
+      openTtsStream: make,
+      provider: slowProvider("First bit done. And then it keeps going and going", 10),
+    });
+    s.metrics.markCallStart();
+    await s.session.driveTurn("tell me everything", 80);
+    expect(state.cleared).toBeGreaterThan(0);
+    expect(s.metrics.bargeIns).toHaveLength(1);
   });
 });

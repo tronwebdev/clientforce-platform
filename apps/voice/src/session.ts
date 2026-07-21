@@ -23,7 +23,9 @@
  */
 import type { AiGateway } from "@clientforce/ai";
 import { checkComposedVoiceTurn, VOICE_FALLBACK_LINE, VOICE_FAILURE_GOODBYE } from "@clientforce/channels";
+import { monitorEventLoopDelay, type IntervalHistogram } from "node:perf_hooks";
 import { openSttStream, synthesizeAura, type SttParams, type SttStream, type Synthesize } from "./deepgram";
+import { TtsStream, TtsStreamCleared, type TtsStreamDeps } from "./deepgram-tts-stream";
 import { SentenceChunker } from "./sentence-chunker";
 import { TurnGate, type TurnCommit } from "./turn-gate";
 import type { MetricsCollector, TurnMetric } from "./metrics";
@@ -71,6 +73,10 @@ export interface CallSessionDeps {
   /** Injectable for the harness/tests; default the real Deepgram clients. */
   openStt?: typeof openSttStream;
   synthesize?: Synthesize;
+  /** DEC-091: reply TTS transport (default `stream`); https = legacy/fallback. */
+  ttsTransport?: "stream" | "https";
+  /** Injectable stream factory for tests. */
+  openTtsStream?: (deps: TtsStreamDeps) => TtsStream;
 }
 
 export class CallSession {
@@ -91,6 +97,13 @@ export class CallSession {
   private turnLastAudioAt = 0;
   private readonly openStt: typeof openSttStream;
   private readonly synthesize: Synthesize;
+  // ── DEC-091: streaming TTS transport + pacing instrumentation ──
+  private ttsStream?: TtsStream;
+  private ttsStreamFailed = false;
+  /** Routing context for stream audio: the speak currently in flight. */
+  private speechCtx?: { metric?: TurnMetric; anchor: number; signal: AbortSignal };
+  private lastAudioSentAt = 0;
+  private loopDelay?: IntervalHistogram;
 
   constructor(private readonly deps: CallSessionDeps) {
     this.openStt = deps.openStt ?? openSttStream;
@@ -98,9 +111,63 @@ export class CallSession {
     this.gate = new TurnGate({ onCommit: (commit) => this.onTurnCommit(commit) });
   }
 
+  /** stream transport EXPLICITLY enabled (config-wired — absent = legacy
+   *  https, so tests/harnesses never open a real socket) and never failed. */
+  private get streamTransportOn(): boolean {
+    return this.deps.ttsTransport === "stream" && !this.ttsStreamFailed;
+  }
+
+  /** Lazily (re)open the per-call TTS stream; null when unavailable. */
+  private ensureTtsStream(): TtsStream | null {
+    if (!this.streamTransportOn) return null;
+    if (this.ttsStream?.alive) return this.ttsStream;
+    try {
+      const make =
+        this.deps.openTtsStream ?? ((d: TtsStreamDeps) => new TtsStream(d));
+      this.ttsStream = make({
+        apiKey: this.deps.deepgramKey,
+        ttsModel: this.deps.ttsModel,
+        onAudio: (chunk) => this.onStreamAudio(chunk),
+      });
+      return this.ttsStream;
+    } catch (err) {
+      this.ttsStreamFailed = true;
+      console.error("[tts] stream transport unavailable — https fallback:", (err as Error).message);
+      return null;
+    }
+  }
+
+  /** Ordered audio from the TTS stream → the caller, with pacing telemetry. */
+  private onStreamAudio(chunk: Buffer): void {
+    const ctx = this.speechCtx;
+    if (!ctx || ctx.signal.aborted) return; // stale/cleared speak — drop
+    if (ctx.metric && ctx.metric.ttfaMs === undefined) {
+      ctx.metric.ttfaMs = Date.now() - ctx.anchor;
+    }
+    this.recordAudioSend();
+    this.deps.sendAudio(chunk);
+  }
+
+  /** Outbound pacing telemetry: gaps between queued chunks mid-speech. */
+  private recordAudioSend(): void {
+    const now = Date.now();
+    if (this.speaking && this.lastAudioSentAt > 0) {
+      this.deps.metrics.audioSendGap(now - this.lastAudioSentAt);
+    }
+    this.lastAudioSentAt = now;
+    this.turnLastAudioAt = now;
+  }
+
   start(): void {
     this.deps.metrics.markCallStart();
     this.startedAtMs = Date.now();
+    // DEC-091 instrumentation: event-loop stalls are the invisible half of
+    // audible choppiness on a shared/fractional core — measured per call.
+    this.loopDelay = monitorEventLoopDelay({ resolution: 10 });
+    this.loopDelay.enable();
+    // Pre-warm the TTS stream while the disclosure plays over https — the
+    // first composed reply then speaks into a hot socket.
+    if (this.streamTransportOn) this.ensureTtsStream();
     this.stt = this.openStt(this.deps.deepgramKey, this.deps.sttParams, {
       onSpeechStarted: () => this.onSpeechStarted(),
       onFinal: (text, speechFinal) => this.gate.onFinal(text, speechFinal),
@@ -191,6 +258,7 @@ export class CallSession {
     const turn = this.speakingTurn;
     this.deps.clearPlayback(); // drop already-queued audio immediately
     this.ttsAbort?.abort(); // cancel LLM+TTS generation
+    this.ttsStream?.clear(); // drop server-side buffered TTS audio (DEC-091)
     this.speaking = false;
     this.deps.metrics.bargeIns.push({
       turn,
@@ -258,6 +326,7 @@ export class CallSession {
         if (Date.now() - this.turnLastAudioAt > this.deps.stallAbandonMs) {
           metric.stalled = true;
           abort.abort();
+          this.ttsStream?.clear(); // a stalled stream must not resume later (DEC-091)
         }
       }, 250);
     }
@@ -366,14 +435,47 @@ export class CallSession {
   ): Promise<void> {
     if (signal.aborted || !text) return;
     this.deps.metrics.addTtsChars(text.length);
+    // DEC-091: streaming transport first — ONE hot socket per call, each
+    // sentence a Speak+Flush; the inter-sentence cost collapses from an
+    // HTTPS connect+TTFB to a flush round-trip (the audible-gap killer).
+    const stream = this.ensureTtsStream();
+    if (stream) {
+      this.speechCtx = { metric, anchor, signal };
+      try {
+        const timing = await stream.speak(text);
+        this.deps.metrics.addTtsSentence(timing.firstAudioMs, timing.flushedMs);
+        // Stamped on first proven stream sentence ("https" until then; a
+        // later transport death flips it to "stream→https").
+        if (this.deps.metrics.ttsTransportUsed === "https") {
+          this.deps.metrics.ttsTransportUsed = "stream";
+        }
+        return;
+      } catch (err) {
+        if (signal.aborted || err instanceof TtsStreamCleared) return;
+        // Transport death mid-call → PERMANENT https fallback for this call —
+        // never a dead line; visible in logs + the summary transport field.
+        this.ttsStreamFailed = true;
+        this.deps.metrics.ttsTransportUsed = "stream→https";
+        console.error("[tts] stream transport failed — https fallback:", (err as Error).message);
+        try {
+          this.ttsStream?.close();
+        } catch {
+          // already dead
+        }
+      }
+    }
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
+        const t0 = Date.now();
+        let tFirst = 0;
         for await (const chunk of this.synthesize(this.deps.deepgramKey, this.deps.ttsModel, text, signal)) {
           if (signal.aborted) return;
+          if (tFirst === 0) tFirst = Date.now();
           if (metric.ttfaMs === undefined) metric.ttfaMs = Date.now() - anchor;
-          this.turnLastAudioAt = Date.now();
+          this.recordAudioSend();
           this.deps.sendAudio(chunk);
         }
+        if (tFirst > 0) this.deps.metrics.addTtsSentence(tFirst - t0, Date.now() - t0);
         return;
       } catch (err) {
         if (signal.aborted) return;
@@ -470,7 +572,17 @@ export class CallSession {
     if (this.idleTimer) clearTimeout(this.idleTimer);
     if (this.maxTimer) clearTimeout(this.maxTimer);
     this.ttsAbort?.abort();
+    this.ttsStream?.close();
     this.stt?.close();
+    if (this.loopDelay) {
+      this.loopDelay.disable();
+      const ns = this.loopDelay;
+      this.deps.metrics.eventLoopMs = {
+        p50: Math.round(ns.percentile(50) / 1e6),
+        p95: Math.round(ns.percentile(95) / 1e6),
+        max: Math.round(ns.max / 1e6),
+      };
+    }
   }
 
   /** Test/harness hooks — drive the STT callbacks without a socket. */
