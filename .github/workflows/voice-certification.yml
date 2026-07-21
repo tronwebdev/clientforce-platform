@@ -1,10 +1,12 @@
 # P3.1 (DEC-078): the voice certification + demo rig — the run that closes the
 # ADR's promote gate (TTFA p50 <= ~1.2s AND p95 <= ~1.5s over >=100 turns,
-# 0 dropped audio) plus P3.1's ZERO mid-utterance replies. Rides the proven
-# P2.1/P3.0 pattern: staging OIDC -> clientforce-kv; cloudflared quick tunnel
-# for the PSTN demo call. Prints only counts/latencies/masked values — never
-# phone numbers. Supersedes voice-live-spike.yml (the spike is merged history;
-# its throwaway code was replaced by the production service this rig drives).
+# 0 dropped audio) plus P3.1's ZERO mid-utterance replies, amended by the
+# owner rulings (DEC-089/DEC-088). Rides the proven P2.1/P3.0 pattern:
+# staging OIDC -> clientforce-kv. The PSTN demo call dials through the
+# DEPLOYED clientforce-voice container app (P3.1 deploy — the runner+tunnel
+# rig is retired for demo calls). Prints only counts/latencies/masked values —
+# never phone numbers. Supersedes voice-live-spike.yml (the spike is merged
+# history; its throwaway code was replaced by the production service).
 #
 # Modes (workflow_dispatch input):
 #   preflight — the Deepgram vendor probe: secret presence + ONE live STT/TTS
@@ -58,6 +60,7 @@ permissions:
 
 env:
   KEY_VAULT_NAME: ${{ vars.KEY_VAULT_NAME }}
+  RG: ${{ vars.AZURE_RESOURCE_GROUP }}
 
 jobs:
   voice:
@@ -157,13 +160,14 @@ jobs:
           cat cert/cert-table.md >> "$GITHUB_STEP_SUMMARY"
           cat cert/cert-table.md
 
-      # ── demo-call: one real PSTN call through the production service ─────────
-      - name: Install cloudflared
-        if: env.MODE == 'demo-call'
-        run: |
-          curl -fsSL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o /usr/local/bin/cloudflared
-          chmod +x /usr/local/bin/cloudflared
-          cloudflared --version
+      # ── demo-call: one real PSTN call through the DEPLOYED production
+      #    service (P3.1 deploy, DEC-090). The runner+tunnel rig is retired for
+      #    demo calls: the 2026-07-21 call proved its two failure classes (a
+      #    bad QUIC-fallback quick tunnel serving 1033s, and the job teardown
+      #    killing the server while the call was live). The runner now only
+      #    places the call and watches Twilio status — the service lives on
+      #    Azure and outlives the job. Owner directive: no calls until
+      #    deployed — the FQDN resolve below IS that gate. ──────────────────
 
       # Owner directive 2026-07-15 (international demo leg): enable the target
       # country in Twilio Voice Geo Permissions before dialing — the dial fails
@@ -230,57 +234,50 @@ jobs:
               fi;;
           esac
 
-      - name: Demo call (production service, ${{ inputs.variant }} disclosure variant)
+      - name: Demo call (deployed production service, ${{ inputs.variant }} disclosure variant)
         if: env.MODE == 'demo-call'
         env:
-          DEEPGRAM_API_KEY: ${{ steps.kv.outputs.deepgram }}
-          ANTHROPIC_API_KEY: ${{ steps.kv.outputs.anthropic }}
           TWILIO_ACCOUNT_SID: ${{ steps.kv.outputs.tw_sid }}
           TWILIO_AUTH_TOKEN: ${{ steps.kv.outputs.tw_token }}
           VOICE_FROM_NUMBER: ${{ steps.kv.outputs.tw_from }}
           TWILIO_TO: ${{ steps.kv.outputs.tw_to }}
           VOICE_SANDBOX: "false"
-          METRICS_OUT: ./metrics.json
+          DEMO_VARIANT: ${{ inputs.variant }}
         run: |
           set -euo pipefail
-          [ "${{ steps.kv.outputs.has_deepgram }}" = "yes" ] || { echo "::error::DEEPGRAM-API-KEY missing"; exit 1; }
           [ "${{ steps.kv.outputs.has_twilio }}" = "yes" ] || { echo "::error::Twilio credentials missing"; exit 1; }
           [ "${{ steps.kv.outputs.has_from }}" = "yes" ] || { echo "::error::VOICE-FROM-NUMBER missing"; exit 1; }
           [ "${{ steps.kv.outputs.has_to }}" = "yes" ] || { echo "::error::SMS-TEST-NUMBER missing"; exit 1; }
-          # Tunnel first — it prints the URL even before the server is up.
-          # --protocol http2: GitHub-hosted runners block QUIC's UDP, and a
-          # quick tunnel that fell back badly serves 1033 to every caller —
-          # Twilio then plays "an application error has occurred" (the first
-          # live dial, 2026-07-21). TCP transport avoids the failure class.
-          cloudflared tunnel --url http://localhost:8080 --no-autoupdate --protocol http2 > cf.log 2>&1 &
-          HOST=""
-          for i in $(seq 1 30); do
-            HOST="$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' cf.log | head -1 || true)"
-            [ -n "$HOST" ] && break; sleep 2
-          done
-          [ -n "$HOST" ] || { echo "::error::no tunnel"; cat cf.log; exit 1; }
-          echo "::add-mask::$HOST"
-          # The PRODUCTION service in standalone mode; the variant picks the
-          # locked disclosure literal the owner hears (named = confirmed name).
-          if [ "${{ inputs.variant }}" = "named" ]; then export DEMO_SPOKEN_NAME="Ava"; fi
-          PORT=8080 PUBLIC_HOST="${HOST#https://}" node apps/voice/dist/server.js &
-          sleep 3
-          # END-TO-END PREFLIGHT before ringing anyone: the exact request
-          # Twilio will make (POST /twiml) must return 200 THROUGH the public
-          # tunnel. A dead tunnel fails here with cf.log — never as a broken
-          # call on the owner's phone.
-          OK=""
-          for i in $(seq 1 20); do
-            CODE=$(curl -sS -X POST -o /dev/null -w "%{http_code}" "$HOST/twiml" || echo 000)
-            if [ "$CODE" = "200" ]; then OK=1; echo "tunnel preflight: TwiML reachable end-to-end (HTTP 200, attempt $i)"; break; fi
-            sleep 3
-          done
-          if [ -z "$OK" ]; then
-            echo "::error::TwiML unreachable through the tunnel (last HTTP $CODE) — not dialing. cf.log tail:"
-            tail -30 cf.log
+          # THE no-calls-until-deployed gate: the deployed service must exist,
+          # answer /health, and hold its access gate BEFORE anyone's phone
+          # rings. Every probe hits the same public FQDN Twilio will use.
+          FQDN="$(az containerapp show --name clientforce-voice --resource-group "$RG" --query "properties.configuration.ingress.fqdn" -o tsv 2>/dev/null || true)"
+          if [ -z "$FQDN" ]; then
+            echo "::error::clientforce-voice is not deployed in $RG — run the Deploy (staging) workflow first. No calls until deployed."
             exit 1
           fi
-          PUBLIC_URL="$HOST" node apps/voice/dist/place-call.js | tee place-call.out
+          BASE="https://$FQDN"
+          echo "voice service: $BASE"
+          HEALTH=$(curl -fsS "$BASE/health" || true)
+          echo "health: $HEALTH"
+          [ -n "$HEALTH" ] || { echo "::error::voice /health not answering — not dialing."; exit 1; }
+          # Access-gate proof, negative then positive: an untokened /twiml
+          # must 403 (the gate holds), the tokened preflight must 200 with a
+          # wss stream URL (the exact request Twilio will make).
+          TOKEN=$(python3 -c 'import hmac,hashlib,os; print(hmac.new(os.environ["TWILIO_AUTH_TOKEN"].encode(),b"clientforce-voice-media",hashlib.sha256).hexdigest()[:32])')
+          echo "::add-mask::$TOKEN"
+          CODE=$(curl -sS -X POST -o /dev/null -w "%{http_code}" "$BASE/twiml" || echo 000)
+          if [ "$CODE" != "403" ]; then
+            echo "::error::untokened /twiml returned HTTP $CODE (expected 403) — the media gate is not holding; not dialing."
+            exit 1
+          fi
+          echo "gate preflight: untokened /twiml refused (403)"
+          BODY=$(curl -fsS -X POST "$BASE/twiml?t=$TOKEN&demoVariant=${{ inputs.variant }}")
+          case "$BODY" in
+            *"wss://$FQDN/media"*) echo "twiml preflight: 200 with wss stream URL (${{ inputs.variant }} variant bound)";;
+            *) echo "::error::tokened /twiml answered without the expected wss stream URL — not dialing."; exit 1;;
+          esac
+          PUBLIC_URL="$BASE" node apps/voice/dist/place-call.js | tee place-call.out
           CALL_SID="$(sed -n 's/.*callSid=\(CA[a-zA-Z0-9]*\).*/\1/p' place-call.out | head -1)"
           echo "call placed (${{ inputs.variant }} variant); holding until the call ENDS..."
           # Hold until the call reaches a TERMINAL state (up to 6 min) — the
@@ -296,11 +293,23 @@ jobs:
             case "$STATUS" in completed|failed|busy|no-answer|canceled) break;; esac
           done
           sleep 5
-          curl -sS "https://api.twilio.com/2010-04-01/Accounts/$TWILIO_ACCOUNT_SID/Calls/$CALL_SID.json" \
+          VERDICT=$(curl -sS "https://api.twilio.com/2010-04-01/Accounts/$TWILIO_ACCOUNT_SID/Calls/$CALL_SID.json" \
             -u "$TWILIO_ACCOUNT_SID:$TWILIO_AUTH_TOKEN" \
             | python3 -c 'import json,sys; d=json.load(sys.stdin); print("call status=%s duration=%ss answered_by=%s" % (d.get("status"), d.get("duration"), d.get("answered_by")))' \
-            || echo "(call status not readable)"
-          echo "----- metrics.json -----"; cat metrics.json 2>/dev/null || echo "(no metrics — call may not have connected)"
+            || echo "(call status not readable)")
+          echo "$VERDICT"
+          # Service-side evidence: the session finalizes INSIDE the container
+          # now — pull the numbers-only `[metrics] summary` line from its
+          # console logs (never transcript text, never numbers dialed).
+          # Best-effort with retries: log ingestion lags the call end.
+          SUMMARY=""
+          for i in $(seq 1 8); do
+            SUMMARY=$(az containerapp logs show --name clientforce-voice --resource-group "$RG" --type console --tail 300 2>/dev/null \
+              | grep -o '\[metrics\] summary {.*}' | tail -1 || true)
+            [ -n "$SUMMARY" ] && break; sleep 5
+          done
+          echo "----- service metrics -----"
+          if [ -n "$SUMMARY" ]; then echo "$SUMMARY"; else echo "::warning::no [metrics] summary line surfaced in container logs yet — check az containerapp logs manually"; fi
           # Leg framing for the report (owner directive 2026-07-15): on an
           # international leg, perceived latency is NOT gating — PSTN RTT
           # inflates it; the cert table's US-measured TTFA stands as the
@@ -312,11 +321,12 @@ jobs:
             *)     LEG="unknown prefix";;
           esac
           {
-            echo "## demo-call — ${{ inputs.variant }} variant"
+            echo "## demo-call — ${{ inputs.variant }} variant (deployed service)"
             echo "- leg: $LEG"
             echo "- judge on this leg: disclosure audibility · barge-in · conversational flow"
+            echo "- provider verdict: $VERDICT"
             echo '```json'
-            cat metrics.json 2>/dev/null || echo "(no metrics)"
+            if [ -n "$SUMMARY" ]; then echo "${SUMMARY#\[metrics\] summary }"; else echo "(no service metrics surfaced yet)"; fi
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -327,6 +337,5 @@ jobs:
           name: voice-${{ env.MODE }}-${{ env.MODE == 'demo-call' && inputs.variant || 'run' }}
           path: |
             cert/
-            metrics.json
-            cf.log
+            place-call.out
           if-no-files-found: ignore
