@@ -172,6 +172,8 @@ wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
         costPerMinuteUsd: Math.round(report.cost.perMinuteUsd * 1000) / 1000,
         // DEC-092 pacing block — the audible layer, measured per call.
         ttsTransport: report.ttsTransport,
+        emptyReplies: report.emptyReplies,
+        reengagedAtMs: report.reengagedAtMs,
         ttsSentences: report.ttsSentences,
         audioSendGaps: report.audioSendGaps,
         eventLoopMs: report.eventLoopMs,
