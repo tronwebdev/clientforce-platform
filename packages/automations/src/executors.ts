@@ -205,12 +205,38 @@ async function run(
       return { kind: action.kind, outcome: "executed", detail: `${fromStage} → ${action.stage}` };
     }
 
-    case "notify_team":
+    case "notify_team": {
+      // The run row + Logs row remain the transport of record (Q-042's
+      // documented default); a wired Slack transport (INT W1) is ADDITIVE —
+      // delivery evidence rides the detail, and a transport failure never
+      // changes the outcome (a flaky vendor must not fail the rule).
+      if (!deps.notifyTransport) {
+        return {
+          kind: action.kind,
+          outcome: "executed",
+          ...(action.note ? { detail: action.note } : {}),
+        };
+      }
+      let suffix: string;
+      try {
+        const res = await deps.notifyTransport({
+          workspaceId: ctx.workspaceId,
+          sourceKey: `${ctx.eventId}#rule:${ruleId}`,
+          ...(action.note ? { note: action.note } : {}),
+          contactId: ctx.contactId,
+        });
+        suffix = res.delivered
+          ? `delivered to Slack${res.target ? ` ${res.target}` : ""}`
+          : `Slack delivery skipped${res.detail ? ` (${res.detail})` : ""}`;
+      } catch (err) {
+        suffix = `Slack delivery failed (${err instanceof Error ? err.message : String(err)})`;
+      }
       return {
         kind: action.kind,
         outcome: "executed",
-        ...(action.note ? { detail: action.note } : {}),
+        detail: [action.note, suffix].filter(Boolean).join(" · "),
       };
+    }
 
     case "add_tag": {
       if (!ctx.contactId) return { kind: action.kind, outcome: "error", detail: "NO_CONTACT" };

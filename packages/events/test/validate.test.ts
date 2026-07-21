@@ -215,4 +215,69 @@ describe("validateEvent", () => {
       validateEvent({ workspaceId: "ws1", type: EVENT_TYPES.SMS_SENT, payload: { messageId: "m1" } }),
     ).toThrow(/Invalid payload for "sms.sent.v1"/);
   });
+
+  it("integration.*.v1 payload contracts (INT W1/DEC-093)", () => {
+    // connected: `accountLabel` is ADDITIVE optional — legacy {provider}-only
+    // payloads stay valid (no version bump).
+    const legacyConnected = validateEvent({
+      workspaceId: "ws1",
+      type: EVENT_TYPES.INTEGRATION_CONNECTED,
+      payload: { provider: "slack" },
+    });
+    expect(legacyConnected.payload).toEqual({ provider: "slack" });
+    const connected = validateEvent({
+      workspaceId: "ws1",
+      type: EVENT_TYPES.INTEGRATION_CONNECTED,
+      payload: { provider: "slack", accountLabel: "BrightPath workspace" },
+    });
+    expect(connected.payload).toEqual({ provider: "slack", accountLabel: "BrightPath workspace" });
+
+    const disconnected = validateEvent({
+      workspaceId: "ws1",
+      type: EVENT_TYPES.INTEGRATION_DISCONNECTED,
+      payload: { provider: "slack", reason: "user" },
+    });
+    expect(disconnected.payload).toEqual({ provider: "slack", reason: "user" });
+    expect(() =>
+      validateEvent({
+        workspaceId: "ws1",
+        type: EVENT_TYPES.INTEGRATION_DISCONNECTED,
+        payload: { provider: "slack", reason: "meteor" },
+      }),
+    ).toThrow(/Invalid payload for "integration.disconnected.v1"/);
+
+    // status transitions carry the honest state set, typed from → to.
+    const transition = validateEvent({
+      workspaceId: "ws1",
+      type: EVENT_TYPES.INTEGRATION_STATUS_CHANGED,
+      payload: { provider: "slack", from: "connected", to: "revoked" },
+    });
+    expect(transition.payload).toEqual({ provider: "slack", from: "connected", to: "revoked" });
+    expect(() =>
+      validateEvent({
+        workspaceId: "ws1",
+        type: EVENT_TYPES.INTEGRATION_STATUS_CHANGED,
+        payload: { provider: "slack", from: "connected", to: "broken" },
+      }),
+    ).toThrow(/Invalid payload for "integration.status_changed.v1"/);
+
+    const notified = validateEvent({
+      workspaceId: "ws1",
+      type: EVENT_TYPES.INTEGRATION_NOTIFIED,
+      payload: { provider: "slack", kind: "new_reply", target: "#alerts", sourceEventId: "evt1" },
+    });
+    expect(notified.payload).toEqual({
+      provider: "slack",
+      kind: "new_reply",
+      target: "#alerts",
+      sourceEventId: "evt1",
+    });
+
+    const held = validateEvent({
+      workspaceId: "ws1",
+      type: EVENT_TYPES.INTEGRATION_DELIVERY_HELD,
+      payload: { provider: "slack", reason: "workspace_delivery_allowance" },
+    });
+    expect(held.payload).toEqual({ provider: "slack", reason: "workspace_delivery_allowance" });
+  });
 });

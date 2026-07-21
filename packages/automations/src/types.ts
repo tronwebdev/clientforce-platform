@@ -49,6 +49,19 @@ export interface RuleEngineDeps {
     targetNodeId: string;
     dedupeKey: string;
   }) => Promise<unknown>;
+  /**
+   * INT W1 (DEC-093, Q-042): the real notify_team transport — Slack when the
+   * workspace connected it. ABSENT keeps the pre-W1 behavior byte-identical
+   * (the run row + Logs row stay the Phase-1 transport); failures never
+   * change the run outcome, only its detail. `sourceKey` is the delivery
+   * dedupe key (`<eventId>#rule:<ruleId>` — redelivery-safe per rule).
+   */
+  notifyTransport?: (params: {
+    workspaceId: string;
+    sourceKey: string;
+    note?: string;
+    contactId?: string | null;
+  }) => Promise<{ delivered: boolean; target?: string; detail?: string }>;
   log?: (msg: string) => void;
 }
 
