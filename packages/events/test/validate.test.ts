@@ -238,13 +238,18 @@ describe("validateEvent", () => {
       payload: { provider: "slack", reason: "user" },
     });
     expect(disconnected.payload).toEqual({ provider: "slack", reason: "user" });
-    expect(() =>
-      validateEvent({
-        workspaceId: "ws1",
-        type: EVENT_TYPES.INTEGRATION_DISCONNECTED,
-        payload: { provider: "slack", reason: "meteor" },
-      }),
-    ).toThrow(/Invalid payload for "integration.disconnected.v1"/);
+    // "revoked" is NOT an emitted reason in W1 — a dead token keeps the row
+    // and rides status_changed; the catalog must not document a phantom
+    // emission path (review-round pin; widens additively when an emitter exists).
+    for (const bad of ["meteor", "revoked"]) {
+      expect(() =>
+        validateEvent({
+          workspaceId: "ws1",
+          type: EVENT_TYPES.INTEGRATION_DISCONNECTED,
+          payload: { provider: "slack", reason: bad },
+        }),
+      ).toThrow(/Invalid payload for "integration.disconnected.v1"/);
+    }
 
     // status transitions carry the honest state set, typed from → to.
     const transition = validateEvent({

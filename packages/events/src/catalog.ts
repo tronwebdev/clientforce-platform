@@ -265,12 +265,14 @@ export const EVENT_SCHEMAS = {
   // status transition, not a sync).
   "integration.connected.v1": z.object({ provider: z.string(), accountLabel: z.string().optional() }),
   "integration.sync_failed.v1": z.object({ provider: z.string(), error: z.string().optional() }),
-  // The user disconnected (`reason: "user"`) or a dead token forced it
-  // (`reason: "revoked"`) — the row is deleted on user disconnect; this ledger
-  // row is what outlives it (the automation.deleted stance).
+  // The user disconnected — the row is deleted; this ledger row is what
+  // outlives it (the automation.deleted stance). W1 emits `reason: "user"`
+  // ONLY: an out-of-band dead token KEEPS the row and rides
+  // `integration.status_changed.v1` (to: "revoked") instead. The enum widens
+  // additively in whichever wave adds a forced-disconnect emitter.
   "integration.disconnected.v1": z.object({
     provider: z.string(),
-    reason: z.enum(["user", "revoked"]).optional(),
+    reason: z.enum(["user"]).optional(),
   }),
   // Probe-backed status transitions ONLY (the sender.status_changed pattern —
   // written on an ACTUAL change, never per probe sweep).

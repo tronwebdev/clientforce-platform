@@ -89,8 +89,9 @@ async function lookupContact(
 }
 
 /**
- * The ONE Slack delivery path (consumer + notify_team transport). Returns a
- * result, never throws.
+ * The ONE Slack delivery path (consumer + notify_team transport). Vendor
+ * failures resolve to a typed result; DB failures DO propagate — the
+ * consumer's outer catch is the load-bearing never-dead-letter rail.
  */
 export async function deliverSlack(
   deps: IntegrationsDeps,
@@ -121,23 +122,9 @@ export async function deliverSlack(
   const now = (deps.now ?? (() => new Date()))();
   const dayStart = utcDayStart(now);
 
-  // Redelivery idempotency: the pre-check is best-effort, the unique is law.
-  const existing = await withTenant(deps.prisma, { workspaceId: params.workspaceId }, (tx) =>
-    tx.integrationDelivery.findUnique({
-      where: {
-        integrationId_sourceEventId_kind: {
-          integrationId: row.id,
-          sourceEventId: params.sourceEventId,
-          kind: params.kind,
-        },
-      },
-    }),
-  );
-  if (existing) {
-    return { delivered: existing.status === "delivered", target: `#${channel.name}`, detail: "duplicate delivery skipped" };
-  }
-
   const allowance = deps.config?.dailyDeliveryAllowance ?? INTEGRATION_DAILY_DELIVERY_ALLOWANCE;
+  // Pending rows are in-flight claims, not attempts — only settled outcomes
+  // count against the allowance.
   const attemptsToday = await withTenant(deps.prisma, { workspaceId: params.workspaceId }, (tx) =>
     tx.integrationDelivery.count({
       where: { workspaceId: params.workspaceId, createdAt: { gte: dayStart }, status: { in: ["delivered", "failed"] } },
@@ -149,7 +136,10 @@ export async function deliverSlack(
         where: { workspaceId: params.workspaceId, createdAt: { gte: dayStart }, status: "held" },
       }),
     );
-    await recordDelivery(deps, row, params, "held", { reason: "workspace_delivery_allowance" });
+    const heldRow = await recordDelivery(deps, row, params, "held", { reason: "workspace_delivery_allowance" });
+    if (!heldRow) {
+      return { delivered: false, detail: "duplicate delivery skipped" };
+    }
     if (heldBefore === 0) {
       // Rising edge per hold episode — the vendor-spine cost alert.
       console.error(
@@ -164,11 +154,43 @@ export async function deliverSlack(
     return { delivered: false, detail: `held — daily delivery allowance (${allowance}) reached` };
   }
 
+  // CLAIM before the vendor call (review-round hardening): the unique
+  // (integrationId, sourceEventId, kind) row is inserted as `pending` first,
+  // so a concurrent/bus redelivery loses the race BEFORE any post — at-most-
+  // once toward Slack (a crash between claim and post costs one notification,
+  // the right trade; the visible `pending` row is the honest record of it).
+  const claimed = await recordDelivery(deps, row, params, "pending", {});
+  if (!claimed) {
+    const existing = await withTenant(deps.prisma, { workspaceId: params.workspaceId }, (tx) =>
+      tx.integrationDelivery.findUnique({
+        where: {
+          integrationId_sourceEventId_kind: {
+            integrationId: row.id,
+            sourceEventId: params.sourceEventId,
+            kind: params.kind,
+          },
+        },
+      }),
+    );
+    return {
+      delivered: existing?.status === "delivered",
+      target: `#${channel.name}`,
+      detail: existing?.status === "pending" ? "delivery in flight" : "duplicate delivery skipped",
+    };
+  }
+  const settle = (status: "delivered" | "failed", detail: Record<string, unknown>) =>
+    withTenant(deps.prisma, { workspaceId: params.workspaceId }, (tx) =>
+      tx.integrationDelivery.update({
+        where: { id: claimed.id },
+        data: { status, detail: detail as Prisma.InputJsonValue },
+      }),
+    );
+
   try {
     await adapter.postMessage(decryptCredentials(row), { channelId: channel.id, text: params.text });
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err);
-    await recordDelivery(deps, row, params, "failed", { error: detail });
+    await settle("failed", { error: detail });
     await publishSafely(deps, {
       workspaceId: params.workspaceId,
       type: EVENT_TYPES.INTEGRATION_SYNC_FAILED,
@@ -182,7 +204,7 @@ export async function deliverSlack(
     return { delivered: false, detail };
   }
 
-  await recordDelivery(deps, row, params, "delivered", { channel: channel.name });
+  await settle("delivered", { channel: channel.name });
   await withTenant(deps.prisma, { workspaceId: params.workspaceId }, (tx) =>
     tx.integration.update({ where: { id: row.id }, data: { lastSyncAt: now } }),
   );
@@ -199,15 +221,16 @@ export async function deliverSlack(
   return { delivered: true, target: `#${channel.name}` };
 }
 
+/** Insert the unique delivery row; null = another run already owns the key. */
 async function recordDelivery(
   deps: IntegrationsDeps,
   row: IntegrationRow,
   params: { workspaceId: string; kind: DeliveryKind; sourceEventId: string },
-  status: "delivered" | "failed" | "held",
+  status: "pending" | "delivered" | "failed" | "held",
   detail: Record<string, unknown>,
-): Promise<void> {
+): Promise<{ id: string } | null> {
   try {
-    await withTenant(deps.prisma, { workspaceId: params.workspaceId }, (tx) =>
+    return await withTenant(deps.prisma, { workspaceId: params.workspaceId }, (tx) =>
       tx.integrationDelivery.create({
         data: {
           workspaceId: params.workspaceId,
@@ -217,10 +240,11 @@ async function recordDelivery(
           status,
           detail: detail as Prisma.InputJsonValue,
         },
+        select: { id: true },
       }),
     );
   } catch (err) {
-    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") return; // raced redelivery
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") return null; // raced redelivery
     throw err;
   }
 }

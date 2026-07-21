@@ -118,6 +118,28 @@ describe("SlackAdapter", () => {
     ]);
   });
 
+  it("follows the conversations.list cursor — a multi-page workspace never gets a partial picker", async () => {
+    const requested: string[] = [];
+    const adapter = adapterWith(async (url) => {
+      requested.push(String(url));
+      const cursor = new URL(String(url)).searchParams.get("cursor");
+      if (!cursor) {
+        return jsonResponse({
+          ok: true,
+          channels: [{ id: "C2", name: "zeta" }],
+          response_metadata: { next_cursor: "page2" },
+        });
+      }
+      return jsonResponse({ ok: true, channels: [{ id: "C1", name: "alerts" }], response_metadata: { next_cursor: "" } });
+    });
+    expect(await adapter.listChannels(CREDS)).toEqual([
+      { id: "C1", name: "alerts" },
+      { id: "C2", name: "zeta" },
+    ]);
+    expect(requested).toHaveLength(2);
+    expect(new URL(requested[1] as string).searchParams.get("cursor")).toBe("page2");
+  });
+
   it("types request/config refusals (channel_not_found, missing_scope) as IntegrationDeliveryError", async () => {
     const adapter = adapterWith(async () => jsonResponse({ ok: false, error: "channel_not_found" }));
     await expect(adapter.postMessage(CREDS, { channelId: "C9", text: "hi" })).rejects.toBeInstanceOf(

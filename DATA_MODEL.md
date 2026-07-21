@@ -583,7 +583,7 @@ model IntegrationDelivery {                     // INT W1 (DEC-093): outbound de
   integrationId String                          // → Integration (cascade)
   sourceEventId String?                         // the causing catalog Event id (NULL for manual tests)
   kind          String                          // new_reply | meeting_booked | goal_completed | notify_team (W1)
-  status        String                          // delivered | failed | held
+  status        String                          // pending (pre-send claim, at-most-once) | delivered | failed | held
   detail        Json?
   // @@unique([integrationId, sourceEventId, kind]) — bus redeliveries dedupe
 }

@@ -673,7 +673,7 @@ model IntegrationDelivery {
   sourceEventId String?
   /// new_reply | meeting_booked | goal_completed | notify_team (W1).
   kind          String
-  /// delivered | failed | held
+  /// pending (claimed pre-send — the at-most-once rail) | delivered | failed | held
   status        String
   detail        Json?
   createdAt     DateTime @default(now())
