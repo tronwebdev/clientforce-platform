@@ -248,7 +248,11 @@ jobs:
           [ "${{ steps.kv.outputs.has_from }}" = "yes" ] || { echo "::error::VOICE-FROM-NUMBER missing"; exit 1; }
           [ "${{ steps.kv.outputs.has_to }}" = "yes" ] || { echo "::error::SMS-TEST-NUMBER missing"; exit 1; }
           # Tunnel first — it prints the URL even before the server is up.
-          cloudflared tunnel --url http://localhost:8080 --no-autoupdate > cf.log 2>&1 &
+          # --protocol http2: GitHub-hosted runners block QUIC's UDP, and a
+          # quick tunnel that fell back badly serves 1033 to every caller —
+          # Twilio then plays "an application error has occurred" (the first
+          # live dial, 2026-07-21). TCP transport avoids the failure class.
+          cloudflared tunnel --url http://localhost:8080 --no-autoupdate --protocol http2 > cf.log 2>&1 &
           HOST=""
           for i in $(seq 1 30); do
             HOST="$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' cf.log | head -1 || true)"
@@ -261,6 +265,21 @@ jobs:
           if [ "${{ inputs.variant }}" = "named" ]; then export DEMO_SPOKEN_NAME="Ava"; fi
           PORT=8080 PUBLIC_HOST="${HOST#https://}" node apps/voice/dist/server.js &
           sleep 3
+          # END-TO-END PREFLIGHT before ringing anyone: the exact request
+          # Twilio will make (POST /twiml) must return 200 THROUGH the public
+          # tunnel. A dead tunnel fails here with cf.log — never as a broken
+          # call on the owner's phone.
+          OK=""
+          for i in $(seq 1 20); do
+            CODE=$(curl -sS -X POST -o /dev/null -w "%{http_code}" "$HOST/twiml" || echo 000)
+            if [ "$CODE" = "200" ]; then OK=1; echo "tunnel preflight: TwiML reachable end-to-end (HTTP 200, attempt $i)"; break; fi
+            sleep 3
+          done
+          if [ -z "$OK" ]; then
+            echo "::error::TwiML unreachable through the tunnel (last HTTP $CODE) — not dialing. cf.log tail:"
+            tail -30 cf.log
+            exit 1
+          fi
           PUBLIC_URL="$HOST" node apps/voice/dist/place-call.js | tee place-call.out
           CALL_SID="$(sed -n 's/.*callSid=\(CA[a-zA-Z0-9]*\).*/\1/p' place-call.out | head -1)"
           echo "call placed (${{ inputs.variant }} variant); holding for the conversation..."
