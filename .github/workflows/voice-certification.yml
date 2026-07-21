@@ -188,7 +188,7 @@ jobs:
             echo "::error::Twilio rejected the Key Vault credentials (HTTP $CODE, error 20003 = Authenticate). Fix in console: Account → API keys & tokens → copy the LIVE auth token, then update the TWILIO-AUTH-TOKEN secret in clientforce-kv. Also confirm the account is not suspended."
             exit 1
           fi
-          printf '%s' "${ACC%$'\n'*}" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(f"twilio account: status={d.get(\"status\")} type={d.get(\"type\")}")'
+          printf '%s' "${ACC%$'\n'*}" | python3 -c 'import json,sys; d=json.load(sys.stdin); print("twilio account: status=%s type=%s" % (d.get("status"), d.get("type")))'
           case "$TW_TO" in
             +234*) ISO="NG"; LEG="international (NG)";;
             +1*)   ISO="US"; LEG="domestic (US)";;
@@ -212,7 +212,7 @@ jobs:
             fi
             curl -sS "https://voice.twilio.com/v1/DialingPermissions/Countries/$ISO" \
               -u "$TWILIO_ACCOUNT_SID:$TWILIO_AUTH_TOKEN" \
-              | python3 -c 'import json,sys; d=json.load(sys.stdin); print(f"  {d.get(\"iso_code\",\"?\")}: low_risk_numbers_enabled={d.get(\"low_risk_numbers_enabled\",\"unknown\")}")' \
+              | python3 -c 'import json,sys; d=json.load(sys.stdin); print("  %s: low_risk_numbers_enabled=%s" % (d.get("iso_code","?"), d.get("low_risk_numbers_enabled","unknown")))' \
               || echo "  (permission state not readable from this principal)"
           fi
           # Allow-list append (product rail; harmless for the standalone demo
@@ -270,7 +270,7 @@ jobs:
           if [ -n "$CALL_SID" ]; then
             curl -sS "https://api.twilio.com/2010-04-01/Accounts/$TWILIO_ACCOUNT_SID/Calls/$CALL_SID.json" \
               -u "$TWILIO_ACCOUNT_SID:$TWILIO_AUTH_TOKEN" \
-              | python3 -c 'import json,sys; d=json.load(sys.stdin); print(f"call status={d.get(\"status\")} duration={d.get(\"duration\")}s answered_by={d.get(\"answered_by\")}")' \
+              | python3 -c 'import json,sys; d=json.load(sys.stdin); print("call status=%s duration=%ss answered_by=%s" % (d.get("status"), d.get("duration"), d.get("answered_by")))' \
               || echo "(call status not readable)"
           fi
           echo "----- metrics.json -----"; cat metrics.json 2>/dev/null || echo "(no metrics — call may not have connected)"
