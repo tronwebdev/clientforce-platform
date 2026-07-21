@@ -30,6 +30,7 @@ import {
   planRequestSchema,
   plannerGraphQuerySchema,
   repairGraph,
+  sameTrigger,
   stepBriefSchema,
   validateGraph,
   type CampaignGraph,
@@ -80,32 +81,11 @@ function moveTargetIdsOf(actions: unknown): string[] {
   return parsed.data.flatMap((a) => (a.kind === "move_to_node" ? [a.targetNodeId] : []));
 }
 
-/**
- * Trigger equality for the duplicate-branch refusal (#90, DEC-077): same kind
- * + same payload — `reply_classified` intents compare as SETS, `sequence_quiet`
- * by its day count. Overlapping-but-different triggers coexist (R1 row order
- * arbitrates multi-rule events); only an EQUAL trigger is a duplicate.
- * Exhaustive over the union — a new trigger kind fails compilation here.
- */
-function sameTrigger(a: RuleTrigger, b: RuleTrigger): boolean {
-  if (a.kind !== b.kind) return false;
-  switch (a.kind) {
-    case "reply_classified": {
-      const other = b as Extract<RuleTrigger, { kind: "reply_classified" }>;
-      const setA = new Set(a.intents);
-      const setB = new Set(other.intents);
-      return setA.size === setB.size && [...setA].every((i) => setB.has(i));
-    }
-    case "sequence_quiet":
-      return a.days === (b as Extract<RuleTrigger, { kind: "sequence_quiet" }>).days;
-    case "meeting_booked":
-    case "opted_out":
-    case "email_opened":
-    case "link_clicked":
-    case "lead_captured":
-      return true;
-  }
-}
+// Trigger equality for the duplicate-branch refusal (#90, DEC-077) moved to
+// `@clientforce/core` with the rules layer (R1-UI, DEC-088 — the DEC-077
+// deferred "dup-check placement"): ONE definition shared by this creator and
+// the account-rules CRUD; semantics unchanged (intents compare as sets,
+// overlapping-but-different triggers coexist).
 
 /**
  * The ONE manual-edit persistence chain (#90 review round): repairGraph →

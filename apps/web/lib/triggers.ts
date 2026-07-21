@@ -31,6 +31,29 @@ export function triggerLabel(kind: CampaignRuleTriggerKind): string {
   return TRIGGER_LABELS[kind];
 }
 
+/** R1-UI (DEC-088, additive): canon card/drawer glyphs per kind
+ *  (`Automations.dc.html` TRIG catalog where a twin exists). */
+export const TRIGGER_ICONS: Record<CampaignRuleTriggerKind, string> = {
+  reply_classified: "↩",
+  sequence_quiet: "⏳",
+  email_opened: "◔",
+  link_clicked: "🔗",
+  meeting_booked: "📅",
+  opted_out: "⊘",
+  lead_captured: "⊞",
+};
+
+/** R1-UI (DEC-088, additive): canon picker descriptions per kind. */
+export const TRIGGER_DESCRIPTIONS: Record<CampaignRuleTriggerKind, string> = {
+  reply_classified: "A reply is classified with an intent",
+  sequence_quiet: "No response after N days",
+  email_opened: "A lead opens an email",
+  link_clicked: "A lead clicks a link",
+  meeting_booked: "A meeting is scheduled",
+  opted_out: "A lead opts out",
+  lead_captured: "A form, widget or LinkedIn lead arrives",
+};
+
 /** The card-chip text for a concrete trigger (canon: "💬 Reply: Interested",
  *  "⏱ No reply · 30 days"; parameterless kinds render their label). */
 export function triggerChip(trigger: CampaignRuleTrigger): string {

@@ -16,6 +16,7 @@
  * bookkeeping). Suppression rails run upstream and are untouched.
  */
 import {
+  automationConditionsSchema,
   campaignRuleActionSchema,
   campaignRuleConditionSchema,
   campaignRuleTriggerSchema,
@@ -31,6 +32,7 @@ import {
   EMPTY_SUMMARY,
   type ActionOutcomeRecord,
   type EvaluationSummary,
+  type ParsedAccountRule,
   type ParsedRule,
   type RuleEngineDeps,
   type RunContext,
@@ -81,24 +83,69 @@ export async function loadEnabledRules(
 }
 
 /**
- * Evaluate one bus event against its campaign's rules. Depth is the
- * causation depth this evaluation runs at (bus events start at 0; the
- * evaluator refuses past MAX_RULE_CAUSATION_DEPTH with typed refusal rows).
+ * Load the workspace's enabled ACCOUNT rules (`Automation` rows — R1-UI,
+ * DEC-088) parsed through the SAME core unions, in creation order (the
+ * account-scope evaluation order: `Automation` carries no `order` column;
+ * createdAt asc is the deterministic default, documented in DEC-088).
+ * An unparseable row is skipped loudly — it renders as an error state in
+ * the Automations list (B6 live resolution), never fires silently.
+ */
+export async function loadEnabledAccountRules(
+  deps: RuleEngineDeps,
+  workspaceId: string,
+): Promise<ParsedAccountRule[]> {
+  const log = deps.log ?? console.warn;
+  const rows = await withTenant(deps.prisma, { workspaceId }, (tx) =>
+    tx.automation.findMany({ where: { enabled: true }, orderBy: { createdAt: "asc" } }),
+  );
+  const parsed: ParsedAccountRule[] = [];
+  for (const row of rows) {
+    const trigger = campaignRuleTriggerSchema.safeParse(row.trigger);
+    const conditions = automationConditionsSchema.safeParse(row.conditions);
+    const actions = actionsSchema.safeParse(row.actions);
+    if (!trigger.success || !conditions.success || !actions.success) {
+      log(`[automations] automation ${row.id} has an invalid shape — skipped (renders as error state)`);
+      continue;
+    }
+    parsed.push({
+      id: row.id,
+      createdAt: row.createdAt,
+      trigger: trigger.data,
+      condition: conditions.data[0] ?? null,
+      actions: actions.data,
+    });
+  }
+  return parsed;
+}
+
+/**
+ * Evaluate one bus event: the campaign's rules first (more specific — row
+ * order), then the workspace's ACCOUNT rules (R1-UI, DEC-088; creation
+ * order) through the SAME match + executors with ONE shared terminal state —
+ * first terminal wins ACROSS scopes, and an account terminal gates the graph
+ * continuation through the same memoized summary. Events without a campaign
+ * evaluate account rules only. Depth is the causation depth this evaluation
+ * runs at (bus events start at 0; the evaluator refuses past
+ * MAX_RULE_CAUSATION_DEPTH with typed refusal rows).
  */
 export async function evaluateEventForRules(
   deps: RuleEngineDeps,
   event: BusEvent,
   opts: { depth?: number } = {},
 ): Promise<EvaluationSummary> {
-  // Rules are per-campaign rows — events without a campaign never evaluate
-  // (account-level rules are Phase 6, on this same core). Rule-run events
-  // are ours; nothing triggers on them.
-  if (!event.campaignId || event.type === "automation.rule.run.v1") return EMPTY_SUMMARY;
+  // automation.* events are ours (run rows, manage audit) — nothing triggers
+  // on them, ever: the loop-safety guard, extended from the rule.run-only
+  // check when account rules began evaluating campaign-less events (DEC-088).
+  if (event.type.startsWith("automation.")) return EMPTY_SUMMARY;
 
-  const rules = await loadEnabledRules(deps, event.workspaceId, event.campaignId);
-  if (rules.length === 0) return EMPTY_SUMMARY;
+  const rules = event.campaignId
+    ? await loadEnabledRules(deps, event.workspaceId, event.campaignId)
+    : [];
+  const accountRules = await loadEnabledAccountRules(deps, event.workspaceId);
+  if (rules.length === 0 && accountRules.length === 0) return EMPTY_SUMMARY;
 
-  // Paused-enrollment inertness — checked before any matching.
+  // Paused-enrollment inertness — checked ONCE, before any matching, for
+  // both scopes (a trap-paused or removed contact stays inert everywhere).
   if (event.enrollmentId) {
     const enrollment = await withTenant(deps.prisma, { workspaceId: event.workspaceId }, (tx) =>
       tx.enrollment.findUnique({
@@ -109,21 +156,26 @@ export async function evaluateEventForRules(
     if (!enrollment || !FIREABLE_STATUSES.has(enrollment.status)) return EMPTY_SUMMARY;
   }
 
-  const matched: ParsedRule[] = [];
   let replyText: string | null | undefined; // lazily loaded once per event
+  const conditionMet = async (rule: ParsedRule | ParsedAccountRule): Promise<boolean> => {
+    if (!rule.condition) return true;
+    // keyword_contains refines reply triggers only — on any other trigger
+    // (or an unresolvable body) the refinement is unmet and the rule
+    // simply doesn't fire.
+    if (rule.trigger.kind !== "reply_classified") return false;
+    if (replyText === undefined) replyText = await loadReplyText(deps, event);
+    return !!replyText && keywordHit(rule.condition.keywords, replyText);
+  };
+
+  const matched: ParsedRule[] = [];
   for (const rule of rules) {
-    if (!matchTrigger(rule.trigger, event)) continue;
-    if (rule.condition) {
-      // keyword_contains refines reply triggers only — on any other trigger
-      // (or an unresolvable body) the refinement is unmet and the rule
-      // simply doesn't fire.
-      if (rule.trigger.kind !== "reply_classified") continue;
-      if (replyText === undefined) replyText = await loadReplyText(deps, event);
-      if (!replyText || !keywordHit(rule.condition.keywords, replyText)) continue;
-    }
-    matched.push(rule);
+    if (matchTrigger(rule.trigger, event) && (await conditionMet(rule))) matched.push(rule);
   }
-  if (matched.length === 0) return EMPTY_SUMMARY;
+  const matchedAccount: ParsedAccountRule[] = [];
+  for (const rule of accountRules) {
+    if (matchTrigger(rule.trigger, event) && (await conditionMet(rule))) matchedAccount.push(rule);
+  }
+  if (matched.length === 0 && matchedAccount.length === 0) return EMPTY_SUMMARY;
 
   const ctx: RunContext = {
     workspaceId: event.workspaceId,
@@ -134,7 +186,13 @@ export async function evaluateEventForRules(
     depth: opts.depth ?? 0,
     terminalState: { fired: false },
   };
-  return executeMatchedRules(deps, ctx, matched);
+  const summary = await executeMatchedRules(deps, ctx, matched);
+  const accountSummary = await executeMatchedAccountRules(deps, ctx, matchedAccount);
+  return {
+    matched: summary.matched + accountSummary.matched,
+    terminalFired: summary.terminalFired || accountSummary.terminalFired,
+    runs: [...summary.runs, ...accountSummary.runs],
+  };
 }
 
 /**
@@ -238,6 +296,115 @@ export async function executeMatchedRules(
       } catch (err) {
         log(
           `[automations] automation.rule.run.v1 publish failed for run ${runId}: ` +
+            `${err instanceof Error ? err.message : String(err)} — run row persisted regardless`,
+        );
+      }
+    }
+  }
+  return summary;
+}
+
+/**
+ * Execute already-matched ACCOUNT rules (R1-UI, DEC-088) against one context —
+ * the `executeMatchedRules` twin with the account record sink: same shared
+ * executors, same terminal state (campaign terminals recorded earlier in the
+ * pass suppress account terminals — first wins across scopes), idempotency on
+ * unique (automationId, eventId), one `AutomationRun` row per matched rule,
+ * one `automation.rule.run.v1` (scope "account") per row. Shared by the bus
+ * path and the sequence-quiet sweep's account pass.
+ */
+export async function executeMatchedAccountRules(
+  deps: RuleEngineDeps,
+  ctx: RunContext,
+  matched: ParsedAccountRule[],
+): Promise<EvaluationSummary> {
+  const log = deps.log ?? console.warn;
+  const summary: EvaluationSummary = { matched: matched.length, terminalFired: false, runs: [] };
+
+  for (const rule of matched) {
+    const existing = await withTenant(deps.prisma, { workspaceId: ctx.workspaceId }, (tx) =>
+      tx.automationRun.findUnique({
+        where: { automationId_eventId: { automationId: rule.id, eventId: ctx.eventId } },
+      }),
+    );
+    if (existing) {
+      const detail = existing.detail as { terminal?: boolean } | null;
+      if (detail?.terminal) {
+        ctx.terminalState.fired = true;
+        summary.terminalFired = true;
+      }
+      summary.runs.push({ ruleId: rule.id, runId: existing.id, status: "already_recorded", scope: "account" });
+      continue;
+    }
+
+    let status: CampaignRuleRunStatus;
+    const outcomes: ActionOutcomeRecord[] = [];
+    if (ctx.depth > MAX_RULE_CAUSATION_DEPTH) {
+      status = "refused_depth";
+    } else {
+      for (const action of rule.actions) {
+        outcomes.push(await executeAction(deps, ctx, rule.id, action));
+      }
+      const anyConflict = outcomes.some((o) => o.outcome === "skipped_conflict");
+      const anyRefused = outcomes.some((o) => o.outcome === "refused_depth");
+      const anyError = outcomes.some((o) => o.outcome === "error");
+      status = anyConflict ? "skipped_conflict" : anyRefused ? "refused_depth" : anyError ? "error" : "fired";
+    }
+    const ruleTerminal = outcomes.some((o) => o.terminal === true);
+    if (ruleTerminal) summary.terminalFired = true;
+
+    let runId: string | null = null;
+    try {
+      const row = await withTenant(deps.prisma, { workspaceId: ctx.workspaceId }, (tx) =>
+        tx.automationRun.create({
+          data: {
+            workspaceId: ctx.workspaceId,
+            automationId: rule.id,
+            eventId: ctx.eventId,
+            status,
+            detail: {
+              trigger: rule.trigger.kind,
+              terminal: ruleTerminal,
+              depth: ctx.depth,
+              ...(ctx.contactId ? { contactId: ctx.contactId } : {}),
+              ...(ctx.enrollmentId ? { enrollmentId: ctx.enrollmentId } : {}),
+              actions: outcomes,
+            } as unknown as Prisma.InputJsonValue,
+          },
+        }),
+      );
+      runId = row.id;
+    } catch (err) {
+      if ((err as { code?: string }).code === "P2002") {
+        summary.runs.push({ ruleId: rule.id, runId: null, status: "already_recorded", scope: "account" });
+        continue;
+      }
+      throw err;
+    }
+    summary.runs.push({ ruleId: rule.id, runId, status, scope: "account" });
+
+    if (deps.publish) {
+      try {
+        await deps.publish({
+          type: "automation.rule.run.v1",
+          workspaceId: ctx.workspaceId,
+          contactId: ctx.contactId,
+          enrollmentId: ctx.enrollmentId,
+          campaignId: ctx.campaignId,
+          payload: {
+            ruleId: rule.id,
+            runId,
+            status,
+            trigger: rule.trigger.kind,
+            scope: "account",
+            ...(status === "fired"
+              ? {}
+              : { detail: outcomes.map((o) => `${o.kind}=${o.outcome}`).join(", ") || status }),
+          },
+        });
+      } catch (err) {
+        log(
+          `[automations] automation.rule.run.v1 publish failed for account run ${runId}: ` +
             `${err instanceof Error ? err.message : String(err)} — run row persisted regardless`,
         );
       }

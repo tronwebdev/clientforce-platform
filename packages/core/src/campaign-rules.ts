@@ -113,6 +113,112 @@ export function isTerminalAction(action: CampaignRuleAction): boolean {
   return (TERMINAL_ACTION_KINDS as readonly string[]).includes(action.kind);
 }
 
+/**
+ * The action kinds valid on ACCOUNT-scope rules (`Automation` rows, R1-UI /
+ * DEC-088) — the ONE union minus `move_to_node`, whose target is a node in a
+ * SPECIFIC campaign's graph: an account rule fires across campaigns, so a
+ * pinned node id would be dangling everywhere but one. Campaign View owns
+ * move rules (#90); the account CRUD refuses the kind with a typed 422.
+ */
+export const ACCOUNT_ACTION_KINDS = [
+  "end_enrollment",
+  "pause_enrollment",
+  "suppress_contact",
+  "set_stage",
+  "notify_team",
+  "add_tag",
+  "run_automation",
+] as const satisfies readonly CampaignRuleActionKind[];
+
+export function isAccountAction(action: CampaignRuleAction): boolean {
+  return (ACCOUNT_ACTION_KINDS as readonly string[]).includes(action.kind);
+}
+
+/**
+ * Trigger equality for the duplicate-rule refusal — the ONE definition, moved
+ * here from the #90 sub-campaign creator (DEC-077 deferred "dup-check
+ * placement moves to the rules layer"): same kind + same payload —
+ * `reply_classified` intents compare as SETS, `sequence_quiet` by day count.
+ * Overlapping-but-different triggers coexist (row order arbitrates multi-rule
+ * events); only an EQUAL trigger is a duplicate. Exhaustive over the union —
+ * a new trigger kind fails compilation here.
+ */
+export function sameTrigger(a: CampaignRuleTrigger, b: CampaignRuleTrigger): boolean {
+  if (a.kind !== b.kind) return false;
+  switch (a.kind) {
+    case "reply_classified": {
+      const other = b as Extract<CampaignRuleTrigger, { kind: "reply_classified" }>;
+      const setA = new Set(a.intents);
+      const setB = new Set(other.intents);
+      return setA.size === setB.size && [...setA].every((i) => setB.has(i));
+    }
+    case "sequence_quiet":
+      return a.days === (b as Extract<CampaignRuleTrigger, { kind: "sequence_quiet" }>).days;
+    case "meeting_booked":
+    case "opted_out":
+    case "email_opened":
+    case "link_clicked":
+    case "lead_captured":
+      return true;
+  }
+}
+
+// ── Account rules (R1-UI, DEC-088) ──────────────────────────────────────────
+// The workspace-scoped `Automation` row's Json contract — the SAME typed
+// unions as `CampaignRule` (one vocabulary, one executor; scope is a field,
+// never a fork). `conditions` is stored as an ARRAY (the DATA_MODEL §6 column
+// is plural, reserved for Phase-6 multi-condition AND); this phase accepts at
+// most ONE entry so the evaluator's single-refinement semantics stay
+// byte-identical across scopes.
+
+export const automationConditionsSchema = z.array(campaignRuleConditionSchema).max(1);
+
+/** The `Automation.trigger/conditions/actions` Json contract + row DTO. */
+export const automationRowSchema = z.object({
+  id: z.string().min(1),
+  workspaceId: z.string().min(1),
+  name: z.string().min(1).max(120),
+  enabled: z.boolean(),
+  trigger: campaignRuleTriggerSchema,
+  conditions: automationConditionsSchema,
+  actions: z.array(campaignRuleActionSchema).min(1),
+});
+export type AutomationRow = z.infer<typeof automationRowSchema>;
+
+/** Create/update DTO for the account-rules CRUD (`apps/api` automations).
+ *  Conditions are legal on reply triggers ONLY — the evaluator's semantics
+ *  (a conditioned non-reply rule never fires) enforced at the boundary so a
+ *  never-firing rule can't be created quietly. */
+export const automationWriteSchema = z
+  .object({
+    name: z.string().trim().min(1).max(120),
+    enabled: z.boolean().default(true),
+    trigger: campaignRuleTriggerSchema,
+    conditions: automationConditionsSchema.default([]),
+    actions: z.array(campaignRuleActionSchema).min(1).max(10),
+  })
+  .superRefine((val, ctx) => {
+    if (val.conditions.length > 0 && val.trigger.kind !== "reply_classified") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["conditions"],
+        message: "Keyword filters refine reply triggers only — this trigger would never fire with one",
+      });
+    }
+  });
+export type AutomationWrite = z.infer<typeof automationWriteSchema>;
+
+/** Enable/disable DTO (`PATCH /automations/:id`). */
+export const automationToggleSchema = z.object({ enabled: z.boolean() });
+
+/** The typed 422 message for a campaign-scoped action on an account rule. */
+export const ACCOUNT_ACTION_REFUSAL =
+  "Move to a sequence node is campaign-scoped — create that rule from the agent's Campaign View";
+
+/** The typed 422 message for an equal-trigger duplicate (never a silent overwrite). */
+export const DUPLICATE_TRIGGER_REFUSAL =
+  "An enabled automation already fires on this exact trigger — edit that one, or change the trigger";
+
 // ── Rows ─────────────────────────────────────────────────────────────────────
 
 /** The `CampaignRule.trigger/condition/actions` Json contract + row DTO. */

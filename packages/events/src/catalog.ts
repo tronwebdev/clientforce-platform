@@ -254,6 +254,26 @@ export const EVENT_SCHEMAS = {
     /** The rule's trigger kind (e.g. "reply_classified") — for log rendering. */
     trigger: z.string(),
     detail: z.string().optional(),
+    /** R1-UI (DEC-088, additive): "account" = an `Automation` row's run
+     * (`ruleId` carries the automation id, `runId` the AutomationRun id);
+     * absent = a campaign rule's run — the pre-existing meaning, byte-compatible. */
+    scope: z.enum(["campaign", "account"]).optional(),
+  }),
+  // R1-UI (DEC-088): the account-rules manage audit — enable/disable
+  // (the sender.status_changed pattern: typed from→to, written by the manage
+  // endpoint on an ACTUAL change only) and delete (the row is gone; this
+  // ledger row is what outlives it). Fleet-visible off the ledger, no
+  // backoffice-specific emission path (the spike_detected stance).
+  "automation.status_changed.v1": z.object({
+    automationId: z.string().min(1),
+    from: z.enum(["enabled", "disabled"]),
+    to: z.enum(["enabled", "disabled"]),
+  }),
+  "automation.deleted.v1": z.object({
+    automationId: z.string().min(1),
+    name: z.string(),
+    /** The deleted rule's trigger kind — for log rendering after the row is gone. */
+    trigger: z.string(),
   }),
 } satisfies Record<string, z.ZodTypeAny>;
 
@@ -320,4 +340,6 @@ export const EVENT_TYPES = {
   INTEGRATION_CONNECTED: "integration.connected.v1",
   INTEGRATION_SYNC_FAILED: "integration.sync_failed.v1",
   AUTOMATION_RULE_RUN: "automation.rule.run.v1",
+  AUTOMATION_STATUS_CHANGED: "automation.status_changed.v1",
+  AUTOMATION_DELETED: "automation.deleted.v1",
 } as const satisfies Record<string, EventType>;

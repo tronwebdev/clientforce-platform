@@ -3,6 +3,7 @@ import { APP_GUARD } from "@nestjs/core";
 import { AuthModule } from "./auth/auth.module";
 import { AuthGuard } from "./auth/auth.guard";
 import { AgentsModule } from "./agents/agents.module";
+import { AutomationsModule } from "./automations/automations.module";
 import { RolesGuard } from "./auth/roles.guard";
 import { DbModule } from "./db/db.module";
 import { HealthController } from "./health.controller";
@@ -28,6 +29,7 @@ import { BusOrInlinePublisher, EVENTS_PUBLISHER } from "./events/publisher";
     DbModule,
     AuthModule,
     AgentsModule,
+    AutomationsModule,
     KnowledgeModule,
     ContextModule,
     PlannerModule,
