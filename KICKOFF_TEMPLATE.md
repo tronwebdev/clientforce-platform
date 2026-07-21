@@ -38,9 +38,11 @@ received, proposal accepted/viewed, widget chat started, call outcome, lead
 enriched…) — it REGISTERS the typed triggers/conditions/actions in the R1
 engine vocabulary IN THE SAME PR, and they light up in the Automations picker
 automatically (the picker enumerates the vocabulary — zero UI change). The
-honest-absence Q entries from R1-UI's picker↔vocabulary diff are the ledger:
-each feature unit's plan comment names which Q entries it closes, and proposes
-the trigger/action list for owner sign-off so nothing important is left out.
+honest-absence Q entries from R1-UI's picker↔vocabulary diff — **Q-030..Q-045**
+in PROGRESS's Open questions — are the STANDING ledger every feature unit's
+plan comment reconciles against (owner directive, 2026-07-21): name which of
+those Q entries the unit closes, and propose the trigger/action list for owner
+sign-off so nothing important is left out.
 Never ship a feature whose events exist but whose automation hooks silently
 don't.
 
