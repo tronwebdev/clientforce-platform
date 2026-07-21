@@ -125,6 +125,21 @@ export class AgentViewController {
       });
       const enrollmentByContact = new Map(enrollments.map((e) => [e.contactId, e]));
 
+      // INT W2 (DEC-094, designed addition — flagged): the thread reading
+      // pane interleaves booking confirmations, so attach each thread
+      // contact's `calendar.*` Event rows. Event-sourced by design — never a
+      // fabricated Message (Message is the send ledger, A6; nothing was sent
+      // when a lead books). Contact-anchored, not campaign-filtered: a
+      // booking resolves to the contact even when no campaign ref rode the
+      // envelope. Tenant scoping rides RLS like every query here.
+      const calendarEvents =
+        contactIds.length > 0
+          ? await tx.event.findMany({
+              where: { contactId: { in: contactIds }, type: { startsWith: "calendar." } },
+              orderBy: { occurredAt: "asc" },
+            })
+          : [];
+
       const threads = contactIds
         .map((contactId) => {
           const msgs = messages.filter((m) => m.contactId === contactId);
@@ -151,6 +166,15 @@ export class AgentViewController {
             lastAt: last.sentAt.toISOString(),
             preview: (last.body ?? "").slice(0, 140),
             messageCount: msgs.length,
+            // INT W2: the contact's calendar.* rows (see the fetch above).
+            events: calendarEvents
+              .filter((e) => e.contactId === contactId)
+              .map((e) => ({
+                id: e.id,
+                type: e.type,
+                payload: e.payload,
+                occurredAt: e.occurredAt.toISOString(),
+              })),
             messages: msgs.map((m) => {
               // G3 (DEC-075): composed-message provenance — the send
               // boundary's pass-through meta ({mode, composerVersion},

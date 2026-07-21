@@ -27,7 +27,8 @@ const SCHEMA_KINDS = campaignRuleTriggerSchema.options.map(
 describe("trigger display map (lib/triggers)", () => {
   it("covers exactly R1's kinds — the display layer can never fork the union", () => {
     expect(new Set(TRIGGER_OPTIONS.map((o) => o.kind))).toEqual(new Set(SCHEMA_KINDS));
-    expect(TRIGGER_OPTIONS).toHaveLength(7);
+    // INT W2 (DEC-094): + meeting_rescheduled · meeting_canceled · before_meeting.
+    expect(TRIGGER_OPTIONS).toHaveLength(10);
   });
 
   it("owner labels are the canon strings", () => {
@@ -39,6 +40,10 @@ describe("trigger display map (lib/triggers)", () => {
       meeting_booked: "Meeting booked",
       opted_out: "Unsubscribed / opted out",
       lead_captured: "Form / lead captured",
+      // INT W2: labels verbatim from the retired canon absent entries.
+      meeting_rescheduled: "Meeting rescheduled",
+      meeting_canceled: "Meeting canceled / no-show",
+      before_meeting: "Before a meeting",
     });
     for (const o of TRIGGER_OPTIONS) expect(triggerLabel(o.kind)).toBe(o.label);
   });
@@ -60,11 +65,18 @@ describe("trigger display map (lib/triggers)", () => {
     expect(triggerChip({ kind: "sequence_quiet", days: 1 })).toBe("⏱ No reply · 1 day");
   });
 
+  it("before_meeting chips render '⏰ Before meeting · N hours' (singular-aware) — INT W2", () => {
+    expect(triggerChip({ kind: "before_meeting", hours: 24 })).toBe("⏰ Before meeting · 24 hours");
+    expect(triggerChip({ kind: "before_meeting", hours: 1 })).toBe("⏰ Before meeting · 1 hour");
+  });
+
   it("parameterless kinds chip as their label; every entry's chip agrees with triggerChip", () => {
     const cases: CampaignRuleTrigger[] = [
       { kind: "email_opened" },
       { kind: "link_clicked" },
       { kind: "meeting_booked" },
+      { kind: "meeting_rescheduled" },
+      { kind: "meeting_canceled" },
       { kind: "opted_out" },
       { kind: "lead_captured" },
     ];
@@ -74,13 +86,21 @@ describe("trigger display map (lib/triggers)", () => {
     }
   });
 
-  it("availability maps exhaustively: email-backed kinds gate on the sender, lead_captured on capture, meeting_booked never", () => {
+  it("availability maps exhaustively: email-backed kinds gate on the sender, lead_captured on capture, meeting kinds never", () => {
     const emailBacked: CampaignRuleTriggerKind[] = [
       "reply_classified",
       "sequence_quiet",
       "email_opened",
       "link_clicked",
       "opted_out",
+    ];
+    // INT W2: the meeting kinds ride calendar detection / the meeting sweep,
+    // never email — always enabled (the meeting_booked precedent).
+    const alwaysOn: CampaignRuleTriggerKind[] = [
+      "meeting_booked",
+      "meeting_rescheduled",
+      "meeting_canceled",
+      "before_meeting",
     ];
     for (const kind of SCHEMA_KINDS) {
       // fully connected → everything picks
@@ -91,7 +111,7 @@ describe("trigger display map (lib/triggers)", () => {
       } else if (kind === "lead_captured") {
         expect(bare).toEqual({ enabled: false, reason: TRIGGER_DISABLED_LEAD_CAPTURE });
       } else {
-        expect(kind).toBe("meeting_booked");
+        expect(alwaysOn).toContain(kind);
         expect(bare).toEqual({ enabled: true });
       }
       // each flag gates only its own kinds

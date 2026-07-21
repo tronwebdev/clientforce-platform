@@ -69,6 +69,8 @@ describe("action display map (lib/actions)", () => {
     expect(actionChip({ kind: "pause_enrollment" })).toBe("Pause contact");
     expect(actionChip({ kind: "suppress_contact" })).toBe("Suppress contact");
     expect(actionChip({ kind: "notify_team" })).toBe("Notify team");
+    // INT W2 (DEC-094): parameterless — the label IS the chip.
+    expect(actionChip({ kind: "send_booking_link" })).toBe("Send booking link");
     expect(
       actionChip({ kind: "run_automation", automationId: "a1" }, { a1: "Stop on unsubscribe" }),
     ).toBe("Run “Stop on unsubscribe”");

@@ -89,6 +89,28 @@ describe("W2 picker registries (the vocabulary + the honest-absent ledger)", () 
       expect(ABSENT_ACTIONS.some((a) => a.label === folded)).toBe(false);
     }
   });
+
+  // ── INT W2 (DEC-094) retirements — the ledger closes, never shadows ───────
+
+  it("the three Meetings triggers RETIRED from the absent ledger (they're live engine kinds now)", () => {
+    expect(ABSENT_TRIGGERS.filter((a) => a.group === "Meetings")).toEqual([]);
+    for (const label of ["Meeting rescheduled", "Meeting canceled / no-show", "Before a meeting"]) {
+      expect(ABSENT_TRIGGERS.some((a) => a.label === label)).toBe(false);
+      // …because each is now an expressible picker entry.
+      expect(TRIGGER_OPTIONS.some((o) => o.label === label)).toBe(true);
+    }
+  });
+
+  it("'Send booking link' RETIRED from the absent actions; the two remaining Meetings entries carry the Q-033 re-filed reasons", () => {
+    expect(ABSENT_ACTIONS.some((a) => a.label === "Send booking link")).toBe(false);
+    expect(ACCOUNT_ACTION_OPTIONS.some((o) => o.label === "Send booking link" && o.group === "Meetings")).toBe(true);
+    expect(ABSENT_ACTIONS.find((a) => a.label === "Send meeting reminder")?.reason).toBe(
+      "Arrives with per-channel send rules — today pair a “Before a meeting” trigger with your sequence",
+    );
+    expect(ABSENT_ACTIONS.find((a) => a.label === "Create calendar event")?.reason).toBe(
+      "Arrives when Clientforce creates bookings — Calendly puts booked meetings on your calendar today",
+    );
+  });
 });
 
 describe("W2 recipes — pre-filled builder states, all fully expressible", () => {
@@ -119,6 +141,17 @@ describe("W2 builder defaults + keyword helper", () => {
     for (const o of TRIGGER_OPTIONS) {
       expect(campaignRuleTriggerSchema.safeParse(defaultTriggerFor(o.kind)).success).toBe(true);
     }
+  });
+
+  it("INT W2 defaults: before_meeting starts a day out; send_booking_link is the bare kind — both parse through the REAL schemas", () => {
+    const before = defaultTriggerFor("before_meeting");
+    expect(before).toEqual({ kind: "before_meeting", hours: 24 });
+    expect(campaignRuleTriggerSchema.safeParse(before).success).toBe(true);
+    const booking = defaultActionFor("send_booking_link", null);
+    expect(booking).toEqual({ kind: "send_booking_link" });
+    expect(
+      automationWriteSchema.safeParse({ name: "x", trigger: before, actions: [booking] }).success,
+    ).toBe(true);
   });
 
   it("defaultActionFor yields a schema-valid ACCOUNT action for every picker kind", () => {

@@ -63,6 +63,14 @@ function triggerPhraseOf(trigger: CampaignRuleTrigger): string {
       return "clicking a link without replying";
     case "meeting_booked":
       return "booking a meeting";
+    // INT W2 (DEC-094): the three meeting kinds light up in TRIGGER_OPTIONS —
+    // this exhaustive switch registers their mechanical phrases.
+    case "meeting_rescheduled":
+      return "their meeting being rescheduled";
+    case "meeting_canceled":
+      return "their meeting falling through";
+    case "before_meeting":
+      return `their meeting starting within ${trigger.hours} hour${trigger.hours === 1 ? "" : "s"}`;
     case "opted_out":
       return "opting out";
     case "lead_captured":
@@ -282,6 +290,8 @@ export function SubcampaignCreator(props: SubcampaignCreatorProps) {
   const [kind, setKind] = useState<CampaignRuleTriggerKind | null>(null);
   const [intents, setIntents] = useState<string[]>([]);
   const [quietDays, setQuietDays] = useState(30);
+  // INT W2: before_meeting's hours payload (schema 1..336; default a day).
+  const [beforeHours, setBeforeHours] = useState(24);
   const [name, setName] = useState("");
   const [dropOpen, setDropOpen] = useState(false);
   const [method, setMethod] = useState<"ai" | "scratch" | null>(null);
@@ -312,12 +322,14 @@ export function SubcampaignCreator(props: SubcampaignCreatorProps) {
       setKind(prefill.trigger.kind);
       setIntents(prefill.trigger.kind === "reply_classified" ? [...prefill.trigger.intents] : []);
       setQuietDays(prefill.trigger.kind === "sequence_quiet" ? prefill.trigger.days : 30);
+      setBeforeHours(prefill.trigger.kind === "before_meeting" ? prefill.trigger.hours : 24);
       setStep(1);
     } else {
       setName("");
       setKind(null);
       setIntents([]);
       setQuietDays(30);
+      setBeforeHours(24);
       setStep(0);
     }
   }, [open, prefill]);
@@ -333,7 +345,9 @@ export function SubcampaignCreator(props: SubcampaignCreatorProps) {
           : null
         : kind === "sequence_quiet"
           ? { kind, days: quietDays }
-          : { kind };
+          : kind === "before_meeting"
+            ? { kind, hours: beforeHours }
+            : { kind };
 
   const builtWithAI = drafts !== null && drafts.length > 0;
   const stepValid = step === 0 ? trigger !== null && name.trim().length > 0 : step === 1 ? method !== null : !busy;
@@ -496,6 +510,25 @@ export function SubcampaignCreator(props: SubcampaignCreatorProps) {
                   }}
                   style={{ width: 110, boxSizing: "border-box", borderRadius: 9, background: "#fff", border: "1px solid #EBE3D6", padding: "9px 12px", fontSize: 13.5, color: "#0E1512", fontFamily: "'Hanken Grotesk',sans-serif" }}
                   data-testid="subnew-quiet-days"
+                />
+              </div>
+            ) : null}
+
+            {/* INT W2: before_meeting hours — the quiet-days input anatomy. */}
+            {kind === "before_meeting" ? (
+              <div style={{ marginTop: 14 }}>
+                <label style={label11}>Hours before the meeting</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={336}
+                  value={beforeHours}
+                  onChange={(e) => {
+                    const v = Number.parseInt(e.target.value, 10);
+                    setBeforeHours(Number.isNaN(v) ? 24 : Math.min(336, Math.max(1, v)));
+                  }}
+                  style={{ width: 110, boxSizing: "border-box", borderRadius: 9, background: "#fff", border: "1px solid #EBE3D6", padding: "9px 12px", fontSize: 13.5, color: "#0E1512", fontFamily: "'Hanken Grotesk',sans-serif" }}
+                  data-testid="subnew-before-hours"
                 />
               </div>
             ) : null}

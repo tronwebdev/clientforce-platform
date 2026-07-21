@@ -9,7 +9,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ContactListDto } from "@clientforce/core";
 import { AddToListMenu } from "@clientforce/ui";
 import type { AgentViewData } from "./AgentView";
-import { cf, GRAD, avTint, initials, intentTint, timeAgo } from "./shared";
+import { cf, GRAD, avTint, initials, intentTint, meetingTime, timeAgo } from "./shared";
 
 interface Lead {
   id: string; // enrollmentId
@@ -74,8 +74,9 @@ const FILTERS = [
   { id: "suppressed", label: "Suppressed" },
 ];
 
-/** Timeline row treatment per live event type (prototype `ldTimeline` anatomy). */
-const EVENT_ROW: Record<string, { icon: string; bg: string; fg: string; label: (p: Record<string, unknown>) => string }> = {
+/** Timeline row treatment per live event type (prototype `ldTimeline` anatomy).
+ *  Exported for the INT W2 calendar-row rendering pins. */
+export const EVENT_ROW: Record<string, { icon: string; bg: string; fg: string; label: (p: Record<string, unknown>) => string }> = {
   "lead.enrolled.v1": { icon: "+", bg: "#F2EEE4", fg: "#8A7F6B", label: () => "Enrolled in the sequence" },
   "email.sent.v1": { icon: "✉", bg: "#F2EEE4", fg: "#8A7F6B", label: (p) => `Step email sent${p.subject ? ` — “${String(p.subject)}”` : ""}` },
   "email.delivered.v1": { icon: "✓", bg: "#F2EEE4", fg: "#8A7F6B", label: () => "Email delivered" },
@@ -104,6 +105,13 @@ const EVENT_ROW: Record<string, { icon: string; bg: string; fg: string; label: (
   // C2.8 (49-1): membership events render human — the slug never surfaces raw.
   "list.member.added.v1": { icon: "≣", bg: "rgba(53,232,52,.14)", fg: "#16A82A", label: (p) => `Added to ${String(p.listName ?? "a list")}` },
   "list.member.removed.v1": { icon: "≣", bg: "#F2EEE4", fg: "#8A7F6B", label: (p) => `Removed from ${String(p.listName ?? "a list")}` },
+
+  // INT W2 (DEC-094): calendar rows — booked green · rescheduled neutral ·
+  // canceled red; times render LOCAL from the catalog payload, and absent
+  // payload fields degrade to timeless copy (never "Invalid Date").
+  "calendar.booked.v1": { icon: "📅", bg: "rgba(53,232,52,.14)", fg: "#16A82A", label: (p) => { const t = meetingTime(p.startAt); return `Meeting booked${t ? ` — ${t}` : ""}`; } },
+  "calendar.rescheduled.v1": { icon: "⟳", bg: "#F2EEE4", fg: "#8A7F6B", label: (p) => { const t = meetingTime(p.toStartAt); return `Meeting rescheduled${t ? ` — now ${t}` : ""}`; } },
+  "calendar.canceled.v1": { icon: "✕", bg: "rgba(224,121,107,.14)", fg: "#C9543F", label: (p) => { const t = meetingTime(p.startAt); return `${p.reason === "no_show" ? "Meeting no-show" : "Meeting canceled"}${t ? ` — was ${t}` : ""}`; } },
 };
 
 /** C2.9: the goal-completion move follows the agent goal's short pill. */
