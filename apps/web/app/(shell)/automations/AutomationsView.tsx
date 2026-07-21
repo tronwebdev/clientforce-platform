@@ -272,7 +272,6 @@ export function AutomationsView({ role }: { role: Role }) {
             flash("Automation deleted");
             void refetch();
           }}
-          flash={flash}
         />
       )}
 

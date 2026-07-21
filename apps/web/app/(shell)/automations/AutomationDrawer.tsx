@@ -59,7 +59,6 @@ export function AutomationDrawer({
   onClose,
   onToggle,
   onDeleted,
-  flash,
 }: {
   row: AutomationListRow;
   automationNames: Record<string, string>;
@@ -67,7 +66,6 @@ export function AutomationDrawer({
   onClose: () => void;
   onToggle: () => void;
   onDeleted: () => void;
-  flash: (text: string, error?: boolean) => void;
 }) {
   const [runs, setRuns] = useState<AutomationRunRow[] | null>(null);
   const [runsError, setRunsError] = useState(false);
