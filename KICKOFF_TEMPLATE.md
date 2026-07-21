@@ -31,6 +31,19 @@ in `CHECKLIST_B1_BACKOFFICE_COVERAGE.md`. If a management need can't be expresse
 a spine, EXTEND THE SPINE (don't add a feature-specific backoffice panel) and file a Q
 against that checklist. State the coverage delta in the plan comment.
 
+## ⭑ Automation-vocabulary ride-along (STANDING — every feature unit)
+If this unit ships a feature with automation-worthy moments — anything a user
+would plausibly say "when X happens, do Y" about (form submitted, payment
+received, proposal accepted/viewed, widget chat started, call outcome, lead
+enriched…) — it REGISTERS the typed triggers/conditions/actions in the R1
+engine vocabulary IN THE SAME PR, and they light up in the Automations picker
+automatically (the picker enumerates the vocabulary — zero UI change). The
+honest-absence Q entries from R1-UI's picker↔vocabulary diff are the ledger:
+each feature unit's plan comment names which Q entries it closes, and proposes
+the trigger/action list for owner sign-off so nothing important is left out.
+Never ship a feature whose events exist but whose automation hooks silently
+don't.
+
 ## Close-out (every unit ends with)
 - PROGRESS.md status row + DEC entry (decisions + deferred list) + fidelity-log row.
 - Ride-along board flips for lagging status rows on the first PROGRESS touch.

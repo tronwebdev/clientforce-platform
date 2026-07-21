@@ -350,7 +350,10 @@ async function recordAutomationRun(
   status: "fired" | "error" | "refused_depth",
   detail: Record<string, unknown>,
 ): Promise<void> {
-  await withTenant(deps.prisma, { workspaceId: ctx.workspaceId }, (tx) =>
+  const log = deps.log ?? console.warn;
+  // eventId stays NULL on nested rows — the OUTER rule's (ruleId, eventId)
+  // unique already dedupes the whole pass on redelivery (DEC-091).
+  const row = await withTenant(deps.prisma, { workspaceId: ctx.workspaceId }, (tx) =>
     tx.automationRun.create({
       data: {
         workspaceId: ctx.workspaceId,
@@ -360,6 +363,34 @@ async function recordAutomationRun(
       },
     }),
   );
+  // R1-UI (DEC-091): every AutomationRun row gets its ledger twin — nested
+  // runs emit with trigger "run_automation" (what CAUSED this run; the
+  // automation's own trigger did not fire). Publish failure never blocks
+  // the row (the rule.run precedent).
+  if (deps.publish) {
+    try {
+      await deps.publish({
+        type: "automation.rule.run.v1",
+        workspaceId: ctx.workspaceId,
+        contactId: ctx.contactId,
+        enrollmentId: ctx.enrollmentId,
+        campaignId: ctx.campaignId,
+        payload: {
+          ruleId: automationId,
+          runId: row.id,
+          status,
+          trigger: "run_automation",
+          scope: "account",
+          ...(status === "fired" ? {} : { detail: JSON.stringify(detail.detail ?? status) }),
+        },
+      });
+    } catch (err) {
+      log(
+        `[automations] automation.rule.run.v1 publish failed for nested run ${row.id}: ` +
+          `${err instanceof Error ? err.message : String(err)} — run row persisted regardless`,
+      );
+    }
+  }
 }
 
 async function publishSafely<T extends EventType>(
