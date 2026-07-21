@@ -182,13 +182,13 @@ export interface UsageRollup {
 /**
  * The channels the kill switch ENFORCES — deliberately NOT the full send
  * vocabulary. A kill switch is only offered for a channel whose send boundary
- * actually calls `assertChannelLive` (email + SMS today); offering `voice`/
- * `whatsapp` here would ship a silent no-op, since those paths don't gate yet
- * (Q-025, owner ruling 2026-07-15). Each channel RE-ENTERS this list via the
- * ride-along on the PR that wires its boundary rail (voice → P3.2 rail port;
- * WhatsApp → its finish PR) — the CHECKLIST_B1_BACKOFFICE_COVERAGE rule.
+ * actually calls `assertChannelLive`; offering an unwired channel here would
+ * ship a silent no-op (Q-025, owner ruling 2026-07-15). Each channel RE-ENTERS
+ * this list via the ride-along on the PR that wires its boundary rail — the
+ * CHECKLIST_B1_BACKOFFICE_COVERAGE rule. Voice re-entered with #93's dial rail
+ * (`assertDialAllowed` gates on it); WhatsApp stays out until its finish PR.
  */
-export const KILL_SWITCH_CHANNELS = ["email", "sms"] as const;
+export const KILL_SWITCH_CHANNELS = ["email", "sms", "voice"] as const;
 
 /** Set/clear a per-agency/per-channel kill switch (audited, reversible). */
 export const killSwitchSetSchema = z.object({

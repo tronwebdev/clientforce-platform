@@ -27,7 +27,7 @@
 |---|---|---|---|---|---|
 | Email channel | ✓ email.* | ✓ send | ✓ | ✓ sender | ✓ |
 | SMS channel | ✓ sms.* | ✓ segment | ✓ | ✓ sender | ✓ |
-| Voice (#93, pending) | ✓ call.* | ✓ minute | ⚠ pending its rail (P3.2) — NOT in the enum | n/a (number) | ✓ |
+| Voice (#93) | ✓ call.* | ✓ minute | ✓ (ride-along landed with #93's dial rail — `assertDialAllowed` calls `assertChannelLive("voice")`; back in the enum) | n/a (number) | ✓ |
 | Agents / campaigns | ✓ lead.*, stage_changed | ✓ regen | via channel | — | ✓ |
 | Contacts / lists | ✓ list.member.* | — | — | — | ✓ |
 | Sequence editor (#90) | ✓ (graph events) | ✓ regen | via channel | — | ✓ |
@@ -98,3 +98,8 @@ CI-green). Citations are code + the test that pins them.
   Each channel RE-ENTERS the enum via the ride-along on the PR that wires its boundary rail (voice → P3.2
   rail port; WhatsApp → its finish PR) — the very rule this checklist establishes. The Voice grid cell is
   now ⚠ *pending its rail*, not ✓.
+  **Ride-along landed (P3.1/#93, 2026-07-15):** the dial boundary (`assertDialAllowed`) wires
+  `assertChannelLive("voice")` right after the suspension gate, `voice` is back in
+  `KILL_SWITCH_CHANNELS` (DTO test flipped to *accepted*; dial-matrix test pins `CHANNEL_KILLED`
+  block + clear-restores), and the Voice grid cell above is ✓. WhatsApp remains out until its
+  finish PR.

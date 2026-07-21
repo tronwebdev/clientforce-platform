@@ -448,6 +448,40 @@ model Suppression {
 enum SuppressionReason { UNSUBSCRIBED BOUNCED SPAM_COMPLAINT MANUAL }
 ```
 
+### 4.3 Call — one row per phone call (P3.1 amendment, DEC-078)
+
+The Calls tab's backing data. Transcript turns stay on `Message(channel:"voice")`
+rows carrying `meta.callId` (the spike-proven A6 mapping — no Message change);
+this row holds the call-level facts. Transcripts persist regardless of the
+recording setting — the transcript is the always-on operational record.
+`providerCallSid` is the idempotency key against Twilio callbacks. Message-style
+loose references (no FKs) + indexes; RLS like every `workspaceId` table.
+
+```prisma
+model Call {
+  id              String     @id @default(cuid())
+  workspaceId     String
+  campaignId      String
+  agentId         String
+  contactId       String
+  enrollmentId    String?
+  direction       MessageDirection   // OUTBOUND this phase (inbound calls are future)
+  status          CallStatus @default(QUEUED)   // QUEUED | IN_PROGRESS | COMPLETED | FAILED
+  outcome         String?            // deterministic set: completed | no_answer | busy | failed | canceled
+  providerCallSid String?    @unique // Twilio CallSid — idempotency
+  startedAt       DateTime?
+  endedAt         DateTime?
+  durationSec     Int?
+  costUsd         Float?             // logging-grade estimate (gateway precedent)
+  meta            Json?              // disclosureVariant/Completed, spokenNameSource, endpointing params, cost breakdown
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  @@index([workspaceId, agentId, createdAt])
+  @@index([workspaceId, contactId, createdAt])
+}
+enum CallStatus { QUEUED IN_PROGRESS COMPLETED FAILED }
+```
+
 ---
 
 ## 5. The event catalog (the backbone — `ARCHITECTURE.md §3c`)
@@ -477,7 +511,7 @@ model Event {
 | Messaging    | `email.sent.v1 · email.delivered.v1 · email.opened.v1 · email.clicked.v1 · email.bounced.v1 · email.spam.v1 · email.replied.v1` | messageId, channel, stepNodeId, link?, intent?   |
 |              | `sms.sent.v1 · sms.delivered.v1 · sms.replied.v1 · sms.opted_out.v1`                                                            | segmentCount, body, intent?                      |
 |              | `whatsapp.sent.v1 · whatsapp.delivered.v1 · whatsapp.replied.v1 · whatsapp.button_clicked.v1`                                   | templateId, button?                              |
-| Voice        | `call.started.v1 · call.completed.v1 · call.failed.v1 · call.booked.v1`                                                         | durationSec, transcriptId, outcome, recordingUrl |
+| Voice        | `call.started.v1 · call.completed.v1 · call.failed.v1 · call.booked.v1 · call.refused.v1 · voice.compose_refused.v1` (P3.1)     | durationSec, transcriptId, outcome, recordingUrl; refusals carry reason/detail (no callId on `call.refused.v1` — no Call row exists) |
 | Inbound      | `form.submitted.v1 · widget.conversation_started.v1 · widget.lead_captured.v1 · linkedin.captured.v1`                           | formId/widgetId, fields, routedTo                |
 | Proposals    | `proposal.sent.v1 · proposal.viewed.v1 · proposal.accepted.v1 · proposal.paid.v1`                                               | proposalId, trackedLinkId, amount?               |
 | Pipeline     | `lead.enrolled.v1 · lead.stage_changed.v1 · lead.unsubscribed.v1`                                                               | campaignId?, fromStage, toStage, channel?        |

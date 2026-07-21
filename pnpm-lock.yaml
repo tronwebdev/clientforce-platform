@@ -135,9 +135,21 @@ importers:
       '@clientforce/ai':
         specifier: workspace:*
         version: link:../../packages/ai
+      '@clientforce/channels':
+        specifier: workspace:*
+        version: link:../../packages/channels
+      '@clientforce/context':
+        specifier: workspace:*
+        version: link:../../packages/context
+      '@clientforce/core':
+        specifier: workspace:*
+        version: link:../../packages/core
       '@clientforce/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@clientforce/events':
+        specifier: workspace:*
+        version: link:../../packages/events
       ws:
         specifier: ^8.18.0
         version: 8.21.0

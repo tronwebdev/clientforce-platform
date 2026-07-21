@@ -17,12 +17,16 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   COMPLIANCE_STRINGS,
+  isValidSpokenName,
   LANGUAGE_META,
   LAUNCH_LANGUAGES,
   NEVER_SAY_MAX,
   selectStrategy,
   STRATEGY_NOTES_MAX,
+  VOICE_PERSONAS,
+  voicePersonaById,
   type LanguageCode,
+  type VoiceRider,
 } from "@clientforce/core";
 import type { AgentViewData } from "./AgentView";
 import { cf, GRAD } from "./shared";
@@ -65,10 +69,18 @@ export function SettingsTab({ agentId, view, onChanged }: { agentId: string; vie
   const [language, setLanguage] = useState<LanguageCode>("en");
   const [languageSource, setLanguageSource] = useState<"detected" | "owner" | undefined>();
   const [langMenuOpen, setLangMenuOpen] = useState(false);
+  // P3.1 (DEC-078): the voice rider (capture moment b) + workspace default.
+  const [voiceRider, setVoiceRider] = useState<VoiceRider>({});
+  const [voiceNameInput, setVoiceNameInput] = useState("");
+  const [voiceNameError, setVoiceNameError] = useState(false);
+  const [personaMenuOpen, setPersonaMenuOpen] = useState(false);
+  const [wsSpokenName, setWsSpokenName] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     const res = await cf("senders").catch(() => null);
     if (res) setSenders(res as Sender[]);
+    const vd = (await cf("voice/defaults").catch(() => null)) as { spokenName: string | null } | null;
+    if (vd) setWsSpokenName(vd.spokenName);
   }, []);
 
   useEffect(() => {
@@ -86,6 +98,8 @@ export function SettingsTab({ agentId, view, onChanged }: { agentId: string; vie
     setComposeMode(g.composeMode ?? "scripted");
     setLanguage(g.language ?? "en");
     setLanguageSource(g.languageSource);
+    setVoiceRider(g.voice ?? {});
+    setVoiceNameInput(g.voice?.spokenNameConfirmed ? (g.voice.spokenName ?? "") : "");
   }, [view?.guardrails]);
 
   async function saveGuardrails(next: {
@@ -95,6 +109,7 @@ export function SettingsTab({ agentId, view, onChanged }: { agentId: string; vie
     strategy?: { notes?: string; neverSay?: string[] };
     composeMode?: "scripted" | "guided";
     language?: LanguageCode;
+    voice?: VoiceRider;
   }) {
     const g = view?.guardrails;
     const t = next.tracking ?? tracking;
@@ -128,9 +143,14 @@ export function SettingsTab({ agentId, view, onChanged }: { agentId: string; vie
             end: g?.sendingWindow.end ?? "17:00",
             timezone: g?.sendingWindow.timezone ?? "UTC",
           },
-          // Preserve everything this tab doesn't render (sms cap, consent,
-          // goalLabel) — a Settings edit must never erase another surface's write.
-          dailyCap: { email: next.cap ?? dailyCap, ...(g?.dailyCap.sms != null ? { sms: g.dailyCap.sms } : {}) },
+          // Preserve everything this tab doesn't render (sms/voice caps,
+          // consent, goalLabel) — a Settings edit must never erase another
+          // surface's write.
+          dailyCap: {
+            email: next.cap ?? dailyCap,
+            ...(g?.dailyCap.sms != null ? { sms: g.dailyCap.sms } : {}),
+            ...(g?.dailyCap.voice != null ? { voice: g.dailyCap.voice } : {}),
+          },
           consent: g?.consent ?? null,
           tracking: { openTracking: t.open, linkTracking: t.link },
           ...(g?.goalLabel ? { goalLabel: g.goalLabel } : {}),
@@ -138,6 +158,8 @@ export function SettingsTab({ agentId, view, onChanged }: { agentId: string; vie
           ...(outMode ? { composeMode: outMode } : {}),
           ...(outLanguage ? { language: outLanguage } : {}),
           ...(outLanguage && outLanguageSource ? { languageSource: outLanguageSource } : {}),
+          // P3.1 (DEC-078): the voice rider — carried through unrelated edits.
+          ...((next.voice ?? g?.voice) ? { voice: next.voice ?? g?.voice } : {}),
           unsubscribeFooter: true,
           suppressionCheck: true,
         },
@@ -208,6 +230,91 @@ export function SettingsTab({ agentId, view, onChanged }: { agentId: string; vie
           })
         )}
       </div>
+
+      {/* P3.1 (DEC-078): Voice — the Campaign View canon's phone/voice card
+          goes live. Persona picker + spoken name (capture moment b): the
+          field inherits the workspace default until edited; the persona's
+          ✦-suggested name stays a SUGGESTION until confirmed — unconfirmed
+          names are never spoken (the default literal is). */}
+      {(() => {
+        const persona = voicePersonaById(voiceRider.voicePersonaId);
+        const confirmedName = voiceRider.spokenNameConfirmed ? voiceRider.spokenName ?? null : null;
+        const inherited = !confirmedName && wsSpokenName ? wsSpokenName : null;
+        const suggested = !confirmedName && !inherited ? persona.label : null;
+        const saveVoice = (patch: Partial<VoiceRider>) => {
+          const next = { ...voiceRider, ...patch };
+          setVoiceRider(next);
+          void saveGuardrails({ voice: next });
+        };
+        const confirmName = (raw: string) => {
+          const name = raw.trim();
+          if (!name) return;
+          if (!isValidSpokenName(name)) {
+            setVoiceNameError(true);
+            return;
+          }
+          setVoiceNameError(false);
+          saveVoice({ spokenName: name, spokenNameConfirmed: true });
+        };
+        return (
+          <div style={card} data-testid="settings-voice">
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "16px 18px" }}>
+              <span style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 16, color: "#0E1512", flex: 1 }}>
+                Voice <span style={{ fontSize: 13, fontWeight: 600, color: "#9AA59E" }}>· how AI calls sound &amp; introduce themselves</span>
+              </span>
+            </div>
+            <div style={{ borderTop: "1px solid #F2EEE4", padding: "15px 18px" }}>
+              {/* AI voice persona row — Campaign View canon 699-715 */}
+              <div style={{ display: "flex", alignItems: "center", gap: 12, background: "#FBF7F0", border: "1px solid #EBE3D6", borderRadius: 12, padding: "11px 14px", marginBottom: 13, position: "relative" }}>
+                <span style={{ width: 30, height: 30, borderRadius: 8, flex: "none", background: "linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: "#0A0F0C" }}>🎙</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 11.5, fontWeight: 700, color: "#9AA59E", textTransform: "uppercase", letterSpacing: ".05em" }}>AI voice persona</div>
+                  <div style={{ fontSize: 13.5, fontWeight: 600, color: "#0E1512" }} data-testid="voice-persona-value">{persona.label} — {persona.descriptor}</div>
+                </div>
+                <span onClick={() => setPersonaMenuOpen((v) => !v)} style={{ fontSize: 13, fontWeight: 700, color: "#5C6B62", border: "1px solid #EBE3D6", background: "#fff", borderRadius: 10, padding: "8px 14px", flex: "none", cursor: "pointer" }} data-testid="voice-persona-change">Change ▾</span>
+                {personaMenuOpen ? (
+                  <div style={{ position: "absolute", right: 10, top: "calc(100% + 4px)", zIndex: 20, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 12, boxShadow: "0 10px 28px rgba(14,21,18,.14)", padding: 6, minWidth: 240 }} data-testid="voice-persona-menu">
+                    {VOICE_PERSONAS.map((p) => (
+                      <div key={p.id} onClick={() => { setPersonaMenuOpen(false); saveVoice({ voicePersonaId: p.id }); }} style={{ display: "flex", alignItems: "center", gap: 9, padding: "9px 11px", borderRadius: 9, cursor: "pointer", background: p.id === persona.id ? "rgba(53,232,52,.08)" : "transparent" }} data-testid={`voice-persona-${p.id}`}>
+                        <span style={{ fontSize: 13.5, fontWeight: 600, color: "#0E1512", flex: 1 }}>{p.label} — {p.descriptor}</span>
+                        {p.id === persona.id ? <span style={{ color: "#16A82A", fontSize: 13 }}>✓</span> : null}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+              {/* Spoken name — the locked capture moment (b) */}
+              <div style={{ fontSize: 11.5, fontWeight: 700, color: "#9AA59E", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 6 }}>Spoken name</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <input
+                  value={voiceNameInput || confirmedName || inherited || ""}
+                  onChange={(e) => { setVoiceNameInput(e.target.value); setVoiceNameError(false); }}
+                  onBlur={(e) => { if (e.target.value.trim() && e.target.value.trim() !== confirmedName) confirmName(e.target.value); }}
+                  placeholder={suggested ? `${suggested} (suggested)` : "First name only"}
+                  style={{ flex: 1, height: 42, borderRadius: 11, border: `1px solid ${voiceNameError ? "#C9543F" : "#EBE3D6"}`, padding: "0 14px", fontSize: 14, color: "#0E1512", fontFamily: "'Hanken Grotesk',sans-serif", background: "#fff" }}
+                  data-testid="voice-spoken-name-input"
+                />
+                {confirmedName ? (
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "#0F7A28", background: "#D7F5DD", borderRadius: 7, padding: "5px 10px", flex: "none" }} data-testid="voice-name-confirmed">Confirmed</span>
+                ) : inherited ? (
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "#8A7F6B", background: "#F2EEE4", borderRadius: 7, padding: "5px 10px", flex: "none" }} data-testid="voice-name-inherited">Inherited from workspace</span>
+                ) : (
+                  <span onClick={() => confirmName(persona.label)} style={{ fontSize: 11.5, fontWeight: 700, color: "#1192A6", background: "rgba(54,215,237,.14)", borderRadius: 7, padding: "5px 10px", flex: "none", cursor: "pointer" }} data-testid="voice-name-suggested">✦ Use “{persona.label}”</span>
+                )}
+              </div>
+              <div style={{ fontSize: 12, color: voiceNameError ? "#C9543F" : "#8A7F6B", lineHeight: 1.5, marginTop: 7 }} data-testid="voice-name-note">
+                {voiceNameError
+                  ? "A plain first name only — no titles or claims (e.g. no “Dr.”)."
+                  : confirmedName
+                    ? `Calls open with “Hi, this is ${confirmedName}, an AI assistant calling on behalf of…”.`
+                    : inherited
+                      ? `Calls use the workspace default (“${inherited}”) until this agent gets its own — edit to override.`
+                      : "Nothing set — calls open with “Hi, this is an AI assistant calling on behalf of…”. ✦ suggestions aren't spoken until confirmed."}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       <div style={{ ...label, marginTop: 8 }}>Sending behavior</div>
 

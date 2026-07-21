@@ -5,7 +5,8 @@ import { CfError } from "../../../../../components/sequence/shared";
 
 export const TABS = [
   { id: "inbox", label: "Inbox", icon: "✉", wired: true },
-  { id: "calls", label: "Calls", icon: "☎", wired: false },
+  // P3.1 (DEC-078): the voice channel shipped — Calls goes live.
+  { id: "calls", label: "Calls", icon: "☎", wired: true },
   { id: "steps", label: "Steps", icon: "⋔", wired: true },
   { id: "leads", label: "Leads", icon: "☺", wired: true },
   // P5 W3 (DEC-085): the Pipeline board — owner-directed designed addition

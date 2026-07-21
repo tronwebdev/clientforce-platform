@@ -98,6 +98,25 @@ export const EVENT_SCHEMAS = {
   }),
   "call.failed.v1": z.object({ callId: z.string(), reason: z.string().optional() }),
   "call.booked.v1": z.object({ callId: z.string(), durationSec: z.number().int().nonnegative().optional(), outcome: z.string().optional() }),
+  // P3.1 (DEC-078): the dial boundary refused BEFORE any call existed —
+  // window/cap/suppression/allow-list rails (send-sms order, ported). No
+  // callId on purpose: no Call row was created (DEC-064: the catalog payload
+  // matches reality). This is the Logs row the acceptance demands.
+  "call.refused.v1": z.object({
+    reason: z.string(),
+    detail: z.string().optional(),
+    contactId: z.string().optional(),
+  }),
+  // P3.1 (DEC-078): a composed voice TURN tripped the deterministic per-turn
+  // checks mid-call — the turn was replaced by the constant fallback line,
+  // the call continued. The sms/email twins pause an enrollment; a live call
+  // can't pause, so this event is the audit trail instead.
+  "voice.compose_refused.v1": z.object({
+    callId: z.string(),
+    turn: z.number().int().nonnegative(),
+    reason: z.string(),
+    detail: z.string().optional(),
+  }),
 
   // ── Inbound ────────────────────────────────────────────────────────────────
   "form.submitted.v1": z.object({ formId: z.string(), fields: z.record(z.unknown()), routedTo: z.string().optional() }),
@@ -313,6 +332,8 @@ export const EVENT_TYPES = {
   CALL_COMPLETED: "call.completed.v1",
   CALL_FAILED: "call.failed.v1",
   CALL_BOOKED: "call.booked.v1",
+  CALL_REFUSED: "call.refused.v1",
+  VOICE_COMPOSE_REFUSED: "voice.compose_refused.v1",
   FORM_SUBMITTED: "form.submitted.v1",
   WIDGET_CONVERSATION_STARTED: "widget.conversation_started.v1",
   WIDGET_LEAD_CAPTURED: "widget.lead_captured.v1",

@@ -149,7 +149,7 @@ export class AiGateway {
     const model = this.config.models.voice;
     const started = Date.now();
     const usage: TokenUsage = { inputTokens: 0, outputTokens: 0 };
-    let outcome: "ok" | "error" = "ok";
+    let outcome: "ok" | "error" | "aborted" = "ok";
     const controller = new AbortController();
     const onCallerAbort = () => controller.abort();
     request.signal?.addEventListener("abort", onCallerAbort, { once: true });
@@ -172,7 +172,10 @@ export class AiGateway {
         }
       }
     } catch (err) {
-      outcome = "error";
+      // A caller-driven abort (barge-in, stall-abandon, teardown) surfaces as
+      // a thrown stream when it lands mid-await — that is the session working
+      // as designed, not a provider failure; attribute it honestly.
+      outcome = controller.signal.aborted ? "aborted" : "error";
       throw err;
     } finally {
       request.signal?.removeEventListener("abort", onCallerAbort);
