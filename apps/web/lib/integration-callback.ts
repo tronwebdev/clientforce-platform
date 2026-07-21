@@ -38,6 +38,19 @@ export function decideCallback(
   return { kind: "complete", provider: providerRaw, code: params.code, state: params.state };
 }
 
+/**
+ * Map a non-OK API response body to the redirect's error detail: a string
+ * `detail` wins, then a string `message`, then the honest status fallback.
+ */
+export function apiErrorDetail(body: unknown, status: number): string {
+  if (body !== null && typeof body === "object") {
+    const { detail, message } = body as { detail?: unknown; message?: unknown };
+    if (typeof detail === "string") return detail;
+    if (typeof message === "string") return message;
+  }
+  return `Connect failed (${status})`;
+}
+
 /** The `/integrations?…` query for a callback outcome (URL-encoded, capped). */
 export function resultQuery(
   result: { kind: "connected"; provider: string } | { kind: "error"; detail: string },

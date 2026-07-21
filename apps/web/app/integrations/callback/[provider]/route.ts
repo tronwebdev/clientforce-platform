@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { API_URL, WORKSPACE_COOKIE } from "../../../../lib/config";
 import { bearerToken } from "../../../../lib/auth-token";
-import { decideCallback, resultQuery } from "../../../../lib/integration-callback";
+import { apiErrorDetail, decideCallback, resultQuery } from "../../../../lib/integration-callback";
 
 /**
  * OAuth callback landing (INT W1-UI) — the vendor redirects here after the
@@ -31,25 +31,30 @@ export async function GET(req: Request, ctx: { params: Promise<{ provider: strin
   if (!token) return NextResponse.redirect(new URL("/login?next=/integrations", url.origin));
   const workspace = store.get(WORKSPACE_COOKIE)?.value;
 
-  const res = await fetch(`${API_URL}/integrations/${decision.provider}/complete`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      ...(workspace ? { "x-workspace-id": workspace } : {}),
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ code: decision.code, state: decision.state }),
-    cache: "no-store",
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/integrations/${decision.provider}/complete`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        ...(workspace ? { "x-workspace-id": workspace } : {}),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ code: decision.code, state: decision.state }),
+      cache: "no-store",
+    });
+  } catch {
+    // API unreachable — an honest redirect, never an unhandled route error.
+    return dest(
+      resultQuery({
+        kind: "error",
+        detail: `Couldn't finish connecting ${decision.provider} — the Clientforce API was unreachable. Try connecting again.`,
+      }),
+    );
+  }
   if (!res.ok) {
-    const body = (await res.json().catch(() => null)) as { detail?: unknown; message?: unknown } | null;
-    const detail =
-      typeof body?.detail === "string"
-        ? body.detail
-        : typeof body?.message === "string"
-          ? body.message
-          : `Connect failed (${res.status})`;
-    return dest(resultQuery({ kind: "error", detail }));
+    const body: unknown = await res.json().catch(() => null);
+    return dest(resultQuery({ kind: "error", detail: apiErrorDetail(body, res.status) }));
   }
   return dest(resultQuery({ kind: "connected", provider: decision.provider }));
 }

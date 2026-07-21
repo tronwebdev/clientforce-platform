@@ -24,13 +24,11 @@
  * `integration.*` ledger events, newest first, honest empty state.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { IntegrationDto, SlackNotificationKind } from "@clientforce/core";
+import type { IntegrationDto, IntegrationProvider, SlackNotificationKind } from "@clientforce/core";
 import { CfError } from "../../../components/sequence/shared";
 import {
   CATEGORY_LABELS,
-  SLACK_AUTH_PERMS,
-  SLACK_SETUP_STEPS,
-  SLACK_SYNC_ROWS,
+  DRAWER_CONTENT,
   TILE,
   healthLine,
   notificationOn,
@@ -143,8 +141,10 @@ function ChannelPicker({ options, loading, error, value, disabled, onPick, onRet
 
 // ── the drawer ──────────────────────────────────────────────────────────────
 
-export function IntegrationDrawer({ entry, row, bootMode, canManage, onClose, onChanged }: {
+export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, onClose, onChanged }: {
   entry: CatalogEntry;
+  /** The LIVE core provider this drawer renders — picks its DRAWER_CONTENT. */
+  provider: IntegrationProvider;
   row: IntegrationDto | null;
   /** "config" = post-OAuth return (`?connected=slack`) — boot at the select step. */
   bootMode: "auto" | "config";
@@ -153,6 +153,9 @@ export function IntegrationDrawer({ entry, row, bootMode, canManage, onClose, on
   onChanged: () => void;
 }) {
   const tile = TILE[entry.tile];
+  // Per-provider drawer content — a W2 provider without an entry is a compile
+  // error in lib/integrations.ts, never Slack copy silently rendered here.
+  const content = DRAWER_CONTENT[provider];
   const config = useMemo(() => parseSlackConfig(row?.config), [row]);
 
   // Wizard step (1..3) or null = connected mode.
@@ -164,9 +167,26 @@ export function IntegrationDrawer({ entry, row, bootMode, canManage, onClose, on
     const cfg = parseSlackConfig(row?.config);
     return {
       channel: cfg.channel ?? null,
-      toggles: Object.fromEntries(SLACK_SYNC_ROWS.map((r) => [r.kind, notificationOn(cfg, r.kind)])) as Record<SlackNotificationKind, boolean>,
+      toggles: Object.fromEntries(content.syncRows.map((r) => [r.kind, notificationOn(cfg, r.kind)])) as Record<SlackNotificationKind, boolean>,
     };
   });
+
+  // One-shot draft re-seed for the post-OAuth boot (`?connected=slack`): the
+  // drawer mounts BEFORE the polled row lands (row null → row), so the
+  // mount-time seed above saw only defaults. When the row first arrives after
+  // a null-row mount, re-seed the draft ONCE from the REAL stored config —
+  // otherwise "Finish & connect" would PATCH the default full payload and
+  // clobber a previously stored channel / toggle opt-outs on reconnect. Never
+  // re-runs after that, so later user edits are never clobbered.
+  const [draftSeeded, setDraftSeeded] = useState(row !== null);
+  useEffect(() => {
+    if (draftSeeded || !row) return;
+    setDraftSeeded(true);
+    setDraft({
+      channel: config.channel ?? null,
+      toggles: Object.fromEntries(content.syncRows.map((r) => [r.kind, notificationOn(config, r.kind)])) as Record<SlackNotificationKind, boolean>,
+    });
+  }, [draftSeeded, row, config, content.syncRows]);
 
   // OAuth start (step-1 auth + the revoked Reconnect repair).
   const [connectBusy, setConnectBusy] = useState(false);
@@ -192,7 +212,7 @@ export function IntegrationDrawer({ entry, row, bootMode, canManage, onClose, on
     setOptionsLoading(true);
     setOptionsError(null);
     try {
-      const data = (await cf(`integrations/${entry.id}/options?kind=channels`)) as { options: Channel[] };
+      const data = (await cf(`integrations/${entry.id}/options?kind=${content.optionsKind}`)) as { options: Channel[] };
       setOptions(data.options);
     } catch (err) {
       // 502 vendor failures carry an honest detail — render it verbatim.
@@ -200,7 +220,7 @@ export function IntegrationDrawer({ entry, row, bootMode, canManage, onClose, on
     } finally {
       setOptionsLoading(false);
     }
-  }, [entry.id]);
+  }, [entry.id, content.optionsKind]);
   const needOptions = wizStep === 2 || configOpen;
   useEffect(() => {
     if (needOptions && options === null && !optionsLoading && !optionsError) void loadOptions();
@@ -322,7 +342,7 @@ export function IntegrationDrawer({ entry, row, bootMode, canManage, onClose, on
     // Re-seed the draft from the REAL stored config, then jump to the step.
     setDraft({
       channel: config.channel ?? null,
-      toggles: Object.fromEntries(SLACK_SYNC_ROWS.map((r) => [r.kind, notificationOn(config, r.kind)])) as Record<SlackNotificationKind, boolean>,
+      toggles: Object.fromEntries(content.syncRows.map((r) => [r.kind, notificationOn(config, r.kind)])) as Record<SlackNotificationKind, boolean>,
     });
     setSaveError(null);
     setConfigOpen(true);
@@ -335,7 +355,7 @@ export function IntegrationDrawer({ entry, row, bootMode, canManage, onClose, on
 
   const draftTogglesUI = (
     <div>
-      {SLACK_SYNC_ROWS.map((r) => (
+      {content.syncRows.map((r) => (
         <div key={r.kind} style={{ display: "flex", alignItems: "center", gap: 10, border: "1px solid #EBE3D6", borderRadius: 11, padding: "11px 14px", background: "#fff", marginTop: 4 }}>
           <span style={{ fontSize: 13.5, fontWeight: 600, color: "#0E1512", flex: 1 }}>{r.label}</span>
           <ToggleSwitch
@@ -379,7 +399,7 @@ export function IntegrationDrawer({ entry, row, bootMode, canManage, onClose, on
         : wizStep === 2
           ? "Where Clientforce posts updates."
           : "Review what will sync, then connect.";
-    const onNotifs = SLACK_SYNC_ROWS.filter((r) => draft.toggles[r.kind]);
+    const onNotifs = content.syncRows.filter((r) => draft.toggles[r.kind]);
 
     body = (
       <>
@@ -413,7 +433,7 @@ export function IntegrationDrawer({ entry, row, bootMode, canManage, onClose, on
             )}
             <div style={SECTION}>Clientforce will be able to</div>
             <div style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 14, overflow: "hidden" }}>
-              {SLACK_AUTH_PERMS.map((pm, i) => (
+              {content.authPerms.map((pm, i) => (
                 <div key={pm} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 15px", borderTop: i === 0 ? "none" : "1px solid #F2EEE4" }}>
                   <span style={{ color: "#16A82A", fontSize: 13 }}>✓</span>
                   <span style={{ fontSize: 13, color: "#3B463F" }}>{pm}</span>
@@ -604,7 +624,7 @@ export function IntegrationDrawer({ entry, row, bootMode, canManage, onClose, on
             </span>
             <span data-testid="channel-change" onClick={openSettings} style={{ fontSize: 12.5, fontWeight: 700, color: "#16A82A", cursor: "pointer", flex: "none" }}>Change</span>
           </div>
-          {SLACK_SYNC_ROWS.map((r) => {
+          {content.syncRows.map((r) => {
             const on = notificationOn(config, r.kind);
             return (
               <div key={r.kind} data-testid={`sync-row-${r.kind}`} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 15px", borderTop: "1px solid #F2EEE4" }}>
@@ -631,11 +651,11 @@ export function IntegrationDrawer({ entry, row, bootMode, canManage, onClose, on
         </div>
 
         <div style={SECTION}>Setup</div>
-        {SLACK_SETUP_STEPS.map((st, i) => (
+        {content.setupSteps.map((st, i) => (
           <div key={st.title} style={{ display: "flex", gap: 13, paddingBottom: 14 }}>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: "none" }}>
               <span style={{ width: 28, height: 28, borderRadius: "50%", background: "#16A82A", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700 }}>✓</span>
-              {i < SLACK_SETUP_STEPS.length - 1 && <span style={{ flex: 1, width: 2, background: "#EBE3D6", marginTop: 4 }} />}
+              {i < content.setupSteps.length - 1 && <span style={{ flex: 1, width: 2, background: "#EBE3D6", marginTop: 4 }} />}
             </div>
             <div style={{ flex: 1, minWidth: 0, paddingTop: 3 }}>
               <div style={{ fontSize: 14, fontWeight: 600, color: "#0E1512" }}>{st.title}</div>
