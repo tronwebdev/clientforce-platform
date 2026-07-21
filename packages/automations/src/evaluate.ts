@@ -84,9 +84,9 @@ export async function loadEnabledRules(
 
 /**
  * Load the workspace's enabled ACCOUNT rules (`Automation` rows — R1-UI,
- * DEC-088) parsed through the SAME core unions, in creation order (the
+ * DEC-091) parsed through the SAME core unions, in creation order (the
  * account-scope evaluation order: `Automation` carries no `order` column;
- * createdAt asc is the deterministic default, documented in DEC-088).
+ * createdAt asc is the deterministic default, documented in DEC-091).
  * An unparseable row is skipped loudly — it renders as an error state in
  * the Automations list (B6 live resolution), never fires silently.
  */
@@ -120,7 +120,7 @@ export async function loadEnabledAccountRules(
 
 /**
  * Evaluate one bus event: the campaign's rules first (more specific — row
- * order), then the workspace's ACCOUNT rules (R1-UI, DEC-088; creation
+ * order), then the workspace's ACCOUNT rules (R1-UI, DEC-091; creation
  * order) through the SAME match + executors with ONE shared terminal state —
  * first terminal wins ACROSS scopes, and an account terminal gates the graph
  * continuation through the same memoized summary. Events without a campaign
@@ -135,7 +135,7 @@ export async function evaluateEventForRules(
 ): Promise<EvaluationSummary> {
   // automation.* events are ours (run rows, manage audit) — nothing triggers
   // on them, ever: the loop-safety guard, extended from the rule.run-only
-  // check when account rules began evaluating campaign-less events (DEC-088).
+  // check when account rules began evaluating campaign-less events (DEC-091).
   if (event.type.startsWith("automation.")) return EMPTY_SUMMARY;
 
   const rules = event.campaignId
@@ -305,7 +305,7 @@ export async function executeMatchedRules(
 }
 
 /**
- * Execute already-matched ACCOUNT rules (R1-UI, DEC-088) against one context —
+ * Execute already-matched ACCOUNT rules (R1-UI, DEC-091) against one context —
  * the `executeMatchedRules` twin with the account record sink: same shared
  * executors, same terminal state (campaign terminals recorded earlier in the
  * pass suppress account terminals — first wins across scopes), idempotency on

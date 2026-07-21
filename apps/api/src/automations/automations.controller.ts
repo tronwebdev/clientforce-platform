@@ -66,7 +66,7 @@ export interface AutomationListRow {
 }
 
 /**
- * Account-scope automation rules (R1-UI, DEC-088) — the `Automation` model
+ * Account-scope automation rules (R1-UI, DEC-091) — the `Automation` model
  * live on the ONE R1 vocabulary. W1 = read · enable/disable · delete (+ the
  * ledger-backed run history); W2 adds create/edit through the same engine
  * validation. Campaign-scoped rules stay owned by Campaign View (#90) —

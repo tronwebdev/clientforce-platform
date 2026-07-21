@@ -82,7 +82,7 @@ function moveTargetIdsOf(actions: unknown): string[] {
 }
 
 // Trigger equality for the duplicate-branch refusal (#90, DEC-077) moved to
-// `@clientforce/core` with the rules layer (R1-UI, DEC-088 — the DEC-077
+// `@clientforce/core` with the rules layer (R1-UI, DEC-091 — the DEC-077
 // deferred "dup-check placement"): ONE definition shared by this creator and
 // the account-rules CRUD; semantics unchanged (intents compare as sets,
 // overlapping-but-different triggers coexist).

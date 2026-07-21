@@ -32,7 +32,7 @@ export interface Contact {
   createdAt: string;
 }
 
-/** R1-UI (DEC-088): one account-rule row from GET /automations — the stored
+/** R1-UI (DEC-091): one account-rule row from GET /automations — the stored
  *  Json parsed through the core unions server-side; `invalid` = an
  *  unparseable row rendering as an HONEST error state (the B6 stance). */
 export interface AutomationListRow {
@@ -49,7 +49,7 @@ export interface AutomationListRow {
   updatedAt: string;
 }
 
-/** R1-UI (DEC-088): one run-history row from GET /automations/:id/runs —
+/** R1-UI (DEC-091): one run-history row from GET /automations/:id/runs —
  *  ledger-sourced (`automation.rule.run.v1` Event rows), newest first. */
 export interface AutomationRunRow {
   id: string;

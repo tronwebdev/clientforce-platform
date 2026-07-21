@@ -3,7 +3,7 @@ import { fetchMe } from "../../../lib/api";
 import { AutomationsView } from "./AutomationsView";
 
 /**
- * R1-UI (DEC-088) — the Automations surface (`Automations.dc.html`).
+ * R1-UI (DEC-091) — the Automations surface (`Automations.dc.html`).
  * AutomationsView renders the prototype's own frame (page header + segment
  * tabs + When→Then cards), so no TopBar and no `.cf-content` wrapper here
  * (the Contacts precedent — the shell layout only mounts the sidebar).

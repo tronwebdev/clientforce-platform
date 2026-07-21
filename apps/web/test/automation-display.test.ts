@@ -1,5 +1,5 @@
 /**
- * R1-UI W1 (DEC-088): the action DISPLAY map + Automations list/drawer
+ * R1-UI W1 (DEC-091): the action DISPLAY map + Automations list/drawer
  * helpers. The load-bearing pins: the display layer covers EXACTLY the core
  * unions (drift-guarded against the schemas themselves — never a parallel
  * enum), the account picker enumerates core's ACCOUNT_ACTION_KINDS verbatim
@@ -78,7 +78,7 @@ describe("action display map (lib/actions)", () => {
   });
 });
 
-describe("trigger display additions (lib/triggers, DEC-088)", () => {
+describe("trigger display additions (lib/triggers, DEC-091)", () => {
   it("icons + descriptions cover exactly the trigger union", () => {
     expect(new Set(Object.keys(TRIGGER_ICONS))).toEqual(new Set(TRIGGER_KINDS));
     expect(new Set(Object.keys(TRIGGER_DESCRIPTIONS))).toEqual(new Set(TRIGGER_KINDS));

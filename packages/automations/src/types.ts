@@ -64,7 +64,7 @@ export interface ParsedRule {
 
 /**
  * An account-scope `Automation` row parsed through the SAME core unions
- * (R1-UI, DEC-088) — the stored `conditions` ARRAY (Phase-6 reserved shape)
+ * (R1-UI, DEC-091) — the stored `conditions` ARRAY (Phase-6 reserved shape)
  * normalizes to the evaluator's single-refinement semantics (≤1 entry, the
  * API-enforced bound), so matching is byte-identical across scopes.
  */
@@ -87,7 +87,7 @@ export interface TerminalState {
 
 /** One evaluation pass's context (one event × one workspace's rules).
  *  `campaignId` is null on account-scope evaluations of campaign-less events
- *  (R1-UI, DEC-088) — campaign rules never evaluate without one. */
+ *  (R1-UI, DEC-091) — campaign rules never evaluate without one. */
 export interface RunContext {
   workspaceId: string;
   campaignId: string | null;
@@ -113,7 +113,7 @@ export interface RuleRunRecord {
   /** Null when this delivery found the run already recorded (bus redelivery). */
   runId: string | null;
   status: CampaignRuleRunStatus | "already_recorded";
-  /** R1-UI (DEC-088): "account" = an `Automation` row's run (`ruleId` carries
+  /** R1-UI (DEC-091): "account" = an `Automation` row's run (`ruleId` carries
    *  the automation id); absent = a campaign rule's run. */
   scope?: "account";
 }

@@ -551,12 +551,12 @@ describe.skipIf(!hasInfra)("campaign-rules engine (R1 W1)", () => {
 });
 
 /**
- * R1-UI (DEC-088): the ACCOUNT pass — workspace `Automation` rows live on the
+ * R1-UI (DEC-091): the ACCOUNT pass — workspace `Automation` rows live on the
  * SAME evaluator: campaign rules first, one shared terminal state across
  * scopes, unique (automationId, eventId) idempotency, `scope:"account"` on
  * the ledger twin, the same quiet sweep with the same fire-once key.
  */
-describe.skipIf(!hasInfra)("account rules engine (R1-UI, DEC-088)", () => {
+describe.skipIf(!hasInfra)("account rules engine (R1-UI, DEC-091)", () => {
   let owner: PrismaClient;
   let app: PrismaClient;
   let agencyId: string;

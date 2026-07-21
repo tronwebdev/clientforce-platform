@@ -1,5 +1,5 @@
 /**
- * Action display map (R1-UI, DEC-088) — lib/triggers.ts's twin for R1's
+ * Action display map (R1-UI, DEC-091) — lib/triggers.ts's twin for R1's
  * `campaignRuleActionSchema` kinds: a DISPLAY LAYER ONLY over the ONE action
  * union in `@clientforce/core` (never a parallel union — the DEC-034 one-enum
  * rule). The Automations picker enumerates `ACCOUNT_ACTION_OPTIONS`, which is
@@ -109,10 +109,10 @@ export const ACCOUNT_ACTION_OPTIONS: readonly ActionOption[] = ACCOUNT_ACTION_KI
   }),
 );
 
-// ── W2 builder picker (R1-UI, DEC-088) ──────────────────────────────────────
+// ── W2 builder picker (R1-UI, DEC-091) ──────────────────────────────────────
 // lib/triggers.ts's twin registry: the canon ACT entries the account picker
 // can't express, rendered as HONEST-ABSENT disabled cards. Two flavours:
-// future capability ("Arrives with …" — the Q-027+ ledger) and BY-DESIGN
+// future capability ("Arrives with …" — the Q-030+ ledger) and BY-DESIGN
 // exclusions (send actions ride campaign sequences behind the ONE send
 // boundary; move/branch/skip are campaign-scoped — the `move_to_node`
 // refusal's picker face). Folded, never absent: Mark qualified / Set status

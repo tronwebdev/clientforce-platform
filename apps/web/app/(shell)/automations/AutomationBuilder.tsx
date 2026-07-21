@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Automation builder (R1-UI W2, DEC-088) — the canon 740px modal from
+ * Automation builder (R1-UI W2, DEC-091) — the canon 740px modal from
  * `Automations.dc.html`: name header · recipes (blank + new only) · grouped
  * trigger picker with search · selected-trigger card + per-trigger config ·
  * Only-if filter · action cards with reorder + per-action config · grouped
@@ -10,7 +10,7 @@
  * The pickers RENDER the engine's typed vocabulary: expressible entries
  * derive from the core unions via the display maps (never a parallel enum);
  * canon entries the engine can't express render HONEST-ABSENT (disabled,
- * reason naming the future capability — the Q-027+ ledger). The canon's
+ * reason naming the future capability — the Q-030+ ledger). The canon's
  * intent-flavoured reply triggers (Positive reply / Objection / Question /
  * OOO) fold into `reply_classified`'s intent multi-pick; its 14-field
  * condition matrix renders as the ONE engine condition (keyword refinement,

@@ -31,7 +31,7 @@ export function triggerLabel(kind: CampaignRuleTriggerKind): string {
   return TRIGGER_LABELS[kind];
 }
 
-/** R1-UI (DEC-088, additive): canon card/drawer glyphs per kind
+/** R1-UI (DEC-091, additive): canon card/drawer glyphs per kind
  *  (`Automations.dc.html` TRIG catalog where a twin exists). */
 export const TRIGGER_ICONS: Record<CampaignRuleTriggerKind, string> = {
   reply_classified: "↩",
@@ -43,7 +43,7 @@ export const TRIGGER_ICONS: Record<CampaignRuleTriggerKind, string> = {
   lead_captured: "⊞",
 };
 
-/** R1-UI (DEC-088, additive): canon picker descriptions per kind. */
+/** R1-UI (DEC-091, additive): canon picker descriptions per kind. */
 export const TRIGGER_DESCRIPTIONS: Record<CampaignRuleTriggerKind, string> = {
   reply_classified: "A reply is classified with an intent",
   sequence_quiet: "No response after N days",
@@ -86,7 +86,7 @@ export const TRIGGER_OPTIONS: readonly TriggerOption[] = (
   ] as const satisfies readonly CampaignRuleTriggerKind[]
 ).map((kind) => ({ kind, label: TRIGGER_LABELS[kind], chip: triggerChip }));
 
-// ── W2 builder picker (R1-UI, DEC-088) ──────────────────────────────────────
+// ── W2 builder picker (R1-UI, DEC-091) ──────────────────────────────────────
 // The grouped trigger picker renders TWO registries: the ENGINE kinds
 // (derived from the core union — the vocabulary verbatim, a new kind fails
 // compilation in TRIGGER_GROUP and lights up automatically) and the canon
@@ -95,7 +95,7 @@ export const TRIGGER_OPTIONS: readonly TriggerOption[] = (
 // Canon entries that FOLD into an engine kind are never listed absent:
 // Positive reply / Objection / Question / OOO ride `reply_classified`'s
 // intent multi-pick; Form / widget / LinkedIn-profile captures are the ONE
-// `lead_captured` kind (three producers). The absent set is the Q-027+
+// `lead_captured` kind (three producers). The absent set is the Q-030+
 // picker↔vocabulary ledger the ⭑ ride-along closes feature-by-feature.
 
 /** Canon picker group per engine kind (groups from the canon TRIG catalog). */

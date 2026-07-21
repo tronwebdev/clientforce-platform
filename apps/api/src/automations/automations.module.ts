@@ -3,7 +3,7 @@ import { DbModule } from "../db/db.module";
 import { BusOrInlinePublisher, EVENTS_PUBLISHER } from "../events/publisher";
 import { AutomationsController } from "./automations.controller";
 
-/** Account-scope automation rules (R1-UI, DEC-088). */
+/** Account-scope automation rules (R1-UI, DEC-091). */
 @Module({
   imports: [DbModule],
   controllers: [AutomationsController],

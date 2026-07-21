@@ -108,7 +108,7 @@ export async function runSequenceQuietSweep(
     }
   }
 
-  // ── Account pass (R1-UI, DEC-088) ─────────────────────────────────────────
+  // ── Account pass (R1-UI, DEC-091) ─────────────────────────────────────────
   // Workspace-scope `Automation` quiet rules sweep DONE enrollments across
   // ALL the workspace's campaigns; fire-once semantics live in the SAME
   // synthetic key under the (automationId, eventId) unique — at most once,

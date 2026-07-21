@@ -273,12 +273,12 @@ export const EVENT_SCHEMAS = {
     /** The rule's trigger kind (e.g. "reply_classified") — for log rendering. */
     trigger: z.string(),
     detail: z.string().optional(),
-    /** R1-UI (DEC-088, additive): "account" = an `Automation` row's run
+    /** R1-UI (DEC-091, additive): "account" = an `Automation` row's run
      * (`ruleId` carries the automation id, `runId` the AutomationRun id);
      * absent = a campaign rule's run — the pre-existing meaning, byte-compatible. */
     scope: z.enum(["campaign", "account"]).optional(),
   }),
-  // R1-UI (DEC-088): the account-rules manage audit — enable/disable
+  // R1-UI (DEC-091): the account-rules manage audit — enable/disable
   // (the sender.status_changed pattern: typed from→to, written by the manage
   // endpoint on an ACTUAL change only) and delete (the row is gone; this
   // ledger row is what outlives it). Fleet-visible off the ledger, no

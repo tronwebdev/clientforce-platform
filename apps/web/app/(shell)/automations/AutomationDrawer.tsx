@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Automation detail drawer (R1-UI W1, DEC-088) — the canon 480px right
+ * Automation detail drawer (R1-UI W1, DEC-091) — the canon 480px right
  * drawer: trigger block · Only-if list · action cards · Recent runs
  * (LEDGER-sourced: `automation.rule.run.v1` Event rows via
  * GET /automations/:id/runs — what fired, when, on whom, outcome; raw rows,

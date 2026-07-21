@@ -46,7 +46,13 @@ later backoffice retrofit:
 - **Voice graph nodes (P3.2)** → inherits voice's spine coverage; no new work if it reuses call.* + the rail.
 - **Widget / Forms / Proposals** → emit catalog events · register credit deltas for any billable action · proposals' Stripe path emits payment events.
 - **Lead Finder / prospecting** → emit discovery events · credit delta per enriched/signal lead · per-source kill via the boundary pattern if it sends.
-- **Automations UI (R1 remainder)** → runs are already events; surface run history read-only.
+- ~~**Automations UI (R1 remainder)** → runs are already events; surface run history read-only.~~
+  **SHIPPED — R1-UI (PR #105, DEC-091):** exactly as scoped — run history is LEDGER-sourced
+  (`automation.rule.run.v1` Event rows, read-only) so spine 1 covers it automatically; the two
+  new manage events (`automation.status_changed.v1` · `automation.deleted.v1`) ride the same
+  catalog spine; NO new billable action, NO new send path (zero send actions at account scope
+  BY DESIGN — kill-switch n/a), NO new manageable tenant entity beyond the workspace-scoped
+  rows the fleet views already see. NIL spine delta, stated per the ride-along rule.
 - **Analytics / Billing (Phase 10)** → billing enforcement (FR-BILL-04) consumes W2's reconciliation; no parallel meter.
 
 ## The rule (also in the kickoff template)

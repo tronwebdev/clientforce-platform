@@ -1,5 +1,5 @@
 /**
- * R1-UI W2 (DEC-088): the builder's picker registries + recipes + helpers.
+ * R1-UI W2 (DEC-091): the builder's picker registries + recipes + helpers.
  * The load-bearing pins:
  *   — the pickers enumerate the CORE vocabulary verbatim (every engine kind
  *     maps into a canon group; a new kind fails compilation AND these tests)

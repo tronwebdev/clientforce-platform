@@ -9,7 +9,7 @@ here alongside the W2 builder matrix, all against the current branch.
 The builder is a RENDERER of the engine's typed vocabulary: expressible
 picker entries derive from the core unions; canon entries the engine can't
 express render honest-absent (dashed, disabled, reason naming the future
-capability — the Q-027+ ledger). Every save in these frames went through the
+capability — the Q-030+ ledger). Every save in these frames went through the
 REAL API (`automationWriteSchema` + the write guards) — including the 422.
 
 ## Frames
@@ -22,7 +22,7 @@ REAL API (`automationWriteSchema` + the write guards) — including the 422.
 | `build-automations-drawer` | W1 drawer with the W2 seams LIVE: ✎ Edit automation + "+ Add an action" active, ledger-sourced Recent runs (honest none-state). |
 | `proto-builder-blank-recipes` ↔ `build-builder-blank-recipes` | Blank + new: recipes grid → "or build from scratch" → grouped trigger picker with search. First absent entries visible (Reply received · Inbound message · Email bounced · Spam complaint) — dashed, disabled, reasons inline. |
 | `build-builder-trigger-picker-tail` | The deep honest-absent ledger: Forms & widget (lead_captured expressible beside absent Widget chat) · LinkedIn · Proposals & revenue · Schedule & system — every canon entry the engine can't express, each with its "Arrives with …" reason. |
-| `proto-builder-configured` ↔ `build-builder-recipe-configured` | Recipe-seeded state. Canon "Reply received + Reply-sentiment filter → Mark qualified + Notify #sales" renders in the build as the DEC-088 vocabulary: `reply_classified` with the intent multi-pick (tinted chips, one intent vocabulary), `set_stage` (Stage + Label) + `notify_team` (Note) — the folding documented in the plan, never a parallel enum. |
+| `proto-builder-configured` ↔ `build-builder-recipe-configured` | Recipe-seeded state. Canon "Reply received + Reply-sentiment filter → Mark qualified + Notify #sales" renders in the build as the DEC-091 vocabulary: `reply_classified` with the intent multi-pick (tinted chips, one intent vocabulary), `set_stage` (Stage + Label) + `notify_team` (Note) — the folding documented in the plan, never a parallel enum. |
 | `build-builder-action-picker` | "Choose an action" panel: search + canon groups; all seven **Send a message** entries honest-absent BY DESIGN ("sending rides campaign sequences today" — the no-send-path decision, visible). |
 | `build-builder-dup-422` | The dup refusal INLINE from the real API: an equal-trigger twin refused 422, detail verbatim — "“Qualify hot replies” already fires on this exact trigger — edit that one, or change the trigger". Never a silent overwrite. |
 | `build-builder-edit-mode` | Drawer → ✎ Edit: the builder hydrated from the stored row (name, trigger config, actions), Save changes label. |
@@ -40,8 +40,9 @@ REAL API (`automationWriteSchema` + the write guards) — including the 422.
 - Logged deltas (all carried in the PR plan): canon Drafts tab omitted (no
   draft state in the rule model — Q-logged); the canon's intent-flavoured
   reply triggers and 14-field condition matrix fold into `reply_classified`
-  intents + the ONE keyword condition; canon Slack/notify transports render
-  as `notify_team` (run row + Logs = the Phase-1 transport); the invalid-row
+  intents + the ONE keyword condition; canon "Notify team" folds to
+  `notify_team` (run row + Logs = the Phase-1 transport) while the Slack /
+  email-alert TRANSPORTS render honest-absent (Q-ledgered); the invalid-row
   Error state is a designed addition with no prototype anchor (flagged W1).
 - Run-history rows with real fires land with W3's staging live-proof — the
   drawer here shows the honest none-state ("No runs yet — fires when its

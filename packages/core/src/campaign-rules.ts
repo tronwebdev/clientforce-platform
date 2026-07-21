@@ -115,7 +115,7 @@ export function isTerminalAction(action: CampaignRuleAction): boolean {
 
 /**
  * The action kinds valid on ACCOUNT-scope rules (`Automation` rows, R1-UI /
- * DEC-088) — the ONE union minus `move_to_node`, whose target is a node in a
+ * DEC-091) — the ONE union minus `move_to_node`, whose target is a node in a
  * SPECIFIC campaign's graph: an account rule fires across campaigns, so a
  * pinned node id would be dangling everywhere but one. Campaign View owns
  * move rules (#90); the account CRUD refuses the kind with a typed 422.
@@ -163,7 +163,7 @@ export function sameTrigger(a: CampaignRuleTrigger, b: CampaignRuleTrigger): boo
   }
 }
 
-// ── Account rules (R1-UI, DEC-088) ──────────────────────────────────────────
+// ── Account rules (R1-UI, DEC-091) ──────────────────────────────────────────
 // The workspace-scoped `Automation` row's Json contract — the SAME typed
 // unions as `CampaignRule` (one vocabulary, one executor; scope is a field,
 // never a fork). `conditions` is stored as an ARRAY (the DATA_MODEL §6 column

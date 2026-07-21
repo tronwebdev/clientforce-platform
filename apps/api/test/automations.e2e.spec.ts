@@ -1,5 +1,5 @@
 /**
- * R1-UI (DEC-088) account-rules API e2e — W1 read · enable/disable · delete
+ * R1-UI (DEC-091) account-rules API e2e — W1 read · enable/disable · delete
  * (+ the ledger-backed run history) vs real Postgres+RLS. Same harness as
  * api.e2e.spec.ts — skips without a DB.
  *
@@ -39,7 +39,7 @@ const hasDb = Boolean(process.env.APP_DATABASE_URL ?? process.env.DATABASE_URL);
 const SECRET = process.env.AUTH_DEV_SECRET ?? "test-dev-secret";
 const suffix = `r1ui-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 
-describe.skipIf(!hasDb)("automations e2e (R1-UI W1, DEC-088)", () => {
+describe.skipIf(!hasDb)("automations e2e (R1-UI W1, DEC-091)", () => {
   let app: INestApplication;
   let owner: PrismaClient;
   let agencyId: string;

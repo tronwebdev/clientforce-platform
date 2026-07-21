@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Automations list (R1-UI W1, DEC-088) — ported from `Automations.dc.html`:
+ * Automations list (R1-UI W1, DEC-091) — ported from `Automations.dc.html`:
  * segment tabs (All · Active · Paused — the canon Drafts tab is OMITTED, no
  * draft state exists in the rule model, Q-logged), When→Then summary cards
  * (trigger chip · condition chip · action chips · runs · status pill ·

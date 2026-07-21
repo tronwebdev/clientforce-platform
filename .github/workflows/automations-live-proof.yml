@@ -1,0 +1,70 @@
+# R1-UI (DEC-091) W3 — the account-rules surface end-to-end on the ONE
+# evaluator: create → a REAL lead.stage_changed.v1 through the REAL bus
+# (BullMQ/Redis, the apps/worker wiring) → AutomationRun + scope:"account"
+# ledger twin → disable → the POSITIVE no-fire (an enabled twin fires the
+# same trigger while the disabled rule stays silent) → the refusal walk
+# (campaign move_to_node routes a SUPPRESSED contact; the unchanged boundary
+# refuses typed BEFORE the transport — zero wire sends).
+#
+# Unlike the proof family this one needs NO vendor keys and NO Key Vault:
+# scripted seeds only (nothing composes) and the boundary refuses before any
+# transport (nothing could deliver even in sandbox). Temporal runs as the
+# local dev server (downloaded by @temporalio/testing). Manual dispatch only.
+name: automations-live-proof
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+env:
+  TURBO_TELEMETRY_DISABLED: 1
+  DATABASE_URL: postgresql://postgres@localhost:5432/clientforce
+  APP_DATABASE_URL: postgresql://clientforce_app@localhost:5432/clientforce
+  REDIS_URL: redis://localhost:6379
+
+jobs:
+  prove:
+    name: account rules fire · disable stays silent · refusal walk
+    runs-on: ubuntu-latest
+    # No `environment:` — unlike the proof family this job reads no vars and
+    # no secrets (no Key Vault, no OIDC), so a staging binding buys nothing.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: clientforce
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @clientforce/workflows... build
+      - run: pnpm --filter @clientforce/db db:migrate
+
+      - name: Run the live proof
+        run: |
+          set -euo pipefail
+          pnpm exec tsx packages/workflows/scripts/automations-live-proof.ts
