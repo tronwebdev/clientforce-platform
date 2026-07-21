@@ -8,23 +8,31 @@ import {
   NotFoundException,
   Param,
   Patch,
+  Post,
+  Put,
   UnprocessableEntityException,
 } from "@nestjs/common";
 import {
+  ACCOUNT_ACTION_REFUSAL,
+  DUPLICATE_TRIGGER_REFUSAL,
   automationConditionsSchema,
   automationToggleSchema,
+  automationWriteSchema,
   campaignRuleActionSchema,
   campaignRuleTriggerSchema,
+  isAccountAction,
+  sameTrigger,
+  type AutomationWrite,
   type CampaignRuleAction,
   type CampaignRuleTrigger,
 } from "@clientforce/core";
-import { Role } from "@clientforce/db";
-import { z, type ZodSchema } from "zod";
+import { Role, type Prisma } from "@clientforce/db";
+import { z, type ZodTypeAny } from "zod";
 import { Roles } from "../auth/decorators";
 import { TenantClient } from "../db/tenant-client";
 import { EVENTS_PUBLISHER, type EventsPublisher } from "../events/publisher";
 
-function parse<T>(schema: ZodSchema<T>, value: unknown): T {
+function parse<S extends ZodTypeAny>(schema: S, value: unknown): z.output<S> {
   const result = schema.safeParse(value);
   if (!result.success) {
     throw new BadRequestException({
@@ -153,10 +161,179 @@ export class AutomationsController {
   }
 
   /**
+   * The W2 write guards, shared by create and edit — the boundary refuses to
+   * CREATE broken state instead of leaving the engine's error rendering to
+   * catch it later (belt AND suspenders, key decisions 6–8):
+   *   scope — a campaign-scoped action (`move_to_node`) on an account rule
+   *   dup   — an EQUAL trigger vs another ENABLED rule (the #90/DEC-077
+   *           deferral landed in core `sameTrigger`; edit excludes self,
+   *           disabled rows never block, and a disabled write never conflicts)
+   *   refs  — `run_automation` must point at rules that exist (and never at
+   *           itself); live-resolution honesty stays the belt underneath
+   */
+  private async guardWrite(
+    tx: Prisma.TransactionClient,
+    dto: AutomationWrite,
+    selfId?: string,
+  ): Promise<void> {
+    const offScope = dto.actions.find((a) => !isAccountAction(a));
+    if (offScope) {
+      throw new UnprocessableEntityException({ message: ACCOUNT_ACTION_REFUSAL });
+    }
+
+    if (dto.enabled) await this.assertNoEnabledDuplicate(tx, dto.trigger, selfId);
+
+    const refs = dto.actions.filter((a) => a.kind === "run_automation").map((a) => a.automationId);
+    if (selfId && refs.includes(selfId)) {
+      throw new UnprocessableEntityException({
+        message: "An automation can't run itself",
+        detail: "Point “Run another automation” at a different rule",
+      });
+    }
+    if (refs.length > 0) {
+      const found = await tx.automation.findMany({
+        where: { id: { in: refs } },
+        select: { id: true },
+      });
+      const known = new Set(found.map((r) => r.id));
+      if (refs.some((r) => !known.has(r))) {
+        throw new UnprocessableEntityException({
+          message: "Automation reference not found",
+          detail: "“Run another automation” points at a rule that no longer exists — pick one from the list",
+        });
+      }
+    }
+  }
+
+  /** The one enabled-duplicate invariant, also guarding the PATCH enable path
+   *  (create-disabled-then-enable can't sidestep the 422). */
+  private async assertNoEnabledDuplicate(
+    tx: Prisma.TransactionClient,
+    trigger: CampaignRuleTrigger,
+    selfId?: string,
+  ): Promise<void> {
+    const others = await tx.automation.findMany({
+      where: { enabled: true, ...(selfId ? { NOT: { id: selfId } } : {}) },
+    });
+    for (const other of others) {
+      const parsed = campaignRuleTriggerSchema.safeParse(other.trigger);
+      if (!parsed.success) continue; // unreadable rows render as error state — they never fire
+      if (sameTrigger(parsed.data, trigger)) {
+        throw new UnprocessableEntityException({
+          message: DUPLICATE_TRIGGER_REFUSAL,
+          detail: `“${other.name}” already fires on this exact trigger — edit that one, or change the trigger`,
+        });
+      }
+    }
+  }
+
+  private writtenRow(
+    row: { id: string; name: string; enabled: boolean; createdAt: Date; updatedAt: Date },
+    dto: AutomationWrite,
+    stats?: { runs: number; lastRunAt: string | null },
+  ): AutomationListRow {
+    return {
+      id: row.id,
+      name: row.name,
+      enabled: row.enabled,
+      trigger: dto.trigger,
+      conditions: dto.conditions,
+      actions: dto.actions,
+      invalid: false,
+      runs: stats?.runs ?? 0,
+      lastRunAt: stats?.lastRunAt ?? null,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    };
+  }
+
+  /**
+   * Create (W2) — the whole rule through the ONE engine validation
+   * (`automationWriteSchema`: core unions + the conditions-refine-replies
+   * boundary rule), then the write guards. No catalog event: creation isn't
+   * in the locked A9 set — the initial enabled state is state, not a change.
+   */
+  @Post()
+  @Roles(Role.OWNER, Role.ADMIN)
+  async create(@Body() body: unknown) {
+    const dto = parse(automationWriteSchema, body);
+    const workspaceId = this.tenant.workspaceId;
+    return this.tenant.run(async (tx) => {
+      await this.guardWrite(tx, dto);
+      const row = await tx.automation.create({
+        data: {
+          workspaceId,
+          name: dto.name,
+          enabled: dto.enabled,
+          trigger: dto.trigger as object,
+          conditions: dto.conditions as object[],
+          actions: dto.actions as object[],
+        },
+      });
+      return this.writtenRow(row, dto);
+    });
+  }
+
+  /**
+   * Edit (W2) — a FULL replace through the same schema + guards (dup check
+   * excludes self). An enabled flip that rides the edit emits the same ONE
+   * `automation.status_changed.v1` the PATCH path writes — actual change
+   * only, one audit trail regardless of which surface flipped it.
+   */
+  @Put(":id")
+  @Roles(Role.OWNER, Role.ADMIN)
+  async update(@Param("id") id: string, @Body() body: unknown) {
+    const dto = parse(automationWriteSchema, body);
+    const workspaceId = this.tenant.workspaceId;
+    const { row, flipped, stats } = await this.tenant.run(async (tx) => {
+      const existing = await tx.automation.findUnique({ where: { id } });
+      if (!existing) throw new NotFoundException(`Automation ${id} not found`);
+      await this.guardWrite(tx, dto, id);
+      const updated = await tx.automation.update({
+        where: { id },
+        data: {
+          name: dto.name,
+          enabled: dto.enabled,
+          trigger: dto.trigger as object,
+          conditions: dto.conditions as object[],
+          actions: dto.actions as object[],
+        },
+      });
+      const runStats = await tx.automationRun.aggregate({
+        where: { automationId: id },
+        _count: { _all: true },
+        _max: { ranAt: true },
+      });
+      return {
+        row: updated,
+        flipped: existing.enabled !== dto.enabled,
+        stats: {
+          runs: runStats._count._all,
+          lastRunAt: runStats._max.ranAt?.toISOString() ?? null,
+        },
+      };
+    });
+    if (flipped) {
+      await this.publisher.publish({
+        workspaceId,
+        type: "automation.status_changed.v1",
+        payload: {
+          automationId: row.id,
+          from: dto.enabled ? "disabled" : "enabled",
+          to: dto.enabled ? "enabled" : "disabled",
+        },
+      });
+    }
+    return this.writtenRow(row, dto, stats);
+  }
+
+  /**
    * Enable/disable — instant, no re-plan (disabled rules never fire, the
    * DEC-074 contract). Writes ONE `automation.status_changed.v1` per ACTUAL
    * flip (the sender.status_changed pattern) — a same-state PATCH is a no-op
-   * with no audit noise.
+   * with no audit noise. Enabling re-checks the enabled-duplicate invariant
+   * (W2): a disabled twin of a live trigger stays creatable, but can never
+   * quietly become the second ENABLED rule on that trigger.
    */
   @Patch(":id")
   @Roles(Role.OWNER, Role.ADMIN)
@@ -167,6 +344,11 @@ export class AutomationsController {
       const existing = await tx.automation.findUnique({ where: { id } });
       if (!existing) throw new NotFoundException(`Automation ${id} not found`);
       if (existing.enabled === dto.enabled) return { row: existing, changed: false };
+      if (dto.enabled) {
+        const trigger = campaignRuleTriggerSchema.safeParse(existing.trigger);
+        // Unreadable triggers skip the dup check — an invalid row never fires.
+        if (trigger.success) await this.assertNoEnabledDuplicate(tx, trigger.data, id);
+      }
       const updated = await tx.automation.update({ where: { id }, data: { enabled: dto.enabled } });
       return { row: updated, changed: true };
     });

@@ -19,6 +19,7 @@ import { CfError } from "../../../components/sequence/shared";
 import { triggerChip, TRIGGER_ICONS, triggerLabel } from "../../../lib/triggers";
 import { actionChip, ACTION_ICONS } from "../../../lib/actions";
 import { AutomationDrawer } from "./AutomationDrawer";
+import { AutomationBuilder } from "./AutomationBuilder";
 
 const GRAD = "linear-gradient(135deg,#36D7ED 0%,#35E834 55%,#D0F56B 100%)";
 
@@ -79,6 +80,7 @@ export function AutomationsView({ role }: { role: Role }) {
   const [rows, setRows] = useState<AutomationListRow[] | null>(null);
   const [seg, setSeg] = useState<Seg>("All");
   const [drawerId, setDrawerId] = useState<string | null>(null);
+  const [builder, setBuilder] = useState<{ editing: AutomationListRow | null; withPicker: boolean } | null>(null);
   const [toast, setToast] = useState<{ text: string; error?: boolean } | null>(null);
   const [loadError, setLoadError] = useState(false);
   const toastToken = useRef(0);
@@ -139,12 +141,19 @@ export function AutomationsView({ role }: { role: Role }) {
   );
   const drawerRow = drawerId ? merged.find((r) => r.id === drawerId) ?? null : null;
 
-  const newBtn = (
-    // W1: the builder lands in W2 of this PR — the canon button renders but
-    // is honestly inert until then (no fake modal, no dead click).
+  const newBtn = canManage ? (
+    <span
+      data-testid="new-automation"
+      onClick={() => setBuilder({ editing: null, withPicker: false })}
+      style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontWeight: 700, fontSize: 15, color: "#0A0F0C", background: GRAD, borderRadius: 12, padding: "12px 22px", boxShadow: "0 6px 16px rgba(53,232,52,.26)", cursor: "pointer" }}
+    >
+      + New automation
+    </span>
+  ) : (
+    // RBAC face of the API's OWNER/ADMIN write gate — honest, never a dead 403.
     <span
       aria-disabled="true"
-      title="The builder lands in W2 of this PR"
+      title="Owners and admins manage automations"
       style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontWeight: 700, fontSize: 15, color: "#0A0F0C", background: GRAD, borderRadius: 12, padding: "12px 22px", boxShadow: "0 6px 16px rgba(53,232,52,.26)", cursor: "not-allowed", opacity: 0.6 }}
     >
       + New automation
@@ -267,9 +276,27 @@ export function AutomationsView({ role }: { role: Role }) {
           canManage={canManage}
           onClose={() => setDrawerId(null)}
           onToggle={() => void toggle(drawerRow)}
+          onEdit={(opts) => {
+            setDrawerId(null);
+            setBuilder({ editing: drawerRow, withPicker: opts?.withPicker ?? false });
+          }}
           onDeleted={() => {
             setDrawerId(null);
             flash("Automation deleted");
+            void refetch();
+          }}
+        />
+      )}
+
+      {builder && (
+        <AutomationBuilder
+          automations={merged}
+          editing={builder.editing}
+          openActionPicker={builder.withPicker}
+          onClose={() => setBuilder(null)}
+          onSaved={(mode) => {
+            setBuilder(null);
+            flash(mode === "created" ? "Automation created" : "Automation updated");
             void refetch();
           }}
         />

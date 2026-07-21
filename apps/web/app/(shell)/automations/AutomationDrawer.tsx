@@ -58,6 +58,7 @@ export function AutomationDrawer({
   canManage,
   onClose,
   onToggle,
+  onEdit,
   onDeleted,
 }: {
   row: AutomationListRow;
@@ -65,6 +66,8 @@ export function AutomationDrawer({
   canManage: boolean;
   onClose: () => void;
   onToggle: () => void;
+  /** Opens the W2 builder on this row (withPicker = the "+ Add an action" entry). */
+  onEdit: (opts?: { withPicker?: boolean }) => void;
   onDeleted: () => void;
 }) {
   const [runs, setRuns] = useState<AutomationRunRow[] | null>(null);
@@ -169,10 +172,15 @@ export function AutomationDrawer({
                 This rule's actions couldn't be read — it never fires.
               </div>
             )}
-            {/* W1: editing lands with the W2 builder — inert per honest absence. */}
-            <div aria-disabled="true" title="The builder lands in W2 of this PR" style={{ border: "1.5px dashed #9FD8AC", borderRadius: 13, padding: 12, textAlign: "center", fontSize: 13.5, fontWeight: 600, color: "#16A82A", cursor: "not-allowed", opacity: 0.55 }}>
-              + Add an action
-            </div>
+            {canManage && !row.invalid ? (
+              <div data-testid="drawer-add-action" onClick={() => onEdit({ withPicker: true })} style={{ border: "1.5px dashed #9FD8AC", borderRadius: 13, padding: 12, textAlign: "center", fontSize: 13.5, fontWeight: 600, color: "#16A82A", cursor: "pointer" }}>
+                + Add an action
+              </div>
+            ) : (
+              <div aria-disabled="true" title={row.invalid ? "This rule couldn't be read — delete it or recreate it" : "Owners and admins manage automations"} style={{ border: "1.5px dashed #9FD8AC", borderRadius: 13, padding: 12, textAlign: "center", fontSize: 13.5, fontWeight: 600, color: "#16A82A", cursor: "not-allowed", opacity: 0.55 }}>
+                + Add an action
+              </div>
+            )}
           </div>
 
           <div style={{ ...SECTION, color: "#8A7F6B", margin: "18px 0 10px" }}>Recent runs</div>
@@ -214,9 +222,17 @@ export function AutomationDrawer({
             {busy ? "Deleting…" : "Delete"}
           </span>
           <span onClick={onClose} style={{ marginLeft: "auto", fontSize: 14, fontWeight: 600, color: "#5C6B62", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 11, padding: "10px 18px", cursor: "pointer" }}>Close</span>
-          <span aria-disabled="true" title="The builder lands in W2 of this PR" style={{ fontSize: 14, fontWeight: 700, color: "#0A0F0C", background: GRAD, borderRadius: 11, padding: "10px 20px", cursor: "not-allowed", opacity: 0.6, boxShadow: "0 6px 16px rgba(53,232,52,.26)" }}>
-            ✎ Edit automation
-          </span>
+          {canManage && !row.invalid ? (
+            <span data-testid="drawer-edit" onClick={() => onEdit()} style={{ fontSize: 14, fontWeight: 700, color: "#0A0F0C", background: GRAD, borderRadius: 11, padding: "10px 20px", cursor: "pointer", boxShadow: "0 6px 16px rgba(53,232,52,.26)" }}>
+              ✎ Edit automation
+            </span>
+          ) : (
+            // Invalid rows can't round-trip through the builder (nothing to
+            // render) — delete/recreate is the honest path; AGENT reads only.
+            <span aria-disabled="true" title={row.invalid ? "This rule couldn't be read — delete it or recreate it" : "Owners and admins manage automations"} style={{ fontSize: 14, fontWeight: 700, color: "#0A0F0C", background: GRAD, borderRadius: 11, padding: "10px 20px", cursor: "not-allowed", opacity: 0.6, boxShadow: "0 6px 16px rgba(53,232,52,.26)" }}>
+              ✎ Edit automation
+            </span>
+          )}
         </div>
       </div>
     </div>

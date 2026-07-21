@@ -13,6 +13,19 @@
  *               campaign rule OR enabled automation) → typed 422 naming
  *               them; unreferenced → atomic cascade + `automation.deleted.v1`
  *   RBAC/RLS  — AGENT reads but can't manage; workspace B never sees A's rows
+ *
+ * W2 — create/edit through the ONE engine validation + the write guards:
+ *   create    — `automationWriteSchema` at the boundary (conditions refine
+ *               replies ONLY → 400); campaign-scoped `move_to_node` → 422
+ *               ACCOUNT_ACTION_REFUSAL; dup trigger vs an ENABLED row → 422
+ *               DUPLICATE_TRIGGER_REFUSAL naming it (intents compare as
+ *               SETS); disabled rows never block; no catalog event
+ *   enable    — the enabled-duplicate invariant guards PATCH too: a disabled
+ *               twin creates fine but can't become the second ENABLED rule
+ *   refs      — `run_automation` at a missing target refuses on create;
+ *               self-reference refuses on edit (never dangling by CRUD)
+ *   edit      — PUT full replace; dup check excludes self; an enabled flip
+ *               emits the same ONE status_changed the PATCH path writes
  */
 import type { INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
@@ -292,5 +305,198 @@ describe.skipIf(!hasDb)("automations e2e (R1-UI W1, DEC-088)", () => {
 
     const missing = await asOwner(api().get(`/automations/nope/runs`));
     expect(missing.status).toBe(404);
+  });
+
+  // ── W2: create / edit ──────────────────────────────────────────────────────
+
+  const writeBody = (over: Record<string, unknown> = {}) => ({
+    name: "Stop on unsubscribe",
+    trigger: { kind: "opted_out" },
+    actions: [{ kind: "end_enrollment" }],
+    ...over,
+  });
+
+  it("POST /automations — creates through the ONE engine validation; conditions on a non-reply trigger 400 at the boundary; no catalog event", async () => {
+    const res = await asOwner(api().post("/automations")).send(writeBody());
+    expect(res.status).toBe(201);
+    expect(res.body).toMatchObject({
+      name: "Stop on unsubscribe",
+      enabled: true,
+      invalid: false,
+      runs: 0,
+      trigger: { kind: "opted_out" },
+      actions: [{ kind: "end_enrollment" }],
+    });
+    expect(await owner.automation.count({ where: { id: res.body.id } })).toBe(1);
+    // Creation isn't in the locked A9 catalog — the initial state is state,
+    // not a change: zero events.
+    expect(await owner.event.count({ where: { workspaceId: wsA } })).toBe(0);
+
+    // A conditioned non-reply rule would never fire — refused loudly, never
+    // created quietly (the automationWriteSchema boundary rule).
+    const conditioned = await asOwner(api().post("/automations")).send(
+      writeBody({
+        name: "never fires",
+        conditions: [{ kind: "keyword_contains", keywords: ["pricing"] }],
+      }),
+    );
+    expect(conditioned.status).toBe(400);
+    expect(conditioned.body.message).toBe("Validation failed");
+  });
+
+  it("POST refusals — campaign-scoped move_to_node 422s; an EQUAL trigger vs an ENABLED row 422s naming it (intents compare as SETS); disabled rows don't block", async () => {
+    const scoped = await asOwner(api().post("/automations")).send(
+      writeBody({ actions: [{ kind: "move_to_node", targetNodeId: "n1" }] }),
+    );
+    expect(scoped.status).toBe(422);
+    expect(scoped.body.message).toContain("Campaign View");
+
+    await addAutomation(); // enabled, reply_classified [interested]
+    const dup = await asOwner(api().post("/automations")).send(
+      writeBody({
+        name: "the twin",
+        trigger: { kind: "reply_classified", intents: ["interested"] },
+        actions: [{ kind: "notify_team" }],
+      }),
+    );
+    expect(dup.status).toBe(422);
+    expect(dup.body.message).toContain("already fires on this exact trigger");
+    expect(dup.body.detail).toContain("Flag hot replies");
+
+    // Set equality: same intents, different order + duplicates = the SAME trigger.
+    await addAutomation({
+      name: "two intents",
+      trigger: { kind: "reply_classified", intents: ["booked", "interested"] },
+    });
+    const setDup = await asOwner(api().post("/automations")).send(
+      writeBody({
+        name: "reordered twin",
+        trigger: { kind: "reply_classified", intents: ["interested", "booked", "interested"] },
+        actions: [{ kind: "notify_team" }],
+      }),
+    );
+    expect(setDup.status).toBe(422);
+
+    // Overlapping-but-different coexists (#90 semantics)…
+    const overlap = await asOwner(api().post("/automations")).send(
+      writeBody({
+        name: "narrower",
+        trigger: { kind: "reply_classified", intents: ["interested", "not_interested"] },
+        actions: [{ kind: "notify_team" }],
+      }),
+    );
+    expect(overlap.status).toBe(201);
+
+    // …and a DISABLED row with the same trigger never blocks.
+    await addAutomation({ name: "sleeping twin source", trigger: { kind: "meeting_booked" }, enabled: false });
+    const vsDisabled = await asOwner(api().post("/automations")).send(
+      writeBody({ name: "meeting rule", trigger: { kind: "meeting_booked" }, actions: [{ kind: "notify_team" }] }),
+    );
+    expect(vsDisabled.status).toBe(201);
+  });
+
+  it("the enabled-duplicate invariant guards the PATCH enable path — a disabled twin creates fine but can't become the second ENABLED rule", async () => {
+    await addAutomation(); // enabled, reply_classified [interested]
+    const sleeper = await asOwner(api().post("/automations")).send(
+      writeBody({
+        name: "disabled twin",
+        enabled: false,
+        trigger: { kind: "reply_classified", intents: ["interested"] },
+        actions: [{ kind: "notify_team" }],
+      }),
+    );
+    expect(sleeper.status).toBe(201); // a disabled write never conflicts
+
+    const wake = await asOwner(api().patch(`/automations/${sleeper.body.id}`)).send({ enabled: true });
+    expect(wake.status).toBe(422);
+    expect(wake.body.message).toContain("already fires on this exact trigger");
+    // The refused flip changed nothing — and no audit row was written.
+    expect((await owner.automation.findUnique({ where: { id: sleeper.body.id } }))?.enabled).toBe(false);
+    expect(
+      await owner.event.count({ where: { workspaceId: wsA, type: "automation.status_changed.v1" } }),
+    ).toBe(0);
+  });
+
+  it("run_automation refs — a missing target refuses on create; self-reference refuses on edit (the CRUD never creates dangling state)", async () => {
+    const dangling = await asOwner(api().post("/automations")).send(
+      writeBody({ actions: [{ kind: "run_automation", automationId: "gone" }] }),
+    );
+    expect(dangling.status).toBe(422);
+    expect(dangling.body.message).toBe("Automation reference not found");
+
+    const target = await addAutomation({ name: "chain target", trigger: { kind: "meeting_booked" } });
+    const chained = await asOwner(api().post("/automations")).send(
+      writeBody({ actions: [{ kind: "run_automation", automationId: target.id }] }),
+    );
+    expect(chained.status).toBe(201);
+
+    const selfRef = await asOwner(api().put(`/automations/${chained.body.id}`)).send(
+      writeBody({ actions: [{ kind: "run_automation", automationId: chained.body.id }] }),
+    );
+    expect(selfRef.status).toBe(422);
+    expect(selfRef.body.message).toBe("An automation can't run itself");
+  });
+
+  it("PUT /automations/:id — full replace; the dup check excludes self; an enabled flip emits ONE automation.status_changed.v1, a same-state edit none", async () => {
+    const row = await addAutomation(); // enabled, reply_classified [interested]
+
+    // Same trigger, new name/actions — self never blocks itself.
+    const kept = await asOwner(api().put(`/automations/${row.id}`)).send(
+      writeBody({
+        name: "renamed",
+        trigger: { kind: "reply_classified", intents: ["interested"] },
+        actions: [{ kind: "notify_team", note: "check this" }],
+      }),
+    );
+    expect(kept.status).toBe(200);
+    expect(kept.body).toMatchObject({
+      id: row.id,
+      name: "renamed",
+      enabled: true,
+      actions: [{ kind: "notify_team", note: "check this" }],
+    });
+    expect(await owner.event.count({ where: { workspaceId: wsA } })).toBe(0); // no flip → no audit
+
+    // Editing INTO another enabled row's trigger refuses.
+    await addAutomation({ name: "meeting rule", trigger: { kind: "meeting_booked" } });
+    const collide = await asOwner(api().put(`/automations/${row.id}`)).send(
+      writeBody({ name: "renamed", trigger: { kind: "meeting_booked" }, actions: [{ kind: "notify_team" }] }),
+    );
+    expect(collide.status).toBe(422);
+    expect(collide.body.detail).toContain("meeting rule");
+
+    // A flip riding the edit audits exactly once (the PATCH path's event).
+    const flipped = await asOwner(api().put(`/automations/${row.id}`)).send(
+      writeBody({
+        name: "renamed",
+        enabled: false,
+        trigger: { kind: "reply_classified", intents: ["interested"] },
+        actions: [{ kind: "notify_team" }],
+      }),
+    );
+    expect(flipped.status).toBe(200);
+    expect(flipped.body.enabled).toBe(false);
+    const audits = await owner.event.findMany({
+      where: { workspaceId: wsA, type: "automation.status_changed.v1" },
+    });
+    expect(audits).toHaveLength(1);
+    expect(audits[0]!.payload).toMatchObject({ automationId: row.id, from: "enabled", to: "disabled" });
+
+    const missing = await asOwner(api().put(`/automations/nope`)).send(writeBody());
+    expect(missing.status).toBe(404);
+  });
+
+  it("W2 RBAC/RLS — AGENT can't create or edit; workspace B's writes never touch A's rows", async () => {
+    const row = await addAutomation();
+    expect((await asAgent(api().post("/automations")).send(writeBody())).status).toBe(403);
+    expect((await asAgent(api().put(`/automations/${row.id}`)).send(writeBody())).status).toBe(403);
+    // Cross-workspace edit 404s under RLS — B can't even see the row.
+    expect((await asOwnerB(api().put(`/automations/${row.id}`)).send(writeBody())).status).toBe(404);
+    // B's dup check is scoped to B: A's enabled trigger never blocks B.
+    const inB = await asOwnerB(api().post("/automations")).send(
+      writeBody({ trigger: { kind: "reply_classified", intents: ["interested"] }, actions: [{ kind: "notify_team" }] }),
+    );
+    expect(inB.status).toBe(201);
+    expect((await owner.automation.findFirst({ where: { id: inB.body.id } }))?.workspaceId).toBe(wsB);
   });
 });
