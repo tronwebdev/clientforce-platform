@@ -354,10 +354,21 @@ jobs:
           d=json.load(sys.stdin)
           rows=d.get("metrics") or []
           if not rows: print("  (no per-interval metrics — Advanced Insights may be off)"); raise SystemExit
+          def val(row,*keys):
+              for k in keys:
+                  v=row.get(k)
+                  if isinstance(v,dict): v=v.get("value", v.get("avg"))
+                  if v is not None: return v
+              for edge in ("carrier_edge","sip_edge","sdk_edge","client_edge"):
+                  e=row.get(edge)
+                  if isinstance(e,dict):
+                      for k in keys:
+                          v=e.get(k)
+                          if isinstance(v,dict): v=v.get("value", v.get("avg"))
+                          if v is not None: return v
+              return None
           for r in rows[:30]:
-              e=r.get("carrier_edge") or {}
-              j=(e.get("jitter") or {}); pl=e.get("packet_loss_percentage"); mos=(e.get("mos") or {})
-              print("  t=%s dir=%s jitter=%s pl%%=%s mos=%s" % (r.get("timestamp","?")[11:19], r.get("direction"), j.get("value") if isinstance(j,dict) else j, pl, mos.get("value") if isinstance(mos,dict) else mos))
+              print("  t=%s edge=%s dir=%s jitter=%s pl%%=%s mos=%s rtt=%s" % (str(r.get("timestamp","?"))[11:19], r.get("edge"), r.get("direction"), val(r,"jitter"), val(r,"packet_loss_percentage","packets_loss_percentage"), val(r,"mos"), val(r,"rtt")))
           ' || echo "  (metrics fetch failed)"
           done
           echo "══ (3) pipeline lines from Log Analytics (call windows) ══"
