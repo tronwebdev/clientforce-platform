@@ -114,11 +114,33 @@ async function main(): Promise<void> {
       payload: { provider: "slack", ...(probe.accountLabel ? { accountLabel: probe.accountLabel } : {}) },
     });
 
-    // 2 — real channel list, pick the proof channel
-    const channels = await adapter.listChannels(creds);
-    if (channels.length === 0) fail("2 channel list", "conversations.list returned no channels");
-    const channel = (PROOF_CHANNEL && channels.find((c) => c.name === PROOF_CHANNEL)) || channels[0]!;
-    pass("2 channel list", `${channels.length} channels — posting to #${channel.name}`);
+    // 2 — real channel list, pick the proof channel. DEGRADED path: a token
+    // minted before channels:read was added refuses conversations.list with
+    // missing_scope (Slack tokens never gain scopes retroactively — the app
+    // must be REINSTALLED to re-mint). chat:write.public still posts to any
+    // public channel BY NAME, so a dispatch-provided channel keeps the walk
+    // honest: the gate records the degraded mode + the owner fix loudly.
+    let channel: { id: string; name: string };
+    try {
+      const channels = await adapter.listChannels(creds);
+      if (channels.length === 0) fail("2 channel list", "conversations.list returned no channels");
+      channel = (PROOF_CHANNEL && channels.find((c) => c.name === PROOF_CHANNEL)) || channels[0]!;
+      pass("2 channel list", `${channels.length} channels — posting to #${channel.name}`);
+    } catch (err) {
+      const reason = (err as { reason?: string }).reason;
+      if (reason !== "missing_scope") throw err;
+      if (!PROOF_CHANNEL) {
+        fail(
+          "2 channel list",
+          "missing_scope on conversations.list — the vault token predates channels:read (reinstall the Slack app to re-mint SLACK-BOT-TOKEN), or re-dispatch with the channel input to run degraded by name",
+        );
+      }
+      channel = { id: `#${PROOF_CHANNEL}`, name: PROOF_CHANNEL as string };
+      pass(
+        "2 channel list",
+        `DEGRADED — missing_scope on conversations.list (the UI picker path needs channels:read; reinstall the app to re-mint the token); posting by name to #${PROOF_CHANNEL} via chat:write.public`,
+      );
+    }
     await withTenant(app, { workspaceId: ws.id }, (tx) =>
       tx.integration.update({ where: { id: row.id }, data: { config: { channel: { id: channel.id, name: channel.name } } } }),
     );
