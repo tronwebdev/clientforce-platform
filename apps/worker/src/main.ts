@@ -27,11 +27,15 @@ import {
 } from "@clientforce/telemetry";
 import {
   createPerAgentRules,
+  runBeforeMeetingSweep,
   runSequenceQuietSweep,
+  type MeetingSweepDeps,
   type QuietSweepDeps,
 } from "@clientforce/automations";
 import {
+  GoogleCalendarAdapter,
   SlackAdapter,
+  createBookingSlotsProvider,
   createIntegrationNotifier,
   createNotifyTeamTransport,
   type IntegrationsDeps,
@@ -266,6 +270,10 @@ function startKnowledgeWorkers(): void {
   bus.startConsumer();
   console.log("[worker] event-bus consumer started (P1.7 temporal-signal + R1 campaign rules live)");
   startSequenceQuietSweep({ ...ruleDeps, ownerPrisma: owner });
+  // INT W2 (DEC-094): the before-meeting sweep — the sequence_quiet pattern
+  // over booked Meeting rows, 10-minute cadence (hour-granularity trigger;
+  // fire-once lives in the premeet:<meetingId>:<epoch> run key).
+  startBeforeMeetingSweep({ ...ruleDeps, ownerPrisma: owner });
   // P5 W1 (DEC-083): sender health recompute + warmup completion (10 min) and
   // DNS re-verification (6 h) — the stranded-source-sweep pattern: cross-tenant
   // discovery on the owner client, tenant-scoped writes, resilient per sender.
@@ -401,6 +409,28 @@ function startSequenceQuietSweep(deps: QuietSweepDeps): void {
       console.error("[worker] sequence-quiet sweep failed", err),
     );
   }, 60 * 60_000);
+}
+
+/**
+ * Before-meeting sweep (INT W2, DEC-094): `before_meeting { hours }` — the
+ * second timer trigger, the sequence_quiet pattern over booked `Meeting`
+ * rows. Boot + every 10 minutes (an hour-granularity trigger; the synthetic
+ * `premeet:<meetingId>:<startAt epoch>` run key makes every later pass a
+ * no-op and RE-ARMS on reschedule — a new startAt is a new key).
+ */
+function startBeforeMeetingSweep(deps: MeetingSweepDeps): void {
+  const sweep = async (): Promise<void> => {
+    const { checked, fired } = await runBeforeMeetingSweep(deps);
+    if (fired > 0) {
+      console.log(`[worker] before-meeting sweep: ${fired} rule run(s) fired (${checked} checked)`);
+    }
+  };
+  void sweep().catch((err: unknown) => console.error("[worker] before-meeting sweep failed", err));
+  setInterval(() => {
+    void sweep().catch((err: unknown) =>
+      console.error("[worker] before-meeting sweep failed", err),
+    );
+  }, 10 * 60_000);
 }
 
 /** Cap per sweep pass — logged when hit, never silently truncated. */
@@ -711,14 +741,24 @@ async function run(): Promise<void> {
       ...(process.env.ANTHROPIC_API_KEY
         ? (() => {
             const composeGateway = new AiGateway({ provider: new AnthropicProvider() });
+            // INT W2 (DEC-094): the injectable open-slots seam — freebusy off
+            // the workspace's gcal connection (withFreshCredentials + a 15-min
+            // cache inside the provider); unavailable/stale → null and the
+            // composed copy simply omits the slots line.
+            const bookingSlotsLine = createBookingSlotsProvider({
+              prisma: activityPrisma,
+              adapters: { gcal: new GoogleCalendarAdapter() },
+            });
             return {
               composeSms: createSmsStepComposer({
                 prisma: activityPrisma,
                 gateway: composeGateway,
+                bookingSlotsLine,
               }),
               composeEmail: createEmailStepComposer({
                 prisma: activityPrisma,
                 gateway: composeGateway,
+                bookingSlotsLine,
               }),
             };
           })()

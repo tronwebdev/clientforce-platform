@@ -7,7 +7,11 @@
 export * from "./types";
 export * from "./constants";
 export * from "./slack";
+export * from "./gcal";
+export * from "./calendly";
 export * from "./service";
 export * from "./notify";
+export * from "./slots";
+export * from "./booking";
 
 export const INTEGRATIONS_PACKAGE = "@clientforce/integrations";

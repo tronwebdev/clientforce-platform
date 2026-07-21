@@ -14,6 +14,15 @@
  *   lead_captured    — `form.submitted.v1` / `widget.lead_captured.v1` /
  *                      `linkedin.captured.v1`
  *   sequence_quiet   — NEVER matches a bus event; the worker sweep evaluates it
+ *   meeting_rescheduled — `calendar.rescheduled.v1` (INT W2, DEC-094)
+ *   meeting_canceled — `calendar.canceled.v1` (payload reason folds no-show in)
+ *   before_meeting   — NEVER matches a bus event; the meeting sweep evaluates
+ *                      it (the sequence_quiet pattern, re-arms per reschedule)
+ *
+ * DELIBERATELY UNMAPPED (INT W2 no-double-fire pin): `calendar.booked.v1` is
+ * the booking RECORD — the booking service also publishes the ONE
+ * `lead.stage_changed.v1` (toStage "booked") that carries meeting_booked;
+ * mapping both would double-fire every rule and double-post Slack.
  */
 import type { CampaignRuleTrigger } from "@clientforce/core";
 import type { BusEvent } from "@clientforce/events";
@@ -48,7 +57,15 @@ export function matchTrigger(
       return event.type === "email.clicked.v1";
     case "lead_captured":
       return LEAD_CAPTURED_EVENTS.has(event.type);
+    case "meeting_rescheduled":
+      return event.type === "calendar.rescheduled.v1";
+    case "meeting_canceled":
+      return event.type === "calendar.canceled.v1";
     case "sequence_quiet":
+      return false;
+    case "before_meeting":
+      // NEVER a bus event — the meeting sweep evaluates it (fire-once per
+      // (meeting, startAt); a reschedule re-arms under a new synthetic key).
       return false;
   }
 }

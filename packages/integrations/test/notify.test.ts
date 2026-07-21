@@ -52,6 +52,20 @@ describe("matchNotificationKind", () => {
     expect(matchNotificationKind(event("lead.stage_changed.v1", { fromStage: "a", toStage: "b" }))).toBeNull();
   });
 
+  it("INT W2 REGRESSION PIN: calendar.* record events NEVER notify — the stage change is the one carrier", () => {
+    // The booking service publishes calendar.booked.v1 AND the stage change
+    // per booking; mapping both would double-post every meeting_booked.
+    expect(
+      matchNotificationKind(event("calendar.booked.v1", { provider: "calendly", meetingId: "m1", startAt: "2026-07-28T15:00:00Z" })),
+    ).toBeNull();
+    expect(
+      matchNotificationKind(event("calendar.rescheduled.v1", { provider: "calendly", meetingId: "m1", fromStartAt: "a", toStartAt: "b" })),
+    ).toBeNull();
+    expect(
+      matchNotificationKind(event("calendar.canceled.v1", { provider: "calendly", meetingId: "m1", startAt: "a", reason: "canceled" })),
+    ).toBeNull();
+  });
+
   it("every SLACK_NOTIFICATION_KINDS value is reachable from some event (vocabulary drift guard)", () => {
     const reachable = new Set(
       [

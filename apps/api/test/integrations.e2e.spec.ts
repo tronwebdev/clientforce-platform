@@ -23,7 +23,12 @@ import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createAppPrismaClient, createPrismaClient, decryptField, withTenant, type PrismaClient } from "@clientforce/db";
 import { validateEvent } from "@clientforce/events";
-import { SlackAdapter, type IntegrationsDeps } from "@clientforce/integrations";
+import {
+  CalendlyAdapter,
+  GoogleCalendarAdapter,
+  SlackAdapter,
+  type IntegrationsDeps,
+} from "@clientforce/integrations";
 import type { Prisma } from "@clientforce/db";
 import { AppModule } from "../src/app.module";
 import { signDevToken } from "../src/auth/dev-token-verifier";
@@ -60,6 +65,73 @@ const scriptedAdapter = new SlackAdapter({
       return respond({ ok: true, channels: [{ id: "C2", name: "general" }, { id: "C1", name: "alerts" }] });
     if (path.endsWith("auth.revoke")) return respond({ ok: true });
     return respond({ ok: false, error: "unknown_method" });
+  },
+});
+
+/** INT W2: the programmable Google vendor — token endpoint + calendarList. */
+const gcalScript: { exchange?: () => unknown } = {};
+const scriptedGcal = new GoogleCalendarAdapter({
+  clientId: "gcid",
+  clientSecret: "gsecret",
+  baseUrl: "https://gcal.test/v3",
+  authorizeBaseUrl: "https://gcal.test/auth",
+  tokenUrl: "https://gcal.test/token",
+  fetchImpl: async (url) => {
+    const path = String(url);
+    const respond = (body: unknown, status = 200) =>
+      new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+    if (path.startsWith("https://gcal.test/token"))
+      return respond(
+        gcalScript.exchange?.() ?? {
+          access_token: "stubtok-gcal-e2e",
+          refresh_token: "stubtok-gcal-refresh",
+          expires_in: 3600,
+          scope: "https://www.googleapis.com/auth/calendar.readonly",
+        },
+      );
+    if (path.includes("calendarList"))
+      return respond({
+        items: [
+          { id: "team@group.calendar.google.com", summary: "Team", timeZone: "UTC" },
+          { id: "ada@example.test", summary: "Ada", primary: true, timeZone: "America/Chicago" },
+        ],
+      });
+    return respond({ error: { code: 404, message: "Not Found" } }, 404);
+  },
+});
+
+/** INT W2: the programmable Calendly vendor — link probe + /users/me + webhook subscriptions. */
+const calendlyScript: { subscriptionCreate?: () => { body: unknown; status: number } } = {};
+const calendlySubscriptionPosts: Array<Record<string, unknown>> = [];
+const scriptedCalendly = new CalendlyAdapter({
+  baseUrl: "https://calendly.test",
+  fetchImpl: async (url, init) => {
+    const path = String(url);
+    const respond = (body: unknown, status = 200) =>
+      new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+    if (path.startsWith("https://calendly.com/")) {
+      // The scheduling-link probe: /gone 404s, everything else is reachable.
+      return new Response("ok", { status: path.includes("/gone") ? 404 : 200 });
+    }
+    if (path.endsWith("/users/me"))
+      return respond({
+        resource: {
+          uri: "https://calendly.test/users/U1",
+          current_organization: "https://calendly.test/organizations/O1",
+          name: "Ada Lovelace",
+          scheduling_url: "https://calendly.com/ada-from-token",
+          timezone: "America/Chicago",
+        },
+      });
+    if (path.includes("/webhook_subscriptions") && (!init?.method || init.method === "GET"))
+      return respond({ collection: [] });
+    if (path.includes("/webhook_subscriptions") && init?.method === "POST") {
+      calendlySubscriptionPosts.push(JSON.parse(String(init.body)) as Record<string, unknown>);
+      const scripted = calendlyScript.subscriptionCreate?.();
+      if (scripted) return respond(scripted.body, scripted.status);
+      return respond({ resource: { uri: "https://calendly.test/webhook_subscriptions/W1", state: "active" } }, 201);
+    }
+    return respond({ title: "Not Found", message: "nope" }, 404);
   },
 });
 
@@ -109,9 +181,10 @@ describe.skipIf(!hasDb)("integrations e2e (INT W1, DEC-093)", () => {
     ownerToken = await signDevToken(SECRET, { sub: `auth|owner-${suffix}`, email: u1.email });
     agentToken = await signDevToken(SECRET, { sub: `auth|agent-${suffix}`, email: u2.email });
 
+    process.env.INTEGRATIONS_WEBHOOK_BASE = "https://api.staging.test";
     deps = {
       prisma: appClient,
-      adapters: { slack: scriptedAdapter },
+      adapters: { slack: scriptedAdapter, gcal: scriptedGcal, calendly: scriptedCalendly },
       publish: async (input) => {
         const validated = validateEvent(input);
         await withTenant(appClient, { workspaceId: validated.workspaceId }, (tx) =>

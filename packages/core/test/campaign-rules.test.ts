@@ -5,11 +5,13 @@
  */
 import { describe, expect, it } from "vitest";
 import {
+  ACCOUNT_ACTION_KINDS,
   campaignRuleActionSchema,
   campaignRuleConditionSchema,
   campaignRuleTriggerSchema,
   isTerminalAction,
   MAX_RULE_CAUSATION_DEPTH,
+  sameTrigger,
   TERMINAL_ACTION_KINDS,
   type CampaignRuleAction,
 } from "../src/campaign-rules";
@@ -24,10 +26,30 @@ describe("campaign rule trigger union", () => {
       { kind: "link_clicked" },
       { kind: "lead_captured" },
       { kind: "sequence_quiet", days: 30 },
+      // INT W2 (DEC-094): the meeting trigger kinds.
+      { kind: "meeting_rescheduled" },
+      { kind: "meeting_canceled" },
+      { kind: "before_meeting", hours: 24 },
     ];
     for (const t of triggers) {
       expect(campaignRuleTriggerSchema.safeParse(t).success, JSON.stringify(t)).toBe(true);
     }
+  });
+
+  it("bounds before_meeting hours to 1..336 (INT W2)", () => {
+    expect(campaignRuleTriggerSchema.safeParse({ kind: "before_meeting", hours: 0 }).success).toBe(false);
+    expect(campaignRuleTriggerSchema.safeParse({ kind: "before_meeting", hours: 337 }).success).toBe(false);
+    expect(campaignRuleTriggerSchema.safeParse({ kind: "before_meeting" }).success).toBe(false);
+    expect(campaignRuleTriggerSchema.safeParse({ kind: "before_meeting", hours: 336 }).success).toBe(true);
+  });
+
+  it("sameTrigger: before_meeting compares by hours; the payload-less meeting kinds are equal by kind (INT W2)", () => {
+    expect(sameTrigger({ kind: "before_meeting", hours: 24 }, { kind: "before_meeting", hours: 24 })).toBe(true);
+    expect(sameTrigger({ kind: "before_meeting", hours: 24 }, { kind: "before_meeting", hours: 2 })).toBe(false);
+    expect(sameTrigger({ kind: "meeting_rescheduled" }, { kind: "meeting_rescheduled" })).toBe(true);
+    expect(sameTrigger({ kind: "meeting_canceled" }, { kind: "meeting_canceled" })).toBe(true);
+    expect(sameTrigger({ kind: "meeting_canceled" }, { kind: "meeting_rescheduled" })).toBe(false);
+    expect(sameTrigger({ kind: "before_meeting", hours: 24 }, { kind: "sequence_quiet", days: 1 })).toBe(false);
   });
 
   it("rejects unknown kinds, empty intent sets, and out-of-range quiet days", () => {
@@ -71,11 +93,18 @@ describe("campaign rule action union", () => {
       { kind: "notify_team" },
       { kind: "notify_team", note: "Hot lead — call them" },
       { kind: "add_tag", tag: "re-engage" },
+      // INT W2 (DEC-094): NOT a send — the enrollment flag for the next composed message.
+      { kind: "send_booking_link" },
       { kind: "run_automation", automationId: "auto-1" },
     ];
     for (const a of actions) {
       expect(campaignRuleActionSchema.safeParse(a).success, JSON.stringify(a)).toBe(true);
     }
+  });
+
+  it("send_booking_link is NON-terminal and legal on account rules (INT W2)", () => {
+    expect(isTerminalAction({ kind: "send_booking_link" })).toBe(false);
+    expect((ACCOUNT_ACTION_KINDS as readonly string[]).includes("send_booking_link")).toBe(true);
   });
 
   it("rejects unknown kinds and missing references", () => {

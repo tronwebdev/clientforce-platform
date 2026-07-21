@@ -285,4 +285,65 @@ describe("validateEvent", () => {
     });
     expect(held.payload).toEqual({ provider: "slack", reason: "workspace_delivery_allowance" });
   });
+
+  it("calendar.*.v1 payload contracts (INT W2/DEC-094)", () => {
+    const booked = validateEvent({
+      workspaceId: "ws1",
+      contactId: "c1",
+      enrollmentId: "e1",
+      campaignId: "cmp1",
+      type: EVENT_TYPES.CALENDAR_BOOKED,
+      payload: {
+        provider: "calendly",
+        meetingId: "m1",
+        startAt: "2026-07-28T15:00:00.000Z",
+        endAt: "2026-07-28T15:30:00.000Z",
+        title: "Intro call",
+        timezone: "America/Chicago",
+        matchedBy: "utm",
+      },
+    });
+    expect(booked.payload).toMatchObject({ provider: "calendly", meetingId: "m1", matchedBy: "utm" });
+    // Minimal shape stays valid (optionals are optional).
+    expect(
+      validateEvent({
+        workspaceId: "ws1",
+        type: EVENT_TYPES.CALENDAR_BOOKED,
+        payload: { provider: "calendly", meetingId: "m1", startAt: "2026-07-28T15:00:00.000Z" },
+      }).payload,
+    ).toEqual({ provider: "calendly", meetingId: "m1", startAt: "2026-07-28T15:00:00.000Z" });
+    expect(() =>
+      validateEvent({ workspaceId: "ws1", type: EVENT_TYPES.CALENDAR_BOOKED, payload: { provider: "calendly" } }),
+    ).toThrow(/Invalid payload for "calendar.booked.v1"/);
+
+    const rescheduled = validateEvent({
+      workspaceId: "ws1",
+      type: EVENT_TYPES.CALENDAR_RESCHEDULED,
+      payload: {
+        provider: "calendly",
+        meetingId: "m1",
+        fromStartAt: "2026-07-28T15:00:00.000Z",
+        toStartAt: "2026-07-30T16:00:00.000Z",
+      },
+    });
+    expect(rescheduled.payload).toMatchObject({ fromStartAt: "2026-07-28T15:00:00.000Z" });
+
+    // reason folds the canon's canceled + no-show into ONE trigger kind.
+    for (const reason of ["canceled", "no_show"]) {
+      expect(
+        validateEvent({
+          workspaceId: "ws1",
+          type: EVENT_TYPES.CALENDAR_CANCELED,
+          payload: { provider: "calendly", meetingId: "m1", startAt: "2026-07-28T15:00:00.000Z", reason },
+        }).payload,
+      ).toMatchObject({ reason });
+    }
+    expect(() =>
+      validateEvent({
+        workspaceId: "ws1",
+        type: EVENT_TYPES.CALENDAR_CANCELED,
+        payload: { provider: "calendly", meetingId: "m1", startAt: "x", reason: "ghosted" },
+      }),
+    ).toThrow(/Invalid payload for "calendar.canceled.v1"/);
+  });
 });

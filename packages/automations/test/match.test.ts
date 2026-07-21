@@ -56,6 +56,37 @@ describe("matchTrigger", () => {
       expect(matchTrigger(trigger, event(type, { messageId: "m", intent: "interested" }))).toBe(false);
     }
   });
+
+  // ── INT W2 (DEC-094) ───────────────────────────────────────────────────────
+  it("meeting_rescheduled matches calendar.rescheduled.v1 only", () => {
+    const trigger = { kind: "meeting_rescheduled" } as const;
+    expect(matchTrigger(trigger, event("calendar.rescheduled.v1", { provider: "calendly", meetingId: "m", fromStartAt: "a", toStartAt: "b" }))).toBe(true);
+    expect(matchTrigger(trigger, event("calendar.canceled.v1", { provider: "calendly", meetingId: "m", startAt: "a", reason: "canceled" }))).toBe(false);
+    expect(matchTrigger(trigger, event("calendar.booked.v1", { provider: "calendly", meetingId: "m", startAt: "a" }))).toBe(false);
+  });
+
+  it("meeting_canceled matches calendar.canceled.v1 (reason folds no-show in)", () => {
+    const trigger = { kind: "meeting_canceled" } as const;
+    expect(matchTrigger(trigger, event("calendar.canceled.v1", { provider: "calendly", meetingId: "m", startAt: "a", reason: "canceled" }))).toBe(true);
+    expect(matchTrigger(trigger, event("calendar.canceled.v1", { provider: "calendly", meetingId: "m", startAt: "a", reason: "no_show" }))).toBe(true);
+    expect(matchTrigger(trigger, event("calendar.rescheduled.v1", { provider: "calendly", meetingId: "m", fromStartAt: "a", toStartAt: "b" }))).toBe(false);
+  });
+
+  it("before_meeting NEVER matches a bus event — the meeting sweep evaluates it", () => {
+    const trigger = { kind: "before_meeting", hours: 24 } as const;
+    for (const type of ["calendar.booked.v1", "calendar.rescheduled.v1", "lead.stage_changed.v1", "email.replied.v1"]) {
+      expect(matchTrigger(trigger, event(type, {}))).toBe(false);
+    }
+  });
+
+  it("REGRESSION PIN (no double fire): calendar.booked.v1 does NOT match meeting_booked — the stage change is the one trigger carrier", () => {
+    const trigger = { kind: "meeting_booked" } as const;
+    expect(
+      matchTrigger(trigger, event("calendar.booked.v1", { provider: "calendly", meetingId: "m", startAt: "2026-07-28T15:00:00Z" })),
+    ).toBe(false);
+    // …while the booking service's ONE stage change still fires it.
+    expect(matchTrigger(trigger, event("lead.stage_changed.v1", { fromStage: "new", toStage: "booked", goalKey: "g" }))).toBe(true);
+  });
 });
 
 describe("keywordHit", () => {

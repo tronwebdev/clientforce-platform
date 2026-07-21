@@ -61,6 +61,24 @@ describe("renderTokens", () => {
       ),
     ).toBe("Hi Ada, Growth awaits");
   });
+
+  // INT W2 (DEC-094): {{calendarLink}} — DATA_MODEL's render-time token,
+  // boundary-resolved from the workspace booking config.
+  it("{{calendarLink}} renders the boundary-resolved booking link", () => {
+    expect(
+      renderTokens("Book here: {{calendarLink}}", contact, "S", {
+        calendarLink: "https://calendly.com/ada?utm_source=clientforce&utm_content=c1",
+      }),
+    ).toBe("Book here: https://calendly.com/ada?utm_source=clientforce&utm_content=c1");
+  });
+
+  it("{{calendarLink}} with no resolved value fails the send (missing booking config — house rule)", () => {
+    expect(() => renderTokens("Book: {{calendarLink}}", contact, "S")).toThrow(MissingTokenError);
+    expect(() => renderTokens("Book: {{calendarLink}}", contact, "S", {})).toThrow(MissingTokenError);
+    expect(() => renderTokens("Book: {{ calendarLink }}", contact, "S", { calendarLink: undefined })).toThrow(
+      MissingTokenError,
+    );
+  });
 });
 
 describe("thread prefix helpers (owner rule 3)", () => {

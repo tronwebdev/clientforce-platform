@@ -265,6 +265,41 @@ async function run(
         : { kind: action.kind, outcome: "noop", detail: `already tagged "${action.tag}"` };
     }
 
+    case "send_booking_link": {
+      // INT W2 (DEC-094): NOT a send — sends stay out of rule actions BY
+      // DESIGN (Q-039). Flags the enrollment so the NEXT boundary-gated
+      // composed message carries the workspace booking link as a mustSay
+      // entry (grounded by construction); the send boundary clears the flag
+      // once a sent message actually carried the link. Idempotent: setting
+      // an already-set flag converges to a noop.
+      if (!ctx.enrollmentId) {
+        return {
+          kind: action.kind,
+          outcome: "noop",
+          detail: "no enrollment on this event — nothing to queue the booking link on",
+        };
+      }
+      const flagged = await withTenant(deps.prisma, { workspaceId: ctx.workspaceId }, async (tx) => {
+        const enrollment = await tx.enrollment.findUnique({ where: { id: ctx.enrollmentId! } });
+        if (!enrollment) throw new Error(`MISSING_ENROLLMENT: ${ctx.enrollmentId}`);
+        const meta = { ...((enrollment.meta ?? {}) as Record<string, unknown>) };
+        if (meta.bookingLinkRequested === true) return false;
+        meta.bookingLinkRequested = true;
+        await tx.enrollment.update({
+          where: { id: enrollment.id },
+          data: { meta: meta as Prisma.InputJsonValue },
+        });
+        return true;
+      });
+      return flagged
+        ? {
+            kind: action.kind,
+            outcome: "executed",
+            detail: "booking link queued for the next composed message",
+          }
+        : { kind: action.kind, outcome: "noop", detail: "booking link already queued" };
+    }
+
     case "run_automation": {
       const automation = await withTenant(deps.prisma, { workspaceId: ctx.workspaceId }, (tx) =>
         tx.automation.findUnique({ where: { id: action.automationId } }),
