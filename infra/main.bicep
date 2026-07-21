@@ -74,6 +74,12 @@ param zerobounceSecretAvailable bool = false
 @description('LH1 (DEC-087): the Key Vault secret NAME holding the ZeroBounce key. Canonical: ZEROBOUNCE-API-KEY; the pipeline passes ASMITH-KEY-L1 when only the owner\'s original upload (2026-07-15) exists — normalize when convenient.')
 param zerobounceSecretName string = 'ZEROBOUNCE-API-KEY'
 
+@description('INT W1 (DEC-093): whether Key Vault holds the Slack app pair (SLACK-CLIENT-ID + SLACK-CLIENT-SECRET — the owner-created Slack app). Probed by the pipeline; absent = the Integrations page refuses Slack connect with the typed honest owner-clock state, never a broken redirect.')
+param slackSecretAvailable bool = false
+
+@description('INT W1 (DEC-093): the public web origin the api hands to OAuth vendors as the callback base (…/integrations/callback/<provider>). Empty = the api falls back to its localhost default, so OAuth connects stay refused until the pipeline passes the real staging web URL.')
+param webAppUrl string = ''
+
 param apiAppName string = 'clientforce-api'
 param workerAppName string = 'clientforce-worker'
 param webAppName string = 'clientforce-web'
@@ -189,6 +195,17 @@ var zerobounceSecrets = zerobounceSecretAvailable ? [zerobounceSecret] : []
 var zerobounceEnv = zerobounceSecretAvailable ? [
   { name: 'ZEROBOUNCE_API_KEY', secretRef: 'zerobounce-api-key' }
 ] : []
+// INT W1 (DEC-093): the Slack app pair — the API only (OAuth start/exchange);
+// the worker posts with per-workspace tokens field-encrypted in the DB and
+// never needs the app credentials.
+var slackClientIdSecret = { name: 'slack-client-id', keyVaultUrl: '${kvUri}secrets/SLACK-CLIENT-ID', identity: uami.id }
+var slackClientSecretSecret = { name: 'slack-client-secret', keyVaultUrl: '${kvUri}secrets/SLACK-CLIENT-SECRET', identity: uami.id }
+var slackSecrets = slackSecretAvailable ? [slackClientIdSecret, slackClientSecretSecret] : []
+var slackEnv = slackSecretAvailable ? [
+  { name: 'SLACK_CLIENT_ID', secretRef: 'slack-client-id' }
+  { name: 'SLACK_CLIENT_SECRET', secretRef: 'slack-client-secret' }
+] : []
+var webAppUrlEnv = empty(webAppUrl) ? [] : [{ name: 'WEB_APP_URL', value: webAppUrl }]
 var smsEnv = concat(
   [{ name: 'SMS_SANDBOX', value: smsSandbox }],
   smsAllowlistAvailable ? [{ name: 'CHANNELS_SMS_ALLOWLIST', secretRef: 'sms-allowlist' }] : []
@@ -224,7 +241,7 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
       activeRevisionsMode: 'Single'
       ingress: { external: true, targetPort: 3001, transport: 'auto', allowInsecure: false }
       registries: registries
-      secrets: concat([dbUrlSecret, appDbUrlSecret, authDevSecret, redisUrlSecret, openaiKeySecret, anthropicKeySecret, sendgridKeySecret, fieldEncKeySecret], storageSecrets, temporalSecrets, inboundTokenSecrets, sgWebhookKeySecrets, clerkApiSecrets, twilioSecrets, smsAllowlistSecrets, voiceFromSecrets, voiceAllowlistSecrets)
+      secrets: concat([dbUrlSecret, appDbUrlSecret, authDevSecret, redisUrlSecret, openaiKeySecret, anthropicKeySecret, sendgridKeySecret, fieldEncKeySecret], storageSecrets, temporalSecrets, inboundTokenSecrets, sgWebhookKeySecrets, clerkApiSecrets, twilioSecrets, smsAllowlistSecrets, voiceFromSecrets, voiceAllowlistSecrets, slackSecrets)
     }
     template: {
       containers: [
@@ -252,7 +269,7 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
             // A3 (DEC-060a): env-controlled sandbox; 'true' everywhere except
             // an explicit production parameter — see the param description.
             { name: 'SENDGRID_SANDBOX', value: sendgridSandbox }
-          ], storageEnv, temporalEnv, inboundTokenEnv, sgWebhookKeyEnv, clerkApiEnv, twilioEnv, smsEnv, voiceEnv)
+          ], storageEnv, temporalEnv, inboundTokenEnv, sgWebhookKeyEnv, clerkApiEnv, twilioEnv, smsEnv, voiceEnv, slackEnv, webAppUrlEnv)
         }
       ]
       scale: { minReplicas: 1, maxReplicas: 3 }
