@@ -216,6 +216,9 @@ async function runSession(apiKey: string, sessionIndex: number): Promise<Session
     // Aura ws) — the cert table certifies what the deployed service runs.
     ttsTransport: config.ttsTransport,
     reengageAfterMs: config.reengageAfterMs,
+    bridgeAfterMs: config.bridgeAfterMs,
+    disclosureBeatMs: config.disclosureBeatMs,
+    paceLeadMs: config.paceLeadMs,
     ackAfterMs: config.ackAfterMs,
     ackClips,
     stallAbandonMs: config.stallAbandonMs,

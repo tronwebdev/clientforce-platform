@@ -34,11 +34,11 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "preflight | certify | demo-call | diagnose | measure | loopback"
+        description: "preflight | certify | demo-call | diagnose | measure | loopback | sandbox"
         required: true
         default: "preflight"
         type: choice
-        options: [preflight, certify, demo-call, diagnose, measure, loopback]
+        options: [preflight, certify, demo-call, diagnose, measure, loopback, sandbox]
       variant:
         description: "demo-call disclosure variant"
         required: false
@@ -190,6 +190,26 @@ jobs:
           echo "----- cert-table.md -----"
           cat cert/cert-table.md >> "$GITHUB_STEP_SUMMARY"
           cat cert/cert-table.md
+
+      # ── sandbox: owner finding 4c (PR #106) — NO dialing, NO telephony:
+      #    a few text-only turns through the real gateway against the demo
+      #    fixture, asserting the first substantive answers LEAD outcome-first
+      #    (deliverability is a rail, only the opener when asked). Loud fail. ──
+      - name: Sandbox content check (finding 4c — outcome-first lead)
+        if: env.MODE == 'sandbox'
+        env:
+          ANTHROPIC_API_KEY: ${{ steps.kv.outputs.anthropic }}
+          DEMO_VARIANT: ${{ inputs.variant || 'named' }}
+        run: |
+          set -euo pipefail
+          [ -n "$ANTHROPIC_API_KEY" ] || { echo "::error::ANTHROPIC-API-KEY missing"; exit 1; }
+          node apps/voice/dist/sandbox.js | tee sandbox.out
+          {
+            echo "## sandbox content check (finding 4c)"
+            echo '```'
+            cat sandbox.out
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       # ── demo-call: one real PSTN call through the DEPLOYED production
       #    service (P3.1 deploy, DEC-090). The runner+tunnel rig is retired for

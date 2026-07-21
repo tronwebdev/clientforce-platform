@@ -35,3 +35,22 @@ describe("demoCallContext variant rider", () => {
     expect(demoCallContext("named").disclosure).toContain("Maya");
   });
 });
+
+describe("finding 4 (PR #106) — outcome-first salience, deliverability as rail", () => {
+  it("the brief LEADS outcome-first and keeps deliverability last", () => {
+    const ctx = demoCallContext("named");
+    // The system prompt renders talking points top-down — the first one is
+    // the story the model opens with (measured on the re-demo).
+    const prompt = ctx.systemPrompt;
+    const firstPoint = prompt.indexOf("give the agent a goal");
+    const railPoint = prompt.indexOf("Supporting rail, not the pitch");
+    expect(firstPoint).toBeGreaterThan(-1);
+    expect(railPoint).toBeGreaterThan(firstPoint);
+    expect(prompt).toContain("goal-first orchestration");
+    // Deliverability terms never appear before the outcome-first opener.
+    for (const term of ["sender health", "warmup", "suppression"]) {
+      const at = prompt.toLowerCase().indexOf(term);
+      expect(at === -1 || at > firstPoint).toBe(true);
+    }
+  });
+});

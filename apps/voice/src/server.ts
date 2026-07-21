@@ -129,7 +129,14 @@ wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
   }
   const deepgramKey = requireEnv("DEEPGRAM_API_KEY");
   const metrics = new MetricsCollector();
-  metrics.configEcho = { stt: config.stt, ackAfterMs: config.ackAfterMs, ttsTransport: config.ttsTransport };
+  metrics.configEcho = {
+    stt: config.stt,
+    ackAfterMs: config.ackAfterMs,
+    ttsTransport: config.ttsTransport,
+    bridgeAfterMs: config.bridgeAfterMs,
+    disclosureBeatMs: config.disclosureBeatMs,
+    paceLeadMs: config.paceLeadMs,
+  };
   const gateway = createVoiceGateway(metrics);
   let streamSid = "";
   let session: CallSession | undefined;
@@ -174,7 +181,10 @@ wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
         ttsTransport: report.ttsTransport,
         emptyReplies: report.emptyReplies,
         reengagedAtMs: report.reengagedAtMs,
+        bridgedAtMs: report.bridgedAtMs,
+        bufferedMsAtInterrupt: report.bufferedMsAtInterrupt,
         ttsSentences: report.ttsSentences,
+        ttsSentenceWindows: report.ttsSentenceWindows,
         audioSendGaps: report.audioSendGaps,
         eventLoopMs: report.eventLoopMs,
       })}`,
@@ -229,6 +239,9 @@ wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
             sttParams: config.stt,
             ttsTransport: config.ttsTransport,
             reengageAfterMs: config.reengageAfterMs,
+            bridgeAfterMs: config.bridgeAfterMs,
+            disclosureBeatMs: config.disclosureBeatMs,
+            paceLeadMs: config.paceLeadMs,
             ackAfterMs: config.ackAfterMs,
             ackClips,
             stallAbandonMs: config.stallAbandonMs,

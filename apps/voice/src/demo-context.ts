@@ -38,15 +38,23 @@ export function demoCallContext(variant?: string): CallContext {
   );
   const persona = voicePersonaById(process.env.DEMO_VOICE_PERSONA);
 
+  // Owner finding 4 (PR #106, 2026-07-21): the demo content leads OUTCOME-
+  // first — goal in → the agent orchestrates the play → outcome out.
+  // Deliverability/compliance are a supporting rail, never the opener. Order
+  // IS salience here: talking points and the context block both render
+  // top-down into the system prompt (the model leads with what it reads
+  // first — measured on the re-demo, where it opened with deliverability).
+  // Q-047 tracks deriving this positioning summary at ingestion product-wide.
   const contextFacts = [
-    "Offer: an AI agent platform that runs outreach across email, SMS and voice",
-    "USP: sender health, warmup and suppression handled automatically end to end",
+    "Offer: give the agent a goal — like booked appointments — and it runs the whole play: prospecting, outreach across email, SMS and voice, reading intent, and booking the outcome",
+    "How it lands: a goal goes in and outcomes come out — the agent orchestrates the channels and integrations so the team isn't operating tools",
     "Setup takes under a day and the team needs no training",
     "Proof point: hundreds of small businesses run their outreach on it",
+    "Supporting rail, not the pitch: sender health, warmup, suppression and compliance are handled automatically underneath",
   ];
   const brief = deriveCallBrief({
     goal: "book_appointments",
-    goalLabel: "Gauge interest in a product demo and offer to book a 20-minute call",
+    goalLabel: "Show what goal-first orchestration does for their outreach, gauge interest, and offer to book a 20-minute demo",
     contextFacts,
     neverSay: ["limited time"],
   });
