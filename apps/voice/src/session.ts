@@ -128,6 +128,7 @@ export class CallSession {
   private ensureTtsStream(): TtsStream | null {
     if (!this.streamTransportOn) return null;
     if (this.ttsStream?.alive) return this.ttsStream;
+    if (this.ttsStream) console.log("[tts] stream reconnect (previous socket gone)");
     try {
       const make =
         this.deps.openTtsStream ?? ((d: TtsStreamDeps) => new TtsStream(d));
@@ -178,6 +179,9 @@ export class CallSession {
     this.stt = this.openStt(this.deps.deepgramKey, this.deps.sttParams, {
       onSpeechStarted: () => this.onSpeechStarted(),
       onFinal: (text, speechFinal) => {
+        if (this.lastCallerFinalAt === 0) {
+          console.log(`[stt] first final after ${Date.now() - this.startedAtMs}ms`);
+        }
         this.lastCallerFinalAt = Date.now();
         this.gate.onFinal(text, speechFinal);
       },
@@ -230,6 +234,38 @@ export class CallSession {
     try {
       for (const sentence of new SentenceChunker().push(`${this.deps.disclosure} `)) {
         this.deps.metrics.addTtsChars(sentence.length);
+        // DEC-092 start-window wave (owner PARTIAL PASS ruling): the
+        // disclosure rides the SAME hot streaming transport as replies — the
+        // open was the one remaining per-sentence HTTPS window (the crackle
+        // heard only at call start). https stays the automatic fallback.
+        const stream = this.ensureTtsStream();
+        if (stream) {
+          try {
+            this.speechCtx = { anchor: Date.now(), signal: abort.signal };
+            const timing = await stream.speak(sentence);
+            this.deps.metrics.addTtsSentence(timing.firstAudioMs, timing.flushedMs);
+            if (this.deps.metrics.ttsTransportUsed === "https") {
+              this.deps.metrics.ttsTransportUsed = "stream";
+            }
+            continue;
+          } catch (err) {
+            if (abort.signal.aborted || err instanceof TtsStreamCleared) {
+              interrupted = true;
+              return;
+            }
+            this.ttsStreamFailed = true;
+            this.deps.metrics.ttsTransportUsed = "stream→https";
+            console.error(
+              "[tts] stream transport failed on disclosure — https fallback:",
+              (err as Error).message,
+            );
+            try {
+              this.ttsStream?.close();
+            } catch {
+              // already dead
+            }
+          }
+        }
         for await (const chunk of this.synthesize(this.deps.deepgramKey, this.deps.ttsModel, sentence, abort.signal)) {
           if (abort.signal.aborted) {
             interrupted = true;

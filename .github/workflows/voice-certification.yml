@@ -386,6 +386,11 @@ jobs:
           else
             echo "  (environment has no Log Analytics workspace — per-turn lines from the retired replica are unrecoverable)"
           fi
+          echo "══ (3b) in-place metrics read (fix-b / start-window determinations) ══"
+          az containerapp exec --name clientforce-voice --resource-group "$RG" \
+            --command "cat /tmp/metrics.json" 2>/dev/null \
+            | python3 -c 'import json,sys,re; s=sys.stdin.read(); m=re.search(r"\{.*\}",s,re.S); d=json.loads(m.group(0)) if m else {}; print(json.dumps({k:d.get(k) for k in ("turns","emptyReplies","reengagedAtMs","ttsTransport","ttsSentenceFirstAudioSamples","audioSendGaps","disclosureCompleted")}))' \
+            || echo "  (exec not available from this principal/runtime — skipped; the summary log line is the fallback record)"
           echo "══ (4) region facts ══"
           echo "  container app region: $(az containerapp show --name clientforce-voice --resource-group "$RG" --query location -o tsv)"
           echo "  (twilio media/edge regions per call: see Insights summary above; Deepgram: api.deepgram.com; caller leg: NG PSTN)"

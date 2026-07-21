@@ -173,6 +173,9 @@ export class MetricsCollector {
       emptyReplies: this.turns.filter((t) => t.emptyReply).length,
       reengagedAtMs: this.reengagedAtMs ?? null,
       ttsSentences: this.ttsSentenceStats(),
+      /** Raw per-sentence speak→first-audio samples in call order — the
+       *  start-window vs mid-call split is computed from these (DEC-092). */
+      ttsSentenceFirstAudioSamples: [...this.ttsSentenceFirstAudioMs],
       audioSendGaps: { over200: this.audioSendGapsOver200, maxMs: this.maxAudioSendGapMs },
       eventLoopMs: this.eventLoopMs ?? null,
       transcript: this.turns.map((t) => ({

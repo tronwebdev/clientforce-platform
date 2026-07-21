@@ -67,9 +67,13 @@ export class TtsStream {
 
   constructor(private readonly deps: TtsStreamDeps) {
     const url = ttsStreamUrl(deps.baseUrl ?? "wss://api.deepgram.com", deps.ttsModel);
+    const connectStarted = Date.now();
     this.ws = new WebSocket(url, { headers: { Authorization: `Token ${deps.apiKey}` } });
     this.opened = new Promise<void>((resolve, reject) => {
-      this.ws.once("open", () => resolve());
+      this.ws.once("open", () => {
+        console.log(`[tts] stream connected in ${Date.now() - connectStarted}ms`);
+        resolve();
+      });
       this.ws.once("error", (err) => reject(err instanceof Error ? err : new Error(String(err))));
     });
     // Settled handler so an early error never surfaces as unhandled.

@@ -376,3 +376,48 @@ describe("DEC-092 owner-approved fixes — never silence", () => {
     s.session.close();
   });
 });
+
+describe("DEC-092 start-window wave — the disclosure rides the stream transport", () => {
+  it("disclosure sentences speak through the hot stream; https untouched; interruptible; completion recorded", async () => {
+    const state = { spoken: [] as string[] };
+    const make = (deps: TtsStreamDeps) =>
+      ({
+        alive: true,
+        speak: async (text: string) => {
+          state.spoken.push(text);
+          await sleep(5);
+          deps.onAudio(Buffer.alloc(160, 0x7f));
+          return { firstAudioMs: 5, flushedMs: 10 };
+        },
+        clear: () => {},
+        close: () => {},
+      }) as unknown as TtsStream;
+    const s = makeSession({ ttsTransport: "stream", openTtsStream: make });
+    s.metrics.markCallStart();
+    s.session.start();
+    await vi.waitFor(() => expect(s.metrics.disclosureCompleted).toBe(true));
+    expect(state.spoken.join(" ")).toContain("Hi, this is an AI assistant calling on behalf of Acme.");
+    expect(s.counter.spoken).toHaveLength(0); // https path never used
+    expect(s.metrics.ttsTransportUsed).toBe("stream");
+    s.session.close();
+  });
+
+  it("stream death on the disclosure falls back to https — the disclosure still plays", async () => {
+    const make = () =>
+      ({
+        alive: false,
+        speak: async () => {
+          throw new Error("stream down at start");
+        },
+        clear: () => {},
+        close: () => {},
+      }) as unknown as TtsStream;
+    const s = makeSession({ ttsTransport: "stream", openTtsStream: make });
+    s.metrics.markCallStart();
+    s.session.start();
+    await vi.waitFor(() => expect(s.metrics.disclosureCompleted).toBe(true));
+    expect(s.counter.spoken.join(" ")).toContain("Hi, this is an AI assistant calling on behalf of Acme.");
+    expect(s.metrics.ttsTransportUsed).toBe("stream→https");
+    s.session.close();
+  });
+});
