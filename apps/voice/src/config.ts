@@ -33,6 +33,9 @@ export interface VoiceServiceConfig {
   /** Yield the floor when a reply makes no audio progress for this long —
    *  a stalled agent must never resume speech over the caller (cert run 6). */
   stallAbandonMs: number;
+  /** DEC-092 (fix b): one-shot "Sorry — are you still there?" after this much
+   *  MUTUAL silence (agent idle + caller silent). 0 = off. */
+  reengageAfterMs: number;
   /** Rotating short verbal acknowledgments — pre-rendered per voice, constant. */
   ackPhrases: readonly string[];
   /** Hard safety timeouts — never a hung line. */
@@ -55,6 +58,7 @@ export function loadVoiceConfig(): VoiceServiceConfig {
     ttsTransport: process.env.VOICE_TTS_TRANSPORT === "https" ? "https" : "stream",
     ackAfterMs: envInt("VOICE_ACK_AFTER_MS", 400),
     stallAbandonMs: envInt("VOICE_STALL_ABANDON_MS", 3000),
+    reengageAfterMs: envInt("VOICE_REENGAGE_AFTER_MS", 6000),
     ackPhrases: ["Mm-hm.", "Right.", "Okay."],
     idleTimeoutMs: envInt("VOICE_IDLE_TIMEOUT_MS", 60_000),
     maxCallMs: envInt("VOICE_MAX_CALL_MS", 600_000),

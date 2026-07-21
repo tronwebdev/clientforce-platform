@@ -30,7 +30,12 @@ async function main(): Promise<void> {
   if (process.env.DEMO_VARIANT) qs.set("demoVariant", process.env.DEMO_VARIANT);
   const query = qs.size > 0 ? `?${qs.toString()}` : "";
   const dialer = new TwilioVoiceDialer();
-  const result = await dialer.placeCall({ to, twimlUrl: `${publicUrl}/twiml${query}` });
+  const result = await dialer.placeCall({
+    to,
+    twimlUrl: `${publicUrl}/twiml${query}`,
+    // DEC-092 loopback diagnostic only (owner-consented recording).
+    ...(process.env.RECORD_CALL === "1" ? { record: true } : {}),
+  });
   console.log(`[place-call] callSid=${result.providerCallSid} sandbox=${result.sandbox}`);
 }
 

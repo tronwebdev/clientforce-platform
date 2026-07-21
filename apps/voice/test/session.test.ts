@@ -8,7 +8,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { AiGateway } from "@clientforce/ai";
 import type { CompletionProvider, StreamEvent, StreamParams } from "@clientforce/ai";
-import { VOICE_FALLBACK_LINE, VOICE_FAILURE_GOODBYE } from "@clientforce/channels";
+import { VOICE_FALLBACK_LINE, VOICE_FAILURE_GOODBYE, VOICE_REENGAGE_LINE } from "@clientforce/channels";
 import { CallSession, type CallSessionDeps } from "../src/session";
 import type { TtsStream, TtsStreamDeps } from "../src/deepgram-tts-stream";
 import { MetricsCollector } from "../src/metrics";
@@ -329,5 +329,50 @@ describe("DEC-092 — streaming TTS transport (hot socket per call)", () => {
     await s.session.driveTurn("tell me everything", 80);
     expect(state.cleared).toBeGreaterThan(0);
     expect(s.metrics.bargeIns).toHaveLength(1);
+  });
+});
+
+describe("DEC-092 owner-approved fixes — never silence", () => {
+  it("(a) an EMPTY completion speaks the locked fallback — audible, call continues", async () => {
+    const provider: CompletionProvider = {
+      completeText: async () => {
+        throw new Error("not used");
+      },
+      completeTool: async () => {
+        throw new Error("not used");
+      },
+      // eslint-disable-next-line require-yield
+      streamText: async function* (): AsyncIterable<StreamEvent> {
+        yield { type: "done", usage: { inputTokens: 5, outputTokens: 0 } };
+      },
+    };
+    const s = makeSession({ provider });
+    s.metrics.markCallStart();
+    await s.session.driveTurn("hello?");
+    expect(s.counter.spoken).toContain(VOICE_FALLBACK_LINE);
+    expect(s.metrics.turns[0]!.emptyReply).toBe(true);
+    expect(s.metrics.turns[0]!.ttfaMs).toBeGreaterThanOrEqual(0);
+    expect(s.ends).toHaveLength(0); // the call continues — never a hung line
+    const assistant = s.session.transcript().filter((t) => t.role === "assistant");
+    expect(assistant.at(-1)!.content).toBe(VOICE_FALLBACK_LINE);
+  });
+
+  it("(b) mutual silence fires the one-shot re-engage; caller speech refreshes the base; never twice", async () => {
+    const s = makeSession({ reengageAfterMs: 250 });
+    s.metrics.markCallStart();
+    s.session.start();
+    await vi.waitFor(() => expect(s.metrics.disclosureCompleted).toBe(true));
+    s.session.testHooks.speechStarted(); // caller activity — base refreshes
+    await sleep(120);
+    expect(s.counter.spoken).not.toContain(VOICE_REENGAGE_LINE);
+    await vi.waitFor(() => expect(s.counter.spoken).toContain(VOICE_REENGAGE_LINE), {
+      timeout: 2500,
+    });
+    expect(s.metrics.reengagedAtMs).toBeGreaterThan(0);
+    const fired = s.counter.spoken.filter((t) => t === VOICE_REENGAGE_LINE).length;
+    expect(fired).toBe(1);
+    await sleep(900); // several more ticks — the one-shot never repeats
+    expect(s.counter.spoken.filter((t) => t === VOICE_REENGAGE_LINE).length).toBe(1);
+    s.session.close();
   });
 });

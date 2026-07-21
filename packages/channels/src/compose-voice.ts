@@ -51,6 +51,14 @@ export const VOICE_FALLBACK_LINE =
 export const VOICE_FAILURE_GOODBYE =
   "I'm sorry, I'm having technical trouble on my end. I'll let you go — thanks for your time.";
 
+/**
+ * The one-shot silence re-engage (DEC-092, owner-signed literal 2026-07-21) —
+ * spoken after `VOICE_REENGAGE_AFTER_MS` of MUTUAL silence, at most once per
+ * call, cancelled by caller speech onset. A CONSTANT, never composed — the
+ * disclosure discipline.
+ */
+export const VOICE_REENGAGE_LINE = "Sorry — are you still there?";
+
 // ── Inputs ───────────────────────────────────────────────────────────────────
 export interface ComposeVoiceInputs {
   brief: StepBrief;

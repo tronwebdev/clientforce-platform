@@ -226,6 +226,7 @@ wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
             neverSay: context.neverSay,
             sttParams: config.stt,
             ttsTransport: config.ttsTransport,
+            reengageAfterMs: config.reengageAfterMs,
             ackAfterMs: config.ackAfterMs,
             ackClips,
             stallAbandonMs: config.stallAbandonMs,

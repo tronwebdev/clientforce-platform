@@ -46,6 +46,10 @@ export interface PlaceCallParams {
   twimlUrl: string;
   /** Optional Twilio status-callback URL (call lifecycle → apps/api webhook). */
   statusCallbackUrl?: string;
+  /** DEC-092 loopback diagnostic ONLY (owner-consented): record the call so
+   *  the owner can judge audio with their own last-mile leg removed. Product
+   *  dials NEVER set this (recording default-OFF is the owner lock). */
+  record?: boolean;
 }
 
 export interface PlaceCallResult {
@@ -84,6 +88,7 @@ export class TwilioVoiceDialer implements VoiceDialer {
       Url: params.twimlUrl,
       Method: "POST",
     });
+    if (params.record) body.set("Record", "true");
     if (params.statusCallbackUrl) {
       body.set("StatusCallback", params.statusCallbackUrl);
       body.set("StatusCallbackMethod", "POST");

@@ -73,4 +73,10 @@ export class TurnGate {
     this.pending = "";
     return rest;
   }
+
+  /** Peek: the caller said something not yet committed (blocks re-engage —
+   *  DEC-092: never speak over speech the gate is still merging). */
+  hasPending(): boolean {
+    return this.pending.length > 0;
+  }
 }

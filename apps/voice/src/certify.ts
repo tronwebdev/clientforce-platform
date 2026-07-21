@@ -215,6 +215,7 @@ async function runSession(apiKey: string, sessionIndex: number): Promise<Session
     // DEC-092: certification exercises the PRODUCTION transport (streaming
     // Aura ws) — the cert table certifies what the deployed service runs.
     ttsTransport: config.ttsTransport,
+    reengageAfterMs: config.reengageAfterMs,
     ackAfterMs: config.ackAfterMs,
     ackClips,
     stallAbandonMs: config.stallAbandonMs,

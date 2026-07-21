@@ -29,6 +29,9 @@ export interface TurnMetric {
   stalled?: boolean;
   /** Set when the per-turn checks tripped and the fallback line was spoken. */
   refusalReason?: string;
+  /** DEC-092 (fix a): the model returned an EMPTY completion — the locked
+   *  fallback line was spoken instead of silence. */
+  emptyReply?: boolean;
 }
 
 export interface BargeInMetric {
@@ -81,6 +84,8 @@ export class MetricsCollector {
   eventLoopMs: { p50: number; p95: number; max: number } | undefined;
   /** The TTS transport the call actually used (stream | https | stream→https). */
   ttsTransportUsed = "https";
+  /** DEC-092 (fix b): the one-shot silence re-engage fired (ms into call). */
+  reengagedAtMs: number | undefined;
 
   markCallStart(): void {
     this.startedAt = Date.now();
@@ -165,6 +170,8 @@ export class MetricsCollector {
       config: this.configEcho,
       // DEC-092 pacing block — the layer the ear hears, now measured.
       ttsTransport: this.ttsTransportUsed,
+      emptyReplies: this.turns.filter((t) => t.emptyReply).length,
+      reengagedAtMs: this.reengagedAtMs ?? null,
       ttsSentences: this.ttsSentenceStats(),
       audioSendGaps: { over200: this.audioSendGapsOver200, maxMs: this.maxAudioSendGapMs },
       eventLoopMs: this.eventLoopMs ?? null,

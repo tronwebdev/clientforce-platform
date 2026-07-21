@@ -34,11 +34,11 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "preflight | certify | demo-call | diagnose"
+        description: "preflight | certify | demo-call | diagnose | measure | loopback"
         required: true
         default: "preflight"
         type: choice
-        options: [preflight, certify, demo-call, diagnose, measure]
+        options: [preflight, certify, demo-call, diagnose, measure, loopback]
       variant:
         description: "demo-call disclosure variant"
         required: false
@@ -397,7 +397,7 @@ jobs:
       # via CHANNELS_VOICE_ALLOWLIST). Prints country flags and outcomes only —
       # never numbers.
       - name: Geo permissions + allow-list (demo-call)
-        if: env.MODE == 'demo-call'
+        if: env.MODE == 'demo-call' || env.MODE == 'loopback'
         env:
           TWILIO_ACCOUNT_SID: ${{ steps.kv.outputs.tw_sid }}
           TWILIO_AUTH_TOKEN: ${{ steps.kv.outputs.tw_token }}
@@ -455,8 +455,12 @@ jobs:
               fi;;
           esac
 
+      # loopback (DEC-092, owner-consented diagnostic): same rig, but the callee
+      # is a second platform-owned Twilio number whose TwiML answers — and the
+      # call RECORDS (Record=true on the dial) so the owner judges the audio
+      # with their own last-mile leg removed. Product dials never record.
       - name: Demo call (deployed production service, ${{ inputs.variant }} disclosure variant)
-        if: env.MODE == 'demo-call'
+        if: env.MODE == 'demo-call' || env.MODE == 'loopback'
         env:
           TWILIO_ACCOUNT_SID: ${{ steps.kv.outputs.tw_sid }}
           TWILIO_AUTH_TOKEN: ${{ steps.kv.outputs.tw_token }}
@@ -464,6 +468,7 @@ jobs:
           TWILIO_TO: ${{ steps.kv.outputs.tw_to }}
           VOICE_SANDBOX: "false"
           DEMO_VARIANT: ${{ inputs.variant }}
+          RECORD_CALL: ${{ env.MODE == 'loopback' && '1' || '' }}
         run: |
           set -euo pipefail
           [ "${{ steps.kv.outputs.has_twilio }}" = "yes" ] || { echo "::error::Twilio credentials missing"; exit 1; }
@@ -567,6 +572,13 @@ jobs:
             -u "$TWILIO_ACCOUNT_SID:$TWILIO_AUTH_TOKEN" \
             | python3 -c 'import json,sys; ns=json.load(sys.stdin).get("notifications",[]); print("twilio notifications: none (no TwiML/stream errors on this call)" if not ns else "twilio notifications:"); [print("  code=%s level=%s text=%s" % (n.get("error_code"), n.get("log"), (n.get("message_text") or "")[:200])) for n in ns]' \
             || echo "(notifications not readable)"
+          if [ "$MODE" = "loopback" ]; then
+            echo "── loopback recording (owner-consented diagnostic; listen in the Twilio console) ──"
+            curl -sS "https://api.twilio.com/2010-04-01/Accounts/$TWILIO_ACCOUNT_SID/Calls/$CALL_SID/Recordings.json" \
+              -u "$TWILIO_ACCOUNT_SID:$TWILIO_AUTH_TOKEN" \
+              | python3 -c 'import json,sys; rs=json.load(sys.stdin).get("recordings",[]); print("  (no recording rows yet — they can lag the call end; check the console)" if not rs else ""); [print("  recording sid=%s duration=%ss status=%s" % (r.get("sid"), r.get("duration"), r.get("status"))) for r in rs]' \
+              || echo "  (recordings not readable)"
+          fi
           # Service-side evidence: the session finalizes INSIDE the container
           # now — pull the numbers-only `[metrics] summary` line from its
           # console logs (never transcript text, never numbers dialed).

@@ -22,7 +22,7 @@
  *   interruptible, never counted as reply TTFA).
  */
 import type { AiGateway } from "@clientforce/ai";
-import { checkComposedVoiceTurn, VOICE_FALLBACK_LINE, VOICE_FAILURE_GOODBYE } from "@clientforce/channels";
+import { checkComposedVoiceTurn, VOICE_FALLBACK_LINE, VOICE_FAILURE_GOODBYE, VOICE_REENGAGE_LINE } from "@clientforce/channels";
 import { monitorEventLoopDelay, type IntervalHistogram } from "node:perf_hooks";
 import { openSttStream, synthesizeAura, type SttParams, type SttStream, type Synthesize } from "./deepgram";
 import { TtsStream, TtsStreamCleared, type TtsStreamDeps } from "./deepgram-tts-stream";
@@ -75,6 +75,9 @@ export interface CallSessionDeps {
   synthesize?: Synthesize;
   /** DEC-092: reply TTS transport (default `stream`); https = legacy/fallback. */
   ttsTransport?: "stream" | "https";
+  /** DEC-092 (fix b): ms of MUTUAL silence before the one-shot re-engage.
+   *  Absent/0 = off (tests/harness unaffected unless wired). */
+  reengageAfterMs?: number;
   /** Injectable stream factory for tests. */
   openTtsStream?: (deps: TtsStreamDeps) => TtsStream;
 }
@@ -104,6 +107,10 @@ export class CallSession {
   private speechCtx?: { metric?: TurnMetric; anchor: number; signal: AbortSignal };
   private lastAudioSentAt = 0;
   private loopDelay?: IntervalHistogram;
+  // ── DEC-092 (fix b): one-shot silence re-engage ──
+  private reengaged = false;
+  private reengageTimer?: NodeJS.Timeout;
+  private lastCallerFinalAt = 0;
 
   constructor(private readonly deps: CallSessionDeps) {
     this.openStt = deps.openStt ?? openSttStream;
@@ -170,7 +177,10 @@ export class CallSession {
     if (this.streamTransportOn) this.ensureTtsStream();
     this.stt = this.openStt(this.deps.deepgramKey, this.deps.sttParams, {
       onSpeechStarted: () => this.onSpeechStarted(),
-      onFinal: (text, speechFinal) => this.gate.onFinal(text, speechFinal),
+      onFinal: (text, speechFinal) => {
+        this.lastCallerFinalAt = Date.now();
+        this.gate.onFinal(text, speechFinal);
+      },
       onUtteranceEnd: () => this.gate.onUtteranceEnd(),
       onError: (err) => console.error("[stt]", err.message),
       onFatal: () => this.failCall("stt stream lost"),
@@ -178,6 +188,9 @@ export class CallSession {
     this.armIdleTimer();
     if (this.deps.maxCallMs > 0) {
       this.maxTimer = setTimeout(() => this.endPolitely("max_duration"), this.deps.maxCallMs);
+    }
+    if ((this.deps.reengageAfterMs ?? 0) > 0) {
+      this.reengageTimer = setInterval(() => this.maybeReengage(), 500);
     }
     void this.warmBrainConnection();
     void this.speakDisclosure();
@@ -222,6 +235,7 @@ export class CallSession {
             interrupted = true;
             return;
           }
+          this.recordAudioSend();
           this.deps.sendAudio(chunk);
         }
       }
@@ -353,6 +367,14 @@ export class CallSession {
       const tail = chunker.flush();
       if (tail && !abort.signal.aborted) {
         if (!(await this.checkAndSpeak(tail, metric, anchor, abort))) return;
+      }
+      // DEC-092 (fix a, owner-approved): an EMPTY completion must never
+      // produce silence — no audio queued for this turn, nothing refused,
+      // not aborted ⇒ speak the locked fallback and keep the call alive.
+      if (!abort.signal.aborted && !metric.refusalReason && metric.ttfaMs === undefined) {
+        metric.emptyReply = true;
+        await this.speakChunk(VOICE_FALLBACK_LINE, metric, anchor, abort.signal);
+        assistantText = VOICE_FALLBACK_LINE;
       }
     } catch (err) {
       if (!abort.signal.aborted) {
@@ -567,6 +589,53 @@ export class CallSession {
     return [...this.turns];
   }
 
+  /** DEC-092 (fix b): one-shot re-engage after MUTUAL silence — agent idle,
+   *  no turn in flight, no committed-or-pending caller speech. Cancelled by
+   *  caller speech onset (base refreshes); never fires twice. */
+  private maybeReengage(): void {
+    if (this.closed || this.reengaged || this.speaking) return;
+    if (this.gate.hasPending()) return; // uncommitted caller speech — hold
+    const ms = this.deps.reengageAfterMs ?? 0;
+    if (ms <= 0) return;
+    const base = Math.max(this.turnLastAudioAt, this.speechStartedAt, this.lastCallerFinalAt);
+    if (base === 0) return; // nothing has happened yet
+    if (Date.now() - base < ms) return;
+    void this.speakReengage();
+  }
+
+  private async speakReengage(): Promise<void> {
+    if (this.closed || this.speaking || this.reengaged) return;
+    this.reengaged = true;
+    this.deps.metrics.reengagedAtMs = Date.now() - this.startedAtMs;
+    const abort = new AbortController();
+    this.ttsAbort = abort;
+    this.speaking = true;
+    this.speakingTurn = this.turnCount;
+    this.turns.push({ role: "assistant", content: VOICE_REENGAGE_LINE, atMs: Date.now() - this.startedAtMs });
+    this.deps.metrics.addTtsChars(VOICE_REENGAGE_LINE.length);
+    try {
+      const stream = this.ensureTtsStream();
+      if (stream) {
+        this.speechCtx = { anchor: Date.now(), signal: abort.signal };
+        const timing = await stream.speak(VOICE_REENGAGE_LINE);
+        this.deps.metrics.addTtsSentence(timing.firstAudioMs, timing.flushedMs);
+      } else {
+        for await (const chunk of this.synthesize(this.deps.deepgramKey, this.deps.ttsModel, VOICE_REENGAGE_LINE, abort.signal)) {
+          if (abort.signal.aborted) return;
+          this.recordAudioSend();
+          this.deps.sendAudio(chunk);
+        }
+      }
+    } catch {
+      // best-effort — a failed re-engage must never fail the call
+    } finally {
+      if (this.ttsAbort === abort) {
+        this.speaking = false;
+        this.ttsAbort = undefined;
+      }
+    }
+  }
+
   close(): void {
     if (this.closed) return;
     this.closed = true;
@@ -574,6 +643,7 @@ export class CallSession {
     if (tail) this.turns.push({ role: "user", content: tail, atMs: Date.now() - this.startedAtMs });
     if (this.idleTimer) clearTimeout(this.idleTimer);
     if (this.maxTimer) clearTimeout(this.maxTimer);
+    if (this.reengageTimer) clearInterval(this.reengageTimer);
     this.ttsAbort?.abort();
     this.ttsStream?.close();
     this.stt?.close();
