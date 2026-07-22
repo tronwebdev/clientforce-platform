@@ -1,0 +1,104 @@
+/**
+ * console-v3 design tokens — the refresh-brand language: light surfaces,
+ * hairline structure, forest accent, signature gradient used sparingly.
+ *
+ * First reference implementation: the Agent Widget embed (@clientforce/widget).
+ * The future app re-skin (its own unit) adopts THIS module; the legacy skin
+ * (packages/ui/src/tokens.css, --cf-*) must not import it and does not.
+ *
+ * BINDING SOURCE (owner ruling 2026-07-22, Q-049): the Console v3 Build Spec
+ * + the owner's mock — values below are the canon set the owner relayed at
+ * the unit review (the spec/mock files land in-repo with the Q-049 fidelity
+ * pass). They SUPERSEDE the legacy Agent Widget prototype literals this
+ * module first shipped with (the retired pre-refresh green #16A82A/#0F7A28
+ * is gone). Tokens marked "carryover pending spec" have no canon value yet
+ * and keep their prototype literals, flagged.
+ *
+ * HARD RULES (pinned in test/tokens.test.ts):
+ * - #35E834 (vivid) lives ONLY inside the signature gradient + motion —
+ *   never a solid fill, button, or text color. Vivid-green-as-fill is retired.
+ * - Zero box-shadows except the launcher + panel float (the one documented
+ *   widget exception) — interiors stay flat + hairline.
+ *
+ * This file is a design-token SOURCE: the only place in packages/theme where
+ * raw color literals are allowed (stylelint override, same rule as
+ * packages/ui/src/tokens.css). Everything else consumes var(--cv3-*).
+ *
+ * `:host` is included so the sheet works when injected into a shadow root
+ * (the widget's isolation boundary) as well as at document level.
+ */
+:root,
+:host {
+  /* ---- Forest accent ---- */
+  --cv3-accent: #146b33; /* forest — the v3 accent */
+  --cv3-accent-hover: #0f5227; /* hover / pressed */
+
+  /* ---- Light surfaces ---- */
+  --cv3-wash: #e9efea; /* page wash / soft wells */
+  --cv3-panel: #fbfdfb; /* panel surface */
+  --cv3-card: #ffffff; /* cards, floating surfaces */
+
+  /* ---- Ink ---- */
+  --cv3-ink: #101613; /* primary text */
+  --cv3-muted: #5a6660; /* secondary text */
+  --cv3-faint: #8b968f; /* tertiary text, placeholders */
+
+  /* ---- Hairline structure ---- */
+  --cv3-hairline: #e9eeea; /* structure */
+  --cv3-hairline-input: #dce5de; /* inputs / crisp edges */
+  --cv3-divider: #e2eae4; /* dividers */
+
+  /* ---- Tints + status ---- */
+  --cv3-mint: #eaf5ee; /* accent-tinted fill (selected / visitor bubble) */
+  --cv3-mint-border: #cfe8d8;
+  --cv3-warn-ink: #8a6d1a;
+  --cv3-warn-bg: #f7efda;
+  --cv3-danger: #b0483a;
+
+  /* ---- Signature gradient — used sparingly (identity orb) ----
+     The ONLY home of #35E834 besides motion. */
+  --cv3-gradient-signature: linear-gradient(135deg, #36d7ed, #35e834 55%, #d0f56b);
+  --cv3-vivid: #35e834; /* gradient + motion ONLY — never a solid fill/button/text */
+  --cv3-vivid-fade: rgba(53, 232, 52, 0); /* motion keyframe terminal */
+
+  /* ---- Typography (canon: Schibsted display 800–900 · IBM Plex UI/data) ---- */
+  --cv3-font-display: "Schibsted Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --cv3-font-ui: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --cv3-font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  /* ---- Radii (canon scale: 9–12 / 14–16 / 22 / 999) ---- */
+  --cv3-radius-sm: 9px;
+  --cv3-radius-md: 12px;
+  --cv3-radius-lg: 16px;
+  --cv3-radius-xl: 22px;
+  --cv3-radius-pill: 999px;
+
+  /* ---- Shadows — ZERO except these two documented widget floats
+     (values = the widget prototype's float literals; interiors are flat) ---- */
+  --cv3-shadow-panel: 0 18px 50px rgba(14, 21, 18, 0.22); /* chat panel float */
+  --cv3-shadow-launcher: 0 10px 26px rgba(14, 21, 18, 0.28); /* launcher float */
+
+  /* ---- Motion (150–220ms ease; loop periods from the widget prototype) ---- */
+  --cv3-motion-fast: 150ms;
+  --cv3-motion-base: 200ms;
+  --cv3-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --cv3-breathe-period: 2s;
+  --cv3-float-period: 3.5s;
+  --cv3-ping-ring: rgba(53, 232, 52, 0.35); /* motion-only vivid (listening ping) */
+
+  /* ---- Widget carryovers pending their spec values (flagged, Q-049) ---- */
+  --cv3-online: #7cf59b; /* presence dot (widget prototype) */
+  --cv3-badge: #ff5a5a; /* unread badge (widget prototype) */
+  --cv3-orb-overlay: rgba(255, 255, 255, 0.22); /* header identity orb on brand */
+
+  /* ---- Dark widget theme (prototype literals — dark canon pends the spec) ---- */
+  --cv3-dark-surface: #141b17;
+  --cv3-dark-hairline: rgba(255, 255, 255, 0.1);
+  --cv3-dark-bubble: rgba(255, 255, 255, 0.07);
+  --cv3-dark-ink: rgba(255, 255, 255, 0.9);
+  --cv3-dark-chip: rgba(255, 255, 255, 0.06);
+  --cv3-dark-chip-border: rgba(255, 255, 255, 0.14);
+  --cv3-dark-field: rgba(255, 255, 255, 0.06);
+  --cv3-dark-field-border: rgba(255, 255, 255, 0.12);
+  --cv3-dark-placeholder: rgba(255, 255, 255, 0.4);
+}

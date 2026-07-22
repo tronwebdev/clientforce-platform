@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Clientforce Agent Widget — demo host page</title>
+    <style>
+      /* Deliberately hostile host styles — the widget must be immune to all of it. */
+      * {
+        font-family: "Comic Sans MS", cursive !important;
+        box-sizing: content-box;
+      }
+      div,
+      span,
+      button,
+      input {
+        border-radius: 0 !important;
+      }
+      button {
+        background: purple;
+        color: yellow;
+        border: 4px dashed red;
+      }
+      body {
+        margin: 0;
+        background: linear-gradient(160deg, #eef2f0 0%, #e3eae6 100%);
+        min-height: 100vh;
+      }
+      .page {
+        padding: 26px 30px;
+        opacity: 0.55;
+      }
+      .bar {
+        height: 14px;
+        width: 120px;
+        background: #cfd8d2;
+        border-radius: 5px;
+        margin-bottom: 22px;
+      }
+      .h1 {
+        height: 30px;
+        width: 62%;
+        background: #c4cec8;
+        border-radius: 7px;
+        margin-bottom: 12px;
+      }
+      .h2 {
+        height: 30px;
+        width: 46%;
+        background: #c4cec8;
+        border-radius: 7px;
+        margin-bottom: 22px;
+      }
+      .ln {
+        height: 11px;
+        background: #d2dad5;
+        border-radius: 5px;
+        margin-bottom: 9px;
+      }
+      .controls {
+        position: fixed;
+        top: 14px;
+        right: 14px;
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        max-width: 380px;
+      }
+      .controls button {
+        font-size: 11px;
+        padding: 4px 8px;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <div class="bar"></div>
+      <div class="h1"></div>
+      <div class="h2"></div>
+      <div class="ln" style="width: 90%"></div>
+      <div class="ln" style="width: 84%"></div>
+      <div class="ln" style="width: 74%"></div>
+    </div>
+
+    <div class="controls">
+      <button onclick="ClientforceWidget('toggle')">toggle</button>
+      <button onclick="ClientforceWidget('update', { appearance: { theme: 'dark' } })">dark</button>
+      <button onclick="ClientforceWidget('update', { appearance: { theme: 'light' } })">
+        light
+      </button>
+      <button onclick="ClientforceWidget('update', { appearance: { position: 'left' } })">
+        left
+      </button>
+      <button onclick="ClientforceWidget('update', { appearance: { position: 'right' } })">
+        right
+      </button>
+      <button onclick="ClientforceWidget('update', { appearance: { brandColor: '#101613' } })">
+        ink brand
+      </button>
+      <button onclick="ClientforceWidget('update', { appearance: { brandColor: '#146B33' } })">
+        forest brand
+      </button>
+      <button onclick="ClientforceWidget('setAgentState', 'idle')">idle</button>
+      <button onclick="ClientforceWidget('setAgentState', 'listening')">listening</button>
+      <button onclick="ClientforceWidget('setAgentState', 'thinking')">thinking</button>
+      <button onclick="ClientforceWidget('setAgentState', 'replying')">replying</button>
+    </div>
+
+    <!-- The canonical snippet (local build; auto-open disabled for the demo) -->
+    <script
+      src="../dist/clientforce-widget.js"
+      data-widget-id="wgt_8fa3c21e"
+      data-agent-name="Acme Sales Agent"
+      data-open-after="off"
+      async
+    ></script>
+  </body>
+</html>
