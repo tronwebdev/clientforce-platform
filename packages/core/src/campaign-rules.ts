@@ -122,6 +122,16 @@ export const campaignRuleActionSchema = z.discriminatedUnion("kind", [
    *  Delivery rides the SSRF guard + the IntegrationDelivery ledger; a
    *  delivery failure NEVER changes the run outcome (the notify_team stance). */
   z.object({ kind: z.literal("send_webhook"), url: z.string().url().max(500).optional() }),
+  /** INT W4 (DEC-096): one-way CRM push — upsert the contact into HubSpot,
+   *  create a Deal, associate it, land it in the pipeline; the created deal id
+   *  rides `Enrollment.meta.crmDealId` so a later stage move can find it.
+   *  `stage` optional → the pipeline's default. Push rides the crmTransport
+   *  seam + the IntegrationDelivery ledger; a delivery failure NEVER changes
+   *  the run outcome (the send_webhook stance). */
+  z.object({ kind: z.literal("create_crm_deal"), stage: z.string().min(1).max(120).optional() }),
+  /** INT W4: move the contact's HubSpot deal to a named stage (one-way). No
+   *  stored deal → a typed CRM_DEAL_MISSING refusal, never a silent no-op. */
+  z.object({ kind: z.literal("update_deal_stage"), stage: z.string().min(1).max(120) }),
   /** Run one of the account-level Automations for the contact (resolved LIVE —
    *  missing/disabled renders an error state and never fires silently). Executes
    *  the automation's actions through the SAME union at causation depth + 1. */
@@ -163,6 +173,8 @@ export const ACCOUNT_ACTION_KINDS = [
   "send_booking_link",
   "send_payment_link",
   "send_webhook",
+  "create_crm_deal",
+  "update_deal_stage",
   "run_automation",
 ] as const satisfies readonly CampaignRuleActionKind[];
 

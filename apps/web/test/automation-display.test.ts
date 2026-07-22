@@ -89,6 +89,12 @@ describe("action display map (lib/actions)", () => {
     expect(() => actionChip({ kind: "send_webhook", url: "h" })).not.toThrow();
     expect(actionChip({ kind: "send_webhook", url: "https:/" })).toBe("Send webhook: https:/");
   });
+
+  it("INT W4: the CRM push chips carry the target stage", () => {
+    expect(actionChip({ kind: "create_crm_deal" })).toBe("Create CRM deal");
+    expect(actionChip({ kind: "create_crm_deal", stage: "qualifiedtobuy" })).toBe("Create CRM deal → qualifiedtobuy");
+    expect(actionChip({ kind: "update_deal_stage", stage: "closedwon" })).toBe("Update deal stage → closedwon");
+  });
 });
 
 describe("trigger display additions (lib/triggers, DEC-091)", () => {

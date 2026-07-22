@@ -17,5 +17,7 @@ export * from "./stripe";
 export * from "./payments";
 export * from "./webhook-guard";
 export * from "./webhook-deliver";
+export * from "./hubspot";
+export * from "./crm";
 
 export const INTEGRATIONS_PACKAGE = "@clientforce/integrations";

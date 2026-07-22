@@ -76,6 +76,23 @@ export interface RuleEngineDeps {
     event: { id: string; type: string; occurredAt: string; contactId?: string | null; payload: unknown };
     rule: { id: string; name?: string };
   }) => Promise<{ delivered: boolean; target?: string; detail?: string }>;
+  /**
+   * INT W4 (DEC-096): the one-way CRM push seam — the webhookTransport twin
+   * (absent = byte-identical engine; the worker wires the real HubSpot
+   * transport). `create_deal` returns the new deal id (the executor stores it
+   * on Enrollment.meta.crmDealId); `update_stage` needs that stored id. Failure
+   * NEVER changes the run outcome.
+   */
+  crmTransport?: (params: {
+    workspaceId: string;
+    sourceKey: string;
+    op: "create_deal" | "update_stage";
+    /** Required for create_deal (the upsert); ignored for update_stage. */
+    contact?: { email: string; firstName?: string | null; lastName?: string | null; company?: string | null };
+    dealname?: string;
+    stage?: string;
+    dealId?: string;
+  }) => Promise<{ delivered: boolean; dealId?: string; detail?: string }>;
   log?: (msg: string) => void;
 }
 

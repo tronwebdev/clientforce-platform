@@ -43,6 +43,7 @@ import {
   calendlyWebhookPath,
   parseStripeConfig,
   parseWebhooksConfig,
+  parseHubspotConfig,
   stripeDetectionState,
   stripeWebhookPath,
   gcalConfigPayload,
@@ -238,6 +239,7 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
   // INT W3 (DEC-095): the payments + outbound-webhooks providers.
   const isStripe = provider === "stripe";
   const isWebhooks = provider === "webhooks";
+  const isHubspot = provider === "hubspot";
   // The slack-typed content (narrow syncRows kinds) for the toggle machinery.
   const slackContent = DRAWER_CONTENT.slack;
   const config = useMemo(() => parseSlackConfig(row?.config), [row]);
@@ -247,6 +249,7 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
   const stripeCfg = useMemo(() => parseStripeConfig(row?.config), [row]);
   const stripeDetection = stripeDetectionState(stripeCfg);
   const whCfg = useMemo(() => parseWebhooksConfig(row?.config), [row]);
+  const hubspotCfg = useMemo(() => parseHubspotConfig(row?.config), [row]);
 
   // Wizard step (1..3 oauth · 1..2 fields) or null = connected mode.
   const [wizStep, setWizStep] = useState<number | null>(() => (bootMode === "config" ? 2 : row ? null : 1));
@@ -280,6 +283,11 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
     const cfg = parseWebhooksConfig(row?.config);
     return { defaultUrl: cfg.defaultUrl ?? "" };
   });
+  // INT W4: the hubspot fields form (the private-app token is write-only).
+  const [hubspotFields, setHubspotFields] = useState<{ apiToken: string; defaultPipeline: string }>(() => {
+    const cfg = parseHubspotConfig(row?.config);
+    return { apiToken: "", defaultPipeline: cfg.defaultPipeline ?? "" };
+  });
 
   // One-shot draft re-seed for the post-OAuth boot (`?connected=<provider>`):
   // the drawer mounts BEFORE the polled row lands (row null → row), so the
@@ -300,7 +308,8 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
     setFields({ schedulingUrl: calConfig.schedulingUrl ?? "", apiToken: "" });
     setStripeFields({ paymentLinkUrl: stripeCfg.paymentLinkUrl ?? "", apiKey: "" });
     setWhFields({ defaultUrl: whCfg.defaultUrl ?? "" });
-  }, [draftSeeded, row, config, gcalConfig, calConfig, stripeCfg, whCfg, slackContent.syncRows]);
+    setHubspotFields({ apiToken: "", defaultPipeline: hubspotCfg.defaultPipeline ?? "" });
+  }, [draftSeeded, row, config, gcalConfig, calConfig, stripeCfg, whCfg, hubspotCfg, slackContent.syncRows]);
 
   // OAuth start (step-1 auth + the revoked Reconnect repair — oauth providers).
   const [connectBusy, setConnectBusy] = useState(false);
@@ -334,6 +343,10 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
         if (stripeFields.apiKey.trim()) body.apiKey = stripeFields.apiKey.trim();
       } else if (isWebhooks) {
         body = { defaultUrl: whFields.defaultUrl.trim() };
+      } else if (isHubspot) {
+        // INT W4: the private-app token tier (+ optional default pipeline).
+        body = { apiToken: hubspotFields.apiToken.trim() };
+        if (hubspotFields.defaultPipeline.trim()) body.defaultPipeline = hubspotFields.defaultPipeline.trim();
       } else {
         body = {};
         if (fields.schedulingUrl.trim()) body.schedulingUrl = fields.schedulingUrl.trim();
@@ -349,7 +362,7 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
     } finally {
       setFieldsBusy(false);
     }
-  }, [canManage, entry.id, fields, stripeFields, whFields, isStripe, isWebhooks, fieldsBusy, onChanged]);
+  }, [canManage, entry.id, fields, stripeFields, whFields, hubspotFields, isStripe, isWebhooks, isHubspot, fieldsBusy, onChanged]);
 
   // Options (wizard config step + config panel) — slack channels · gcal calendars.
   const [options, setOptions] = useState<OptionRow[] | null>(null);
@@ -529,6 +542,7 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
     // the abandoned value (and connectFields fires a signed test at it).
     setStripeFields({ paymentLinkUrl: stripeCfg.paymentLinkUrl ?? "", apiKey: "" });
     setWhFields({ defaultUrl: whCfg.defaultUrl ?? "" });
+    setHubspotFields({ apiToken: "", defaultPipeline: hubspotCfg.defaultPipeline ?? "" });
     setSaveError(null);
     setFieldsError(null);
     setConfigOpen(true);
@@ -697,6 +711,41 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
     </>
   );
 
+  // INT W4: hubspot fields UI — a private-app token (write-only) + an optional
+  // default pipeline the create_crm_deal action lands new deals in.
+  const hubspotFieldsUI = (
+    <>
+      <div style={{ marginBottom: 13 }}>
+        <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#5C6B62", marginBottom: 6 }}>Private-app token</label>
+        <input
+          data-testid="hubspot-token"
+          type="password"
+          value={hubspotFields.apiToken}
+          disabled={!canManage}
+          onChange={(e) => setHubspotFields((f) => ({ ...f, apiToken: e.target.value }))}
+          placeholder="pat-na1-…"
+          style={FIELD_INPUT}
+        />
+      </div>
+      <div style={{ marginBottom: 13 }}>
+        <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#5C6B62", marginBottom: 6 }}>Default pipeline <span style={{ color: "#9AA59E", fontWeight: 500 }}>(optional)</span></label>
+        <input
+          data-testid="hubspot-pipeline"
+          value={hubspotFields.defaultPipeline}
+          disabled={!canManage}
+          onChange={(e) => setHubspotFields((f) => ({ ...f, defaultPipeline: e.target.value }))}
+          placeholder="default"
+          style={FIELD_INPUT}
+        />
+      </div>
+      <div style={{ fontSize: 12, color: "#9AA59E", lineHeight: 1.5 }}>
+        Create a HubSpot Private App (Settings → Integrations → Private Apps) with the
+        <b> crm.objects.deals.write</b> and <b> crm.objects.contacts.write</b> scopes, then paste the token.
+        One-way push — Clientforce never reads changes back from HubSpot.
+      </div>
+    </>
+  );
+
   // ── body per mode ─────────────────────────────────────────────────────────
 
   let body: React.ReactNode;
@@ -725,7 +774,9 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
             ? "Paste your Stripe Payment Link — add a restricted API key to detect payments."
             : isWebhooks
               ? "Set the Payload URL Clientforce will POST signed events to."
-              : "Paste your scheduling link — add an API token to detect bookings."
+              : isHubspot
+                ? "Paste a HubSpot private-app token — one-way push of deals & stages."
+                : "Paste your scheduling link — add an API token to detect bookings."
           : "Review what will connect."
         : wizStep === 1
           ? `Sign in to ${entry.name} to grant secure access.`
@@ -790,7 +841,7 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
           </>
         )}
 
-        {content.mode === "fields" && wizStep === 1 && (isStripe ? stripeFieldsUI : isWebhooks ? webhooksFieldsUI : calendlyFieldsUI)}
+        {content.mode === "fields" && wizStep === 1 && (isStripe ? stripeFieldsUI : isWebhooks ? webhooksFieldsUI : isHubspot ? hubspotFieldsUI : calendlyFieldsUI)}
 
         {content.mode === "oauth" && wizStep === 2 && (isGcal ? gcalConfigUI : (
           <>
@@ -832,6 +883,21 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
                   <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 15px", borderTop: "1px solid #F2EEE4" }}>
                     <span style={{ color: "#C9CFC9", fontSize: 13 }}>○</span>
                     <span style={{ fontSize: 13.5, color: "#3B463F" }}>A signed test event is POSTed on connect — only a 2xx confirms the receiver; the signing secret appears on the drawer.</span>
+                  </div>
+                </>
+              ) : isHubspot ? (
+                <>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 15px" }}>
+                    <span style={{ color: hubspotFields.apiToken.trim() ? "#16A82A" : "#C9CFC9", fontSize: 13 }}>{hubspotFields.apiToken.trim() ? "✓" : "○"}</span>
+                    <span data-testid="confirm-hubspot-token" style={{ fontSize: 13.5, color: "#3B463F" }}>{hubspotFields.apiToken.trim() ? "Private-app token supplied — verified on connect" : "Paste a private-app token to connect"}</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 15px", borderTop: "1px solid #F2EEE4" }}>
+                    <span style={{ color: hubspotFields.defaultPipeline.trim() ? "#16A82A" : "#C9CFC9", fontSize: 13 }}>{hubspotFields.defaultPipeline.trim() ? "✓" : "○"}</span>
+                    <span style={{ fontSize: 13.5, color: "#3B463F" }}>
+                      {hubspotFields.defaultPipeline.trim()
+                        ? `New deals land in pipeline "${hubspotFields.defaultPipeline.trim()}"`
+                        : "New deals land in the HubSpot pipeline default (one-way push)"}
+                    </span>
                   </div>
                 </>
               ) : (
@@ -920,7 +986,9 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
       ? stripeFields.paymentLinkUrl.trim().length > 0 || stripeFields.apiKey.trim().length > 0
       : isWebhooks
         ? whFields.defaultUrl.trim().length > 0
-        : fields.schedulingUrl.trim().length > 0;
+        : isHubspot
+          ? hubspotFields.apiToken.trim().length > 0
+          : fields.schedulingUrl.trim().length > 0;
     const canContinue =
       content.mode === "fields"
         ? wizStep !== 1 || fieldsReady
@@ -930,7 +998,9 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
         ? "Paste your Payment Link (or a restricted key) first"
         : isWebhooks
           ? "Enter your Payload URL first"
-          : "Paste your scheduling link first"
+          : isHubspot
+            ? "Paste your HubSpot private-app token first"
+            : "Paste your scheduling link first"
       : isGcal
         ? "Pick a calendar first"
         : "Pick a channel first";
@@ -1002,13 +1072,13 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
         <span style={SECTION}>Settings</span>
         <div style={{ fontFamily: BRICO, fontWeight: 700, fontSize: 17, color: "#0E1512", marginTop: 8 }}>{settingsTitle}</div>
         <div style={{ fontSize: 13, color: "#8A7F6B", marginBottom: 16 }}>{settingsDesc}</div>
-        {isGcal ? gcalConfigUI : isStripe ? stripeFieldsUI : isWebhooks ? webhooksFieldsUI : isCalendly ? calendlyFieldsUI : (
+        {isGcal ? gcalConfigUI : isStripe ? stripeFieldsUI : isWebhooks ? webhooksFieldsUI : isHubspot ? hubspotFieldsUI : isCalendly ? calendlyFieldsUI : (
           <>
             {channelPickerUI}
             {draftTogglesUI}
           </>
         )}
-        {(isCalendly || isStripe || isWebhooks) && fieldsError && (
+        {(isCalendly || isStripe || isWebhooks || isHubspot) && fieldsError && (
           <div data-testid="connect-refused" style={{ marginTop: 12, background: "rgba(224,121,107,.1)", border: "1px solid #F0CFC8", borderRadius: 11, padding: "10px 14px", fontSize: 13, color: "#C9543F" }}>
             {fieldsError}
           </div>
@@ -1023,7 +1093,7 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
     // stripe/webhooks save through connectFields (fieldsBusy), same as calendly
     // — only slack/gcal use saveConfig (saveBusy). W3 fix: their Save button
     // never showed a busy state.
-    const settingsBusy = isCalendly || isStripe || isWebhooks ? fieldsBusy : saveBusy;
+    const settingsBusy = isCalendly || isStripe || isWebhooks || isHubspot ? fieldsBusy : saveBusy;
     footer = (
       <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 22px", borderTop: "1px solid #EBE3D6", background: "#fff", flex: "none" }}>
         <span onClick={() => setConfigOpen(false)} style={{ fontSize: 14, fontWeight: 600, color: "#5C6B62", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 11, padding: "10px 18px", cursor: "pointer" }}>Cancel</span>
@@ -1031,7 +1101,7 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
           data-testid="config-save"
           onClick={() => {
             if (settingsBusy || !canManage) return;
-            const run = isCalendly || isStripe || isWebhooks ? connectFields : saveConfig;
+            const run = isCalendly || isStripe || isWebhooks || isHubspot ? connectFields : saveConfig;
             void run().then((ok) => {
               if (ok) setConfigOpen(false);
             });
@@ -1261,6 +1331,27 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {isHubspot && (
+          <div style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 13, marginBottom: 18 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 15px" }}>
+              <span style={{ fontSize: 13, color: "#5C6B62", flex: "none" }}>HubSpot portal</span>
+              <span data-testid="hubspot-portal" style={{ fontSize: 12.5, fontFamily: "monospace", fontWeight: 600, color: hubspotCfg.portalId ? "#0E1512" : "#9AA59E", flex: 1, textAlign: "right" }}>
+                {hubspotCfg.portalId ?? "—"}
+              </span>
+              <span data-testid="hubspot-change" onClick={openSettings} style={{ fontSize: 12.5, fontWeight: 700, color: "#16A82A", cursor: "pointer", flex: "none" }}>Change</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 15px", borderTop: "1px solid #F2EEE4" }}>
+              <span style={{ fontSize: 13, color: "#5C6B62", flex: "none" }}>Default pipeline</span>
+              <span data-testid="hubspot-pipeline-value" style={{ fontSize: 12.5, fontWeight: 600, color: hubspotCfg.defaultPipeline ? "#0E1512" : "#9AA59E", flex: 1, textAlign: "right" }}>
+                {hubspotCfg.defaultPipeline ?? "Pipeline default"}
+              </span>
+            </div>
+            <div style={{ padding: "8px 15px", borderTop: "1px solid #F2EEE4", fontSize: 11.5, color: "#9AA59E", lineHeight: 1.45 }}>
+              One-way push — Create CRM deal &amp; Update deal stage rules write to HubSpot; changes are never read back.
+            </div>
           </div>
         )}
 

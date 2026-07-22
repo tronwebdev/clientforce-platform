@@ -17,6 +17,7 @@ import {
   calendlyConfigSchema,
   stripeConfigSchema,
   webhooksConfigSchema,
+  hubspotConfigSchema,
   type IntegrationDto,
   type IntegrationProvider,
   type IntegrationStatus,
@@ -33,6 +34,7 @@ import {
 import { TOKEN_REFRESH_SKEW_MS, WEBHOOK_TIMEOUT_MS } from "./constants";
 import type { CalendlyAdapter, CalendlyConnectFieldsDto } from "./calendly";
 import type { StripeAdapter, StripeConnectFieldsDto } from "./stripe";
+import type { HubspotAdapter, HubspotConnectFieldsDto } from "./hubspot";
 import { assertPublicHttpsUrl } from "./webhook-guard";
 import { signWebhookBody, type WebhooksConnectFieldsDto } from "./webhook-deliver";
 
@@ -842,6 +844,73 @@ export async function connectWebhooksFields(
     workspaceId: params.workspaceId,
     type: EVENT_TYPES.INTEGRATION_CONNECTED,
     payload: { provider: "webhooks", accountLabel: guarded.url.hostname },
+  });
+  return row;
+}
+
+/**
+ * INT W4 (DEC-096): the HubSpot fields connect — the single private-app token
+ * tier (no OAuth clock; the Calendly/Stripe token precedent). The token is
+ * LIVE-probed (/account-info) and refuses typed on rejection; the portal id
+ * rides config (label), the token rides credentialsEnc. The row is never
+ * "connected" without the probe.
+ */
+export async function connectHubspotFields(
+  deps: IntegrationsDeps,
+  params: { workspaceId: string; fields: HubspotConnectFieldsDto; connectedById?: string },
+): Promise<IntegrationRow> {
+  const adapter = deps.adapters.hubspot as unknown as HubspotAdapter | undefined;
+  if (!adapter) throw new IntegrationRefusedError(INTEGRATION_REFUSALS.UNKNOWN_PROVIDER);
+  const now = (deps.now ?? (() => new Date()))();
+  const creds: IntegrationCredentials = { apiToken: params.fields.apiToken };
+
+  let portalId: string;
+  try {
+    portalId = (await adapter.account(creds)).portalId; // the live token probe
+  } catch (err) {
+    if (
+      (err instanceof IntegrationProviderError && err.code === "PROVIDER_AUTH") ||
+      err instanceof IntegrationDeliveryError
+    ) {
+      throw new IntegrationRefusedError(INTEGRATION_REFUSALS.HUBSPOT_TOKEN_INVALID);
+    }
+    throw err;
+  }
+  const accountLabel = `HubSpot (portal ${portalId})`;
+  const parsedConfig = hubspotConfigSchema.safeParse({
+    portalId,
+    ...(params.fields.defaultPipeline ? { defaultPipeline: params.fields.defaultPipeline } : {}),
+  });
+  if (!parsedConfig.success) throw new IntegrationRefusedError(INTEGRATION_REFUSALS.HUBSPOT_TOKEN_INVALID);
+
+  const row = await withTenant(deps.prisma, { workspaceId: params.workspaceId }, (tx) =>
+    tx.integration.upsert({
+      where: { workspaceId_provider: { workspaceId: params.workspaceId, provider: "hubspot" } },
+      create: {
+        workspaceId: params.workspaceId,
+        provider: "hubspot",
+        status: "connected",
+        config: parsedConfig.data,
+        credentialsEnc: encryptCredentials(creds),
+        accountLabel,
+        scopes: [],
+        lastProbeAt: now,
+        connectedById: params.connectedById ?? null,
+      },
+      update: {
+        status: "connected",
+        config: parsedConfig.data,
+        credentialsEnc: encryptCredentials(creds),
+        accountLabel,
+        lastProbeAt: now,
+        connectedById: params.connectedById ?? null,
+      },
+    }),
+  );
+  await publishSafely(deps, {
+    workspaceId: params.workspaceId,
+    type: EVENT_TYPES.INTEGRATION_CONNECTED,
+    payload: { provider: "hubspot", accountLabel },
   });
   return row;
 }

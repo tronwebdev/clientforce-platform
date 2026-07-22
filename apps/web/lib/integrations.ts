@@ -24,8 +24,10 @@ import {
   slackConfigSchema,
   stripeConfigSchema,
   webhooksConfigSchema,
+  hubspotConfigSchema,
   type CalendlyConfig,
   type GcalConfig,
+  type HubspotConfig,
   type IntegrationProvider,
   type IntegrationStatus,
   type SlackConfig,
@@ -77,7 +79,8 @@ export const MANAGED_TWILIO_NOTE = "Managed in Settings → Channels";
  *  `INTEGRATION_PROVIDERS`, so `availabilityFor` flips their cards live
  *  before this lookup is ever reached (availability derives from core). */
 const ABSENT_REASONS: Record<string, string> = {
-  hubspot: "Arrives with the CRM sync wave (this unit, W4)",
+  // hubspot is LIVE (INT W4, DEC-096) — availabilityFor derives it from core
+  // INTEGRATION_PROVIDERS, so no absent reason applies.
   salesforce: "Arrives with the Salesforce/Pipedrive integrations",
   pipedrive: "Arrives with the Salesforce/Pipedrive integrations",
   calcom: "Arrives with the Cal.com integration",
@@ -107,7 +110,7 @@ export interface CatalogEntry {
 }
 
 const BASE: ReadonlyArray<Omit<CatalogEntry, "availability">> = [
-  { id: "hubspot", name: "HubSpot", cat: "crm", glyph: "H", tile: "cyan", desc: "Two-way sync of contacts, deals & lifecycle stages." },
+  { id: "hubspot", name: "HubSpot", cat: "crm", glyph: "H", tile: "cyan", desc: "Push leads into HubSpot as deals & move deal stages from your rules." },
   { id: "salesforce", name: "Salesforce", cat: "crm", glyph: "S", tile: "cyan", desc: "Push qualified leads & booked calls into Salesforce." },
   { id: "pipedrive", name: "Pipedrive", cat: "crm", glyph: "P", tile: "green", desc: "Create a deal automatically when a call is booked." },
   { id: "gcal", name: "Google Calendar", cat: "calendar", glyph: "G", tile: "green", desc: "Book calls straight onto your team calendar." },
@@ -263,6 +266,21 @@ export const DRAWER_CONTENT = {
       { title: "Enter your Payload URL", desc: "A public https endpoint you operate — checked by the delivery guard." },
       { title: "We send a signed test", desc: "A 2xx from your receiver confirms the connection." },
       { title: "Confirm & go live", desc: "Copy the signing secret into your receiver." },
+    ],
+    optionsKind: null,
+  },
+  // INT W4 (DEC-096): HubSpot one-way CRM push — the private-app token tier (no
+  // OAuth clock). Two-way sync is honestly OUT (recorded Q).
+  hubspot: {
+    mode: "fields",
+    authPerms: [],
+    syncRows: [
+      { kind: "deal", label: "Create CRM deal — pushes the lead to HubSpot as a deal" },
+      { kind: "stage", label: "Update deal stage — moves the contact's deal (one-way)" },
+    ],
+    setupSteps: [
+      { title: "Paste a private-app token", desc: "A HubSpot Private App with crm.objects.deals.write + contacts.write." },
+      { title: "Confirm & go live", desc: "We verify the token against your HubSpot account." },
     ],
     optionsKind: null,
   },
@@ -450,5 +468,13 @@ export function stripeWebhookPath(webhookToken: string): string {
 /** Parse the DTO's `config: unknown` through the REAL core schema; garbage → {}. */
 export function parseWebhooksConfig(config: unknown): WebhooksConfig {
   const parsed = webhooksConfigSchema.safeParse(config ?? {});
+  return parsed.success ? parsed.data : {};
+}
+
+// ── hubspot config helpers (INT W4) ─────────────────────────────────────────
+
+/** Parse the DTO's `config: unknown` through the REAL core schema; garbage → {}. */
+export function parseHubspotConfig(config: unknown): HubspotConfig {
+  const parsed = hubspotConfigSchema.safeParse(config ?? {});
   return parsed.success ? parsed.data : {};
 }

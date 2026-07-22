@@ -42,6 +42,8 @@ import {
   connectCalendlyFields,
   connectStripeFields,
   connectWebhooksFields,
+  connectHubspotFields,
+  hubspotConnectFieldsSchema,
   stripeConnectFieldsSchema,
   webhooksConnectFieldsSchema,
   decryptCredentials,
@@ -239,6 +241,16 @@ export class IntegrationsController {
       if (provider === "webhooks") {
         const dto = parse(webhooksConnectFieldsSchema, body);
         const row = await connectWebhooksFields(this.deps, {
+          workspaceId: this.tenant.workspaceId,
+          fields: dto,
+          ...(req.auth ? { connectedById: req.auth.user.id } : {}),
+        });
+        return { integration: toIntegrationDto(row) };
+      }
+      if (provider === "hubspot") {
+        // INT W4 (DEC-096): the private-app token tier (no OAuth clock).
+        const dto = parse(hubspotConnectFieldsSchema, body);
+        const row = await connectHubspotFields(this.deps, {
           workspaceId: this.tenant.workspaceId,
           fields: dto,
           ...(req.auth ? { connectedById: req.auth.user.id } : {}),

@@ -17,7 +17,7 @@ import { z } from "zod";
  * prototype canon; anything not in this list is honest-absent there and the
  * API refuses it typed — the picker↔vocabulary drift test pins the two ends.
  */
-export const INTEGRATION_PROVIDERS = ["slack", "gcal", "calendly", "stripe", "webhooks"] as const;
+export const INTEGRATION_PROVIDERS = ["slack", "gcal", "calendly", "stripe", "webhooks", "hubspot"] as const;
 export const integrationProviderSchema = z.enum(INTEGRATION_PROVIDERS);
 export type IntegrationProvider = z.infer<typeof integrationProviderSchema>;
 
@@ -127,12 +127,28 @@ export const webhooksConfigSchema = z
   .strict();
 export type WebhooksConfig = z.infer<typeof webhooksConfigSchema>;
 
+/**
+ * INT W4 (DEC-096): HubSpot one-way CRM push. The private-app token is a
+ * CREDENTIAL (rides credentialsEnc, never config — the Calendly/Stripe token
+ * precedent); config holds only the non-secret HubSpot portal id (for the
+ * accountLabel) and the optional default pipeline the `create_crm_deal` action
+ * lands new deals in. No two-way sync (recorded Q).
+ */
+export const hubspotConfigSchema = z
+  .object({
+    portalId: z.string().min(1).optional(),
+    defaultPipeline: z.string().min(1).optional(),
+  })
+  .strict();
+export type HubspotConfig = z.infer<typeof hubspotConfigSchema>;
+
 export const integrationConfigSchemas: Record<IntegrationProvider, z.ZodTypeAny> = {
   slack: slackConfigSchema,
   gcal: gcalConfigSchema,
   calendly: calendlyConfigSchema,
   stripe: stripeConfigSchema,
   webhooks: webhooksConfigSchema,
+  hubspot: hubspotConfigSchema,
 };
 
 export const updateIntegrationSchema = z.object({
@@ -183,4 +199,10 @@ export const INTEGRATION_REFUSALS = {
     "No destination URL — set a default Payload URL on the Webhooks integration, or put one on the action",
   WEBHOOK_URL_UNSAFE:
     "That destination was refused by the delivery guard — webhooks POST to public https endpoints only (no private or internal addresses, ports 443/8443)",
+  // INT W4 (DEC-096): HubSpot one-way CRM push.
+  HUBSPOT_TOKEN_INVALID:
+    "That HubSpot private-app token was rejected — check it has the crm.objects.deals.write and crm.objects.contacts.write scopes",
+  CRM_DEAL_MISSING:
+    "No HubSpot deal on this contact yet — add a “Create CRM deal” step before “Update deal stage”",
+  CRM_PUSH_REFUSED: "HubSpot refused the request — check the pipeline/stage names and the token scopes",
 } as const;

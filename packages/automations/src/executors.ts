@@ -368,6 +368,92 @@ async function run(
       return { kind: action.kind, outcome: "executed", detail: suffix };
     }
 
+    case "create_crm_deal": {
+      // INT W4 (DEC-096): one-way push. Absent transport = recorded only; a
+      // push failure NEVER changes the run outcome (the send_webhook stance).
+      if (!ctx.contactId) {
+        return { kind: action.kind, outcome: "noop", detail: "no contact on this event — nothing to push to the CRM" };
+      }
+      if (!deps.crmTransport) {
+        return { kind: action.kind, outcome: "executed", detail: "CRM push not wired on this worker — recorded only" };
+      }
+      const contact = await withTenant(deps.prisma, { workspaceId: ctx.workspaceId }, (tx) =>
+        tx.contact.findUnique({ where: { id: ctx.contactId! }, select: { email: true, firstName: true, lastName: true } }),
+      );
+      if (!contact?.email) {
+        return { kind: action.kind, outcome: "noop", detail: "contact has no email — HubSpot needs one to upsert" };
+      }
+      const name = [contact.firstName, contact.lastName].filter(Boolean).join(" ").trim();
+      let suffix: string;
+      let newDealId: string | undefined;
+      try {
+        const res = await deps.crmTransport({
+          workspaceId: ctx.workspaceId,
+          sourceKey: `${ctx.eventId}#rule:${ruleId}${actionPath}`,
+          op: "create_deal",
+          contact: { email: contact.email, firstName: contact.firstName, lastName: contact.lastName },
+          dealname: name || contact.email,
+          ...(action.stage ? { stage: action.stage } : {}),
+        });
+        newDealId = res.dealId;
+        suffix = res.delivered
+          ? `delivered${res.detail ? ` (${res.detail})` : ""}`
+          : `CRM push skipped${res.detail ? ` (${res.detail})` : ""}`;
+      } catch (err) {
+        suffix = `CRM push failed (${err instanceof Error ? err.message : String(err)})`;
+      }
+      // Store the created deal id so a later update_deal_stage can find it.
+      if (newDealId && ctx.enrollmentId) {
+        await withTenant(deps.prisma, { workspaceId: ctx.workspaceId }, async (tx) => {
+          const enrollment = await tx.enrollment.findUnique({ where: { id: ctx.enrollmentId! } });
+          if (!enrollment) return;
+          const meta = { ...((enrollment.meta ?? {}) as Record<string, unknown>) };
+          meta.crmDealId = newDealId;
+          await tx.enrollment.update({ where: { id: enrollment.id }, data: { meta: meta as Prisma.InputJsonValue } });
+        });
+      }
+      return { kind: action.kind, outcome: "executed", detail: suffix };
+    }
+
+    case "update_deal_stage": {
+      if (!ctx.contactId) {
+        return { kind: action.kind, outcome: "noop", detail: "no contact on this event — nothing to update in the CRM" };
+      }
+      if (!deps.crmTransport) {
+        return { kind: action.kind, outcome: "executed", detail: "CRM push not wired on this worker — recorded only" };
+      }
+      const enrollment = ctx.enrollmentId
+        ? await withTenant(deps.prisma, { workspaceId: ctx.workspaceId }, (tx) =>
+            tx.enrollment.findUnique({ where: { id: ctx.enrollmentId! }, select: { meta: true } }),
+          )
+        : null;
+      const dealId = ((enrollment?.meta ?? {}) as { crmDealId?: unknown }).crmDealId;
+      if (typeof dealId !== "string") {
+        // The typed refusal, recorded on the run row (never a silent no-op).
+        return {
+          kind: action.kind,
+          outcome: "executed",
+          detail: "no HubSpot deal on this contact yet — add a Create CRM deal step first",
+        };
+      }
+      let suffix: string;
+      try {
+        const res = await deps.crmTransport({
+          workspaceId: ctx.workspaceId,
+          sourceKey: `${ctx.eventId}#rule:${ruleId}${actionPath}`,
+          op: "update_stage",
+          dealId,
+          stage: action.stage,
+        });
+        suffix = res.delivered
+          ? `delivered${res.detail ? ` (${res.detail})` : ""}`
+          : `CRM push skipped${res.detail ? ` (${res.detail})` : ""}`;
+      } catch (err) {
+        suffix = `CRM push failed (${err instanceof Error ? err.message : String(err)})`;
+      }
+      return { kind: action.kind, outcome: "executed", detail: suffix };
+    }
+
     case "run_automation": {
       const automation = await withTenant(deps.prisma, { workspaceId: ctx.workspaceId }, (tx) =>
         tx.automation.findUnique({ where: { id: action.automationId } }),
