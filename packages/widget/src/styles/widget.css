@@ -1,0 +1,538 @@
+/**
+ * Agent Widget shell — composition ported from the Agent Widget prototype's
+ * live-preview panel (design_handoff_clientforce_restyle/prototypes/
+ * Agent Widget.dc.html, lines 201–244 + the conversations-thread visitor
+ * bubble); atoms are console-v3 tokens (@clientforce/theme). No raw colors
+ * here — instance values arrive as --cfw-* custom properties set by mount.
+ *
+ * Deviations from the static preview are flagged in PROGRESS (DEC-094):
+ * messages scroll region, label-pill hidden while open, mobile bottom anchor.
+ */
+
+:host {
+  all: initial;
+}
+
+.cfw-root {
+  font-family: var(--cv3-font-body);
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--cv3-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+.cfw-root *,
+.cfw-root *::before,
+.cfw-root *::after {
+  box-sizing: border-box;
+}
+
+/* Zero-specificity reset (:where) so component classes always win. */
+:where(.cfw-root) :where(button) {
+  font: inherit;
+  border: none;
+  background: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  color: inherit;
+}
+
+.cfw-root button:focus-visible {
+  outline: 2px solid var(--cv3-accent);
+  outline-offset: 2px;
+}
+
+/* The composer carries the input's focus ring (visible focus, WCAG §7). */
+.cfw-root .cfw-input:focus,
+.cfw-root .cfw-input:focus-visible {
+  outline: none;
+}
+
+.cfw-composer:focus-within {
+  border-color: var(--cv3-accent);
+  box-shadow: 0 0 0 2px var(--cv3-accent-border);
+}
+
+/* ---------- Launcher cluster (prototype: bottom 20px, side 24px) ---------- */
+
+.cfw-cluster {
+  position: fixed;
+  bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  z-index: var(--cfw-z);
+}
+
+.cfw-root[data-position="right"] .cfw-cluster {
+  right: 24px;
+}
+
+.cfw-root[data-position="left"] .cfw-cluster {
+  left: 24px;
+  flex-direction: row-reverse;
+}
+
+.cfw-launcher {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: var(--cfw-brand);
+  box-shadow: var(--cv3-shadow-launcher);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  color: var(--cfw-on-brand);
+  animation: cfw-float var(--cv3-float-period) ease-in-out infinite;
+  position: relative;
+  flex: none;
+}
+
+.cfw-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--cv3-badge);
+  border: 2px solid var(--cv3-surface);
+  color: var(--cv3-surface);
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cfw-root[data-unread="0"] .cfw-badge,
+.cfw-root[data-state="open"] .cfw-badge {
+  display: none;
+}
+
+.cfw-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cv3-ink);
+  background: var(--cv3-surface);
+  border-radius: var(--cv3-radius-pill);
+  padding: 10px 16px;
+  box-shadow: var(--cv3-shadow-label);
+  white-space: nowrap;
+}
+
+/* Deviation (flagged): the static preview shows both; hiding the label while
+   the panel is open avoids double copy on real pages. */
+.cfw-root[data-state="open"] .cfw-label {
+  display: none;
+}
+
+/* ---------- Panel (prototype: 344px, bottom 96px, side 24px) ---------- */
+
+.cfw-panel {
+  position: fixed;
+  bottom: 96px;
+  width: 344px;
+  background: var(--cv3-surface);
+  border: 1px solid var(--cv3-hairline-soft);
+  border-radius: var(--cfw-radius);
+  box-shadow: var(--cv3-shadow-panel);
+  overflow: hidden;
+  z-index: var(--cfw-z);
+  display: none;
+}
+
+.cfw-root[data-state="open"] .cfw-panel {
+  display: block;
+}
+
+.cfw-root[data-position="right"] .cfw-panel {
+  right: 24px;
+}
+
+.cfw-root[data-position="left"] .cfw-panel {
+  left: 24px;
+}
+
+/* ---------- Header (brand bar) ---------- */
+
+.cfw-header {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 15px 16px;
+  background: var(--cfw-brand);
+}
+
+.cfw-orb {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--cv3-orb-overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--cv3-font-display);
+  font-weight: 800;
+  font-size: 17px;
+  color: var(--cfw-on-brand);
+  flex: none;
+  position: relative;
+}
+
+.cfw-head-text {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.cfw-name {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--cfw-on-brand);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cfw-sub {
+  font-size: 12px;
+  color: var(--cfw-on-brand-sub);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cfw-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--cv3-online);
+  flex: none;
+}
+
+.cfw-close {
+  color: var(--cfw-on-brand-sub);
+  font-size: 15px;
+  flex: none;
+  line-height: 1;
+  padding: 4px;
+}
+
+/* ---------- Body ---------- */
+
+.cfw-body {
+  padding: 16px;
+  background: var(--cv3-surface);
+}
+
+/* Deviation (flagged): the preview is static; a live conversation needs a
+   scroll region. Cap keeps the default panel within the preview's 560 frame. */
+.cfw-messages {
+  max-height: 342px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.cfw-row {
+  display: flex;
+  gap: 9px;
+  margin-bottom: 14px;
+}
+
+.cfw-msg-orb {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--cv3-gradient-identity);
+  flex: none;
+}
+
+.cfw-bubble {
+  background: var(--cv3-surface-mist);
+  color: var(--cv3-ink-body);
+  font-size: 13.5px;
+  line-height: 1.5;
+  padding: 11px 13px;
+  border-radius: 4px 14px 14px 14px;
+  max-width: 80%;
+  overflow-wrap: anywhere;
+}
+
+.cfw-row[data-role="visitor"] {
+  justify-content: flex-end;
+}
+
+.cfw-row[data-role="visitor"] .cfw-bubble {
+  background: var(--cv3-accent-tint);
+  border: 1px solid var(--cv3-accent-border);
+  color: var(--cv3-ink-strong);
+  border-radius: 14px 14px 4px 14px;
+}
+
+.cfw-row[data-kind="error"] .cfw-bubble {
+  border: 1px solid var(--cv3-danger);
+  color: var(--cv3-ink-body);
+}
+
+/* Typing indicator (rides the agent row while thinking/replying) */
+
+.cfw-typing {
+  display: none;
+}
+
+.cfw-root[data-agent-state="thinking"] .cfw-typing,
+.cfw-root[data-agent-state="replying"] .cfw-typing {
+  display: flex;
+}
+
+.cfw-typing .cfw-bubble {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  min-height: 34px;
+}
+
+.cfw-typing-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--cv3-muted);
+  animation: cfw-bounce 1.2s ease-in-out infinite;
+}
+
+.cfw-typing-dot:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.cfw-typing-dot:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+/* ---------- Quick-action chips ---------- */
+
+.cfw-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding-left: 37px;
+}
+
+.cfw-chip {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--cfw-brand);
+  background: var(--cv3-surface);
+  border: 1px solid var(--cv3-hairline);
+  border-radius: var(--cv3-radius-pill);
+  padding: 7px 13px;
+}
+
+/* ---------- Composer ---------- */
+
+.cfw-composer {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  background: var(--cv3-surface-mist);
+  border: 1px solid var(--cv3-hairline);
+  border-radius: var(--cv3-radius-pill);
+  padding: 7px 7px 7px 15px;
+}
+
+.cfw-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--cv3-ink);
+  outline: none;
+}
+
+.cfw-input::placeholder {
+  color: var(--cv3-muted);
+}
+
+.cfw-mic {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--cv3-surface);
+  border: 1px solid var(--cv3-hairline);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  flex: none;
+}
+
+.cfw-send {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--cfw-brand);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cfw-on-brand);
+  font-size: 14px;
+  flex: none;
+}
+
+/* ---------- Dark theme (prototype dark literals via tokens) ---------- */
+
+.cfw-root[data-theme="dark"] .cfw-panel {
+  background: var(--cv3-dark-surface);
+  border-color: var(--cv3-dark-hairline);
+}
+
+.cfw-root[data-theme="dark"] .cfw-body {
+  background: var(--cv3-dark-surface);
+}
+
+.cfw-root[data-theme="dark"] .cfw-bubble {
+  background: var(--cv3-dark-bubble);
+  color: var(--cv3-dark-ink);
+}
+
+.cfw-root[data-theme="dark"] .cfw-row[data-role="visitor"] .cfw-bubble {
+  background: var(--cv3-accent-tint);
+  border-color: var(--cv3-accent-border);
+  color: var(--cv3-dark-ink);
+}
+
+.cfw-root[data-theme="dark"] .cfw-chip {
+  background: var(--cv3-dark-chip);
+  border-color: var(--cv3-dark-chip-border);
+}
+
+.cfw-root[data-theme="dark"] .cfw-composer {
+  background: var(--cv3-dark-field);
+  border-color: var(--cv3-dark-field-border);
+}
+
+.cfw-root[data-theme="dark"] .cfw-input {
+  color: var(--cv3-dark-ink);
+}
+
+.cfw-root[data-theme="dark"] .cfw-input::placeholder {
+  color: var(--cv3-dark-placeholder);
+}
+
+.cfw-root[data-theme="dark"] .cfw-mic {
+  background: var(--cv3-dark-chip);
+  border-color: var(--cv3-dark-chip-border);
+}
+
+/* ---------- Agent-identity motion states (console-v3) ----------
+   Provisional choreography pending the owner's mock (Q-047): idle breath,
+   listening ripple, thinking ring-spin, replying quick breath + dots. */
+
+.cfw-root[data-agent-state="idle"] .cfw-orb {
+  animation: cfw-breath var(--cv3-breath-period) ease-in-out infinite;
+}
+
+.cfw-root[data-agent-state="listening"] .cfw-orb {
+  animation: cfw-ripple 1.6s ease-out infinite;
+}
+
+.cfw-root[data-agent-state="thinking"] .cfw-orb::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  border-top-color: var(--cv3-accent-vivid);
+  animation: cfw-spin 0.9s linear infinite;
+}
+
+.cfw-root[data-agent-state="replying"] .cfw-orb {
+  animation: cfw-breath 1s ease-in-out infinite;
+}
+
+@keyframes cfw-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes cfw-breath {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(1.05);
+    opacity: 0.85;
+  }
+}
+
+@keyframes cfw-ripple {
+  0% {
+    box-shadow: 0 0 0 0 var(--cv3-accent-border);
+  }
+
+  100% {
+    box-shadow: 0 0 0 9px var(--cv3-accent-fade);
+  }
+}
+
+@keyframes cfw-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes cfw-bounce {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+  }
+
+  30% {
+    transform: translateY(-4px);
+  }
+}
+
+/* ---------- Reduced motion (DESIGN_TOKENS §7) ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .cfw-root *,
+  .cfw-root *::before,
+  .cfw-root *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* ---------- Narrow viewports (prototype mobile: 300px, centered).
+   Deviation (flagged): anchored to the BOTTOM on real pages — the preview's
+   top placement fits its 560px frame, not a live site. ---------- */
+
+@media (max-width: 480px) {
+  .cfw-panel {
+    width: min(300px, calc(100vw - 32px));
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%);
+  }
+
+  .cfw-cluster {
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%);
+  }
+}
