@@ -155,11 +155,18 @@ async function main(): Promise<void> {
     let delivery = null;
     for (let i = 0; i < 30 && !delivery; i += 1) {
       await new Promise((r) => setTimeout(r, 1000));
-      delivery = await owner.integrationDelivery.findFirst({
-        where: { workspaceId: ws.id, kind: "new_reply", status: "delivered" },
+      // Self-diagnosing (run-2 lesson): a FAILED/HELD row ends the wait
+      // immediately with the vendor's own refusal detail in the gate output —
+      // never a mute 30s timeout hiding a channel_not_found.
+      const settled = await owner.integrationDelivery.findFirst({
+        where: { workspaceId: ws.id, kind: "new_reply", status: { in: ["delivered", "failed", "held"] } },
       });
+      if (settled?.status === "delivered") delivery = settled;
+      else if (settled) {
+        fail("3 notify delivered", `delivery ${settled.status}: ${JSON.stringify(settled.detail)}`);
+      }
     }
-    if (!delivery) fail("3 notify delivered", "no delivered IntegrationDelivery row within 30s — check the worker consumer");
+    if (!delivery) fail("3 notify delivered", "no delivery row at all within 30s — the bus consumer never fired; check REDIS_URL/worker wiring");
     const notified = await owner.event.findFirst({ where: { workspaceId: ws.id, type: "integration.notified.v1" } });
     if (!notified) fail("3 notify delivered", "integration.notified.v1 missing from the ledger");
     pass("3 notify delivered", `REAL Slack post in #${channel.name} — delivery ${delivery.id}`);
