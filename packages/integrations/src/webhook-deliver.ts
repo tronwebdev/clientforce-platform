@@ -12,6 +12,7 @@ import { webhooksConfigSchema } from "@clientforce/core";
 import { EVENT_TYPES } from "@clientforce/events";
 import { withTenant, Prisma } from "@clientforce/db";
 import {
+  INBOUND_DELIVERY_KINDS,
   INTEGRATION_DAILY_DELIVERY_ALLOWANCE,
   WEBHOOK_MAX_RESPONSE_BYTES,
   WEBHOOK_TIMEOUT_MS,
@@ -54,6 +55,39 @@ export const redactWebhookTarget = (url: URL): string =>
 export const signWebhookBody = (secret: string, t: string, body: string): string =>
   createHmac("sha256", secret).update(`${t}.${body}`, "utf8").digest("hex");
 
+/**
+ * Read at most WEBHOOK_MAX_RESPONSE_BYTES of a response body, then cancel the
+ * stream — the error-preview read must never buffer an unbounded body. Runs
+ * under the caller's AbortSignal so the 5s timeout also bounds the body.
+ */
+async function readCappedBody(res: Response, signal: AbortSignal): Promise<string> {
+  if (!res.body) {
+    try {
+      return (await res.text()).slice(0, WEBHOOK_MAX_RESPONSE_BYTES);
+    } catch {
+      return "";
+    }
+  }
+  const reader = res.body.getReader();
+  const chunks: Buffer[] = [];
+  let total = 0;
+  try {
+    while (total < WEBHOOK_MAX_RESPONSE_BYTES && !signal.aborted) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value && value.length > 0) {
+        chunks.push(Buffer.from(value));
+        total += value.length;
+      }
+    }
+  } catch {
+    // Aborted or a mid-stream network error — return whatever was buffered.
+  } finally {
+    await reader.cancel().catch(() => {});
+  }
+  return Buffer.concat(chunks).toString("utf8").slice(0, WEBHOOK_MAX_RESPONSE_BYTES);
+}
+
 export async function deliverWebhook(
   deps: IntegrationsDeps,
   params: {
@@ -82,15 +116,28 @@ export async function deliverWebhook(
   const now = (deps.now ?? (() => new Date()))();
   const dayStart = utcDayStart(now);
   const allowance = deps.config?.dailyDeliveryAllowance ?? INTEGRATION_DAILY_DELIVERY_ALLOWANCE;
+  // INBOUND ingest claims (kind `payment`) are receipts, not sends — they must
+  // never count toward the outbound-delivery brake (W3 review fix; same as the
+  // Slack notifier's shared workspace pool).
   const attemptsToday = await withTenant(deps.prisma, { workspaceId: params.workspaceId }, (tx) =>
     tx.integrationDelivery.count({
-      where: { workspaceId: params.workspaceId, createdAt: { gte: dayStart }, status: { in: ["delivered", "failed"] } },
+      where: {
+        workspaceId: params.workspaceId,
+        createdAt: { gte: dayStart },
+        status: { in: ["delivered", "failed"] },
+        kind: { notIn: [...INBOUND_DELIVERY_KINDS] },
+      },
     }),
   );
   if (attemptsToday >= allowance) {
     const heldBefore = await withTenant(deps.prisma, { workspaceId: params.workspaceId }, (tx) =>
       tx.integrationDelivery.count({
-        where: { workspaceId: params.workspaceId, createdAt: { gte: dayStart }, status: "held" },
+        where: {
+          workspaceId: params.workspaceId,
+          createdAt: { gte: dayStart },
+          status: "held",
+          kind: { notIn: [...INBOUND_DELIVERY_KINDS] },
+        },
       }),
     );
     const heldRow = await claimDelivery(deps, row.id, params, "held", { reason: "workspace_delivery_allowance" });
@@ -146,9 +193,8 @@ export async function deliverWebhook(
     const v1 = signWebhookBody(secret, t, body);
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), WEBHOOK_TIMEOUT_MS);
-    let res: Response;
     try {
-      res = await fetch(guarded.url.toString(), {
+      const res = await fetch(guarded.url.toString(), {
         method: "POST",
         headers: {
           "content-type": "application/json",
@@ -160,15 +206,19 @@ export async function deliverWebhook(
         redirect: "manual",
         signal: controller.signal,
       });
+      if (res.status >= 300 && res.status < 400) {
+        throw new IntegrationDeliveryError("webhook_redirect_refused", `destination answered a redirect (HTTP ${res.status}) — redirects are not followed`);
+      }
+      if (res.status >= 400) {
+        // Read the error body INSIDE the timeout scope and cap it at the
+        // transport (W3 fix): a hostile public receiver could otherwise stream
+        // a multi-GB/slow 4xx body — res.text() would buffer all of it with no
+        // active AbortSignal. The stream stops at the cap.
+        const preview = await readCappedBody(res, controller.signal);
+        throw new IntegrationDeliveryError("webhook_rejected", `destination answered HTTP ${res.status}${preview ? ` — ${preview.slice(0, 140)}` : ""}`);
+      }
     } finally {
       clearTimeout(timer);
-    }
-    if (res.status >= 300 && res.status < 400) {
-      throw new IntegrationDeliveryError("webhook_redirect_refused", `destination answered a redirect (HTTP ${res.status}) — redirects are not followed`);
-    }
-    if (res.status >= 400) {
-      const preview = (await res.text().catch(() => "")).slice(0, WEBHOOK_MAX_RESPONSE_BYTES);
-      throw new IntegrationDeliveryError("webhook_rejected", `destination answered HTTP ${res.status}${preview ? ` — ${preview.slice(0, 140)}` : ""}`);
     }
   } catch (err) {
     const detail =

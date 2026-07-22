@@ -89,8 +89,17 @@ export function actionChip(
     // INT W3: the payment twin — same queued-not-sent honesty.
     case "send_payment_link":
       return "Send payment link";
-    case "send_webhook":
-      return action.url ? `Send webhook: ${new URL(action.url).hostname}` : "Send webhook (default URL)";
+    case "send_webhook": {
+      if (!action.url) return "Send webhook (default URL)";
+      // The builder calls this on the LIVE draft on every keystroke, so
+      // action.url is often an in-progress string `new URL()` would throw on —
+      // fall back to the raw text, never crash the builder mid-type (W3 fix).
+      try {
+        return `Send webhook: ${new URL(action.url).hostname}`;
+      } catch {
+        return `Send webhook: ${action.url}`;
+      }
+    }
   }
 }
 

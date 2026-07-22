@@ -87,8 +87,15 @@ describe("webhook guard — private/reserved address refusals (literal IPs)", ()
     "[ff02::1]", // multicast
     "[::ffff:10.0.0.1]", // v4-mapped private
     "[::ffff:169.254.169.254]", // v4-mapped metadata
-    "[64:ff9b::a00:1]", // NAT64 prefix
+    "[64:ff9b::a00:1]", // NAT64 well-known prefix
     "[2001:db8::1]", // documentation
+    // W3 review (ssrf #2): the transition/embedded forms the guard used to pass.
+    "[::7f00:1]", // v4-compatible ::/96 == ::127.0.0.1
+    "[2002:a9fe:a9fe::]", // 6to4 embedding 169.254.169.254 (metadata)
+    "[2002:7f00:1::]", // 6to4 embedding 127.0.0.1 (loopback)
+    "[2001:0:4136:e378:8000:63bf:3fff:fdd2]", // Teredo 2001:0000::/32
+    "[2001::1]", // Teredo, compressed
+    "[64:ff9b:1::1]", // RFC 8215 local-use NAT64 64:ff9b:1::/48
   ];
   for (const ip of blockedV6) {
     it(`refuses v6 ${ip}`, async () => {
@@ -99,6 +106,9 @@ describe("webhook guard — private/reserved address refusals (literal IPs)", ()
   it("passes public v6 literals and v4-mapped public", async () => {
     expect(await refusal("https://[2606:4700:4700::1111]/hook")).toBe("PASSED");
     expect(await refusal("https://[::ffff:1.1.1.1]/hook")).toBe("PASSED");
+    // A 6to4 that embeds a PUBLIC v4 (8.8.8.8) resolves to that public target —
+    // the embedded-v4-decides contract must NOT over-block it.
+    expect(await refusal("https://[2002:808:808::]/hook")).toBe("PASSED");
   });
 });
 
@@ -114,5 +124,13 @@ describe("webhook guard — range helpers", () => {
   it("isPublicV6 case-insensitivity", () => {
     expect(isPublicV6("FC00::1")).toBe(false);
     expect(isPublicV6("FE80::1")).toBe(false);
+  });
+  it("isPublicV6 transition/embedded ranges (ssrf #2)", () => {
+    expect(isPublicV6("::7f00:1")).toBe(false); // v4-compatible loopback
+    expect(isPublicV6("2002:a9fe:a9fe::")).toBe(false); // 6to4 metadata
+    expect(isPublicV6("2001:0:4136::1")).toBe(false); // Teredo
+    expect(isPublicV6("64:ff9b:1::1")).toBe(false); // NAT64 local-use
+    expect(isPublicV6("2002:808:808::")).toBe(true); // 6to4 wrapping public 8.8.8.8
+    expect(isPublicV6("2606:4700:4700::1111")).toBe(true); // ordinary global unicast
   });
 });

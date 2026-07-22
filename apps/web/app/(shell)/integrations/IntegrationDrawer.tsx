@@ -524,6 +524,11 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
     });
     setGcalDraft({ calendar: gcalConfig.calendar ?? null, offerSlots: offerSlotsOn(gcalConfig) });
     setFields({ schedulingUrl: calConfig.schedulingUrl ?? "", apiToken: "" });
+    // W3 fix: stripe/webhooks drafts must re-seed from the stored config too —
+    // otherwise a cancelled edit persists in state and a later Save re-submits
+    // the abandoned value (and connectFields fires a signed test at it).
+    setStripeFields({ paymentLinkUrl: stripeCfg.paymentLinkUrl ?? "", apiKey: "" });
+    setWhFields({ defaultUrl: whCfg.defaultUrl ?? "" });
     setSaveError(null);
     setFieldsError(null);
     setConfigOpen(true);
@@ -716,7 +721,11 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
     const stepDesc =
       content.mode === "fields"
         ? wizStep === 1
-          ? "Paste your scheduling link — add an API token to detect bookings."
+          ? isStripe
+            ? "Paste your Stripe Payment Link — add a restricted API key to detect payments."
+            : isWebhooks
+              ? "Set the Payload URL Clientforce will POST signed events to."
+              : "Paste your scheduling link — add an API token to detect bookings."
           : "Review what will connect."
         : wizStep === 1
           ? `Sign in to ${entry.name} to grant secure access.`
@@ -793,19 +802,54 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
         {content.mode === "fields" && wizStep === 2 && (
           <>
             <div style={SECTION}>What will connect</div>
+            {/* W3 fix: the confirm step must reflect the ACTUAL provider's
+                entries — it was hardcoded to calendly, so stripe/webhooks
+                connects showed empty "Scheduling link — " calendly copy. */}
             <div style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 14, overflow: "hidden" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 15px" }}>
-                <span style={{ color: "#16A82A", fontSize: 13 }}>✓</span>
-                <span style={{ fontSize: 13.5, color: "#3B463F", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Scheduling link — {fields.schedulingUrl.trim()}</span>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 15px", borderTop: "1px solid #F2EEE4" }}>
-                <span style={{ color: fields.apiToken.trim() ? "#16A82A" : "#C9CFC9", fontSize: 13 }}>{fields.apiToken.trim() ? "✓" : "○"}</span>
-                <span style={{ fontSize: 13.5, color: "#3B463F" }}>
-                  {fields.apiToken.trim()
-                    ? "API token supplied — booking detection will be enabled"
-                    : "No API token — link only (add one later to detect bookings)"}
-                </span>
-              </div>
+              {isStripe ? (
+                <>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 15px" }}>
+                    <span style={{ color: stripeFields.paymentLinkUrl.trim() ? "#16A82A" : "#C9CFC9", fontSize: 13 }}>{stripeFields.paymentLinkUrl.trim() ? "✓" : "○"}</span>
+                    <span data-testid="confirm-stripe-link" style={{ fontSize: 13.5, color: "#3B463F", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {stripeFields.paymentLinkUrl.trim() ? `Payment link — ${stripeFields.paymentLinkUrl.trim()}` : "No payment link — detection only"}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 15px", borderTop: "1px solid #F2EEE4" }}>
+                    <span style={{ color: stripeFields.apiKey.trim() ? "#16A82A" : "#C9CFC9", fontSize: 13 }}>{stripeFields.apiKey.trim() ? "✓" : "○"}</span>
+                    <span data-testid="confirm-stripe-key" style={{ fontSize: 13.5, color: "#3B463F" }}>
+                      {stripeFields.apiKey.trim()
+                        ? "Restricted API key supplied — payment detection will be enabled"
+                        : "No API key — link only (add one later to detect payments)"}
+                    </span>
+                  </div>
+                </>
+              ) : isWebhooks ? (
+                <>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 15px" }}>
+                    <span style={{ color: "#16A82A", fontSize: 13 }}>✓</span>
+                    <span data-testid="confirm-webhooks-url" style={{ fontSize: 13.5, color: "#3B463F", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Payload URL — {whFields.defaultUrl.trim()}</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 15px", borderTop: "1px solid #F2EEE4" }}>
+                    <span style={{ color: "#C9CFC9", fontSize: 13 }}>○</span>
+                    <span style={{ fontSize: 13.5, color: "#3B463F" }}>A signed test event is POSTed on connect — only a 2xx confirms the receiver; the signing secret appears on the drawer.</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 15px" }}>
+                    <span style={{ color: "#16A82A", fontSize: 13 }}>✓</span>
+                    <span style={{ fontSize: 13.5, color: "#3B463F", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Scheduling link — {fields.schedulingUrl.trim()}</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 15px", borderTop: "1px solid #F2EEE4" }}>
+                    <span style={{ color: fields.apiToken.trim() ? "#16A82A" : "#C9CFC9", fontSize: 13 }}>{fields.apiToken.trim() ? "✓" : "○"}</span>
+                    <span style={{ fontSize: 13.5, color: "#3B463F" }}>
+                      {fields.apiToken.trim()
+                        ? "API token supplied — booking detection will be enabled"
+                        : "No API token — link only (add one later to detect bookings)"}
+                    </span>
+                  </div>
+                </>
+              )}
             </div>
             {fieldsError && (
               <div data-testid="connect-refused" style={{ marginTop: 12, background: "rgba(224,121,107,.1)", border: "1px solid #F0CFC8", borderRadius: 11, padding: "10px 14px", fontSize: 13, color: "#C9543F" }}>
@@ -976,7 +1020,10 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
         )}
       </>
     );
-    const settingsBusy = isCalendly ? fieldsBusy : saveBusy;
+    // stripe/webhooks save through connectFields (fieldsBusy), same as calendly
+    // — only slack/gcal use saveConfig (saveBusy). W3 fix: their Save button
+    // never showed a busy state.
+    const settingsBusy = isCalendly || isStripe || isWebhooks ? fieldsBusy : saveBusy;
     footer = (
       <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 22px", borderTop: "1px solid #EBE3D6", background: "#fff", flex: "none" }}>
         <span onClick={() => setConfigOpen(false)} style={{ fontSize: 14, fontWeight: 600, color: "#5C6B62", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 11, padding: "10px 18px", cursor: "pointer" }}>Cancel</span>

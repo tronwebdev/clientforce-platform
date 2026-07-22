@@ -313,9 +313,11 @@ export class IntegrationsController {
     }
     // Review-round fix: webhookToken + detection are SERVER-MINTED trust
     // anchors (the capability URL + the live-subscription marker) — a PATCH
-    // must never let a client drop or forge them; the stored values win.
+    // must never let a client drop or forge them; the stored values win. Both
+    // calendly AND stripe carry these anchors (W3 fix: the guard was calendly-
+    // only, so a stripe PATCH could drop the token and silently kill detection).
     let effective = config as Record<string, unknown>;
-    if (provider === "calendly") {
+    if (provider === "calendly" || provider === "stripe") {
       const stored = (row.config ?? {}) as Record<string, unknown>;
       effective = {
         ...effective,

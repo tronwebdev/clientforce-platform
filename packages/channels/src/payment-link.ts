@@ -85,20 +85,26 @@ export async function augmentBriefWithPaymentLink(
 }
 
 /**
- * Send-boundary flag clear: once a SENT message actually carried the
- * workspace payment link (mustSay injection or a scripted {{paymentLink}}),
- * the queued request is fulfilled. Substring on the BASE link (the per-lead
- * rider follows it). Best-effort — never unwinds a send.
+ * Send-boundary flag clear: once a SENT message actually carried the per-lead
+ * payment link (mustSay injection or a scripted {{paymentLink}}), the queued
+ * request is fulfilled. The check requires the CORRELATED link — base URL +
+ * `client_reference_id=<contactId>` — not just the base URL: a riderless base
+ * link (a scripted raw URL, or the base URL surfacing organically from
+ * BusinessContext during a compose→send race) can't correlate the payer, so it
+ * must NOT mark the request fulfilled (else the flag clears, the lead pays via
+ * an uncorrelatable link, and payment automations never fire). Best-effort —
+ * never unwinds a send.
  */
 export async function clearPaymentLinkFlagAfterSend(
   prisma: PrismaClient,
-  params: { workspaceId: string; enrollmentId: string; sentBody: string },
+  params: { workspaceId: string; enrollmentId: string; contactId: string; sentBody: string },
 ): Promise<void> {
   try {
     if (!(await paymentLinkRequested(prisma, params.workspaceId, params.enrollmentId))) return;
     const paymentLinkUrl = await loadPaymentLinkUrl(prisma, params.workspaceId);
     if (!paymentLinkUrl) return;
-    if (!params.sentBody.toLowerCase().includes(paymentLinkUrl.toLowerCase())) return;
+    const correlated = withClientReference(paymentLinkUrl, params.contactId);
+    if (!params.sentBody.toLowerCase().includes(correlated.toLowerCase())) return;
     await withTenant(prisma, { workspaceId: params.workspaceId }, async (tx) => {
       const enrollment = await tx.enrollment.findUnique({ where: { id: params.enrollmentId } });
       if (!enrollment) return;

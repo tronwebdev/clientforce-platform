@@ -10,7 +10,7 @@
  * FIELD-ENCRYPTION-KEY — the SenderConnection/DEC-030 rule).
  */
 import { randomBytes } from "node:crypto";
-import { decryptField, encryptField, withTenant } from "@clientforce/db";
+import { decryptField, encryptField, withTenant, Prisma } from "@clientforce/db";
 import { EVENT_TYPES } from "@clientforce/events";
 import {
   INTEGRATION_REFUSALS,
@@ -299,6 +299,57 @@ export async function probeIntegration(
       return { status: to, detail };
     }
   }
+  // W3 review fix: a KEY-tier stripe row's health is the account probe AND the
+  // webhook endpoint detection depends on — `detection` must reflect a LIVE
+  // endpoint, never an assumed one. If the endpoint was deleted/disabled
+  // out-of-band, flip detection off (honest) rather than keep rendering it live.
+  if (params.provider === "stripe" && row.credentialsEnc) {
+    const stripeAdapter = adapter as unknown as {
+      account(creds: IntegrationCredentials): Promise<{ id: string; businessName?: string }>;
+      listWebhookEndpoints(creds: IntegrationCredentials): Promise<Array<{ id: string; status: string }>>;
+    };
+    const creds = decryptCredentials(row);
+    const cfg = stripeConfigSchema.safeParse(row.config);
+    try {
+      const account = await stripeAdapter.account(creds);
+      accountLabel = account.businessName ? `${account.businessName} (${account.id})` : account.id;
+      to = "connected";
+      detail = `stripe reachable — authed as ${accountLabel}`;
+      const endpointId = typeof creds.webhookEndpointId === "string" ? creds.webhookEndpointId : undefined;
+      if (cfg.success && cfg.data.detection && endpointId) {
+        const endpoints = await stripeAdapter.listWebhookEndpoints(creds);
+        const live = endpoints.some((e) => e.id === endpointId && e.status === "enabled");
+        if (!live) {
+          await withTenant(deps.prisma, { workspaceId: params.workspaceId }, (tx) =>
+            tx.integration.update({
+              where: { id: row.id },
+              data: { config: { ...cfg.data, detection: false } as Prisma.InputJsonValue },
+            }),
+          );
+          detail = `${detail} — payment detection endpoint missing; reconnect the key tier to restore`;
+        }
+      }
+    } catch (err) {
+      if (err instanceof IntegrationProviderError) {
+        to = err.code === "PROVIDER_AUTH" ? "revoked" : "unhealthy";
+      } else {
+        to = "unhealthy";
+      }
+      detail = err instanceof Error ? err.message : String(err);
+    }
+    const nowTs = (deps.now ?? (() => new Date()))();
+    await withTenant(deps.prisma, { workspaceId: params.workspaceId }, (tx) =>
+      tx.integration.update({ where: { id: row.id }, data: { status: to, lastProbeAt: nowTs, accountLabel } }),
+    );
+    if (from !== to) {
+      await publishSafely(deps, {
+        workspaceId: params.workspaceId,
+        type: EVENT_TYPES.INTEGRATION_STATUS_CHANGED,
+        payload: { provider: params.provider, from, to },
+      });
+    }
+    return { status: to, detail };
+  }
   try {
     // W2: refreshing providers probe on a FRESH token (an expired-but-
     // refreshable Google token is healthy, not revoked). No-refresh adapters
@@ -564,66 +615,15 @@ export async function connectStripeFields(
   const existingConfig = stripeConfigSchema.safeParse(existing?.config ?? {});
   const existingCreds = existing ? decryptCredentials(existing) : {};
 
-  // ── Key tier ───────────────────────────────────────────────────────────────
   let credentials: IntegrationCredentials | undefined;
   let accountLabel = existing?.accountLabel ?? null;
   const paymentLinkUrl = params.fields.paymentLinkUrl?.trim() || undefined;
   const config: Record<string, unknown> = existingConfig.success ? { ...existingConfig.data } : {};
 
-  if (params.fields.apiKey) {
-    const keyCreds: IntegrationCredentials = { apiKey: params.fields.apiKey };
-    const account = await adapter.account(keyCreds); // the live key probe — PROVIDER_AUTH refuses upstream
-    accountLabel = account.businessName ? `${account.businessName} (${account.id})` : account.id;
-    // Reused across reconnects: a rotated key must not move the capability URL.
-    const webhookToken =
-      (existingConfig.success && existingConfig.data.webhookToken) || randomBytes(24).toString("hex");
-    try {
-      const endpoint = await adapter.ensureWebhookEndpoint(keyCreds, {
-        callbackUrl: params.webhookUrlFor(webhookToken),
-      });
-      const priorSecret =
-        typeof existingCreds.webhookSigningSecret === "string" ? existingCreds.webhookSigningSecret : undefined;
-      const secret = endpoint.secret ?? priorSecret;
-      if (!secret) {
-        // Stripe reveals the secret ONLY at create — an already-existing
-        // endpoint with no stored secret can't verify anything. Recreate.
-        await adapter.deleteWebhookEndpoint(keyCreds, endpoint.id);
-        const fresh = await adapter.ensureWebhookEndpoint(keyCreds, {
-          callbackUrl: params.webhookUrlFor(webhookToken),
-        });
-        if (!fresh.secret) {
-          throw new IntegrationRefusedError(
-            `${INTEGRATION_REFUSALS.STRIPE_TOKEN_REQUIRED_FOR_DETECTION} (Stripe returned no signing secret for the webhook endpoint)`,
-          );
-        }
-        credentials = {
-          apiKey: params.fields.apiKey,
-          webhookSigningSecret: fresh.secret,
-          webhookEndpointId: fresh.id,
-          accountId: account.id,
-        };
-      } else {
-        credentials = {
-          apiKey: params.fields.apiKey,
-          webhookSigningSecret: secret,
-          webhookEndpointId: endpoint.id,
-          accountId: account.id,
-        };
-      }
-    } catch (err) {
-      if (err instanceof IntegrationDeliveryError) {
-        // A restricted key without Webhook Endpoints write — typed, permission-naming.
-        throw new IntegrationRefusedError(
-          `${INTEGRATION_REFUSALS.STRIPE_TOKEN_REQUIRED_FOR_DETECTION} (Stripe said: ${err.message})`,
-        );
-      }
-      throw err;
-    }
-    config.webhookToken = webhookToken;
-    config.detection = true;
-  }
-
-  // ── Link tier (both tiers store/refresh the link when one exists) ──────────
+  // ── Link tier probe FIRST (read-only) ──────────────────────────────────────
+  // A bad link must refuse BEFORE the key tier mutates Stripe (creates an
+  // endpoint) — otherwise every failed attempt orphans a webhook endpoint at a
+  // never-persisted capability URL that no later code path can match or revoke.
   if (paymentLinkUrl) {
     try {
       await adapter.probeLink(paymentLinkUrl); // the live link probe
@@ -636,6 +636,71 @@ export async function connectStripeFields(
     config.paymentLinkUrl = paymentLinkUrl;
   } else if (!config.paymentLinkUrl && !params.fields.apiKey) {
     throw new IntegrationRefusedError(INTEGRATION_REFUSALS.PAYMENT_NOT_CONFIGURED);
+  }
+
+  // ── Key tier (vendor-mutating — runs only after the link validated) ────────
+  if (params.fields.apiKey) {
+    const keyCreds: IntegrationCredentials = { apiKey: params.fields.apiKey };
+    const account = await adapter.account(keyCreds); // the live key probe — PROVIDER_AUTH refuses upstream
+    accountLabel = account.businessName ? `${account.businessName} (${account.id})` : account.id;
+    // Reused across reconnects: a rotated key must not move the capability URL.
+    const webhookToken =
+      (existingConfig.success && existingConfig.data.webhookToken) || randomBytes(24).toString("hex");
+    const priorSecret =
+      typeof existingCreds.webhookSigningSecret === "string" ? existingCreds.webhookSigningSecret : undefined;
+    const priorEndpointId =
+      typeof existingCreds.webhookEndpointId === "string" ? existingCreds.webhookEndpointId : undefined;
+    try {
+      const endpoint = await adapter.ensureWebhookEndpoint(keyCreds, {
+        callbackUrl: params.webhookUrlFor(webhookToken),
+      });
+      let secret = endpoint.secret;
+      let endpointId = endpoint.id;
+      if (!secret) {
+        // A URL-matched endpoint returns NO secret (Stripe reveals it only at
+        // create). The stored secret is trustworthy ONLY when it belongs to
+        // THIS SAME endpoint — reusing it against a different endpoint id (a
+        // test↔live or account-switch reconnect that matched a different row)
+        // silently mismatches every signature. Verify identity; else recreate.
+        if (priorSecret && priorEndpointId === endpoint.id) {
+          secret = priorSecret;
+        } else {
+          await adapter.deleteWebhookEndpoint(keyCreds, endpoint.id);
+          const fresh = await adapter.ensureWebhookEndpoint(keyCreds, {
+            callbackUrl: params.webhookUrlFor(webhookToken),
+          });
+          if (!fresh.secret) {
+            throw new IntegrationRefusedError(
+              `${INTEGRATION_REFUSALS.STRIPE_TOKEN_REQUIRED_FOR_DETECTION} (Stripe returned no signing secret for the webhook endpoint)`,
+            );
+          }
+          secret = fresh.secret;
+          endpointId = fresh.id;
+        }
+      }
+      // Strand cleanup: a previously-stored endpoint that is NOT the one we now
+      // keep (account/mode switch) would keep POSTing unverifiable events at the
+      // capability URL and could never be revoked later — best-effort delete it.
+      if (priorEndpointId && priorEndpointId !== endpointId) {
+        await adapter.deleteWebhookEndpoint(keyCreds, priorEndpointId).catch(() => {});
+      }
+      credentials = {
+        apiKey: params.fields.apiKey,
+        webhookSigningSecret: secret,
+        webhookEndpointId: endpointId,
+        accountId: account.id,
+      };
+    } catch (err) {
+      if (err instanceof IntegrationDeliveryError) {
+        // A restricted key without Webhook Endpoints write — typed, permission-naming.
+        throw new IntegrationRefusedError(
+          `${INTEGRATION_REFUSALS.STRIPE_TOKEN_REQUIRED_FOR_DETECTION} (Stripe said: ${err.message})`,
+        );
+      }
+      throw err;
+    }
+    config.webhookToken = webhookToken;
+    config.detection = true;
   }
 
   const parsedConfig = stripeConfigSchema.safeParse(config);

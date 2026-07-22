@@ -24,6 +24,24 @@ export const INTEGRATION_DAILY_DELIVERY_ALLOWANCE = envInt(
 );
 
 /**
+ * INT W3 (DEC-095) review-round fix: IntegrationDelivery rows whose `kind` is
+ * an INBOUND ingest claim (a webhook we RECEIVED, not a delivery we SENT). The
+ * outbound-delivery allowance brake must NOT count these — a workspace taking
+ * 500 Stripe payments in a day would otherwise exhaust its own outbound budget
+ * and start holding legitimate Slack/webhook sends. `payment` is the first such
+ * kind (W3); add future inbound-claim kinds here.
+ */
+export const INBOUND_DELIVERY_KINDS = ["payment"] as const;
+
+/**
+ * INT W3 (DEC-095) review-round fix: the accepted clock-skew window for the
+ * Stripe webhook signature timestamp (Stripe's own SDK default). A signature
+ * whose `t` is older/newer than this is a replay and refuses — a second replay
+ * defense beside the idempotency ledger (which a disconnect can wipe).
+ */
+export const STRIPE_SIGNATURE_TOLERANCE_S = 300;
+
+/**
  * The Slack scopes Clientforce requests (drawer "Clientforce will be able to"
  * renders what was GRANTED, not this wish list): post to the picked channel
  * (public channels without a join via chat:write.public) + list channels for

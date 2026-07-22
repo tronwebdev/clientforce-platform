@@ -64,6 +64,23 @@ const CONNECTOR = (
 );
 const INPUT: React.CSSProperties = { fontSize: 13, color: "#0E1512", border: "1px solid #EBE3D6", borderRadius: 9, padding: "8px 12px", background: "#fff" };
 
+/**
+ * A send_webhook url is optional (blank = the integration default). When
+ * present it must parse and stay within core's `.url().max(500)` — mirrors what
+ * the API's zod rejects, so the gray Save button can NAME the reason instead of
+ * dead-ending silently on an in-progress or over-long URL (W3 fix).
+ */
+function webhookUrlOk(url: string | undefined): boolean {
+  if (url === undefined) return true;
+  if (url.length > 500) return false;
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** The default payload per picked kind (canon TRIG cfg defaults). */
 export function defaultTriggerFor(kind: CampaignRuleTriggerKind): CampaignRuleTrigger {
   switch (kind) {
@@ -254,7 +271,9 @@ export function AutomationBuilder({
                 ? "name the tag"
                 : actions.some((a) => a.action.kind === "set_stage" && !a.action.stage.trim())
                   ? "name the stage"
-                  : null;
+                  : actions.some((a) => a.action.kind === "send_webhook" && !webhookUrlOk(a.action.url))
+                    ? "enter a valid https URL for the webhook (or clear it for the default)"
+                    : null;
   const canSave = valid && !busy;
 
   const save = async () => {

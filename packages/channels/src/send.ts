@@ -250,16 +250,22 @@ export async function sendStep(deps: SendDeps, params: SendStepParams): Promise<
   // fulfills a queued send_booking_link request — clear the flag (best-effort;
   // the send is already persisted).
   if (params.enrollmentId) {
+    // The link can ride the subject (a scripted {{calendarLink}}/{{paymentLink}}
+    // subject) as well as the body — the clear must see BOTH, else a
+    // subject-only link leaves the flag falsely pending (W3 review fix).
+    const sentBody = `${subject}\n${fullBody}`;
     await clearBookingLinkFlagAfterSend(prisma, {
       workspaceId: params.workspaceId,
       enrollmentId: params.enrollmentId,
-      sentBody: fullBody,
+      contactId: params.contactId,
+      sentBody,
     });
     // INT W3 (DEC-095): the payment-link twin.
     await clearPaymentLinkFlagAfterSend(prisma, {
       workspaceId: params.workspaceId,
       enrollmentId: params.enrollmentId,
-      sentBody: fullBody,
+      contactId: params.contactId,
+      sentBody,
     });
   }
   return message;

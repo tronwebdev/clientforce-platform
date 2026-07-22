@@ -31,6 +31,7 @@ import {
   ingestPayment,
   parseCalendlySignatureHeader,
   verifyCalendlySignature,
+  STRIPE_SIGNATURE_TOLERANCE_S,
   type PaymentDeps,
 } from "@clientforce/integrations";
 import { Public } from "../auth/decorators";
@@ -89,6 +90,14 @@ export class StripeWebhookController {
       if (!sig || !verifyCalendlySignature(sig.t, sig.v1, rawBody, secret)) {
         throw new UnauthorizedException("Invalid webhook signature");
       }
+      // Replay window: a valid signature over a stale timestamp is a captured
+      // request replayed. The idempotency ledger is the primary defense, but a
+      // disconnect wipes it — reject outside the tolerance as a second backstop.
+      const nowS = Math.floor(Date.now() / 1000);
+      const tNum = Number(sig.t);
+      if (!Number.isFinite(tNum) || Math.abs(nowS - tNum) > STRIPE_SIGNATURE_TOLERANCE_S) {
+        throw new UnauthorizedException("Webhook signature timestamp outside tolerance");
+      }
     } else if (process.env.NODE_ENV === "production") {
       throw new UnauthorizedException("Webhook signing secret not configured");
     }
@@ -105,8 +114,13 @@ export class StripeWebhookController {
     const externalId = str(session.id);
     const amountRaw = (session as { amount_total?: unknown }).amount_total;
     const amount = typeof amountRaw === "number" && Number.isFinite(amountRaw) ? Math.trunc(amountRaw) : undefined;
+    // A completed session with no charge amount is an honest no-op, NOT a
+    // malformed payload: mode:"setup" card-save sessions and zero/promo
+    // completions carry amount_total:null. A 400 here makes Stripe retry-storm
+    // for ~3 days and then DISABLE the endpoint — dropping every later real
+    // payment. Ack-and-ignore so Stripe never retries over a boring outcome.
     if (!externalId || amount === undefined) {
-      throw new BadRequestException("Malformed checkout session payload");
+      return { ok: true, outcome: "ignored", reason: externalId ? "no_amount" : "no_session_id" };
     }
     const customer = (session.customer_details ?? {}) as Record<string, unknown>;
     const result = await ingestPayment(this.paymentDeps(), {

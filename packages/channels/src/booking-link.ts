@@ -120,21 +120,25 @@ export async function augmentBriefWithBooking(
 }
 
 /**
- * Send-boundary flag clear: once a SENT message actually carried the
- * workspace booking link (guided mustSay injection or a scripted
- * {{calendarLink}}), the queued request is fulfilled. Substring on the BASE
- * scheduling URL (the per-lead params ride after it). Best-effort — the
- * Message is already persisted; a failure here logs and never unwinds a send.
+ * Send-boundary flag clear: once a SENT message actually carried the per-lead
+ * booking link (guided mustSay injection or a scripted {{calendarLink}}), the
+ * queued request is fulfilled. The check requires the CORRELATED link — base
+ * scheduling URL + `utm_content=<contactId>` — not just the base URL, so a
+ * riderless base link (which the Calendly webhook can't map to the contact)
+ * never marks the request fulfilled (W3 review: the payment twin's fix, applied
+ * here too). Best-effort — the Message is already persisted; a failure here
+ * logs and never unwinds a send.
  */
 export async function clearBookingLinkFlagAfterSend(
   prisma: PrismaClient,
-  params: { workspaceId: string; enrollmentId: string; sentBody: string },
+  params: { workspaceId: string; enrollmentId: string; contactId: string; sentBody: string },
 ): Promise<void> {
   try {
     if (!(await bookingLinkRequested(prisma, params.workspaceId, params.enrollmentId))) return;
     const schedulingUrl = await loadSchedulingUrl(prisma, params.workspaceId);
     if (!schedulingUrl) return; // nothing could have been injected — the flag stays honest
-    if (!params.sentBody.toLowerCase().includes(schedulingUrl.toLowerCase())) return;
+    const correlated = withBookingUtm(schedulingUrl, params.contactId);
+    if (!params.sentBody.toLowerCase().includes(correlated.toLowerCase())) return;
     await withTenant(prisma, { workspaceId: params.workspaceId }, async (tx) => {
       const enrollment = await tx.enrollment.findUnique({ where: { id: params.enrollmentId } });
       if (!enrollment) return;

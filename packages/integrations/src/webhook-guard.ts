@@ -63,13 +63,36 @@ export function isPublicV6(ip: string): boolean {
     return isPublicV4(`${(hi >> 8) & 255}.${hi & 255}.${(lo >> 8) & 255}.${lo & 255}`);
   }
   if (lower === "::" || lower === "::1") return false; // unspecified + loopback
+  // v4-compatible ::/96 (deprecated) — ::a.b.c.d or its two-group hex spelling
+  // (e.g. ::7f00:1 == ::127.0.0.1). The embedded v4 decides; :: and ::1 handled
+  // above. (v4-MAPPED ::ffff:… is handled before this block.)
+  const compatDotted = lower.match(/^::(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
+  if (compatDotted) return isPublicV4(compatDotted[1]!);
+  const compatHex = lower.match(/^::([0-9a-f]{1,4})(?::([0-9a-f]{1,4}))?$/);
+  if (compatHex) {
+    const hi = compatHex[2] !== undefined ? parseInt(compatHex[1]!, 16) : 0;
+    const lo = parseInt(compatHex[2] ?? compatHex[1]!, 16);
+    return isPublicV4(`${(hi >> 8) & 255}.${hi & 255}.${(lo >> 8) & 255}.${lo & 255}`);
+  }
+  // 6to4 2002::/16 embeds the v4 in the next 32 bits (2002:AABB:CCDD::…) — the
+  // embedded v4 decides (2002:a9fe:a9fe:: → 169.254.169.254 → blocked).
+  const sixToFour = lower.match(/^2002:([0-9a-f]{1,4}):([0-9a-f]{1,4})[:.]/);
+  if (sixToFour) {
+    const hi = parseInt(sixToFour[1]!, 16);
+    const lo = parseInt(sixToFour[2]!, 16);
+    return isPublicV4(`${(hi >> 8) & 255}.${hi & 255}.${(lo >> 8) & 255}.${lo & 255}`);
+  }
+  // Teredo 2001:0000::/32 — the embedded client v4 is obfuscated; refuse the
+  // whole transition prefix (no legitimate webhook endpoint lives here).
+  if (lower.startsWith("2001:0:") || /^2001::/.test(lower)) return false;
   // fc00::/7 (ULA) · fe80::/10 (link-local) · fec0::/10 (deprecated site-local) · ff00::/8 (multicast)
   if (/^f[cd]/.test(lower)) return false;
   if (/^fe[89ab]/.test(lower)) return false;
   if (/^fe[cdef]/.test(lower)) return false;
   if (/^ff/.test(lower)) return false;
-  // 64:ff9b::/96 (NAT64 well-known prefix) — the embedded v4 decides.
-  if (lower.startsWith("64:ff9b::")) return false;
+  // 64:ff9b::/96 (NAT64 well-known prefix) + 64:ff9b:1::/48 (RFC 8215 local-use)
+  // — the embedded v4 is internal-reachable via a NAT64 tunnel; refuse both.
+  if (lower.startsWith("64:ff9b::") || lower.startsWith("64:ff9b:1:")) return false;
   // 2001:db8::/32 documentation range.
   if (lower.startsWith("2001:db8")) return false;
   return true;

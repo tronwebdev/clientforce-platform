@@ -196,12 +196,14 @@ export async function sendSmsStep(deps: SendSmsDeps, params: SendSmsStepParams):
     await clearBookingLinkFlagAfterSend(prisma, {
       workspaceId: params.workspaceId,
       enrollmentId: params.enrollmentId,
+      contactId: params.contactId,
       sentBody: body,
     });
     // INT W3 (DEC-095): the payment-link twin.
     await clearPaymentLinkFlagAfterSend(prisma, {
       workspaceId: params.workspaceId,
       enrollmentId: params.enrollmentId,
+      contactId: params.contactId,
       sentBody: body,
     });
   }

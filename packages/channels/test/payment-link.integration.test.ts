@@ -107,19 +107,23 @@ describe.skipIf(!hasDb)("payment-link plumbing (INT W3)", () => {
     expect(out.talkingPoints).toEqual(BRIEF.talkingPoints); // never an ambient point
   });
 
-  it("clearPaymentLinkFlagAfterSend clears ONLY when the sent body carried the base link", async () => {
+  it("clearPaymentLinkFlagAfterSend clears ONLY when the sent body carried the CORRELATED per-lead link", async () => {
     await connectStripe();
     await owner.enrollment.update({ where: { id: enrollmentId }, data: { meta: { paymentLinkRequested: true } } });
 
-    await clearPaymentLinkFlagAfterSend(app, { workspaceId: ws, enrollmentId, sentBody: "no link here" });
+    // No link at all → the flag stays.
+    await clearPaymentLinkFlagAfterSend(app, { workspaceId: ws, enrollmentId, contactId, sentBody: "no link here" });
     let meta = (await owner.enrollment.findUnique({ where: { id: enrollmentId } }))!.meta as Record<string, unknown>;
     expect(meta.paymentLinkRequested).toBe(true);
 
-    await clearPaymentLinkFlagAfterSend(app, {
-      workspaceId: ws,
-      enrollmentId,
-      sentBody: `Pay here: ${fullLink} — thanks!`,
-    });
+    // W3 fix: the RIDERLESS base link must NOT clear — a lead paying via it can't
+    // be correlated (no client_reference_id), so the request is not fulfilled.
+    await clearPaymentLinkFlagAfterSend(app, { workspaceId: ws, enrollmentId, contactId, sentBody: `Pay here: ${LINK} — thanks!` });
+    meta = (await owner.enrollment.findUnique({ where: { id: enrollmentId } }))!.meta as Record<string, unknown>;
+    expect(meta.paymentLinkRequested).toBe(true);
+
+    // The correlated link (base + client_reference_id) fulfills the request.
+    await clearPaymentLinkFlagAfterSend(app, { workspaceId: ws, enrollmentId, contactId, sentBody: `Pay here: ${fullLink} — thanks!` });
     meta = (await owner.enrollment.findUnique({ where: { id: enrollmentId } }))!.meta as Record<string, unknown>;
     expect(meta.paymentLinkRequested).toBeUndefined();
   });

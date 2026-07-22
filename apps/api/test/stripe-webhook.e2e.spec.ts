@@ -29,7 +29,9 @@ process.env.AUTH_DEV_SECRET ??= "test-dev-secret";
 const TOKEN = `tok-${suffix}`;
 const SECRET = `whsec_${suffix}`;
 
-const sign = (body: unknown, key = SECRET, t = "1721600000"): string => {
+// t defaults to NOW — the controller enforces a ±300s replay window, so a
+// fixed past timestamp would 401 every request (a dedicated test signs stale).
+const sign = (body: unknown, key = SECRET, t = String(Math.floor(Date.now() / 1000))): string => {
   const v1 = createHmac("sha256", key).update(`${t}.${JSON.stringify(body)}`, "utf8").digest("hex");
   return `t=${t},v1=${v1}`;
 };
@@ -178,7 +180,7 @@ describe.skipIf(!hasDb)("stripe webhook e2e (INT W3, DEC-095)", () => {
     expect(await owner.event.count({ where: { workspaceId: ws, type: "payment.received.v1" } })).toBe(1);
   });
 
-  it("other event types ack `ignored` (never a retry storm); malformed payloads 400", async () => {
+  it("other event types ack `ignored` (never a retry storm); a typeless event 400s", async () => {
     const refund = { type: "charge.refunded", data: { object: { id: "ch_1" } } };
     const res = await api()
       .post(`/webhooks/stripe?token=${TOKEN}`)
@@ -187,11 +189,36 @@ describe.skipIf(!hasDb)("stripe webhook e2e (INT W3, DEC-095)", () => {
       .expect(201);
     expect(res.body).toMatchObject({ ok: true, outcome: "ignored" });
 
-    const malformed = { type: "checkout.session.completed", data: { object: { id: `cs_${suffix}_bad` } } };
+    // A genuinely malformed event (no `type`) still 400s.
+    const typeless = { data: { object: { id: "x" } } };
     await api()
       .post(`/webhooks/stripe?token=${TOKEN}`)
-      .set("stripe-signature", sign(malformed))
-      .send(malformed)
+      .set("stripe-signature", sign(typeless))
+      .send(typeless)
       .expect(400);
+  });
+
+  it("a completed session with a NULL amount acks `ignored` (no retry storm over setup/zero sessions)", async () => {
+    // mode:"setup" card-save + zero/promo completions carry amount_total:null —
+    // a boring no-op that must ack, never 400 (which would disable the endpoint).
+    const noAmount = { type: "checkout.session.completed", data: { object: { id: `cs_${suffix}_setup`, amount_total: null, client_reference_id: contactId } } };
+    const res = await api()
+      .post(`/webhooks/stripe?token=${TOKEN}`)
+      .set("stripe-signature", sign(noAmount))
+      .send(noAmount)
+      .expect(201);
+    expect(res.body).toMatchObject({ ok: true, outcome: "ignored", reason: "no_amount" });
+    expect(await owner.event.count({ where: { workspaceId: ws, type: "payment.received.v1" } })).toBe(0);
+  });
+
+  it("a valid signature over a STALE timestamp is refused (replay window)", async () => {
+    const body = checkout({ id: `cs_${suffix}_stale`, client_reference_id: contactId });
+    const staleT = String(Math.floor(Date.now() / 1000) - 3600); // 1h old
+    await api()
+      .post(`/webhooks/stripe?token=${TOKEN}`)
+      .set("stripe-signature", sign(body, SECRET, staleT))
+      .send(body)
+      .expect(401);
+    expect(await owner.event.count({ where: { workspaceId: ws, type: "payment.received.v1" } })).toBe(0);
   });
 });
