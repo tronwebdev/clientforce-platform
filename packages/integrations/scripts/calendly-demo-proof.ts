@@ -122,7 +122,11 @@ async function main(): Promise<void> {
         contactId,
         workflowId: `demo-${SUFFIX}`,
         pipelineStage: "engaged",
-        meta: {},
+        // The send_booking_link flag, exactly as a fired rule would set it —
+        // augmentBriefWithBooking promotes the per-lead link to mustSay, so
+        // the composer includes it VERBATIM or refuses (the real product
+        // mechanism; a bare talking point leaves inclusion to the model).
+        meta: { bookingLinkRequested: true },
       },
     })
   ).id;
