@@ -598,10 +598,11 @@ model IntegrationDelivery {                     // INT W1 (DEC-093): outbound de
   workspaceId   String
   integrationId String                          // → Integration (cascade)
   sourceEventId String?                         // the causing catalog Event id (NULL for manual tests)
-  kind          String                          // new_reply | meeting_booked | goal_completed | notify_team (W1)
+  kind          String                          // new_reply | meeting_booked | goal_completed | notify_team (W1) · payment (W3 INBOUND ingest claim) · webhook (W3 outbound) · crm_deal | crm_stage (W4 outbound HubSpot push)
   status        String                          // pending (pre-send claim, at-most-once) | delivered | failed | held
-  detail        Json?
+  detail        Json?                           // outbound: target/error; W3 payment: {amount,currency?}; W4: {op,dealId}
   // @@unique([integrationId, sourceEventId, kind]) — bus redeliveries dedupe
+  // W3 review: the outbound allowance brake counts only OUTBOUND kinds (excludes the inbound `payment` claim); W4 `crmDealId` rides Enrollment.meta (additive), never a new table
 }
 
 model SenderConnection {     // P1.5: the three-tier sender model (replaces `Sender` — DEC-030)
