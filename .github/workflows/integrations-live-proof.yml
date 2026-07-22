@@ -1,0 +1,189 @@
+# INT W1 (DEC-093) live Slack proof: the owner's SLACK-BOT-TOKEN (Key Vault)
+# seeds a token-based connection, then the REAL rails run against the REAL
+# vendor — live auth.test probe, real channel list, a real chat.postMessage
+# delivered through the REAL EventBus + notifier consumer, redelivery dedupe,
+# the notify_team transport, the revoked-token honesty walk (corrupted copy,
+# never the vault token), and the disconnect audit (vendor revoke SKIPPED —
+# the bot token is shared infrastructure). Secrets masked; manual dispatch
+# only. The dispatch becomes available once this yml is on the default branch
+# (the DEC-066 GitHub limitation — the R1-UI proof precedent).
+name: integrations-live-proof
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type LIVE to confirm real Slack messages will post to the workspace channel'
+        required: true
+      channel:
+        description: 'Channel NAME to post to (optional — defaults to the first listed public channel)'
+        required: false
+      walk:
+        description: 'Which proof to run: slack (default) or calendly-demo (the W2 owner-demo link-tier walk)'
+        required: false
+        default: 'slack'
+      recipient:
+        description: 'calendly-demo only: the allow-listed inbox the REAL email delivers to'
+        required: false
+      calendly_link:
+        description: 'calendly-demo only: the real scheduling link (default https://calendly.com/clientforce/30min)'
+        required: false
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  TURBO_TELEMETRY_DISABLED: 1
+  DATABASE_URL: postgresql://postgres@localhost:5432/clientforce
+  APP_DATABASE_URL: postgresql://clientforce_app@localhost:5432/clientforce
+  REDIS_URL: redis://localhost:6379
+  KEY_VAULT_NAME: ${{ vars.KEY_VAULT_NAME }}
+
+jobs:
+  proof:
+    name: live Slack delivery · dedupe · notify_team · revoked honesty · disconnect audit
+    if: ${{ github.event.inputs.walk != 'calendly-demo' }}
+    runs-on: ubuntu-latest
+    environment: staging
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: clientforce
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Refuse without explicit confirmation
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "LIVE" ]; then
+            echo "::error::Dispatch input 'confirm' must be exactly LIVE — refusing to post real Slack messages."
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @clientforce/integrations... build
+      - run: pnpm --filter @clientforce/db db:migrate
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Run the live Slack proof (secrets masked)
+        run: |
+          set -euo pipefail
+          bot="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name SLACK-BOT-TOKEN --query value -o tsv)"
+          echo "::add-mask::$bot"
+          FIELD_ENCRYPTION_KEY="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name FIELD-ENCRYPTION-KEY --query value -o tsv)"
+          echo "::add-mask::$FIELD_ENCRYPTION_KEY"
+          export FIELD_ENCRYPTION_KEY
+          SLACK_BOT_TOKEN="$bot" SLACK_PROOF_CHANNEL="${{ github.event.inputs.channel }}" \
+            pnpm exec tsx packages/integrations/scripts/slack-live-proof.ts
+
+      - name: Upload receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: slack-live-proof-receipts
+          path: slack-live-proof-receipts.json
+
+  # INT W2 (DEC-094) owner-demo, link tier: real link probe → real model
+  # compose (grounded per-lead link) → REAL SendGrid delivery to the
+  # allow-listed inbox. Detection is honestly flagged OUT (paid-tier token +
+  # public ingress). Dispatch this walk ON THE UNIT BRANCH ref — the run uses
+  # the branch's W2 code; main's registration makes it dispatchable (DEC-066).
+  calendly-demo:
+    name: W2 owner demo · real link probe · real compose · REAL email delivery
+    if: ${{ github.event.inputs.walk == 'calendly-demo' }}
+    runs-on: ubuntu-latest
+    environment: staging
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: clientforce
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Refuse without explicit confirmation
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "LIVE" ]; then
+            echo "::error::Dispatch input 'confirm' must be exactly LIVE — refusing to send a real email."
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @clientforce/channels... --filter @clientforce/integrations... build
+      - run: pnpm --filter @clientforce/db db:migrate
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Run the calendly demo walk (secrets masked)
+        run: |
+          set -euo pipefail
+          sendgrid="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name SENDGRID-API-KEY --query value -o tsv)"
+          echo "::add-mask::$sendgrid"
+          anthropic="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name ANTHROPIC-API-KEY --query value -o tsv)"
+          echo "::add-mask::$anthropic"
+          FIELD_ENCRYPTION_KEY="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name FIELD-ENCRYPTION-KEY --query value -o tsv)"
+          echo "::add-mask::$FIELD_ENCRYPTION_KEY"
+          export FIELD_ENCRYPTION_KEY
+          SENDGRID_API_KEY="$sendgrid" ANTHROPIC_API_KEY="$anthropic" \
+          DEMO_RECIPIENT="${{ github.event.inputs.recipient }}" \
+          DEMO_CALENDLY_LINK="${{ github.event.inputs.calendly_link }}" \
+            pnpm exec tsx packages/integrations/scripts/calendly-demo-proof.ts
+
+      - name: Upload receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calendly-demo-receipts
+          path: calendly-demo-receipts.json
