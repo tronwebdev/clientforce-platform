@@ -128,7 +128,10 @@ export class GoogleCalendarAdapter implements OAuthIntegrationAdapter {
    */
   async refresh(creds: IntegrationCredentials): Promise<IntegrationCredentials> {
     if (!this.configured) {
-      throw new IntegrationProviderError("PROVIDER_AUTH", MISSING_CREDS_MESSAGE, false);
+      // Review-round fix: a missing PLATFORM app pair is a config gap —
+      // transient from the tenant's perspective; PROVIDER_AUTH here would
+      // mass-revoke healthy customer connections via withFreshCredentials.
+      throw new IntegrationProviderError("PROVIDER_UNAVAILABLE", MISSING_CREDS_MESSAGE, true);
     }
     const refreshToken = creds.refreshToken;
     if (typeof refreshToken !== "string" || refreshToken.length === 0) {
@@ -301,7 +304,17 @@ export class GoogleCalendarAdapter implements OAuthIntegrationAdapter {
     if (flat === "invalid_grant") {
       throw new IntegrationProviderError("PROVIDER_AUTH", `google auth rejected (${name})`, false);
     }
-    if (res.status === 401 || res.status === 403) {
+    if (res.status === 403) {
+      // Review-round fix: Google signals per-user QUOTA exhaustion as 403
+      // (usageLimits: rateLimitExceeded/userRateLimitExceeded/quotaExceeded) —
+      // routine + retryable, NEVER token death. Only non-quota 403s are auth.
+      const reason = String(flat ?? "");
+      if (/rat[e]?limit|quota/i.test(reason)) {
+        throw new IntegrationProviderError("PROVIDER_RATE_LIMITED", `google rate/quota limited (${reason})`, true);
+      }
+      throw new IntegrationProviderError("PROVIDER_AUTH", `google auth rejected (${name})`, false);
+    }
+    if (res.status === 401) {
       throw new IntegrationProviderError("PROVIDER_AUTH", `google auth rejected (${name})`, false);
     }
     // Everything else 4xx is a request/config refusal — typed, non-retryable,

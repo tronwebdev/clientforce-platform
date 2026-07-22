@@ -46,6 +46,7 @@ import {
   createTemporalSignalConsumer,
   dispatcherConsumer,
   EventBus,
+  validateEvent,
   WORKER_HEARTBEAT_KEY,
 } from "@clientforce/events";
 import {
@@ -748,6 +749,26 @@ async function run(): Promise<void> {
             const bookingSlotsLine = createBookingSlotsProvider({
               prisma: activityPrisma,
               adapters: { gcal: new GoogleCalendarAdapter() },
+              // Review-round fix: compose-time revocations must reach the
+              // ledger (integration.status_changed.v1), not just the row —
+              // inline validate+persist (the BusOrInlinePublisher fallback;
+              // fan-out for this rare transition is not load-bearing here).
+              publish: async (input) => {
+                const validated = validateEvent(input);
+                await withTenant(activityPrisma, { workspaceId: validated.workspaceId }, (tx) =>
+                  tx.event.create({
+                    data: {
+                      workspaceId: validated.workspaceId,
+                      type: validated.type,
+                      contactId: validated.contactId,
+                      enrollmentId: validated.enrollmentId,
+                      campaignId: validated.campaignId,
+                      senderId: validated.senderId,
+                      payload: validated.payload as Prisma.InputJsonValue,
+                    },
+                  }),
+                );
+              },
             });
             return {
               composeSms: createSmsStepComposer({

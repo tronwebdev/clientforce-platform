@@ -56,10 +56,12 @@ export interface CancellationIngestInput {
   provider: string;
   externalId: string;
   reason: "canceled" | "no_show";
+  /** The canceled half of a reschedule: flip the row, publish NOTHING. */
+  silent?: boolean;
 }
 
 export interface CancellationIngestResult {
-  outcome: "canceled" | "duplicate" | "ignored";
+  outcome: "canceled" | "duplicate" | "ignored" | "rescheduling";
   meetingId: string | null;
 }
 
@@ -179,11 +181,20 @@ export async function ingestBooking(deps: BookingDeps, input: BookingIngestInput
     );
     if (prior) {
       const fromStartAt = prior.startAt;
+      // Review-round hardening: the old externalId is TOMBSTONED in
+      // meta.priorExternalIds (bounded) — moving the unique key must not
+      // destroy redelivery idempotency for the old invitee (a retried
+      // created(old) would otherwise resurrect a stale booked row).
+      const priorIds = Array.isArray((prior.meta as { priorExternalIds?: unknown } | null)?.priorExternalIds)
+        ? ((prior.meta as { priorExternalIds: unknown[] }).priorExternalIds.filter((v) => typeof v === "string") as string[])
+        : [];
+      const tombstones = [...priorIds, prior.externalId].slice(-10);
       await withTenant(deps.prisma, ctx, (tx) =>
         tx.meeting.update({
           where: { id: prior.id },
           data: {
             externalId: input.externalId,
+            meta: { ...((prior.meta as Record<string, unknown> | null) ?? {}), priorExternalIds: tombstones } as Prisma.InputJsonValue,
             status: "booked", // a rescheduled meeting is booked again, whatever it was
             startAt: input.startAt,
             endAt: input.endAt ?? null,
@@ -234,11 +245,28 @@ export async function ingestBooking(deps: BookingDeps, input: BookingIngestInput
   );
   if (existing) return { outcome: "duplicate", meetingId: existing.id, matchedBy: "none", stageChanged: false };
 
+  // Review-round hardening: an externalId that lives in some row's
+  // priorExternalIds tombstones is a REDELIVERED pre-reschedule invitee —
+  // its chain already advanced; ack as duplicate, never a second booked row.
+  const superseded = await withTenant(deps.prisma, ctx, (tx) =>
+    tx.meeting.findFirst({
+      where: {
+        workspaceId: input.workspaceId,
+        provider: input.provider,
+        meta: { path: ["priorExternalIds"], array_contains: [input.externalId] },
+      },
+      select: { id: true },
+    }),
+  );
+  if (superseded) return { outcome: "duplicate", meetingId: superseded.id, matchedBy: "none", stageChanged: false };
+
   const { contactId, matchedBy } = await correlateContact(deps, input.workspaceId, input);
   const enrollment = contactId
     ? await withTenant(deps.prisma, ctx, (tx) =>
         tx.enrollment.findFirst({
-          where: { contactId },
+          // Review-round fix: prefer the latest ACTIVE enrollment — routing a
+          // booking to a DONE/PAUSED one strands the stage machinery.
+          where: { contactId, status: "ACTIVE" },
           orderBy: { createdAt: "desc" },
           select: { id: true, campaignId: true },
         }),
@@ -264,6 +292,11 @@ export async function ingestBooking(deps: BookingDeps, input: BookingIngestInput
           inviteeEmail: input.inviteeEmail ?? null,
           rescheduleUrl: input.rescheduleUrl ?? null,
           cancelUrl: input.cancelUrl ?? null,
+          // A reschedule whose prior row we never saw still records the named
+          // prior id — an out-of-order chain converges instead of forking.
+          ...(input.previousExternalId
+            ? { meta: { priorExternalIds: [input.previousExternalId] } as Prisma.InputJsonValue }
+            : {}),
         },
         select: { id: true },
       }),
@@ -333,6 +366,11 @@ export async function ingestCancellation(
   await withTenant(deps.prisma, ctx, (tx) =>
     tx.meeting.update({ where: { id: meeting.id }, data: { status: input.reason } }),
   );
+  // Silent = the canceled half of a RESCHEDULE (rescheduled:true): flip the
+  // row so the sweep stops reminding for the abandoned slot, but publish
+  // NOTHING — a reschedule must never read as a loss; the created twin's
+  // move re-books the row whichever order the two webhooks land in.
+  if (input.silent) return { outcome: "rescheduling", meetingId: meeting.id };
   if (meeting.contactId) {
     await publishSafely(deps, {
       workspaceId: input.workspaceId,

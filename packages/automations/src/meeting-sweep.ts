@@ -83,10 +83,11 @@ export async function runBeforeMeetingSweep(
         workspaceId,
         campaignId,
         status: "booked",
+        contactId: { not: null }, // unmatched invitees never remind (honest not-our-lead)
         startAt: { gt: now, lte: new Date(now.getTime() + maxHours * HOUR_MS) },
       },
       select: { id: true, contactId: true, enrollmentId: true, startAt: true },
-      take: MEETING_BATCH,
+      orderBy: { startAt: "asc" }, take: MEETING_BATCH,
     });
     for (const meeting of meetings) {
       checked += 1;
@@ -146,10 +147,11 @@ export async function runBeforeMeetingSweep(
       where: {
         workspaceId,
         status: "booked",
+        contactId: { not: null }, // unmatched invitees never remind (honest not-our-lead)
         startAt: { gt: now, lte: new Date(now.getTime() + maxHours * HOUR_MS) },
       },
       select: { id: true, contactId: true, enrollmentId: true, campaignId: true, startAt: true },
-      take: MEETING_BATCH,
+      orderBy: { startAt: "asc" }, take: MEETING_BATCH,
     });
     for (const meeting of meetings) {
       checked += 1;

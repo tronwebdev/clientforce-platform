@@ -8,7 +8,7 @@
  *   ingest      — invitee.created → Meeting row + calendar.booked.v1 +
  *                 lead.stage_changed.v1 (goal rider, NO manual flag)
  *   idempotency — redelivery acks as duplicate, nothing doubles
- *   reschedule  — canceled(rescheduled:true) acks without a flip; the
+ *   reschedule  — canceled(rescheduled:true) flips SILENTLY (no events); the
  *                 created(old_invitee) twin moves startAt + ONE
  *                 calendar.rescheduled.v1
  *   no-show     — invitee_no_show.created flips status, reason "no_show"
@@ -199,7 +199,11 @@ describe.skipIf(!hasDb)("calendly webhook e2e (INT W2, DEC-094)", () => {
     expect(await owner.event.count({ where: { workspaceId: ws } })).toBe(0);
   });
 
-  it("reschedule: the canceled half acks without a flip; the created(old_invitee) half moves startAt", async () => {
+  it("reschedule (REAL vendor shape): canceled(rescheduled:true) flips silently; created(old_invitee, rescheduled:false) moves the row", async () => {
+    // Review-round fix: rescheduled:true lives on the CANCELED twin; the
+    // created twin carries old_invitee with rescheduled:FALSE. The canceled
+    // half flips silently (no events — never reads as a loss); the created
+    // half re-books via the move, in EITHER delivery order.
     const first = invitee({ tracking: { utm_source: "clientforce", utm_content: contactId } });
     await api()
       .post(`/webhooks/calendly?token=${TOKEN}`)
@@ -218,12 +222,14 @@ describe.skipIf(!hasDb)("calendly webhook e2e (INT W2, DEC-094)", () => {
       .send(canceledHalf)
       .expect(201);
     expect(ack.body.outcome).toBe("rescheduling");
-    expect((await owner.meeting.findFirstOrThrow({ where: { workspaceId: ws } })).status).toBe("booked");
+    // silent flip: the sweep must not remind for the abandoned slot mid-reschedule
+    expect((await owner.meeting.findFirstOrThrow({ where: { workspaceId: ws } })).status).toBe("canceled");
+    expect(await owner.event.count({ where: { workspaceId: ws } })).toBe(0);
 
     const createdHalf = invitee(
       {
         uri: `https://calendly.test/invitees/I-${suffix}-2`,
-        rescheduled: true,
+        rescheduled: false, // the REAL created-twin shape
         old_invitee: `https://calendly.test/invitees/I-${suffix}-1`,
         tracking: { utm_source: "clientforce", utm_content: contactId },
       },
@@ -236,10 +242,24 @@ describe.skipIf(!hasDb)("calendly webhook e2e (INT W2, DEC-094)", () => {
       .expect(201);
     expect(moved.body.outcome).toBe("rescheduled");
     const meeting = await owner.meeting.findFirstOrThrow({ where: { workspaceId: ws } });
+    expect(meeting.status).toBe("booked"); // the move re-books whatever the interim state
     expect(meeting.startAt.toISOString()).toBe("2026-07-30T16:00:00.000Z");
     expect(meeting.externalId).toBe(`https://calendly.test/invitees/I-${suffix}-2`);
     const events = await owner.event.findMany({ where: { workspaceId: ws } });
     expect(events.map((e) => e.type)).toEqual(["calendar.rescheduled.v1"]);
+    expect(await owner.meeting.count({ where: { workspaceId: ws } })).toBe(1); // ONE row per chain, ever
+
+    // Redelivered PRE-reschedule created(old) must NOT resurrect a stale row
+    // (the tombstone dedupe — review-round pin).
+    const redelivered = invitee({ tracking: { utm_source: "clientforce", utm_content: contactId } });
+    const dup = await api()
+      .post(`/webhooks/calendly?token=${TOKEN}`)
+      .set("calendly-webhook-signature", sign(redelivered))
+      .send(redelivered)
+      .expect(201);
+    expect(dup.body.outcome).toBe("duplicate");
+    expect(await owner.meeting.count({ where: { workspaceId: ws } })).toBe(1);
+    expect(await owner.event.count({ where: { workspaceId: ws, type: "calendar.booked.v1" } })).toBe(0);
   });
 
   it("cancel + no-show flip the status with ONE calendar.canceled.v1 each shape; stage untouched", async () => {

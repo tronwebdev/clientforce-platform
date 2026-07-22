@@ -74,6 +74,24 @@ export class CalendlyAdapter implements FieldsIntegrationAdapter {
    * typed on anything else; the caller maps to CALENDLY_LINK_INVALID.
    */
   async probeLink(schedulingUrl: string): Promise<void> {
+    // Review-round hardening (SSRF): the link probe fetches a USER-SUPPLIED
+    // URL server-side — constrain it to what the field MEANS: an https
+    // Calendly scheduling link (calendly.com or a subdomain). No redirect
+    // following. The W3 generic-webhook action ships the general SSRF guard;
+    // this field never needed generality.
+    let parsed: URL;
+    try {
+      parsed = new URL(schedulingUrl);
+    } catch {
+      throw new IntegrationDeliveryError("link_invalid", "that scheduling link is not a valid URL");
+    }
+    const host = parsed.hostname.toLowerCase();
+    if (parsed.protocol !== "https:" || (host !== "calendly.com" && !host.endsWith(".calendly.com"))) {
+      throw new IntegrationDeliveryError(
+        "link_not_calendly",
+        "the scheduling link must be an https calendly.com URL",
+      );
+    }
     let res: Response;
     try {
       res = await this.fetchImpl(schedulingUrl, { method: "GET", redirect: "follow" });

@@ -114,10 +114,12 @@ export class CalendlyWebhookController {
         workspaceId,
         provider: "calendly",
         externalId,
-        // Reschedule chain: Calendly's created event names the PRIOR invitee.
-        ...(payload.rescheduled === true && str(payload.old_invitee)
-          ? { previousExternalId: str(payload.old_invitee)! }
-          : {}),
+        // Reschedule chain (review-round fix): the created twin carries
+        // old_invitee with rescheduled:FALSE — rescheduled:true lives on the
+        // CANCELED twin (it means "this invitee has since rescheduled away").
+        // Key on old_invitee presence alone; ingestBooking's prior-row-unknown
+        // fallback makes that safe for pre-watch bookings.
+        ...(str(payload.old_invitee) ? { previousExternalId: str(payload.old_invitee)! } : {}),
         startAt: new Date(startAtRaw),
         ...(endAtRaw ? { endAt: new Date(endAtRaw) } : {}),
         ...(str(scheduled.name) ? { title: str(scheduled.name)! } : {}),
@@ -131,10 +133,12 @@ export class CalendlyWebhookController {
     }
 
     if (event === "invitee.canceled") {
-      // A reschedule fires canceled(old) + created(new): the created twin
-      // carries the transition — acknowledging the canceled half without a
-      // status flip is what keeps a reschedule from reading as a loss.
-      if (payload.rescheduled === true) return { received: true, outcome: "rescheduling" };
+      // A reschedule fires canceled(old, rescheduled:true) + created(new,
+      // old_invitee): the created twin carries the TRANSITION (events + move);
+      // the canceled twin flips the row SILENTLY (no events — a reschedule
+      // must never read as a loss) so the sweep stops reminding for the
+      // abandoned slot whichever order the two webhooks land in — the move
+      // re-books the row when the created twin arrives (review-round fix).
       const externalId = str(payload.uri);
       if (!externalId) throw new BadRequestException("Malformed Calendly invitee payload");
       const result = await ingestCancellation(deps, {
@@ -142,6 +146,7 @@ export class CalendlyWebhookController {
         provider: "calendly",
         externalId,
         reason: "canceled",
+        ...(payload.rescheduled === true ? { silent: true } : {}),
       });
       return { received: true, outcome: result.outcome };
     }

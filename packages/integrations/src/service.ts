@@ -124,6 +124,8 @@ export async function completeConnect(
 ): Promise<IntegrationRow> {
   const adapter = oauthAdapterFor(deps, params.provider);
   const exchange = await adapter.exchangeCode({ code: params.code, redirectUri: params.redirectUri });
+  const priorRow = await getIntegration(deps, params.workspaceId, params.provider);
+  const priorCreds = priorRow?.credentialsEnc ? decryptCredentials(priorRow) : undefined;
   const probe = await adapter.probe(exchange.credentials);
   const now = (deps.now ?? (() => new Date()))();
   const accountLabel = probe.accountLabel ?? exchange.accountLabel ?? null;
@@ -143,7 +145,14 @@ export async function completeConnect(
       },
       update: {
         status: "connected",
-        credentialsEnc: encryptCredentials(exchange.credentials),
+        // Review-round fix: Google omits refresh_token on re-consent — a
+        // reconnect must MERGE the stored one in, never overwrite with null
+        // (a refresh-token-less refreshing connection self-revokes in ~1h).
+        credentialsEnc: encryptCredentials(
+          exchange.credentials.refreshToken == null && typeof priorCreds?.refreshToken === "string"
+            ? { ...exchange.credentials, refreshToken: priorCreds.refreshToken }
+            : exchange.credentials,
+        ),
         accountLabel,
         scopes: exchange.scopes,
         lastProbeAt: now,
@@ -219,6 +228,35 @@ export async function probeIntegration(
   let to: IntegrationStatus;
   let detail: string;
   let accountLabel = row.accountLabel;
+  // Review-round fix: a LINK-tier calendly row (no credentials BY DESIGN)
+  // probes the LINK — its honest health check; the token probe would throw
+  // PROVIDER_AUTH and flip a healthy connection to revoked.
+  if (params.provider === "calendly" && !row.credentialsEnc) {
+    const cfg = calendlyConfigSchema.safeParse(row.config);
+    const url = cfg.success ? cfg.data.schedulingUrl : undefined;
+    if (url) {
+      try {
+        await (adapter as unknown as { probeLink(u: string): Promise<void> }).probeLink(url);
+        to = "connected";
+        detail = "scheduling link reachable";
+      } catch (err) {
+        to = "unhealthy";
+        detail = err instanceof Error ? err.message : String(err);
+      }
+      const nowTs = (deps.now ?? (() => new Date()))();
+      await withTenant(deps.prisma, { workspaceId: params.workspaceId }, (tx) =>
+        tx.integration.update({ where: { id: row.id }, data: { status: to, lastProbeAt: nowTs } }),
+      );
+      if (from !== to) {
+        await publishSafely(deps, {
+          workspaceId: params.workspaceId,
+          type: EVENT_TYPES.INTEGRATION_STATUS_CHANGED,
+          payload: { provider: params.provider, from, to },
+        });
+      }
+      return { status: to, detail };
+    }
+  }
   try {
     // W2: refreshing providers probe on a FRESH token (an expired-but-
     // refreshable Google token is healthy, not revoked). No-refresh adapters

@@ -83,11 +83,18 @@ function redirectUriFor(provider: IntegrationProvider): string {
  * PUBLIC_API_URL (the Twilio-signature base) and finally localhost for dev.
  */
 function webhookBase(): string {
-  return (
-    process.env.INTEGRATIONS_WEBHOOK_BASE ??
-    process.env.PUBLIC_API_URL ??
-    `http://localhost:${process.env.PORT ?? 3001}`
-  ).replace(/\/$/, "");
+  const configured = process.env.INTEGRATIONS_WEBHOOK_BASE ?? process.env.PUBLIC_API_URL;
+  // Review-round fix: registering a localhost callback with the vendor is a
+  // silent production no-op — refuse typed instead (the honest owner-clock
+  // state); dev keeps the localhost fallback.
+  if (!configured && process.env.NODE_ENV === "production") {
+    throw new UnprocessableEntityException({
+      message: "Webhook base not configured",
+      detail:
+        "Booking detection needs the public API base (INTEGRATIONS_WEBHOOK_BASE) configured on this deploy — the scheduling link keeps working without it",
+    });
+  }
+  return (configured ?? `http://localhost:${process.env.PORT ?? 3001}`).replace(/\/$/, "");
 }
 
 @Controller("integrations")
@@ -129,17 +136,32 @@ export class IntegrationsController {
     throw err;
   }
 
+  /** The capability token is OWNER/ADMIN material — members see the config redacted. */
+  private redactForRole(dto: IntegrationDto, req: AuthenticatedRequest): IntegrationDto {
+    const role = req.auth?.role;
+    if (role === "OWNER" || role === "ADMIN") return dto;
+    const cfg = dto.config as Record<string, unknown> | null;
+    if (cfg && typeof cfg === "object" && "webhookToken" in cfg) {
+      const { webhookToken: _redacted, ...rest } = cfg;
+      return { ...dto, config: rest };
+    }
+    return dto;
+  }
+
   @Get()
-  async list(): Promise<{ integrations: IntegrationDto[] }> {
+  async list(@Req() req: AuthenticatedRequest): Promise<{ integrations: IntegrationDto[] }> {
     const rows = await listIntegrations(this.deps, this.tenant.workspaceId);
-    return { integrations: rows.map(toIntegrationDto) };
+    return { integrations: rows.map((r) => this.redactForRole(toIntegrationDto(r), req)) };
   }
 
   @Get(":provider")
-  async detail(@Param("provider") rawProvider: string): Promise<{ integration: IntegrationDto | null }> {
+  async detail(
+    @Param("provider") rawProvider: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<{ integration: IntegrationDto | null }> {
     const provider = this.provider(rawProvider);
     const row = await getIntegration(this.deps, this.tenant.workspaceId, provider);
-    return { integration: row ? toIntegrationDto(row) : null };
+    return { integration: row ? this.redactForRole(toIntegrationDto(row), req) : null };
   }
 
   /**
@@ -263,8 +285,22 @@ export class IntegrationsController {
         detail: INTEGRATION_REFUSALS.NOT_CONNECTED,
       });
     }
+    // Review-round fix: webhookToken + detection are SERVER-MINTED trust
+    // anchors (the capability URL + the live-subscription marker) — a PATCH
+    // must never let a client drop or forge them; the stored values win.
+    let effective = config as Record<string, unknown>;
+    if (provider === "calendly") {
+      const stored = (row.config ?? {}) as Record<string, unknown>;
+      effective = {
+        ...effective,
+        ...(stored.webhookToken !== undefined ? { webhookToken: stored.webhookToken } : {}),
+        ...(stored.detection !== undefined ? { detection: stored.detection } : {}),
+      };
+      if (stored.webhookToken === undefined) delete effective.webhookToken;
+      if (stored.detection === undefined) delete effective.detection;
+    }
     const updated = await this.tenant.run((tx) =>
-      tx.integration.update({ where: { id: row.id }, data: { config: config as Prisma.InputJsonValue } }),
+      tx.integration.update({ where: { id: row.id }, data: { config: effective as Prisma.InputJsonValue } }),
     );
     return { integration: toIntegrationDto(updated) };
   }
