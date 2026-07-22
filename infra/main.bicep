@@ -376,7 +376,11 @@ resource voice 'Microsoft.App/containerApps@2024-03-01' = if (deployVoiceService
         {
           name: 'voice'
           image: '${acrLoginServer}/clientforce-voice:${imageTag}'
-          resources: { cpu: json('0.5'), memory: '1Gi' }
+          // DEC-092 (owner fix ruling, 2026-07-21): a FULL core — fractional
+          // vCPU rides a 50ms/100ms CFS quota that can stall the realtime
+          // audio pump at millisecond granularity while per-minute metrics
+          // read ~4%; the known-good spike ran on full cores.
+          resources: { cpu: json('1.0'), memory: '2Gi' }
           env: concat([
             { name: 'PORT', value: '8080' }
             // The service renders its own TwiML/wss URLs from this host.
@@ -392,6 +396,11 @@ resource voice 'Microsoft.App/containerApps@2024-03-01' = if (deployVoiceService
             // Per-call metrics dump — container-local scratch, evidence
             // surfaces via the numbers-only `[metrics] summary` log line.
             { name: 'METRICS_OUT', value: '/tmp/metrics.json' }
+            // DEC-090 amendment (owner, 2026-07-21): /health echoes the git
+            // SHA baked at deploy time so the demo preflight can ASSERT the
+            // serving revision is the provisioned one — a dial never runs
+            // against an unverified revision after the deploy-clash question.
+            { name: 'IMAGE_SHA', value: imageTag }
           ], twilioSecretsAvailable ? [
             // The /twiml + /media access gate (deriveVoiceMediaToken).
             { name: 'TWILIO_AUTH_TOKEN', secretRef: 'twilio-auth-token' }

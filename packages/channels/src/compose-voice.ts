@@ -51,6 +51,26 @@ export const VOICE_FALLBACK_LINE =
 export const VOICE_FAILURE_GOODBYE =
   "I'm sorry, I'm having technical trouble on my end. I'll let you go — thanks for your time.";
 
+/**
+ * The one-shot silence re-engage (DEC-092, owner-signed literal 2026-07-21) —
+ * spoken after `VOICE_REENGAGE_AFTER_MS` of MUTUAL silence, at most once per
+ * call, cancelled by caller speech onset. A CONSTANT, never composed — the
+ * disclosure discipline.
+ */
+export const VOICE_REENGAGE_LINE = "Sorry — are you still there?";
+
+/**
+ * The post-disclosure bridge (DEC-092, owner finding 1c) — spoken ONCE when
+ * the disclosure's closing question gets no caller speech within
+ * `VOICE_BRIDGE_AFTER_MS`, so the agent carries the call into turn 1 instead
+ * of waiting mute. A CONSTANT, never composed, business-agnostic.
+ *
+ * ⚠ PROPOSED literal awaiting owner sign-off (PR #106) — deploy is gated on
+ * that sign-off; the wording may change but the mechanism is approved.
+ */
+export const VOICE_BRIDGE_LINE =
+  "No rush — take your time. I just have a couple of quick questions for you when you're ready.";
+
 // ── Inputs ───────────────────────────────────────────────────────────────────
 export interface ComposeVoiceInputs {
   brief: StepBrief;

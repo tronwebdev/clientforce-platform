@@ -94,7 +94,16 @@ const httpServer = createServer((req: IncomingMessage, res: ServerResponse) => {
   }
   if (req.url === "/health") {
     res.writeHead(200, { "content-type": "application/json" });
-    res.end(JSON.stringify({ ok: true, host: config.publicHost, mode: prisma ? "product" : "standalone" }));
+    res.end(
+      JSON.stringify({
+        ok: true,
+        host: config.publicHost,
+        mode: prisma ? "product" : "standalone",
+        // The deploy stamps the git SHA (bicep IMAGE_SHA) — lets callers
+        // assert the serving revision is the intended one (DEC-090).
+        sha: process.env.IMAGE_SHA ?? "unknown",
+      }),
+    );
     return;
   }
   res.writeHead(404);
@@ -120,7 +129,14 @@ wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
   }
   const deepgramKey = requireEnv("DEEPGRAM_API_KEY");
   const metrics = new MetricsCollector();
-  metrics.configEcho = { stt: config.stt, ackAfterMs: config.ackAfterMs };
+  metrics.configEcho = {
+    stt: config.stt,
+    ackAfterMs: config.ackAfterMs,
+    ttsTransport: config.ttsTransport,
+    bridgeAfterMs: config.bridgeAfterMs,
+    disclosureBeatMs: config.disclosureBeatMs,
+    paceLeadMs: config.paceLeadMs,
+  };
   const gateway = createVoiceGateway(metrics);
   let streamSid = "";
   let session: CallSession | undefined;
@@ -161,6 +177,16 @@ wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
         refusals: report.refusals.length,
         disclosureCompleted: report.disclosureCompleted,
         costPerMinuteUsd: Math.round(report.cost.perMinuteUsd * 1000) / 1000,
+        // DEC-092 pacing block — the audible layer, measured per call.
+        ttsTransport: report.ttsTransport,
+        emptyReplies: report.emptyReplies,
+        reengagedAtMs: report.reengagedAtMs,
+        bridgedAtMs: report.bridgedAtMs,
+        bufferedMsAtInterrupt: report.bufferedMsAtInterrupt,
+        ttsSentences: report.ttsSentences,
+        ttsSentenceWindows: report.ttsSentenceWindows,
+        audioSendGaps: report.audioSendGaps,
+        eventLoopMs: report.eventLoopMs,
       })}`,
     );
     if (prisma && publisher && context && session) {
@@ -211,6 +237,11 @@ wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
             disclosure: context.disclosure,
             neverSay: context.neverSay,
             sttParams: config.stt,
+            ttsTransport: config.ttsTransport,
+            reengageAfterMs: config.reengageAfterMs,
+            bridgeAfterMs: config.bridgeAfterMs,
+            disclosureBeatMs: config.disclosureBeatMs,
+            paceLeadMs: config.paceLeadMs,
             ackAfterMs: config.ackAfterMs,
             ackClips,
             stallAbandonMs: config.stallAbandonMs,

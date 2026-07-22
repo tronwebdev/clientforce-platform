@@ -225,6 +225,8 @@ export {
   mustSayCoverage,
   VOICE_FAILURE_GOODBYE,
   VOICE_FALLBACK_LINE,
+  VOICE_REENGAGE_LINE,
+  VOICE_BRIDGE_LINE,
   VOICE_TURN_MAX_CHARS,
   type ComposeVoiceInputs,
 } from "./compose-voice";

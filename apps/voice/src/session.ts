@@ -22,8 +22,11 @@
  *   interruptible, never counted as reply TTFA).
  */
 import type { AiGateway } from "@clientforce/ai";
-import { checkComposedVoiceTurn, VOICE_FALLBACK_LINE, VOICE_FAILURE_GOODBYE } from "@clientforce/channels";
+import { checkComposedVoiceTurn, VOICE_FALLBACK_LINE, VOICE_FAILURE_GOODBYE, VOICE_REENGAGE_LINE, VOICE_BRIDGE_LINE } from "@clientforce/channels";
+import { monitorEventLoopDelay, type IntervalHistogram } from "node:perf_hooks";
 import { openSttStream, synthesizeAura, type SttParams, type SttStream, type Synthesize } from "./deepgram";
+import { TtsStream, TtsStreamCleared, type TtsStreamDeps } from "./deepgram-tts-stream";
+import { OutboundPacer } from "./outbound-pacer";
 import { SentenceChunker } from "./sentence-chunker";
 import { TurnGate, type TurnCommit } from "./turn-gate";
 import type { MetricsCollector, TurnMetric } from "./metrics";
@@ -71,7 +74,33 @@ export interface CallSessionDeps {
   /** Injectable for the harness/tests; default the real Deepgram clients. */
   openStt?: typeof openSttStream;
   synthesize?: Synthesize;
+  /** DEC-092: reply TTS transport (default `stream`); https = legacy/fallback. */
+  ttsTransport?: "stream" | "https";
+  /** DEC-092 (fix b): ms of MUTUAL silence before the one-shot re-engage.
+   *  Absent/0 = off (tests/harness unaffected unless wired). */
+  reengageAfterMs?: number;
+  /** DEC-092 (owner finding 1c): post-disclosure quiet window before the
+   *  one-shot bridge line. Absent/0 = off. */
+  bridgeAfterMs?: number;
+  /** DEC-092 (owner finding 1a): silence beat between disclosure sentences.
+   *  Absent/0 = off. */
+  disclosureBeatMs?: number;
+  /** DEC-092 (owner finding 2): the pacer's lead window at the transport —
+   *  bounds the un-cancellable barge-in tail. Default 400. */
+  paceLeadMs?: number;
+  /** Finding 1b noise grace override (tests) — see ONSET_GRACE_MS. */
+  onsetGraceMs?: number;
+  /** Injectable stream factory for tests. */
+  openTtsStream?: (deps: TtsStreamDeps) => TtsStream;
 }
+
+/** A VAD onset that produces no WORDS within this window is line noise — it
+ *  must not suppress the silence ladder (bridge/re-engage) forever (owner
+ *  finding 1b: VoIP legs fire onsets from breath/noise; the re-demo showed
+ *  `reengagedAtMs:null` through a long post-disclosure mute). Applies to the
+ *  whole wordless STREAK: repeated noise onsets don't restart the hold —
+ *  only real words (a final) do. */
+const ONSET_GRACE_MS = 4000;
 
 export class CallSession {
   private readonly turns: VoiceTurn[] = [];
@@ -91,19 +120,104 @@ export class CallSession {
   private turnLastAudioAt = 0;
   private readonly openStt: typeof openSttStream;
   private readonly synthesize: Synthesize;
+  // ── DEC-092: streaming TTS transport + pacing instrumentation ──
+  private ttsStream?: TtsStream;
+  private ttsStreamFailed = false;
+  /** Routing context for stream audio: the speak currently in flight. */
+  private speechCtx?: { metric?: TurnMetric; anchor: number; signal: AbortSignal };
+  private lastAudioSentAt = 0;
+  private loopDelay?: IntervalHistogram;
+  // ── DEC-092 (fix b): one-shot silence re-engage ──
+  private reengaged = false;
+  private reengageTimer?: NodeJS.Timeout;
+  private lastCallerFinalAt = 0;
+  /** Finding 1b: start of the current WORDLESS onset streak (0 = none) —
+   *  onsets in a streak older than the grace stop holding the ladder. */
+  private wordlessOnsetSince = 0;
+  private sttFirstFinalLogged = false;
+  // ── DEC-092 (owner findings 1c + 2): bridge state + the JIT pacer ──
+  private bridged = false;
+  private disclosureDone = false;
+  /** When the disclosure's last frame finished at the EAR (wire drain). */
+  private disclosureWireEndAt = 0;
+  private readonly pacer: OutboundPacer;
 
   constructor(private readonly deps: CallSessionDeps) {
     this.openStt = deps.openStt ?? openSttStream;
     this.synthesize = deps.synthesize ?? synthesizeAura;
     this.gate = new TurnGate({ onCommit: (commit) => this.onTurnCommit(commit) });
+    // Owner finding 2: audio waits SERVER-side (droppable instantly), only
+    // ~leadCap ever in flight at Twilio — the un-cancellable tail is bounded.
+    this.pacer = new OutboundPacer({
+      send: (frame) => this.deps.sendAudio(frame),
+      onWireSend: () => this.recordAudioSend(),
+      leadCapMs: this.deps.paceLeadMs ?? 400,
+    });
+  }
+
+  /** stream transport EXPLICITLY enabled (config-wired — absent = legacy
+   *  https, so tests/harnesses never open a real socket) and never failed. */
+  private get streamTransportOn(): boolean {
+    return this.deps.ttsTransport === "stream" && !this.ttsStreamFailed;
+  }
+
+  /** Lazily (re)open the per-call TTS stream; null when unavailable. */
+  private ensureTtsStream(): TtsStream | null {
+    if (!this.streamTransportOn) return null;
+    if (this.ttsStream?.alive) return this.ttsStream;
+    if (this.ttsStream) console.log("[tts] stream reconnect (previous socket gone)");
+    try {
+      const make =
+        this.deps.openTtsStream ?? ((d: TtsStreamDeps) => new TtsStream(d));
+      this.ttsStream = make({
+        apiKey: this.deps.deepgramKey,
+        ttsModel: this.deps.ttsModel,
+        onAudio: (chunk) => this.onStreamAudio(chunk),
+      });
+      return this.ttsStream;
+    } catch (err) {
+      this.ttsStreamFailed = true;
+      console.error("[tts] stream transport unavailable — https fallback:", (err as Error).message);
+      return null;
+    }
+  }
+
+  /** Ordered audio from the TTS stream → the pacer (TTFA stamps at enqueue —
+   *  "first reply byte queued", the metric's contract). */
+  private onStreamAudio(chunk: Buffer): void {
+    const ctx = this.speechCtx;
+    if (!ctx || ctx.signal.aborted) return; // stale/cleared speak — drop
+    if (ctx.metric && ctx.metric.ttfaMs === undefined) {
+      ctx.metric.ttfaMs = Date.now() - ctx.anchor;
+    }
+    this.pacer.enqueueAudio(chunk);
+  }
+
+  /** WIRE-side telemetry — called by the pacer per frame actually sent:
+   *  send-gap pacing truth + the audible-progress clocks (stall watchdog,
+   *  silence ladder). Audio draining the queue IS audible progress. */
+  private recordAudioSend(): void {
+    const now = Date.now();
+    if (this.speaking && this.lastAudioSentAt > 0) {
+      this.deps.metrics.audioSendGap(now - this.lastAudioSentAt);
+    }
+    this.lastAudioSentAt = now;
+    this.turnLastAudioAt = now;
   }
 
   start(): void {
     this.deps.metrics.markCallStart();
     this.startedAtMs = Date.now();
+    // DEC-092 instrumentation: event-loop stalls are the invisible half of
+    // audible choppiness on a shared/fractional core — measured per call.
+    this.loopDelay = monitorEventLoopDelay({ resolution: 10 });
+    this.loopDelay.enable();
+    // Pre-warm the TTS stream immediately — the disclosure itself speaks into
+    // a hot socket (start-window wave; connect measured at ~34ms live).
+    if (this.streamTransportOn) this.ensureTtsStream();
     this.stt = this.openStt(this.deps.deepgramKey, this.deps.sttParams, {
       onSpeechStarted: () => this.onSpeechStarted(),
-      onFinal: (text, speechFinal) => this.gate.onFinal(text, speechFinal),
+      onFinal: (text, speechFinal) => this.onCallerFinal(text, speechFinal),
       onUtteranceEnd: () => this.gate.onUtteranceEnd(),
       onError: (err) => console.error("[stt]", err.message),
       onFatal: () => this.failCall("stt stream lost"),
@@ -111,6 +225,9 @@ export class CallSession {
     this.armIdleTimer();
     if (this.deps.maxCallMs > 0) {
       this.maxTimer = setTimeout(() => this.endPolitely("max_duration"), this.deps.maxCallMs);
+    }
+    if ((this.deps.reengageAfterMs ?? 0) > 0 || (this.deps.bridgeAfterMs ?? 0) > 0) {
+      this.reengageTimer = setInterval(() => this.silenceLadderTick(), 500);
     }
     void this.warmBrainConnection();
     void this.speakDisclosure();
@@ -148,14 +265,54 @@ export class CallSession {
     this.turns.push({ role: "assistant", content: this.deps.disclosure, atMs: 0 });
     let interrupted = false;
     try {
-      for (const sentence of new SentenceChunker().push(`${this.deps.disclosure} `)) {
+      const sentences = [...new SentenceChunker().push(`${this.deps.disclosure} `)];
+      for (let i = 0; i < sentences.length; i++) {
+        const sentence = sentences[i]!;
+        // Owner finding 1a: a constant BEAT between the opening's sentences —
+        // queued as real silence frames so the ear hears exactly this pause
+        // regardless of buffering. The literal itself is untouched.
+        if (i > 0 && (this.deps.disclosureBeatMs ?? 0) > 0) {
+          this.pacer.enqueueSilence(this.deps.disclosureBeatMs!);
+        }
         this.deps.metrics.addTtsChars(sentence.length);
+        // DEC-092 start-window wave (owner PARTIAL PASS ruling): the
+        // disclosure rides the SAME hot streaming transport as replies — the
+        // open was the one remaining per-sentence HTTPS window (the crackle
+        // heard only at call start). https stays the automatic fallback.
+        const stream = this.ensureTtsStream();
+        if (stream) {
+          try {
+            this.speechCtx = { anchor: Date.now(), signal: abort.signal };
+            const timing = await stream.speak(sentence);
+            this.deps.metrics.addTtsSentence(timing.firstAudioMs, timing.flushedMs);
+            if (this.deps.metrics.ttsTransportUsed === "https") {
+              this.deps.metrics.ttsTransportUsed = "stream";
+            }
+            continue;
+          } catch (err) {
+            if (abort.signal.aborted || err instanceof TtsStreamCleared) {
+              interrupted = true;
+              return;
+            }
+            this.ttsStreamFailed = true;
+            this.deps.metrics.ttsTransportUsed = "stream→https";
+            console.error(
+              "[tts] stream transport failed on disclosure — https fallback:",
+              (err as Error).message,
+            );
+            try {
+              this.ttsStream?.close();
+            } catch {
+              // already dead
+            }
+          }
+        }
         for await (const chunk of this.synthesize(this.deps.deepgramKey, this.deps.ttsModel, sentence, abort.signal)) {
           if (abort.signal.aborted) {
             interrupted = true;
             return;
           }
-          this.deps.sendAudio(chunk);
+          this.pacer.enqueueAudio(chunk);
         }
       }
     } catch (err) {
@@ -167,6 +324,10 @@ export class CallSession {
       }
     } finally {
       if (!interrupted && !abort.signal.aborted) this.deps.metrics.disclosureCompleted = true;
+      // Owner finding 1c: the bridge window opens at the disclosure's WIRE
+      // end (stamped by the ladder tick once the pacer drains) — set here
+      // even when interrupted, so a noise-aborted open still gets bridged.
+      this.disclosureDone = true;
       if (this.ttsAbort === abort) {
         this.speaking = false;
         this.ttsAbort = undefined;
@@ -180,24 +341,60 @@ export class CallSession {
     this.stt?.sendAudio(mulaw);
   }
 
-  /** VAD onset — if the agent is mid-utterance, this is a barge-in. */
+  /** A finalized STT fragment — the ladder clocks stamp only on WORDS (an
+   *  empty final is line noise and must not hold the silence ladder). */
+  private onCallerFinal(text: string, speechFinal: boolean): void {
+    if (!this.sttFirstFinalLogged) {
+      this.sttFirstFinalLogged = true; // cold-path proof — any final counts
+      console.log(`[stt] first final after ${Date.now() - this.startedAtMs}ms`);
+    }
+    if (text.trim()) {
+      this.lastCallerFinalAt = Date.now();
+      this.wordlessOnsetSince = 0; // real words — the onset streak was speech
+    }
+    this.gate.onFinal(text, speechFinal);
+  }
+
+  /** VAD onset — mid-utterance it's a barge-in; after the utterance it can
+   *  still be an interrupt of the DRAINING tail (owner finding 2: the clear
+   *  invariant holds at the caller's ear, not just while `speaking`). */
   private onSpeechStarted(): void {
     this.speechStartedAt = Date.now();
+    if (this.wordlessOnsetSince === 0) this.wordlessOnsetSince = Date.now();
     this.armIdleTimer();
     if (this.speaking) this.bargeIn();
+    else if (this.pacer.outstandingMs() > 0) this.clearTail();
   }
 
   private bargeIn(): void {
     const turn = this.speakingTurn;
-    this.deps.clearPlayback(); // drop already-queued audio immediately
+    // Server queue first (instant), then the transport buffer — together they
+    // are everything the caller has not yet heard.
+    const cleared = this.pacer.clearNow();
+    const bufferedMs = cleared.droppedMs + cleared.inFlightMs;
+    this.deps.metrics.bufferedMsAtInterrupt.push(bufferedMs);
+    this.deps.clearPlayback(); // Twilio `clear` — wipe the in-flight lead
     this.ttsAbort?.abort(); // cancel LLM+TTS generation
+    this.ttsStream?.clear(); // drop server-side buffered TTS audio (DEC-092)
     this.speaking = false;
     this.deps.metrics.bargeIns.push({
       turn,
       clearLatencyMs: Date.now() - this.speechStartedAt,
+      bufferedMs,
     });
     const current = this.turns[this.turns.length - 1];
     if (current?.role === "assistant") current.content += " [interrupted]";
+  }
+
+  /** Owner finding 2 (the race the ear caught): the reply finished DELIVERING
+   *  (`speaking` false) while paced audio was still playing out — a caller
+   *  interrupt must still cut it. No turn abort (nothing in flight), no
+   *  transcript mark (the reply text WAS fully delivered), just the cut. */
+  private clearTail(): void {
+    const cleared = this.pacer.clearNow();
+    this.deps.metrics.bufferedMsAtInterrupt.push(cleared.droppedMs + cleared.inFlightMs);
+    this.deps.clearPlayback();
+    this.ttsStream?.clear(); // safety — nothing should be in flight here
   }
 
   /** The TurnGate committed a caller utterance — respond. */
@@ -223,6 +420,9 @@ export class CallSession {
     this.speakingTurn = turn;
 
     let assistantText = "";
+    // Pacing gaps are INTRA-turn only — across turns the caller is speaking
+    // and silence is correct (the first run counted those as 31s "gaps").
+    this.lastAudioSentAt = 0;
     const metric: TurnMetric = {
       turn,
       userText: commit.text,
@@ -241,7 +441,7 @@ export class CallSession {
         if (abort.signal.aborted || metric.ttfaMs !== undefined) return;
         const clip = this.deps.ackClips[(turn - 1) % this.deps.ackClips.length]!;
         metric.ackAtMs = Date.now() - anchor;
-        this.deps.sendAudio(clip);
+        this.pacer.enqueueAudio(clip);
       }, this.deps.ackAfterMs);
     }
 
@@ -258,6 +458,7 @@ export class CallSession {
         if (Date.now() - this.turnLastAudioAt > this.deps.stallAbandonMs) {
           metric.stalled = true;
           abort.abort();
+          this.ttsStream?.clear(); // a stalled stream must not resume later (DEC-092)
         }
       }, 250);
     }
@@ -281,6 +482,14 @@ export class CallSession {
       const tail = chunker.flush();
       if (tail && !abort.signal.aborted) {
         if (!(await this.checkAndSpeak(tail, metric, anchor, abort))) return;
+      }
+      // DEC-092 (fix a, owner-approved): an EMPTY completion must never
+      // produce silence — no audio queued for this turn, nothing refused,
+      // not aborted ⇒ speak the locked fallback and keep the call alive.
+      if (!abort.signal.aborted && !metric.refusalReason && metric.ttfaMs === undefined) {
+        metric.emptyReply = true;
+        await this.speakChunk(VOICE_FALLBACK_LINE, metric, anchor, abort.signal);
+        assistantText = VOICE_FALLBACK_LINE;
       }
     } catch (err) {
       if (!abort.signal.aborted) {
@@ -366,14 +575,46 @@ export class CallSession {
   ): Promise<void> {
     if (signal.aborted || !text) return;
     this.deps.metrics.addTtsChars(text.length);
+    // DEC-092: streaming transport first — ONE hot socket per call, each
+    // sentence a Speak+Flush; the inter-sentence cost collapses from an
+    // HTTPS connect+TTFB to a flush round-trip (the audible-gap killer).
+    const stream = this.ensureTtsStream();
+    if (stream) {
+      this.speechCtx = { metric, anchor, signal };
+      try {
+        const timing = await stream.speak(text);
+        this.deps.metrics.addTtsSentence(timing.firstAudioMs, timing.flushedMs);
+        // Stamped on first proven stream sentence ("https" until then; a
+        // later transport death flips it to "stream→https").
+        if (this.deps.metrics.ttsTransportUsed === "https") {
+          this.deps.metrics.ttsTransportUsed = "stream";
+        }
+        return;
+      } catch (err) {
+        if (signal.aborted || err instanceof TtsStreamCleared) return;
+        // Transport death mid-call → PERMANENT https fallback for this call —
+        // never a dead line; visible in logs + the summary transport field.
+        this.ttsStreamFailed = true;
+        this.deps.metrics.ttsTransportUsed = "stream→https";
+        console.error("[tts] stream transport failed — https fallback:", (err as Error).message);
+        try {
+          this.ttsStream?.close();
+        } catch {
+          // already dead
+        }
+      }
+    }
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
+        const t0 = Date.now();
+        let tFirst = 0;
         for await (const chunk of this.synthesize(this.deps.deepgramKey, this.deps.ttsModel, text, signal)) {
           if (signal.aborted) return;
+          if (tFirst === 0) tFirst = Date.now();
           if (metric.ttfaMs === undefined) metric.ttfaMs = Date.now() - anchor;
-          this.turnLastAudioAt = Date.now();
-          this.deps.sendAudio(chunk);
+          this.pacer.enqueueAudio(chunk);
         }
+        if (tFirst > 0) this.deps.metrics.addTtsSentence(tFirst - t0, Date.now() - t0);
         return;
       } catch (err) {
         if (signal.aborted) return;
@@ -414,11 +655,16 @@ export class CallSession {
         (async () => {
           for await (const chunk of this.synthesize(this.deps.deepgramKey, this.deps.ttsModel, line, abort.signal)) {
             if (abort.signal.aborted) return;
-            this.deps.sendAudio(chunk);
+            this.pacer.enqueueAudio(chunk);
           }
           this.deps.metrics.addTtsChars(line.length);
-          // Give Twilio's buffer a moment to drain the goodbye.
-          await new Promise((r) => setTimeout(r, 1500));
+          // Let the paced goodbye actually reach the ear before hanging up
+          // (bounded — the outer race still hard-caps the whole farewell).
+          const drainFrom = Date.now();
+          while (this.pacer.outstandingMs() > 0 && Date.now() - drainFrom < 4500) {
+            await new Promise((r) => setTimeout(r, 100));
+          }
+          await new Promise((r) => setTimeout(r, 250));
         })(),
         new Promise((r) => setTimeout(r, 6000)), // hard bound — never hang here
       ]);
@@ -462,6 +708,133 @@ export class CallSession {
     return [...this.turns];
   }
 
+  /**
+   * Owner finding 1b: live caller activity for the silence ladder. A FINAL
+   * (words) always counts; a bare VAD onset counts only while young
+   * (ONSET_GRACE_MS) — on a VoIP leg, breath/line noise fires onsets with no
+   * words, and before this fix each one slid the re-engage clock forever
+   * (measured: `reengagedAtMs:null` through an 18s post-disclosure mute).
+   */
+  private callerActivityAt(): number {
+    const grace = this.deps.onsetGraceMs ?? ONSET_GRACE_MS;
+    const onsetLive =
+      this.speechStartedAt > 0 &&
+      Date.now() - this.speechStartedAt < grace &&
+      // The whole wordless streak ages out together — repeated noise onsets
+      // must not each restart the hold; only real words reset the streak.
+      !(this.wordlessOnsetSince > 0 && Date.now() - this.wordlessOnsetSince >= grace);
+    return Math.max(this.lastCallerFinalAt, onsetLive ? this.speechStartedAt : 0);
+  }
+
+  /** The 500ms silence-ladder tick: disclosure wire-end stamp → bridge (1c)
+   *  → re-engage (fix b). Each rung one-shot; both suppressed by pending or
+   *  live caller speech. */
+  private silenceLadderTick(): void {
+    if (this.disclosureDone && this.disclosureWireEndAt === 0 && this.pacer.outstandingMs() === 0) {
+      this.disclosureWireEndAt = Date.now();
+    }
+    this.maybeBridge();
+    this.maybeReengage();
+  }
+
+  /** Owner finding 1c: the disclosure's closing question got no caller words
+   *  — proceed with the constant bridge line instead of waiting mute. Only
+   *  before turn 1; once the conversation carries itself the window is over. */
+  private maybeBridge(): void {
+    if (this.closed || this.bridged || this.reengaged || this.speaking) return;
+    if (this.turnCount > 0) {
+      this.bridged = true; // conversation reached turn 1 — window closed for good
+      return;
+    }
+    const ms = this.deps.bridgeAfterMs ?? 0;
+    if (ms <= 0) return;
+    if (this.disclosureWireEndAt === 0) return; // opening still playing out
+    if (this.gate.hasPending()) return; // caller words being merged — hold
+    const base = Math.max(this.disclosureWireEndAt, this.turnLastAudioAt, this.callerActivityAt());
+    if (Date.now() - base < ms) return;
+    void this.speakBridge();
+  }
+
+  /** DEC-092 (fix b): one-shot re-engage after MUTUAL silence — agent idle,
+   *  no turn in flight, no committed-or-pending caller speech. Cancelled by
+   *  LIVE caller speech (finding 1b: stale wordless onsets no longer count);
+   *  never fires twice. */
+  private maybeReengage(): void {
+    if (this.closed || this.reengaged || this.speaking) return;
+    if (this.gate.hasPending()) return; // uncommitted caller speech — hold
+    const ms = this.deps.reengageAfterMs ?? 0;
+    if (ms <= 0) return;
+    const base = Math.max(this.turnLastAudioAt, this.callerActivityAt());
+    if (base === 0) return; // nothing has happened yet
+    if (Date.now() - base < ms) return;
+    void this.speakReengage();
+  }
+
+  /** Speak the constant bridge line — best-effort, interruptible, once. */
+  private async speakBridge(): Promise<void> {
+    if (this.closed || this.speaking || this.bridged || this.reengaged) return;
+    this.bridged = true;
+    this.deps.metrics.bridgedAtMs = Date.now() - this.startedAtMs;
+    const abort = new AbortController();
+    this.ttsAbort = abort;
+    this.speaking = true;
+    this.speakingTurn = this.turnCount;
+    this.turns.push({ role: "assistant", content: VOICE_BRIDGE_LINE, atMs: Date.now() - this.startedAtMs });
+    this.deps.metrics.addTtsChars(VOICE_BRIDGE_LINE.length);
+    try {
+      const stream = this.ensureTtsStream();
+      if (stream) {
+        this.speechCtx = { anchor: Date.now(), signal: abort.signal };
+        const timing = await stream.speak(VOICE_BRIDGE_LINE);
+        this.deps.metrics.addTtsSentence(timing.firstAudioMs, timing.flushedMs);
+      } else {
+        for await (const chunk of this.synthesize(this.deps.deepgramKey, this.deps.ttsModel, VOICE_BRIDGE_LINE, abort.signal)) {
+          if (abort.signal.aborted) return;
+          this.pacer.enqueueAudio(chunk);
+        }
+      }
+    } catch {
+      // best-effort — a failed bridge must never fail the call
+    } finally {
+      if (this.ttsAbort === abort) {
+        this.speaking = false;
+        this.ttsAbort = undefined;
+      }
+    }
+  }
+
+  private async speakReengage(): Promise<void> {
+    if (this.closed || this.speaking || this.reengaged) return;
+    this.reengaged = true;
+    this.deps.metrics.reengagedAtMs = Date.now() - this.startedAtMs;
+    const abort = new AbortController();
+    this.ttsAbort = abort;
+    this.speaking = true;
+    this.speakingTurn = this.turnCount;
+    this.turns.push({ role: "assistant", content: VOICE_REENGAGE_LINE, atMs: Date.now() - this.startedAtMs });
+    this.deps.metrics.addTtsChars(VOICE_REENGAGE_LINE.length);
+    try {
+      const stream = this.ensureTtsStream();
+      if (stream) {
+        this.speechCtx = { anchor: Date.now(), signal: abort.signal };
+        const timing = await stream.speak(VOICE_REENGAGE_LINE);
+        this.deps.metrics.addTtsSentence(timing.firstAudioMs, timing.flushedMs);
+      } else {
+        for await (const chunk of this.synthesize(this.deps.deepgramKey, this.deps.ttsModel, VOICE_REENGAGE_LINE, abort.signal)) {
+          if (abort.signal.aborted) return;
+          this.pacer.enqueueAudio(chunk);
+        }
+      }
+    } catch {
+      // best-effort — a failed re-engage must never fail the call
+    } finally {
+      if (this.ttsAbort === abort) {
+        this.speaking = false;
+        this.ttsAbort = undefined;
+      }
+    }
+  }
+
   close(): void {
     if (this.closed) return;
     this.closed = true;
@@ -469,17 +842,32 @@ export class CallSession {
     if (tail) this.turns.push({ role: "user", content: tail, atMs: Date.now() - this.startedAtMs });
     if (this.idleTimer) clearTimeout(this.idleTimer);
     if (this.maxTimer) clearTimeout(this.maxTimer);
+    if (this.reengageTimer) clearInterval(this.reengageTimer);
     this.ttsAbort?.abort();
+    this.ttsStream?.close();
+    this.pacer.close();
     this.stt?.close();
+    if (this.loopDelay) {
+      this.loopDelay.disable();
+      const ns = this.loopDelay;
+      this.deps.metrics.eventLoopMs = {
+        p50: Math.round(ns.percentile(50) / 1e6),
+        p95: Math.round(ns.percentile(95) / 1e6),
+        max: Math.round(ns.max / 1e6),
+      };
+    }
   }
 
   /** Test/harness hooks — drive the STT callbacks without a socket. */
   get testHooks() {
     return {
       speechStarted: () => this.onSpeechStarted(),
-      final: (t: string, speechFinal = true) => this.gate.onFinal(t, speechFinal),
+      /** Routes through the REAL final path (ladder clocks + gate) — tests
+       *  exercise what the wire exercises. */
+      final: (t: string, speechFinal = true) => this.onCallerFinal(t, speechFinal),
       utteranceEnd: () => this.gate.onUtteranceEnd(),
       isSpeaking: () => this.speaking,
+      outstandingMs: () => this.pacer.outstandingMs(),
     };
   }
 }

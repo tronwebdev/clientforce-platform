@@ -34,11 +34,11 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "preflight | certify | demo-call | diagnose"
+        description: "preflight | certify | demo-call | diagnose | measure | loopback | sandbox"
         required: true
         default: "preflight"
         type: choice
-        options: [preflight, certify, demo-call, diagnose]
+        options: [preflight, certify, demo-call, diagnose, measure, loopback, sandbox]
       variant:
         description: "demo-call disclosure variant"
         required: false
@@ -54,7 +54,7 @@ on:
         required: false
         default: ""
       call_sid:
-        description: "diagnose: a CAxxxx call SID to pull Twilio status + error notifications for (blank = service probes only)."
+        description: "diagnose/measure: CAxxxx call SID(s), comma-separated for measure. diagnose: Twilio status + error notifications (blank = service probes only). measure: Voice Insights + utilization windows."
         required: false
         default: ""
 
@@ -65,6 +65,7 @@ permissions:
 env:
   KEY_VAULT_NAME: ${{ vars.KEY_VAULT_NAME }}
   RG: ${{ vars.AZURE_RESOURCE_GROUP }}
+  CAE: ${{ vars.CONTAINER_APPS_ENV }}
 
 jobs:
   voice:
@@ -145,7 +146,33 @@ jobs:
           echo "STT probe (pre-recorded endpoint reachability):"
           curl -fsS -o /dev/null -w "  HTTP %{http_code}\n" -X POST "https://api.deepgram.com/v1/listen?model=nova-2" \
             -H "Authorization: Token $DEEPGRAM_API_KEY" -H "content-type: audio/mulaw" --data-binary @/dev/null || true
-          echo "PREFLIGHT PASS: Deepgram key live; TTS emits audio."
+          # DEC-092 gate (owner ruling 2026-07-21): the structural fix rides
+          # Aura's STREAMING TTS websocket — prove the API delivers audio
+          # with OUR key before a line of the transport is built. Fails loud:
+          # a failure here = the Cartesia jump, posted before building.
+          echo "Streaming-TTS ws probe (aura-2-thalia-en over wss):"
+          NODE_PATH=apps/voice/node_modules node -e '
+            const W = require("ws");
+            const url = "wss://api.deepgram.com/v1/speak?model=aura-2-thalia-en&encoding=mulaw&sample_rate=8000&container=none";
+            const ws = new W(url, { headers: { Authorization: "Token " + process.env.DEEPGRAM_API_KEY } });
+            let bytes = 0, t0 = 0, tFirst = 0;
+            ws.on("open", () => { t0 = Date.now(); ws.send(JSON.stringify({ type: "Speak", text: "ok, streaming works" })); ws.send(JSON.stringify({ type: "Flush" })); });
+            ws.on("message", (data, isBinary) => {
+              if (isBinary) { if (!tFirst) tFirst = Date.now(); bytes += data.length; return; }
+              const msg = JSON.parse(String(data));
+              if (msg.type === "Flushed") {
+                console.log("  streaming ws: " + bytes + " bytes mulaw, speak->first-audio " + (tFirst - t0) + "ms, speak->flushed " + (Date.now() - t0) + "ms");
+                if (bytes < 1000) { console.error("  FAIL: streaming ws produced <1000 bytes"); process.exit(1); }
+                try { ws.send(JSON.stringify({ type: "Close" })); } catch {}
+                ws.close(); process.exit(0);
+              }
+              if (msg.type === "Warning" || msg.type === "Error") console.error("  ws " + msg.type + ": " + JSON.stringify(msg).slice(0, 200));
+            });
+            ws.on("error", (e) => { console.error("  FAIL: streaming ws error — " + e.message); process.exit(1); });
+            ws.on("close", (c, r) => { if (bytes < 1000) { console.error("  FAIL: ws closed " + c + " before audio (" + String(r).slice(0,120) + ")"); process.exit(1); } });
+            setTimeout(() => { console.error("  FAIL: streaming ws timeout (10s)"); process.exit(1); }, 10000);
+          '
+          echo "PREFLIGHT PASS: Deepgram key live; HTTPS TTS emits audio; STREAMING TTS ws emits audio."
 
       # ── certify: the >=100-turn paired-bot run through the PRODUCTION session ─
       - name: Certification run (paired-bot, STT-in-the-loop)
@@ -163,6 +190,26 @@ jobs:
           echo "----- cert-table.md -----"
           cat cert/cert-table.md >> "$GITHUB_STEP_SUMMARY"
           cat cert/cert-table.md
+
+      # ── sandbox: owner finding 4c (PR #106) — NO dialing, NO telephony:
+      #    a few text-only turns through the real gateway against the demo
+      #    fixture, asserting the first substantive answers LEAD outcome-first
+      #    (deliverability is a rail, only the opener when asked). Loud fail. ──
+      - name: Sandbox content check (finding 4c — outcome-first lead)
+        if: env.MODE == 'sandbox'
+        env:
+          ANTHROPIC_API_KEY: ${{ steps.kv.outputs.anthropic }}
+          DEMO_VARIANT: ${{ inputs.variant || 'named' }}
+        run: |
+          set -euo pipefail
+          [ -n "$ANTHROPIC_API_KEY" ] || { echo "::error::ANTHROPIC-API-KEY missing"; exit 1; }
+          node apps/voice/dist/sandbox.js | tee sandbox.out
+          {
+            echo "## sandbox content check (finding 4c)"
+            echo '```'
+            cat sandbox.out
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       # ── demo-call: one real PSTN call through the DEPLOYED production
       #    service (P3.1 deploy, DEC-090). The runner+tunnel rig is retired for
@@ -201,11 +248,18 @@ jobs:
           az containerapp logs show --name clientforce-voice --resource-group "$RG" --type console --tail 300 2>/dev/null \
             | grep -oE '\[(ws|call|voice|metrics|stt|session)\][^"]*' | tail -40 \
             || echo "(no matching service log lines in the tail window)"
+          echo "── revision history (which image served when) ──"
+          az containerapp revision list --name clientforce-voice --resource-group "$RG" --all \
+            --query "[].{name:name, active:properties.active, created:properties.createdTime, traffic:properties.trafficWeight, image:properties.template.containers[0].image}" -o table 2>/dev/null \
+            || echo "(revision list not readable)"
           echo "── service probe ladder ──"
           FQDN="$(az containerapp show --name clientforce-voice --resource-group "$RG" --query "properties.configuration.ingress.fqdn" -o tsv 2>/dev/null || true)"
           [ -n "$FQDN" ] || { echo "::error::clientforce-voice is not deployed in $RG"; exit 1; }
           BASE="https://$FQDN"
-          echo "health: $(curl -fsS "$BASE/health" || echo UNREACHABLE)"
+          HEALTH=$(curl -fsS "$BASE/health" || echo UNREACHABLE)
+          echo "health: $HEALTH"
+          PROVISIONED=$(az containerapp show --name clientforce-voice --resource-group "$RG" --query "properties.template.containers[0].image" -o tsv 2>/dev/null || true)
+          echo "serving-vs-provisioned: sha=$(printf '%s' "$HEALTH" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("sha","unknown"))' 2>/dev/null || echo unparseable) provisioned-tag=${PROVISIONED##*:}"
           TOKEN=$(python3 -c 'import hmac,hashlib,os; print(hmac.new(os.environ["TWILIO_AUTH_TOKEN"].encode(),b"clientforce-voice-media",hashlib.sha256).hexdigest()[:32])')
           echo "::add-mask::$TOKEN"
           echo "untokened /twiml: HTTP $(curl -sS -X POST -o /dev/null -w "%{http_code}" "$BASE/twiml" || echo 000) (expect 403)"
@@ -237,6 +291,130 @@ jobs:
             })();
           ' "wss://$FQDN"
 
+      # ── measure: NO dialing — the owner-ordered quality investigation
+      #    (DEC-090 quality FAIL, 2026-07-21): (1) container sizing +
+      #    observed utilization across the call windows; (2) Twilio Voice
+      #    Insights per SID (jitter / packet loss / MOS on the media leg);
+      #    (3) per-turn pipeline lines recovered from Log Analytics;
+      #    (4) region facts. Prints ONLY numeric fields picked explicitly —
+      #    never raw Insights dumps (they carry phone numbers). ─────────────
+      - name: Measure (no dial — sizing · utilization · Voice Insights · pipeline timings)
+        if: env.MODE == 'measure'
+        env:
+          TWILIO_ACCOUNT_SID: ${{ steps.kv.outputs.tw_sid }}
+          TWILIO_AUTH_TOKEN: ${{ steps.kv.outputs.tw_token }}
+          CALL_SIDS: ${{ inputs.call_sid }}
+        run: |
+          set -euo pipefail
+          az config set extension.use_dynamic_install=yes_without_prompt >/dev/null 2>&1 || true
+          echo "══ (1) container sizing ══"
+          APP_ID=$(az containerapp show --name clientforce-voice --resource-group "$RG" --query id -o tsv)
+          az containerapp show --name clientforce-voice --resource-group "$RG" \
+            --query "{resources:properties.template.containers[0].resources, scale:properties.template.scale, activeRevisionsMode:properties.configuration.activeRevisionsMode}" -o json
+          # Window: union of the calls' Twilio start/end, padded 2min each side.
+          WIN_START=""; WIN_END=""
+          IFS=',' read -ra SIDS <<< "$CALL_SIDS"
+          for SID in "${SIDS[@]}"; do
+            SID=$(echo "$SID" | tr -d ' ')
+            [ -n "$SID" ] || continue
+            REC=$(curl -sS "https://api.twilio.com/2010-04-01/Accounts/$TWILIO_ACCOUNT_SID/Calls/$SID.json" -u "$TWILIO_ACCOUNT_SID:$TWILIO_AUTH_TOKEN")
+            S=$(printf '%s' "$REC" | python3 -c 'import json,sys,email.utils,datetime; d=json.load(sys.stdin); t=email.utils.parsedate_to_datetime(d["start_time"]); print(t.strftime("%Y-%m-%dT%H:%M:%SZ"))')
+            E=$(printf '%s' "$REC" | python3 -c 'import json,sys,email.utils,datetime; d=json.load(sys.stdin); t=email.utils.parsedate_to_datetime(d["end_time"]); print(t.strftime("%Y-%m-%dT%H:%M:%SZ"))')
+            echo "call $SID: window $S → $E (duration $(printf '%s' "$REC" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("duration"))')s)"
+            [ -z "$WIN_START" ] || [ "$S" \< "$WIN_START" ] && WIN_START="$S"
+            [ -z "$WIN_END" ] || [ "$E" \> "$WIN_END" ] && WIN_END="$E"
+          done
+          PAD_START=$(python3 -c "import datetime;print((datetime.datetime.strptime('$WIN_START','%Y-%m-%dT%H:%M:%SZ')-datetime.timedelta(minutes=2)).strftime('%Y-%m-%dT%H:%M:%SZ'))")
+          PAD_END=$(python3 -c "import datetime;print((datetime.datetime.strptime('$WIN_END','%Y-%m-%dT%H:%M:%SZ')+datetime.timedelta(minutes=2)).strftime('%Y-%m-%dT%H:%M:%SZ'))")
+          echo "metrics window: $PAD_START → $PAD_END"
+          echo "══ (1b) observed utilization (per-minute avg/max) ══"
+          for M in UsageNanoCores WorkingSetBytes RestartCount Replicas; do
+            echo "── $M ──"
+            az monitor metrics list --resource "$APP_ID" --metric "$M" \
+              --start-time "$PAD_START" --end-time "$PAD_END" --interval PT1M --aggregation Average Maximum -o json 2>/dev/null \
+              | python3 -c '
+          import json,sys
+          d=json.load(sys.stdin)
+          for v in d.get("value",[]):
+              for ts in v.get("timeseries",[]):
+                  for row in ts.get("data",[]):
+                      a=row.get("average"); m=row.get("maximum")
+                      if a is None and m is None: continue
+                      print("  %s avg=%s max=%s" % (row.get("timeStamp","?")[11:16], a, m))
+          ' || echo "  (metric $M not readable)"
+          done
+          echo "══ (2) Twilio Voice Insights (carrier media leg) ══"
+          for SID in "${SIDS[@]}"; do
+            SID=$(echo "$SID" | tr -d ' ')
+            [ -n "$SID" ] || continue
+            echo "── $SID summary ──"
+            curl -sS "https://insights.twilio.com/v1/Voice/$SID/Summary" -u "$TWILIO_ACCOUNT_SID:$TWILIO_AUTH_TOKEN" \
+              | python3 -c '
+          import json,sys
+          d=json.load(sys.stdin)
+          if d.get("status")==404 or d.get("code"): print("  (summary not available: %s)"%d.get("message",d.get("code"))); raise SystemExit
+          print("  processing_state=%s call_type=%s call_state=%s" % (d.get("processing_state"), d.get("call_type"), d.get("call_state")))
+          p=d.get("properties") or {}
+          print("  pdd_ms=%s last_sip_response=%s direction=%s" % (p.get("pdd_ms"), p.get("last_sip_response_num"), p.get("direction")))
+          for edge in ("carrier_edge","sip_edge","client_edge","sdk_edge"):
+              e=d.get(edge)
+              if not e: continue
+              props=e.get("properties") or {}
+              print("  %s: media_region=%s signaling_region=%s edge_location=%s" % (edge, props.get("media_region"), props.get("signaling_region"), props.get("edge_location")))
+              met=e.get("metrics") or {}
+              for dirn in ("inbound","outbound"):
+                  m=met.get(dirn) or {}
+                  j=m.get("jitter") or {}; mos=m.get("mos") or {}
+                  print("    %s: jitter_avg=%s jitter_max=%s packets_lost=%s packet_loss_pct=%s mos_avg=%s mos_min=%s" % (dirn, j.get("avg"), j.get("max"), m.get("packets_lost"), m.get("packet_loss_percentage"), mos.get("avg"), mos.get("min")))
+          ' || echo "  (summary fetch failed)"
+            echo "── $SID per-interval metrics (first 30 rows) ──"
+            curl -sS "https://insights.twilio.com/v1/Voice/$SID/Metrics?PageSize=60" -u "$TWILIO_ACCOUNT_SID:$TWILIO_AUTH_TOKEN" \
+              | python3 -c '
+          import json,sys
+          d=json.load(sys.stdin)
+          rows=d.get("metrics") or []
+          if not rows: print("  (no per-interval metrics — Advanced Insights may be off)"); raise SystemExit
+          def val(row,*keys):
+              for k in keys:
+                  v=row.get(k)
+                  if isinstance(v,dict): v=v.get("value", v.get("avg"))
+                  if v is not None: return v
+              for edge in ("carrier_edge","sip_edge","sdk_edge","client_edge"):
+                  e=row.get(edge)
+                  if isinstance(e,dict):
+                      for k in keys:
+                          v=e.get(k)
+                          if isinstance(v,dict): v=v.get("value", v.get("avg"))
+                          if v is not None: return v
+              return None
+          for r in rows[:30]:
+              print("  t=%s edge=%s dir=%s jitter=%s pl%%=%s mos=%s rtt=%s" % (str(r.get("timestamp","?"))[11:19], r.get("edge"), r.get("direction"), val(r,"jitter"), val(r,"packet_loss_percentage","packets_loss_percentage"), val(r,"mos"), val(r,"rtt")))
+          ' || echo "  (metrics fetch failed)"
+          done
+          echo "══ (3) pipeline lines from Log Analytics (call windows) ══"
+          LAW=$(az containerapp env show --name "$CAE" --resource-group "$RG" --query "properties.appLogsConfiguration.logAnalyticsConfiguration.customerId" -o tsv 2>/dev/null || true)
+          if [ -n "$LAW" ]; then
+            az monitor log-analytics query -w "$LAW" --analytics-query "ContainerAppConsoleLogs_CL | where ContainerAppName_s == 'clientforce-voice' | where TimeGenerated between (datetime($PAD_START) .. datetime($PAD_END)) | where Log_s has_any ('[ai]','[metrics]','[tts]','[stt]','[call]','[ws]','[respond]','[session]') | project TimeGenerated, Log_s | order by TimeGenerated asc | take 100" -o json 2>/dev/null \
+              | python3 -c 'import json,sys
+          rows=json.load(sys.stdin)
+          rows=rows if isinstance(rows,list) else rows.get("tables",[{}])[0].get("rows",[])
+          print("  (no rows in the window)" if not rows else "")
+          for r in rows:
+              t=r.get("TimeGenerated") if isinstance(r,dict) else r[0]; l=r.get("Log_s") if isinstance(r,dict) else r[1]
+              print("  %s %s" % (t[11:23] if t else "?", l))' \
+              || echo "  (log-analytics query failed)"
+          else
+            echo "  (environment has no Log Analytics workspace — per-turn lines from the retired replica are unrecoverable)"
+          fi
+          echo "══ (3b) in-place metrics read (fix-b / start-window determinations) ══"
+          az containerapp exec --name clientforce-voice --resource-group "$RG" \
+            --command "cat /tmp/metrics.json" 2>/dev/null \
+            | python3 -c 'import json,sys,re; s=sys.stdin.read(); m=re.search(r"\{.*\}",s,re.S); d=json.loads(m.group(0)) if m else {}; print(json.dumps({k:d.get(k) for k in ("turns","emptyReplies","reengagedAtMs","ttsTransport","ttsSentenceFirstAudioSamples","audioSendGaps","disclosureCompleted")}))' \
+            || echo "  (exec not available from this principal/runtime — skipped; the summary log line is the fallback record)"
+          echo "══ (4) region facts ══"
+          echo "  container app region: $(az containerapp show --name clientforce-voice --resource-group "$RG" --query location -o tsv)"
+          echo "  (twilio media/edge regions per call: see Insights summary above; Deepgram: api.deepgram.com; caller leg: NG PSTN)"
+
       # Owner directive 2026-07-15 (international demo leg): enable the target
       # country in Twilio Voice Geo Permissions before dialing — the dial fails
       # without it — and append the number to the product allow-list rail
@@ -244,7 +422,7 @@ jobs:
       # via CHANNELS_VOICE_ALLOWLIST). Prints country flags and outcomes only —
       # never numbers.
       - name: Geo permissions + allow-list (demo-call)
-        if: env.MODE == 'demo-call'
+        if: env.MODE == 'demo-call' || env.MODE == 'loopback'
         env:
           TWILIO_ACCOUNT_SID: ${{ steps.kv.outputs.tw_sid }}
           TWILIO_AUTH_TOKEN: ${{ steps.kv.outputs.tw_token }}
@@ -302,8 +480,12 @@ jobs:
               fi;;
           esac
 
+      # loopback (DEC-092, owner-consented diagnostic): same rig, but the callee
+      # is a second platform-owned Twilio number whose TwiML answers — and the
+      # call RECORDS (Record=true on the dial) so the owner judges the audio
+      # with their own last-mile leg removed. Product dials never record.
       - name: Demo call (deployed production service, ${{ inputs.variant }} disclosure variant)
-        if: env.MODE == 'demo-call'
+        if: env.MODE == 'demo-call' || env.MODE == 'loopback'
         env:
           TWILIO_ACCOUNT_SID: ${{ steps.kv.outputs.tw_sid }}
           TWILIO_AUTH_TOKEN: ${{ steps.kv.outputs.tw_token }}
@@ -311,6 +493,7 @@ jobs:
           TWILIO_TO: ${{ steps.kv.outputs.tw_to }}
           VOICE_SANDBOX: "false"
           DEMO_VARIANT: ${{ inputs.variant }}
+          RECORD_CALL: ${{ env.MODE == 'loopback' && '1' || '' }}
         run: |
           set -euo pipefail
           [ "${{ steps.kv.outputs.has_twilio }}" = "yes" ] || { echo "::error::Twilio credentials missing"; exit 1; }
@@ -329,6 +512,22 @@ jobs:
           HEALTH=$(curl -fsS "$BASE/health" || true)
           echo "health: $HEALTH"
           [ -n "$HEALTH" ] || { echo "::error::voice /health not answering — not dialing."; exit 1; }
+          # Revision assertion (DEC-090 amendment, owner 2026-07-21): the dial
+          # only proceeds when the SERVING process is the PROVISIONED image —
+          # /health's baked git SHA must equal the active revision's image
+          # tag. Catches deploy clashes / stale replicas BEFORE a phone rings.
+          PROVISIONED=$(az containerapp show --name clientforce-voice --resource-group "$RG" --query "properties.template.containers[0].image" -o tsv)
+          PROVISIONED_TAG="${PROVISIONED##*:}"
+          SERVING_SHA=$(printf '%s' "$HEALTH" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("sha","unknown"))' || echo unknown)
+          echo "revision assertion: provisioned tag=$PROVISIONED_TAG serving sha=$SERVING_SHA"
+          if [ "$SERVING_SHA" = "unknown" ]; then
+            echo "::error::serving revision does not report IMAGE_SHA (predates the assertion) — redeploy before dialing."
+            exit 1
+          fi
+          if [ "$SERVING_SHA" != "$PROVISIONED_TAG" ]; then
+            echo "::error::revision clash — serving sha ($SERVING_SHA) != provisioned image tag ($PROVISIONED_TAG); not dialing."
+            exit 1
+          fi
           # Access-gate proof, negative then positive: an untokened /twiml
           # must 403 (the gate holds), the tokened preflight must 200 with a
           # wss stream URL (the exact request Twilio will make).
@@ -398,6 +597,13 @@ jobs:
             -u "$TWILIO_ACCOUNT_SID:$TWILIO_AUTH_TOKEN" \
             | python3 -c 'import json,sys; ns=json.load(sys.stdin).get("notifications",[]); print("twilio notifications: none (no TwiML/stream errors on this call)" if not ns else "twilio notifications:"); [print("  code=%s level=%s text=%s" % (n.get("error_code"), n.get("log"), (n.get("message_text") or "")[:200])) for n in ns]' \
             || echo "(notifications not readable)"
+          if [ "$MODE" = "loopback" ]; then
+            echo "── loopback recording (owner-consented diagnostic; listen in the Twilio console) ──"
+            curl -sS "https://api.twilio.com/2010-04-01/Accounts/$TWILIO_ACCOUNT_SID/Calls/$CALL_SID/Recordings.json" \
+              -u "$TWILIO_ACCOUNT_SID:$TWILIO_AUTH_TOKEN" \
+              | python3 -c 'import json,sys; rs=json.load(sys.stdin).get("recordings",[]); print("  (no recording rows yet — they can lag the call end; check the console)" if not rs else ""); [print("  recording sid=%s duration=%ss status=%s" % (r.get("sid"), r.get("duration"), r.get("status"))) for r in rs]' \
+              || echo "  (recordings not readable)"
+          fi
           # Service-side evidence: the session finalizes INSIDE the container
           # now — pull the numbers-only `[metrics] summary` line from its
           # console logs (never transcript text, never numbers dialed).

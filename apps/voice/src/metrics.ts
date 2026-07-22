@@ -29,12 +29,19 @@ export interface TurnMetric {
   stalled?: boolean;
   /** Set when the per-turn checks tripped and the fallback line was spoken. */
   refusalReason?: string;
+  /** DEC-092 (fix a): the model returned an EMPTY completion — the locked
+   *  fallback line was spoken instead of silence. */
+  emptyReply?: boolean;
 }
 
 export interface BargeInMetric {
   turn: number;
   /** Caller speech onset → `clear` sent to Twilio, ms. */
   clearLatencyMs: number;
+  /** DEC-092 (owner finding 2): audio outstanding at the interrupt — server
+   *  queue dropped + transport lead the `clear` wipes. Bounded by the pacer's
+   *  lead cap at the transport side. */
+  bufferedMs?: number;
 }
 
 export interface DroppedAudioEvent {
@@ -70,9 +77,63 @@ export class MetricsCollector {
   disclosureCompleted = false;
   /** Echoed into the report so every run is reproducible. */
   configEcho: Record<string, unknown> = {};
+  // ── DEC-092 pacing instrumentation — makes the audible layer measurable ──
+  /** Per-sentence TTS delivery timings (speak → first audio / fully flushed). */
+  private ttsSentenceFirstAudioMs: number[] = [];
+  private ttsSentenceFlushedMs: number[] = [];
+  /** Call-relative ms of each sentence — the first-60s vs steady split
+   *  (owner finding 3) is computed from these, no container access needed. */
+  private ttsSentenceAtMs: number[] = [];
+  /** Outbound-audio pacing: gaps >200ms between queued chunks mid-speech. */
+  audioSendGapsOver200 = 0;
+  maxAudioSendGapMs = 0;
+  /** Event-loop delay percentiles (ms), set once at session close. */
+  eventLoopMs: { p50: number; p95: number; max: number } | undefined;
+  /** The TTS transport the call actually used (stream | https | stream→https). */
+  ttsTransportUsed = "https";
+  /** DEC-092 (fix b): the one-shot silence re-engage fired (ms into call). */
+  reengagedAtMs: number | undefined;
+  /** DEC-092 (owner finding 1c): the post-disclosure bridge fired (ms into call). */
+  bridgedAtMs: number | undefined;
+  /** DEC-092 (owner finding 2): outstanding audio per clear event (barge-in
+   *  or post-turn tail clear) — the owner's buffered-ms-at-interrupt. */
+  readonly bufferedMsAtInterrupt: number[] = [];
 
   markCallStart(): void {
     this.startedAt = Date.now();
+  }
+
+  addTtsSentence(firstAudioMs: number, flushedMs: number): void {
+    this.ttsSentenceFirstAudioMs.push(firstAudioMs);
+    this.ttsSentenceFlushedMs.push(flushedMs);
+    this.ttsSentenceAtMs.push(Date.now() - this.startedAt);
+  }
+
+  audioSendGap(gapMs: number): void {
+    if (gapMs > 200) this.audioSendGapsOver200 += 1;
+    if (gapMs > this.maxAudioSendGapMs) this.maxAudioSendGapMs = gapMs;
+  }
+
+  ttsSentenceStats() {
+    return {
+      n: this.ttsSentenceFirstAudioMs.length,
+      firstAudioP50: percentile(this.ttsSentenceFirstAudioMs, 50),
+      firstAudioMax: Math.max(0, ...this.ttsSentenceFirstAudioMs),
+      flushedP50: percentile(this.ttsSentenceFlushedMs, 50),
+    };
+  }
+
+  /** Owner finding 3: the start-window vs settled-state per-sentence split —
+   *  every call posts its own first-60s diff in the summary line. */
+  ttsSentenceWindowStats(windowMs = 60_000) {
+    const win = (inWindow: boolean) =>
+      this.ttsSentenceFirstAudioMs.filter((_, i) => (this.ttsSentenceAtMs[i]! < windowMs) === inWindow);
+    const stat = (vals: number[]) => ({
+      n: vals.length,
+      firstAudioP50: percentile(vals, 50),
+      firstAudioMax: Math.max(0, ...vals),
+    });
+    return { first60s: stat(win(true)), steady: stat(win(false)) };
   }
 
   addSttAudio(bytes: number): void {
@@ -133,6 +194,19 @@ export class MetricsCollector {
       disclosureCompleted: this.disclosureCompleted,
       cost: this.cost(),
       config: this.configEcho,
+      // DEC-092 pacing block — the layer the ear hears, now measured.
+      ttsTransport: this.ttsTransportUsed,
+      emptyReplies: this.turns.filter((t) => t.emptyReply).length,
+      reengagedAtMs: this.reengagedAtMs ?? null,
+      bridgedAtMs: this.bridgedAtMs ?? null,
+      bufferedMsAtInterrupt: [...this.bufferedMsAtInterrupt],
+      ttsSentences: this.ttsSentenceStats(),
+      ttsSentenceWindows: this.ttsSentenceWindowStats(),
+      /** Raw per-sentence speak→first-audio samples in call order — the
+       *  start-window vs mid-call split is computed from these (DEC-092). */
+      ttsSentenceFirstAudioSamples: [...this.ttsSentenceFirstAudioMs],
+      audioSendGaps: { over200: this.audioSendGapsOver200, maxMs: this.maxAudioSendGapMs },
+      eventLoopMs: this.eventLoopMs ?? null,
       transcript: this.turns.map((t) => ({
         turn: t.turn,
         user: t.userText,
