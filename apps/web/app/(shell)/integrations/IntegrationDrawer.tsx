@@ -871,12 +871,22 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
     );
 
     const backLabel = wizStep > 1 ? "‹ Back" : "Cancel";
+    // INT W3: each fields provider gates its own step-1 requirement.
+    const fieldsReady = isStripe
+      ? stripeFields.paymentLinkUrl.trim().length > 0 || stripeFields.apiKey.trim().length > 0
+      : isWebhooks
+        ? whFields.defaultUrl.trim().length > 0
+        : fields.schedulingUrl.trim().length > 0;
     const canContinue =
       content.mode === "fields"
-        ? wizStep !== 1 || fields.schedulingUrl.trim().length > 0
+        ? wizStep !== 1 || fieldsReady
         : wizStep !== 2 || (isGcal ? gcalDraft.calendar !== null : draft.channel !== null);
     const continueBlockedTitle = content.mode === "fields"
-      ? "Paste your scheduling link first"
+      ? isStripe
+        ? "Paste your Payment Link (or a restricted key) first"
+        : isWebhooks
+          ? "Enter your Payload URL first"
+          : "Paste your scheduling link first"
       : isGcal
         ? "Pick a calendar first"
         : "Pick a channel first";

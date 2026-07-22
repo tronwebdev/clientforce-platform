@@ -1,0 +1,108 @@
+{
+  "stripeEndpoints": [
+    {
+      "id": "we_demo_1",
+      "url": "http://localhost:3001/webhooks/stripe?token=328b……06ed",
+      "secret": "«minted by the stub, stored encrypted»"
+    },
+    {
+      "id": "we_demo_2",
+      "url": "http://localhost:3001/webhooks/stripe?token=cb55……ab76",
+      "secret": "«minted by the stub, stored encrypted»"
+    },
+    {
+      "id": "we_demo_3",
+      "url": "http://localhost:3001/webhooks/stripe?token=c0de……3d4e",
+      "secret": "«minted by the stub, stored encrypted»"
+    },
+    {
+      "id": "we_demo_4",
+      "url": "http://localhost:3001/webhooks/stripe?token=d0d7……8bb3",
+      "secret": "«minted by the stub, stored encrypted»"
+    }
+  ],
+  "sentMail": [
+    {
+      "at": "2026-07-22T13:58:48.551Z",
+      "to": "ada@demo-agency.test",
+      "subject": "Re: Quick look at your new-patient flow",
+      "bodyPreview": "Hi Ada,\n\nThe audit wrapped up this week and everything we scoped is delivered. When you're ready, you can settle the invoice here: https://buy.stripe.com/demo123?client_reference_id=cmrw1ugu4000i7dhomj7fos9b\n\nThanks for moving quickly on this.\n\n--\n100 Demo Street, Suite 4, Austin, TX 78701\nUnsubscribe: https://reply.clientforce.io/u/cmrw1ugtg00067dhos7bq8dr7/cmrw1ugu4000i7dhomj7fos9b"
+    },
+    {
+      "at": "2026-07-22T13:58:58.572Z",
+      "to": "ada@demo-agency.test",
+      "subject": "Re: Quick look at your new-patient flow",
+      "bodyPreview": "Hi Ada,\n\nThe audit wrapped up this week and everything we scoped is delivered. When you're ready, you can settle the invoice here: https://buy.stripe.com/demo123?client_reference_id=cmrw1ugu4000i7dhomj7fos9b\n\nThanks for moving quickly on this.\n\n--\n100 Demo Street, Suite 4, Austin, TX 78701\nUnsubscribe: https://reply.clientforce.io/u/cmrw1ugtg00067dhos7bq8dr7/cmrw1ugu4000i7dhomj7fos9b"
+    },
+    {
+      "at": "2026-07-22T13:59:30.012Z",
+      "to": "ada@demo-agency.test",
+      "subject": "Re: Quick look at your new-patient flow",
+      "bodyPreview": "Hi Ada,\n\nThe audit wrapped up this week and everything we scoped is delivered. When you're ready, you can settle the invoice here: https://buy.stripe.com/demo123?client_reference_id=cmrw1ugu4000i7dhomj7fos9b\n\nThanks for moving quickly on this.\n\n--\n100 Demo Street, Suite 4, Austin, TX 78701\nUnsubscribe: https://reply.clientforce.io/u/cmrw1ugtg00067dhos7bq8dr7/cmrw1ugu4000i7dhomj7fos9b"
+    },
+    {
+      "at": "2026-07-22T14:00:31.513Z",
+      "to": "ada@demo-agency.test",
+      "subject": "Re: Quick look at your new-patient flow",
+      "bodyPreview": "Hi Ada,\n\nThe audit wrapped up this week and everything we scoped is delivered. When you're ready, you can settle the invoice here: https://buy.stripe.com/demo123?client_reference_id=cmrw1ugu4000i7dhomj7fos9b\n\nThanks for moving quickly on this.\n\n--\n100 Demo Street, Suite 4, Austin, TX 78701\nUnsubscribe: https://reply.clientforce.io/u/cmrw1ugtg00067dhos7bq8dr7/cmrw1ugu4000i7dhomj7fos9b"
+    },
+    {
+      "at": "2026-07-22T14:03:06.619Z",
+      "to": "ada@demo-agency.test",
+      "subject": "Re: Quick look at your new-patient flow",
+      "bodyPreview": "Hi Ada,\n\nThe audit wrapped up this week and everything we scoped is delivered. When you're ready, you can settle the invoice here: https://buy.stripe.com/demo123?client_reference_id=cmrw1ugu4000i7dhomj7fos9b\n\nThanks for moving quickly on this.\n\n--\n100 Demo Street, Suite 4, Austin, TX 78701\nUnsubscribe: https://reply.clientforce.io/u/cmrw1ugtg00067dhos7bq8dr7/cmrw1ugu4000i7dhomj7fos9b"
+    }
+  ],
+  "slackPosts": [
+    {
+      "at": "2026-07-22T14:00:34.290Z",
+      "channel": "C001",
+      "text": "🔔 Automation rule fired — Ada Lovelace"
+    },
+    {
+      "at": "2026-07-22T14:03:09.447Z",
+      "channel": "C001",
+      "text": "🔔 Automation rule fired — Ada Lovelace"
+    }
+  ],
+  "runDetail": {
+    "depth": 0,
+    "actions": [
+      {
+        "kind": "notify_team",
+        "detail": "delivered to Slack #clientforce-alerts",
+        "outcome": "executed"
+      },
+      {
+        "kind": "send_webhook",
+        "detail": "delivered to https://1.1.1.1:8443/w3-evidence",
+        "outcome": "executed"
+      },
+      {
+        "kind": "send_webhook",
+        "detail": "webhook delivery skipped (the destination resolves to a non-public address — webhooks deliver to public endpoints only)",
+        "outcome": "executed"
+      }
+    ],
+    "trigger": "payment_received",
+    "terminal": false,
+    "contactId": "cmrw1ugu4000i7dhomj7fos9b",
+    "enrollmentId": "cmrw1ulqg00047dt5ct2eabw7"
+  },
+  "webhookDeliveries": [
+    {
+      "at": "2026-07-22T14:02:59.458Z",
+      "url": "https://1.1.1.1:8443/w3-evidence",
+      "signature": "t=1784728979,v1=7f6620…",
+      "eventHeader": "webhook.test",
+      "bodyPreview": "{\"v\":1,\"eventId\":\"test-8a53c06b662708b8\",\"type\":\"webhook.test\",\"occurredAt\":\"2026-07-22T14:02:59.454Z\",\"workspaceId\":\"cmrw1ugtg00067dhos7bq8dr7\",\"rule\":{\"id\":\"connect-test\"},\"payload\":{\"message\":\"Clientforce webhook test — connection succeeded\"}}"
+    },
+    {
+      "at": "2026-07-22T14:03:09.478Z",
+      "url": "https://1.1.1.1:8443/w3-evidence",
+      "signature": "t=1784728989,v1=844c5e…",
+      "eventHeader": "payment.received.v1",
+      "bodyPreview": "{\"v\":1,\"eventId\":\"cmrw5k5p3001h7dlzdmu8lxwm\",\"type\":\"payment.received.v1\",\"occurredAt\":\"2026-07-22T14:03:09.399Z\",\"workspaceId\":\"cmrw1ugtg00067dhos7bq8dr7\",\"contactId\":\"cmrw1ugu4000i7dhomj7fos9b\",\"rule\":{\"id\":\"cmrw5k1i0001d7dlzls3dj2rl\"},\"payload\":{\"amount\":150000,\"currency\":\"usd\",\"provider\":\"stripe"
+    }
+  ]
+}
