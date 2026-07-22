@@ -225,7 +225,8 @@ A directed graph of typed nodes + conditional edges. **Validate every graph agai
 Node types: **`step`** (a channel send), **`delay`** (durable Temporal timer), **`branch`** (waits on an
 event signal, routes by classified intent/condition), **`subcampaign`** (jump into a triggered sub-flow),
 **`action`** (fire an agent tool / integration — e.g. send_proposal, book_meeting), **`end`**.
-Tokens (`{{firstName}}`, `{{company}}`, `{{calendarLink}}`) resolve per-lead at render time.
+Tokens (`{{firstName}}`, `{{company}}`, `{{calendarLink}}`, `{{paymentLink}}` — INT W3, DEC-095)
+resolve per-lead at render time.
 
 ### 3.2 Guardrails schema (typed contract — `PHASE1_HANDOFF.md §A8`)
 
@@ -715,6 +716,11 @@ enum SuppressionReason { UNSUBSCRIBED BOUNCED SPAM_COMPLAINT MANUAL }
 > DESIGN — sends ride move_to_node → graph steps → the unchanged boundary.
 
 Outbound **WebhookEndpoint** (`url`, `secret`, `events[]`) + delivery log; Zapier rides the same dispatcher.
+**INT W3 (DEC-095) — the url+secret half LANDED:** the `webhooks` Integration row carries the default
+Payload URL + the server-minted per-workspace signing secret; the delivery log is `IntegrationDelivery`
+(claim-then-send, the W1 rails); the rule-fired `send_webhook` action POSTs signed
+(`X-Clientforce-Signature: t=…,v1=HMAC-SHA256(secret, "t.body")`) through the general SSRF guard.
+The `events[]` stream half (every catalog event as it happens) + the incoming trigger stay open → Q-048.
 
 ---
 
