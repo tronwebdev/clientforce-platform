@@ -1,0 +1,51 @@
+{
+  "note": "INT W4 §8 — one-way CRM push through the REAL engine + crmTransport against the HubSpot HTTP-seam stub (HUBSPOT_BASE_URL). Script plays only the event; compose/engine/deliverCrm/ledger are real.",
+  "storedCrmDealId": "deal_1",
+  "hubspotStub": {
+    "deals": [
+      {
+        "id": "deal_1",
+        "dealname": "Ada Lovelace",
+        "pipeline": "default",
+        "dealstage": "closedwon"
+      }
+    ],
+    "contacts": 1,
+    "associations": [
+      {
+        "dealId": "deal_1",
+        "contactId": "contact_1"
+      }
+    ]
+  },
+  "ruleRuns": [
+    {
+      "status": "fired",
+      "detail": {
+        "actions": [
+          {
+            "kind": "create_crm_deal",
+            "detail": "delivered (deal deal_1 created)",
+            "outcome": "executed"
+          }
+        ],
+        "trigger": "payment_received",
+        "terminal": false
+      }
+    },
+    {
+      "status": "fired",
+      "detail": {
+        "actions": [
+          {
+            "kind": "update_deal_stage",
+            "detail": "delivered (deal deal_1 moved to closedwon)",
+            "outcome": "executed"
+          }
+        ],
+        "trigger": "payment_received",
+        "terminal": false
+      }
+    }
+  ]
+}
