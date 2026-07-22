@@ -1,8 +1,8 @@
 # @clientforce/theme — console-v3 tokens
 
 The **console-v3** design language as a shared token module: light surfaces,
-hairline structure, forest accent, agent-identity motion states, signature
-gradient used sparingly.
+hairline structure, forest accent (`#146B33`), agent-identity motion states,
+signature gradient used sparingly.
 
 - **Who consumes it today:** `@clientforce/widget` (the embeddable Agent
   Widget) — the first reference implementation of console-v3 in code.
@@ -19,17 +19,24 @@ gradient used sparingly.
   The only file in this package allowed raw color literals (stylelint
   override, same rule as `packages/ui/src/tokens.css`).
 - `src/index.ts` — typed mirror (`consoleV3Vars`), contrast helpers
-  (`textOnColor` — the Agent Widget prototype's `ink()` verbatim), and the
-  agent-identity motion-state names (`AGENT_STATES`).
+  (`textOnColor`), and the agent-identity motion-state names
+  (`AGENT_STATES`).
 - `test/tokens.test.ts` — pins CSS ↔ TS parity in both directions plus the
-  §1 AA contrast rule (vivid green is never a text color).
+  canon hard rules: the vivid green `#35E834` lives ONLY in the signature
+  gradient + motion (never a fill/button/text — vivid-as-fill is retired),
+  zero box-shadows except the launcher + panel float, the retired
+  pre-refresh green (`#16A82A`/`#0F7A28`) never returns, and the canon
+  radii/type scales.
 
-## Provenance (Q-047 — provisional pending the owner's mock)
+## Binding source (owner ruling 2026-07-22 — Q-049)
 
-Every value is lifted from canonical sources only:
-`design_handoff_clientforce_restyle/DESIGN_TOKENS.md` (atoms) and
-`design_handoff_clientforce_restyle/prototypes/Agent Widget.dc.html`
-(widget-surface literals: panel/launcher shadows, dark-theme set, presence
-dot, identity gradient). No invented colors. When the owner's console-v3 mock
-lands, deltas are applied here and every consumer re-themes from this one
-source.
+The **Console v3 Build Spec + the owner's mock** are the binding token
+source; the values here are the canon set the owner relayed at the unit-27
+review (forest `#146B33`/hover `#0F5227` · wash/panel/card surfaces · the
+three hairlines · mint/warn/danger · Schibsted Grotesk + IBM Plex type ·
+the 9–12/14–16/22/999 radii scale · the zero-shadow rule). They SUPERSEDE
+the legacy Agent Widget prototype literals this module first shipped with.
+The spec/mock files land in-repo with the Q-049 fidelity pass; a handful of
+widget-specific tokens with no canon value yet (presence dot, badge, orb
+overlay, the dark theme set) keep their prototype literals and are flagged
+`carryover pending spec` in the source.

@@ -3,7 +3,7 @@
  * panel: brand header with identity orb, thread, quick-action chips, pill
  * composer), built imperatively so the embed ships dependency-free.
  */
-import { subtleTextOnColor, textOnColor, type AgentState } from "@clientforce/theme";
+import { consoleV3, subtleTextOnColor, textOnColor, type AgentState } from "@clientforce/theme";
 import type { QuickActionKind, WidgetQuickAction } from "../api/contract";
 import { CORNER_RADIUS_PX, type ResolvedWidgetConfig } from "../config";
 
@@ -163,6 +163,12 @@ export class WidgetShell {
     const { appearance: a } = cfg;
     const onBrand = a.textOnBrand === "auto" ? textOnColor(a.brandColor) : a.textOnBrand;
     this.root.style.setProperty("--cfw-brand", a.brandColor);
+    if (a.brandColor.toLowerCase() === consoleV3.accent) {
+      this.root.style.setProperty("--cfw-brand-hover", consoleV3.accentHover);
+    } else {
+      // Custom brands have no canon hover shade — fall back to the brand fill.
+      this.root.style.removeProperty("--cfw-brand-hover");
+    }
     this.root.style.setProperty("--cfw-on-brand", onBrand);
     this.root.style.setProperty("--cfw-on-brand-sub", subtleTextOnColor(a.brandColor));
     this.root.style.setProperty("--cfw-radius", `${CORNER_RADIUS_PX[a.corner]}px`);

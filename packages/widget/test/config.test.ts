@@ -13,7 +13,7 @@ afterEach(() => {
 describe("defaults (Agent Widget prototype state, ported verbatim)", () => {
   it("pins the prototype's appearance defaults", () => {
     expect(WIDGET_DEFAULTS.appearance).toEqual({
-      brandColor: "#16a82a",
+      brandColor: "#146b33",
       textOnBrand: "auto",
       launcherText: "Chat with our AI Sales Agent",
       subtitle: "AI Sales Assistant",
@@ -25,8 +25,8 @@ describe("defaults (Agent Widget prototype state, ported verbatim)", () => {
     });
   });
 
-  it("pins the prototype's corner radius map (XL/L/M/S/None)", () => {
-    expect(CORNER_RADIUS_PX).toEqual({ xl: 28, l: 20, m: 14, s: 8, none: 0 });
+  it("pins the canon corner radius map (XL/L/M/S/None on the v3 scale)", () => {
+    expect(CORNER_RADIUS_PX).toEqual({ xl: 22, l: 16, m: 12, s: 9, none: 0 });
   });
 
   it("pins behavior + feature defaults (Open after 4s on, exit intent off, all features on)", () => {
@@ -86,7 +86,7 @@ describe("resolveConfig", () => {
     expect(cfg.appearance.position).toBe("right");
     expect(cfg.appearance.theme).toBe("light");
     expect(cfg.appearance.corner).toBe("l");
-    expect(cfg.appearance.brandColor).toBe("#16a82a");
+    expect(cfg.appearance.brandColor).toBe("#146b33");
     expect(warn).toHaveBeenCalledTimes(5);
     expect(warn.mock.calls.every(([m]) => String(m).startsWith("[clientforce-widget]"))).toBe(true);
   });
@@ -96,8 +96,8 @@ describe("resolveConfig", () => {
       resolveConfig({ widgetId: "w", appearance: { brandColor: "#0f0" } }).appearance.brandColor,
     ).toBe("#0f0");
     expect(
-      resolveConfig({ widgetId: "w", appearance: { brandColor: "#0F7A28" } }).appearance.brandColor,
-    ).toBe("#0F7A28");
+      resolveConfig({ widgetId: "w", appearance: { brandColor: "#0F5227" } }).appearance.brandColor,
+    ).toBe("#0F5227");
   });
 });
 
@@ -116,7 +116,7 @@ describe("configFromScriptDataset (snippet data-attributes)", () => {
       agentName: "Acme Sales Agent",
       zIndex: "5000",
       fontLoading: "google",
-      brandColor: "#0F7A28",
+      brandColor: "#0F5227",
       launcherText: "Talk to us",
       subtitle: "Here to help",
       welcomeMessage: "Hello!",
@@ -137,7 +137,7 @@ describe("configFromScriptDataset (snippet data-attributes)", () => {
     expect(cfg.zIndex).toBe(5000);
     expect(cfg.fontLoading).toBe("google");
     expect(cfg.appearance).toMatchObject({
-      brandColor: "#0F7A28",
+      brandColor: "#0F5227",
       launcherText: "Talk to us",
       subtitle: "Here to help",
       welcomeMessage: "Hello!",

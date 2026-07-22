@@ -3,9 +3,12 @@
 Drop-in `<script>` embed that mounts the Agent Widget on any host page with
 **shadow-DOM isolation** (host styles cannot reach in; widget styles cannot
 leak out). First reference implementation of the **console-v3** language —
-all atoms come from `@clientforce/theme` (`--cv3-*`); composition is ported
-from the Agent Widget prototype's live-preview panel
-(`design_handoff_clientforce_restyle/prototypes/Agent Widget.dc.html`).
+all atoms come from `@clientforce/theme` (`--cv3-*`, Console v3 Build Spec
+canon: forest `#146B33`, Schibsted Grotesk + IBM Plex type, flat interiors);
+flow composition is ported from the Agent Widget prototype's live-preview
+panel (`design_handoff_clientforce_restyle/prototypes/Agent Widget.dc.html`)
+— per the owner's 2026-07-22 review, only the visual/token layer moves to
+canon; composition stays the prototype's.
 
 **This unit ships no backend.** The API seam below is fully typed and
 exercised by the client, but the default transport is an honest stub: every
@@ -32,13 +35,13 @@ Optional data-attributes (all have prototype defaults):
 | `data-agent-id` / `data-campaign-id`                                     | ids                                                   | — (preview/dev override; the server's `widgetId` mapping is authoritative once wired) |
 | `data-api-base`                                                          | origin                                                | — (absent ⇒ stubbed transport)                                                        |
 | `data-agent-name`                                                        | text                                                  | `AI Sales Agent`                                                                      |
-| `data-brand-color`                                                       | `#rgb`/`#rrggbb`                                      | `#16a82a` (console-v3 forest accent)                                                  |
+| `data-brand-color`                                                       | `#rgb`/`#rrggbb`                                      | `#146b33` (console-v3 forest accent)                                                  |
 | `data-text-on-brand`                                                     | color or omit                                         | auto (prototype luminance rule)                                                       |
 | `data-launcher-text`                                                     | text                                                  | `Chat with our AI Sales Agent`                                                        |
 | `data-subtitle`                                                          | text                                                  | `AI Sales Assistant`                                                                  |
 | `data-welcome-message`                                                   | text                                                  | `Hi! 👋 How can I help?`                                                              |
 | `data-theme`                                                             | `light` \| `dark`                                     | `light`                                                                               |
-| `data-corner`                                                            | `xl` \| `l` \| `m` \| `s` \| `none` (28/20/14/8/0 px) | `l`                                                                                   |
+| `data-corner`                                                            | `xl` \| `l` \| `m` \| `s` \| `none` (22/16/12/9/0 px) | `l`                                                                                   |
 | `data-position`                                                          | `left` \| `right`                                     | `right`                                                                               |
 | `data-unread-badge`                                                      | `true` \| `false`                                     | `true`                                                                                |
 | `data-open-after`                                                        | seconds \| `off`                                      | `4`                                                                                   |
@@ -150,10 +153,12 @@ quick-action chips, pill composer with mic + send. Light/dark themes, corner
 and position options per the builder's Design tab.
 
 Agent-identity motion states (`idle | listening | thinking | replying`) run
-on the identity orb — breath / ripple / ring-spin / quick-breath + typing
-dots — CSS-driven off `data-agent-state`, disabled under
-`prefers-reduced-motion`. Choreography is provisional pending the owner's
-console-v3 mock (Q-047), as is the final visual pass.
+on the identity orb using the canon motion verbs (Agent Identity & States):
+idle→**breathe** · listening→**ping** · thinking→**spin** (ring-spin) ·
+replying→**slide** (the reply row slides in) + typing dots — CSS-driven off
+`data-agent-state`, disabled under `prefers-reduced-motion`. The states
+canon names FIVE agent states; the fifth reconciles when the canon doc
+lands in-repo, with the Build-Spec/mock fidelity pass (Q-049).
 
 ## 5. Develop
 

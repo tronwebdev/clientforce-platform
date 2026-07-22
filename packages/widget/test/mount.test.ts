@@ -109,7 +109,7 @@ describe("mount + isolation", () => {
     active = create({
       agentName: "Acme Sales Agent",
       appearance: {
-        brandColor: "#0F7A28",
+        brandColor: "#0F5227",
         theme: "dark",
         corner: "s",
         position: "left",
@@ -118,9 +118,9 @@ describe("mount + isolation", () => {
     });
     await flush();
     const root = active.shadow.querySelector(".cfw-root") as HTMLElement;
-    expect(root.style.getPropertyValue("--cfw-brand")).toBe("#0F7A28");
+    expect(root.style.getPropertyValue("--cfw-brand")).toBe("#0F5227");
     expect(root.style.getPropertyValue("--cfw-on-brand")).toBe("#FFFFFF");
-    expect(root.style.getPropertyValue("--cfw-radius")).toBe("8px");
+    expect(root.style.getPropertyValue("--cfw-radius")).toBe("9px");
     expect(root.getAttribute("data-theme")).toBe("dark");
     expect(root.getAttribute("data-position")).toBe("left");
     expect(active.shadow.querySelector(".cfw-name")!.textContent).toBe("Acme Sales Agent");

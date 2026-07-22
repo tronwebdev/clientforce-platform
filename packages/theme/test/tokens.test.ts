@@ -42,34 +42,68 @@ describe("console-v3 token source ↔ typed mirror parity", () => {
   });
 });
 
-describe("contrast discipline (DESIGN_TOKENS §1 AA rule)", () => {
-  it("no text token carries the vivid green — vivid is fills/motion only", () => {
-    const vivid = "#35e834";
-    for (const name of Object.keys(consoleV3Vars)) {
-      if (/(ink|text|muted)/.test(name)) {
-        expect(consoleV3Vars[name]!.toLowerCase()).not.toContain(vivid);
-      }
+describe("Console v3 Build Spec canon (owner ruling 2026-07-22)", () => {
+  it("forest accent is the v3 canon — the retired pre-refresh green is gone", () => {
+    expect(consoleV3Vars["--cv3-accent"]).toBe("#146b33");
+    expect(consoleV3Vars["--cv3-accent-hover"]).toBe("#0f5227");
+    const all = JSON.stringify(consoleV3Vars).toLowerCase();
+    expect(all).not.toContain("#16a82a");
+    expect(all).not.toContain("#0f7a28");
+  });
+
+  it("vivid #35E834 lives ONLY in the signature gradient + motion tokens — never a fill/text token", () => {
+    const allowed = new Set([
+      "--cv3-gradient-signature",
+      "--cv3-vivid",
+      "--cv3-vivid-fade",
+      "--cv3-ping-ring",
+    ]);
+    for (const [name, value] of Object.entries(consoleV3Vars)) {
+      if (allowed.has(name)) continue;
+      expect(value.toLowerCase(), `${name} carries vivid green`).not.toContain("35e834");
+      expect(value.replace(/\s/g, ""), `${name} carries vivid rgb`).not.toContain("53,232,52");
     }
-    expect(consoleV3Vars["--cv3-accent"]).toBe("#16a82a");
-    expect(consoleV3Vars["--cv3-accent-deep"]).toBe("#0f7a28");
   });
 
-  it("textOnColor ports the prototype ink(): forest → white, lime → near-black", () => {
-    expect(textOnColor("#16A82A")).toBe("#FFFFFF");
-    expect(textOnColor("#0E1512")).toBe("#FFFFFF");
-    expect(textOnColor("#D0F56B")).toBe("#0a0f0c");
-    expect(textOnColor("#FFFFFF")).toBe("#0a0f0c");
-    expect(textOnColor("bogus")).toBe("#0a0f0c");
+  it("zero box-shadows except the launcher + panel float (the documented widget exception)", () => {
+    const shadowTokens = Object.keys(consoleV3Vars).filter((n) => n.startsWith("--cv3-shadow-"));
+    expect(shadowTokens.sort()).toEqual(["--cv3-shadow-launcher", "--cv3-shadow-panel"]);
   });
 
-  it("subtleTextOnColor follows the prototype onBrandSub pair", () => {
-    expect(subtleTextOnColor("#16A82A")).toBe("rgba(255,255,255,.75)");
-    expect(subtleTextOnColor("#D0F56B")).toBe("rgba(10,15,12,.6)");
+  it("canon radii scale (9–12 / 14–16 / 22 / 999)", () => {
+    expect(consoleV3Vars["--cv3-radius-sm"]).toBe("9px");
+    expect(consoleV3Vars["--cv3-radius-md"]).toBe("12px");
+    expect(consoleV3Vars["--cv3-radius-lg"]).toBe("16px");
+    expect(consoleV3Vars["--cv3-radius-xl"]).toBe("22px");
+    expect(consoleV3Vars["--cv3-radius-pill"]).toBe("999px");
+  });
+
+  it("canon type stacks (Schibsted display · IBM Plex UI/mono — Bricolage/Hanken retired)", () => {
+    expect(consoleV3Vars["--cv3-font-display"]).toContain("Schibsted Grotesk");
+    expect(consoleV3Vars["--cv3-font-ui"]).toContain("IBM Plex Sans");
+    expect(consoleV3Vars["--cv3-font-mono"]).toContain("IBM Plex Mono");
+    const all = JSON.stringify(consoleV3Vars);
+    expect(all).not.toContain("Bricolage");
+    expect(all).not.toContain("Hanken");
+  });
+
+  it("textOnColor: forest → white; light fills → canon ink", () => {
+    expect(textOnColor("#146B33")).toBe("#FFFFFF");
+    expect(textOnColor("#0F5227")).toBe("#FFFFFF");
+    expect(textOnColor("#101613")).toBe("#FFFFFF");
+    expect(textOnColor("#D0F56B")).toBe("#101613");
+    expect(textOnColor("#FFFFFF")).toBe("#101613");
+    expect(textOnColor("bogus")).toBe("#101613");
+  });
+
+  it("subtleTextOnColor follows the on-brand pair (dark side on canon ink)", () => {
+    expect(subtleTextOnColor("#146B33")).toBe("rgba(255,255,255,.75)");
+    expect(subtleTextOnColor("#D0F56B")).toBe("rgba(16,22,19,.6)");
   });
 });
 
 describe("agent-identity motion states", () => {
-  it("exposes the four console-v3 states in order", () => {
+  it("exposes the four shipped states in order (fifth pends the states canon doc — Q-049)", () => {
     expect(AGENT_STATES).toEqual(["idle", "listening", "thinking", "replying"]);
   });
 });

@@ -20,12 +20,14 @@ export type WidgetTheme = "light" | "dark";
 export type WidgetCorner = "xl" | "l" | "m" | "s" | "none";
 export type FontLoading = "none" | "google";
 
-/** Prototype radiusOpts, verbatim. */
+/** The prototype's Corners option set mapped onto the Console v3 canon radii
+ * scale (9–12 / 14–16 / 22; owner ruling 2026-07-22 — the legacy 28/20/14/8
+ * prototype values are retired). */
 export const CORNER_RADIUS_PX: Record<WidgetCorner, number> = {
-  xl: 28,
-  l: 20,
-  m: 14,
-  s: 8,
+  xl: 22,
+  l: 16,
+  m: 12,
+  s: 9,
   none: 0,
 };
 
