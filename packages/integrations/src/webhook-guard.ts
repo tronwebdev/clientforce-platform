@@ -51,9 +51,17 @@ export function isPublicV4(ip: string): boolean {
 
 export function isPublicV6(ip: string): boolean {
   const lower = ip.toLowerCase();
-  // v4-mapped (::ffff:a.b.c.d) defers to the v4 rules.
+  // v4-mapped (::ffff:a.b.c.d) defers to the v4 rules — in BOTH spellings:
+  // URL/DNS canonicalization turns the dotted form into hex groups
+  // ("::ffff:a00:1"), which the adversarial table caught slipping through.
   const mapped = lower.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
   if (mapped) return isPublicV4(mapped[1]!);
+  const hexMapped = lower.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
+  if (hexMapped) {
+    const hi = parseInt(hexMapped[1]!, 16);
+    const lo = parseInt(hexMapped[2]!, 16);
+    return isPublicV4(`${(hi >> 8) & 255}.${hi & 255}.${(lo >> 8) & 255}.${lo & 255}`);
+  }
   if (lower === "::" || lower === "::1") return false; // unspecified + loopback
   // fc00::/7 (ULA) · fe80::/10 (link-local) · fec0::/10 (deprecated site-local) · ff00::/8 (multicast)
   if (/^f[cd]/.test(lower)) return false;

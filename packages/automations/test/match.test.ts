@@ -87,6 +87,15 @@ describe("matchTrigger", () => {
     // …while the booking service's ONE stage change still fires it.
     expect(matchTrigger(trigger, event("lead.stage_changed.v1", { fromStage: "new", toStage: "booked", goalKey: "g" }))).toBe(true);
   });
+
+  // ── INT W3 (DEC-095) ───────────────────────────────────────────────────────
+  it("payment_received matches payment.received.v1 only — the record IS the trigger carrier (no second announcement exists)", () => {
+    const trigger = { kind: "payment_received" } as const;
+    expect(matchTrigger(trigger, event("payment.received.v1", { amount: 50000, provider: "stripe" }))).toBe(true);
+    for (const type of ["lead.stage_changed.v1", "calendar.booked.v1", "email.replied.v1", "credits.consumed.v1"]) {
+      expect(matchTrigger(trigger, event(type, {}))).toBe(false);
+    }
+  });
 });
 
 describe("keywordHit", () => {

@@ -203,14 +203,17 @@ export class StripeAdapter implements FieldsIntegrationAdapter {
     path: string,
     body?: URLSearchParams,
   ): Promise<Record<string, unknown>> {
+    // Bearer resolution OUTSIDE the network try — a missing key is
+    // PROVIDER_AUTH, never "stripe unreachable".
+    const headers = {
+      ...this.bearer(creds),
+      ...(body ? { "Content-Type": "application/x-www-form-urlencoded" } : {}),
+    };
     let res: Response;
     try {
       res = await this.fetchImpl(`${this.apiBase}${path}`, {
         method,
-        headers: {
-          ...this.bearer(creds),
-          ...(body ? { "Content-Type": "application/x-www-form-urlencoded" } : {}),
-        },
+        headers,
         ...(body ? { body: body.toString() } : {}),
       });
     } catch (err) {

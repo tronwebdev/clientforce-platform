@@ -228,14 +228,18 @@ export class CalendlyAdapter implements FieldsIntegrationAdapter {
     absolute = false,
   ): Promise<Record<string, unknown>> {
     const url = absolute || pathOrUrl.startsWith("http") ? pathOrUrl : `${this.apiBase}${pathOrUrl}`;
+    // W3 ride-along fix (the stripe twin's test caught the class): bearer
+    // resolution OUTSIDE the network try — a missing token is PROVIDER_AUTH,
+    // never "calendly unreachable".
+    const headers = {
+      ...this.bearer(creds),
+      ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+    };
     let res: Response;
     try {
       res = await this.fetchImpl(url, {
         method,
-        headers: {
-          ...this.bearer(creds),
-          ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
-        },
+        headers,
         ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
       });
     } catch (err) {
