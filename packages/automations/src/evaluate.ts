@@ -185,6 +185,8 @@ export async function evaluateEventForRules(
     enrollmentId: event.enrollmentId,
     depth: opts.depth ?? 0,
     terminalState: { fired: false },
+    // INT W3: payload-carrying actions (send_webhook) POST the real event.
+    event: { type: event.type, payload: event.payload, occurredAt: event.occurredAt },
   };
   const summary = await executeMatchedRules(deps, ctx, matched);
   const accountSummary = await executeMatchedAccountRules(deps, ctx, matchedAccount);

@@ -61,6 +61,11 @@ export function matchTrigger(
       return event.type === "calendar.rescheduled.v1";
     case "meeting_canceled":
       return event.type === "calendar.canceled.v1";
+    case "payment_received":
+      // INT W3 (DEC-095): the checkout ingest's record event IS the trigger
+      // carrier (unlike calendar.booked.v1 there is no second announcement —
+      // payments move no stage, so no double-fire surface exists).
+      return event.type === "payment.received.v1";
     case "sequence_quiet":
       return false;
     case "before_meeting":

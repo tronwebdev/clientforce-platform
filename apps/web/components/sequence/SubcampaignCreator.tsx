@@ -75,6 +75,9 @@ function triggerPhraseOf(trigger: CampaignRuleTrigger): string {
       return "opting out";
     case "lead_captured":
       return "arriving through lead capture";
+    // INT W3 (DEC-095): the payments wave's mechanical phrase.
+    case "payment_received":
+      return "a payment landing";
   }
 }
 

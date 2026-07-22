@@ -50,6 +50,21 @@ export const CALENDLY_WEBHOOK_EVENTS = [
   "invitee_no_show.created",
 ] as const;
 
+/**
+ * INT W3 (DEC-095): the Stripe webhook endpoint's event set — checkout
+ * completion is the ONE payment moment this wave ingests (payment links
+ * complete through Checkout; refunds/disputes/invoices stay out).
+ */
+export const STRIPE_WEBHOOK_EVENTS = ["checkout.session.completed"] as const;
+
+/**
+ * INT W3: the outbound `send_webhook` action's delivery constraints — the
+ * general SSRF guard's port allowlist and response caps.
+ */
+export const WEBHOOK_ALLOWED_PORTS = [443, 8443] as const;
+export const WEBHOOK_TIMEOUT_MS = 5_000;
+export const WEBHOOK_MAX_RESPONSE_BYTES = 4_096;
+
 /** Refresh skew: tokens within this window of expiry refresh proactively. */
 export const TOKEN_REFRESH_SKEW_MS = 60_000;
 

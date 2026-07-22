@@ -41,6 +41,10 @@ import {
   TILE,
   calendlyDetectionState,
   calendlyWebhookPath,
+  parseStripeConfig,
+  parseWebhooksConfig,
+  stripeDetectionState,
+  stripeWebhookPath,
   gcalConfigPayload,
   healthLine,
   notificationOn,
@@ -231,12 +235,18 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
   const isSlack = provider === "slack";
   const isGcal = provider === "gcal";
   const isCalendly = provider === "calendly";
+  // INT W3 (DEC-095): the payments + outbound-webhooks providers.
+  const isStripe = provider === "stripe";
+  const isWebhooks = provider === "webhooks";
   // The slack-typed content (narrow syncRows kinds) for the toggle machinery.
   const slackContent = DRAWER_CONTENT.slack;
   const config = useMemo(() => parseSlackConfig(row?.config), [row]);
   const gcalConfig = useMemo(() => parseGcalConfig(row?.config), [row]);
   const calConfig = useMemo(() => parseCalendlyConfig(row?.config), [row]);
   const detection = calendlyDetectionState(calConfig);
+  const stripeCfg = useMemo(() => parseStripeConfig(row?.config), [row]);
+  const stripeDetection = stripeDetectionState(stripeCfg);
+  const whCfg = useMemo(() => parseWebhooksConfig(row?.config), [row]);
 
   // Wizard step (1..3 oauth · 1..2 fields) or null = connected mode.
   const [wizStep, setWizStep] = useState<number | null>(() => (bootMode === "config" ? 2 : row ? null : 1));
@@ -260,6 +270,16 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
     const cfg = parseCalendlyConfig(row?.config);
     return { schedulingUrl: cfg.schedulingUrl ?? "", apiToken: "" };
   });
+  // INT W3: the stripe fields form (the key is write-only — never echoed).
+  const [stripeFields, setStripeFields] = useState<{ paymentLinkUrl: string; apiKey: string }>(() => {
+    const cfg = parseStripeConfig(row?.config);
+    return { paymentLinkUrl: cfg.paymentLinkUrl ?? "", apiKey: "" };
+  });
+  // INT W3: the webhooks fields form (the secret is server-minted, not typed).
+  const [whFields, setWhFields] = useState<{ defaultUrl: string }>(() => {
+    const cfg = parseWebhooksConfig(row?.config);
+    return { defaultUrl: cfg.defaultUrl ?? "" };
+  });
 
   // One-shot draft re-seed for the post-OAuth boot (`?connected=<provider>`):
   // the drawer mounts BEFORE the polled row lands (row null → row), so the
@@ -278,7 +298,9 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
     });
     setGcalDraft({ calendar: gcalConfig.calendar ?? null, offerSlots: offerSlotsOn(gcalConfig) });
     setFields({ schedulingUrl: calConfig.schedulingUrl ?? "", apiToken: "" });
-  }, [draftSeeded, row, config, gcalConfig, calConfig, slackContent.syncRows]);
+    setStripeFields({ paymentLinkUrl: stripeCfg.paymentLinkUrl ?? "", apiKey: "" });
+    setWhFields({ defaultUrl: whCfg.defaultUrl ?? "" });
+  }, [draftSeeded, row, config, gcalConfig, calConfig, stripeCfg, whCfg, slackContent.syncRows]);
 
   // OAuth start (step-1 auth + the revoked Reconnect repair — oauth providers).
   const [connectBusy, setConnectBusy] = useState(false);
@@ -304,9 +326,19 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
     setFieldsBusy(true);
     setFieldsError(null);
     try {
-      const body: { schedulingUrl?: string; apiToken?: string } = {};
-      if (fields.schedulingUrl.trim()) body.schedulingUrl = fields.schedulingUrl.trim();
-      if (fields.apiToken.trim()) body.apiToken = fields.apiToken.trim();
+      // INT W3: three fields providers, one endpoint — per-provider bodies.
+      let body: Record<string, string>;
+      if (isStripe) {
+        body = {};
+        if (stripeFields.paymentLinkUrl.trim()) body.paymentLinkUrl = stripeFields.paymentLinkUrl.trim();
+        if (stripeFields.apiKey.trim()) body.apiKey = stripeFields.apiKey.trim();
+      } else if (isWebhooks) {
+        body = { defaultUrl: whFields.defaultUrl.trim() };
+      } else {
+        body = {};
+        if (fields.schedulingUrl.trim()) body.schedulingUrl = fields.schedulingUrl.trim();
+        if (fields.apiToken.trim()) body.apiToken = fields.apiToken.trim();
+      }
       await cf(`integrations/${entry.id}/connect-fields`, { method: "POST", body: JSON.stringify(body) });
       onChanged();
       return true;
@@ -317,7 +349,7 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
     } finally {
       setFieldsBusy(false);
     }
-  }, [canManage, entry.id, fields, fieldsBusy, onChanged]);
+  }, [canManage, entry.id, fields, stripeFields, whFields, isStripe, isWebhooks, fieldsBusy, onChanged]);
 
   // Options (wizard config step + config panel) — slack channels · gcal calendars.
   const [options, setOptions] = useState<OptionRow[] | null>(null);
@@ -603,6 +635,63 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
     </>
   );
 
+  // INT W3 (DEC-095): stripe fields UI — the calendly two-tier twin.
+  const stripeFieldsUI = (
+    <>
+      <div style={{ marginBottom: 13 }}>
+        <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#5C6B62", marginBottom: 6 }}>Payment Link</label>
+        <input
+          data-testid="stripe-link"
+          value={stripeFields.paymentLinkUrl}
+          disabled={!canManage}
+          onChange={(e) => setStripeFields((f) => ({ ...f, paymentLinkUrl: e.target.value }))}
+          placeholder="https://buy.stripe.com/…"
+          style={FIELD_INPUT}
+        />
+      </div>
+      <div style={{ marginBottom: 13 }}>
+        <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#5C6B62", marginBottom: 6 }}>
+          Restricted API key <span style={{ fontWeight: 600, color: "#9AA59E" }}>(optional)</span>
+        </label>
+        <input
+          data-testid="stripe-key"
+          type="password"
+          value={stripeFields.apiKey}
+          disabled={!canManage}
+          onChange={(e) => setStripeFields((f) => ({ ...f, apiKey: e.target.value }))}
+          placeholder="rk_live_… — needs Webhook Endpoints write"
+          style={FIELD_INPUT}
+        />
+      </div>
+      <div style={{ fontSize: 12, color: "#9AA59E", lineHeight: 1.5 }}>
+        Payment detection needs a restricted key from Stripe → Developers → API keys with Webhook Endpoints
+        write. The payment link works without it.
+      </div>
+    </>
+  );
+
+  // INT W3: webhooks fields UI — Payload URL only; the signing secret is
+  // server-minted and shown on the connected drawer, never typed here.
+  const webhooksFieldsUI = (
+    <>
+      <div style={{ marginBottom: 13 }}>
+        <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#5C6B62", marginBottom: 6 }}>Payload URL</label>
+        <input
+          data-testid="webhooks-url"
+          value={whFields.defaultUrl}
+          disabled={!canManage}
+          onChange={(e) => setWhFields({ defaultUrl: e.target.value })}
+          placeholder="https://api.yoursite.com/cf/webhook"
+          style={FIELD_INPUT}
+        />
+      </div>
+      <div style={{ fontSize: 12, color: "#9AA59E", lineHeight: 1.5 }}>
+        A public https endpoint you operate — Clientforce sends a SIGNED test delivery on connect; a 2xx from
+        your receiver confirms it. Private and internal addresses are refused by the delivery guard.
+      </div>
+    </>
+  );
+
   // ── body per mode ─────────────────────────────────────────────────────────
 
   let body: React.ReactNode;
@@ -692,7 +781,7 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
           </>
         )}
 
-        {content.mode === "fields" && wizStep === 1 && calendlyFieldsUI}
+        {content.mode === "fields" && wizStep === 1 && (isStripe ? stripeFieldsUI : isWebhooks ? webhooksFieldsUI : calendlyFieldsUI)}
 
         {content.mode === "oauth" && wizStep === 2 && (isGcal ? gcalConfigUI : (
           <>
@@ -840,24 +929,32 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
     );
   } else if (configOpen && row) {
     // CONNECTED → SETTINGS / CONFIG STEP -------------------------------------
-    const settingsTitle = isGcal ? "Calendar settings" : isCalendly ? `Your ${entry.name} details` : "Alerts";
+    const settingsTitle = isGcal
+      ? "Calendar settings"
+      : isCalendly || isStripe || isWebhooks
+        ? `Your ${entry.name} details`
+        : "Alerts";
     const settingsDesc = isGcal
       ? "Where booked calls land."
       : isCalendly
         ? "Update the link, or add an API token to turn on booking detection."
-        : "Where Clientforce posts updates.";
+        : isStripe
+          ? "Update the link, or add a restricted API key to turn on payment detection."
+          : isWebhooks
+            ? "Update the Payload URL — a signed test delivery confirms it."
+            : "Where Clientforce posts updates.";
     body = (
       <>
         <span style={SECTION}>Settings</span>
         <div style={{ fontFamily: BRICO, fontWeight: 700, fontSize: 17, color: "#0E1512", marginTop: 8 }}>{settingsTitle}</div>
         <div style={{ fontSize: 13, color: "#8A7F6B", marginBottom: 16 }}>{settingsDesc}</div>
-        {isGcal ? gcalConfigUI : isCalendly ? calendlyFieldsUI : (
+        {isGcal ? gcalConfigUI : isStripe ? stripeFieldsUI : isWebhooks ? webhooksFieldsUI : isCalendly ? calendlyFieldsUI : (
           <>
             {channelPickerUI}
             {draftTogglesUI}
           </>
         )}
-        {isCalendly && fieldsError && (
+        {(isCalendly || isStripe || isWebhooks) && fieldsError && (
           <div data-testid="connect-refused" style={{ marginTop: 12, background: "rgba(224,121,107,.1)", border: "1px solid #F0CFC8", borderRadius: 11, padding: "10px 14px", fontSize: 13, color: "#C9543F" }}>
             {fieldsError}
           </div>
@@ -877,7 +974,7 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
           data-testid="config-save"
           onClick={() => {
             if (settingsBusy || !canManage) return;
-            const run = isCalendly ? connectFields : saveConfig;
+            const run = isCalendly || isStripe || isWebhooks ? connectFields : saveConfig;
             void run().then((ok) => {
               if (ok) setConfigOpen(false);
             });
@@ -1038,6 +1135,72 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
                 </div>
                 <div style={{ fontSize: 11.5, color: "#9AA59E", marginTop: 4, lineHeight: 1.45 }}>
                   Informational — Calendly posts booking events here; the detection state above is what matters.
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* INT W3 (DEC-095): stripe — the calendly two-tier anatomy on payments. */}
+        {isStripe && (
+          <div style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 13, marginBottom: 18 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 15px" }}>
+              <span style={{ fontSize: 13, color: "#5C6B62", flex: "none" }}>Payment link</span>
+              <span data-testid="stripe-payment-link" style={{ fontSize: 12.5, fontFamily: "monospace", fontWeight: 600, color: stripeCfg.paymentLinkUrl ? "#0E1512" : "#9AA59E", flex: 1, textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {stripeCfg.paymentLinkUrl ?? "Not set"}
+              </span>
+              {stripeCfg.paymentLinkUrl && (
+                <span data-testid="copy-payment-link" onClick={() => copyText("paylink", stripeCfg.paymentLinkUrl!)} style={{ fontSize: 12.5, fontWeight: 700, color: "#16A82A", cursor: "pointer", flex: "none" }}>
+                  {copied === "paylink" ? "Copied ✓" : "Copy"}
+                </span>
+              )}
+            </div>
+            {/* The honest two-tier state line — detection is never assumed. */}
+            <div data-testid="stripe-detection" style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 15px", borderTop: "1px solid #F2EEE4" }}>
+              <span style={{ color: stripeDetection.detection ? "#16A82A" : "#C9CFC9", fontSize: 13, flex: "none" }}>{stripeDetection.detection ? "✓" : "○"}</span>
+              <span style={{ fontSize: 13, color: stripeDetection.detection ? "#16A82A" : "#5C6B62", flex: 1, lineHeight: 1.45, fontWeight: stripeDetection.detection ? 600 : 400 }}>{stripeDetection.line}</span>
+              {stripeDetection.offerKey && (
+                <span data-testid="add-key" onClick={openSettings} style={{ fontSize: 12, fontWeight: 700, color: "#16A82A", background: "rgba(53,232,52,.08)", border: "1px solid #9FD8AC", borderRadius: 8, padding: "4px 10px", cursor: "pointer", flex: "none", whiteSpace: "nowrap" }}>＋ Add key</span>
+              )}
+            </div>
+            {stripeCfg.webhookToken && (
+              <div data-testid="stripe-webhook" style={{ padding: "10px 15px", borderTop: "1px solid #F2EEE4" }}>
+                <div style={{ fontSize: 12.5, color: "#9AA59E", marginBottom: 4 }}>Webhook endpoint (created automatically)</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontFamily: "monospace", color: "#3B463F", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{stripeWebhookPath(stripeCfg.webhookToken)}</span>
+                  <span data-testid="copy-stripe-webhook" onClick={() => copyText("stripe-webhook", stripeWebhookPath(stripeCfg.webhookToken!))} style={{ fontSize: 12.5, fontWeight: 700, color: "#16A82A", cursor: "pointer", flex: "none" }}>
+                    {copied === "stripe-webhook" ? "Copied ✓" : "Copy"}
+                  </span>
+                </div>
+                <div style={{ fontSize: 11.5, color: "#9AA59E", marginTop: 4, lineHeight: 1.45 }}>
+                  Informational — Stripe posts checkout events here; the detection state above is what matters.
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* INT W3: webhooks — the Payload URL + the workspace signing secret. */}
+        {isWebhooks && (
+          <div style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 13, marginBottom: 18 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 15px" }}>
+              <span style={{ fontSize: 13, color: "#5C6B62", flex: "none" }}>Payload URL</span>
+              <span data-testid="webhooks-default-url" style={{ fontSize: 12.5, fontFamily: "monospace", fontWeight: 600, color: whCfg.defaultUrl ? "#0E1512" : "#9AA59E", flex: 1, textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {whCfg.defaultUrl ?? "Not set"}
+              </span>
+              <span data-testid="webhooks-url-change" onClick={openSettings} style={{ fontSize: 12.5, fontWeight: 700, color: "#16A82A", cursor: "pointer", flex: "none" }}>Change</span>
+            </div>
+            {whCfg.signingSecret && (
+              <div data-testid="webhooks-secret" style={{ padding: "10px 15px", borderTop: "1px solid #F2EEE4" }}>
+                <div style={{ fontSize: 12.5, color: "#9AA59E", marginBottom: 4 }}>Signing secret — verify every delivery with it</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontFamily: "monospace", color: "#3B463F", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{whCfg.signingSecret}</span>
+                  <span data-testid="copy-secret" onClick={() => copyText("secret", whCfg.signingSecret!)} style={{ fontSize: 12.5, fontWeight: 700, color: "#16A82A", cursor: "pointer", flex: "none" }}>
+                    {copied === "secret" ? "Copied ✓" : "Copy"}
+                  </span>
+                </div>
+                <div style={{ fontSize: 11.5, color: "#9AA59E", marginTop: 4, lineHeight: 1.45 }}>
+                  Deliveries carry X-Clientforce-Signature: t=…,v1=HMAC-SHA256(secret, "t.body").
                 </div>
               </div>
             )}

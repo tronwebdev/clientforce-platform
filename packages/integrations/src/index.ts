@@ -13,5 +13,9 @@ export * from "./service";
 export * from "./notify";
 export * from "./slots";
 export * from "./booking";
+export * from "./stripe";
+export * from "./payments";
+export * from "./webhook-guard";
+export * from "./webhook-deliver";
 
 export const INTEGRATIONS_PACKAGE = "@clientforce/integrations";

@@ -62,6 +62,20 @@ export interface RuleEngineDeps {
     note?: string;
     contactId?: string | null;
   }) => Promise<{ delivered: boolean; target?: string; detail?: string }>;
+  /**
+   * INT W3 (DEC-095): the `send_webhook` delivery seam — the notifyTransport
+   * twin (absent = the engine is byte-identical; the worker wires the real
+   * guard+sign+ledger transport). Failure NEVER changes the run outcome.
+   */
+  webhookTransport?: (params: {
+    workspaceId: string;
+    /** Delivery dedupe key (`<eventId>#rule:<id>#a:<i>` — the action path). */
+    sourceKey: string;
+    /** The action's url override (absent → the integration default). */
+    url?: string;
+    event: { id: string; type: string; occurredAt: string; contactId?: string | null; payload: unknown };
+    rule: { id: string; name?: string };
+  }) => Promise<{ delivered: boolean; target?: string; detail?: string }>;
   log?: (msg: string) => void;
 }
 
@@ -111,6 +125,13 @@ export interface RunContext {
   /** Causation depth — the evaluator refuses depth > MAX_RULE_CAUSATION_DEPTH. */
   depth: number;
   terminalState: TerminalState;
+  /**
+   * INT W3 (DEC-095): the triggering event's content, for payload-carrying
+   * actions (`send_webhook`). Sweep-fired contexts carry a synthetic
+   * `sweep.*` type (their fire-once key is not an Event row). Optional so
+   * pre-W3 constructions parse unchanged.
+   */
+  event?: { type: string; payload: unknown; occurredAt: string };
 }
 
 export interface ActionOutcomeRecord {

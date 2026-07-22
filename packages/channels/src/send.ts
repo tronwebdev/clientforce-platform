@@ -8,6 +8,7 @@ import {
 } from "@clientforce/core";
 import { withTenant, type Message, type PrismaClient, type SenderConnection } from "@clientforce/db";
 import { CALENDAR_LINK_TOKEN_RE, clearBookingLinkFlagAfterSend, resolveBookingLink } from "./booking-link";
+import { PAYMENT_LINK_TOKEN_RE, clearPaymentLinkFlagAfterSend, resolvePaymentLink } from "./payment-link";
 import { HEALTH_AUTO_PAUSE_BELOW, parseHealthState } from "./health";
 import { hasThreadPrefix, renderTokens, stripThreadPrefix, withReplyPrefix } from "./render";
 import { assertChannelLive, assertTenantActive } from "./tenant-status";
@@ -134,9 +135,16 @@ export async function sendStep(deps: SendDeps, params: SendStepParams): Promise<
   const calendarLink = wantsCalendarLink
     ? ((await resolveBookingLink(prisma, params.workspaceId, params.contactId)) ?? undefined)
     : undefined;
+  // INT W3 (DEC-095): {{paymentLink}} — the same lazy, missing-config-fails rule.
+  const wantsPaymentLink =
+    PAYMENT_LINK_TOKEN_RE.test(params.content.subject ?? "") ||
+    PAYMENT_LINK_TOKEN_RE.test(params.content.body ?? "");
+  const paymentLink = wantsPaymentLink
+    ? ((await resolvePaymentLink(prisma, params.workspaceId, params.contactId)) ?? undefined)
+    : undefined;
 
-  let subject = renderTokens(params.content.subject ?? "", contact, fromName, { calendarLink });
-  const body = renderTokens(params.content.body ?? "", contact, fromName, { calendarLink });
+  let subject = renderTokens(params.content.subject ?? "", contact, fromName, { calendarLink, paymentLink });
+  const body = renderTokens(params.content.body ?? "", contact, fromName, { calendarLink, paymentLink });
 
   // Owner rule 3: real threading or no thread markers at all.
   let inReplyTo: string | undefined;
@@ -243,6 +251,12 @@ export async function sendStep(deps: SendDeps, params: SendStepParams): Promise<
   // the send is already persisted).
   if (params.enrollmentId) {
     await clearBookingLinkFlagAfterSend(prisma, {
+      workspaceId: params.workspaceId,
+      enrollmentId: params.enrollmentId,
+      sentBody: fullBody,
+    });
+    // INT W3 (DEC-095): the payment-link twin.
+    await clearPaymentLinkFlagAfterSend(prisma, {
       workspaceId: params.workspaceId,
       enrollmentId: params.enrollmentId,
       sentBody: fullBody,

@@ -29,6 +29,9 @@ export const ACTION_LABELS: Record<CampaignRuleActionKind, string> = {
   // INT W2 (DEC-094): NOT a send — queues the booking link into the next
   // boundary-gated composed message (the Q-039 rails-honest form).
   send_booking_link: "Send booking link",
+  // INT W3 (DEC-095): the booking twin (Q-039 stands) + the outbound webhook.
+  send_payment_link: "Send invoice / payment link",
+  send_webhook: "Send webhook",
   run_automation: "Run another automation",
 };
 
@@ -41,6 +44,8 @@ export const ACTION_ICONS: Record<CampaignRuleActionKind, string> = {
   notify_team: "🔔",
   add_tag: "⌗",
   send_booking_link: "📅",
+  send_payment_link: "🧾",
+  send_webhook: "⚯",
   run_automation: "⟳",
 };
 
@@ -81,6 +86,11 @@ export function actionChip(
     // link is queued for the next composed message, never sent by the rule).
     case "send_booking_link":
       return "Send booking link";
+    // INT W3: the payment twin — same queued-not-sent honesty.
+    case "send_payment_link":
+      return "Send payment link";
+    case "send_webhook":
+      return action.url ? `Send webhook: ${new URL(action.url).hostname}` : "Send webhook (default URL)";
   }
 }
 
@@ -105,6 +115,9 @@ const ACTION_GROUPS: Record<(typeof ACCOUNT_ACTION_KINDS)[number], { group: stri
   // INT W2 (DEC-094): flags the enrollment so the NEXT boundary-gated
   // composed message carries the booking link as mustSay — never a send path.
   send_booking_link: { group: "Meetings", desc: "Queues your booking link into the next composed message" },
+  // INT W3 (DEC-095): the payment twin (never a send path) + the signed POST.
+  send_payment_link: { group: "Revenue & CRM", desc: "Queues your payment link into the next composed message" },
+  send_webhook: { group: "Flow & integrations", desc: "Signed POST to your endpoint · run row records delivery" },
   run_automation: { group: "Flow & integrations", desc: "Chain another automation" },
 };
 
@@ -182,7 +195,8 @@ export const ABSENT_ACTIONS: ReadonlyArray<import("./triggers").AbsentPickerEntr
   { group: "Revenue & CRM", icon: "❒", label: "Create CRM deal", desc: "Open a pipeline deal", reason: "Arrives with proposals & payments" },
   { group: "Revenue & CRM", icon: "❒", label: "Update deal stage", desc: "Move the deal along", reason: "Arrives with proposals & payments" },
   { group: "Revenue & CRM", icon: "❒", label: "Send proposal", desc: "Send a proposal to sign", reason: "Arrives with proposals & payments" },
-  { group: "Revenue & CRM", icon: "🧾", label: "Send invoice / payment link", desc: "Request a payment", reason: "Arrives with proposals & payments" },
+  // INT W3 (DEC-095): "Send invoice / payment link" LEFT this ledger — it
+  // plugged behind the live send_payment_link action (Q-037's payment half).
   { group: "Revenue & CRM", icon: "🧾", label: "Send receipt", desc: "Confirm a payment", reason: "Arrives with proposals & payments" },
   // INT W1 (DEC-093): "Notify Slack" left this ledger — it plugged behind the
   // EXPRESSIBLE notify_team action (Q-042's recorded design: same action, real
@@ -191,7 +205,8 @@ export const ABSENT_ACTIONS: ReadonlyArray<import("./triggers").AbsentPickerEntr
   { group: "Notify the team", icon: "✉", label: "Email internal alert", desc: "Email the team", reason: "Arrives with email alerts" },
   { group: "Flow & integrations", icon: "⏱", label: "Wait", desc: "Pause between actions", reason: "Multi-step chains arrive with automations v2" },
   { group: "Flow & integrations", icon: "⏰", label: "Wait until time", desc: "Hold until a set time", reason: "Multi-step chains arrive with automations v2" },
-  { group: "Flow & integrations", icon: "⚯", label: "Send webhook", desc: "POST to an external URL", reason: "Arrives with the webhooks integration" },
+  // INT W3: "Send webhook" LEFT this ledger — live behind send_webhook
+  // (Q-044's send half; the incoming trigger + Zapier/Sheets re-file → Q-048).
   { group: "Flow & integrations", icon: "⚡", label: "Trigger Zapier / Make", desc: "Hand off to a zap", reason: "Arrives with the Zapier integration" },
   { group: "Flow & integrations", icon: "▦", label: "Add row to Google Sheet", desc: "Append a spreadsheet row", reason: "Arrives with the Google Sheets integration" },
 ];

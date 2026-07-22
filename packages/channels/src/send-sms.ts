@@ -17,6 +17,7 @@ import {
 } from "@clientforce/core";
 import { withTenant, type Message, type PrismaClient, type SenderConnection } from "@clientforce/db";
 import { CALENDAR_LINK_TOKEN_RE, clearBookingLinkFlagAfterSend, resolveBookingLink } from "./booking-link";
+import { PAYMENT_LINK_TOKEN_RE, clearPaymentLinkFlagAfterSend, resolvePaymentLink } from "./payment-link";
 import { HEALTH_AUTO_PAUSE_BELOW, parseHealthState } from "./health";
 import { renderTokens } from "./render";
 import { assertChannelLive, assertTenantActive } from "./tenant-status";
@@ -135,7 +136,12 @@ export async function sendSmsStep(deps: SendSmsDeps, params: SendSmsStepParams):
   const calendarLink = wantsCalendarLink
     ? ((await resolveBookingLink(prisma, params.workspaceId, params.contactId)) ?? undefined)
     : undefined;
-  let body = renderTokens(params.content.body ?? "", contact, senderLabel, { calendarLink });
+  // INT W3 (DEC-095): the {{paymentLink}} twin.
+  const wantsPaymentLink = PAYMENT_LINK_TOKEN_RE.test(params.content.body ?? "");
+  const paymentLink = wantsPaymentLink
+    ? ((await resolvePaymentLink(prisma, params.workspaceId, params.contactId)) ?? undefined)
+    : undefined;
+  let body = renderTokens(params.content.body ?? "", contact, senderLabel, { calendarLink, paymentLink });
 
   // The sms unsubscribeFooter: the FIRST outbound SMS of an enrollment carries
   // the opt-out line, literally and unconditionally (DEC-062).
@@ -188,6 +194,12 @@ export async function sendSmsStep(deps: SendSmsDeps, params: SendSmsStepParams):
   // booking link fulfills a queued send_booking_link request.
   if (params.enrollmentId) {
     await clearBookingLinkFlagAfterSend(prisma, {
+      workspaceId: params.workspaceId,
+      enrollmentId: params.enrollmentId,
+      sentBody: body,
+    });
+    // INT W3 (DEC-095): the payment-link twin.
+    await clearPaymentLinkFlagAfterSend(prisma, {
       workspaceId: params.workspaceId,
       enrollmentId: params.enrollmentId,
       sentBody: body,

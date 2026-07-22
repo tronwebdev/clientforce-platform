@@ -22,12 +22,16 @@ import {
   gcalConfigSchema,
   isIntegrationProvider,
   slackConfigSchema,
+  stripeConfigSchema,
+  webhooksConfigSchema,
   type CalendlyConfig,
   type GcalConfig,
   type IntegrationProvider,
   type IntegrationStatus,
   type SlackConfig,
   type SlackNotificationKind,
+  type StripeConfig,
+  type WebhooksConfig,
 } from "@clientforce/core";
 
 // ── canon atoms (Integrations.dc.html TILE + catLabels, verbatim) ───────────
@@ -74,8 +78,6 @@ export const MANAGED_TWILIO_NOTE = "Managed in Settings → Channels";
  *  before this lookup is ever reached (availability derives from core). */
 const ABSENT_REASONS: Record<string, string> = {
   hubspot: "Arrives with the CRM sync wave (this unit, W4)",
-  stripe: "Arrives with the payments wave (this unit, W3)",
-  webhooks: "Arrives with the webhooks wave (this unit, W3)",
   salesforce: "Arrives with the Salesforce/Pipedrive integrations",
   pipedrive: "Arrives with the Salesforce/Pipedrive integrations",
   calcom: "Arrives with the Cal.com integration",
@@ -230,6 +232,40 @@ export const DRAWER_CONTENT = {
     ],
     optionsKind: null,
   },
+  // INT W3 (DEC-095): Stripe — the calendly two-tier anatomy on payments:
+  // the Payment Link works day one; payment detection additionally needs a
+  // restricted API key (Stripe mints the endpoint signing secret).
+  stripe: {
+    mode: "fields",
+    authPerms: [],
+    syncRows: [
+      { kind: "link", label: "Payment link — offered in composed messages on request" },
+      { kind: "detection", label: "Payment detection — live only with a restricted API key" },
+    ],
+    setupSteps: [
+      { title: "Paste your Payment Link", desc: "Works day one — leads pay on your real Stripe checkout." },
+      { title: "Add a restricted API key (optional)", desc: "Needs Webhook Endpoints write — turns on payment detection." },
+      { title: "Confirm & go live", desc: "Review and connect." },
+    ],
+    optionsKind: null,
+  },
+  // INT W3: Webhooks — the outbound send_webhook action's config surface
+  // (default Payload URL + the per-workspace signing secret). The canon's
+  // events-pick stream half is honestly ABSENT (re-filed → Q-048).
+  webhooks: {
+    mode: "fields",
+    authPerms: [],
+    syncRows: [
+      { kind: "action", label: "Send webhook action — POSTs rule events to your endpoint, signed" },
+      { kind: "signature", label: "Signatures — t/v1 HMAC-SHA256 with your workspace secret" },
+    ],
+    setupSteps: [
+      { title: "Enter your Payload URL", desc: "A public https endpoint you operate — checked by the delivery guard." },
+      { title: "We send a signed test", desc: "A 2xx from your receiver confirms the connection." },
+      { title: "Confirm & go live", desc: "Copy the signing secret into your receiver." },
+    ],
+    optionsKind: null,
+  },
 } satisfies Record<IntegrationProvider, DrawerContent>;
 
 // ── honest status display (probe-backed vocabulary → pill copy) ─────────────
@@ -377,4 +413,42 @@ export function calendlyDetectionState(config: CalendlyConfig): {
  */
 export function calendlyWebhookPath(webhookToken: string): string {
   return `/webhooks/calendly?token=${webhookToken}`;
+}
+
+// ── stripe config helpers (INT W3 — the calendly helpers' anatomy) ──────────
+
+/** Parse the DTO's `config: unknown` through the REAL core schema; garbage → {}. */
+export function parseStripeConfig(config: unknown): StripeConfig {
+  const parsed = stripeConfigSchema.safeParse(config ?? {});
+  return parsed.success ? parsed.data : {};
+}
+
+export const STRIPE_DETECTION_ON = "Payment detection live — webhook endpoint active";
+export const STRIPE_DETECTION_OFF =
+  "Link active — payment detection off. Add a restricted API key (Webhook Endpoints write) to detect payments.";
+export const STRIPE_NO_LINK = "No payment link saved yet — add one so leads can pay.";
+
+/** The drawer's detection state line — HONEST from stored config (the calendly stance). */
+export function stripeDetectionState(config: StripeConfig): {
+  detection: boolean;
+  line: string;
+  offerKey: boolean;
+} {
+  if (!config.paymentLinkUrl && config.detection !== true)
+    return { detection: false, line: STRIPE_NO_LINK, offerKey: false };
+  if (config.detection === true) return { detection: true, line: STRIPE_DETECTION_ON, offerKey: false };
+  return { detection: false, line: STRIPE_DETECTION_OFF, offerKey: true };
+}
+
+/** The webhook endpoint PATH the drawer displays (created automatically). */
+export function stripeWebhookPath(webhookToken: string): string {
+  return `/webhooks/stripe?token=${webhookToken}`;
+}
+
+// ── webhooks config helpers (INT W3) ────────────────────────────────────────
+
+/** Parse the DTO's `config: unknown` through the REAL core schema; garbage → {}. */
+export function parseWebhooksConfig(config: unknown): WebhooksConfig {
+  const parsed = webhooksConfigSchema.safeParse(config ?? {});
+  return parsed.success ? parsed.data : {};
 }

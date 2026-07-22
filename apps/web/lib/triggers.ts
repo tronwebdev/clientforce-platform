@@ -30,6 +30,9 @@ const TRIGGER_LABELS: Record<CampaignRuleTriggerKind, string> = {
   meeting_rescheduled: "Meeting rescheduled",
   meeting_canceled: "Meeting canceled / no-show",
   before_meeting: "Before a meeting",
+  // INT W3 (DEC-095): the payments wave — the canon literal from the retired
+  // absent entry ("Payment succeeded"); the kind matches payment.received.v1.
+  payment_received: "Payment succeeded",
 };
 
 export function triggerLabel(kind: CampaignRuleTriggerKind): string {
@@ -50,6 +53,7 @@ export const TRIGGER_ICONS: Record<CampaignRuleTriggerKind, string> = {
   meeting_rescheduled: "⟳",
   meeting_canceled: "✕",
   before_meeting: "⏰",
+  payment_received: "＄",
 };
 
 /** R1-UI (DEC-091, additive): canon picker descriptions per kind. */
@@ -65,6 +69,7 @@ export const TRIGGER_DESCRIPTIONS: Record<CampaignRuleTriggerKind, string> = {
   meeting_rescheduled: "A meeting moves",
   meeting_canceled: "A meeting falls through",
   before_meeting: "A set time before a meeting",
+  payment_received: "A payment is received",
 };
 
 /** The card-chip text for a concrete trigger (canon: "💬 Reply: Interested",
@@ -102,6 +107,7 @@ export const TRIGGER_OPTIONS: readonly TriggerOption[] = (
     "meeting_rescheduled",
     "meeting_canceled",
     "before_meeting",
+    "payment_received",
     "opted_out",
     "lead_captured",
   ] as const satisfies readonly CampaignRuleTriggerKind[]
@@ -131,6 +137,7 @@ export const TRIGGER_GROUP: Record<CampaignRuleTriggerKind, string> = {
   before_meeting: "Meetings",
   opted_out: "Lead lifecycle",
   lead_captured: "Forms & widget",
+  payment_received: "Proposals & revenue",
 };
 
 /** Canon group order (`Automations.dc.html` TRIG_GROUPS, verbatim). */
@@ -190,7 +197,8 @@ export const ABSENT_TRIGGERS: readonly AbsentPickerEntry[] = [
   { group: "Proposals & revenue", icon: "❒", label: "Proposal sent", desc: "A proposal goes out", reason: "Arrives with proposals & payments" },
   { group: "Proposals & revenue", icon: "◔", label: "Proposal viewed", desc: "A prospect opens it", reason: "Arrives with proposals & payments" },
   { group: "Proposals & revenue", icon: "✓", label: "Proposal accepted", desc: "A proposal is signed", reason: "Arrives with proposals & payments" },
-  { group: "Proposals & revenue", icon: "＄", label: "Payment succeeded", desc: "A payment is received", reason: "Arrives with proposals & payments" },
+  // INT W3 (DEC-095): "Payment succeeded" LEFT this ledger — it plugged
+  // behind the live payment_received kind (Q-037's payment half).
   { group: "Proposals & revenue", icon: "⚠", label: "Payment failed", desc: "A charge fails", reason: "Arrives with proposals & payments" },
   { group: "Proposals & revenue", icon: "🧾", label: "Invoice overdue", desc: "An invoice passes due", reason: "Arrives with proposals & payments" },
   { group: "Schedule & system", icon: "🕘", label: "On a schedule", desc: "A recurring date & time", reason: "Arrives with scheduled automations" },

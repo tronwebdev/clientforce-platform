@@ -102,10 +102,10 @@ describe("TriggerMenu (honest absence)", () => {
     }
     expect(html).toContain("Connect an email sender first");
     expect(html).toContain("Arrives with lead capture sources");
-    // 5 email-backed + lead_captured dim; the four meeting kinds (INT W2:
-    // meeting_booked + rescheduled/canceled/before) keep full opacity + pointer
+    // 5 email-backed + lead_captured dim; the four meeting kinds (INT W2)
+    // + payment_received (INT W3) keep full opacity + pointer
     expect(html.match(/opacity:0\.55/g)).toHaveLength(6);
-    expect(html.match(/cursor:pointer/g)).toHaveLength(4);
+    expect(html.match(/cursor:pointer/g)).toHaveLength(5);
     // Disabled options carry no click affordance — a click cannot select
     // (the availability gate is asserted exhaustively in subcampaign-triggers).
     expect(html.match(/cursor:default/g)).toHaveLength(6);
@@ -116,7 +116,8 @@ describe("TriggerMenu (honest absence)", () => {
       <TriggerMenu connected={{ email: true, leadCapture: true }} selected={"email_opened"} onPick={() => {}} />,
     );
     expect(html).not.toContain("opacity:0.55");
-    expect(html.match(/cursor:pointer/g)).toHaveLength(10);
+    // INT W3: 11 kinds in the menu (10 + payment_received).
+    expect(html.match(/cursor:pointer/g)).toHaveLength(11);
     expect(html).toContain("✓");
   });
 });

@@ -585,6 +585,12 @@ export function AutomationBuilder({
                     )}
                     {action.kind === "notify_team" &&
                       txtRow("Note", action.note ?? "", (v) => updateAction(uid, { kind: "notify_team", ...(v.trim() ? { note: v } : {}) }), "What should the team know? (optional)")}
+                    {/* INT W3 (DEC-095): the per-action URL override — blank
+                        falls back to the Webhooks integration's default
+                        Payload URL (the run row names the refusal if neither
+                        exists — the honest run-time convergence). */}
+                    {action.kind === "send_webhook" &&
+                      txtRow("URL", action.url ?? "", (v) => updateAction(uid, { kind: "send_webhook", ...(v.trim() ? { url: v.trim() } : {}) }), "https://… (blank = the Webhooks integration default)")}
                     {action.kind === "run_automation" && (
                       <div style={{ marginTop: 11, paddingTop: 11, borderTop: "1px solid #F2EEE4", display: "flex", alignItems: "center", gap: 10 }}>
                         <span style={{ fontSize: 12, color: "#9AA59E", fontWeight: 700, width: 74, flex: "none" }}>Automation</span>

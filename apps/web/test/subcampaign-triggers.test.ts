@@ -28,7 +28,8 @@ describe("trigger display map (lib/triggers)", () => {
   it("covers exactly R1's kinds — the display layer can never fork the union", () => {
     expect(new Set(TRIGGER_OPTIONS.map((o) => o.kind))).toEqual(new Set(SCHEMA_KINDS));
     // INT W2 (DEC-094): + meeting_rescheduled · meeting_canceled · before_meeting.
-    expect(TRIGGER_OPTIONS).toHaveLength(10);
+    // INT W3 (DEC-095): + payment_received.
+    expect(TRIGGER_OPTIONS).toHaveLength(11);
   });
 
   it("owner labels are the canon strings", () => {
@@ -44,6 +45,8 @@ describe("trigger display map (lib/triggers)", () => {
       meeting_rescheduled: "Meeting rescheduled",
       meeting_canceled: "Meeting canceled / no-show",
       before_meeting: "Before a meeting",
+      // INT W3: the canon literal from the retired absent entry.
+      payment_received: "Payment succeeded",
     });
     for (const o of TRIGGER_OPTIONS) expect(triggerLabel(o.kind)).toBe(o.label);
   });
@@ -77,6 +80,7 @@ describe("trigger display map (lib/triggers)", () => {
       { kind: "meeting_booked" },
       { kind: "meeting_rescheduled" },
       { kind: "meeting_canceled" },
+      { kind: "payment_received" },
       { kind: "opted_out" },
       { kind: "lead_captured" },
     ];
@@ -96,11 +100,14 @@ describe("trigger display map (lib/triggers)", () => {
     ];
     // INT W2: the meeting kinds ride calendar detection / the meeting sweep,
     // never email — always enabled (the meeting_booked precedent).
+    // INT W3: payment_received rides payment detection, never email — the
+    // same always-on stance (the meeting_booked precedent).
     const alwaysOn: CampaignRuleTriggerKind[] = [
       "meeting_booked",
       "meeting_rescheduled",
       "meeting_canceled",
       "before_meeting",
+      "payment_received",
     ];
     for (const kind of SCHEMA_KINDS) {
       // fully connected → everything picks

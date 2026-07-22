@@ -40,6 +40,10 @@ import {
   calendlyConnectFieldsSchema,
   completeConnect,
   connectCalendlyFields,
+  connectStripeFields,
+  connectWebhooksFields,
+  stripeConnectFieldsSchema,
+  webhooksConnectFieldsSchema,
   decryptCredentials,
   disconnectIntegration,
   getIntegration,
@@ -136,13 +140,14 @@ export class IntegrationsController {
     throw err;
   }
 
-  /** The capability token is OWNER/ADMIN material — members see the config redacted. */
+  /** Capability material is OWNER/ADMIN-only — members see the config redacted
+   *  (calendly/stripe `webhookToken`; the webhooks `signingSecret`, W3). */
   private redactForRole(dto: IntegrationDto, req: AuthenticatedRequest): IntegrationDto {
     const role = req.auth?.role;
     if (role === "OWNER" || role === "ADMIN") return dto;
     const cfg = dto.config as Record<string, unknown> | null;
-    if (cfg && typeof cfg === "object" && "webhookToken" in cfg) {
-      const { webhookToken: _redacted, ...rest } = cfg;
+    if (cfg && typeof cfg === "object" && ("webhookToken" in cfg || "signingSecret" in cfg)) {
+      const { webhookToken: _redactedToken, signingSecret: _redactedSecret, ...rest } = cfg;
       return { ...dto, config: rest };
     }
     return dto;
@@ -208,21 +213,42 @@ export class IntegrationsController {
     @Req() req: AuthenticatedRequest,
   ): Promise<{ integration: IntegrationDto }> {
     const provider = this.provider(rawProvider);
-    if (provider !== "calendly") {
+    try {
+      // INT W3 (DEC-095): three fields-based providers now — same endpoint,
+      // per-provider DTO + service (the wizard's fields step posts here).
+      if (provider === "calendly") {
+        const dto = parse(calendlyConnectFieldsSchema, body);
+        const row = await connectCalendlyFields(this.deps, {
+          workspaceId: this.tenant.workspaceId,
+          fields: dto,
+          webhookUrlFor: (token) => `${webhookBase()}/webhooks/calendly?token=${token}`,
+          ...(req.auth ? { connectedById: req.auth.user.id } : {}),
+        });
+        return { integration: toIntegrationDto(row) };
+      }
+      if (provider === "stripe") {
+        const dto = parse(stripeConnectFieldsSchema, body);
+        const row = await connectStripeFields(this.deps, {
+          workspaceId: this.tenant.workspaceId,
+          fields: dto,
+          webhookUrlFor: (token) => `${webhookBase()}/webhooks/stripe?token=${token}`,
+          ...(req.auth ? { connectedById: req.auth.user.id } : {}),
+        });
+        return { integration: toIntegrationDto(row) };
+      }
+      if (provider === "webhooks") {
+        const dto = parse(webhooksConnectFieldsSchema, body);
+        const row = await connectWebhooksFields(this.deps, {
+          workspaceId: this.tenant.workspaceId,
+          fields: dto,
+          ...(req.auth ? { connectedById: req.auth.user.id } : {}),
+        });
+        return { integration: toIntegrationDto(row) };
+      }
       throw new UnprocessableEntityException({
         message: "Integration refused",
         detail: `${provider} connects with OAuth — use the connect flow`,
       });
-    }
-    const dto = parse(calendlyConnectFieldsSchema, body);
-    try {
-      const row = await connectCalendlyFields(this.deps, {
-        workspaceId: this.tenant.workspaceId,
-        fields: dto,
-        webhookUrlFor: (token) => `${webhookBase()}/webhooks/calendly?token=${token}`,
-        ...(req.auth ? { connectedById: req.auth.user.id } : {}),
-      });
-      return { integration: toIntegrationDto(row) };
     } catch (err) {
       this.rethrow(err);
     }

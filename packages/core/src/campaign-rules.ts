@@ -57,6 +57,9 @@ export const campaignRuleTriggerSchema = z.discriminatedUnion("kind", [
     kind: z.literal("before_meeting"),
     hours: z.number().int().min(1).max(336),
   }),
+  /** INT W3 (DEC-095): a payment landed — `payment.received.v1` (the Stripe
+   *  detection tier's checkout ingest; canon literal "Payment succeeded"). */
+  z.object({ kind: z.literal("payment_received") }),
 ]);
 export type CampaignRuleTrigger = z.infer<typeof campaignRuleTriggerSchema>;
 export type CampaignRuleTriggerKind = CampaignRuleTrigger["kind"];
@@ -108,6 +111,17 @@ export const campaignRuleActionSchema = z.discriminatedUnion("kind", [
    *  out of rule actions BY DESIGN (Q-039); save-time 422 when no booking
    *  link is configured. */
   z.object({ kind: z.literal("send_booking_link") }),
+  /** INT W3 (DEC-095): the send_booking_link twin for the Stripe payment link —
+   *  a non-send FLAG (Q-039 stands); the next boundary-gated composed message
+   *  carries the per-lead payment link as mustSay; save-time 422 when no
+   *  payment link is configured. */
+  z.object({ kind: z.literal("send_payment_link") }),
+  /** INT W3: POST the triggering event to an external endpoint, signed with
+   *  the workspace webhook secret. `url` optional — falls back to the Webhooks
+   *  integration's default Payload URL (save-time 422 when neither exists).
+   *  Delivery rides the SSRF guard + the IntegrationDelivery ledger; a
+   *  delivery failure NEVER changes the run outcome (the notify_team stance). */
+  z.object({ kind: z.literal("send_webhook"), url: z.string().url().max(500).optional() }),
   /** Run one of the account-level Automations for the contact (resolved LIVE —
    *  missing/disabled renders an error state and never fires silently). Executes
    *  the automation's actions through the SAME union at causation depth + 1. */
@@ -147,6 +161,8 @@ export const ACCOUNT_ACTION_KINDS = [
   "notify_team",
   "add_tag",
   "send_booking_link",
+  "send_payment_link",
+  "send_webhook",
   "run_automation",
 ] as const satisfies readonly CampaignRuleActionKind[];
 
@@ -179,6 +195,7 @@ export function sameTrigger(a: CampaignRuleTrigger, b: CampaignRuleTrigger): boo
     case "meeting_booked":
     case "meeting_rescheduled":
     case "meeting_canceled":
+    case "payment_received":
     case "opted_out":
     case "email_opened":
     case "link_clicked":

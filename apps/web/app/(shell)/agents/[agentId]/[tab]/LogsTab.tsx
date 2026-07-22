@@ -52,7 +52,20 @@ const LOG_ROW: Record<string, { icon: string; bg: string; fg: string }> = {
   "calendar.booked.v1": { icon: "📅", bg: "rgba(53,232,52,.16)", fg: "#16A82A" },
   "calendar.rescheduled.v1": { icon: "⟳", bg: "#F2EEE4", fg: "#8A7F6B" },
   "calendar.canceled.v1": { icon: "✕", bg: "rgba(224,121,107,.16)", fg: "#C9543F" },
+  // INT W3 (DEC-095): the payment record row.
+  "payment.received.v1": { icon: "💳", bg: "rgba(53,232,52,.16)", fg: "#16A82A" },
 };
+
+/** Minor-units → display ("$500.00"); unknown currency falls back to the code. */
+function moneyLabel(amount: unknown, currency: unknown): string {
+  if (typeof amount !== "number" || !Number.isFinite(amount)) return "";
+  const code = typeof currency === "string" && currency ? currency.toUpperCase() : "USD";
+  try {
+    return new Intl.NumberFormat("en-US", { style: "currency", currency: code }).format(amount / 100);
+  } catch {
+    return `${(amount / 100).toFixed(2)} ${code}`;
+  }
+}
 
 function describe(e: LogEvent): string {
   const who = [e.contact?.firstName, e.contact?.lastName].filter(Boolean).join(" ") || e.contact?.email || "a lead";
@@ -85,6 +98,7 @@ function describe(e: LogEvent): string {
     case "calendar.booked.v1": { const t = meetingTime(p.startAt); return `Meeting booked with ${who}${t ? ` — ${t}` : ""}.`; }
     case "calendar.rescheduled.v1": { const t = meetingTime(p.toStartAt); return `Meeting with ${who} rescheduled${t ? ` — now ${t}` : ""}.`; }
     case "calendar.canceled.v1": { const t = meetingTime(p.startAt); return p.reason === "no_show" ? `${who} didn't show for the meeting${t ? ` (${t})` : ""}.` : `Meeting with ${who} canceled${t ? ` (was ${t})` : ""}.`; }
+    case "payment.received.v1": { const m = moneyLabel(p.amount, p.currency); return `Payment received from ${who}${m ? ` — ${m}` : ""}.`; }
     default: return `${e.type} — ${who}`;
   }
 }

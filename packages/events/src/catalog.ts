@@ -253,7 +253,17 @@ export const EVENT_SCHEMAS = {
   }),
 
   // ── Billing ────────────────────────────────────────────────────────────────
-  "payment.received.v1": z.object({ amount: z.number().int(), channel: z.string().optional() }),
+  // INT W3 (DEC-095): first real producer — the Stripe checkout ingest
+  // (tenant-collected payments; platform credits stay a separate family).
+  // `currency`/`provider`/`externalId` are ADDITIVE OPTIONALS on the
+  // pre-existing v1 (append-only rule; older payloads parse unchanged).
+  "payment.received.v1": z.object({
+    amount: z.number().int(),
+    channel: z.string().optional(),
+    currency: z.string().optional(),
+    provider: z.string().optional(),
+    externalId: z.string().optional(),
+  }),
   "credits.consumed.v1": z.object({ amount: z.number().int(), channel: z.string(), balance: z.number().int() }),
   "credits.low.v1": z.object({ balance: z.number().int() }),
 

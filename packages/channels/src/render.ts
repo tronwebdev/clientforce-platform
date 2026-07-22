@@ -25,7 +25,7 @@ export function renderTokens(
    * for a referenced token throws MissingTokenError — the house rule: a
    * missing booking config FAILS the send, never renders blank.
    */
-  extra?: { calendarLink?: string },
+  extra?: { calendarLink?: string; paymentLink?: string },
 ): string {
   // C2.7 custom tokens first: {{custom.<key>|fallback}} → value-or-fallback.
   // No value AND no fallback throws — custom tokens never render blank; the
@@ -50,6 +50,8 @@ export function renderTokens(
     email: contact.email,
     senderName,
     calendarLink: extra?.calendarLink,
+    // INT W3 (DEC-095): the {{paymentLink}} twin — same missing-config-fails rule.
+    paymentLink: extra?.paymentLink,
   };
   return withCustom.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_m, token: string) => {
     const value = values[token];
