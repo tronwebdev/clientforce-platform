@@ -268,6 +268,42 @@ answers persist; no-longer-required answers kept but ignored).
 | Q-059 | **`run_automation` over Zapier needs a re-entry budget (INT W5/DEC-102).** Declined for v1 in the exposure map with that reason recorded in code. The engine's causation-depth cap bounds NESTED automations, but a Zap re-entering from outside starts at depth 0 every time, so a Zap that triggers on automation activity and calls `run_automation` would loop without bound — spending credits and sends on every pass. | NON-BLOCKING | Needs an external re-entry budget / loop breaker before the kind can be exposed | OPEN |
 | Q-060 | **Zapier rule-action EXECUTION (INT W5/DEC-102).** The action surface is derived and pinned, and the exposure map decides every kind; the shipped app renders only the inbound writes because executing a rule action correctly must go through the engine's `executeAction` with fully-wired `RuleEngineDeps` (the notify and CRM transports), rather than forking the effect into a second implementation. Until that lands, rendering those steps would ship a menu of 404s. Pinned by an app test asserting shipped creates ⊆ implemented. | NON-BLOCKING (the derivation mechanism is complete and mutation-verified) | Wire `RuleEngineDeps` into the Zapier rail, then flip the exposed kinds into the app | OPEN |
 
+## P7 close-out — the Integrations unit, wave by wave (2026-07-26)
+
+P7 is CLOSED by INT W5. Five waves, five proofs. PR comments rot and run ids
+scatter, so this is the durable record of what each proof actually established
+— not that it "passed", but what a reader may now rely on.
+
+| Wave | DEC | Proof | What the proof ESTABLISHED |
+| ---- | --- | ----- | -------------------------- |
+| **W1** Platform core + Slack | DEC-093 | [run 30197292918](https://github.com/tronwebdev/clientforce-platform/actions/runs/30197292918) (merged via #109/#110/#111) | A REAL `chat.postMessage` reached #all-clientforce through the REAL bus + notifier consumer, redelivery DEDUPED, and the revoked-token walk flipped status on a CORRUPTED COPY of the token — never the vault one. Degraded honestly when the saved `xoxb` predated `channels:read`: posted by channel NAME via `chat:write.public` and SAID so rather than guessing. |
+| **W2** Calendar + booking | DEC-094 | §8 walk, `docs/fidelity/int-w2/` (#108) | The full booking walk on the real stack: a SIGNED Calendly `invitee.created` → `Meeting` + `calendar.booked.v1` + exactly ONE `lead.stage_changed.v1`. The no-double-fire pin is the load-bearing result — `calendar.booked.v1` is the RECORD and the stage change is the trigger carrier, so rules, the Slack notifier and the goal machinery each fire once, not twice. |
+| **W3** Stripe + generic webhook | DEC-095 | §8 receipts, `docs/fidelity/int-w3/` (#108) | A signed checkout ingest produced `payment.received.v1`, and ONE run row carried a DELIVERED signed webhook beside the SSRF guard's typed refusal of a non-public destination. The adversarial table caught a v4-mapped hex-form bypass before merge. |
+| **W4** HubSpot one-way CRM push | DEC-096 | [run 30200590807](https://github.com/tronwebdev/clientforce-platform/actions/runs/30200590807) (#108) | A REAL Contact + Deal `512959987899` on `api-eu1.hubapi.com` (portal 148594354) through the REAL engine + `deliverCrm`; redelivery deduped to ONE ledger row and the SAME deal; a real stage move to `closedwon`. Seven red runs first established four real HubSpot facts (write-only Service Key · EU regional host derived from the token prefix · `.test` TLD rejected · association refused by a per-account permission, NOT scope — identical before and after the read grant). |
+| **W5** Zapier private app | DEC-102 | [run 30211376898](https://github.com/tronwebdev/clientforce-platform/actions/runs/30211376898) (#118) | There is no vendor to call — Zapier authenticates to US — so the proof targets our rail, and the load-bearing gate is TENANT ISOLATION: two workspaces seeded, workspace A's key returned ZERO of B's events. Also: the stored row cannot reconstruct a token, the poll cursor advances, the knowledge-gap predicate filtered 2→1, writes preserved the tag union and enrolment was idempotent, and revoked/unknown/malformed keys were all refused. |
+
+**What the unit leaves open (all NON-BLOCKING, all recorded):** Q-049 two-way
+CRM sync · Q-054 the incoming-webhook trigger + the events[] stream half (the
+Zapier rider CLOSED by W5) · Q-055 proposals · Q-056 the HubSpot-side
+association permission + legacy vault-key removal · Q-057 Zapier
+send-to-channel (held under the Q-039 boundary re-entry rule) · Q-058 no
+campaign-lifecycle event · Q-059 `run_automation` re-entry budget · Q-060
+Zapier rule-action execution.
+
+**Owner-side clock still open for THIS unit:** the Calendly paid-tier token,
+which gates W2's booking-DETECTION walk (the scheduling link works without it).
+Other tracks' clocks are recorded in their own units — this section is the INT
+unit's record, not a cross-track board.
+
+**Zapier public directory listing — a CLOCK, not a blocker (owner, 2026-07-26).**
+The Zapier developer account is now available, so listing is unblocked: submit
+the app for Zapier's directory review as a separate owner-gated step AFTER W5
+merges. The invite-link app is unaffected and stays usable throughout — nothing
+in the build waits on the review, and the drawer copy already says a public
+listing is a separate step rather than implying one is pending.
+
+
+
 ## Live verification log
 
 | Unit   | Date       | Run                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Result                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
