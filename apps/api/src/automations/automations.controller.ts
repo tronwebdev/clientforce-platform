@@ -199,7 +199,8 @@ export class AutomationsController {
       if (refs.some((r) => !known.has(r))) {
         throw new UnprocessableEntityException({
           message: "Automation reference not found",
-          detail: "“Run another automation” points at a rule that no longer exists — pick one from the list",
+          detail:
+            "“Run another automation” points at a rule that no longer exists — pick one from the list",
         });
       }
     }

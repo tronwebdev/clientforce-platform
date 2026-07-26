@@ -4,7 +4,7 @@
 > `P1.8_UI_WIRING_NOTES.md` (stale vs. prototypes) and amends `PHASE1_ISSUES.md` where noted.
 > Still binding alongside it: `DATA_MODEL.md` (as amended in §A), `UI_PORTING_RULES.md` ("port from
 > the prototype, don't reconstruct"), and **`PHASE1_FIDELITY_CHECKPOINTS.md` — the acceptance
-> criteria for every screen.** Background on *why* each correction exists: `PHASE0_REAUDIT.md`.
+> criteria for every screen.** Background on _why_ each correction exists: `PHASE0_REAUDIT.md`.
 >
 > **Canonical-docs rule:** the repo is the single source of truth for docs and prototypes. If any
 > other copy disagrees, the repo wins; fix forks by PR, never by editing two places.
@@ -37,13 +37,14 @@ plumbing.
 **A5 · Agent ↔ Campaign ↔ Graph (UI mapping).** Owner-confirmed: an **agent = one goal**. Users
 create several agents per workspace (one per goal, via the wizard); Agents List shows one row per
 agent. v1 rule: **one agent : one auto-created primary campaign** (the goal's sequence).
-Completing the wizard creates `Agent` + `Campaign` (name = "Primary sequence") + 
+Completing the wizard creates `Agent` + `Campaign` (name = "Primary sequence") +
 `CampaignGraph` v1 (`source: AI`; manual edits persist as new versions, `source: MANUAL`).
 Routes: `/agents` (list) · `/agents/new` (wizard) · `/agents/[agentId]/[tab]` where tab ∈
 `inbox|steps|leads|settings|logs` (+ inert `calls|preview|stats`), resolving the primary campaign
 internally. Sub-campaigns/multi-campaign UI: deferred; the schema already supports it.
 
 **A6 · New model: `Message`** (add to `DATA_MODEL.md §4`; migration in P1.5):
+
 ```prisma
 model Message {
   id                String   @id @default(cuid())
@@ -66,11 +67,13 @@ model Message {
 }
 enum MessageDirection { OUTBOUND INBOUND }
 ```
+
 P1.5 persists every outbound **as rendered** at send time; P1.7 persists every inbound + its intent.
 Inbox threads and the lead-drawer timeline read `Message` (+ `Event` for non-message events). Events
 stay the fan-out contract; they reference `messageId` in payloads rather than carrying bodies.
 
 **A7 · New model: `Suppression`** (add to `DATA_MODEL.md §4`; enforcement in P1.5):
+
 ```prisma
 model Suppression {
   id          String   @id @default(cuid())
@@ -84,11 +87,13 @@ model Suppression {
 }
 enum SuppressionReason { UNSUBSCRIBED BOUNCED SPAM_COMPLAINT MANUAL }
 ```
+
 The email adapter checks Suppression **and** `Contact.optOut` before every send (both tested).
 Unsubscribe events write both. Settings → Suppression (checkpoints §6) is its UI.
 
 **A8 · Guardrails schema** (replaces the bare `Agent.guardrails Json` contract; zod in
 `packages/core`, enforced by the adapter + workflow):
+
 ```ts
 Guardrails = {
   sendingWindow: { days: number[],           // 1–7, ISO weekday
@@ -100,6 +105,7 @@ Guardrails = {
   suppressionCheck:  true                     // literal true — not disableable
 }
 ```
+
 Wizard step 5 and the agent-view Settings tab read/write this shape.
 
 **A9 · Event naming (amends `DATA_MODEL.md §5` + T2's example).** Version suffix **mandatory** in
@@ -131,6 +137,7 @@ sends it on a durable Temporal workflow, and — when the lead replies — class
 and moves the pipeline, all visible in the app.
 
 **Milestone acceptance = this demo script passes on staging, top to bottom:**
+
 1. Log in → land on **/agents** → Agents List (empty state with CTA on a fresh workspace).
 2. **New agent** → complete all 6 wizard steps: goal picked → URL ingested (status reaches READY) →
    planner drafts the sequence (≥1 delay, ≥1 reply-branch; tokens like `{{firstName}}` present) →
@@ -147,12 +154,13 @@ and moves the pipeline, all visible in the app.
 
 **Workstreams** (still one PR per unit, plan-comment first — but reviewed against the milestone, not
 in isolation). P1.1–P1.7 execute per `PHASE1_ISSUES.md` **with these amendments**:
+
 - **P1.5** additionally: `Message` persistence for outbound (A6), `Suppression` model + enforcement
   (A7), Guardrails schema enforcement (A8).
 - **P1.7** additionally: `Message` persistence for inbound; event names per A9.
 - **P1.8** is replaced by **§C below** (expanded UI scope, fidelity-gated).
-Dependency order: P1.1 → P1.2/P1.3 → P1.4 → P1.5 → P1.6 → P1.7 → UI waves (§C) — UI shared
-components (C1) can start in parallel with P1.1.
+  Dependency order: P1.1 → P1.2/P1.3 → P1.4 → P1.5 → P1.6 → P1.7 → UI waves (§C) — UI shared
+  components (C1) can start in parallel with P1.1.
 
 ---
 
@@ -165,6 +173,7 @@ Dropdown/Pill/Tabs/Toast/Toggle). Specs = checkpoints §0 global conventions; th
 copy-paste-drawer drift class of bug before it starts.
 
 **C2 — Screens, in this order** (each gated on `PHASE1_FIDELITY_CHECKPOINTS.md`):
+
 1. Shell landing: `/` → redirect `/agents`; Dashboard stub (designed empty state); inert nav targets.
 2. **Agents List** (checkpoints §2) — list, filters, columns, create CTA, row nav.
 3. **Create Agent wizard** (§3) — 6 steps, wired to P1.2 ingest, P1.4 planner, A5 create path.
@@ -172,9 +181,9 @@ copy-paste-drawer drift class of bug before it starts.
    Stats inert.
 5. **Contacts** (§5) — segments per A10, drawer, bulk actions.
 6. **Settings → Channels + Suppression** (§6).
-Component boundaries within screens: one component per prototype anchor group (the prototype's
-`renderVals` keys mark the seams — e.g. `leadDrawerOpen`, `csv.*`, `senderDrawer` each = one
-component). Name components after the anchor, log the inventory in PROGRESS.md as you go.
+   Component boundaries within screens: one component per prototype anchor group (the prototype's
+   `renderVals` keys mark the seams — e.g. `leadDrawerOpen`, `csv.*`, `senderDrawer` each = one
+   component). Name components after the anchor, log the inventory in PROGRESS.md as you go.
 
 **Out of scope, present-but-inert (do not delete, do not fake):** Calls/voice, SMS/WhatsApp/LinkedIn
 channels, Lead Finder, Proposals, Forms, Agent Widget, deep Stats, wizard step-4 capture backend,
@@ -205,19 +214,29 @@ Update **in the same PR** as the work it describes. Sections, in order:
 
 ```markdown
 # PROGRESS — Phase 1
+
 ## Status
+
 One line per workstream: ⬜ / 🔨 PR#n / ✅ merged.
+
 ## Decision log
+
 DEC-### · date · decision · why · reversibility (cheap/moderate/expensive)
 (Seed with A1–A12 as DEC-001…012 and §G as DEC-013+, source: this handoff.)
+
 ## Open questions → design/product
+
 Q-### · question · BLOCKING or NON-BLOCKING · default taken (if non-blocking) · status
 (Seed: Q-001 auth provider — ANSWERED → Clerk, see §G; Phase 1 stays dev-auth per A3 · Q-002
 "Qualified" label — ANSWERED → keep · Q-003 BusinessContext preview surface [no prototype exists —
 needs a design batch] · Q-004 <1280px responsive treatment [needs a design batch].)
+
 ## Fidelity log
+
 screen · state matrix captured (y/n) · deviations (each with a DEC id) · screenshot links
+
 ## Icon map
+
 prototype glyph → lucide icon (append-only)
 ```
 

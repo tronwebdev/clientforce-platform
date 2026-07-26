@@ -60,8 +60,11 @@ vendor mocked.
 ## Adapter (provider stays swappable)
 
 ```ts
-export interface TelemetrySink { capture(e: TelemetryEvent): Promise<void> | void; }
+export interface TelemetrySink {
+  capture(e: TelemetryEvent): Promise<void> | void;
+}
 ```
+
 - **`PostHogSink`** (self-hosted) — POSTs to `${POSTHOG_HOST}/capture/` with
   `api_key` + `event` + `distinct_id` + id-only `properties`. **SDK-free (fetch)**;
   the ONLY place the provider is referenced. Enabled when `POSTHOG_HOST`+`POSTHOG_KEY`

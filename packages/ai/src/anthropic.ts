@@ -112,7 +112,10 @@ export class AnthropicProvider implements CompletionProvider {
       for await (const event of stream) {
         if (event.type === "message_start") {
           usage.inputTokens = event.message.usage.input_tokens;
-        } else if (event.type === "content_block_start" && event.content_block.type === "tool_use") {
+        } else if (
+          event.type === "content_block_start" &&
+          event.content_block.type === "tool_use"
+        ) {
           pending.set(event.index, {
             id: event.content_block.id,
             name: event.content_block.name,

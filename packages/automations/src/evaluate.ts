@@ -67,7 +67,9 @@ export async function loadEnabledRules(
       // An unparseable row can't even say what it triggers on — the UI
       // renders its error state from live resolution (B6); writing a run row
       // per passing event would flood the history. Loud log, never a fire.
-      log(`[automations] campaign rule ${row.id} has an invalid shape — skipped (renders as error state)`);
+      log(
+        `[automations] campaign rule ${row.id} has an invalid shape — skipped (renders as error state)`,
+      );
       continue;
     }
     parsed.push({
@@ -104,7 +106,9 @@ export async function loadEnabledAccountRules(
     const conditions = automationConditionsSchema.safeParse(row.conditions);
     const actions = actionsSchema.safeParse(row.actions);
     if (!trigger.success || !conditions.success || !actions.success) {
-      log(`[automations] automation ${row.id} has an invalid shape — skipped (renders as error state)`);
+      log(
+        `[automations] automation ${row.id} has an invalid shape — skipped (renders as error state)`,
+      );
       continue;
     }
     parsed.push({
@@ -240,7 +244,13 @@ export async function executeMatchedRules(
       const anyConflict = outcomes.some((o) => o.outcome === "skipped_conflict");
       const anyRefused = outcomes.some((o) => o.outcome === "refused_depth");
       const anyError = outcomes.some((o) => o.outcome === "error");
-      status = anyConflict ? "skipped_conflict" : anyRefused ? "refused_depth" : anyError ? "error" : "fired";
+      status = anyConflict
+        ? "skipped_conflict"
+        : anyRefused
+          ? "refused_depth"
+          : anyError
+            ? "error"
+            : "fired";
     }
     const ruleTerminal = outcomes.some((o) => o.terminal === true);
     if (ruleTerminal) summary.terminalFired = true;
@@ -335,7 +345,12 @@ export async function executeMatchedAccountRules(
         ctx.terminalState.fired = true;
         summary.terminalFired = true;
       }
-      summary.runs.push({ ruleId: rule.id, runId: existing.id, status: "already_recorded", scope: "account" });
+      summary.runs.push({
+        ruleId: rule.id,
+        runId: existing.id,
+        status: "already_recorded",
+        scope: "account",
+      });
       continue;
     }
 
@@ -350,7 +365,13 @@ export async function executeMatchedAccountRules(
       const anyConflict = outcomes.some((o) => o.outcome === "skipped_conflict");
       const anyRefused = outcomes.some((o) => o.outcome === "refused_depth");
       const anyError = outcomes.some((o) => o.outcome === "error");
-      status = anyConflict ? "skipped_conflict" : anyRefused ? "refused_depth" : anyError ? "error" : "fired";
+      status = anyConflict
+        ? "skipped_conflict"
+        : anyRefused
+          ? "refused_depth"
+          : anyError
+            ? "error"
+            : "fired";
     }
     const ruleTerminal = outcomes.some((o) => o.terminal === true);
     if (ruleTerminal) summary.terminalFired = true;
@@ -378,7 +399,12 @@ export async function executeMatchedAccountRules(
       runId = row.id;
     } catch (err) {
       if ((err as { code?: string }).code === "P2002") {
-        summary.runs.push({ ruleId: rule.id, runId: null, status: "already_recorded", scope: "account" });
+        summary.runs.push({
+          ruleId: rule.id,
+          runId: null,
+          status: "already_recorded",
+          scope: "account",
+        });
         continue;
       }
       throw err;

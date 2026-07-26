@@ -110,8 +110,13 @@ export async function deliverWebhook(
   const config = webhooksConfigSchema.safeParse(row.config);
   const secret = config.success ? config.data.signingSecret : undefined;
   const destination = params.url ?? (config.success ? config.data.defaultUrl : undefined);
-  if (!secret) return { delivered: false, detail: "no signing secret — reconnect the Webhooks integration" };
-  if (!destination) return { delivered: false, detail: "no destination URL — set a default Payload URL or one on the action" };
+  if (!secret)
+    return { delivered: false, detail: "no signing secret — reconnect the Webhooks integration" };
+  if (!destination)
+    return {
+      delivered: false,
+      detail: "no destination URL — set a default Payload URL or one on the action",
+    };
 
   const now = (deps.now ?? (() => new Date()))();
   const dayStart = utcDayStart(now);
@@ -140,7 +145,9 @@ export async function deliverWebhook(
         },
       }),
     );
-    const heldRow = await claimDelivery(deps, row.id, params, "held", { reason: "workspace_delivery_allowance" });
+    const heldRow = await claimDelivery(deps, row.id, params, "held", {
+      reason: "workspace_delivery_allowance",
+    });
     if (!heldRow) return { delivered: false, detail: "duplicate delivery skipped" };
     if (heldBefore === 0) {
       console.error(
@@ -207,7 +214,10 @@ export async function deliverWebhook(
         signal: controller.signal,
       });
       if (res.status >= 300 && res.status < 400) {
-        throw new IntegrationDeliveryError("webhook_redirect_refused", `destination answered a redirect (HTTP ${res.status}) — redirects are not followed`);
+        throw new IntegrationDeliveryError(
+          "webhook_redirect_refused",
+          `destination answered a redirect (HTTP ${res.status}) — redirects are not followed`,
+        );
       }
       if (res.status >= 400) {
         // Read the error body INSIDE the timeout scope and cap it at the
@@ -215,7 +225,10 @@ export async function deliverWebhook(
         // a multi-GB/slow 4xx body — res.text() would buffer all of it with no
         // active AbortSignal. The stream stops at the cap.
         const preview = await readCappedBody(res, controller.signal);
-        throw new IntegrationDeliveryError("webhook_rejected", `destination answered HTTP ${res.status}${preview ? ` — ${preview.slice(0, 140)}` : ""}`);
+        throw new IntegrationDeliveryError(
+          "webhook_rejected",
+          `destination answered HTTP ${res.status}${preview ? ` — ${preview.slice(0, 140)}` : ""}`,
+        );
       }
     } finally {
       clearTimeout(timer);

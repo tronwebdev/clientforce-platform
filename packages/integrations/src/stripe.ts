@@ -64,7 +64,11 @@ export class StripeAdapter implements FieldsIntegrationAdapter {
     baseUrl?: string;
     fetchImpl?: FetchLike;
   }) {
-    this.apiBase = (options?.baseUrl ?? process.env.STRIPE_BASE_URL ?? "https://api.stripe.com").replace(/\/$/, "");
+    this.apiBase = (
+      options?.baseUrl ??
+      process.env.STRIPE_BASE_URL ??
+      "https://api.stripe.com"
+    ).replace(/\/$/, "");
     this.fetchImpl = options?.fetchImpl ?? ((url, init) => fetch(url, init));
   }
 
@@ -99,7 +103,10 @@ export class StripeAdapter implements FieldsIntegrationAdapter {
       );
     }
     if (res.status >= 400) {
-      throw new IntegrationDeliveryError("link_unreachable", `payment link answered HTTP ${res.status}`);
+      throw new IntegrationDeliveryError(
+        "link_unreachable",
+        `payment link answered HTTP ${res.status}`,
+      );
     }
   }
 
@@ -108,11 +115,17 @@ export class StripeAdapter implements FieldsIntegrationAdapter {
     const data = await this.call(creds, "GET", "/v1/account");
     const id = typeof data.id === "string" ? data.id : "";
     if (!id) {
-      throw new IntegrationProviderError("PROVIDER_AUTH", "stripe /v1/account returned no account id", false);
+      throw new IntegrationProviderError(
+        "PROVIDER_AUTH",
+        "stripe /v1/account returned no account id",
+        false,
+      );
     }
     const settings = (data.settings ?? {}) as { dashboard?: { display_name?: unknown } };
     const displayName =
-      typeof settings.dashboard?.display_name === "string" ? settings.dashboard.display_name : undefined;
+      typeof settings.dashboard?.display_name === "string"
+        ? settings.dashboard.display_name
+        : undefined;
     const businessProfile = (data.business_profile ?? {}) as { name?: unknown };
     const businessName =
       typeof businessProfile.name === "string" ? businessProfile.name : displayName;
@@ -156,7 +169,11 @@ export class StripeAdapter implements FieldsIntegrationAdapter {
     const data = await this.call(creds, "POST", "/v1/webhook_endpoints", body);
     const id = typeof data.id === "string" ? data.id : "";
     if (!id) {
-      throw new IntegrationProviderError("PROVIDER_UNAVAILABLE", "stripe webhook endpoint create returned no id", true);
+      throw new IntegrationProviderError(
+        "PROVIDER_UNAVAILABLE",
+        "stripe webhook endpoint create returned no id",
+        true,
+      );
     }
     return {
       id,
@@ -224,10 +241,18 @@ export class StripeAdapter implements FieldsIntegrationAdapter {
       );
     }
     if (res.status === 429) {
-      throw new IntegrationProviderError("PROVIDER_RATE_LIMITED", "stripe rate limited (429)", true);
+      throw new IntegrationProviderError(
+        "PROVIDER_RATE_LIMITED",
+        "stripe rate limited (429)",
+        true,
+      );
     }
     if (res.status >= 500) {
-      throw new IntegrationProviderError("PROVIDER_UNAVAILABLE", `stripe error (HTTP ${res.status})`, true);
+      throw new IntegrationProviderError(
+        "PROVIDER_UNAVAILABLE",
+        `stripe error (HTTP ${res.status})`,
+        true,
+      );
     }
     if (res.status === 401) {
       throw new IntegrationProviderError("PROVIDER_AUTH", "stripe auth rejected (HTTP 401)", false);
@@ -236,7 +261,11 @@ export class StripeAdapter implements FieldsIntegrationAdapter {
     try {
       data = (await res.json()) as Record<string, unknown>;
     } catch {
-      throw new IntegrationProviderError("PROVIDER_UNAVAILABLE", "stripe returned a non-JSON response", true);
+      throw new IntegrationProviderError(
+        "PROVIDER_UNAVAILABLE",
+        "stripe returned a non-JSON response",
+        true,
+      );
     }
     if (res.ok) return data;
     const error = (data.error ?? {}) as { type?: unknown; code?: unknown; message?: unknown };

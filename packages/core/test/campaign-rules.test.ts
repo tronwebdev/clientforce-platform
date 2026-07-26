@@ -37,19 +37,33 @@ describe("campaign rule trigger union", () => {
   });
 
   it("bounds before_meeting hours to 1..336 (INT W2)", () => {
-    expect(campaignRuleTriggerSchema.safeParse({ kind: "before_meeting", hours: 0 }).success).toBe(false);
-    expect(campaignRuleTriggerSchema.safeParse({ kind: "before_meeting", hours: 337 }).success).toBe(false);
+    expect(campaignRuleTriggerSchema.safeParse({ kind: "before_meeting", hours: 0 }).success).toBe(
+      false,
+    );
+    expect(
+      campaignRuleTriggerSchema.safeParse({ kind: "before_meeting", hours: 337 }).success,
+    ).toBe(false);
     expect(campaignRuleTriggerSchema.safeParse({ kind: "before_meeting" }).success).toBe(false);
-    expect(campaignRuleTriggerSchema.safeParse({ kind: "before_meeting", hours: 336 }).success).toBe(true);
+    expect(
+      campaignRuleTriggerSchema.safeParse({ kind: "before_meeting", hours: 336 }).success,
+    ).toBe(true);
   });
 
   it("sameTrigger: before_meeting compares by hours; the payload-less meeting kinds are equal by kind (INT W2)", () => {
-    expect(sameTrigger({ kind: "before_meeting", hours: 24 }, { kind: "before_meeting", hours: 24 })).toBe(true);
-    expect(sameTrigger({ kind: "before_meeting", hours: 24 }, { kind: "before_meeting", hours: 2 })).toBe(false);
-    expect(sameTrigger({ kind: "meeting_rescheduled" }, { kind: "meeting_rescheduled" })).toBe(true);
+    expect(
+      sameTrigger({ kind: "before_meeting", hours: 24 }, { kind: "before_meeting", hours: 24 }),
+    ).toBe(true);
+    expect(
+      sameTrigger({ kind: "before_meeting", hours: 24 }, { kind: "before_meeting", hours: 2 }),
+    ).toBe(false);
+    expect(sameTrigger({ kind: "meeting_rescheduled" }, { kind: "meeting_rescheduled" })).toBe(
+      true,
+    );
     expect(sameTrigger({ kind: "meeting_canceled" }, { kind: "meeting_canceled" })).toBe(true);
     expect(sameTrigger({ kind: "meeting_canceled" }, { kind: "meeting_rescheduled" })).toBe(false);
-    expect(sameTrigger({ kind: "before_meeting", hours: 24 }, { kind: "sequence_quiet", days: 1 })).toBe(false);
+    expect(
+      sameTrigger({ kind: "before_meeting", hours: 24 }, { kind: "sequence_quiet", days: 1 }),
+    ).toBe(false);
   });
 
   it("rejects unknown kinds, empty intent sets, and out-of-range quiet days", () => {
@@ -57,12 +71,12 @@ describe("campaign rule trigger union", () => {
     expect(
       campaignRuleTriggerSchema.safeParse({ kind: "reply_classified", intents: [] }).success,
     ).toBe(false);
-    expect(
-      campaignRuleTriggerSchema.safeParse({ kind: "sequence_quiet", days: 0 }).success,
-    ).toBe(false);
-    expect(
-      campaignRuleTriggerSchema.safeParse({ kind: "sequence_quiet", days: 366 }).success,
-    ).toBe(false);
+    expect(campaignRuleTriggerSchema.safeParse({ kind: "sequence_quiet", days: 0 }).success).toBe(
+      false,
+    );
+    expect(campaignRuleTriggerSchema.safeParse({ kind: "sequence_quiet", days: 366 }).success).toBe(
+      false,
+    );
   });
 });
 
@@ -72,9 +86,9 @@ describe("campaign rule condition union", () => {
       campaignRuleConditionSchema.safeParse({ kind: "keyword_contains", keywords: ["pricing"] })
         .success,
     ).toBe(true);
-    expect(
-      campaignRuleConditionSchema.safeParse({ kind: "regex", pattern: ".*" }).success,
-    ).toBe(false);
+    expect(campaignRuleConditionSchema.safeParse({ kind: "regex", pattern: ".*" }).success).toBe(
+      false,
+    );
     expect(
       campaignRuleConditionSchema.safeParse({ kind: "keyword_contains", keywords: [] }).success,
     ).toBe(false);

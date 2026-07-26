@@ -73,7 +73,13 @@ export interface RuleEngineDeps {
     sourceKey: string;
     /** The action's url override (absent → the integration default). */
     url?: string;
-    event: { id: string; type: string; occurredAt: string; contactId?: string | null; payload: unknown };
+    event: {
+      id: string;
+      type: string;
+      occurredAt: string;
+      contactId?: string | null;
+      payload: unknown;
+    };
     rule: { id: string; name?: string };
   }) => Promise<{ delivered: boolean; target?: string; detail?: string }>;
   /**
@@ -88,7 +94,12 @@ export interface RuleEngineDeps {
     sourceKey: string;
     op: "create_deal" | "update_stage";
     /** Required for create_deal (the upsert); ignored for update_stage. */
-    contact?: { email: string; firstName?: string | null; lastName?: string | null; company?: string | null };
+    contact?: {
+      email: string;
+      firstName?: string | null;
+      lastName?: string | null;
+      company?: string | null;
+    };
     dealname?: string;
     stage?: string;
     dealId?: string;

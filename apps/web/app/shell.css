@@ -48,7 +48,12 @@
   height: 32px;
   border-radius: 9px; /* §1 literal */
   /* sidebar.js GRAD literal — 3-stop cyan→green→lime */
-  background: linear-gradient(135deg, rgb(54 215 237), rgb(53 232 52) 55%, rgb(208 245 107)); /* #36D7ED→#35E834→#D0F56B */
+  background: linear-gradient(
+    135deg,
+    rgb(54 215 237),
+    rgb(53 232 52) 55%,
+    rgb(208 245 107)
+  ); /* #36D7ED→#35E834→#D0F56B */
   color: var(--cf-color-near-black);
   display: flex;
   align-items: center;

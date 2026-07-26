@@ -45,11 +45,14 @@ function leadCheck(reply: string): { ok: boolean; detail: string } {
     );
   const outcomeAt = firstAt(OUTCOME_TERMS);
   const railAt = firstAt(RAIL_TERMS);
-  if (!Number.isFinite(outcomeAt)) return { ok: false, detail: "no outcome-first term in the reply" };
+  if (!Number.isFinite(outcomeAt))
+    return { ok: false, detail: "no outcome-first term in the reply" };
   if (railAt < outcomeAt) return { ok: false, detail: "deliverability LEADS the reply" };
   return {
     ok: true,
-    detail: Number.isFinite(railAt) ? "outcome-led before any rail term" : "outcome-led, no rail terms",
+    detail: Number.isFinite(railAt)
+      ? "outcome-led before any rail term"
+      : "outcome-led, no rail terms",
   };
 }
 
@@ -72,15 +75,21 @@ async function main(): Promise<void> {
     console.log(`[sandbox] A${i + 1}: ${reply}`);
     if (i < CHECKED_TURNS) {
       const check = leadCheck(reply);
-      console.log(`[sandbox] lead-check A${i + 1}: ${check.ok ? "PASS" : "FAIL"} — ${check.detail}`);
+      console.log(
+        `[sandbox] lead-check A${i + 1}: ${check.ok ? "PASS" : "FAIL"} — ${check.detail}`,
+      );
       if (!check.ok) failed = true;
     }
   }
   if (failed) {
-    console.error("\n[sandbox] FAIL — a substantive answer led with the rail (finding 4 not fixed)");
+    console.error(
+      "\n[sandbox] FAIL — a substantive answer led with the rail (finding 4 not fixed)",
+    );
     process.exit(1);
   }
-  console.log("\n[sandbox] PASS — substantive answers lead outcome-first; the rail answers when asked");
+  console.log(
+    "\n[sandbox] PASS — substantive answers lead outcome-first; the rail answers when asked",
+  );
 }
 
 main().catch((err) => {

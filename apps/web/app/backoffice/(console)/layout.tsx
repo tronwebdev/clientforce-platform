@@ -14,7 +14,14 @@ export default async function BackofficeConsoleLayout({ children }: { children: 
   if (!staff) redirect("/backoffice/login");
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", background: "var(--cf-color-bg, #fbf7f0)", fontFamily: "'Hanken Grotesk'" }}>
+    <div
+      style={{
+        display: "flex",
+        minHeight: "100vh",
+        background: "var(--cf-color-bg, #fbf7f0)",
+        fontFamily: "'Hanken Grotesk'",
+      }}
+    >
       <aside
         style={{
           width: 240,
@@ -26,7 +33,15 @@ export default async function BackofficeConsoleLayout({ children }: { children: 
           flexDirection: "column",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20, padding: "0 6px" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            marginBottom: 20,
+            padding: "0 6px",
+          }}
+        >
           <span
             style={{
               width: 26,
@@ -60,11 +75,19 @@ export default async function BackofficeConsoleLayout({ children }: { children: 
           <NavLink href="/backoffice/audit" label="Audit log" />
         </nav>
 
-        <div style={{ marginTop: "auto", paddingTop: 16, borderTop: "1px solid var(--cf-color-hairline, #ebe3d6)" }}>
+        <div
+          style={{
+            marginTop: "auto",
+            paddingTop: 16,
+            borderTop: "1px solid var(--cf-color-hairline, #ebe3d6)",
+          }}
+        >
           <div style={{ fontSize: 12, color: "#5b6560", padding: "0 6px 8px" }}>
             <div style={{ fontWeight: 600, color: "#0e1512" }}>{staff.name ?? staff.email}</div>
             <div>{staff.email}</div>
-            <div style={{ marginTop: 2, textTransform: "uppercase", fontSize: 10, letterSpacing: 0.4 }}>
+            <div
+              style={{ marginTop: 2, textTransform: "uppercase", fontSize: 10, letterSpacing: 0.4 }}
+            >
               {staff.role}
             </div>
           </div>

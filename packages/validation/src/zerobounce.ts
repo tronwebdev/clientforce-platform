@@ -46,7 +46,8 @@ export class ZeroBounceProvider implements EmailValidationProvider {
 
   constructor(
     private readonly apiKey = process.env.ZEROBOUNCE_API_KEY,
-    private readonly bulkBaseUrl = process.env.ZEROBOUNCE_BULK_BASE_URL ?? "https://bulkapi.zerobounce.net",
+    private readonly bulkBaseUrl = process.env.ZEROBOUNCE_BULK_BASE_URL ??
+      "https://bulkapi.zerobounce.net",
     private readonly baseUrl = process.env.ZEROBOUNCE_BASE_URL ?? "https://api.zerobounce.net",
     private readonly fetchImpl: typeof fetch = fetch,
   ) {}
@@ -65,13 +66,20 @@ export class ZeroBounceProvider implements EmailValidationProvider {
   /** Cheap auth/reachability probe (credit balance) — the preflight. */
   async preflight(): Promise<{ ok: boolean; detail: string }> {
     const key = this.key();
-    const res = await this.request(`${this.baseUrl}/v2/getcredits?api_key=${encodeURIComponent(key)}`, {
-      method: "GET",
-    });
+    const res = await this.request(
+      `${this.baseUrl}/v2/getcredits?api_key=${encodeURIComponent(key)}`,
+      {
+        method: "GET",
+      },
+    );
     const body = (await res.json().catch(() => ({}))) as { Credits?: string };
     const credits = Number(body.Credits ?? -1);
     if (credits < 0) {
-      throw new ValidationProviderError("PROVIDER_AUTH", "ZeroBounce rejected the API key (getcredits -1)", false);
+      throw new ValidationProviderError(
+        "PROVIDER_AUTH",
+        "ZeroBounce rejected the API key (getcredits -1)",
+        false,
+      );
     }
     return { ok: true, detail: `zerobounce reachable — ${credits} credits remaining` };
   }
@@ -111,7 +119,11 @@ export class ZeroBounceProvider implements EmailValidationProvider {
         out.push({
           address: address.toLowerCase(),
           verdict: ZEROBOUNCE_STATUS_MAP[status] ?? "risky",
-          ...(entry?.sub_status ? { subStatus: entry.sub_status } : status && !ZEROBOUNCE_STATUS_MAP[status] ? { subStatus: status } : {}),
+          ...(entry?.sub_status
+            ? { subStatus: entry.sub_status }
+            : status && !ZEROBOUNCE_STATUS_MAP[status]
+              ? { subStatus: status }
+              : {}),
         });
       }
     }
@@ -131,10 +143,18 @@ export class ZeroBounceProvider implements EmailValidationProvider {
       );
     }
     if (res.status === 429) {
-      throw new ValidationProviderError("PROVIDER_RATE_LIMITED", "ZeroBounce rate limit (HTTP 429)", true);
+      throw new ValidationProviderError(
+        "PROVIDER_RATE_LIMITED",
+        "ZeroBounce rate limit (HTTP 429)",
+        true,
+      );
     }
     if (res.status === 401 || res.status === 403) {
-      throw new ValidationProviderError("PROVIDER_AUTH", `ZeroBounce auth failed (HTTP ${res.status})`, false);
+      throw new ValidationProviderError(
+        "PROVIDER_AUTH",
+        `ZeroBounce auth failed (HTTP ${res.status})`,
+        false,
+      );
     }
     if (!res.ok) {
       const detail = await res.text().catch(() => "");

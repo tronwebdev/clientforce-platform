@@ -58,7 +58,11 @@ export function createValidationWorker(
   return new Worker<ValidationJob>(
     VALIDATION_QUEUE_NAME,
     async (job) => {
-      const result = await processValidationBatchChunk(deps, job.data.workspaceId, job.data.batchId);
+      const result = await processValidationBatchChunk(
+        deps,
+        job.data.workspaceId,
+        job.data.batchId,
+      );
       if (result.verdictsLanded && opts.onVerdictsLanded) {
         await opts.onVerdictsLanded(result);
       }
@@ -66,7 +70,11 @@ export function createValidationWorker(
         await enqueueValidationBatch(queue, job.data, result.requeueDelayMs ?? 0);
       }
     },
-    { connection: connectionFrom(opts.redisUrl), prefix: BULL_PREFIX, concurrency: opts.concurrency ?? 4 },
+    {
+      connection: connectionFrom(opts.redisUrl),
+      prefix: BULL_PREFIX,
+      concurrency: opts.concurrency ?? 4,
+    },
   );
 }
 

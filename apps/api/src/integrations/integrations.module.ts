@@ -11,6 +11,9 @@ import { integrationsDepsProvider } from "./integrations.providers";
 @Module({
   imports: [DbModule],
   controllers: [IntegrationsController, CalendlyWebhookController, StripeWebhookController],
-  providers: [{ provide: EVENTS_PUBLISHER, useClass: BusOrInlinePublisher }, integrationsDepsProvider],
+  providers: [
+    { provide: EVENTS_PUBLISHER, useClass: BusOrInlinePublisher },
+    integrationsDepsProvider,
+  ],
 })
 export class IntegrationsModule {}

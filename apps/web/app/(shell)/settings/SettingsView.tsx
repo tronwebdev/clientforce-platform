@@ -9,7 +9,12 @@
  */
 import { useEffect, useState } from "react";
 import { BrandKit } from "./BrandKit";
-import { EmailSendersSection, MailerSendersSection, SmsSendersSection, SuppressionSection } from "./ChannelsSections";
+import {
+  EmailSendersSection,
+  MailerSendersSection,
+  SmsSendersSection,
+  SuppressionSection,
+} from "./ChannelsSections";
 import {
   BillingSection,
   CustomFieldsSection,
@@ -22,7 +27,23 @@ import {
 import { BRICO, Toast } from "./shared";
 
 /** Prototype line 922 — `notifications`/`api`/`security` are valid hashes with no render block. */
-const VALID_SECTIONS = ["profile", "billing", "custom", "team", "brand", "schedules", "usage", "email", "mailer", "phone", "whatsapp", "suppress", "notifications", "api", "security"];
+const VALID_SECTIONS = [
+  "profile",
+  "billing",
+  "custom",
+  "team",
+  "brand",
+  "schedules",
+  "usage",
+  "email",
+  "mailer",
+  "phone",
+  "whatsapp",
+  "suppress",
+  "notifications",
+  "api",
+  "security",
+];
 
 interface NavItem {
   id: string;
@@ -50,9 +71,18 @@ const COMM_NAV: NavItem[] = [
   { id: "suppress", icon: "⊘", label: "Suppression list", iconColor: "#C9543F" },
 ];
 
-const ACTIVE_PILL = "linear-gradient(96deg,rgba(53,232,52,.20) 0%,rgba(54,215,237,.10) 60%,rgba(54,215,237,0) 100%)";
+const ACTIVE_PILL =
+  "linear-gradient(96deg,rgba(53,232,52,.20) 0%,rgba(54,215,237,.10) 60%,rgba(54,215,237,0) 100%)";
 
-const groupHead = (topBorder: boolean): React.CSSProperties => ({ fontSize: 11, fontWeight: 700, letterSpacing: ".1em", textTransform: "uppercase", color: "#9AA59E", padding: "14px 18px 8px", ...(topBorder ? { borderTop: "1px solid #F2EEE4" } : {}) });
+const groupHead = (topBorder: boolean): React.CSSProperties => ({
+  fontSize: 11,
+  fontWeight: 700,
+  letterSpacing: ".1em",
+  textTransform: "uppercase",
+  color: "#9AA59E",
+  padding: "14px 18px 8px",
+  ...(topBorder ? { borderTop: "1px solid #F2EEE4" } : {}),
+});
 
 export function SettingsView() {
   const [section, setSection] = useState("profile");
@@ -72,36 +102,124 @@ export function SettingsView() {
           setSection(s.id);
           setToast("");
         }}
-        style={{ display: "flex", alignItems: "center", gap: 11, margin: "3px 10px", padding: "7px 10px", borderRadius: 11, fontSize: 14, fontWeight: on ? 700 : 600, color: on ? "#0E1512" : "#3B463F", background: on ? ACTIVE_PILL : "transparent", boxShadow: on ? "0 1px 2px rgba(14,21,18,.06)" : "none", cursor: "pointer" }}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 11,
+          margin: "3px 10px",
+          padding: "7px 10px",
+          borderRadius: 11,
+          fontSize: 14,
+          fontWeight: on ? 700 : 600,
+          color: on ? "#0E1512" : "#3B463F",
+          background: on ? ACTIVE_PILL : "transparent",
+          boxShadow: on ? "0 1px 2px rgba(14,21,18,.06)" : "none",
+          cursor: "pointer",
+        }}
         data-testid={`nav-${s.id}`}
       >
-        <span style={{ width: 28, height: 28, borderRadius: 8, flex: "none", background: on ? "linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B)" : "#FFFFFF", color: on ? "#0A0F0C" : (s.iconColor ?? "#5C6B62"), border: `1px solid ${on ? "rgba(0,0,0,.06)" : "#EAE3D5"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, boxSizing: "border-box" }}>{s.icon}</span>
+        <span
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 8,
+            flex: "none",
+            background: on ? "linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B)" : "#FFFFFF",
+            color: on ? "#0A0F0C" : (s.iconColor ?? "#5C6B62"),
+            border: `1px solid ${on ? "rgba(0,0,0,.06)" : "#EAE3D5"}`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 14,
+            boxSizing: "border-box",
+          }}
+        >
+          {s.icon}
+        </span>
         <span style={{ flex: 1 }}>{s.label}</span>
-        {s.beta ? <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".04em", color: "#1192A6", background: "rgba(54,215,237,.16)", borderRadius: 6, padding: "2px 7px" }}>BETA</span> : null}
+        {s.beta ? (
+          <span
+            style={{
+              fontSize: 10,
+              fontWeight: 800,
+              letterSpacing: ".04em",
+              color: "#1192A6",
+              background: "rgba(54,215,237,.16)",
+              borderRadius: 6,
+              padding: "2px 7px",
+            }}
+          >
+            BETA
+          </span>
+        ) : null}
       </div>
     );
   };
 
   return (
     // prototype renders at the browser-default line-height, not the app body's 1.5
-    <div style={{ flex: 1, minWidth: 0, background: "#FBF7F0", display: "flex", flexDirection: "column", fontFamily: "'Hanken Grotesk',sans-serif", lineHeight: "normal" }} data-testid="settings-view">
+    <div
+      style={{
+        flex: 1,
+        minWidth: 0,
+        background: "#FBF7F0",
+        display: "flex",
+        flexDirection: "column",
+        fontFamily: "'Hanken Grotesk',sans-serif",
+        lineHeight: "normal",
+      }}
+      data-testid="settings-view"
+    >
       {/* page header */}
       <div style={{ padding: "26px 30px 0" }}>
-        <div style={{ fontFamily: BRICO, fontWeight: 700, fontSize: 28, letterSpacing: "-.02em", color: "#0E1512" }}>Settings</div>
-        <div style={{ fontSize: 15, color: "#5C6B62", marginBottom: 20 }}>Account, workspace and communication channels.</div>
+        <div
+          style={{
+            fontFamily: BRICO,
+            fontWeight: 700,
+            fontSize: 28,
+            letterSpacing: "-.02em",
+            color: "#0E1512",
+          }}
+        >
+          Settings
+        </div>
+        <div style={{ fontSize: 15, color: "#5C6B62", marginBottom: 20 }}>
+          Account, workspace and communication channels.
+        </div>
       </div>
 
       <div style={{ display: "flex", gap: 26, padding: "0 30px 34px", alignItems: "flex-start" }}>
         {/* sub-nav rail */}
         <div style={{ flex: "0 0 226px", position: "sticky", top: 20 }} data-testid="settings-nav">
-          <div style={{ background: "linear-gradient(168deg,#FFFFFF 0%,#FBF8F1 46%,#F3F7F3 100%)", border: "1px solid #EAE3D5", borderRadius: 16, overflow: "hidden", boxShadow: "0 1px 0 rgba(255,255,255,.7) inset,0 10px 30px rgba(14,21,18,.07)" }}>
+          <div
+            style={{
+              background: "linear-gradient(168deg,#FFFFFF 0%,#FBF8F1 46%,#F3F7F3 100%)",
+              border: "1px solid #EAE3D5",
+              borderRadius: 16,
+              overflow: "hidden",
+              boxShadow: "0 1px 0 rgba(255,255,255,.7) inset,0 10px 30px rgba(14,21,18,.07)",
+            }}
+          >
             <div style={groupHead(false)}>Account</div>
             {ACCOUNT_NAV.map(navItem)}
             <div style={groupHead(true)}>Workspace</div>
             {WORKSPACE_NAV.map(navItem)}
             <div style={groupHead(true)}>Communication</div>
             {COMM_NAV.map(navItem)}
-            <div onClick={() => setToast("Logging out…")} style={{ padding: "11px 18px", borderTop: "1px solid #F2EEE4", fontSize: 14, color: "#C9543F", fontWeight: 600, cursor: "pointer" }} data-testid="nav-logout">Log out</div>
+            <div
+              onClick={() => setToast("Logging out…")}
+              style={{
+                padding: "11px 18px",
+                borderTop: "1px solid #F2EEE4",
+                fontSize: 14,
+                color: "#C9543F",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+              data-testid="nav-logout"
+            >
+              Log out
+            </div>
           </div>
         </div>
 

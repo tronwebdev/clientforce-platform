@@ -39,9 +39,22 @@ import {
 } from "@clientforce/core";
 import { OutcomeBadge } from "../../../../../components/OutcomeBadge";
 import { StepEditorDrawer } from "../../../../../components/sequence/StepEditorDrawer";
-import { chainMeta, stepPillText, SubcampaignSection } from "../../../../../components/sequence/SubcampaignCards";
-import { SubcampaignCreator, type SubcampaignCreated } from "../../../../../components/sequence/SubcampaignCreator";
-import { GRAD, guidedCardDisplay, LIVE_GRAPH_NOTICE, type BriefDraft, type PreviewState } from "../../../../../components/sequence/shared";
+import {
+  chainMeta,
+  stepPillText,
+  SubcampaignSection,
+} from "../../../../../components/sequence/SubcampaignCards";
+import {
+  SubcampaignCreator,
+  type SubcampaignCreated,
+} from "../../../../../components/sequence/SubcampaignCreator";
+import {
+  GRAD,
+  guidedCardDisplay,
+  LIVE_GRAPH_NOTICE,
+  type BriefDraft,
+  type PreviewState,
+} from "../../../../../components/sequence/shared";
 import type { AgentViewData } from "./AgentView";
 import { cf, intentTint } from "./shared";
 import { mainPath, mainSteps, replyBranchOf, strategyChains } from "../../../../../lib/graph-path";
@@ -51,14 +64,34 @@ type StepNode = Extract<GraphNode, { type: "step" }>;
 
 /** Add-step picker rows — Campaign View canon order; live channels enable,
  *  the rest render the honest capability disclosure (never a dead pick). */
-const ADD_TYPES: Array<{ channel: Channel; label: string; icon: string; chipbg: string; chipfg: string }> = [
+const ADD_TYPES: Array<{
+  channel: Channel;
+  label: string;
+  icon: string;
+  chipbg: string;
+  chipfg: string;
+}> = [
   { channel: "email", label: "Email", icon: "✉", chipbg: "rgba(53,232,52,.13)", chipfg: "#16A82A" },
   { channel: "sms", label: "SMS", icon: "💬", chipbg: "rgba(54,215,237,.16)", chipfg: "#1192A6" },
-  { channel: "whatsapp", label: "WhatsApp", icon: "🗨", chipbg: "rgba(208,245,107,.5)", chipfg: "#6B7A1F" },
+  {
+    channel: "whatsapp",
+    label: "WhatsApp",
+    icon: "🗨",
+    chipbg: "rgba(208,245,107,.5)",
+    chipfg: "#6B7A1F",
+  },
   { channel: "voice", label: "Voice", icon: "☎", chipbg: "#ECE7DC", chipfg: "#0E1512" },
 ];
 
-export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | null; outcomes: CampaignOutcomes | null; onChanged?: () => Promise<void> | void }) {
+export function StepsTab({
+  view,
+  outcomes,
+  onChanged,
+}: {
+  view: AgentViewData | null;
+  outcomes: CampaignOutcomes | null;
+  onChanged?: () => Promise<void> | void;
+}) {
   // ── editor state (the wizard orchestrator's shape — the drawer is shared) ──
   const [editNode, setEditNode] = useState<StepNode | null>(null);
   const [editStrategyIntent, setEditStrategyIntent] = useState<string | null>(null);
@@ -108,7 +141,9 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
   // scope), inline chain editing, and the email-connectivity honest-absence
   // input for the trigger picker. ──
   const [emailAvailable, setEmailAvailable] = useState(false);
-  const [subRules, setSubRules] = useState<Array<{ ruleId: string; targetNodeId: string; trigger: CampaignRuleTrigger }>>([]);
+  const [subRules, setSubRules] = useState<
+    Array<{ ruleId: string; targetNodeId: string; trigger: CampaignRuleTrigger }>
+  >([]);
   const [subNewOpen, setSubNewOpen] = useState(false);
   const [subExpandedId, setSubExpandedId] = useState<string | null>(null);
   // The open editor's sub-campaign container (null = main/strategy) — sub
@@ -116,7 +151,9 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
   const [editSubId, setEditSubId] = useState<string | null>(null);
 
   useEffect(() => {
-    void cf("contact-fields").then(setFieldDefs).catch(() => {});
+    void cf("contact-fields")
+      .then(setFieldDefs)
+      .catch(() => {});
     // DEC-061 capability rule — sms steps are addable only with an ACTIVE Twilio sender.
     void cf("senders")
       .then((rows: Array<{ type?: string; status?: string }>) => {
@@ -151,9 +188,11 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
     if (!rulesAgentId) return;
     let cancelled = false;
     cf(`planner/subcampaign-rules?agentId=${rulesAgentId}`)
-      .then((rows: Array<{ ruleId: string; targetNodeId: string; trigger: CampaignRuleTrigger }>) => {
-        if (!cancelled) setSubRules(rows);
-      })
+      .then(
+        (rows: Array<{ ruleId: string; targetNodeId: string; trigger: CampaignRuleTrigger }>) => {
+          if (!cancelled) setSubRules(rows);
+        },
+      )
       .catch(() => {
         if (!cancelled) setSubRules([]);
       });
@@ -164,12 +203,39 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
 
   if (!view) {
     return (
-      <div style={{ maxWidth: 820, margin: "0 auto", paddingLeft: 48 }} data-testid="steps-skeleton">
+      <div
+        style={{ maxWidth: 820, margin: "0 auto", paddingLeft: 48 }}
+        data-testid="steps-skeleton"
+      >
         {[0, 1, 2].map((i) => (
           <div key={i} style={{ display: "flex", gap: 14, marginBottom: 14 }}>
-            <span style={{ width: 38, height: 38, borderRadius: 11, background: "#F2EEE4", flex: "none" }} />
-            <div style={{ flex: 1, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 14, padding: "15px 18px" }}>
-              <div style={{ height: 12, width: "30%", background: "#F2EEE4", borderRadius: 6, marginBottom: 8 }} />
+            <span
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 11,
+                background: "#F2EEE4",
+                flex: "none",
+              }}
+            />
+            <div
+              style={{
+                flex: 1,
+                background: "#fff",
+                border: "1px solid #EBE3D6",
+                borderRadius: 14,
+                padding: "15px 18px",
+              }}
+            >
+              <div
+                style={{
+                  height: 12,
+                  width: "30%",
+                  background: "#F2EEE4",
+                  borderRadius: 6,
+                  marginBottom: 8,
+                }}
+              />
               <div style={{ height: 10, width: "70%", background: "#F7F2EA", borderRadius: 6 }} />
             </div>
           </div>
@@ -181,10 +247,31 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
   const agentId = view.agent.id;
   if (!graph) {
     return (
-      <div style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 16, padding: "64px 20px", textAlign: "center" }} data-testid="steps-empty">
+      <div
+        style={{
+          background: "#fff",
+          border: "1px solid #EBE3D6",
+          borderRadius: 16,
+          padding: "64px 20px",
+          textAlign: "center",
+        }}
+        data-testid="steps-empty"
+      >
         <div style={{ fontSize: 26, marginBottom: 10 }}>⋔</div>
-        <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 20, color: "#0E1512", marginBottom: 6 }}>No sequence yet</div>
-        <div style={{ fontSize: 13.5, color: "#8A7F6B" }}>Plan the campaign from the Create Agent wizard to see its steps here.</div>
+        <div
+          style={{
+            fontFamily: "'Bricolage Grotesque',sans-serif",
+            fontWeight: 700,
+            fontSize: 20,
+            color: "#0E1512",
+            marginBottom: 6,
+          }}
+        >
+          No sequence yet
+        </div>
+        <div style={{ fontSize: 13.5, color: "#8A7F6B" }}>
+          Plan the campaign from the Create Agent wizard to see its steps here.
+        </div>
       </div>
     );
   }
@@ -197,7 +284,9 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
   const isDraft = view.agent.status === "DRAFT";
   const w = view.guardrails?.sendingWindow;
   const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  const days = w ? `${dayNames[(w.days[0] ?? 1) - 1]}–${dayNames[(w.days[w.days.length - 1] ?? 5) - 1]}` : "Mon–Fri";
+  const days = w
+    ? `${dayNames[(w.days[0] ?? 1) - 1]}–${dayNames[(w.days[w.days.length - 1] ?? 5) - 1]}`
+    : "Mon–Fri";
   // G3 (DEC-075): mode applies at the NEXT plan — mismatch flips the
   // Regenerate label (one semantics with the Settings toggle, never two).
   const storedMode = view.guardrails?.composeMode ?? "scripted";
@@ -216,7 +305,10 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
   async function putGraph(updated: CampaignGraph, busy: string): Promise<string | null> {
     setBusyMsg(busy);
     try {
-      await cf("planner/graph", { method: "PUT", body: JSON.stringify({ agentId, graph: updated }) });
+      await cf("planner/graph", {
+        method: "PUT",
+        body: JSON.stringify({ agentId, graph: updated }),
+      });
       await onChanged?.();
       return null;
     } catch (err) {
@@ -240,7 +332,12 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
         method: "PATCH",
         body: JSON.stringify({
           guardrails: {
-            sendingWindow: g?.sendingWindow ?? { days: [1, 2, 3, 4, 5], start: "09:00", end: "17:00", timezone: "UTC" },
+            sendingWindow: g?.sendingWindow ?? {
+              days: [1, 2, 3, 4, 5],
+              start: "09:00",
+              end: "17:00",
+              timezone: "UTC",
+            },
             dailyCap: g?.dailyCap ?? { email: 200 },
             consent: g?.consent ?? null,
             tracking: g?.tracking ?? { openTracking: true, linkTracking: true },
@@ -272,7 +369,11 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
     draftRef.current = null;
   }
 
-  function openEditor(n: StepNode, strategyIntent: string | null, subcampaignId: string | null = null) {
+  function openEditor(
+    n: StepNode,
+    strategyIntent: string | null,
+    subcampaignId: string | null = null,
+  ) {
     editEpochRef.current += 1;
     setEditNode(n);
     setEditStrategyIntent(strategyIntent);
@@ -309,7 +410,9 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
       return null;
     }
     if (editBrief.talkingPoints.length < BRIEF_TALKING_POINTS_MIN) {
-      setDrawerError(`Add at least ${BRIEF_TALKING_POINTS_MIN} talking points — the composer needs material to draw from.`);
+      setDrawerError(
+        `Add at least ${BRIEF_TALKING_POINTS_MIN} talking points — the composer needs material to draw from.`,
+      );
       return null;
     }
     return {
@@ -361,7 +464,7 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
       const idx = steps.findIndex((s) => s.id === editNode.id) + 1;
       const arc = selectStrategy(view.agent.goal, view.agent.category ?? null).arc;
       const seed = deriveBriefSeed(editNode, arcRoleAt(arc.roles, idx, steps.length));
-      const channel = editNode.channel === "sms" ? "sms" as const : "email" as const;
+      const channel = editNode.channel === "sms" ? ("sms" as const) : ("email" as const);
       seedRef.current = {
         objective: seed.objective,
         subjectHint: channel === "email" ? (seed.subjectHint ?? "") : "",
@@ -415,11 +518,15 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
         setEditSubject(subject);
         setEditBody(body);
       } else if (res.refused) {
-        setDrawerError(`Composer refused — ${res.refused.reason}${res.refused.detail ? `: ${res.refused.detail}` : ""}. Write the copy yourself, or fix the brief and retry.`);
+        setDrawerError(
+          `Composer refused — ${res.refused.reason}${res.refused.detail ? `: ${res.refused.detail}` : ""}. Write the copy yourself, or fix the brief and retry.`,
+        );
       }
     } catch {
       if (editEpochRef.current === epoch) {
-        setDrawerError("Drafting isn't available right now — AI composing may not be configured for this environment yet. You can write the copy yourself.");
+        setDrawerError(
+          "Drafting isn't available right now — AI composing may not be configured for this environment yet. You can write the copy yourself.",
+        );
       }
     } finally {
       setDraftBusy(false);
@@ -532,7 +639,10 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
     if (!graph) return;
     let result: { graph: CampaignGraph; stepId: string };
     try {
-      result = addStepMutation(graph, { container: { kind: "subcampaign", subcampaignId }, channel: "email" });
+      result = addStepMutation(graph, {
+        container: { kind: "subcampaign", subcampaignId },
+        channel: "email",
+      });
     } catch (err) {
       setActionError(err instanceof GraphMutationError ? err.message : String(err));
       return;
@@ -612,7 +722,11 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
     try {
       const res = await cf("planner/compose-preview", {
         method: "POST",
-        body: JSON.stringify({ agentId, stepNodeId: node.id, ...(staged ? { brief: staged } : {}) }),
+        body: JSON.stringify({
+          agentId,
+          stepNodeId: node.id,
+          ...(staged ? { brief: staged } : {}),
+        }),
       });
       if (editEpochRef.current !== epoch) return; // editor moved on — drop the stale preview
       if (res.composed) {
@@ -620,14 +734,23 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
           kind: "composed",
           ...(res.composed.subject ? { subject: res.composed.subject } : {}),
           body: res.composed.body,
-          credits: res.credits ?? (node.channel === "sms" ? GUIDED_SMS_CREDITS : GUIDED_EMAIL_CREDITS),
+          credits:
+            res.credits ?? (node.channel === "sms" ? GUIDED_SMS_CREDITS : GUIDED_EMAIL_CREDITS),
         });
       } else if (res.refused) {
-        setPreview({ kind: "refused", reason: res.refused.reason, detail: res.refused.detail ?? "" });
+        setPreview({
+          kind: "refused",
+          reason: res.refused.reason,
+          detail: res.refused.detail ?? "",
+        });
       }
     } catch {
       if (editEpochRef.current === epoch) {
-        setPreview({ kind: "error", message: "Preview isn't available right now — AI composing may not be configured for this environment yet." });
+        setPreview({
+          kind: "error",
+          message:
+            "Preview isn't available right now — AI composing may not be configured for this environment yet.",
+        });
       }
     } finally {
       setPreviewBusy(false);
@@ -637,7 +760,10 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
   async function sampleCompose() {
     if (!editNode || !editBrief) return;
     if (editBrief.talkingPoints.length < BRIEF_TALKING_POINTS_MIN || !editBrief.objective.trim()) {
-      setPreview({ kind: "error", message: `The brief needs an objective and at least ${BRIEF_TALKING_POINTS_MIN} talking points before a sample can compose.` });
+      setPreview({
+        kind: "error",
+        message: `The brief needs an objective and at least ${BRIEF_TALKING_POINTS_MIN} talking points before a sample can compose.`,
+      });
       return;
     }
     await sampleComposeStaged({
@@ -645,7 +771,9 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
       talkingPoints: editBrief.talkingPoints,
       ...(editBrief.mustSay.length > 0 ? { mustSay: editBrief.mustSay } : {}),
       ...(editBrief.neverSay.length > 0 ? { neverSay: editBrief.neverSay } : {}),
-      ...(editBrief.channel === "email" && editBrief.subjectHint.trim() ? { subjectHint: editBrief.subjectHint.trim() } : {}),
+      ...(editBrief.channel === "email" && editBrief.subjectHint.trim()
+        ? { subjectHint: editBrief.subjectHint.trim() }
+        : {}),
     });
   }
 
@@ -674,7 +802,9 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
       days: meta.days,
     };
   });
-  const expandedSub = subExpandedId ? subChains.find((s) => s.node.id === subExpandedId) : undefined;
+  const expandedSub = subExpandedId
+    ? subChains.find((s) => s.node.id === subExpandedId)
+    : undefined;
 
   const editStepIndex = editNode
     ? editSubId
@@ -687,23 +817,122 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
 
   /** Delay row (Campaign View canon: pill → inline − / amount / + / Done,
    *  clamp 1–30) — shared by the main path and W3's strategy chains. */
-  function renderDelayRow(n: Extract<GraphNode, { type: "delay" }>, indent: number, tidPrefix: string) {
+  function renderDelayRow(
+    n: Extract<GraphNode, { type: "delay" }>,
+    indent: number,
+    tidPrefix: string,
+  ) {
     const editing = delayEditId === n.id;
     return (
-      <div key={n.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: `4px 0 4px ${indent}px` }}>
-        <span style={{ width: 2, height: 32, background: "#D8CFBE", marginLeft: 17, flex: "none" }} />
+      <div
+        key={n.id}
+        style={{ display: "flex", alignItems: "center", gap: 12, padding: `4px 0 4px ${indent}px` }}
+      >
+        <span
+          style={{ width: 2, height: 32, background: "#D8CFBE", marginLeft: 17, flex: "none" }}
+        />
         {editing ? (
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 9, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 100, padding: "4px 6px 4px 14px" }} data-testid={`${tidPrefix}-editor`}>
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 9,
+              background: "#fff",
+              border: "1px solid #EBE3D6",
+              borderRadius: 100,
+              padding: "4px 6px 4px 14px",
+            }}
+            data-testid={`${tidPrefix}-editor`}
+          >
             <span style={{ fontSize: 13, fontWeight: 600, color: "#8A7F6B" }}>⏱ Wait</span>
-            <span onClick={() => setDelayDraft((v) => Math.max(1, v - 1))} style={{ width: 24, height: 24, borderRadius: "50%", background: "#F2EEE4", color: "#5C6B62", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 700, cursor: "pointer" }} data-testid={`${tidPrefix}-dec`}>−</span>
-            <span style={{ fontSize: 14, fontWeight: 700, color: "#0E1512", minWidth: 48, textAlign: "center" }}>{delayDraft} {delayDraft === 1 ? n.unit.replace(/s$/, "") : n.unit}</span>
+            <span
+              onClick={() => setDelayDraft((v) => Math.max(1, v - 1))}
+              style={{
+                width: 24,
+                height: 24,
+                borderRadius: "50%",
+                background: "#F2EEE4",
+                color: "#5C6B62",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 15,
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+              data-testid={`${tidPrefix}-dec`}
+            >
+              −
+            </span>
+            <span
+              style={{
+                fontSize: 14,
+                fontWeight: 700,
+                color: "#0E1512",
+                minWidth: 48,
+                textAlign: "center",
+              }}
+            >
+              {delayDraft} {delayDraft === 1 ? n.unit.replace(/s$/, "") : n.unit}
+            </span>
             {/* clamp cap honors a stored amount above the canon's 30 (planner
                 emits 14–45d re-engagement waits) — + never snaps a wait down */}
-            <span onClick={() => setDelayDraft((v) => Math.min(Math.max(30, n.amount), v + 1))} style={{ width: 24, height: 24, borderRadius: "50%", background: "#F2EEE4", color: "#5C6B62", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 700, cursor: "pointer" }} data-testid={`${tidPrefix}-inc`}>+</span>
-            <span onClick={() => void saveDelay(n.id)} style={{ fontSize: 12.5, fontWeight: 700, color: "#0A0F0C", background: GRAD, borderRadius: 100, padding: "5px 13px", cursor: "pointer" }} data-testid={`${tidPrefix}-done`}>Done</span>
+            <span
+              onClick={() => setDelayDraft((v) => Math.min(Math.max(30, n.amount), v + 1))}
+              style={{
+                width: 24,
+                height: 24,
+                borderRadius: "50%",
+                background: "#F2EEE4",
+                color: "#5C6B62",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 15,
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+              data-testid={`${tidPrefix}-inc`}
+            >
+              +
+            </span>
+            <span
+              onClick={() => void saveDelay(n.id)}
+              style={{
+                fontSize: 12.5,
+                fontWeight: 700,
+                color: "#0A0F0C",
+                background: GRAD,
+                borderRadius: 100,
+                padding: "5px 13px",
+                cursor: "pointer",
+              }}
+              data-testid={`${tidPrefix}-done`}
+            >
+              Done
+            </span>
           </span>
         ) : (
-          <span onClick={() => { setDelayEditId(n.id); setDelayDraft(n.amount); setAddOpen(false); }} style={{ fontSize: 13, fontWeight: 600, color: "#8A7F6B", background: "#F2EEE4", borderRadius: 100, padding: "5px 14px", cursor: "pointer" }} data-testid={tidPrefix}>⏱ Wait {n.amount} {n.amount === 1 ? n.unit.replace(/s$/, "") : n.unit} <span style={{ color: "#B6AB97", fontSize: 11 }}>✎</span></span>
+          <span
+            onClick={() => {
+              setDelayEditId(n.id);
+              setDelayDraft(n.amount);
+              setAddOpen(false);
+            }}
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              color: "#8A7F6B",
+              background: "#F2EEE4",
+              borderRadius: 100,
+              padding: "5px 14px",
+              cursor: "pointer",
+            }}
+            data-testid={tidPrefix}
+          >
+            ⏱ Wait {n.amount} {n.amount === 1 ? n.unit.replace(/s$/, "") : n.unit}{" "}
+            <span style={{ color: "#B6AB97", fontSize: 11 }}>✎</span>
+          </span>
         )}
       </div>
     );
@@ -732,33 +961,143 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
 
   return (
     <div style={{ maxWidth: 820, margin: "0 auto", paddingLeft: 48 }} data-testid="steps">
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 16,
+        }}
+      >
         <span>
-          <span style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 18, color: "#0E1512" }}>Main sequence</span>
-          <span style={{ fontSize: 14, fontWeight: 600, color: "#9AA59E" }}> · {steps.length} steps · Email</span>
+          <span
+            style={{
+              fontFamily: "'Bricolage Grotesque',sans-serif",
+              fontWeight: 700,
+              fontSize: 18,
+              color: "#0E1512",
+            }}
+          >
+            Main sequence
+          </span>
+          <span style={{ fontSize: 14, fontWeight: 600, color: "#9AA59E" }}>
+            {" "}
+            · {steps.length} steps · Email
+          </span>
         </span>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
           {/* DEC-086: the canon Scripted | ✦ Guided control (2026-07-15
               Campaign View canon) — persisted selected state from the
               stored rider; one field, one semantics with Settings. */}
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 2, background: "#F2EEE4", borderRadius: 11, padding: 3 }} data-testid="steps-mode-control">
-            <span onClick={() => void setSequenceMode("scripted")} style={{ fontSize: 12.5, fontWeight: composeMode === "guided" ? 600 : 700, color: composeMode === "guided" ? "#8A7F6B" : "#0E1512", background: composeMode === "guided" ? "transparent" : "#fff", boxShadow: composeMode === "guided" ? "none" : "0 1px 4px rgba(14,21,18,.1)", borderRadius: 9, padding: "6px 13px", cursor: "pointer", whiteSpace: "nowrap" }} data-testid="steps-mode-scripted">Scripted</span>
-            <span onClick={() => void setSequenceMode("guided")} style={{ fontSize: 12.5, fontWeight: composeMode === "guided" ? 700 : 600, color: composeMode === "guided" ? "#0E1512" : "#8A7F6B", background: composeMode === "guided" ? "#fff" : "transparent", boxShadow: composeMode === "guided" ? "0 1px 4px rgba(14,21,18,.1)" : "none", borderRadius: 9, padding: "6px 13px", cursor: "pointer", whiteSpace: "nowrap" }} data-testid="steps-mode-guided"><span style={{ color: "#1192A6" }}>✦</span> Guided</span>
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 2,
+              background: "#F2EEE4",
+              borderRadius: 11,
+              padding: 3,
+            }}
+            data-testid="steps-mode-control"
+          >
+            <span
+              onClick={() => void setSequenceMode("scripted")}
+              style={{
+                fontSize: 12.5,
+                fontWeight: composeMode === "guided" ? 600 : 700,
+                color: composeMode === "guided" ? "#8A7F6B" : "#0E1512",
+                background: composeMode === "guided" ? "transparent" : "#fff",
+                boxShadow: composeMode === "guided" ? "none" : "0 1px 4px rgba(14,21,18,.1)",
+                borderRadius: 9,
+                padding: "6px 13px",
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+              }}
+              data-testid="steps-mode-scripted"
+            >
+              Scripted
+            </span>
+            <span
+              onClick={() => void setSequenceMode("guided")}
+              style={{
+                fontSize: 12.5,
+                fontWeight: composeMode === "guided" ? 700 : 600,
+                color: composeMode === "guided" ? "#0E1512" : "#8A7F6B",
+                background: composeMode === "guided" ? "#fff" : "transparent",
+                boxShadow: composeMode === "guided" ? "0 1px 4px rgba(14,21,18,.1)" : "none",
+                borderRadius: 9,
+                padding: "6px 13px",
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+              }}
+              data-testid="steps-mode-guided"
+            >
+              <span style={{ color: "#1192A6" }}>✦</span> Guided
+            </span>
           </span>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600, color: "#0E1512", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 11, padding: "9px 15px" }}>
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              fontSize: 13,
+              fontWeight: 600,
+              color: "#0E1512",
+              background: "#fff",
+              border: "1px solid #EBE3D6",
+              borderRadius: 11,
+              padding: "9px 15px",
+            }}
+          >
             🕐 {days} · {w ? `${w.start}–${w.end}` : "9:00–17:00"} · {w?.timezone ?? "UTC"} ⌄
           </span>
           {/* W3-4: whole-sequence Regenerate in the agent view (Create Agent
               canon extension, flagged) — carries the G3 mismatch affordance. */}
-          <span onClick={() => void regenerate()} style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 700, color: drafting ? "#9AA59E" : "#16A82A", background: drafting ? "#F2EEE4" : "rgba(53,232,52,.1)", border: `1px solid ${drafting ? "#EBE3D6" : "rgba(53,232,52,.3)"}`, borderRadius: 11, padding: "9px 15px", cursor: drafting ? "default" : "pointer", whiteSpace: "nowrap" }} data-testid="steps-regenerate">
-            {drafting ? "✦ Drafting…" : modeMismatch ? "✦ Regenerate to apply" : "✦ Regenerate with AI"}
+          <span
+            onClick={() => void regenerate()}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              fontSize: 13,
+              fontWeight: 700,
+              color: drafting ? "#9AA59E" : "#16A82A",
+              background: drafting ? "#F2EEE4" : "rgba(53,232,52,.1)",
+              border: `1px solid ${drafting ? "#EBE3D6" : "rgba(53,232,52,.3)"}`,
+              borderRadius: 11,
+              padding: "9px 15px",
+              cursor: drafting ? "default" : "pointer",
+              whiteSpace: "nowrap",
+            }}
+            data-testid="steps-regenerate"
+          >
+            {drafting
+              ? "✦ Drafting…"
+              : modeMismatch
+                ? "✦ Regenerate to apply"
+                : "✦ Regenerate with AI"}
           </span>
         </span>
       </div>
 
       {/* W3-4 (DEC-076): the honest versioning banner on any launched agent */}
       {!isDraft ? (
-        <div style={{ display: "flex", gap: 9, alignItems: "flex-start", fontSize: 12.5, color: "#5C6B62", background: "#FBF7F0", border: "1px solid #EBE3D6", borderRadius: 11, padding: "10px 14px", marginBottom: 14, lineHeight: 1.5 }} data-testid="live-graph-banner">
+        <div
+          style={{
+            display: "flex",
+            gap: 9,
+            alignItems: "flex-start",
+            fontSize: 12.5,
+            color: "#5C6B62",
+            background: "#FBF7F0",
+            border: "1px solid #EBE3D6",
+            borderRadius: 11,
+            padding: "10px 14px",
+            marginBottom: 14,
+            lineHeight: 1.5,
+          }}
+          data-testid="live-graph-banner"
+        >
           <span style={{ flex: "none" }}>⏱</span>
           <span>{LIVE_GRAPH_NOTICE}</span>
         </div>
@@ -770,288 +1109,1053 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
           WhatsApp/voice sentence stays dropped — the build plans email +
           SMS only this phase (the DEC-075 honest absence, restated). */}
       {composeMode === "guided" ? (
-        <div style={{ display: "flex", gap: 9, alignItems: "flex-start", fontSize: 12.5, color: "#5C6B62", background: "rgba(54,215,237,.07)", border: "1px solid rgba(54,215,237,.25)", borderRadius: 11, padding: "11px 14px", marginBottom: 14, lineHeight: 1.5 }} data-testid="steps-guided-banner">
+        <div
+          style={{
+            display: "flex",
+            gap: 9,
+            alignItems: "flex-start",
+            fontSize: 12.5,
+            color: "#5C6B62",
+            background: "rgba(54,215,237,.07)",
+            border: "1px solid rgba(54,215,237,.25)",
+            borderRadius: 11,
+            padding: "11px 14px",
+            marginBottom: 14,
+            lineHeight: 1.5,
+          }}
+          data-testid="steps-guided-banner"
+        >
           <span style={{ flex: "none", color: "#1192A6", fontSize: 14 }}>✦</span>
           <span>
-            Email and SMS steps carry a <strong style={{ color: "#0E1512" }}>brief</strong> instead of fixed copy — the AI composes a fresh message per lead at send time, inside your rails.
-            {pendingGuided ? <span data-testid="steps-regen-to-apply-note"> <b>These steps were planned as scripted</b> — hit ✦ Regenerate to apply guided composing.</span> : null}
+            Email and SMS steps carry a <strong style={{ color: "#0E1512" }}>brief</strong> instead
+            of fixed copy — the AI composes a fresh message per lead at send time, inside your
+            rails.
+            {pendingGuided ? (
+              <span data-testid="steps-regen-to-apply-note">
+                {" "}
+                <b>These steps were planned as scripted</b> — hit ✦ Regenerate to apply guided
+                composing.
+              </span>
+            ) : null}
           </span>
         </div>
       ) : null}
 
       {/* B7: regenerate failed — inline error row with Retry (never silent) */}
       {regenError !== null ? (
-        <div style={{ display: "flex", alignItems: "center", gap: 10, border: "1px solid rgba(224,121,107,.4)", background: "rgba(224,121,107,.06)", borderRadius: 12, padding: "10px 14px", marginBottom: 14 }} data-testid="steps-regen-failed">
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            border: "1px solid rgba(224,121,107,.4)",
+            background: "rgba(224,121,107,.06)",
+            borderRadius: 12,
+            padding: "10px 14px",
+            marginBottom: 14,
+          }}
+          data-testid="steps-regen-failed"
+        >
           <span style={{ fontSize: 14, color: "#C9543F", flex: "none" }}>⚠</span>
-          <span style={{ fontSize: 12.5, color: "#8A7F6B", flex: 1, minWidth: 0 }}>Sequence generation failed{regenError ? ` — ${regenError.slice(0, 200)}` : ""}</span>
-          <span onClick={() => void regenerate()} style={{ fontSize: 12, fontWeight: 700, color: "#16A82A", cursor: "pointer", flex: "none" }} data-testid="steps-regen-retry">Retry</span>
+          <span style={{ fontSize: 12.5, color: "#8A7F6B", flex: 1, minWidth: 0 }}>
+            Sequence generation failed{regenError ? ` — ${regenError.slice(0, 200)}` : ""}
+          </span>
+          <span
+            onClick={() => void regenerate()}
+            style={{
+              fontSize: 12,
+              fontWeight: 700,
+              color: "#16A82A",
+              cursor: "pointer",
+              flex: "none",
+            }}
+            data-testid="steps-regen-retry"
+          >
+            Retry
+          </span>
         </div>
       ) : null}
 
       {/* edit-gate rejections + mutation refusals — owner-readable, dismissible */}
       {actionError !== null ? (
-        <div style={{ display: "flex", alignItems: "center", gap: 10, border: "1px solid rgba(224,121,107,.4)", background: "rgba(224,121,107,.06)", borderRadius: 12, padding: "10px 14px", marginBottom: 14 }} data-testid="steps-edit-error">
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            border: "1px solid rgba(224,121,107,.4)",
+            background: "rgba(224,121,107,.06)",
+            borderRadius: 12,
+            padding: "10px 14px",
+            marginBottom: 14,
+          }}
+          data-testid="steps-edit-error"
+        >
           <span style={{ fontSize: 14, color: "#C9543F", flex: "none" }}>⚠</span>
-          <span style={{ fontSize: 12.5, color: "#8A7F6B", flex: 1, minWidth: 0 }}>{actionError.slice(0, 300)}</span>
-          <span onClick={() => setActionError(null)} style={{ fontSize: 12, fontWeight: 700, color: "#5C6B62", cursor: "pointer", flex: "none" }} data-testid="steps-edit-error-dismiss">Dismiss</span>
+          <span style={{ fontSize: 12.5, color: "#8A7F6B", flex: 1, minWidth: 0 }}>
+            {actionError.slice(0, 300)}
+          </span>
+          <span
+            onClick={() => setActionError(null)}
+            style={{
+              fontSize: 12,
+              fontWeight: 700,
+              color: "#5C6B62",
+              cursor: "pointer",
+              flex: "none",
+            }}
+            data-testid="steps-edit-error-dismiss"
+          >
+            Dismiss
+          </span>
         </div>
       ) : null}
 
       {drafting ? (
-        <div style={{ border: "1px solid rgba(53,232,52,.32)", borderRadius: 13, background: "rgba(53,232,52,.04)", padding: "42px 24px", textAlign: "center" }} data-testid="steps-drafting">
+        <div
+          style={{
+            border: "1px solid rgba(53,232,52,.32)",
+            borderRadius: 13,
+            background: "rgba(53,232,52,.04)",
+            padding: "42px 24px",
+            textAlign: "center",
+          }}
+          data-testid="steps-drafting"
+        >
           <div style={{ fontSize: 26, marginBottom: 10 }}>✦</div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: "#0E1512", marginBottom: 4 }}>Drafting your sequence…</div>
-          <div style={{ fontSize: 13, color: "#8A7F6B" }}>Claude is planning steps grounded in your business context.</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: "#0E1512", marginBottom: 4 }}>
+            Drafting your sequence…
+          </div>
+          <div style={{ fontSize: 13, color: "#8A7F6B" }}>
+            Claude is planning steps grounded in your business context.
+          </div>
         </div>
       ) : (
-      <>
-      {mainPath(graph).map((n) => {
-        if (n.type === "delay") {
-          return renderDelayRow(n, 26, "step-delay");
-        }
-        if (n.type === "step") {
-          const idx = steps.indexOf(n) + 1;
-          // G1 (DEC-070): a guided step renders its BRIEF, not copy.
-          // DEC-086: resolved from the SELECTED mode too — a scripted plan
-          // under a guided rider renders the pending treatment, never the body.
-          const gd = guidedCardDisplay(n, pendingGuided, { index: idx, count: steps.length }, { goal: view.agent.goal, category: view.agent.category ?? null });
-          const o = outcomes?.steps.find((s) => s.stepNodeId === n.id);
-          const sent = o?.sent ?? view.perStep[n.id]?.sent ?? 0;
-          const replies = o?.replies ?? 0;
-          return (
-            <div key={n.id} style={{ display: "flex", gap: 14, alignItems: "flex-start" }} data-testid="step-card">
-              {/* P2.1 (DEC-061, §3/§4 amendment): ChannelChip anatomy — sms steps
+        <>
+          {mainPath(graph).map((n) => {
+            if (n.type === "delay") {
+              return renderDelayRow(n, 26, "step-delay");
+            }
+            if (n.type === "step") {
+              const idx = steps.indexOf(n) + 1;
+              // G1 (DEC-070): a guided step renders its BRIEF, not copy.
+              // DEC-086: resolved from the SELECTED mode too — a scripted plan
+              // under a guided rider renders the pending treatment, never the body.
+              const gd = guidedCardDisplay(
+                n,
+                pendingGuided,
+                { index: idx, count: steps.length },
+                { goal: view.agent.goal, category: view.agent.category ?? null },
+              );
+              const o = outcomes?.steps.find((s) => s.stepNodeId === n.id);
+              const sent = o?.sent ?? view.perStep[n.id]?.sent ?? 0;
+              const replies = o?.replies ?? 0;
+              return (
+                <div
+                  key={n.id}
+                  style={{ display: "flex", gap: 14, alignItems: "flex-start" }}
+                  data-testid="step-card"
+                >
+                  {/* P2.1 (DEC-061, §3/§4 amendment): ChannelChip anatomy — sms steps
                   reuse the same card with channel-true icon + chip tint. */}
-              <span style={{ width: 38, height: 38, borderRadius: 11, flex: "none", background: n.channel === "sms" ? "rgba(54,215,237,.16)" : "rgba(53,232,52,.16)", color: n.channel === "sms" ? "#1192A6" : "#16A82A", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, fontWeight: 700 }}>{n.channel === "sms" ? "💬" : "✉"}</span>
-              <div style={{ flex: 1, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 14, padding: "15px 18px", boxShadow: "0 4px 16px rgba(14,21,18,.04)" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", color: "#8A7F6B" }}>Step {idx}</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, borderRadius: 8, padding: "3px 10px", background: n.channel === "sms" ? "rgba(54,215,237,.14)" : "rgba(53,232,52,.13)", color: n.channel === "sms" ? "#1192A6" : "#16A82A" }} data-testid="step-channel-chip">{n.channel === "sms" ? "SMS" : "Email"}</span>
-                  {gd && gd.kind !== "aidraft" ? (
-                    <>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: "#1192A6", background: "rgba(54,215,237,.14)", borderRadius: 7, padding: "3px 9px" }} data-testid="step-guided-tag">✦ Composed at send</span>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: "#8A7F6B", background: "#F2EEE4", borderRadius: 7, padding: "3px 9px" }} data-testid="step-guided-credits">{n.channel === "sms" ? GUIDED_SMS_CREDITS : GUIDED_EMAIL_CREDITS} credits / send</span>
-                    </>
-                  ) : composeMode === "guided" ? (
-                    // DEC-086 canon mapping (hasModeTag = guidedOn): any card
-                    // NOT composing at send under a guided rider — a deliberate
-                    // per-step scripted flip in a mixed plan, or a non-briefable
-                    // channel — sends as written and tags "✦ AI draft".
-                    <span style={{ fontSize: 11, fontWeight: 700, color: "#16A82A", background: "rgba(53,232,52,.12)", borderRadius: 7, padding: "3px 9px" }} data-testid="step-aidraft-tag">✦ AI draft</span>
-                  ) : null}
-                  {/* F1 (DEC-068): outcome badge — none renders nothing (honest absence) */}
-                  <OutcomeBadge step={o} />
-                  <span style={{ marginLeft: "auto", fontSize: 12, color: "#9AA59E" }} data-testid="step-stats">
-                    {sent > 0 ? `${sent} sent · ${replies} repl${replies === 1 ? "y" : "ies"}` : "0 sent"}
+                  <span
+                    style={{
+                      width: 38,
+                      height: 38,
+                      borderRadius: 11,
+                      flex: "none",
+                      background:
+                        n.channel === "sms" ? "rgba(54,215,237,.16)" : "rgba(53,232,52,.16)",
+                      color: n.channel === "sms" ? "#1192A6" : "#16A82A",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 17,
+                      fontWeight: 700,
+                    }}
+                  >
+                    {n.channel === "sms" ? "💬" : "✉"}
                   </span>
-                  {/* W3-4: reorder — designed addition (canon has no reorder). */}
-                  <span onClick={idx > 1 ? () => void handleMove(n.id, "up") : undefined} style={{ fontSize: 13, color: idx > 1 ? "#5C6B62" : "#D8CFBE", cursor: idx > 1 ? "pointer" : "default", flex: "none" }} data-testid="step-move-up">↑</span>
-                  <span onClick={idx < steps.length ? () => void handleMove(n.id, "down") : undefined} style={{ fontSize: 13, color: idx < steps.length ? "#5C6B62" : "#D8CFBE", cursor: idx < steps.length ? "pointer" : "default", flex: "none" }} data-testid="step-move-down">↓</span>
-                  {/* Campaign View canon: the green ✎ Edit link is the click
+                  <div
+                    style={{
+                      flex: 1,
+                      background: "#fff",
+                      border: "1px solid #EBE3D6",
+                      borderRadius: 14,
+                      padding: "15px 18px",
+                      boxShadow: "0 4px 16px rgba(14,21,18,.04)",
+                    }}
+                  >
+                    <div
+                      style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}
+                    >
+                      <span
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 700,
+                          textTransform: "uppercase",
+                          letterSpacing: ".06em",
+                          color: "#8A7F6B",
+                        }}
+                      >
+                        Step {idx}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: 12,
+                          fontWeight: 700,
+                          borderRadius: 8,
+                          padding: "3px 10px",
+                          background:
+                            n.channel === "sms" ? "rgba(54,215,237,.14)" : "rgba(53,232,52,.13)",
+                          color: n.channel === "sms" ? "#1192A6" : "#16A82A",
+                        }}
+                        data-testid="step-channel-chip"
+                      >
+                        {n.channel === "sms" ? "SMS" : "Email"}
+                      </span>
+                      {gd && gd.kind !== "aidraft" ? (
+                        <>
+                          <span
+                            style={{
+                              fontSize: 11,
+                              fontWeight: 700,
+                              color: "#1192A6",
+                              background: "rgba(54,215,237,.14)",
+                              borderRadius: 7,
+                              padding: "3px 9px",
+                            }}
+                            data-testid="step-guided-tag"
+                          >
+                            ✦ Composed at send
+                          </span>
+                          <span
+                            style={{
+                              fontSize: 11,
+                              fontWeight: 700,
+                              color: "#8A7F6B",
+                              background: "#F2EEE4",
+                              borderRadius: 7,
+                              padding: "3px 9px",
+                            }}
+                            data-testid="step-guided-credits"
+                          >
+                            {n.channel === "sms" ? GUIDED_SMS_CREDITS : GUIDED_EMAIL_CREDITS}{" "}
+                            credits / send
+                          </span>
+                        </>
+                      ) : composeMode === "guided" ? (
+                        // DEC-086 canon mapping (hasModeTag = guidedOn): any card
+                        // NOT composing at send under a guided rider — a deliberate
+                        // per-step scripted flip in a mixed plan, or a non-briefable
+                        // channel — sends as written and tags "✦ AI draft".
+                        <span
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 700,
+                            color: "#16A82A",
+                            background: "rgba(53,232,52,.12)",
+                            borderRadius: 7,
+                            padding: "3px 9px",
+                          }}
+                          data-testid="step-aidraft-tag"
+                        >
+                          ✦ AI draft
+                        </span>
+                      ) : null}
+                      {/* F1 (DEC-068): outcome badge — none renders nothing (honest absence) */}
+                      <OutcomeBadge step={o} />
+                      <span
+                        style={{ marginLeft: "auto", fontSize: 12, color: "#9AA59E" }}
+                        data-testid="step-stats"
+                      >
+                        {sent > 0
+                          ? `${sent} sent · ${replies} repl${replies === 1 ? "y" : "ies"}`
+                          : "0 sent"}
+                      </span>
+                      {/* W3-4: reorder — designed addition (canon has no reorder). */}
+                      <span
+                        onClick={idx > 1 ? () => void handleMove(n.id, "up") : undefined}
+                        style={{
+                          fontSize: 13,
+                          color: idx > 1 ? "#5C6B62" : "#D8CFBE",
+                          cursor: idx > 1 ? "pointer" : "default",
+                          flex: "none",
+                        }}
+                        data-testid="step-move-up"
+                      >
+                        ↑
+                      </span>
+                      <span
+                        onClick={
+                          idx < steps.length ? () => void handleMove(n.id, "down") : undefined
+                        }
+                        style={{
+                          fontSize: 13,
+                          color: idx < steps.length ? "#5C6B62" : "#D8CFBE",
+                          cursor: idx < steps.length ? "pointer" : "default",
+                          flex: "none",
+                        }}
+                        data-testid="step-move-down"
+                      >
+                        ↓
+                      </span>
+                      {/* Campaign View canon: the green ✎ Edit link is the click
                       target — W2: guided briefs edit here too (the wizard
                       brief editor, same component). */}
-                  <span onClick={() => openEditor(n, null)} style={{ fontSize: 13, fontWeight: 600, color: "#16A82A", cursor: "pointer", flex: "none" }} data-testid="step-edit">✎ Edit</span>
-                </div>
-                {gd?.kind === "brief" ? (
-                  <>
-                    <div style={{ fontSize: 15, fontWeight: 600, color: "#0E1512", marginBottom: 5 }}>{gd.brief.objective}</div>
-                    {n.channel === "email" && gd.brief.subjectHint ? (
-                      <div style={{ fontSize: 12.5, color: "#8A7F6B", marginBottom: 5 }} data-testid="step-brief-subject-hint">Subject hint: <span style={{ color: "#5C6B62", fontWeight: 600 }}>{gd.brief.subjectHint}</span></div>
-                    ) : null}
-                    <div style={{ display: "flex", flexDirection: "column", gap: 3 }} data-testid="step-brief-points">
-                      {gd.brief.talkingPoints.map((p, i) => (
-                        <div key={i} style={{ fontSize: 13, color: "#5C6B62", lineHeight: 1.45, display: "flex", gap: 8 }}>
-                          <span style={{ color: "#1192A6", flex: "none" }}>•</span>
-                          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p}</span>
-                        </div>
-                      ))}
+                      <span
+                        onClick={() => openEditor(n, null)}
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: "#16A82A",
+                          cursor: "pointer",
+                          flex: "none",
+                        }}
+                        data-testid="step-edit"
+                      >
+                        ✎ Edit
+                      </span>
                     </div>
-                  </>
-                ) : gd?.kind === "pending" ? (
-                  <>
-                    {/* DEC-086: canon guided preview — "Objective: …", never
+                    {gd?.kind === "brief" ? (
+                      <>
+                        <div
+                          style={{
+                            fontSize: 15,
+                            fontWeight: 600,
+                            color: "#0E1512",
+                            marginBottom: 5,
+                          }}
+                        >
+                          {gd.brief.objective}
+                        </div>
+                        {n.channel === "email" && gd.brief.subjectHint ? (
+                          <div
+                            style={{ fontSize: 12.5, color: "#8A7F6B", marginBottom: 5 }}
+                            data-testid="step-brief-subject-hint"
+                          >
+                            Subject hint:{" "}
+                            <span style={{ color: "#5C6B62", fontWeight: 600 }}>
+                              {gd.brief.subjectHint}
+                            </span>
+                          </div>
+                        ) : null}
+                        <div
+                          style={{ display: "flex", flexDirection: "column", gap: 3 }}
+                          data-testid="step-brief-points"
+                        >
+                          {gd.brief.talkingPoints.map((p, i) => (
+                            <div
+                              key={i}
+                              style={{
+                                fontSize: 13,
+                                color: "#5C6B62",
+                                lineHeight: 1.45,
+                                display: "flex",
+                                gap: 8,
+                              }}
+                            >
+                              <span style={{ color: "#1192A6", flex: "none" }}>•</span>
+                              <span
+                                style={{
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {p}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    ) : gd?.kind === "pending" ? (
+                      <>
+                        {/* DEC-086: canon guided preview — "Objective: …", never
                         the scripted body while guided is selected. */}
-                    <div style={{ fontSize: 15, fontWeight: 600, color: "#0E1512", marginBottom: 4 }}>{n.channel === "sms" ? "SMS message" : n.content.subject}</div>
-                    <div style={{ fontSize: 13.5, color: "#5C6B62", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }} data-testid="step-brief-pending">Objective: {gd.objective}</div>
-                  </>
-                ) : (
-                  <>
-                    <div style={{ fontSize: 15, fontWeight: 600, color: "#0E1512", marginBottom: 4 }}>{n.channel === "sms" ? "SMS message" : n.content.subject}</div>
-                    <div style={{ fontSize: 13.5, color: "#5C6B62", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{n.content.body}</div>
-                  </>
-                )}
-              </div>
-            </div>
-          );
-        }
-        if (n.type === "branch") {
-          return (
-            <div key={n.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 0 4px 26px" }}>
-              <span style={{ width: 2, height: 24, background: "#D8CFBE", marginLeft: 17, flex: "none" }} />
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 7, border: "1px solid rgba(54,215,237,.4)", borderRadius: 100, background: "rgba(54,215,237,.08)", padding: "5px 14px", fontSize: 12.5, fontWeight: 600, color: "#1192A6" }} data-testid="step-branch">
-                {/* M1b (DEC-068): vocabulary labels, verbatim fallback for unknown intents */}
-                ⎇ on reply → {n.cases.map((c) => (c.when === "default" ? "default" : intentTint(c.when.intent).label)).join(" · ")}
-              </span>
-            </div>
-          );
-        }
-        return null;
-      })}
+                        <div
+                          style={{
+                            fontSize: 15,
+                            fontWeight: 600,
+                            color: "#0E1512",
+                            marginBottom: 4,
+                          }}
+                        >
+                          {n.channel === "sms" ? "SMS message" : n.content.subject}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 13.5,
+                            color: "#5C6B62",
+                            lineHeight: 1.5,
+                            display: "-webkit-box",
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: "vertical",
+                            overflow: "hidden",
+                          }}
+                          data-testid="step-brief-pending"
+                        >
+                          Objective: {gd.objective}
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div
+                          style={{
+                            fontSize: 15,
+                            fontWeight: 600,
+                            color: "#0E1512",
+                            marginBottom: 4,
+                          }}
+                        >
+                          {n.channel === "sms" ? "SMS message" : n.content.subject}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 13.5,
+                            color: "#5C6B62",
+                            lineHeight: 1.5,
+                            display: "-webkit-box",
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: "vertical",
+                            overflow: "hidden",
+                          }}
+                        >
+                          {n.content.body}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+            }
+            if (n.type === "branch") {
+              return (
+                <div
+                  key={n.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    padding: "8px 0 4px 26px",
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 2,
+                      height: 24,
+                      background: "#D8CFBE",
+                      marginLeft: 17,
+                      flex: "none",
+                    }}
+                  />
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 7,
+                      border: "1px solid rgba(54,215,237,.4)",
+                      borderRadius: 100,
+                      background: "rgba(54,215,237,.08)",
+                      padding: "5px 14px",
+                      fontSize: 12.5,
+                      fontWeight: 600,
+                      color: "#1192A6",
+                    }}
+                    data-testid="step-branch"
+                  >
+                    {/* M1b (DEC-068): vocabulary labels, verbatim fallback for unknown intents */}⎇
+                    on reply →{" "}
+                    {n.cases
+                      .map((c) =>
+                        c.when === "default" ? "default" : intentTint(c.when.intent).label,
+                      )
+                      .join(" · ")}
+                  </span>
+                </div>
+              );
+            }
+            return null;
+          })}
 
-      {/* W3-4: add-step — Campaign View canon (dashed button + anchored 236px
+          {/* W3-4: add-step — Campaign View canon (dashed button + anchored 236px
           "Choose a step type" popover; append wait-2-days + step, editor opens
           on the new step). Live channels enable; the rest disclose honestly. */}
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 12, paddingLeft: 26, marginTop: 4 }}>
-        <span style={{ width: 2, height: 24, background: "#D8CFBE", marginLeft: 17, flex: "none" }} />
-        <div style={{ position: "relative" }}>
-          <span onClick={() => { setAddOpen((v) => !v); setDelayEditId(null); }} style={{ fontSize: 14, fontWeight: 600, color: "#16A82A", background: "#fff", border: "1.5px dashed #9FD8AC", borderRadius: 11, padding: "10px 18px", cursor: "pointer", display: "inline-block" }} data-testid="add-step">+ Add step</span>
-          {addOpen ? (
-            <div style={{ position: "absolute", top: "calc(100% + 8px)", left: 0, width: 236, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 14, boxShadow: "0 16px 44px rgba(0,0,0,.18)", overflow: "hidden", zIndex: 20 }} data-testid="add-step-picker">
-              <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "#9AA59E", padding: "11px 15px 7px" }}>Choose a step type</div>
-              {ADD_TYPES.map((o) => {
-                const enabled = o.channel === "email" || (o.channel === "sms" && smsAvailable);
-                const note =
-                  o.channel === "sms" && !enabled
-                    ? "Connect a Twilio sender first"
-                    : o.channel === "whatsapp"
-                      ? "Arrives with the WhatsApp channel"
-                      : o.channel === "voice"
-                        ? "Arrives with the voice channel"
-                        : null;
-                return (
-                  <div key={o.channel} onClick={enabled ? () => void handleAdd(o.channel) : undefined} style={{ display: "flex", alignItems: "center", gap: 11, padding: "10px 15px", cursor: enabled ? "pointer" : "default", borderTop: "1px solid #F7F2EA", opacity: enabled ? 1 : 0.55 }} data-testid={`add-step-${o.channel}`}>
-                    <span style={{ width: 30, height: 30, borderRadius: 9, flex: "none", background: o.chipbg, color: o.chipfg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 700 }}>{o.icon}</span>
-                    <span style={{ minWidth: 0 }}>
-                      <span style={{ display: "block", fontSize: 14, fontWeight: 600, color: "#0E1512" }}>{o.label}</span>
-                      {note ? <span style={{ display: "block", fontSize: 11, color: "#9AA59E" }}>{note}</span> : null}
-                    </span>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "flex-start",
+              gap: 12,
+              paddingLeft: 26,
+              marginTop: 4,
+            }}
+          >
+            <span
+              style={{ width: 2, height: 24, background: "#D8CFBE", marginLeft: 17, flex: "none" }}
+            />
+            <div style={{ position: "relative" }}>
+              <span
+                onClick={() => {
+                  setAddOpen((v) => !v);
+                  setDelayEditId(null);
+                }}
+                style={{
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: "#16A82A",
+                  background: "#fff",
+                  border: "1.5px dashed #9FD8AC",
+                  borderRadius: 11,
+                  padding: "10px 18px",
+                  cursor: "pointer",
+                  display: "inline-block",
+                }}
+                data-testid="add-step"
+              >
+                + Add step
+              </span>
+              {addOpen ? (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "calc(100% + 8px)",
+                    left: 0,
+                    width: 236,
+                    background: "#fff",
+                    border: "1px solid #EBE3D6",
+                    borderRadius: 14,
+                    boxShadow: "0 16px 44px rgba(0,0,0,.18)",
+                    overflow: "hidden",
+                    zIndex: 20,
+                  }}
+                  data-testid="add-step-picker"
+                >
+                  <div
+                    style={{
+                      fontSize: 10.5,
+                      fontWeight: 800,
+                      letterSpacing: ".08em",
+                      textTransform: "uppercase",
+                      color: "#9AA59E",
+                      padding: "11px 15px 7px",
+                    }}
+                  >
+                    Choose a step type
                   </div>
-                );
-              })}
+                  {ADD_TYPES.map((o) => {
+                    const enabled = o.channel === "email" || (o.channel === "sms" && smsAvailable);
+                    const note =
+                      o.channel === "sms" && !enabled
+                        ? "Connect a Twilio sender first"
+                        : o.channel === "whatsapp"
+                          ? "Arrives with the WhatsApp channel"
+                          : o.channel === "voice"
+                            ? "Arrives with the voice channel"
+                            : null;
+                    return (
+                      <div
+                        key={o.channel}
+                        onClick={enabled ? () => void handleAdd(o.channel) : undefined}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 11,
+                          padding: "10px 15px",
+                          cursor: enabled ? "pointer" : "default",
+                          borderTop: "1px solid #F7F2EA",
+                          opacity: enabled ? 1 : 0.55,
+                        }}
+                        data-testid={`add-step-${o.channel}`}
+                      >
+                        <span
+                          style={{
+                            width: 30,
+                            height: 30,
+                            borderRadius: 9,
+                            flex: "none",
+                            background: o.chipbg,
+                            color: o.chipfg,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontSize: 15,
+                            fontWeight: 700,
+                          }}
+                        >
+                          {o.icon}
+                        </span>
+                        <span style={{ minWidth: 0 }}>
+                          <span
+                            style={{
+                              display: "block",
+                              fontSize: 14,
+                              fontWeight: 600,
+                              color: "#0E1512",
+                            }}
+                          >
+                            {o.label}
+                          </span>
+                          {note ? (
+                            <span style={{ display: "block", fontSize: 11, color: "#9AA59E" }}>
+                              {note}
+                            </span>
+                          ) : null}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : null}
             </div>
-          ) : null}
-        </div>
-        {busyMsg ? <span style={{ fontSize: 12.5, color: "#8A7F6B", alignSelf: "center" }} data-testid="steps-busy">{busyMsg}</span> : null}
-      </div>
+            {busyMsg ? (
+              <span
+                style={{ fontSize: 12.5, color: "#8A7F6B", alignSelf: "center" }}
+                data-testid="steps-busy"
+              >
+                {busyMsg}
+              </span>
+            ) : null}
+          </div>
 
-      {/* M1b (DEC-068) / W3-4 W3: reply-strategy CHAINS — grouped under the
+          {/* M1b (DEC-068) / W3-4 W3: reply-strategy CHAINS — grouped under the
           branch they belong to, labeled by intent, chain-true (multi-step
           chains within a branch render and edit; the standing W3-4 gap).
           Mutations resolve their branch-case container by node id; reply
           strategies stay scripted this phase (DEC-070(7)) so chain steps
           carry no mode control. */}
-      {chains.length > 0 ? (
-        <>
-          <div style={{ fontSize: 11.5, fontWeight: 700, color: "#8A7F6B", letterSpacing: ".07em", textTransform: "uppercase", margin: "24px 0 12px" }} data-testid="strategy-group">
-            Reply strategies · sent when a reply classifies
-          </div>
-          {chains.map(({ intent, chain, steps: chainSteps }) => {
-            const tint = intentTint(intent);
-            const branchId = replyBranch?.id ?? "";
-            return (
-              <div key={intent} style={{ marginBottom: 14 }} data-testid="strategy-chain">
-                {chain.map((cNode) => {
-                  if (cNode.type === "delay") {
-                    return renderDelayRow(cNode, 24, "strategy-delay");
-                  }
-                  if (cNode.type !== "step") return null;
-                  const sNode = cNode;
-                  const k = chainSteps.findIndex((s) => s.id === sNode.id) + 1;
-                  const stats = view.perStep[sNode.id];
-                  return (
-                    <div key={sNode.id} style={{ display: "flex", gap: 14, alignItems: "flex-start", marginBottom: 6 }} data-testid="strategy-step-card">
-                      <span style={{ width: 38, height: 38, borderRadius: 11, flex: "none", background: tint.bg, color: tint.fg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, fontWeight: 700 }}>↩</span>
-                      <div style={{ flex: 1, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 14, padding: "15px 18px", boxShadow: "0 4px 16px rgba(14,21,18,.04)" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-                          <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", color: tint.fg }}>{tint.label}{chainSteps.length > 1 ? ` · step ${k} of ${chainSteps.length}` : ""}</span>
-                          <span style={{ fontSize: 12, fontWeight: 700, borderRadius: 8, padding: "3px 10px", background: "rgba(53,232,52,.13)", color: "#16A82A" }}>Email · threaded</span>
-                          <span style={{ marginLeft: "auto", fontSize: 12, color: "#9AA59E" }} data-testid="strategy-step-stats">
-                            {stats ? `${stats.sent} sent · ${stats.replies} repl${stats.replies === 1 ? "y" : "ies"}` : "0 sent"}
+          {chains.length > 0 ? (
+            <>
+              <div
+                style={{
+                  fontSize: 11.5,
+                  fontWeight: 700,
+                  color: "#8A7F6B",
+                  letterSpacing: ".07em",
+                  textTransform: "uppercase",
+                  margin: "24px 0 12px",
+                }}
+                data-testid="strategy-group"
+              >
+                Reply strategies · sent when a reply classifies
+              </div>
+              {chains.map(({ intent, chain, steps: chainSteps }) => {
+                const tint = intentTint(intent);
+                const branchId = replyBranch?.id ?? "";
+                return (
+                  <div key={intent} style={{ marginBottom: 14 }} data-testid="strategy-chain">
+                    {chain.map((cNode) => {
+                      if (cNode.type === "delay") {
+                        return renderDelayRow(cNode, 24, "strategy-delay");
+                      }
+                      if (cNode.type !== "step") return null;
+                      const sNode = cNode;
+                      const k = chainSteps.findIndex((s) => s.id === sNode.id) + 1;
+                      const stats = view.perStep[sNode.id];
+                      return (
+                        <div
+                          key={sNode.id}
+                          style={{
+                            display: "flex",
+                            gap: 14,
+                            alignItems: "flex-start",
+                            marginBottom: 6,
+                          }}
+                          data-testid="strategy-step-card"
+                        >
+                          <span
+                            style={{
+                              width: 38,
+                              height: 38,
+                              borderRadius: 11,
+                              flex: "none",
+                              background: tint.bg,
+                              color: tint.fg,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: 17,
+                              fontWeight: 700,
+                            }}
+                          >
+                            ↩
                           </span>
-                          {chainSteps.length > 1 ? (
-                            <>
-                              <span onClick={k > 1 ? () => void handleMove(sNode.id, "up") : undefined} style={{ fontSize: 13, color: k > 1 ? "#5C6B62" : "#D8CFBE", cursor: k > 1 ? "pointer" : "default", flex: "none" }} data-testid="strategy-step-move-up">↑</span>
-                              <span onClick={k < chainSteps.length ? () => void handleMove(sNode.id, "down") : undefined} style={{ fontSize: 13, color: k < chainSteps.length ? "#5C6B62" : "#D8CFBE", cursor: k < chainSteps.length ? "pointer" : "default", flex: "none" }} data-testid="strategy-step-move-down">↓</span>
-                            </>
-                          ) : null}
-                          <span onClick={() => openEditor(sNode, intent)} style={{ fontSize: 13, fontWeight: 600, color: "#16A82A", cursor: "pointer", flex: "none" }} data-testid="strategy-step-edit">✎ Edit</span>
+                          <div
+                            style={{
+                              flex: 1,
+                              background: "#fff",
+                              border: "1px solid #EBE3D6",
+                              borderRadius: 14,
+                              padding: "15px 18px",
+                              boxShadow: "0 4px 16px rgba(14,21,18,.04)",
+                            }}
+                          >
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 10,
+                                marginBottom: 6,
+                              }}
+                            >
+                              <span
+                                style={{
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                  textTransform: "uppercase",
+                                  letterSpacing: ".06em",
+                                  color: tint.fg,
+                                }}
+                              >
+                                {tint.label}
+                                {chainSteps.length > 1
+                                  ? ` · step ${k} of ${chainSteps.length}`
+                                  : ""}
+                              </span>
+                              <span
+                                style={{
+                                  fontSize: 12,
+                                  fontWeight: 700,
+                                  borderRadius: 8,
+                                  padding: "3px 10px",
+                                  background: "rgba(53,232,52,.13)",
+                                  color: "#16A82A",
+                                }}
+                              >
+                                Email · threaded
+                              </span>
+                              <span
+                                style={{ marginLeft: "auto", fontSize: 12, color: "#9AA59E" }}
+                                data-testid="strategy-step-stats"
+                              >
+                                {stats
+                                  ? `${stats.sent} sent · ${stats.replies} repl${stats.replies === 1 ? "y" : "ies"}`
+                                  : "0 sent"}
+                              </span>
+                              {chainSteps.length > 1 ? (
+                                <>
+                                  <span
+                                    onClick={
+                                      k > 1 ? () => void handleMove(sNode.id, "up") : undefined
+                                    }
+                                    style={{
+                                      fontSize: 13,
+                                      color: k > 1 ? "#5C6B62" : "#D8CFBE",
+                                      cursor: k > 1 ? "pointer" : "default",
+                                      flex: "none",
+                                    }}
+                                    data-testid="strategy-step-move-up"
+                                  >
+                                    ↑
+                                  </span>
+                                  <span
+                                    onClick={
+                                      k < chainSteps.length
+                                        ? () => void handleMove(sNode.id, "down")
+                                        : undefined
+                                    }
+                                    style={{
+                                      fontSize: 13,
+                                      color: k < chainSteps.length ? "#5C6B62" : "#D8CFBE",
+                                      cursor: k < chainSteps.length ? "pointer" : "default",
+                                      flex: "none",
+                                    }}
+                                    data-testid="strategy-step-move-down"
+                                  >
+                                    ↓
+                                  </span>
+                                </>
+                              ) : null}
+                              <span
+                                onClick={() => openEditor(sNode, intent)}
+                                style={{
+                                  fontSize: 13,
+                                  fontWeight: 600,
+                                  color: "#16A82A",
+                                  cursor: "pointer",
+                                  flex: "none",
+                                }}
+                                data-testid="strategy-step-edit"
+                              >
+                                ✎ Edit
+                              </span>
+                            </div>
+                            <div
+                              style={{
+                                fontSize: 13.5,
+                                color: "#5C6B62",
+                                lineHeight: 1.5,
+                                display: "-webkit-box",
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: "vertical",
+                                overflow: "hidden",
+                              }}
+                            >
+                              {sNode.content.body}
+                            </div>
+                          </div>
                         </div>
-                        <div style={{ fontSize: 13.5, color: "#5C6B62", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{sNode.content.body}</div>
-                      </div>
-                    </div>
-                  );
-                })}
-                {/* within-branch add — the sub-campaign drawer's indented
+                      );
+                    })}
+                    {/* within-branch add — the sub-campaign drawer's indented
                     dashed "+ Add step" anatomy; chain steps are threaded
                     email replies (the strategy contract). */}
-                <div style={{ display: "flex", alignItems: "center", gap: 12, paddingLeft: 24, marginTop: 2 }}>
-                  <span style={{ width: 2, height: 18, background: "#D8CFBE", marginLeft: 17, flex: "none" }} />
-                  <span onClick={() => void handleAddToChain(branchId, intent)} style={{ fontSize: 13, fontWeight: 600, color: "#16A82A", background: "#fff", border: "1.5px dashed #9FD8AC", borderRadius: 10, padding: "7px 12px", cursor: "pointer" }} data-testid={`strategy-add-step-${intent}`}>+ Add step</span>
-                </div>
-              </div>
-            );
-          })}
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                        paddingLeft: 24,
+                        marginTop: 2,
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: 2,
+                          height: 18,
+                          background: "#D8CFBE",
+                          marginLeft: 17,
+                          flex: "none",
+                        }}
+                      />
+                      <span
+                        onClick={() => void handleAddToChain(branchId, intent)}
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: "#16A82A",
+                          background: "#fff",
+                          border: "1.5px dashed #9FD8AC",
+                          borderRadius: 10,
+                          padding: "7px 12px",
+                          cursor: "pointer",
+                        }}
+                        data-testid={`strategy-add-step-${intent}`}
+                      >
+                        + Add step
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </>
+          ) : null}
 
-        </>
-      ) : null}
-
-      {/* W2 (#94): sub-campaigns — the W3-4 honest-absence card goes LIVE
+          {/* W2 (#94): sub-campaigns — the W3-4 honest-absence card goes LIVE
           (R1's trigger vocabulary shipped). Canon cards in a 2-col grid with
           the entry-rule trigger chip, then the dashed add card opening the
           shared creator. Rendered outside the reply-chains block — containers
           exist independently of reply strategies. NO ✦ AI chip here:
           provenance isn't persisted, so the canon chip awaits a persisted
           provenance field (DEC note) — never rendered from guesswork. */}
-      <SubcampaignSection
-        cards={subCards}
-        expandedId={subExpandedId}
-        onEdit={(id) => setSubExpandedId((v) => (v === id ? null : id))}
-        onAdd={() => setSubNewOpen(true)}
-        expanded={
-          expandedSub ? (
-            <div style={{ marginTop: 12 }} data-testid="subcampaign-expanded">
-              <div style={{ fontSize: 11.5, fontWeight: 700, color: "#8A7F6B", letterSpacing: ".07em", textTransform: "uppercase", marginBottom: 10 }}>
-                {expandedSub.node.ref} · steps
-              </div>
-              {expandedSub.chain.map((cNode) => {
-                if (cNode.type === "delay") return renderDelayRow(cNode, 24, "sub-delay");
-                if (cNode.type !== "step") return null;
-                const sNode = cNode;
-                const k =
-                  expandedSub.chain.filter((n): n is StepNode => n.type === "step").findIndex((s) => s.id === sNode.id) + 1;
-                const stats = view.perStep[sNode.id];
-                return (
-                  <div key={sNode.id} style={{ display: "flex", gap: 14, alignItems: "flex-start", marginBottom: 6 }} data-testid="subcampaign-step-card">
-                    <span style={{ width: 38, height: 38, borderRadius: 11, flex: "none", background: sNode.channel === "sms" ? "rgba(54,215,237,.16)" : "rgba(53,232,52,.16)", color: sNode.channel === "sms" ? "#1192A6" : "#16A82A", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, fontWeight: 700 }}>{sNode.channel === "sms" ? "💬" : "✉"}</span>
-                    <div style={{ flex: 1, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 14, padding: "15px 18px", boxShadow: "0 4px 16px rgba(14,21,18,.04)" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", color: "#8A7F6B" }}>Step {k}</span>
-                        <span style={{ fontSize: 12, fontWeight: 700, borderRadius: 8, padding: "3px 10px", background: sNode.channel === "sms" ? "rgba(54,215,237,.14)" : "rgba(53,232,52,.13)", color: sNode.channel === "sms" ? "#1192A6" : "#16A82A" }}>{sNode.channel === "sms" ? "SMS" : sNode.content.threaded ? "Email · threaded" : "Email"}</span>
-                        <span style={{ marginLeft: "auto", fontSize: 12, color: "#9AA59E" }} data-testid="subcampaign-step-stats">
-                          {stats ? `${stats.sent} sent · ${stats.replies} repl${stats.replies === 1 ? "y" : "ies"}` : "0 sent"}
-                        </span>
-                        <span onClick={() => openEditor(sNode, null, expandedSub.node.id)} style={{ fontSize: 13, fontWeight: 600, color: "#16A82A", cursor: "pointer", flex: "none" }} data-testid="subcampaign-step-edit">✎ Edit</span>
-                      </div>
-                      <div style={{ fontSize: 15, fontWeight: 600, color: "#0E1512", marginBottom: 4 }}>{sNode.mode === "guided" && sNode.brief ? sNode.brief.objective : sNode.channel === "sms" ? "SMS message" : (sNode.content.subject ?? "Threaded reply")}</div>
-                      <div style={{ fontSize: 13.5, color: "#5C6B62", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{sNode.mode === "guided" && sNode.brief ? sNode.brief.talkingPoints.join(" · ") : sNode.content.body}</div>
-                    </div>
+          <SubcampaignSection
+            cards={subCards}
+            expandedId={subExpandedId}
+            onEdit={(id) => setSubExpandedId((v) => (v === id ? null : id))}
+            onAdd={() => setSubNewOpen(true)}
+            expanded={
+              expandedSub ? (
+                <div style={{ marginTop: 12 }} data-testid="subcampaign-expanded">
+                  <div
+                    style={{
+                      fontSize: 11.5,
+                      fontWeight: 700,
+                      color: "#8A7F6B",
+                      letterSpacing: ".07em",
+                      textTransform: "uppercase",
+                      marginBottom: 10,
+                    }}
+                  >
+                    {expandedSub.node.ref} · steps
                   </div>
-                );
-              })}
-              {/* within-container add — the canon sub-drawer's indented dashed anatomy */}
-              <div style={{ display: "flex", alignItems: "center", gap: 12, paddingLeft: 24, marginTop: 2 }}>
-                <span style={{ width: 2, height: 18, background: "#D8CFBE", marginLeft: 17, flex: "none" }} />
-                <span onClick={() => void handleAddToSub(expandedSub.node.id)} style={{ fontSize: 13, fontWeight: 600, color: "#16A82A", background: "#fff", border: "1.5px dashed #9FD8AC", borderRadius: 10, padding: "7px 12px", cursor: "pointer" }} data-testid="subcampaign-add-step">+ Add step</span>
-              </div>
-            </div>
-          ) : null
-        }
-      />
+                  {expandedSub.chain.map((cNode) => {
+                    if (cNode.type === "delay") return renderDelayRow(cNode, 24, "sub-delay");
+                    if (cNode.type !== "step") return null;
+                    const sNode = cNode;
+                    const k =
+                      expandedSub.chain
+                        .filter((n): n is StepNode => n.type === "step")
+                        .findIndex((s) => s.id === sNode.id) + 1;
+                    const stats = view.perStep[sNode.id];
+                    return (
+                      <div
+                        key={sNode.id}
+                        style={{
+                          display: "flex",
+                          gap: 14,
+                          alignItems: "flex-start",
+                          marginBottom: 6,
+                        }}
+                        data-testid="subcampaign-step-card"
+                      >
+                        <span
+                          style={{
+                            width: 38,
+                            height: 38,
+                            borderRadius: 11,
+                            flex: "none",
+                            background:
+                              sNode.channel === "sms"
+                                ? "rgba(54,215,237,.16)"
+                                : "rgba(53,232,52,.16)",
+                            color: sNode.channel === "sms" ? "#1192A6" : "#16A82A",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontSize: 17,
+                            fontWeight: 700,
+                          }}
+                        >
+                          {sNode.channel === "sms" ? "💬" : "✉"}
+                        </span>
+                        <div
+                          style={{
+                            flex: 1,
+                            background: "#fff",
+                            border: "1px solid #EBE3D6",
+                            borderRadius: 14,
+                            padding: "15px 18px",
+                            boxShadow: "0 4px 16px rgba(14,21,18,.04)",
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 10,
+                              marginBottom: 6,
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontSize: 11,
+                                fontWeight: 700,
+                                textTransform: "uppercase",
+                                letterSpacing: ".06em",
+                                color: "#8A7F6B",
+                              }}
+                            >
+                              Step {k}
+                            </span>
+                            <span
+                              style={{
+                                fontSize: 12,
+                                fontWeight: 700,
+                                borderRadius: 8,
+                                padding: "3px 10px",
+                                background:
+                                  sNode.channel === "sms"
+                                    ? "rgba(54,215,237,.14)"
+                                    : "rgba(53,232,52,.13)",
+                                color: sNode.channel === "sms" ? "#1192A6" : "#16A82A",
+                              }}
+                            >
+                              {sNode.channel === "sms"
+                                ? "SMS"
+                                : sNode.content.threaded
+                                  ? "Email · threaded"
+                                  : "Email"}
+                            </span>
+                            <span
+                              style={{ marginLeft: "auto", fontSize: 12, color: "#9AA59E" }}
+                              data-testid="subcampaign-step-stats"
+                            >
+                              {stats
+                                ? `${stats.sent} sent · ${stats.replies} repl${stats.replies === 1 ? "y" : "ies"}`
+                                : "0 sent"}
+                            </span>
+                            <span
+                              onClick={() => openEditor(sNode, null, expandedSub.node.id)}
+                              style={{
+                                fontSize: 13,
+                                fontWeight: 600,
+                                color: "#16A82A",
+                                cursor: "pointer",
+                                flex: "none",
+                              }}
+                              data-testid="subcampaign-step-edit"
+                            >
+                              ✎ Edit
+                            </span>
+                          </div>
+                          <div
+                            style={{
+                              fontSize: 15,
+                              fontWeight: 600,
+                              color: "#0E1512",
+                              marginBottom: 4,
+                            }}
+                          >
+                            {sNode.mode === "guided" && sNode.brief
+                              ? sNode.brief.objective
+                              : sNode.channel === "sms"
+                                ? "SMS message"
+                                : (sNode.content.subject ?? "Threaded reply")}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: 13.5,
+                              color: "#5C6B62",
+                              lineHeight: 1.5,
+                              display: "-webkit-box",
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: "vertical",
+                              overflow: "hidden",
+                            }}
+                          >
+                            {sNode.mode === "guided" && sNode.brief
+                              ? sNode.brief.talkingPoints.join(" · ")
+                              : sNode.content.body}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {/* within-container add — the canon sub-drawer's indented dashed anatomy */}
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      paddingLeft: 24,
+                      marginTop: 2,
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 2,
+                        height: 18,
+                        background: "#D8CFBE",
+                        marginLeft: 17,
+                        flex: "none",
+                      }}
+                    />
+                    <span
+                      onClick={() => void handleAddToSub(expandedSub.node.id)}
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: "#16A82A",
+                        background: "#fff",
+                        border: "1.5px dashed #9FD8AC",
+                        borderRadius: 10,
+                        padding: "7px 12px",
+                        cursor: "pointer",
+                      }}
+                      data-testid="subcampaign-add-step"
+                    >
+                      + Add step
+                    </span>
+                  </div>
+                </div>
+              ) : null
+            }
+          />
 
-      <div style={{ fontSize: 12, color: "#9AA59E", marginTop: 16, paddingLeft: 48 }}>
-        Graph v{view.graphVersion ?? "—"} · {view.graphSource === "MANUAL" ? "edited — new version saved (MANUAL)" : "AI-planned"}
-      </div>
-      </>
+          <div style={{ fontSize: 12, color: "#9AA59E", marginTop: 16, paddingLeft: 48 }}>
+            Graph v{view.graphVersion ?? "—"} ·{" "}
+            {view.graphSource === "MANUAL" ? "edited — new version saved (MANUAL)" : "AI-planned"}
+          </div>
+        </>
       )}
 
       {/* W3-4: the SHARED step editor drawer (wizard step-2's component) —
@@ -1090,7 +2194,10 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
         modeControl={
           // W2 (#94): sub-campaign chain steps carry no mode control — the
           // flip's brief seed derives from the MAIN sequence's arc position.
-          editNode && editStrategyIntent === null && editSubId === null && (editNode.channel === "email" || editNode.channel === "sms")
+          editNode &&
+          editStrategyIntent === null &&
+          editSubId === null &&
+          (editNode.channel === "email" || editNode.channel === "sms")
             ? {
                 mode: pendingMode ?? (editNode.mode === "guided" ? "guided" : "scripted"),
                 busy: busyMsg !== "",
@@ -1099,7 +2206,11 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
             : undefined
         }
         seedMarks={seedMarks}
-        composeDraft={pendingMode === "scripted" ? { busy: draftBusy, run: () => void composeDraftRun() } : undefined}
+        composeDraft={
+          pendingMode === "scripted"
+            ? { busy: draftBusy, run: () => void composeDraftRun() }
+            : undefined
+        }
         scriptedEmptyNote={
           pendingMode === "scripted"
             ? "This step has no written copy yet — scripted steps send exactly what you save. Compose a draft with AI (marked until you edit or confirm it) or write it below."
@@ -1125,12 +2236,15 @@ export function StepsTab({ view, outcomes, onChanged }: { view: AgentViewData | 
           // graph re-pull (onChanged) brings the new container into view.
           setSubRules((rs) => [
             ...rs.filter((r) => r.ruleId !== created.ruleId),
-            { ruleId: created.ruleId, targetNodeId: created.subcampaignId, trigger: created.trigger },
+            {
+              ruleId: created.ruleId,
+              targetNodeId: created.subcampaignId,
+              trigger: created.trigger,
+            },
           ]);
           void onChanged?.();
         }}
       />
-
     </div>
   );
 }

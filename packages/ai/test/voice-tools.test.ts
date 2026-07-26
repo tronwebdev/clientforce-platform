@@ -30,7 +30,10 @@ describe("streamVoice — the pre-DEC-099 surface is untouched", () => {
   it("yields plain text deltas and sends NO tools field when none are given", async () => {
     const seen: StreamParams[] = [];
     const gw = new AiGateway({
-      provider: recording([{ type: "delta", text: "Hi " }, { type: "delta", text: "there" }, usage], seen),
+      provider: recording(
+        [{ type: "delta", text: "Hi " }, { type: "delta", text: "there" }, usage],
+        seen,
+      ),
       onUsage: () => {},
     });
 
@@ -69,7 +72,12 @@ describe("streamVoiceEvents — the tool surface", () => {
       provider: recording(
         [
           { type: "delta", text: "Let me check. " },
-          { type: "tool_use", id: "t1", name: "lookup_contact_context", input: { facet: "knowledge", query: "price" } },
+          {
+            type: "tool_use",
+            id: "t1",
+            name: "lookup_contact_context",
+            input: { facet: "knowledge", query: "price" },
+          },
           usage,
         ],
         seen,
@@ -93,7 +101,12 @@ describe("streamVoiceEvents — the tool surface", () => {
     expect(seen[0]!.tools).toEqual([tool]);
     expect(events).toEqual([
       { type: "text", text: "Let me check. " },
-      { type: "tool_use", id: "t1", name: "lookup_contact_context", input: { facet: "knowledge", query: "price" } },
+      {
+        type: "tool_use",
+        id: "t1",
+        name: "lookup_contact_context",
+        input: { facet: "knowledge", query: "price" },
+      },
     ]);
   });
 
@@ -104,11 +117,15 @@ describe("streamVoiceEvents — the tool surface", () => {
       { role: "user" as const, content: "have we spoken?" },
       {
         role: "assistant" as const,
-        content: [{ type: "tool_use" as const, id: "t1", name: "lookup_contact_context", input: {} }],
+        content: [
+          { type: "tool_use" as const, id: "t1", name: "lookup_contact_context", input: {} },
+        ],
       },
       {
         role: "user" as const,
-        content: [{ type: "tool_result" as const, tool_use_id: "t1", content: "NOTHING ON RECORD" }],
+        content: [
+          { type: "tool_result" as const, tool_use_id: "t1", content: "NOTHING ON RECORD" },
+        ],
       },
     ];
     for await (const _ of gw.streamVoiceEvents({ turns })) void _;

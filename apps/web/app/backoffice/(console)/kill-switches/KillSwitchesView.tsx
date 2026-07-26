@@ -1,7 +1,11 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { KILL_SWITCH_CHANNELS, type BackofficeAgencyRow, type KillSwitchRow } from "@clientforce/core";
+import {
+  KILL_SWITCH_CHANNELS,
+  type BackofficeAgencyRow,
+  type KillSwitchRow,
+} from "@clientforce/core";
 import { Button, Modal, Pill, Toast } from "@clientforce/ui";
 
 // Only the channels whose send boundary enforces the switch (email + SMS today).
@@ -10,7 +14,10 @@ const CHANNELS = KILL_SWITCH_CHANNELS;
 type Channel = (typeof CHANNELS)[number];
 
 async function bo(path: string, init?: RequestInit): Promise<unknown> {
-  const res = await fetch(`/api/bo/${path}`, { headers: { "Content-Type": "application/json" }, ...init });
+  const res = await fetch(`/api/bo/${path}`, {
+    headers: { "Content-Type": "application/json" },
+    ...init,
+  });
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as { message?: string };
     throw new Error(body.message ?? `Request failed (${res.status})`);
@@ -35,7 +42,12 @@ export function KillSwitchesView({
   const [byKey, setByKey] = useState<Map<string, KillSwitchRow>>(
     () => new Map(initialSwitches.map((s) => [keyOf(s.agencyId, s.channel), s])),
   );
-  const [modal, setModal] = useState<{ agencyId: string; agencyName: string; channel: Channel; kill: boolean } | null>(null);
+  const [modal, setModal] = useState<{
+    agencyId: string;
+    agencyName: string;
+    channel: Channel;
+    kill: boolean;
+  } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
@@ -48,28 +60,60 @@ export function KillSwitchesView({
 
   return (
     <div>
-      <h1 style={{ fontFamily: "'Bricolage Grotesque'", fontSize: 28, fontWeight: 700, margin: "0 0 4px" }}>
+      <h1
+        style={{
+          fontFamily: "'Bricolage Grotesque'",
+          fontSize: 28,
+          fontWeight: 700,
+          margin: "0 0 4px",
+        }}
+      >
         Kill switches
       </h1>
       <p style={{ color: "#5b6560", fontSize: 14, margin: "0 0 20px", maxWidth: 720 }}>
-        Per-agency, per-channel emergency stop. A killed channel refuses every send for that agency at the
-        boundary (typed <code style={{ fontFamily: "monospace" }}>CHANNEL_KILLED</code>) until you clear it.
-        Every change is audited.
+        Per-agency, per-channel emergency stop. A killed channel refuses every send for that agency
+        at the boundary (typed <code style={{ fontFamily: "monospace" }}>CHANNEL_KILLED</code>)
+        until you clear it. Every change is audited.
       </p>
 
       {agencies.length === 0 ? (
-        <div style={{ padding: 40, textAlign: "center", color: "#5b6560", background: "#fff", border: "1px solid var(--cf-color-hairline, #ebe3d6)", borderRadius: 14 }}>
+        <div
+          style={{
+            padding: 40,
+            textAlign: "center",
+            color: "#5b6560",
+            background: "#fff",
+            border: "1px solid var(--cf-color-hairline, #ebe3d6)",
+            borderRadius: 14,
+          }}
+        >
           No agencies.
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {agencies.map((a) => (
-            <section key={a.id} style={{ background: "#fff", border: "1px solid var(--cf-color-hairline, #ebe3d6)", borderRadius: 14, padding: "14px 18px" }}>
+            <section
+              key={a.id}
+              style={{
+                background: "#fff",
+                border: "1px solid var(--cf-color-hairline, #ebe3d6)",
+                borderRadius: 14,
+                padding: "14px 18px",
+              }}
+            >
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-                <div style={{ fontFamily: "'Bricolage Grotesque'", fontSize: 16, fontWeight: 700 }}>{a.name}</div>
+                <div style={{ fontFamily: "'Bricolage Grotesque'", fontSize: 16, fontWeight: 700 }}>
+                  {a.name}
+                </div>
                 <div style={{ fontSize: 12, color: "#8a938d" }}>{a.slug}</div>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 10 }}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+                  gap: 10,
+                }}
+              >
                 {CHANNELS.map((channel) => {
                   const killed = isKilled(a.id, channel);
                   const row = byKey.get(keyOf(a.id, channel));
@@ -87,19 +131,28 @@ export function KillSwitchesView({
                       }}
                     >
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, textTransform: "capitalize" }}>{channel}</div>
+                        <div style={{ fontSize: 13, fontWeight: 600, textTransform: "capitalize" }}>
+                          {channel}
+                        </div>
                         <div style={{ marginTop: 3 }}>
-                          <Pill tone={killed ? "warn" : "success"}>{killed ? "Killed" : "Live"}</Pill>
+                          <Pill tone={killed ? "warn" : "success"}>
+                            {killed ? "Killed" : "Live"}
+                          </Pill>
                         </div>
                         {killed && row?.reason ? (
-                          <div style={{ fontSize: 11, color: "#8a938d", marginTop: 4 }} title={row.reason}>
+                          <div
+                            style={{ fontSize: 11, color: "#8a938d", marginTop: 4 }}
+                            title={row.reason}
+                          >
                             {row.reason.length > 40 ? `${row.reason.slice(0, 40)}…` : row.reason}
                           </div>
                         ) : null}
                       </div>
                       <button
                         type="button"
-                        onClick={() => setModal({ agencyId: a.id, agencyName: a.name, channel, kill: !killed })}
+                        onClick={() =>
+                          setModal({ agencyId: a.id, agencyName: a.name, channel, kill: !killed })
+                        }
                         style={{
                           height: 30,
                           padding: "0 12px",
@@ -163,7 +216,12 @@ function KillDialog({
     try {
       await bo("kill-switches", {
         method: "POST",
-        body: JSON.stringify({ agencyId: modal.agencyId, channel: modal.channel, active: modal.kill, reason }),
+        body: JSON.stringify({
+          agencyId: modal.agencyId,
+          channel: modal.channel,
+          active: modal.kill,
+          reason,
+        }),
       });
       onDone(
         modal.kill
@@ -203,11 +261,23 @@ function KillDialog({
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           rows={3}
-          placeholder={modal.kill ? "Why is this channel being killed?" : "Why is it safe to restore?"}
-          style={{ borderRadius: 10, border: "1px solid var(--cf-color-hairline, #ebe3d6)", padding: "10px 12px", fontSize: 14, resize: "vertical" }}
+          placeholder={
+            modal.kill ? "Why is this channel being killed?" : "Why is it safe to restore?"
+          }
+          style={{
+            borderRadius: 10,
+            border: "1px solid var(--cf-color-hairline, #ebe3d6)",
+            padding: "10px 12px",
+            fontSize: 14,
+            resize: "vertical",
+          }}
         />
       </label>
-      {error ? <p style={{ color: "var(--cf-color-danger, #c9543f)", fontSize: 13, margin: "10px 0 0" }}>{error}</p> : null}
+      {error ? (
+        <p style={{ color: "var(--cf-color-danger, #c9543f)", fontSize: 13, margin: "10px 0 0" }}>
+          {error}
+        </p>
+      ) : null}
     </Modal>
   );
 }

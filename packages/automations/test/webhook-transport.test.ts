@@ -17,7 +17,11 @@ const ctx = (over: Partial<RunContext> = {}): RunContext => ({
   enrollmentId: "en1",
   depth: 0,
   terminalState: { fired: false },
-  event: { type: "payment.received.v1", payload: { amount: 100 }, occurredAt: "2026-07-22T00:00:00.000Z" },
+  event: {
+    type: "payment.received.v1",
+    payload: { amount: 100 },
+    occurredAt: "2026-07-22T00:00:00.000Z",
+  },
   ...over,
 });
 
@@ -67,7 +71,13 @@ describe("send_webhook executor (INT W3)", () => {
     } as unknown as RuleEngineDeps;
     await executeAction(
       deps,
-      ctx({ event: { type: "sweep.before_meeting", payload: { meetingId: "m1" }, occurredAt: "2026-07-22T00:00:00.000Z" } }),
+      ctx({
+        event: {
+          type: "sweep.before_meeting",
+          payload: { meetingId: "m1" },
+          occurredAt: "2026-07-22T00:00:00.000Z",
+        },
+      }),
       "rule-1",
       { kind: "send_webhook" },
       "#a:0",

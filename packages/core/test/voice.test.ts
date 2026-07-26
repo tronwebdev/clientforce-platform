@@ -55,12 +55,12 @@ describe("renderVoiceDisclosure — the locked literals, byte-equal", () => {
   });
 
   it("recording OFF drops ONLY the recording sentence (the certification branch)", () => {
-    expect(
-      renderVoiceDisclosure({ spokenName: "Ava", businessName: "Acme Dental" }),
-    ).toBe("Hi, this is Ava, an AI assistant calling on behalf of Acme Dental. Is now a quick moment?");
-    expect(
-      renderVoiceDisclosure({ spokenName: null, businessName: "Acme Dental" }),
-    ).toBe("Hi, this is an AI assistant calling on behalf of Acme Dental. Is now a quick moment?");
+    expect(renderVoiceDisclosure({ spokenName: "Ava", businessName: "Acme Dental" })).toBe(
+      "Hi, this is Ava, an AI assistant calling on behalf of Acme Dental. Is now a quick moment?",
+    );
+    expect(renderVoiceDisclosure({ spokenName: null, businessName: "Acme Dental" })).toBe(
+      "Hi, this is an AI assistant calling on behalf of Acme Dental. Is now a quick moment?",
+    );
   });
 
   it("recording defaults OFF (the owner-locked default)", () => {
@@ -130,9 +130,10 @@ describe("resolveSpokenName — the locked chain (agent confirmed → workspace 
   });
 
   it("an INVALID value never resolves — even confirmed (the disclosure never speaks an unvalidated string)", () => {
-    expect(
-      resolveSpokenName({ spokenName: "Dr. Smith", spokenNameConfirmed: true }, ws),
-    ).toEqual({ spokenName: "Sam", source: "workspace" });
+    expect(resolveSpokenName({ spokenName: "Dr. Smith", spokenNameConfirmed: true }, ws)).toEqual({
+      spokenName: "Sam",
+      source: "workspace",
+    });
     expect(resolveSpokenName(null, { spokenName: "Officer Kelly" })).toEqual({
       spokenName: null,
       source: "default",
@@ -149,7 +150,15 @@ describe("spokenNameIssue — plain given names only", () => {
   });
 
   it("rejects titles and professional claims", () => {
-    for (const name of ["Dr. Smith", "Doctor Smith", "Professor X", "Officer Kelly", "Attorney Ray", "Nurse Joy", "Mr Jones"]) {
+    for (const name of [
+      "Dr. Smith",
+      "Doctor Smith",
+      "Professor X",
+      "Officer Kelly",
+      "Attorney Ray",
+      "Nurse Joy",
+      "Mr Jones",
+    ]) {
       expect(spokenNameIssue(name), name).toBe("TITLE_OR_CLAIM");
     }
   });
@@ -190,9 +199,7 @@ describe("settings shapes", () => {
       unsubscribeFooter: true,
       suppressionCheck: true,
     };
-    expect(() =>
-      guardrailsSchema.parse({ ...base, voice: { spokenName: "Dr. Smith" } }),
-    ).toThrow();
+    expect(() => guardrailsSchema.parse({ ...base, voice: { spokenName: "Dr. Smith" } })).toThrow();
   });
 
   it("parseWorkspaceVoiceDefaults reads leniently — absent/invalid blocks are no defaults", () => {
@@ -200,7 +207,9 @@ describe("settings shapes", () => {
     expect(parseWorkspaceVoiceDefaults({})).toEqual({});
     expect(parseWorkspaceVoiceDefaults({ voiceDefaults: { spokenName: 42 } })).toEqual({});
     expect(
-      parseWorkspaceVoiceDefaults({ voiceDefaults: { spokenName: "Sam", recordingEnabled: false } }),
+      parseWorkspaceVoiceDefaults({
+        voiceDefaults: { spokenName: "Sam", recordingEnabled: false },
+      }),
     ).toEqual({ spokenName: "Sam", recordingEnabled: false });
   });
 });

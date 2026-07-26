@@ -18,7 +18,12 @@ import {
 } from "@clientforce/db";
 import { COMPLIANCE_STRINGS } from "@clientforce/core";
 import { sendSmsStep, SMS_OPT_OUT_LINE, type SendSmsDeps } from "../src/send-sms";
-import { applySmsStop, ingestInboundSms, isStopMessage, normalizeTwilioInbound } from "../src/sms-inbound";
+import {
+  applySmsStop,
+  ingestInboundSms,
+  isStopMessage,
+  normalizeTwilioInbound,
+} from "../src/sms-inbound";
 import { smsSegmentCount, validateTwilioSignature } from "../src/twilio";
 import type { RenderedSms, SmsSender } from "../src/types";
 
@@ -36,7 +41,10 @@ class CapturingSms implements SmsSender {
   private n = 0;
   async send(sms: RenderedSms, _sender: SenderConnection) {
     this.sent.push(sms);
-    return { providerMessageId: `SM-test-${++this.n}-${suffix}`, segments: smsSegmentCount(sms.body) };
+    return {
+      providerMessageId: `SM-test-${++this.n}-${suffix}`,
+      segments: smsSegmentCount(sms.body),
+    };
   }
 }
 
@@ -105,7 +113,10 @@ describe.skipIf(!hasInfra)("sendSmsStep boundary integration", () => {
         fromEmail: "+15005550006", // DEC-061: E.164 rides the fromEmail column
         fromName: "Clinic SMS",
         dailyLimit: 100,
-        credentialsEnc: encryptField(JSON.stringify({ messagingServiceSid: `MG${"a".repeat(32)}` }), ENC_KEY),
+        credentialsEnc: encryptField(
+          JSON.stringify({ messagingServiceSid: `MG${"a".repeat(32)}` }),
+          ENC_KEY,
+        ),
       },
     });
     senderId = sender.id;
@@ -154,7 +165,11 @@ describe.skipIf(!hasInfra)("sendSmsStep boundary integration", () => {
   });
 
   it("the SECOND outbound of the enrollment does NOT repeat the opt-out line", async () => {
-    const msg = await sendSmsStep(deps(), { ...base(), stepNodeId: "sms-2", content: { body: "Bump {{firstName}}" } });
+    const msg = await sendSmsStep(deps(), {
+      ...base(),
+      stepNodeId: "sms-2",
+      content: { body: "Bump {{firstName}}" },
+    });
     expect(msg.body).not.toContain(SMS_OPT_OUT_LINE);
     expect(msg.inReplyToId).not.toBeNull();
   });
@@ -225,11 +240,23 @@ describe.skipIf(!hasInfra)("sendSmsStep boundary integration", () => {
 
   it("refuses a non-allow-listed number (DEC-063 rail)", async () => {
     const outsider = await owner.contact.create({
-      data: { workspaceId: ws, source: "test", optOut: {}, tags: [], phone: "+15005559999", email: `o-${suffix}@t.test` },
+      data: {
+        workspaceId: ws,
+        source: "test",
+        optOut: {},
+        tags: [],
+        phone: "+15005559999",
+        email: `o-${suffix}@t.test`,
+      },
     });
     await expect(
       // Fresh cap day (Wed) — the allow-list rail must be the one that fires.
-      sendSmsStep(deps({ now: () => new Date("2026-07-08T10:00:00Z") }), { ...base(), contactId: outsider.id, stepNodeId: "sms-o", content: { body: "no" } }),
+      sendSmsStep(deps({ now: () => new Date("2026-07-08T10:00:00Z") }), {
+        ...base(),
+        contactId: outsider.id,
+        stepNodeId: "sms-o",
+        content: { body: "no" },
+      }),
     ).rejects.toMatchObject({ reason: "RECIPIENT_NOT_ALLOWLISTED" });
   });
 
@@ -238,13 +265,23 @@ describe.skipIf(!hasInfra)("sendSmsStep boundary integration", () => {
       data: { workspaceId: ws, source: "test", optOut: {}, tags: [], email: `np-${suffix}@t.test` },
     });
     await expect(
-      sendSmsStep(deps(), { ...base(), contactId: nophone.id, stepNodeId: "sms-n", content: { body: "no" } }),
+      sendSmsStep(deps(), {
+        ...base(),
+        contactId: nophone.id,
+        stepNodeId: "sms-n",
+        content: { body: "no" },
+      }),
     ).rejects.toMatchObject({ reason: "CONTACT_NO_PHONE" });
   });
 
   it("STOP rail: inbound STOP suppresses, flips optOut.sms + enrollment, and the next send refuses", async () => {
     expect(isStopMessage(" stop ")).toBe(true);
-    const inbound = normalizeTwilioInbound({ From: PHONE, To: "+15005550006", Body: "STOP", MessageSid: `SM-in-${suffix}` });
+    const inbound = normalizeTwilioInbound({
+      From: PHONE,
+      To: "+15005550006",
+      Body: "STOP",
+      MessageSid: `SM-in-${suffix}`,
+    });
     const ingested = await ingestInboundSms({ owner, app }, inbound);
     expect(ingested?.stop).toBe(true);
     expect(ingested?.message.channel).toBe("sms");
@@ -271,7 +308,12 @@ describe.skipIf(!hasInfra)("sendSmsStep boundary integration", () => {
     const url = "https://api.example.com/webhooks/twilio";
     const params = { From: PHONE, Body: "yes", MessageSid: "SM1" };
     // Signature computed with the same recipe — self-consistency + tamper check.
-    const data = url + Object.keys(params).sort().map((k) => k + params[k as keyof typeof params]).join("");
+    const data =
+      url +
+      Object.keys(params)
+        .sort()
+        .map((k) => k + params[k as keyof typeof params])
+        .join("");
     const sig = createHmac("sha1", "token").update(Buffer.from(data, "utf-8")).digest("base64");
     expect(validateTwilioSignature("token", url, params, sig)).toBe(true);
     expect(validateTwilioSignature("token", url, { ...params, Body: "no" }, sig)).toBe(false);

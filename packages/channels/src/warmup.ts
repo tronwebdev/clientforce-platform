@@ -76,7 +76,9 @@ const DAY_MS = 86_400_000;
 
 /** Ramp-effective elapsed ms: wall-clock minus accumulated + open holds. */
 function effectiveElapsedMs(state: WarmupState, startedAt: Date, now: Date): number {
-  const openHold = state.holdStartedAt ? now.getTime() - new Date(state.holdStartedAt).getTime() : 0;
+  const openHold = state.holdStartedAt
+    ? now.getTime() - new Date(state.holdStartedAt).getTime()
+    : 0;
   const held = (state.heldMs ?? 0) + Math.max(0, openHold);
   return Math.max(0, now.getTime() - startedAt.getTime() - held);
 }
@@ -101,7 +103,9 @@ export function warmupCurveCap(day: number, target: number): number | null {
   let cap: number;
   if (boundedDay >= lastStep[0]) {
     cap = Math.round(
-      lastStep[1] + ((WARMUP_FULL_CAP - lastStep[1]) * (boundedDay - lastStep[0])) / (WARMUP_DAYS - lastStep[0]),
+      lastStep[1] +
+        ((WARMUP_FULL_CAP - lastStep[1]) * (boundedDay - lastStep[0])) /
+          (WARMUP_DAYS - lastStep[0]),
     );
   } else {
     cap = WARMUP_STEP_CAPS[0]![1];
@@ -144,7 +148,13 @@ export function warmupCapFor(
   const day = warmupEffectiveDay(state, started, now);
   const cap = warmupCurveCap(day, sender.dailyLimit);
   if (cap === null) return null;
-  return { day, days: WARMUP_DAYS, cap, target: sender.dailyLimit, holding: Boolean(state.holdStartedAt) };
+  return {
+    day,
+    days: WARMUP_DAYS,
+    cap,
+    target: sender.dailyLimit,
+    holding: Boolean(state.holdStartedAt),
+  };
 }
 
 /** UI/API projection — active ramp, completed ramp, or no ramp at all. */
@@ -178,7 +188,9 @@ export function warmupProgressFor(
     active,
     day,
     days: WARMUP_DAYS,
-    currentCap: active ? (warmupCurveCap(day, sender.dailyLimit) ?? sender.dailyLimit) : sender.dailyLimit,
+    currentCap: active
+      ? (warmupCurveCap(day, sender.dailyLimit) ?? sender.dailyLimit)
+      : sender.dailyLimit,
     target: sender.dailyLimit,
     pct: Math.round((day / WARMUP_DAYS) * 100),
     holding: active && Boolean(state.holdStartedAt),
@@ -201,7 +213,9 @@ export async function applyWarmupHealthInterlock(
 ): Promise<{ holding: boolean; changed: boolean }> {
   const now = deps.now?.() ?? new Date();
   const sender = await withTenant(deps.prisma, { workspaceId: params.workspaceId }, (tx) =>
-    tx.senderConnection.findFirst({ where: { id: params.senderId, workspaceId: params.workspaceId } }),
+    tx.senderConnection.findFirst({
+      where: { id: params.senderId, workspaceId: params.workspaceId },
+    }),
   );
   if (!sender) return { holding: false, changed: false };
   const state = parseWarmupState(sender.warmupState);
@@ -269,7 +283,9 @@ export async function ensureWarmupCompletion(
 ): Promise<{ completed: boolean; emitted: boolean }> {
   const now = deps.now?.() ?? new Date();
   const sender = await withTenant(deps.prisma, { workspaceId: params.workspaceId }, (tx) =>
-    tx.senderConnection.findFirst({ where: { id: params.senderId, workspaceId: params.workspaceId } }),
+    tx.senderConnection.findFirst({
+      where: { id: params.senderId, workspaceId: params.workspaceId },
+    }),
   );
   if (!sender) return { completed: false, emitted: false };
   const state = parseWarmupState(sender.warmupState);
@@ -277,7 +293,8 @@ export async function ensureWarmupCompletion(
   const started = new Date(state.startedAt);
   if (Number.isNaN(started.getTime())) return { completed: false, emitted: false };
   // Hold-aware: a held ramp completes later by exactly its held time.
-  if (warmupEffectiveDay(state, started, now) <= WARMUP_DAYS) return { completed: false, emitted: false };
+  if (warmupEffectiveDay(state, started, now) <= WARMUP_DAYS)
+    return { completed: false, emitted: false };
 
   const completedAt = new Date(started.getTime() + (state.heldMs ?? 0) + WARMUP_DAYS * DAY_MS);
   const next: WarmupState = { ...state, completedAt: completedAt.toISOString() };

@@ -51,7 +51,11 @@ let registered = false;
 function ensureRegistered(): void {
   if (registered) return;
   registered = true;
-  registerPrompt({ name: DISTILL_PROMPT_NAME, version: DISTILL_PROMPT_VERSION, template: V1_TEMPLATE });
+  registerPrompt({
+    name: DISTILL_PROMPT_NAME,
+    version: DISTILL_PROMPT_VERSION,
+    template: V1_TEMPLATE,
+  });
   if (!V1_TEMPLATE.includes(V1_SUMMARY_RULE)) {
     throw new Error(
       "distill prompt v2 derivation: v1 rawSummary rule not found — realign the language variant",

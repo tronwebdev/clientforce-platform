@@ -35,9 +35,19 @@ class FakeEngine implements WorkflowEngine {
 const GRAPH = {
   entry: "s1",
   nodes: [
-    { id: "s1", type: "step", channel: "email", content: { subject: "Hi {{firstName}}", body: "b" } },
+    {
+      id: "s1",
+      type: "step",
+      channel: "email",
+      content: { subject: "Hi {{firstName}}", body: "b" },
+    },
     { id: "d1", type: "delay", amount: 2, unit: "days" },
-    { id: "s2", type: "step", channel: "email", content: { subject: "x", body: "c", threaded: true } },
+    {
+      id: "s2",
+      type: "step",
+      channel: "email",
+      content: { subject: "x", body: "c", threaded: true },
+    },
     {
       id: "br",
       type: "branch",

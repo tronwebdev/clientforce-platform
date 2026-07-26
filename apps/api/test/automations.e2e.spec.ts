@@ -74,10 +74,20 @@ describe.skipIf(!hasDb)("automations e2e (R1-UI W1, DEC-091)", () => {
   beforeAll(async () => {
     process.env.AUTH_DEV_SECRET = SECRET;
     owner = createPrismaClient();
-    const agency = await owner.agency.create({ data: { name: suffix, slug: suffix, branding: {} } });
+    const agency = await owner.agency.create({
+      data: { name: suffix, slug: suffix, branding: {} },
+    });
     agencyId = agency.id;
-    wsA = (await owner.workspace.create({ data: { agencyId, name: "A", slug: `a-${suffix}`, settings: {} } })).id;
-    wsB = (await owner.workspace.create({ data: { agencyId, name: "B", slug: `b-${suffix}`, settings: {} } })).id;
+    wsA = (
+      await owner.workspace.create({
+        data: { agencyId, name: "A", slug: `a-${suffix}`, settings: {} },
+      })
+    ).id;
+    wsB = (
+      await owner.workspace.create({
+        data: { agencyId, name: "B", slug: `b-${suffix}`, settings: {} },
+      })
+    ).id;
 
     const u1 = await owner.user.create({
       data: { email: `owner-${suffix}@t.test`, authProviderId: `auth|owner-${suffix}` },
@@ -240,7 +250,10 @@ describe.skipIf(!hasDb)("automations e2e (R1-UI W1, DEC-091)", () => {
 
     // Disable both referrers — the refusal clears (disabled rows don't block).
     await owner.campaignRule.update({ where: { id: referrerRule.id }, data: { enabled: false } });
-    await owner.automation.update({ where: { id: referrerAutomation.id }, data: { enabled: false } });
+    await owner.automation.update({
+      where: { id: referrerAutomation.id },
+      data: { enabled: false },
+    });
 
     const ok = await asOwner(api().delete(`/automations/${target.id}`));
     expect(ok.status).toBe(200);
@@ -288,7 +301,13 @@ describe.skipIf(!hasDb)("automations e2e (R1-UI W1, DEC-091)", () => {
       data: {
         workspaceId: wsA,
         type: "automation.rule.run.v1",
-        payload: { ruleId: other.id, runId: "run-x", status: "fired", trigger: "opted_out", scope: "account" },
+        payload: {
+          ruleId: other.id,
+          runId: "run-x",
+          status: "fired",
+          trigger: "opted_out",
+          scope: "account",
+        },
       },
     });
 
@@ -388,9 +407,17 @@ describe.skipIf(!hasDb)("automations e2e (R1-UI W1, DEC-091)", () => {
     expect(overlap.status).toBe(201);
 
     // …and a DISABLED row with the same trigger never blocks.
-    await addAutomation({ name: "sleeping twin source", trigger: { kind: "meeting_booked" }, enabled: false });
+    await addAutomation({
+      name: "sleeping twin source",
+      trigger: { kind: "meeting_booked" },
+      enabled: false,
+    });
     const vsDisabled = await asOwner(api().post("/automations")).send(
-      writeBody({ name: "meeting rule", trigger: { kind: "meeting_booked" }, actions: [{ kind: "notify_team" }] }),
+      writeBody({
+        name: "meeting rule",
+        trigger: { kind: "meeting_booked" },
+        actions: [{ kind: "notify_team" }],
+      }),
     );
     expect(vsDisabled.status).toBe(201);
   });
@@ -407,13 +434,19 @@ describe.skipIf(!hasDb)("automations e2e (R1-UI W1, DEC-091)", () => {
     );
     expect(sleeper.status).toBe(201); // a disabled write never conflicts
 
-    const wake = await asOwner(api().patch(`/automations/${sleeper.body.id}`)).send({ enabled: true });
+    const wake = await asOwner(api().patch(`/automations/${sleeper.body.id}`)).send({
+      enabled: true,
+    });
     expect(wake.status).toBe(422);
     expect(wake.body.message).toContain("already fires on this exact trigger");
     // The refused flip changed nothing — and no audit row was written.
-    expect((await owner.automation.findUnique({ where: { id: sleeper.body.id } }))?.enabled).toBe(false);
+    expect((await owner.automation.findUnique({ where: { id: sleeper.body.id } }))?.enabled).toBe(
+      false,
+    );
     expect(
-      await owner.event.count({ where: { workspaceId: wsA, type: "automation.status_changed.v1" } }),
+      await owner.event.count({
+        where: { workspaceId: wsA, type: "automation.status_changed.v1" },
+      }),
     ).toBe(0);
   });
 
@@ -424,7 +457,10 @@ describe.skipIf(!hasDb)("automations e2e (R1-UI W1, DEC-091)", () => {
     expect(dangling.status).toBe(422);
     expect(dangling.body.message).toBe("Automation reference not found");
 
-    const target = await addAutomation({ name: "chain target", trigger: { kind: "meeting_booked" } });
+    const target = await addAutomation({
+      name: "chain target",
+      trigger: { kind: "meeting_booked" },
+    });
     const chained = await asOwner(api().post("/automations")).send(
       writeBody({ actions: [{ kind: "run_automation", automationId: target.id }] }),
     );
@@ -460,7 +496,11 @@ describe.skipIf(!hasDb)("automations e2e (R1-UI W1, DEC-091)", () => {
     // Editing INTO another enabled row's trigger refuses.
     await addAutomation({ name: "meeting rule", trigger: { kind: "meeting_booked" } });
     const collide = await asOwner(api().put(`/automations/${row.id}`)).send(
-      writeBody({ name: "renamed", trigger: { kind: "meeting_booked" }, actions: [{ kind: "notify_team" }] }),
+      writeBody({
+        name: "renamed",
+        trigger: { kind: "meeting_booked" },
+        actions: [{ kind: "notify_team" }],
+      }),
     );
     expect(collide.status).toBe(422);
     expect(collide.body.detail).toContain("meeting rule");
@@ -480,7 +520,11 @@ describe.skipIf(!hasDb)("automations e2e (R1-UI W1, DEC-091)", () => {
       where: { workspaceId: wsA, type: "automation.status_changed.v1" },
     });
     expect(audits).toHaveLength(1);
-    expect(audits[0]!.payload).toMatchObject({ automationId: row.id, from: "enabled", to: "disabled" });
+    expect(audits[0]!.payload).toMatchObject({
+      automationId: row.id,
+      from: "enabled",
+      to: "disabled",
+    });
 
     const missing = await asOwner(api().put(`/automations/nope`)).send(writeBody());
     expect(missing.status).toBe(404);
@@ -491,12 +535,19 @@ describe.skipIf(!hasDb)("automations e2e (R1-UI W1, DEC-091)", () => {
     expect((await asAgent(api().post("/automations")).send(writeBody())).status).toBe(403);
     expect((await asAgent(api().put(`/automations/${row.id}`)).send(writeBody())).status).toBe(403);
     // Cross-workspace edit 404s under RLS — B can't even see the row.
-    expect((await asOwnerB(api().put(`/automations/${row.id}`)).send(writeBody())).status).toBe(404);
+    expect((await asOwnerB(api().put(`/automations/${row.id}`)).send(writeBody())).status).toBe(
+      404,
+    );
     // B's dup check is scoped to B: A's enabled trigger never blocks B.
     const inB = await asOwnerB(api().post("/automations")).send(
-      writeBody({ trigger: { kind: "reply_classified", intents: ["interested"] }, actions: [{ kind: "notify_team" }] }),
+      writeBody({
+        trigger: { kind: "reply_classified", intents: ["interested"] },
+        actions: [{ kind: "notify_team" }],
+      }),
     );
     expect(inB.status).toBe(201);
-    expect((await owner.automation.findFirst({ where: { id: inB.body.id } }))?.workspaceId).toBe(wsB);
+    expect((await owner.automation.findFirst({ where: { id: inB.body.id } }))?.workspaceId).toBe(
+      wsB,
+    );
   });
 });

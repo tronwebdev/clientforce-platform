@@ -69,8 +69,22 @@ describe.skipIf(!hasDb)("Platform backoffice API e2e", () => {
     });
     agencyA = a.id;
     agencyB = b.id;
-    wsA = (await owner.workspace.create({ data: { agencyId: agencyA, name: "A", slug: `bo-a-${suffix}`, settings: {}, creditBalance: 0 } })).id;
-    wsB = (await owner.workspace.create({ data: { agencyId: agencyB, name: "B", slug: `bo-b-${suffix}`, settings: {} } })).id;
+    wsA = (
+      await owner.workspace.create({
+        data: {
+          agencyId: agencyA,
+          name: "A",
+          slug: `bo-a-${suffix}`,
+          settings: {},
+          creditBalance: 0,
+        },
+      })
+    ).id;
+    wsB = (
+      await owner.workspace.create({
+        data: { agencyId: agencyB, name: "B", slug: `bo-b-${suffix}`, settings: {} },
+      })
+    ).id;
 
     // wsA gets a full send setup so the suspension→refusal loop is real.
     agentId = (
@@ -80,7 +94,12 @@ describe.skipIf(!hasDb)("Platform backoffice API e2e", () => {
           name: "Booker",
           goal: "book_appointments",
           guardrails: {
-            sendingWindow: { days: [1, 2, 3, 4, 5, 6, 7], start: "00:00", end: "23:59", timezone: "UTC" },
+            sendingWindow: {
+              days: [1, 2, 3, 4, 5, 6, 7],
+              start: "00:00",
+              end: "23:59",
+              timezone: "UTC",
+            },
             dailyCap: { email: 100 },
             consent: null,
             unsubscribeFooter: true,
@@ -99,7 +118,14 @@ describe.skipIf(!hasDb)("Platform backoffice API e2e", () => {
     });
     senderId = (
       await owner.senderConnection.create({
-        data: { workspaceId: wsA, type: "CF_MANAGED", status: "ACTIVE", fromEmail: "agent@send.clientforce.io", fromName: "Sam Rivers", dailyLimit: 100 },
+        data: {
+          workspaceId: wsA,
+          type: "CF_MANAGED",
+          status: "ACTIVE",
+          fromEmail: "agent@send.clientforce.io",
+          fromName: "Sam Rivers",
+          dailyLimit: 100,
+        },
       })
     ).id;
 
@@ -109,22 +135,40 @@ describe.skipIf(!hasDb)("Platform backoffice API e2e", () => {
       data: { email: `bo-tenant-${suffix}@t.test`, authProviderId: `auth|bo-tenant-${suffix}` },
     });
     tenantUserId = tenantUser.id;
-    await owner.membership.create({ data: { userId: tenantUser.id, workspaceId: wsA, role: "OWNER" } });
-    tenantToken = await signDevToken(SECRET, { sub: `auth|bo-tenant-${suffix}`, email: tenantUser.email });
+    await owner.membership.create({
+      data: { userId: tenantUser.id, workspaceId: wsA, role: "OWNER" },
+    });
+    tenantToken = await signDevToken(SECRET, {
+      sub: `auth|bo-tenant-${suffix}`,
+      email: tenantUser.email,
+    });
 
     // Platform staff: one ACTIVE operator, one DISABLED.
     const active = await owner.platformStaff.create({
       data: { email: `bo-ops-${suffix}@cf.test`, name: "Ops", role: "OPERATOR", status: "ACTIVE" },
     });
     const disabled = await owner.platformStaff.create({
-      data: { email: `bo-ops-off-${suffix}@cf.test`, name: "Ex Ops", role: "OPERATOR", status: "DISABLED" },
+      data: {
+        email: `bo-ops-off-${suffix}@cf.test`,
+        name: "Ex Ops",
+        role: "OPERATOR",
+        status: "DISABLED",
+      },
     });
     staffActiveId = active.id;
     staffDisabledId = disabled.id;
     staffToken = await signStaffToken({ sub: active.id, email: active.email, role: "OPERATOR" });
-    disabledStaffToken = await signStaffToken({ sub: disabled.id, email: disabled.email, role: "OPERATOR" });
+    disabledStaffToken = await signStaffToken({
+      sub: disabled.id,
+      email: disabled.email,
+      role: "OPERATOR",
+    });
     // A well-formed staff-audience token whose email is NOT in the allow-list.
-    ghostStaffToken = await signStaffToken({ sub: "ghost", email: `ghost-${suffix}@nope.test`, role: "OPERATOR" });
+    ghostStaffToken = await signStaffToken({
+      sub: "ghost",
+      email: `ghost-${suffix}@nope.test`,
+      role: "OPERATOR",
+    });
 
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(EMAIL_TRANSPORT)
@@ -138,13 +182,17 @@ describe.skipIf(!hasDb)("Platform backoffice API e2e", () => {
     delete process.env.CHANNELS_ALLOWLIST;
     await app?.close();
     if (owner) {
-      await owner.backofficeAuditLog.deleteMany({ where: { operatorId: { in: [staffActiveId, staffDisabledId] } } });
+      await owner.backofficeAuditLog.deleteMany({
+        where: { operatorId: { in: [staffActiveId, staffDisabledId] } },
+      });
       await owner.creditLedger.deleteMany({ where: { workspaceId: { in: [wsA, wsB] } } });
       await owner.message.deleteMany({ where: { workspaceId: { in: [wsA, wsB] } } });
       await owner.agency.delete({ where: { id: agencyA } }).catch(() => undefined);
       await owner.agency.delete({ where: { id: agencyB } }).catch(() => undefined);
       await owner.user.deleteMany({ where: { id: tenantUserId } });
-      await owner.platformStaff.deleteMany({ where: { id: { in: [staffActiveId, staffDisabledId] } } });
+      await owner.platformStaff.deleteMany({
+        where: { id: { in: [staffActiveId, staffDisabledId] } },
+      });
     }
     await owner?.$disconnect();
   });
@@ -317,7 +365,13 @@ describe.skipIf(!hasDb)("Platform backoffice API e2e", () => {
     expect(actions).toContain("workspace.suspend");
     expect(actions).toContain("workspace.reactivate");
     expect(actions).toContain("workspace.credit.adjust");
-    expect(res.body.every((r: { operatorEmail: string }) => r.operatorEmail === `bo-ops-${suffix}@cf.test`)).toBe(true);
-    expect(res.body.every((r: { reason: string | null }) => typeof r.reason === "string")).toBe(true);
+    expect(
+      res.body.every(
+        (r: { operatorEmail: string }) => r.operatorEmail === `bo-ops-${suffix}@cf.test`,
+      ),
+    ).toBe(true);
+    expect(res.body.every((r: { reason: string | null }) => typeof r.reason === "string")).toBe(
+      true,
+    );
   });
 });

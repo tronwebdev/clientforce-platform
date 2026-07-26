@@ -94,16 +94,22 @@ describe.skipIf(!hasInfra)("campaign-rules engine (R1 W1)", () => {
   beforeAll(async () => {
     owner = createPrismaClient();
     app = createAppPrismaClient();
-    const agency = await owner.agency.create({ data: { name: suffix, slug: suffix, branding: {} } });
+    const agency = await owner.agency.create({
+      data: { name: suffix, slug: suffix, branding: {} },
+    });
     agencyId = agency.id;
-    ws = (await owner.workspace.create({ data: { agencyId, name: "r1", slug: suffix, settings: {} } })).id;
+    ws = (
+      await owner.workspace.create({ data: { agencyId, name: "r1", slug: suffix, settings: {} } })
+    ).id;
     const agentId = (
       await owner.agent.create({
         data: { workspaceId: ws, name: "Rules", goal: "book_appointments", guardrails: {} },
       })
     ).id;
     campaignId = (
-      await owner.campaign.create({ data: { workspaceId: ws, agentId, name: "primary", graphId: "" } })
+      await owner.campaign.create({
+        data: { workspaceId: ws, agentId, name: "primary", graphId: "" },
+      })
     ).id;
     contactId = (
       await owner.contact.create({
@@ -222,11 +228,14 @@ describe.skipIf(!hasInfra)("campaign-rules engine (R1 W1)", () => {
     expect(moved).toHaveLength(1);
     expect(moved[0]!.targetNodeId).toBe("branch-x");
 
-    const winnerRun = await owner.campaignRuleRun.findFirstOrThrow({ where: { ruleId: winner.id } });
+    const winnerRun = await owner.campaignRuleRun.findFirstOrThrow({
+      where: { ruleId: winner.id },
+    });
     expect(winnerRun.status).toBe("fired");
     const loserRun = await owner.campaignRuleRun.findFirstOrThrow({ where: { ruleId: loser.id } });
     expect(loserRun.status).toBe("skipped_conflict");
-    const outcomes = (loserRun.detail as { actions: Array<{ kind: string; outcome: string }> }).actions;
+    const outcomes = (loserRun.detail as { actions: Array<{ kind: string; outcome: string }> })
+      .actions;
     expect(outcomes).toEqual([
       expect.objectContaining({ kind: "notify_team", outcome: "executed" }),
       expect.objectContaining({ kind: "move_to_node", outcome: "skipped_conflict" }),
@@ -396,12 +405,18 @@ describe.skipIf(!hasInfra)("campaign-rules engine (R1 W1)", () => {
         sentAt: new Date(),
       },
     });
-    const hit = await addRule(1, { kind: "reply_classified", intents: ["info_request"] }, [
-      { kind: "add_tag", tag: "pricing-question" },
-    ], { condition: { kind: "keyword_contains", keywords: ["pricing"] } });
-    const miss = await addRule(2, { kind: "reply_classified", intents: ["info_request"] }, [
-      { kind: "add_tag", tag: "integration-question" },
-    ], { condition: { kind: "keyword_contains", keywords: ["integration"] } });
+    const hit = await addRule(
+      1,
+      { kind: "reply_classified", intents: ["info_request"] },
+      [{ kind: "add_tag", tag: "pricing-question" }],
+      { condition: { kind: "keyword_contains", keywords: ["pricing"] } },
+    );
+    const miss = await addRule(
+      2,
+      { kind: "reply_classified", intents: ["info_request"] },
+      [{ kind: "add_tag", tag: "integration-question" }],
+      { condition: { kind: "keyword_contains", keywords: ["integration"] } },
+    );
 
     await evaluateEventForRules(
       deps(),
@@ -426,9 +441,9 @@ describe.skipIf(!hasInfra)("campaign-rules engine (R1 W1)", () => {
     expect(suppressions.every((s) => s.source === `campaign-rule:${rule.id}`)).toBe(true);
     const contact = await owner.contact.findUniqueOrThrow({ where: { id: contactId } });
     expect(contact.optOut).toMatchObject({ email: true, sms: true });
-    expect(
-      (await owner.enrollment.findUniqueOrThrow({ where: { id: enrollmentId } })).status,
-    ).toBe("UNSUBSCRIBED");
+    expect((await owner.enrollment.findUniqueOrThrow({ where: { id: enrollmentId } })).status).toBe(
+      "UNSUBSCRIBED",
+    );
     expect(cancelled).toHaveLength(1);
     const unsubEvents = published.filter((p) => p.type === "lead.unsubscribed.v1");
     expect(unsubEvents).toHaveLength(2); // one per channel CREATED
@@ -615,14 +630,18 @@ describe.skipIf(!hasInfra)("account rules engine (R1-UI, DEC-091)", () => {
     app = createAppPrismaClient();
     const agency = await owner.agency.create({ data: { name: sfx, slug: sfx, branding: {} } });
     agencyId = agency.id;
-    ws = (await owner.workspace.create({ data: { agencyId, name: "r1ui", slug: sfx, settings: {} } })).id;
+    ws = (
+      await owner.workspace.create({ data: { agencyId, name: "r1ui", slug: sfx, settings: {} } })
+    ).id;
     const agentId = (
       await owner.agent.create({
         data: { workspaceId: ws, name: "AccountRules", goal: "book_appointments", guardrails: {} },
       })
     ).id;
     campaignId = (
-      await owner.campaign.create({ data: { workspaceId: ws, agentId, name: "primary", graphId: "" } })
+      await owner.campaign.create({
+        data: { workspaceId: ws, agentId, name: "primary", graphId: "" },
+      })
     ).id;
     contactId = (
       await owner.contact.create({
@@ -674,10 +693,9 @@ describe.skipIf(!hasInfra)("account rules engine (R1-UI, DEC-091)", () => {
   });
 
   it("an enabled account rule fires on a campaign event — AutomationRun row (eventId set) + scope:'account' ledger twin", async () => {
-    const automation = await addAutomation(
-      { kind: "reply_classified", intents: ["interested"] },
-      [{ kind: "add_tag", tag: "hot-account" }],
-    );
+    const automation = await addAutomation({ kind: "reply_classified", intents: ["interested"] }, [
+      { kind: "add_tag", tag: "hot-account" },
+    ]);
     const event = replyEvent("interested");
     const summary = await evaluateEventForRules(deps(), event);
     expect(summary.matched).toBe(1);
@@ -718,7 +736,11 @@ describe.skipIf(!hasInfra)("account rules engine (R1-UI, DEC-091)", () => {
       occurredAt: new Date().toISOString(),
     } as BusEvent);
     expect(summary.matched).toBe(1);
-    expect(summary.runs[0]).toMatchObject({ ruleId: automation.id, status: "fired", scope: "account" });
+    expect(summary.runs[0]).toMatchObject({
+      ruleId: automation.id,
+      status: "fired",
+      scope: "account",
+    });
     expect(await owner.campaignRuleRun.count({ where: { workspaceId: ws } })).toBe(0);
     const contact = await owner.contact.findUniqueOrThrow({ where: { id: contactId } });
     expect(contact.tags).toContain("captured");
@@ -736,10 +758,7 @@ describe.skipIf(!hasInfra)("account rules engine (R1-UI, DEC-091)", () => {
     });
     const automation = await addAutomation(
       { kind: "reply_classified", intents: ["not_interested"] },
-      [
-        { kind: "add_tag", tag: "closed-lost" },
-        { kind: "suppress_contact" },
-      ],
+      [{ kind: "add_tag", tag: "closed-lost" }, { kind: "suppress_contact" }],
     );
     const summary = await evaluateEventForRules(deps(), replyEvent("not_interested"));
     expect(summary.terminalFired).toBe(true);
@@ -748,7 +767,8 @@ describe.skipIf(!hasInfra)("account rules engine (R1-UI, DEC-091)", () => {
       where: { automationId: automation.id },
     });
     expect(accountRun.status).toBe("skipped_conflict");
-    const outcomes = (accountRun.detail as { actions: Array<{ kind: string; outcome: string }> }).actions;
+    const outcomes = (accountRun.detail as { actions: Array<{ kind: string; outcome: string }> })
+      .actions;
     expect(outcomes).toEqual([
       expect.objectContaining({ kind: "add_tag", outcome: "executed" }),
       expect.objectContaining({ kind: "suppress_contact", outcome: "skipped_conflict" }),
@@ -769,21 +789,26 @@ describe.skipIf(!hasInfra)("account rules engine (R1-UI, DEC-091)", () => {
     ]);
     expect(shouldContinue).toBe(false);
     expect(cancelled).toEqual([{ enrollmentId, workflowId }]);
-    expect((await owner.enrollment.findUniqueOrThrow({ where: { id: enrollmentId } })).status).toBe("DONE");
+    expect((await owner.enrollment.findUniqueOrThrow({ where: { id: enrollmentId } })).status).toBe(
+      "DONE",
+    );
   });
 
   it("IDEMPOTENCY: unique (automationId, eventId) — a redelivery records nothing new", async () => {
-    const automation = await addAutomation(
-      { kind: "reply_classified", intents: ["interested"] },
-      [{ kind: "add_tag", tag: "once" }],
-    );
+    const automation = await addAutomation({ kind: "reply_classified", intents: ["interested"] }, [
+      { kind: "add_tag", tag: "once" },
+    ]);
     const event = replyEvent("interested");
     const first = await evaluateEventForRules(deps(), event);
     expect(first.runs[0]).toMatchObject({ ruleId: automation.id, status: "fired" });
     const publishesAfterFirst = published.length;
 
     const second = await evaluateEventForRules(deps(), event);
-    expect(second.runs[0]).toMatchObject({ ruleId: automation.id, status: "already_recorded", scope: "account" });
+    expect(second.runs[0]).toMatchObject({
+      ruleId: automation.id,
+      status: "already_recorded",
+      scope: "account",
+    });
     expect(await owner.automationRun.count({ where: { automationId: automation.id } })).toBe(1);
     expect(published.length).toBe(publishesAfterFirst);
   });
@@ -866,7 +891,11 @@ describe.skipIf(!hasInfra)("account rules engine (R1-UI, DEC-091)", () => {
         (p.payload as { ruleId?: string }).ruleId === target.id,
     );
     expect(nested).toHaveLength(1);
-    expect(nested[0]!.payload).toMatchObject({ scope: "account", trigger: "run_automation", status: "fired" });
+    expect(nested[0]!.payload).toMatchObject({
+      scope: "account",
+      trigger: "run_automation",
+      status: "fired",
+    });
     // lead_captured doesn't match a reply event — only the nested run exists.
     expect(await owner.automationRun.count({ where: { automationId: target.id } })).toBe(1);
   });

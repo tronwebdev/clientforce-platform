@@ -211,7 +211,9 @@ function rebuildContainer(
       n.type === "branch" && n.id === container.branchId
         ? {
             ...n,
-            cases: n.cases.map((c) => (caseKeyOf(c) === container.caseKey ? { ...c, goto: headId } : c)),
+            cases: n.cases.map((c) =>
+              caseKeyOf(c) === container.caseKey ? { ...c, goto: headId } : c,
+            ),
           }
         : n,
     );
@@ -252,7 +254,9 @@ export function addStep(
 ): { graph: CampaignGraph; stepId: string; delayId?: string } {
   const { container, channel } = params;
   if (params.brief && channel !== "email" && channel !== "sms") {
-    throw new GraphMutationError(`Guided steps are email/sms-only — "${channel}" cannot carry a brief`);
+    throw new GraphMutationError(
+      `Guided steps are email/sms-only — "${channel}" cannot carry a brief`,
+    );
   }
   const chain = containerNodes(graph, container);
   assertChainNotShared(graph, container, chain);
@@ -267,7 +271,12 @@ export function addStep(
   const provided = params.content ?? {};
   const content: StepContent = provided.body?.trim()
     ? provided
-    : { ...defaultContent, ...Object.fromEntries(Object.entries(provided).filter(([k, v]) => v !== undefined && v !== "" && k !== "body")) };
+    : {
+        ...defaultContent,
+        ...Object.fromEntries(
+          Object.entries(provided).filter(([k, v]) => v !== undefined && v !== "" && k !== "body"),
+        ),
+      };
   const step: StepNode = params.brief
     ? { id: stepId, type: "step", channel, content: {}, mode: "guided", brief: params.brief }
     : { id: stepId, type: "step", channel, content };
@@ -447,7 +456,9 @@ export function removeStep(graph: CampaignGraph, stepId: string): CampaignGraph 
   }
   const stepCount = graph.nodes.filter((n) => n.type === "step").length;
   if (stepCount <= 1) {
-    throw new GraphMutationError("A sequence needs at least one step — edit it instead of deleting");
+    throw new GraphMutationError(
+      "A sequence needs at least one step — edit it instead of deleting",
+    );
   }
   const container = stepContainerOf(graph, stepId);
   if (!container) throw new GraphMutationError(`Step "${stepId}" is not on an editable path`);
@@ -553,7 +564,9 @@ export function updateStepBrief(
   const node = nodeById(graph, stepId);
   if (!node || node.type !== "step") throw new GraphMutationError(`Step "${stepId}" not found`);
   if (node.mode !== "guided") {
-    throw new GraphMutationError(`Step "${stepId}" is scripted — flip it to guided to give it a brief`);
+    throw new GraphMutationError(
+      `Step "${stepId}" is scripted — flip it to guided to give it a brief`,
+    );
   }
   return {
     ...graph,
@@ -668,7 +681,8 @@ export function repairGraph(input: CampaignGraph): { graph: CampaignGraph; repai
     const clean = (xs: string[] | undefined) => {
       if (!xs) return undefined;
       const kept = xs.map((x) => x.trim()).filter(Boolean);
-      if (kept.length !== xs.length) repairs.push(`dropped empty entries from step ${n.id}'s brief`);
+      if (kept.length !== xs.length)
+        repairs.push(`dropped empty entries from step ${n.id}'s brief`);
       return kept.length > 0 ? kept : undefined;
     };
     const talkingPoints = clean(n.brief.talkingPoints) ?? [];

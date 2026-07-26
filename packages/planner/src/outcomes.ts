@@ -48,7 +48,14 @@ export async function loadCampaignOutcomes(
     orderBy: { createdAt: "asc" },
   });
   if (!campaign) {
-    return { agentId, campaignId: null, graphVersion: null, thresholds: THRESHOLDS, steps: [], totals: ZERO_TOTALS };
+    return {
+      agentId,
+      campaignId: null,
+      graphVersion: null,
+      thresholds: THRESHOLDS,
+      steps: [],
+      totals: ZERO_TOTALS,
+    };
   }
 
   const graphRow = await tx.campaignGraph.findFirst({

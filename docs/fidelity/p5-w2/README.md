@@ -15,19 +15,19 @@ untouched, w3-4 precedent). Capture scripts are dev-local, not committed.
 
 ## Frames
 
-| state | prototype | build |
-| --- | --- | --- |
-| Email senders list (pills + 3-state DNS chips) | `proto-email-list.png` | `build-email-list.png` |
-| Drawer — healthy (ring · tiles · warm-up Complete · DNS Pass) | `proto-drawer-healthy.png` | `build-drawer-excellent.png` |
-| Drawer — warming + warm-up card (Day N of 45, current → target) | `proto-drawer-warming.png` | `build-drawer-warming-low-data.png` |
-| Drawer — watch band (ring 60, exactly the locked cutoff) | (same canon anatomy) | `build-drawer-watch.png` |
-| Drawer — auto-paused (<40) + DMARC Fail + copyable expected + collapse in Activity | (fixture `acc_91b3d8` carries the DMARC-fail anatomy) | `build-drawer-auto-paused.png` |
-| Drawer — warm-up HELD by the health interlock (owner lock) | no canon (designed state, flagged) | `build-drawer-warmup-held.png` |
-| Pause walk (typed + audited) | no canon (designed addition, flagged) | `build-pause-walk.png` |
-| Re-check DNS walk (REAL lookups → honest unchecked/failed) | canon link, live action | `build-recheck-walk.png` |
-| Resume + audit rows in Activity | no canon (designed addition) | `build-resume-audit.png` |
-| Mailer list | `proto-mailer-list.png` | `build-mailer-list.png` |
-| SMS list — Warming pill on a ramping number | (canon pill vocabulary) | `build-sms-list.png` |
+| state                                                                              | prototype                                             | build                               |
+| ---------------------------------------------------------------------------------- | ----------------------------------------------------- | ----------------------------------- |
+| Email senders list (pills + 3-state DNS chips)                                     | `proto-email-list.png`                                | `build-email-list.png`              |
+| Drawer — healthy (ring · tiles · warm-up Complete · DNS Pass)                      | `proto-drawer-healthy.png`                            | `build-drawer-excellent.png`        |
+| Drawer — warming + warm-up card (Day N of 45, current → target)                    | `proto-drawer-warming.png`                            | `build-drawer-warming-low-data.png` |
+| Drawer — watch band (ring 60, exactly the locked cutoff)                           | (same canon anatomy)                                  | `build-drawer-watch.png`            |
+| Drawer — auto-paused (<40) + DMARC Fail + copyable expected + collapse in Activity | (fixture `acc_91b3d8` carries the DMARC-fail anatomy) | `build-drawer-auto-paused.png`      |
+| Drawer — warm-up HELD by the health interlock (owner lock)                         | no canon (designed state, flagged)                    | `build-drawer-warmup-held.png`      |
+| Pause walk (typed + audited)                                                       | no canon (designed addition, flagged)                 | `build-pause-walk.png`              |
+| Re-check DNS walk (REAL lookups → honest unchecked/failed)                         | canon link, live action                               | `build-recheck-walk.png`            |
+| Resume + audit rows in Activity                                                    | no canon (designed addition)                          | `build-resume-audit.png`            |
+| Mailer list                                                                        | `proto-mailer-list.png`                               | `build-mailer-list.png`             |
+| SMS list — Warming pill on a ramping number                                        | (canon pill vocabulary)                               | `build-sms-list.png`                |
 
 The re-check walk is honest end-to-end: the capture API runs with **no
 SendGrid key and a non-existent domain**, so re-checking replaces the seeded
@@ -58,7 +58,7 @@ cached-as-verified, on camera.
   ISP reputation, blacklists, token expiry and "Used by agents" remain
   omitted — still no backend (never faked).
 - List "Sending" pill vocabulary: `Good / Warming / Paused / Auto-paused /
-  Needs verification` — canon words where they exist; `Paused`/`Auto-paused`
+Needs verification` — canon words where they exist; `Paused`/`Auto-paused`
   flagged. Watch/at-risk bands surface in the drawer ring only (the pill
   vocabulary stays canon-small).
 

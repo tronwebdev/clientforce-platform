@@ -64,38 +64,39 @@ describe.skipIf(!hasInfra)("EventBus integration", () => {
     vi.restoreAllMocks();
   });
 
-  it(
-    "persists email.replied.v1 and invokes all three consumer stubs",
-    async () => {
-      const spies = [
-        vi.spyOn(temporalSignalConsumer, "handle"),
-        vi.spyOn(automationsConsumer, "handle"),
-        vi.spyOn(dispatcherConsumer, "handle"),
-      ];
+  it("persists email.replied.v1 and invokes all three consumer stubs", async () => {
+    const spies = [
+      vi.spyOn(temporalSignalConsumer, "handle"),
+      vi.spyOn(automationsConsumer, "handle"),
+      vi.spyOn(dispatcherConsumer, "handle"),
+    ];
 
-      const worker = bus.startConsumer();
-      const completed = new Promise<void>((resolve, reject) => {
-        worker.on("completed", () => resolve());
-        worker.on("failed", (_job, err) => reject(err));
-      });
+    const worker = bus.startConsumer();
+    const completed = new Promise<void>((resolve, reject) => {
+      worker.on("completed", () => resolve());
+      worker.on("failed", (_job, err) => reject(err));
+    });
 
-      const event = await emitEmailReplied(bus, { workspaceId, contactId, messageId: "m1", intent: "interested" });
-      expect(event.type).toBe("email.replied.v1");
+    const event = await emitEmailReplied(bus, {
+      workspaceId,
+      contactId,
+      messageId: "m1",
+      intent: "interested",
+    });
+    expect(event.type).toBe("email.replied.v1");
 
-      await completed;
+    await completed;
 
-      // Persisted to the Event table (owner bypasses RLS for the assertion read).
-      const persisted = await owner.event.findUnique({ where: { id: event.id } });
-      expect(persisted).not.toBeNull();
-      expect(persisted?.type).toBe("email.replied.v1");
-      expect(persisted?.contactId).toBe(contactId);
+    // Persisted to the Event table (owner bypasses RLS for the assertion read).
+    const persisted = await owner.event.findUnique({ where: { id: event.id } });
+    expect(persisted).not.toBeNull();
+    expect(persisted?.type).toBe("email.replied.v1");
+    expect(persisted?.contactId).toBe(contactId);
 
-      // All three consumer stubs invoked exactly once with the event.
-      for (const spy of spies) {
-        expect(spy).toHaveBeenCalledTimes(1);
-        expect(spy.mock.calls[0]?.[0]).toMatchObject({ id: event.id, type: "email.replied.v1" });
-      }
-    },
-    30_000,
-  );
+    // All three consumer stubs invoked exactly once with the event.
+    for (const spy of spies) {
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy.mock.calls[0]?.[0]).toMatchObject({ id: event.id, type: "email.replied.v1" });
+    }
+  }, 30_000);
 });

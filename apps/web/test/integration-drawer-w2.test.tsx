@@ -106,7 +106,10 @@ describe("calendly connected drawer (the two honest tiers)", () => {
 
   it("link-only tier: the honest OFF line + the add-token affordance, and NO webhook row", () => {
     const html = renderToStaticMarkup(
-      drawer("calendly", connectedRow("calendly", { schedulingUrl: "https://calendly.com/acme/intro" })),
+      drawer(
+        "calendly",
+        connectedRow("calendly", { schedulingUrl: "https://calendly.com/acme/intro" }),
+      ),
     );
     expect(html).toContain(CALENDLY_DETECTION_OFF);
     expect(html).toContain('data-testid="add-token"');

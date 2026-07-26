@@ -47,12 +47,16 @@ export class SuppressionsController {
   @Post()
   @Roles(Role.OWNER, Role.ADMIN)
   async add(@Body() body: { address?: string; reason?: string; channel?: string }) {
-    const address = String(body?.address ?? "").trim().toLowerCase();
-    if (!/.+@.+\..+/.test(address)) throw new BadRequestException("A valid email address is required");
+    const address = String(body?.address ?? "")
+      .trim()
+      .toLowerCase();
+    if (!/.+@.+\..+/.test(address))
+      throw new BadRequestException("A valid email address is required");
     const reason = (body?.reason ?? "MANUAL") as SuppressionReason;
     if (!REASONS.includes(reason)) throw new BadRequestException("Unknown reason");
     const channel = body?.channel ?? "email";
-    if (channel !== "email") throw new BadRequestException("Email is the only live channel this phase");
+    if (channel !== "email")
+      throw new BadRequestException("Email is the only live channel this phase");
     const workspaceId = this.tenant.workspaceId;
     return this.tenant.run((tx) =>
       tx.suppression.upsert({

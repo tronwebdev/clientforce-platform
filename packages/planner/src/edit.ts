@@ -121,7 +121,9 @@ export function validateEditedGraph(
     const casesOf = (bs: BranchNode[]) =>
       new Map(
         bs.flatMap((b) =>
-          b.cases.filter((c) => c.when !== "default").map((c) => [(c.when as { intent: string }).intent, c] as const),
+          b.cases
+            .filter((c) => c.when !== "default")
+            .map((c) => [(c.when as { intent: string }).intent, c] as const),
         ),
       );
     const nextStepIds = new Set(steps.map((s) => s.id));
@@ -209,7 +211,8 @@ export function validateEditedGraph(
       const asGoto = g.nodes.find(
         (n) => n.type === "branch" && n.cases.some((c) => c.goto === sub.id),
       );
-      if (asGoto) return `is a reply case's goto on "${asGoto.id}" — route the case to a step instead`;
+      if (asGoto)
+        return `is a reply case's goto on "${asGoto.id}" — route the case to a step instead`;
       const exit = subcampaignExitOf(g, sub.id);
       if (!exit || exit.type !== "end") {
         return `must end at an end node — its chain exits into ${exit ? `"${exit.id}" (${exit.type})` : "nothing"}`;
@@ -256,7 +259,9 @@ export function validateEditedGraph(
   const prevIntents = new Set(
     previous
       ? replyBranches(previous).flatMap((b) =>
-          b.cases.filter((c) => c.when !== "default").map((c) => (c.when as { intent: string }).intent),
+          b.cases
+            .filter((c) => c.when !== "default")
+            .map((c) => (c.when as { intent: string }).intent),
         )
       : [],
   );

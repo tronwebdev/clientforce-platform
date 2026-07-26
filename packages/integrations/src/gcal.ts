@@ -66,7 +66,8 @@ export class GoogleCalendarAdapter implements OAuthIntegrationAdapter {
       options?.authorizeBaseUrl ??
       process.env.GCAL_AUTHORIZE_URL ??
       "https://accounts.google.com/o/oauth2/v2/auth";
-    this.tokenUrl = options?.tokenUrl ?? process.env.GCAL_TOKEN_URL ?? "https://oauth2.googleapis.com/token";
+    this.tokenUrl =
+      options?.tokenUrl ?? process.env.GCAL_TOKEN_URL ?? "https://oauth2.googleapis.com/token";
     this.fetchImpl = options?.fetchImpl ?? ((url, init) => fetch(url, init));
   }
 
@@ -109,7 +110,11 @@ export class GoogleCalendarAdapter implements OAuthIntegrationAdapter {
     });
     const accessToken = data.access_token;
     if (typeof accessToken !== "string" || accessToken.length === 0) {
-      throw new IntegrationProviderError("PROVIDER_AUTH", "google token exchange returned no access token", false);
+      throw new IntegrationProviderError(
+        "PROVIDER_AUTH",
+        "google token exchange returned no access token",
+        false,
+      );
     }
     return {
       credentials: {
@@ -117,7 +122,8 @@ export class GoogleCalendarAdapter implements OAuthIntegrationAdapter {
         refreshToken: typeof data.refresh_token === "string" ? data.refresh_token : null,
         expiresAt: this.expiresAtFrom(data.expires_in),
       },
-      scopes: typeof data.scope === "string" ? data.scope.split(" ").filter(Boolean) : [...GCAL_SCOPES],
+      scopes:
+        typeof data.scope === "string" ? data.scope.split(" ").filter(Boolean) : [...GCAL_SCOPES],
     };
   }
 
@@ -154,7 +160,11 @@ export class GoogleCalendarAdapter implements OAuthIntegrationAdapter {
     });
     const accessToken = data.access_token;
     if (typeof accessToken !== "string" || accessToken.length === 0) {
-      throw new IntegrationProviderError("PROVIDER_AUTH", "google token refresh returned no access token", false);
+      throw new IntegrationProviderError(
+        "PROVIDER_AUTH",
+        "google token refresh returned no access token",
+        false,
+      );
     }
     return {
       ...creds,
@@ -227,10 +237,16 @@ export class GoogleCalendarAdapter implements OAuthIntegrationAdapter {
         items: [{ id: params.calendarId }],
       }),
     });
-    const calendars = (data.calendars ?? {}) as Record<string, { busy?: Array<{ start?: string; end?: string }> }>;
+    const calendars = (data.calendars ?? {}) as Record<
+      string,
+      { busy?: Array<{ start?: string; end?: string }> }
+    >;
     const busy = calendars[params.calendarId]?.busy ?? [];
     return busy
-      .filter((b): b is { start: string; end: string } => typeof b.start === "string" && typeof b.end === "string")
+      .filter(
+        (b): b is { start: string; end: string } =>
+          typeof b.start === "string" && typeof b.end === "string",
+      )
       .map((b) => ({ start: b.start, end: b.end }));
   }
 
@@ -277,10 +293,18 @@ export class GoogleCalendarAdapter implements OAuthIntegrationAdapter {
       );
     }
     if (res.status === 429) {
-      throw new IntegrationProviderError("PROVIDER_RATE_LIMITED", "google rate limited (429)", true);
+      throw new IntegrationProviderError(
+        "PROVIDER_RATE_LIMITED",
+        "google rate limited (429)",
+        true,
+      );
     }
     if (res.status >= 500) {
-      throw new IntegrationProviderError("PROVIDER_UNAVAILABLE", `google error (HTTP ${res.status})`, true);
+      throw new IntegrationProviderError(
+        "PROVIDER_UNAVAILABLE",
+        `google error (HTTP ${res.status})`,
+        true,
+      );
     }
     const text = await res.text();
     if (res.ok && text.trim() === "") return {}; // the empty revoke response body
@@ -288,14 +312,21 @@ export class GoogleCalendarAdapter implements OAuthIntegrationAdapter {
     try {
       data = JSON.parse(text) as Record<string, unknown>;
     } catch {
-      throw new IntegrationProviderError("PROVIDER_UNAVAILABLE", "google returned a non-JSON response", true);
+      throw new IntegrationProviderError(
+        "PROVIDER_UNAVAILABLE",
+        "google returned a non-JSON response",
+        true,
+      );
     }
     if (res.ok) return data;
 
     // Error bodies: the token endpoint sends {error: "invalid_grant", …};
     // the Calendar API sends {error: {code, message, errors: [{reason}]}}.
     const flat = typeof data.error === "string" ? data.error : undefined;
-    const nested = data.error && typeof data.error === "object" ? (data.error as Record<string, unknown>) : undefined;
+    const nested =
+      data.error && typeof data.error === "object"
+        ? (data.error as Record<string, unknown>)
+        : undefined;
     const nestedMessage = typeof nested?.message === "string" ? nested.message : undefined;
     const name = flat ?? nestedMessage ?? `HTTP ${res.status}`;
 
@@ -310,7 +341,11 @@ export class GoogleCalendarAdapter implements OAuthIntegrationAdapter {
       // routine + retryable, NEVER token death. Only non-quota 403s are auth.
       const reason = String(flat ?? "");
       if (/rat[e]?limit|quota/i.test(reason)) {
-        throw new IntegrationProviderError("PROVIDER_RATE_LIMITED", `google rate/quota limited (${reason})`, true);
+        throw new IntegrationProviderError(
+          "PROVIDER_RATE_LIMITED",
+          `google rate/quota limited (${reason})`,
+          true,
+        );
       }
       throw new IntegrationProviderError("PROVIDER_AUTH", `google auth rejected (${name})`, false);
     }
@@ -319,6 +354,9 @@ export class GoogleCalendarAdapter implements OAuthIntegrationAdapter {
     }
     // Everything else 4xx is a request/config refusal — typed, non-retryable,
     // never token bytes in the message.
-    throw new IntegrationDeliveryError(flat ?? "request_failed", `google refused the request (${name})`);
+    throw new IntegrationDeliveryError(
+      flat ?? "request_failed",
+      `google refused the request (${name})`,
+    );
   }
 }

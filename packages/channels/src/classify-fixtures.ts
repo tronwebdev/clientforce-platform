@@ -88,8 +88,7 @@ export const MULTILINGUAL_REPLY_FIXTURES: readonly MultilingualReplyFixture[] = 
   {
     language: "de",
     intent: "interested",
-    reply:
-      "Das klingt spannend — wie können wir diese Woche einen Termin vereinbaren?",
+    reply: "Das klingt spannend — wie können wir diese Woche einen Termin vereinbaren?",
   },
   {
     language: "fr",

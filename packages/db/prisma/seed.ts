@@ -247,9 +247,7 @@ async function main(): Promise<void> {
         const listId = listIds.get(listName);
         if (contact && listId) {
           await prisma.contactListMember.createMany({
-            data: [
-              { workspaceId: workspace.id, listId, contactId: contact.id, addedBy: "import" },
-            ],
+            data: [{ workspaceId: workspace.id, listId, contactId: contact.id, addedBy: "import" }],
             skipDuplicates: true,
           });
         }
@@ -316,9 +314,16 @@ async function main(): Promise<void> {
   const demoContact = await prisma.contact.findFirst({ where: { workspaceId: primary.id } });
   if (demoAgent && demoContact) {
     const campaign =
-      (await prisma.campaign.findFirst({ where: { workspaceId: primary.id, agentId: demoAgent.id } })) ??
+      (await prisma.campaign.findFirst({
+        where: { workspaceId: primary.id, agentId: demoAgent.id },
+      })) ??
       (await prisma.campaign.create({
-        data: { workspaceId: primary.id, agentId: demoAgent.id, name: `${demoAgent.name} — primary`, graphId: "" },
+        data: {
+          workspaceId: primary.id,
+          agentId: demoAgent.id,
+          name: `${demoAgent.name} — primary`,
+          graphId: "",
+        },
       }));
     const seededSends = await prisma.message.count({
       where: {

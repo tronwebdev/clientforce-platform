@@ -1,6 +1,11 @@
 import { resolveTxt } from "node:dns/promises";
 import type { Provider } from "@nestjs/common";
-import { createClassifyQueue, SendGridSender, type DnsCheckDeps, type EmailSender } from "@clientforce/channels";
+import {
+  createClassifyQueue,
+  SendGridSender,
+  type DnsCheckDeps,
+  type EmailSender,
+} from "@clientforce/channels";
 import { BusOrInlinePublisher, EVENTS_PUBLISHER } from "../events/publisher";
 import { CLASSIFY_QUEUE } from "./webhooks.controller";
 

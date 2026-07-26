@@ -9,7 +9,12 @@
  */
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { CampaignGraph, CampaignOutcomes, LanguageCode, ValidationProgress } from "@clientforce/core";
+import type {
+  CampaignGraph,
+  CampaignOutcomes,
+  LanguageCode,
+  ValidationProgress,
+} from "@clientforce/core";
 import CallsTab from "./CallsTab";
 import { InboxTab } from "./InboxTab";
 import { LeadsTab } from "./LeadsTab";
@@ -20,7 +25,16 @@ import { StepsTab } from "./StepsTab";
 import { cf, GRAD, GOAL_EMOJI, TABS } from "./shared";
 
 export interface AgentViewData {
-  agent: { id: string; name: string; goal: string; goalLabel?: string; goalPill?: string; category?: string | null; status: string; createdAt: string };
+  agent: {
+    id: string;
+    name: string;
+    goal: string;
+    goalLabel?: string;
+    goalPill?: string;
+    category?: string | null;
+    status: string;
+    createdAt: string;
+  };
   campaign: { id: string; name: string } | null;
   graph: CampaignGraph | null;
   graphVersion: number | null;
@@ -112,18 +126,54 @@ export function AgentView({ agentId, tab }: { agentId: string; tab: string }) {
     const name = nameDraft.trim();
     setRenaming(false);
     if (!view || !name || name === view.agent.name) return;
-    await cf(`agents/${agentId}`, { method: "PATCH", body: JSON.stringify({ name }) }).catch(() => {});
+    await cf(`agents/${agentId}`, { method: "PATCH", body: JSON.stringify({ name }) }).catch(
+      () => {},
+    );
     void refresh();
   }
 
   const emoji = useMemo(() => GOAL_EMOJI[view?.agent.goal ?? ""] ?? "🌱", [view?.agent.goal]);
 
   return (
-    <div style={{ padding: "24px 26px 26px", display: "flex", flexDirection: "column", minWidth: 0 }}>
+    <div
+      style={{ padding: "24px 26px 26px", display: "flex", flexDirection: "column", minWidth: 0 }}
+    >
       {/* record header */}
       <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 18 }}>
-        <a href="/agents" style={{ textDecoration: "none", width: 36, height: 36, borderRadius: 10, background: "#fff", border: "1px solid #EBE3D6", display: "flex", alignItems: "center", justifyContent: "center", color: "#5C6B62", fontSize: 18, flex: "none" }}>‹</a>
-        <span style={{ width: 46, height: 46, borderRadius: 13, flex: "none", background: "rgba(53,232,52,.16)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{emoji}</span>
+        <a
+          href="/agents"
+          style={{
+            textDecoration: "none",
+            width: 36,
+            height: 36,
+            borderRadius: 10,
+            background: "#fff",
+            border: "1px solid #EBE3D6",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "#5C6B62",
+            fontSize: 18,
+            flex: "none",
+          }}
+        >
+          ‹
+        </a>
+        <span
+          style={{
+            width: 46,
+            height: 46,
+            borderRadius: 13,
+            flex: "none",
+            background: "rgba(53,232,52,.16)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 22,
+          }}
+        >
+          {emoji}
+        </span>
         <div style={{ minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             {renaming ? (
@@ -133,13 +183,43 @@ export function AgentView({ agentId, tab }: { agentId: string; tab: string }) {
                 onChange={(e) => setNameDraft(e.target.value)}
                 onBlur={() => void saveName()}
                 onKeyDown={(e) => e.key === "Enter" && void saveName()}
-                style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 24, letterSpacing: "-.02em", color: "#0E1512", border: "1px solid #EBE3D6", borderRadius: 8, padding: "0 8px", background: "#fff" }}
+                style={{
+                  fontFamily: "'Bricolage Grotesque',sans-serif",
+                  fontWeight: 700,
+                  fontSize: 24,
+                  letterSpacing: "-.02em",
+                  color: "#0E1512",
+                  border: "1px solid #EBE3D6",
+                  borderRadius: 8,
+                  padding: "0 8px",
+                  background: "#fff",
+                }}
                 data-testid="rename-input"
               />
             ) : (
-              <span style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 24, letterSpacing: "-.02em", color: "#0E1512" }} data-testid="agent-name">{view?.agent.name ?? "…"}</span>
+              <span
+                style={{
+                  fontFamily: "'Bricolage Grotesque',sans-serif",
+                  fontWeight: 700,
+                  fontSize: 24,
+                  letterSpacing: "-.02em",
+                  color: "#0E1512",
+                }}
+                data-testid="agent-name"
+              >
+                {view?.agent.name ?? "…"}
+              </span>
             )}
-            <span onClick={() => { setNameDraft(view?.agent.name ?? ""); setRenaming(true); }} style={{ color: "#9AA59E", fontSize: 15, cursor: "pointer" }} data-testid="rename">✎</span>
+            <span
+              onClick={() => {
+                setNameDraft(view?.agent.name ?? "");
+                setRenaming(true);
+              }}
+              style={{ color: "#9AA59E", fontSize: 15, cursor: "pointer" }}
+              data-testid="rename"
+            >
+              ✎
+            </span>
           </div>
           <div style={{ fontSize: 13, color: "#9AA59E" }}>
             Agent ID: {agentId.slice(-4)} · Outbound · Email
@@ -149,8 +229,21 @@ export function AgentView({ agentId, tab }: { agentId: string; tab: string }) {
           {/* LH1 W3 (DEC-087): validation-progress chip — §0-flagged designed
               addition. Renders only while something is held/refused; honest
               progressive copy, never a blocking state. */}
-          {valProgress && valProgress.heldUnverified + valProgress.heldRisky + valProgress.heldCapOverflow > 0 ? (
-            <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(232,196,91,.14)", border: "1px solid rgba(232,196,91,.4)", borderRadius: 11, padding: "8px 14px" }} data-testid="validation-chip" title={`${valProgress.heldRisky} held (risky policy) · ${valProgress.heldCapOverflow} queued (daily enrollment cap) · ${valProgress.refusedInvalid} excluded (invalid)`}>
+          {valProgress &&
+          valProgress.heldUnverified + valProgress.heldRisky + valProgress.heldCapOverflow > 0 ? (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                background: "rgba(232,196,91,.14)",
+                border: "1px solid rgba(232,196,91,.4)",
+                borderRadius: 11,
+                padding: "8px 14px",
+              }}
+              data-testid="validation-chip"
+              title={`${valProgress.heldRisky} held (risky policy) · ${valProgress.heldCapOverflow} queued (daily enrollment cap) · ${valProgress.refusedInvalid} excluded (invalid)`}
+            >
               <span style={{ fontSize: 13, fontWeight: 700, color: "#9A6B12" }}>
                 {valProgress.heldUnverified > 0
                   ? `Validating ${valProgress.heldUnverified} contact${valProgress.heldUnverified === 1 ? "" : "s"} — sending starts as they clear`
@@ -160,31 +253,107 @@ export function AgentView({ agentId, tab }: { agentId: string; tab: string }) {
               </span>
             </div>
           ) : null}
-          <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 11, padding: "8px 14px" }} data-testid="daily-sends">
-            <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase", color: "#8A7F6B" }}>Daily sends</span>
-            <span style={{ fontSize: 14, fontWeight: 700, color: "#0E1512" }}>{view?.sentToday ?? 0} / {view?.dailyCap ?? "—"}</span>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              background: "#fff",
+              border: "1px solid #EBE3D6",
+              borderRadius: 11,
+              padding: "8px 14px",
+            }}
+            data-testid="daily-sends"
+          >
+            <span
+              style={{
+                fontSize: 12,
+                fontWeight: 700,
+                letterSpacing: ".04em",
+                textTransform: "uppercase",
+                color: "#8A7F6B",
+              }}
+            >
+              Daily sends
+            </span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: "#0E1512" }}>
+              {view?.sentToday ?? 0} / {view?.dailyCap ?? "—"}
+            </span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ fontSize: 14, fontWeight: 600, color: active ? "#16A82A" : "#8A7F6B" }}>{active ? "Active" : view?.agent.status === "PAUSED" ? "Paused" : "Draft"}</span>
-            <span onClick={() => void toggleStatus()} style={{ width: 44, height: 26, borderRadius: 100, background: active ? "linear-gradient(135deg,#36D7ED,#35E834 60%,#D0F56B)" : "#D8CFBE", position: "relative", display: "inline-block", cursor: "pointer" }} data-testid="status-toggle">
-              <span style={{ position: "absolute", top: 3, ...(active ? { right: 3 } : { left: 3 }), width: 20, height: 20, borderRadius: "50%", background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,.2)" }} />
+            <span style={{ fontSize: 14, fontWeight: 600, color: active ? "#16A82A" : "#8A7F6B" }}>
+              {active ? "Active" : view?.agent.status === "PAUSED" ? "Paused" : "Draft"}
+            </span>
+            <span
+              onClick={() => void toggleStatus()}
+              style={{
+                width: 44,
+                height: 26,
+                borderRadius: 100,
+                background: active
+                  ? "linear-gradient(135deg,#36D7ED,#35E834 60%,#D0F56B)"
+                  : "#D8CFBE",
+                position: "relative",
+                display: "inline-block",
+                cursor: "pointer",
+              }}
+              data-testid="status-toggle"
+            >
+              <span
+                style={{
+                  position: "absolute",
+                  top: 3,
+                  ...(active ? { right: 3 } : { left: 3 }),
+                  width: 20,
+                  height: 20,
+                  borderRadius: "50%",
+                  background: "#fff",
+                  boxShadow: "0 1px 3px rgba(0,0,0,.2)",
+                }}
+              />
             </span>
           </div>
         </div>
       </div>
 
       {/* tab bar — active = brand gradient (prototype; checkpoints §4 "ink fill" was stale) */}
-      <div style={{ display: "flex", gap: 4, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 14, padding: 5, marginBottom: 18 }} data-testid="tab-bar">
+      <div
+        style={{
+          display: "flex",
+          gap: 4,
+          background: "#fff",
+          border: "1px solid #EBE3D6",
+          borderRadius: 14,
+          padding: 5,
+          marginBottom: 18,
+        }}
+        data-testid="tab-bar"
+      >
         {TABS.map((t) => {
           const on = t.id === tab;
           return (
             <div
               key={t.id}
               onClick={() => router.push(`/agents/${agentId}/${t.id}`)}
-              style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "10px 6px", borderRadius: 10, fontSize: 13.5, cursor: "pointer", fontWeight: on ? 700 : 500, color: on ? "#0A0F0C" : "#5C6B62", background: on ? GRAD : "transparent", whiteSpace: "nowrap" }}
+              style={{
+                flex: 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                padding: "10px 6px",
+                borderRadius: 10,
+                fontSize: 13.5,
+                cursor: "pointer",
+                fontWeight: on ? 700 : 500,
+                color: on ? "#0A0F0C" : "#5C6B62",
+                background: on ? GRAD : "transparent",
+                whiteSpace: "nowrap",
+              }}
               data-testid={`tab-${t.id}`}
             >
-              <span style={{ fontSize: 14 }}>{t.icon}</span>{t.label}
+              <span style={{ fontSize: 14 }}>{t.icon}</span>
+              {t.label}
             </div>
           );
         })}
@@ -192,10 +361,39 @@ export function AgentView({ agentId, tab }: { agentId: string; tab: string }) {
 
       <div style={{ minHeight: 664 }}>
         {error ? (
-          <div style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 16, padding: "48px 20px", textAlign: "center" }} data-testid="view-error">
-            <div style={{ fontSize: 15, fontWeight: 700, color: "#0E1512", marginBottom: 4 }}>Couldn&apos;t load this agent</div>
-            <div style={{ fontSize: 13, color: "#8A7F6B", marginBottom: 14 }}>Check your connection and try again.</div>
-            <button type="button" onClick={() => void refresh()} style={{ background: GRAD, border: "none", borderRadius: 11, padding: "10px 20px", fontSize: 13.5, fontWeight: 700, color: "#0A0F0C", cursor: "pointer", fontFamily: "'Hanken Grotesk',sans-serif" }}>Retry</button>
+          <div
+            style={{
+              background: "#fff",
+              border: "1px solid #EBE3D6",
+              borderRadius: 16,
+              padding: "48px 20px",
+              textAlign: "center",
+            }}
+            data-testid="view-error"
+          >
+            <div style={{ fontSize: 15, fontWeight: 700, color: "#0E1512", marginBottom: 4 }}>
+              Couldn&apos;t load this agent
+            </div>
+            <div style={{ fontSize: 13, color: "#8A7F6B", marginBottom: 14 }}>
+              Check your connection and try again.
+            </div>
+            <button
+              type="button"
+              onClick={() => void refresh()}
+              style={{
+                background: GRAD,
+                border: "none",
+                borderRadius: 11,
+                padding: "10px 20px",
+                fontSize: 13.5,
+                fontWeight: 700,
+                color: "#0A0F0C",
+                cursor: "pointer",
+                fontFamily: "'Hanken Grotesk',sans-serif",
+              }}
+            >
+              Retry
+            </button>
           </div>
         ) : tab === "inbox" ? (
           <InboxTab agentId={agentId} goalLabel={view?.agent.goalLabel} />
@@ -223,15 +421,45 @@ export function AgentView({ agentId, tab }: { agentId: string; tab: string }) {
  *  P3.1 (DEC-078): the calls placeholder retired — CallsTab is live. */
 function InertTab({ tab }: { tab: string }) {
   const copy: Record<string, { icon: string; title: string; body: string }> = {
-    preview: { icon: "◉", title: "Preview arrives with a later phase", body: "A live render of every step as the lead sees it." },
-    stats: { icon: "▤", title: "Stats arrive with a later phase", body: "Deliverability, reply and booking analytics across the sequence." },
+    preview: {
+      icon: "◉",
+      title: "Preview arrives with a later phase",
+      body: "A live render of every step as the lead sees it.",
+    },
+    stats: {
+      icon: "▤",
+      title: "Stats arrive with a later phase",
+      body: "Deliverability, reply and booking analytics across the sequence.",
+    },
   };
   const c = copy[tab]!;
   return (
-    <div style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 16, boxShadow: "0 4px 16px rgba(14,21,18,.04)", padding: "64px 20px", textAlign: "center" }} data-testid={`inert-${tab}`}>
+    <div
+      style={{
+        background: "#fff",
+        border: "1px solid #EBE3D6",
+        borderRadius: 16,
+        boxShadow: "0 4px 16px rgba(14,21,18,.04)",
+        padding: "64px 20px",
+        textAlign: "center",
+      }}
+      data-testid={`inert-${tab}`}
+    >
       <div style={{ fontSize: 30, marginBottom: 12 }}>{c.icon}</div>
-      <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 20, color: "#0E1512", marginBottom: 6 }}>{c.title}</div>
-      <div style={{ fontSize: 13.5, color: "#8A7F6B", maxWidth: 420, margin: "0 auto" }}>{c.body}</div>
+      <div
+        style={{
+          fontFamily: "'Bricolage Grotesque',sans-serif",
+          fontWeight: 700,
+          fontSize: 20,
+          color: "#0E1512",
+          marginBottom: 6,
+        }}
+      >
+        {c.title}
+      </div>
+      <div style={{ fontSize: 13.5, color: "#8A7F6B", maxWidth: 420, margin: "0 auto" }}>
+        {c.body}
+      </div>
     </div>
   );
 }

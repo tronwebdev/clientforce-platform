@@ -49,7 +49,10 @@ export const GOAL_META: Record<GoalKey, { terminalLabel: string; terminalPill: s
 };
 
 /** Chip/timeline label for a goal; `customLabel` overrides for `custom` only. */
-export function goalTerminalLabel(goalKey: string | null | undefined, customLabel?: string | null): string {
+export function goalTerminalLabel(
+  goalKey: string | null | undefined,
+  customLabel?: string | null,
+): string {
   if (goalKey === "custom" && customLabel?.trim()) return customLabel.trim();
   return GOAL_META[(goalKey ?? "") as GoalKey]?.terminalLabel ?? GOAL_META.custom.terminalLabel;
 }

@@ -75,7 +75,12 @@ async function main(): Promise<void> {
         name: "Demo Booker",
         goal: "book_appointments",
         guardrails: {
-          sendingWindow: { days: [1, 2, 3, 4, 5, 6, 7], start: "00:00", end: "23:59", timezone: "UTC" },
+          sendingWindow: {
+            days: [1, 2, 3, 4, 5, 6, 7],
+            start: "00:00",
+            end: "23:59",
+            timezone: "UTC",
+          },
           dailyCap: { email: 20 },
           consent: null,
           unsubscribeFooter: true,

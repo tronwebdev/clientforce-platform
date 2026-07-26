@@ -14,7 +14,8 @@ const connectionFrom = (
 /** Enqueue an ingestion run for a source (the API calls this on create/re-ingest). */
 export function createIngestQueue(redisUrl?: string): Queue<IngestJobPayload> {
   return new Queue<IngestJobPayload>(KNOWLEDGE_QUEUE_NAME, {
-    connection: connectionFrom(redisUrl), prefix: BULL_PREFIX,
+    connection: connectionFrom(redisUrl),
+    prefix: BULL_PREFIX,
   });
 }
 

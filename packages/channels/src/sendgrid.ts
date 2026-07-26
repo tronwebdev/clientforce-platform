@@ -13,7 +13,8 @@ import type { EmailSender, RenderedEmail, SendResult } from "./types";
 export class SendGridSender implements EmailSender {
   constructor(
     private readonly apiKey = process.env.SENDGRID_API_KEY,
-    private readonly sandbox = (process.env.SENDGRID_SANDBOX ?? process.env.CHANNELS_SANDBOX) !== "false",
+    private readonly sandbox = (process.env.SENDGRID_SANDBOX ?? process.env.CHANNELS_SANDBOX) !==
+      "false",
     private readonly baseUrl = process.env.SENDGRID_BASE_URL ?? "https://api.sendgrid.com",
     private readonly fetchImpl: typeof fetch = fetch,
   ) {}

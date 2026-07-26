@@ -16,7 +16,12 @@ import {
 } from "@clientforce/db";
 import { sendStep, type SendDeps } from "../src/send";
 import { sendSmsStep, type SendSmsDeps } from "../src/send-sms";
-import { type EmailSender, type RenderedEmail, type RenderedSms, type SmsSender } from "../src/types";
+import {
+  type EmailSender,
+  type RenderedEmail,
+  type RenderedSms,
+  type SmsSender,
+} from "../src/types";
 import { warmupCurveCap } from "../src/warmup";
 
 const hasInfra = Boolean(process.env.APP_DATABASE_URL ?? process.env.DATABASE_URL);
@@ -126,7 +131,9 @@ describe.skipIf(!hasInfra)("send boundary — deliverability rails (P5 W1)", () 
   beforeAll(async () => {
     owner = createPrismaClient();
     app = createAppPrismaClient();
-    const agency = await owner.agency.create({ data: { name: suffix, slug: suffix, branding: {} } });
+    const agency = await owner.agency.create({
+      data: { name: suffix, slug: suffix, branding: {} },
+    });
     agencyId = agency.id;
     ws = (
       await owner.workspace.create({ data: { agencyId, name: "DLV", slug: suffix, settings: {} } })
@@ -141,7 +148,12 @@ describe.skipIf(!hasInfra)("send boundary — deliverability rails (P5 W1)", () 
           // per-sender warmup seeds, so the WARMUP rail (not the campaign cap)
           // is provably the one that fires in the day-N fixtures.
           guardrails: {
-            sendingWindow: { days: [1, 2, 3, 4, 5, 6, 7], start: "00:00", end: "23:59", timezone: "UTC" },
+            sendingWindow: {
+              days: [1, 2, 3, 4, 5, 6, 7],
+              start: "00:00",
+              end: "23:59",
+              timezone: "UTC",
+            },
             dailyCap: { email: 300, sms: 100 },
             consent: null,
             unsubscribeFooter: true,
@@ -213,7 +225,9 @@ describe.skipIf(!hasInfra)("send boundary — deliverability rails (P5 W1)", () 
     await owner.suppression.create({
       data: { workspaceId: ws, channel: "email", address: victim.email!, reason: "MANUAL" },
     });
-    await expect(sendStep(deps(), params(senderId, { contactId: victim.id }))).rejects.toMatchObject({
+    await expect(
+      sendStep(deps(), params(senderId, { contactId: victim.id })),
+    ).rejects.toMatchObject({
       reason: "SENDER_UNHEALTHY",
     });
   });
@@ -227,7 +241,13 @@ describe.skipIf(!hasInfra)("send boundary — deliverability rails (P5 W1)", () 
 
   it("low_data snapshot never gates — a warming sender sends", async () => {
     const senderId = await makeSender({
-      healthState: { ...UNHEALTHY_STATE, score: null, state: "low_data", floor: "none", rates: null },
+      healthState: {
+        ...UNHEALTHY_STATE,
+        score: null,
+        state: "low_data",
+        floor: "none",
+        rates: null,
+      },
     });
     const message = await sendStep(deps(), params(senderId));
     expect(message.senderId).toBe(senderId);

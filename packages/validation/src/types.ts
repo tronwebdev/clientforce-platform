@@ -31,9 +31,7 @@ export interface EmailValidationProvider {
 }
 
 export type ValidationProviderErrorCode =
-  | "PROVIDER_UNAVAILABLE"
-  | "PROVIDER_RATE_LIMITED"
-  | "PROVIDER_AUTH";
+  "PROVIDER_UNAVAILABLE" | "PROVIDER_RATE_LIMITED" | "PROVIDER_AUTH";
 
 /**
  * The typed refusal on provider failure. A provider outage must NEVER

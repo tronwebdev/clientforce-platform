@@ -45,7 +45,13 @@ afterAll(async () => {
 });
 
 interface Recorded {
-  sends: Array<{ stepNodeId: string; mode?: string; brief?: unknown; channel?: string; position?: { index: number; count: number } }>;
+  sends: Array<{
+    stepNodeId: string;
+    mode?: string;
+    brief?: unknown;
+    channel?: string;
+    position?: { index: number; count: number };
+  }>;
   progress: Array<{ currentNode: string; pipelineStage?: string }>;
   blocked: Array<{ nodeId: string; reason: string }>;
   composeRefused: Array<{ nodeId: string; channel?: string; reason: string }>;
@@ -53,12 +59,26 @@ interface Recorded {
   completed: Array<{ nodeId: string }>;
 }
 
-function recordedActivities(
-  sendImpl?: (p: { stepNodeId: string }) => Promise<SendOutcome>,
-): { calls: Recorded; acts: CampaignActivities } {
-  const calls: Recorded = { sends: [], progress: [], blocked: [], composeRefused: [], actions: [], completed: [] };
+function recordedActivities(sendImpl?: (p: { stepNodeId: string }) => Promise<SendOutcome>): {
+  calls: Recorded;
+  acts: CampaignActivities;
+} {
+  const calls: Recorded = {
+    sends: [],
+    progress: [],
+    blocked: [],
+    composeRefused: [],
+    actions: [],
+    completed: [],
+  };
   const acts = {
-    async sendEnrollmentStep(p: { stepNodeId: string; mode?: string; brief?: unknown; channel?: string; position?: { index: number; count: number } }) {
+    async sendEnrollmentStep(p: {
+      stepNodeId: string;
+      mode?: string;
+      brief?: unknown;
+      channel?: string;
+      position?: { index: number; count: number };
+    }) {
       calls.sends.push(p);
       if (sendImpl) return sendImpl(p);
       return {
@@ -149,13 +169,43 @@ const playbookGraph: CampaignGraph = {
         { when: "default", goto: "end-b" },
       ],
     },
-    { id: "reframe", type: "step", channel: "email", content: { subject: "Re: a", body: "value", threaded: true } },
-    { id: "ack", type: "step", channel: "email", content: { subject: "Re: a", body: "later", threaded: true } },
+    {
+      id: "reframe",
+      type: "step",
+      channel: "email",
+      content: { subject: "Re: a", body: "value", threaded: true },
+    },
+    {
+      id: "ack",
+      type: "step",
+      channel: "email",
+      content: { subject: "Re: a", body: "later", threaded: true },
+    },
     { id: "dt", type: "delay", amount: 30, unit: "days" },
-    { id: "follow", type: "step", channel: "email", content: { subject: "Re: a", body: "back", threaded: true } },
-    { id: "referral", type: "step", channel: "email", content: { subject: "Re: a", body: "who", threaded: true } },
-    { id: "answer", type: "step", channel: "email", content: { subject: "Re: a", body: "info", threaded: true } },
-    { id: "close", type: "step", channel: "email", content: { subject: "Re: a", body: "bye", threaded: true } },
+    {
+      id: "follow",
+      type: "step",
+      channel: "email",
+      content: { subject: "Re: a", body: "back", threaded: true },
+    },
+    {
+      id: "referral",
+      type: "step",
+      channel: "email",
+      content: { subject: "Re: a", body: "who", threaded: true },
+    },
+    {
+      id: "answer",
+      type: "step",
+      channel: "email",
+      content: { subject: "Re: a", body: "info", threaded: true },
+    },
+    {
+      id: "close",
+      type: "step",
+      channel: "email",
+      content: { subject: "Re: a", body: "bye", threaded: true },
+    },
     { id: "end-a", type: "end" },
     { id: "end-b", type: "end" },
   ],
@@ -344,7 +394,10 @@ describe("CampaignWorkflow (time-skipping Temporal)", () => {
           id: "s1",
           type: "step",
           channel: "email",
-          content: { subject: "wo Termine verloren gehen", body: "Mir ist aufgefallen, dass {{company}} noch telefonisch bucht. Lohnt sich ein Blick, {{firstName}}?" },
+          content: {
+            subject: "wo Termine verloren gehen",
+            body: "Mir ist aufgefallen, dass {{company}} noch telefonisch bucht. Lohnt sich ein Blick, {{firstName}}?",
+          },
         },
         {
           id: "br",
@@ -360,8 +413,26 @@ describe("CampaignWorkflow (time-skipping Temporal)", () => {
             { when: "default", goto: "end-b" },
           ],
         },
-        { id: "reframe", type: "step", channel: "email", content: { subject: "Re: wo Termine verloren gehen", body: "Verständlicher Einwand — Sie sehen die Zahl, bevor Sie etwas ausgeben.", threaded: true } },
-        { id: "close", type: "step", channel: "email", content: { subject: "Re: wo Termine verloren gehen", body: "Alles gut — die Tür bleibt offen.", threaded: true } },
+        {
+          id: "reframe",
+          type: "step",
+          channel: "email",
+          content: {
+            subject: "Re: wo Termine verloren gehen",
+            body: "Verständlicher Einwand — Sie sehen die Zahl, bevor Sie etwas ausgeben.",
+            threaded: true,
+          },
+        },
+        {
+          id: "close",
+          type: "step",
+          channel: "email",
+          content: {
+            subject: "Re: wo Termine verloren gehen",
+            body: "Alles gut — die Tür bleibt offen.",
+            threaded: true,
+          },
+        },
         { id: "end-a", type: "end" },
         { id: "end-b", type: "end" },
       ],
@@ -619,7 +690,12 @@ describe("CampaignWorkflow (time-skipping Temporal)", () => {
     const mixedGraph: CampaignGraph = {
       entry: "s1",
       nodes: [
-        { id: "s1", type: "step", channel: "email", content: { subject: "a", body: "b {{firstName}}" } },
+        {
+          id: "s1",
+          type: "step",
+          channel: "email",
+          content: { subject: "a", body: "b {{firstName}}" },
+        },
         { id: "d1", type: "delay", amount: 2, unit: "days" },
         {
           id: "g2",
@@ -651,7 +727,10 @@ describe("CampaignWorkflow (time-skipping Temporal)", () => {
         workflowId: `t-mixed-${seq}`,
         args: [{ ...inputFor(mixedGraph, seq), graphVersion: 9 }],
       });
-      await expect(handle.result()).resolves.toMatchObject({ status: "completed", endNode: "end1" });
+      await expect(handle.result()).resolves.toMatchObject({
+        status: "completed",
+        endNode: "end1",
+      });
     });
     // Both steps sent, in order, through ONE durable run.
     expect(calls.sends.map((s) => s.stepNodeId)).toEqual(["s1", "g2"]);
@@ -694,7 +773,9 @@ describe("CampaignWorkflow (time-skipping Temporal)", () => {
         type: "ComposeRefusedError",
         nonRetryable: true,
         message: "Compose refused (SUBJECT_RULE)",
-        details: [{ reason: "SUBJECT_RULE", detail: 'contains banned pattern(s): "quick question"' }],
+        details: [
+          { reason: "SUBJECT_RULE", detail: 'contains banned pattern(s): "quick question"' },
+        ],
       });
     });
     const tq = `tq-${++seq}`;

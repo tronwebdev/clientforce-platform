@@ -15,12 +15,12 @@ internal surface with no canon (`PHASE1_FIDELITY_CHECKPOINTS.md §8`).
 
 Anatomy is borrowed rather than invented, so it reads as part of the pane:
 
-| Element | Borrowed from |
-| --- | --- |
-| Section header (11px / 700 / uppercase / .06em, `#8A7F6B`) | the Transcript header in the same pane |
-| Left gutter label (11.5px / 700, 54px wide) | the transcript turn's Agent/Lead speaker column |
-| Body line (13.5px / 1.5, `#3B463F`) | the transcript turn body |
-| State pill (11px / 700, radius 7) | the call outcome pill's palette (`OUTCOME_STYLE`) |
+| Element                                                    | Borrowed from                                     |
+| ---------------------------------------------------------- | ------------------------------------------------- |
+| Section header (11px / 700 / uppercase / .06em, `#8A7F6B`) | the Transcript header in the same pane            |
+| Left gutter label (11.5px / 700, 54px wide)                | the transcript turn's Agent/Lead speaker column   |
+| Body line (13.5px / 1.5, `#3B463F`)                        | the transcript turn body                          |
+| State pill (11px / 700, radius 7)                          | the call outcome pill's palette (`OUTCOME_STYLE`) |
 
 ## The shot
 
@@ -50,8 +50,8 @@ different claims about the same silence:
 
 - **`N found`** — the record answered, and the agent's turn was grounded in it.
 - **`Nothing on record`** — the agent looked and the record was silent. In the
-  frame this pairs with the agent's turn *"I don't have a booking in front of
-  me"* — the receipt is what makes that honesty checkable after the fact.
+  frame this pairs with the agent's turn _"I don't have a booking in front of
+  me"_ — the receipt is what makes that honesty checkable after the fact.
 - **`Couldn't check`** — the lookup never completed (timeout, store failure).
   Distinct from the above on purpose: only one of them is a knowledge gap
   worth chasing; the other is an infrastructure problem.

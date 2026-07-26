@@ -15,18 +15,18 @@ secret values, anywhere in this repo.
 
 Confirmed by the platform team and corroborated by DNS existence checks:
 
-| Resource | Name |
-|---|---|
-| Resource group | `clientforce-dev` |
-| Postgres Flexible Server | `clientforce-dev-db` — `pgvector` allow-listed; admin `clientforcedev` |
-| — RLS role | `clientforce_app` = **non-superuser, no BYPASSRLS** (`rolsuper=f`, `rolbypassrls=f`) |
-| Redis | `clientforce-redis` |
-| Storage | `clientforcedevstorage` |
-| Key Vault | `clientforce-kv` (RBAC authorization mode) |
-| Container Registry | `clientforcedev.azurecr.io` |
-| Container Apps env | `managedEnvironment-clientforcedev-95a2` |
+| Resource                 | Name                                                                                 |
+| ------------------------ | ------------------------------------------------------------------------------------ |
+| Resource group           | `clientforce-dev`                                                                    |
+| Postgres Flexible Server | `clientforce-dev-db` — `pgvector` allow-listed; admin `clientforcedev`               |
+| — RLS role               | `clientforce_app` = **non-superuser, no BYPASSRLS** (`rolsuper=f`, `rolbypassrls=f`) |
+| Redis                    | `clientforce-redis`                                                                  |
+| Storage                  | `clientforcedevstorage`                                                              |
+| Key Vault                | `clientforce-kv` (RBAC authorization mode)                                           |
+| Container Registry       | `clientforcedev.azurecr.io`                                                          |
+| Container Apps env       | `managedEnvironment-clientforcedev-95a2`                                             |
 
-**Key Vault secrets** hold every connection string / key. The deploy *consumes*
+**Key Vault secrets** hold every connection string / key. The deploy _consumes_
 `DATABASE-URL`, `APP-DATABASE-URL`, `REDIS-URL`, `AUTH-DEV-SECRET`; the
 Temporal/Clerk secrets are provisioned for later phases.
 
@@ -37,12 +37,14 @@ Temporal/Clerk secrets are provisioned for later phases.
 Two gates, both in `deploy.yml`, implemented by `infra/scripts/`:
 
 ### 2a. Repo secret scan — `secret-scan.sh`
+
 `git grep` over tracked files for connection-strings-with-credentials, Azure
 `AccountKey=`, PEM private keys, and common provider key prefixes (Stripe/Clerk,
 SendGrid, AWS, Slack). **Fails the build if any match** (allow-list: lockfile,
 `*.md`, `*.env.example`). This is the "zero secrets in repo" acceptance check.
 
 ### 2b. Environment + secret presence + deploy RBAC — `preflight.sh`
+
 After OIDC login, and **before any build/deploy step**: asserts the ACR and
 Container Apps environment exist, that the **Key Vault secrets the apps secretRef**
 are present (`DATABASE-URL`, `APP-DATABASE-URL`, `REDIS-URL`, `AUTH-DEV-SECRET`),
@@ -57,11 +59,11 @@ under-permissioned deploy identity never reaches a half-deploy.
 
 ## How the acceptance criteria are met
 
-| Criterion (#8) | Mechanism |
-|---|---|
-| Merge to `main` deploys to staging automatically | `deploy.yml` on `push: [main]` |
-| Deployed web shell logs in against the cloud DB; migrations applied | migrate Job (`prisma migrate deploy` + seed) → `smoke.sh` does dev sign-in → `/me` → 200 dashboard |
-| Secrets resolved from Key Vault (none in repo) | Container Apps `secretRef` → Key Vault via the user-assigned managed identity (`main.bicep`); `secret-scan.sh` gate |
+| Criterion (#8)                                                      | Mechanism                                                                                                           |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Merge to `main` deploys to staging automatically                    | `deploy.yml` on `push: [main]`                                                                                      |
+| Deployed web shell logs in against the cloud DB; migrations applied | migrate Job (`prisma migrate deploy` + seed) → `smoke.sh` does dev sign-in → `/me` → 200 dashboard                  |
+| Secrets resolved from Key Vault (none in repo)                      | Container Apps `secretRef` → Key Vault via the user-assigned managed identity (`main.bicep`); `secret-scan.sh` gate |
 
 ---
 

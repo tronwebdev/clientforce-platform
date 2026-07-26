@@ -38,7 +38,13 @@ import {
   type RecallResult,
 } from "@clientforce/core";
 import { monitorEventLoopDelay, type IntervalHistogram } from "node:perf_hooks";
-import { openSttStream, synthesizeAura, type SttParams, type SttStream, type Synthesize } from "./deepgram";
+import {
+  openSttStream,
+  synthesizeAura,
+  type SttParams,
+  type SttStream,
+  type Synthesize,
+} from "./deepgram";
 import { TtsStream, TtsStreamCleared, type TtsStreamDeps } from "./deepgram-tts-stream";
 import { OutboundPacer } from "./outbound-pacer";
 import { SentenceChunker } from "./sentence-chunker";
@@ -197,8 +203,7 @@ export class CallSession {
     if (this.ttsStream?.alive) return this.ttsStream;
     if (this.ttsStream) console.log("[tts] stream reconnect (previous socket gone)");
     try {
-      const make =
-        this.deps.openTtsStream ?? ((d: TtsStreamDeps) => new TtsStream(d));
+      const make = this.deps.openTtsStream ?? ((d: TtsStreamDeps) => new TtsStream(d));
       this.ttsStream = make({
         apiKey: this.deps.deepgramKey,
         ttsModel: this.deps.ttsModel,
@@ -337,7 +342,12 @@ export class CallSession {
             }
           }
         }
-        for await (const chunk of this.synthesize(this.deps.deepgramKey, this.deps.ttsModel, sentence, abort.signal)) {
+        for await (const chunk of this.synthesize(
+          this.deps.deepgramKey,
+          this.deps.ttsModel,
+          sentence,
+          abort.signal,
+        )) {
           if (abort.signal.aborted) {
             interrupted = true;
             return;
@@ -506,9 +516,7 @@ export class CallSession {
         // The final round must ANSWER: withholding the tool is what stops a
         // model from looking things up forever while a caller waits.
         const toolsThisRound =
-          this.deps.recall && round < RECALL_MAX_TOOL_ROUNDS
-            ? [this.deps.recall.tool]
-            : undefined;
+          this.deps.recall && round < RECALL_MAX_TOOL_ROUNDS ? [this.deps.recall.tool] : undefined;
         const toolUses: Array<{ id: string; name: string; input: unknown }> = [];
         let roundText = "";
 
@@ -811,7 +819,12 @@ export class CallSession {
       try {
         const t0 = Date.now();
         let tFirst = 0;
-        for await (const chunk of this.synthesize(this.deps.deepgramKey, this.deps.ttsModel, text, signal)) {
+        for await (const chunk of this.synthesize(
+          this.deps.deepgramKey,
+          this.deps.ttsModel,
+          text,
+          signal,
+        )) {
           if (signal.aborted) return;
           if (tFirst === 0) tFirst = Date.now();
           if (metric.ttfaMs === undefined) metric.ttfaMs = Date.now() - anchor;
@@ -841,10 +854,7 @@ export class CallSession {
 
   private endPolitely(reason: Extract<CallEndReason, "idle_timeout" | "max_duration">): void {
     if (this.closed) return;
-    void this.sayConstantAndEnd(
-      "Thanks for your time — I'll let you go. Goodbye!",
-      reason,
-    );
+    void this.sayConstantAndEnd("Thanks for your time — I'll let you go. Goodbye!", reason);
   }
 
   private async sayConstantAndEnd(line: string, reason: CallEndReason): Promise<void> {
@@ -856,7 +866,12 @@ export class CallSession {
     try {
       await Promise.race([
         (async () => {
-          for await (const chunk of this.synthesize(this.deps.deepgramKey, this.deps.ttsModel, line, abort.signal)) {
+          for await (const chunk of this.synthesize(
+            this.deps.deepgramKey,
+            this.deps.ttsModel,
+            line,
+            abort.signal,
+          )) {
             if (abort.signal.aborted) return;
             this.pacer.enqueueAudio(chunk);
           }
@@ -899,8 +914,16 @@ export class CallSession {
       }, bargeInAfterMs);
     }
     try {
-      const commit: TurnCommit = { text: userText, source: "utterance_end", committedAt: Date.now() };
-      this.turns.push({ role: "user", content: userText, atMs: Date.now() - (this.startedAtMs || Date.now()) });
+      const commit: TurnCommit = {
+        text: userText,
+        source: "utterance_end",
+        committedAt: Date.now(),
+      };
+      this.turns.push({
+        role: "user",
+        content: userText,
+        atMs: Date.now() - (this.startedAtMs || Date.now()),
+      });
       await this.respond(commit);
     } finally {
       if (bargeTimer) clearTimeout(bargeTimer);
@@ -982,7 +1005,11 @@ export class CallSession {
     this.ttsAbort = abort;
     this.speaking = true;
     this.speakingTurn = this.turnCount;
-    this.turns.push({ role: "assistant", content: VOICE_BRIDGE_LINE, atMs: Date.now() - this.startedAtMs });
+    this.turns.push({
+      role: "assistant",
+      content: VOICE_BRIDGE_LINE,
+      atMs: Date.now() - this.startedAtMs,
+    });
     this.deps.metrics.addTtsChars(VOICE_BRIDGE_LINE.length);
     try {
       const stream = this.ensureTtsStream();
@@ -991,7 +1018,12 @@ export class CallSession {
         const timing = await stream.speak(VOICE_BRIDGE_LINE);
         this.deps.metrics.addTtsSentence(timing.firstAudioMs, timing.flushedMs);
       } else {
-        for await (const chunk of this.synthesize(this.deps.deepgramKey, this.deps.ttsModel, VOICE_BRIDGE_LINE, abort.signal)) {
+        for await (const chunk of this.synthesize(
+          this.deps.deepgramKey,
+          this.deps.ttsModel,
+          VOICE_BRIDGE_LINE,
+          abort.signal,
+        )) {
           if (abort.signal.aborted) return;
           this.pacer.enqueueAudio(chunk);
         }
@@ -1014,7 +1046,11 @@ export class CallSession {
     this.ttsAbort = abort;
     this.speaking = true;
     this.speakingTurn = this.turnCount;
-    this.turns.push({ role: "assistant", content: VOICE_REENGAGE_LINE, atMs: Date.now() - this.startedAtMs });
+    this.turns.push({
+      role: "assistant",
+      content: VOICE_REENGAGE_LINE,
+      atMs: Date.now() - this.startedAtMs,
+    });
     this.deps.metrics.addTtsChars(VOICE_REENGAGE_LINE.length);
     try {
       const stream = this.ensureTtsStream();
@@ -1023,7 +1059,12 @@ export class CallSession {
         const timing = await stream.speak(VOICE_REENGAGE_LINE);
         this.deps.metrics.addTtsSentence(timing.firstAudioMs, timing.flushedMs);
       } else {
-        for await (const chunk of this.synthesize(this.deps.deepgramKey, this.deps.ttsModel, VOICE_REENGAGE_LINE, abort.signal)) {
+        for await (const chunk of this.synthesize(
+          this.deps.deepgramKey,
+          this.deps.ttsModel,
+          VOICE_REENGAGE_LINE,
+          abort.signal,
+        )) {
           if (abort.signal.aborted) return;
           this.pacer.enqueueAudio(chunk);
         }

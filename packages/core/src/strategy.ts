@@ -77,11 +77,11 @@ export const STRATEGY_ARCS: Record<ArcKey, StrategyArc> = {
     key: "revive_relationship",
     label: "Revive the relationship",
     description:
-      "Open by referencing the past relationship and what's changed since, carry the win-back offer, answer \"why come back now\", then close the loop politely.",
+      'Open by referencing the past relationship and what\'s changed since, carry the win-back offer, answer "why come back now", then close the loop politely.',
     roles: [
       "OPENER — reference the past relationship and what's changed since, exactly one question",
       "VALUE — the win-back offer, concrete and grounded in the business context",
-      "OBJECTION-PREEMPT — answer \"why come back now\" in one or two sentences",
+      'OBJECTION-PREEMPT — answer "why come back now" in one or two sentences',
       "BREAKUP — shortest message; close the loop politely with an easy out",
     ],
   },
@@ -129,16 +129,12 @@ export const CATEGORY_TONE: Record<BusinessCategory, string> = {
     "Warm, plain-language, patient-outcome-first; no clinical jargon, no hard-sell pressure.",
   "Healthcare & Wellness":
     "Calm, trustworthy, benefit-led; never medical claims, never urgency pressure.",
-  "Home Services":
-    "Practical, neighborly, concrete about time and money saved; plain words.",
-  "Real Estate":
-    "Brisk, market-aware; concrete numbers only where the cited context has them.",
-  "Marketing Agency":
-    "Sharp, results-first, zero fluff — the reader writes copy for a living.",
+  "Home Services": "Practical, neighborly, concrete about time and money saved; plain words.",
+  "Real Estate": "Brisk, market-aware; concrete numbers only where the cited context has them.",
+  "Marketing Agency": "Sharp, results-first, zero fluff — the reader writes copy for a living.",
   "SaaS & Technology":
     "Concise, technically credible, no superlatives; respect the reader's skepticism.",
-  "Professional Services":
-    "Measured, credible, discreet; formal-adjacent without being stiff.",
+  "Professional Services": "Measured, credible, discreet; formal-adjacent without being stiff.",
   Other: "Clear, friendly, specific; default professional tone.",
 };
 

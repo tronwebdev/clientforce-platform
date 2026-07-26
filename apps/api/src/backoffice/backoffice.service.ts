@@ -69,7 +69,10 @@ export class BackofficeService {
   }
 
   /** Agencies (+ their workspaces) with plan, status, created, last activity. */
-  async listAgencies(filter: { q?: string; status?: TenantStatusName }): Promise<BackofficeAgencyRow[]> {
+  async listAgencies(filter: {
+    q?: string;
+    status?: TenantStatusName;
+  }): Promise<BackofficeAgencyRow[]> {
     const where: Prisma.AgencyWhereInput = {};
     if (filter.status) where.status = filter.status;
     if (filter.q) {
@@ -109,11 +112,12 @@ export class BackofficeService {
         createdAt: w.createdAt.toISOString(),
         lastActivityAt: lastByWorkspace.get(w.id)?.toISOString() ?? null,
       }));
-      const agencyLastActivity = workspaces
-        .map((w) => w.lastActivityAt)
-        .filter((v): v is string => v !== null)
-        .sort()
-        .at(-1) ?? null;
+      const agencyLastActivity =
+        workspaces
+          .map((w) => w.lastActivityAt)
+          .filter((v): v is string => v !== null)
+          .sort()
+          .at(-1) ?? null;
       return {
         id: a.id,
         name: a.name,
@@ -198,7 +202,10 @@ export class BackofficeService {
       const entry = await tx.creditLedger.create({
         data: { workspaceId, delta, reason, refId: audit.id, balanceAfter },
       });
-      await tx.workspace.update({ where: { id: workspaceId }, data: { creditBalance: balanceAfter } });
+      await tx.workspace.update({
+        where: { id: workspaceId },
+        data: { creditBalance: balanceAfter },
+      });
       return { entry, balanceAfter, auditId: audit.id };
     });
   }
@@ -213,9 +220,11 @@ export class BackofficeService {
   }
 
   /** The audit trail (optionally filtered to one target), newest first. */
-  async listAudit(filter: { targetType?: string; targetId?: string; limit?: number }): Promise<
-    BackofficeAuditRow[]
-  > {
+  async listAudit(filter: {
+    targetType?: string;
+    targetId?: string;
+    limit?: number;
+  }): Promise<BackofficeAuditRow[]> {
     const rows = await this.prisma.backofficeAuditLog.findMany({
       where: {
         ...(filter.targetType ? { targetType: filter.targetType } : {}),
@@ -245,19 +254,30 @@ export class BackofficeService {
     const workspaceIds =
       q.scope === "workspace"
         ? [q.id]
-        : (await this.prisma.workspace.findMany({ where: { agencyId: q.id }, select: { id: true } })).map(
-            (w) => w.id,
-          );
+        : (
+            await this.prisma.workspace.findMany({
+              where: { agencyId: q.id },
+              select: { id: true },
+            })
+          ).map((w) => w.id);
     if (workspaceIds.length === 0) throw new NotFoundException("No workspaces for that scope");
 
     const [sends, calls, ledger, emailValidations] = await Promise.all([
       this.prisma.message.groupBy({
         by: ["channel"],
-        where: { workspaceId: { in: workspaceIds }, direction: "OUTBOUND", sentAt: { gte: from, lte: to } },
+        where: {
+          workspaceId: { in: workspaceIds },
+          direction: "OUTBOUND",
+          sentAt: { gte: from, lte: to },
+        },
         _count: { _all: true },
       }),
       this.prisma.event.findMany({
-        where: { workspaceId: { in: workspaceIds }, type: "call.completed.v1", occurredAt: { gte: from, lte: to } },
+        where: {
+          workspaceId: { in: workspaceIds },
+          type: "call.completed.v1",
+          occurredAt: { gte: from, lte: to },
+        },
         select: { payload: true },
       }),
       this.prisma.creditLedger.findMany({
@@ -279,7 +299,8 @@ export class BackofficeService {
     }, 0);
     const creditBurn = ledger.filter((l) => l.delta < 0).reduce((s, l) => s - l.delta, 0);
     const creditGranted = ledger.filter((l) => l.delta > 0).reduce((s, l) => s + l.delta, 0);
-    const signals = Object.values(sendsByChannel).reduce((a, b) => a + b, 0) + calls.length + ledger.length;
+    const signals =
+      Object.values(sendsByChannel).reduce((a, b) => a + b, 0) + calls.length + ledger.length;
 
     return {
       scope: q.scope,
@@ -449,7 +470,10 @@ export class BackofficeService {
     const activeWorkspaces = async (windowMs: number) =>
       (
         await this.prisma.telemetryEvent.findMany({
-          where: { occurredAt: { gte: new Date(to.getTime() - windowMs) }, workspaceId: { not: null } },
+          where: {
+            occurredAt: { gte: new Date(to.getTime() - windowMs) },
+            workspaceId: { not: null },
+          },
           distinct: ["workspaceId"],
           select: { workspaceId: true },
         })
@@ -465,7 +489,9 @@ export class BackofficeService {
     for (const e of featureEvents) {
       const feature = (e.props as { feature?: string } | null)?.feature;
       if (!feature || !e.workspaceId) continue;
-      (byFeature.get(feature) ?? byFeature.set(feature, new Set()).get(feature)!).add(e.workspaceId);
+      (byFeature.get(feature) ?? byFeature.set(feature, new Set()).get(feature)!).add(
+        e.workspaceId,
+      );
     }
     const featureAdoption = [...byFeature.entries()]
       .map(([feature, ws]) => ({ feature, workspaces: ws.size }))
@@ -503,14 +529,22 @@ export class BackofficeService {
    * (`assertChannelLive`) reads this exact row; W1's suspend/reactivate is the
    * pattern, one scope narrower.
    */
-  async setKillSwitch(operator: BackofficeStaffContext, dto: KillSwitchSetDto): Promise<KillSwitchRow> {
+  async setKillSwitch(
+    operator: BackofficeStaffContext,
+    dto: KillSwitchSetDto,
+  ): Promise<KillSwitchRow> {
     const row = await this.prisma.$transaction(async (tx) => {
       const prior = await tx.killSwitch.findUnique({
         where: { agencyId_channel: { agencyId: dto.agencyId, channel: dto.channel } },
       });
       const saved = await tx.killSwitch.upsert({
         where: { agencyId_channel: { agencyId: dto.agencyId, channel: dto.channel } },
-        create: { agencyId: dto.agencyId, channel: dto.channel, active: dto.active, reason: dto.reason },
+        create: {
+          agencyId: dto.agencyId,
+          channel: dto.channel,
+          active: dto.active,
+          reason: dto.reason,
+        },
         update: { active: dto.active, reason: dto.reason },
       });
       await this.audit(tx, operator, {
@@ -531,7 +565,11 @@ export class BackofficeService {
       where: { workspaceId },
       orderBy: { key: "asc" },
     });
-    return rows.map((r) => ({ key: r.key, enabled: r.enabled, updatedAt: r.updatedAt.toISOString() }));
+    return rows.map((r) => ({
+      key: r.key,
+      enabled: r.enabled,
+      updatedAt: r.updatedAt.toISOString(),
+    }));
   }
 
   /** Set a per-tenant feature flag (upsert on `(workspaceId, key)`, audited). */
@@ -587,7 +625,12 @@ export class BackofficeService {
       });
       return {
         workspaceId: ws.id,
-        workspace: { id: ws.id, name: ws.name, slug: ws.slug, status: ws.status as TenantStatusName },
+        workspace: {
+          id: ws.id,
+          name: ws.name,
+          slug: ws.slug,
+          status: ws.status as TenantStatusName,
+        },
         agency: { id: ws.agency.id, name: ws.agency.name },
         readOnly: true as const,
         startedAt: audit.createdAt.toISOString(),

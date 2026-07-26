@@ -175,9 +175,7 @@ export function validateGraph(input: unknown): CampaignGraph {
         );
       }
     } else if (node.brief) {
-      throw new GraphValidationError(
-        `step "${node.id}" carries a brief but is not mode:"guided"`,
-      );
+      throw new GraphValidationError(`step "${node.id}" carries a brief but is not mode:"guided"`);
     }
   }
 

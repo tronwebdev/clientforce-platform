@@ -33,7 +33,7 @@ network variance — plus one real endpointing rough edge (below) to tune.
 **Recommendation for July: "designed + waitlist," with the gated live demo done
 — not live calls at GA.** The concept is de-risked; the honest remaining
 blockers are (1) an **unverified p95** (small live sample), (2) Deepgram is a
-*new* vendor now onboarded with a Key Vault secret but with no cost/SLA history,
+_new_ vendor now onboarded with a Key Vault secret but with no cost/SLA history,
 and (3) none of the productionization (call tools, Calls-tab UI, graph voice
 nodes, recording retention, error handling) is in scope or built. Ship voice in
 July as a **designed, waitlisted capability** with the completed gated demo as
@@ -98,21 +98,21 @@ the **source** column — the numbers mean different things:
 
 - **live-brain** (run 29128725976): 22 scripted-caller turns, **real** Claude
   Haiku + **real** Deepgram Aura TTS, no telephony. Measures brain + TTS with a
-  large sample; STT and PSTN are *not* exercised (caller text is scripted).
+  large sample; STT and PSTN are _not_ exercised (caller text is scripted).
 - **real call** (run 29128990633): **an actual outbound phone call**, 6 turns /
   76.5 s, the full loop including live Deepgram STT and PSTN. End-to-end, but a
   small sample.
 
-| Metric (per turn) | live-brain (22 turns) | **real call (6 turns)** | Source |
-|---|---|---|---|
-| LLM first token (Haiku, streaming) | p50 541 ms · p95 2328 ms | p50 506 ms · p95 907 ms | measured |
-| **Time-to-first-audio (TTFA)** | p50 1093 ms · p95 2839 ms (18) | **p50 1169 ms · p95 1712 ms (5)** | measured — real call is end-to-end (STT + PSTN incl.) |
-| Per-turn round trip (full reply spoken) | p50 6049 ms · p95 8968 ms (18) | p50 5399 ms · p95 7257 ms (3) | measured |
-| **Barge-in clear latency** | 0–1 ms (4) | **0–3 ms (4, incl. a greeting interrupt)** | measured |
-| Dropped-audio events | **0 / 22** | **0 / 6** | measured |
+| Metric (per turn)                       | live-brain (22 turns)          | **real call (6 turns)**                    | Source                                                |
+| --------------------------------------- | ------------------------------ | ------------------------------------------ | ----------------------------------------------------- |
+| LLM first token (Haiku, streaming)      | p50 541 ms · p95 2328 ms       | p50 506 ms · p95 907 ms                    | measured                                              |
+| **Time-to-first-audio (TTFA)**          | p50 1093 ms · p95 2839 ms (18) | **p50 1169 ms · p95 1712 ms (5)**          | measured — real call is end-to-end (STT + PSTN incl.) |
+| Per-turn round trip (full reply spoken) | p50 6049 ms · p95 8968 ms (18) | p50 5399 ms · p95 7257 ms (3)              | measured                                              |
+| **Barge-in clear latency**              | 0–1 ms (4)                     | **0–3 ms (4, incl. a greeting interrupt)** | measured                                              |
+| Dropped-audio events                    | **0 / 22**                     | **0 / 6**                                  | measured                                              |
 
 **The headline finding:** real end-to-end TTFA (with STT-endpointing + PSTN
-*included*) came in at **p50 ~1.17 s — within noise of the brain-only
+_included_) came in at **p50 ~1.17 s — within noise of the brain-only
 synthetic's ~1.09 s.** The earlier component-budget projection (~0.8–1.2 s TTFA,
 with a 1.4–3.3 s worst case once STT+PSTN were added) was **too pessimistic on
 the added legs**: Deepgram's endpointing overlaps caller silence the human is
@@ -141,13 +141,13 @@ GO-on-concept, **not** GO-on-SLO.
 
 Per-minute list prices (2026-07, USD; verify against first invoices):
 
-| Component | Rate | Notes |
-|-----------|------|-------|
-| Deepgram Nova-2 STT (streaming) | $0.0059 / audio-min | new vendor |
-| Deepgram Aura-2 TTS | $0.030 / 1k chars | ≈ ~150 spoken words/min → ~$0.02–0.03/min |
-| Claude Haiku 4.5 | $1 / $5 per MTok (in/out) | short replies + growing transcript |
-| Twilio outbound US voice | $0.014 / min | same account as SMS |
-| **Estimated total** | **~$0.05–0.08 / min** | dominated by TTS chars + Twilio |
+| Component                       | Rate                      | Notes                                     |
+| ------------------------------- | ------------------------- | ----------------------------------------- |
+| Deepgram Nova-2 STT (streaming) | $0.0059 / audio-min       | new vendor                                |
+| Deepgram Aura-2 TTS             | $0.030 / 1k chars         | ≈ ~150 spoken words/min → ~$0.02–0.03/min |
+| Claude Haiku 4.5                | $1 / $5 per MTok (in/out) | short replies + growing transcript        |
+| Twilio outbound US voice        | $0.014 / min              | same account as SMS                       |
+| **Estimated total**             | **~$0.05–0.08 / min**     | dominated by TTS chars + Twilio           |
 
 **Measured on the real call** (6 turns / 76.5 s): STT $0.0074 · TTS $0.0158 ·
 LLM $0.0019 · Twilio $0.0178 → **$0.043 total ≈ $0.034/min** (the live-brain
@@ -191,7 +191,7 @@ is not a projection anymore; it works on a real PSTN call.
    p95 gate; tune `endpointing`/`utterance_end_ms`/VAD (and consider Deepgram
    `smart_format`/interim-stability) so turn boundaries track real speech. The
    fix space (endpointing tuning, pre-warming, regional endpoints) is real; it's
-   now a *tuning* task, not a *proof* task.
+   now a _tuning_ task, not a _proof_ task.
 
 2. **Deepgram is a brand-new third-party dependency.** Everything else (Twilio,
    SendGrid, Anthropic, OpenAI) is already onboarded with Key Vault secrets,

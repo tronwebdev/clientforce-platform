@@ -157,9 +157,10 @@ export function checkComposedSms(text: string, inputs: ComposeSmsInputs): Compos
 
   // 5 · URL grounding — every URL must appear verbatim in the provided
   // context or the brief; anything else is an invented link.
-  const allowedMaterial = `${inputs.cachedContext}\n${inputs.brief.objective}\n${inputs.brief.talkingPoints.join(
-    "\n",
-  )}\n${(inputs.brief.mustSay ?? []).join("\n")}`.toLowerCase();
+  const allowedMaterial =
+    `${inputs.cachedContext}\n${inputs.brief.objective}\n${inputs.brief.talkingPoints.join(
+      "\n",
+    )}\n${(inputs.brief.mustSay ?? []).join("\n")}`.toLowerCase();
   const urls = text.match(URL_RE) ?? [];
   const foreign = urls
     .map(stripTrailingPunct)
@@ -217,7 +218,11 @@ CONVERSATION SO FAR (oldest first):
 CONSTRAINTS:
 - Aim for at most {{targetChars}} characters; NEVER exceed {{maxChars}}.
 - {{firstTouchNote}}`;
-  registerPrompt({ name: COMPOSER_PROMPT_NAME, version: COMPOSER_PROMPT_VERSION, template: v1Template });
+  registerPrompt({
+    name: COMPOSER_PROMPT_NAME,
+    version: COMPOSER_PROMPT_VERSION,
+    template: v1Template,
+  });
 
   // v2 (L1, DEC-072) = v1 VERBATIM plus the language constraint — derived
   // from the same literal so the two can never drift. Selected ONLY for
@@ -253,9 +258,7 @@ function renderComposerPrompt(inputs: ComposeSmsInputs): string {
     mustSay: (inputs.brief.mustSay ?? []).length
       ? inputs.brief.mustSay!.map((t) => `"${t}"`).join(", ")
       : "(none)",
-    neverSay: inputs.neverSay.length
-      ? inputs.neverSay.map((t) => `"${t}"`).join(", ")
-      : "(none)",
+    neverSay: inputs.neverSay.length ? inputs.neverSay.map((t) => `"${t}"`).join(", ") : "(none)",
     lead: renderLead(inputs.lead),
     history: renderHistory(inputs.history),
     targetChars: SMS_COMPOSE_TARGET_CHARS,
@@ -281,7 +284,10 @@ function renderComposerPrompt(inputs: ComposeSmsInputs): string {
  * text + the named violations) → typed refusal. The gateway's own schema
  * repair handles malformed tool output; this retry is for CONTENT violations.
  */
-export async function composeSms(gateway: AiGateway, inputs: ComposeSmsInputs): Promise<ComposedSms> {
+export async function composeSms(
+  gateway: AiGateway,
+  inputs: ComposeSmsInputs,
+): Promise<ComposedSms> {
   const prompt = renderComposerPrompt(inputs);
   const request = { system: COMPOSER_SYSTEM, cachedContext: inputs.cachedContext, maxTokens: 512 };
 
@@ -293,7 +299,11 @@ export async function composeSms(gateway: AiGateway, inputs: ComposeSmsInputs): 
   const firstBody = first.body.trim();
   const firstViolations = checkComposedSms(firstBody, inputs);
   if (firstViolations.length === 0) {
-    return { body: firstBody, composerVersion: composerVersionFor(inputs.language ?? DEFAULT_LANGUAGE), attempts: 1 };
+    return {
+      body: firstBody,
+      composerVersion: composerVersionFor(inputs.language ?? DEFAULT_LANGUAGE),
+      attempts: 1,
+    };
   }
 
   const retry = await gateway.completeStructured(
@@ -311,7 +321,11 @@ export async function composeSms(gateway: AiGateway, inputs: ComposeSmsInputs): 
   const retryBody = retry.body.trim();
   const retryViolations = checkComposedSms(retryBody, inputs);
   if (retryViolations.length === 0) {
-    return { body: retryBody, composerVersion: composerVersionFor(inputs.language ?? DEFAULT_LANGUAGE), attempts: 2 };
+    return {
+      body: retryBody,
+      composerVersion: composerVersionFor(inputs.language ?? DEFAULT_LANGUAGE),
+      attempts: 2,
+    };
   }
   throw new ComposeRefusedError(
     retryViolations[0]!.reason,
@@ -428,13 +442,11 @@ export function createSmsStepComposer(deps: {
             ? (contact.custom as Record<string, unknown>)
             : null,
       },
-      history: historyRows
-        .reverse()
-        .map((m) => ({
-          channel: m.channel,
-          direction: m.direction as "OUTBOUND" | "INBOUND",
-          text: `${m.subject ? `${m.subject} — ` : ""}${m.body}`.slice(0, 300),
-        })),
+      history: historyRows.reverse().map((m) => ({
+        channel: m.channel,
+        direction: m.direction as "OUTBOUND" | "INBOUND",
+        text: `${m.subject ? `${m.subject} — ` : ""}${m.body}`.slice(0, 300),
+      })),
       firstTouch: !priorSms,
       language: strategy.language,
     };

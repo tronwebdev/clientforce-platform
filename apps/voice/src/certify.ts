@@ -76,27 +76,18 @@ const DIALOGUE: ScriptedUtterance[] = [
   { segments: [{ text: "What does your product actually do?" }], bargeIn: true },
   { segments: [{ text: "Interesting. Does it handle the sending too?" }] },
   {
-    segments: [
-      { text: "How is that different from", pauseMs: 900 },
-      { text: "what we use now?" },
-    ],
+    segments: [{ text: "How is that different from", pauseMs: 900 }, { text: "what we use now?" }],
   },
   { segments: [{ text: "We're on a legacy tool, it's clunky." }] },
   { segments: [{ text: "Pricing is a concern for us." }], bargeIn: true },
   { segments: [{ text: "Can it do SMS as well as email?" }] },
   {
-    segments: [
-      { text: "That could be useful", pauseMs: 750 },
-      { text: "for reminders." },
-    ],
+    segments: [{ text: "That could be useful", pauseMs: 750 }, { text: "for reminders." }],
   },
   { segments: [{ text: "How long does setup take?" }] },
   { segments: [{ text: "Do you integrate with our CRM?" }] },
   {
-    segments: [
-      { text: "We use a custom", pauseMs: 850 },
-      { text: "spreadsheet, honestly." },
-    ],
+    segments: [{ text: "We use a custom", pauseMs: 850 }, { text: "spreadsheet, honestly." }],
   },
   { segments: [{ text: "Okay, that's fair." }], bargeIn: true },
   { segments: [{ text: "Sure, a demo could make sense." }] },
@@ -132,7 +123,11 @@ class AudioPump {
   enqueueSpeech(audio: Buffer): void {
     for (let off = 0; off < audio.length; off += FRAME_BYTES) {
       const frame = audio.subarray(off, off + FRAME_BYTES);
-      this.queue.push(frame.length === FRAME_BYTES ? frame : Buffer.concat([frame, SILENCE_FRAME]).subarray(0, FRAME_BYTES));
+      this.queue.push(
+        frame.length === FRAME_BYTES
+          ? frame
+          : Buffer.concat([frame, SILENCE_FRAME]).subarray(0, FRAME_BYTES),
+      );
     }
   }
 
@@ -173,7 +168,12 @@ async function callerAudio(apiKey: string, text: string): Promise<Buffer> {
   const hit = segmentAudioCache.get(text);
   if (hit) return hit;
   const chunks: Buffer[] = [];
-  for await (const chunk of synthesizeAura(apiKey, CALLER_VOICE, text, new AbortController().signal)) {
+  for await (const chunk of synthesizeAura(
+    apiKey,
+    CALLER_VOICE,
+    text,
+    new AbortController().signal,
+  )) {
     chunks.push(chunk);
   }
   const audio = trimEdgeSilence(Buffer.concat(chunks));

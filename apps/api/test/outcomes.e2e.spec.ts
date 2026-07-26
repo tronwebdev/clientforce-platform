@@ -20,7 +20,12 @@ const suffix = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 const GRAPH = {
   entry: "step-1",
   nodes: [
-    { id: "step-1", type: "step", channel: "email", content: { subject: "a {{firstName}}", body: "a {{company}}" } },
+    {
+      id: "step-1",
+      type: "step",
+      channel: "email",
+      content: { subject: "a {{firstName}}", body: "a {{company}}" },
+    },
     { id: "delay-1", type: "delay", amount: 2, unit: "days" },
     { id: "step-2", type: "step", channel: "email", content: { subject: "b", body: "b" } },
     { id: "delay-2", type: "delay", amount: 3, unit: "days" },
@@ -218,7 +223,12 @@ describe.skipIf(!hasDb)("Outcomes rollup e2e (F1, DEC-068)", () => {
         type: "lead.stage_changed.v1",
         contactId: cid("a", 0),
         campaignId: campaign.id,
-        payload: { fromStage: "replied", toStage: "booked", goalKey: "book_appointments", label: "Meeting booked" },
+        payload: {
+          fromStage: "replied",
+          toStage: "booked",
+          goalKey: "book_appointments",
+          label: "Meeting booked",
+        },
         occurredAt: new Date(base + 300_000),
       },
     });
@@ -253,7 +263,8 @@ describe.skipIf(!hasDb)("Outcomes rollup e2e (F1, DEC-068)", () => {
     expect(res.body.thresholds).toEqual({ low: 20, ok: 50 });
     expect(res.body.graphVersion).toBe(3);
 
-    const step = (id: string) => res.body.steps.find((s: { stepNodeId: string }) => s.stepNodeId === id);
+    const step = (id: string) =>
+      res.body.steps.find((s: { stepNodeId: string }) => s.stepNodeId === id);
     const [s1, s2, s3] = [step("step-1"), step("step-2"), step("step-3")];
 
     expect(s1).toMatchObject({
@@ -270,12 +281,30 @@ describe.skipIf(!hasDb)("Outcomes rollup e2e (F1, DEC-068)", () => {
     });
     // 2 opt-outs: one via the enrollment fetch arm, one via the contact-only
     // arm (bulk-unsub emitter stamps neither campaignId nor enrollmentId).
-    expect(s2).toMatchObject({ sent: 20, replies: 0, optOuts: 2, optOutRatePct: 10, signal: "low" });
+    expect(s2).toMatchObject({
+      sent: 20,
+      replies: 0,
+      optOuts: 2,
+      optOutRatePct: 10,
+      signal: "low",
+    });
     // Below the floor: raw counts stay, every rate is null — no UI can render one.
-    expect(s3).toMatchObject({ sent: 5, signal: "none", replyRatePct: null, positiveRatePct: null, optOutRatePct: null });
+    expect(s3).toMatchObject({
+      sent: 5,
+      signal: "none",
+      replyRatePct: null,
+      positiveRatePct: null,
+      optOutRatePct: null,
+    });
 
     // Goal completion: SEQUENCE only — totals carry it, no step row has the field.
-    expect(res.body.totals).toMatchObject({ sent: 75, replies: 2, optOuts: 2, goalCompletions: 1, signal: "ok" });
+    expect(res.body.totals).toMatchObject({
+      sent: 75,
+      replies: 2,
+      optOuts: 2,
+      goalCompletions: 1,
+      signal: "ok",
+    });
     expect(s1).not.toHaveProperty("goalCompletions");
   });
 
@@ -296,7 +325,14 @@ describe.skipIf(!hasDb)("Outcomes rollup e2e (F1, DEC-068)", () => {
       },
     });
     await owner.contact.create({
-      data: { id: `oc-x0-${suffix}`, workspaceId: ws, source: "import", optOut: {}, tags: [], email: `oc-x0-${suffix}@t.test` },
+      data: {
+        id: `oc-x0-${suffix}`,
+        workspaceId: ws,
+        source: "import",
+        optOut: {},
+        tags: [],
+        email: `oc-x0-${suffix}@t.test`,
+      },
     });
     await owner.message.create({
       data: {

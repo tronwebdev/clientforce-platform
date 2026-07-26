@@ -65,7 +65,9 @@ async function main(): Promise<void> {
     throw new Error("GATE FAILED: ANTHROPIC_API_KEY missing (Key Vault ANTHROPIC-API-KEY)");
   }
   if (process.env.SMS_SANDBOX === "false") {
-    throw new Error("GATE FAILED: this proof runs the transport in SANDBOX only — unset SMS_SANDBOX");
+    throw new Error(
+      "GATE FAILED: this proof runs the transport in SANDBOX only — unset SMS_SANDBOX",
+    );
   }
 
   console.log("\n=== G1 GUIDED SMS PROOF (real Sonnet compose · sandbox transport) ===");
@@ -94,7 +96,12 @@ async function main(): Promise<void> {
         goal: "book_appointments",
         category: "Dental & Orthodontics",
         guardrails: {
-          sendingWindow: { days: [1, 2, 3, 4, 5, 6, 7], start: "00:00", end: "23:59", timezone: "UTC" },
+          sendingWindow: {
+            days: [1, 2, 3, 4, 5, 6, 7],
+            start: "00:00",
+            end: "23:59",
+            timezone: "UTC",
+          },
           dailyCap: { email: 10, sms: 10 },
           consent: null,
           composeMode: "guided",
@@ -114,32 +121,84 @@ async function main(): Promise<void> {
         agentId: null,
         status: "READY",
         fields: {
-          offer: { value: `We book dental appointments with a ${FACT}.`, citations: [], source: "typed" },
-          proof_points: { value: "37 booked appointments in the first week for a Dallas practice.", citations: [], source: "typed" },
+          offer: {
+            value: `We book dental appointments with a ${FACT}.`,
+            citations: [],
+            source: "typed",
+          },
+          proof_points: {
+            value: "37 booked appointments in the first week for a Dallas practice.",
+            citations: [],
+            source: "typed",
+          },
         },
       },
     });
     await owner.senderConnection.create({
-      data: { workspaceId: ws.id, type: "TWILIO_SMS", fromEmail: "+15005550006", fromName: "Proof SMS" },
+      data: {
+        workspaceId: ws.id,
+        type: "TWILIO_SMS",
+        fromEmail: "+15005550006",
+        fromName: "Proof SMS",
+      },
     });
     const emailSender = await owner.senderConnection.create({
-      data: { workspaceId: ws.id, type: "CF_MANAGED", fromEmail: "proof@send.test", fromName: "Proof" },
+      data: {
+        workspaceId: ws.id,
+        type: "CF_MANAGED",
+        fromEmail: "proof@send.test",
+        fromName: "Proof",
+      },
     });
     const [ada, ben, cara] = await Promise.all([
       owner.contact.create({
-        data: { workspaceId: ws.id, source: "proof", optOut: {}, tags: [], email: `ada-${suffix}@proof.test`, firstName: "Ada", company: "Bright Ortho", phone: PHONE_A },
+        data: {
+          workspaceId: ws.id,
+          source: "proof",
+          optOut: {},
+          tags: [],
+          email: `ada-${suffix}@proof.test`,
+          firstName: "Ada",
+          company: "Bright Ortho",
+          phone: PHONE_A,
+        },
       }),
       owner.contact.create({
-        data: { workspaceId: ws.id, source: "proof", optOut: {}, tags: [], email: `ben-${suffix}@proof.test`, firstName: "Ben", company: "Lakeside Dental", phone: PHONE_B },
+        data: {
+          workspaceId: ws.id,
+          source: "proof",
+          optOut: {},
+          tags: [],
+          email: `ben-${suffix}@proof.test`,
+          firstName: "Ben",
+          company: "Lakeside Dental",
+          phone: PHONE_B,
+        },
       }),
       // The trap lead — enrollments are unique per (campaign, contact).
       owner.contact.create({
-        data: { workspaceId: ws.id, source: "proof", optOut: {}, tags: [], email: `cara-${suffix}@proof.test`, firstName: "Cara", company: "Hilltop Smiles", phone: PHONE_A },
+        data: {
+          workspaceId: ws.id,
+          source: "proof",
+          optOut: {},
+          tags: [],
+          email: `cara-${suffix}@proof.test`,
+          firstName: "Cara",
+          company: "Hilltop Smiles",
+          phone: PHONE_A,
+        },
       }),
     ]);
     const enroll = (contactId: string, n: string) =>
       owner.enrollment.create({
-        data: { workspaceId: ws.id, campaignId: campaign.id, contactId, workflowId: `g1-proof-${n}-${suffix}`, pipelineStage: "new", meta: {} },
+        data: {
+          workspaceId: ws.id,
+          campaignId: campaign.id,
+          contactId,
+          workflowId: `g1-proof-${n}-${suffix}`,
+          pipelineStage: "new",
+          meta: {},
+        },
       });
     const [enrollA, enrollB, enrollC] = await Promise.all([
       enroll(ada.id, "a"),
@@ -163,7 +222,11 @@ async function main(): Promise<void> {
             contactId: e.contactId,
             enrollmentId: e.enrollmentId,
             campaignId: e.campaignId,
-            payload: { stepNodeId: e.stepNodeId, reason: e.reason, ...(e.detail ? { detail: e.detail } : {}) },
+            payload: {
+              stepNodeId: e.stepNodeId,
+              reason: e.reason,
+              ...(e.detail ? { detail: e.detail } : {}),
+            },
           });
         }
       },
@@ -200,7 +263,8 @@ async function main(): Promise<void> {
       body.includes(first) || body.includes(company);
     gate(
       "PERSONALIZATION",
-      personalized(msgA.body, "Ada", "Bright Ortho") && personalized(msgB.body, "Ben", "Lakeside Dental"),
+      personalized(msgA.body, "Ada", "Bright Ortho") &&
+        personalized(msgB.body, "Ben", "Lakeside Dental"),
       "each text carries its own lead's name or company",
     );
     gate(
@@ -275,8 +339,14 @@ async function main(): Promise<void> {
         "sms.compose_refused.v1 Event row persisted through the REAL bus (the Logs tab's amber row)",
       );
     } else {
-      console.log("• REDIS_URL absent — bus-persisted Event row not exercised this run (hook firing asserted)");
-      gate("REFUSAL-HOOK", refusals.some((r) => r.stepNodeId === "sms-guided-trap"), "publishComposeRefused hook fired");
+      console.log(
+        "• REDIS_URL absent — bus-persisted Event row not exercised this run (hook firing asserted)",
+      );
+      gate(
+        "REFUSAL-HOOK",
+        refusals.some((r) => r.stepNodeId === "sms-guided-trap"),
+        "publishComposeRefused hook fired",
+      );
     }
 
     console.log("\n=== ALL GATES PASSED ===");

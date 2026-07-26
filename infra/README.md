@@ -5,6 +5,7 @@ team-provisioned platform. **No secret values live here** — every credential i
 Key Vault reference resolved at runtime via a user-assigned managed identity.
 
 ## Layout
+
 - `main.bicep` — the app-deploy layer (what CD applies): user-assigned managed
   identity + RBAC (`Key Vault Secrets User`, `AcrPull`), the `api` / `worker` /
   `web` Container Apps with `secretRef`→Key Vault, and the `migrate` Container
@@ -14,10 +15,12 @@ Key Vault reference resolved at runtime via a user-assigned managed identity.
   (used by `.github/workflows/deploy.yml`).
 
 ## Deploy
+
 Automatic on merge to `main` via `deploy.yml`:
 **secret-scan → OIDC login → preflight → build/push 4 images → `az deployment group create` → migrate Job → smoke.**
 
 Manual (from a machine with `az` + rights):
+
 ```bash
 az deployment group create \
   --resource-group "$RG" \
@@ -30,11 +33,13 @@ az deployment group create \
 ```
 
 ## Required config (GitHub → Settings)
+
 - **Secrets:** `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`.
 - **Variables:** `AZURE_RESOURCE_GROUP`, `AZURE_LOCATION`, `ACR_NAME`,
   `ACR_LOGIN_SERVER`, `CONTAINER_APPS_ENV`, `KEY_VAULT_NAME`.
 
 ## Not yet codified (deliberate)
+
 A full `platform.bicep` declaring the §A resources (for fresh-env standup / DR) is
 a follow-up — the dev platform already exists and is referenced here to avoid
 mutating it. Temporal mTLS wiring for the worker lands with the workflows (T4+).

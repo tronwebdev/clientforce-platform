@@ -21,9 +21,16 @@ export const cf = (path: string, init?: RequestInit) =>
     ...init,
   }).then(async (r) => {
     if (!r.ok) {
-      const body = (await r.json().catch(() => null)) as { detail?: unknown; message?: unknown } | null;
+      const body = (await r.json().catch(() => null)) as {
+        detail?: unknown;
+        message?: unknown;
+      } | null;
       const detail =
-        typeof body?.detail === "string" ? body.detail : typeof body?.message === "string" ? body.message : null;
+        typeof body?.detail === "string"
+          ? body.detail
+          : typeof body?.message === "string"
+            ? body.message
+            : null;
       throw new CfError(path, r.status, detail);
     }
     return r.json();
@@ -50,7 +57,8 @@ export const TZ_OPTIONS = [
   { zone: "Asia/Singapore", offset: "GMT+08:00", label: "Singapore", short: "SGT" },
   { zone: "Australia/Sydney", offset: "GMT+10:00", label: "Sydney", short: "AEST" },
 ] as const;
-export const tzShort = (zone: string): string => TZ_OPTIONS.find((t) => t.zone === zone)?.short ?? zone;
+export const tzShort = (zone: string): string =>
+  TZ_OPTIONS.find((t) => t.zone === zone)?.short ?? zone;
 
 /** Building-screen step list, verbatim from the prototype (BSTEPS). */
 export const BSTEPS = [
@@ -67,14 +75,54 @@ export const BUILD_DELAYS = [700, 650, 850, 600, 720, 580, 540, 820];
 
 /** Goal cards, verbatim from the prototype's goalDefs (keys = registry GoalKeys). */
 export const GOALS: Array<{ key: string; icon: string; title: string; desc: string }> = [
-  { key: "book_appointments", icon: "📅", title: "Book appointments", desc: "Get prospects onto your calendar." },
-  { key: "generate_leads", icon: "🎯", title: "Generate leads", desc: "Capture & qualify new leads." },
-  { key: "reactivate_leads", icon: "♻", title: "Reactivate leads", desc: "Win back lapsed contacts." },
-  { key: "drive_signups", icon: "🚀", title: "Drive sign-ups", desc: "Convert interest into trials." },
-  { key: "collect_reviews", icon: "⭐", title: "Collect reviews", desc: "Request reviews from clients." },
-  { key: "promote_offer", icon: "🏷", title: "Promote an offer", desc: "Pitch a product, promo or launch." },
-  { key: "fill_event", icon: "🎟", title: "Fill an event", desc: "Drive webinar or open-house signups." },
-  { key: "upsell_clients", icon: "📈", title: "Upsell clients", desc: "Pitch upgrades to current clients." },
+  {
+    key: "book_appointments",
+    icon: "📅",
+    title: "Book appointments",
+    desc: "Get prospects onto your calendar.",
+  },
+  {
+    key: "generate_leads",
+    icon: "🎯",
+    title: "Generate leads",
+    desc: "Capture & qualify new leads.",
+  },
+  {
+    key: "reactivate_leads",
+    icon: "♻",
+    title: "Reactivate leads",
+    desc: "Win back lapsed contacts.",
+  },
+  {
+    key: "drive_signups",
+    icon: "🚀",
+    title: "Drive sign-ups",
+    desc: "Convert interest into trials.",
+  },
+  {
+    key: "collect_reviews",
+    icon: "⭐",
+    title: "Collect reviews",
+    desc: "Request reviews from clients.",
+  },
+  {
+    key: "promote_offer",
+    icon: "🏷",
+    title: "Promote an offer",
+    desc: "Pitch a product, promo or launch.",
+  },
+  {
+    key: "fill_event",
+    icon: "🎟",
+    title: "Fill an event",
+    desc: "Drive webinar or open-house signups.",
+  },
+  {
+    key: "upsell_clients",
+    icon: "📈",
+    title: "Upsell clients",
+    desc: "Pitch upgrades to current clients.",
+  },
   { key: "custom", icon: "✎", title: "Custom goal", desc: "Describe your own objective." },
 ];
 
@@ -120,8 +168,18 @@ export interface Gap {
   state: "open" | "typed" | "ai_decides" | "covered";
 }
 
-export const SRC_ICON: Record<string, string> = { WEBSITE: "🌐", DOCUMENT: "📄", TEXT: "📝", CONNECTOR: "🔌" };
-export const SRC_KIND_LABEL: Record<string, string> = { WEBSITE: "Website", DOCUMENT: "Document", TEXT: "Pasted text", CONNECTOR: "Connector" };
+export const SRC_ICON: Record<string, string> = {
+  WEBSITE: "🌐",
+  DOCUMENT: "📄",
+  TEXT: "📝",
+  CONNECTOR: "🔌",
+};
+export const SRC_KIND_LABEL: Record<string, string> = {
+  WEBSITE: "Website",
+  DOCUMENT: "Document",
+  TEXT: "Pasted text",
+  CONNECTOR: "Connector",
+};
 /** v2: every not-yet-ready state renders amber and never counts as context. */
 export const ING_PILL: Record<string, { fg: string; label: string }> = {
   PENDING: { fg: "#D4A020", label: "Queued" },
@@ -129,7 +187,6 @@ export const ING_PILL: Record<string, { fg: string; label: string }> = {
   READY: { fg: "#16A82A", label: "Ready" },
   FAILED: { fg: "#C9543F", label: "Failed" },
 };
-
 
 /** The wizard's step-3 "added contacts" working-set entry (C2.8 49-3). */
 export interface AddedContact {
@@ -150,7 +207,13 @@ export interface ManualEntry {
   company: string;
   phone: string;
 }
-export const EMPTY_MANUAL: ManualEntry = { firstName: "", lastName: "", email: "", company: "", phone: "" };
+export const EMPTY_MANUAL: ManualEntry = {
+  firstName: "",
+  lastName: "",
+  email: "",
+  company: "",
+  phone: "",
+};
 
 /**
  * W3-9/W3-10 — step-4 lead-capture working set (visual only in P1: the
@@ -174,7 +237,12 @@ export const DEFAULT_CAPTURE: CaptureState = {
   enabled: true,
   ap: null,
   apKeywords: [],
-  apParams: { location: "United States · Canada", industry: "Dental & Orthodontics", size: "1–50 staff", rating: "4.0 ★ +" },
+  apParams: {
+    location: "United States · Canada",
+    industry: "Dental & Orthodontics",
+    size: "1–50 staff",
+    rating: "4.0 ★ +",
+  },
   apSignals: { api: true, news: true, reviews: true, social: true },
   widget: false,
   form: false,
@@ -182,55 +250,261 @@ export const DEFAULT_CAPTURE: CaptureState = {
 };
 
 /** DEC-039a drawer micro-caps label + 42px field. */
-export const manualLbl: React.CSSProperties = { display: "block", fontSize: 11, fontWeight: 800, color: "#9AA59E", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 6 };
-export const manualInp: React.CSSProperties = { height: 42, width: "100%", boxSizing: "border-box", borderRadius: 10, background: "#FBF7F0", border: "1px solid #EBE3D6", display: "flex", alignItems: "center", padding: "0 13px", fontSize: 13.5, color: "#0E1512", fontFamily: "'Hanken Grotesk',sans-serif" };
-export const inp: React.CSSProperties = { width: "100%", boxSizing: "border-box", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 10, padding: "10px 13px", fontSize: 13.5, color: "#0E1512", marginBottom: 6, fontFamily: "'Hanken Grotesk',sans-serif" };
+export const manualLbl: React.CSSProperties = {
+  display: "block",
+  fontSize: 11,
+  fontWeight: 800,
+  color: "#9AA59E",
+  textTransform: "uppercase",
+  letterSpacing: ".05em",
+  marginBottom: 6,
+};
+export const manualInp: React.CSSProperties = {
+  height: 42,
+  width: "100%",
+  boxSizing: "border-box",
+  borderRadius: 10,
+  background: "#FBF7F0",
+  border: "1px solid #EBE3D6",
+  display: "flex",
+  alignItems: "center",
+  padding: "0 13px",
+  fontSize: 13.5,
+  color: "#0E1512",
+  fontFamily: "'Hanken Grotesk',sans-serif",
+};
+export const inp: React.CSSProperties = {
+  width: "100%",
+  boxSizing: "border-box",
+  background: "#fff",
+  border: "1px solid #EBE3D6",
+  borderRadius: 10,
+  padding: "10px 13px",
+  fontSize: 13.5,
+  color: "#0E1512",
+  marginBottom: 6,
+  fontFamily: "'Hanken Grotesk',sans-serif",
+};
 
-export function Modal({ title, children, onClose, tid }: { title: string; children: React.ReactNode; onClose: () => void; tid?: string }) {
+export function Modal({
+  title,
+  children,
+  onClose,
+  tid,
+}: {
+  title: string;
+  children: React.ReactNode;
+  onClose: () => void;
+  tid?: string;
+}) {
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 60 }}>
-      <div onClick={onClose} style={{ position: "absolute", inset: 0, background: "rgba(12,20,15,.45)" }} />
-      <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 560, maxWidth: "92vw", background: "#FBF7F0", borderRadius: 18, boxShadow: "0 30px 80px rgba(0,0,0,.32)", overflow: "hidden" }} data-testid={tid}>
-        <div style={{ background: "#fff", borderBottom: "1px solid #EBE3D6", padding: "14px 20px", fontSize: 16, fontWeight: 700, color: "#0E1512" }}>{title}</div>
+      <div
+        onClick={onClose}
+        style={{ position: "absolute", inset: 0, background: "rgba(12,20,15,.45)" }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%,-50%)",
+          width: 560,
+          maxWidth: "92vw",
+          background: "#FBF7F0",
+          borderRadius: 18,
+          boxShadow: "0 30px 80px rgba(0,0,0,.32)",
+          overflow: "hidden",
+        }}
+        data-testid={tid}
+      >
+        <div
+          style={{
+            background: "#fff",
+            borderBottom: "1px solid #EBE3D6",
+            padding: "14px 20px",
+            fontSize: 16,
+            fontWeight: 700,
+            color: "#0E1512",
+          }}
+        >
+          {title}
+        </div>
         <div style={{ padding: 20 }}>{children}</div>
       </div>
     </div>
   );
 }
 
-export function ModalActions({ onCancel, onSave, saveLabel = "Save" }: { onCancel: () => void; onSave: () => void; saveLabel?: string }) {
+export function ModalActions({
+  onCancel,
+  onSave,
+  saveLabel = "Save",
+}: {
+  onCancel: () => void;
+  onSave: () => void;
+  saveLabel?: string;
+}) {
   return (
     <div style={{ display: "flex", justifyContent: "flex-end", gap: 9, marginTop: 8 }}>
-      <button type="button" onClick={onCancel} style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 11, padding: "10px 18px", fontSize: 13.5, fontWeight: 600, color: "#0E1512", cursor: "pointer", fontFamily: "'Hanken Grotesk',sans-serif" }}>Cancel</button>
-      <button type="button" onClick={onSave} data-testid="modal-save" style={{ background: GRAD, border: "none", borderRadius: 11, padding: "10px 20px", fontSize: 13.5, fontWeight: 700, color: "#0A0F0C", cursor: "pointer", boxShadow: "0 6px 16px rgba(53,232,52,.26)", fontFamily: "'Hanken Grotesk',sans-serif" }}>{saveLabel}</button>
+      <button
+        type="button"
+        onClick={onCancel}
+        style={{
+          background: "#fff",
+          border: "1px solid #EBE3D6",
+          borderRadius: 11,
+          padding: "10px 18px",
+          fontSize: 13.5,
+          fontWeight: 600,
+          color: "#0E1512",
+          cursor: "pointer",
+          fontFamily: "'Hanken Grotesk',sans-serif",
+        }}
+      >
+        Cancel
+      </button>
+      <button
+        type="button"
+        onClick={onSave}
+        data-testid="modal-save"
+        style={{
+          background: GRAD,
+          border: "none",
+          borderRadius: 11,
+          padding: "10px 20px",
+          fontSize: 13.5,
+          fontWeight: 700,
+          color: "#0A0F0C",
+          cursor: "pointer",
+          boxShadow: "0 6px 16px rgba(53,232,52,.26)",
+          fontFamily: "'Hanken Grotesk',sans-serif",
+        }}
+      >
+        {saveLabel}
+      </button>
     </div>
   );
 }
 
-export function Stepper({ value, onMinus, onPlus }: { value: string; onMinus: () => void; onPlus: () => void }) {
-  const btn: React.CSSProperties = { width: 34, height: 34, borderRadius: 10, border: "1px solid #EBE3D6", background: "#fff", fontSize: 16, cursor: "pointer", color: "#0E1512" };
+export function Stepper({
+  value,
+  onMinus,
+  onPlus,
+}: {
+  value: string;
+  onMinus: () => void;
+  onPlus: () => void;
+}) {
+  const btn: React.CSSProperties = {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    border: "1px solid #EBE3D6",
+    background: "#fff",
+    fontSize: 16,
+    cursor: "pointer",
+    color: "#0E1512",
+  };
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-      <button type="button" onClick={onMinus} style={btn}>−</button>
-      <span style={{ minWidth: 90, textAlign: "center", fontSize: 15, fontWeight: 700, color: "#0E1512" }}>{value}</span>
-      <button type="button" onClick={onPlus} style={btn}>+</button>
+      <button type="button" onClick={onMinus} style={btn}>
+        −
+      </button>
+      <span
+        style={{
+          minWidth: 90,
+          textAlign: "center",
+          fontSize: 15,
+          fontWeight: 700,
+          color: "#0E1512",
+        }}
+      >
+        {value}
+      </span>
+      <button type="button" onClick={onPlus} style={btn}>
+        +
+      </button>
     </div>
   );
 }
 
 /** Prototype 44×25 gradient toggle (step-5 sending-behavior rows). */
-export function GradToggle({ on, onClick, tid }: { on: boolean; onClick: () => void; tid: string }) {
+export function GradToggle({
+  on,
+  onClick,
+  tid,
+}: {
+  on: boolean;
+  onClick: () => void;
+  tid: string;
+}) {
   return (
-    <div onClick={onClick} style={{ width: 44, height: 25, borderRadius: 100, background: on ? GRAD : "#D8CFBE", display: "flex", alignItems: "center", justifyContent: on ? "flex-end" : "flex-start", padding: 3, cursor: "pointer", flex: "none", transition: "background .2s" }} data-testid={tid}>
-      <span style={{ width: 19, height: 19, borderRadius: "50%", background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,.25)" }} />
+    <div
+      onClick={onClick}
+      style={{
+        width: 44,
+        height: 25,
+        borderRadius: 100,
+        background: on ? GRAD : "#D8CFBE",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: on ? "flex-end" : "flex-start",
+        padding: 3,
+        cursor: "pointer",
+        flex: "none",
+        transition: "background .2s",
+      }}
+      data-testid={tid}
+    >
+      <span
+        style={{
+          width: 19,
+          height: 19,
+          borderRadius: "50%",
+          background: "#fff",
+          boxShadow: "0 1px 3px rgba(0,0,0,.25)",
+        }}
+      />
     </div>
   );
 }
 
-export function LimitCard({ label, value, onMinus, onPlus, tid }: { label: string; value: string; onMinus: () => void; onPlus: () => void; tid: string }) {
+export function LimitCard({
+  label,
+  value,
+  onMinus,
+  onPlus,
+  tid,
+}: {
+  label: string;
+  value: string;
+  onMinus: () => void;
+  onPlus: () => void;
+  tid: string;
+}) {
   return (
-    <div style={{ border: "1px solid #EBE3D6", borderRadius: 13, background: "#fff", padding: "14px 14px" }} data-testid={`limit-${tid}`}>
-      <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", color: "#9AA59E", marginBottom: 10 }}>{label}</div>
+    <div
+      style={{
+        border: "1px solid #EBE3D6",
+        borderRadius: 13,
+        background: "#fff",
+        padding: "14px 14px",
+      }}
+      data-testid={`limit-${tid}`}
+    >
+      <div
+        style={{
+          fontSize: 11,
+          fontWeight: 800,
+          letterSpacing: ".06em",
+          textTransform: "uppercase",
+          color: "#9AA59E",
+          marginBottom: 10,
+        }}
+      >
+        {label}
+      </div>
       <Stepper value={value} onMinus={onMinus} onPlus={onPlus} />
     </div>
   );

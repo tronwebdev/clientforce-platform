@@ -33,7 +33,9 @@ const TOKEN = `tok-${suffix}`;
 const SIGNING_KEY = `sk-${suffix}`;
 
 const sign = (body: unknown, key = SIGNING_KEY, t = "1721600000"): string => {
-  const v1 = createHmac("sha256", key).update(`${t}.${JSON.stringify(body)}`, "utf8").digest("hex");
+  const v1 = createHmac("sha256", key)
+    .update(`${t}.${JSON.stringify(body)}`, "utf8")
+    .digest("hex");
   return `t=${t},v1=${v1}`;
 };
 
@@ -47,7 +49,10 @@ describe.skipIf(!hasDb)("calendly webhook e2e (INT W2, DEC-094)", () => {
 
   const api = () => request(app.getHttpServer());
 
-  const invitee = (over: Record<string, unknown> = {}, scheduledOver: Record<string, unknown> = {}) => ({
+  const invitee = (
+    over: Record<string, unknown> = {},
+    scheduledOver: Record<string, unknown> = {},
+  ) => ({
     event: "invitee.created",
     payload: {
       uri: `https://calendly.test/invitees/I-${suffix}-1`,
@@ -68,20 +73,32 @@ describe.skipIf(!hasDb)("calendly webhook e2e (INT W2, DEC-094)", () => {
 
   beforeAll(async () => {
     owner = createPrismaClient();
-    const agency = await owner.agency.create({ data: { name: suffix, slug: suffix, branding: {} } });
+    const agency = await owner.agency.create({
+      data: { name: suffix, slug: suffix, branding: {} },
+    });
     agencyId = agency.id;
-    ws = (await owner.workspace.create({ data: { agencyId, name: "cw", slug: suffix, settings: {} } })).id;
+    ws = (
+      await owner.workspace.create({ data: { agencyId, name: "cw", slug: suffix, settings: {} } })
+    ).id;
     const agentId = (
       await owner.agent.create({
         data: { workspaceId: ws, name: "Booker", goal: "book_appointments", guardrails: {} },
       })
     ).id;
     const campaignId = (
-      await owner.campaign.create({ data: { workspaceId: ws, agentId, name: "primary", graphId: "" } })
+      await owner.campaign.create({
+        data: { workspaceId: ws, agentId, name: "primary", graphId: "" },
+      })
     ).id;
     contactId = (
       await owner.contact.create({
-        data: { workspaceId: ws, source: "test", optOut: {}, tags: [], email: `lead-${suffix}@t.test` },
+        data: {
+          workspaceId: ws,
+          source: "test",
+          optOut: {},
+          tags: [],
+          email: `lead-${suffix}@t.test`,
+        },
       })
     ).id;
     enrollmentId = (
@@ -117,7 +134,10 @@ describe.skipIf(!hasDb)("calendly webhook e2e (INT W2, DEC-094)", () => {
   beforeEach(async () => {
     await owner.meeting.deleteMany({ where: { workspaceId: ws } });
     await owner.event.deleteMany({ where: { workspaceId: ws } });
-    await owner.enrollment.update({ where: { id: enrollmentId }, data: { pipelineStage: "new", meta: {} } });
+    await owner.enrollment.update({
+      where: { id: enrollmentId },
+      data: { pipelineStage: "new", meta: {} },
+    });
   });
 
   afterAll(async () => {
@@ -128,7 +148,11 @@ describe.skipIf(!hasDb)("calendly webhook e2e (INT W2, DEC-094)", () => {
 
   it("refuses a missing or unknown webhook token (401)", async () => {
     const body = invitee();
-    await api().post("/webhooks/calendly").set("calendly-webhook-signature", sign(body)).send(body).expect(401);
+    await api()
+      .post("/webhooks/calendly")
+      .set("calendly-webhook-signature", sign(body))
+      .send(body)
+      .expect(401);
     await api()
       .post(`/webhooks/calendly?token=not-the-token`)
       .set("calendly-webhook-signature", sign(body))
@@ -164,13 +188,28 @@ describe.skipIf(!hasDb)("calendly webhook e2e (INT W2, DEC-094)", () => {
     expect(res.body).toMatchObject({ received: true, outcome: "booked", matchedBy: "utm" });
 
     const meeting = await owner.meeting.findFirstOrThrow({ where: { workspaceId: ws } });
-    expect(meeting).toMatchObject({ provider: "calendly", status: "booked", contactId, enrollmentId });
+    expect(meeting).toMatchObject({
+      provider: "calendly",
+      status: "booked",
+      contactId,
+      enrollmentId,
+    });
     expect(meeting.startAt.toISOString()).toBe("2026-07-28T15:00:00.000Z");
 
-    const events = await owner.event.findMany({ where: { workspaceId: ws }, orderBy: { occurredAt: "asc" } });
-    expect(events.map((e) => e.type).sort()).toEqual(["calendar.booked.v1", "lead.stage_changed.v1"]);
+    const events = await owner.event.findMany({
+      where: { workspaceId: ws },
+      orderBy: { occurredAt: "asc" },
+    });
+    expect(events.map((e) => e.type).sort()).toEqual([
+      "calendar.booked.v1",
+      "lead.stage_changed.v1",
+    ]);
     const stage = events.find((e) => e.type === "lead.stage_changed.v1")!;
-    expect(stage.payload).toMatchObject({ fromStage: "new", toStage: "booked", goalKey: "book_appointments" });
+    expect(stage.payload).toMatchObject({
+      fromStage: "new",
+      toStage: "booked",
+      goalKey: "book_appointments",
+    });
     expect((stage.payload as { manual?: boolean }).manual).toBeUndefined();
     expect(
       (await owner.enrollment.findUniqueOrThrow({ where: { id: enrollmentId } })).pipelineStage,
@@ -188,14 +227,19 @@ describe.skipIf(!hasDb)("calendly webhook e2e (INT W2, DEC-094)", () => {
   });
 
   it("an unmatched invitee acks honestly: contact-less Meeting row, ZERO events", async () => {
-    const body = invitee({ email: "stranger@else.test", uri: `https://calendly.test/invitees/I-${suffix}-x` });
+    const body = invitee({
+      email: "stranger@else.test",
+      uri: `https://calendly.test/invitees/I-${suffix}-x`,
+    });
     const res = await api()
       .post(`/webhooks/calendly?token=${TOKEN}`)
       .set("calendly-webhook-signature", sign(body))
       .send(body)
       .expect(201);
     expect(res.body).toMatchObject({ received: true, outcome: "unmatched", matchedBy: "none" });
-    expect((await owner.meeting.findFirstOrThrow({ where: { workspaceId: ws } })).contactId).toBeNull();
+    expect(
+      (await owner.meeting.findFirstOrThrow({ where: { workspaceId: ws } })).contactId,
+    ).toBeNull();
     expect(await owner.event.count({ where: { workspaceId: ws } })).toBe(0);
   });
 
@@ -223,7 +267,9 @@ describe.skipIf(!hasDb)("calendly webhook e2e (INT W2, DEC-094)", () => {
       .expect(201);
     expect(ack.body.outcome).toBe("rescheduling");
     // silent flip: the sweep must not remind for the abandoned slot mid-reschedule
-    expect((await owner.meeting.findFirstOrThrow({ where: { workspaceId: ws } })).status).toBe("canceled");
+    expect((await owner.meeting.findFirstOrThrow({ where: { workspaceId: ws } })).status).toBe(
+      "canceled",
+    );
     expect(await owner.event.count({ where: { workspaceId: ws } })).toBe(0);
 
     const createdHalf = invitee(
@@ -251,7 +297,9 @@ describe.skipIf(!hasDb)("calendly webhook e2e (INT W2, DEC-094)", () => {
 
     // Redelivered PRE-reschedule created(old) must NOT resurrect a stale row
     // (the tombstone dedupe — review-round pin).
-    const redelivered = invitee({ tracking: { utm_source: "clientforce", utm_content: contactId } });
+    const redelivered = invitee({
+      tracking: { utm_source: "clientforce", utm_content: contactId },
+    });
     const dup = await api()
       .post(`/webhooks/calendly?token=${TOKEN}`)
       .set("calendly-webhook-signature", sign(redelivered))
@@ -259,7 +307,9 @@ describe.skipIf(!hasDb)("calendly webhook e2e (INT W2, DEC-094)", () => {
       .expect(201);
     expect(dup.body.outcome).toBe("duplicate");
     expect(await owner.meeting.count({ where: { workspaceId: ws } })).toBe(1);
-    expect(await owner.event.count({ where: { workspaceId: ws, type: "calendar.booked.v1" } })).toBe(0);
+    expect(
+      await owner.event.count({ where: { workspaceId: ws, type: "calendar.booked.v1" } }),
+    ).toBe(0);
   });
 
   it("cancel + no-show flip the status with ONE calendar.canceled.v1 each shape; stage untouched", async () => {
@@ -270,7 +320,8 @@ describe.skipIf(!hasDb)("calendly webhook e2e (INT W2, DEC-094)", () => {
       .send(body)
       .expect(201);
     await owner.event.deleteMany({ where: { workspaceId: ws } });
-    const stageBefore = (await owner.enrollment.findUniqueOrThrow({ where: { id: enrollmentId } })).pipelineStage;
+    const stageBefore = (await owner.enrollment.findUniqueOrThrow({ where: { id: enrollmentId } }))
+      .pipelineStage;
 
     const noShow = {
       event: "invitee_no_show.created",
@@ -285,7 +336,9 @@ describe.skipIf(!hasDb)("calendly webhook e2e (INT W2, DEC-094)", () => {
       .send(noShow)
       .expect(201);
     expect(res.body.outcome).toBe("canceled");
-    expect((await owner.meeting.findFirstOrThrow({ where: { workspaceId: ws } })).status).toBe("no_show");
+    expect((await owner.meeting.findFirstOrThrow({ where: { workspaceId: ws } })).status).toBe(
+      "no_show",
+    );
     const events = await owner.event.findMany({ where: { workspaceId: ws } });
     expect(events.map((e) => e.type)).toEqual(["calendar.canceled.v1"]);
     expect(events[0]?.payload).toMatchObject({ reason: "no_show" });
@@ -295,7 +348,10 @@ describe.skipIf(!hasDb)("calendly webhook e2e (INT W2, DEC-094)", () => {
     ).toBe(stageBefore);
 
     // A cancel for an unknown invitee acks as ignored.
-    const unknown = { event: "invitee.canceled", payload: { uri: "https://calendly.test/invitees/never", rescheduled: false } };
+    const unknown = {
+      event: "invitee.canceled",
+      payload: { uri: "https://calendly.test/invitees/never", rescheduled: false },
+    };
     const ignored = await api()
       .post(`/webhooks/calendly?token=${TOKEN}`)
       .set("calendly-webhook-signature", sign(unknown))
@@ -305,7 +361,9 @@ describe.skipIf(!hasDb)("calendly webhook e2e (INT W2, DEC-094)", () => {
   });
 
   it("a keyless row (link-tier residue) accepts unsigned in dev but REJECTS in production (the SendGrid gate)", async () => {
-    const bare = await owner.workspace.create({ data: { agencyId, name: "bare", slug: `bare-${suffix}`, settings: {} } });
+    const bare = await owner.workspace.create({
+      data: { agencyId, name: "bare", slug: `bare-${suffix}`, settings: {} },
+    });
     await owner.integration.create({
       data: {
         workspaceId: bare.id,
@@ -315,7 +373,10 @@ describe.skipIf(!hasDb)("calendly webhook e2e (INT W2, DEC-094)", () => {
         scopes: [],
       },
     });
-    const body = invitee({ uri: `https://calendly.test/invitees/I-${suffix}-bare`, email: "n@x.test" });
+    const body = invitee({
+      uri: `https://calendly.test/invitees/I-${suffix}-bare`,
+      email: "n@x.test",
+    });
     await api().post(`/webhooks/calendly?token=bare-${TOKEN}`).send(body).expect(201);
 
     const prior = process.env.NODE_ENV;

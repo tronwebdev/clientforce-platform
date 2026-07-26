@@ -59,12 +59,16 @@ describe("trigger display map (lib/triggers)", () => {
     expect(triggerChip({ kind: "reply_classified", intents: ["interested"] })).toBe(
       `💬 Reply: ${INTENT_TINT.interested!.label}`,
     );
-    expect(triggerChip({ kind: "reply_classified", intents: ["interested"] })).toBe("💬 Reply: Interested");
+    expect(triggerChip({ kind: "reply_classified", intents: ["interested"] })).toBe(
+      "💬 Reply: Interested",
+    );
     expect(
       triggerChip({ kind: "reply_classified", intents: ["objection_price", "wrong_person"] }),
     ).toBe("💬 Reply: Price objection · Wrong person");
     // Unknown intents render themselves in the chip (the C2.9 verbatim rule).
-    expect(triggerChip({ kind: "reply_classified", intents: ["mystery_value"] })).toBe("💬 Reply: mystery_value");
+    expect(triggerChip({ kind: "reply_classified", intents: ["mystery_value"] })).toBe(
+      "💬 Reply: mystery_value",
+    );
   });
 
   it("sequence_quiet chips render the canon '⏱ No reply · N days' (singular-aware)", () => {
@@ -121,7 +125,9 @@ describe("trigger display map (lib/triggers)", () => {
     ];
     for (const kind of SCHEMA_KINDS) {
       // fully connected → everything picks
-      expect(triggerAvailability(kind, { email: true, leadCapture: true })).toEqual({ enabled: true });
+      expect(triggerAvailability(kind, { email: true, leadCapture: true })).toEqual({
+        enabled: true,
+      });
       const bare = triggerAvailability(kind, { email: false, leadCapture: false });
       if (emailBacked.includes(kind)) {
         expect(bare).toEqual({ enabled: false, reason: TRIGGER_DISABLED_EMAIL });
@@ -160,7 +166,10 @@ describe("trigger display map (lib/triggers)", () => {
     const a = suggestedBranches("book_appointments");
     expect(a).toEqual(suggestedBranches("book_appointments"));
     expect(a).toEqual([
-      { name: "Interested — book a call", trigger: { kind: "reply_classified", intents: ["interested"] } },
+      {
+        name: "Interested — book a call",
+        trigger: { kind: "reply_classified", intents: ["interested"] },
+      },
       { name: "Re-engagement sequence", trigger: { kind: "sequence_quiet", days: 30 } },
     ]);
     // unknown/custom goals fall back to the generic name, same triggers

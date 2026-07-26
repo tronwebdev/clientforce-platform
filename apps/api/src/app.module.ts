@@ -44,7 +44,16 @@ import { BusOrInlinePublisher, EVENTS_PUBLISHER } from "./events/publisher";
     VoiceModule,
     WidgetModule,
   ],
-  controllers: [HealthController, MeController, WorkspacesController, ContactsController, ContactsViewController, ContactFieldsController, ContactListsController, ContactValidationController],
+  controllers: [
+    HealthController,
+    MeController,
+    WorkspacesController,
+    ContactsController,
+    ContactsViewController,
+    ContactFieldsController,
+    ContactListsController,
+    ContactValidationController,
+  ],
   providers: [
     // Order matters: authenticate + resolve tenancy first, then enforce RBAC.
     { provide: APP_GUARD, useClass: AuthGuard },

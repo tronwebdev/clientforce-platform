@@ -62,7 +62,12 @@ describe("W2 picker registries (the vocabulary + the honest-absent ledger)", () 
     }
     // The canon's intent-flavoured reply entries FOLD into reply_classified —
     // they must never reappear as separate absent vocabulary.
-    for (const folded of ["Positive reply", "Objection raised", "Question asked", "Out-of-office reply"]) {
+    for (const folded of [
+      "Positive reply",
+      "Objection raised",
+      "Question asked",
+      "Out-of-office reply",
+    ]) {
       expect(ABSENT_TRIGGERS.some((a) => a.label === folded)).toBe(false);
     }
   });
@@ -85,7 +90,12 @@ describe("W2 picker registries (the vocabulary + the honest-absent ledger)", () 
       expect(entry?.reason).toBe(CAMPAIGN_SCOPED_REASON);
     }
     // And no absent entry duplicates the folded canon twins of engine kinds.
-    for (const folded of ["Mark qualified", "Set status", "End workflow", "Remove from sequences"]) {
+    for (const folded of [
+      "Mark qualified",
+      "Set status",
+      "End workflow",
+      "Remove from sequences",
+    ]) {
       expect(ABSENT_ACTIONS.some((a) => a.label === folded)).toBe(false);
     }
   });
@@ -103,7 +113,9 @@ describe("W2 picker registries (the vocabulary + the honest-absent ledger)", () 
 
   it("'Send booking link' RETIRED from the absent actions; the two remaining Meetings entries carry the Q-033 re-filed reasons", () => {
     expect(ABSENT_ACTIONS.some((a) => a.label === "Send booking link")).toBe(false);
-    expect(ACCOUNT_ACTION_OPTIONS.some((o) => o.label === "Send booking link" && o.group === "Meetings")).toBe(true);
+    expect(
+      ACCOUNT_ACTION_OPTIONS.some((o) => o.label === "Send booking link" && o.group === "Meetings"),
+    ).toBe(true);
     expect(ABSENT_ACTIONS.find((a) => a.label === "Send meeting reminder")?.reason).toBe(
       "Arrives with per-channel send rules — today pair a “Before a meeting” trigger with your sequence",
     );
@@ -160,10 +172,7 @@ describe("SPEC A (DEC-099) — the call_knowledge_gap trigger in the picker", ()
 
   it("sameTrigger compares facets as SETS — absent and empty both mean any facet", () => {
     expect(
-      sameTrigger(
-        { kind: "call_knowledge_gap" },
-        { kind: "call_knowledge_gap", facets: [] },
-      ),
+      sameTrigger({ kind: "call_knowledge_gap" }, { kind: "call_knowledge_gap", facets: [] }),
     ).toBe(true);
     expect(
       sameTrigger(
@@ -179,12 +188,17 @@ describe("SPEC A (DEC-099) — the call_knowledge_gap trigger in the picker", ()
       ),
     ).toBe(false);
     expect(
-      sameTrigger({ kind: "call_knowledge_gap" }, { kind: "call_knowledge_gap", facets: ["knowledge"] }),
+      sameTrigger(
+        { kind: "call_knowledge_gap" },
+        { kind: "call_knowledge_gap", facets: ["knowledge"] },
+      ),
     ).toBe(false);
   });
 
   it("the builder's default payload for the kind is schema-valid", () => {
-    expect(campaignRuleTriggerSchema.safeParse(defaultTriggerFor("call_knowledge_gap")).success).toBe(true);
+    expect(
+      campaignRuleTriggerSchema.safeParse(defaultTriggerFor("call_knowledge_gap")).success,
+    ).toBe(true);
   });
 });
 

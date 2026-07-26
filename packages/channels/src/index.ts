@@ -89,12 +89,7 @@ export {
   SUPPRESSION_AGING_BOUNCE_DAYS,
   type SuppressionHygieneResult,
 } from "./suppression-hygiene";
-export {
-  messageSenderId,
-  resolveEventMessage,
-  toBusEvents,
-  type BusEventInput,
-} from "./webhooks";
+export { messageSenderId, resolveEventMessage, toBusEvents, type BusEventInput } from "./webhooks";
 export {
   INBOUND_CLASSIFY_QUEUE,
   MalformedInboundError,
@@ -129,8 +124,20 @@ export {
   type ReplyIntentFixture,
 } from "./classify-fixtures";
 // ── P2.1 (DEC-061/062): the SMS channel ──────────────────────────────────────
-export { sendSmsStep, SMS_OPT_OUT_LINE, DEFAULT_SMS_DAILY_CAP, type SendSmsDeps, type SendSmsStepParams } from "./send-sms";
-export { TwilioSmsSender, parseTwilioConfig, smsSegmentCount, validateTwilioSignature, type TwilioSenderConfig } from "./twilio";
+export {
+  sendSmsStep,
+  SMS_OPT_OUT_LINE,
+  DEFAULT_SMS_DAILY_CAP,
+  type SendSmsDeps,
+  type SendSmsStepParams,
+} from "./send-sms";
+export {
+  TwilioSmsSender,
+  parseTwilioConfig,
+  smsSegmentCount,
+  validateTwilioSignature,
+  type TwilioSenderConfig,
+} from "./twilio";
 export {
   applySmsStop,
   ingestInboundSms,

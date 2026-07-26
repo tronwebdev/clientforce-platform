@@ -56,7 +56,8 @@ import { REPLY_SIGNAL, TASK_QUEUE, workflowIdFor, type CampaignWorkflowInput } f
 
 const FACT = "free growth audit";
 const ADDRESS = process.env.LIVE_PROOF_ADDRESS ?? "Clientforce, Lagos, Nigeria";
-const V1_STEP2_BODY = "Bump, {{firstName}} — v1 scripted step-2, before the edit.\n\n— {{senderName}}";
+const V1_STEP2_BODY =
+  "Bump, {{firstName}} — v1 scripted step-2, before the edit.\n\n— {{senderName}}";
 // 1 graph-day ≈ 6 real seconds (the live-proof.ts scale).
 const DELAY_SCALE = 6 / 86_400;
 const DAY_MS_LABEL = "1 day ≈ 6s";
@@ -100,7 +101,11 @@ function graphV1(): CampaignGraph {
         id: "s2",
         type: "step",
         channel: "email",
-        content: { subject: "ignored — threaded steps inherit", body: V1_STEP2_BODY, threaded: true },
+        content: {
+          subject: "ignored — threaded steps inherit",
+          body: V1_STEP2_BODY,
+          threaded: true,
+        },
         pipelineOnSend: "contacted",
       },
       {
@@ -158,7 +163,12 @@ async function main(): Promise<void> {
         goal: "book_appointments",
         category: "Dental & Orthodontics",
         guardrails: {
-          sendingWindow: { days: [1, 2, 3, 4, 5, 6, 7], start: "00:00", end: "23:59", timezone: "UTC" },
+          sendingWindow: {
+            days: [1, 2, 3, 4, 5, 6, 7],
+            start: "00:00",
+            end: "23:59",
+            timezone: "UTC",
+          },
           dailyCap: { email: 20 },
           consent: null,
           unsubscribeFooter: true,
@@ -177,7 +187,11 @@ async function main(): Promise<void> {
         agentId: null,
         status: "READY",
         fields: {
-          offer: { value: `We book dental appointments with a ${FACT}.`, citations: [], source: "typed" },
+          offer: {
+            value: `We book dental appointments with a ${FACT}.`,
+            citations: [],
+            source: "typed",
+          },
           company_address: { value: ADDRESS, citations: [], source: "typed" },
         },
       },
@@ -196,7 +210,13 @@ async function main(): Promise<void> {
     // Campaign.graphId pointing at it.
     const v1 = graphV1();
     const v1row = await owner.campaignGraph.create({
-      data: { workspaceId: ws.id, campaignId: campaign.id, version: 1, source: "AI", graph: v1 as object },
+      data: {
+        workspaceId: ws.id,
+        campaignId: campaign.id,
+        version: 1,
+        source: "AI",
+        graph: v1 as object,
+      },
     });
     await owner.campaign.update({ where: { id: campaign.id }, data: { graphId: v1row.id } });
 
@@ -418,7 +438,9 @@ async function main(): Promise<void> {
         "HISTORY-PIN",
         pinned.graphVersion === 1 &&
           !pinned.graph.nodes.some((n) => n.id === "step-added-1") &&
-          pinned.graph.nodes.some((n) => n.id === "s2" && n.type === "step" && n.mode === undefined),
+          pinned.graph.nodes.some(
+            (n) => n.id === "s2" && n.type === "step" && n.mode === undefined,
+          ),
         `Temporal history WorkflowExecutionStarted input = graphVersion 1, no v2 nodes, s2 still scripted (the pinned graph)`,
       );
 
@@ -461,11 +483,15 @@ async function main(): Promise<void> {
       // give it a generous deadline.
       const bRows = await waitForMessages(enrollB.id, 3, 120_000);
       const [bStep1, bStep2, bAdded] = bRows;
-      console.log(`\n— B's guided step-2 (composed at send):\nSubject: ${bStep2!.subject}\n${bStep2!.body}\n`);
+      console.log(
+        `\n— B's guided step-2 (composed at send):\nSubject: ${bStep2!.subject}\n${bStep2!.body}\n`,
+      );
 
       gate(
         "V2-WALK-ORDER",
-        bStep1!.stepNodeId === "s1" && bStep2!.stepNodeId === "s2" && bAdded!.stepNodeId === "step-added-1",
+        bStep1!.stepNodeId === "s1" &&
+          bStep2!.stepNodeId === "s2" &&
+          bAdded!.stepNodeId === "step-added-1",
         `B walked the EDITED graph: s1 → s2 (guided) → step-added-1`,
       );
       gate(

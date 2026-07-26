@@ -13,7 +13,10 @@ const connectionFrom = (
 
 /** Enqueue a (re-)distill — the API on typed answers, the ingest worker on READY sources. */
 export function createDistillQueue(redisUrl?: string): Queue<DistillTarget> {
-  return new Queue<DistillTarget>(CONTEXT_QUEUE_NAME, { connection: connectionFrom(redisUrl), prefix: BULL_PREFIX });
+  return new Queue<DistillTarget>(CONTEXT_QUEUE_NAME, {
+    connection: connectionFrom(redisUrl),
+    prefix: BULL_PREFIX,
+  });
 }
 
 export function createDistillWorker(deps: DistillDeps, redisUrl?: string): Worker<DistillTarget> {

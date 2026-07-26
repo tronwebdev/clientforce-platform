@@ -15,7 +15,13 @@ import { Test } from "@nestjs/testing";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { CONTACT_INVALID_MESSAGE } from "@clientforce/core";
-import { createAppPrismaClient, createPrismaClient, withTenant, type Prisma, type PrismaClient } from "@clientforce/db";
+import {
+  createAppPrismaClient,
+  createPrismaClient,
+  withTenant,
+  type Prisma,
+  type PrismaClient,
+} from "@clientforce/db";
 import { validateEvent } from "@clientforce/events";
 import {
   runValidationBatchToSettled,
@@ -23,7 +29,11 @@ import {
   type ProviderResult,
   type ValidationDeps,
 } from "@clientforce/validation";
-import { drainEnrollmentHolds, type CampaignWorkflowInput, type DrainDeps } from "@clientforce/workflows";
+import {
+  drainEnrollmentHolds,
+  type CampaignWorkflowInput,
+  type DrainDeps,
+} from "@clientforce/workflows";
 import { AppModule } from "../src/app.module";
 import { signDevToken } from "../src/auth/dev-token-verifier";
 import { VALIDATION_LIGHT_DEPS, VALIDATION_QUEUE } from "../src/contacts/validation.providers";
@@ -37,7 +47,12 @@ const DAY = 86_400_000;
 const GRAPH = {
   entry: "s1",
   nodes: [
-    { id: "s1", type: "step", channel: "email", content: { subject: "Hi {{firstName}}", body: "b" } },
+    {
+      id: "s1",
+      type: "step",
+      channel: "email",
+      content: { subject: "Hi {{firstName}}", body: "b" },
+    },
     { id: "end", type: "end" },
   ],
   edges: [{ from: "s1", to: "end" }],
@@ -86,7 +101,13 @@ describe.skipIf(!hasDb)("Enrollment gate + daily cap (LH1 W3)", () => {
 
   /** Inline event persist (the BusOrInlinePublisher stance) so refusal Logs
    *  rows land as REAL Event rows the Logs tab reads. */
-  const persistEvent = async (e: { type: string; workspaceId: string; contactId?: string; campaignId?: string; payload: Record<string, unknown> }) => {
+  const persistEvent = async (e: {
+    type: string;
+    workspaceId: string;
+    contactId?: string;
+    campaignId?: string;
+    payload: Record<string, unknown>;
+  }) => {
     const v = validateEvent(e as Parameters<typeof validateEvent>[0]);
     await withTenant(appDb, { workspaceId: v.workspaceId }, (tx) =>
       tx.event.create({
@@ -148,7 +169,12 @@ describe.skipIf(!hasDb)("Enrollment gate + daily cap (LH1 W3)", () => {
       })
     ).id;
     await owner.senderConnection.create({
-      data: { workspaceId: ws, type: "CF_MANAGED", fromEmail: "gate@send.clientforce.io", fromName: "Gate" },
+      data: {
+        workspaceId: ws,
+        type: "CF_MANAGED",
+        fromEmail: "gate@send.clientforce.io",
+        fromName: "Gate",
+      },
     });
     ({ agentId: capAgentId, campaignId: capCampaignId } = await seedAgent("CapWalk", 3));
     ({ agentId: flowAgentId, campaignId: flowCampaignId } = await seedAgent("FlowWalk"));
@@ -189,7 +215,14 @@ describe.skipIf(!hasDb)("Enrollment gate + daily cap (LH1 W3)", () => {
       .send({ agentId, contactId, origin: { kind: "csv" } });
   const mkContact = (email: string, verdict = "unverified") =>
     owner.contact.create({
-      data: { workspaceId: ws, source: "csv_import", optOut: {}, tags: [], email, emailVerdict: verdict },
+      data: {
+        workspaceId: ws,
+        source: "csv_import",
+        optOut: {},
+        tags: [],
+        email,
+        emailVerdict: verdict,
+      },
     });
 
   // ── Acceptance walk 1: oversized import vs the daily enrollment cap ───────
@@ -218,26 +251,34 @@ describe.skipIf(!hasDb)("Enrollment gate + daily cap (LH1 W3)", () => {
     expect(progress.body).toMatchObject({ heldCapOverflow: 5, heldUnverified: 0 });
 
     // Day 2: the drain releases exactly the cap's worth, oldest first.
-    const day2 = await drainEnrollmentHolds(drainDeps(() => new Date(Date.now() + DAY)), {
-      workspaceId: ws,
-      campaignId: capCampaignId,
-    });
+    const day2 = await drainEnrollmentHolds(
+      drainDeps(() => new Date(Date.now() + DAY)),
+      {
+        workspaceId: ws,
+        campaignId: capCampaignId,
+      },
+    );
     expect(day2.released).toBe(3);
     expect(day2.capHeld).toBe(2);
     expect(engine.started.filter((s) => s.campaignId === capCampaignId)).toHaveLength(6);
 
     // Day 3: the queue drains empty.
-    const day3 = await drainEnrollmentHolds(drainDeps(() => new Date(Date.now() + 2 * DAY)), {
-      workspaceId: ws,
-      campaignId: capCampaignId,
-    });
+    const day3 = await drainEnrollmentHolds(
+      drainDeps(() => new Date(Date.now() + 2 * DAY)),
+      {
+        workspaceId: ws,
+        campaignId: capCampaignId,
+      },
+    );
     expect(day3.released).toBe(2);
     expect(engine.started.filter((s) => s.campaignId === capCampaignId)).toHaveLength(8);
     expect(
       await owner.enrollmentHold.count({ where: { campaignId: capCampaignId, status: "pending" } }),
     ).toBe(0);
     // 8 enrollments, 8 distinct contacts — nothing double-started.
-    const started = engine.started.filter((s) => s.campaignId === capCampaignId).map((s) => s.contactId);
+    const started = engine.started
+      .filter((s) => s.campaignId === capCampaignId)
+      .map((s) => s.contactId);
     expect(new Set(started).size).toBe(8);
   });
 
@@ -249,7 +290,10 @@ describe.skipIf(!hasDb)("Enrollment gate + daily cap (LH1 W3)", () => {
       .send({
         validationBatchKey: `flow-${suffix}`,
         rows: [
-          ...Array.from({ length: 4 }, (_, i) => ({ email: `flow-${i}-${suffix}@ok.test`, firstName: `F${i}` })),
+          ...Array.from({ length: 4 }, (_, i) => ({
+            email: `flow-${i}-${suffix}@ok.test`,
+            firstName: `F${i}`,
+          })),
           { email: `risky-${suffix}@ok.test`, firstName: "R" },
           { email: `bad-${suffix}@ok.test`, firstName: "B" },
         ],
@@ -278,7 +322,10 @@ describe.skipIf(!hasDb)("Enrollment gate + daily cap (LH1 W3)", () => {
     expect(settled.status).toBe("completed");
 
     // …and the drain releases exactly the valid ones.
-    const drained = await drainEnrollmentHolds(drainDeps(), { workspaceId: ws, campaignId: flowCampaignId });
+    const drained = await drainEnrollmentHolds(drainDeps(), {
+      workspaceId: ws,
+      campaignId: flowCampaignId,
+    });
     expect(drained).toMatchObject({ released: 4, refused: 1, stillHeld: 1 });
     const startedFlow = engine.started.filter((s) => s.campaignId === flowCampaignId);
     expect(startedFlow).toHaveLength(4);
@@ -304,7 +351,10 @@ describe.skipIf(!hasDb)("Enrollment gate + daily cap (LH1 W3)", () => {
     // Direct re-attempt on the invalid contact: typed 422, message pinned.
     const refusedAgain = await enroll(flowAgentId, badContact!.id);
     expect(refusedAgain.status).toBe(422);
-    expect(refusedAgain.body).toMatchObject({ reason: "CONTACT_INVALID", message: CONTACT_INVALID_MESSAGE });
+    expect(refusedAgain.body).toMatchObject({
+      reason: "CONTACT_INVALID",
+      message: CONTACT_INVALID_MESSAGE,
+    });
   });
 
   it("risky policy is owner-flippable: hold by default, enroll when settings.validation.riskyPolicy = enroll", async () => {
@@ -312,7 +362,10 @@ describe.skipIf(!hasDb)("Enrollment gate + daily cap (LH1 W3)", () => {
       where: { id: ws },
       data: { settings: { validation: { riskyPolicy: "enroll" } } },
     });
-    const drained = await drainEnrollmentHolds(drainDeps(), { workspaceId: ws, campaignId: flowCampaignId });
+    const drained = await drainEnrollmentHolds(drainDeps(), {
+      workspaceId: ws,
+      campaignId: flowCampaignId,
+    });
     expect(drained.released).toBe(1); // the risky hold from the walk above
     const started = engine.started.filter((s) => s.campaignId === flowCampaignId);
     expect(started).toHaveLength(5);
@@ -322,14 +375,21 @@ describe.skipIf(!hasDb)("Enrollment gate + daily cap (LH1 W3)", () => {
   it("suppressed contacts keep pre-LH1 parity: they enroll (the boundary's suppression rail owns the refusal)", async () => {
     const c = await mkContact(`supp-gate-${suffix}@ok.test`, "unverified");
     await owner.suppression.create({
-      data: { workspaceId: ws, channel: "email", address: `supp-gate-${suffix}@ok.test`, reason: "BOUNCED" },
+      data: {
+        workspaceId: ws,
+        channel: "email",
+        address: `supp-gate-${suffix}@ok.test`,
+        reason: "BOUNCED",
+      },
     });
     const res = await enroll(flowAgentId, c.id);
     expect(res.status).toBe(201);
     expect(res.body.held).toBeUndefined();
     expect(res.body.workflowId).toContain("enroll-");
     // Suppression stays authoritative — the verdict column was never touched.
-    expect((await owner.contact.findUniqueOrThrow({ where: { id: c.id } })).emailVerdict).toBe("unverified");
+    expect((await owner.contact.findUniqueOrThrow({ where: { id: c.id } })).emailVerdict).toBe(
+      "unverified",
+    );
   });
 
   it("re-enrolling an EXISTING enrollment keeps its idempotent semantics (no gate re-entry)", async () => {

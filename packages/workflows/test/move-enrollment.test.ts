@@ -66,27 +66,44 @@ describe.skipIf(!hasInfra)("moveEnrollmentToNode", () => {
   beforeAll(async () => {
     owner = createPrismaClient();
     app = createAppPrismaClient();
-    const agency = await owner.agency.create({ data: { name: suffix, slug: suffix, branding: {} } });
+    const agency = await owner.agency.create({
+      data: { name: suffix, slug: suffix, branding: {} },
+    });
     agencyId = agency.id;
-    ws = (await owner.workspace.create({ data: { agencyId, name: "mv", slug: suffix, settings: {} } })).id;
+    ws = (
+      await owner.workspace.create({ data: { agencyId, name: "mv", slug: suffix, settings: {} } })
+    ).id;
     const agentId = (
       await owner.agent.create({
         data: { workspaceId: ws, name: "Mover", goal: "book_appointments", guardrails: {} },
       })
     ).id;
     campaignId = (
-      await owner.campaign.create({ data: { workspaceId: ws, agentId, name: "primary", graphId: "" } })
+      await owner.campaign.create({
+        data: { workspaceId: ws, agentId, name: "primary", graphId: "" },
+      })
     ).id;
     const graphRow = await owner.campaignGraph.create({
       data: { workspaceId: ws, campaignId, version: 1, graph: GRAPH },
     });
     await owner.campaign.update({ where: { id: campaignId }, data: { graphId: graphRow.id } });
     await owner.senderConnection.create({
-      data: { workspaceId: ws, type: "CF_MANAGED", fromEmail: "agent@send.clientforce.io", fromName: "Sam" },
+      data: {
+        workspaceId: ws,
+        type: "CF_MANAGED",
+        fromEmail: "agent@send.clientforce.io",
+        fromName: "Sam",
+      },
     });
     contactId = (
       await owner.contact.create({
-        data: { workspaceId: ws, source: "test", optOut: {}, tags: [], email: `l-${suffix}@allowed.test` },
+        data: {
+          workspaceId: ws,
+          source: "test",
+          optOut: {},
+          tags: [],
+          email: `l-${suffix}@allowed.test`,
+        },
       })
     ).id;
   });

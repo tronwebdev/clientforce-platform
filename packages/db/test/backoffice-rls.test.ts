@@ -52,10 +52,38 @@ describe.skipIf(!hasDb)("backoffice RLS-exempt access", () => {
       data: { name: `bo-rls-${suffix}`, slug: `bo-rls-${suffix}`, branding: {} },
     });
     agencyId = agency.id;
-    wsA = (await owner.workspace.create({ data: { agencyId, name: "A", slug: `bo-rls-a-${suffix}`, settings: {} } })).id;
-    wsB = (await owner.workspace.create({ data: { agencyId, name: "B", slug: `bo-rls-b-${suffix}`, settings: {} } })).id;
-    contactA = (await owner.contact.create({ data: { workspaceId: wsA, source: "manual", optOut: {}, tags: [], email: `bo-a-${suffix}@x.test` } })).id;
-    contactB = (await owner.contact.create({ data: { workspaceId: wsB, source: "manual", optOut: {}, tags: [], email: `bo-b-${suffix}@x.test` } })).id;
+    wsA = (
+      await owner.workspace.create({
+        data: { agencyId, name: "A", slug: `bo-rls-a-${suffix}`, settings: {} },
+      })
+    ).id;
+    wsB = (
+      await owner.workspace.create({
+        data: { agencyId, name: "B", slug: `bo-rls-b-${suffix}`, settings: {} },
+      })
+    ).id;
+    contactA = (
+      await owner.contact.create({
+        data: {
+          workspaceId: wsA,
+          source: "manual",
+          optOut: {},
+          tags: [],
+          email: `bo-a-${suffix}@x.test`,
+        },
+      })
+    ).id;
+    contactB = (
+      await owner.contact.create({
+        data: {
+          workspaceId: wsB,
+          source: "manual",
+          optOut: {},
+          tags: [],
+          email: `bo-b-${suffix}@x.test`,
+        },
+      })
+    ).id;
   });
 
   afterAll(async () => {

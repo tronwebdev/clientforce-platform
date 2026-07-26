@@ -7,7 +7,13 @@
  * DIRECT target is a step); chain-aware surfaces use `strategyChains` /
  * `branchChains` from core directly.
  */
-import { mainPath, mainSequence, mainSteps, replyBranchOf, strategyChains } from "@clientforce/core";
+import {
+  mainPath,
+  mainSequence,
+  mainSteps,
+  replyBranchOf,
+  strategyChains,
+} from "@clientforce/core";
 import type { CampaignGraph, StepNode } from "@clientforce/core";
 
 export { mainPath, mainSequence, mainSteps, replyBranchOf, strategyChains };

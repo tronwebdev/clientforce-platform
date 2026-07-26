@@ -178,7 +178,10 @@ export function computeOutcomes(input: ComputeOutcomesInput): {
   const sorted = [...input.outbound].sort((a, b) => a.sentAt.getTime() - b.sentAt.getTime());
   for (const m of sorted) {
     if (m.enrollmentId) {
-      (byEnrollment.get(m.enrollmentId) ?? byEnrollment.set(m.enrollmentId, []).get(m.enrollmentId)!).push(m);
+      (
+        byEnrollment.get(m.enrollmentId) ??
+        byEnrollment.set(m.enrollmentId, []).get(m.enrollmentId)!
+      ).push(m);
     }
     (byContact.get(m.contactId) ?? byContact.set(m.contactId, []).get(m.contactId)!).push(m);
   }
@@ -282,7 +285,10 @@ export function computeOutcomes(input: ComputeOutcomesInput): {
 
   const trackedChannels = new Set<string>(DELIVERY_TRACKED_CHANNELS);
 
-  function finalize(b: Bucket, delivered: number | null): Omit<StepOutcomes, "stepNodeId" | "channel"> {
+  function finalize(
+    b: Bucket,
+    delivered: number | null,
+  ): Omit<StepOutcomes, "stepNodeId" | "channel"> {
     const signal = outcomeSignal(b.sent);
     const gated = signal !== "none";
     return {

@@ -75,7 +75,10 @@ export function parseCustomTokens(text: string): CustomTokenRef[] {
   const out: CustomTokenRef[] = [];
   for (const m of text.matchAll(CUSTOM_TOKEN_RE)) {
     const fallback = m[2]?.trim();
-    out.push({ key: m[1]!, fallback: fallback === undefined || fallback === "" ? undefined : fallback });
+    out.push({
+      key: m[1]!,
+      fallback: fallback === undefined || fallback === "" ? undefined : fallback,
+    });
   }
   return out;
 }

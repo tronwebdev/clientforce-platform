@@ -41,10 +41,16 @@ describe("verdict chips (LH1)", () => {
 describe("import validation report card (LH1)", () => {
   it("pending renders the honest progressive line + live counts — never a blocking state", () => {
     const html = renderToStaticMarkup(
-      <ValidationReportCard batchId="vb1" report={report({ total: 100, pending: 40, valid: 55, risky: 3, invalid: 2 })} invalidRows={null} />,
+      <ValidationReportCard
+        batchId="vb1"
+        report={report({ total: 100, pending: 40, valid: 55, risky: 3, invalid: 2 })}
+        invalidRows={null}
+      />,
     );
     expect(html).toContain("Validating 40 contacts — sending starts as they clear.");
-    expect(html).toContain("55 valid · 3 risky (held) · 2 invalid (excluded) · 0 already suppressed");
+    expect(html).toContain(
+      "55 valid · 3 risky (held) · 2 invalid (excluded) · 0 already suppressed",
+    );
     expect(html).toContain("Validating…");
   });
 
@@ -52,7 +58,11 @@ describe("import validation report card (LH1)", () => {
     for (const reason of VALIDATION_HOLD_REASONS) {
       expect(VALIDATION_HELD_COPY[reason], reason).toContain("held until verified");
       const html = renderToStaticMarkup(
-        <ValidationReportCard batchId="vb1" report={report({ total: 10, pending: 10 }, "held", reason)} invalidRows={null} />,
+        <ValidationReportCard
+          batchId="vb1"
+          report={report({ total: 10, pending: 10 }, "held", reason)}
+          invalidRows={null}
+        />,
       );
       expect(html).toContain(VALIDATION_HELD_COPY[reason]!.replace(/'/g, "&#x27;"));
     }
@@ -60,10 +70,16 @@ describe("import validation report card (LH1)", () => {
 
   it("completed happy path: Complete pill, counts, and NO download when nothing was excluded", () => {
     const html = renderToStaticMarkup(
-      <ValidationReportCard batchId="vb1" report={report({ total: 10, valid: 10 }, "completed")} invalidRows={null} />,
+      <ValidationReportCard
+        batchId="vb1"
+        report={report({ total: 10, valid: 10 }, "completed")}
+        invalidRows={null}
+      />,
     );
     expect(html).toContain("Complete");
-    expect(html).toContain("10 valid · 0 risky (held) · 0 invalid (excluded) · 0 already suppressed");
+    expect(html).toContain(
+      "10 valid · 0 risky (held) · 0 invalid (excluded) · 0 already suppressed",
+    );
     expect(html).not.toContain("Download excluded rows");
   });
 
@@ -72,7 +88,15 @@ describe("import validation report card (LH1)", () => {
       <ValidationReportCard
         batchId="vb1"
         report={report({ total: 10, valid: 6, invalid: 3, skippedSuppressed: 1 }, "completed")}
-        invalidRows={[{ contactId: "c1", email: "dead@x.test", outcome: "invalid", via: "zerobounce", detail: "mailbox_not_found" }]}
+        invalidRows={[
+          {
+            contactId: "c1",
+            email: "dead@x.test",
+            outcome: "invalid",
+            via: "zerobounce",
+            detail: "mailbox_not_found",
+          },
+        ]}
       />,
     );
     expect(html).toContain("/api/cf/contacts/validation-batches/vb1/exclusions.csv");
@@ -81,7 +105,9 @@ describe("import validation report card (LH1)", () => {
   });
 
   it("no report yet = an honest checking state, nothing invented", () => {
-    const html = renderToStaticMarkup(<ValidationReportCard batchId="vb1" report={null} invalidRows={null} />);
+    const html = renderToStaticMarkup(
+      <ValidationReportCard batchId="vb1" report={null} invalidRows={null} />,
+    );
     expect(html).toContain("Checking addresses…");
     expect(html).not.toContain("valid ·");
   });

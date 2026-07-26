@@ -13,10 +13,14 @@ import { apiErrorDetail, decideCallback, resultQuery } from "../../../../lib/int
  * (detail verbatim, URL-encoded, truncated — the SC/#94 honest-error rail).
  * Decision logic lives in `lib/integration-callback.ts` (pure, tested).
  */
-export async function GET(req: Request, ctx: { params: Promise<{ provider: string }> }): Promise<NextResponse> {
+export async function GET(
+  req: Request,
+  ctx: { params: Promise<{ provider: string }> },
+): Promise<NextResponse> {
   const { provider } = await ctx.params;
   const url = new URL(req.url);
-  const dest = (query: string) => NextResponse.redirect(new URL(`/integrations?${query}`, url.origin));
+  const dest = (query: string) =>
+    NextResponse.redirect(new URL(`/integrations?${query}`, url.origin));
 
   const decision = decideCallback(provider, {
     code: url.searchParams.get("code"),

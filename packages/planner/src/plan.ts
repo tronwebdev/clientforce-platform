@@ -115,23 +115,27 @@ export async function planCampaign(deps: PlanDeps, target: PlanTarget): Promise<
   );
   const outcomesBlock = buildOutcomesPromptBlock(outcomes);
 
-  const prompt = renderPlannerPrompt({
-    goal: agent.goal + (agent.instructions ? ` — ${agent.instructions}` : ""),
-    context: contextText,
-    guardrails: renderGuardrails(agent.guardrails),
-    stepCount: "3-4",
-    tokens: REQUIRED_TOKENS.join(" and "),
-    channels: smsSender
-      ? '"email" or "sms" — mix channels where the sequence benefits; sms steps have NO subject, body ≤ 300 characters, one clear ask.'
-      : '"email" ONLY.',
-    arcLabel: strategy.arc.label,
-    arcDescription: strategy.arc.description,
-    arcRoles: strategy.arc.roles.map((r, i) => `  ${i + 1}. ${r}`).join("\n"),
-    toneHints: strategy.toneHints,
-    strategyNotes: rider.strategy?.strategyNotes?.trim() || "(none)",
-    neverSay: neverSay.length ? neverSay.map((t) => `"${t}"`).join(", ") : "(none)",
-    outcomes: outcomesBlock,
-  }, guided, language);
+  const prompt = renderPlannerPrompt(
+    {
+      goal: agent.goal + (agent.instructions ? ` — ${agent.instructions}` : ""),
+      context: contextText,
+      guardrails: renderGuardrails(agent.guardrails),
+      stepCount: "3-4",
+      tokens: REQUIRED_TOKENS.join(" and "),
+      channels: smsSender
+        ? '"email" or "sms" — mix channels where the sequence benefits; sms steps have NO subject, body ≤ 300 characters, one clear ask.'
+        : '"email" ONLY.',
+      arcLabel: strategy.arc.label,
+      arcDescription: strategy.arc.description,
+      arcRoles: strategy.arc.roles.map((r, i) => `  ${i + 1}. ${r}`).join("\n"),
+      toneHints: strategy.toneHints,
+      strategyNotes: rider.strategy?.strategyNotes?.trim() || "(none)",
+      neverSay: neverSay.length ? neverSay.map((t) => `"${t}"`).join(", ") : "(none)",
+      outcomes: outcomesBlock,
+    },
+    guided,
+    language,
+  );
   const system = guided ? PLANNER_SYSTEM_GUIDED : PLANNER_SYSTEM;
 
   // Attempt 1 (shape is enforced + repaired inside completeStructured) …
@@ -172,65 +176,69 @@ export async function planCampaign(deps: PlanDeps, target: PlanTarget): Promise<
   );
   const dryRun = execute(graph, { events: branchEvents });
 
-  const { campaign, graphRow, persisted } = await withTenant(prisma, { workspaceId }, async (tx) => {
-    const graphRowId = randomUUID();
-    let campaignRow = await tx.campaign.findFirst({
-      where: { agentId },
-      orderBy: { createdAt: "asc" },
-    });
-    if (!campaignRow) {
-      // A5: one agent = one auto-created primary campaign.
-      campaignRow = await tx.campaign.create({
-        data: { workspaceId, agentId, name: `${agent.name} — primary`, graphId: graphRowId },
+  const { campaign, graphRow, persisted } = await withTenant(
+    prisma,
+    { workspaceId },
+    async (tx) => {
+      const graphRowId = randomUUID();
+      let campaignRow = await tx.campaign.findFirst({
+        where: { agentId },
+        orderBy: { createdAt: "asc" },
       });
-    } else {
-      campaignRow = await tx.campaign.update({
-        where: { id: campaignRow.id },
-        data: { graphId: graphRowId },
-      });
-    }
-    const latest = await tx.campaignGraph.findFirst({
-      where: { campaignId: campaignRow.id },
-      orderBy: { version: "desc" },
-    });
-    // #90 (DEC-077): a re-plan must not orphan sub-campaigns — their enabled
-    // entry rules fire `move_to_node` at container node ids. The planner
-    // knows nothing of containers (no prompt changes, the standing hard no),
-    // so the stored ones graft onto the fresh graph deterministically; a
-    // graft that cannot produce a valid graph fails the plan LOUDLY rather
-    // than silently killing the owner's branches. An unreadable stored row
-    // keeps the pre-graft behavior (the same tolerance the edit gate grants).
-    let persistGraph = graph;
-    if (latest) {
-      let stored: CampaignGraph | null = null;
-      try {
-        stored = validateGraph(latest.graph);
-      } catch {
-        stored = null;
+      if (!campaignRow) {
+        // A5: one agent = one auto-created primary campaign.
+        campaignRow = await tx.campaign.create({
+          data: { workspaceId, agentId, name: `${agent.name} — primary`, graphId: graphRowId },
+        });
+      } else {
+        campaignRow = await tx.campaign.update({
+          where: { id: campaignRow.id },
+          data: { graphId: graphRowId },
+        });
       }
-      if (stored && stored.nodes.some((n) => n.type === "subcampaign")) {
+      const latest = await tx.campaignGraph.findFirst({
+        where: { campaignId: campaignRow.id },
+        orderBy: { version: "desc" },
+      });
+      // #90 (DEC-077): a re-plan must not orphan sub-campaigns — their enabled
+      // entry rules fire `move_to_node` at container node ids. The planner
+      // knows nothing of containers (no prompt changes, the standing hard no),
+      // so the stored ones graft onto the fresh graph deterministically; a
+      // graft that cannot produce a valid graph fails the plan LOUDLY rather
+      // than silently killing the owner's branches. An unreadable stored row
+      // keeps the pre-graft behavior (the same tolerance the edit gate grants).
+      let persistGraph = graph;
+      if (latest) {
+        let stored: CampaignGraph | null = null;
         try {
-          persistGraph = graftSubcampaigns(graph, stored).graph;
-          validateGraph(persistGraph);
-        } catch (err) {
-          throw new PlannerError(
-            `Re-plan would orphan this agent's sub-campaigns and could not carry them over: ${err instanceof Error ? err.message : String(err)}`,
-          );
+          stored = validateGraph(latest.graph);
+        } catch {
+          stored = null;
+        }
+        if (stored && stored.nodes.some((n) => n.type === "subcampaign")) {
+          try {
+            persistGraph = graftSubcampaigns(graph, stored).graph;
+            validateGraph(persistGraph);
+          } catch (err) {
+            throw new PlannerError(
+              `Re-plan would orphan this agent's sub-campaigns and could not carry them over: ${err instanceof Error ? err.message : String(err)}`,
+            );
+          }
         }
       }
-    }
-    const row = await tx.campaignGraph.create({
-      data: {
-        id: graphRowId,
-        workspaceId,
-        campaignId: campaignRow.id,
-        version: (latest?.version ?? 0) + 1,
-        graph: persistGraph as object,
-        source: "AI",
-      },
-    });
-    return { campaign: campaignRow, graphRow: row, persisted: persistGraph };
-  });
+      const row = await tx.campaignGraph.create({
+        data: {
+          id: graphRowId,
+          workspaceId,
+          campaignId: campaignRow.id,
+          version: (latest?.version ?? 0) + 1,
+          graph: persistGraph as object,
+          source: "AI",
+        },
+      });
+      return { campaign: campaignRow, graphRow: row, persisted: persistGraph };
+    },
+  );
 
   return { campaign, graphRow, graph: persisted, dryRun };
 }
@@ -377,9 +385,7 @@ export function validateAll(
       if (!node) break;
       if (node.type === "step") mainStepIds.add(node.id);
       cur =
-        node.type === "branch"
-          ? node.cases.find((c) => c.when === "default")?.goto
-          : next.get(cur);
+        node.type === "branch" ? node.cases.find((c) => c.when === "default")?.goto : next.get(cur);
     }
   }
   const scriptedMain = steps.filter((s) => s.mode !== "guided" && mainStepIds.has(s.id));
@@ -402,7 +408,8 @@ export function validateAll(
     const brief = step.brief
       ? `${step.brief.objective}\n${step.brief.talkingPoints.join("\n")}\n${(step.brief.mustSay ?? []).join("\n")}\n${step.brief.subjectHint ?? ""}`
       : "";
-    const text = `${step.content.subject ?? ""}\n${step.content.body ?? ""}\n${brief}`.toLowerCase();
+    const text =
+      `${step.content.subject ?? ""}\n${step.content.body ?? ""}\n${brief}`.toLowerCase();
     for (const term of neverSay) {
       if (term.trim() && text.includes(term.trim().toLowerCase())) {
         hits.push(`"${term}" in ${step.id}`);
@@ -447,7 +454,11 @@ function guardrailsRiderOf(guardrails: unknown): {
 } {
   try {
     const parsed = parseGuardrails(guardrails);
-    return { strategy: parsed.strategy, composeMode: parsed.composeMode, language: parsed.language };
+    return {
+      strategy: parsed.strategy,
+      composeMode: parsed.composeMode,
+      language: parsed.language,
+    };
   } catch {
     return {};
   }

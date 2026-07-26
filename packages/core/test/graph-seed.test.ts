@@ -7,7 +7,10 @@
 import { describe, expect, it } from "vitest";
 import { arcRoleAt, deriveBriefSeed, stepBriefSchema, type StepNode } from "../src/index";
 
-const step = (over: Partial<StepNode["content"]>, channel: "email" | "sms" = "email"): StepNode => ({
+const step = (
+  over: Partial<StepNode["content"]>,
+  channel: "email" | "sms" = "email",
+): StepNode => ({
   id: "s1",
   type: "step",
   channel,
@@ -33,23 +36,38 @@ describe("deriveBriefSeed", () => {
   });
 
   it("resolves merge tokens neutrally — bullets read as prose, never raw tokens", () => {
-    const seed = deriveBriefSeed(step({ body: "One more thought for {{company}} that could help {{firstName}} this quarter." }));
-    expect(seed.talkingPoints[0]).toBe("One more thought for their company that could help the lead this quarter.");
+    const seed = deriveBriefSeed(
+      step({
+        body: "One more thought for {{company}} that could help {{firstName}} this quarter.",
+      }),
+    );
+    expect(seed.talkingPoints[0]).toBe(
+      "One more thought for their company that could help the lead this quarter.",
+    );
     expect(JSON.stringify(seed)).not.toContain("{{");
   });
 
   it("uses the arc role as the objective when given; falls back to the subject", () => {
-    const role = "OPENER — name a pain this ideal customer actually feels, ask exactly one question about it";
+    const role =
+      "OPENER — name a pain this ideal customer actually feels, ask exactly one question about it";
     expect(deriveBriefSeed(step({ body: RICH_BODY }), role).objective).toBe(role);
-    expect(deriveBriefSeed(step({ body: RICH_BODY })).objective).toBe("Get a reply about: Quick idea for their company");
+    expect(deriveBriefSeed(step({ body: RICH_BODY })).objective).toBe(
+      "Get a reply about: Quick idea for their company",
+    );
   });
 
   it("the noise filter is word-boundary anchored — 'Highlights…'/'Best-in-class…' survive (review round)", () => {
-    const seed = deriveBriefSeed(step({ body: "Highlights from our launch: 40% faster onboarding for every clinic. Best-in-class teams already use it daily. Thanksgiving bookings doubled for early adopters." }));
+    const seed = deriveBriefSeed(
+      step({
+        body: "Highlights from our launch: 40% faster onboarding for every clinic. Best-in-class teams already use it daily. Thanksgiving bookings doubled for early adopters.",
+      }),
+    );
     expect(seed.talkingPoints).toHaveLength(3);
     expect(seed.complete).toBe(true);
     // real greetings/signoffs still drop
-    const greeting = deriveBriefSeed(step({ body: "Best,\nThe team. Hi there, hope all is well with everyone today." }));
+    const greeting = deriveBriefSeed(
+      step({ body: "Best,\nThe team. Hi there, hope all is well with everyone today." }),
+    );
     expect(greeting.talkingPoints).toHaveLength(0);
   });
 

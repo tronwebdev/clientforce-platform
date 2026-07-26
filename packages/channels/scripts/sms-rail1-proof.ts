@@ -58,7 +58,10 @@ async function twilio<T>(method: string, url: string, form?: Record<string, stri
     },
     body: form ? new URLSearchParams(form).toString() : undefined,
   });
-  if (!res.ok) throw new Error(`Twilio ${method} ${url.split(".com")[1]?.split("?")[0]} -> ${res.status}: ${await res.text().then((t) => t.slice(0, 300))}`);
+  if (!res.ok)
+    throw new Error(
+      `Twilio ${method} ${url.split(".com")[1]?.split("?")[0]} -> ${res.status}: ${await res.text().then((t) => t.slice(0, 300))}`,
+    );
   return res.json() as Promise<T>;
 }
 
@@ -67,7 +70,10 @@ const messaging = (path: string) => `https://messaging.twilio.com/v1${path}`;
 
 /** Find-or-purchase the standing US test handset. Returns {sid, number}. */
 async function ensureUsTestNumber(): Promise<{ sid: string; number: string }> {
-  const owned = await twilio<{ incoming_phone_numbers?: TwNumber[] }>("GET", api(`/IncomingPhoneNumbers.json?FriendlyName=${FRIENDLY}&PageSize=5`));
+  const owned = await twilio<{ incoming_phone_numbers?: TwNumber[] }>(
+    "GET",
+    api(`/IncomingPhoneNumbers.json?FriendlyName=${FRIENDLY}&PageSize=5`),
+  );
   const existing = (owned.incoming_phone_numbers ?? [])[0];
   if (existing) {
     console.log(`US test handset: reusing ${existing.sid} (FriendlyName=${FRIENDLY})`);
@@ -75,32 +81,47 @@ async function ensureUsTestNumber(): Promise<{ sid: string; number: string }> {
   }
   if (US_NUMBER_ENV) {
     // Key Vault knows a number but the tag is gone — resolve its sid.
-    const bySid = await twilio<{ incoming_phone_numbers?: TwNumber[] }>("GET", api(`/IncomingPhoneNumbers.json?PhoneNumber=${encodeURIComponent(US_NUMBER_ENV)}`));
+    const bySid = await twilio<{ incoming_phone_numbers?: TwNumber[] }>(
+      "GET",
+      api(`/IncomingPhoneNumbers.json?PhoneNumber=${encodeURIComponent(US_NUMBER_ENV)}`),
+    );
     const hit = (bySid.incoming_phone_numbers ?? [])[0];
     if (hit) {
       console.log(`US test handset: reusing ${hit.sid} (matched Key Vault number; re-tagging)`);
-      await twilio("POST", api(`/IncomingPhoneNumbers/${hit.sid}.json`), { FriendlyName: FRIENDLY });
+      await twilio("POST", api(`/IncomingPhoneNumbers/${hit.sid}.json`), {
+        FriendlyName: FRIENDLY,
+      });
       return { sid: hit.sid, number: hit.phone_number };
     }
   }
-  const avail = await twilio<{ available_phone_numbers?: TwNumber[] }>("GET", api(`/AvailablePhoneNumbers/US/Local.json?SmsEnabled=true&PageSize=1`));
+  const avail = await twilio<{ available_phone_numbers?: TwNumber[] }>(
+    "GET",
+    api(`/AvailablePhoneNumbers/US/Local.json?SmsEnabled=true&PageSize=1`),
+  );
   const candidate = (avail.available_phone_numbers ?? [])[0];
   if (!candidate) throw new Error("No US local SMS-capable number available to purchase");
   const bought = await twilio<TwNumber>("POST", api(`/IncomingPhoneNumbers.json`), {
     PhoneNumber: candidate.phone_number,
     FriendlyName: FRIENDLY,
   });
-  console.log(`US test handset: PURCHASED ${bought.sid} (FriendlyName=${FRIENDLY}) — standing handset per DEC-067`);
+  console.log(
+    `US test handset: PURCHASED ${bought.sid} (FriendlyName=${FRIENDLY}) — standing handset per DEC-067`,
+  );
   return { sid: bought.sid, number: bought.phone_number };
 }
 
 /** The handset must sit in the platform service so it sends under the approved A2P campaign. */
 async function ensureInService(pnSid: string, usNumber: string): Promise<string> {
-  const pool = await twilio<{ phone_numbers?: TwNumber[] }>("GET", messaging(`/Services/${MSID}/PhoneNumbers?PageSize=20`));
+  const pool = await twilio<{ phone_numbers?: TwNumber[] }>(
+    "GET",
+    messaging(`/Services/${MSID}/PhoneNumbers?PageSize=20`),
+  );
   const numbers: TwNumber[] = pool.phone_numbers ?? [];
   if (!numbers.some((n) => n.sid === pnSid)) {
     await twilio("POST", messaging(`/Services/${MSID}/PhoneNumbers`), { PhoneNumberSid: pnSid });
-    console.log("US test handset attached to the platform service (A2P registration rides the service campaign; may take a few minutes on first attach)");
+    console.log(
+      "US test handset attached to the platform service (A2P registration rides the service campaign; may take a few minutes on first attach)",
+    );
   } else {
     console.log("US test handset already in the platform service pool");
   }
@@ -109,7 +130,11 @@ async function ensureInService(pnSid: string, usNumber: string): Promise<string>
   return target.phone_number;
 }
 
-async function pollMessage(sid: string, terminal: string[], label: string): Promise<TwMessage | null> {
+async function pollMessage(
+  sid: string,
+  terminal: string[],
+  label: string,
+): Promise<TwMessage | null> {
   for (let i = 0; i < 24; i++) {
     const m = await twilio<TwMessage>("GET", api(`/Messages/${sid}.json`));
     if (terminal.includes(m.status)) {
@@ -123,20 +148,44 @@ async function pollMessage(sid: string, terminal: string[], label: string): Prom
 }
 
 /** Send one keyword and capture Twilio's auto-reply (direction outbound-reply). */
-async function keywordRound(round: string, body: string, from: string, to: string): Promise<boolean> {
+async function keywordRound(
+  round: string,
+  body: string,
+  from: string,
+  to: string,
+): Promise<boolean> {
   console.log(`\n-- round ${round}: "${body}" from the US handset --`);
   const sentAt = new Date();
-  const sent = await twilio<TwMessage>("POST", api(`/Messages.json`), { From: from, To: to, Body: body });
-  await pollMessage(sent.sid, ["delivered", "undelivered", "failed", "received", "sent"], "keyword send");
+  const sent = await twilio<TwMessage>("POST", api(`/Messages.json`), {
+    From: from,
+    To: to,
+    Body: body,
+  });
+  await pollMessage(
+    sent.sid,
+    ["delivered", "undelivered", "failed", "received", "sent"],
+    "keyword send",
+  );
   for (let i = 0; i < 18; i++) {
     await sleep(5000);
-    const list = await twilio<{ messages?: TwMessage[] }>("GET", api(`/Messages.json?To=${encodeURIComponent(from)}&PageSize=5`));
+    const list = await twilio<{ messages?: TwMessage[] }>(
+      "GET",
+      api(`/Messages.json?To=${encodeURIComponent(from)}&PageSize=5`),
+    );
     const reply = (list.messages ?? []).find(
-      (m) => m.direction === "outbound-reply" && new Date(m.date_created) >= new Date(sentAt.getTime() - 15_000),
+      (m) =>
+        m.direction === "outbound-reply" &&
+        new Date(m.date_created) >= new Date(sentAt.getTime() - 15_000),
     );
     if (reply) {
-      const final = await pollMessage(reply.sid, ["delivered", "undelivered", "failed", "sent"], "auto-reply");
-      console.log(`  RAIL 1 REPLY CAPTURED (${round}): direction=outbound-reply status=${final?.status ?? reply.status}`);
+      const final = await pollMessage(
+        reply.sid,
+        ["delivered", "undelivered", "failed", "sent"],
+        "auto-reply",
+      );
+      console.log(
+        `  RAIL 1 REPLY CAPTURED (${round}): direction=outbound-reply status=${final?.status ?? reply.status}`,
+      );
       return true;
     }
   }
@@ -167,7 +216,8 @@ async function stagingCtx(): Promise<StagingCtx | null> {
     email: "owner@demo-agency.test",
   });
   const meRes = await fetch(`${STAGING_API}/me`, { headers: { Authorization: `Bearer ${token}` } });
-  if (!meRes.ok) throw new Error(`staging /me -> ${meRes.status}: ${(await meRes.text()).slice(0, 200)}`);
+  if (!meRes.ok)
+    throw new Error(`staging /me -> ${meRes.status}: ${(await meRes.text()).slice(0, 200)}`);
   const me = (await meRes.json()) as {
     memberships?: Array<{ workspaceId: string }>;
   };
@@ -182,7 +232,9 @@ const authHeaders = (ctx: StagingCtx) => ({
 });
 
 async function ensureStagingContact(ctx: StagingCtx, phone: string): Promise<void> {
-  const contacts = (await fetch(`${STAGING_API}/contacts`, { headers: authHeaders(ctx) }).then((r) => r.json())) as Array<{
+  const contacts = (await fetch(`${STAGING_API}/contacts`, { headers: authHeaders(ctx) }).then(
+    (r) => r.json(),
+  )) as Array<{
     phone?: string | null;
   }>;
   const digits = phone.replace(/^\+/, "");
@@ -193,7 +245,12 @@ async function ensureStagingContact(ctx: StagingCtx, phone: string): Promise<voi
   const res = await fetch(`${STAGING_API}/contacts`, {
     method: "POST",
     headers: { ...authHeaders(ctx), "Content-Type": "application/json" },
-    body: JSON.stringify({ email: "us-handset@clientforce.test", firstName: "US", lastName: "Handset", phone }),
+    body: JSON.stringify({
+      email: "us-handset@clientforce.test",
+      firstName: "US",
+      lastName: "Handset",
+      phone,
+    }),
   });
   if (!res.ok) throw new Error(`staging contact create failed: ${res.status}`);
   console.log("staging contact created for the US handset (rail-2 resolution target)");
@@ -206,20 +263,31 @@ async function smsSuppressionCount(ctx: StagingCtx, q: string): Promise<number> 
   return rows.filter((r) => r.channel === "sms").length;
 }
 
-async function expectUsRows(ctx: StagingCtx, phone: string, expected: number, why: string): Promise<void> {
+async function expectUsRows(
+  ctx: StagingCtx,
+  phone: string,
+  expected: number,
+  why: string,
+): Promise<void> {
   let count = -1;
   for (let i = 0; i < 12; i++) {
     count = await smsSuppressionCount(ctx, phone);
     if (count === expected) break;
     await sleep(5000);
   }
-  console.log(`  ledger: US-handset sms suppression rows = ${count} (expected ${expected} — ${why})`);
-  if (count !== expected) throw new Error(`LEDGER STANCE FAILED: expected ${expected} US-handset sms rows (${why}), found ${count}`);
+  console.log(
+    `  ledger: US-handset sms suppression rows = ${count} (expected ${expected} — ${why})`,
+  );
+  if (count !== expected)
+    throw new Error(
+      `LEDGER STANCE FAILED: expected ${expected} US-handset sms rows (${why}), found ${count}`,
+    );
 }
 
 async function main(): Promise<void> {
   if (!SID || !TOKEN) throw new Error("Twilio credentials missing");
-  if (!/^MG[a-zA-Z0-9]{32}$/.test(MSID)) throw new Error("SMS_TEST_MESSAGING_SERVICE_SID missing/invalid");
+  if (!/^MG[a-zA-Z0-9]{32}$/.test(MSID))
+    throw new Error("SMS_TEST_MESSAGING_SERVICE_SID missing/invalid");
 
   console.log("\n=== P2.1 RAIL-1 CLOSING PROOF (US test handset, DEC-067) ===");
   const handset = await ensureUsTestNumber();
@@ -230,17 +298,37 @@ async function main(): Promise<void> {
   if (ctx) await ensureStagingContact(ctx, handset.number);
 
   const stop1 = await keywordRound("1/3 STOP", "STOP", handset.number, target);
-  if (ctx) await expectUsRows(ctx, handset.number, 1, "STOP creates the row via the live webhook — rail 2 full loop");
+  if (ctx)
+    await expectUsRows(
+      ctx,
+      handset.number,
+      1,
+      "STOP creates the row via the live webhook — rail 2 full loop",
+    );
 
   const start = await keywordRound("2/3 START", "START", handset.number, target);
-  if (ctx) await expectUsRows(ctx, handset.number, 1, "START must NOT clear it — suppression persists until explicit re-consent (DEC-062/064)");
+  if (ctx)
+    await expectUsRows(
+      ctx,
+      handset.number,
+      1,
+      "START must NOT clear it — suppression persists until explicit re-consent (DEC-062/064)",
+    );
 
   const stop2 = await keywordRound("3/3 STOP", "STOP", handset.number, target);
-  if (ctx) await expectUsRows(ctx, handset.number, 1, "repeat STOP stays a single row — applySmsStop is create-if-absent");
+  if (ctx)
+    await expectUsRows(
+      ctx,
+      handset.number,
+      1,
+      "repeat STOP stays a single row — applySmsStop is create-if-absent",
+    );
 
   if (ctx && NG_NUMBER) {
     const ng = await smsSuppressionCount(ctx, NG_NUMBER);
-    console.log(`  ledger (informational): NG-handset sms suppression rows = ${ng} (0 until the owner adds their contact; suppression needs a matched contact per DEC-064)`);
+    console.log(
+      `  ledger (informational): NG-handset sms suppression rows = ${ng} (0 until the owner adds their contact; suppression needs a matched contact per DEC-064)`,
+    );
   }
 
   if (!stop1 || !stop2) {
@@ -248,7 +336,9 @@ async function main(): Promise<void> {
       "RAIL 1 INCOMPLETE: opt-out auto-reply not captured on a STOP round — if the handset was just attached, A2P campaign association may still be pending; re-dispatch in a few minutes",
     );
   }
-  console.log(`\nRail 1 closed: STOP confirmation ✓ · START resubscribe ${start ? "✓" : "— (no reply; acceptable, opt-in confirmations are optional)"} · repeat STOP confirmation ✓ (Twilio-side idempotency)`);
+  console.log(
+    `\nRail 1 closed: STOP confirmation ✓ · START resubscribe ${start ? "✓" : "— (no reply; acceptable, opt-in confirmations are optional)"} · repeat STOP confirmation ✓ (Twilio-side idempotency)`,
+  );
   console.log("=== END RAIL-1 PROOF ===");
 }
 

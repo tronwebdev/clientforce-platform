@@ -10,7 +10,11 @@
 import { hubspotConfigSchema } from "@clientforce/core";
 import { EVENT_TYPES } from "@clientforce/events";
 import { withTenant, Prisma } from "@clientforce/db";
-import { INBOUND_DELIVERY_KINDS, INTEGRATION_DAILY_DELIVERY_ALLOWANCE, utcDayStart } from "./constants";
+import {
+  INBOUND_DELIVERY_KINDS,
+  INTEGRATION_DAILY_DELIVERY_ALLOWANCE,
+  utcDayStart,
+} from "./constants";
 import { decryptCredentials } from "./service";
 import { HubspotAdapter } from "./hubspot";
 import { IntegrationDeliveryError, IntegrationProviderError, type IntegrationsDeps } from "./types";
@@ -35,7 +39,12 @@ export interface CrmPushInput {
   /** Dedupe key — `<eventId>#rule:<id>#a:<i>` (the action-path convention). */
   sourceEventId: string;
   /** Required for create_deal (the upsert); ignored for update_stage. */
-  contact?: { email: string; firstName?: string | null; lastName?: string | null; company?: string | null };
+  contact?: {
+    email: string;
+    firstName?: string | null;
+    lastName?: string | null;
+    company?: string | null;
+  };
   /** create_deal: the deal name (executor-derived); ignored for update_stage. */
   dealname?: string;
   /** The target dealstage — optional for create (pipeline default), required for update. */
@@ -46,7 +55,10 @@ export interface CrmPushInput {
 
 const kindFor = (op: CrmOp): string => (op === "create_deal" ? "crm_deal" : "crm_stage");
 
-export async function deliverCrm(deps: IntegrationsDeps, input: CrmPushInput): Promise<CrmPushResult> {
+export async function deliverCrm(
+  deps: IntegrationsDeps,
+  input: CrmPushInput,
+): Promise<CrmPushResult> {
   const log = deps.log ?? console.warn;
   const adapter = deps.adapters.hubspot as unknown as HubspotAdapter | undefined;
   if (!adapter) return { delivered: false, detail: "hubspot adapter not wired" };
@@ -57,14 +69,18 @@ export async function deliverCrm(deps: IntegrationsDeps, input: CrmPushInput): P
     }),
   );
   if (!row) return { delivered: false, detail: "HubSpot not connected" };
-  if (row.status === "revoked") return { delivered: false, detail: "HubSpot token revoked — reconnect to resume" };
+  if (row.status === "revoked")
+    return { delivered: false, detail: "HubSpot token revoked — reconnect to resume" };
   const config = hubspotConfigSchema.safeParse(row.config);
   const defaultPipeline = config.success ? config.data.defaultPipeline : undefined;
   const creds = decryptCredentials(row);
 
   // update_stage with no stored deal is a typed refusal, never a silent no-op.
   if (input.op === "update_stage" && !input.dealId) {
-    return { delivered: false, detail: "no HubSpot deal on this contact yet — add a Create CRM deal step first" };
+    return {
+      delivered: false,
+      detail: "no HubSpot deal on this contact yet — add a Create CRM deal step first",
+    };
   }
 
   const now = (deps.now ?? (() => new Date()))();
@@ -83,10 +99,17 @@ export async function deliverCrm(deps: IntegrationsDeps, input: CrmPushInput): P
   if (attemptsToday >= allowance) {
     const heldBefore = await withTenant(deps.prisma, { workspaceId: input.workspaceId }, (tx) =>
       tx.integrationDelivery.count({
-        where: { workspaceId: input.workspaceId, createdAt: { gte: dayStart }, status: "held", kind: { notIn: [...INBOUND_DELIVERY_KINDS] } },
+        where: {
+          workspaceId: input.workspaceId,
+          createdAt: { gte: dayStart },
+          status: "held",
+          kind: { notIn: [...INBOUND_DELIVERY_KINDS] },
+        },
       }),
     );
-    const heldRow = await claimDelivery(deps, row.id, input, "held", { reason: "workspace_delivery_allowance" });
+    const heldRow = await claimDelivery(deps, row.id, input, "held", {
+      reason: "workspace_delivery_allowance",
+    });
     if (!heldRow) return { delivered: false, detail: "duplicate delivery skipped" };
     if (heldBefore === 0) {
       console.error(
@@ -108,7 +131,11 @@ export async function deliverCrm(deps: IntegrationsDeps, input: CrmPushInput): P
     const existing = await withTenant(deps.prisma, { workspaceId: input.workspaceId }, (tx) =>
       tx.integrationDelivery.findUnique({
         where: {
-          integrationId_sourceEventId_kind: { integrationId: row.id, sourceEventId: input.sourceEventId, kind: kindFor(input.op) },
+          integrationId_sourceEventId_kind: {
+            integrationId: row.id,
+            sourceEventId: input.sourceEventId,
+            kind: kindFor(input.op),
+          },
         },
       }),
     );
@@ -121,7 +148,10 @@ export async function deliverCrm(deps: IntegrationsDeps, input: CrmPushInput): P
   }
   const settle = (status: "delivered" | "failed", detail: Record<string, unknown>) =>
     withTenant(deps.prisma, { workspaceId: input.workspaceId }, (tx) =>
-      tx.integrationDelivery.update({ where: { id: claimed.id }, data: { status, detail: detail as Prisma.InputJsonValue } }),
+      tx.integrationDelivery.update({
+        where: { id: claimed.id },
+        data: { status, detail: detail as Prisma.InputJsonValue },
+      }),
     );
 
   try {
@@ -130,7 +160,10 @@ export async function deliverCrm(deps: IntegrationsDeps, input: CrmPushInput): P
     if (input.op === "create_deal") {
       if (!input.contact?.email) {
         await settle("failed", { op: input.op, error: "no contact email" });
-        return { delivered: false, detail: "no contact email — HubSpot needs an email to upsert the contact" };
+        return {
+          delivered: false,
+          detail: "no contact email — HubSpot needs an email to upsert the contact",
+        };
       }
       const contactId = await adapter.upsertContact(creds, input.contact);
       dealId = await adapter.createDeal(creds, {
@@ -158,7 +191,11 @@ export async function deliverCrm(deps: IntegrationsDeps, input: CrmPushInput): P
       dealId = input.dealId!;
       await adapter.updateDealStage(creds, dealId, input.stage!);
     }
-    await settle("delivered", { op: input.op, dealId, ...(associated !== undefined ? { associated } : {}) });
+    await settle("delivered", {
+      op: input.op,
+      dealId,
+      ...(associated !== undefined ? { associated } : {}),
+    });
     await withTenant(deps.prisma, { workspaceId: input.workspaceId }, (tx) =>
       tx.integration.update({ where: { id: row.id }, data: { lastSyncAt: now } }),
     );
@@ -186,7 +223,11 @@ export async function deliverCrm(deps: IntegrationsDeps, input: CrmPushInput): P
     });
     // A dead token flips the row to the honest revoked state (the delivery-time
     // PROVIDER_AUTH rail); config refusals + transient errors leave status alone.
-    if (err instanceof IntegrationProviderError && err.code === "PROVIDER_AUTH" && row.status !== "revoked") {
+    if (
+      err instanceof IntegrationProviderError &&
+      err.code === "PROVIDER_AUTH" &&
+      row.status !== "revoked"
+    ) {
       await withTenant(deps.prisma, { workspaceId: input.workspaceId }, (tx) =>
         tx.integration.update({ where: { id: row.id }, data: { status: "revoked" } }),
       );
@@ -239,6 +280,8 @@ async function publishSafely(
   try {
     await deps.publish(input);
   } catch (err) {
-    (deps.log ?? console.warn)(`[integrations] event publish failed (${input.type}): ${err instanceof Error ? err.message : String(err)}`);
+    (deps.log ?? console.warn)(
+      `[integrations] event publish failed (${input.type}): ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
 }

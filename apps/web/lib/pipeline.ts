@@ -19,7 +19,13 @@ export interface BoardEnrollment {
   status: string;
   updatedAt?: string;
   createdAt?: string;
-  contact: { id: string; email: string | null; firstName: string | null; lastName: string | null; company: string | null };
+  contact: {
+    id: string;
+    email: string | null;
+    firstName: string | null;
+    lastName: string | null;
+    company: string | null;
+  };
 }
 
 export interface BoardColumn {
@@ -42,15 +48,24 @@ export function buildBoard(stages: StageRow[], enrollments: BoardEnrollment[]): 
     overflow: false,
     cards: [],
   }));
-  const overflow: BoardColumn = { key: OVERFLOW_KEY, label: OVERFLOW_LABEL, overflow: true, cards: [] };
+  const overflow: BoardColumn = {
+    key: OVERFLOW_KEY,
+    label: OVERFLOW_LABEL,
+    overflow: true,
+    cards: [],
+  };
   for (const e of enrollments) {
-    const col = known.has(e.pipelineStage) ? columns.find((c) => c.key === e.pipelineStage)! : overflow;
+    const col = known.has(e.pipelineStage)
+      ? columns.find((c) => c.key === e.pipelineStage)!
+      : overflow;
     col.cards.push(e);
   }
   // Newest activity first inside a column (stable for equal timestamps).
   for (const c of [...columns, overflow]) {
     c.cards.sort((a, b) =>
-      String(b.updatedAt ?? b.createdAt ?? "").localeCompare(String(a.updatedAt ?? a.createdAt ?? "")),
+      String(b.updatedAt ?? b.createdAt ?? "").localeCompare(
+        String(a.updatedAt ?? a.createdAt ?? ""),
+      ),
     );
   }
   return overflow.cards.length > 0 ? [...columns, overflow] : columns;

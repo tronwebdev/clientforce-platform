@@ -7,7 +7,18 @@ import {
   AnthropicProvider,
   OpenAiEmbeddingsProvider,
 } from "@clientforce/ai";
-import { createClassifyWorker, createEmailStepComposer, createSmsStepComposer, SendGridSender , TwilioSmsSender, applyWarmupHealthInterlock, ensureWarmupCompletion, recomputeSenderHealth, runSenderDnsCheck, runSuppressionHygiene } from "@clientforce/channels";
+import {
+  createClassifyWorker,
+  createEmailStepComposer,
+  createSmsStepComposer,
+  SendGridSender,
+  TwilioSmsSender,
+  applyWarmupHealthInterlock,
+  ensureWarmupCompletion,
+  recomputeSenderHealth,
+  runSenderDnsCheck,
+  runSuppressionHygiene,
+} from "@clientforce/channels";
 import { isConfigured } from "@clientforce/config";
 import { goalKeySchema, type GoalKey } from "@clientforce/core";
 import { createDistillQueue, createDistillWorker } from "@clientforce/context";
@@ -200,7 +211,9 @@ function startKnowledgeWorkers(): void {
     notifyTransport: createNotifyTeamTransport(integrationsDeps),
     // INT W3 (DEC-095, Q-044 send half): send_webhook delivers through the
     // guard + sign + ledger transport; failures never change run outcomes.
-    webhookTransport: async (params: Parameters<NonNullable<RuleEngineDeps["webhookTransport"]>>[0]) =>
+    webhookTransport: async (
+      params: Parameters<NonNullable<RuleEngineDeps["webhookTransport"]>>[0],
+    ) =>
       deliverWebhook(integrationsDeps, {
         workspaceId: params.workspaceId,
         sourceEventId: params.sourceKey,
@@ -288,7 +301,9 @@ function startKnowledgeWorkers(): void {
             select: { workflowId: true },
           });
           await signalEnrollmentReply(client, enrollmentId, intent, row?.workflowId ?? undefined);
-          console.log(`[worker] reply signal delivered: enrollment=${enrollmentId} intent=${intent}`);
+          console.log(
+            `[worker] reply signal delivered: enrollment=${enrollmentId} intent=${intent}`,
+          );
         },
         console.warn,
         rules.shouldContinueGraph,
@@ -304,7 +319,9 @@ function startKnowledgeWorkers(): void {
   });
   busRef.current = bus;
   bus.startConsumer();
-  console.log("[worker] event-bus consumer started (P1.7 temporal-signal + R1 campaign rules live)");
+  console.log(
+    "[worker] event-bus consumer started (P1.7 temporal-signal + R1 campaign rules live)",
+  );
   startSequenceQuietSweep({ ...ruleDeps, ownerPrisma: owner });
   // INT W2 (DEC-094): the before-meeting sweep — the sequence_quiet pattern
   // over booked Meeting rows, 10-minute cadence (hour-granularity trigger;
@@ -379,7 +396,9 @@ function startKnowledgeWorkers(): void {
     );
   });
   classifier.on("failed", (job, err) => {
-    console.error(`[worker] inbound-classify failed message=${job?.data.messageId}: ${err.message}`);
+    console.error(
+      `[worker] inbound-classify failed message=${job?.data.messageId}: ${err.message}`,
+    );
   });
   console.log("[worker] inbound-classify worker started (P1.7)");
 }
@@ -414,7 +433,8 @@ function startStrandedSourceSweep(): void {
       );
       console.log(`[worker] stranded-source sweep re-enqueued source=${s.id}`);
     }
-    if (stale.length > 0) console.log(`[worker] stranded-source sweep: ${stale.length} re-enqueued`);
+    if (stale.length > 0)
+      console.log(`[worker] stranded-source sweep: ${stale.length} re-enqueued`);
   };
   void sweep().catch((err: unknown) => console.error("[worker] stranded-source sweep failed", err));
   setInterval(() => {
@@ -494,7 +514,9 @@ function startSenderHealthSweep(deps: SenderSweepDeps): void {
       orderBy: { createdAt: "asc" },
     });
     if (senders.length === SENDER_SWEEP_TAKE) {
-      console.warn(`[worker] sender-health sweep hit the ${SENDER_SWEEP_TAKE}-sender page cap — split the sweep before this is real`);
+      console.warn(
+        `[worker] sender-health sweep hit the ${SENDER_SWEEP_TAKE}-sender page cap — split the sweep before this is real`,
+      );
     }
     let transitions = 0;
     for (const s of senders) {
@@ -505,7 +527,9 @@ function startSenderHealthSweep(deps: SenderSweepDeps): void {
         );
         if (result?.transition) {
           transitions++;
-          console.log(`[worker] sender-health ${result.transition}: sender=${s.id} score=${result.snapshot.score ?? "n/a"}`);
+          console.log(
+            `[worker] sender-health ${result.transition}: sender=${s.id} score=${result.snapshot.score ?? "n/a"}`,
+          );
         }
         // Owner-locked interlock: a complaint/bounce spike holds the ramp.
         const hold = await applyWarmupHealthInterlock(
@@ -513,14 +537,18 @@ function startSenderHealthSweep(deps: SenderSweepDeps): void {
           { workspaceId: s.workspaceId, senderId: s.id },
         );
         if (hold.changed) {
-          console.log(`[worker] warmup ${hold.holding ? "HELD (spike)" : "resumed"}: sender=${s.id}`);
+          console.log(
+            `[worker] warmup ${hold.holding ? "HELD (spike)" : "resumed"}: sender=${s.id}`,
+          );
         }
         const warmup = await ensureWarmupCompletion(
           { prisma: deps.prisma, publish: deps.publish },
           { workspaceId: s.workspaceId, senderId: s.id },
         );
         if (warmup.completed) {
-          console.log(`[worker] warmup complete: sender=${s.id}${warmup.emitted ? "" : " (stamped silently — aged out unobserved)"}`);
+          console.log(
+            `[worker] warmup complete: sender=${s.id}${warmup.emitted ? "" : " (stamped silently — aged out unobserved)"}`,
+          );
         }
       } catch (err) {
         console.error(`[worker] sender-health sweep failed for sender=${s.id}`, err);
@@ -606,10 +634,12 @@ function startValidationWorker(deps: {
       _count: { _all: true },
     });
     for (const row of wsRows) {
-      const d = await drainEnrollmentHolds(drainDeps, { workspaceId: row.workspaceId }).catch((err: unknown) => {
-        console.error(`[worker] enrollment drain failed ws=${row.workspaceId}`, err);
-        return null;
-      });
+      const d = await drainEnrollmentHolds(drainDeps, { workspaceId: row.workspaceId }).catch(
+        (err: unknown) => {
+          console.error(`[worker] enrollment drain failed ws=${row.workspaceId}`, err);
+          return null;
+        },
+      );
       if (d && d.released + d.refused > 0) {
         console.log(
           `[worker] enrollment drain ws=${row.workspaceId}: ${d.released} released · ${d.refused} refused · ${d.capHeld} cap-held · ${d.stillHeld} still held`,
@@ -617,9 +647,13 @@ function startValidationWorker(deps: {
       }
     }
   };
-  void drainSweep().catch((err: unknown) => console.error("[worker] enrollment drain sweep failed", err));
+  void drainSweep().catch((err: unknown) =>
+    console.error("[worker] enrollment drain sweep failed", err),
+  );
   setInterval(() => {
-    void drainSweep().catch((err: unknown) => console.error("[worker] enrollment drain sweep failed", err));
+    void drainSweep().catch((err: unknown) =>
+      console.error("[worker] enrollment drain sweep failed", err),
+    );
   }, 2 * 60_000);
   if (process.env.ZEROBOUNCE_API_KEY) {
     void provider
@@ -650,10 +684,16 @@ function startValidationWorker(deps: {
  * sync, and an aging-bounce count (visibility only; expiry is a product
  * decision, never automated here).
  */
-function startSuppressionHygieneSweep(deps: { prisma: PrismaClient; ownerPrisma: PrismaClient }): void {
+function startSuppressionHygieneSweep(deps: {
+  prisma: PrismaClient;
+  ownerPrisma: PrismaClient;
+}): void {
   const sweep = async (): Promise<void> => {
     const r = await runSuppressionHygiene(deps);
-    if (r.caseDuplicatesMerged + r.addressesNormalized + r.optOutsRepaired > 0 || r.agingBounces > 0) {
+    if (
+      r.caseDuplicatesMerged + r.addressesNormalized + r.optOutsRepaired > 0 ||
+      r.agingBounces > 0
+    ) {
       console.log(
         `[worker] suppression hygiene: ${r.scanned} scanned · ${r.caseDuplicatesMerged} case-dupes merged · ${r.addressesNormalized} normalized · ${r.optOutsRepaired} opt-outs repaired · ${r.agingBounces} aging bounces (>90d, counted only)`,
       );
@@ -685,7 +725,9 @@ function startSenderDnsSweep(deps: { prisma: PrismaClient; ownerPrisma: PrismaCl
           {
             prisma: deps.prisma,
             resolveTxt,
-            ...(process.env.SENDGRID_API_KEY ? { sendgridApiKey: process.env.SENDGRID_API_KEY } : {}),
+            ...(process.env.SENDGRID_API_KEY
+              ? { sendgridApiKey: process.env.SENDGRID_API_KEY }
+              : {}),
           },
           { workspaceId: s.workspaceId, senderId: s.id },
         );
@@ -693,7 +735,8 @@ function startSenderDnsSweep(deps: { prisma: PrismaClient; ownerPrisma: PrismaCl
         console.error(`[worker] sender-dns sweep failed for sender=${s.id}`, err);
       }
     }
-    if (senders.length > 0) console.log(`[worker] sender-dns sweep: ${senders.length} sender(s) re-checked`);
+    if (senders.length > 0)
+      console.log(`[worker] sender-dns sweep: ${senders.length} sender(s) re-checked`);
   };
   void sweep().catch((err: unknown) => console.error("[worker] sender-dns sweep failed", err));
   setInterval(() => {

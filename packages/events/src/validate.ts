@@ -58,7 +58,10 @@ const EnvelopeSchema = z.object({
 export function validateEvent(input: unknown): ValidatedEvent {
   const env = EnvelopeSchema.safeParse(input);
   if (!env.success) {
-    throw new EventValidationError(`Invalid event envelope: ${env.error.message}`, env.error.issues);
+    throw new EventValidationError(
+      `Invalid event envelope: ${env.error.message}`,
+      env.error.issues,
+    );
   }
 
   const { type } = env.data;
@@ -72,7 +75,10 @@ export function validateEvent(input: unknown): ValidatedEvent {
   const payload = (input as { payload?: unknown }).payload;
   const parsed = schema.safeParse(payload);
   if (!parsed.success) {
-    throw new EventValidationError(`Invalid payload for "${type}": ${parsed.error.message}`, parsed.error.issues);
+    throw new EventValidationError(
+      `Invalid payload for "${type}": ${parsed.error.message}`,
+      parsed.error.issues,
+    );
   }
 
   return {

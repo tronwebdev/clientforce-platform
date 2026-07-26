@@ -119,9 +119,7 @@ export async function campaignWorkflow(
             graphVersion: input.graphVersion ?? null,
             // G2 (DEC-071): main-sequence position → the email composer's
             // M1a arc role (pure walk; undefined for strategy steps).
-            ...(node.mode === "guided"
-              ? { position: mainStepPosition(input.graph, node.id) }
-              : {}),
+            ...(node.mode === "guided" ? { position: mainStepPosition(input.graph, node.id) } : {}),
           });
         } catch (err) {
           // G1/G2: composer refusal — pause THIS lead with the typed reason +

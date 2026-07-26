@@ -36,10 +36,7 @@ import { TestWorkflowEnvironment } from "@temporalio/testing";
 import { Worker } from "@temporalio/worker";
 import { AiGateway, AnthropicProvider } from "@clientforce/ai";
 import { createPerAgentRules } from "@clientforce/automations";
-import {
-  createEmailStepComposer,
-  SendGridSender,
-} from "@clientforce/channels";
+import { createEmailStepComposer, SendGridSender } from "@clientforce/channels";
 import {
   addSubcampaign,
   repairGraph,
@@ -98,7 +95,10 @@ function graphV1(): CampaignGraph {
         id: "s2",
         type: "step",
         channel: "email",
-        content: { body: "Bump, {{firstName}} — v1 scripted step-2.\n\n— {{senderName}}", threaded: true },
+        content: {
+          body: "Bump, {{firstName}} — v1 scripted step-2.\n\n— {{senderName}}",
+          threaded: true,
+        },
       },
       {
         id: "br",
@@ -152,7 +152,12 @@ async function main(): Promise<void> {
         category: "Dental & Orthodontics",
         status: "ACTIVE",
         guardrails: {
-          sendingWindow: { days: [1, 2, 3, 4, 5, 6, 7], start: "00:00", end: "23:59", timezone: "UTC" },
+          sendingWindow: {
+            days: [1, 2, 3, 4, 5, 6, 7],
+            start: "00:00",
+            end: "23:59",
+            timezone: "UTC",
+          },
           dailyCap: { email: 20 },
           consent: null,
           unsubscribeFooter: true,
@@ -169,7 +174,11 @@ async function main(): Promise<void> {
         agentId: null,
         status: "READY",
         fields: {
-          offer: { value: `We book dental appointments with a ${FACT}.`, citations: [], source: "typed" },
+          offer: {
+            value: `We book dental appointments with a ${FACT}.`,
+            citations: [],
+            source: "typed",
+          },
           company_address: { value: ADDRESS, citations: [], source: "typed" },
         },
       },
@@ -185,7 +194,13 @@ async function main(): Promise<void> {
     });
     const v1 = graphV1();
     const v1row = await owner.campaignGraph.create({
-      data: { workspaceId: ws.id, campaignId: campaign.id, version: 1, source: "AI", graph: v1 as object },
+      data: {
+        workspaceId: ws.id,
+        campaignId: campaign.id,
+        version: 1,
+        source: "AI",
+        graph: v1 as object,
+      },
     });
     await owner.campaign.update({ where: { id: campaign.id }, data: { graphId: v1row.id } });
 
@@ -455,12 +470,16 @@ async function main(): Promise<void> {
         const rows = await messagesOf(enrollB.id);
         return rows.find((m) => m.stepNodeId === guidedStepId) ?? null;
       });
-      console.log(`\n— The branch's guided send (composed at send):\nSubject: ${branchMsg.subject}\n${branchMsg.body}\n`);
+      console.log(
+        `\n— The branch's guided send (composed at send):\nSubject: ${branchMsg.subject}\n${branchMsg.body}\n`,
+      );
       const meta = (branchMsg.meta ?? {}) as Meta;
       const composedPart = branchMsg.body.split("\n\n--\n")[0]!;
       gate(
         "BRANCH-GUIDED-COMPOSED",
-        meta.mode === "guided" && meta.composerVersion === "composer.email@v1" && meta.briefVersion === 2,
+        meta.mode === "guided" &&
+          meta.composerVersion === "composer.email@v1" &&
+          meta.briefVersion === 2,
         `the branch step COMPOSED with provenance {mode:"guided", briefVersion:2, ${String(meta.composerVersion)}}`,
       );
       gate(
@@ -473,11 +492,14 @@ async function main(): Promise<void> {
         `checks → boundary → CAN-SPAM footer EXACTLY once (address verbatim; mustSay grounded; the composer never wrote the footer)`,
       );
       const enterReceipt = await owner.enrollment.findUniqueOrThrow({ where: { id: enrollB.id } });
-      const events = ((enterReceipt.meta as Meta).events ?? []) as Array<{ detail?: string; kind?: string }>;
+      const events = ((enterReceipt.meta as Meta).events ?? []) as Array<{
+        detail?: string;
+        kind?: string;
+      }>;
       gate(
         "ENTER-SUBCAMPAIGN-RECEIPT",
         events.some(
-          (e) => (e.kind === "subcampaign" || (e.detail ?? "").includes("Interested follow-up")),
+          (e) => e.kind === "subcampaign" || (e.detail ?? "").includes("Interested follow-up"),
         ),
         `the enter_subcampaign Logs receipt carries the branch name`,
       );
@@ -506,10 +528,14 @@ async function main(): Promise<void> {
           })
         ).graph,
       );
-      const versionsBefore = await owner.campaignGraph.count({ where: { campaignId: campaign.id } });
+      const versionsBefore = await owner.campaignGraph.count({
+        where: { campaignId: campaign.id },
+      });
       const refusals: string[] = [];
       // dup trigger (the endpoint's equality scan semantics)
-      refusals.push("dup: a sub-campaign already enters on reply_classified[interested] — refused (equality scan; e2e-pinned as 422)");
+      refusals.push(
+        "dup: a sub-campaign already enters on reply_classified[interested] — refused (equality scan; e2e-pinned as 422)",
+      );
       // count-rule violation: dropping the reply branch
       try {
         const dropped = {
@@ -555,7 +581,8 @@ async function main(): Promise<void> {
           refusals[1]!.includes("reply branch") &&
           refusals[2]!.includes("shares steps") &&
           repairs.length === 1 &&
-          (await owner.campaignGraph.count({ where: { campaignId: campaign.id } })) === versionsBefore,
+          (await owner.campaignGraph.count({ where: { campaignId: campaign.id } })) ===
+            versionsBefore,
         `count-rule + shared-chain refused with precise reasons, the deterministic repair reported, ZERO rows persisted`,
       );
     });

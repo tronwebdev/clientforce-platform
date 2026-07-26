@@ -13,12 +13,19 @@ export default async function FleetPage() {
 
   return (
     <div>
-      <h1 style={{ fontFamily: "'Bricolage Grotesque'", fontSize: 28, fontWeight: 700, margin: "0 0 4px" }}>
+      <h1
+        style={{
+          fontFamily: "'Bricolage Grotesque'",
+          fontSize: 28,
+          fontWeight: 700,
+          margin: "0 0 4px",
+        }}
+      >
         Fleet health
       </h1>
       <p style={{ color: "#5b6560", fontSize: 14, margin: "0 0 22px", maxWidth: 720 }}>
-        Sender health is consumed from the deliverability service (P5-W1); the backoffice never recomputes
-        it. Outliers and version pins are read-only.
+        Sender health is consumed from the deliverability service (P5-W1); the backoffice never
+        recomputes it. Outliers and version pins are read-only.
       </p>
 
       <SenderHealth health={health} />
@@ -31,8 +38,24 @@ export default async function FleetPage() {
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section style={{ marginBottom: 24 }}>
-      <h2 style={{ fontFamily: "'Bricolage Grotesque'", fontSize: 16, fontWeight: 700, margin: "0 0 10px" }}>{title}</h2>
-      <div style={{ background: "#fff", border: "1px solid var(--cf-color-hairline, #ebe3d6)", borderRadius: 14, overflow: "hidden" }}>
+      <h2
+        style={{
+          fontFamily: "'Bricolage Grotesque'",
+          fontSize: 16,
+          fontWeight: 700,
+          margin: "0 0 10px",
+        }}
+      >
+        {title}
+      </h2>
+      <div
+        style={{
+          background: "#fff",
+          border: "1px solid var(--cf-color-hairline, #ebe3d6)",
+          borderRadius: 14,
+          overflow: "hidden",
+        }}
+      >
         {children}
       </div>
     </section>
@@ -50,11 +73,23 @@ function SenderHealth({ health }: { health: FleetHealthView | null }) {
   if (!health.health.wired) {
     return (
       <Card title="Sender health">
-        <div style={{ padding: "16px 20px", fontSize: 13, color: "#5b6560", display: "flex", gap: 10, alignItems: "center" }}>
-          <span style={{ width: 8, height: 8, borderRadius: 8, background: "#c9a13f", flexShrink: 0 }} />
+        <div
+          style={{
+            padding: "16px 20px",
+            fontSize: 13,
+            color: "#5b6560",
+            display: "flex",
+            gap: 10,
+            alignItems: "center",
+          }}
+        >
+          <span
+            style={{ width: 8, height: 8, borderRadius: 8, background: "#c9a13f", flexShrink: 0 }}
+          />
           <span>
-            <strong style={{ color: "#0e1512" }}>Sender health temporarily unavailable.</strong> The ledger
-            read failed this pass — scores come from P5-W1&rsquo;s shared computation, never recomputed here.
+            <strong style={{ color: "#0e1512" }}>Sender health temporarily unavailable.</strong> The
+            ledger read failed this pass — scores come from P5-W1&rsquo;s shared computation, never
+            recomputed here.
           </span>
         </div>
       </Card>
@@ -76,7 +111,10 @@ function SenderHealth({ health }: { health: FleetHealthView | null }) {
           </thead>
           <tbody>
             {health.health.scores.map((s) => (
-              <tr key={s.senderId} style={{ borderTop: "1px solid var(--cf-color-hairline, #ebe3d6)" }}>
+              <tr
+                key={s.senderId}
+                style={{ borderTop: "1px solid var(--cf-color-hairline, #ebe3d6)" }}
+              >
                 <Td mono>{s.senderId}</Td>
                 <Td mono>{s.workspaceId}</Td>
                 <Td>{s.score ?? "—"}</Td>
@@ -95,7 +133,15 @@ function Outliers({ health }: { health: FleetHealthView | null }) {
   return (
     <Card title="Abuse & deliverability outliers">
       {health?.lowData ? (
-        <div style={{ padding: "10px 20px", fontSize: 12, color: "#8a6d3b", borderBottom: "1px solid var(--cf-color-hairline, #ebe3d6)", background: "rgba(208,245,107,0.2)" }}>
+        <div
+          style={{
+            padding: "10px 20px",
+            fontSize: 12,
+            color: "#8a6d3b",
+            borderBottom: "1px solid var(--cf-color-hairline, #ebe3d6)",
+            background: "rgba(208,245,107,0.2)",
+          }}
+        >
           Low data — too few signals in the last 7 days to read into these numbers.
         </div>
       ) : null}
@@ -115,11 +161,16 @@ function Outliers({ health }: { health: FleetHealthView | null }) {
           </thead>
           <tbody>
             {outliers.map((o, i) => (
-              <tr key={`${o.workspaceId}-${o.metric}-${i}`} style={{ borderTop: "1px solid var(--cf-color-hairline, #ebe3d6)" }}>
+              <tr
+                key={`${o.workspaceId}-${o.metric}-${i}`}
+                style={{ borderTop: "1px solid var(--cf-color-hairline, #ebe3d6)" }}
+              >
                 <Td mono>{o.agencyId}</Td>
                 <Td mono>{o.workspaceId}</Td>
                 <Td>{o.metric}</Td>
-                <Td><strong>{o.count.toLocaleString()}</strong></Td>
+                <Td>
+                  <strong>{o.count.toLocaleString()}</strong>
+                </Td>
               </tr>
             ))}
           </tbody>
@@ -139,28 +190,90 @@ function Pins({ pins }: { pins: VersionPins | null }) {
   }
   return (
     <Card title="Model & prompt pins">
-      <div style={{ padding: "12px 20px", fontSize: 12, color: "#5b6560", borderBottom: "1px solid var(--cf-color-hairline, #ebe3d6)" }}>
-        Platform-scope, read-only. Model routing is env-overridable per deploy; prompt versions are code-pinned.
+      <div
+        style={{
+          padding: "12px 20px",
+          fontSize: 12,
+          color: "#5b6560",
+          borderBottom: "1px solid var(--cf-color-hairline, #ebe3d6)",
+        }}
+      >
+        Platform-scope, read-only. Model routing is env-overridable per deploy; prompt versions are
+        code-pinned.
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0 }}>
-        <div style={{ padding: "14px 20px", borderRight: "1px solid var(--cf-color-hairline, #ebe3d6)" }}>
-          <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 0.4, color: "#8a938d", fontWeight: 700, marginBottom: 8 }}>Models</div>
+        <div
+          style={{
+            padding: "14px 20px",
+            borderRight: "1px solid var(--cf-color-hairline, #ebe3d6)",
+          }}
+        >
+          <div
+            style={{
+              fontSize: 11,
+              textTransform: "uppercase",
+              letterSpacing: 0.4,
+              color: "#8a938d",
+              fontWeight: 700,
+              marginBottom: 8,
+            }}
+          >
+            Models
+          </div>
           {pins.models.map((m) => (
-            <div key={m.task} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "4px 0" }}>
+            <div
+              key={m.task}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                fontSize: 13,
+                padding: "4px 0",
+              }}
+            >
               <span style={{ color: "#5b6560", textTransform: "capitalize" }}>{m.task}</span>
               <span style={{ fontFamily: "monospace", fontSize: 12 }}>{m.model}</span>
             </div>
           ))}
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "4px 0", borderTop: "1px dashed var(--cf-color-hairline, #ebe3d6)", marginTop: 4 }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              fontSize: 13,
+              padding: "4px 0",
+              borderTop: "1px dashed var(--cf-color-hairline, #ebe3d6)",
+              marginTop: 4,
+            }}
+          >
             <span style={{ color: "#5b6560" }}>embedding</span>
             <span style={{ fontFamily: "monospace", fontSize: 12 }}>{pins.embeddingModel}</span>
           </div>
         </div>
         <div style={{ padding: "14px 20px" }}>
-          <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 0.4, color: "#8a938d", fontWeight: 700, marginBottom: 8 }}>Prompts</div>
+          <div
+            style={{
+              fontSize: 11,
+              textTransform: "uppercase",
+              letterSpacing: 0.4,
+              color: "#8a938d",
+              fontWeight: 700,
+              marginBottom: 8,
+            }}
+          >
+            Prompts
+          </div>
           {pins.prompts.map((p) => (
-            <div key={p.name} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "4px 0" }}>
-              <span style={{ fontFamily: "monospace", fontSize: 12, color: "#5b6560" }}>{p.name}</span>
+            <div
+              key={p.name}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                fontSize: 13,
+                padding: "4px 0",
+              }}
+            >
+              <span style={{ fontFamily: "monospace", fontSize: 12, color: "#5b6560" }}>
+                {p.name}
+              </span>
               <span style={{ fontFamily: "monospace", fontSize: 12 }}>v{p.version}</span>
             </div>
           ))}
@@ -172,7 +285,16 @@ function Pins({ pins }: { pins: VersionPins | null }) {
 
 function Th({ children }: { children: React.ReactNode }) {
   return (
-    <th style={{ padding: "9px 16px", fontSize: 11, textTransform: "uppercase", letterSpacing: 0.4, color: "#5b6560", fontWeight: 700 }}>
+    <th
+      style={{
+        padding: "9px 16px",
+        fontSize: 11,
+        textTransform: "uppercase",
+        letterSpacing: 0.4,
+        color: "#5b6560",
+        fontWeight: 700,
+      }}
+    >
       {children}
     </th>
   );
@@ -180,6 +302,8 @@ function Th({ children }: { children: React.ReactNode }) {
 
 function Td({ children, mono }: { children: React.ReactNode; mono?: boolean }) {
   return (
-    <td style={{ padding: "9px 16px", ...(mono ? { fontFamily: "monospace", fontSize: 12 } : {}) }}>{children}</td>
+    <td style={{ padding: "9px 16px", ...(mono ? { fontFamily: "monospace", fontSize: 12 } : {}) }}>
+      {children}
+    </td>
   );
 }

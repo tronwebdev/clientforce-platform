@@ -32,7 +32,9 @@ const SECRET = `whsec_${suffix}`;
 // t defaults to NOW — the controller enforces a ±300s replay window, so a
 // fixed past timestamp would 401 every request (a dedicated test signs stale).
 const sign = (body: unknown, key = SECRET, t = String(Math.floor(Date.now() / 1000))): string => {
-  const v1 = createHmac("sha256", key).update(`${t}.${JSON.stringify(body)}`, "utf8").digest("hex");
+  const v1 = createHmac("sha256", key)
+    .update(`${t}.${JSON.stringify(body)}`, "utf8")
+    .digest("hex");
   return `t=${t},v1=${v1}`;
 };
 
@@ -64,23 +66,44 @@ describe.skipIf(!hasDb)("stripe webhook e2e (INT W3, DEC-095)", () => {
 
   beforeAll(async () => {
     owner = createPrismaClient();
-    const agency = await owner.agency.create({ data: { name: suffix, slug: suffix, branding: {} } });
+    const agency = await owner.agency.create({
+      data: { name: suffix, slug: suffix, branding: {} },
+    });
     agencyId = agency.id;
-    ws = (await owner.workspace.create({ data: { agencyId, name: "sw", slug: suffix, settings: {} } })).id;
+    ws = (
+      await owner.workspace.create({ data: { agencyId, name: "sw", slug: suffix, settings: {} } })
+    ).id;
     const agentId = (
-      await owner.agent.create({ data: { workspaceId: ws, name: "Closer", goal: "close_deals", guardrails: {} } })
+      await owner.agent.create({
+        data: { workspaceId: ws, name: "Closer", goal: "close_deals", guardrails: {} },
+      })
     ).id;
     campaignId = (
-      await owner.campaign.create({ data: { workspaceId: ws, agentId, name: "primary", graphId: "" } })
+      await owner.campaign.create({
+        data: { workspaceId: ws, agentId, name: "primary", graphId: "" },
+      })
     ).id;
     contactId = (
       await owner.contact.create({
-        data: { workspaceId: ws, source: "test", optOut: {}, tags: [], email: `payer-${suffix}@t.test` },
+        data: {
+          workspaceId: ws,
+          source: "test",
+          optOut: {},
+          tags: [],
+          email: `payer-${suffix}@t.test`,
+        },
       })
     ).id;
     enrollmentId = (
       await owner.enrollment.create({
-        data: { workspaceId: ws, campaignId, contactId, workflowId: `sw-${suffix}`, pipelineStage: "engaged", meta: {} },
+        data: {
+          workspaceId: ws,
+          campaignId,
+          contactId,
+          workflowId: `sw-${suffix}`,
+          pipelineStage: "engaged",
+          meta: {},
+        },
       })
     ).id;
     integrationId = (
@@ -89,7 +112,11 @@ describe.skipIf(!hasDb)("stripe webhook e2e (INT W3, DEC-095)", () => {
           workspaceId: ws,
           provider: "stripe",
           status: "connected",
-          config: { paymentLinkUrl: "https://buy.stripe.com/demo", webhookToken: TOKEN, detection: true },
+          config: {
+            paymentLinkUrl: "https://buy.stripe.com/demo",
+            webhookToken: TOKEN,
+            detection: true,
+          },
           scopes: [],
           credentialsEnc: encryptCredentials({ apiKey: "rk_stub", webhookSigningSecret: SECRET }),
         },
@@ -115,13 +142,21 @@ describe.skipIf(!hasDb)("stripe webhook e2e (INT W3, DEC-095)", () => {
   it("refuses a missing or unknown webhook token (401)", async () => {
     const body = checkout();
     await api().post("/webhooks/stripe").set("stripe-signature", sign(body)).send(body).expect(401);
-    await api().post("/webhooks/stripe?token=nope").set("stripe-signature", sign(body)).send(body).expect(401);
+    await api()
+      .post("/webhooks/stripe?token=nope")
+      .set("stripe-signature", sign(body))
+      .send(body)
+      .expect(401);
   });
 
   it("refuses a bad, absent, or tampered signature (401) — nothing ingests", async () => {
     const body = checkout();
     await api().post(`/webhooks/stripe?token=${TOKEN}`).send(body).expect(401);
-    await api().post(`/webhooks/stripe?token=${TOKEN}`).set("stripe-signature", sign(body, "wrong")).send(body).expect(401);
+    await api()
+      .post(`/webhooks/stripe?token=${TOKEN}`)
+      .set("stripe-signature", sign(body, "wrong"))
+      .send(body)
+      .expect(401);
     const tampered = checkout({ amount_total: 1 });
     await api()
       .post(`/webhooks/stripe?token=${TOKEN}`)
@@ -140,25 +175,40 @@ describe.skipIf(!hasDb)("stripe webhook e2e (INT W3, DEC-095)", () => {
       .expect(201);
     expect(res.body).toMatchObject({ ok: true, outcome: "recorded", matchedBy: "reference" });
 
-    const events = await owner.event.findMany({ where: { workspaceId: ws, type: "payment.received.v1" } });
+    const events = await owner.event.findMany({
+      where: { workspaceId: ws, type: "payment.received.v1" },
+    });
     expect(events).toHaveLength(1);
     expect(events[0]).toMatchObject({ contactId, enrollmentId, campaignId });
-    expect(events[0]!.payload).toMatchObject({ amount: 50000, currency: "usd", provider: "stripe", externalId: `cs_${suffix}_ref` });
+    expect(events[0]!.payload).toMatchObject({
+      amount: 50000,
+      currency: "usd",
+      provider: "stripe",
+      externalId: `cs_${suffix}_ref`,
+    });
 
-    const claim = await owner.integrationDelivery.findFirst({ where: { integrationId, kind: "payment" } });
+    const claim = await owner.integrationDelivery.findFirst({
+      where: { integrationId, kind: "payment" },
+    });
     expect(claim).toMatchObject({ sourceEventId: `cs_${suffix}_ref`, status: "delivered" });
   });
 
   it("redelivery of the same session acks duplicate — ONE event ever", async () => {
     const body = checkout({ id: `cs_${suffix}_dup`, client_reference_id: contactId });
-    await api().post(`/webhooks/stripe?token=${TOKEN}`).set("stripe-signature", sign(body)).send(body).expect(201);
+    await api()
+      .post(`/webhooks/stripe?token=${TOKEN}`)
+      .set("stripe-signature", sign(body))
+      .send(body)
+      .expect(201);
     const again = await api()
       .post(`/webhooks/stripe?token=${TOKEN}`)
       .set("stripe-signature", sign(body))
       .send(body)
       .expect(201);
     expect(again.body.outcome).toBe("duplicate");
-    expect(await owner.event.count({ where: { workspaceId: ws, type: "payment.received.v1" } })).toBe(1);
+    expect(
+      await owner.event.count({ where: { workspaceId: ws, type: "payment.received.v1" } }),
+    ).toBe(1);
   });
 
   it("email fallback correlates; an unmatched payer acks with NO event (honest not-our-lead)", async () => {
@@ -170,14 +220,19 @@ describe.skipIf(!hasDb)("stripe webhook e2e (INT W3, DEC-095)", () => {
       .expect(201);
     expect(res.body.matchedBy).toBe("email");
 
-    const stranger = checkout({ id: `cs_${suffix}_x`, customer_details: { email: "who@elsewhere.test" } });
+    const stranger = checkout({
+      id: `cs_${suffix}_x`,
+      customer_details: { email: "who@elsewhere.test" },
+    });
     const res2 = await api()
       .post(`/webhooks/stripe?token=${TOKEN}`)
       .set("stripe-signature", sign(stranger))
       .send(stranger)
       .expect(201);
     expect(res2.body.outcome).toBe("unmatched");
-    expect(await owner.event.count({ where: { workspaceId: ws, type: "payment.received.v1" } })).toBe(1);
+    expect(
+      await owner.event.count({ where: { workspaceId: ws, type: "payment.received.v1" } }),
+    ).toBe(1);
   });
 
   it("other event types ack `ignored` (never a retry storm); a typeless event 400s", async () => {
@@ -201,14 +256,21 @@ describe.skipIf(!hasDb)("stripe webhook e2e (INT W3, DEC-095)", () => {
   it("a completed session with a NULL amount acks `ignored` (no retry storm over setup/zero sessions)", async () => {
     // mode:"setup" card-save + zero/promo completions carry amount_total:null —
     // a boring no-op that must ack, never 400 (which would disable the endpoint).
-    const noAmount = { type: "checkout.session.completed", data: { object: { id: `cs_${suffix}_setup`, amount_total: null, client_reference_id: contactId } } };
+    const noAmount = {
+      type: "checkout.session.completed",
+      data: {
+        object: { id: `cs_${suffix}_setup`, amount_total: null, client_reference_id: contactId },
+      },
+    };
     const res = await api()
       .post(`/webhooks/stripe?token=${TOKEN}`)
       .set("stripe-signature", sign(noAmount))
       .send(noAmount)
       .expect(201);
     expect(res.body).toMatchObject({ ok: true, outcome: "ignored", reason: "no_amount" });
-    expect(await owner.event.count({ where: { workspaceId: ws, type: "payment.received.v1" } })).toBe(0);
+    expect(
+      await owner.event.count({ where: { workspaceId: ws, type: "payment.received.v1" } }),
+    ).toBe(0);
   });
 
   it("a valid signature over a STALE timestamp is refused (replay window)", async () => {
@@ -219,6 +281,8 @@ describe.skipIf(!hasDb)("stripe webhook e2e (INT W3, DEC-095)", () => {
       .set("stripe-signature", sign(body, SECRET, staleT))
       .send(body)
       .expect(401);
-    expect(await owner.event.count({ where: { workspaceId: ws, type: "payment.received.v1" } })).toBe(0);
+    expect(
+      await owner.event.count({ where: { workspaceId: ws, type: "payment.received.v1" } }),
+    ).toBe(0);
   });
 });

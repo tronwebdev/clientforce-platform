@@ -54,13 +54,16 @@ describe("lead-drawer EVENT_ROW calendar rows (LeadsTab)", () => {
   });
 
   it("rescheduled copy renders the NEW time (toStartAt); canceled folds the no_show reason", () => {
-    const moved = EVENT_ROW["calendar.rescheduled.v1"]!.label({ fromStartAt: START, toStartAt: TO });
+    const moved = EVENT_ROW["calendar.rescheduled.v1"]!.label({
+      fromStartAt: START,
+      toStartAt: TO,
+    });
     expect(moved).toMatch(/^Meeting rescheduled — now .+/);
     expect(moved).toContain(meetingTime(TO) as string);
     expect(EVENT_ROW["calendar.rescheduled.v1"]!.label({})).toBe("Meeting rescheduled");
-    expect(EVENT_ROW["calendar.canceled.v1"]!.label({ startAt: START, reason: "canceled" })).toMatch(
-      /^Meeting canceled — was .+/,
-    );
+    expect(
+      EVENT_ROW["calendar.canceled.v1"]!.label({ startAt: START, reason: "canceled" }),
+    ).toMatch(/^Meeting canceled — was .+/);
     expect(EVENT_ROW["calendar.canceled.v1"]!.label({ reason: "no_show" })).toBe("Meeting no-show");
   });
 });
@@ -80,7 +83,9 @@ describe("Inbox thread system rows (InboxTab.calendarSystemRow — designed addi
     const gone = calendarSystemRow("calendar.canceled.v1", { startAt: START, reason: "canceled" });
     expect(gone!.fg).toBe("#C9543F");
     expect(gone!.text).toMatch(/^✕ Meeting canceled — was .+/);
-    expect(calendarSystemRow("calendar.canceled.v1", { reason: "no_show" })!.text).toBe("✕ Meeting no-show");
+    expect(calendarSystemRow("calendar.canceled.v1", { reason: "no_show" })!.text).toBe(
+      "✕ Meeting no-show",
+    );
   });
 
   it("ONLY calendar.* types render — anything else returns null (never a fake bubble)", () => {

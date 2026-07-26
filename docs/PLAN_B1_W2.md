@@ -94,8 +94,8 @@ wizard cost estimate and the editor read the same rule.
 ## Acceptance
 
 - usage rollup matches hand-computed counts for a seeded tenant (sends by channel
-  + voice minutes) and shows credit burn from the real ledger; AI spend is an
-  honest "not yet metered", never a number;
+  - voice minutes) and shows credit burn from the real ledger; AI spend is an
+    honest "not yet metered", never a number;
 - the reconciliation view matches a seeded `ProviderInvoice` fixture (zero
   variance when metered usage == invoice; correct variance when it differs);
 - a price override takes effect effective-dated (agency override beats platform

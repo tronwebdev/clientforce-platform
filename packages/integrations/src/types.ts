@@ -18,9 +18,7 @@ export type PublishFn = <T extends EventType>(input: EventInput<T>) => Promise<u
  * transient (→ status `unhealthy`).
  */
 export type IntegrationProviderErrorCode =
-  | "PROVIDER_UNAVAILABLE"
-  | "PROVIDER_RATE_LIMITED"
-  | "PROVIDER_AUTH";
+  "PROVIDER_UNAVAILABLE" | "PROVIDER_RATE_LIMITED" | "PROVIDER_AUTH";
 
 /** Typed refusal for vendor failures — never a silent partial result. */
 export class IntegrationProviderError extends Error {

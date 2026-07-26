@@ -93,7 +93,12 @@ describe.skipIf(!hasDb)("Contacts validation (LH1 W2)", () => {
     token = await signDevToken(SECRET, { sub: `auth|val-${suffix}`, email: u.email });
     // The pre-suppressed address the import must skip (never billed).
     await owner.suppression.create({
-      data: { workspaceId: ws, channel: "email", address: `supp-${suffix}@ok.test`, reason: "BOUNCED" },
+      data: {
+        workspaceId: ws,
+        channel: "email",
+        address: `supp-${suffix}@ok.test`,
+        reason: "BOUNCED",
+      },
     });
     // A fresh cached verdict the light pass serves instantly.
     await owner.emailValidationVerdict.create({
@@ -167,7 +172,9 @@ describe.skipIf(!hasDb)("Contacts validation (LH1 W2)", () => {
 
   it("the report matches the fixture verdict-for-verdict as the batch resolves", async () => {
     // Import completed instantly (async stance) — contacts land unverified.
-    const before = await request(app.getHttpServer()).get(`/contacts/validation-batches/${batchId}`).set(auth());
+    const before = await request(app.getHttpServer())
+      .get(`/contacts/validation-batches/${batchId}`)
+      .set(auth());
     expect(before.status).toBe(200);
     expect(before.body.counts).toMatchObject({ total: 4, pending: 4 });
 
@@ -176,7 +183,9 @@ describe.skipIf(!hasDb)("Contacts validation (LH1 W2)", () => {
     // The suppressed row provably never billed (free-filter order).
     expect(provider.seen).not.toContain(`supp-${suffix}@ok.test`);
 
-    const res = await request(app.getHttpServer()).get(`/contacts/validation-batches/${batchId}`).set(auth());
+    const res = await request(app.getHttpServer())
+      .get(`/contacts/validation-batches/${batchId}`)
+      .set(auth());
     expect(res.status).toBe(200);
     expect(res.body.status).toBe("completed");
     expect(res.body.counts).toMatchObject({
@@ -272,6 +281,8 @@ describe.skipIf(!hasDb)("Contacts validation (LH1 W2)", () => {
     expect(supp.status).toBe(201);
     expect(supp.body.suppressed).toBe(true);
     expect(supp.body.emailVerdict).toBe("unverified");
-    expect(await owner.validationBatch.count({ where: { workspaceId: ws, source: "single" } })).toBe(1);
+    expect(
+      await owner.validationBatch.count({ where: { workspaceId: ws, source: "single" } }),
+    ).toBe(1);
   });
 });

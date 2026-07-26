@@ -68,7 +68,9 @@ export function SidebarView({
           onClick={onToggleWs}
         >
           <span className="cf-sb__ws-badge">{(activeWs?.name ?? "W").slice(0, 1)}</span>
-          <span className="cf-sb__ws-name" data-testid="ws-active-name">{activeWs?.name ?? "Select workspace"}</span>
+          <span className="cf-sb__ws-name" data-testid="ws-active-name">
+            {activeWs?.name ?? "Select workspace"}
+          </span>
           <span className="cf-sb__chev" aria-hidden="true">
             {wsOpen ? "▴" : "▾"}
           </span>
@@ -86,7 +88,9 @@ export function SidebarView({
                 className="cf-sb__ws-item"
                 onClick={() => onSelectWorkspace?.(m.workspaceId)}
               >
-                <span className="cf-sb__ws-badge cf-sb__ws-badge--sm">{m.workspace.name.slice(0, 1)}</span>
+                <span className="cf-sb__ws-badge cf-sb__ws-badge--sm">
+                  {m.workspace.name.slice(0, 1)}
+                </span>
                 <span className="cf-sb__ws-item-name">{m.workspace.name}</span>
                 {m.workspaceId === activeWs?.id ? (
                   <span className="cf-sb__check" aria-hidden="true">
@@ -105,7 +109,9 @@ export function SidebarView({
           <a
             key={item.key}
             href={item.href}
-            className={["cf-sb__item", item.key === activeKey ? "cf-sb__item--active" : ""].filter(Boolean).join(" ")}
+            className={["cf-sb__item", item.key === activeKey ? "cf-sb__item--active" : ""]
+              .filter(Boolean)
+              .join(" ")}
             aria-current={item.key === activeKey ? "page" : undefined}
           >
             <span className="cf-sb__icon" aria-hidden="true">
@@ -120,7 +126,11 @@ export function SidebarView({
       <div className="cf-sb__tools-wrap">
         <button
           type="button"
-          className={["cf-sb__item", "cf-sb__tools-toggle", toolsActive ? "cf-sb__item--active" : ""]
+          className={[
+            "cf-sb__item",
+            "cf-sb__tools-toggle",
+            toolsActive ? "cf-sb__item--active" : "",
+          ]
             .filter(Boolean)
             .join(" ")}
           aria-haspopup="menu"
@@ -193,7 +203,12 @@ export function SidebarView({
               { label: "What's new", href: "/help" },
               { label: "Contact support", href: "/help" },
             ].map((h) => (
-              <a key={h.label} href={h.href} role="menuitem" className="cf-sb__item cf-sb__item--tool">
+              <a
+                key={h.label}
+                href={h.href}
+                role="menuitem"
+                className="cf-sb__item cf-sb__item--tool"
+              >
                 <span className="cf-sb__item-label">{h.label}</span>
               </a>
             ))}
@@ -202,7 +217,9 @@ export function SidebarView({
       </div>
       <a
         href="/settings"
-        className={["cf-sb__item", activeKey === "settings" ? "cf-sb__item--active" : ""].filter(Boolean).join(" ")}
+        className={["cf-sb__item", activeKey === "settings" ? "cf-sb__item--active" : ""]
+          .filter(Boolean)
+          .join(" ")}
         aria-current={activeKey === "settings" ? "page" : undefined}
       >
         <span className="cf-sb__icon" aria-hidden="true">
@@ -232,11 +249,15 @@ export function SidebarView({
         {profileOpen ? (
           <div className="cf-sb__profile-menu" role="menu" aria-label="Account">
             <a className="cf-sb__profile-item" role="menuitem" href="/settings">
-              <span className="cf-sb__icon" aria-hidden="true">☺</span>
+              <span className="cf-sb__icon" aria-hidden="true">
+                ☺
+              </span>
               Account
             </a>
             <a className="cf-sb__profile-item" role="menuitem" href="/settings">
-              <span className="cf-sb__icon" aria-hidden="true">⚙</span>
+              <span className="cf-sb__icon" aria-hidden="true">
+                ⚙
+              </span>
               Settings
             </a>
             <button
@@ -246,7 +267,9 @@ export function SidebarView({
               data-testid="sign-out"
               onClick={onSignOut}
             >
-              <span className="cf-sb__icon" aria-hidden="true">⏻</span>
+              <span className="cf-sb__icon" aria-hidden="true">
+                ⏻
+              </span>
               Sign out
             </button>
           </div>

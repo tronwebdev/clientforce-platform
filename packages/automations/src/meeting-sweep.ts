@@ -52,7 +52,10 @@ export async function runBeforeMeetingSweep(
     where: { enabled: true, trigger: { path: ["kind"], equals: "before_meeting" } },
     take: RULE_BATCH,
   });
-  const byCampaign = new Map<string, { workspaceId: string; rules: Array<ParsedRule & { hours: number }> }>();
+  const byCampaign = new Map<
+    string,
+    { workspaceId: string; rules: Array<ParsedRule & { hours: number }> }
+  >();
   for (const row of rows) {
     const trigger = campaignRuleTriggerSchema.safeParse(row.trigger);
     const actions = actionsSchema.safeParse(row.actions);
@@ -87,11 +90,14 @@ export async function runBeforeMeetingSweep(
         startAt: { gt: now, lte: new Date(now.getTime() + maxHours * HOUR_MS) },
       },
       select: { id: true, contactId: true, enrollmentId: true, startAt: true },
-      orderBy: { startAt: "asc" }, take: MEETING_BATCH,
+      orderBy: { startAt: "asc" },
+      take: MEETING_BATCH,
     });
     for (const meeting of meetings) {
       checked += 1;
-      const due = rules.filter((r) => now.getTime() >= meeting.startAt.getTime() - r.hours * HOUR_MS);
+      const due = rules.filter(
+        (r) => now.getTime() >= meeting.startAt.getTime() - r.hours * HOUR_MS,
+      );
       if (due.length === 0) continue;
       if (!(await enrollmentFireable(deps, meeting.enrollmentId))) continue;
       const ctx: RunContext = {
@@ -156,11 +162,14 @@ export async function runBeforeMeetingSweep(
         startAt: { gt: now, lte: new Date(now.getTime() + maxHours * HOUR_MS) },
       },
       select: { id: true, contactId: true, enrollmentId: true, campaignId: true, startAt: true },
-      orderBy: { startAt: "asc" }, take: MEETING_BATCH,
+      orderBy: { startAt: "asc" },
+      take: MEETING_BATCH,
     });
     for (const meeting of meetings) {
       checked += 1;
-      const due = rules.filter((r) => now.getTime() >= meeting.startAt.getTime() - r.hours * HOUR_MS);
+      const due = rules.filter(
+        (r) => now.getTime() >= meeting.startAt.getTime() - r.hours * HOUR_MS,
+      );
       if (due.length === 0) continue;
       if (!(await enrollmentFireable(deps, meeting.enrollmentId))) continue;
       const ctx: RunContext = {
@@ -193,7 +202,10 @@ export async function runBeforeMeetingSweep(
 
 /** Meetings without an enrollment ref still fire (actions guard themselves);
  *  a referenced enrollment must be ACTIVE/DONE — the bus-path inertness. */
-async function enrollmentFireable(deps: MeetingSweepDeps, enrollmentId: string | null): Promise<boolean> {
+async function enrollmentFireable(
+  deps: MeetingSweepDeps,
+  enrollmentId: string | null,
+): Promise<boolean> {
   if (!enrollmentId) return true;
   const enrollment = await deps.ownerPrisma.enrollment.findUnique({
     where: { id: enrollmentId },

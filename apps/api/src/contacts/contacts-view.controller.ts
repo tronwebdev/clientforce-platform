@@ -58,7 +58,9 @@ export class ContactsViewController {
             status: true,
             updatedAt: true,
             campaignId: true,
-            campaign: { select: { agent: { select: { name: true, goal: true, guardrails: true } } } },
+            campaign: {
+              select: { agent: { select: { name: true, goal: true, guardrails: true } } },
+            },
           },
         }),
         tx.event.groupBy({
@@ -167,7 +169,10 @@ export class ContactsViewController {
       // C2.9 (DEC-059): goal-completion moves carry the campaign goal + label.
       const goal =
         stage === "booked" && enrollment.campaign?.agent
-          ? { goalKey: enrollment.campaign.agent.goal, label: rowGoal(enrollment.campaign.agent).label }
+          ? {
+              goalKey: enrollment.campaign.agent.goal,
+              label: rowGoal(enrollment.campaign.agent).label,
+            }
           : null;
       await tx.event.create({
         data: {
@@ -176,7 +181,12 @@ export class ContactsViewController {
           contactId: id,
           enrollmentId: enrollment.id,
           campaignId: enrollment.campaignId,
-          payload: { fromStage: enrollment.pipelineStage, toStage: stage, manual: true, ...(goal ?? {}) },
+          payload: {
+            fromStage: enrollment.pipelineStage,
+            toStage: stage,
+            manual: true,
+            ...(goal ?? {}),
+          },
         },
       });
       return updated;
@@ -207,9 +217,19 @@ export class ContactsViewController {
           // P5 W3 (DEC-085): email suppression addresses are stored lowercase.
           await tx.suppression.upsert({
             where: {
-              workspaceId_channel_address: { workspaceId, channel: "email", address: contact.email.toLowerCase() },
+              workspaceId_channel_address: {
+                workspaceId,
+                channel: "email",
+                address: contact.email.toLowerCase(),
+              },
             },
-            create: { workspaceId, channel: "email", address: contact.email.toLowerCase(), reason: "MANUAL", source: "contacts-bulk" },
+            create: {
+              workspaceId,
+              channel: "email",
+              address: contact.email.toLowerCase(),
+              reason: "MANUAL",
+              source: "contacts-bulk",
+            },
             update: {},
           });
         }
@@ -231,7 +251,12 @@ export class ContactsViewController {
         }
         if (enrollments.length === 0) {
           await tx.event.create({
-            data: { workspaceId, type: "lead.unsubscribed.v1", contactId: id, payload: { source: "contacts-bulk" } },
+            data: {
+              workspaceId,
+              type: "lead.unsubscribed.v1",
+              contactId: id,
+              payload: { source: "contacts-bulk" },
+            },
           });
         }
         updated += 1;

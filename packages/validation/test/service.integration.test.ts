@@ -6,11 +6,7 @@
  * Provider mocked (CI rule); skips without infra.
  */
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import {
-  createAppPrismaClient,
-  createPrismaClient,
-  type PrismaClient,
-} from "@clientforce/db";
+import { createAppPrismaClient, createPrismaClient, type PrismaClient } from "@clientforce/db";
 import { validateEvent } from "@clientforce/events";
 import {
   ValidationProviderError,
@@ -59,7 +55,9 @@ describe.skipIf(!hasInfra)("validation service (LH1 W1)", () => {
   };
 
   const newContact = async (ws: string, email: string) =>
-    owner.contact.create({ data: { workspaceId: ws, source: "test", optOut: {}, tags: [], email } });
+    owner.contact.create({
+      data: { workspaceId: ws, source: "test", optOut: {}, tags: [], email },
+    });
 
   const makeDeps = (
     provider: RecordingProvider,
@@ -92,7 +90,9 @@ describe.skipIf(!hasInfra)("validation service (LH1 W1)", () => {
   beforeAll(async () => {
     owner = createPrismaClient();
     app = createAppPrismaClient();
-    const agency = await owner.agency.create({ data: { name: suffix, slug: suffix, branding: {} } });
+    const agency = await owner.agency.create({
+      data: { name: suffix, slug: suffix, branding: {} },
+    });
     agencyId = agency.id;
   });
   afterAll(async () => {
@@ -130,7 +130,12 @@ describe.skipIf(!hasInfra)("validation service (LH1 W1)", () => {
       },
     });
     await owner.suppression.create({
-      data: { workspaceId: ws, channel: "email", address: `suppressed-${suffix}@t.test`, reason: "BOUNCED" },
+      data: {
+        workspaceId: ws,
+        channel: "email",
+        address: `suppressed-${suffix}@t.test`,
+        reason: "BOUNCED",
+      },
     });
 
     const contacts = [dup1, dup2, cached, suppressed, badSyntax, noMx, flakyMx, ok];
@@ -155,22 +160,44 @@ describe.skipIf(!hasInfra)("validation service (LH1 W1)", () => {
     // Item outcomes, verdict-for-verdict.
     const items = await owner.validationBatchItem.findMany({ where: { batchId } });
     const byContact = new Map(items.map((i) => [i.contactId, i]));
-    expect(byContact.get(dup1.id)).toMatchObject({ outcome: "valid", via: "zerobounce", billed: true });
+    expect(byContact.get(dup1.id)).toMatchObject({
+      outcome: "valid",
+      via: "zerobounce",
+      billed: true,
+    });
     expect(byContact.get(dup2.id)).toMatchObject({ outcome: "valid", via: "zerobounce" });
-    expect(byContact.get(cached.id)).toMatchObject({ outcome: "risky", via: "cache", billed: false });
+    expect(byContact.get(cached.id)).toMatchObject({
+      outcome: "risky",
+      via: "cache",
+      billed: false,
+    });
     expect(byContact.get(suppressed.id)).toMatchObject({
       outcome: "skipped_suppressed",
       via: "suppression",
       billed: false,
     });
-    expect(byContact.get(badSyntax.id)).toMatchObject({ outcome: "invalid", via: "syntax", billed: false });
+    expect(byContact.get(badSyntax.id)).toMatchObject({
+      outcome: "invalid",
+      via: "syntax",
+      billed: false,
+    });
     expect(byContact.get(noMx.id)).toMatchObject({ outcome: "invalid", via: "mx", billed: false });
-    expect(byContact.get(flakyMx.id)).toMatchObject({ outcome: "valid", via: "zerobounce", billed: true });
-    expect(byContact.get(ok.id)).toMatchObject({ outcome: "valid", via: "zerobounce", billed: true });
+    expect(byContact.get(flakyMx.id)).toMatchObject({
+      outcome: "valid",
+      via: "zerobounce",
+      billed: true,
+    });
+    expect(byContact.get(ok.id)).toMatchObject({
+      outcome: "valid",
+      via: "zerobounce",
+      billed: true,
+    });
 
     // Contact verdict columns — the gate's read. Suppressed rows are SKIPPED,
     // never verdicted (the ledger stays authoritative; no spend, no claim).
-    const fresh = await owner.contact.findMany({ where: { id: { in: contacts.map((c) => c.id) } } });
+    const fresh = await owner.contact.findMany({
+      where: { id: { in: contacts.map((c) => c.id) } },
+    });
     const verdictOf = (id: string) => fresh.find((c) => c.id === id)?.emailVerdict;
     expect(verdictOf(dup1.id)).toBe("valid");
     expect(verdictOf(dup2.id)).toBe("valid");
@@ -218,13 +245,21 @@ describe.skipIf(!hasInfra)("validation service (LH1 W1)", () => {
     });
     const provider2 = new RecordingProvider();
     const events2: ValidationEventInput[] = [];
-    const rerunResult = await runValidationBatchToSettled(makeDeps(provider2, events2), ws, rerun.batchId);
+    const rerunResult = await runValidationBatchToSettled(
+      makeDeps(provider2, events2),
+      ws,
+      rerun.batchId,
+    );
     expect(rerunResult.status).toBe("completed");
     expect(provider2.seen).toEqual([]);
     const rerunCompletion = events2.find((e) => e.type === "validation.batch_completed.v1");
     // 7 rows served by cache (the dup address covers two rows); the
     // suppressed row skips. billed: 0 is the whole point — never re-bill.
-    expect(rerunCompletion?.payload).toMatchObject({ billed: 0, cacheHits: 7, skippedSuppressed: 1 });
+    expect(rerunCompletion?.payload).toMatchObject({
+      billed: 0,
+      cacheHits: 7,
+      skippedSuppressed: 1,
+    });
   });
 
   it("an EXPIRED cache row re-bills (TTL ~90d)", async () => {
@@ -286,7 +321,9 @@ describe.skipIf(!hasInfra)("validation service (LH1 W1)", () => {
     const items = await owner.validationBatchItem.findMany({ where: { batchId } });
     expect(items.find((i) => i.contactId === bad.id)?.outcome).toBe("invalid");
     expect(items.find((i) => i.contactId === good.id)?.outcome).toBe("pending");
-    expect((await owner.contact.findUniqueOrThrow({ where: { id: good.id } })).emailVerdict).toBe("unverified");
+    expect((await owner.contact.findUniqueOrThrow({ where: { id: good.id } })).emailVerdict).toBe(
+      "unverified",
+    );
     const paused = events.filter((e) => e.type === "validation.paused.v1");
     expect(paused).toHaveLength(1);
     expect(paused[0]?.payload).toMatchObject({ reason: "provider_unavailable", pendingCount: 1 });
@@ -301,7 +338,9 @@ describe.skipIf(!hasInfra)("validation service (LH1 W1)", () => {
     provider.fail = null;
     const settled = await runValidationBatchToSettled(deps, ws, batchId);
     expect(settled.status).toBe("completed");
-    expect((await owner.contact.findUniqueOrThrow({ where: { id: good.id } })).emailVerdict).toBe("valid");
+    expect((await owner.contact.findUniqueOrThrow({ where: { id: good.id } })).emailVerdict).toBe(
+      "valid",
+    );
     expect(events.filter((e) => e.type === "validation.batch_completed.v1")).toHaveLength(1);
   });
 
@@ -326,7 +365,11 @@ describe.skipIf(!hasInfra)("validation service (LH1 W1)", () => {
     });
 
     const turn1 = await processValidationBatchChunk(deps, ws, batchId);
-    expect(turn1).toMatchObject({ status: "held", heldReason: "workspace_allowance", requeue: true });
+    expect(turn1).toMatchObject({
+      status: "held",
+      heldReason: "workspace_allowance",
+      requeue: true,
+    });
     expect(turn1.requeueDelayMs).toBeGreaterThan(0);
     expect(provider.seen).toHaveLength(2); // exactly the headroom, deterministic
     const paused = events.filter((e) => e.type === "validation.paused.v1");
@@ -411,9 +454,9 @@ describe.skipIf(!hasInfra)("validation service (LH1 W1)", () => {
     );
     expect(turn.status).toBe("skipped");
     expect(turn.requeue).toBe(true);
-    expect((await owner.validationBatch.findUniqueOrThrow({ where: { id: b3.batchId } })).status).toBe(
-      "queued",
-    );
+    expect(
+      (await owner.validationBatch.findUniqueOrThrow({ where: { id: b3.batchId } })).status,
+    ).toBe("queued");
   });
 
   it("fairness is turn-granular: two workspaces' imports interleave chunk-by-chunk", async () => {

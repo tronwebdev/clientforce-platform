@@ -93,7 +93,10 @@ export async function loadCallContextScoped(
     goal: agent.goal,
     goalLabel: guardrails.goalLabel,
     strategyNotes: strategy.strategyNotes,
-    contextFacts: contextText.split("\n").map((l) => l.trim()).filter(Boolean),
+    contextFacts: contextText
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean),
     neverSay: strategy.neverSay,
   });
   const neverSay = [...new Set([...strategy.neverSay, ...(brief.neverSay ?? [])])];

@@ -99,9 +99,7 @@ export function mainStepPosition(
     if (!node) break;
     if (node.type === "step") stepsInOrder.push(node.id);
     cur =
-      node.type === "branch"
-        ? node.cases.find((c) => c.when === "default")?.goto
-        : next.get(cur);
+      node.type === "branch" ? node.cases.find((c) => c.when === "default")?.goto : next.get(cur);
   }
   const at = stepsInOrder.indexOf(stepId);
   return at === -1 ? undefined : { index: at + 1, count: stepsInOrder.length };

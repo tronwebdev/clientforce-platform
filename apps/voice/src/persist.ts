@@ -36,7 +36,10 @@ export interface VoiceMessageRow {
   meta: Prisma.InputJsonValue;
 }
 
-export function rowsFromTranscript(turns: VoiceTurn[], target: TranscriptTarget): VoiceMessageRow[] {
+export function rowsFromTranscript(
+  turns: VoiceTurn[],
+  target: TranscriptTarget,
+): VoiceMessageRow[] {
   const base = target.startedAt.getTime();
   return turns
     .filter((t) => t.content.trim().length > 0)

@@ -39,8 +39,16 @@ describe.skipIf(!hasDb)("contact custom fields e2e (C2.7)", () => {
       data: { name: suffix, slug: suffix, branding: {} },
     });
     agencyId = agency.id;
-    wsA = (await owner.workspace.create({ data: { agencyId, name: "A", slug: `a-${suffix}`, settings: {} } })).id;
-    wsB = (await owner.workspace.create({ data: { agencyId, name: "B", slug: `b-${suffix}`, settings: {} } })).id;
+    wsA = (
+      await owner.workspace.create({
+        data: { agencyId, name: "A", slug: `a-${suffix}`, settings: {} },
+      })
+    ).id;
+    wsB = (
+      await owner.workspace.create({
+        data: { agencyId, name: "B", slug: `b-${suffix}`, settings: {} },
+      })
+    ).id;
 
     const u1 = await owner.user.create({
       data: { email: `owner-${suffix}@t.test`, authProviderId: `auth|owner-${suffix}` },
@@ -96,9 +104,15 @@ describe.skipIf(!hasDb)("contact custom fields e2e (C2.7)", () => {
   it("key and type are immutable — PATCH with them → 400; label/archived PATCH ok", async () => {
     const list = await asOwner(api().get("/contact-fields"));
     const def = list.body.find((d: { key: string }) => d.key === "source_url");
-    await asOwner(api().patch(`/contact-fields/${def.id}`)).send({ key: "hacked" }).expect(400);
-    await asOwner(api().patch(`/contact-fields/${def.id}`)).send({ type: "NUMBER" }).expect(400);
-    const renamed = await asOwner(api().patch(`/contact-fields/${def.id}`)).send({ label: "Website" });
+    await asOwner(api().patch(`/contact-fields/${def.id}`))
+      .send({ key: "hacked" })
+      .expect(400);
+    await asOwner(api().patch(`/contact-fields/${def.id}`))
+      .send({ type: "NUMBER" })
+      .expect(400);
+    const renamed = await asOwner(api().patch(`/contact-fields/${def.id}`)).send({
+      label: "Website",
+    });
     expect(renamed.status).toBe(200);
     expect(renamed.body.label).toBe("Website");
     expect(renamed.body.key).toBe("source_url");
@@ -127,7 +141,9 @@ describe.skipIf(!hasDb)("contact custom fields e2e (C2.7)", () => {
   it("archived def: values preserved, key no longer accepted, hidden from active use", async () => {
     const list = await asOwner(api().get("/contact-fields"));
     const industry = list.body.find((d: { key: string }) => d.key === "industry");
-    await asOwner(api().patch(`/contact-fields/${industry.id}`)).send({ archived: true }).expect(200);
+    await asOwner(api().patch(`/contact-fields/${industry.id}`))
+      .send({ archived: true })
+      .expect(200);
 
     // key now rejects on write…
     await asOwner(api().post("/contacts"))
@@ -140,7 +156,9 @@ describe.skipIf(!hasDb)("contact custom fields e2e (C2.7)", () => {
     expect(c1.custom.industry).toBe("Ortho");
 
     // un-archive restores acceptance.
-    await asOwner(api().patch(`/contact-fields/${industry.id}`)).send({ archived: false }).expect(200);
+    await asOwner(api().patch(`/contact-fields/${industry.id}`))
+      .send({ archived: false })
+      .expect(200);
   });
 
   it("31st ACTIVE def → designed 422 (archived defs don't count)", async () => {

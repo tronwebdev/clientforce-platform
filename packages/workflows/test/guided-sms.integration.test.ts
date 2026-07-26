@@ -17,7 +17,14 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { ApplicationFailure } from "@temporalio/common";
 import { AiGateway } from "@clientforce/ai";
-import { createSmsStepComposer, SMS_OPT_OUT_LINE, smsSegmentCount, type EmailSender, type RenderedSms, type SmsSender } from "@clientforce/channels";
+import {
+  createSmsStepComposer,
+  SMS_OPT_OUT_LINE,
+  smsSegmentCount,
+  type EmailSender,
+  type RenderedSms,
+  type SmsSender,
+} from "@clientforce/channels";
 import { GUIDED_SMS_CREDITS, type StepBrief } from "@clientforce/core";
 import {
   createAppPrismaClient,
@@ -56,7 +63,10 @@ class CapturingSms implements SmsSender {
   private n = 0;
   async send(sms: RenderedSms, _sender: SenderConnection) {
     this.sent.push(sms);
-    return { providerMessageId: `SM-g1-${++this.n}-${suffix}`, segments: smsSegmentCount(sms.body) };
+    return {
+      providerMessageId: `SM-g1-${++this.n}-${suffix}`,
+      segments: smsSegmentCount(sms.body),
+    };
   }
 }
 const emailStub: EmailSender = {
@@ -207,12 +217,26 @@ describe.skipIf(!hasInfra)("guided SMS end-to-end (compose → checks → bounda
     ).id;
     enrollA = (
       await owner.enrollment.create({
-        data: { workspaceId: ws, campaignId, contactId: contactA, workflowId: `enroll-a-${suffix}`, pipelineStage: "new", meta: {} },
+        data: {
+          workspaceId: ws,
+          campaignId,
+          contactId: contactA,
+          workflowId: `enroll-a-${suffix}`,
+          pipelineStage: "new",
+          meta: {},
+        },
       })
     ).id;
     enrollB = (
       await owner.enrollment.create({
-        data: { workspaceId: ws, campaignId, contactId: contactB, workflowId: `enroll-b-${suffix}`, pipelineStage: "new", meta: {} },
+        data: {
+          workspaceId: ws,
+          campaignId,
+          contactId: contactB,
+          workflowId: `enroll-b-${suffix}`,
+          pipelineStage: "new",
+          meta: {},
+        },
       })
     ).id;
 
