@@ -19,5 +19,7 @@ export * from "./webhook-guard";
 export * from "./webhook-deliver";
 export * from "./hubspot";
 export * from "./crm";
+export * from "./api-key";
+export * from "./zapier";
 
 export const INTEGRATIONS_PACKAGE = "@clientforce/integrations";

@@ -74,6 +74,7 @@ export * from "./validation";
 // Integrations (INT W1, DEC-093) — the ONE provider registry, probe-backed
 // connection states, per-provider config schemas, typed refusal vocabulary.
 export * from "./integrations";
+export * from "./zapier";
 
 // On-call contact recall (SPEC A, DEC-099) — the facet union the
 // `lookup_contact_context` tool enumerates, the bounded result shape, the

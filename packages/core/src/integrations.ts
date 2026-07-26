@@ -13,11 +13,20 @@ import { z } from "zod";
 
 /**
  * Providers with a LIVE adapter. Wave-gated: slack (W1) · gcal + calendly (W2)
- * · stripe + webhook (W3) · hubspot (W4). The web card grid renders the wider
- * prototype canon; anything not in this list is honest-absent there and the
- * API refuses it typed — the picker↔vocabulary drift test pins the two ends.
+ * · stripe + webhook (W3) · hubspot (W4) · zapier (W5). The web card grid
+ * renders the wider prototype canon; anything not in this list is honest-absent
+ * there and the API refuses it typed — the picker↔vocabulary drift test pins
+ * the two ends.
  */
-export const INTEGRATION_PROVIDERS = ["slack", "gcal", "calendly", "stripe", "webhooks", "hubspot"] as const;
+export const INTEGRATION_PROVIDERS = [
+  "slack",
+  "gcal",
+  "calendly",
+  "stripe",
+  "webhooks",
+  "hubspot",
+  "zapier",
+] as const;
 export const integrationProviderSchema = z.enum(INTEGRATION_PROVIDERS);
 export type IntegrationProvider = z.infer<typeof integrationProviderSchema>;
 
@@ -142,6 +151,25 @@ export const hubspotConfigSchema = z
   .strict();
 export type HubspotConfig = z.infer<typeof hubspotConfigSchema>;
 
+/**
+ * INT W5 (DEC-101): the Zapier private app. There is no vendor token to hold —
+ * the trust direction is INVERTED versus every other provider: Zapier
+ * authenticates to US with a workspace API key, so the secret is a
+ * `WorkspaceApiKey` row (hashed, never recoverable) rather than anything on the
+ * Integration. Config carries only non-secret display state: the key PREFIX so
+ * the drawer can name which key is live, and the private-app invite link. A
+ * public directory listing is a separate owner-gated step (Zapier's review).
+ */
+export const zapierConfigSchema = z
+  .object({
+    /** Visible key prefix (`cfk_ab12cd34`) — never the secret half. */
+    keyPrefix: z.string().min(1).max(40).optional(),
+    /** Zapier private-app invite URL the owner shares with their team. */
+    inviteUrl: z.string().url().max(500).optional(),
+  })
+  .strict();
+export type ZapierConfig = z.infer<typeof zapierConfigSchema>;
+
 export const integrationConfigSchemas: Record<IntegrationProvider, z.ZodTypeAny> = {
   slack: slackConfigSchema,
   gcal: gcalConfigSchema,
@@ -149,6 +177,7 @@ export const integrationConfigSchemas: Record<IntegrationProvider, z.ZodTypeAny>
   stripe: stripeConfigSchema,
   webhooks: webhooksConfigSchema,
   hubspot: hubspotConfigSchema,
+  zapier: zapierConfigSchema,
 };
 
 export const updateIntegrationSchema = z.object({
