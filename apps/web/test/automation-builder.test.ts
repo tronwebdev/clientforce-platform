@@ -114,6 +114,58 @@ describe("W2 recipes — pre-filled builder states, all fully expressible", () =
   });
 });
 
+describe("SPEC A (DEC-099) — the call_knowledge_gap trigger in the picker", () => {
+  it("lights up the canon's Voice & calls group, which had no live entry before", () => {
+    expect(TRIGGER_GROUP.call_knowledge_gap).toBe("Voice & calls");
+    expect(TRIGGER_PICKER_GROUPS).toContain("Voice & calls");
+  });
+
+  it("no honest-absent voice card still claims voice campaigns are coming", () => {
+    // This unit is what makes the old shared reason false — voice shipped,
+    // and one voice trigger is now live in the same group.
+    const voiceAbsent = ABSENT_TRIGGERS.filter((a) => a.group === "Voice & calls");
+    expect(voiceAbsent.length).toBeGreaterThan(0);
+    for (const a of voiceAbsent) {
+      expect(a.reason).not.toMatch(/arrives with voice campaigns/i);
+      expect(a.reason.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("the remaining voice absences name call-outcome work — the Q-032 scope, unchanged", () => {
+    const reasons = ABSENT_TRIGGERS.filter((a) => a.group === "Voice & calls").map((a) => a.reason);
+    expect(reasons).toContain("Arrives with call-outcome triggers");
+  });
+
+  it("sameTrigger compares facets as SETS — absent and empty both mean any facet", () => {
+    expect(
+      sameTrigger(
+        { kind: "call_knowledge_gap" },
+        { kind: "call_knowledge_gap", facets: [] },
+      ),
+    ).toBe(true);
+    expect(
+      sameTrigger(
+        { kind: "call_knowledge_gap", facets: ["knowledge", "profile"] },
+        { kind: "call_knowledge_gap", facets: ["profile", "knowledge"] },
+      ),
+    ).toBe(true);
+    // Different narrowings are DIFFERENT rules and must both be creatable.
+    expect(
+      sameTrigger(
+        { kind: "call_knowledge_gap", facets: ["knowledge"] },
+        { kind: "call_knowledge_gap", facets: ["history"] },
+      ),
+    ).toBe(false);
+    expect(
+      sameTrigger({ kind: "call_knowledge_gap" }, { kind: "call_knowledge_gap", facets: ["knowledge"] }),
+    ).toBe(false);
+  });
+
+  it("the builder's default payload for the kind is schema-valid", () => {
+    expect(campaignRuleTriggerSchema.safeParse(defaultTriggerFor("call_knowledge_gap")).success).toBe(true);
+  });
+});
+
 describe("W2 builder defaults + keyword helper", () => {
   it("defaultTriggerFor yields a schema-valid trigger for every picker kind", () => {
     for (const o of TRIGGER_OPTIONS) {

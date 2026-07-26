@@ -44,6 +44,27 @@ export const campaignRuleTriggerSchema = z.discriminatedUnion("kind", [
     /** Days of quiet after the sequence completed before the rule fires (once, ever, per enrollment). */
     days: z.number().int().min(1).max(365),
   }),
+  // SPEC A (DEC-099, owner-approved 2026-07-26): a real customer asked the
+  // agent something the record could not answer. Fires off
+  // `voice.context_retrieved.v1` when its `empty` count is non-zero — ONE
+  // firing per call, never per lookup (a chatty call would otherwise fire a
+  // dozen times; the Q-031 mass-fire concern, applied up front).
+  //
+  // This closes a loop that already exists in the product: the Business Core
+  // surfaces knowledge gaps and Train Agent is where the owner corrects them.
+  // A gap found mid-call is the highest-value instance of that — it came from
+  // a real customer, out loud, with the question recorded verbatim on the
+  // CallRetrieval receipt.
+  z.object({
+    kind: z.literal("call_knowledge_gap"),
+    /**
+     * Optional narrowing to the facets whose silence matters — e.g. only fire
+     * for `knowledge` gaps (a missing offer/pricing answer) and ignore an
+     * empty `history` lookup on a first-ever call, which is simply true.
+     * Absent/empty = any facet.
+     */
+    facets: z.array(z.string().min(1)).optional(),
+  }),
 ]);
 export type CampaignRuleTrigger = z.infer<typeof campaignRuleTriggerSchema>;
 export type CampaignRuleTriggerKind = CampaignRuleTrigger["kind"];
@@ -154,6 +175,15 @@ export function sameTrigger(a: CampaignRuleTrigger, b: CampaignRuleTrigger): boo
     }
     case "sequence_quiet":
       return a.days === (b as Extract<CampaignRuleTrigger, { kind: "sequence_quiet" }>).days;
+    case "call_knowledge_gap": {
+      // SPEC A (DEC-099): facets compare as SETS, the reply_classified
+      // precedent — absent and empty both mean "any facet", so they are the
+      // same trigger and a second one is a duplicate.
+      const other = b as Extract<CampaignRuleTrigger, { kind: "call_knowledge_gap" }>;
+      const setA = new Set(a.facets ?? []);
+      const setB = new Set(other.facets ?? []);
+      return setA.size === setB.size && [...setA].every((f) => setB.has(f));
+    }
     case "meeting_booked":
     case "opted_out":
     case "email_opened":

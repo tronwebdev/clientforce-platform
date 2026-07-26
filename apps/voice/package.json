@@ -19,6 +19,7 @@
     "@clientforce/core": "workspace:*",
     "@clientforce/db": "workspace:*",
     "@clientforce/events": "workspace:*",
+    "@clientforce/recall": "workspace:*",
     "ws": "^8.18.0"
   },
   "devDependencies": {

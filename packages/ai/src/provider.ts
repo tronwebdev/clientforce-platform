@@ -1,4 +1,4 @@
-import type { TokenUsage } from "./types";
+import type { TokenUsage, VoiceContentBlock, VoiceTool } from "./types";
 
 /** Parameters for a plain-text completion. */
 export interface TextParams {
@@ -46,14 +46,23 @@ export interface ToolResult {
 export interface StreamParams {
   model: string;
   system?: string;
-  turns: Array<{ role: "user" | "assistant"; content: string }>;
+  turns: Array<{ role: "user" | "assistant"; content: string | VoiceContentBlock[] }>;
   maxTokens: number;
   temperature?: number;
   signal: AbortSignal;
+  /** SPEC A (DEC-099): absent ⇒ no `tools` field on the wire at all, so the
+   *  pre-DEC-099 request is byte-identical. */
+  tools?: VoiceTool[];
 }
 
-/** Events yielded by a streaming completion, in order; `done` is always last. */
-export type StreamEvent = { type: "delta"; text: string } | { type: "done"; usage: TokenUsage };
+/**
+ * Events yielded by a streaming completion, in order; `done` is always last.
+ * `tool_use` only ever appears when the caller passed `tools`.
+ */
+export type StreamEvent =
+  | { type: "delta"; text: string }
+  | { type: "tool_use"; id: string; name: string; input: unknown }
+  | { type: "done"; usage: TokenUsage };
 
 /**
  * The seam the gateway talks through. Production = `AnthropicProvider`;

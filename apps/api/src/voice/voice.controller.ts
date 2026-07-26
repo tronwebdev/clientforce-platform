@@ -176,7 +176,13 @@ export class VoiceController {
     });
   }
 
-  /** Call detail + the transcript thread (Message rows carrying meta.callId). */
+  /**
+   * Call detail + the transcript thread (Message rows carrying meta.callId)
+   * + the SPEC A retrieval receipts: what the agent read from the record
+   * mid-call, in the order it read it. A turn with no receipt was answered
+   * from the brief alone — that absence is itself the audit signal, which is
+   * why empty and refused lookups are returned alongside the ones that hit.
+   */
   @Get("calls/:id")
   async detail(@Param("id") id: string) {
     return this.tenant.run(async (tx) => {
@@ -190,7 +196,25 @@ export class VoiceController {
         where: { channel: "voice", contactId: call.contactId, meta: { path: ["callId"], equals: id } },
         orderBy: { sentAt: "asc" },
       });
+      const retrievals = await tx.callRetrieval.findMany({
+        where: { callId: id },
+        orderBy: { seq: "asc" },
+      });
       return {
+        retrievals: retrievals.map((r) => ({
+          id: r.id,
+          callId: r.callId,
+          turn: r.turn,
+          seq: r.seq,
+          facet: r.facet,
+          query: r.query,
+          found: r.found,
+          itemCount: r.itemCount,
+          latencyMs: r.latencyMs,
+          refusalReason: r.refusalReason,
+          sources: Array.isArray(r.sources) ? (r.sources as string[]) : [],
+          createdAt: r.createdAt.toISOString(),
+        })),
         call: {
           id: call.id,
           status: call.status,

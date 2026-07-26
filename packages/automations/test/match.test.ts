@@ -56,6 +56,69 @@ describe("matchTrigger", () => {
       expect(matchTrigger(trigger, event(type, { messageId: "m", intent: "interested" }))).toBe(false);
     }
   });
+
+  // ── SPEC A (DEC-099): call_knowledge_gap ──────────────────────────────────
+  describe("call_knowledge_gap — a caller asked what the record couldn't answer", () => {
+    const gap = (emptyFacets: string[], over: Record<string, unknown> = {}) =>
+      event("voice.context_retrieved.v1", {
+        callId: "c1",
+        lookups: 2,
+        found: 1,
+        empty: emptyFacets.length,
+        refused: 0,
+        emptyFacets,
+        ...over,
+      });
+
+    it("fires when a lookup came back empty", () => {
+      expect(matchTrigger({ kind: "call_knowledge_gap" }, gap(["knowledge"]))).toBe(true);
+    });
+
+    it("stays SILENT when the call answered everything — the common case", () => {
+      expect(matchTrigger({ kind: "call_knowledge_gap" }, gap([]))).toBe(false);
+    });
+
+    it("a REFUSED lookup is not a gap — a timeout is infrastructure, not a hole", () => {
+      // Training the owner to fill a gap that was never there would be worse
+      // than staying quiet: the record may have had the answer all along.
+      const refusedOnly = event("voice.context_retrieved.v1", {
+        callId: "c1",
+        lookups: 1,
+        found: 0,
+        empty: 0,
+        refused: 1,
+        emptyFacets: [],
+      });
+      expect(matchTrigger({ kind: "call_knowledge_gap" }, refusedOnly)).toBe(false);
+    });
+
+    it("narrows to the facets the owner cares about", () => {
+      const trigger = { kind: "call_knowledge_gap", facets: ["knowledge"] } as const;
+      expect(matchTrigger(trigger, gap(["knowledge"]))).toBe(true);
+      expect(matchTrigger(trigger, gap(["knowledge", "history"]))).toBe(true);
+      // An empty `history` lookup on a first-ever call is simply TRUE, not a
+      // knowledge gap — narrowing exists so that never pages anyone.
+      expect(matchTrigger(trigger, gap(["history"]))).toBe(false);
+    });
+
+    it("absent or empty narrowing means any facet", () => {
+      expect(matchTrigger({ kind: "call_knowledge_gap" }, gap(["profile"]))).toBe(true);
+      expect(matchTrigger({ kind: "call_knowledge_gap", facets: [] }, gap(["profile"]))).toBe(true);
+    });
+
+    it("ignores every other event type", () => {
+      for (const type of ["call.completed.v1", "email.replied.v1", "voice.compose_refused.v1"]) {
+        expect(matchTrigger({ kind: "call_knowledge_gap" }, event(type, {}))).toBe(false);
+      }
+    });
+
+    it("fires ONCE per call — the event is one summary, not one per lookup", () => {
+      // The mass-fire guard (the Q-031 concern applied up front): a call that
+      // ran a dozen lookups still produces exactly one matchable event.
+      const oneCall = gap(["knowledge", "profile", "bookings"], { lookups: 12, empty: 3 });
+      expect(matchTrigger({ kind: "call_knowledge_gap" }, oneCall)).toBe(true);
+    });
+  });
 });
 
 describe("keywordHit", () => {

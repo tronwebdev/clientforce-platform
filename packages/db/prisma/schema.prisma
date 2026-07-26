@@ -804,6 +804,46 @@ enum CallStatus {
   FAILED
 }
 
+/// SPEC A (DEC-099): one row per mid-call context lookup — the RECEIPT for
+/// `lookup_contact_context`. The agent answers a caller's question from the
+/// record, so the record must show what it actually read before it spoke:
+/// which facet, the question in its own words, whether anything was found,
+/// and which rows grounded the answer. A turn with no receipt was answered
+/// from the brief alone — that absence is itself the audit signal.
+///
+/// Append-only (the CreditLedger stance — enforced in code, no UPDATE path).
+/// `found: false` rows are kept deliberately: an honest "I don't have that on
+/// record" is only provable if the empty lookup left a trace.
+/// Loose `callId` reference with no FK, matching `Call` itself.
+model CallRetrieval {
+  id          String   @id @default(cuid())
+  workspaceId String
+  callId      String
+  contactId   String
+  /// 1-based caller turn this lookup served (0 = before any turn).
+  turn        Int
+  /// Order within the call — receipts render in this order; with `callId` it
+  /// is also the idempotency key for a retried flush.
+  seq         Int
+  /// RECALL_FACETS in @clientforce/core is the enum of record.
+  facet       String
+  /// The model's own phrasing of what it was looking for — verbatim.
+  query       String
+  found       Boolean
+  itemCount   Int
+  latencyMs   Int
+  /// Typed refusal (RECALL_REFUSAL_REASONS) when the lookup could not run —
+  /// budget, timeout, store failure. Null on a completed lookup.
+  refusalReason String?
+  /// Provenance ids/labels of what was read — never the retrieved bodies
+  /// (those are already in the stores this points at).
+  sources     Json     @default("[]")
+  createdAt   DateTime @default(now())
+
+  @@unique([callId, seq])
+  @@index([workspaceId, callId, seq])
+}
+
 // P1.5 (handoff A7): checked at the send boundary together with
 // Contact.optOut; unsubscribe/bounce/spam events write rows here.
 model Suppression {

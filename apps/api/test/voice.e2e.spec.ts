@@ -229,6 +229,73 @@ describe.skipIf(!hasDb)("Voice API e2e (P3.1, DEC-078)", () => {
     expect(res.body.contact.firstName).toBe("Sam");
   });
 
+  it("GET /calls/:id — SPEC A retrieval receipts ride the detail, in call order", async () => {
+    await owner.callRetrieval.createMany({
+      data: [
+        {
+          workspaceId: ws,
+          callId,
+          contactId,
+          turn: 1,
+          seq: 0,
+          facet: "history",
+          query: "have we spoken before",
+          found: true,
+          itemCount: 2,
+          latencyMs: 41,
+          refusalReason: null,
+          sources: ["msg-a", "msg-b"],
+        },
+        // The EMPTY lookup is the one that makes an honest "I don't have that
+        // on record" checkable — it must reach the surface, not be filtered.
+        {
+          workspaceId: ws,
+          callId,
+          contactId,
+          turn: 2,
+          seq: 1,
+          facet: "bookings",
+          query: "existing booking",
+          found: false,
+          itemCount: 0,
+          latencyMs: 12,
+          refusalReason: null,
+          sources: [],
+        },
+        {
+          workspaceId: ws,
+          callId,
+          contactId,
+          turn: 3,
+          seq: 2,
+          facet: "knowledge",
+          query: "pricing",
+          found: false,
+          itemCount: 0,
+          latencyMs: 1500,
+          refusalReason: "LOOKUP_TIMEOUT",
+          sources: [],
+        },
+      ],
+    });
+
+    const res = await get(`/calls/${callId}`);
+    expect(res.status).toBe(200);
+    expect(res.body.retrievals).toHaveLength(3);
+    expect(res.body.retrievals.map((r: { seq: number }) => r.seq)).toEqual([0, 1, 2]);
+    expect(res.body.retrievals[0]).toMatchObject({
+      facet: "history",
+      query: "have we spoken before",
+      found: true,
+      itemCount: 2,
+      turn: 1,
+    });
+    expect(res.body.retrievals[0].sources).toEqual(["msg-a", "msg-b"]);
+    // Empty and refused stay distinguishable all the way to the surface.
+    expect(res.body.retrievals[1]).toMatchObject({ found: false, refusalReason: null });
+    expect(res.body.retrievals[2]).toMatchObject({ found: false, refusalReason: "LOOKUP_TIMEOUT" });
+  });
+
   it("voice defaults round-trip; the given-name validator rejects titles", async () => {
     const empty = await get("/voice/defaults");
     expect(empty.status).toBe(200);

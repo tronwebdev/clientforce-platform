@@ -5,10 +5,14 @@
  * brief derivation is deterministic.
  */
 import { describe, expect, it } from "vitest";
+import { getPrompt } from "@clientforce/ai";
 import {
   buildVoiceSystemPrompt,
   checkComposedVoiceTurn,
+  COMPOSER_VOICE_PROMPT_NAME,
+  COMPOSER_VOICE_SYSTEM,
   COMPOSER_VOICE_VERSION,
+  COMPOSER_VOICE_VERSION_RECALL,
   deriveCallBrief,
   mustSayCoverage,
   VOICE_TURN_MAX_CHARS,
@@ -121,6 +125,40 @@ describe("buildVoiceSystemPrompt (composer.voice@v1)", () => {
 
   it("stamps composer.voice@v1", () => {
     expect(COMPOSER_VOICE_VERSION).toBe("composer.voice@v1");
+  });
+});
+
+describe("buildVoiceSystemPrompt — the recall variant (SPEC A, composer.voice@v2)", () => {
+  it("a call WITHOUT recall renders v1 byte-identically", () => {
+    // The certification and demo rigs run with no database and therefore no
+    // lookup tool. They must keep producing exactly the prompt DEC-089
+    // certified, so the default path is pinned as a byte-for-byte identity.
+    expect(buildVoiceSystemPrompt(inputs(), { recall: false })).toBe(
+      buildVoiceSystemPrompt(inputs()),
+    );
+  });
+
+  it("v2 adds the lookup rules and the record section — and keeps every v1 rule verbatim", () => {
+    const v1 = buildVoiceSystemPrompt(inputs());
+    const v2 = buildVoiceSystemPrompt(inputs(), { recall: true });
+    expect(v2).not.toBe(v1);
+    // v2 is a strict superset: the whole v1 rules block survives unedited.
+    expect(v2).toContain(COMPOSER_VOICE_SYSTEM);
+    expect(v2).toContain("call the lookup tool FIRST");
+    expect(v2).toContain("WHAT'S ON RECORD");
+    // The honest-absence rule is the reason the unit exists — pin the words.
+    expect(v2).toContain("nothing on record");
+    expect(v2).toMatch(/NEVER guess a price/);
+  });
+
+  it("v2's call block is v1's plus the record section — the shared body cannot drift", () => {
+    const v1Body = getPrompt(COMPOSER_VOICE_PROMPT_NAME, 1).template;
+    const v2Body = getPrompt(COMPOSER_VOICE_PROMPT_NAME, 2).template;
+    expect(v2Body.startsWith(v1Body)).toBe(true);
+  });
+
+  it("stamps composer.voice@v2 for composed turns on a recall-enabled call", () => {
+    expect(COMPOSER_VOICE_VERSION_RECALL).toBe("composer.voice@v2");
   });
 });
 

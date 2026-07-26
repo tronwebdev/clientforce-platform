@@ -25,6 +25,8 @@ const TRIGGER_LABELS: Record<CampaignRuleTriggerKind, string> = {
   meeting_booked: "Meeting booked",
   opted_out: "Unsubscribed / opted out",
   lead_captured: "Form / lead captured",
+  // SPEC A (DEC-099): a live call hit a question the record could not answer.
+  call_knowledge_gap: "Call hit a knowledge gap",
 };
 
 export function triggerLabel(kind: CampaignRuleTriggerKind): string {
@@ -41,6 +43,7 @@ export const TRIGGER_ICONS: Record<CampaignRuleTriggerKind, string> = {
   meeting_booked: "📅",
   opted_out: "⊘",
   lead_captured: "⊞",
+  call_knowledge_gap: "◇",
 };
 
 /** R1-UI (DEC-091, additive): canon picker descriptions per kind. */
@@ -52,6 +55,7 @@ export const TRIGGER_DESCRIPTIONS: Record<CampaignRuleTriggerKind, string> = {
   meeting_booked: "A meeting is scheduled",
   opted_out: "A lead opts out",
   lead_captured: "A form, widget or LinkedIn lead arrives",
+  call_knowledge_gap: "A caller asks something the record can't answer",
 };
 
 /** The card-chip text for a concrete trigger (canon: "💬 Reply: Interested",
@@ -83,6 +87,10 @@ export const TRIGGER_OPTIONS: readonly TriggerOption[] = (
     "meeting_booked",
     "opted_out",
     "lead_captured",
+    // SPEC A (DEC-099). The Automations builder renders its picker FROM this
+    // list (filtered by TRIGGER_GROUP), so a kind absent here is invisible
+    // there — the vocabulary drives the picker, never a curated fork.
+    "call_knowledge_gap",
   ] as const satisfies readonly CampaignRuleTriggerKind[]
 ).map((kind) => ({ kind, label: TRIGGER_LABELS[kind], chip: triggerChip }));
 
@@ -107,6 +115,9 @@ export const TRIGGER_GROUP: Record<CampaignRuleTriggerKind, string> = {
   meeting_booked: "Meetings",
   opted_out: "Lead lifecycle",
   lead_captured: "Forms & widget",
+  // SPEC A (DEC-099): the FIRST live entry in the canon's "Voice & calls"
+  // group — until now every entry in it was honest-absent (Q-032).
+  call_knowledge_gap: "Voice & calls",
 };
 
 /** Canon group order (`Automations.dc.html` TRIG_GROUPS, verbatim). */
@@ -138,11 +149,11 @@ export const ABSENT_TRIGGERS: readonly AbsentPickerEntry[] = [
   { group: "Replies & conversations", icon: "💬", label: "Inbound message", desc: "New inbound SMS or WhatsApp", reason: "Arrives with inbox rules" },
   { group: "Email engagement", icon: "⚠", label: "Email bounced", desc: "A message hard-bounces", reason: "Arrives with deliverability triggers" },
   { group: "Email engagement", icon: "🚫", label: "Spam complaint", desc: "Marked as spam", reason: "Arrives with deliverability triggers" },
-  { group: "Voice & calls", icon: "☎", label: "AI call completed", desc: "A voice call finishes", reason: "Arrives with voice campaigns" },
-  { group: "Voice & calls", icon: "✦", label: "Call: interested", desc: "Call outcome is interested", reason: "Arrives with voice campaigns" },
-  { group: "Voice & calls", icon: "🎙", label: "Voicemail left", desc: "AI leaves a voicemail", reason: "Arrives with voice campaigns" },
-  { group: "Voice & calls", icon: "✖", label: "Call not answered", desc: "No pick-up on a call", reason: "Arrives with voice campaigns" },
-  { group: "Voice & calls", icon: "↺", label: "Callback requested", desc: "A lead asks for a callback", reason: "Arrives with voice campaigns" },
+  { group: "Voice & calls", icon: "☎", label: "AI call completed", desc: "A voice call finishes", reason: "Arrives with call-outcome triggers" },
+  { group: "Voice & calls", icon: "✦", label: "Call: interested", desc: "Call outcome is interested", reason: "Arrives with call-outcome triggers" },
+  { group: "Voice & calls", icon: "🎙", label: "Voicemail left", desc: "AI leaves a voicemail", reason: "Arrives with answering-machine detection" },
+  { group: "Voice & calls", icon: "✖", label: "Call not answered", desc: "No pick-up on a call", reason: "Arrives with call-outcome triggers" },
+  { group: "Voice & calls", icon: "↺", label: "Callback requested", desc: "A lead asks for a callback", reason: "Arrives with call-outcome triggers" },
   { group: "Meetings", icon: "⟳", label: "Meeting rescheduled", desc: "A meeting moves", reason: "Arrives with calendar sync" },
   { group: "Meetings", icon: "✕", label: "Meeting canceled / no-show", desc: "A meeting falls through", reason: "Arrives with calendar sync" },
   { group: "Meetings", icon: "⏰", label: "Before a meeting", desc: "A set time before a meeting", reason: "Arrives with calendar sync" },

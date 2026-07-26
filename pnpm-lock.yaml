@@ -153,6 +153,9 @@ importers:
       '@clientforce/events':
         specifier: workspace:*
         version: link:../../packages/events
+      '@clientforce/recall':
+        specifier: workspace:*
+        version: link:../../packages/recall
       ws:
         specifier: ^8.18.0
         version: 8.21.0
@@ -491,6 +494,31 @@ importers:
         specifier: ^3.24.1
         version: 3.25.76
     devDependencies:
+      '@types/node':
+        specifier: ^22.10.5
+        version: 22.20.0
+
+  packages/recall:
+    dependencies:
+      '@clientforce/ai':
+        specifier: workspace:*
+        version: link:../ai
+      '@clientforce/core':
+        specifier: workspace:*
+        version: link:../core
+      '@clientforce/db':
+        specifier: workspace:*
+        version: link:../db
+      '@clientforce/knowledge':
+        specifier: workspace:*
+        version: link:../knowledge
+      zod:
+        specifier: ^3.24.1
+        version: 3.25.76
+    devDependencies:
+      '@clientforce/channels':
+        specifier: workspace:*
+        version: link:../channels
       '@types/node':
         specifier: ^22.10.5
         version: 22.20.0

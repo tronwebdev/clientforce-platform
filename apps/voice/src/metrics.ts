@@ -32,6 +32,10 @@ export interface TurnMetric {
   /** DEC-092 (fix a): the model returned an EMPTY completion — the locked
    *  fallback line was spoken instead of silence. */
   emptyReply?: boolean;
+  /** SPEC A (DEC-099): record lookups this turn spent, in call order. */
+  lookups?: Array<{ facet: string; found: boolean; refusalReason?: string }>;
+  /** SPEC A: total wall-clock this turn spent inside lookups, ms. */
+  lookupMs?: number;
 }
 
 export interface BargeInMetric {
@@ -176,10 +180,56 @@ export class MetricsCollector {
     for (const t of this.turns) {
       if (t.commitSource) sources[t.commitSource] = (sources[t.commitSource] ?? 0) + 1;
     }
+    // SPEC A (DEC-099): a turn that pauses to read the record is structurally
+    // slower than one answered straight from the brief. Blending them would
+    // quietly move the certified TTFA numbers, so they are reported SPLIT and
+    // the pooled figure keeps its original meaning.
+    const lookupTurns = this.turns.filter((t) => (t.lookups?.length ?? 0) > 0);
+    const ttfaNoLookup = this.turns
+      .filter((t) => (t.lookups?.length ?? 0) === 0)
+      .map((t) => t.ttfaMs)
+      .filter((v): v is number => v !== undefined);
+    const ttfaWithLookup = lookupTurns
+      .map((t) => t.ttfaMs)
+      .filter((v): v is number => v !== undefined);
+    const allLookups = lookupTurns.flatMap((t) => t.lookups ?? []);
+
     return {
       turns: this.turns.length,
       callSeconds: Math.round(this.callSeconds * 10) / 10,
       ttfaMs: { p50: percentile(ttfa, 50), p95: percentile(ttfa, 95), samples: ttfa.length },
+      /** SPEC A: the honest split — never blend a lookup turn into the
+       *  straight-answer percentiles the certification gate is stated in. */
+      ttfaByLookup: {
+        withoutLookup: {
+          p50: percentile(ttfaNoLookup, 50),
+          p95: percentile(ttfaNoLookup, 95),
+          samples: ttfaNoLookup.length,
+        },
+        withLookup: {
+          p50: percentile(ttfaWithLookup, 50),
+          p95: percentile(ttfaWithLookup, 95),
+          samples: ttfaWithLookup.length,
+        },
+      },
+      recall: {
+        turnsWithLookup: lookupTurns.length,
+        lookups: allLookups.length,
+        found: allLookups.filter((l) => l.found).length,
+        empty: allLookups.filter((l) => !l.found && !l.refusalReason).length,
+        refused: allLookups.filter((l) => l.refusalReason).length,
+        // SPEC A (DEC-099): which facets came back EMPTY — the knowledge-gap
+        // trigger narrows on these. Refusals are excluded on purpose: a
+        // timeout is an infrastructure problem, not a hole in the knowledge
+        // base, and surfacing it as one would send the owner to train away a
+        // gap that was never there.
+        emptyFacets: [
+          ...new Set(
+            allLookups.filter((l) => !l.found && !l.refusalReason).map((l) => l.facet),
+          ),
+        ],
+        totalMs: lookupTurns.reduce((sum, t) => sum + (t.lookupMs ?? 0), 0),
+      },
       /** Raw per-turn samples — the certification aggregate pools these
        *  across sessions so gate percentiles cover ALL ≥100 turns. */
       ttfaSamplesMs: ttfa,

@@ -27,7 +27,7 @@
 |---|---|---|---|---|---|
 | Email channel | ✓ email.* | ✓ send | ✓ | ✓ sender | ✓ |
 | SMS channel | ✓ sms.* | ✓ segment | ✓ | ✓ sender | ✓ |
-| Voice (#93) | ✓ call.* | ✓ minute | ✓ (ride-along landed with #93's dial rail — `assertDialAllowed` calls `assertChannelLive("voice")`; back in the enum) | n/a (number) | ✓ |
+| Voice (#93; SPEC A/DEC-099 extends this row) | ✓ call.* · voice.compose_refused · **voice.context_retrieved.v1** (SPEC A: one summary per call, not per lookup) | ✓ minute (SPEC A adds no new billable action — a lookup's embedding + extra tokens ride the EXISTING per-call gateway cost accounting into `Call.costUsd`, so B1-W2 usage picks it up with no new meter) | ✓ (ride-along landed with #93's dial rail — `assertDialAllowed` calls `assertChannelLive("voice")`; back in the enum. SPEC A adds no kill-worthy surface: retrieval is a READ, not a send path) | n/a (number) | ✓ (+ **`CallRetrieval`** — workspace-scoped RLS table, so the RLS-exempt backoffice read sees it generically) |
 | Agents / campaigns | ✓ lead.*, stage_changed | ✓ regen | via channel | — | ✓ |
 | Contacts / lists | ✓ list.member.* | — | — | — | ✓ |
 | Sequence editor (#90) | ✓ (graph events) | ✓ regen | via channel | — | ✓ |

@@ -13,8 +13,16 @@
  * - The recording player renders only when a recording exists; recording is
  *   OFF by default (owner lock), so the transcript is the record.
  * - The ✦ AI summary card needs a summarizer no unit has shipped — absent.
+ *
+ * SPEC A (DEC-099) — §0-FLAGGED DESIGNED ADDITION: the "Looked up on this
+ * call" receipts block below the transcript. No prototype treatment exists —
+ * the canon predates mid-call retrieval entirely. It renders every lookup the
+ * agent ran, INCLUDING the ones that found nothing, because that is what makes
+ * an honest "I don't have that on record" checkable after the fact. Anatomy
+ * reuses the transcript block's type scale and the outcome-pill palette.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { RECALL_FACET_META, type CallRetrievalDto, type RecallFacet } from "@clientforce/core";
 import { avTint, cf, GRAD, initials, timeAgo } from "./shared";
 
 interface CallRow {
@@ -40,6 +48,67 @@ interface CallDetail {
   call: { id: string; status: string; outcome: string | null; durationSec: number | null; startedAt: string; meta: Record<string, unknown> | null };
   contact: { id: string; firstName: string | null; lastName: string | null; company: string | null } | null;
   transcript: TranscriptRow[];
+  /** SPEC A (DEC-099) — absent on calls that predate the unit. */
+  retrievals?: CallRetrievalDto[];
+}
+
+/**
+ * SPEC A: how a receipt reads at a glance. The three states are deliberately
+ * distinct — "we looked and found nothing" and "we could not look" are
+ * different claims about the same silence, and only one of them is a
+ * knowledge gap worth chasing.
+ */
+export function receiptState(r: CallRetrievalDto): { label: string; fg: string; bg: string } {
+  if (r.refusalReason) return { label: "Couldn't check", fg: "#C9543F", bg: "rgba(224,121,107,.16)" };
+  if (!r.found) return { label: "Nothing on record", fg: "#8A6D1A", bg: "rgba(232,196,91,.22)" };
+  return { label: `${r.itemCount} found`, fg: "#0F7A28", bg: "#D7F5DD" };
+}
+
+/**
+ * SPEC A (DEC-099): the retrieval receipts — a §0 designed addition (no
+ * prototype treatment exists; the canon predates mid-call retrieval).
+ *
+ * Renders only when the call actually read the record. A call that never
+ * looked anything up has nothing to show, and an empty "Looked up: none"
+ * block would read as the feature having failed rather than as a
+ * conversation that never needed it.
+ */
+export function CallRetrievalsBlock({
+  retrievals,
+}: {
+  retrievals: CallRetrievalDto[] | undefined;
+}) {
+  if (!retrievals || retrievals.length === 0) return null;
+  return (
+    <div style={{ marginTop: 22, paddingTop: 18, borderTop: "1px solid #F2EEE4" }} data-testid="call-retrievals">
+      <div style={{ fontSize: 11, fontWeight: 700, color: "#8A7F6B", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 12 }}>
+        Looked up on this call
+      </div>
+      {retrievals.map((r) => {
+        const state = receiptState(r);
+        const facet = RECALL_FACET_META[r.facet as RecallFacet];
+        return (
+          <div key={r.id} style={{ display: "flex", gap: 11, marginBottom: 12, alignItems: "flex-start" }} data-testid="call-retrieval-row">
+            <span style={{ fontSize: 11.5, fontWeight: 700, color: "#5C6B62", flex: "none", width: 54, paddingTop: 2 }}>
+              Turn {r.turn}
+            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13.5, lineHeight: 1.5, color: "#3B463F" }}>
+                <span style={{ fontWeight: 600 }}>{facet?.label ?? r.facet}</span>
+                {" — “"}
+                {r.query}
+                {"”"}
+              </div>
+              <div style={{ fontSize: 11.5, color: "#9AA59E", marginTop: 3 }}>{r.latencyMs}ms</div>
+            </div>
+            <span style={{ fontSize: 11, fontWeight: 700, color: state.fg, background: state.bg, borderRadius: 7, padding: "4px 9px", flex: "none" }} data-testid="call-retrieval-state">
+              {state.label}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 interface DialableContact {
@@ -301,6 +370,7 @@ export default function CallsTab({ agentId }: { agentId: string }) {
                       </div>
                     ))
                   )}
+                  <CallRetrievalsBlock retrievals={detail.retrievals} />
                 </div>
                 <div style={{ borderTop: "1px solid #F2EEE4", padding: "13px 20px", display: "flex", alignItems: "center", gap: 10, background: "#FBFAF7" }}>
                   <span style={{ fontSize: 13, fontWeight: 600, color: "#5C6B62", border: "1px solid #EBE3D6", background: "#fff", borderRadius: 10, padding: "9px 14px" }}>✎ Add note</span>

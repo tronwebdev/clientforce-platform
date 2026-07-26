@@ -38,6 +38,10 @@ export {
   type CompleteRequest,
   type StreamVoiceRequest,
   type VoiceTurn,
+  // SPEC A (DEC-099): the tool-use voice surface.
+  type VoiceContentBlock,
+  type VoiceStreamEvent,
+  type VoiceTool,
   type TokenUsage,
   type UsageRecord,
   type UsageHook,

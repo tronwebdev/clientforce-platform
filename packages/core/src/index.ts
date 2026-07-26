@@ -75,6 +75,11 @@ export * from "./validation";
 // connection states, per-provider config schemas, typed refusal vocabulary.
 export * from "./integrations";
 
+// On-call contact recall (SPEC A, DEC-099) — the facet union the
+// `lookup_contact_context` tool enumerates, the bounded result shape, the
+// spoken-register sanitizer, and the retrieval-receipt DTO.
+export * from "./recall";
+
 /**
  * Narrow an arbitrary string to a branded {@link Id}. Real validation arrives
  * with the data model; this keeps the type honest without runtime cost.

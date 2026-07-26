@@ -50,6 +50,9 @@ export interface CallContext {
   ttsModel: string;
   language: LanguageCode;
   mustSay: string[];
+  /** SPEC A (DEC-099): this call can read the record mid-conversation (product
+   *  path only — the standalone rigs have no database to read). */
+  recallEnabled?: boolean;
 }
 
 /**
@@ -128,7 +131,11 @@ export async function loadCallContextScoped(
     contactId: call.contactId,
     enrollmentId: call.enrollmentId,
     providerCallSid: call.providerCallSid ?? "",
-    systemPrompt: buildVoiceSystemPrompt(composeInputs),
+    // SPEC A (DEC-099): the product path always has the record behind it, so
+    // it always gets the v2 rules. The standalone rigs (no database) keep
+    // rendering v1 byte-identically — see `demoCallContext`.
+    systemPrompt: buildVoiceSystemPrompt(composeInputs, { recall: true }),
+    recallEnabled: true,
     disclosure,
     disclosureVariant: resolved.spokenName ? "named" : "default",
     spokenNameSource: resolved.source,
@@ -164,6 +171,8 @@ export async function finalizeCall(args: {
   startedAt: Date;
   endReason: CallEndReason;
   costAlertUsd: number;
+  /** SPEC A (DEC-099): its buffered receipts flush here, with the transcript. */
+  recall?: { flush: () => Promise<number> };
 }): Promise<void> {
   const { prisma, publisher, context, turns, metrics, startedAt, endReason } = args;
   const report = metrics.report();
@@ -184,6 +193,18 @@ export async function finalizeCall(args: {
     providerCallSid: context.providerCallSid || context.callId,
     startedAt,
   });
+
+  // SPEC A (DEC-099): the retrieval receipts. A failed flush must not cost the
+  // call its transcript or its completion event, so it is logged loudly and
+  // the finalize continues — the receipt ledger is evidence, not a rail.
+  let retrievalsWritten = 0;
+  if (args.recall) {
+    try {
+      retrievalsWritten = await args.recall.flush();
+    } catch (err) {
+      console.error("[recall] receipt flush failed:", (err as Error).message);
+    }
+  }
 
   await withTenant(prisma, { workspaceId: context.workspaceId }, (tx) =>
     tx.call.update({
@@ -206,6 +227,9 @@ export async function finalizeCall(args: {
           costBreakdown: cost,
           mustSay: coverage,
           turnsPersisted: written,
+          // SPEC A (DEC-099): what the agent read mid-call, at a glance —
+          // the per-lookup detail lives in the CallRetrieval ledger.
+          recall: { ...report.recall, receipts: retrievalsWritten },
         },
       },
     }),
@@ -228,6 +252,24 @@ export async function finalizeCall(args: {
       ...base,
       type: EVENT_TYPES.CALL_COMPLETED,
       payload: { callId: context.callId, durationSec, outcome },
+    });
+  }
+
+  // SPEC A (DEC-099): one summary per call. Emitted only when the agent
+  // actually reached for the record — a call that never looked anything up
+  // has nothing to report, and an always-fired zero event would be noise.
+  if (report.recall.lookups > 0) {
+    await publisher.publish({
+      ...base,
+      type: EVENT_TYPES.VOICE_CONTEXT_RETRIEVED,
+      payload: {
+        callId: context.callId,
+        lookups: report.recall.lookups,
+        found: report.recall.found,
+        empty: report.recall.empty,
+        refused: report.recall.refused,
+        emptyFacets: report.recall.emptyFacets,
+      },
     });
   }
 
