@@ -67,6 +67,12 @@ function triggerPhraseOf(trigger: CampaignRuleTrigger): string {
       return "opting out";
     case "lead_captured":
       return "arriving through lead capture";
+    case "call_knowledge_gap":
+      // SPEC A (DEC-099). Reachable here only if the creator's trigger menu
+      // ever offers it; today the menu omits it (a knowledge gap is a
+      // training signal, not a reason to start a sub-campaign), but the
+      // union is exhaustive so the phrase exists rather than compiling away.
+      return "asking something the record couldn't answer on a call";
   }
 }
 

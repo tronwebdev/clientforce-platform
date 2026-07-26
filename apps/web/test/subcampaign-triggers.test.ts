@@ -27,7 +27,7 @@ const SCHEMA_KINDS = campaignRuleTriggerSchema.options.map(
 describe("trigger display map (lib/triggers)", () => {
   it("covers exactly R1's kinds — the display layer can never fork the union", () => {
     expect(new Set(TRIGGER_OPTIONS.map((o) => o.kind))).toEqual(new Set(SCHEMA_KINDS));
-    expect(TRIGGER_OPTIONS).toHaveLength(7);
+    expect(TRIGGER_OPTIONS).toHaveLength(8); // +call_knowledge_gap (SPEC A, DEC-099)
   });
 
   it("owner labels are the canon strings", () => {
@@ -39,6 +39,7 @@ describe("trigger display map (lib/triggers)", () => {
       meeting_booked: "Meeting booked",
       opted_out: "Unsubscribed / opted out",
       lead_captured: "Form / lead captured",
+      call_knowledge_gap: "Call hit a knowledge gap",
     });
     for (const o of TRIGGER_OPTIONS) expect(triggerLabel(o.kind)).toBe(o.label);
   });
@@ -91,7 +92,14 @@ describe("trigger display map (lib/triggers)", () => {
       } else if (kind === "lead_captured") {
         expect(bare).toEqual({ enabled: false, reason: TRIGGER_DISABLED_LEAD_CAPTURE });
       } else {
-        expect(kind).toBe("meeting_booked");
+        // Always-available kinds: `meeting_booked` (stage moves fire it with
+        // no channel) and SPEC A's `call_knowledge_gap`. The latter is NOT
+        // gated on voice connectivity because no per-workspace signal for it
+        // exists on main — the voice from-number is Key Vault config, not a
+        // SenderConnection row — so a gate would have to invent one. An
+        // ungated rule in a voice-less workspace simply never fires; it shows
+        // no fake data and blocks nothing (Q-051 records the gap).
+        expect(["meeting_booked", "call_knowledge_gap"]).toContain(kind);
         expect(bare).toEqual({ enabled: true });
       }
       // each flag gates only its own kinds

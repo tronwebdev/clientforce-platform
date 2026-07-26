@@ -36,7 +36,12 @@ all three receipt states in one frame.
 
 The full-stack pair — a real dialed call whose receipts land through the live
 API — belongs to the staging live proof, which is owner-gated on a dial (the
-DEC-090 posture: no calls until deployed). Recorded as owed, not claimed.
+DEC-090 posture: no calls until deployed).
+
+**Owner ruling (2026-07-26):** this owed shot rides the SAME gate as voice
+Q-048's loopback probe. When the second Twilio number is handed over, both run
+in ONE session rather than two separate dial-outs. Recorded as owed, not
+claimed.
 
 ## What the shot is meant to show
 

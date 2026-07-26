@@ -218,6 +218,16 @@ export class MetricsCollector {
         found: allLookups.filter((l) => l.found).length,
         empty: allLookups.filter((l) => !l.found && !l.refusalReason).length,
         refused: allLookups.filter((l) => l.refusalReason).length,
+        // SPEC A (DEC-099): which facets came back EMPTY — the knowledge-gap
+        // trigger narrows on these. Refusals are excluded on purpose: a
+        // timeout is an infrastructure problem, not a hole in the knowledge
+        // base, and surfacing it as one would send the owner to train away a
+        // gap that was never there.
+        emptyFacets: [
+          ...new Set(
+            allLookups.filter((l) => !l.found && !l.refusalReason).map((l) => l.facet),
+          ),
+        ],
         totalMs: lookupTurns.reduce((sum, t) => sum + (t.lookupMs ?? 0), 0),
       },
       /** Raw per-turn samples — the certification aggregate pools these

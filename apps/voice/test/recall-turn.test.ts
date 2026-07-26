@@ -389,6 +389,41 @@ describe("metrics — a lookup turn is reported honestly, never blended", () => 
     expect(report.ttfaByLookup.withoutLookup.samples).toBe(0);
   });
 
+  it("emptyFacets carries the gaps — the knowledge-gap trigger's input", async () => {
+    const s = makeSession({
+      recall: fakeBrain({ facet: "knowledge", found: false, items: [] }),
+      provider: scriptedProvider([
+        { tool: { facet: "knowledge", query: "pricing" } },
+        { text: "I don't have that on record." },
+      ]),
+    });
+    await s.session.driveTurn("What does it cost?");
+    expect(s.metrics.report().recall.emptyFacets).toEqual(["knowledge"]);
+  });
+
+  it("a REFUSED lookup is NOT a knowledge gap — emptyFacets stays clean", async () => {
+    // A timeout means the record was never read; it may well hold the answer.
+    // Reporting it as a gap would send the owner to Train Agent to fill a
+    // hole that does not exist.
+    const s = makeSession({
+      recall: fakeBrain({
+        facet: "knowledge",
+        found: false,
+        items: [],
+        refusalReason: "LOOKUP_TIMEOUT",
+      }),
+      provider: scriptedProvider([
+        { tool: { facet: "knowledge", query: "pricing" } },
+        { text: "I can't check that right now." },
+      ]),
+    });
+    await s.session.driveTurn("What does it cost?");
+    const recall = s.metrics.report().recall;
+    expect(recall.refused).toBe(1);
+    expect(recall.empty).toBe(0);
+    expect(recall.emptyFacets).toEqual([]);
+  });
+
   it("counts an empty lookup as empty, not as found", async () => {
     const s = makeSession({
       recall: fakeBrain({ facet: "history", found: false, items: [] }),

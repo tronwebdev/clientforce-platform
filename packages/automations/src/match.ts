@@ -14,6 +14,10 @@
  *   lead_captured    — `form.submitted.v1` / `widget.lead_captured.v1` /
  *                      `linkedin.captured.v1`
  *   sequence_quiet   — NEVER matches a bus event; the worker sweep evaluates it
+ *   call_knowledge_gap — `voice.context_retrieved.v1` with a non-empty
+ *                      `emptyFacets` (SPEC A, DEC-099): a real customer asked
+ *                      something the record could not answer. ONE firing per
+ *                      call, because the event is one summary per call
  */
 import type { CampaignRuleTrigger } from "@clientforce/core";
 import type { BusEvent } from "@clientforce/events";
@@ -50,6 +54,17 @@ export function matchTrigger(
       return LEAD_CAPTURED_EVENTS.has(event.type);
     case "sequence_quiet":
       return false;
+    case "call_knowledge_gap": {
+      if (event.type !== "voice.context_retrieved.v1") return false;
+      const empty = (event.payload as { emptyFacets?: unknown }).emptyFacets;
+      // No gap, no fire — a call where everything was answered is the
+      // common case and must stay silent.
+      if (!Array.isArray(empty) || empty.length === 0) return false;
+      // Absent/empty narrowing = any facet. Otherwise at least one of the
+      // facets the owner cares about has to be among the gaps.
+      if (!trigger.facets || trigger.facets.length === 0) return true;
+      return empty.some((f) => typeof f === "string" && trigger.facets!.includes(f));
+    }
   }
 }
 

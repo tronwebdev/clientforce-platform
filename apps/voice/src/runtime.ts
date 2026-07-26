@@ -268,6 +268,7 @@ export async function finalizeCall(args: {
         found: report.recall.found,
         empty: report.recall.empty,
         refused: report.recall.refused,
+        emptyFacets: report.recall.emptyFacets,
       },
     });
   }

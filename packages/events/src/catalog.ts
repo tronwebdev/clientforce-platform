@@ -131,6 +131,12 @@ export const EVENT_SCHEMAS = {
     found: z.number().int().nonnegative(),
     empty: z.number().int().nonnegative(),
     refused: z.number().int().nonnegative(),
+    /** Distinct facets whose lookup came back empty — what the
+     *  `call_knowledge_gap` trigger narrows on (DEC-099). Empty array when
+     *  nothing was missing. Refusals are NOT gaps and never appear here:
+     *  "we couldn't look" is an infrastructure problem, not a hole in the
+     *  knowledge base, and training the owner on it would be wrong. */
+    emptyFacets: z.array(z.string()),
   }),
 
   // ── Inbound ────────────────────────────────────────────────────────────────
