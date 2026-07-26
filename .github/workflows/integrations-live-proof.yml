@@ -24,7 +24,7 @@ on:
         description: 'Channel NAME to post to (optional — defaults to the first listed public channel)'
         required: false
       walk:
-        description: 'Which proof: slack · calendly-demo (W2) · hubspot-demo (W4 HubSpot CRM push)'
+        description: 'Which proof: slack · calendly-demo (W2) · hubspot-demo (W4) · zapier (W5 rail)'
         required: false
         default: 'slack'
       recipient:
@@ -301,3 +301,56 @@ jobs:
         with:
           name: hubspot-live-proof-receipts
           path: hubspot-live-proof-receipts.json
+
+  # INT W5 (DEC-101): the Zapier rail. There is no external vendor to call —
+  # Zapier authenticates to US — so this proves OUR rail on real Postgres + RLS:
+  # key resolution, TENANT ISOLATION, polling the persisted Event log, the
+  # inbound writes, and the refusal paths. No Key Vault secrets are needed, so
+  # this job takes no vault read at all.
+  zapier:
+    name: W5 Zapier rail · key auth · tenant isolation · poll · writes · refusals
+    if: ${{ github.event.inputs.walk == 'zapier' }}
+    runs-on: ubuntu-latest
+    environment: staging
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: clientforce
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @clientforce/integrations... build
+      - run: pnpm --filter @clientforce/db db:migrate
+
+      - name: Run the Zapier rail proof
+        run: pnpm exec tsx packages/integrations/scripts/zapier-live-proof.ts
+
+      - name: Upload receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zapier-live-proof-receipts
+          path: zapier-live-proof-receipts.json
