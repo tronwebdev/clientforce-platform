@@ -22,6 +22,28 @@
 - Additive-only schema; events versioned; PROGRESS.md append-only, rebase before merge.
 - One PR per wave; plan comment first (files / migration / tests / claimed DEC ids);
   §8 evidence pairs (prototype ↔ build) on a real local stack; merge-on-green after review.
+- **ZERO check runs is UNGATED, not "pending" — a HARD BLOCKER** (INT/DEC-096
+  amendment 3, owner directive 2026-07-26). `ci.yml` fires on `pull_request`, and
+  GitHub can only run it against a TEST-MERGE of head into base — which it cannot
+  build while the PR is conflicted. So a conflicted PR gets NO check suite at all,
+  and the combined status reads `pending` with `total_count: 0`. That is the failure
+  mode where **the symptom masks the diagnostic**: the conflict suppresses the very
+  gate that would have caught it. Never read an empty check list as "CI hasn't
+  reported yet" — resolve the conflict, then require a real green. A LOCAL
+  `pnpm build/lint/test` and a `workflow_dispatch` live-proof are real evidence of
+  different things, but NEITHER is a merge gate: dispatch runs never attach to a PR
+  as a check however they end.
+- **Recompute counted vocabulary from the COMMON BASE on any cross-track merge**
+  (the 11-vs-12 class, DEC-096 amendment 3). Where two tracks both extend a counted
+  set (trigger/action options, picker lengths, dimmed/clickable tallies), each side's
+  `toHaveLength(n)` is correct only for ITS OWN lineage. Two branches can assert the
+  SAME WRONG number for DIFFERENT reasons; three-way merge sees identical text, keeps
+  it, and merges clean. Git is structurally blind to this — the only thing that catches
+  it is deriving `base + additions(ours) + additions(theirs)` by hand and re-running.
+- **Exact-match gating on `workflow_dispatch` inputs — never negated matches.**
+  `if: inputs.walk == 'slack'`, never `!= 'other-walk'`: a negated gate silently
+  ADOPTS every future input value, so adding a third walk fires the first walk's job
+  against a real vendor (this nearly posted a HubSpot dispatch to the owner's Slack).
 
 ## ⭑ Backoffice-coverage ride-along (STANDING — every unit)
 If this unit introduces a **new billable action, a new event type, a new kill-worthy
