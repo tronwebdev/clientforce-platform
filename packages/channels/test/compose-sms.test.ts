@@ -60,9 +60,7 @@ describe("checkComposedSms (deterministic — every check is a string operation)
   it("requires every mustSay string (case-insensitive)", () => {
     const v = checkComposedSms("Jane, quick question about Acme Dental?", inputs());
     expect(v.map((x) => x.reason)).toContain("MUST_SAY_MISSING");
-    expect(v.find((x) => x.reason === "MUST_SAY_MISSING")!.detail).toContain(
-      '"free growth audit"',
-    );
+    expect(v.find((x) => x.reason === "MUST_SAY_MISSING")!.detail).toContain('"free growth audit"');
     // Different casing satisfies it.
     expect(
       checkComposedSms("Jane — our FREE GROWTH AUDIT finds the leaks. Interested?", inputs()),
@@ -165,7 +163,13 @@ describe("composeSms (bounded retry → typed refusal)", () => {
     await composeSms(gateway, inputs({ firstTouch: true }));
     expect(calls[0]!.prompt).toContain("Reply STOP to opt out.");
     const { gateway: g2, calls: c2 } = fakeGateway([CLEAN]);
-    await composeSms(g2, inputs({ firstTouch: false, history: [{ channel: "sms", direction: "OUTBOUND", text: "hi" }] }));
+    await composeSms(
+      g2,
+      inputs({
+        firstTouch: false,
+        history: [{ channel: "sms", direction: "OUTBOUND", text: "hi" }],
+      }),
+    );
     expect(c2[0]!.prompt).toContain("continues an existing thread");
     expect(c2[0]!.prompt).toContain("[sms · we sent] hi");
   });

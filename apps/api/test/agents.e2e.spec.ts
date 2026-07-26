@@ -44,7 +44,13 @@ describe.skipIf(!hasDb)("Agents API e2e", () => {
     ).id;
 
     const agent = await owner.agent.create({
-      data: { workspaceId: ws, name: "Booker", goal: "book_appointments", status: "ACTIVE", guardrails: {} },
+      data: {
+        workspaceId: ws,
+        name: "Booker",
+        goal: "book_appointments",
+        status: "ACTIVE",
+        guardrails: {},
+      },
     });
     agentId = agent.id;
     // A second workspace's agent must NEVER appear in ws A's list (RLS).
@@ -103,7 +109,12 @@ describe.skipIf(!hasDb)("Agents API e2e", () => {
       },
     });
     await owner.senderConnection.create({
-      data: { workspaceId: ws, type: "CF_MANAGED", fromEmail: "a@send.clientforce.io", fromName: "S" },
+      data: {
+        workspaceId: ws,
+        type: "CF_MANAGED",
+        fromEmail: "a@send.clientforce.io",
+        fromName: "S",
+      },
     });
 
     const u1 = await owner.user.create({
@@ -116,7 +127,10 @@ describe.skipIf(!hasDb)("Agents API e2e", () => {
     await owner.membership.create({ data: { userId: viewer.id, workspaceId: ws, role: "VIEWER" } });
     userIds = [u1.id, viewer.id];
     ownerToken = await signDevToken(SECRET, { sub: `auth|ag-owner-${suffix}`, email: u1.email });
-    viewerToken = await signDevToken(SECRET, { sub: `auth|ag-viewer-${suffix}`, email: viewer.email });
+    viewerToken = await signDevToken(SECRET, {
+      sub: `auth|ag-viewer-${suffix}`,
+      email: viewer.email,
+    });
 
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication();
@@ -196,7 +210,10 @@ describe.skipIf(!hasDb)("Agents API e2e", () => {
       .expect(200);
 
     // …but once launched the arc input is frozen (derive at creation).
-    await request(app.getHttpServer()).patch(`/agents/${id}`).set(asOwner()).send({ status: "ACTIVE" });
+    await request(app.getHttpServer())
+      .patch(`/agents/${id}`)
+      .set(asOwner())
+      .send({ status: "ACTIVE" });
     await request(app.getHttpServer())
       .patch(`/agents/${id}`)
       .set(asOwner())
@@ -301,11 +318,19 @@ describe.skipIf(!hasDb)("Agents API e2e", () => {
       suppressionCheck: true,
     };
     const draft = await owner.agent.create({
-      data: { workspaceId: ws, name: "Guided draft", goal: "book_appointments", status: "DRAFT", guardrails: {} },
+      data: {
+        workspaceId: ws,
+        name: "Guided draft",
+        goal: "book_appointments",
+        status: "DRAFT",
+        guardrails: {},
+      },
     });
 
     // Fresh drafts resolve scripted (absent = scripted, no key written).
-    const fresh = await request(app.getHttpServer()).get(`/agents/${draft.id}/draft`).set(asOwner());
+    const fresh = await request(app.getHttpServer())
+      .get(`/agents/${draft.id}/draft`)
+      .set(asOwner());
     expect(fresh.status).toBe(200);
     expect(fresh.body.composeMode).toBe("scripted");
 
@@ -328,7 +353,9 @@ describe.skipIf(!hasDb)("Agents API e2e", () => {
     expect(rebuilt.body.guardrails.dailyCap.email).toBe(150);
 
     // Resume hydration reads the rider resolved server-side.
-    const resumed = await request(app.getHttpServer()).get(`/agents/${draft.id}/draft`).set(asOwner());
+    const resumed = await request(app.getHttpServer())
+      .get(`/agents/${draft.id}/draft`)
+      .set(asOwner());
     expect(resumed.body.composeMode).toBe("guided");
 
     // Flipping back writes scripted explicitly (never a silent key drop).
@@ -345,30 +372,61 @@ describe.skipIf(!hasDb)("Agents API e2e", () => {
   it("G3 (DEC-075): the inbox surfaces compose provenance ONLY on guided-meta outbound rows", async () => {
     const campaign = await owner.campaign.findFirst({ where: { agentId } });
     const lead = await owner.contact.create({
-      data: { workspaceId: ws, source: "t", optOut: {}, tags: [], email: `g3-${suffix}@t.test`, firstName: "Ada" },
+      data: {
+        workspaceId: ws,
+        source: "t",
+        optOut: {},
+        tags: [],
+        email: `g3-${suffix}@t.test`,
+        firstName: "Ada",
+      },
     });
     const at = (min: number) => new Date(Date.now() - min * 60_000);
     // A guided composed send (the boundary's pass-through meta, G1/G2)…
     await owner.message.create({
       data: {
-        workspaceId: ws, campaignId: campaign!.id, contactId: lead.id, channel: "email",
-        direction: "OUTBOUND", subject: "hi", body: "composed text", sentAt: at(30),
-        meta: { senderId: "s", mode: "guided", briefVersion: 2, composerVersion: "composer.email@v1" },
+        workspaceId: ws,
+        campaignId: campaign!.id,
+        contactId: lead.id,
+        channel: "email",
+        direction: "OUTBOUND",
+        subject: "hi",
+        body: "composed text",
+        sentAt: at(30),
+        meta: {
+          senderId: "s",
+          mode: "guided",
+          briefVersion: 2,
+          composerVersion: "composer.email@v1",
+        },
       },
     });
     // …a scripted send (no provenance keys)…
     await owner.message.create({
       data: {
-        workspaceId: ws, campaignId: campaign!.id, contactId: lead.id, channel: "email",
-        direction: "OUTBOUND", subject: "re: hi", body: "scripted text", sentAt: at(20),
+        workspaceId: ws,
+        campaignId: campaign!.id,
+        contactId: lead.id,
+        channel: "email",
+        direction: "OUTBOUND",
+        subject: "re: hi",
+        body: "scripted text",
+        sentAt: at(20),
         meta: { senderId: "s" },
       },
     });
     // …and the reply that makes it a thread.
     await owner.message.create({
       data: {
-        workspaceId: ws, campaignId: campaign!.id, contactId: lead.id, channel: "email",
-        direction: "INBOUND", body: "interested!", intent: "interested", sentAt: at(10), meta: {},
+        workspaceId: ws,
+        campaignId: campaign!.id,
+        contactId: lead.id,
+        channel: "email",
+        direction: "INBOUND",
+        body: "interested!",
+        intent: "interested",
+        sentAt: at(10),
+        meta: {},
       },
     });
 

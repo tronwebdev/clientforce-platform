@@ -37,7 +37,13 @@ describe("computeSenderHealth — the locked penalty model", () => {
   it("below the sample floor (<20 sent): NO score, low_data, no band, no rates — never a fake number", () => {
     for (const sent of [0, 1, 19]) {
       const r = computeSenderHealth(sample({ sent, bounced: sent }));
-      expect(r).toMatchObject({ score: null, state: "low_data", band: null, floor: "none", rates: null });
+      expect(r).toMatchObject({
+        score: null,
+        state: "low_data",
+        band: null,
+        floor: "none",
+        rates: null,
+      });
     }
   });
 

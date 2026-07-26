@@ -1,5 +1,5 @@
 /**
- * INT W5 (DEC-101) — workspace API key primitives. These pin the properties a
+ * INT W5 (DEC-102) — workspace API key primitives. These pin the properties a
  * credential has to have, not merely that the happy path round-trips: an
  * attacker with the database must not be able to reconstruct a key, and a
  * malformed token must be indistinguishable from a wrong one.

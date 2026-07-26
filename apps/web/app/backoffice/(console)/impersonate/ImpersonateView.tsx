@@ -9,7 +9,10 @@ import type {
 import { Button, Pill } from "@clientforce/ui";
 
 async function bo(path: string, init?: RequestInit): Promise<unknown> {
-  const res = await fetch(`/api/bo/${path}`, { headers: { "Content-Type": "application/json" }, ...init });
+  const res = await fetch(`/api/bo/${path}`, {
+    headers: { "Content-Type": "application/json" },
+    ...init,
+  });
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as { message?: string };
     throw new Error(body.message ?? `Request failed (${res.status})`);
@@ -23,7 +26,9 @@ async function bo(path: string, init?: RequestInit): Promise<unknown> {
  * GET; nothing on this screen can mutate tenant content.
  */
 export function ImpersonateView({ agencies }: { agencies: BackofficeAgencyRow[] }) {
-  const workspaces = agencies.flatMap((a) => a.workspaces.map((w) => ({ ...w, agencyName: a.name })));
+  const workspaces = agencies.flatMap((a) =>
+    a.workspaces.map((w) => ({ ...w, agencyName: a.name })),
+  );
   const [workspaceId, setWorkspaceId] = useState("");
   const [reason, setReason] = useState("");
   const [session, setSession] = useState<ImpersonationSession | null>(null);
@@ -67,35 +72,76 @@ export function ImpersonateView({ agencies }: { agencies: BackofficeAgencyRow[] 
     return (
       <div>
         <ImpersonationBanner session={session} onEnd={end} />
-        <h1 style={{ fontFamily: "'Bricolage Grotesque'", fontSize: 24, fontWeight: 700, margin: "0 0 2px" }}>
+        <h1
+          style={{
+            fontFamily: "'Bricolage Grotesque'",
+            fontSize: 24,
+            fontWeight: 700,
+            margin: "0 0 2px",
+          }}
+        >
           {session.workspace.name}
         </h1>
         <p style={{ color: "#5b6560", fontSize: 13, margin: "0 0 18px" }}>
-          {session.agency.name} · {session.workspace.slug} · <Pill tone="neutral">{session.workspace.status}</Pill>
+          {session.agency.name} · {session.workspace.slug} ·{" "}
+          <Pill tone="neutral">{session.workspace.status}</Pill>
         </p>
 
-        <h2 style={{ fontFamily: "'Bricolage Grotesque'", fontSize: 16, fontWeight: 700, margin: "0 0 10px" }}>
-          Messages <span style={{ fontWeight: 400, color: "#8a938d", fontSize: 13 }}>(read-only preview)</span>
+        <h2
+          style={{
+            fontFamily: "'Bricolage Grotesque'",
+            fontSize: 16,
+            fontWeight: 700,
+            margin: "0 0 10px",
+          }}
+        >
+          Messages{" "}
+          <span style={{ fontWeight: 400, color: "#8a938d", fontSize: 13 }}>
+            (read-only preview)
+          </span>
         </h2>
         {messages.length === 0 ? (
-          <div style={{ padding: 20, color: "#8a938d", fontSize: 13, background: "#fff", border: "1px solid var(--cf-color-hairline, #ebe3d6)", borderRadius: 14 }}>
+          <div
+            style={{
+              padding: 20,
+              color: "#8a938d",
+              fontSize: 13,
+              background: "#fff",
+              border: "1px solid var(--cf-color-hairline, #ebe3d6)",
+              borderRadius: 14,
+            }}
+          >
             No messages in this workspace.
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {messages.map((m) => (
-              <div key={m.id} style={{ background: "#fff", border: "1px solid var(--cf-color-hairline, #ebe3d6)", borderRadius: 12, padding: "12px 16px" }}>
+              <div
+                key={m.id}
+                style={{
+                  background: "#fff",
+                  border: "1px solid var(--cf-color-hairline, #ebe3d6)",
+                  borderRadius: 12,
+                  padding: "12px 16px",
+                }}
+              >
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                   <Pill tone={m.direction === "OUTBOUND" ? "neutral" : "success"}>
                     {m.direction === "OUTBOUND" ? "Sent" : "Received"}
                   </Pill>
-                  <span style={{ fontSize: 12, color: "#8a938d", textTransform: "uppercase" }}>{m.channel}</span>
+                  <span style={{ fontSize: 12, color: "#8a938d", textTransform: "uppercase" }}>
+                    {m.channel}
+                  </span>
                   <span style={{ fontSize: 12, color: "#8a938d", marginLeft: "auto" }}>
                     {new Date(m.sentAt).toLocaleString()}
                   </span>
                 </div>
-                {m.subject ? <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 2 }}>{m.subject}</div> : null}
-                <div style={{ fontSize: 13, color: "#3a433e", whiteSpace: "pre-wrap" }}>{m.preview}</div>
+                {m.subject ? (
+                  <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 2 }}>{m.subject}</div>
+                ) : null}
+                <div style={{ fontSize: 13, color: "#3a433e", whiteSpace: "pre-wrap" }}>
+                  {m.preview}
+                </div>
               </div>
             ))}
           </div>
@@ -106,22 +152,47 @@ export function ImpersonateView({ agencies }: { agencies: BackofficeAgencyRow[] 
 
   return (
     <div>
-      <h1 style={{ fontFamily: "'Bricolage Grotesque'", fontSize: 28, fontWeight: 700, margin: "0 0 4px" }}>
+      <h1
+        style={{
+          fontFamily: "'Bricolage Grotesque'",
+          fontSize: 28,
+          fontWeight: 700,
+          margin: "0 0 4px",
+        }}
+      >
         Impersonate
       </h1>
       <p style={{ color: "#5b6560", fontSize: 14, margin: "0 0 20px", maxWidth: 720 }}>
         View a workspace as support, read-only. Starting a session is audited (
-        <code style={{ fontFamily: "monospace" }}>impersonate.start</code>) with your reason. You can see the
-        tenant’s content but never change it.
+        <code style={{ fontFamily: "monospace" }}>impersonate.start</code>) with your reason. You
+        can see the tenant’s content but never change it.
       </p>
 
-      <div style={{ background: "#fff", border: "1px solid var(--cf-color-hairline, #ebe3d6)", borderRadius: 14, padding: 20, maxWidth: 520, display: "flex", flexDirection: "column", gap: 14 }}>
+      <div
+        style={{
+          background: "#fff",
+          border: "1px solid var(--cf-color-hairline, #ebe3d6)",
+          borderRadius: 14,
+          padding: 20,
+          maxWidth: 520,
+          display: "flex",
+          flexDirection: "column",
+          gap: 14,
+        }}
+      >
         <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13 }}>
           Workspace
           <select
             value={workspaceId}
             onChange={(e) => setWorkspaceId(e.target.value)}
-            style={{ height: 40, borderRadius: 10, border: "1px solid var(--cf-color-hairline, #ebe3d6)", padding: "0 12px", fontSize: 14, background: "#fff" }}
+            style={{
+              height: 40,
+              borderRadius: 10,
+              border: "1px solid var(--cf-color-hairline, #ebe3d6)",
+              padding: "0 12px",
+              fontSize: 14,
+              background: "#fff",
+            }}
           >
             <option value="">Select a workspace…</option>
             {workspaces.map((w) => (
@@ -138,10 +209,20 @@ export function ImpersonateView({ agencies }: { agencies: BackofficeAgencyRow[] 
             onChange={(e) => setReason(e.target.value)}
             rows={3}
             placeholder="e.g. investigating support ticket #1234"
-            style={{ borderRadius: 10, border: "1px solid var(--cf-color-hairline, #ebe3d6)", padding: "10px 12px", fontSize: 14, resize: "vertical" }}
+            style={{
+              borderRadius: 10,
+              border: "1px solid var(--cf-color-hairline, #ebe3d6)",
+              padding: "10px 12px",
+              fontSize: 14,
+              resize: "vertical",
+            }}
           />
         </label>
-        {error ? <p style={{ color: "var(--cf-color-danger, #c9543f)", fontSize: 13, margin: 0 }}>{error}</p> : null}
+        {error ? (
+          <p style={{ color: "var(--cf-color-danger, #c9543f)", fontSize: 13, margin: 0 }}>
+            {error}
+          </p>
+        ) : null}
         <div>
           <Button variant="primary" type="button" onClick={() => void start()} disabled={busy}>
             {busy ? "Starting…" : "Start read-only session"}
@@ -152,7 +233,13 @@ export function ImpersonateView({ agencies }: { agencies: BackofficeAgencyRow[] 
   );
 }
 
-function ImpersonationBanner({ session, onEnd }: { session: ImpersonationSession; onEnd: () => void }) {
+function ImpersonationBanner({
+  session,
+  onEnd,
+}: {
+  session: ImpersonationSession;
+  onEnd: () => void;
+}) {
   return (
     <div
       style={{
@@ -171,8 +258,8 @@ function ImpersonationBanner({ session, onEnd }: { session: ImpersonationSession
       </span>
       <div style={{ flex: 1, fontSize: 13 }}>
         <strong>Read-only impersonation.</strong> Viewing {session.workspace.name} as support since{" "}
-        {new Date(session.startedAt).toLocaleTimeString()}. This session is audited; you cannot change tenant
-        content.
+        {new Date(session.startedAt).toLocaleTimeString()}. This session is audited; you cannot
+        change tenant content.
       </div>
       <button
         type="button"

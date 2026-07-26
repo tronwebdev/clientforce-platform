@@ -36,7 +36,12 @@ export function ringDisplay(health: Sender["health"]): RingDisplay {
   }
   if (band === "watch") return { score, color: "#E8C45B", label: "Watch", sub };
   if (band === "at_risk") return { score, color: "#A87B16", label: "At risk", sub };
-  return { score, color: "#C9543F", label: "Auto-paused", sub: "sending refuses below 40 — recovers automatically" };
+  return {
+    score,
+    color: "#C9543F",
+    label: "Auto-paused",
+    sub: "sending refuses below 40 — recovers automatically",
+  };
 }
 
 /**
@@ -62,7 +67,10 @@ export function warmupPill(w: NonNullable<Sender["warmup"]>): { label: string } 
 }
 
 /** The drawer activity timeline — human copy per event type (DEC-057: mapped types only, never a raw slug). */
-export function describeSenderEvent(type: string, payload: Record<string, unknown>): { icon: string; fg: string; bg: string; text: string } | null {
+export function describeSenderEvent(
+  type: string,
+  payload: Record<string, unknown>,
+): { icon: string; fg: string; bg: string; text: string } | null {
   switch (type) {
     case "sender.health_collapsed.v1":
       return {

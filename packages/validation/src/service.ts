@@ -283,19 +283,31 @@ export async function processValidationBatchChunk(
   const afterSuppression = remainderAfterCache.filter((a) => !suppressedSkip.has(a));
   const syntaxFails = afterSuppression.filter((a) => !syntaxValid(a));
   for (const a of syntaxFails) {
-    resolutions.set(a, { verdict: "invalid", via: "syntax", subStatus: "failed_syntax_check", billed: false });
+    resolutions.set(a, {
+      verdict: "invalid",
+      via: "syntax",
+      subStatus: "failed_syntax_check",
+      billed: false,
+    });
   }
 
   // 5 · MX / domain DNS — fail-open on resolver trouble (only a definitive
   // no-mail-route answer mints an invalid).
   const mxCandidates = afterSuppression.filter((a) => syntaxValid(a));
   if (mxCandidates.length > 0 && deps.resolveMx) {
-    const domains = new Set(mxCandidates.map((a) => domainOf(a)).filter((d): d is string => Boolean(d)));
+    const domains = new Set(
+      mxCandidates.map((a) => domainOf(a)).filter((d): d is string => Boolean(d)),
+    );
     const mxStates = await checkMxDomains(domains, deps.resolveMx);
     for (const a of mxCandidates) {
       const d = domainOf(a);
       if (d && mxStates.get(d) === "none") {
-        resolutions.set(a, { verdict: "invalid", via: "mx", subStatus: "no_mx_record", billed: false });
+        resolutions.set(a, {
+          verdict: "invalid",
+          via: "mx",
+          subStatus: "no_mx_record",
+          billed: false,
+        });
       }
     }
   }
@@ -346,7 +358,16 @@ export async function processValidationBatchChunk(
   }
 
   // ── Persist ────────────────────────────────────────────────────────────────
-  const resolved = await persistResolutions(deps, workspaceId, batchId, items, resolutions, suppressedSkip, now, cfg);
+  const resolved = await persistResolutions(
+    deps,
+    workspaceId,
+    batchId,
+    items,
+    resolutions,
+    suppressedSkip,
+    now,
+    cfg,
+  );
 
   if (held) {
     // Rising-edge pause event per hold episode: judge against the batch state
@@ -434,7 +455,13 @@ async function persistResolutions(
         ? // Suppressed rows are SKIPPED, not verdicted: never billed, never
           // claimed valid — the contact stays `unverified`; the boundary's
           // suppression rail refuses it regardless.
-          { outcome: "skipped_suppressed", via: "suppression", detail: null, billed: false, verdicted: false }
+          {
+            outcome: "skipped_suppressed",
+            via: "suppression",
+            detail: null,
+            billed: false,
+            verdicted: false,
+          }
         : null;
     if (!g) continue;
     resolved += 1;
@@ -484,7 +511,11 @@ async function persistResolutions(
   return resolved;
 }
 
-async function countPending(deps: ValidationDeps, workspaceId: string, batchId: string): Promise<number> {
+async function countPending(
+  deps: ValidationDeps,
+  workspaceId: string,
+  batchId: string,
+): Promise<number> {
   return withTenant(deps.prisma, { workspaceId }, (tx) =>
     tx.validationBatchItem.count({ where: { batchId, outcome: "pending" } }),
   );
@@ -504,19 +535,26 @@ async function finalizeIfDrained(
     }),
   );
   if (flipped.count === 0) return false;
-  const [groups, billedAddresses, cacheHits, batch] = await withTenant(deps.prisma, { workspaceId }, (tx) =>
-    Promise.all([
-      tx.validationBatchItem.groupBy({ by: ["outcome"], where: { batchId }, _count: { _all: true } }),
-      // The COGS figure: one paid check per unique ADDRESS (duplicate rows
-      // share it) — matches the cache rows' billedAt meter exactly.
-      tx.validationBatchItem.findMany({
-        where: { batchId, billed: true },
-        select: { address: true },
-        distinct: ["address"],
-      }),
-      tx.validationBatchItem.count({ where: { batchId, via: "cache" } }),
-      tx.validationBatch.findUniqueOrThrow({ where: { id: batchId }, select: { source: true } }),
-    ]),
+  const [groups, billedAddresses, cacheHits, batch] = await withTenant(
+    deps.prisma,
+    { workspaceId },
+    (tx) =>
+      Promise.all([
+        tx.validationBatchItem.groupBy({
+          by: ["outcome"],
+          where: { batchId },
+          _count: { _all: true },
+        }),
+        // The COGS figure: one paid check per unique ADDRESS (duplicate rows
+        // share it) — matches the cache rows' billedAt meter exactly.
+        tx.validationBatchItem.findMany({
+          where: { batchId, billed: true },
+          select: { address: true },
+          distinct: ["address"],
+        }),
+        tx.validationBatchItem.count({ where: { batchId, via: "cache" } }),
+        tx.validationBatch.findUniqueOrThrow({ where: { id: batchId }, select: { source: true } }),
+      ]),
   );
   const billed = billedAddresses.length;
   const count = (outcome: string): number =>

@@ -41,7 +41,12 @@ const audioEcho = (ws: WebSocket): void => {
 };
 
 const open = (onAudio: (chunk: Buffer) => void): TtsStream =>
-  new TtsStream({ apiKey: "test", ttsModel: "aura-2-thalia-en", baseUrl: `ws://127.0.0.1:${port}`, onAudio });
+  new TtsStream({
+    apiKey: "test",
+    ttsModel: "aura-2-thalia-en",
+    baseUrl: `ws://127.0.0.1:${port}`,
+    onAudio,
+  });
 
 describe("ttsStreamUrl", () => {
   it("pins the mulaw/8k containerless query", () => {

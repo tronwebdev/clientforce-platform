@@ -40,7 +40,13 @@ export default async function SectionPage({ params }: { params: Promise<{ sectio
         <Card>
           {forbidden ? (
             <>
-              <h2 style={{ marginTop: 0, fontSize: "var(--cf-text-18)", color: "var(--cf-color-danger)" }}>
+              <h2
+                style={{
+                  marginTop: 0,
+                  fontSize: "var(--cf-text-18)",
+                  color: "var(--cf-color-danger)",
+                }}
+              >
                 Insufficient permissions
               </h2>
               <p style={{ color: "var(--cf-color-muted-2)" }}>

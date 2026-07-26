@@ -32,7 +32,11 @@ describe("renderTokens", () => {
   // C2.7: {{custom.<key>|fallback}} — value-or-fallback, never blank.
   it("custom token renders the contact's value when present", () => {
     expect(
-      renderTokens("{{custom.industry|your industry}}", { ...contact, custom: { industry: "Dental" } }, "S"),
+      renderTokens(
+        "{{custom.industry|your industry}}",
+        { ...contact, custom: { industry: "Dental" } },
+        "S",
+      ),
     ).toBe("Dental");
   });
 
@@ -41,7 +45,11 @@ describe("renderTokens", () => {
       "your industry",
     );
     expect(
-      renderTokens("{{custom.industry|your industry}}", { ...contact, custom: { industry: "" } }, "S"),
+      renderTokens(
+        "{{custom.industry|your industry}}",
+        { ...contact, custom: { industry: "" } },
+        "S",
+      ),
     ).toBe("your industry");
   });
 
@@ -74,10 +82,12 @@ describe("renderTokens", () => {
 
   it("{{calendarLink}} with no resolved value fails the send (missing booking config — house rule)", () => {
     expect(() => renderTokens("Book: {{calendarLink}}", contact, "S")).toThrow(MissingTokenError);
-    expect(() => renderTokens("Book: {{calendarLink}}", contact, "S", {})).toThrow(MissingTokenError);
-    expect(() => renderTokens("Book: {{ calendarLink }}", contact, "S", { calendarLink: undefined })).toThrow(
+    expect(() => renderTokens("Book: {{calendarLink}}", contact, "S", {})).toThrow(
       MissingTokenError,
     );
+    expect(() =>
+      renderTokens("Book: {{ calendarLink }}", contact, "S", { calendarLink: undefined }),
+    ).toThrow(MissingTokenError);
   });
 });
 

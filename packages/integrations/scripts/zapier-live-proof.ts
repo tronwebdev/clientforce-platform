@@ -1,5 +1,5 @@
 /**
- * INT W5 (DEC-101) — the LIVE Zapier rail proof: real Postgres + RLS and the
+ * INT W5 (DEC-102) — the LIVE Zapier rail proof: real Postgres + RLS and the
  * real guard primitives. Emissions are written through the catalog's
  * `validateEvent` on the real tenant path rather than through the BullMQ bus —
  * the rail READS the persisted Event log, so the queue is not on the path under

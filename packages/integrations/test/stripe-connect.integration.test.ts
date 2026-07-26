@@ -40,7 +40,8 @@ function statefulStripe() {
       const u = String(url);
       const method = init?.method ?? "GET";
       if (u.includes("buy.stripe.com")) return new Response("x", { status: linkStatus });
-      if (u.endsWith("/v1/account")) return json({ id: "acct_demo", business_profile: { name: "Demo" } });
+      if (u.endsWith("/v1/account"))
+        return json({ id: "acct_demo", business_profile: { name: "Demo" } });
       if (u.includes("/v1/webhook_endpoints/") && method === "DELETE") {
         const id = u.split("/v1/webhook_endpoints/")[1]!.split("?")[0]!;
         const idx = endpoints.findIndex((e) => e.id === id);
@@ -77,12 +78,17 @@ describe.skipIf(!hasInfra)("stripe fields connect — review-round hardening (IN
 
   const webhookUrlFor = (token: string) => `https://api.test/webhooks/stripe?token=${token}`;
   const newWs = async (tag: string) =>
-    (await owner.workspace.create({ data: { agencyId, name: tag, slug: `${suffix}-${tag}`, settings: {} } })).id;
+    (
+      await owner.workspace.create({
+        data: { agencyId, name: tag, slug: `${suffix}-${tag}`, settings: {} },
+      })
+    ).id;
 
   beforeAll(async () => {
     owner = createPrismaClient();
     app = createAppPrismaClient();
-    agencyId = (await owner.agency.create({ data: { name: suffix, slug: suffix, branding: {} } })).id;
+    agencyId = (await owner.agency.create({ data: { name: suffix, slug: suffix, branding: {} } }))
+      .id;
   });
   afterAll(async () => {
     await owner.agency.delete({ where: { id: agencyId } }).catch(() => {});
@@ -94,7 +100,11 @@ describe.skipIf(!hasInfra)("stripe fields connect — review-round hardening (IN
     const ws = await newWs("reorder");
     const stripe = statefulStripe();
     stripe.setLinkStatus(404); // the link 404s → probeLink throws
-    const deps: IntegrationsDeps = { prisma: app, adapters: { stripe: stripe.adapter }, publish: async () => {} };
+    const deps: IntegrationsDeps = {
+      prisma: app,
+      adapters: { stripe: stripe.adapter },
+      publish: async () => {},
+    };
     await expect(
       connectStripeFields(deps, {
         workspaceId: ws,
@@ -105,15 +115,25 @@ describe.skipIf(!hasInfra)("stripe fields connect — review-round hardening (IN
     // The vendor was never mutated — the link validated first.
     expect(stripe.createCount()).toBe(0);
     expect(stripe.endpoints).toHaveLength(0);
-    expect(await owner.integration.findFirst({ where: { workspaceId: ws, provider: "stripe" } })).toBeNull();
+    expect(
+      await owner.integration.findFirst({ where: { workspaceId: ws, provider: "stripe" } }),
+    ).toBeNull();
   });
 
   it("a reconnect that URL-matches a DIFFERENT endpoint id recreates the secret (no stale-secret sign death)", async () => {
     const ws = await newWs("identity");
     const stripe = statefulStripe();
-    const deps: IntegrationsDeps = { prisma: app, adapters: { stripe: stripe.adapter }, publish: async () => {} };
+    const deps: IntegrationsDeps = {
+      prisma: app,
+      adapters: { stripe: stripe.adapter },
+      publish: async () => {},
+    };
 
-    const row1 = await connectStripeFields(deps, { workspaceId: ws, fields: { apiKey: "rk_test_a" }, webhookUrlFor });
+    const row1 = await connectStripeFields(deps, {
+      workspaceId: ws,
+      fields: { apiKey: "rk_test_a" },
+      webhookUrlFor,
+    });
     const creds1 = decryptCredentials(row1 as IntegrationRow);
     expect(typeof creds1.webhookEndpointId).toBe("string");
     const e1 = creds1.webhookEndpointId as string;
@@ -122,9 +142,18 @@ describe.skipIf(!hasInfra)("stripe fields connect — review-round hardening (IN
     // Simulate a cross-mode/account switch: the SAME callback URL now resolves
     // to a DIFFERENT endpoint (the stored secret belongs to the gone e1).
     const url = webhookUrlFor((row1.config as { webhookToken: string }).webhookToken);
-    stripe.endpoints.splice(0, stripe.endpoints.length, { id: "we_foreign", url, status: "enabled", secret: "whsec_foreign" });
+    stripe.endpoints.splice(0, stripe.endpoints.length, {
+      id: "we_foreign",
+      url,
+      status: "enabled",
+      secret: "whsec_foreign",
+    });
 
-    const row2 = await connectStripeFields(deps, { workspaceId: ws, fields: { apiKey: "rk_test_a" }, webhookUrlFor });
+    const row2 = await connectStripeFields(deps, {
+      workspaceId: ws,
+      fields: { apiKey: "rk_test_a" },
+      webhookUrlFor,
+    });
     const creds2 = decryptCredentials(row2 as IntegrationRow);
     // NOT paired with the foreign endpoint + the stale secret (the bug); a fresh
     // endpoint whose minted secret we actually hold.
@@ -140,8 +169,16 @@ describe.skipIf(!hasInfra)("stripe fields connect — review-round hardening (IN
   it("probe flips detection OFF when the webhook endpoint was deleted out-of-band", async () => {
     const ws = await newWs("probe");
     const stripe = statefulStripe();
-    const deps: IntegrationsDeps = { prisma: app, adapters: { stripe: stripe.adapter }, publish: async () => {} };
-    const row = await connectStripeFields(deps, { workspaceId: ws, fields: { apiKey: "rk_test_p" }, webhookUrlFor });
+    const deps: IntegrationsDeps = {
+      prisma: app,
+      adapters: { stripe: stripe.adapter },
+      publish: async () => {},
+    };
+    const row = await connectStripeFields(deps, {
+      workspaceId: ws,
+      fields: { apiKey: "rk_test_p" },
+      webhookUrlFor,
+    });
     expect((row.config as { detection?: boolean }).detection).toBe(true);
 
     // Owner deletes the endpoint in the Stripe dashboard.

@@ -6,6 +6,7 @@
 ---
 
 ## How to work
+
 - **One vertical slice before breadth.** Get a single channel (email) working end-to-end through the
   real agent loop before adding SMS/WhatsApp/voice. Resist building all adapters first.
 - **Demo at the end of every phase.** Each phase has an acceptance demo you can run in the test setup.
@@ -16,7 +17,9 @@
 ---
 
 ## Phase 0 — Foundation (Day 1–2)
+
 **Goal:** the skeleton runs locally and deploys to a fresh Azure setup.
+
 - [ ] Turborepo monorepo (§5 of ARCHITECTURE) with `apps/*` + `packages/*` scaffolds.
 - [ ] `packages/tenancy` + `packages/db`: Prisma + Postgres + `pgvector`; the **3-level hierarchy** —
       `Agency → Workspace → User` (RBAC) — plus `Agent`, `Campaign`, `CampaignGraph`, `Lead`,
@@ -35,7 +38,9 @@
 > foundational — getting them right now is far cheaper than retrofitting. Don't rush past them.
 
 ## Phase 1 — Vertical slice: the Email agent (Day 3–6) ⭐
+
 **Goal:** prove the whole agent loop on one channel.
+
 - [ ] `packages/knowledge`: ingest (URL crawl + file upload) → chunk → embed → pgvector; Claude
       distills **Business Context**. UI: knowledge upload + context preview.
 - [ ] `packages/ai`: LLM gateway over Claude. **Planner** → typed **Campaign Graph** from goal +
@@ -52,6 +57,7 @@
   stage**, all visible in the UI and inspectable in Temporal.
 
 ## Phase 2 — SMS + WhatsApp (Week 2)
+
 - [ ] Twilio **SMS adapter** (segments, **STOP/opt-out enforced**, sending windows, daily caps).
 - [ ] **WhatsApp adapter** (approved templates + quick-reply buttons → buttons map to signals).
 - [ ] Inbound SMS/WhatsApp webhooks → EventIngest → signals (replies branch the journey).
@@ -60,6 +66,7 @@
 - **Demo:** a mixed email→SMS→WhatsApp branching sequence with a real inbound reply on each channel.
 
 ## Phase 3 — The Voice agent (Week 2–3) — long pole
+
 - [ ] `apps/voice`: Twilio Media Streams bridge → **Deepgram** STT → **Claude** brain → **TTS** loop.
 - [ ] Voice tools: `send_booking_link`, `send_proposal`, `book_meeting` firing live integrations.
 - [ ] "Voice call" node in the graph; call outcome/transcript → EventIngest → signal + pipeline move.
@@ -67,6 +74,7 @@
 - **Demo:** the agent places a real closing call, books a meeting and texts a booking link mid-call.
 
 ## Phase 4 — Chat widget + LinkedIn (Week 3)
+
 - [ ] `apps/widget`: embeddable JS snippet → WebSocket → same brain + knowledge + capture/convert tools;
       can enroll a visitor or book them.
 - [ ] LinkedIn adapter via the **`clientforce-chrome`** extension (extension = actuator over the API);
@@ -74,12 +82,14 @@
 - **Demo:** drop the snippet on a test page → chat captures + books a lead; capture a LinkedIn lead from the extension.
 
 ## Phase 5 — Pipeline, sender health, hardening (Week 3–4)
+
 - [ ] Pipeline board + sub-campaigns; sender health/warmup; rate-limit + retry/backoff across adapters.
 - [ ] Sender warmup + SPF/DKIM/DMARC checks surfaced in Campaign settings.
 - [ ] Security review, load test, OpenTelemetry + Sentry, runbooks.
 - [ ] Global standards pass (accessibility, states, responsiveness — see `CONSISTENCY_AUDIT.md §6a`).
 
 ## Phase 6 — Automations engine (Week 4)
+
 - [ ] `packages/automations`: **When → Only-if → Then** evaluator consuming the event bus; triggers
       (replies, calls, forms, payments, LinkedIn, schedule), conditions, multi-action executors.
 - [ ] Recipes / quick-start; per-rule enable toggle; **run history** + audit log.
@@ -87,6 +97,7 @@
 - **Demo:** a rule fires from a live event and performs its action, with a visible run record.
 
 ## Phase 7 — Integrations platform + Zapier + Webhooks (Week 4–5)
+
 - [ ] `packages/integrations`: OAuth broker + token vault; provider adapters (HubSpot, Salesforce,
       Pipedrive, GCal, Calendly, Cal.com, Gmail, Outlook, SMTP, Twilio, WhatsApp, Slack, Stripe).
 - [ ] **Outbound webhook dispatcher** (sign + retry every event) and **Zapier** app (triggers/actions).
@@ -94,12 +105,14 @@
 - **Demo:** connect a CRM → a booked call creates a deal; a webhook/Zap fires on a real event.
 
 ## Phase 8 — Lead Finder / Auto-Prospecting (Week 5)
+
 - [ ] `packages/prospecting`: DB + Apollo search; **signal scraping** (job-change/hiring/funding,
       Reddit/LinkedIn/Twitter/forum), enrichment providers, **intent scoring**, scheduled daily refresh.
 - [ ] UI: search + filters, person & signal cards, "what triggered this lead", auto-match to campaigns.
 - **Demo:** run a prospecting search → high-intent leads surface and enroll into a campaign.
 
 ## Phase 9 — Contacts/CRM + Forms + Proposals + Widget (Week 5–7)
+
 - [ ] `packages/contacts`: lists, segments, filters, bulk actions, timeline, **CSV import** (upload→map→review), tags.
 - [ ] `packages/forms` + `apps/hosted`: builder, templates, design, **hosted public forms**,
       submission → event bus → routing to campaign/list (double-opt-in).
@@ -110,6 +123,7 @@
 - **Demo:** a hosted form + proposal + widget each capture/convert a real lead end-to-end.
 
 ## Phase 10 — Analytics + Billing/Credits + Agency (Week 7–8)
+
 - [ ] `packages/analytics`: event warehouse + rollup jobs; dashboards (overview/engagement/
       deliverability/conversions/channels/agents/revenue), funnel, leaderboard, **export**.
 - [ ] `packages/billing`: plans, **per-channel credit ledger/metering** (voice costs more), Stripe
@@ -118,6 +132,7 @@
 - **Demo:** an agency creates a sub-account, it consumes credits, analytics + earnings reflect it.
 
 ## Phase 11 — Full hardening & launch (Week 8+)
+
 - [ ] End-to-end security & pen-test pass, data export/delete (GDPR), backup/restore runbooks.
 - [ ] Load test the event bus + Temporal at volume; cost review (AI + voice + infra).
 - [ ] Full a11y + states + responsiveness sweep across every screen.
@@ -126,6 +141,7 @@
 ---
 
 ## First tasks to hand Claude Code (in order)
+
 1. "Scaffold the Turborepo monorepo per `ARCHITECTURE.md §5`."
 2. "Create the Prisma schema with the **Agency→Workspace→User** hierarchy + `workspace_id` on every model + RLS."
 3. "Stand up the NestJS API with auth + agency/workspace tenant middleware + health check."
@@ -136,13 +152,14 @@
 8. "Implement the Claude Planner: goal + context → CampaignGraph."
 9. "Build the Email adapter + inbound webhook → event bus → classify → signal."
 10. "Wire the Create-Agent wizard + Steps editor + Leads/pipeline UI to the API."
-→ **As executed, Phase 0 = `EXECUTION_PHASE0.md` T0–T8** (steps 1–5 above **plus** the design-system
-foundation, the web shell, infra-as-code + deploy, and seed + smoke — all merged). Steps 6–10 are
-Phase 1, the working email slice, executed per `PHASE1_ISSUES.md` P1.1–P1.7 as amended by
-`PHASE1_HANDOFF.md §B–§C`. Subsystems (Automations, Integrations, Lead Finder, Forms, Proposals,
-Widget, Analytics, Billing) follow as Phases 6–10, one PR per task.
+    → **As executed, Phase 0 = `EXECUTION_PHASE0.md` T0–T8** (steps 1–5 above **plus** the design-system
+    foundation, the web shell, infra-as-code + deploy, and seed + smoke — all merged). Steps 6–10 are
+    Phase 1, the working email slice, executed per `PHASE1_ISSUES.md` P1.1–P1.7 as amended by
+    `PHASE1_HANDOFF.md §B–§C`. Subsystems (Automations, Integrations, Lead Finder, Forms, Proposals,
+    Widget, Analytics, Billing) follow as Phases 6–10, one PR per task.
 
 ## Risks to watch
+
 - **White-label tenancy** — the Agency→Workspace→User hierarchy must be right in Phase 0; retrofitting tenancy is brutal.
 - **Billing & credits** — metering, Stripe usage, and agency payouts are money-critical; test exhaustively, reconcile against Stripe.
 - **Voice latency & cost** — prototype the Twilio↔model loop early (spike in Phase 1 if possible).

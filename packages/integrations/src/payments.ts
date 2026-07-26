@@ -51,7 +51,10 @@ export interface PaymentIngestResult {
  * the "claim marked delivered before publish, publish error swallowed" gap —
  * the row never reaches `delivered` unless the event was actually emitted.
  */
-async function publishStrict(deps: PaymentDeps, input: Parameters<NonNullable<PaymentDeps["publish"]>>[0]): Promise<void> {
+async function publishStrict(
+  deps: PaymentDeps,
+  input: Parameters<NonNullable<PaymentDeps["publish"]>>[0],
+): Promise<void> {
   if (!deps.publish) return;
   await deps.publish(input);
 }
@@ -64,7 +67,10 @@ const settleClaim = (
   detail: Record<string, unknown>,
 ): Promise<unknown> =>
   withTenant(deps.prisma, ctx, (tx) =>
-    tx.integrationDelivery.update({ where: { id }, data: { status, detail: detail as Prisma.InputJsonValue } }),
+    tx.integrationDelivery.update({
+      where: { id },
+      data: { status, detail: detail as Prisma.InputJsonValue },
+    }),
   );
 
 async function correlateContact(
@@ -151,7 +157,10 @@ async function driveMatched(
   return { outcome: "recorded", contactId, matchedBy };
 }
 
-export async function ingestPayment(deps: PaymentDeps, input: PaymentIngestInput): Promise<PaymentIngestResult> {
+export async function ingestPayment(
+  deps: PaymentDeps,
+  input: PaymentIngestInput,
+): Promise<PaymentIngestResult> {
   const ctx = { workspaceId: input.workspaceId };
 
   // ── The idempotency claim, `pending` BEFORE any observable effect ─────────
@@ -167,7 +176,10 @@ export async function ingestPayment(deps: PaymentDeps, input: PaymentIngestInput
           sourceEventId: input.externalId,
           kind: "payment",
           status: "pending",
-          detail: { amount: input.amount, ...(input.currency ? { currency: input.currency } : {}) } as Prisma.InputJsonValue,
+          detail: {
+            amount: input.amount,
+            ...(input.currency ? { currency: input.currency } : {}),
+          } as Prisma.InputJsonValue,
         },
         select: { id: true },
       }),

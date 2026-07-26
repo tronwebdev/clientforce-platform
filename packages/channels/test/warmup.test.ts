@@ -140,7 +140,14 @@ describe("warmup lifecycle helpers", () => {
 
   it("warmupProgressFor projects the canon bar (day/days pct) + holding, and honest inactive states", () => {
     const active = warmupProgressFor(senderOnDay(18, 500), NOW);
-    expect(active).toMatchObject({ active: true, day: 18, days: 45, pct: 40, target: 500, holding: false });
+    expect(active).toMatchObject({
+      active: true,
+      day: 18,
+      days: 45,
+      pct: 40,
+      target: 500,
+      holding: false,
+    });
     expect(warmupProgressFor({ dailyLimit: 500, warmupState: null }, NOW)).toBeNull();
     const done = warmupProgressFor(senderOnDay(60, 500), NOW);
     expect(done).toMatchObject({ active: false, day: 45, currentCap: 500 });

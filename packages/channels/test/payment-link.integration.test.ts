@@ -48,23 +48,45 @@ describe.skipIf(!hasDb)("payment-link plumbing (INT W3)", () => {
   beforeAll(async () => {
     owner = createPrismaClient();
     app = createAppPrismaClient();
-    const agency = await owner.agency.create({ data: { name: suffix, slug: suffix, branding: {} } });
+    const agency = await owner.agency.create({
+      data: { name: suffix, slug: suffix, branding: {} },
+    });
     agencyId = agency.id;
-    ws = (await owner.workspace.create({ data: { agencyId, name: "pl", slug: suffix, settings: {} } })).id;
+    ws = (
+      await owner.workspace.create({ data: { agencyId, name: "pl", slug: suffix, settings: {} } })
+    ).id;
     const agentId = (
-      await owner.agent.create({ data: { workspaceId: ws, name: "Closer", goal: "close_deals", guardrails: {} } })
+      await owner.agent.create({
+        data: { workspaceId: ws, name: "Closer", goal: "close_deals", guardrails: {} },
+      })
     ).id;
     const campaignId = (
-      await owner.campaign.create({ data: { workspaceId: ws, agentId, name: "primary", graphId: "" } })
+      await owner.campaign.create({
+        data: { workspaceId: ws, agentId, name: "primary", graphId: "" },
+      })
     ).id;
     contactId = (
       await owner.contact.create({
-        data: { workspaceId: ws, source: "test", optOut: {}, tags: [], email: `ada-${suffix}@t.test`, firstName: "Ada" },
+        data: {
+          workspaceId: ws,
+          source: "test",
+          optOut: {},
+          tags: [],
+          email: `ada-${suffix}@t.test`,
+          firstName: "Ada",
+        },
       })
     ).id;
     enrollmentId = (
       await owner.enrollment.create({
-        data: { workspaceId: ws, campaignId, contactId, workflowId: `pl-${suffix}`, pipelineStage: "engaged", meta: {} },
+        data: {
+          workspaceId: ws,
+          campaignId,
+          contactId,
+          workflowId: `pl-${suffix}`,
+          pipelineStage: "engaged",
+          meta: {},
+        },
       })
     ).id;
     fullLink = withClientReference(LINK, contactId);
@@ -84,53 +106,107 @@ describe.skipIf(!hasDb)("payment-link plumbing (INT W3)", () => {
   it("resolvePaymentLink appends client_reference_id; unconfigured/revoked → null", async () => {
     expect(await resolvePaymentLink(app, ws, contactId)).toBeNull();
     await connectStripe();
-    expect(await resolvePaymentLink(app, ws, contactId)).toBe(`${LINK}?client_reference_id=${contactId}`);
+    expect(await resolvePaymentLink(app, ws, contactId)).toBe(
+      `${LINK}?client_reference_id=${contactId}`,
+    );
     await owner.integration.updateMany({ where: { workspaceId: ws }, data: { status: "revoked" } });
     expect(await resolvePaymentLink(app, ws, contactId)).toBeNull();
   });
 
   it("NO flag → the brief passes through UNTOUCHED even when configured (never an ambient payment ask)", async () => {
     await connectStripe();
-    const out = await augmentBriefWithPaymentLink({ prisma: app }, { workspaceId: ws, contactId, enrollmentId }, BRIEF);
+    const out = await augmentBriefWithPaymentLink(
+      { prisma: app },
+      { workspaceId: ws, contactId, enrollmentId },
+      BRIEF,
+    );
     expect(out).toEqual(BRIEF);
   });
 
   it("flag set + configured → the FULL per-lead link joins mustSay; unconfigured keeps the flag honest", async () => {
-    await owner.enrollment.update({ where: { id: enrollmentId }, data: { meta: { paymentLinkRequested: true } } });
+    await owner.enrollment.update({
+      where: { id: enrollmentId },
+      data: { meta: { paymentLinkRequested: true } },
+    });
     // Unconfigured: pass-through, the flag survives for a later configured send.
-    const bare = await augmentBriefWithPaymentLink({ prisma: app }, { workspaceId: ws, contactId, enrollmentId }, BRIEF);
+    const bare = await augmentBriefWithPaymentLink(
+      { prisma: app },
+      { workspaceId: ws, contactId, enrollmentId },
+      BRIEF,
+    );
     expect(bare).toEqual(BRIEF);
 
     await connectStripe();
-    const out = await augmentBriefWithPaymentLink({ prisma: app }, { workspaceId: ws, contactId, enrollmentId }, BRIEF);
+    const out = await augmentBriefWithPaymentLink(
+      { prisma: app },
+      { workspaceId: ws, contactId, enrollmentId },
+      BRIEF,
+    );
     expect(out.mustSay).toEqual([fullLink]);
     expect(out.talkingPoints).toEqual(BRIEF.talkingPoints); // never an ambient point
   });
 
   it("clearPaymentLinkFlagAfterSend clears ONLY when the sent body carried the CORRELATED per-lead link", async () => {
     await connectStripe();
-    await owner.enrollment.update({ where: { id: enrollmentId }, data: { meta: { paymentLinkRequested: true } } });
+    await owner.enrollment.update({
+      where: { id: enrollmentId },
+      data: { meta: { paymentLinkRequested: true } },
+    });
 
     // No link at all → the flag stays.
-    await clearPaymentLinkFlagAfterSend(app, { workspaceId: ws, enrollmentId, contactId, sentBody: "no link here" });
-    let meta = (await owner.enrollment.findUnique({ where: { id: enrollmentId } }))!.meta as Record<string, unknown>;
+    await clearPaymentLinkFlagAfterSend(app, {
+      workspaceId: ws,
+      enrollmentId,
+      contactId,
+      sentBody: "no link here",
+    });
+    let meta = (await owner.enrollment.findUnique({ where: { id: enrollmentId } }))!.meta as Record<
+      string,
+      unknown
+    >;
     expect(meta.paymentLinkRequested).toBe(true);
 
     // W3 fix: the RIDERLESS base link must NOT clear — a lead paying via it can't
     // be correlated (no client_reference_id), so the request is not fulfilled.
-    await clearPaymentLinkFlagAfterSend(app, { workspaceId: ws, enrollmentId, contactId, sentBody: `Pay here: ${LINK} — thanks!` });
-    meta = (await owner.enrollment.findUnique({ where: { id: enrollmentId } }))!.meta as Record<string, unknown>;
+    await clearPaymentLinkFlagAfterSend(app, {
+      workspaceId: ws,
+      enrollmentId,
+      contactId,
+      sentBody: `Pay here: ${LINK} — thanks!`,
+    });
+    meta = (await owner.enrollment.findUnique({ where: { id: enrollmentId } }))!.meta as Record<
+      string,
+      unknown
+    >;
     expect(meta.paymentLinkRequested).toBe(true);
 
     // The correlated link (base + client_reference_id) fulfills the request.
-    await clearPaymentLinkFlagAfterSend(app, { workspaceId: ws, enrollmentId, contactId, sentBody: `Pay here: ${fullLink} — thanks!` });
-    meta = (await owner.enrollment.findUnique({ where: { id: enrollmentId } }))!.meta as Record<string, unknown>;
+    await clearPaymentLinkFlagAfterSend(app, {
+      workspaceId: ws,
+      enrollmentId,
+      contactId,
+      sentBody: `Pay here: ${fullLink} — thanks!`,
+    });
+    meta = (await owner.enrollment.findUnique({ where: { id: enrollmentId } }))!.meta as Record<
+      string,
+      unknown
+    >;
     expect(meta.paymentLinkRequested).toBeUndefined();
   });
 
   it("{{paymentLink}} renders the resolved link; an undefined value throws MissingTokenError (house rule)", () => {
-    const contact = { firstName: "Ada", lastName: null, company: null, email: "a@t.test", custom: null };
-    expect(renderTokens("Pay: {{paymentLink}}", contact, "Maya", { paymentLink: fullLink })).toBe(`Pay: ${fullLink}`);
-    expect(() => renderTokens("Pay: {{paymentLink}}", contact, "Maya", {})).toThrowError(MissingTokenError);
+    const contact = {
+      firstName: "Ada",
+      lastName: null,
+      company: null,
+      email: "a@t.test",
+      custom: null,
+    };
+    expect(renderTokens("Pay: {{paymentLink}}", contact, "Maya", { paymentLink: fullLink })).toBe(
+      `Pay: ${fullLink}`,
+    );
+    expect(() => renderTokens("Pay: {{paymentLink}}", contact, "Maya", {})).toThrowError(
+      MissingTokenError,
+    );
   });
 });

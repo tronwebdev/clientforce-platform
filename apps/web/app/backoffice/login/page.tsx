@@ -60,7 +60,9 @@ export default async function BackofficeLoginPage({
           </span>
           <span style={{ fontWeight: 700, fontSize: 15 }}>Clientforce · Backoffice</span>
         </div>
-        <h1 style={{ fontFamily: "'Bricolage Grotesque'", fontSize: 26, fontWeight: 700, margin: 0 }}>
+        <h1
+          style={{ fontFamily: "'Bricolage Grotesque'", fontSize: 26, fontWeight: 700, margin: 0 }}
+        >
           Operator sign in
         </h1>
         <p style={{ color: "#5b6560", fontSize: 13, margin: 0 }}>
@@ -81,7 +83,9 @@ export default async function BackofficeLoginPage({
           }}
         />
         {message ? (
-          <p style={{ color: "var(--cf-color-danger, #c9543f)", fontSize: 13, margin: 0 }}>{message}</p>
+          <p style={{ color: "var(--cf-color-danger, #c9543f)", fontSize: 13, margin: 0 }}>
+            {message}
+          </p>
         ) : null}
         <Button type="submit" variant="primary">
           Sign in

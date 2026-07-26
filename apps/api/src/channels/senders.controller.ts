@@ -24,7 +24,12 @@ import {
   type DnsCheckDeps,
   type EmailSender,
 } from "@clientforce/channels";
-import { createSenderSchema, createSmsSenderSchema, testSendSchema, updateSenderSchema } from "@clientforce/core";
+import {
+  createSenderSchema,
+  createSmsSenderSchema,
+  testSendSchema,
+  updateSenderSchema,
+} from "@clientforce/core";
 import { encryptField, Role, type Prisma } from "@clientforce/db";
 import type { ZodSchema } from "zod";
 import { Roles } from "../auth/decorators";
@@ -77,7 +82,9 @@ export class SendersController {
             fromEmail: sms.phone,
             fromName: sms.fromName,
             ...(sms.dailyLimit ? { dailyLimit: sms.dailyLimit } : {}),
-            credentialsEnc: new Uint8Array(encryptField(JSON.stringify({ messagingServiceSid: sms.messagingServiceSid }))),
+            credentialsEnc: new Uint8Array(
+              encryptField(JSON.stringify({ messagingServiceSid: sms.messagingServiceSid })),
+            ),
             // P5 W1 (DEC-083): NEW senders ramp from day 1 (carrier reputation
             // warms like domain reputation); pre-W1 senders never gain a ramp
             // retroactively (warmup is triggered, DEC-019).

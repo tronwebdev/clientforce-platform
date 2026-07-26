@@ -13,7 +13,13 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { createAppPrismaClient, createPrismaClient, type PrismaClient } from "@clientforce/db";
 import { evaluateEventForRules, type RuleEngineDeps } from "@clientforce/automations";
-import { deliverWebhook, ingestPayment, signWebhookBody, type IntegrationsDeps, type PaymentDeps } from "../src";
+import {
+  deliverWebhook,
+  ingestPayment,
+  signWebhookBody,
+  type IntegrationsDeps,
+  type PaymentDeps,
+} from "../src";
 
 process.env.FIELD_ENCRYPTION_KEY ??= Buffer.alloc(32, 7).toString("base64");
 
@@ -30,7 +36,13 @@ describe.skipIf(!hasInfra)("payment ingest + webhook delivery (INT W3)", () => {
   let enrollmentId: string;
   let stripeRowId: string;
   let webhooksRowId: string;
-  const published: Array<{ type: string; payload: unknown; contactId?: string; enrollmentId?: string; campaignId?: string }> = [];
+  const published: Array<{
+    type: string;
+    payload: unknown;
+    contactId?: string;
+    enrollmentId?: string;
+    campaignId?: string;
+  }> = [];
 
   const paymentDeps = (): PaymentDeps => ({
     prisma: app,
@@ -49,23 +61,44 @@ describe.skipIf(!hasInfra)("payment ingest + webhook delivery (INT W3)", () => {
   beforeAll(async () => {
     owner = createPrismaClient();
     app = createAppPrismaClient();
-    const agency = await owner.agency.create({ data: { name: suffix, slug: suffix, branding: {} } });
+    const agency = await owner.agency.create({
+      data: { name: suffix, slug: suffix, branding: {} },
+    });
     agencyId = agency.id;
-    ws = (await owner.workspace.create({ data: { agencyId, name: "w3", slug: suffix, settings: {} } })).id;
+    ws = (
+      await owner.workspace.create({ data: { agencyId, name: "w3", slug: suffix, settings: {} } })
+    ).id;
     const agentId = (
-      await owner.agent.create({ data: { workspaceId: ws, name: "Closer", goal: "close_deals", guardrails: {} } })
+      await owner.agent.create({
+        data: { workspaceId: ws, name: "Closer", goal: "close_deals", guardrails: {} },
+      })
     ).id;
     campaignId = (
-      await owner.campaign.create({ data: { workspaceId: ws, agentId, name: "primary", graphId: "" } })
+      await owner.campaign.create({
+        data: { workspaceId: ws, agentId, name: "primary", graphId: "" },
+      })
     ).id;
     contactId = (
       await owner.contact.create({
-        data: { workspaceId: ws, source: "test", optOut: {}, tags: [], email: `payer-${suffix}@t.test` },
+        data: {
+          workspaceId: ws,
+          source: "test",
+          optOut: {},
+          tags: [],
+          email: `payer-${suffix}@t.test`,
+        },
       })
     ).id;
     enrollmentId = (
       await owner.enrollment.create({
-        data: { workspaceId: ws, campaignId, contactId, workflowId: `w3-${suffix}`, pipelineStage: "engaged", meta: {} },
+        data: {
+          workspaceId: ws,
+          campaignId,
+          contactId,
+          workflowId: `w3-${suffix}`,
+          pipelineStage: "engaged",
+          meta: {},
+        },
       })
     ).id;
     stripeRowId = (
@@ -74,7 +107,11 @@ describe.skipIf(!hasInfra)("payment ingest + webhook delivery (INT W3)", () => {
           workspaceId: ws,
           provider: "stripe",
           status: "connected",
-          config: { paymentLinkUrl: "https://buy.stripe.com/demo", webhookToken: `tok-${suffix}`, detection: true },
+          config: {
+            paymentLinkUrl: "https://buy.stripe.com/demo",
+            webhookToken: `tok-${suffix}`,
+            detection: true,
+          },
           scopes: [],
         },
       })
@@ -232,7 +269,11 @@ describe.skipIf(!hasInfra)("payment ingest + webhook delivery (INT W3)", () => {
     const expected = signWebhookBody(`whsec_cf_${suffix}`, sig![1]!, seen[0]!.body);
     expect(sig![2]).toBe(expected);
     expect(seen[0]!.eventHeader).toBe("payment.received.v1");
-    expect(JSON.parse(seen[0]!.body)).toMatchObject({ v: 1, type: "payment.received.v1", rule: { id: "rule-1" } });
+    expect(JSON.parse(seen[0]!.body)).toMatchObject({
+      v: 1,
+      type: "payment.received.v1",
+      rule: { id: "rule-1" },
+    });
 
     // Redelivery under the SAME source key → claim dedupe, no second POST.
     const dup = await deliverWebhook(intDeps(), {
@@ -307,51 +348,147 @@ describe.skipIf(!hasInfra)("payment ingest + webhook delivery (INT W3)", () => {
   it("publish failure leaves the claim RECOVERABLE (failed, not delivered) — a redelivery re-drives + publishes once", async () => {
     published.length = 0;
     const ext = `cs_${suffix}_pubfail`;
-    const throwingDeps: PaymentDeps = { prisma: app, publish: async () => { throw new Error("bus down"); }, log: () => {} };
+    const throwingDeps: PaymentDeps = {
+      prisma: app,
+      publish: async () => {
+        throw new Error("bus down");
+      },
+      log: () => {},
+    };
     // The publish throws → ingest rethrows (controller 5xx → Stripe retries) and
     // the claim is `failed`, NOT `delivered`: the event was never emitted, so the
     // ledger must not read "delivered" and swallow the loss.
     await expect(
-      ingestPayment(throwingDeps, { workspaceId: ws, integrationId: stripeRowId, externalId: ext, amount: 7777, clientReferenceId: contactId }),
+      ingestPayment(throwingDeps, {
+        workspaceId: ws,
+        integrationId: stripeRowId,
+        externalId: ext,
+        amount: 7777,
+        clientReferenceId: contactId,
+      }),
     ).rejects.toThrow();
-    let claim = await owner.integrationDelivery.findFirst({ where: { integrationId: stripeRowId, sourceEventId: ext, kind: "payment" } });
+    let claim = await owner.integrationDelivery.findFirst({
+      where: { integrationId: stripeRowId, sourceEventId: ext, kind: "payment" },
+    });
     expect(claim!.status).toBe("failed");
     expect(published).toHaveLength(0);
 
     // Stripe redelivers the SAME session — a working publish re-drives the failed
     // row to delivered and emits payment.received.v1 exactly once.
-    const res = await ingestPayment(paymentDeps(), { workspaceId: ws, integrationId: stripeRowId, externalId: ext, amount: 7777, clientReferenceId: contactId });
+    const res = await ingestPayment(paymentDeps(), {
+      workspaceId: ws,
+      integrationId: stripeRowId,
+      externalId: ext,
+      amount: 7777,
+      clientReferenceId: contactId,
+    });
     expect(res).toEqual({ outcome: "recorded", contactId, matchedBy: "reference" });
     expect(published).toHaveLength(1);
-    claim = await owner.integrationDelivery.findFirst({ where: { integrationId: stripeRowId, sourceEventId: ext, kind: "payment" } });
+    claim = await owner.integrationDelivery.findFirst({
+      where: { integrationId: stripeRowId, sourceEventId: ext, kind: "payment" },
+    });
     expect(claim!.status).toBe("delivered");
 
     // A further redelivery is now a true duplicate — no re-publish.
-    const dup = await ingestPayment(paymentDeps(), { workspaceId: ws, integrationId: stripeRowId, externalId: ext, amount: 7777, clientReferenceId: contactId });
+    const dup = await ingestPayment(paymentDeps(), {
+      workspaceId: ws,
+      integrationId: stripeRowId,
+      externalId: ext,
+      amount: 7777,
+      clientReferenceId: contactId,
+    });
     expect(dup.outcome).toBe("duplicate");
     expect(published).toHaveLength(1);
   });
 
   it("the outbound allowance brake EXCLUDES inbound payment claims (a busy payment day never holds Slack/webhook sends)", async () => {
     // Fresh workspace so the day-count starts clean.
-    const w = (await owner.workspace.create({ data: { agencyId, name: "allow", slug: `${suffix}-allow`, settings: {} } })).id;
-    const wStripe = (await owner.integration.create({ data: { workspaceId: w, provider: "stripe", status: "connected", config: { webhookToken: `tok-allow-${suffix}`, detection: true }, scopes: [] } })).id;
-    await owner.integration.create({ data: { workspaceId: w, provider: "webhooks", status: "connected", config: { defaultUrl: "https://1.1.1.1:8443/hook", signingSecret: `whsec_cf_allow_${suffix}` }, scopes: [] } });
-    const wContact = (await owner.contact.create({ data: { workspaceId: w, source: "test", optOut: {}, tags: [], email: `allow-${suffix}@t.test` } })).id;
+    const w = (
+      await owner.workspace.create({
+        data: { agencyId, name: "allow", slug: `${suffix}-allow`, settings: {} },
+      })
+    ).id;
+    const wStripe = (
+      await owner.integration.create({
+        data: {
+          workspaceId: w,
+          provider: "stripe",
+          status: "connected",
+          config: { webhookToken: `tok-allow-${suffix}`, detection: true },
+          scopes: [],
+        },
+      })
+    ).id;
+    await owner.integration.create({
+      data: {
+        workspaceId: w,
+        provider: "webhooks",
+        status: "connected",
+        config: {
+          defaultUrl: "https://1.1.1.1:8443/hook",
+          signingSecret: `whsec_cf_allow_${suffix}`,
+        },
+        scopes: [],
+      },
+    });
+    const wContact = (
+      await owner.contact.create({
+        data: {
+          workspaceId: w,
+          source: "test",
+          optOut: {},
+          tags: [],
+          email: `allow-${suffix}@t.test`,
+        },
+      })
+    ).id;
 
     // Two inbound payment claims (delivered rows) already exist for the day…
-    await ingestPayment(paymentDeps(), { workspaceId: w, integrationId: wStripe, externalId: `cs_${suffix}_al1`, amount: 100, clientReferenceId: wContact });
-    await ingestPayment(paymentDeps(), { workspaceId: w, integrationId: wStripe, externalId: `cs_${suffix}_al2`, amount: 100, clientReferenceId: wContact });
+    await ingestPayment(paymentDeps(), {
+      workspaceId: w,
+      integrationId: wStripe,
+      externalId: `cs_${suffix}_al1`,
+      amount: 100,
+      clientReferenceId: wContact,
+    });
+    await ingestPayment(paymentDeps(), {
+      workspaceId: w,
+      integrationId: wStripe,
+      externalId: `cs_${suffix}_al2`,
+      amount: 100,
+      clientReferenceId: wContact,
+    });
 
     vi.stubGlobal("fetch", async () => new Response("ok", { status: 200 }));
-    const depsAllow1: IntegrationsDeps = { prisma: app, adapters: {}, publish: async () => {}, config: { dailyDeliveryAllowance: 1 } };
-    const whPayload = (id: string) => ({ v: 1 as const, eventId: `evt-${suffix}-${id}`, type: "t", occurredAt: new Date().toISOString(), workspaceId: w, rule: { id: "r" }, payload: {} });
+    const depsAllow1: IntegrationsDeps = {
+      prisma: app,
+      adapters: {},
+      publish: async () => {},
+      config: { dailyDeliveryAllowance: 1 },
+    };
+    const whPayload = (id: string) => ({
+      v: 1 as const,
+      eventId: `evt-${suffix}-${id}`,
+      type: "t",
+      occurredAt: new Date().toISOString(),
+      workspaceId: w,
+      rule: { id: "r" },
+      payload: {},
+    });
 
     // …yet the FIRST outbound webhook still delivers — payments don't count.
-    const first = await deliverWebhook(depsAllow1, { workspaceId: w, payload: whPayload("al-a"), sourceEventId: `${suffix}-al-a` });
+    const first = await deliverWebhook(depsAllow1, {
+      workspaceId: w,
+      payload: whPayload("al-a"),
+      sourceEventId: `${suffix}-al-a`,
+    });
     expect(first.delivered).toBe(true);
     // The brake still bites the SECOND outbound (one real outbound row now counts).
-    const second = await deliverWebhook(depsAllow1, { workspaceId: w, payload: whPayload("al-b"), sourceEventId: `${suffix}-al-b` });
+    const second = await deliverWebhook(depsAllow1, {
+      workspaceId: w,
+      payload: whPayload("al-b"),
+      sourceEventId: `${suffix}-al-b`,
+    });
     expect(second.delivered).toBe(false);
     expect(second.detail).toContain("held");
   });
@@ -362,7 +499,15 @@ describe.skipIf(!hasInfra)("payment ingest + webhook delivery (INT W3)", () => {
     const res = await deliverWebhook(intDeps(), {
       workspaceId: ws,
       url: "https://8.8.8.8/cap",
-      payload: { v: 1, eventId: `evt-${suffix}-cap`, type: "t", occurredAt: new Date().toISOString(), workspaceId: ws, rule: { id: "r" }, payload: {} },
+      payload: {
+        v: 1,
+        eventId: `evt-${suffix}-cap`,
+        type: "t",
+        occurredAt: new Date().toISOString(),
+        workspaceId: ws,
+        rule: { id: "r" },
+        payload: {},
+      },
       sourceEventId: `evt-${suffix}-cap#rule:r#a:0`,
     });
     expect(res.delivered).toBe(false);
@@ -372,12 +517,38 @@ describe.skipIf(!hasInfra)("payment ingest + webhook delivery (INT W3)", () => {
 
   it("email fallback resolves DETERMINISTICALLY to the oldest contact when an email is shared", async () => {
     published.length = 0;
-    const w = (await owner.workspace.create({ data: { agencyId, name: "dup", slug: `${suffix}-dup`, settings: {} } })).id;
-    const wStripe = (await owner.integration.create({ data: { workspaceId: w, provider: "stripe", status: "connected", config: { webhookToken: `tok-dup-${suffix}`, detection: true }, scopes: [] } })).id;
+    const w = (
+      await owner.workspace.create({
+        data: { agencyId, name: "dup", slug: `${suffix}-dup`, settings: {} },
+      })
+    ).id;
+    const wStripe = (
+      await owner.integration.create({
+        data: {
+          workspaceId: w,
+          provider: "stripe",
+          status: "connected",
+          config: { webhookToken: `tok-dup-${suffix}`, detection: true },
+          scopes: [],
+        },
+      })
+    ).id;
     const shared = `dup-${suffix}@t.test`;
-    const older = (await owner.contact.create({ data: { workspaceId: w, source: "test", optOut: {}, tags: [], email: shared } })).id;
-    await owner.contact.create({ data: { workspaceId: w, source: "test", optOut: {}, tags: [], email: shared } }); // a second, newer row
-    const res = await ingestPayment(paymentDeps(), { workspaceId: w, integrationId: wStripe, externalId: `cs_${suffix}_dup`, amount: 4200, payerEmail: shared });
+    const older = (
+      await owner.contact.create({
+        data: { workspaceId: w, source: "test", optOut: {}, tags: [], email: shared },
+      })
+    ).id;
+    await owner.contact.create({
+      data: { workspaceId: w, source: "test", optOut: {}, tags: [], email: shared },
+    }); // a second, newer row
+    const res = await ingestPayment(paymentDeps(), {
+      workspaceId: w,
+      integrationId: wStripe,
+      externalId: `cs_${suffix}_dup`,
+      amount: 4200,
+      payerEmail: shared,
+    });
     expect(res).toEqual({ outcome: "recorded", contactId: older, matchedBy: "email" });
   });
 });

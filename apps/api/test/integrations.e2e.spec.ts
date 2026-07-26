@@ -22,7 +22,13 @@ import { Test } from "@nestjs/testing";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { INTEGRATION_REFUSALS } from "@clientforce/core";
-import { createAppPrismaClient, createPrismaClient, decryptField, withTenant, type PrismaClient } from "@clientforce/db";
+import {
+  createAppPrismaClient,
+  createPrismaClient,
+  decryptField,
+  withTenant,
+  type PrismaClient,
+} from "@clientforce/db";
 import { validateEvent } from "@clientforce/events";
 import {
   CalendlyAdapter,
@@ -51,7 +57,10 @@ const scriptedAdapter = new SlackAdapter({
   fetchImpl: async (url) => {
     const path = String(url);
     const respond = (body: unknown) =>
-      new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
+      new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
     if (path.endsWith("oauth.v2.access"))
       return respond(
         script.exchange?.() ?? {
@@ -61,9 +70,16 @@ const scriptedAdapter = new SlackAdapter({
           team: { id: "T1", name: "BrightPath" },
         },
       );
-    if (path.endsWith("auth.test")) return respond(script.authTest?.() ?? { ok: true, team: "BrightPath" });
+    if (path.endsWith("auth.test"))
+      return respond(script.authTest?.() ?? { ok: true, team: "BrightPath" });
     if (path.includes("conversations.list"))
-      return respond({ ok: true, channels: [{ id: "C2", name: "general" }, { id: "C1", name: "alerts" }] });
+      return respond({
+        ok: true,
+        channels: [
+          { id: "C2", name: "general" },
+          { id: "C1", name: "alerts" },
+        ],
+      });
     if (path.endsWith("auth.revoke")) return respond({ ok: true });
     return respond({ ok: false, error: "unknown_method" });
   },
@@ -80,7 +96,10 @@ const scriptedGcal = new GoogleCalendarAdapter({
   fetchImpl: async (url) => {
     const path = String(url);
     const respond = (body: unknown, status = 200) =>
-      new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+      new Response(JSON.stringify(body), {
+        status,
+        headers: { "Content-Type": "application/json" },
+      });
     if (path.startsWith("https://gcal.test/token"))
       return respond(
         gcalScript.exchange?.() ?? {
@@ -109,7 +128,10 @@ const scriptedCalendly = new CalendlyAdapter({
   fetchImpl: async (url, init) => {
     const path = String(url);
     const respond = (body: unknown, status = 200) =>
-      new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+      new Response(JSON.stringify(body), {
+        status,
+        headers: { "Content-Type": "application/json" },
+      });
     if (path.startsWith("https://calendly.com/")) {
       // The scheduling-link probe: /gone 404s, everything else is reachable.
       return new Response("ok", { status: path.includes("/gone") ? 404 : 200 });
@@ -130,7 +152,10 @@ const scriptedCalendly = new CalendlyAdapter({
       calendlySubscriptionPosts.push(JSON.parse(String(init.body)) as Record<string, unknown>);
       const scripted = calendlyScript.subscriptionCreate?.();
       if (scripted) return respond(scripted.body, scripted.status);
-      return respond({ resource: { uri: "https://calendly.test/webhook_subscriptions/W1", state: "active" } }, 201);
+      return respond(
+        { resource: { uri: "https://calendly.test/webhook_subscriptions/W1", state: "active" } },
+        201,
+      );
     }
     return respond({ title: "Not Found", message: "nope" }, 404);
   },
@@ -148,9 +173,12 @@ describe.skipIf(!hasDb)("integrations e2e (INT W1, DEC-093)", () => {
   let deps: IntegrationsDeps;
 
   const api = () => request(app.getHttpServer());
-  const asOwner = (r: request.Test) => r.set("Authorization", `Bearer ${ownerToken}`).set("x-workspace-id", wsA);
-  const asOwnerB = (r: request.Test) => r.set("Authorization", `Bearer ${ownerToken}`).set("x-workspace-id", wsB);
-  const asAgent = (r: request.Test) => r.set("Authorization", `Bearer ${agentToken}`).set("x-workspace-id", wsA);
+  const asOwner = (r: request.Test) =>
+    r.set("Authorization", `Bearer ${ownerToken}`).set("x-workspace-id", wsA);
+  const asOwnerB = (r: request.Test) =>
+    r.set("Authorization", `Bearer ${ownerToken}`).set("x-workspace-id", wsB);
+  const asAgent = (r: request.Test) =>
+    r.set("Authorization", `Bearer ${agentToken}`).set("x-workspace-id", wsA);
 
   /** Walk the real OAuth loop: connect → pull state out of the URL → complete. */
   const connectSlack = async () => {
@@ -165,10 +193,20 @@ describe.skipIf(!hasDb)("integrations e2e (INT W1, DEC-093)", () => {
     process.env.AUTH_DEV_SECRET = SECRET;
     owner = createPrismaClient();
     appClient = createAppPrismaClient();
-    const agency = await owner.agency.create({ data: { name: suffix, slug: suffix, branding: {} } });
+    const agency = await owner.agency.create({
+      data: { name: suffix, slug: suffix, branding: {} },
+    });
     agencyId = agency.id;
-    wsA = (await owner.workspace.create({ data: { agencyId, name: "A", slug: `a-${suffix}`, settings: {} } })).id;
-    wsB = (await owner.workspace.create({ data: { agencyId, name: "B", slug: `b-${suffix}`, settings: {} } })).id;
+    wsA = (
+      await owner.workspace.create({
+        data: { agencyId, name: "A", slug: `a-${suffix}`, settings: {} },
+      })
+    ).id;
+    wsB = (
+      await owner.workspace.create({
+        data: { agencyId, name: "B", slug: `b-${suffix}`, settings: {} },
+      })
+    ).id;
 
     const u1 = await owner.user.create({
       data: { email: `owner-${suffix}@t.test`, authProviderId: `auth|owner-${suffix}` },
@@ -225,7 +263,11 @@ describe.skipIf(!hasDb)("integrations e2e (INT W1, DEC-093)", () => {
   });
 
   it("refuses connect while the platform app is unconfigured — the honest owner-clock state", async () => {
-    const unconfigured = new SlackAdapter({ clientId: undefined, clientSecret: undefined, fetchImpl: async () => new Response("{}") });
+    const unconfigured = new SlackAdapter({
+      clientId: undefined,
+      clientSecret: undefined,
+      fetchImpl: async () => new Response("{}"),
+    });
     const live = deps.adapters.slack;
     deps.adapters.slack = unconfigured;
     try {
@@ -253,7 +295,9 @@ describe.skipIf(!hasDb)("integrations e2e (INT W1, DEC-093)", () => {
     // a state minted for workspace A must not complete against workspace B
     const start = await asOwner(api().post("/integrations/slack/connect")).expect(201);
     const stateA = new URL(start.body.authorizeUrl).searchParams.get("state") as string;
-    await asOwnerB(api().post("/integrations/slack/complete")).send({ code: "c", state: stateA }).expect(422);
+    await asOwnerB(api().post("/integrations/slack/complete"))
+      .send({ code: "c", state: stateA })
+      .expect(422);
 
     // a genuinely EXPIRED state refuses (review-round pin: the exp branch,
     // exercised through the real endpoint — same-process secret, valid MAC)
@@ -306,10 +350,14 @@ describe.skipIf(!hasDb)("integrations e2e (INT W1, DEC-093)", () => {
     });
     expect(JSON.stringify(raw.credentials)).not.toContain("stubtok");
     expect(Buffer.from(raw.credentialsEnc as Uint8Array).toString("utf8")).not.toContain("stubtok");
-    expect(JSON.parse(decryptField(Buffer.from(raw.credentialsEnc as Uint8Array))).accessToken).toBe("stubtok-e2e-token");
+    expect(
+      JSON.parse(decryptField(Buffer.from(raw.credentialsEnc as Uint8Array))).accessToken,
+    ).toBe("stubtok-e2e-token");
     expect(raw.lastProbeAt).not.toBeNull();
 
-    const events = await owner.event.findMany({ where: { workspaceId: wsA, type: "integration.connected.v1" } });
+    const events = await owner.event.findMany({
+      where: { workspaceId: wsA, type: "integration.connected.v1" },
+    });
     expect(events.length).toBeGreaterThanOrEqual(1);
 
     const list = await asOwner(api().get("/integrations")).expect(200);
@@ -340,7 +388,9 @@ describe.skipIf(!hasDb)("integrations e2e (INT W1, DEC-093)", () => {
       .send({ config: { unknown_top_level: true } })
       .expect(400);
     const ok = await asOwner(api().patch("/integrations/slack"))
-      .send({ config: { channel: { id: "C1", name: "alerts" }, notifications: { goal_completed: false } } })
+      .send({
+        config: { channel: { id: "C1", name: "alerts" }, notifications: { goal_completed: false } },
+      })
       .expect(200);
     expect(ok.body.integration.config).toEqual({
       channel: { id: "C1", name: "alerts" },
@@ -394,7 +444,9 @@ describe.skipIf(!hasDb)("integrations e2e (INT W1, DEC-093)", () => {
     const res = await asOwner(api().get("/integrations/slack/activity")).expect(200);
     expect(res.body.deliveries.length).toBeGreaterThanOrEqual(1);
     expect(res.body.deliveries[0]).toMatchObject({ kind: "new_reply", status: "delivered" });
-    expect(res.body.events.some((e: { type: string }) => e.type === "integration.connected.v1")).toBe(true);
+    expect(
+      res.body.events.some((e: { type: string }) => e.type === "integration.connected.v1"),
+    ).toBe(true);
   });
 
   it("disconnect deletes the row; the ledger outlives it", async () => {
@@ -405,7 +457,9 @@ describe.skipIf(!hasDb)("integrations e2e (INT W1, DEC-093)", () => {
       where: { workspaceId_provider: { workspaceId: wsA, provider: "slack" } },
     });
     expect(gone).toBeNull();
-    const events = await owner.event.findMany({ where: { workspaceId: wsA, type: "integration.disconnected.v1" } });
+    const events = await owner.event.findMany({
+      where: { workspaceId: wsA, type: "integration.disconnected.v1" },
+    });
     expect(events).toHaveLength(1);
     expect(events[0]?.payload).toMatchObject({ provider: "slack", reason: "user" });
     // second disconnect refuses honestly
@@ -420,7 +474,9 @@ describe.skipIf(!hasDb)("integrations e2e (INT W1, DEC-093)", () => {
       expect(url.origin + url.pathname).toBe("https://gcal.test/auth");
       expect(url.searchParams.get("access_type")).toBe("offline");
       expect(url.searchParams.get("prompt")).toBe("consent");
-      expect(url.searchParams.get("scope")).toBe("https://www.googleapis.com/auth/calendar.readonly");
+      expect(url.searchParams.get("scope")).toBe(
+        "https://www.googleapis.com/auth/calendar.readonly",
+      );
       expect(url.searchParams.get("state")).toBeTruthy();
     });
 
@@ -440,8 +496,12 @@ describe.skipIf(!hasDb)("integrations e2e (INT W1, DEC-093)", () => {
       const raw = await owner.integration.findUniqueOrThrow({
         where: { workspaceId_provider: { workspaceId: wsA, provider: "gcal" } },
       });
-      expect(Buffer.from(raw.credentialsEnc as Uint8Array).toString("utf8")).not.toContain("stubtok");
-      const stored = JSON.parse(decryptField(Buffer.from(raw.credentialsEnc as Uint8Array))) as Record<string, unknown>;
+      expect(Buffer.from(raw.credentialsEnc as Uint8Array).toString("utf8")).not.toContain(
+        "stubtok",
+      );
+      const stored = JSON.parse(
+        decryptField(Buffer.from(raw.credentialsEnc as Uint8Array)),
+      ) as Record<string, unknown>;
       expect(stored.accessToken).toBe("stubtok-gcal-e2e");
       expect(stored.refreshToken).toBe("stubtok-gcal-refresh");
       expect(typeof stored.expiresAt).toBe("string");
@@ -459,7 +519,12 @@ describe.skipIf(!hasDb)("integrations e2e (INT W1, DEC-093)", () => {
 
     it("PATCH config stores the picked calendar + offerSlots through the strict gcal schema", async () => {
       const ok = await asOwner(api().patch("/integrations/gcal"))
-        .send({ config: { calendar: { id: "ada@example.test", name: "Ada", timeZone: "America/Chicago" }, offerSlots: true } })
+        .send({
+          config: {
+            calendar: { id: "ada@example.test", name: "Ada", timeZone: "America/Chicago" },
+            offerSlots: true,
+          },
+        })
         .expect(200);
       expect(ok.body.integration.config).toEqual({
         calendar: { id: "ada@example.test", name: "Ada", timeZone: "America/Chicago" },
@@ -519,7 +584,11 @@ describe.skipIf(!hasDb)("integrations e2e (INT W1, DEC-093)", () => {
         status: "connected",
         accountLabel: "Ada Lovelace (Calendly)",
       });
-      const config = res.body.integration.config as { schedulingUrl: string; webhookToken?: string; detection?: boolean };
+      const config = res.body.integration.config as {
+        schedulingUrl: string;
+        webhookToken?: string;
+        detection?: boolean;
+      };
       expect(config.schedulingUrl).toBe("https://calendly.com/ada");
       expect(config.detection).toBe(true);
       expect(config.webhookToken).toBeTruthy();
@@ -533,8 +602,12 @@ describe.skipIf(!hasDb)("integrations e2e (INT W1, DEC-093)", () => {
       const raw = await owner.integration.findUniqueOrThrow({
         where: { workspaceId_provider: { workspaceId: wsA, provider: "calendly" } },
       });
-      expect(Buffer.from(raw.credentialsEnc as Uint8Array).toString("utf8")).not.toContain("stubtok");
-      const stored = JSON.parse(decryptField(Buffer.from(raw.credentialsEnc as Uint8Array))) as Record<string, unknown>;
+      expect(Buffer.from(raw.credentialsEnc as Uint8Array).toString("utf8")).not.toContain(
+        "stubtok",
+      );
+      const stored = JSON.parse(
+        decryptField(Buffer.from(raw.credentialsEnc as Uint8Array)),
+      ) as Record<string, unknown>;
       expect(stored.apiToken).toBe("stubtok-pat-e2e");
       expect(typeof stored.signingKey).toBe("string");
       expect(stored.subscriptionUri).toBe("https://calendly.test/webhook_subscriptions/W1");
@@ -543,7 +616,9 @@ describe.skipIf(!hasDb)("integrations e2e (INT W1, DEC-093)", () => {
       const again = await asOwner(api().post("/integrations/calendly/connect-fields"))
         .send({ schedulingUrl: "https://calendly.com/ada", apiToken: "stubtok-pat-rotated" })
         .expect(201);
-      expect((again.body.integration.config as { webhookToken?: string }).webhookToken).toBe(config.webhookToken);
+      expect((again.body.integration.config as { webhookToken?: string }).webhookToken).toBe(
+        config.webhookToken,
+      );
     });
 
     it("a free-plan webhook refusal maps to the typed plan-naming 422 — tier 1 stays intact", async () => {
@@ -555,7 +630,9 @@ describe.skipIf(!hasDb)("integrations e2e (INT W1, DEC-093)", () => {
         const res = await asOwnerB(api().post("/integrations/calendly/connect-fields"))
           .send({ schedulingUrl: "https://calendly.com/ada", apiToken: "stubtok-free-plan" })
           .expect(422);
-        expect(res.body.detail).toContain(INTEGRATION_REFUSALS.CALENDLY_TOKEN_REQUIRED_FOR_DETECTION);
+        expect(res.body.detail).toContain(
+          INTEGRATION_REFUSALS.CALENDLY_TOKEN_REQUIRED_FOR_DETECTION,
+        );
         expect(res.body.detail).toContain("upgrade");
       } finally {
         delete calendlyScript.subscriptionCreate;
@@ -591,7 +668,11 @@ describe.skipIf(!hasDb)("integrations e2e (INT W1, DEC-093)", () => {
           workspaceId: wsA,
           provider: "stripe",
           status: "connected",
-          config: { paymentLinkUrl: "https://buy.stripe.com/old", webhookToken: "tok-anchor", detection: true },
+          config: {
+            paymentLinkUrl: "https://buy.stripe.com/old",
+            webhookToken: "tok-anchor",
+            detection: true,
+          },
           scopes: [],
         },
       });
@@ -610,14 +691,25 @@ describe.skipIf(!hasDb)("integrations e2e (INT W1, DEC-093)", () => {
 
       // Forge attempt: supply different values — the stored ones still win.
       const forged = await asOwner(api().patch("/integrations/stripe"))
-        .send({ config: { paymentLinkUrl: "https://buy.stripe.com/new", webhookToken: "forged", detection: false } })
+        .send({
+          config: {
+            paymentLinkUrl: "https://buy.stripe.com/new",
+            webhookToken: "forged",
+            detection: false,
+          },
+        })
         .expect(200);
-      expect(forged.body.integration.config).toMatchObject({ webhookToken: "tok-anchor", detection: true });
+      expect(forged.body.integration.config).toMatchObject({
+        webhookToken: "tok-anchor",
+        detection: true,
+      });
 
       const raw = await owner.integration.findUniqueOrThrow({
         where: { workspaceId_provider: { workspaceId: wsA, provider: "stripe" } },
       });
-      expect((raw.config as { webhookToken: string; detection: boolean }).webhookToken).toBe("tok-anchor");
+      expect((raw.config as { webhookToken: string; detection: boolean }).webhookToken).toBe(
+        "tok-anchor",
+      );
       expect((raw.config as { detection: boolean }).detection).toBe(true);
     });
   });

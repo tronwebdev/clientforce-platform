@@ -46,13 +46,43 @@ const goodGraph = (): CampaignGraph => ({
     },
     // Reply-strategy steps (M1b): price/info rejoin the branch; timing waits
     // long then rejoins; wrong_person and not_interested close out.
-    { id: "step-reframe-price", type: "step", channel: "email", content: { body: "The audit pays for itself — one number says it.", threaded: true } },
-    { id: "step-ack-timing", type: "step", channel: "email", content: { body: "Understood — circling back later.", threaded: true } },
+    {
+      id: "step-reframe-price",
+      type: "step",
+      channel: "email",
+      content: { body: "The audit pays for itself — one number says it.", threaded: true },
+    },
+    {
+      id: "step-ack-timing",
+      type: "step",
+      channel: "email",
+      content: { body: "Understood — circling back later.", threaded: true },
+    },
     { id: "delay-timing", type: "delay", amount: 30, unit: "days" },
-    { id: "step-timing-follow", type: "step", channel: "email", content: { body: "Circling back as promised.", threaded: true } },
-    { id: "step-referral", type: "step", channel: "email", content: { body: "Who is the right person?", threaded: true } },
-    { id: "step-answer", type: "step", channel: "email", content: { body: "Here is the answer.", threaded: true } },
-    { id: "step-close", type: "step", channel: "email", content: { body: "No worries — door stays open.", threaded: true } },
+    {
+      id: "step-timing-follow",
+      type: "step",
+      channel: "email",
+      content: { body: "Circling back as promised.", threaded: true },
+    },
+    {
+      id: "step-referral",
+      type: "step",
+      channel: "email",
+      content: { body: "Who is the right person?", threaded: true },
+    },
+    {
+      id: "step-answer",
+      type: "step",
+      channel: "email",
+      content: { body: "Here is the answer.", threaded: true },
+    },
+    {
+      id: "step-close",
+      type: "step",
+      channel: "email",
+      content: { body: "No worries — door stays open.", threaded: true },
+    },
     { id: "end-won", type: "end" },
     { id: "end-lost", type: "end" },
   ],
@@ -153,7 +183,9 @@ describe("validateAll REPLY PLAYBOOK gate (M1b, DEC-068)", () => {
 
   it("enforces the interested → booked stage pin", () => {
     const g = goodGraph();
-    const c = replyBranchOf(g).cases.find((x) => x.when !== "default" && x.when.intent === "interested")!;
+    const c = replyBranchOf(g).cases.find(
+      (x) => x.when !== "default" && x.when.intent === "interested",
+    )!;
     delete c.pipeline;
     expect(() => validateAll(g)).toThrow(/"interested" must set "pipeline":"booked"/);
   });
@@ -164,7 +196,9 @@ describe("validateAll REPLY PLAYBOOK gate (M1b, DEC-068)", () => {
       (x) => x.when !== "default" && x.when.intent === "not_interested",
     )!;
     c.pipeline = "booked";
-    expect(() => validateAll(g)).toThrow(/"not_interested" must set "pipeline":"lost" \(found "booked"\)/);
+    expect(() => validateAll(g)).toThrow(
+      /"not_interested" must set "pipeline":"lost" \(found "booked"\)/,
+    );
   });
 
   it("requires a default case", () => {
@@ -272,9 +306,7 @@ describe("validateAll guided steps (G1, DEC-070)", () => {
   });
 
   it("REJECTS guided steps for a scripted agent — regression protection", () => {
-    expect(() => validateAll(guided(), ["email", "sms"], [], false)).toThrow(
-      /composes scripted/,
-    );
+    expect(() => validateAll(guided(), ["email", "sms"], [], false)).toThrow(/composes scripted/);
   });
 
   it("the merge-token rule scopes to scripted MAIN-SEQUENCE copy (G2 rescope, DEC-071) — strategy steps never carried the token contract", () => {
@@ -291,7 +323,12 @@ describe("validateAll guided steps (G1, DEC-070)", () => {
     const g2 = guided();
     g2.nodes = g2.nodes.map((n) =>
       n.id === "step-2" && n.type === "step"
-        ? { id: "step-2", type: "step" as const, channel: "email" as const, content: { subject: "s", body: "no tokens here" } }
+        ? {
+            id: "step-2",
+            type: "step" as const,
+            channel: "email" as const,
+            content: { subject: "s", body: "no tokens here" },
+          }
         : n,
     );
     g2.nodes = g2.nodes.map((n) =>
@@ -375,7 +412,9 @@ describe("validateAll guided EMAIL steps (G2, DEC-071)", () => {
       step.brief!.subjectHint = "no subjects in sms";
       step.content = {};
     }
-    expect(() => validateAll(g, ["email", "sms"], [], true)).toThrow(/subject hints are email-only/);
+    expect(() => validateAll(g, ["email", "sms"], [], true)).toThrow(
+      /subject hints are email-only/,
+    );
   });
 
   it("the neverSay scan covers subjectHint too", () => {

@@ -60,14 +60,27 @@ describe("ringDisplay — the locked bands fold into the ring", () => {
   });
 
   it("healthy band keeps the prototype vocabulary: Excellent ≥90, Good 80–89, green", () => {
-    expect(ringDisplay(health({ score: 98 }))).toMatchObject({ score: "98", color: "#16A82A", label: "Excellent" });
-    expect(ringDisplay(health({ score: 85, band: "healthy" }))).toMatchObject({ label: "Good", color: "#16A82A" });
+    expect(ringDisplay(health({ score: 98 }))).toMatchObject({
+      score: "98",
+      color: "#16A82A",
+      label: "Excellent",
+    });
+    expect(ringDisplay(health({ score: 85, band: "healthy" }))).toMatchObject({
+      label: "Good",
+      color: "#16A82A",
+    });
     expect(ringDisplay(health({ score: 80, band: "healthy" }))).toMatchObject({ label: "Good" });
   });
 
   it("watch (60–79) amber · at-risk (40–59) deep amber · auto-paused (<40) red", () => {
-    expect(ringDisplay(health({ score: 79, band: "watch" }))).toMatchObject({ label: "Watch", color: "#E8C45B" });
-    expect(ringDisplay(health({ score: 59, band: "at_risk" }))).toMatchObject({ label: "At risk", color: "#A87B16" });
+    expect(ringDisplay(health({ score: 79, band: "watch" }))).toMatchObject({
+      label: "Watch",
+      color: "#E8C45B",
+    });
+    expect(ringDisplay(health({ score: 59, band: "at_risk" }))).toMatchObject({
+      label: "At risk",
+      color: "#A87B16",
+    });
     expect(ringDisplay(health({ score: 39, band: "paused", state: "unhealthy" }))).toMatchObject({
       label: "Auto-paused",
       color: "#C9543F",
@@ -75,7 +88,9 @@ describe("ringDisplay — the locked bands fold into the ring", () => {
   });
 
   it("below the floor: em-dash, never a number — 'Warming up · low data'", () => {
-    const r = ringDisplay(health({ score: null, state: "low_data", band: null, floor: "none", rates: null }));
+    const r = ringDisplay(
+      health({ score: null, state: "low_data", band: null, floor: "none", rates: null }),
+    );
     expect(r.score).toBe("—");
     expect(r.label).toBe("Warming up");
     expect(r.sub).toContain("low data");
@@ -90,10 +105,20 @@ describe("ringDisplay — the locked bands fold into the ring", () => {
 describe("sendingPill — status ▸ gate ▸ ramp ▸ Good", () => {
   it("owner status wins: DISABLED then PAUSED", () => {
     expect(sendingPill(sender({ status: "DISABLED" })).label).toBe("Needs verification");
-    expect(sendingPill(sender({ status: "PAUSED", health: health({ score: 10, band: "paused", state: "unhealthy" }) })).label).toBe("Paused");
+    expect(
+      sendingPill(
+        sender({
+          status: "PAUSED",
+          health: health({ score: 10, band: "paused", state: "unhealthy" }),
+        }),
+      ).label,
+    ).toBe("Paused");
   });
   it("the health gate shows as Auto-paused", () => {
-    expect(sendingPill(sender({ health: health({ score: 12, band: "paused", state: "unhealthy" }) })).label).toBe("Auto-paused");
+    expect(
+      sendingPill(sender({ health: health({ score: 12, band: "paused", state: "unhealthy" }) }))
+        .label,
+    ).toBe("Auto-paused");
   });
   it("an active ramp shows the canon 'Warming'; clean senders are 'Good'", () => {
     expect(sendingPill(sender({ warmup: warmup() })).label).toBe("Warming");
@@ -106,26 +131,40 @@ describe("warmupPill — Active / Held / Complete", () => {
   it("maps the projection states", () => {
     expect(warmupPill(warmup()).label).toBe("Active");
     expect(warmupPill(warmup({ holding: true })).label).toBe("Held");
-    expect(warmupPill(warmup({ active: false, completedAt: "2026-08-25T00:00:00.000Z" })).label).toBe("Complete");
+    expect(
+      warmupPill(warmup({ active: false, completedAt: "2026-08-25T00:00:00.000Z" })).label,
+    ).toBe("Complete");
   });
 });
 
 describe("describeSenderEvent — mapped types only (DEC-057, no raw slugs)", () => {
   it("covers every sender.* catalog event this unit emits", () => {
-    expect(describeSenderEvent("sender.health_collapsed.v1", { score: 12 })?.text).toContain("collapsed to 12/100");
-    expect(describeSenderEvent("sender.health_recovered.v1", { score: 88 })?.text).toContain("recovered to 88/100");
-    expect(describeSenderEvent("sender.health_recovered.v1", { lowData: true })?.text).toContain("Quiet window");
-    expect(describeSenderEvent("sender.warmup_completed.v1", { days: 45 })?.text).toContain("day 45");
-    expect(describeSenderEvent("sender.status_changed.v1", { from: "ACTIVE", to: "PAUSED" })?.text).toBe("Sender paused");
-    expect(describeSenderEvent("sender.status_changed.v1", { from: "PAUSED", to: "ACTIVE" })?.text).toBe("Sender resumed");
+    expect(describeSenderEvent("sender.health_collapsed.v1", { score: 12 })?.text).toContain(
+      "collapsed to 12/100",
+    );
+    expect(describeSenderEvent("sender.health_recovered.v1", { score: 88 })?.text).toContain(
+      "recovered to 88/100",
+    );
+    expect(describeSenderEvent("sender.health_recovered.v1", { lowData: true })?.text).toContain(
+      "Quiet window",
+    );
+    expect(describeSenderEvent("sender.warmup_completed.v1", { days: 45 })?.text).toContain(
+      "day 45",
+    );
+    expect(
+      describeSenderEvent("sender.status_changed.v1", { from: "ACTIVE", to: "PAUSED" })?.text,
+    ).toBe("Sender paused");
+    expect(
+      describeSenderEvent("sender.status_changed.v1", { from: "PAUSED", to: "ACTIVE" })?.text,
+    ).toBe("Sender resumed");
   });
   it("W3: spike alerts render with the measured rate", () => {
-    expect(describeSenderEvent("sender.spike_detected.v1", { signal: "spam", rate: 0.004 })?.text).toContain(
-      "Complaint spike — 0.4%",
-    );
-    expect(describeSenderEvent("sender.spike_detected.v1", { signal: "bounce", rate: 0.08 })?.text).toContain(
-      "Bounce spike — 8.0%",
-    );
+    expect(
+      describeSenderEvent("sender.spike_detected.v1", { signal: "spam", rate: 0.004 })?.text,
+    ).toContain("Complaint spike — 0.4%");
+    expect(
+      describeSenderEvent("sender.spike_detected.v1", { signal: "bounce", rate: 0.08 })?.text,
+    ).toContain("Bounce spike — 8.0%");
   });
 
   it("unmapped types render NOTHING (never a raw slug)", () => {

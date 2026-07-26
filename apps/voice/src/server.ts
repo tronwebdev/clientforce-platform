@@ -29,7 +29,12 @@ import { mediaStreamUrl, parseMediaRequest } from "./media-url";
 import { MetricsCollector } from "./metrics";
 import { CallSession, type CallEndReason } from "./session";
 import { synthesizeAura } from "./deepgram";
-import { createVoiceGateway, finalizeCall, loadCallContextScoped, type CallContext } from "./runtime";
+import {
+  createVoiceGateway,
+  finalizeCall,
+  loadCallContextScoped,
+  type CallContext,
+} from "./runtime";
 import { demoCallContext } from "./demo-context";
 import { outboundClear, outboundMedia, type TwilioInboundMessage } from "./twilio-protocol";
 
@@ -223,7 +228,8 @@ wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
     switch (msg.event) {
       case "start": {
         streamSid = msg.start.streamSid;
-        const params = (msg.start as { customParameters?: Record<string, string> }).customParameters ?? {};
+        const params =
+          (msg.start as { customParameters?: Record<string, string> }).customParameters ?? {};
         console.log(`[call] stream ${streamSid} started`);
         void (async () => {
           if (prisma && params.callId && params.workspaceId) {
@@ -234,7 +240,12 @@ wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
               `[voice] standalone context (no callId/workspaceId on the stream) variant=${context.disclosureVariant}`,
             );
           }
-          const ackClips = await loadAckClips(deepgramKey, context.ttsModel, config.ackPhrases, synthesizeAura);
+          const ackClips = await loadAckClips(
+            deepgramKey,
+            context.ttsModel,
+            config.ackPhrases,
+            synthesizeAura,
+          );
           startedAt = new Date();
           // SPEC A (DEC-099): recall needs the record, so it mounts only on the
           // product path. Standalone rigs run the pre-DEC-099 turn loop.

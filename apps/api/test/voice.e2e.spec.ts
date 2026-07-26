@@ -67,7 +67,12 @@ describe.skipIf(!hasDb)("Voice API e2e (P3.1, DEC-078)", () => {
     ).id;
     agentId = (
       await owner.agent.create({
-        data: { workspaceId: ws, name: "Caller", goal: "book_appointments", guardrails: GUARDRAILS },
+        data: {
+          workspaceId: ws,
+          name: "Caller",
+          goal: "book_appointments",
+          guardrails: GUARDRAILS,
+        },
       })
     ).id;
     campaignId = (
@@ -322,7 +327,14 @@ describe.skipIf(!hasDb)("Voice API e2e (P3.1, DEC-078)", () => {
       data: { workspaceId: wsForeign, agentId: foreignAgent.id, name: "f", graphId: "" },
     });
     const foreignContact = await owner.contact.create({
-      data: { workspaceId: wsForeign, source: "test", optOut: {}, tags: [], email: `f-${suffix}@t.test`, phone: "+15005553032" },
+      data: {
+        workspaceId: wsForeign,
+        source: "test",
+        optOut: {},
+        tags: [],
+        email: `f-${suffix}@t.test`,
+        phone: "+15005553032",
+      },
     });
     const foreignCall = await owner.call.create({
       data: {

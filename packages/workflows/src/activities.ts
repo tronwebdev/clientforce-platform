@@ -15,7 +15,12 @@ import {
   type SmsSender,
   type SmsStepComposer,
 } from "@clientforce/channels";
-import { goalTerminalLabel, parseGuardrails, type StepBrief, type StepContent } from "@clientforce/core";
+import {
+  goalTerminalLabel,
+  parseGuardrails,
+  type StepBrief,
+  type StepContent,
+} from "@clientforce/core";
 import { withTenant, type Prisma, type PrismaClient } from "@clientforce/db";
 import type { SendOutcome } from "./shared";
 
@@ -167,13 +172,15 @@ export function createActivities(deps: ActivityDeps) {
           const smsSender = await withTenant(prisma, { workspaceId: params.workspaceId }, (tx) =>
             tx.senderConnection.findFirst({ where: { type: "TWILIO_SMS", status: "ACTIVE" } }),
           );
-          if (!smsSender) throw new SendBlockedError("SENDER_NOT_SMS", "no active TWILIO_SMS sender");
+          if (!smsSender)
+            throw new SendBlockedError("SENDER_NOT_SMS", "no active TWILIO_SMS sender");
 
           // G1 (DEC-070): a guided step composes per lead BEFORE the boundary
           // — the rails below neither know nor care who wrote the copy. Runs
           // after the idempotency check so replays never re-spend a model call.
           let content = params.content;
-          let composed: { mode: "guided"; briefVersion: number | null; composerVersion: string } | undefined;
+          let composed:
+            { mode: "guided"; briefVersion: number | null; composerVersion: string } | undefined;
           if (params.mode === "guided") {
             if (!params.brief) {
               throw new ComposeRefusedError(
@@ -223,7 +230,8 @@ export function createActivities(deps: ActivityDeps) {
           // path: after the idempotency check (replays never re-spend a
           // model call), before any rail.
           let content = params.content;
-          let composed: { mode: "guided"; briefVersion: number | null; composerVersion: string } | undefined;
+          let composed:
+            { mode: "guided"; briefVersion: number | null; composerVersion: string } | undefined;
           if (params.mode === "guided") {
             if (!params.brief) {
               throw new ComposeRefusedError(
@@ -270,7 +278,11 @@ export function createActivities(deps: ActivityDeps) {
             },
           );
         }
-        return { kind: "sent", messageId: message.id, providerMessageId: message.providerMessageId };
+        return {
+          kind: "sent",
+          messageId: message.id,
+          providerMessageId: message.providerMessageId,
+        };
       } catch (err) {
         if (err instanceof SendBlockedError) {
           throw ApplicationFailure.create({
@@ -304,7 +316,9 @@ export function createActivities(deps: ActivityDeps) {
       const prior = await withTenant(prisma, { workspaceId: params.workspaceId }, async (tx) => {
         const row = await tx.enrollment.findUniqueOrThrow({
           where: { id: params.enrollmentId },
-          include: { campaign: { select: { agent: { select: { goal: true, guardrails: true } } } } },
+          include: {
+            campaign: { select: { agent: { select: { goal: true, guardrails: true } } } },
+          },
         });
         await tx.enrollment.update({
           where: { id: params.enrollmentId },

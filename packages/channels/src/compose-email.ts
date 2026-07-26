@@ -202,9 +202,10 @@ export function checkComposedEmail(
 
   // 5 · URL grounding — every URL must appear verbatim in the provided
   // context or the brief; anything else is an invented link.
-  const allowedMaterial = `${inputs.cachedContext}\n${inputs.brief.objective}\n${inputs.brief.talkingPoints.join(
-    "\n",
-  )}\n${(inputs.brief.mustSay ?? []).join("\n")}\n${inputs.brief.subjectHint ?? ""}`.toLowerCase();
+  const allowedMaterial =
+    `${inputs.cachedContext}\n${inputs.brief.objective}\n${inputs.brief.talkingPoints.join(
+      "\n",
+    )}\n${(inputs.brief.mustSay ?? []).join("\n")}\n${inputs.brief.subjectHint ?? ""}`.toLowerCase();
   const urls = combined.match(URL_RE) ?? [];
   const foreign = urls
     .map(stripTrailingPunct)
@@ -234,7 +235,9 @@ export function checkComposedEmail(
   const subjectLower = subject.toLowerCase();
   const bannedHits = BANNED_SUBJECT_PATTERNS.filter((p) => subjectLower.includes(p.toLowerCase()));
   if (bannedHits.length > 0) {
-    subjectProblems.push(`contains banned pattern(s): ${bannedHits.map((p) => `"${p}"`).join(", ")}`);
+    subjectProblems.push(
+      `contains banned pattern(s): ${bannedHits.map((p) => `"${p}"`).join(", ")}`,
+    );
   }
   if (subjectProblems.length > 0) {
     violations.push({ reason: "SUBJECT_RULE", detail: subjectProblems.join("; ") });
@@ -273,7 +276,7 @@ export const COMPOSER_EMAIL_SYSTEM =
   "(5) One clear ask per message. Plain text only — no HTML, no emojis, no ALL CAPS, no exclamation marks.\n" +
   "(6) Sound like a competent human writing a short, specific email, not a template — two leads must " +
   "never receive the same sentence.\n" +
-  '(7) Respect the step brief exactly: achieve its objective, draw only from its talking points, include ' +
+  "(7) Respect the step brief exactly: achieve its objective, draw only from its talking points, include " +
   'every "must say" string verbatim, and never use any "never say" string in any casing.\n' +
   "(8) Play the STEP ROLE you are given (the sequence's selling arc): an OPENER's only job is to earn a " +
   `reply — at most ${OPENER_WORD_CAP} words, exactly one question, END the body with that question, zero ` +
@@ -357,9 +360,7 @@ function renderComposerEmailPrompt(inputs: ComposeEmailInputs): string {
     mustSay: (inputs.brief.mustSay ?? []).length
       ? inputs.brief.mustSay!.map((t) => `"${t}"`).join(", ")
       : "(none)",
-    neverSay: inputs.neverSay.length
-      ? inputs.neverSay.map((t) => `"${t}"`).join(", ")
-      : "(none)",
+    neverSay: inputs.neverSay.length ? inputs.neverSay.map((t) => `"${t}"`).join(", ") : "(none)",
     arcRole: inputs.arcRole
       ? `step ${inputs.arcRole.index} of ${inputs.arcRole.count} — ${inputs.arcRole.role}`
       : "(unspecified — write one focused, specific touch)",
@@ -392,7 +393,11 @@ export async function composeEmail(
   inputs: ComposeEmailInputs,
 ): Promise<ComposedEmail> {
   const prompt = renderComposerEmailPrompt(inputs);
-  const request = { system: COMPOSER_EMAIL_SYSTEM, cachedContext: inputs.cachedContext, maxTokens: 1024 };
+  const request = {
+    system: COMPOSER_EMAIL_SYSTEM,
+    cachedContext: inputs.cachedContext,
+    maxTokens: 1024,
+  };
 
   const first = await gateway.completeStructured(
     "copy",
@@ -543,13 +548,11 @@ export function createEmailStepComposer(deps: {
             ? (contact.custom as Record<string, unknown>)
             : null,
       },
-      history: historyRows
-        .reverse()
-        .map((m) => ({
-          channel: m.channel,
-          direction: m.direction as "OUTBOUND" | "INBOUND",
-          text: `${m.subject ? `${m.subject} — ` : ""}${m.body}`.slice(0, 300),
-        })),
+      history: historyRows.reverse().map((m) => ({
+        channel: m.channel,
+        direction: m.direction as "OUTBOUND" | "INBOUND",
+        text: `${m.subject ? `${m.subject} — ` : ""}${m.body}`.slice(0, 300),
+      })),
       ...(params.position
         ? { arcRole: { ...params.position, role: arcRoleFor(arc.roles, params.position) } }
         : {}),

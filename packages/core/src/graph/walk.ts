@@ -33,9 +33,7 @@ export function mainPath(graph: CampaignGraph): GraphNode[] {
     if (!node) break;
     out.push(node);
     cur =
-      node.type === "branch"
-        ? node.cases.find((c) => c.when === "default")?.goto
-        : next.get(cur);
+      node.type === "branch" ? node.cases.find((c) => c.when === "default")?.goto : next.get(cur);
   }
   return out;
 }

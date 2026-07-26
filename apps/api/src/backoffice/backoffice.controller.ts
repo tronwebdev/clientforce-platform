@@ -117,7 +117,11 @@ export class BackofficeController {
   }
 
   @Post("workspaces/:id/reactivate")
-  reactivateWorkspace(@Param("id") id: string, @Body() body: unknown, @Req() req: BackofficeRequest) {
+  reactivateWorkspace(
+    @Param("id") id: string,
+    @Body() body: unknown,
+    @Req() req: BackofficeRequest,
+  ) {
     const { reason } = parse(backofficeReasonSchema, body);
     return this.svc.setWorkspaceStatus(req.staff!, id, "ACTIVE", reason);
   }

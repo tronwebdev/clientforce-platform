@@ -76,7 +76,11 @@ describe("checkComposedEmail (deterministic — the G1 set on subject+body)", ()
     expect(v.map((x) => x.reason)).toContain("MUST_SAY_MISSING");
     // A subject can satisfy it too.
     expect(
-      checkComposedEmail("Your free growth audit", "Jane — the leaks are fixable. Worth a look?", inputs()),
+      checkComposedEmail(
+        "Your free growth audit",
+        "Jane — the leaks are fixable. Worth a look?",
+        inputs(),
+      ),
     ).toEqual([]);
   });
 
@@ -89,7 +93,9 @@ describe("checkComposedEmail (deterministic — the G1 set on subject+body)", ()
 
   it("rejects ANY merge-token syntax in subject or body — composed text is finished copy", () => {
     expect(
-      checkComposedEmail(CLEAN_SUBJECT, "Hi {{firstName}}, free growth audit?", inputs()).map((x) => x.reason),
+      checkComposedEmail(CLEAN_SUBJECT, "Hi {{firstName}}, free growth audit?", inputs()).map(
+        (x) => x.reason,
+      ),
     ).toContain("TOKEN_SYNTAX");
     expect(
       checkComposedEmail("{{company}} bookings leak", CLEAN_BODY, inputs()).map((x) => x.reason),
@@ -149,7 +155,9 @@ describe("checkComposedEmail — the email-specific rails (G2)", () => {
     expect(quick.map((x) => x.reason)).toContain("SUBJECT_RULE");
     expect(quick.find((x) => x.reason === "SUBJECT_RULE")!.detail).toContain('"quick question"');
     expect(
-      checkComposedEmail("Just checking in on the audit", CLEAN_BODY, inputs()).map((x) => x.reason),
+      checkComposedEmail("Just checking in on the audit", CLEAN_BODY, inputs()).map(
+        (x) => x.reason,
+      ),
     ).toContain("SUBJECT_RULE");
   });
 
@@ -235,7 +243,14 @@ describe("composeEmail (bounded retry → typed refusal)", () => {
 
   it("threaded inputs adjust the thread note; role-free inputs say so", async () => {
     const { gateway, calls } = fakeGateway([CLEAN]);
-    await composeEmail(gateway, inputs({ threaded: true, arcRole: undefined, history: [{ channel: "email", direction: "OUTBOUND", text: "hi" }] }));
+    await composeEmail(
+      gateway,
+      inputs({
+        threaded: true,
+        arcRole: undefined,
+        history: [{ channel: "email", direction: "OUTBOUND", text: "hi" }],
+      }),
+    );
     expect(calls[0]!.prompt).toContain("continues an existing email thread");
     expect(calls[0]!.prompt).toContain("(unspecified — write one focused, specific touch)");
     expect(calls[0]!.prompt).toContain("[email · we sent] hi");
@@ -285,7 +300,9 @@ describe("composer.email language (L1, DEC-072 — v2 for non-English, v1 byte-i
       "Write the ENTIRE email — subject AND body — in German (Deutsch); the lead reads German (Deutsch).",
     );
     // The deterministic checks run the same regardless of language.
-    expect(checkComposedEmail(CLEAN_DE.subject, CLEAN_DE.body, inputs({ language: "de" }))).toEqual([]);
+    expect(checkComposedEmail(CLEAN_DE.subject, CLEAN_DE.body, inputs({ language: "de" }))).toEqual(
+      [],
+    );
   });
 
   it("ENGLISH REGRESSION: absent language and explicit 'en' render the v1 prompt BYTE-IDENTICAL, provenance @v1", async () => {

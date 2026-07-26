@@ -11,9 +11,37 @@ async function bo(path: string): Promise<unknown> {
 
 function Stat({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
   return (
-    <div style={{ background: "#fff", border: "1px solid var(--cf-color-hairline, #ebe3d6)", borderRadius: 14, padding: "16px 18px", minWidth: 150 }}>
-      <div style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: 0.4, color: "#8a938d", fontWeight: 700 }}>{label}</div>
-      <div style={{ fontFamily: "'Bricolage Grotesque'", fontSize: 26, fontWeight: 700, marginTop: 6, color: muted ? "#8a938d" : "#0e1512" }}>{value}</div>
+    <div
+      style={{
+        background: "#fff",
+        border: "1px solid var(--cf-color-hairline, #ebe3d6)",
+        borderRadius: 14,
+        padding: "16px 18px",
+        minWidth: 150,
+      }}
+    >
+      <div
+        style={{
+          fontSize: 12,
+          textTransform: "uppercase",
+          letterSpacing: 0.4,
+          color: "#8a938d",
+          fontWeight: 700,
+        }}
+      >
+        {label}
+      </div>
+      <div
+        style={{
+          fontFamily: "'Bricolage Grotesque'",
+          fontSize: 26,
+          fontWeight: 700,
+          marginTop: 6,
+          color: muted ? "#8a938d" : "#0e1512",
+        }}
+      >
+        {value}
+      </div>
     </div>
   );
 }
@@ -39,13 +67,31 @@ export function UsageView({ agencies }: { agencies: BackofficeAgencyRow[] }) {
 
   return (
     <div>
-      <h1 style={{ fontFamily: "'Bricolage Grotesque'", fontSize: 28, fontWeight: 700, margin: "0 0 4px" }}>Usage</h1>
+      <h1
+        style={{
+          fontFamily: "'Bricolage Grotesque'",
+          fontSize: 28,
+          fontWeight: 700,
+          margin: "0 0 4px",
+        }}
+      >
+        Usage
+      </h1>
       <p style={{ color: "#5b6560", fontSize: 14, margin: "0 0 18px", maxWidth: 720 }}>
         Consumption over the last 30 days, from the event and credit ledgers.
       </p>
 
       {options.length === 0 ? (
-        <div style={{ padding: 40, textAlign: "center", color: "#5b6560", background: "#fff", border: "1px solid var(--cf-color-hairline, #ebe3d6)", borderRadius: 14 }}>
+        <div
+          style={{
+            padding: 40,
+            textAlign: "center",
+            color: "#5b6560",
+            background: "#fff",
+            border: "1px solid var(--cf-color-hairline, #ebe3d6)",
+            borderRadius: 14,
+          }}
+        >
           No tenants yet.
         </div>
       ) : (
@@ -54,7 +100,16 @@ export function UsageView({ agencies }: { agencies: BackofficeAgencyRow[] }) {
             value={sel}
             onChange={(e) => setSel(e.target.value)}
             aria-label="Scope"
-            style={{ height: 40, borderRadius: 10, border: "1px solid var(--cf-color-hairline, #ebe3d6)", padding: "0 12px", fontSize: 14, minWidth: 320, marginBottom: 20, background: "#fff" }}
+            style={{
+              height: 40,
+              borderRadius: 10,
+              border: "1px solid var(--cf-color-hairline, #ebe3d6)",
+              padding: "0 12px",
+              fontSize: 14,
+              minWidth: 320,
+              marginBottom: 20,
+              background: "#fff",
+            }}
           >
             {options.map((o) => (
               <option key={o.key} value={o.key}>
@@ -68,7 +123,18 @@ export function UsageView({ agencies }: { agencies: BackofficeAgencyRow[] }) {
           ) : (
             <>
               {usage.lowData ? (
-                <div style={{ marginBottom: 14, fontSize: 13, color: "#8a6d3b", background: "rgba(208,245,107,0.25)", border: "1px solid #d0f56b", borderRadius: 10, padding: "8px 12px", display: "inline-block" }}>
+                <div
+                  style={{
+                    marginBottom: 14,
+                    fontSize: 13,
+                    color: "#8a6d3b",
+                    background: "rgba(208,245,107,0.25)",
+                    border: "1px solid #d0f56b",
+                    borderRadius: 10,
+                    padding: "8px 12px",
+                    display: "inline-block",
+                  }}
+                >
                   Low data — too few events to read into these numbers.
                 </div>
               ) : null}

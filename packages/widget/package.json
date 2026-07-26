@@ -17,6 +17,7 @@
     "clean": "rm -rf dist .turbo"
   },
   "dependencies": {
+    "@clientforce/core": "workspace:*",
     "@clientforce/theme": "workspace:*"
   },
   "devDependencies": {

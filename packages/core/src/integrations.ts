@@ -60,7 +60,10 @@ export type SlackNotificationKind = (typeof SLACK_NOTIFICATION_KINDS)[number];
 export const slackConfigSchema = z
   .object({
     /** The channel Clientforce posts to — picked per workspace (drawer step 2). */
-    channel: z.object({ id: z.string().min(1), name: z.string().min(1) }).strict().optional(),
+    channel: z
+      .object({ id: z.string().min(1), name: z.string().min(1) })
+      .strict()
+      .optional(),
     notifications: z
       .object({
         new_reply: z.boolean().optional(),
@@ -83,7 +86,10 @@ export type SlackConfig = z.infer<typeof slackConfigSchema>;
  */
 export const gcalConfigSchema = z
   .object({
-    calendar: z.object({ id: z.string().min(1), name: z.string().min(1), timeZone: z.string().min(1) }).strict().optional(),
+    calendar: z
+      .object({ id: z.string().min(1), name: z.string().min(1), timeZone: z.string().min(1) })
+      .strict()
+      .optional(),
     offerSlots: z.boolean().optional(),
   })
   .strict();
@@ -152,7 +158,7 @@ export const hubspotConfigSchema = z
 export type HubspotConfig = z.infer<typeof hubspotConfigSchema>;
 
 /**
- * INT W5 (DEC-101): the Zapier private app. There is no vendor token to hold —
+ * INT W5 (DEC-102): the Zapier private app. There is no vendor token to hold —
  * the trust direction is INVERTED versus every other provider: Zapier
  * authenticates to US with a workspace API key, so the secret is a
  * `WorkspaceApiKey` row (hashed, never recoverable) rather than anything on the
@@ -233,5 +239,6 @@ export const INTEGRATION_REFUSALS = {
     "That HubSpot token was rejected — check the private-app / Service Key has the crm.objects.deals.write and crm.objects.contacts.write scopes",
   CRM_DEAL_MISSING:
     "No HubSpot deal on this contact yet — add a “Create CRM deal” step before “Update deal stage”",
-  CRM_PUSH_REFUSED: "HubSpot refused the request — check the pipeline/stage names and the token scopes",
+  CRM_PUSH_REFUSED:
+    "HubSpot refused the request — check the pipeline/stage names and the token scopes",
 } as const;

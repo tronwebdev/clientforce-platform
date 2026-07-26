@@ -35,11 +35,26 @@ import {
 const playbook = (): CampaignGraph => ({
   entry: "step-1",
   nodes: [
-    { id: "step-1", type: "step", channel: "email", content: { subject: "Hello {{company}}", body: "Hi {{firstName}}, intro." } },
+    {
+      id: "step-1",
+      type: "step",
+      channel: "email",
+      content: { subject: "Hello {{company}}", body: "Hi {{firstName}}, intro." },
+    },
     { id: "delay-1", type: "delay", amount: 2, unit: "days" },
-    { id: "step-2", type: "step", channel: "email", content: { subject: "Following up", body: "Hi {{firstName}}, value for {{company}}." } },
+    {
+      id: "step-2",
+      type: "step",
+      channel: "email",
+      content: { subject: "Following up", body: "Hi {{firstName}}, value for {{company}}." },
+    },
     { id: "delay-2", type: "delay", amount: 3, unit: "days" },
-    { id: "step-3", type: "step", channel: "email", content: { subject: "Last note", body: "Door's open, {{firstName}}." } },
+    {
+      id: "step-3",
+      type: "step",
+      channel: "email",
+      content: { subject: "Last note", body: "Door's open, {{firstName}}." },
+    },
     {
       id: "branch-reply",
       type: "branch",
@@ -54,11 +69,36 @@ const playbook = (): CampaignGraph => ({
         { when: "default", goto: "end-lost" },
       ],
     },
-    { id: "step-reframe", type: "step", channel: "email", content: { body: "Value first.", threaded: true } },
-    { id: "step-ack", type: "step", channel: "email", content: { body: "Later then.", threaded: true } },
-    { id: "step-referral", type: "step", channel: "email", content: { body: "Who instead?", threaded: true } },
-    { id: "step-answer", type: "step", channel: "email", content: { body: "Answer.", threaded: true } },
-    { id: "step-close", type: "step", channel: "email", content: { body: "All good.", threaded: true } },
+    {
+      id: "step-reframe",
+      type: "step",
+      channel: "email",
+      content: { body: "Value first.", threaded: true },
+    },
+    {
+      id: "step-ack",
+      type: "step",
+      channel: "email",
+      content: { body: "Later then.", threaded: true },
+    },
+    {
+      id: "step-referral",
+      type: "step",
+      channel: "email",
+      content: { body: "Who instead?", threaded: true },
+    },
+    {
+      id: "step-answer",
+      type: "step",
+      channel: "email",
+      content: { body: "Answer.", threaded: true },
+    },
+    {
+      id: "step-close",
+      type: "step",
+      channel: "email",
+      content: { body: "All good.", threaded: true },
+    },
     { id: "end-won", type: "end" },
     { id: "end-lost", type: "end" },
   ],
@@ -80,7 +120,12 @@ const playbook = (): CampaignGraph => ({
 const rich = (): CampaignGraph => ({
   entry: "s1",
   nodes: [
-    { id: "s1", type: "step", channel: "email", content: { subject: "Hi", body: "Intro {{firstName}}" } },
+    {
+      id: "s1",
+      type: "step",
+      channel: "email",
+      content: { subject: "Hi", body: "Intro {{firstName}}" },
+    },
     { id: "d1", type: "delay", amount: 2, unit: "days" },
     {
       id: "b1",
@@ -94,11 +139,26 @@ const rich = (): CampaignGraph => ({
       ],
     },
     // interested: a MULTI-STEP chain (step → delay → step) rejoining end.
-    { id: "c1-s1", type: "step", channel: "email", content: { body: "Booking link", threaded: true } },
+    {
+      id: "c1-s1",
+      type: "step",
+      channel: "email",
+      content: { body: "Booking link", threaded: true },
+    },
     { id: "c1-d1", type: "delay", amount: 1, unit: "days" },
-    { id: "c1-s2", type: "step", channel: "email", content: { body: "Confirmed?", threaded: true } },
+    {
+      id: "c1-s2",
+      type: "step",
+      channel: "email",
+      content: { body: "Confirmed?", threaded: true },
+    },
     // a tail SHARED by two cases.
-    { id: "shared-s", type: "step", channel: "email", content: { body: "Objection handler", threaded: true } },
+    {
+      id: "shared-s",
+      type: "step",
+      channel: "email",
+      content: { body: "Objection handler", threaded: true },
+    },
     // a SECOND branch (no_response) past the reply branch's default.
     {
       id: "b2",
@@ -154,7 +214,11 @@ describe("W0 · richer shape is representable + executable (regression pins)", (
 describe("walk · mainSequence / branchChains / strategyChains", () => {
   it("mainSequence truncates at the reply branch (steps + delays only)", () => {
     expect(mainSequence(playbook()).map((n) => n.id)).toEqual([
-      "step-1", "delay-1", "step-2", "delay-2", "step-3",
+      "step-1",
+      "delay-1",
+      "step-2",
+      "delay-2",
+      "step-3",
     ]);
   });
 
@@ -163,9 +227,13 @@ describe("walk · mainSequence / branchChains / strategyChains", () => {
     expect(sets.map((s) => s.branch.id)).toEqual(["b1", "b2"]);
     const b1 = sets[0]!;
     expect(b1.cases.find((c) => c.key === "interested")?.chain.map((n) => n.id)).toEqual([
-      "c1-s1", "c1-d1", "c1-s2",
+      "c1-s1",
+      "c1-d1",
+      "c1-s2",
     ]);
-    expect(b1.cases.find((c) => c.key === "objection_price")?.chain.map((n) => n.id)).toEqual(["shared-s"]);
+    expect(b1.cases.find((c) => c.key === "objection_price")?.chain.map((n) => n.id)).toEqual([
+      "shared-s",
+    ]);
     expect(b1.sharedNodeIds).toEqual(["shared-s"]);
     // default's continuation IS the main path → empty chain.
     expect(b1.cases.find((c) => c.key === "default")?.chain).toEqual([]);
@@ -174,27 +242,47 @@ describe("walk · mainSequence / branchChains / strategyChains", () => {
   it("strategyChains generalizes the single-step convention (first step preserved)", () => {
     const chains = strategyChains(playbook());
     expect(chains.map((c) => c.intent)).toEqual([
-      "interested", "objection_price", "objection_timing", "wrong_person", "info_request", "not_interested",
+      "interested",
+      "objection_price",
+      "objection_timing",
+      "wrong_person",
+      "info_request",
+      "not_interested",
     ]);
-    expect(chains.find((c) => c.intent === "objection_price")?.steps.map((s) => s.id)).toEqual(["step-reframe"]);
+    expect(chains.find((c) => c.intent === "objection_price")?.steps.map((s) => s.id)).toEqual([
+      "step-reframe",
+    ]);
     // interested routes straight to end-won → empty chain, honest.
     expect(chains.find((c) => c.intent === "interested")?.chain).toEqual([]);
   });
 
   it("chainForCase walks one case; unknown case is undefined", () => {
-    expect(chainForCase(rich(), "b1", "interested")?.map((n) => n.id)).toEqual(["c1-s1", "c1-d1", "c1-s2"]);
+    expect(chainForCase(rich(), "b1", "interested")?.map((n) => n.id)).toEqual([
+      "c1-s1",
+      "c1-d1",
+      "c1-s2",
+    ]);
     expect(chainForCase(rich(), "b1", "nope")).toBeUndefined();
   });
 });
 
 describe("mutate · addStep", () => {
   it("appends delay + step at the main-sequence end, before the reply branch", () => {
-    const { graph, stepId, delayId } = addStep(playbook(), { container: { kind: "main" }, channel: "email" });
+    const { graph, stepId, delayId } = addStep(playbook(), {
+      container: { kind: "main" },
+      channel: "email",
+    });
     expect(stepId).toBe("step-added-1");
     expect(delayId).toBe("delay-added-1");
     expect(validateGraph(graph)).toBeTruthy();
     expect(mainSequence(graph).map((n) => n.id)).toEqual([
-      "step-1", "delay-1", "step-2", "delay-2", "step-3", "delay-added-1", "step-added-1",
+      "step-1",
+      "delay-1",
+      "step-2",
+      "delay-2",
+      "step-3",
+      "delay-added-1",
+      "step-added-1",
     ]);
     expect(graph.edges).toContainEqual({ from: "step-added-1", to: "branch-reply" });
   });
@@ -207,7 +295,11 @@ describe("mutate · addStep", () => {
     });
     expect(validateGraph(graph)).toBeTruthy();
     expect(chainForCase(graph, "b1", "interested")?.map((n) => n.id)).toEqual([
-      "c1-s1", "c1-d1", "c1-s2", "delay-added-1", stepId,
+      "c1-s1",
+      "c1-d1",
+      "c1-s2",
+      "delay-added-1",
+      stepId,
     ]);
   });
 
@@ -226,7 +318,11 @@ describe("mutate · addStep", () => {
   });
 
   it("adds a guided step carrying a brief; guided is email/sms-only", () => {
-    const { graph, stepId } = addStep(playbook(), { container: { kind: "main" }, channel: "email", brief });
+    const { graph, stepId } = addStep(playbook(), {
+      container: { kind: "main" },
+      channel: "email",
+      brief,
+    });
     const node = graph.nodes.find((n) => n.id === stepId);
     expect(node?.type === "step" && node.mode).toBe("guided");
     expect(validateGraph(graph)).toBeTruthy();
@@ -297,16 +393,28 @@ describe("mutate · moveStep", () => {
     expect(validateGraph(graph)).toBeTruthy();
     expect(graph.entry).toBe("step-2");
     expect(mainSequence(graph).map((n) => n.id)).toEqual([
-      "step-2", "delay-1", "step-1", "delay-2", "step-3",
+      "step-2",
+      "delay-1",
+      "step-1",
+      "delay-2",
+      "step-3",
     ]);
     // ids stable — the send-idempotency / stats / rules contract.
-    expect(graph.nodes.map((n) => n.id).sort()).toEqual(playbook().nodes.map((n) => n.id).sort());
+    expect(graph.nodes.map((n) => n.id).sort()).toEqual(
+      playbook()
+        .nodes.map((n) => n.id)
+        .sort(),
+    );
   });
 
   it("moves within a branch chain without touching the main sequence", () => {
     const graph = moveStep(rich(), "c1-s2", "up");
     expect(validateGraph(graph)).toBeTruthy();
-    expect(chainForCase(graph, "b1", "interested")?.map((n) => n.id)).toEqual(["c1-s2", "c1-d1", "c1-s1"]);
+    expect(chainForCase(graph, "b1", "interested")?.map((n) => n.id)).toEqual([
+      "c1-s2",
+      "c1-d1",
+      "c1-s1",
+    ]);
     expect(mainSequence(graph).map((n) => n.id)).toEqual(["s1", "d1"]);
   });
 
@@ -318,7 +426,10 @@ describe("mutate · moveStep", () => {
 
 describe("mutate · content / brief / mode / delay", () => {
   it("updateStepContent edits scripted copy; guided steps refuse (brief owns them)", () => {
-    const graph = updateStepContent(playbook(), "step-2", { subject: "New subject", body: "New body" });
+    const graph = updateStepContent(playbook(), "step-2", {
+      subject: "New subject",
+      body: "New body",
+    });
     const node = graph.nodes.find((n) => n.id === "step-2");
     expect(node?.type === "step" && node.content.subject).toBe("New subject");
     const guided = setStepMode(playbook(), "step-2", { mode: "guided", brief });
@@ -337,9 +448,9 @@ describe("mutate · content / brief / mode / delay", () => {
 
   it("setStepMode → scripted requires body copy and returns to the legacy shape", () => {
     const guided = setStepMode(playbook(), "step-2", { mode: "guided", brief });
-    expect(() => setStepMode(guided, "step-2", { mode: "scripted", content: { body: " " } })).toThrow(
-      /needs body copy/,
-    );
+    expect(() =>
+      setStepMode(guided, "step-2", { mode: "scripted", content: { body: " " } }),
+    ).toThrow(/needs body copy/);
     const back = setStepMode(guided, "step-2", {
       mode: "scripted",
       content: { subject: "Back", body: "Scripted again" },
@@ -357,7 +468,9 @@ describe("mutate · content / brief / mode / delay", () => {
         n.id === "step-2" && n.type === "step" ? { ...n, channel: "voice" as const } : n,
       ),
     };
-    expect(() => setStepMode(withVoice, "step-2", { mode: "guided", brief })).toThrow(/email\/sms-only/);
+    expect(() => setStepMode(withVoice, "step-2", { mode: "guided", brief })).toThrow(
+      /email\/sms-only/,
+    );
     const smsGraph: CampaignGraph = {
       ...playbook(),
       nodes: playbook().nodes.map((n) =>
@@ -375,7 +488,9 @@ describe("mutate · content / brief / mode / delay", () => {
     const node = edited.nodes.find((n) => n.id === "step-2");
     expect(node?.type === "step" && node.brief?.objective).toBe("New objective");
     expect(() => updateStepBrief(playbook(), "step-2", brief)).toThrow(/scripted/);
-    expect(updateDelay(playbook(), "delay-1", 5).nodes.find((n) => n.id === "delay-1")).toMatchObject({
+    expect(
+      updateDelay(playbook(), "delay-1", 5).nodes.find((n) => n.id === "delay-1"),
+    ).toMatchObject({
       amount: 5,
     });
     expect(() => updateDelay(playbook(), "delay-1", 0)).toThrow(/at least 1/);
@@ -394,9 +509,9 @@ describe("mutate · containers + repair", () => {
   });
 
   it("containerNodes throws on unknown cases", () => {
-    expect(() => containerNodes(playbook(), { kind: "case", branchId: "branch-reply", caseKey: "nope" })).toThrow(
-      GraphMutationError,
-    );
+    expect(() =>
+      containerNodes(playbook(), { kind: "case", branchId: "branch-reply", caseKey: "nope" }),
+    ).toThrow(GraphMutationError);
   });
 
   it("repairGraph fixes only the unambiguous and reports every repair", () => {
@@ -429,13 +544,25 @@ describe("mutate · containers + repair", () => {
   it("repairGraph trims empty brief chip entries; a clean graph is returned as-is", () => {
     const guided = setStepMode(playbook(), "step-2", {
       mode: "guided",
-      brief: { ...brief, talkingPoints: [...brief.talkingPoints], mustSay: ["keep"], neverSay: [] as string[] },
+      brief: {
+        ...brief,
+        talkingPoints: [...brief.talkingPoints],
+        mustSay: ["keep"],
+        neverSay: [] as string[],
+      },
     });
     const dirty: CampaignGraph = {
       ...guided,
       nodes: guided.nodes.map((n) =>
         n.id === "step-2" && n.type === "step" && n.brief
-          ? { ...n, brief: { ...n.brief, talkingPoints: [...n.brief.talkingPoints, "  "], neverSay: [" "] } }
+          ? {
+              ...n,
+              brief: {
+                ...n.brief,
+                talkingPoints: [...n.brief.talkingPoints, "  "],
+                neverSay: [" "],
+              },
+            }
           : n,
       ),
     };
@@ -454,7 +581,9 @@ describe("mutate · containers + repair", () => {
   it("refuses to mutate a chain SHARED by multiple branch cases (review round)", () => {
     // rich(): objection_price and objection_timing both goto shared-s —
     // editing one case's chain would silently change the sibling's flow.
-    expect(() => moveStep(rich(), "shared-s", "up")).toThrow(/shares steps with another reply path/);
+    expect(() => moveStep(rich(), "shared-s", "up")).toThrow(
+      /shares steps with another reply path/,
+    );
     expect(() => removeStep(rich(), "shared-s")).toThrow(/shares steps with another reply path/);
     expect(() =>
       addStep(rich(), {
@@ -517,7 +646,11 @@ describe("mutate · containers + repair", () => {
 
   it("every mutation leaves untouched nodes byte-identical", () => {
     const before = playbook();
-    const after = moveStep(addStep(before, { container: { kind: "main" }, channel: "email" }).graph, "step-2", "up");
+    const after = moveStep(
+      addStep(before, { container: { kind: "main" }, channel: "email" }).graph,
+      "step-2",
+      "up",
+    );
     for (const id of ["step-reframe", "step-ack", "branch-reply", "end-won"]) {
       expect(after.nodes.find((n) => n.id === id)).toEqual(before.nodes.find((n) => n.id === id));
     }

@@ -5,15 +5,33 @@
  * language) deliberately do NOT apply to the owner's typed words.
  */
 import { describe, expect, it } from "vitest";
-import { addStep, addSubcampaign, GraphValidationError, setStepMode, updateStepContent, type CampaignGraph, type StepBrief } from "@clientforce/core";
+import {
+  addStep,
+  addSubcampaign,
+  GraphValidationError,
+  setStepMode,
+  updateStepContent,
+  type CampaignGraph,
+  type StepBrief,
+} from "@clientforce/core";
 import { validateEditedGraph } from "../src/edit";
 
 const playbook = (): CampaignGraph => ({
   entry: "step-1",
   nodes: [
-    { id: "step-1", type: "step", channel: "email", content: { subject: "Hello {{company}}", body: "Hi {{firstName}}, intro." } },
+    {
+      id: "step-1",
+      type: "step",
+      channel: "email",
+      content: { subject: "Hello {{company}}", body: "Hi {{firstName}}, intro." },
+    },
     { id: "delay-1", type: "delay", amount: 2, unit: "days" },
-    { id: "step-2", type: "step", channel: "email", content: { subject: "Following up", body: "Hi {{firstName}}, value." } },
+    {
+      id: "step-2",
+      type: "step",
+      channel: "email",
+      content: { subject: "Following up", body: "Hi {{firstName}}, value." },
+    },
     {
       id: "branch-reply",
       type: "branch",
@@ -28,11 +46,36 @@ const playbook = (): CampaignGraph => ({
         { when: "default", goto: "end-lost" },
       ],
     },
-    { id: "step-reframe", type: "step", channel: "email", content: { body: "Value first.", threaded: true } },
-    { id: "step-ack", type: "step", channel: "email", content: { body: "Later then.", threaded: true } },
-    { id: "step-referral", type: "step", channel: "email", content: { body: "Who instead?", threaded: true } },
-    { id: "step-answer", type: "step", channel: "email", content: { body: "Answer.", threaded: true } },
-    { id: "step-close", type: "step", channel: "email", content: { body: "All good.", threaded: true } },
+    {
+      id: "step-reframe",
+      type: "step",
+      channel: "email",
+      content: { body: "Value first.", threaded: true },
+    },
+    {
+      id: "step-ack",
+      type: "step",
+      channel: "email",
+      content: { body: "Later then.", threaded: true },
+    },
+    {
+      id: "step-referral",
+      type: "step",
+      channel: "email",
+      content: { body: "Who instead?", threaded: true },
+    },
+    {
+      id: "step-answer",
+      type: "step",
+      channel: "email",
+      content: { body: "Answer.", threaded: true },
+    },
+    {
+      id: "step-close",
+      type: "step",
+      channel: "email",
+      content: { body: "All good.", threaded: true },
+    },
     { id: "end-won", type: "end" },
     { id: "end-lost", type: "end" },
   ],
@@ -78,9 +121,19 @@ const withSms = { allowedChannels: ["email", "sms"] };
 describe("validateEditedGraph — accepts honest edits", () => {
   it("accepts a copy edit, an added step, and a mode flip on a playbook graph", () => {
     const prev = playbook();
-    expect(validateEditedGraph(prev, updateStepContent(prev, "step-2", { body: "New copy" }), emailOnly)).toBeTruthy();
-    expect(validateEditedGraph(prev, addStep(prev, { container: { kind: "main" }, channel: "email" }).graph, emailOnly)).toBeTruthy();
-    expect(validateEditedGraph(prev, setStepMode(prev, "step-2", { mode: "guided", brief }), emailOnly)).toBeTruthy();
+    expect(
+      validateEditedGraph(prev, updateStepContent(prev, "step-2", { body: "New copy" }), emailOnly),
+    ).toBeTruthy();
+    expect(
+      validateEditedGraph(
+        prev,
+        addStep(prev, { container: { kind: "main" }, channel: "email" }).graph,
+        emailOnly,
+      ),
+    ).toBeTruthy();
+    expect(
+      validateEditedGraph(prev, setStepMode(prev, "step-2", { mode: "guided", brief }), emailOnly),
+    ).toBeTruthy();
   });
 
   it("accepts edits to a LEGACY graph — non-canonical intents it already carried stay legal", () => {
@@ -92,7 +145,10 @@ describe("validateEditedGraph — accepts honest edits", () => {
   it("does NOT re-apply the generation-only copy rails to owner-typed words", () => {
     const prev = playbook();
     // no merge tokens, would fail validateAll — legal as a manual edit (M1a stance).
-    const edited = updateStepContent(prev, "step-1", { subject: "Plain", body: "No tokens at all." });
+    const edited = updateStepContent(prev, "step-1", {
+      subject: "Plain",
+      body: "No tokens at all.",
+    });
     expect(validateEditedGraph(prev, edited, emailOnly)).toBeTruthy();
   });
 
@@ -172,7 +228,12 @@ describe("validateEditedGraph — rejects regressions loudly", () => {
       ...prev,
       nodes: prev.nodes.map((n) =>
         n.id === "branch-reply" && n.type === "branch"
-          ? { ...n, cases: n.cases.filter((c) => c.when === "default" || c.when.intent !== "info_request") }
+          ? {
+              ...n,
+              cases: n.cases.filter(
+                (c) => c.when === "default" || c.when.intent !== "info_request",
+              ),
+            }
           : n,
       ),
     };
@@ -182,7 +243,14 @@ describe("validateEditedGraph — rejects regressions loudly", () => {
       ...prev,
       nodes: prev.nodes.map((n) =>
         n.id === "branch-reply" && n.type === "branch"
-          ? { ...n, cases: n.cases.map((c) => (c.when !== "default" && c.when.intent === "not_interested" ? { ...c, pipeline: "booked" } : c)) }
+          ? {
+              ...n,
+              cases: n.cases.map((c) =>
+                c.when !== "default" && c.when.intent === "not_interested"
+                  ? { ...c, pipeline: "booked" }
+                  : c,
+              ),
+            }
           : n,
       ),
     };
@@ -192,7 +260,14 @@ describe("validateEditedGraph — rejects regressions loudly", () => {
       ...prev,
       nodes: prev.nodes.map((n) =>
         n.id === "branch-reply" && n.type === "branch"
-          ? { ...n, cases: n.cases.map((c) => (c.when !== "default" && c.when.intent === "objection_price" ? { ...c, goto: "end-lost" } : c)) }
+          ? {
+              ...n,
+              cases: n.cases.map((c) =>
+                c.when !== "default" && c.when.intent === "objection_price"
+                  ? { ...c, goto: "end-lost" }
+                  : c,
+              ),
+            }
           : n,
       ),
     };
@@ -222,8 +297,24 @@ describe("validateEditedGraph — rejects regressions loudly", () => {
       nodes: [
         { id: "n1", type: "step", channel: "email", content: { subject: "Hi", body: "Intro" } },
         { id: "d1", type: "delay", amount: 1, unit: "days" },
-        { id: "b1", type: "branch", on: "reply", cases: [{ when: { intent: "interested" }, goto: "end1", pipeline: "booked" }, { when: "default", goto: "b2" }] },
-        { id: "b2", type: "branch", on: "reply", cases: [{ when: { intent: "interested" }, goto: "end1", pipeline: "replied" }, { when: "default", goto: "end1" }] },
+        {
+          id: "b1",
+          type: "branch",
+          on: "reply",
+          cases: [
+            { when: { intent: "interested" }, goto: "end1", pipeline: "booked" },
+            { when: "default", goto: "b2" },
+          ],
+        },
+        {
+          id: "b2",
+          type: "branch",
+          on: "reply",
+          cases: [
+            { when: { intent: "interested" }, goto: "end1", pipeline: "replied" },
+            { when: "default", goto: "end1" },
+          ],
+        },
         { id: "end1", type: "end" },
       ],
       edges: [
@@ -238,11 +329,16 @@ describe("validateEditedGraph — rejects regressions loudly", () => {
       ...edited,
       nodes: edited.nodes.map((n) =>
         n.id === "b1" && n.type === "branch"
-          ? { ...n, cases: n.cases.map((c) => (c.when !== "default" ? { ...c, pipeline: "replied" } : c)) }
+          ? {
+              ...n,
+              cases: n.cases.map((c) => (c.when !== "default" ? { ...c, pipeline: "replied" } : c)),
+            }
           : n,
       ),
     };
-    expect(() => validateEditedGraph(prev, rePinned, emailOnly)).toThrow(/must keep "pipeline":"booked"/);
+    expect(() => validateEditedGraph(prev, rePinned, emailOnly)).toThrow(
+      /must keep "pipeline":"booked"/,
+    );
   });
 
   it("rejects losing the default case", () => {
@@ -250,7 +346,9 @@ describe("validateEditedGraph — rejects regressions loudly", () => {
     const noDefault: CampaignGraph = {
       ...prev,
       nodes: prev.nodes.map((n) =>
-        n.id === "b1" && n.type === "branch" ? { ...n, cases: n.cases.filter((c) => c.when !== "default") } : n,
+        n.id === "b1" && n.type === "branch"
+          ? { ...n, cases: n.cases.filter((c) => c.when !== "default") }
+          : n,
       ),
     };
     expect(() => validateEditedGraph(prev, noDefault, emailOnly)).toThrow(/default/);
@@ -303,8 +401,12 @@ describe("validateEditedGraph — sub-campaign containers (#90, DEC-077: the rep
       nodes: stored.nodes.filter((n) => n.type !== "subcampaign"),
       edges: stored.edges.filter((e) => !e.from.startsWith("subcampaign-added")),
     };
-    expect(() => validateEditedGraph(stored, removed, emailOnly)).toThrow(/can't remove the sub-campaign/);
-    expect(() => validateEditedGraph(stored, removed, admit)).toThrow(/can't remove the sub-campaign/);
+    expect(() => validateEditedGraph(stored, removed, emailOnly)).toThrow(
+      /can't remove the sub-campaign/,
+    );
+    expect(() => validateEditedGraph(stored, removed, admit)).toThrow(
+      /can't remove the sub-campaign/,
+    );
   });
 
   it("admit-new still demands well-formedness: the chain must exit into an END node", () => {
@@ -343,7 +445,9 @@ describe("validateEditedGraph — sub-campaign containers (#90, DEC-077: the rep
           : n,
       ),
     };
-    expect(() => validateEditedGraph(prev, shared, admit)).toThrow(/shares steps with another path/);
+    expect(() => validateEditedGraph(prev, shared, admit)).toThrow(
+      /shares steps with another path/,
+    );
   });
 
   it("admit-new refuses an unnamed container", () => {
@@ -362,7 +466,10 @@ describe("validateEditedGraph — rule targets survive edits (#90, DEC-077: the 
     const prev = playbook();
     const removed = removeStep(prev, "step-2");
     expect(() =>
-      validateEditedGraph(prev, removed, { allowedChannels: ["email"], ruleTargetNodeIds: ["step-2"] }),
+      validateEditedGraph(prev, removed, {
+        allowedChannels: ["email"],
+        ruleTargetNodeIds: ["step-2"],
+      }),
     ).toThrow(/moves contacts to it/);
     // The same edit passes when no rule targets the node…
     expect(validateEditedGraph(prev, removed, emailOnly)).toBeTruthy();
@@ -393,11 +500,11 @@ describe("validateEditedGraph — container well-formedness holds on EVERY write
     const stored = storedWithSub();
     const rejoining = {
       ...stored,
-      edges: stored.edges.map((e) =>
-        e.from === "step-added-1" ? { ...e, to: "step-2" } : e,
-      ),
+      edges: stored.edges.map((e) => (e.from === "step-added-1" ? { ...e, to: "step-2" } : e)),
     };
-    expect(() => validateEditedGraph(stored, rejoining, emailOnly)).toThrow(/must end at an end node/);
+    expect(() => validateEditedGraph(stored, rejoining, emailOnly)).toThrow(
+      /must end at an end node/,
+    );
   });
 
   it("a LATER plain edit can't point a reply case INTO a stored container's chain (shared) or AT its head", () => {
@@ -433,7 +540,9 @@ describe("validateEditedGraph — container well-formedness holds on EVERY write
         e.from === "step-reframe" ? { ...e, to: "subcampaign-added-1" } : e,
       ),
     };
-    expect(() => validateEditedGraph(stored, spliced, emailOnly)).toThrow(/is spliced into another flow/);
+    expect(() => validateEditedGraph(stored, spliced, emailOnly)).toThrow(
+      /is spliced into another flow/,
+    );
   });
 
   it("previous=null (unreadable stored row) never bricks a graph that carries sub-campaigns", () => {
@@ -445,7 +554,9 @@ describe("validateEditedGraph — container well-formedness holds on EVERY write
       ...stored,
       edges: stored.edges.map((e) => (e.from === "step-added-1" ? { ...e, to: "step-2" } : e)),
     };
-    expect(() => validateEditedGraph(null, rejoining, emailOnly)).toThrow(/must end at an end node/);
+    expect(() => validateEditedGraph(null, rejoining, emailOnly)).toThrow(
+      /must end at an end node/,
+    );
   });
 
   it("a guarantee the stored version already lacked never bricks an unrelated edit (legacy tolerance)", () => {

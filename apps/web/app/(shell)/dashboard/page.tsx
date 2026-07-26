@@ -19,7 +19,15 @@ export default async function DashboardPage() {
             icon="\u25c8"
             title="Your dashboard is coming"
             body="Cross-agent analytics land in a later phase. Everything running today lives under Agents."
-            actions={<a className="cf-button cf-button--primary" href="/agents" style={{ textDecoration: "none" }}>Go to Agents</a>}
+            actions={
+              <a
+                className="cf-button cf-button--primary"
+                href="/agents"
+                style={{ textDecoration: "none" }}
+              >
+                Go to Agents
+              </a>
+            }
           />
         </Card>
       </div>

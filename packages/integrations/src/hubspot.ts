@@ -77,11 +77,22 @@ export class HubspotAdapter implements FieldsIntegrationAdapter {
   async account(creds: IntegrationCredentials): Promise<HubspotAccount> {
     const data = await this.call(creds, "GET", "/account-info/v3/details");
     const portalId =
-      typeof data.portalId === "number" ? String(data.portalId) : typeof data.portalId === "string" ? data.portalId : "";
+      typeof data.portalId === "number"
+        ? String(data.portalId)
+        : typeof data.portalId === "string"
+          ? data.portalId
+          : "";
     if (!portalId) {
-      throw new IntegrationProviderError("PROVIDER_AUTH", "hubspot /account-info returned no portal id", false);
+      throw new IntegrationProviderError(
+        "PROVIDER_AUTH",
+        "hubspot /account-info returned no portal id",
+        false,
+      );
     }
-    return { portalId, ...(typeof data.accountType === "string" ? { accountType: data.accountType } : {}) };
+    return {
+      portalId,
+      ...(typeof data.accountType === "string" ? { accountType: data.accountType } : {}),
+    };
   }
 
   async probe(creds: IntegrationCredentials): Promise<ProbeResult> {
@@ -99,7 +110,12 @@ export class HubspotAdapter implements FieldsIntegrationAdapter {
    */
   async upsertContact(
     creds: IntegrationCredentials,
-    contact: { email: string; firstName?: string | null; lastName?: string | null; company?: string | null },
+    contact: {
+      email: string;
+      firstName?: string | null;
+      lastName?: string | null;
+      company?: string | null;
+    },
   ): Promise<string> {
     try {
       const created = await this.call(creds, "POST", "/crm/v3/objects/contacts", {
@@ -111,7 +127,12 @@ export class HubspotAdapter implements FieldsIntegrationAdapter {
         },
       });
       const id = typeof created.id === "string" ? created.id : "";
-      if (!id) throw new IntegrationProviderError("PROVIDER_UNAVAILABLE", "hubspot contact create returned no id", true);
+      if (!id)
+        throw new IntegrationProviderError(
+          "PROVIDER_UNAVAILABLE",
+          "hubspot contact create returned no id",
+          true,
+        );
       return id;
     } catch (err) {
       // Existing email → 409 "Contact already exists. Existing ID: <id>" — reuse it.
@@ -137,7 +158,12 @@ export class HubspotAdapter implements FieldsIntegrationAdapter {
       },
     });
     const id = typeof created.id === "string" ? created.id : "";
-    if (!id) throw new IntegrationProviderError("PROVIDER_UNAVAILABLE", "hubspot deal create returned no id", true);
+    if (!id)
+      throw new IntegrationProviderError(
+        "PROVIDER_UNAVAILABLE",
+        "hubspot deal create returned no id",
+        true,
+      );
     return id;
   }
 
@@ -151,7 +177,11 @@ export class HubspotAdapter implements FieldsIntegrationAdapter {
    * `associationTypeId` path is the wrong shape here — the default endpoint is
    * canonical for a plain deal→contact link.
    */
-  async associateDealToContact(creds: IntegrationCredentials, dealId: string, contactId: string): Promise<void> {
+  async associateDealToContact(
+    creds: IntegrationCredentials,
+    dealId: string,
+    contactId: string,
+  ): Promise<void> {
     await this.call(
       creds,
       "PUT",
@@ -160,7 +190,11 @@ export class HubspotAdapter implements FieldsIntegrationAdapter {
   }
 
   /** Move a deal to a named stage (one-way). */
-  async updateDealStage(creds: IntegrationCredentials, dealId: string, stage: string): Promise<void> {
+  async updateDealStage(
+    creds: IntegrationCredentials,
+    dealId: string,
+    stage: string,
+  ): Promise<void> {
     await this.call(creds, "PATCH", `/crm/v3/objects/deals/${encodeURIComponent(dealId)}`, {
       properties: { dealstage: stage },
     });
@@ -211,9 +245,24 @@ export class HubspotAdapter implements FieldsIntegrationAdapter {
         true,
       );
     }
-    if (res.status === 429) throw new IntegrationProviderError("PROVIDER_RATE_LIMITED", "hubspot rate limited (429)", true);
-    if (res.status >= 500) throw new IntegrationProviderError("PROVIDER_UNAVAILABLE", `hubspot error (HTTP ${res.status})`, true);
-    if (res.status === 401) throw new IntegrationProviderError("PROVIDER_AUTH", "hubspot auth rejected (HTTP 401)", false);
+    if (res.status === 429)
+      throw new IntegrationProviderError(
+        "PROVIDER_RATE_LIMITED",
+        "hubspot rate limited (429)",
+        true,
+      );
+    if (res.status >= 500)
+      throw new IntegrationProviderError(
+        "PROVIDER_UNAVAILABLE",
+        `hubspot error (HTTP ${res.status})`,
+        true,
+      );
+    if (res.status === 401)
+      throw new IntegrationProviderError(
+        "PROVIDER_AUTH",
+        "hubspot auth rejected (HTTP 401)",
+        false,
+      );
     // Some endpoints (associations PUT) answer 204 with no body.
     if (res.status === 204) return {};
     let data: Record<string, unknown>;
@@ -221,7 +270,11 @@ export class HubspotAdapter implements FieldsIntegrationAdapter {
       data = (await res.json()) as Record<string, unknown>;
     } catch {
       if (res.ok) return {};
-      throw new IntegrationProviderError("PROVIDER_UNAVAILABLE", "hubspot returned a non-JSON response", true);
+      throw new IntegrationProviderError(
+        "PROVIDER_UNAVAILABLE",
+        "hubspot returned a non-JSON response",
+        true,
+      );
     }
     if (res.ok) return data;
     // Any other 4xx = a CONFIG refusal (bad pipeline/stage, missing scope) —

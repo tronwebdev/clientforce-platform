@@ -30,9 +30,9 @@ export class AlgDispatchVerifier implements TokenVerifier {
   verify(token: string): Promise<AuthClaims> {
     let alg: unknown;
     try {
-      const header = JSON.parse(
-        Buffer.from(token.split(".")[0] ?? "", "base64url").toString(),
-      ) as { alg?: unknown };
+      const header = JSON.parse(Buffer.from(token.split(".")[0] ?? "", "base64url").toString()) as {
+        alg?: unknown;
+      };
       alg = header.alg;
     } catch {
       return Promise.reject(new Error("Malformed token header"));

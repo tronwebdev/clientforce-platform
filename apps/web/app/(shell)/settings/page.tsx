@@ -27,7 +27,13 @@ export default async function SettingsPage() {
         <TopBar title="Settings" me={me} />
         <div className="cf-content">
           <Card>
-            <h2 style={{ marginTop: 0, fontSize: "var(--cf-text-18)", color: "var(--cf-color-danger)" }}>
+            <h2
+              style={{
+                marginTop: 0,
+                fontSize: "var(--cf-text-18)",
+                color: "var(--cf-color-danger)",
+              }}
+            >
               Insufficient permissions
             </h2>
             <p style={{ color: "var(--cf-color-muted-2)" }}>

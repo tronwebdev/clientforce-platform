@@ -8,10 +8,10 @@ is a **Pipeline tab on Campaign View built as a §0-flagged designed addition**
 status-pill idiom, skeleton/error/empty states), native HTML5 drag (no new
 dependency). Captured at 1440×900 on the real local stack:
 
-| state | shot |
-| --- | --- |
-| Board — stage columns from the EXISTING `PipelineStage` rows (ordered), per-column counts, honest per-column empties, the out-of-set **"Other stages"** overflow column (read-only — its keys aren't stages) | `build-board.png` |
-| Drag walk — Omar Haddad dragged Interested → Booked; Interested renders its honest empty | `build-drag-after.png` |
+| state                                                                                                                                                                                                        | shot                   |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------- |
+| Board — stage columns from the EXISTING `PipelineStage` rows (ordered), per-column counts, honest per-column empties, the out-of-set **"Other stages"** overflow column (read-only — its keys aren't stages) | `build-board.png`      |
+| Drag walk — Omar Haddad dragged Interested → Booked; Interested renders its honest empty                                                                                                                     | `build-drag-after.png` |
 
 **Drag → event → rules (the regression):** the drag calls the standard manual
 move (`PATCH /enrollments/:id`), which now publishes through the EVENTS
@@ -56,10 +56,10 @@ pass = all zeros).
 Senders-list `sentToday` — the last JSON-path consumer, moved to the W1
 `senderId` column:
 
-| query shape | plan | execution |
-| --- | --- | --- |
+| query shape                         | plan                                                                            | execution     |
+| ----------------------------------- | ------------------------------------------------------------------------------- | ------------- |
 | BEFORE — `meta->>'senderId'` filter | bitmap scan on `[workspaceId, contactId, sentAt]` + heap re-check of 4,960 rows | **12.316 ms** |
-| AFTER — `senderId` column | Index Cond on `[workspaceId, senderId, channel, sentAt]` | **5.303 ms** |
+| AFTER — `senderId` column           | Index Cond on `[workspaceId, senderId, channel, sentAt]`                        | **5.303 ms**  |
 
 2.3× at this volume — and the BEFORE shape degrades with **workspace** daily
 volume (it filters every send that day) while AFTER scales only with the

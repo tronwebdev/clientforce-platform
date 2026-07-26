@@ -1,7 +1,11 @@
 "use client";
 
 import { useCallback, useState, type FormEvent, type ReactNode } from "react";
-import type { BackofficeAgencyRow, BackofficeWorkspaceRow, TenantStatusName } from "@clientforce/core";
+import type {
+  BackofficeAgencyRow,
+  BackofficeWorkspaceRow,
+  TenantStatusName,
+} from "@clientforce/core";
 import { Button, DataTable, Modal, Pill, Toast, type PillTone } from "@clientforce/ui";
 
 type ModalState =
@@ -75,7 +79,9 @@ export function TenantsView({
     {
       key: "created",
       header: "Created",
-      cell: (w: BackofficeWorkspaceRow) => <span style={{ color: "#5b6560" }}>{fmtDate(w.createdAt)}</span>,
+      cell: (w: BackofficeWorkspaceRow) => (
+        <span style={{ color: "#5b6560" }}>{fmtDate(w.createdAt)}</span>
+      ),
     },
     {
       key: "activity",
@@ -103,7 +109,12 @@ export function TenantsView({
           </SmallButton>
           <SmallButton
             onClick={() =>
-              setModal({ kind: "credit", id: w.id, name: `${agencyName} / ${w.name}`, balance: w.creditBalance })
+              setModal({
+                kind: "credit",
+                id: w.id,
+                name: `${agencyName} / ${w.name}`,
+                balance: w.creditBalance,
+              })
             }
           >
             Credits
@@ -115,12 +126,19 @@ export function TenantsView({
 
   return (
     <div>
-      <h1 style={{ fontFamily: "'Bricolage Grotesque'", fontSize: 28, fontWeight: 700, margin: "0 0 4px" }}>
+      <h1
+        style={{
+          fontFamily: "'Bricolage Grotesque'",
+          fontSize: 28,
+          fontWeight: 700,
+          margin: "0 0 4px",
+        }}
+      >
         Tenants
       </h1>
       <p style={{ color: "#5b6560", fontSize: 14, margin: "0 0 18px" }}>
-        Every agency and workspace on the platform. Suspend/reactivate is typed and reversible; credit
-        grants are append-only ledger entries. All actions are audited.
+        Every agency and workspace on the platform. Suspend/reactivate is typed and reversible;
+        credit grants are append-only ledger entries. All actions are audited.
       </p>
 
       <form onSubmit={onSearch} style={{ display: "flex", gap: 8, marginBottom: 20 }}>
@@ -145,18 +163,48 @@ export function TenantsView({
       </form>
 
       {agencies.length === 0 ? (
-        <div style={{ padding: 40, textAlign: "center", color: "#5b6560", background: "#fff", border: "1px solid var(--cf-color-hairline, #ebe3d6)", borderRadius: 14 }}>
+        <div
+          style={{
+            padding: 40,
+            textAlign: "center",
+            color: "#5b6560",
+            background: "#fff",
+            border: "1px solid var(--cf-color-hairline, #ebe3d6)",
+            borderRadius: 14,
+          }}
+        >
           No agencies match “{query}”.
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
           {agencies.map((a) => (
-            <section key={a.id} style={{ background: "#fff", border: "1px solid var(--cf-color-hairline, #ebe3d6)", borderRadius: 16, padding: 18 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
+            <section
+              key={a.id}
+              style={{
+                background: "#fff",
+                border: "1px solid var(--cf-color-hairline, #ebe3d6)",
+                borderRadius: 16,
+                padding: 18,
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  marginBottom: 14,
+                  flexWrap: "wrap",
+                }}
+              >
                 <div style={{ flex: 1, minWidth: 200 }}>
-                  <div style={{ fontFamily: "'Bricolage Grotesque'", fontSize: 18, fontWeight: 700 }}>{a.name}</div>
+                  <div
+                    style={{ fontFamily: "'Bricolage Grotesque'", fontSize: 18, fontWeight: 700 }}
+                  >
+                    {a.name}
+                  </div>
                   <div style={{ fontSize: 12, color: "#8a938d" }}>
-                    {a.slug} · created {fmtDate(a.createdAt)} · last activity {fmtDate(a.lastActivityAt)}
+                    {a.slug} · created {fmtDate(a.createdAt)} · last activity{" "}
+                    {fmtDate(a.lastActivityAt)}
                   </div>
                 </div>
                 <Pill tone="neutral">{a.planTier}</Pill>
@@ -257,11 +305,17 @@ function ActionDialog({
     try {
       if (modal.kind === "agency-status") {
         const verb = modal.next === "SUSPENDED" ? "suspend" : "reactivate";
-        await bo(`agencies/${modal.id}/${verb}`, { method: "POST", body: JSON.stringify({ reason }) });
+        await bo(`agencies/${modal.id}/${verb}`, {
+          method: "POST",
+          body: JSON.stringify({ reason }),
+        });
         onDone(`Agency ${modal.next === "SUSPENDED" ? "suspended" : "reactivated"}.`);
       } else if (modal.kind === "workspace-status") {
         const verb = modal.next === "SUSPENDED" ? "suspend" : "reactivate";
-        await bo(`workspaces/${modal.id}/${verb}`, { method: "POST", body: JSON.stringify({ reason }) });
+        await bo(`workspaces/${modal.id}/${verb}`, {
+          method: "POST",
+          body: JSON.stringify({ reason }),
+        });
         onDone(`Workspace ${modal.next === "SUSPENDED" ? "suspended" : "reactivated"}.`);
       } else {
         const n = Number(delta);
@@ -314,7 +368,13 @@ function ActionDialog({
               value={delta}
               onChange={(e) => setDelta(e.target.value)}
               placeholder="e.g. 5000 or -1000"
-              style={{ height: 40, borderRadius: 10, border: "1px solid var(--cf-color-hairline, #ebe3d6)", padding: "0 12px", fontSize: 14 }}
+              style={{
+                height: 40,
+                borderRadius: 10,
+                border: "1px solid var(--cf-color-hairline, #ebe3d6)",
+                padding: "0 12px",
+                fontSize: 14,
+              }}
             />
           </label>
         ) : null}
@@ -325,10 +385,20 @@ function ActionDialog({
             onChange={(e) => setReason(e.target.value)}
             rows={3}
             placeholder="Why are you making this change?"
-            style={{ borderRadius: 10, border: "1px solid var(--cf-color-hairline, #ebe3d6)", padding: "10px 12px", fontSize: 14, resize: "vertical" }}
+            style={{
+              borderRadius: 10,
+              border: "1px solid var(--cf-color-hairline, #ebe3d6)",
+              padding: "10px 12px",
+              fontSize: 14,
+              resize: "vertical",
+            }}
           />
         </label>
-        {error ? <p style={{ color: "var(--cf-color-danger, #c9543f)", fontSize: 13, margin: 0 }}>{error}</p> : null}
+        {error ? (
+          <p style={{ color: "var(--cf-color-danger, #c9543f)", fontSize: 13, margin: 0 }}>
+            {error}
+          </p>
+        ) : null}
       </div>
     </Modal>
   );

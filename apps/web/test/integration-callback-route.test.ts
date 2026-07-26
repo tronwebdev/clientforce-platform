@@ -59,7 +59,10 @@ describe("callback route handler (mocked session + stubbed fetch)", () => {
 
   it("API unreachable (fetch rejects) → the honest ?error= redirect, not an unhandled error", async () => {
     mocks.bearerToken.mockResolvedValue("tok-1");
-    vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new Error("ECONNREFUSED"))));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.reject(new Error("ECONNREFUSED"))),
+    );
 
     const loc = location(await call("code=c123&state=s456"));
     expect(loc.origin).toBe(ORIGIN);
@@ -73,11 +76,12 @@ describe("callback route handler (mocked session + stubbed fetch)", () => {
     mocks.bearerToken.mockResolvedValue("tok-1");
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        new Response(JSON.stringify({ detail: "state mismatch — restart the connect flow" }), {
-          status: 409,
-          headers: { "content-type": "application/json" },
-        }),
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ detail: "state mismatch — restart the connect flow" }), {
+            status: 409,
+            headers: { "content-type": "application/json" },
+          }),
       ),
     );
 

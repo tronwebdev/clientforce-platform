@@ -5,7 +5,13 @@
  */
 import { z } from "zod";
 
-export const senderTypeSchema = z.enum(["CF_MANAGED", "GMAIL_OAUTH", "OUTLOOK_OAUTH", "SMTP", "TWILIO_SMS"]);
+export const senderTypeSchema = z.enum([
+  "CF_MANAGED",
+  "GMAIL_OAUTH",
+  "OUTLOOK_OAUTH",
+  "SMTP",
+  "TWILIO_SMS",
+]);
 export type SenderTypeDto = z.infer<typeof senderTypeSchema>;
 
 export const createSenderSchema = z.object({
@@ -31,7 +37,9 @@ export const createSmsSenderSchema = z.object({
   phone: e164Schema,
   /** Display label for Settings rows (not a send-time from-name — SMS has none). */
   fromName: z.string().min(1).max(120),
-  messagingServiceSid: z.string().regex(/^MG[a-zA-Z0-9]{32}$/, "Twilio messaging service SID (MG…)"),
+  messagingServiceSid: z
+    .string()
+    .regex(/^MG[a-zA-Z0-9]{32}$/, "Twilio messaging service SID (MG…)"),
   dailyLimit: z.number().int().min(1).max(10_000).optional(),
 });
 export type CreateSmsSenderDto = z.infer<typeof createSmsSenderSchema>;

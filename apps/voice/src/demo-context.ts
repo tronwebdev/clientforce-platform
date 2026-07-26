@@ -6,16 +6,8 @@
  * uses (DEMO_SPOKEN_NAME simulates a confirmed agent name so the demo call
  * can prove BOTH variants).
  */
-import {
-  buildVoiceSystemPrompt,
-  deriveCallBrief,
-  buildCachedContext,
-} from "@clientforce/channels";
-import {
-  renderVoiceDisclosure,
-  resolveSpokenName,
-  voicePersonaById,
-} from "@clientforce/core";
+import { buildVoiceSystemPrompt, deriveCallBrief, buildCachedContext } from "@clientforce/channels";
+import { renderVoiceDisclosure, resolveSpokenName, voicePersonaById } from "@clientforce/core";
 import type { CallContext } from "./runtime";
 
 /**
@@ -28,7 +20,7 @@ export function demoCallContext(variant?: string): CallContext {
   const businessName = process.env.DEMO_BUSINESS_NAME ?? "Clientforce";
   const spokenNameEnv =
     variant === "named"
-      ? (process.env.DEMO_SPOKEN_NAME?.trim() || "Ava")
+      ? process.env.DEMO_SPOKEN_NAME?.trim() || "Ava"
       : variant === "default"
         ? undefined
         : process.env.DEMO_SPOKEN_NAME?.trim();
@@ -54,7 +46,8 @@ export function demoCallContext(variant?: string): CallContext {
   ];
   const brief = deriveCallBrief({
     goal: "book_appointments",
-    goalLabel: "Show what goal-first orchestration does for their outreach, gauge interest, and offer to book a 20-minute demo",
+    goalLabel:
+      "Show what goal-first orchestration does for their outreach, gauge interest, and offer to book a 20-minute demo",
     contextFacts,
     neverSay: ["limited time"],
   });

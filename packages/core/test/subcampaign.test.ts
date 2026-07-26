@@ -29,9 +29,19 @@ import {
 const stored = (): CampaignGraph => ({
   entry: "step-1",
   nodes: [
-    { id: "step-1", type: "step", channel: "email", content: { subject: "Hello {{company}}", body: "Hi {{firstName}}, intro." } },
+    {
+      id: "step-1",
+      type: "step",
+      channel: "email",
+      content: { subject: "Hello {{company}}", body: "Hi {{firstName}}, intro." },
+    },
     { id: "delay-1", type: "delay", amount: 2, unit: "days" },
-    { id: "step-2", type: "step", channel: "email", content: { subject: "Following up", body: "Value." } },
+    {
+      id: "step-2",
+      type: "step",
+      channel: "email",
+      content: { subject: "Following up", body: "Value." },
+    },
     {
       id: "branch-reply",
       type: "branch",
@@ -42,7 +52,12 @@ const stored = (): CampaignGraph => ({
         { when: "default", goto: "end-lost" },
       ],
     },
-    { id: "step-reframe", type: "step", channel: "email", content: { body: "Value first.", threaded: true } },
+    {
+      id: "step-reframe",
+      type: "step",
+      channel: "email",
+      content: { body: "Value first.", threaded: true },
+    },
     { id: "end-won", type: "end" },
     { id: "end-lost", type: "end" },
   ],
@@ -62,7 +77,10 @@ describe("addSubcampaign — the branch-creation mutation", () => {
     const { graph, subcampaignId, stepIds } = addSubcampaign(prev, {
       name: "Interested follow-up",
       seed: [
-        { channel: "email", content: { subject: "Booking?", body: "Hi {{firstName}}, grab a slot." } },
+        {
+          channel: "email",
+          content: { subject: "Booking?", body: "Hi {{firstName}}, grab a slot." },
+        },
         { channel: "email", content: { body: "Still open.", threaded: true }, delayDays: 3 },
       ],
     });
@@ -75,7 +93,10 @@ describe("addSubcampaign — the branch-creation mutation", () => {
     const chain = subcampaignChainOf(graph, subcampaignId)!;
     expect(chain.map((n) => n.id)).toEqual(["step-added-1", "delay-added-1", "step-added-2"]);
     const tailExit = graph.edges.find((e) => e.from === "step-added-2")?.to;
-    expect(graph.nodes.find((n) => n.id === tailExit)).toMatchObject({ id: "end-added-1", type: "end" });
+    expect(graph.nodes.find((n) => n.id === tailExit)).toMatchObject({
+      id: "end-added-1",
+      type: "end",
+    });
     // The whole thing still validates, and the container is OFF the main path.
     expect(() => validateGraph(graph)).not.toThrow();
     expect(graph.entry).toBe(prev.entry);
@@ -214,7 +235,10 @@ describe("shared-chain refusal — across container kinds", () => {
   it("refuses mutating the shared chain from EITHER container, loudly", () => {
     const graph = crossShared();
     expect(() =>
-      addStep(graph, { container: { kind: "subcampaign", subcampaignId: "sub-1" }, channel: "email" }),
+      addStep(graph, {
+        container: { kind: "subcampaign", subcampaignId: "sub-1" },
+        channel: "email",
+      }),
     ).toThrow(/shares steps with another path/);
     expect(() =>
       addStep(graph, {
@@ -301,7 +325,9 @@ describe("graftSubcampaigns — regenerate carries containers (#92 review round)
       type: "subcampaign",
       ref: "Interested follow-up",
     });
-    expect(subcampaignChainOf(graph, prev.subcampaignId)!.map((n) => n.id)).toEqual(["step-added-1"]);
+    expect(subcampaignChainOf(graph, prev.subcampaignId)!.map((n) => n.id)).toEqual([
+      "step-added-1",
+    ]);
     expect(graph.nodes.some((n) => n.id === "end-added-1")).toBe(true);
     expect(() => validateGraph(graph)).not.toThrow();
     // The fresh main path is untouched.
@@ -314,7 +340,12 @@ describe("graftSubcampaigns — regenerate carries containers (#92 review round)
     const freshWithCollision: CampaignGraph = {
       entry: "step-added-1",
       nodes: [
-        { id: "step-added-1", type: "step", channel: "email", content: { subject: "Hi", body: "Fresh intro." } },
+        {
+          id: "step-added-1",
+          type: "step",
+          channel: "email",
+          content: { subject: "Hi", body: "Fresh intro." },
+        },
         { id: "delay-1", type: "delay", amount: 2, unit: "days" },
         {
           id: "branch-reply",
@@ -341,7 +372,9 @@ describe("graftSubcampaigns — regenerate carries containers (#92 review round)
     const branch = graph.nodes.find((n) => n.type === "branch" && n.id === "branch-reply");
     expect(branch?.type === "branch" && branch.cases[0]!.goto).toBe(renamed);
     // …while the CONTAINER keeps its load-bearing ids verbatim.
-    expect(subcampaignChainOf(graph, prev.subcampaignId)!.map((n) => n.id)).toEqual(["step-added-1"]);
+    expect(subcampaignChainOf(graph, prev.subcampaignId)!.map((n) => n.id)).toEqual([
+      "step-added-1",
+    ]);
     expect(() => validateGraph(graph)).not.toThrow();
   });
 

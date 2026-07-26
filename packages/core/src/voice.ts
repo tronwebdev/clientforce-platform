@@ -112,7 +112,8 @@ export const SPOKEN_NAME_MAX_WORDS = 2;
 
 const SPOKEN_NAME_WORD_RE = /^[\p{L}][\p{L}'’-]*$/u;
 
-export type SpokenNameIssue = "EMPTY" | "TOO_LONG" | "TOO_MANY_WORDS" | "INVALID_CHARS" | "TITLE_OR_CLAIM";
+export type SpokenNameIssue =
+  "EMPTY" | "TOO_LONG" | "TOO_MANY_WORDS" | "INVALID_CHARS" | "TITLE_OR_CLAIM";
 
 /**
  * Validate a candidate spoken name: a plain given name (letters, apostrophes,
@@ -134,7 +135,8 @@ export function spokenNameIssue(candidate: string): SpokenNameIssue | null {
   return null;
 }
 
-export const isValidSpokenName = (candidate: string): boolean => spokenNameIssue(candidate) === null;
+export const isValidSpokenName = (candidate: string): boolean =>
+  spokenNameIssue(candidate) === null;
 
 /** Zod refinement shared by the guardrails rider and workspace defaults. */
 export const spokenNameSchema = z
@@ -246,7 +248,9 @@ export function renderVoiceDisclosure(input: VoiceDisclosureInput): string {
     : s.voiceDisclosureDefault;
   const parts = [
     intro.replace("{businessName}", input.businessName),
-    ...(input.recordingEnabled ?? VOICE_RECORDING_DEFAULT_ENABLED ? [s.voiceRecordingNotice] : []),
+    ...((input.recordingEnabled ?? VOICE_RECORDING_DEFAULT_ENABLED)
+      ? [s.voiceRecordingNotice]
+      : []),
     s.voiceDisclosureClose,
   ];
   return parts.join(" ");

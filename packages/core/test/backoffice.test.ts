@@ -23,40 +23,88 @@ const rows: CreditPriceRow[] = [
 
 describe("resolveCreditPrice", () => {
   it("uses the newest platform default when the agency has no override", () => {
-    expect(resolveCreditPrice(rows, { agencyId: "other", action: "email_send", at: t("2026-07-01") })).toBe(2);
+    expect(
+      resolveCreditPrice(rows, { agencyId: "other", action: "email_send", at: t("2026-07-01") }),
+    ).toBe(2);
   });
 
   it("an agency override beats the platform default", () => {
-    expect(resolveCreditPrice(rows, { agencyId: "ag1", action: "email_send", at: t("2026-07-01") })).toBe(5);
+    expect(
+      resolveCreditPrice(rows, { agencyId: "ag1", action: "email_send", at: t("2026-07-01") }),
+    ).toBe(5);
   });
 
   it("respects effective dating — before the override, the default applies", () => {
-    expect(resolveCreditPrice(rows, { agencyId: "ag1", action: "email_send", at: t("2026-02-01") })).toBe(1);
+    expect(
+      resolveCreditPrice(rows, { agencyId: "ag1", action: "email_send", at: t("2026-02-01") }),
+    ).toBe(1);
   });
 
   it("ignores rows not yet effective", () => {
     // At 2026-05-01 the credits=2 default (2026-06-01) is not yet effective.
-    expect(resolveCreditPrice(rows, { agencyId: null, action: "email_send", at: t("2026-05-01") })).toBe(1);
+    expect(
+      resolveCreditPrice(rows, { agencyId: null, action: "email_send", at: t("2026-05-01") }),
+    ).toBe(1);
   });
 
   it("returns null when no price applies", () => {
-    expect(resolveCreditPrice(rows, { agencyId: "ag1", action: "voice_minute", at: t("2026-07-01") })).toBeNull();
+    expect(
+      resolveCreditPrice(rows, { agencyId: "ag1", action: "voice_minute", at: t("2026-07-01") }),
+    ).toBeNull();
   });
 });
 
 describe("W4 request DTOs (DEC-082)", () => {
   it("killSwitchSetSchema accepts only ENFORCED channels (email, sms, voice) — Q-025 narrowing", () => {
-    expect(killSwitchSetSchema.safeParse({ agencyId: "a1", channel: "email", active: true, reason: "abuse" }).success).toBe(true);
-    expect(killSwitchSetSchema.safeParse({ agencyId: "a1", channel: "sms", active: true, reason: "abuse" }).success).toBe(true);
+    expect(
+      killSwitchSetSchema.safeParse({
+        agencyId: "a1",
+        channel: "email",
+        active: true,
+        reason: "abuse",
+      }).success,
+    ).toBe(true);
+    expect(
+      killSwitchSetSchema.safeParse({
+        agencyId: "a1",
+        channel: "sms",
+        active: true,
+        reason: "abuse",
+      }).success,
+    ).toBe(true);
     // voice re-entered via the #93 ride-along: assertDialAllowed now calls
     // assertChannelLive("voice"), so the switch enforces — no silent no-op.
-    expect(killSwitchSetSchema.safeParse({ agencyId: "a1", channel: "voice", active: true, reason: "abuse" }).success).toBe(true);
+    expect(
+      killSwitchSetSchema.safeParse({
+        agencyId: "a1",
+        channel: "voice",
+        active: true,
+        reason: "abuse",
+      }).success,
+    ).toBe(true);
     // whatsapp stays DELIBERATELY rejected until its finish PR wires the rail (Q-025).
-    expect(killSwitchSetSchema.safeParse({ agencyId: "a1", channel: "whatsapp", active: true, reason: "abuse" }).success).toBe(false);
+    expect(
+      killSwitchSetSchema.safeParse({
+        agencyId: "a1",
+        channel: "whatsapp",
+        active: true,
+        reason: "abuse",
+      }).success,
+    ).toBe(false);
     // Unknown channel is rejected (enum-guarded — no free-form channel).
-    expect(killSwitchSetSchema.safeParse({ agencyId: "a1", channel: "carrier-pigeon", active: true, reason: "abuse" }).success).toBe(false);
+    expect(
+      killSwitchSetSchema.safeParse({
+        agencyId: "a1",
+        channel: "carrier-pigeon",
+        active: true,
+        reason: "abuse",
+      }).success,
+    ).toBe(false);
     // A reason is mandatory (audited) — too short fails.
-    expect(killSwitchSetSchema.safeParse({ agencyId: "a1", channel: "email", active: true, reason: "x" }).success).toBe(false);
+    expect(
+      killSwitchSetSchema.safeParse({ agencyId: "a1", channel: "email", active: true, reason: "x" })
+        .success,
+    ).toBe(false);
   });
 
   it("featureFlagSetSchema requires a key and a boolean", () => {
@@ -66,7 +114,9 @@ describe("W4 request DTOs (DEC-082)", () => {
   });
 
   it("impersonateSchema requires a workspace and a reason", () => {
-    expect(impersonateSchema.safeParse({ workspaceId: "w1", reason: "support ticket #7" }).success).toBe(true);
+    expect(
+      impersonateSchema.safeParse({ workspaceId: "w1", reason: "support ticket #7" }).success,
+    ).toBe(true);
     expect(impersonateSchema.safeParse({ workspaceId: "w1", reason: "x" }).success).toBe(false);
     expect(impersonateSchema.safeParse({ reason: "no workspace" }).success).toBe(false);
   });

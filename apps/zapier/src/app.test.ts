@@ -1,5 +1,5 @@
 /**
- * INT W5 (DEC-101) — the app definition is GENERATED, and this pins that it
+ * INT W5 (DEC-102) — the app definition is GENERATED, and this pins that it
  * only ever ships steps the rail can actually serve. The failure mode being
  * guarded is a published app whose menu contains a step that 404s, which a
  * Zapier user discovers only after building a Zap around it.

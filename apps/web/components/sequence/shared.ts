@@ -4,7 +4,13 @@
  * `app/agents/new/shared.tsx` re-exports them so every pre-W3-4 wizard import
  * keeps resolving. One definition, two hosts — never a fork.
  */
-import { arcRoleAt, deriveBriefSeed, selectStrategy, type GraphNode, type StepBrief } from "@clientforce/core";
+import {
+  arcRoleAt,
+  deriveBriefSeed,
+  selectStrategy,
+  type GraphNode,
+  type StepBrief,
+} from "@clientforce/core";
 
 export const GRAD = "linear-gradient(135deg,#36D7ED 0%,#35E834 55%,#D0F56B 100%)";
 

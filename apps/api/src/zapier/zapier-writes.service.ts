@@ -1,5 +1,5 @@
 /**
- * INT W5 (DEC-101) — the inbound writes a Zap performs.
+ * INT W5 (DEC-102) — the inbound writes a Zap performs.
  *
  * These CREATE or ROUTE records, which is why they are their own registry
  * rather than rule actions (owner ruling): a rule fires on a contact that

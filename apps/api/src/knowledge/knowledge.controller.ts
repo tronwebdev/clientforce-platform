@@ -117,7 +117,9 @@ export class KnowledgeController {
   async uploadSource(@UploadedFile() file: UploadedDocument | undefined, @Body() body: unknown) {
     if (!file) throw new BadRequestException('Missing multipart "file" field');
     if (!UPLOAD_EXTENSIONS.test(file.originalname)) {
-      throw new BadRequestException("Unsupported document type — upload PDF, DOCX, XLSX, TXT, CSV, or MD");
+      throw new BadRequestException(
+        "Unsupported document type — upload PDF, DOCX, XLSX, TXT, CSV, or MD",
+      );
     }
     const dto = parse(uploadKnowledgeSourceSchema, body ?? {});
     const workspaceId = this.tenant.workspaceId;

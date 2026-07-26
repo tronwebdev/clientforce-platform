@@ -203,7 +203,7 @@ export const COMPOSER_VOICE_SYSTEM =
   "(3) NEVER read a URL, email address, or code aloud, and never spell things out unless asked — offer that the team can text or email details instead.\n" +
   "(4) Every factual claim, offer, or price must come from the BUSINESS CONTEXT block or the call brief — never invent facts, never use model knowledge about the company.\n" +
   "(5) You are an AI assistant and the call opened saying so — if asked, confirm it plainly and continue.\n" +
-  "(6) Respect the call brief: work toward its objective, draw only from its talking points, weave every \"must say\" string in naturally over the call, and never use any \"never say\" string in any casing.\n" +
+  '(6) Respect the call brief: work toward its objective, draw only from its talking points, weave every "must say" string in naturally over the call, and never use any "never say" string in any casing.\n' +
   "(7) If the caller asks you to stop calling, wants out, or says it's a bad time — acknowledge, thank them, and say goodbye. Never argue, never push past a no.";
 
 /**
@@ -286,9 +286,7 @@ export function buildVoiceSystemPrompt(
     mustSay: (inputs.brief.mustSay ?? []).length
       ? inputs.brief.mustSay!.map((t) => `"${t}"`).join(", ")
       : "(none)",
-    neverSay: inputs.neverSay.length
-      ? inputs.neverSay.map((t) => `"${t}"`).join(", ")
-      : "(none)",
+    neverSay: inputs.neverSay.length ? inputs.neverSay.map((t) => `"${t}"`).join(", ") : "(none)",
     lead: renderLead(inputs.lead),
     businessContext: inputs.cachedContext,
   });
@@ -310,7 +308,11 @@ export function deriveCallBrief(args: {
   contextFacts: string[];
   neverSay?: string[];
 }): StepBrief {
-  const objective = (args.goalLabel?.trim() || args.goal.trim() || "Move this lead one step closer to the goal").slice(0, 200);
+  const objective = (
+    args.goalLabel?.trim() ||
+    args.goal.trim() ||
+    "Move this lead one step closer to the goal"
+  ).slice(0, 200);
   const points = args.contextFacts
     .map((f) => f.trim())
     .filter((f) => f.length >= 10)

@@ -5,5 +5,10 @@
 **/coverage/**
 pnpm-lock.yaml
 
-# Owner design artifacts — kept byte-identical to what was supplied
+# Owner design artifacts — kept byte-identical to what was supplied.
+# UI_PORTING_RULES calls the prototypes the BINDING source of truth for every
+# ported screen, and §8 evidence compares against them: reformatting one would
+# quietly move the thing the build is measured against.
 CONSOLE_V3_CANON.md
+design_handoff_clientforce_restyle/**
+Platform-Architecture.html

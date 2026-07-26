@@ -87,7 +87,13 @@ export function AddToListMenu({
               onClick={() => onPick(o.id)}
               onMouseEnter={(e) => (e.currentTarget.style.background = "#FBF7F0")}
               onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-              style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 14px", cursor: "pointer" }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "9px 14px",
+                cursor: "pointer",
+              }}
               data-testid={`${testid}-opt`}
             >
               <span
@@ -120,9 +126,13 @@ export function AddToListMenu({
                 {o.name}
               </span>
               {showCounts ? (
-                <span style={{ fontSize: 11.5, fontWeight: 700, color: "#9AA59E" }}>{o.count ?? 0}</span>
+                <span style={{ fontSize: 11.5, fontWeight: 700, color: "#9AA59E" }}>
+                  {o.count ?? 0}
+                </span>
               ) : (
-                <span style={{ color: "#16A82A", visibility: o.current ? "visible" : "hidden" }}>✓</span>
+                <span style={{ color: "#16A82A", visibility: o.current ? "visible" : "hidden" }}>
+                  ✓
+                </span>
               )}
             </div>
           );

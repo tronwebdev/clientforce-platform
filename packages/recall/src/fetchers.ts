@@ -14,11 +14,7 @@
  *   checks would refuse — stripping at this boundary keeps the refusal rail
  *   meaningful for real violations.
  */
-import {
-  RECALL_MAX_ITEMS,
-  toRecallDetail,
-  type RecallItem,
-} from "@clientforce/core";
+import { RECALL_MAX_ITEMS, toRecallDetail, type RecallItem } from "@clientforce/core";
 import { withTenant } from "@clientforce/db";
 import { retrieve } from "@clientforce/knowledge";
 import { rankByQuery } from "./rank";

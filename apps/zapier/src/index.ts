@@ -1,5 +1,5 @@
 /**
- * INT W5 (DEC-101) — the Clientforce Zapier app definition.
+ * INT W5 (DEC-102) — the Clientforce Zapier app definition.
  *
  * This file contains NO list of triggers and NO list of actions. Every step is
  * generated from the registries in `@clientforce/core` and

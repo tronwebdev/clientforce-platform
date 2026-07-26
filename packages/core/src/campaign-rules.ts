@@ -39,6 +39,17 @@ export const campaignRuleTriggerSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("email_opened") }),
   z.object({ kind: z.literal("link_clicked") }),
   z.object({ kind: z.literal("lead_captured") }),
+  // WID2 (DEC-102): a visitor opened a conversation with an embedded widget.
+  // Fires off `widget.conversation_started.v1` — a catalog entry that has
+  // existed since the data model was authored and, until this unit, had no
+  // producer. This is Q-035's widget half: the moment an owner most plausibly
+  // says "when someone starts chatting on my site, do Y".
+  //
+  // Deliberately NOT the same as `lead_captured`. A chat that starts is
+  // interest; a chat that hands over a name and email is a lead. Mapping both
+  // to one trigger would fire the "new lead" rules for every anonymous
+  // visitor who ever opened the panel — the Q-031 mass-fire concern.
+  z.object({ kind: z.literal("widget_chat_started") }),
   z.object({
     kind: z.literal("sequence_quiet"),
     /** Days of quiet after the sequence completed before the rule fires (once, ever, per enrollment). */
@@ -242,6 +253,7 @@ export function sameTrigger(a: CampaignRuleTrigger, b: CampaignRuleTrigger): boo
     case "email_opened":
     case "link_clicked":
     case "lead_captured":
+    case "widget_chat_started":
       return true;
   }
 }
@@ -285,7 +297,8 @@ export const automationWriteSchema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["conditions"],
-        message: "Keyword filters refine reply triggers only — this trigger would never fire with one",
+        message:
+          "Keyword filters refine reply triggers only — this trigger would never fire with one",
       });
     }
   });

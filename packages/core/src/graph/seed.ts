@@ -10,7 +10,11 @@
  * mechanical text derivation, labeled as such.
  */
 import type { StepNode } from "./types";
-import { BRIEF_SUBJECT_HINT_MAX, BRIEF_TALKING_POINTS_MIN, BRIEF_TALKING_POINTS_MAX } from "./validate";
+import {
+  BRIEF_SUBJECT_HINT_MAX,
+  BRIEF_TALKING_POINTS_MIN,
+  BRIEF_TALKING_POINTS_MAX,
+} from "./validate";
 
 export interface BriefSeedResult {
   objective: string;
@@ -23,7 +27,11 @@ export interface BriefSeedResult {
 
 /** The channels arc-role position mapping (`arcRoleFor`), mirrored: first
  *  step = opener, last = breakup, middle steps walk the interior roles. */
-export function arcRoleAt(roles: readonly string[], index: number, count: number): string | undefined {
+export function arcRoleAt(
+  roles: readonly string[],
+  index: number,
+  count: number,
+): string | undefined {
   if (roles.length === 0) return undefined;
   if (index <= 1) return roles[0];
   if (index >= count) return roles[roles.length - 1];
@@ -77,7 +85,10 @@ export function deriveBriefSeed(step: StepNode, arcRole?: string): BriefSeedResu
       : undefined;
 
   const roleObjective = arcRole ? detokenize(arcRole) : "";
-  const objective = (roleObjective || (subject ? `Get a reply about: ${subject}` : "Move this lead one step closer to the goal")).slice(0, 200);
+  const objective = (
+    roleObjective ||
+    (subject ? `Get a reply about: ${subject}` : "Move this lead one step closer to the goal")
+  ).slice(0, 200);
 
   return {
     objective,

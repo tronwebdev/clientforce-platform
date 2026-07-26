@@ -6,8 +6,16 @@ import type { Me } from "../lib/types";
 const me: Me = {
   user: { id: "u1", email: "owner@demo-agency.test", name: "Jordan Mensah" },
   memberships: [
-    { workspaceId: "wsA", role: "OWNER", workspace: { id: "wsA", name: "Mensah Agency", slug: "a", agencyId: "ag1" } },
-    { workspaceId: "wsB", role: "ADMIN", workspace: { id: "wsB", name: "BrightSmile", slug: "b", agencyId: "ag1" } },
+    {
+      workspaceId: "wsA",
+      role: "OWNER",
+      workspace: { id: "wsA", name: "Mensah Agency", slug: "a", agencyId: "ag1" },
+    },
+    {
+      workspaceId: "wsB",
+      role: "ADMIN",
+      workspace: { id: "wsB", name: "BrightSmile", slug: "b", agencyId: "ag1" },
+    },
   ],
   activeWorkspace: { id: "wsA", name: "Mensah Agency", slug: "a", agencyId: "ag1" },
   activeAgencyId: "ag1",
@@ -19,7 +27,16 @@ describe("SidebarView", () => {
     const html = renderToStaticMarkup(
       <SidebarView me={me} activeKey="contacts" wsOpen={false} toolsOpen={false} />,
     );
-    for (const label of ["Dashboard", "Agents", "Contacts", "Stats", "Integrations", "Automations", "Tools", "Settings"]) {
+    for (const label of [
+      "Dashboard",
+      "Agents",
+      "Contacts",
+      "Stats",
+      "Integrations",
+      "Automations",
+      "Tools",
+      "Settings",
+    ]) {
       expect(html).toContain(label);
     }
     expect(html).toContain("Mensah Agency"); // active workspace

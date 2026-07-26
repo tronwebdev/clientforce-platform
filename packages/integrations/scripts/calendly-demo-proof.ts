@@ -62,7 +62,11 @@ async function assertDomainAuthVerified(apiKey: string): Promise<void> {
   const dmarc = await resolveTxt(`_dmarc.${ROOT_DOMAIN}`).catch(() => [] as string[][]);
   if (!dmarc.flat().some((t) => t.startsWith("v=DMARC1")))
     fail(1, "domain auth", `no DMARC record at _dmarc.${ROOT_DOMAIN}`);
-  pass(1, "live-send hard gate", `SPF/DKIM valid for ${SEND_DOMAIN} + DMARC present at ${ROOT_DOMAIN}`);
+  pass(
+    1,
+    "live-send hard gate",
+    `SPF/DKIM valid for ${SEND_DOMAIN} + DMARC present at ${ROOT_DOMAIN}`,
+  );
 }
 
 async function main(): Promise<void> {
@@ -78,7 +82,9 @@ async function main(): Promise<void> {
   // ── Sandbox workspace (fresh per run; the runner DB is throwaway) ──────────
   const agency = await owner.agency.create({ data: { name: SUFFIX, slug: SUFFIX, branding: {} } });
   const ws = (
-    await owner.workspace.create({ data: { agencyId: agency.id, name: "W2 demo", slug: SUFFIX, settings: {} } })
+    await owner.workspace.create({
+      data: { agencyId: agency.id, name: "W2 demo", slug: SUFFIX, settings: {} },
+    })
   ).id;
   const agentId = (
     await owner.agent.create({
@@ -87,7 +93,12 @@ async function main(): Promise<void> {
         name: "Booking Demo Agent",
         goal: "book_appointments",
         guardrails: {
-          sendingWindow: { days: [1, 2, 3, 4, 5, 6, 7], start: "00:00", end: "23:59", timezone: "UTC" },
+          sendingWindow: {
+            days: [1, 2, 3, 4, 5, 6, 7],
+            start: "00:00",
+            end: "23:59",
+            timezone: "UTC",
+          },
           dailyCap: { email: 50 },
           consent: { attestedBy: RECIPIENT, attestedAt: new Date().toISOString() },
           tracking: { openTracking: true, linkTracking: true },
@@ -138,7 +149,8 @@ async function main(): Promise<void> {
       fields: {
         company_name: { value: "Clientforce", citations: [], source: "typed" },
         offer: {
-          value: "Clientforce runs your outbound and books qualified calls straight onto your calendar.",
+          value:
+            "Clientforce runs your outbound and books qualified calls straight onto your calendar.",
           citations: [],
           source: "typed",
         },
@@ -211,7 +223,11 @@ async function main(): Promise<void> {
       composed: { mode: "guided", briefVersion: 1, composerVersion: composed.composerVersion },
     },
   );
-  pass(5, "REAL email delivered", `to=${RECIPIENT} provider=${message.providerMessageId} subject="${message.subject}"`);
+  pass(
+    5,
+    "REAL email delivered",
+    `to=${RECIPIENT} provider=${message.providerMessageId} subject="${message.subject}"`,
+  );
 
   // ── The honest detection flag (the drawer's tier line, verbatim stance) ───
   const flag =
@@ -238,7 +254,9 @@ async function main(): Promise<void> {
       2,
     ),
   );
-  console.log("DEMO READY — book from the email’s link; the booking lands on the real Calendly page.");
+  console.log(
+    "DEMO READY — book from the email’s link; the booking lands on the real Calendly page.",
+  );
   await owner.$disconnect();
   await app.$disconnect();
 }

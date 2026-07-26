@@ -1,4 +1,11 @@
-import { BadRequestException, Body, ConflictException, Controller, Post, Req } from "@nestjs/common";
+import {
+  BadRequestException,
+  Body,
+  ConflictException,
+  Controller,
+  Post,
+  Req,
+} from "@nestjs/common";
 import { PrismaService } from "../db/prisma.service";
 import { AllowNoMembership } from "../auth/decorators";
 import type { AuthenticatedRequest } from "../auth/request-context";
@@ -26,11 +33,12 @@ export class WorkspacesController {
     const existing = await this.prisma.admin.membership.count({ where: { userId } });
     if (existing > 0) throw new ConflictException("You already belong to a workspace");
 
-    const slugBase = name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 40) || "workspace";
+    const slugBase =
+      name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 40) || "workspace";
     const slug = `${slugBase}-${Date.now().toString(36)}`;
 
     const workspace = await this.prisma.admin.$transaction(async (tx) => {

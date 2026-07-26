@@ -83,7 +83,8 @@ async function run(
   const log = deps.log ?? console.warn;
   switch (action.kind) {
     case "move_to_node": {
-      if (!ctx.enrollmentId) return { kind: action.kind, outcome: "error", detail: "NO_ENROLLMENT" };
+      if (!ctx.enrollmentId)
+        return { kind: action.kind, outcome: "error", detail: "NO_ENROLLMENT" };
       if (!deps.moveEnrollment) {
         return {
           kind: action.kind,
@@ -101,20 +102,30 @@ async function run(
     }
 
     case "end_enrollment": {
-      if (!ctx.enrollmentId) return { kind: action.kind, outcome: "error", detail: "NO_ENROLLMENT" };
+      if (!ctx.enrollmentId)
+        return { kind: action.kind, outcome: "error", detail: "NO_ENROLLMENT" };
       const cancelNote = await setStatusAndCancel(deps, ctx, "DONE", undefined);
-      return { kind: action.kind, outcome: "executed", ...(cancelNote ? { detail: cancelNote } : {}) };
+      return {
+        kind: action.kind,
+        outcome: "executed",
+        ...(cancelNote ? { detail: cancelNote } : {}),
+      };
     }
 
     case "pause_enrollment": {
-      if (!ctx.enrollmentId) return { kind: action.kind, outcome: "error", detail: "NO_ENROLLMENT" };
+      if (!ctx.enrollmentId)
+        return { kind: action.kind, outcome: "error", detail: "NO_ENROLLMENT" };
       // The Logs tab renders `meta.blocked` as the amber row — same shape as
       // the boundary/composer refusals (P1.6 run audit).
       const cancelNote = await setStatusAndCancel(deps, ctx, "PAUSED", {
         reason: "PAUSED_BY_RULE",
         detail: `campaign rule ${ruleId}`,
       });
-      return { kind: action.kind, outcome: "executed", ...(cancelNote ? { detail: cancelNote } : {}) };
+      return {
+        kind: action.kind,
+        outcome: "executed",
+        ...(cancelNote ? { detail: cancelNote } : {}),
+      };
     }
 
     case "suppress_contact": {
@@ -183,17 +194,22 @@ async function run(
     }
 
     case "set_stage": {
-      if (!ctx.enrollmentId) return { kind: action.kind, outcome: "error", detail: "NO_ENROLLMENT" };
-      const fromStage = await withTenant(deps.prisma, { workspaceId: ctx.workspaceId }, async (tx) => {
-        const enrollment = await tx.enrollment.findUnique({ where: { id: ctx.enrollmentId! } });
-        if (!enrollment) throw new Error(`MISSING_ENROLLMENT: ${ctx.enrollmentId}`);
-        if (enrollment.pipelineStage === action.stage) return null;
-        await tx.enrollment.update({
-          where: { id: enrollment.id },
-          data: { pipelineStage: action.stage },
-        });
-        return enrollment.pipelineStage;
-      });
+      if (!ctx.enrollmentId)
+        return { kind: action.kind, outcome: "error", detail: "NO_ENROLLMENT" };
+      const fromStage = await withTenant(
+        deps.prisma,
+        { workspaceId: ctx.workspaceId },
+        async (tx) => {
+          const enrollment = await tx.enrollment.findUnique({ where: { id: ctx.enrollmentId! } });
+          if (!enrollment) throw new Error(`MISSING_ENROLLMENT: ${ctx.enrollmentId}`);
+          if (enrollment.pipelineStage === action.stage) return null;
+          await tx.enrollment.update({
+            where: { id: enrollment.id },
+            data: { pipelineStage: action.stage },
+          });
+          return enrollment.pipelineStage;
+        },
+      );
       if (fromStage === null) {
         return { kind: action.kind, outcome: "noop", detail: `already at "${action.stage}"` };
       }
@@ -279,18 +295,22 @@ async function run(
           detail: "no enrollment on this event — nothing to queue the booking link on",
         };
       }
-      const flagged = await withTenant(deps.prisma, { workspaceId: ctx.workspaceId }, async (tx) => {
-        const enrollment = await tx.enrollment.findUnique({ where: { id: ctx.enrollmentId! } });
-        if (!enrollment) throw new Error(`MISSING_ENROLLMENT: ${ctx.enrollmentId}`);
-        const meta = { ...((enrollment.meta ?? {}) as Record<string, unknown>) };
-        if (meta.bookingLinkRequested === true) return false;
-        meta.bookingLinkRequested = true;
-        await tx.enrollment.update({
-          where: { id: enrollment.id },
-          data: { meta: meta as Prisma.InputJsonValue },
-        });
-        return true;
-      });
+      const flagged = await withTenant(
+        deps.prisma,
+        { workspaceId: ctx.workspaceId },
+        async (tx) => {
+          const enrollment = await tx.enrollment.findUnique({ where: { id: ctx.enrollmentId! } });
+          if (!enrollment) throw new Error(`MISSING_ENROLLMENT: ${ctx.enrollmentId}`);
+          const meta = { ...((enrollment.meta ?? {}) as Record<string, unknown>) };
+          if (meta.bookingLinkRequested === true) return false;
+          meta.bookingLinkRequested = true;
+          await tx.enrollment.update({
+            where: { id: enrollment.id },
+            data: { meta: meta as Prisma.InputJsonValue },
+          });
+          return true;
+        },
+      );
       return flagged
         ? {
             kind: action.kind,
@@ -312,18 +332,22 @@ async function run(
           detail: "no enrollment on this event — nothing to queue the payment link on",
         };
       }
-      const flagged = await withTenant(deps.prisma, { workspaceId: ctx.workspaceId }, async (tx) => {
-        const enrollment = await tx.enrollment.findUnique({ where: { id: ctx.enrollmentId! } });
-        if (!enrollment) throw new Error(`MISSING_ENROLLMENT: ${ctx.enrollmentId}`);
-        const meta = { ...((enrollment.meta ?? {}) as Record<string, unknown>) };
-        if (meta.paymentLinkRequested === true) return false;
-        meta.paymentLinkRequested = true;
-        await tx.enrollment.update({
-          where: { id: enrollment.id },
-          data: { meta: meta as Prisma.InputJsonValue },
-        });
-        return true;
-      });
+      const flagged = await withTenant(
+        deps.prisma,
+        { workspaceId: ctx.workspaceId },
+        async (tx) => {
+          const enrollment = await tx.enrollment.findUnique({ where: { id: ctx.enrollmentId! } });
+          if (!enrollment) throw new Error(`MISSING_ENROLLMENT: ${ctx.enrollmentId}`);
+          const meta = { ...((enrollment.meta ?? {}) as Record<string, unknown>) };
+          if (meta.paymentLinkRequested === true) return false;
+          meta.paymentLinkRequested = true;
+          await tx.enrollment.update({
+            where: { id: enrollment.id },
+            data: { meta: meta as Prisma.InputJsonValue },
+          });
+          return true;
+        },
+      );
       return flagged
         ? {
             kind: action.kind,
@@ -372,16 +396,31 @@ async function run(
       // INT W4 (DEC-096): one-way push. Absent transport = recorded only; a
       // push failure NEVER changes the run outcome (the send_webhook stance).
       if (!ctx.contactId) {
-        return { kind: action.kind, outcome: "noop", detail: "no contact on this event — nothing to push to the CRM" };
+        return {
+          kind: action.kind,
+          outcome: "noop",
+          detail: "no contact on this event — nothing to push to the CRM",
+        };
       }
       if (!deps.crmTransport) {
-        return { kind: action.kind, outcome: "executed", detail: "CRM push not wired on this worker — recorded only" };
+        return {
+          kind: action.kind,
+          outcome: "executed",
+          detail: "CRM push not wired on this worker — recorded only",
+        };
       }
       const contact = await withTenant(deps.prisma, { workspaceId: ctx.workspaceId }, (tx) =>
-        tx.contact.findUnique({ where: { id: ctx.contactId! }, select: { email: true, firstName: true, lastName: true } }),
+        tx.contact.findUnique({
+          where: { id: ctx.contactId! },
+          select: { email: true, firstName: true, lastName: true },
+        }),
       );
       if (!contact?.email) {
-        return { kind: action.kind, outcome: "noop", detail: "contact has no email — HubSpot needs one to upsert" };
+        return {
+          kind: action.kind,
+          outcome: "noop",
+          detail: "contact has no email — HubSpot needs one to upsert",
+        };
       }
       const name = [contact.firstName, contact.lastName].filter(Boolean).join(" ").trim();
       let suffix: string;
@@ -391,7 +430,11 @@ async function run(
           workspaceId: ctx.workspaceId,
           sourceKey: `${ctx.eventId}#rule:${ruleId}${actionPath}`,
           op: "create_deal",
-          contact: { email: contact.email, firstName: contact.firstName, lastName: contact.lastName },
+          contact: {
+            email: contact.email,
+            firstName: contact.firstName,
+            lastName: contact.lastName,
+          },
           dealname: name || contact.email,
           ...(action.stage ? { stage: action.stage } : {}),
         });
@@ -409,7 +452,10 @@ async function run(
           if (!enrollment) return;
           const meta = { ...((enrollment.meta ?? {}) as Record<string, unknown>) };
           meta.crmDealId = newDealId;
-          await tx.enrollment.update({ where: { id: enrollment.id }, data: { meta: meta as Prisma.InputJsonValue } });
+          await tx.enrollment.update({
+            where: { id: enrollment.id },
+            data: { meta: meta as Prisma.InputJsonValue },
+          });
         });
       }
       return { kind: action.kind, outcome: "executed", detail: suffix };
@@ -417,10 +463,18 @@ async function run(
 
     case "update_deal_stage": {
       if (!ctx.contactId) {
-        return { kind: action.kind, outcome: "noop", detail: "no contact on this event — nothing to update in the CRM" };
+        return {
+          kind: action.kind,
+          outcome: "noop",
+          detail: "no contact on this event — nothing to update in the CRM",
+        };
       }
       if (!deps.crmTransport) {
-        return { kind: action.kind, outcome: "executed", detail: "CRM push not wired on this worker — recorded only" };
+        return {
+          kind: action.kind,
+          outcome: "executed",
+          detail: "CRM push not wired on this worker — recorded only",
+        };
       }
       const enrollment = ctx.enrollmentId
         ? await withTenant(deps.prisma, { workspaceId: ctx.workspaceId }, (tx) =>
@@ -461,10 +515,18 @@ async function run(
       // Honest absence (B6 live resolution): a deleted or disabled automation
       // is an ERROR state the UI can render — never a silent skip.
       if (!automation) {
-        return { kind: action.kind, outcome: "error", detail: `MISSING_AUTOMATION: ${action.automationId}` };
+        return {
+          kind: action.kind,
+          outcome: "error",
+          detail: `MISSING_AUTOMATION: ${action.automationId}`,
+        };
       }
       if (!automation.enabled) {
-        return { kind: action.kind, outcome: "error", detail: `AUTOMATION_DISABLED: ${action.automationId}` };
+        return {
+          kind: action.kind,
+          outcome: "error",
+          detail: `AUTOMATION_DISABLED: ${action.automationId}`,
+        };
       }
       const depth = ctx.depth + 1;
       const causedBy = { ruleId, eventId: ctx.eventId, depth };
@@ -490,7 +552,13 @@ async function run(
       const nestedCtx: RunContext = { ...ctx, depth };
       for (const [i, nestedAction] of parsed.data.entries()) {
         nested.push(
-          await executeAction(deps, nestedCtx, ruleId, nestedAction, `${actionPath}#auto:${automation.id}#a:${i}`),
+          await executeAction(
+            deps,
+            nestedCtx,
+            ruleId,
+            nestedAction,
+            `${actionPath}#auto:${automation.id}#a:${i}`,
+          ),
         );
       }
       const anyError = nested.some((o) => o.outcome === "error" || o.outcome === "refused_depth");
@@ -546,7 +614,9 @@ async function setStatusAndCancel(
 async function cancelRun(deps: RuleEngineDeps, ctx: RunContext): Promise<string | undefined> {
   const log = deps.log ?? console.warn;
   if (!deps.cancelWorkflow) {
-    log(`[automations] no workflow engine wired — status persisted for ${ctx.enrollmentId}, run not cancelled`);
+    log(
+      `[automations] no workflow engine wired — status persisted for ${ctx.enrollmentId}, run not cancelled`,
+    );
     return "WORKFLOW_CANCEL_UNAVAILABLE";
   }
   try {

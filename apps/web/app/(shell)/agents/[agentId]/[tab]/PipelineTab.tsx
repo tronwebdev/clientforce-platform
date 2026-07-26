@@ -28,7 +28,13 @@ import { cf } from "./shared";
 const HANKEN = "'Hanken Grotesk',sans-serif";
 const BRICO = "'Bricolage Grotesque',sans-serif";
 
-export function PipelineTab({ agentId, onChanged }: { agentId: string; onChanged?: () => void | Promise<void> }) {
+export function PipelineTab({
+  agentId,
+  onChanged,
+}: {
+  agentId: string;
+  onChanged?: () => void | Promise<void>;
+}) {
   const [stages, setStages] = useState<StageRow[] | null>(null);
   const [enrollments, setEnrollments] = useState<BoardEnrollment[] | null>(null);
   const [error, setError] = useState(false);
@@ -65,21 +71,59 @@ export function PipelineTab({ agentId, onChanged }: { agentId: string; onChanged
     const current = enrollments?.find((e) => e.id === id);
     if (!current || current.pipelineStage === col.key) return;
     // optimistic move; the poll + onChanged reconcile
-    setEnrollments((prev) => prev?.map((e) => (e.id === id ? { ...e, pipelineStage: col.key } : e)) ?? null);
+    setEnrollments(
+      (prev) => prev?.map((e) => (e.id === id ? { ...e, pipelineStage: col.key } : e)) ?? null,
+    );
     try {
-      await cf(`enrollments/${id}`, { method: "PATCH", body: JSON.stringify({ pipelineStage: col.key }) });
+      await cf(`enrollments/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ pipelineStage: col.key }),
+      });
       await onChanged?.();
     } catch {
-      setEnrollments((prev) => prev?.map((e) => (e.id === id ? { ...e, pipelineStage: current.pipelineStage } : e)) ?? null);
+      setEnrollments(
+        (prev) =>
+          prev?.map((e) => (e.id === id ? { ...e, pipelineStage: current.pipelineStage } : e)) ??
+          null,
+      );
     }
   }
 
   if (error) {
     return (
-      <div style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 16, padding: "48px 20px", textAlign: "center" }} data-testid="pipeline-error">
-        <div style={{ fontSize: 15, fontWeight: 700, color: "#0E1512", marginBottom: 4 }}>Couldn&apos;t load the pipeline</div>
-        <div style={{ fontSize: 13, color: "#8A7F6B", marginBottom: 14 }}>Something went wrong talking to the API — your data is safe.</div>
-        <button type="button" onClick={() => void refresh()} style={{ background: "linear-gradient(135deg,#36D7ED 0%,#35E834 55%,#D0F56B 100%)", border: "none", borderRadius: 10, padding: "9px 16px", fontSize: 13, fontWeight: 700, color: "#0A0F0C", cursor: "pointer", fontFamily: HANKEN }}>Retry</button>
+      <div
+        style={{
+          background: "#fff",
+          border: "1px solid #EBE3D6",
+          borderRadius: 16,
+          padding: "48px 20px",
+          textAlign: "center",
+        }}
+        data-testid="pipeline-error"
+      >
+        <div style={{ fontSize: 15, fontWeight: 700, color: "#0E1512", marginBottom: 4 }}>
+          Couldn&apos;t load the pipeline
+        </div>
+        <div style={{ fontSize: 13, color: "#8A7F6B", marginBottom: 14 }}>
+          Something went wrong talking to the API — your data is safe.
+        </div>
+        <button
+          type="button"
+          onClick={() => void refresh()}
+          style={{
+            background: "linear-gradient(135deg,#36D7ED 0%,#35E834 55%,#D0F56B 100%)",
+            border: "none",
+            borderRadius: 10,
+            padding: "9px 16px",
+            fontSize: 13,
+            fontWeight: 700,
+            color: "#0A0F0C",
+            cursor: "pointer",
+            fontFamily: HANKEN,
+          }}
+        >
+          Retry
+        </button>
       </div>
     );
   }
@@ -87,8 +131,26 @@ export function PipelineTab({ agentId, onChanged }: { agentId: string; onChanged
     return (
       <div style={{ display: "flex", gap: 12 }} data-testid="pipeline-skeleton">
         {Array.from({ length: 5 }, (_, i) => (
-          <div key={i} style={{ flex: 1, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 14, padding: 12, minHeight: 220 }}>
-            <div style={{ height: 12, width: "55%", background: "#F2EEE4", borderRadius: 6, marginBottom: 12 }} />
+          <div
+            key={i}
+            style={{
+              flex: 1,
+              background: "#fff",
+              border: "1px solid #EBE3D6",
+              borderRadius: 14,
+              padding: 12,
+              minHeight: 220,
+            }}
+          >
+            <div
+              style={{
+                height: 12,
+                width: "55%",
+                background: "#F2EEE4",
+                borderRadius: 6,
+                marginBottom: 12,
+              }}
+            />
             <div style={{ height: 54, background: "#F7F2EA", borderRadius: 10, marginBottom: 8 }} />
             <div style={{ height: 54, background: "#F7F2EA", borderRadius: 10 }} />
           </div>
@@ -98,7 +160,10 @@ export function PipelineTab({ agentId, onChanged }: { agentId: string; onChanged
   }
   if (enrollments.length === 0) {
     return (
-      <div style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 16 }} data-testid="pipeline-empty">
+      <div
+        style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 16 }}
+        data-testid="pipeline-empty"
+      >
         <EmptyState
           kind="empty"
           title="No leads in the pipeline yet"
@@ -110,7 +175,16 @@ export function PipelineTab({ agentId, onChanged }: { agentId: string; onChanged
 
   const board = buildBoard(stages, enrollments);
   return (
-    <div style={{ display: "flex", gap: 12, alignItems: "flex-start", overflowX: "auto", paddingBottom: 6 }} data-testid="pipeline-board">
+    <div
+      style={{
+        display: "flex",
+        gap: 12,
+        alignItems: "flex-start",
+        overflowX: "auto",
+        paddingBottom: 6,
+      }}
+      data-testid="pipeline-board"
+    >
       {board.map((col) => (
         <div
           key={col.key}
@@ -134,15 +208,69 @@ export function PipelineTab({ agentId, onChanged }: { agentId: string; onChanged
           }}
           data-testid={`pipeline-col-${col.key}`}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "11px 12px", borderBottom: "1px solid #F2EEE4" }}>
-            <span style={{ fontSize: 11.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".04em", color: "#5C6B62", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={col.overflow ? "Stages outside the workspace set — moves land via automations or the API" : undefined}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "11px 12px",
+              borderBottom: "1px solid #F2EEE4",
+            }}
+          >
+            <span
+              style={{
+                fontSize: 11.5,
+                fontWeight: 700,
+                textTransform: "uppercase",
+                letterSpacing: ".04em",
+                color: "#5C6B62",
+                flex: 1,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+              title={
+                col.overflow
+                  ? "Stages outside the workspace set — moves land via automations or the API"
+                  : undefined
+              }
+            >
               {col.label}
             </span>
-            <span style={{ fontSize: 11, fontWeight: 700, color: "#8A7F6B", background: "#F2EEE4", borderRadius: 100, padding: "1px 8px" }}>{col.cards.length}</span>
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: "#8A7F6B",
+                background: "#F2EEE4",
+                borderRadius: 100,
+                padding: "1px 8px",
+              }}
+            >
+              {col.cards.length}
+            </span>
           </div>
-          <div style={{ padding: 8, display: "flex", flexDirection: "column", gap: 8, overflowY: "auto" }}>
+          <div
+            style={{
+              padding: 8,
+              display: "flex",
+              flexDirection: "column",
+              gap: 8,
+              overflowY: "auto",
+            }}
+          >
             {col.cards.length === 0 ? (
-              <div style={{ fontSize: 12, color: "#B7BDB6", textAlign: "center", padding: "18px 6px", border: "1px dashed #F2EEE4", borderRadius: 10 }} data-testid="pipeline-col-empty">
+              <div
+                style={{
+                  fontSize: 12,
+                  color: "#B7BDB6",
+                  textAlign: "center",
+                  padding: "18px 6px",
+                  border: "1px dashed #F2EEE4",
+                  borderRadius: 10,
+                }}
+                data-testid="pipeline-col-empty"
+              >
                 No leads here
               </div>
             ) : (
@@ -169,10 +297,43 @@ export function PipelineTab({ agentId, onChanged }: { agentId: string; onChanged
                   }}
                   data-testid="pipeline-card"
                 >
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "#0E1512", fontFamily: BRICO, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{contactName(e.contact)}</div>
-                  <div style={{ fontSize: 11.5, color: "#8A7F6B", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.contact.company ?? e.contact.email ?? "—"}</div>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: "#0E1512",
+                      fontFamily: BRICO,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {contactName(e.contact)}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 11.5,
+                      color: "#8A7F6B",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {e.contact.company ?? e.contact.email ?? "—"}
+                  </div>
                   <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 6 }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: e.status === "ACTIVE" ? "#0F7A28" : "#8A7F6B", background: e.status === "ACTIVE" ? "#D7F5DD" : "#F2EEE4", borderRadius: 100, padding: "1px 7px" }}>{e.status.toLowerCase()}</span>
+                    <span
+                      style={{
+                        fontSize: 10,
+                        fontWeight: 700,
+                        color: e.status === "ACTIVE" ? "#0F7A28" : "#8A7F6B",
+                        background: e.status === "ACTIVE" ? "#D7F5DD" : "#F2EEE4",
+                        borderRadius: 100,
+                        padding: "1px 7px",
+                      }}
+                    >
+                      {e.status.toLowerCase()}
+                    </span>
                   </div>
                 </div>
               ))

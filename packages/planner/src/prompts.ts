@@ -94,8 +94,8 @@ export const PLANNER_SYSTEM =
   "it is exempt from the decreasing-length ladder.\n" +
   "- Objections are never argued with: acknowledge in one clause, reframe with evidence from the business " +
   "context, ask one small question.\n" +
-  "- A price objection is answered with VALUE, never money: no discount, no lower tier, no \"flexible " +
-  "pricing\" — unless the business context itself contains such an offer, in which case cite it verbatim.\n" +
+  '- A price objection is answered with VALUE, never money: no discount, no lower tier, no "flexible ' +
+  'pricing" — unless the business context itself contains such an offer, in which case cite it verbatim.\n' +
   "- A goodbye is graceful: accept the no, leave the door open, zero guilt, never mention unsubscribing.";
 
 /**
@@ -270,7 +270,9 @@ Reply-strategy steps set "threaded": true (they continue the thread).
   const v5StepBullet =
     '- {{stepCount}} "step" nodes in the MAIN sequence; each content has "subject" and "body"; use {{tokens}} in the body (and subject where natural).';
   if (!v5Template.includes(v5StepBullet)) {
-    throw new Error("planner prompt v6 derivation: v5 step bullet not found — realign the guided variant");
+    throw new Error(
+      "planner prompt v6 derivation: v5 step bullet not found — realign the guided variant",
+    );
   }
   registerPrompt({
     name: PLANNER_PROMPT_NAME,
@@ -327,29 +329,33 @@ Reply-strategy steps set "threaded": true (they continue the thread).
   });
 }
 
-export function renderPlannerPrompt(vars: {
-  goal: string;
-  context: string;
-  guardrails: string;
-  stepCount: string;
-  tokens: string;
-  /** P2.1 (DEC-061): '"email" ONLY.' unless an active SMS sender widens it. */
-  channels: string;
-  /** M1a (DEC-065): arc + tone from selectStrategy(goal, category). */
-  arcLabel: string;
-  arcDescription: string;
-  /** Bulleted role ladder ("  1. OPENER — …"). */
-  arcRoles: string;
-  toneHints: string;
-  /** Owner guidance from the guardrails strategy block; "(none)" default. */
-  strategyNotes: string;
-  /** Comma-joined quoted ban list; "(none)" default. */
-  neverSay: string;
-  /** F1 (DEC-069): the OBSERVED OUTCOMES block from buildOutcomesPromptBlock —
-   *  "" when no step clears the low-signal floor (renders exactly the v4
-   *  playbook prompt). */
-  outcomes: string;
-}, guided = false, language: LanguageCode = DEFAULT_LANGUAGE): string {
+export function renderPlannerPrompt(
+  vars: {
+    goal: string;
+    context: string;
+    guardrails: string;
+    stepCount: string;
+    tokens: string;
+    /** P2.1 (DEC-061): '"email" ONLY.' unless an active SMS sender widens it. */
+    channels: string;
+    /** M1a (DEC-065): arc + tone from selectStrategy(goal, category). */
+    arcLabel: string;
+    arcDescription: string;
+    /** Bulleted role ladder ("  1. OPENER — …"). */
+    arcRoles: string;
+    toneHints: string;
+    /** Owner guidance from the guardrails strategy block; "(none)" default. */
+    strategyNotes: string;
+    /** Comma-joined quoted ban list; "(none)" default. */
+    neverSay: string;
+    /** F1 (DEC-069): the OBSERVED OUTCOMES block from buildOutcomesPromptBlock —
+     *  "" when no step clears the low-signal floor (renders exactly the v4
+     *  playbook prompt). */
+    outcomes: string;
+  },
+  guided = false,
+  language: LanguageCode = DEFAULT_LANGUAGE,
+): string {
   ensureRegistered();
   // G2 (DEC-071): guided agents render v7 (both-channel briefs); scripted
   // agents keep v5 verbatim.

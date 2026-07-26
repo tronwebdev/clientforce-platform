@@ -101,7 +101,13 @@ describe.skipIf(!hasInfra)("recall service (SPEC A / DEC-099)", () => {
     });
     contactA = c.id;
     const other = await owner.contact.create({
-      data: { workspaceId: wsA, source: "test", optOut: {}, tags: [], email: `other-${suffix}@x.test` },
+      data: {
+        workspaceId: wsA,
+        source: "test",
+        optOut: {},
+        tags: [],
+        email: `other-${suffix}@x.test`,
+      },
     });
     otherContact = other.id;
 

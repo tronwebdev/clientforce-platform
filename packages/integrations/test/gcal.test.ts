@@ -10,7 +10,9 @@ import { GoogleCalendarAdapter } from "../src/gcal";
 import { IntegrationDeliveryError, IntegrationProviderError } from "../src/types";
 import { GCAL_SCOPES } from "../src/constants";
 
-type FetchLike = NonNullable<NonNullable<ConstructorParameters<typeof GoogleCalendarAdapter>[0]>["fetchImpl"]>;
+type FetchLike = NonNullable<
+  NonNullable<ConstructorParameters<typeof GoogleCalendarAdapter>[0]>["fetchImpl"]
+>;
 
 const jsonResponse = (body: unknown, status = 200): Response =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -110,13 +112,20 @@ describe("GoogleCalendarAdapter", () => {
   });
 
   it("refresh invalid_grant → PROVIDER_AUTH (terminal — the dead-refresh-token state)", async () => {
-    const adapter = adapterWith(async () => jsonResponse({ error: "invalid_grant", error_description: "expired" }, 400));
-    await expect(adapter.refresh(CREDS)).rejects.toMatchObject({ code: "PROVIDER_AUTH", retryable: false });
+    const adapter = adapterWith(async () =>
+      jsonResponse({ error: "invalid_grant", error_description: "expired" }, 400),
+    );
+    await expect(adapter.refresh(CREDS)).rejects.toMatchObject({
+      code: "PROVIDER_AUTH",
+      retryable: false,
+    });
   });
 
   it("refresh without a stored refresh token refuses PROVIDER_AUTH", async () => {
     const adapter = adapterWith(async () => jsonResponse({}));
-    await expect(adapter.refresh({ accessToken: "x" })).rejects.toMatchObject({ code: "PROVIDER_AUTH" });
+    await expect(adapter.refresh({ accessToken: "x" })).rejects.toMatchObject({
+      code: "PROVIDER_AUTH",
+    });
   });
 
   it("probe lists calendarList and labels with the primary calendar id", async () => {
@@ -135,16 +144,30 @@ describe("GoogleCalendarAdapter", () => {
   });
 
   it("classifies 401/403 as PROVIDER_AUTH, 429 as RATE_LIMITED, 5xx/network/non-JSON as UNAVAILABLE", async () => {
-    await expect(adapterWith(async () => jsonResponse({ error: { code: 401, message: "Invalid Credentials" } }, 401)).probe(CREDS)).rejects.toMatchObject({ code: "PROVIDER_AUTH", retryable: false });
-    await expect(adapterWith(async () => jsonResponse({ error: { code: 403, message: "forbidden" } }, 403)).probe(CREDS)).rejects.toMatchObject({ code: "PROVIDER_AUTH" });
-    await expect(adapterWith(async () => jsonResponse({}, 429)).probe(CREDS)).rejects.toMatchObject({ code: "PROVIDER_RATE_LIMITED", retryable: true });
-    await expect(adapterWith(async () => jsonResponse({}, 500)).probe(CREDS)).rejects.toMatchObject({ code: "PROVIDER_UNAVAILABLE", retryable: true });
+    await expect(
+      adapterWith(async () =>
+        jsonResponse({ error: { code: 401, message: "Invalid Credentials" } }, 401),
+      ).probe(CREDS),
+    ).rejects.toMatchObject({ code: "PROVIDER_AUTH", retryable: false });
+    await expect(
+      adapterWith(async () =>
+        jsonResponse({ error: { code: 403, message: "forbidden" } }, 403),
+      ).probe(CREDS),
+    ).rejects.toMatchObject({ code: "PROVIDER_AUTH" });
+    await expect(adapterWith(async () => jsonResponse({}, 429)).probe(CREDS)).rejects.toMatchObject(
+      { code: "PROVIDER_RATE_LIMITED", retryable: true },
+    );
+    await expect(adapterWith(async () => jsonResponse({}, 500)).probe(CREDS)).rejects.toMatchObject(
+      { code: "PROVIDER_UNAVAILABLE", retryable: true },
+    );
     await expect(
       adapterWith(async () => {
         throw new Error("ECONNREFUSED");
       }).probe(CREDS),
     ).rejects.toMatchObject({ code: "PROVIDER_UNAVAILABLE", retryable: true });
-    await expect(adapterWith(async () => new Response("<html>", { status: 200 })).probe(CREDS)).rejects.toMatchObject({
+    await expect(
+      adapterWith(async () => new Response("<html>", { status: 200 })).probe(CREDS),
+    ).rejects.toMatchObject({
       code: "PROVIDER_UNAVAILABLE",
     });
   });
@@ -160,7 +183,9 @@ describe("GoogleCalendarAdapter", () => {
           nextPageToken: "page2",
         });
       }
-      return jsonResponse({ items: [{ id: "a@cal", summary: "Alerts", timeZone: "Europe/Berlin" }] });
+      return jsonResponse({
+        items: [{ id: "a@cal", summary: "Alerts", timeZone: "Europe/Berlin" }],
+      });
     });
     expect(await adapter.listCalendars(CREDS)).toEqual([
       { id: "a@cal", name: "Alerts", timeZone: "Europe/Berlin" },
@@ -177,7 +202,10 @@ describe("GoogleCalendarAdapter", () => {
       return jsonResponse({
         calendars: {
           "ada@example.test": {
-            busy: [{ start: "2026-07-22T15:00:00Z", end: "2026-07-22T16:00:00Z" }, { start: "bad" }],
+            busy: [
+              { start: "2026-07-22T15:00:00Z", end: "2026-07-22T16:00:00Z" },
+              { start: "bad" },
+            ],
           },
         },
       });
@@ -196,7 +224,9 @@ describe("GoogleCalendarAdapter", () => {
   });
 
   it("types 4xx request refusals as IntegrationDeliveryError (never a raw throw)", async () => {
-    const adapter = adapterWith(async () => jsonResponse({ error: { code: 404, message: "Not Found" } }, 404));
+    const adapter = adapterWith(async () =>
+      jsonResponse({ error: { code: 404, message: "Not Found" } }, 404),
+    );
     await expect(adapter.listCalendars(CREDS)).rejects.toBeInstanceOf(IntegrationDeliveryError);
   });
 

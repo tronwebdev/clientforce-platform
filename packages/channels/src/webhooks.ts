@@ -1,5 +1,10 @@
 import { createVerify } from "node:crypto";
-import { withTenant, type Message, type PrismaClient, type SuppressionReason } from "@clientforce/db";
+import {
+  withTenant,
+  type Message,
+  type PrismaClient,
+  type SuppressionReason,
+} from "@clientforce/db";
 import type { EventType } from "@clientforce/events";
 import { z } from "zod";
 
@@ -71,7 +76,11 @@ export async function applyEmailEvent(
     await tx.suppression.upsert({
       where: {
         // P5 W3 (DEC-085): suppression addresses are stored lowercase.
-        workspaceId_channel_address: { workspaceId, channel: "email", address: event.email.toLowerCase() },
+        workspaceId_channel_address: {
+          workspaceId,
+          channel: "email",
+          address: event.email.toLowerCase(),
+        },
       },
       create: {
         workspaceId,

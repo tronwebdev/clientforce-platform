@@ -13,6 +13,12 @@
  *   link_clicked     — `email.clicked.v1` (same producer)
  *   lead_captured    — `form.submitted.v1` / `widget.lead_captured.v1` /
  *                      `linkedin.captured.v1`
+ *   widget_chat_started — `widget.conversation_started.v1` (WID2, DEC-102): a
+ *                      visitor opened a conversation on an embedded widget.
+ *                      Distinct from lead_captured on purpose — starting a
+ *                      chat is interest, handing over contact details is a
+ *                      lead, and conflating them would fire every "new lead"
+ *                      rule for every anonymous panel-opener
  *   sequence_quiet   — NEVER matches a bus event; the worker sweep evaluates it
  *   call_knowledge_gap — `voice.context_retrieved.v1` with a non-empty
  *                      `emptyFacets` (SPEC A, DEC-099): a real customer asked
@@ -55,6 +61,8 @@ export function matchTrigger(
     }
     case "opted_out":
       return OPTED_OUT_EVENTS.has(event.type);
+    case "widget_chat_started":
+      return event.type === "widget.conversation_started.v1";
     case "email_opened":
       return event.type === "email.opened.v1";
     case "link_clicked":

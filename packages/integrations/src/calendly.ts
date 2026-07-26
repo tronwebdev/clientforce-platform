@@ -64,7 +64,11 @@ export class CalendlyAdapter implements FieldsIntegrationAdapter {
     baseUrl?: string;
     fetchImpl?: FetchLike;
   }) {
-    this.apiBase = (options?.baseUrl ?? process.env.CALENDLY_BASE_URL ?? "https://api.calendly.com").replace(/\/$/, "");
+    this.apiBase = (
+      options?.baseUrl ??
+      process.env.CALENDLY_BASE_URL ??
+      "https://api.calendly.com"
+    ).replace(/\/$/, "");
     this.fetchImpl = options?.fetchImpl ?? ((url, init) => fetch(url, init));
   }
 
@@ -86,7 +90,10 @@ export class CalendlyAdapter implements FieldsIntegrationAdapter {
       throw new IntegrationDeliveryError("link_invalid", "that scheduling link is not a valid URL");
     }
     const host = parsed.hostname.toLowerCase();
-    if (parsed.protocol !== "https:" || (host !== "calendly.com" && !host.endsWith(".calendly.com"))) {
+    if (
+      parsed.protocol !== "https:" ||
+      (host !== "calendly.com" && !host.endsWith(".calendly.com"))
+    ) {
       throw new IntegrationDeliveryError(
         "link_not_calendly",
         "the scheduling link must be an https calendly.com URL",
@@ -102,7 +109,10 @@ export class CalendlyAdapter implements FieldsIntegrationAdapter {
       );
     }
     if (res.status >= 400) {
-      throw new IntegrationDeliveryError("link_unreachable", `scheduling link answered HTTP ${res.status}`);
+      throw new IntegrationDeliveryError(
+        "link_unreachable",
+        `scheduling link answered HTTP ${res.status}`,
+      );
     }
   }
 
@@ -111,15 +121,22 @@ export class CalendlyAdapter implements FieldsIntegrationAdapter {
     const data = await this.call(creds, "GET", "/users/me");
     const resource = (data.resource ?? {}) as Record<string, unknown>;
     const uri = typeof resource.uri === "string" ? resource.uri : "";
-    const organization = typeof resource.current_organization === "string" ? resource.current_organization : "";
+    const organization =
+      typeof resource.current_organization === "string" ? resource.current_organization : "";
     if (!uri || !organization) {
-      throw new IntegrationProviderError("PROVIDER_AUTH", "calendly /users/me returned no user/organization uri", false);
+      throw new IntegrationProviderError(
+        "PROVIDER_AUTH",
+        "calendly /users/me returned no user/organization uri",
+        false,
+      );
     }
     return {
       uri,
       organization,
       ...(typeof resource.name === "string" ? { name: resource.name } : {}),
-      ...(typeof resource.scheduling_url === "string" ? { schedulingUrl: resource.scheduling_url } : {}),
+      ...(typeof resource.scheduling_url === "string"
+        ? { schedulingUrl: resource.scheduling_url }
+        : {}),
       ...(typeof resource.timezone === "string" ? { timezone: resource.timezone } : {}),
     };
   }
@@ -144,7 +161,9 @@ export class CalendlyAdapter implements FieldsIntegrationAdapter {
     url.searchParams.set("user", params.user);
     url.searchParams.set("scope", "user");
     const data = await this.call(creds, "GET", url.toString(), undefined, true);
-    const collection = Array.isArray(data.collection) ? (data.collection as Array<Record<string, unknown>>) : [];
+    const collection = Array.isArray(data.collection)
+      ? (data.collection as Array<Record<string, unknown>>)
+      : [];
     return collection
       .filter((s) => typeof s.uri === "string" && typeof s.callback_url === "string")
       .map((s) => ({
@@ -163,7 +182,9 @@ export class CalendlyAdapter implements FieldsIntegrationAdapter {
     params: { organization: string; user: string; callbackUrl: string; signingKey: string },
   ): Promise<CalendlyWebhookSubscription> {
     const existing = await this.listWebhookSubscriptions(creds, params);
-    const match = existing.find((s) => s.callbackUrl === params.callbackUrl && s.state === "active");
+    const match = existing.find(
+      (s) => s.callbackUrl === params.callbackUrl && s.state === "active",
+    );
     if (match) return match;
     const data = await this.call(creds, "POST", "/webhook_subscriptions", {
       url: params.callbackUrl,
@@ -190,7 +211,10 @@ export class CalendlyAdapter implements FieldsIntegrationAdapter {
   }
 
   /** Idempotent delete — a 404 (already gone) resolves quietly. */
-  async deleteWebhookSubscription(creds: IntegrationCredentials, subscriptionUri: string): Promise<void> {
+  async deleteWebhookSubscription(
+    creds: IntegrationCredentials,
+    subscriptionUri: string,
+  ): Promise<void> {
     try {
       await this.call(creds, "DELETE", subscriptionUri, undefined, true);
     } catch (err) {
@@ -227,7 +251,8 @@ export class CalendlyAdapter implements FieldsIntegrationAdapter {
     body?: unknown,
     absolute = false,
   ): Promise<Record<string, unknown>> {
-    const url = absolute || pathOrUrl.startsWith("http") ? pathOrUrl : `${this.apiBase}${pathOrUrl}`;
+    const url =
+      absolute || pathOrUrl.startsWith("http") ? pathOrUrl : `${this.apiBase}${pathOrUrl}`;
     // W3 ride-along fix (the stripe twin's test caught the class): bearer
     // resolution OUTSIDE the network try — a missing token is PROVIDER_AUTH,
     // never "calendly unreachable".
@@ -250,13 +275,25 @@ export class CalendlyAdapter implements FieldsIntegrationAdapter {
       );
     }
     if (res.status === 429) {
-      throw new IntegrationProviderError("PROVIDER_RATE_LIMITED", "calendly rate limited (429)", true);
+      throw new IntegrationProviderError(
+        "PROVIDER_RATE_LIMITED",
+        "calendly rate limited (429)",
+        true,
+      );
     }
     if (res.status >= 500) {
-      throw new IntegrationProviderError("PROVIDER_UNAVAILABLE", `calendly error (HTTP ${res.status})`, true);
+      throw new IntegrationProviderError(
+        "PROVIDER_UNAVAILABLE",
+        `calendly error (HTTP ${res.status})`,
+        true,
+      );
     }
     if (res.status === 401) {
-      throw new IntegrationProviderError("PROVIDER_AUTH", "calendly auth rejected (HTTP 401)", false);
+      throw new IntegrationProviderError(
+        "PROVIDER_AUTH",
+        "calendly auth rejected (HTTP 401)",
+        false,
+      );
     }
     if (res.status === 204) return {};
     let data: Record<string, unknown>;
@@ -264,7 +301,11 @@ export class CalendlyAdapter implements FieldsIntegrationAdapter {
       data = (await res.json()) as Record<string, unknown>;
     } catch {
       if (res.ok) return {};
-      throw new IntegrationProviderError("PROVIDER_UNAVAILABLE", "calendly returned a non-JSON response", true);
+      throw new IntegrationProviderError(
+        "PROVIDER_UNAVAILABLE",
+        "calendly returned a non-JSON response",
+        true,
+      );
     }
     if (res.ok) return data;
     if (res.status === 404) {
@@ -274,7 +315,9 @@ export class CalendlyAdapter implements FieldsIntegrationAdapter {
     // request refusal with Calendly's own message, never token bytes.
     const message = typeof data.message === "string" ? data.message : `HTTP ${res.status}`;
     throw new IntegrationDeliveryError(
-      typeof data.title === "string" ? data.title.toLowerCase().replace(/\s+/g, "_") : "request_refused",
+      typeof data.title === "string"
+        ? data.title.toLowerCase().replace(/\s+/g, "_")
+        : "request_refused",
       `calendly refused the request (${message})`,
     );
   }
@@ -284,7 +327,12 @@ export class CalendlyAdapter implements FieldsIntegrationAdapter {
  * Constant-time verification of `Calendly-Webhook-Signature: t=<ts>,v1=<hex>`
  * — HMAC-SHA256 over `"<t>.<rawBody>"` with the per-workspace signing key.
  */
-export function verifyCalendlySignature(t: string, v1: string, rawBody: string, signingKey: string): boolean {
+export function verifyCalendlySignature(
+  t: string,
+  v1: string,
+  rawBody: string,
+  signingKey: string,
+): boolean {
   if (!t || !v1 || !signingKey) return false;
   const expected = createHmac("sha256", signingKey).update(`${t}.${rawBody}`, "utf8").digest("hex");
   const a = Buffer.from(v1, "utf8");
@@ -293,7 +341,9 @@ export function verifyCalendlySignature(t: string, v1: string, rawBody: string, 
 }
 
 /** Parse the `t=…,v1=…` signature header (null on any malformed shape). */
-export function parseCalendlySignatureHeader(header: string | undefined): { t: string; v1: string } | null {
+export function parseCalendlySignatureHeader(
+  header: string | undefined,
+): { t: string; v1: string } | null {
   if (!header) return null;
   const parts = new Map(
     header

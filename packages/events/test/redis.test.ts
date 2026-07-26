@@ -7,7 +7,10 @@ import { bullConnectionFromUrl, redisClusterEnabled, redisOptionsFromUrl } from 
  *  against Azure Cache for Redis (TLS-only, 6380). */
 describe("redisOptionsFromUrl", () => {
   it("redis:// maps to plain host/port (default 6379), no tls option", () => {
-    expect(redisOptionsFromUrl("redis://localhost:6379")).toEqual({ host: "localhost", port: 6379 });
+    expect(redisOptionsFromUrl("redis://localhost:6379")).toEqual({
+      host: "localhost",
+      port: 6379,
+    });
     expect(redisOptionsFromUrl("redis://localhost")).toEqual({ host: "localhost", port: 6379 });
   });
 

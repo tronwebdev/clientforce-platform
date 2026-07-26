@@ -110,10 +110,10 @@ export class AuthGuard implements CanActivate {
     if (memberships.length === 0) {
       // A3 (DEC-060): the first-run endpoint may proceed without a membership;
       // everything else gets a TYPED 403 the web turns into the first-run modal.
-      const allowNoMembership = this.reflector.getAllAndOverride<boolean>(
-        ALLOW_NO_MEMBERSHIP_KEY,
-        [context.getHandler(), context.getClass()],
-      );
+      const allowNoMembership = this.reflector.getAllAndOverride<boolean>(ALLOW_NO_MEMBERSHIP_KEY, [
+        context.getHandler(),
+        context.getClass(),
+      ]);
       if (allowNoMembership) {
         req.auth = {
           user: { id: user.id, email: user.email, name: user.name },
@@ -124,7 +124,10 @@ export class AuthGuard implements CanActivate {
         };
         return true;
       }
-      throw new ForbiddenException({ message: "User has no workspace membership", code: "NO_WORKSPACE" });
+      throw new ForbiddenException({
+        message: "User has no workspace membership",
+        code: "NO_WORKSPACE",
+      });
     }
 
     let active: { workspaceId: string; agencyId: string; role: Role };

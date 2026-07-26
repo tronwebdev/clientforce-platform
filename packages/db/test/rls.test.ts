@@ -9,7 +9,12 @@
  * stays green locally without a database (CI provides one).
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createAppPrismaClient, createPrismaClient, withTenant, type PrismaClient } from "../src/index";
+import {
+  createAppPrismaClient,
+  createPrismaClient,
+  withTenant,
+  type PrismaClient,
+} from "../src/index";
 
 const hasDb = Boolean(process.env.APP_DATABASE_URL ?? process.env.DATABASE_URL);
 const suffix = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;

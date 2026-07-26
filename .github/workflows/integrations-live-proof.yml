@@ -18,20 +18,20 @@ on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: 'Type LIVE to confirm real Slack messages will post to the workspace channel'
+        description: "Type LIVE to confirm real Slack messages will post to the workspace channel"
         required: true
       channel:
-        description: 'Channel NAME to post to (optional — defaults to the first listed public channel)'
+        description: "Channel NAME to post to (optional — defaults to the first listed public channel)"
         required: false
       walk:
-        description: 'Which proof: slack · calendly-demo (W2) · hubspot-demo (W4) · zapier (W5 rail)'
+        description: "Which proof: slack · calendly-demo (W2) · hubspot-demo (W4) · zapier (W5 rail)"
         required: false
-        default: 'slack'
+        default: "slack"
       recipient:
-        description: 'calendly-demo only: the allow-listed inbox the REAL email delivers to'
+        description: "calendly-demo only: the allow-listed inbox the REAL email delivers to"
         required: false
       calendly_link:
-        description: 'calendly-demo only: the real scheduling link (default https://calendly.com/clientforce/30min)'
+        description: "calendly-demo only: the real scheduling link (default https://calendly.com/clientforce/30min)"
         required: false
 
 permissions:

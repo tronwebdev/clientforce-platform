@@ -76,7 +76,11 @@ const countingSynthesize = (counter: { spoken: string[] }): Synthesize =>
 
 /** Records what the brain was asked; returns whatever the test scripts. */
 function fakeBrain(
-  result: RecallResult = { facet: "history", found: true, items: [{ label: "They said · email", detail: "asked about pricing" }] },
+  result: RecallResult = {
+    facet: "history",
+    found: true,
+    items: [{ label: "They said · email", detail: "asked about pricing" }],
+  },
   opts: { delayMs?: number } = {},
 ): RecallBrain & { calls: Array<{ facet: string; query: string; turn: number }> } {
   const calls: Array<{ facet: string; query: string; turn: number }> = [];
@@ -322,10 +326,7 @@ describe("a lookup can never take the call down", () => {
       recall: brain,
       onEnd: (reason) => ends.push(reason),
       provider: scriptedProvider(
-        [
-          { tool: { facet: "history", query: "prior" } },
-          { text: "I can't check that right now." },
-        ],
+        [{ tool: { facet: "history", query: "prior" } }, { text: "I can't check that right now." }],
         seen,
       ),
     });

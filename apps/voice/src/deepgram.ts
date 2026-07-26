@@ -61,11 +61,7 @@ export function sttUrl(params: SttParams): string {
  * Open the streaming STT socket. One unexpected mid-call close triggers ONE
  * reconnect (fresh socket, same handlers); a second failure is fatal.
  */
-export function openSttStream(
-  apiKey: string,
-  params: SttParams,
-  events: SttEvents,
-): SttStream {
+export function openSttStream(apiKey: string, params: SttParams, events: SttEvents): SttStream {
   let ws: WebSocket;
   let open = false;
   let closedByUs = false;

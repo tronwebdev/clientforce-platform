@@ -198,8 +198,12 @@ export class WebhooksController {
     }
 
     const inbound = normalizeTwilioInbound(form ?? {});
-    if (!inbound.from || !inbound.body) throw new BadRequestException("Malformed Twilio inbound payload");
-    const result = await ingestInboundSms({ owner: this.prisma.admin, app: this.prisma.app }, inbound);
+    if (!inbound.from || !inbound.body)
+      throw new BadRequestException("Malformed Twilio inbound payload");
+    const result = await ingestInboundSms(
+      { owner: this.prisma.admin, app: this.prisma.app },
+      inbound,
+    );
     if (!result) {
       // DEC-064: consent fails safe — a STOP whose thread can't resolve (no
       // prior outbound sms Message) still suppresses in every workspace that
@@ -222,7 +226,13 @@ export class WebhooksController {
 
     const { message, resolution, stop } = result;
     if (stop) {
-      await applySmsStop(this.prisma.app, resolution.workspaceId, resolution.contactId, inbound.from, resolution.enrollmentId);
+      await applySmsStop(
+        this.prisma.app,
+        resolution.workspaceId,
+        resolution.contactId,
+        inbound.from,
+        resolution.enrollmentId,
+      );
       await this.publisher.publish({
         type: EVENT_TYPES.SMS_OPTED_OUT,
         workspaceId: resolution.workspaceId,

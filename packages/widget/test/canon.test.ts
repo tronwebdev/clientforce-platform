@@ -3,10 +3,10 @@
  * level — the ones a token test can't see. Source of truth:
  * `CONSOLE_V3_CANON.md` (repo root).
  */
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { consoleV3, textOnColor } from "@clientforce/theme";
+import { AGENT_STATES, consoleV3, textOnColor } from "@clientforce/theme";
 import { CORNER_RADIUS_PX, resolveConfig, WIDGET_DEFAULTS } from "../src/config";
 
 const widgetCss = readFileSync(join(__dirname, "..", "src", "styles", "widget.css"), "utf8");
@@ -293,6 +293,64 @@ describe("owner panel spec (2026-07-26) — the accent never paints a surface", 
     expect(mark).toContain("width: 11px");
     expect(mark).toContain("background: var(--cv3-gradient-signature)");
     expect(shellSrc).toContain("Powered by Clientforce Ai");
+  });
+});
+
+describe("contract promotion (WID2/DEC-102) — one contract, zero bundle cost", () => {
+  const contractSrc = readFileSync(join(__dirname, "..", "src", "api", "contract.ts"), "utf8");
+  const coreWidgetSrc = readFileSync(
+    join(__dirname, "..", "..", "core", "src", "widget.ts"),
+    "utf8",
+  );
+  const srcDir = join(__dirname, "..", "src");
+
+  it("core is imported TYPE-ONLY — the embed must not ship zod to a visitor", () => {
+    // The server validates; a client-side validator would be bypassable anyway.
+    // `import type` is erased at build time, so the types are shared and the
+    // bundle stays dependency-free.
+    expect(contractSrc).toContain("import type {");
+    expect(contractSrc).toContain('} from "@clientforce/core"');
+    const valueImports = [
+      ...contractSrc.matchAll(/^import\s+(?!type\b)[^;]*from\s+"@clientforce\/core"/gm),
+    ];
+    expect(valueImports).toHaveLength(0);
+  });
+
+  it("no OTHER widget source touches core — contract.ts is the single seam", () => {
+    const files = readdirSync(srcDir, { recursive: true, encoding: "utf8" }).filter(
+      (f) => f.endsWith(".ts") && !f.replace(/\\/g, "/").endsWith("api/contract.ts"),
+    );
+    const offenders = files.filter((f) =>
+      readFileSync(join(srcDir, f), "utf8").includes('from "@clientforce/core"'),
+    );
+    expect(offenders).toEqual([]);
+  });
+
+  it("the duplicated contract constants agree with core's", () => {
+    // contract.ts re-declares these two VALUES so importing them cannot pull
+    // core into the bundle; this pin is what keeps the copies honest.
+    expect(coreWidgetSrc).toContain("export const WIDGET_CONTRACT_VERSION = 1 as const;");
+    expect(contractSrc).toContain("export const WIDGET_CONTRACT_VERSION = 1 as const;");
+    const path = /WIDGET_SESSION_PATH = "(\/widget\/v1\/session)"/;
+    expect(coreWidgetSrc.match(path)?.[1]).toBe(contractSrc.match(path)?.[1]);
+  });
+
+  it("the four agent states are the same union on both sides", () => {
+    // core must not depend on a UI package, so theme owns the motion states and
+    // core owns the wire union — pinned equal here instead of shared.
+    expect(coreWidgetSrc).toContain(
+      'export const WIDGET_AGENT_STATES = ["idle", "listening", "thinking", "replying"] as const;',
+    );
+    expect([...AGENT_STATES]).toEqual(["idle", "listening", "thinking", "replying"]);
+  });
+
+  it("the five chip kinds and six flows are core's, in panel order", () => {
+    expect(coreWidgetSrc).toContain('"book_visit",');
+    expect(coreWidgetSrc).toContain('"ask_question",');
+    const flows = coreWidgetSrc.slice(coreWidgetSrc.indexOf("export const WIDGET_FLOWS"));
+    ["bookVisit", "callMeBack", "scheduleCallback", "estimate", "liveVoice", "askQuestion"].forEach(
+      (f) => expect(flows.slice(0, 300)).toContain(f),
+    );
   });
 });
 

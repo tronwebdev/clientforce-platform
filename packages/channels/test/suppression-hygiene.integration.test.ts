@@ -6,7 +6,12 @@
  * suppression. Skips without infra.
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createAppPrismaClient, createPrismaClient, type PrismaClient, type SenderConnection } from "@clientforce/db";
+import {
+  createAppPrismaClient,
+  createPrismaClient,
+  type PrismaClient,
+  type SenderConnection,
+} from "@clientforce/db";
 import { runSuppressionHygiene } from "../src/suppression-hygiene";
 import { sendStep, type SendDeps } from "../src/send";
 import type { EmailSender, RenderedEmail } from "../src/types";
@@ -30,9 +35,13 @@ describe.skipIf(!hasInfra)("suppression hygiene (P5 W3)", () => {
   beforeAll(async () => {
     owner = createPrismaClient();
     app = createAppPrismaClient();
-    const agency = await owner.agency.create({ data: { name: suffix, slug: suffix, branding: {} } });
+    const agency = await owner.agency.create({
+      data: { name: suffix, slug: suffix, branding: {} },
+    });
     agencyId = agency.id;
-    ws = (await owner.workspace.create({ data: { agencyId, name: "HYG", slug: suffix, settings: {} } })).id;
+    ws = (
+      await owner.workspace.create({ data: { agencyId, name: "HYG", slug: suffix, settings: {} } })
+    ).id;
   });
   afterAll(async () => {
     await owner.agency.delete({ where: { id: agencyId } }).catch(() => {});
@@ -43,16 +52,38 @@ describe.skipIf(!hasInfra)("suppression hygiene (P5 W3)", () => {
   it("merges case-duplicates (oldest wins), normalizes, repairs opt-out, counts aging bounces — idempotently", async () => {
     const old = new Date(Date.now() - 120 * DAY);
     await owner.suppression.create({
-      data: { workspaceId: ws, channel: "email", address: `victim-${suffix}@t.test`, reason: "BOUNCED", createdAt: old },
+      data: {
+        workspaceId: ws,
+        channel: "email",
+        address: `victim-${suffix}@t.test`,
+        reason: "BOUNCED",
+        createdAt: old,
+      },
     });
     await owner.suppression.create({
-      data: { workspaceId: ws, channel: "email", address: `VICTIM-${suffix}@T.TEST`, reason: "MANUAL" },
+      data: {
+        workspaceId: ws,
+        channel: "email",
+        address: `VICTIM-${suffix}@T.TEST`,
+        reason: "MANUAL",
+      },
     });
     await owner.suppression.create({
-      data: { workspaceId: ws, channel: "email", address: `MiXeD-${suffix}@t.test`, reason: "UNSUBSCRIBED" },
+      data: {
+        workspaceId: ws,
+        channel: "email",
+        address: `MiXeD-${suffix}@t.test`,
+        reason: "UNSUBSCRIBED",
+      },
     });
     const contact = await owner.contact.create({
-      data: { workspaceId: ws, source: "seed", optOut: {}, tags: [], email: `mixed-${suffix}@t.test` },
+      data: {
+        workspaceId: ws,
+        source: "seed",
+        optOut: {},
+        tags: [],
+        email: `mixed-${suffix}@t.test`,
+      },
     });
 
     const first = await runSuppressionHygiene({ ownerPrisma: owner, prisma: app });
@@ -82,10 +113,20 @@ describe.skipIf(!hasInfra)("suppression hygiene (P5 W3)", () => {
   it("boundary pin: a MIXED-CASE contact refuses against its lowercase suppression row", async () => {
     const agent = await owner.agent.create({
       data: {
-        workspaceId: ws, name: "Probe", goal: "book_appointments",
+        workspaceId: ws,
+        name: "Probe",
+        goal: "book_appointments",
         guardrails: {
-          sendingWindow: { days: [1, 2, 3, 4, 5, 6, 7], start: "00:00", end: "23:59", timezone: "UTC" },
-          dailyCap: { email: 100 }, consent: null, unsubscribeFooter: true, suppressionCheck: true,
+          sendingWindow: {
+            days: [1, 2, 3, 4, 5, 6, 7],
+            start: "00:00",
+            end: "23:59",
+            timezone: "UTC",
+          },
+          dailyCap: { email: 100 },
+          consent: null,
+          unsubscribeFooter: true,
+          suppressionCheck: true,
         },
       },
     });
@@ -93,23 +134,56 @@ describe.skipIf(!hasInfra)("suppression hygiene (P5 W3)", () => {
       data: { workspaceId: ws, agentId: agent.id, name: "hyg", graphId: "g1" },
     });
     const sender = await owner.senderConnection.create({
-      data: { workspaceId: ws, type: "CF_MANAGED", fromEmail: `s-${suffix}@send.clientforce.io`, fromName: "Hyg", dailyLimit: 100 },
+      data: {
+        workspaceId: ws,
+        type: "CF_MANAGED",
+        fromEmail: `s-${suffix}@send.clientforce.io`,
+        fromName: "Hyg",
+        dailyLimit: 100,
+      },
     });
     const contact = await owner.contact.create({
-      data: { workspaceId: ws, source: "seed", optOut: {}, tags: [], email: `CasePin-${suffix}@T.Test`, firstName: "Case" },
+      data: {
+        workspaceId: ws,
+        source: "seed",
+        optOut: {},
+        tags: [],
+        email: `CasePin-${suffix}@T.Test`,
+        firstName: "Case",
+      },
     });
     await owner.businessContext.create({
-      data: { workspaceId: ws, agentId: null, status: "READY", fields: { company_address: { value: "1 St, TX", citations: [], source: "typed" } } },
+      data: {
+        workspaceId: ws,
+        agentId: null,
+        status: "READY",
+        fields: { company_address: { value: "1 St, TX", citations: [], source: "typed" } },
+      },
     });
     // Suppression stored LOWERCASE (as every writer now normalizes).
     await owner.suppression.create({
-      data: { workspaceId: ws, channel: "email", address: `casepin-${suffix}@t.test`, reason: "UNSUBSCRIBED" },
+      data: {
+        workspaceId: ws,
+        channel: "email",
+        address: `casepin-${suffix}@t.test`,
+        reason: "UNSUBSCRIBED",
+      },
     });
-    const deps: SendDeps = { prisma: app, transport: new CapturingSender(), now: () => new Date("2026-07-07T10:00:00Z"), allowlist: [] };
+    const deps: SendDeps = {
+      prisma: app,
+      transport: new CapturingSender(),
+      now: () => new Date("2026-07-07T10:00:00Z"),
+      allowlist: [],
+    };
     await expect(
       sendStep(deps, {
-        workspaceId: ws, campaignId: campaign.id, agentId: agent.id, contactId: contact.id,
-        senderId: sender.id, stepNodeId: "s1", content: { subject: "Hi", body: "Hi {{firstName}} — {{senderName}}" },
+        workspaceId: ws,
+        campaignId: campaign.id,
+        agentId: agent.id,
+        contactId: contact.id,
+        senderId: sender.id,
+        stepNodeId: "s1",
+        content: { subject: "Hi", body: "Hi {{firstName}} — {{senderName}}" },
       }),
     ).rejects.toMatchObject({ reason: "SUPPRESSED" });
   });

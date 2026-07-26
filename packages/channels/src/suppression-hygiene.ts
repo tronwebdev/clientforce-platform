@@ -69,7 +69,10 @@ export async function runSuppressionHygiene(deps: {
     seen.set(key, row.id);
     if (row.address !== row.address.toLowerCase()) {
       await withTenant(deps.prisma, { workspaceId: row.workspaceId }, (tx) =>
-        tx.suppression.update({ where: { id: row.id }, data: { address: row.address.toLowerCase() } }),
+        tx.suppression.update({
+          where: { id: row.id },
+          data: { address: row.address.toLowerCase() },
+        }),
       );
       result.addressesNormalized++;
     }

@@ -19,7 +19,13 @@ import { cf, conditionText, relTime, statusOf } from "./AutomationsView";
 
 const GRAD = "linear-gradient(135deg,#36D7ED 0%,#35E834 55%,#D0F56B 100%)";
 
-const SECTION: React.CSSProperties = { fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 };
+const SECTION: React.CSSProperties = {
+  fontSize: 11,
+  fontWeight: 700,
+  textTransform: "uppercase",
+  letterSpacing: ".06em",
+  marginBottom: 8,
+};
 const CONNECTOR = (
   <div style={{ display: "flex", justifyContent: "center", padding: "6px 0" }}>
     <span style={{ width: 2, height: 16, background: "#D8CFBE" }} />
@@ -99,7 +105,9 @@ export function AutomationDrawer({
       await cf(`automations/${row.id}`, { method: "DELETE" });
       onDeleted();
     } catch (err) {
-      setDeleteError(err instanceof CfError && err.detail ? err.detail : "Couldn't delete — try again");
+      setDeleteError(
+        err instanceof CfError && err.detail ? err.detail : "Couldn't delete — try again",
+      );
     } finally {
       setBusy(false);
     }
@@ -110,12 +118,65 @@ export function AutomationDrawer({
   const icon = row.trigger ? TRIGGER_ICONS[row.trigger.kind] : "⚠";
 
   return (
-    <div data-testid="automation-drawer" onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(12,20,15,.4)", zIndex: 40 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ position: "absolute", top: 0, right: 0, bottom: 0, width: 480, maxWidth: "100%", background: "#FBF7F0", boxShadow: "-24px 0 70px rgba(0,0,0,.28)", display: "flex", flexDirection: "column", fontFamily: "'Hanken Grotesk',sans-serif" }}>
-        <div style={{ display: "flex", alignItems: "flex-start", gap: 13, padding: "20px 22px", background: "#fff", borderBottom: "1px solid #EBE3D6", flex: "none" }}>
-          <span style={{ width: 44, height: 44, borderRadius: 12, flex: "none", background: row.invalid ? "rgba(224,121,107,.14)" : "rgba(54,215,237,.16)", color: row.invalid ? "#C9543F" : "#1192A6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>{icon}</span>
+    <div
+      data-testid="automation-drawer"
+      onClick={onClose}
+      style={{ position: "fixed", inset: 0, background: "rgba(12,20,15,.4)", zIndex: 40 }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          position: "absolute",
+          top: 0,
+          right: 0,
+          bottom: 0,
+          width: 480,
+          maxWidth: "100%",
+          background: "#FBF7F0",
+          boxShadow: "-24px 0 70px rgba(0,0,0,.28)",
+          display: "flex",
+          flexDirection: "column",
+          fontFamily: "'Hanken Grotesk',sans-serif",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 13,
+            padding: "20px 22px",
+            background: "#fff",
+            borderBottom: "1px solid #EBE3D6",
+            flex: "none",
+          }}
+        >
+          <span
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 12,
+              flex: "none",
+              background: row.invalid ? "rgba(224,121,107,.14)" : "rgba(54,215,237,.16)",
+              color: row.invalid ? "#C9543F" : "#1192A6",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 18,
+            }}
+          >
+            {icon}
+          </span>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 18, color: "#0E1512" }}>{row.name}</div>
+            <div
+              style={{
+                fontFamily: "'Bricolage Grotesque',sans-serif",
+                fontWeight: 700,
+                fontSize: 18,
+                color: "#0E1512",
+              }}
+            >
+              {row.name}
+            </div>
             <div style={{ fontSize: 12.5, color: "#9AA59E" }}>
               {row.runs} run{row.runs === 1 ? "" : "s"} · last {relTime(row.lastRunAt)}
             </div>
@@ -123,22 +184,96 @@ export function AutomationDrawer({
           <span
             data-testid="drawer-toggle"
             onClick={onToggle}
-            style={{ width: 42, height: 24, borderRadius: 100, background: on ? GRAD : "#E4EAE6", position: "relative", display: "inline-block", flex: "none", cursor: row.invalid || !canManage ? "not-allowed" : "pointer", marginTop: 4, opacity: row.invalid ? 0.4 : 1 }}
+            style={{
+              width: 42,
+              height: 24,
+              borderRadius: 100,
+              background: on ? GRAD : "#E4EAE6",
+              position: "relative",
+              display: "inline-block",
+              flex: "none",
+              cursor: row.invalid || !canManage ? "not-allowed" : "pointer",
+              marginTop: 4,
+              opacity: row.invalid ? 0.4 : 1,
+            }}
           >
-            <span style={{ position: "absolute", top: 3, [on ? "right" : "left"]: 3, width: 18, height: 18, borderRadius: "50%", background: "#fff", boxShadow: "0 1px 2px rgba(0,0,0,.2)" }} />
+            <span
+              style={{
+                position: "absolute",
+                top: 3,
+                [on ? "right" : "left"]: 3,
+                width: 18,
+                height: 18,
+                borderRadius: "50%",
+                background: "#fff",
+                boxShadow: "0 1px 2px rgba(0,0,0,.2)",
+              }}
+            />
           </span>
-          <span onClick={onClose} style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid #EBE3D6", display: "flex", alignItems: "center", justifyContent: "center", color: "#9AA59E", cursor: "pointer", flex: "none" }}>✕</span>
+          <span
+            onClick={onClose}
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 9,
+              border: "1px solid #EBE3D6",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#9AA59E",
+              cursor: "pointer",
+              flex: "none",
+            }}
+          >
+            ✕
+          </span>
         </div>
 
         <div style={{ flex: 1, overflow: "auto", minHeight: 0, padding: "20px 22px" }}>
           <div style={{ ...SECTION, color: "#1192A6" }}>When this happens</div>
           {row.trigger ? (
-            <div style={{ background: "#fff", border: "1px solid rgba(54,215,237,.4)", borderRadius: 13, padding: "14px 16px", display: "flex", alignItems: "center", gap: 11 }}>
-              <span style={{ width: 34, height: 34, borderRadius: 9, flex: "none", background: "rgba(54,215,237,.16)", color: "#1192A6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>{icon}</span>
-              <span style={{ fontSize: 14.5, fontWeight: 600, color: "#0E1512" }}>{triggerChip(row.trigger)}</span>
+            <div
+              style={{
+                background: "#fff",
+                border: "1px solid rgba(54,215,237,.4)",
+                borderRadius: 13,
+                padding: "14px 16px",
+                display: "flex",
+                alignItems: "center",
+                gap: 11,
+              }}
+            >
+              <span
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 9,
+                  flex: "none",
+                  background: "rgba(54,215,237,.16)",
+                  color: "#1192A6",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 15,
+                }}
+              >
+                {icon}
+              </span>
+              <span style={{ fontSize: 14.5, fontWeight: 600, color: "#0E1512" }}>
+                {triggerChip(row.trigger)}
+              </span>
             </div>
           ) : (
-            <div style={{ background: "rgba(224,121,107,.1)", border: "1px solid #F0CFC8", borderRadius: 13, padding: "14px 16px", fontSize: 13.5, color: "#C9543F" }}>
+            <div
+              style={{
+                background: "rgba(224,121,107,.1)",
+                border: "1px solid #F0CFC8",
+                borderRadius: 13,
+                padding: "14px 16px",
+                fontSize: 13.5,
+                color: "#C9543F",
+              }}
+            >
               This rule's trigger couldn't be read — it never fires. Delete it or recreate it.
             </div>
           )}
@@ -147,9 +282,25 @@ export function AutomationDrawer({
             <>
               {CONNECTOR}
               <div style={{ ...SECTION, color: "#8A7F6B" }}>Only if</div>
-              <div style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 13, overflow: "hidden" }}>
+              <div
+                style={{
+                  background: "#fff",
+                  border: "1px solid #EBE3D6",
+                  borderRadius: 13,
+                  overflow: "hidden",
+                }}
+              >
                 {row.conditions.map((c, i) => (
-                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 16px", borderTop: i === 0 ? "none" : "1px solid #F2EEE4" }}>
+                  <div
+                    key={i}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      padding: "11px 16px",
+                      borderTop: i === 0 ? "none" : "1px solid #F2EEE4",
+                    }}
+                  >
                     <span style={{ color: "#8A7F6B", fontSize: 13 }}>◆</span>
                     <span style={{ fontSize: 13.5, color: "#3B463F" }}>{conditionText(c)}</span>
                   </div>
@@ -162,22 +313,90 @@ export function AutomationDrawer({
           <div style={{ ...SECTION, color: "#16A82A" }}>Then do this</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 8 }}>
             {row.actions.map((a, i) => (
-              <div key={i} style={{ background: "#fff", border: "1px solid rgba(53,232,52,.35)", borderRadius: 13, padding: "14px 16px", display: "flex", alignItems: "center", gap: 11 }}>
-                <span style={{ width: 34, height: 34, borderRadius: 9, flex: "none", background: "rgba(53,232,52,.14)", color: "#16A82A", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>{ACTION_ICONS[a.kind]}</span>
-                <span style={{ fontSize: 14.5, fontWeight: 600, color: "#0E1512", flex: 1 }}>{actionChip(a, automationNames)}</span>
+              <div
+                key={i}
+                style={{
+                  background: "#fff",
+                  border: "1px solid rgba(53,232,52,.35)",
+                  borderRadius: 13,
+                  padding: "14px 16px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 11,
+                }}
+              >
+                <span
+                  style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: 9,
+                    flex: "none",
+                    background: "rgba(53,232,52,.14)",
+                    color: "#16A82A",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 15,
+                  }}
+                >
+                  {ACTION_ICONS[a.kind]}
+                </span>
+                <span style={{ fontSize: 14.5, fontWeight: 600, color: "#0E1512", flex: 1 }}>
+                  {actionChip(a, automationNames)}
+                </span>
               </div>
             ))}
             {row.actions.length === 0 && (
-              <div style={{ background: "rgba(224,121,107,.1)", border: "1px solid #F0CFC8", borderRadius: 13, padding: "12px 16px", fontSize: 13.5, color: "#C9543F" }}>
+              <div
+                style={{
+                  background: "rgba(224,121,107,.1)",
+                  border: "1px solid #F0CFC8",
+                  borderRadius: 13,
+                  padding: "12px 16px",
+                  fontSize: 13.5,
+                  color: "#C9543F",
+                }}
+              >
                 This rule's actions couldn't be read — it never fires.
               </div>
             )}
             {canManage && !row.invalid ? (
-              <div data-testid="drawer-add-action" onClick={() => onEdit({ withPicker: true })} style={{ border: "1.5px dashed #9FD8AC", borderRadius: 13, padding: 12, textAlign: "center", fontSize: 13.5, fontWeight: 600, color: "#16A82A", cursor: "pointer" }}>
+              <div
+                data-testid="drawer-add-action"
+                onClick={() => onEdit({ withPicker: true })}
+                style={{
+                  border: "1.5px dashed #9FD8AC",
+                  borderRadius: 13,
+                  padding: 12,
+                  textAlign: "center",
+                  fontSize: 13.5,
+                  fontWeight: 600,
+                  color: "#16A82A",
+                  cursor: "pointer",
+                }}
+              >
                 + Add an action
               </div>
             ) : (
-              <div aria-disabled="true" title={row.invalid ? "This rule couldn't be read — delete it or recreate it" : "Owners and admins manage automations"} style={{ border: "1.5px dashed #9FD8AC", borderRadius: 13, padding: 12, textAlign: "center", fontSize: 13.5, fontWeight: 600, color: "#16A82A", cursor: "not-allowed", opacity: 0.55 }}>
+              <div
+                aria-disabled="true"
+                title={
+                  row.invalid
+                    ? "This rule couldn't be read — delete it or recreate it"
+                    : "Owners and admins manage automations"
+                }
+                style={{
+                  border: "1.5px dashed #9FD8AC",
+                  borderRadius: 13,
+                  padding: 12,
+                  textAlign: "center",
+                  fontSize: 13.5,
+                  fontWeight: 600,
+                  color: "#16A82A",
+                  cursor: "not-allowed",
+                  opacity: 0.55,
+                }}
+              >
                 + Add an action
               </div>
             )}
@@ -185,13 +404,40 @@ export function AutomationDrawer({
 
           <div style={{ ...SECTION, color: "#8A7F6B", margin: "18px 0 10px" }}>Recent runs</div>
           {runsError && (
-            <div style={{ fontSize: 13, color: "#C9543F", padding: "9px 0" }}>Couldn't load run history — retrying.</div>
+            <div style={{ fontSize: 13, color: "#C9543F", padding: "9px 0" }}>
+              Couldn't load run history — retrying.
+            </div>
           )}
           {runs !== null && runs.length === 0 && !runsError && (
-            <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "9px 0", borderTop: "1px solid #F2EEE4" }}>
-              <span style={{ width: 26, height: 26, borderRadius: 8, flex: "none", background: "#F2EEE4", color: "#9AA59E", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>○</span>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 11,
+                padding: "9px 0",
+                borderTop: "1px solid #F2EEE4",
+              }}
+            >
+              <span
+                style={{
+                  width: 26,
+                  height: 26,
+                  borderRadius: 8,
+                  flex: "none",
+                  background: "#F2EEE4",
+                  color: "#9AA59E",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 12,
+                }}
+              >
+                ○
+              </span>
               <span style={{ fontSize: 13, color: "#0E1512", flex: 1 }}>
-                {row.enabled ? "No runs yet — fires when its trigger next happens" : "No runs yet — enable to start"}
+                {row.enabled
+                  ? "No runs yet — fires when its trigger next happens"
+                  : "No runs yet — enable to start"}
               </span>
               <span style={{ fontSize: 12, color: "#9AA59E", flex: "none" }}>—</span>
             </div>
@@ -199,37 +445,153 @@ export function AutomationDrawer({
           {(runs ?? []).map((run) => {
             const s = RUN_STYLE[run.status] ?? { icon: "•", bg: "#F2EEE4", fg: "#5C6B62" };
             return (
-              <div key={run.id} data-testid="run-row" style={{ display: "flex", alignItems: "center", gap: 11, padding: "9px 0", borderTop: "1px solid #F2EEE4" }}>
-                <span style={{ width: 26, height: 26, borderRadius: 8, flex: "none", background: s.bg, color: s.fg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>{s.icon}</span>
-                <span style={{ fontSize: 13, color: "#0E1512", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{runText(run)}</span>
-                <span style={{ fontSize: 12, color: "#9AA59E", flex: "none" }}>{relTime(run.occurredAt)}</span>
+              <div
+                key={run.id}
+                data-testid="run-row"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 11,
+                  padding: "9px 0",
+                  borderTop: "1px solid #F2EEE4",
+                }}
+              >
+                <span
+                  style={{
+                    width: 26,
+                    height: 26,
+                    borderRadius: 8,
+                    flex: "none",
+                    background: s.bg,
+                    color: s.fg,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 12,
+                  }}
+                >
+                  {s.icon}
+                </span>
+                <span
+                  style={{
+                    fontSize: 13,
+                    color: "#0E1512",
+                    flex: 1,
+                    minWidth: 0,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {runText(run)}
+                </span>
+                <span style={{ fontSize: 12, color: "#9AA59E", flex: "none" }}>
+                  {relTime(run.occurredAt)}
+                </span>
               </div>
             );
           })}
         </div>
 
         {deleteError && (
-          <div data-testid="delete-error" style={{ margin: "0 22px 10px", background: "rgba(224,121,107,.1)", border: "1px solid #F0CFC8", borderRadius: 11, padding: "10px 14px", fontSize: 13, color: "#C9543F" }}>
+          <div
+            data-testid="delete-error"
+            style={{
+              margin: "0 22px 10px",
+              background: "rgba(224,121,107,.1)",
+              border: "1px solid #F0CFC8",
+              borderRadius: 11,
+              padding: "10px 14px",
+              fontSize: 13,
+              color: "#C9543F",
+            }}
+          >
             {deleteError}
           </div>
         )}
-        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 22px", borderTop: "1px solid #EBE3D6", background: "#fff", flex: "none" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            padding: "16px 22px",
+            borderTop: "1px solid #EBE3D6",
+            background: "#fff",
+            flex: "none",
+          }}
+        >
           <span
             data-testid="drawer-delete"
             onClick={() => void remove()}
-            style={{ fontSize: 14, fontWeight: 600, color: "#C9543F", background: "#fff", border: "1px solid #F0CFC8", borderRadius: 11, padding: "10px 18px", cursor: canManage && !busy ? "pointer" : "not-allowed", opacity: canManage ? 1 : 0.5 }}
+            style={{
+              fontSize: 14,
+              fontWeight: 600,
+              color: "#C9543F",
+              background: "#fff",
+              border: "1px solid #F0CFC8",
+              borderRadius: 11,
+              padding: "10px 18px",
+              cursor: canManage && !busy ? "pointer" : "not-allowed",
+              opacity: canManage ? 1 : 0.5,
+            }}
           >
             {busy ? "Deleting…" : "Delete"}
           </span>
-          <span onClick={onClose} style={{ marginLeft: "auto", fontSize: 14, fontWeight: 600, color: "#5C6B62", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 11, padding: "10px 18px", cursor: "pointer" }}>Close</span>
+          <span
+            onClick={onClose}
+            style={{
+              marginLeft: "auto",
+              fontSize: 14,
+              fontWeight: 600,
+              color: "#5C6B62",
+              background: "#fff",
+              border: "1px solid #EBE3D6",
+              borderRadius: 11,
+              padding: "10px 18px",
+              cursor: "pointer",
+            }}
+          >
+            Close
+          </span>
           {canManage && !row.invalid ? (
-            <span data-testid="drawer-edit" onClick={() => onEdit()} style={{ fontSize: 14, fontWeight: 700, color: "#0A0F0C", background: GRAD, borderRadius: 11, padding: "10px 20px", cursor: "pointer", boxShadow: "0 6px 16px rgba(53,232,52,.26)" }}>
+            <span
+              data-testid="drawer-edit"
+              onClick={() => onEdit()}
+              style={{
+                fontSize: 14,
+                fontWeight: 700,
+                color: "#0A0F0C",
+                background: GRAD,
+                borderRadius: 11,
+                padding: "10px 20px",
+                cursor: "pointer",
+                boxShadow: "0 6px 16px rgba(53,232,52,.26)",
+              }}
+            >
               ✎ Edit automation
             </span>
           ) : (
             // Invalid rows can't round-trip through the builder (nothing to
             // render) — delete/recreate is the honest path; AGENT reads only.
-            <span aria-disabled="true" title={row.invalid ? "This rule couldn't be read — delete it or recreate it" : "Owners and admins manage automations"} style={{ fontSize: 14, fontWeight: 700, color: "#0A0F0C", background: GRAD, borderRadius: 11, padding: "10px 20px", cursor: "not-allowed", opacity: 0.6, boxShadow: "0 6px 16px rgba(53,232,52,.26)" }}>
+            <span
+              aria-disabled="true"
+              title={
+                row.invalid
+                  ? "This rule couldn't be read — delete it or recreate it"
+                  : "Owners and admins manage automations"
+              }
+              style={{
+                fontSize: 14,
+                fontWeight: 700,
+                color: "#0A0F0C",
+                background: GRAD,
+                borderRadius: 11,
+                padding: "10px 20px",
+                cursor: "not-allowed",
+                opacity: 0.6,
+                boxShadow: "0 6px 16px rgba(53,232,52,.26)",
+              }}
+            >
               ✎ Edit automation
             </span>
           )}

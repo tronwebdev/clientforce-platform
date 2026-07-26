@@ -55,7 +55,12 @@ interface SgDomain {
 
 const senderDomain = (fromEmail: string): string | null => {
   const at = fromEmail.lastIndexOf("@");
-  return at > 0 ? fromEmail.slice(at + 1).trim().toLowerCase() : null;
+  return at > 0
+    ? fromEmail
+        .slice(at + 1)
+        .trim()
+        .toLowerCase()
+    : null;
 };
 
 /** `send.example.com` → `example.com` (the proof script's root rule). */
@@ -92,7 +97,11 @@ async function checkDmarc(deps: DnsCheckDeps, domain: string, at: Date): Promise
   }
 }
 
-async function checkDirectSpf(deps: DnsCheckDeps, domain: string, at: Date): Promise<DnsRecordStatus> {
+async function checkDirectSpf(
+  deps: DnsCheckDeps,
+  domain: string,
+  at: Date,
+): Promise<DnsRecordStatus> {
   const expected = `${domain} TXT "v=spf1 ..."`;
   try {
     const txt = (await deps.resolveTxt(domain)).map((chunks) => chunks.join(""));
@@ -200,7 +209,9 @@ export async function runSenderDnsCheck(
   params: { workspaceId: string; senderId: string },
 ): Promise<DomainAuthStatus | null> {
   const sender = await withTenant(deps.prisma, { workspaceId: params.workspaceId }, (tx) =>
-    tx.senderConnection.findFirst({ where: { id: params.senderId, workspaceId: params.workspaceId } }),
+    tx.senderConnection.findFirst({
+      where: { id: params.senderId, workspaceId: params.workspaceId },
+    }),
   );
   if (!sender) return null;
   const status = await checkSenderDns(deps, sender);

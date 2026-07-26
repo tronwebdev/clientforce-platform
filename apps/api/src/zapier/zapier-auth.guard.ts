@@ -1,5 +1,5 @@
 /**
- * INT W5 (DEC-101) — the Zapier rail's authentication.
+ * INT W5 (DEC-102) — the Zapier rail's authentication.
  *
  * A presented API key resolves to a workspace BEFORE any tenant context exists,
  * which is the same bootstrap problem the Calendly/Stripe capability-URL

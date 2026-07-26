@@ -2,11 +2,7 @@
   "calendlySubscriptions": [
     {
       "url": "http://localhost:3001/webhooks/calendly?token=eebf\u2026\u20262161",
-      "events": [
-        "invitee.created",
-        "invitee.canceled",
-        "invitee_no_show.created"
-      ],
+      "events": ["invitee.created", "invitee.canceled", "invitee_no_show.created"],
       "signingKey": "\u00abrecorded, not printed\u00bb"
     }
   ],

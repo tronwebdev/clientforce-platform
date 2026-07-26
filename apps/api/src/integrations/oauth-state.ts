@@ -18,7 +18,10 @@ interface StatePayload {
 
 function secret(): string {
   const value = process.env.AUTH_DEV_SECRET;
-  if (!value) throw new Error("AUTH_DEV_SECRET is required — it resolves from Key Vault secret AUTH-DEV-SECRET");
+  if (!value)
+    throw new Error(
+      "AUTH_DEV_SECRET is required — it resolves from Key Vault secret AUTH-DEV-SECRET",
+    );
   return value;
 }
 

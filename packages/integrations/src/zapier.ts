@@ -1,5 +1,5 @@
 /**
- * INT W5 (DEC-101) — the Zapier app's surface, DERIVED from the registries the
+ * INT W5 (DEC-102) — the Zapier app's surface, DERIVED from the registries the
  * rest of the product already enumerates. Nothing here is hand-listed, because
  * a hand-listed parallel surface is a surface that silently rots: the picker
  * learned this (`ACCOUNT_ACTION_OPTIONS` enumerates core's kinds verbatim) and

@@ -30,7 +30,9 @@ const receipt = (over: Partial<CallRetrievalDto> = {}): CallRetrievalDto => ({
  *  from the module under test instead. */
 async function receiptState(r: CallRetrievalDto) {
   const mod = await import("../app/(shell)/agents/[agentId]/[tab]/CallsTab");
-  return (mod as unknown as { receiptState: (r: CallRetrievalDto) => { label: string } }).receiptState(r);
+  return (
+    mod as unknown as { receiptState: (r: CallRetrievalDto) => { label: string } }
+  ).receiptState(r);
 }
 
 describe("receipt states — three different claims about the same silence", () => {
@@ -56,22 +58,36 @@ describe("receipt states — three different claims about the same silence", () 
 describe("facet labels come from the shared vocabulary", () => {
   it("every facet the ledger can hold has an owner-readable label", () => {
     for (const facet of Object.keys(RECALL_FACET_META)) {
-      expect(RECALL_FACET_META[facet as keyof typeof RECALL_FACET_META].label.length).toBeGreaterThan(0);
+      expect(
+        RECALL_FACET_META[facet as keyof typeof RECALL_FACET_META].label.length,
+      ).toBeGreaterThan(0);
     }
   });
 });
 
 describe("the receipts block", () => {
   it("renders one row per lookup, empties included, in call order", async () => {
-    const { CallRetrievalsBlock } = await import(
-      "../app/(shell)/agents/[agentId]/[tab]/CallsTab"
-    );
+    const { CallRetrievalsBlock } = await import("../app/(shell)/agents/[agentId]/[tab]/CallsTab");
     const html = renderToStaticMarkup(
       CallRetrievalsBlock({
         retrievals: [
           receipt({ seq: 0, turn: 1, found: true, itemCount: 2 }),
-          receipt({ seq: 1, turn: 2, facet: "bookings", query: "existing booking", found: false, itemCount: 0 }),
-          receipt({ seq: 2, turn: 3, facet: "knowledge", query: "pricing", found: false, refusalReason: "LOOKUP_TIMEOUT" }),
+          receipt({
+            seq: 1,
+            turn: 2,
+            facet: "bookings",
+            query: "existing booking",
+            found: false,
+            itemCount: 0,
+          }),
+          receipt({
+            seq: 2,
+            turn: 3,
+            facet: "knowledge",
+            query: "pricing",
+            found: false,
+            refusalReason: "LOOKUP_TIMEOUT",
+          }),
         ],
       }),
     );
@@ -90,9 +106,7 @@ describe("the receipts block", () => {
   it("renders nothing when the call never read the record", async () => {
     // An empty "Looked up: none" block would read as the feature failing,
     // rather than as a call that simply never needed a lookup.
-    const { CallRetrievalsBlock } = await import(
-      "../app/(shell)/agents/[agentId]/[tab]/CallsTab"
-    );
+    const { CallRetrievalsBlock } = await import("../app/(shell)/agents/[agentId]/[tab]/CallsTab");
     expect(CallRetrievalsBlock({ retrievals: [] })).toBeNull();
     expect(CallRetrievalsBlock({ retrievals: undefined })).toBeNull();
   });

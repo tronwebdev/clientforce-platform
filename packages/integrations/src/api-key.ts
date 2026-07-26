@@ -1,5 +1,5 @@
 /**
- * INT W5 (DEC-101) — workspace API keys: mint, parse, verify.
+ * INT W5 (DEC-102) — workspace API keys: mint, parse, verify.
  *
  * v1 auth for the Zapier private app (owner ruling: an API key, not OAuth).
  * The design rule is that a leak of the DATABASE must not yield working keys:

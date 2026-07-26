@@ -169,7 +169,9 @@ async function main(): Promise<void> {
           `multilingual pin missed (${fixture.language}): expected "${fixture.intent}", got "${verdict}"`,
         );
     }
-    stamp(`multilingual matrix ✓ — ${MULTILINGUAL_REPLY_FIXTURES.length} pins held by the REAL model`);
+    stamp(
+      `multilingual matrix ✓ — ${MULTILINGUAL_REPLY_FIXTURES.length} pins held by the REAL model`,
+    );
 
     console.log("\n=== P1.7 LIVE PROOF · inbound → classify → signal ===");
     const agent = await owner.agent.create({
@@ -178,7 +180,12 @@ async function main(): Promise<void> {
         name: "Demo Booker",
         goal: "book_appointments",
         guardrails: {
-          sendingWindow: { days: [1, 2, 3, 4, 5, 6, 7], start: "00:00", end: "23:59", timezone: "UTC" },
+          sendingWindow: {
+            days: [1, 2, 3, 4, 5, 6, 7],
+            start: "00:00",
+            end: "23:59",
+            timezone: "UTC",
+          },
           dailyCap: { email: 20 },
           consent: null,
           unsubscribeFooter: true,
@@ -274,11 +281,34 @@ async function main(): Promise<void> {
             threaded: true,
           },
         },
-        { id: "s-ack", type: "step", channel: "email", content: { body: "Understood — I'll circle back, {{firstName}}.", threaded: true } },
+        {
+          id: "s-ack",
+          type: "step",
+          channel: "email",
+          content: { body: "Understood — I'll circle back, {{firstName}}.", threaded: true },
+        },
         { id: "d-ack", type: "delay", amount: 30, unit: "days" },
-        { id: "s-follow", type: "step", channel: "email", content: { body: "Circling back as promised, {{firstName}}.", threaded: true } },
-        { id: "s-referral", type: "step", channel: "email", content: { body: "Who should I speak with instead, {{firstName}}?", threaded: true } },
-        { id: "s-answer", type: "step", channel: "email", content: { body: "Good question — here's the short answer, {{firstName}}.", threaded: true } },
+        {
+          id: "s-follow",
+          type: "step",
+          channel: "email",
+          content: { body: "Circling back as promised, {{firstName}}.", threaded: true },
+        },
+        {
+          id: "s-referral",
+          type: "step",
+          channel: "email",
+          content: { body: "Who should I speak with instead, {{firstName}}?", threaded: true },
+        },
+        {
+          id: "s-answer",
+          type: "step",
+          channel: "email",
+          content: {
+            body: "Good question — here's the short answer, {{firstName}}.",
+            threaded: true,
+          },
+        },
         {
           id: "s-close",
           type: "step",
@@ -400,7 +430,8 @@ async function main(): Promise<void> {
       stamp(`inbound reply ingested as INBOUND Message ${inboundMsg.id}; classify queued`);
 
       const classified = await until(
-        async () => owner.message.findFirst({ where: { id: inboundMsg.id, intent: { not: null } } }),
+        async () =>
+          owner.message.findFirst({ where: { id: inboundMsg.id, intent: { not: null } } }),
         "classification",
       );
       stamp(`REAL classifier verdict: intent=${classified.intent}`);
@@ -410,7 +441,11 @@ async function main(): Promise<void> {
       const repliedEvent = await until(
         async () =>
           owner.event.findFirst({
-            where: { workspaceId: ws.id, type: "email.replied.v1", enrollmentId: one.enrollment.id },
+            where: {
+              workspaceId: ws.id,
+              type: "email.replied.v1",
+              enrollmentId: one.enrollment.id,
+            },
           }),
         "email.replied.v1 Event row",
       );
@@ -427,7 +462,11 @@ async function main(): Promise<void> {
       const stageEvent = await until(
         async () =>
           owner.event.findFirst({
-            where: { workspaceId: ws.id, type: "lead.stage_changed.v1", enrollmentId: one.enrollment.id },
+            where: {
+              workspaceId: ws.id,
+              type: "lead.stage_changed.v1",
+              enrollmentId: one.enrollment.id,
+            },
           }),
         "lead.stage_changed.v1 Event row",
       );
@@ -460,9 +499,13 @@ async function main(): Promise<void> {
       const reframeSend = transport.sent[2]!;
       if (!/Fair concern/.test(reframeSend.email.body))
         throw new Error("send #3 is not the value-reframe step");
-      const midRow = await owner.enrollment.findUniqueOrThrow({ where: { id: three.enrollment.id } });
+      const midRow = await owner.enrollment.findUniqueOrThrow({
+        where: { id: three.enrollment.id },
+      });
       if (midRow.pipelineStage !== "replied")
-        throw new Error(`expected stage "replied" after the objection, got "${midRow.pipelineStage}"`);
+        throw new Error(
+          `expected stage "replied" after the objection, got "${midRow.pipelineStage}"`,
+        );
       stamp("branch routed objection_price → VALUE-REFRAME sent (threaded), stage replied ✓");
 
       // The reframe path rejoins the branch — the NEXT reply closes it.
@@ -472,7 +515,8 @@ async function main(): Promise<void> {
         fixtureFor("interested").reply,
       );
       const classified3b = await until(
-        async () => owner.message.findFirst({ where: { id: turnaround.id, intent: { not: null } } }),
+        async () =>
+          owner.message.findFirst({ where: { id: turnaround.id, intent: { not: null } } }),
         "turnaround classification",
       );
       stamp(`REAL classifier verdict: intent=${classified3b.intent}`);
@@ -525,7 +569,9 @@ async function main(): Promise<void> {
       const contact4 = await owner.contact.findUniqueOrThrow({ where: { id: four.contact.id } });
       if ((contact4.optOut as { email?: boolean })?.email)
         throw new Error("not_interested must NEVER set optOut");
-      stamp("M1b gate 6 ✓ — graceful close SENT, enrollment DONE @ stage lost, zero suppression/opt-out");
+      stamp(
+        "M1b gate 6 ✓ — graceful close SENT, enrollment DONE @ stage lost, zero suppression/opt-out",
+      );
 
       // ── Lead 2: unsubscribe → opt-out + suppression + cancel ────────────
       const two = await enroll("Suppressme");
@@ -552,21 +598,15 @@ async function main(): Promise<void> {
           owner.suppression.findFirst({ where: { workspaceId: ws.id, address: TEST_INBOX } }),
         "Suppression row",
       );
-      const contact2 = await until(
-        async () => {
-          const c = await owner.contact.findUnique({ where: { id: two.contact.id } });
-          return (c?.optOut as { email?: boolean })?.email ? c : null;
-        },
-        "Contact.optOut.email",
-      );
+      const contact2 = await until(async () => {
+        const c = await owner.contact.findUnique({ where: { id: two.contact.id } });
+        return (c?.optOut as { email?: boolean })?.email ? c : null;
+      }, "Contact.optOut.email");
       void contact2;
-      const enrollment2 = await until(
-        async () => {
-          const e = await owner.enrollment.findUnique({ where: { id: two.enrollment.id } });
-          return e?.status === "UNSUBSCRIBED" ? e : null;
-        },
-        "enrollment UNSUBSCRIBED",
-      );
+      const enrollment2 = await until(async () => {
+        const e = await owner.enrollment.findUnique({ where: { id: two.enrollment.id } });
+        return e?.status === "UNSUBSCRIBED" ? e : null;
+      }, "enrollment UNSUBSCRIBED");
       void enrollment2;
       await until(
         async () =>

@@ -1,5 +1,5 @@
 /**
- * INT W5 (DEC-101) — the Zapier surface is DERIVED, and these pin that it stays
+ * INT W5 (DEC-102) — the Zapier surface is DERIVED, and these pin that it stays
  * derived. The failure this guards against is a hand-maintained parallel list
  * drifting from the product's vocabulary: a capability that ships in the app
  * but not the engine, or (worse) a registered capability the app silently never

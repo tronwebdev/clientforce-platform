@@ -285,7 +285,8 @@ export class PlannerController {
         // supplies the whole graph) — an unreadable row can't be extended.
         throw new UnprocessableEntityException({
           message: "Invalid campaign graph",
-          detail: "The stored sequence couldn't be read — regenerate it before adding a sub-campaign",
+          detail:
+            "The stored sequence couldn't be read — regenerate it before adding a sub-campaign",
         });
       }
 
@@ -413,7 +414,9 @@ export class PlannerController {
         );
       }
       if (dto.brief?.subjectHint !== undefined && node.channel === "sms") {
-        throw new UnprocessableEntityException("Subject hints are email-only — an SMS brief cannot carry one");
+        throw new UnprocessableEntityException(
+          "Subject hints are email-only — an SMS brief cannot carry one",
+        );
       }
       const staged = dto.brief ? { ...node, brief: dto.brief } : node;
       // G2: the step's main-sequence position → the composer's M1a arc role.
@@ -472,7 +475,11 @@ export class PlannerController {
   @Get("status")
   async status(@Query() query: unknown) {
     const dto = parse(plannerGraphQuerySchema, query ?? {});
-    const none = { state: "none" as string, failedReason: null as string | null, at: null as string | null };
+    const none = {
+      state: "none" as string,
+      failedReason: null as string | null,
+      at: null as string | null,
+    };
     if (!process.env.REDIS_URL) return none;
     try {
       // Same queue name as the worker: createPlanQueue → PLANNER_QUEUE_NAME.
@@ -493,7 +500,10 @@ export class PlannerController {
       if (!job) return none;
       const raw = await job.getState();
       const state =
-        raw === "waiting" || raw === "delayed" || raw === "waiting-children" || raw === "prioritized"
+        raw === "waiting" ||
+        raw === "delayed" ||
+        raw === "waiting-children" ||
+        raw === "prioritized"
           ? "waiting"
           : raw === "active" || raw === "completed" || raw === "failed"
             ? raw

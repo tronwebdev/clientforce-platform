@@ -23,7 +23,9 @@ const T0 = Date.UTC(2026, 6, 1, 12, 0, 0);
 const at = (minutes: number) => new Date(T0 + minutes * 60_000);
 
 let seq = 0;
-const out = (o: Partial<OutcomeOutboundRow> & { stepNodeId: string | null }): OutcomeOutboundRow => ({
+const out = (
+  o: Partial<OutcomeOutboundRow> & { stepNodeId: string | null },
+): OutcomeOutboundRow => ({
   id: o.id ?? `out-${++seq}`,
   stepNodeId: o.stepNodeId,
   contactId: o.contactId ?? "c1",
@@ -108,8 +110,17 @@ describe("computeOutcomes — sent + min-n honesty", () => {
     const outbound = Array.from({ length: 19 }, (_, i) =>
       out({ stepNodeId: "step-1", contactId: `c${i}`, enrollmentId: `e${i}`, sentAt: at(i) }),
     );
-    const reply = inb({ inReplyToId: outbound[0]!.id, contactId: "c0", enrollmentId: "e0", intent: "interested" });
-    const { steps } = compute({ outbound, inbound: [reply], events: [replyEvt(reply.id, { contactId: "c0", enrollmentId: "e0" })] });
+    const reply = inb({
+      inReplyToId: outbound[0]!.id,
+      contactId: "c0",
+      enrollmentId: "e0",
+      intent: "interested",
+    });
+    const { steps } = compute({
+      outbound,
+      inbound: [reply],
+      events: [replyEvt(reply.id, { contactId: "c0", enrollmentId: "e0" })],
+    });
     const step1 = steps[0]!;
     expect(step1.sent).toBe(19);
     expect(step1.signal).toBe("none");
@@ -120,14 +131,26 @@ describe("computeOutcomes — sent + min-n honesty", () => {
   it("reports 1-decimal rates from 20 sends (low) and full signal at 50 (ok)", () => {
     const mk = (step: string, n: number) =>
       Array.from({ length: n }, (_, i) =>
-        out({ stepNodeId: step, contactId: `${step}-c${i}`, enrollmentId: `${step}-e${i}`, sentAt: at(i) }),
+        out({
+          stepNodeId: step,
+          contactId: `${step}-c${i}`,
+          enrollmentId: `${step}-e${i}`,
+          sentAt: at(i),
+        }),
       );
     const outbound = [...mk("step-1", 62), ...mk("step-2", 20)];
     // 3 distinct repliers on step-1: 3/62 = 4.8387… → 4.8
     const inbound = [0, 1, 2].map((i) =>
-      inb({ inReplyToId: outbound[i]!.id, contactId: `step-1-c${i}`, enrollmentId: `step-1-e${i}`, intent: i === 0 ? "interested" : "replied" }),
+      inb({
+        inReplyToId: outbound[i]!.id,
+        contactId: `step-1-c${i}`,
+        enrollmentId: `step-1-e${i}`,
+        intent: i === 0 ? "interested" : "replied",
+      }),
     );
-    const events = inbound.map((r) => replyEvt(r.id, { contactId: r.contactId, enrollmentId: r.enrollmentId }));
+    const events = inbound.map((r) =>
+      replyEvt(r.id, { contactId: r.contactId, enrollmentId: r.enrollmentId }),
+    );
     const { steps, totals } = compute({ outbound, inbound, events });
     const [s1, s2] = [steps[0]!, steps[1]!];
     expect(s1.signal).toBe("ok");
@@ -147,7 +170,11 @@ describe("computeOutcomes — reply attribution (LAST-SENT step)", () => {
     const m1 = out({ stepNodeId: "step-1", sentAt: at(0) });
     const m2 = out({ stepNodeId: "step-2", sentAt: at(60) });
     const reply = inb({ inReplyToId: m2.id, sentAt: at(90) });
-    const { steps } = compute({ outbound: [m1, m2], inbound: [reply], events: [replyEvt(reply.id)] });
+    const { steps } = compute({
+      outbound: [m1, m2],
+      inbound: [reply],
+      events: [replyEvt(reply.id)],
+    });
     expect(steps[0]!.replies).toBe(0);
     expect(steps[1]!.replies).toBe(1);
   });
@@ -156,14 +183,22 @@ describe("computeOutcomes — reply attribution (LAST-SENT step)", () => {
     const m1 = out({ stepNodeId: "step-1", sentAt: at(0) });
     const m2 = out({ stepNodeId: "step-2", sentAt: at(60) });
     const reply = inb({ inReplyToId: null, sentAt: at(90) });
-    const { steps } = compute({ outbound: [m1, m2], inbound: [reply], events: [replyEvt(reply.id)] });
+    const { steps } = compute({
+      outbound: [m1, m2],
+      inbound: [reply],
+      events: [replyEvt(reply.id)],
+    });
     expect(steps[1]!.replies).toBe(1);
   });
 
   it("falls back by contact when the reply has no enrollment", () => {
     const m1 = out({ stepNodeId: "step-1", sentAt: at(0), enrollmentId: null });
     const reply = inb({ inReplyToId: null, enrollmentId: null, sentAt: at(30) });
-    const { steps } = compute({ outbound: [m1], inbound: [reply], events: [replyEvt(reply.id, { enrollmentId: null })] });
+    const { steps } = compute({
+      outbound: [m1],
+      inbound: [reply],
+      events: [replyEvt(reply.id, { enrollmentId: null })],
+    });
     expect(steps[0]!.replies).toBe(1);
   });
 
@@ -171,7 +206,11 @@ describe("computeOutcomes — reply attribution (LAST-SENT step)", () => {
     const legacy = out({ id: "legacy", stepNodeId: null, sentAt: at(0) });
     const m2 = out({ stepNodeId: "step-2", sentAt: at(60) });
     const reply = inb({ inReplyToId: "legacy", sentAt: at(90) });
-    const { steps } = compute({ outbound: [legacy, m2], inbound: [reply], events: [replyEvt(reply.id)] });
+    const { steps } = compute({
+      outbound: [legacy, m2],
+      inbound: [reply],
+      events: [replyEvt(reply.id)],
+    });
     expect(steps[1]!.replies).toBe(1);
   });
 
@@ -179,7 +218,11 @@ describe("computeOutcomes — reply attribution (LAST-SENT step)", () => {
     const m1 = out({ stepNodeId: "step-1", sentAt: at(0) });
     const r1 = inb({ inReplyToId: m1.id, sentAt: at(10) });
     const r2 = inb({ inReplyToId: m1.id, sentAt: at(20) });
-    const { steps, totals } = compute({ outbound: [m1], inbound: [r1, r2], events: [replyEvt(r1.id), replyEvt(r2.id)] });
+    const { steps, totals } = compute({
+      outbound: [m1],
+      inbound: [r1, r2],
+      events: [replyEvt(r1.id), replyEvt(r2.id)],
+    });
     expect(steps[0]!.replies).toBe(1);
     expect(totals.replies).toBe(1);
   });
@@ -189,7 +232,11 @@ describe("computeOutcomes — reply attribution (LAST-SENT step)", () => {
     const m2 = out({ stepNodeId: "step-2", sentAt: at(60) });
     const r1 = inb({ inReplyToId: m1.id, sentAt: at(10) });
     const r2 = inb({ inReplyToId: m2.id, sentAt: at(70) });
-    const { steps, totals } = compute({ outbound: [m1, m2], inbound: [r1, r2], events: [replyEvt(r1.id), replyEvt(r2.id)] });
+    const { steps, totals } = compute({
+      outbound: [m1, m2],
+      inbound: [r1, r2],
+      events: [replyEvt(r1.id), replyEvt(r2.id)],
+    });
     expect(steps[0]!.replies).toBe(1);
     expect(steps[1]!.replies).toBe(1);
     expect(totals.replies).toBe(1);
@@ -205,7 +252,11 @@ describe("computeOutcomes — reply attribution (LAST-SENT step)", () => {
     // The only outbound was sent AFTER the reply — last-sent-before finds nothing.
     const m1 = out({ stepNodeId: "step-1", sentAt: at(100) });
     const reply = inb({ inReplyToId: null, sentAt: at(10) });
-    const { steps, totals } = compute({ outbound: [m1], inbound: [reply], events: [replyEvt(reply.id)] });
+    const { steps, totals } = compute({
+      outbound: [m1],
+      inbound: [reply],
+      events: [replyEvt(reply.id)],
+    });
     expect(steps.every((s) => s.replies === 0)).toBe(true);
     expect(totals.replies).toBe(1);
   });
@@ -295,7 +346,12 @@ describe("computeOutcomes — goal completion attributes to the SEQUENCE only", 
       events: [
         evt({
           type: "lead.stage_changed.v1",
-          payload: { fromStage: "replied", toStage: "booked", goalKey: "book_appointments", label: "Meeting booked" },
+          payload: {
+            fromStage: "replied",
+            toStage: "booked",
+            goalKey: "book_appointments",
+            label: "Meeting booked",
+          },
           occurredAt: at(120),
         }),
       ],
@@ -310,8 +366,16 @@ describe("computeOutcomes — goal completion attributes to the SEQUENCE only", 
   it("dedupes goal completion per enrollment (manual + automated double event)", () => {
     const { totals } = compute({
       events: [
-        evt({ type: "lead.stage_changed.v1", payload: { fromStage: "new", toStage: "booked" }, occurredAt: at(1) }),
-        evt({ type: "lead.stage_changed.v1", payload: { fromStage: "new", toStage: "booked", goalKey: "book_appointments" }, occurredAt: at(2) }),
+        evt({
+          type: "lead.stage_changed.v1",
+          payload: { fromStage: "new", toStage: "booked" },
+          occurredAt: at(1),
+        }),
+        evt({
+          type: "lead.stage_changed.v1",
+          payload: { fromStage: "new", toStage: "booked", goalKey: "book_appointments" },
+          occurredAt: at(2),
+        }),
       ],
     });
     expect(totals.goalCompletions).toBe(1);
@@ -319,7 +383,9 @@ describe("computeOutcomes — goal completion attributes to the SEQUENCE only", 
 
   it("ignores non-goal stage moves", () => {
     const { totals } = compute({
-      events: [evt({ type: "lead.stage_changed.v1", payload: { fromStage: "new", toStage: "replied" } })],
+      events: [
+        evt({ type: "lead.stage_changed.v1", payload: { fromStage: "new", toStage: "replied" } }),
+      ],
     });
     expect(totals.goalCompletions).toBe(0);
   });
@@ -327,7 +393,10 @@ describe("computeOutcomes — goal completion attributes to the SEQUENCE only", 
 
 describe("computeOutcomes — removed steps fold into totals only", () => {
   it("sends on a stepNodeId no longer in the graph count toward totals, not steps", () => {
-    const outbound = [out({ stepNodeId: "step-removed", sentAt: at(0) }), out({ stepNodeId: "step-1", contactId: "c2", enrollmentId: "e2", sentAt: at(1) })];
+    const outbound = [
+      out({ stepNodeId: "step-removed", sentAt: at(0) }),
+      out({ stepNodeId: "step-1", contactId: "c2", enrollmentId: "e2", sentAt: at(1) }),
+    ];
     const { steps, totals } = compute({ outbound });
     expect(steps.find((s) => s.stepNodeId === "step-removed")).toBeUndefined();
     expect(steps[0]!.sent).toBe(1);

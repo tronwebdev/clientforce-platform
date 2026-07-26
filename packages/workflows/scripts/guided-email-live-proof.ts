@@ -98,7 +98,12 @@ async function main(): Promise<void> {
         goal: "book_appointments",
         category: "Dental & Orthodontics",
         guardrails: {
-          sendingWindow: { days: [1, 2, 3, 4, 5, 6, 7], start: "00:00", end: "23:59", timezone: "UTC" },
+          sendingWindow: {
+            days: [1, 2, 3, 4, 5, 6, 7],
+            start: "00:00",
+            end: "23:59",
+            timezone: "UTC",
+          },
           dailyCap: { email: 20 },
           consent: null,
           composeMode: "guided",
@@ -119,18 +124,40 @@ async function main(): Promise<void> {
         agentId: null,
         status: "READY",
         fields: {
-          offer: { value: `We book dental appointments with a ${FACT}.`, citations: [], source: "typed" },
-          proof_points: { value: "37 booked appointments in the first week for a Dallas practice.", citations: [], source: "typed" },
+          offer: {
+            value: `We book dental appointments with a ${FACT}.`,
+            citations: [],
+            source: "typed",
+          },
+          proof_points: {
+            value: "37 booked appointments in the first week for a Dallas practice.",
+            citations: [],
+            source: "typed",
+          },
           company_address: { value: COMPANY_ADDRESS, citations: [], source: "typed" },
         },
       },
     });
     const emailSender = await owner.senderConnection.create({
-      data: { workspaceId: ws.id, type: "CF_MANAGED", fromEmail: "proof@send.clientforce.io", fromName: "Proof Agent", dailyLimit: 100 },
+      data: {
+        workspaceId: ws.id,
+        type: "CF_MANAGED",
+        fromEmail: "proof@send.clientforce.io",
+        fromName: "Proof Agent",
+        dailyLimit: 100,
+      },
     });
     const mkContact = (first: string, company: string, slug: string) =>
       owner.contact.create({
-        data: { workspaceId: ws.id, source: "proof", optOut: {}, tags: [], email: `${slug}-${suffix}@proof.test`, firstName: first, company },
+        data: {
+          workspaceId: ws.id,
+          source: "proof",
+          optOut: {},
+          tags: [],
+          email: `${slug}-${suffix}@proof.test`,
+          firstName: first,
+          company,
+        },
       });
     const [ada, ben, cara, dana] = await Promise.all([
       mkContact("Ada", "Bright Ortho", "ada"),
@@ -141,7 +168,14 @@ async function main(): Promise<void> {
     const allowlist = [ada, ben, cara, dana].map((c) => c.email!);
     const enroll = (contactId: string, n: string) =>
       owner.enrollment.create({
-        data: { workspaceId: ws.id, campaignId: campaign.id, contactId, workflowId: `g2-proof-${n}-${suffix}`, pipelineStage: "new", meta: {} },
+        data: {
+          workspaceId: ws.id,
+          campaignId: campaign.id,
+          contactId,
+          workflowId: `g2-proof-${n}-${suffix}`,
+          pipelineStage: "new",
+          meta: {},
+        },
       });
     const [enrollA, enrollB, enrollC, enrollD] = await Promise.all([
       enroll(ada.id, "a"),
@@ -165,7 +199,11 @@ async function main(): Promise<void> {
             contactId: e.contactId,
             enrollmentId: e.enrollmentId,
             campaignId: e.campaignId,
-            payload: { stepNodeId: e.stepNodeId, reason: e.reason, ...(e.detail ? { detail: e.detail } : {}) },
+            payload: {
+              stepNodeId: e.stepNodeId,
+              reason: e.reason,
+              ...(e.detail ? { detail: e.detail } : {}),
+            },
           });
         }
       },
@@ -252,7 +290,10 @@ async function main(): Promise<void> {
       mode: undefined,
       brief: undefined,
       position: undefined,
-      content: { subject: "A note for {{company}}", body: "Hi {{firstName}}, quick first note from {{senderName}}." },
+      content: {
+        subject: "A note for {{company}}",
+        body: "Hi {{firstName}}, quick first note from {{senderName}}.",
+      },
     });
     const scripted = await owner.message.findUniqueOrThrow({ where: { id: outC1.messageId } });
     const scriptedMeta = scripted.meta as Record<string, unknown>;
@@ -330,7 +371,9 @@ async function main(): Promise<void> {
         "email.compose_refused.v1 Event row persisted through the REAL bus (the Logs tab's amber row)",
       );
     } else {
-      console.log("• REDIS_URL absent — bus-persisted Event row not exercised this run (hook firing asserted)");
+      console.log(
+        "• REDIS_URL absent — bus-persisted Event row not exercised this run (hook firing asserted)",
+      );
       gate(
         "REFUSAL-HOOK",
         refusals.some((r) => r.stepNodeId === "email-guided-trap" && r.channel === "email"),

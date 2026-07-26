@@ -46,11 +46,7 @@ import {
   type CampaignGraph,
 } from "@clientforce/core";
 import { createAppPrismaClient, createPrismaClient, withTenant } from "@clientforce/db";
-import {
-  EventBus,
-  bullConnectionFromUrl,
-  createTemporalSignalConsumer,
-} from "@clientforce/events";
+import { EventBus, bullConnectionFromUrl, createTemporalSignalConsumer } from "@clientforce/events";
 import { validateEditedGraph } from "@clientforce/planner";
 import { createActivities } from "../src/activities";
 import { cancelWorkflowById, moveEnrollmentToNode, signalEnrollmentReply } from "../src/client";
@@ -86,7 +82,10 @@ function graphV1(): CampaignGraph {
         id: "s1",
         type: "step",
         channel: "email",
-        content: { subject: "never sent", body: "Main-path step — the proof never reaches it.\n\n— {{senderName}}" },
+        content: {
+          subject: "never sent",
+          body: "Main-path step — the proof never reaches it.\n\n— {{senderName}}",
+        },
       },
       { id: "end-1", type: "end" },
     ],
@@ -100,9 +99,12 @@ function graphV1(): CampaignGraph {
 type Meta = Record<string, unknown>;
 
 async function main(): Promise<void> {
-  if (!process.env.REDIS_URL) throw new Error("GATE FAILED: REDIS_URL missing — the proof runs the REAL bus");
+  if (!process.env.REDIS_URL)
+    throw new Error("GATE FAILED: REDIS_URL missing — the proof runs the REAL bus");
 
-  console.log("\n=== R1-UI W3 LIVE PROOF · account rules on the ONE evaluator, real bus + refusal walk ===");
+  console.log(
+    "\n=== R1-UI W3 LIVE PROOF · account rules on the ONE evaluator, real bus + refusal walk ===",
+  );
   const owner = createPrismaClient();
   const app = createAppPrismaClient();
 
@@ -136,7 +138,12 @@ async function main(): Promise<void> {
         goal: "book_appointments",
         status: "ACTIVE",
         guardrails: {
-          sendingWindow: { days: [1, 2, 3, 4, 5, 6, 7], start: "00:00", end: "23:59", timezone: "UTC" },
+          sendingWindow: {
+            days: [1, 2, 3, 4, 5, 6, 7],
+            start: "00:00",
+            end: "23:59",
+            timezone: "UTC",
+          },
           dailyCap: { email: 20 },
           consent: null,
           unsubscribeFooter: true,
@@ -158,7 +165,13 @@ async function main(): Promise<void> {
     });
     const v1 = graphV1();
     const v1row = await owner.campaignGraph.create({
-      data: { workspaceId: ws.id, campaignId: campaign.id, version: 1, source: "AI", graph: v1 as object },
+      data: {
+        workspaceId: ws.id,
+        campaignId: campaign.id,
+        version: 1,
+        source: "AI",
+        graph: v1 as object,
+      },
     });
     await owner.campaign.update({ where: { id: campaign.id }, data: { graphId: v1row.id } });
 
@@ -224,7 +237,12 @@ async function main(): Promise<void> {
           where: { id: enrollmentId },
           select: { workflowId: true },
         });
-        await signalEnrollmentReply(temporalEnv.client, enrollmentId, intent, row?.workflowId ?? undefined);
+        await signalEnrollmentReply(
+          temporalEnv.client,
+          enrollmentId,
+          intent,
+          row?.workflowId ?? undefined,
+        );
       },
       console.warn,
       rules.shouldContinueGraph,
@@ -242,7 +260,10 @@ async function main(): Promise<void> {
     // (same row update, byte-same event shape; HTTP semantics are e2e-pinned).
     const moveStage = async (enrollmentId: string, contactId: string, toStage: string) => {
       const row = await owner.enrollment.findUniqueOrThrow({ where: { id: enrollmentId } });
-      await owner.enrollment.update({ where: { id: enrollmentId }, data: { pipelineStage: toStage } });
+      await owner.enrollment.update({
+        where: { id: enrollmentId },
+        data: { pipelineStage: toStage },
+      });
       return bus!.publish({
         workspaceId: ws.id,
         type: "lead.stage_changed.v1",
@@ -253,7 +274,9 @@ async function main(): Promise<void> {
           fromStage: row.pipelineStage,
           toStage,
           manual: true,
-          ...(toStage === "booked" ? { goalKey: "book_appointments", label: "Meeting booked" } : {}),
+          ...(toStage === "booked"
+            ? { goalKey: "book_appointments", label: "Meeting booked" }
+            : {}),
         },
       });
     };
@@ -280,7 +303,9 @@ async function main(): Promise<void> {
       }),
     );
     const enrollA = await mkEnrollment(contactA.id, 1); // ACTIVE, no durable run needed for a stage move
-    stamp(`account automation A created (${autoA.id}) — moving contact A's stage to "booked" through the REAL bus`);
+    stamp(
+      `account automation A created (${autoA.id}) — moving contact A's stage to "booked" through the REAL bus`,
+    );
     const evt1 = await moveStage(enrollA.id, contactA.id, "booked");
 
     const runA1 = await waitFor("AutomationRun (A, evt1)", 30_000, () =>
@@ -288,12 +313,17 @@ async function main(): Promise<void> {
         where: { automationId_eventId: { automationId: autoA.id, eventId: evt1.id } },
       }),
     );
-    const runA1detail = runA1.detail as { trigger?: string; actions?: Array<{ kind?: string; outcome?: string }> };
+    const runA1detail = runA1.detail as {
+      trigger?: string;
+      actions?: Array<{ kind?: string; outcome?: string }>;
+    };
     gate(
       "ACCOUNT-RULE-FIRES",
       runA1.status === "fired" &&
         runA1detail.trigger === "meeting_booked" &&
-        (runA1detail.actions ?? []).some((a) => a.kind === "notify_team" && a.outcome === "executed"),
+        (runA1detail.actions ?? []).some(
+          (a) => a.kind === "notify_team" && a.outcome === "executed",
+        ),
       `a REAL lead.stage_changed.v1 (persist → BullMQ → consumer) fired the account pass: AutomationRun ${runA1.id} (rule A, event ${evt1.id}) status=fired, notify_team executed`,
     );
     const ledgerA1 = await waitFor("ledger twin (A, evt1)", 15_000, async () => {
@@ -381,7 +411,10 @@ async function main(): Promise<void> {
           seed: [
             {
               channel: "email",
-              content: { subject: "About your booking", body: "Hi {{firstName}}, confirming the slot.\n\n— {{senderName}}" },
+              content: {
+                subject: "About your booking",
+                body: "Hi {{firstName}}, confirming the slot.\n\n— {{senderName}}",
+              },
             },
           ],
         });
@@ -410,7 +443,13 @@ async function main(): Promise<void> {
             enabled: true,
           },
         });
-        return { rule, subcampaignId: mutated.subcampaignId, graph, version: latest.version + 1, repairs };
+        return {
+          rule,
+          subcampaignId: mutated.subcampaignId,
+          graph,
+          version: latest.version + 1,
+          repairs,
+        };
       });
       gate(
         "CONTAINER-CREATED",
@@ -463,19 +502,26 @@ async function main(): Promise<void> {
           },
         });
         const evt3 = await moveStage(enrollB.id, contactB.id, "booked");
-        stamp(`B suppressed, then stage → "booked" (event #3) — the campaign rule moves, the boundary must refuse`);
+        stamp(
+          `B suppressed, then stage → "booked" (event #3) — the campaign rule moves, the boundary must refuse`,
+        );
 
         const ruleRun = await waitFor("CampaignRuleRun (move rule, evt3)", 30_000, () =>
           owner.campaignRuleRun.findFirst({
             where: { ruleId: created.rule.id, eventId: evt3.id },
           }),
         );
-        const ruleDetail = ruleRun.detail as { terminal?: boolean; actions?: Array<{ kind?: string; outcome?: string }> };
+        const ruleDetail = ruleRun.detail as {
+          terminal?: boolean;
+          actions?: Array<{ kind?: string; outcome?: string }>;
+        };
         gate(
           "RULE-DRIVEN-MOVE",
           ruleRun.status === "fired" &&
             ruleDetail.terminal === true &&
-            (ruleDetail.actions ?? []).some((a) => a.kind === "move_to_node" && a.outcome === "executed"),
+            (ruleDetail.actions ?? []).some(
+              (a) => a.kind === "move_to_node" && a.outcome === "executed",
+            ),
           `the campaign rule FIRED terminal on event #3 — move_to_node executed (CampaignRuleRun ${ruleRun.id})`,
         );
 
@@ -484,7 +530,10 @@ async function main(): Promise<void> {
           const blocked = ((row.meta ?? {}) as Meta).blocked as { reason?: string } | undefined;
           return blocked?.reason ? row : null;
         });
-        const blocked = ((blockedRow.meta ?? {}) as Meta).blocked as { reason?: string; nodeId?: string };
+        const blocked = ((blockedRow.meta ?? {}) as Meta).blocked as {
+          reason?: string;
+          nodeId?: string;
+        };
         gate(
           "BOUNDARY-REFUSES-TYPED",
           blocked.reason === "SUPPRESSED" &&
@@ -506,11 +555,15 @@ async function main(): Promise<void> {
 
     // ── the zero-wire floor, whole proof ────────────────────────────────────
     const sends = await owner.message.count({ where: { workspaceId: ws.id } });
-    gate("ZERO-WIRE-SENDS", sends === 0, `Message rows in the proof workspace: ${sends} — nothing ever reached a transport`);
+    gate(
+      "ZERO-WIRE-SENDS",
+      sends === 0,
+      `Message rows in the proof workspace: ${sends} — nothing ever reached a transport`,
+    );
 
     console.log(
       "\nR1-UI W3 complete: the account surface's rules fire through the REAL bus on a REAL stage move," +
-        "\nland their AutomationRun + scope:\"account\" ledger twin, and a disabled rule stays silent while" +
+        '\nland their AutomationRun + scope:"account" ledger twin, and a disabled rule stays silent while' +
         "\nits enabled twin proves the pipeline live." +
         (temporalEnv
           ? " The refusal walk held the rails under a rule-driven" +

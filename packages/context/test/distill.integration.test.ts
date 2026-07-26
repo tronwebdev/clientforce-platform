@@ -306,7 +306,11 @@ describe.skipIf(!hasInfra)("distill integration", () => {
     const agent = await mkAgent(wsA, "DE-Site");
     await mkAgentText(wsA, agent.id, "german-site", GERMAN_SITE);
 
-    const row = await distill(deps(), { workspaceId: wsA, agentId: agent.id, goal: "book_appointments" });
+    const row = await distill(deps(), {
+      workspaceId: wsA,
+      agentId: agent.id,
+      goal: "book_appointments",
+    });
 
     const g = await guardrailsOf(agent.id);
     expect(g.language).toBe("de");
@@ -321,7 +325,13 @@ describe.skipIf(!hasInfra)("distill integration", () => {
     const store = new MemoryUploadStore();
     const src = await withTenant(app, { workspaceId: wsA }, (tx) =>
       tx.knowledgeSource.create({
-        data: { workspaceId: wsA, agentId: agent.id, kind: "DOCUMENT", label: "unterlagen.txt", meta: {} },
+        data: {
+          workspaceId: wsA,
+          agentId: agent.id,
+          kind: "DOCUMENT",
+          label: "unterlagen.txt",
+          meta: {},
+        },
       }),
     );
     const path = uploadPathFor(wsA, src.id, "unterlagen.txt");
@@ -375,7 +385,11 @@ describe.skipIf(!hasInfra)("distill integration", () => {
     });
     await mkAgentText(wsA, agent.id, "german-site-owner-fr", GERMAN_SITE);
 
-    const row = await distill(deps(), { workspaceId: wsA, agentId: agent.id, goal: "book_appointments" });
+    const row = await distill(deps(), {
+      workspaceId: wsA,
+      agentId: agent.id,
+      goal: "book_appointments",
+    });
 
     const g = await guardrailsOf(agent.id);
     expect(g.language).toBe("fr");

@@ -131,7 +131,9 @@ export class MetricsCollector {
    *  every call posts its own first-60s diff in the summary line. */
   ttsSentenceWindowStats(windowMs = 60_000) {
     const win = (inWindow: boolean) =>
-      this.ttsSentenceFirstAudioMs.filter((_, i) => (this.ttsSentenceAtMs[i]! < windowMs) === inWindow);
+      this.ttsSentenceFirstAudioMs.filter(
+        (_, i) => this.ttsSentenceAtMs[i]! < windowMs === inWindow,
+      );
     const stat = (vals: number[]) => ({
       n: vals.length,
       firstAudioP50: percentile(vals, 50),
@@ -224,9 +226,7 @@ export class MetricsCollector {
         // base, and surfacing it as one would send the owner to train away a
         // gap that was never there.
         emptyFacets: [
-          ...new Set(
-            allLookups.filter((l) => !l.found && !l.refusalReason).map((l) => l.facet),
-          ),
+          ...new Set(allLookups.filter((l) => !l.found && !l.refusalReason).map((l) => l.facet)),
         ],
         totalMs: lookupTurns.reduce((sum, t) => sum + (t.lookupMs ?? 0), 0),
       },
@@ -239,7 +239,9 @@ export class MetricsCollector {
       commitSources: sources,
       bargeIns: this.bargeIns,
       droppedAudio: this.droppedAudio,
-      refusals: this.turns.filter((t) => t.refusalReason).map((t) => ({ turn: t.turn, reason: t.refusalReason })),
+      refusals: this.turns
+        .filter((t) => t.refusalReason)
+        .map((t) => ({ turn: t.turn, reason: t.refusalReason })),
       stalledTurns: this.turns.filter((t) => t.stalled).length,
       disclosureCompleted: this.disclosureCompleted,
       cost: this.cost(),
