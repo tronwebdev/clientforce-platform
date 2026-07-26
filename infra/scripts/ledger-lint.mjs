@@ -62,7 +62,12 @@ for (let i = 0; i < decisionLogAt; i++) {
 }
 reportDuplicates("status-board row", statusRows);
 
-const ids = { "DEC id": /^\| (DEC-\d+) \|/, "Q id": /^\| (Q-\d+) \|/ };
+// Whitespace-TOLERANT on purpose. Prettier pads markdown table cells to align
+// columns, so a swept row renders as "| DEC-101  |" with two spaces. The
+// original single-space pattern skipped those rows entirely — the guard went
+// blind exactly when a formatting sweep touched the ledger, which is how a
+// DEC-101 collision between the widget track and INT W5 reached main unflagged.
+const ids = { "DEC id": /^\|\s*(DEC-\d+)\s*\|/, "Q id": /^\|\s*(Q-\d+)\s*\|/ };
 for (const [label, pattern] of Object.entries(ids)) {
   const entries = [];
   lines.forEach((line, i) => {
