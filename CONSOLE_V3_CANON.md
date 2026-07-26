@@ -29,6 +29,7 @@ wears the legacy skin; the re-skin is a separately sequenced build unit.
 | mint-line | `#CFE8D8` | Mint border |
 | warn | `#8A6D1A` on `#F7EFDA` | Needs-you |
 | danger | `#B0483A` | Held / error |
+| bubble-agent | `#F2F6F3` | Agent message surface (widget + console thread) |
 
 **Retired — must never return:** `#16A82A`, `#0F7A28` (pre-refresh greens),
 warm cream surfaces (`#FBF7F0`, `#F7F9F8`), dark sidebar `#0C140F`.
@@ -157,6 +158,17 @@ surface shows a quiet hairline "connect" affordance.
 - **Dark set:** the v3 widget is **light-first — there is no dark canon.** Do not
   port the legacy dark set. A dark theme, if wanted later, is a new design
   decision, not a prototype carryover.
+- **Platform attribution.** Every widget panel carries "Powered by Clientforce Ai"
+  in the foot — 10.5px faint text behind an 11px gradient square. This is
+  default-on and **not workspace-configurable**. It may be suppressed only for
+  workspaces owned by an agency whose plan tier includes white-label;
+  suppression is **plan-gated, never a user toggle** (and never a client-side
+  option — the embed has no attribute or init flag that can switch it off).
+- **Two layers, kept separate.** *Widget appearance* — accent color, logo/mark,
+  and which flows are enabled — is **workspace-level and ungated**: any
+  workspace configures it from widget setup, with no plan check. *White-label*
+  is solely the suppression of the attribution line above, and is the only
+  plan-gated piece.
 
 ---
 

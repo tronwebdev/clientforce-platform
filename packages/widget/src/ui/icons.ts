@@ -45,6 +45,15 @@ const ICONS: Record<string, Shape[]> = {
     ["line", { x1: "22", y1: "2", x2: "11", y2: "13" }],
     ["polygon", { points: "22 2 15 22 11 13 2 9 22 2" }],
   ],
+  clock: [
+    ["circle", { cx: "12", cy: "12", r: "10" }],
+    ["polyline", { points: "12 6 12 12 16 14" }],
+  ],
+  "help-circle": [
+    ["circle", { cx: "12", cy: "12", r: "10" }],
+    ["path", { d: "M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" }],
+    ["line", { x1: "12", y1: "17", x2: "12.01", y2: "17" }],
+  ],
   x: [
     ["line", { x1: "18", y1: "6", x2: "6", y2: "18" }],
     ["line", { x1: "6", y1: "6", x2: "18", y2: "18" }],
@@ -74,9 +83,11 @@ export function iconEl(doc: Document, name: IconName, size = 16): SVGSVGElement 
   return svg;
 }
 
-/** Quick-action kind → icon (the mock's flow list, mapped to iconography). */
+/** Flow kind → icon (the mock's flow list, mapped to iconography). */
 export const QUICK_ACTION_ICON: Record<string, IconName> = {
-  book_call: "calendar",
+  book_visit: "calendar",
   call_me_back: "phone",
-  get_proposal: "file-text",
+  schedule_callback: "clock",
+  estimate: "file-text",
+  ask_question: "help-circle",
 };

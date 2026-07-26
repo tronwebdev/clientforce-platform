@@ -88,20 +88,22 @@
   flex: none;
 }
 
-/* Canon §6: the ✦ mark, painted with the signature gradient. §5/§6: the ready
-   mark breathes — no perpetual decorative bob, motion is event-driven. */
-.cfw-launcher-mark {
-  line-height: 1;
-  font-family: var(--cv3-font-display);
-  font-weight: var(--cv3-h1-weight);
-  font-size: 24px;
-  background: var(--cv3-gradient-signature);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+/* The brand mark, inlined from packages/theme/assets/mark.svg (its own
+   gradients — no token needed). §5/§6: the ready mark breathes; no perpetual
+   decorative bob, motion is event-driven. */
+.cfw-mark {
+  display: block;
+  line-height: 0;
+  flex: none;
 }
 
-.cfw-root[data-agent-state="idle"] .cfw-launcher-mark {
+.cfw-mark svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.cfw-root[data-agent-state="idle"] .cfw-launcher .cfw-mark {
   animation: cfw-breathe var(--cv3-breathe) ease-in-out infinite;
 }
 
@@ -205,10 +207,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: var(--cv3-font-display);
-  font-weight: var(--cv3-h1-weight);
-  font-size: 17px;
-  color: var(--cv3-ink);
   flex: none;
   position: relative;
 }

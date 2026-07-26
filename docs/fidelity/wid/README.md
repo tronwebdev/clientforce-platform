@@ -178,3 +178,33 @@ drift back.
 it is committed and the ✦ glyph stand-in is swapped for it. Also flagged: the
 platform line is mandatory per canon while the product is white-label
 (`CLAUDE.md`) — worth a ruling on whether an agency tier may suppress it.
+
+---
+
+## Brand mark, white-label + flow toggles (2026-07-26, DEC-098 amendment 2)
+
+- **`packages/theme/assets/mark.svg` committed** and swapped in for the ✦
+  stand-in on the launcher and the header tile, per the owner's ruling. It sits
+  in the theme layer because console and widget consume the same file; the
+  widget inlines it, so the embed still fetches nothing. **Message-row avatars
+  keep the ✦ agent mark** (canon §6) — the platform logo beside every agent
+  message would be the first thing a white-label agency asks to remove. Say if
+  they should carry the mark too. This closes the `mark.svg` half of Q-049.
+- **Platform attribution is plan-gated, not a toggle.** The line is default-on
+  and can only be suppressed by the server sending
+  `branding.platformAttribution: false` (the agency-tier plan check). There is
+  no data-attribute and no init option — a test asserts a host page passing
+  `data-platform-attribution="false"` / `data-white-label="true"` changes
+  nothing, because a page-level switch would hand every customer white-label
+  for free.
+- **Six flows, workspace-configurable.** Book a visit · Call me back · Schedule
+  callback · Get an estimate · Live voice (composer mic) · Ask a question — each
+  independently enabled, the panel rendering only the active ones with no
+  placeholder. This is the ungated workspace layer, same as accent and logo. The
+  §8 frames run the mock's own subset (schedule-callback off) so the chip row
+  matches the mock exactly.
+- **Canon amended** (both gaps this unit found): §1 gains the `bubble-agent`
+  `#F2F6F3` row, §7 gains the platform-attribution clause plus the explicit
+  two-layer split. The theme test reads those rows straight from the doc — the
+  §1 parser guard went 15 → 16 rows on the amendment, which is how the new row
+  proved itself.

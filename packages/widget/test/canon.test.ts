@@ -62,13 +62,18 @@ describe("§5 motion — canon verbs, canon timings, event-driven only", () => {
   });
 
   it("the launcher never bobs for show — no perpetual decorative motion", () => {
-    // Canon §5: "Event-driven only — the UI never fakes busy."
+    // Canon §5: "Event-driven only — the UI never fakes busy." The launcher
+    // surface itself animates never; only the mark breathes, and only while
+    // the agent state is idle/ready.
     expect(widgetCss).not.toContain("cfw-float");
     const launcherBlock = widgetCss.slice(
       widgetCss.indexOf(".cfw-launcher {"),
-      widgetCss.indexOf(".cfw-launcher-mark"),
+      widgetCss.indexOf("}", widgetCss.indexOf(".cfw-launcher {")),
     );
     expect(launcherBlock).not.toContain("animation:");
+    expect(widgetCss).toMatch(
+      /\[data-agent-state="idle"\] \.cfw-launcher \.cfw-mark \{\s*animation: cfw-breathe/,
+    );
   });
 
   it("all animation is disabled under prefers-reduced-motion", () => {
@@ -102,7 +107,7 @@ describe("mock build note — NO EMOJI: line icons + the ✦ mark", () => {
 
   it("server-offered quick-action labels are emoji-free (the client draws the icon)", () => {
     expect(transportSrc).not.toMatch(/\p{Emoji_Presentation}/u);
-    expect(transportSrc).toContain('label: "Book a call"');
+    expect(transportSrc).toContain('label: "Book a visit"');
   });
 
   it("every interactive glyph is a stroke line icon on currentColor", () => {
@@ -124,10 +129,15 @@ describe("mock KEY SURFACES — launcher", () => {
     expect(block).not.toContain("var(--cfw-brand)");
   });
 
-  it("the mark itself is gradient-painted (canon §6)", () => {
-    const mark = widgetCss.slice(widgetCss.indexOf(".cfw-launcher-mark {"));
-    expect(mark.slice(0, 400)).toContain("background: var(--cv3-gradient-signature)");
-    expect(mark.slice(0, 400)).toContain("background-clip: text");
+  it("the mark is the inlined brand asset — packages/theme/assets/mark.svg", () => {
+    // Shipped from the shared theme layer (console + widget consume the same
+    // file) and inlined, so the embed still fetches nothing at runtime.
+    expect(shellSrc).toContain('from "@clientforce/theme/assets/mark.svg?raw"');
+    const asset = readFileSync(join(__dirname, "..", "..", "theme", "assets", "mark.svg"), "utf8");
+    expect(asset).toContain("<svg");
+    expect(asset).toContain("linearGradient");
+    const mark = widgetCss.slice(widgetCss.indexOf(".cfw-mark {"));
+    expect(mark.slice(0, 300)).toContain("line-height: 0");
   });
 });
 

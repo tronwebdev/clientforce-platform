@@ -47,13 +47,15 @@ describe("defaults (Agent Widget prototype state, ported verbatim)", () => {
     );
   });
 
-  it("pins behavior + feature defaults (Open after 4s on, exit intent off, all features on)", () => {
+  it("pins behavior + the six flow toggles (all on by default; workspace-level)", () => {
     expect(WIDGET_DEFAULTS.behavior).toEqual({ openAfterSeconds: 4, exitIntent: false });
-    expect(WIDGET_DEFAULTS.features).toEqual({
-      bookCall: true,
+    expect(WIDGET_DEFAULTS.flows).toEqual({
+      bookVisit: true,
       callMeBack: true,
-      voiceChat: true,
-      proposal: true,
+      scheduleCallback: true,
+      estimate: true,
+      liveVoice: true,
+      askQuestion: true,
     });
   });
 });
@@ -69,7 +71,7 @@ describe("resolveConfig", () => {
       agentId: "agt_1",
       appearance: { position: "left", brandColor: "#0E1512" },
       behavior: { openAfterSeconds: null },
-      features: { callMeBack: false },
+      flows: { callMeBack: false },
     });
     expect(cfg.widgetId).toBe("wgt_test");
     expect(cfg.agentId).toBe("agt_1");
@@ -80,11 +82,13 @@ describe("resolveConfig", () => {
     expect(cfg.appearance.theme).toBe("light");
     expect(cfg.behavior.openAfterSeconds).toBeNull();
     expect(cfg.behavior.exitIntent).toBe(false);
-    expect(cfg.features).toEqual({
-      bookCall: true,
+    expect(cfg.flows).toEqual({
+      bookVisit: true,
       callMeBack: false,
-      voiceChat: true,
-      proposal: true,
+      scheduleCallback: true,
+      estimate: true,
+      liveVoice: true,
+      askQuestion: true,
     });
   });
 
@@ -144,8 +148,9 @@ describe("configFromScriptDataset (snippet data-attributes)", () => {
       position: "left",
       openAfter: "off",
       exitIntent: "true",
-      featureCallMeBack: "false",
-      featureVoiceChat: "false",
+      flowCallMeBack: "false",
+      flowLiveVoice: "false",
+      flowScheduleCallback: "false",
     } as unknown as DOMStringMap);
     const cfg = resolveConfig(init);
     expect(cfg.agentId).toBe("agt_1");
@@ -165,11 +170,13 @@ describe("configFromScriptDataset (snippet data-attributes)", () => {
       position: "left",
     });
     expect(cfg.behavior).toEqual({ openAfterSeconds: null, exitIntent: true });
-    expect(cfg.features).toEqual({
-      bookCall: true,
+    expect(cfg.flows).toEqual({
+      bookVisit: true,
       callMeBack: false,
-      voiceChat: false,
-      proposal: true,
+      scheduleCallback: false,
+      estimate: true,
+      liveVoice: false,
+      askQuestion: true,
     });
   });
 

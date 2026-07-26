@@ -20,8 +20,15 @@ import type { AgentState } from "@clientforce/theme";
 export const WIDGET_CONTRACT_VERSION = 1 as const;
 export const WIDGET_SESSION_PATH = "/widget/v1/session";
 
-/** Prototype quick-action chips (Behaviour-tab features). */
-export type QuickActionKind = "book_call" | "call_me_back" | "get_proposal";
+/**
+ * Entry-chip flows. Each is INDEPENDENTLY enabled per workspace in widget setup
+ * (industries use different subsets) — the panel renders only the active ones,
+ * never a placeholder for a disabled flow. Live voice is the sixth flow but
+ * rides the composer mic, not a chip, so it isn't a quick-action kind.
+ * Labels stay server-offered per tenant; the client draws the icon per kind.
+ */
+export type QuickActionKind =
+  "book_visit" | "call_me_back" | "schedule_callback" | "estimate" | "ask_question";
 
 export type WidgetClientEvent =
   | { type: "boot" }
@@ -77,6 +84,16 @@ export interface WidgetSessionResponse {
   /** Server-resolved appearance once the builder exists; null from the stub —
    * client config governs until the wiring unit lands. */
   appearance?: Record<string, unknown> | null;
+  /**
+   * SERVER-AUTHORITATIVE branding. `platformAttribution` is the "Powered by
+   * Clientforce Ai" line: default-on for every workspace and NOT workspace-
+   * configurable — it may be suppressed only for workspaces owned by an agency
+   * whose plan tier includes white-label (canon §7). It deliberately has no
+   * data-attribute and no init option: a host page must never be able to switch
+   * it off, so the only thing that can suppress it is the plan check behind
+   * this endpoint. Absent ⇒ shown.
+   */
+  branding?: { platformAttribution: boolean };
   meta: {
     /** true ⇒ this response came from the stubbed transport, not a live agent. */
     stub: boolean;

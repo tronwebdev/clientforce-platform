@@ -31,25 +31,25 @@ inlined); the CDN path/filename is a deploy concern for the wiring unit.
 
 Optional data-attributes (all have prototype defaults):
 
-| Attribute                                                                | Values                                                | Default                                                                               |
-| ------------------------------------------------------------------------ | ----------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `data-agent-id` / `data-campaign-id`                                     | ids                                                   | — (preview/dev override; the server's `widgetId` mapping is authoritative once wired) |
-| `data-api-base`                                                          | origin                                                | — (absent ⇒ stubbed transport)                                                        |
-| `data-business-name`                                                     | text                                                  | — (names the tenant in the welcome copy + subtitle)                                   |
-| `data-agent-name`                                                        | text                                                  | `Ada` (canon §6 default)                                                              |
-| `data-brand-color`                                                       | `#rgb`/`#rrggbb`                                      | `#146b33` (canon forest accent)                                                       |
-| `data-text-on-brand`                                                     | color or omit                                         | auto (prototype luminance rule)                                                       |
-| `data-launcher-text`                                                     | text                                                  | `Chat with our AI Sales Agent`                                                        |
-| `data-subtitle`                                                          | text                                                  | `AI Sales Assistant`                                                                  |
-| `data-welcome-message`                                                   | text                                                  | derived canon copy (see §2) — emoji-free                                              |
-| `data-corner`                                                            | `xl` \| `l` \| `m` \| `s` \| `none` (22/20/12/9/0 px) | `l` (= the owner's panel radius 20)                                                   |
-| `data-position`                                                          | `left` \| `right`                                     | `right`                                                                               |
-| `data-unread-badge`                                                      | `true` \| `false`                                     | `true`                                                                                |
-| `data-open-after`                                                        | seconds \| `off`                                      | `4`                                                                                   |
-| `data-exit-intent`                                                       | `true` \| `false`                                     | `false`                                                                               |
-| `data-feature-book-call` / `-call-me-back` / `-voice-chat` / `-proposal` | `false` to disable                                    | all on                                                                                |
-| `data-z-index`                                                           | number                                                | `2147483000`                                                                          |
-| `data-font-loading`                                                      | `none` \| `google`                                    | `none` (the embed makes **zero** third-party requests by default)                     |
+| Attribute                                                                                                       | Values                                                | Default                                                                               |
+| --------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `data-agent-id` / `data-campaign-id`                                                                            | ids                                                   | — (preview/dev override; the server's `widgetId` mapping is authoritative once wired) |
+| `data-api-base`                                                                                                 | origin                                                | — (absent ⇒ stubbed transport)                                                        |
+| `data-business-name`                                                                                            | text                                                  | — (names the tenant in the welcome copy + subtitle)                                   |
+| `data-agent-name`                                                                                               | text                                                  | `Ada` (canon §6 default)                                                              |
+| `data-brand-color`                                                                                              | `#rgb`/`#rrggbb`                                      | `#146b33` (canon forest accent)                                                       |
+| `data-text-on-brand`                                                                                            | color or omit                                         | auto (prototype luminance rule)                                                       |
+| `data-launcher-text`                                                                                            | text                                                  | `Chat with our AI Sales Agent`                                                        |
+| `data-subtitle`                                                                                                 | text                                                  | `AI Sales Assistant`                                                                  |
+| `data-welcome-message`                                                                                          | text                                                  | derived canon copy (see §2) — emoji-free                                              |
+| `data-corner`                                                                                                   | `xl` \| `l` \| `m` \| `s` \| `none` (22/20/12/9/0 px) | `l` (= the owner's panel radius 20)                                                   |
+| `data-position`                                                                                                 | `left` \| `right`                                     | `right`                                                                               |
+| `data-unread-badge`                                                                                             | `true` \| `false`                                     | `true`                                                                                |
+| `data-open-after`                                                                                               | seconds \| `off`                                      | `4`                                                                                   |
+| `data-exit-intent`                                                                                              | `true` \| `false`                                     | `false`                                                                               |
+| `data-flow-book-visit` / `-call-me-back` / `-schedule-callback` / `-estimate` / `-live-voice` / `-ask-question` | `false` to disable                                    | all on (workspace-level, ungated)                                                     |
+| `data-z-index`                                                                                                  | number                                                | `2147483000`                                                                          |
+| `data-font-loading`                                                                                             | `none` \| `google`                                    | `none` (the embed makes **zero** third-party requests by default)                     |
 
 Programmatic control — the pre-load command queue (safe to call before the
 bundle loads; replayed in order):
@@ -79,7 +79,7 @@ Events: `ready` · `open` · `close` · `message:sent` · `message:received` ·
 
 The accent **never paints a surface**. Panel 376×640 at radius 20, the float
 shadow being the one canon exception; header on `panel` with a `line` hairline
-bottom, the ✦ mark as a 38px tile at radius 11 on the signature gradient, name
+bottom, the brand mark (`packages/theme/assets/mark.svg`) as a 38px tile at radius 11 on the signature gradient, name
 in ink 800/15.5px, subtitle in muted behind a forest presence dot, close in
 faint. Thread scrolls; composer + platform line stay pinned at the foot.
 Composer is white with a `line-input` hairline at radius 15 — mic a 32px white
@@ -90,7 +90,24 @@ pointing at the mark; visitor bubbles are ink with panel-tone text at
 `14px 14px 4px 14px`. Every panel carries **Powered by Clientforce Ai** at the
 foot (10.5px faint, behind an 11px gradient square).
 
-## 3. Isolation contract
+## 3. Flows, appearance, and white-label — two separate layers
+
+**Workspace-level and ungated** (any workspace configures this in widget setup,
+no plan check): the accent color, the logo/mark, and **which of the six flows
+are enabled** — Book a visit · Call me back · Schedule callback · Get an
+estimate · Live voice (rides the composer mic) · Ask a question. Industries use
+different subsets, so the panel renders **only the active flows** and never a
+placeholder for a disabled one. Labels stay server-offered per tenant; the
+client draws the icon from the flow `kind`.
+
+**Plan-gated (agency tier only):** suppressing the **Powered by Clientforce Ai**
+line. It is default-on for every workspace and is **not** workspace-
+configurable — the only thing that can switch it off is the server's plan check,
+delivered as `branding.platformAttribution: false` on the session response.
+There is deliberately **no data-attribute and no init option** for it, so a host
+page cannot strip the attribution (canon §7; pinned by test).
+
+## 4. Isolation contract
 
 - One host element (`#clientforce-widget-host`) appended to `<body>`; ALL
   markup and styles live in its open shadow root (`:host { all: initial }`,
@@ -104,7 +121,7 @@ foot (10.5px faint, behind an 11px gradient square).
   no dark theme — `theme:"dark"` warns and renders light rather than shipping
   an un-canon'd skin.
 
-## 4. API seam — ONE documented endpoint (stubbed this unit)
+## 5. API seam — ONE documented endpoint (stubbed this unit)
 
 ```
 POST {apiBase}/widget/v1/session
@@ -163,7 +180,7 @@ lands; that unit also registers the `widget.*` event-catalog entries and the
 `widget_chat_started` automation trigger (Q-035) once real producers exist —
 nothing is registered now because nothing fires now.
 
-## 5. Console-v3 shell
+## 6. Console-v3 shell
 
 Composition ported from the prototype preview: 60px launcher (float loop,
 unread badge, label pill) + 344px panel — brand header with the
@@ -180,7 +197,7 @@ canon §6 forbids forcing a fifth. They map into the five console states via
 `WIDGET_STATE_TO_CONSOLE` in `@clientforce/theme` (`needs-you` and `held` are
 console-surface states with no widget analogue).
 
-## 6. Develop
+## 7. Develop
 
 ```
 pnpm --filter @clientforce/widget build   # typecheck + esbuild IIFE → dist/

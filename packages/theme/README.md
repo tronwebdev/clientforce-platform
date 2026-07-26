@@ -23,6 +23,9 @@ mirror of **`CONSOLE_V3_CANON.md`** (repo root, LOCKED by the owner
 - `src/index.ts` — typed mirror (`consoleV3Vars`), the agent mark + default
   name (§6), the four widget chat verbs and five console states with the
   recorded mapping, and the contrast helpers.
+- `assets/mark.svg` — the Clientforce brand mark. It lives in the theme layer
+  because both the console and the widget consume it; the widget inlines it at
+  build time so the embed fetches nothing at runtime.
 - `test/tokens.test.ts` — **reads `CONSOLE_V3_CANON.md` itself** and pins the
   tokens against the doc's own tables (§1 colors row-for-row, §2 ramp + channel
   tints, §5 motion timings), plus the canon's hard rules: retired values never

@@ -12,6 +12,7 @@ import {
 } from "@clientforce/theme";
 import type { QuickActionKind, WidgetQuickAction } from "../api/contract";
 import { CORNER_RADIUS_PX, type ResolvedWidgetConfig } from "../config";
+import markSvg from "@clientforce/theme/assets/mark.svg?raw";
 import { QUICK_ACTION_ICON, iconEl } from "./icons";
 
 export interface ShellHandlers {
@@ -31,11 +32,25 @@ export interface ShellMessage {
   kind?: "chat" | "error";
 }
 
-const FEATURE_BY_ACTION: Record<QuickActionKind, keyof ResolvedWidgetConfig["features"]> = {
-  book_call: "bookCall",
+/** Entry chip → the workspace flow toggle that gates it. */
+const FLOW_BY_ACTION: Record<QuickActionKind, keyof ResolvedWidgetConfig["flows"]> = {
+  book_visit: "bookVisit",
   call_me_back: "callMeBack",
-  get_proposal: "proposal",
+  schedule_callback: "scheduleCallback",
+  estimate: "estimate",
+  ask_question: "askQuestion",
 };
+
+/** The Clientforce brand mark (packages/theme/assets/mark.svg), inlined. */
+function markEl(doc: Document, size: number): HTMLSpanElement {
+  const holder = doc.createElement("span");
+  holder.className = "cfw-mark";
+  holder.style.width = `${size}px`;
+  holder.style.height = `${size}px`;
+  holder.setAttribute("aria-hidden", "true");
+  holder.innerHTML = markSvg;
+  return holder;
+}
 
 function el<K extends keyof HTMLElementTagNameMap>(
   doc: Document,
@@ -68,6 +83,7 @@ export class WidgetShell {
   private readonly chips: HTMLDivElement;
   readonly input: HTMLInputElement;
   private readonly mic: HTMLButtonElement;
+  private readonly attribution: HTMLDivElement;
 
   constructor(doc: Document, handlers: ShellHandlers) {
     this.doc = doc;
@@ -83,9 +99,8 @@ export class WidgetShell {
     this.label = el(doc, "span", "cfw-label");
     this.launcher = el(doc, "button", "cfw-launcher");
     this.launcher.type = "button";
-    // Mock KEY SURFACES: the mark sits on WHITE. Canon §6: the mark is the ✦
-    // glyph on the signature gradient (here gradient-painted via background-clip).
-    this.launcher.appendChild(el(doc, "span", "cfw-launcher-mark", AGENT_MARK));
+    // Mock KEY SURFACES: the brand mark (packages/theme/assets/mark.svg) on WHITE.
+    this.launcher.appendChild(markEl(doc, 30));
     this.badge = el(doc, "span", "cfw-badge", "1");
     this.badge.setAttribute("aria-hidden", "true");
     this.launcher.appendChild(this.badge);
@@ -102,8 +117,10 @@ export class WidgetShell {
     this.panel.setAttribute("tabindex", "-1");
 
     this.header = el(doc, "div", "cfw-header");
-    // Canon §6: ✦ on the signature gradient — one identity across surfaces.
-    this.orb = el(doc, "div", "cfw-orb", AGENT_MARK);
+    // Owner ruling: launcher AND header carry the brand mark. Message-row
+    // avatars keep the ✦ agent mark (canon §6) — flagged in the §8 report.
+    this.orb = el(doc, "div", "cfw-orb");
+    this.orb.appendChild(markEl(doc, 22));
     this.orb.setAttribute("data-orb", "");
     const headText = el(doc, "div", "cfw-head-text");
     this.nameEl = el(doc, "div", "cfw-name");
@@ -166,10 +183,12 @@ export class WidgetShell {
     const foot = el(doc, "div", "cfw-foot");
     foot.appendChild(composer);
     // Canon: every panel carries the platform line at the foot.
-    const powered = el(doc, "div", "cfw-poweredby");
-    powered.appendChild(el(doc, "span", "cfw-poweredby-mark"));
-    powered.appendChild(el(doc, "span", "cfw-poweredby-text", "Powered by Clientforce Ai"));
-    foot.appendChild(powered);
+    this.attribution = el(doc, "div", "cfw-poweredby");
+    this.attribution.appendChild(el(doc, "span", "cfw-poweredby-mark"));
+    this.attribution.appendChild(
+      el(doc, "span", "cfw-poweredby-text", "Powered by Clientforce Ai"),
+    );
+    foot.appendChild(this.attribution);
 
     this.panel.appendChild(this.header);
     this.panel.appendChild(body);
@@ -213,9 +232,18 @@ export class WidgetShell {
     this.nameEl.textContent = cfg.agentName;
     this.subEl.textContent = a.subtitle;
     this.panel.setAttribute("aria-label", cfg.agentName);
-    this.mic.style.display = cfg.features.voiceChat ? "" : "none";
+    this.mic.style.display = cfg.flows.liveVoice ? "" : "none";
     if (!a.showUnreadBadge) this.badge.style.display = "none";
     else this.badge.style.removeProperty("display");
+  }
+
+  /**
+   * Canon §7: default-on, suppressible ONLY by the server's plan check (the
+   * `branding` block). There is deliberately no client-side path to `false` —
+   * no data-attribute, no init option — so a host page cannot strip it.
+   */
+  setPlatformAttribution(show: boolean): void {
+    this.attribution.style.display = show ? "" : "none";
   }
 
   setOpen(open: boolean): void {
@@ -251,11 +279,11 @@ export class WidgetShell {
     }
   }
 
-  setQuickActions(actions: WidgetQuickAction[], features: ResolvedWidgetConfig["features"]): void {
+  setQuickActions(actions: WidgetQuickAction[], flows: ResolvedWidgetConfig["flows"]): void {
     this.chips.textContent = "";
     for (const action of actions) {
-      const featureKey = FEATURE_BY_ACTION[action.kind];
-      if (featureKey && !features[featureKey]) continue;
+      const flowKey = FLOW_BY_ACTION[action.kind];
+      if (flowKey && !flows[flowKey]) continue;
       const chip = el(this.doc, "button", "cfw-chip");
       const iconName = QUICK_ACTION_ICON[action.kind];
       if (iconName) chip.appendChild(iconEl(this.doc, iconName, 14));

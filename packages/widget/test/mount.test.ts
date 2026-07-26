@@ -5,6 +5,7 @@ import {
   type WidgetSessionResponse,
 } from "../src/api/contract";
 import type { WidgetTransport } from "../src/api/transport";
+import { configFromScriptDataset } from "../src/config";
 import { HOST_ELEMENT_ID, REPLY_SETTLE_MS, WidgetInstance } from "../src/mount";
 
 function flush(): Promise<void> {
@@ -90,21 +91,40 @@ describe("mount + isolation", () => {
     expect(bubbles[0]!.textContent).toContain("I'm Ada, your assistant");
     const chips = shadow.querySelectorAll(".cfw-chip");
     expect([...chips].map((c) => c.textContent)).toEqual([
-      "Book a call",
+      "Book a visit",
       "Call me back",
-      "Get a proposal",
+      "Schedule callback",
+      "Get an estimate",
+      "Ask a question",
     ]);
     // Mock build note: emoji became line icons — one per chip.
-    expect(shadow.querySelectorAll(".cfw-chip svg[data-icon]")).toHaveLength(3);
+    expect(shadow.querySelectorAll(".cfw-chip svg[data-icon]")).toHaveLength(5);
     expect(shadow.querySelector(".cfw-root")!.getAttribute("data-unread")).toBe("1");
   });
 
-  it("feature config masks the server-offered chips and the composer mic", async () => {
-    active = create({ features: { callMeBack: false, proposal: false, voiceChat: false } });
+  it("workspace flow config masks the server-offered chips — no placeholder for a disabled flow", async () => {
+    active = create({
+      flows: {
+        callMeBack: false,
+        scheduleCallback: false,
+        estimate: false,
+        liveVoice: false,
+      },
+    });
     await flush();
     const chips = active.shadow.querySelectorAll(".cfw-chip");
-    expect([...chips].map((c) => c.textContent)).toEqual(["Book a call"]);
+    expect([...chips].map((c) => c.textContent)).toEqual(["Book a visit", "Ask a question"]);
+    // liveVoice off ⇒ the mic is gone (it is the sixth flow, not a chip).
     expect((active.shadow.querySelector(".cfw-mic") as HTMLElement).style.display).toBe("none");
+  });
+
+  it("the launcher and header carry the brand mark asset (inlined, no request)", async () => {
+    active = create();
+    await flush();
+    const marks = active.shadow.querySelectorAll(".cfw-mark svg");
+    expect(marks.length).toBeGreaterThanOrEqual(2);
+    expect(active.shadow.querySelector(".cfw-launcher .cfw-mark svg")).toBeTruthy();
+    expect(active.shadow.querySelector(".cfw-orb .cfw-mark svg")).toBeTruthy();
   });
 
   it("applies appearance config as instance vars + data attributes", async () => {
@@ -124,7 +144,7 @@ describe("mount + isolation", () => {
     expect(root.style.getPropertyValue("--cfw-radius")).toBe("9px"); // corner "s"
     expect(root.getAttribute("data-position")).toBe("left");
     expect(active.shadow.querySelector(".cfw-name")!.textContent).toBe("Acme Sales Agent");
-    expect(active.shadow.querySelector(".cfw-orb")!.textContent).toBe("✦"); // canon §6 mark
+    expect(active.shadow.querySelector(".cfw-orb .cfw-mark svg")).toBeTruthy(); // brand mark
     expect(active.shadow.querySelector(".cfw-label")!.textContent).toBe("Talk");
   });
 });
@@ -215,15 +235,15 @@ describe("conversation round-trip + agent-identity motion states", () => {
   it("quick actions send the chip label as the visitor turn and hide the chips", async () => {
     active = create();
     await flush();
-    const chip = active.shadow.querySelector('.cfw-chip[data-action="book_call"]') as HTMLElement;
+    const chip = active.shadow.querySelector('.cfw-chip[data-action="book_visit"]') as HTMLElement;
     chip.click();
     await flush();
     expect(active.shadow.querySelectorAll(".cfw-chip")).toHaveLength(0);
     expect(
       active.shadow.querySelector('.cfw-row[data-role="visitor"] .cfw-bubble')!.textContent,
-    ).toBe("Book a call");
+    ).toBe("Book a visit");
     const agentBubbles = active.shadow.querySelectorAll('.cfw-row[data-role="agent"] .cfw-bubble');
-    expect(agentBubbles[agentBubbles.length - 1]!.textContent).toContain("Book a call");
+    expect(agentBubbles[agentBubbles.length - 1]!.textContent).toContain("Book a visit");
   });
 
   it("transport failure renders an honest error bubble, emits error, returns to idle", async () => {
@@ -286,5 +306,39 @@ describe("update + destroy", () => {
     expect(active.isOpen()).toBe(false);
     active.destroy();
     active = null;
+  });
+});
+
+describe("platform attribution — canon §7, plan-gated on the server", () => {
+  it("renders by default and stays rendered when the stub attributes", async () => {
+    active = create();
+    await flush();
+    const line = active.shadow.querySelector(".cfw-poweredby") as HTMLElement;
+    expect(line.textContent).toContain("Powered by Clientforce Ai");
+    expect(line.style.display).toBe("");
+  });
+
+  it("only the SERVER can suppress it (plan check behind the endpoint)", async () => {
+    const transport = new ManualTransport();
+    active = create({}, { transport });
+    transport.respond({ branding: { platformAttribution: false } });
+    await flush();
+    expect((active.shadow.querySelector(".cfw-poweredby") as HTMLElement).style.display).toBe(
+      "none",
+    );
+  });
+
+  it("a host page CANNOT switch it off — no data-attribute, no init option", async () => {
+    const init = configFromScriptDataset({
+      widgetId: "wgt_x",
+      platformAttribution: "false",
+      poweredBy: "false",
+      whiteLabel: "true",
+    } as unknown as DOMStringMap);
+    // Nothing in the client config surface carries attribution/white-label.
+    expect(JSON.stringify(init)).not.toMatch(/attribution|poweredBy|whiteLabel/i);
+    active = create({ ...init, behavior: { openAfterSeconds: null } });
+    await flush();
+    expect((active.shadow.querySelector(".cfw-poweredby") as HTMLElement).style.display).toBe("");
   });
 });

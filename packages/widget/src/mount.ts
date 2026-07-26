@@ -203,8 +203,10 @@ export class WidgetInstance {
         this.shell.setUnread(this.unread);
       }
     }
+    // Server-authoritative: only a plan-gated `false` suppresses the line.
+    if (res.branding) this.shell.setPlatformAttribution(res.branding.platformAttribution);
     if (res.quickActions && !this.interacted) {
-      this.shell.setQuickActions(res.quickActions, this.cfg.features);
+      this.shell.setQuickActions(res.quickActions, this.cfg.flows);
     }
     return res;
   }
@@ -333,7 +335,7 @@ export class WidgetInstance {
       fontLoading: this.cfg.fontLoading,
       appearance: { ...this.cfg.appearance },
       behavior: { ...this.cfg.behavior },
-      features: { ...this.cfg.features },
+      flows: { ...this.cfg.flows },
     };
     this.cfg = resolveConfig({
       ...current,
@@ -341,7 +343,7 @@ export class WidgetInstance {
       widgetId: this.cfg.widgetId,
       appearance: { ...current.appearance, ...partial.appearance },
       behavior: { ...current.behavior, ...partial.behavior },
-      features: { ...current.features, ...partial.features },
+      flows: { ...current.flows, ...partial.flows },
     });
     this.shell.applyConfig(this.cfg);
     this.applyFontLoading();

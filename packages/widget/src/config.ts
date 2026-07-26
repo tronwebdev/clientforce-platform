@@ -35,12 +35,22 @@ export const CORNER_RADIUS_PX: Record<WidgetCorner, number> = {
   none: 0,
 };
 
-/** Prototype "Conversation features" toggles (Behaviour tab). */
-export interface WidgetFeatures {
-  bookCall: boolean;
+/**
+ * The six widget FLOWS. Each is independently enabled per workspace in widget
+ * setup — industries use different subsets, and the panel renders only the
+ * active ones (no placeholder for a disabled flow). This is ungated WORKSPACE
+ * configuration, the same layer as the accent color and the logo — it is NOT
+ * plan-gated (only the platform-attribution line is; see the contract's
+ * `branding`, which is server-authoritative and has no client knob).
+ */
+export interface WidgetFlows {
+  bookVisit: boolean;
   callMeBack: boolean;
-  voiceChat: boolean;
-  proposal: boolean;
+  scheduleCallback: boolean;
+  estimate: boolean;
+  /** Rides the composer mic rather than an entry chip. */
+  liveVoice: boolean;
+  askQuestion: boolean;
 }
 
 export interface WidgetAppearance {
@@ -84,7 +94,7 @@ export interface WidgetInitOptions {
   fontLoading?: FontLoading;
   appearance?: Partial<WidgetAppearance>;
   behavior?: Partial<WidgetBehavior>;
-  features?: Partial<WidgetFeatures>;
+  flows?: Partial<WidgetFlows>;
 }
 
 export interface ResolvedWidgetConfig {
@@ -98,7 +108,7 @@ export interface ResolvedWidgetConfig {
   fontLoading: FontLoading;
   appearance: WidgetAppearance;
   behavior: WidgetBehavior;
-  features: WidgetFeatures;
+  flows: WidgetFlows;
 }
 
 /**
@@ -136,11 +146,13 @@ export const WIDGET_DEFAULTS: Omit<ResolvedWidgetConfig, "widgetId"> = {
     openAfterSeconds: 4,
     exitIntent: false,
   },
-  features: {
-    bookCall: true,
+  flows: {
+    bookVisit: true,
     callMeBack: true,
-    voiceChat: true,
-    proposal: true,
+    scheduleCallback: true,
+    estimate: true,
+    liveVoice: true,
+    askQuestion: true,
   },
 };
 
@@ -195,7 +207,7 @@ export function resolveConfig(init: WidgetInitOptions): ResolvedWidgetConfig {
   const d = WIDGET_DEFAULTS;
   const a = init.appearance ?? {};
   const b = init.behavior ?? {};
-  const f = init.features ?? {};
+  const f = init.flows ?? {};
   if (typeof init.widgetId !== "string" || init.widgetId.length === 0) {
     throw new Error("[clientforce-widget] init requires a widgetId (wgt_…)");
   }
@@ -263,11 +275,13 @@ export function resolveConfig(init: WidgetInitOptions): ResolvedWidgetConfig {
               ),
       exitIntent: pickBool(b.exitIntent, d.behavior.exitIntent),
     },
-    features: {
-      bookCall: pickBool(f.bookCall, d.features.bookCall),
-      callMeBack: pickBool(f.callMeBack, d.features.callMeBack),
-      voiceChat: pickBool(f.voiceChat, d.features.voiceChat),
-      proposal: pickBool(f.proposal, d.features.proposal),
+    flows: {
+      bookVisit: pickBool(f.bookVisit, d.flows.bookVisit),
+      callMeBack: pickBool(f.callMeBack, d.flows.callMeBack),
+      scheduleCallback: pickBool(f.scheduleCallback, d.flows.scheduleCallback),
+      estimate: pickBool(f.estimate, d.flows.estimate),
+      liveVoice: pickBool(f.liveVoice, d.flows.liveVoice),
+      askQuestion: pickBool(f.askQuestion, d.flows.askQuestion),
     },
   };
 }
@@ -305,12 +319,15 @@ export function configFromScriptDataset(ds: DOMStringMap): WidgetInitOptions {
   if (ds.exitIntent !== undefined) behavior.exitIntent = ds.exitIntent === "true";
   if (Object.keys(behavior).length > 0) init.behavior = behavior;
 
-  const features: Partial<WidgetFeatures> = {};
-  if (ds.featureBookCall !== undefined) features.bookCall = ds.featureBookCall !== "false";
-  if (ds.featureCallMeBack !== undefined) features.callMeBack = ds.featureCallMeBack !== "false";
-  if (ds.featureVoiceChat !== undefined) features.voiceChat = ds.featureVoiceChat !== "false";
-  if (ds.featureProposal !== undefined) features.proposal = ds.featureProposal !== "false";
-  if (Object.keys(features).length > 0) init.features = features;
+  const flows: Partial<WidgetFlows> = {};
+  if (ds.flowBookVisit !== undefined) flows.bookVisit = ds.flowBookVisit !== "false";
+  if (ds.flowCallMeBack !== undefined) flows.callMeBack = ds.flowCallMeBack !== "false";
+  if (ds.flowScheduleCallback !== undefined)
+    flows.scheduleCallback = ds.flowScheduleCallback !== "false";
+  if (ds.flowEstimate !== undefined) flows.estimate = ds.flowEstimate !== "false";
+  if (ds.flowLiveVoice !== undefined) flows.liveVoice = ds.flowLiveVoice !== "false";
+  if (ds.flowAskQuestion !== undefined) flows.askQuestion = ds.flowAskQuestion !== "false";
+  if (Object.keys(flows).length > 0) init.flows = flows;
 
   return init;
 }

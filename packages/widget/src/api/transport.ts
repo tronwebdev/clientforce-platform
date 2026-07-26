@@ -23,9 +23,11 @@ export interface WidgetTransport {
 /** Prototype chip set. Labels are emoji-free — the mock build note retires the
  * legacy emoji in favour of line icons (the client renders one per kind). */
 export const CANON_QUICK_ACTIONS: ReadonlyArray<{ kind: QuickActionKind; label: string }> = [
-  { kind: "book_call", label: "Book a call" },
+  { kind: "book_visit", label: "Book a visit" },
   { kind: "call_me_back", label: "Call me back" },
-  { kind: "get_proposal", label: "Get a proposal" },
+  { kind: "schedule_callback", label: "Schedule callback" },
+  { kind: "estimate", label: "Get an estimate" },
+  { kind: "ask_question", label: "Ask a question" },
 ];
 
 /** Visible-thinking pause so the motion states read in the demo. */
@@ -38,9 +40,11 @@ const STUB_REPLY =
 
 function stubAck(action: QuickActionKind): string {
   const label: Record<QuickActionKind, string> = {
-    book_call: "Book a call",
+    book_visit: "Book a visit",
     call_me_back: "Call me back",
-    get_proposal: "Get a proposal",
+    schedule_callback: "Schedule callback",
+    estimate: "Get an estimate",
+    ask_question: "Ask a question",
   };
   return `“${label[action]}” reached the seam. The live ${label[action].toLowerCase()} flow arrives with the widget backend unit — this stub only confirms the contract.`;
 }
@@ -87,6 +91,8 @@ export class StubTransport implements WidgetTransport {
       messages,
       quickActions: CANON_QUICK_ACTIONS.map((a) => ({ ...a })),
       appearance: null,
+      // A stub can't run a plan check, so it never suppresses attribution.
+      branding: { platformAttribution: true },
       meta: { stub: true },
     };
   }
