@@ -64,6 +64,23 @@ const CONNECTOR = (
 );
 const INPUT: React.CSSProperties = { fontSize: 13, color: "#0E1512", border: "1px solid #EBE3D6", borderRadius: 9, padding: "8px 12px", background: "#fff" };
 
+/**
+ * A send_webhook url is optional (blank = the integration default). When
+ * present it must parse and stay within core's `.url().max(500)` — mirrors what
+ * the API's zod rejects, so the gray Save button can NAME the reason instead of
+ * dead-ending silently on an in-progress or over-long URL (W3 fix).
+ */
+function webhookUrlOk(url: string | undefined): boolean {
+  if (url === undefined) return true;
+  if (url.length > 500) return false;
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** The default payload per picked kind (canon TRIG cfg defaults). */
 export function defaultTriggerFor(kind: CampaignRuleTriggerKind): CampaignRuleTrigger {
   switch (kind) {
@@ -71,6 +88,9 @@ export function defaultTriggerFor(kind: CampaignRuleTriggerKind): CampaignRuleTr
       return { kind, intents: ["interested"] };
     case "sequence_quiet":
       return { kind, days: 14 };
+    // INT W2 (DEC-094): the one parameterized meeting kind — a day before.
+    case "before_meeting":
+      return { kind, hours: 24 };
     default:
       return { kind };
   }
@@ -96,6 +116,11 @@ export function defaultActionFor(
       // Never offered by the account picker (ACCOUNT_ACTION_OPTIONS) — the
       // exhaustive switch still covers the union so a new kind fails here.
       return { kind, targetNodeId: "" };
+    // INT W4 (DEC-096): update_deal_stage requires a target stage — a valid
+    // HubSpot placeholder (the set_stage precedent); the user edits it, and a
+    // stage the pipeline doesn't have surfaces the typed refusal on the run row.
+    case "update_deal_stage":
+      return { kind, stage: "qualifiedtobuy" };
     default:
       return { kind };
   }
@@ -251,7 +276,11 @@ export function AutomationBuilder({
                 ? "name the tag"
                 : actions.some((a) => a.action.kind === "set_stage" && !a.action.stage.trim())
                   ? "name the stage"
-                  : null;
+                  : actions.some((a) => a.action.kind === "send_webhook" && !webhookUrlOk(a.action.url))
+                    ? "enter a valid https URL for the webhook (or clear it for the default)"
+                    : actions.some((a) => a.action.kind === "update_deal_stage" && !a.action.stage.trim())
+                      ? "name the HubSpot deal stage to move to"
+                      : null;
   const canSave = valid && !busy;
 
   const save = async () => {
@@ -503,6 +532,19 @@ export function AutomationBuilder({
                   <span style={{ fontSize: 13, color: "#5C6B62", fontWeight: 600 }}>days</span>
                 </div>
               )}
+              {/* INT W2 (DEC-094): before_meeting hours — the sequence_quiet
+                  stepper anatomy, clamped to the schema's 1..336. */}
+              {trigger.kind === "before_meeting" && (
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 13, paddingTop: 13, borderTop: "1px solid #F2EEE4" }}>
+                  <span style={{ fontSize: 13, color: "#5C6B62", fontWeight: 600 }}>Fires</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 0, border: "1px solid #EBE3D6", borderRadius: 10, overflow: "hidden" }}>
+                    <span data-testid="hours-down" onClick={() => setTrigger({ kind: "before_meeting", hours: Math.max(1, trigger.hours - 1) })} style={{ width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", background: "#F7F2EA", color: "#0E1512", fontSize: 18, cursor: "pointer" }}>−</span>
+                    <span style={{ width: 44, textAlign: "center", fontSize: 14, fontWeight: 700, color: "#0E1512", fontVariantNumeric: "tabular-nums" }}>{trigger.hours}</span>
+                    <span data-testid="hours-up" onClick={() => setTrigger({ kind: "before_meeting", hours: Math.min(336, trigger.hours + 1) })} style={{ width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", background: "#F7F2EA", color: "#0E1512", fontSize: 18, cursor: "pointer" }}>+</span>
+                  </div>
+                  <span style={{ fontSize: 13, color: "#5C6B62", fontWeight: 600 }}>hours before the meeting starts</span>
+                </div>
+              )}
             </div>
           )}
 
@@ -569,6 +611,19 @@ export function AutomationBuilder({
                     )}
                     {action.kind === "notify_team" &&
                       txtRow("Note", action.note ?? "", (v) => updateAction(uid, { kind: "notify_team", ...(v.trim() ? { note: v } : {}) }), "What should the team know? (optional)")}
+                    {/* INT W3 (DEC-095): the per-action URL override — blank
+                        falls back to the Webhooks integration's default
+                        Payload URL (the run row names the refusal if neither
+                        exists — the honest run-time convergence). */}
+                    {action.kind === "send_webhook" &&
+                      txtRow("URL", action.url ?? "", (v) => updateAction(uid, { kind: "send_webhook", ...(v.trim() ? { url: v.trim() } : {}) }), "https://… (blank = the Webhooks integration default)")}
+                    {/* INT W4 (DEC-096): the HubSpot deal-stage inputs — create's
+                        is optional (blank = the pipeline default), update's is
+                        required (blocked at save when empty). */}
+                    {action.kind === "create_crm_deal" &&
+                      txtRow("Stage", action.stage ?? "", (v) => updateAction(uid, { kind: "create_crm_deal", ...(v.trim() ? { stage: v.trim() } : {}) }), "HubSpot deal stage (blank = pipeline default)")}
+                    {action.kind === "update_deal_stage" &&
+                      txtRow("Stage", action.stage, (v) => updateAction(uid, { kind: "update_deal_stage", stage: v }), "HubSpot deal stage id or label")}
                     {action.kind === "run_automation" && (
                       <div style={{ marginTop: 11, paddingTop: 11, borderTop: "1px solid #F2EEE4", display: "flex", alignItems: "center", gap: 10 }}>
                         <span style={{ fontSize: 12, color: "#9AA59E", fontWeight: 700, width: 74, flex: "none" }}>Automation</span>

@@ -7,7 +7,17 @@
 export * from "./types";
 export * from "./constants";
 export * from "./slack";
+export * from "./gcal";
+export * from "./calendly";
 export * from "./service";
 export * from "./notify";
+export * from "./slots";
+export * from "./booking";
+export * from "./stripe";
+export * from "./payments";
+export * from "./webhook-guard";
+export * from "./webhook-deliver";
+export * from "./hubspot";
+export * from "./crm";
 
 export const INTEGRATIONS_PACKAGE = "@clientforce/integrations";

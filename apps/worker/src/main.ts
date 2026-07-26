@@ -27,13 +27,21 @@ import {
 } from "@clientforce/telemetry";
 import {
   createPerAgentRules,
+  runBeforeMeetingSweep,
   runSequenceQuietSweep,
+  type MeetingSweepDeps,
   type QuietSweepDeps,
+  type RuleEngineDeps,
 } from "@clientforce/automations";
 import {
+  GoogleCalendarAdapter,
+  HubspotAdapter,
   SlackAdapter,
+  createBookingSlotsProvider,
   createIntegrationNotifier,
   createNotifyTeamTransport,
+  deliverCrm,
+  deliverWebhook,
   type IntegrationsDeps,
 } from "@clientforce/integrations";
 import {
@@ -42,6 +50,7 @@ import {
   createTemporalSignalConsumer,
   dispatcherConsumer,
   EventBus,
+  validateEvent,
   WORKER_HEARTBEAT_KEY,
 } from "@clientforce/events";
 import {
@@ -182,13 +191,44 @@ function startKnowledgeWorkers(): void {
     publish: async (input) => {
       if (busRef.current) await busRef.current.publish(input);
     },
-    adapters: { slack: new SlackAdapter() },
+    adapters: { slack: new SlackAdapter(), hubspot: new HubspotAdapter() },
   };
   const ruleDeps = {
     prisma,
     // INT W1 (Q-042 Slack half): notify_team delivers to the connected Slack
     // channel; absent connection keeps the run-row transport byte-identical.
     notifyTransport: createNotifyTeamTransport(integrationsDeps),
+    // INT W3 (DEC-095, Q-044 send half): send_webhook delivers through the
+    // guard + sign + ledger transport; failures never change run outcomes.
+    webhookTransport: async (params: Parameters<NonNullable<RuleEngineDeps["webhookTransport"]>>[0]) =>
+      deliverWebhook(integrationsDeps, {
+        workspaceId: params.workspaceId,
+        sourceEventId: params.sourceKey,
+        ...(params.url ? { url: params.url } : {}),
+        payload: {
+          v: 1,
+          eventId: params.event.id,
+          type: params.event.type,
+          occurredAt: params.event.occurredAt,
+          workspaceId: params.workspaceId,
+          ...(params.event.contactId ? { contactId: params.event.contactId } : {}),
+          rule: params.rule,
+          payload: params.event.payload,
+        },
+      }),
+    // INT W4 (DEC-096, Q-037 CRM half): create_crm_deal / update_deal_stage
+    // push one-way to HubSpot through the claim + allowance + ledger rails;
+    // failures never change run outcomes.
+    crmTransport: async (params: Parameters<NonNullable<RuleEngineDeps["crmTransport"]>>[0]) =>
+      deliverCrm(integrationsDeps, {
+        workspaceId: params.workspaceId,
+        sourceEventId: params.sourceKey,
+        op: params.op,
+        ...(params.contact ? { contact: params.contact } : {}),
+        ...(params.dealname ? { dealname: params.dealname } : {}),
+        ...(params.stage ? { stage: params.stage } : {}),
+        ...(params.dealId ? { dealId: params.dealId } : {}),
+      }),
     publish: async (input: Parameters<EventBus["publish"]>[0]) => {
       if (busRef.current) await busRef.current.publish(input);
     },
@@ -266,6 +306,10 @@ function startKnowledgeWorkers(): void {
   bus.startConsumer();
   console.log("[worker] event-bus consumer started (P1.7 temporal-signal + R1 campaign rules live)");
   startSequenceQuietSweep({ ...ruleDeps, ownerPrisma: owner });
+  // INT W2 (DEC-094): the before-meeting sweep — the sequence_quiet pattern
+  // over booked Meeting rows, 10-minute cadence (hour-granularity trigger;
+  // fire-once lives in the premeet:<meetingId>:<epoch> run key).
+  startBeforeMeetingSweep({ ...ruleDeps, ownerPrisma: owner });
   // P5 W1 (DEC-083): sender health recompute + warmup completion (10 min) and
   // DNS re-verification (6 h) — the stranded-source-sweep pattern: cross-tenant
   // discovery on the owner client, tenant-scoped writes, resilient per sender.
@@ -401,6 +445,28 @@ function startSequenceQuietSweep(deps: QuietSweepDeps): void {
       console.error("[worker] sequence-quiet sweep failed", err),
     );
   }, 60 * 60_000);
+}
+
+/**
+ * Before-meeting sweep (INT W2, DEC-094): `before_meeting { hours }` — the
+ * second timer trigger, the sequence_quiet pattern over booked `Meeting`
+ * rows. Boot + every 10 minutes (an hour-granularity trigger; the synthetic
+ * `premeet:<meetingId>:<startAt epoch>` run key makes every later pass a
+ * no-op and RE-ARMS on reschedule — a new startAt is a new key).
+ */
+function startBeforeMeetingSweep(deps: MeetingSweepDeps): void {
+  const sweep = async (): Promise<void> => {
+    const { checked, fired } = await runBeforeMeetingSweep(deps);
+    if (fired > 0) {
+      console.log(`[worker] before-meeting sweep: ${fired} rule run(s) fired (${checked} checked)`);
+    }
+  };
+  void sweep().catch((err: unknown) => console.error("[worker] before-meeting sweep failed", err));
+  setInterval(() => {
+    void sweep().catch((err: unknown) =>
+      console.error("[worker] before-meeting sweep failed", err),
+    );
+  }, 10 * 60_000);
 }
 
 /** Cap per sweep pass — logged when hit, never silently truncated. */
@@ -711,14 +777,44 @@ async function run(): Promise<void> {
       ...(process.env.ANTHROPIC_API_KEY
         ? (() => {
             const composeGateway = new AiGateway({ provider: new AnthropicProvider() });
+            // INT W2 (DEC-094): the injectable open-slots seam — freebusy off
+            // the workspace's gcal connection (withFreshCredentials + a 15-min
+            // cache inside the provider); unavailable/stale → null and the
+            // composed copy simply omits the slots line.
+            const bookingSlotsLine = createBookingSlotsProvider({
+              prisma: activityPrisma,
+              adapters: { gcal: new GoogleCalendarAdapter() },
+              // Review-round fix: compose-time revocations must reach the
+              // ledger (integration.status_changed.v1), not just the row —
+              // inline validate+persist (the BusOrInlinePublisher fallback;
+              // fan-out for this rare transition is not load-bearing here).
+              publish: async (input) => {
+                const validated = validateEvent(input);
+                await withTenant(activityPrisma, { workspaceId: validated.workspaceId }, (tx) =>
+                  tx.event.create({
+                    data: {
+                      workspaceId: validated.workspaceId,
+                      type: validated.type,
+                      contactId: validated.contactId,
+                      enrollmentId: validated.enrollmentId,
+                      campaignId: validated.campaignId,
+                      senderId: validated.senderId,
+                      payload: validated.payload as Prisma.InputJsonValue,
+                    },
+                  }),
+                );
+              },
+            });
             return {
               composeSms: createSmsStepComposer({
                 prisma: activityPrisma,
                 gateway: composeGateway,
+                bookingSlotsLine,
               }),
               composeEmail: createEmailStepComposer({
                 prisma: activityPrisma,
                 gateway: composeGateway,
+                bookingSlotsLine,
               }),
             };
           })()

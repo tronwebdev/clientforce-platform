@@ -274,7 +274,17 @@ export const EVENT_SCHEMAS = {
   }),
 
   // ── Billing ────────────────────────────────────────────────────────────────
-  "payment.received.v1": z.object({ amount: z.number().int(), channel: z.string().optional() }),
+  // INT W3 (DEC-095): first real producer — the Stripe checkout ingest
+  // (tenant-collected payments; platform credits stay a separate family).
+  // `currency`/`provider`/`externalId` are ADDITIVE OPTIONALS on the
+  // pre-existing v1 (append-only rule; older payloads parse unchanged).
+  "payment.received.v1": z.object({
+    amount: z.number().int(),
+    channel: z.string().optional(),
+    currency: z.string().optional(),
+    provider: z.string().optional(),
+    externalId: z.string().optional(),
+  }),
   "credits.consumed.v1": z.object({ amount: z.number().int(), channel: z.string(), balance: z.number().int() }),
   "credits.low.v1": z.object({ balance: z.number().int() }),
 
@@ -319,6 +329,36 @@ export const EVENT_SCHEMAS = {
   "integration.delivery_held.v1": z.object({
     provider: z.string(),
     reason: z.string(), // workspace_delivery_allowance
+  }),
+
+  // ── Calendar & booking (INT W2, DEC-094) ───────────────────────────────────
+  // The booking RECORD (timeline row, Meeting-row twin) — deliberately NOT a
+  // rule/notifier trigger carrier: the booking service also drives the C2.4
+  // stage writer, whose ONE lead.stage_changed.v1 (toStage "booked" + the
+  // C2.9 goal rider) fires meeting_booked rules, the Slack notifier, and the
+  // goal machinery — mapping BOTH events would double-fire every consumer.
+  "calendar.booked.v1": z.object({
+    provider: z.string(),
+    meetingId: z.string().min(1),
+    startAt: z.string(), // ISO-8601
+    endAt: z.string().optional(),
+    title: z.string().optional(),
+    timezone: z.string().optional(),
+    /** How the invitee correlated to a Contact: "utm" | "email" | "none". */
+    matchedBy: z.string().optional(),
+  }),
+  "calendar.rescheduled.v1": z.object({
+    provider: z.string(),
+    meetingId: z.string().min(1),
+    fromStartAt: z.string(),
+    toStartAt: z.string(),
+  }),
+  // reason folds the canon's canceled + no-show into ONE trigger kind.
+  "calendar.canceled.v1": z.object({
+    provider: z.string(),
+    meetingId: z.string().min(1),
+    startAt: z.string(),
+    reason: z.enum(["canceled", "no_show"]),
   }),
 
   // ── Automations (R1, DEC-074) ──────────────────────────────────────────────
@@ -425,6 +465,9 @@ export const EVENT_TYPES = {
   INTEGRATION_STATUS_CHANGED: "integration.status_changed.v1",
   INTEGRATION_NOTIFIED: "integration.notified.v1",
   INTEGRATION_DELIVERY_HELD: "integration.delivery_held.v1",
+  CALENDAR_BOOKED: "calendar.booked.v1",
+  CALENDAR_RESCHEDULED: "calendar.rescheduled.v1",
+  CALENDAR_CANCELED: "calendar.canceled.v1",
   AUTOMATION_RULE_RUN: "automation.rule.run.v1",
   AUTOMATION_STATUS_CHANGED: "automation.status_changed.v1",
   AUTOMATION_DELETED: "automation.deleted.v1",

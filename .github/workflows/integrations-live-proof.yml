@@ -7,6 +7,11 @@
 # the bot token is shared infrastructure). Secrets masked; manual dispatch
 # only. The dispatch becomes available once this yml is on the default branch
 # (the DEC-066 GitHub limitation — the R1-UI proof precedent).
+#
+# The `walk` input selects which proof runs: `slack` (W1, the default — dispatch
+# on the MAIN ref, which carries W1's slack-live-proof.ts), `calendly-demo`
+# (W2's owner-demo link-tier walk) or `hubspot-demo` (W4's one-way CRM push).
+# The non-slack walks are dispatched on the UNIT BRANCH ref.
 name: integrations-live-proof
 
 on:
@@ -17,6 +22,16 @@ on:
         required: true
       channel:
         description: 'Channel NAME to post to (optional — defaults to the first listed public channel)'
+        required: false
+      walk:
+        description: 'Which proof: slack · calendly-demo (W2) · hubspot-demo (W4 HubSpot CRM push)'
+        required: false
+        default: 'slack'
+      recipient:
+        description: 'calendly-demo only: the allow-listed inbox the REAL email delivers to'
+        required: false
+      calendly_link:
+        description: 'calendly-demo only: the real scheduling link (default https://calendly.com/clientforce/30min)'
         required: false
 
 permissions:
@@ -33,6 +48,10 @@ env:
 jobs:
   proof:
     name: live Slack delivery · dedupe · notify_team · revoked honesty · disconnect audit
+    # W1's slack-live-proof.ts lives on main (the split PRs) — dispatch the
+    # slack walk on the MAIN ref. Gated to an EXACT slack match so a
+    # calendly-demo or hubspot-demo dispatch never posts to the owner's Slack.
+    if: ${{ github.event.inputs.walk == 'slack' }}
     runs-on: ubuntu-latest
     environment: staging
     services:
@@ -98,3 +117,187 @@ jobs:
         with:
           name: slack-live-proof-receipts
           path: slack-live-proof-receipts.json
+
+  # INT W2 (DEC-094) owner-demo, link tier: real link probe → real model
+  # compose (grounded per-lead link) → REAL SendGrid delivery to the
+  # allow-listed inbox. Detection is honestly flagged OUT (paid-tier token +
+  # public ingress). Dispatch this walk ON THE UNIT BRANCH ref — the run uses
+  # the branch's W2 code; main's registration makes it dispatchable (DEC-066).
+  calendly-demo:
+    name: W2 owner demo · real link probe · real compose · REAL email delivery
+    if: ${{ github.event.inputs.walk == 'calendly-demo' }}
+    runs-on: ubuntu-latest
+    environment: staging
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: clientforce
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Refuse without explicit confirmation
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "LIVE" ]; then
+            echo "::error::Dispatch input 'confirm' must be exactly LIVE — refusing to send a real email."
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @clientforce/channels... --filter @clientforce/integrations... build
+      - run: pnpm --filter @clientforce/db db:migrate
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Run the calendly demo walk (secrets masked)
+        run: |
+          set -euo pipefail
+          sendgrid="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name SENDGRID-API-KEY --query value -o tsv)"
+          echo "::add-mask::$sendgrid"
+          anthropic="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name ANTHROPIC-API-KEY --query value -o tsv)"
+          echo "::add-mask::$anthropic"
+          FIELD_ENCRYPTION_KEY="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name FIELD-ENCRYPTION-KEY --query value -o tsv)"
+          echo "::add-mask::$FIELD_ENCRYPTION_KEY"
+          export FIELD_ENCRYPTION_KEY
+          SENDGRID_API_KEY="$sendgrid" ANTHROPIC_API_KEY="$anthropic" \
+          DEMO_RECIPIENT="${{ github.event.inputs.recipient }}" \
+          DEMO_CALENDLY_LINK="${{ github.event.inputs.calendly_link }}" \
+            pnpm exec tsx packages/integrations/scripts/calendly-demo-proof.ts
+
+      - name: Upload receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calendly-demo-receipts
+          path: calendly-demo-receipts.json
+
+  # INT W4 (DEC-096) live HubSpot one-way CRM push: the vault HUBSPOT-DEMO-TOKEN
+  # (a HubSpot Service Key — opaque bearer) connects through the REAL /account-info
+  # probe, then a payment_received rule with create_crm_deal fires through the
+  # REAL engine + crmTransport into api.hubapi.com — a real Contact + Deal,
+  # idempotency (redelivery dedupes), the audit ledger, then update_deal_stage.
+  # Dispatch ON THE UNIT BRANCH ref (DEC-066 — the workflow is registered on main).
+  hubspot-demo:
+    name: W4 live HubSpot · real contact + deal · idempotency · audit ledger · stage move
+    if: ${{ github.event.inputs.walk == 'hubspot-demo' }}
+    runs-on: ubuntu-latest
+    environment: staging
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: clientforce
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Refuse without explicit confirmation
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "LIVE" ]; then
+            echo "::error::Dispatch input 'confirm' must be exactly LIVE — refusing to create real HubSpot objects."
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @clientforce/automations... --filter @clientforce/integrations... build
+      - run: pnpm --filter @clientforce/db db:migrate
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # Owner ask: flag any LEGACY HubSpot key still in the vault for removal
+      # (a developer-account key from an earlier setup — unrelated, must NOT be
+      # used or migrated). NAMES only (metadata) — no secret VALUES are ever
+      # read here. Best-effort: never fails the proof (the identity may hold
+      # Get but not List on the vault).
+      - name: Flag any legacy HubSpot key in the vault (names only — never values)
+        continue-on-error: true
+        run: |
+          echo "Auditing the vault for legacy HubSpot secrets (NAMES only; no values read)."
+          if ! names="$(az keyvault secret list --vault-name "$KEY_VAULT_NAME" --query "[].name" -o tsv 2>/dev/null)"; then
+            echo "::notice::Could not list vault secret names — the staging proof identity likely holds Get but not List. Owner: check the vault manually for a legacy HubSpot developer-account key to remove."
+            exit 0
+          fi
+          hs="$(printf '%s\n' "$names" | grep -iE 'hubspot|hs[-_]|crm' || true)"
+          if [ -n "$hs" ]; then echo "HubSpot-related secret names:"; printf '%s\n' "$hs" | sed 's/^/  - /'; else echo "No HubSpot-related secret names found."; fi
+          legacy="$(printf '%s\n' "$hs" | grep -viE '^HUBSPOT-DEMO-TOKEN$' || true)"
+          if [ -n "$legacy" ]; then
+            echo "::warning::Legacy HubSpot secret(s) present besides HUBSPOT-DEMO-TOKEN — candidates for OWNER REMOVAL (this proof does NOT use or migrate them):"
+            printf '%s\n' "$legacy" | sed 's/^/    FLAG-FOR-REMOVAL: /'
+          else
+            echo "::notice::Clean — no legacy HubSpot secret beyond HUBSPOT-DEMO-TOKEN."
+          fi
+
+      - name: Run the HubSpot live proof (secrets masked)
+        # The vault key is a `pat-eu1-` token (an EU data-residency portal). The
+        # adapter DERIVES the regional host from the prefix (api-eu1.hubapi.com —
+        # HYPHEN; the api.hubapi.com facade defaults EU tokens to the US hublet →
+        # 401), so the proof exercises that path; HUBSPOT_BASE_URL is set as the
+        # documented fallback the owner requested (a portal moving region only
+        # needs this env, no code change).
+        env:
+          HUBSPOT_BASE_URL: https://api-eu1.hubapi.com
+        run: |
+          set -euo pipefail
+          token="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name HUBSPOT-DEMO-TOKEN --query value -o tsv)"
+          echo "::add-mask::$token"
+          FIELD_ENCRYPTION_KEY="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name FIELD-ENCRYPTION-KEY --query value -o tsv)"
+          echo "::add-mask::$FIELD_ENCRYPTION_KEY"
+          export FIELD_ENCRYPTION_KEY
+          HUBSPOT_DEMO_TOKEN="$token" \
+            pnpm exec tsx packages/integrations/scripts/hubspot-live-proof.ts
+
+      - name: Upload receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hubspot-live-proof-receipts
+          path: hubspot-live-proof-receipts.json

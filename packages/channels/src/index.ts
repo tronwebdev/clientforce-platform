@@ -192,6 +192,28 @@ export {
   type ComposeEmailStepParams,
   type EmailStepComposer,
 } from "./compose-email";
+// ── INT W2 (DEC-094): booking-link plumbing (calendly link + compose seam) ───
+export {
+  augmentBriefWithBooking,
+  bookingLinkRequested,
+  bookingLinkTalkingPoint,
+  CALENDAR_LINK_TOKEN_RE,
+  clearBookingLinkFlagAfterSend,
+  loadSchedulingUrl,
+  resolveBookingLink,
+  withBookingUtm,
+  type BookingSlotsLine,
+} from "./booking-link";
+// ── INT W3 (DEC-095): payment-link plumbing (stripe link + the flag seam) ────
+export {
+  augmentBriefWithPaymentLink,
+  clearPaymentLinkFlagAfterSend,
+  loadPaymentLinkUrl,
+  PAYMENT_LINK_TOKEN_RE,
+  paymentLinkRequested,
+  resolvePaymentLink,
+  withClientReference,
+} from "./payment-link";
 // ── P3.1 (DEC-078): the voice channel — dial rails, dialer, live composer ────
 // (buildCachedContext/strategyOf were package-internal until the voice
 // runtime needed them — same G1/G2 shared plumbing, now on the surface.)

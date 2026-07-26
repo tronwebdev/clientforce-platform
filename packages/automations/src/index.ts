@@ -11,5 +11,6 @@ export * from "./executors";
 export * from "./evaluate";
 export * from "./consumer";
 export * from "./sweep";
+export * from "./meeting-sweep";
 
 export const AUTOMATIONS_PACKAGE = "@clientforce/automations";

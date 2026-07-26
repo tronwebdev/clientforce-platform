@@ -17,6 +17,8 @@
  */
 import { registerPrompt, renderPrompt, type AiGateway } from "@clientforce/ai";
 import { loadMergedContextText } from "@clientforce/context";
+import { augmentBriefWithBooking, type BookingSlotsLine } from "./booking-link";
+import { augmentBriefWithPaymentLink } from "./payment-link";
 import {
   COMPLIANCE_STRINGS,
   DEFAULT_LANGUAGE,
@@ -336,6 +338,8 @@ export function createSmsStepComposer(deps: {
   /** RLS-subject client (`createAppPrismaClient`) — never the owner client. */
   prisma: PrismaClient;
   gateway: AiGateway;
+  /** INT W2 (DEC-094): the injectable open-slots seam — see booking-link.ts. */
+  bookingSlotsLine?: BookingSlotsLine;
 }): SmsStepComposer {
   return async (params) => {
     const { prisma, gateway } = deps;
@@ -382,8 +386,32 @@ export function createSmsStepComposer(deps: {
       ]),
     );
 
+    // INT W2 (DEC-094): per-render booking augmentation — the grounded
+    // per-lead booking link (+ slots line, + the queued-flag mustSay) rides
+    // the brief, NEVER the agent-stable cached prefix.
+    const withBooking = await augmentBriefWithBooking(
+      { prisma, ...(deps.bookingSlotsLine ? { bookingSlotsLine: deps.bookingSlotsLine } : {}) },
+      {
+        workspaceId: params.workspaceId,
+        contactId: params.contactId,
+        ...(params.enrollmentId ? { enrollmentId: params.enrollmentId } : {}),
+      },
+      params.brief,
+    );
+    // INT W3 (DEC-095): the send_payment_link flag's mustSay (flag-gated only
+    // — never an ambient payment talking point; documented default).
+    const brief = await augmentBriefWithPaymentLink(
+      { prisma },
+      {
+        workspaceId: params.workspaceId,
+        contactId: params.contactId,
+        ...(params.enrollmentId ? { enrollmentId: params.enrollmentId } : {}),
+      },
+      withBooking,
+    );
+
     const inputs: ComposeSmsInputs = {
-      brief: params.brief,
+      brief,
       cachedContext: buildCachedContext({
         contextText,
         toneHints: strategy.toneHints,

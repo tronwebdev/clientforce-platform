@@ -95,6 +95,11 @@ export async function runSequenceQuietSweep(
         enrollmentId: enrollment.id,
         depth: 0,
         terminalState: { fired: false },
+        event: {
+          type: "sweep.sequence_quiet",
+          payload: { enrollmentId: enrollment.id },
+          occurredAt: now.toISOString(),
+        },
       };
       try {
         const summary = await executeMatchedRules(deps, ctx, due);

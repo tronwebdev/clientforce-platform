@@ -73,15 +73,44 @@ export interface ExchangeResult {
  * (INTEGRATION_REFUSALS.NOT_CONFIGURED) and the UI says so — never a broken
  * redirect. Non-OAuth adapters (W3 webhook) get their own connect path.
  */
-export interface OAuthIntegrationAdapter {
+/**
+ * INT W2 (DEC-094): the shared adapter base BOTH connect shapes implement.
+ * W1's OAuth contract extends it unchanged; the fields shape (Calendly) is
+ * the non-OAuth connect path W1 reserved ("Non-OAuth adapters … get their
+ * own connect path").
+ */
+export interface IntegrationAdapter {
   readonly provider: IntegrationProvider;
   readonly configured: boolean;
-  authorizeUrl(params: { redirectUri: string; state: string }): string;
-  exchangeCode(params: { code: string; redirectUri: string }): Promise<ExchangeResult>;
   /** The live token probe — connection status is never asserted without it. */
   probe(creds: IntegrationCredentials): Promise<ProbeResult>;
   /** Best-effort vendor-side revoke on disconnect (failures logged, not thrown). */
   revoke?(creds: IntegrationCredentials): Promise<void>;
+  /**
+   * INT W2 (DEC-094, ADDITIVE): providers whose access tokens expire (Google)
+   * implement this — the service's `withFreshCredentials` refreshes, re-encrypts
+   * and persists before vendor calls. Slack has NO refresh method and stays
+   * byte-identical (regression-pinned). `invalid_grant` throws PROVIDER_AUTH —
+   * the refresh token is dead, the row flips to the honest `revoked` state.
+   */
+  refresh?(creds: IntegrationCredentials): Promise<IntegrationCredentials>;
+}
+
+/** The OAuth adapter contract (W1) — unchanged members, now on the shared base. */
+export interface OAuthIntegrationAdapter extends IntegrationAdapter {
+  authorizeUrl(params: { redirectUri: string; state: string }): string;
+  exchangeCode(params: { code: string; redirectUri: string }): Promise<ExchangeResult>;
+}
+
+/**
+ * A fields adapter connects from user-pasted fields (Calendly: scheduling
+ * link + optional API token) — the connect is still PROBE-BACKED (the
+ * service's `connectCalendlyFields` performs the live probes and refuses
+ * typed on failure; the row is never "connected" without one).
+ */
+export interface FieldsIntegrationAdapter extends IntegrationAdapter {
+  /** Marker: fields adapters carry no platform app credentials (`configured` is always true). */
+  readonly configured: true;
 }
 
 export interface IntegrationsDeps {
@@ -89,7 +118,7 @@ export interface IntegrationsDeps {
   prisma: PrismaClient;
   /** Optional (the delivery row is the history either way — the R1 stance). */
   publish?: PublishFn;
-  adapters: Partial<Record<IntegrationProvider, OAuthIntegrationAdapter>>;
+  adapters: Partial<Record<IntegrationProvider, IntegrationAdapter>>;
   log?: (msg: string) => void;
   now?: () => Date;
   config?: {

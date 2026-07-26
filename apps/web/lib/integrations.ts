@@ -18,12 +18,22 @@
  */
 import {
   SLACK_NOTIFICATION_KINDS,
+  calendlyConfigSchema,
+  gcalConfigSchema,
   isIntegrationProvider,
   slackConfigSchema,
+  stripeConfigSchema,
+  webhooksConfigSchema,
+  hubspotConfigSchema,
+  type CalendlyConfig,
+  type GcalConfig,
+  type HubspotConfig,
   type IntegrationProvider,
   type IntegrationStatus,
   type SlackConfig,
   type SlackNotificationKind,
+  type StripeConfig,
+  type WebhooksConfig,
 } from "@clientforce/core";
 
 // ── canon atoms (Integrations.dc.html TILE + catLabels, verbatim) ───────────
@@ -64,13 +74,13 @@ export type CatalogAvailability =
 export const MANAGED_TWILIO_HREF = "/settings#phone";
 export const MANAGED_TWILIO_NOTE = "Managed in Settings → Channels";
 
-/** Owner-readable honest-absent reasons (the automations ledger phrasing). */
+/** Owner-readable honest-absent reasons (the automations ledger phrasing).
+ *  INT W2 (DEC-094): gcal + calendly left this map — they joined core
+ *  `INTEGRATION_PROVIDERS`, so `availabilityFor` flips their cards live
+ *  before this lookup is ever reached (availability derives from core). */
 const ABSENT_REASONS: Record<string, string> = {
-  hubspot: "Arrives with the CRM sync wave (this unit, W4)",
-  gcal: "Arrives with the calendar & booking wave (this unit, W2)",
-  calendly: "Arrives with the calendar & booking wave (this unit, W2)",
-  stripe: "Arrives with the payments wave (this unit, W3)",
-  webhooks: "Arrives with the webhooks wave (this unit, W3)",
+  // hubspot is LIVE (INT W4, DEC-096) — availabilityFor derives it from core
+  // INTEGRATION_PROVIDERS, so no absent reason applies.
   salesforce: "Arrives with the Salesforce/Pipedrive integrations",
   pipedrive: "Arrives with the Salesforce/Pipedrive integrations",
   calcom: "Arrives with the Cal.com integration",
@@ -100,7 +110,7 @@ export interface CatalogEntry {
 }
 
 const BASE: ReadonlyArray<Omit<CatalogEntry, "availability">> = [
-  { id: "hubspot", name: "HubSpot", cat: "crm", glyph: "H", tile: "cyan", desc: "Two-way sync of contacts, deals & lifecycle stages." },
+  { id: "hubspot", name: "HubSpot", cat: "crm", glyph: "H", tile: "cyan", desc: "Push leads into HubSpot as deals & move deal stages from your rules." },
   { id: "salesforce", name: "Salesforce", cat: "crm", glyph: "S", tile: "cyan", desc: "Push qualified leads & booked calls into Salesforce." },
   { id: "pipedrive", name: "Pipedrive", cat: "crm", glyph: "P", tile: "green", desc: "Create a deal automatically when a call is booked." },
   { id: "gcal", name: "Google Calendar", cat: "calendar", glyph: "G", tile: "green", desc: "Book calls straight onto your team calendar." },
@@ -137,15 +147,31 @@ export const SLACK_NOTIFICATION_LABELS: Record<SlackNotificationKind, string> = 
 
 /** Everything provider-specific the detail drawer renders. */
 export interface DrawerContent {
-  /** Auth-step "Clientforce will be able to" list (dispatch-locked copy). */
+  /** INT W2: how the wizard connects — the W1 OAuth round-trip, or an
+   *  in-drawer fields form (calendly's connect-fields path, canon `fields`
+   *  step kind). */
+  mode: "oauth" | "fields";
+  /** Auth-step "Clientforce will be able to" list (dispatch-locked copy).
+   *  Empty for fields-based providers — no vendor grant happens. */
   authPerms: readonly string[];
-  /** The "What's syncing" rows — derived from the core union, never a fork. */
-  syncRows: ReadonlyArray<{ kind: SlackNotificationKind; label: string }>;
+  /** The "What's syncing" rows. Slack's derive from the core notification
+   *  union (never a fork); gcal/calendly rows are informational and describe
+   *  what ACTUALLY syncs (honest copy — no invented toggles). */
+  syncRows: ReadonlyArray<{ kind: string; label: string }>;
   /** Setup timeline copy (connected mode renders it all-✓ per the prototype). */
   setupSteps: ReadonlyArray<{ title: string; desc: string }>;
-  /** Which option list the drawer's picker fetches (`GET …/options?kind=`). */
-  optionsKind: string;
+  /** Which option list the drawer's picker fetches (`GET …/options?kind=`);
+   *  null = no vendor-backed picker (fields providers). */
+  optionsKind: string | null;
+  /** Honest platform-state line rendered on the auth step (gcal test-user
+   *  mode while Google verification completes). */
+  disclosure?: string;
 }
+
+/** INT W2 (DEC-094): the mandated gcal test-user-mode disclosure — rendered
+ *  unconditionally on the auth step; never a fake connected state. */
+export const GCAL_TEST_USER_DISCLOSURE =
+  "Available to test accounts while Google verification completes — connecting requires your Google account to be on the app's test-user list.";
 
 /**
  * Drawer content keyed by the core `IntegrationProvider` union via a
@@ -157,6 +183,7 @@ export interface DrawerContent {
  */
 export const DRAWER_CONTENT = {
   slack: {
+    mode: "oauth",
     authPerms: [
       "Post alerts to the channel you pick",
       "See your public channel list",
@@ -168,6 +195,94 @@ export const DRAWER_CONTENT = {
       { title: "Confirm & go live", desc: "Review and start syncing automatically." },
     ],
     optionsKind: "channels",
+  },
+  // INT W2 (DEC-094): Google Calendar — the W1 OAuth anatomy + the calendar
+  // picker (options kind=calendars). syncRows say what ACTUALLY syncs:
+  // availability feeds open slots in composed copy; Clientforce creates NO
+  // events in W2 — Calendly puts booked meetings on the calendar natively.
+  gcal: {
+    mode: "oauth",
+    authPerms: [
+      "See when you're busy (read-only)",
+      "List your calendars",
+    ],
+    syncRows: [
+      { kind: "availability", label: "Availability — open slots can appear in composed copy" },
+      { kind: "bookings", label: "Bookings — Calendly puts booked meetings on this calendar" },
+    ],
+    setupSteps: [
+      { title: "Sign in with Google", desc: "Authorize read-only calendar access via secure OAuth." },
+      { title: "Pick a calendar", desc: "Which calendar availability is read from." },
+      { title: "Confirm & go live", desc: "Review and start syncing automatically." },
+    ],
+    optionsKind: "calendars",
+    disclosure: GCAL_TEST_USER_DISCLOSURE,
+  },
+  // INT W2: Calendly — fields-based connect (no OAuth grant, so no perms
+  // list), two honest tiers: the scheduling link works day one; booking
+  // detection additionally needs the API token (paid Calendly plans).
+  calendly: {
+    mode: "fields",
+    authPerms: [],
+    syncRows: [
+      { kind: "link", label: "Scheduling link — offered in composed messages" },
+      { kind: "detection", label: "Booking detection — live only with an API token (paid Calendly plans)" },
+    ],
+    setupSteps: [
+      { title: "Paste your scheduling link", desc: "Works day one — leads book on your real Calendly page." },
+      { title: "Add your API token (optional)", desc: "Paid Calendly plans — turns on booking detection via webhooks." },
+      { title: "Confirm & go live", desc: "Review and connect." },
+    ],
+    optionsKind: null,
+  },
+  // INT W3 (DEC-095): Stripe — the calendly two-tier anatomy on payments:
+  // the Payment Link works day one; payment detection additionally needs a
+  // restricted API key (Stripe mints the endpoint signing secret).
+  stripe: {
+    mode: "fields",
+    authPerms: [],
+    syncRows: [
+      { kind: "link", label: "Payment link — offered in composed messages on request" },
+      { kind: "detection", label: "Payment detection — live only with a restricted API key" },
+    ],
+    setupSteps: [
+      { title: "Paste your Payment Link", desc: "Works day one — leads pay on your real Stripe checkout." },
+      { title: "Add a restricted API key (optional)", desc: "Needs Webhook Endpoints write — turns on payment detection." },
+      { title: "Confirm & go live", desc: "Review and connect." },
+    ],
+    optionsKind: null,
+  },
+  // INT W3: Webhooks — the outbound send_webhook action's config surface
+  // (default Payload URL + the per-workspace signing secret). The canon's
+  // events-pick stream half is honestly ABSENT (re-filed → Q-054).
+  webhooks: {
+    mode: "fields",
+    authPerms: [],
+    syncRows: [
+      { kind: "action", label: "Send webhook action — POSTs rule events to your endpoint, signed" },
+      { kind: "signature", label: "Signatures — t/v1 HMAC-SHA256 with your workspace secret" },
+    ],
+    setupSteps: [
+      { title: "Enter your Payload URL", desc: "A public https endpoint you operate — checked by the delivery guard." },
+      { title: "We send a signed test", desc: "A 2xx from your receiver confirms the connection." },
+      { title: "Confirm & go live", desc: "Copy the signing secret into your receiver." },
+    ],
+    optionsKind: null,
+  },
+  // INT W4 (DEC-096): HubSpot one-way CRM push — the private-app token tier (no
+  // OAuth clock). Two-way sync is honestly OUT (recorded Q).
+  hubspot: {
+    mode: "fields",
+    authPerms: [],
+    syncRows: [
+      { kind: "deal", label: "Create CRM deal — pushes the lead to HubSpot as a deal" },
+      { kind: "stage", label: "Update deal stage — moves the contact's deal (one-way)" },
+    ],
+    setupSteps: [
+      { title: "Paste a HubSpot token", desc: "A private-app token or Service Key with crm.objects.deals.write + contacts.write." },
+      { title: "Confirm & go live", desc: "We verify the token against your HubSpot account." },
+    ],
+    optionsKind: null,
   },
 } satisfies Record<IntegrationProvider, DrawerContent>;
 
@@ -245,4 +360,121 @@ export function slackConfigPayload(
   ) as Record<SlackNotificationKind, boolean>;
   const channel = changes.channel ?? config.channel;
   return { ...(channel ? { channel } : {}), notifications };
+}
+
+// ── gcal config helpers (INT W2 — the Slack helpers' anatomy) ───────────────
+
+/** Parse the DTO's `config: unknown` through the REAL core schema; garbage → {}. */
+export function parseGcalConfig(config: unknown): GcalConfig {
+  const parsed = gcalConfigSchema.safeParse(config ?? {});
+  return parsed.success ? parsed.data : {};
+}
+
+/** Slots-in-copy is OPT-IN — absent = OFF (nothing rides composed copy the
+ *  owner didn't turn on; the honest default). */
+export function offerSlotsOn(config: GcalConfig): boolean {
+  return config.offerSlots === true;
+}
+
+/**
+ * Full-payload-preserving PATCH body (the slackConfigPayload stance): a
+ * slots toggle can never silently drop the picked calendar, or vice-versa.
+ */
+export function gcalConfigPayload(
+  config: GcalConfig,
+  changes: {
+    calendar?: { id: string; name: string; timeZone: string };
+    offerSlots?: boolean;
+  } = {},
+): GcalConfig {
+  const calendar = changes.calendar ?? config.calendar;
+  return {
+    ...(calendar ? { calendar } : {}),
+    offerSlots: changes.offerSlots ?? offerSlotsOn(config),
+  };
+}
+
+// ── calendly config helpers (INT W2 — two honest tiers) ─────────────────────
+
+/** Parse the DTO's `config: unknown` through the REAL core schema; garbage → {}. */
+export function parseCalendlyConfig(config: unknown): CalendlyConfig {
+  const parsed = calendlyConfigSchema.safeParse(config ?? {});
+  return parsed.success ? parsed.data : {};
+}
+
+export const CALENDLY_DETECTION_ON = "Booking detection live — webhook subscription active";
+export const CALENDLY_DETECTION_OFF =
+  "Link active — booking detection off. Add your Calendly API token (paid plans) to detect bookings.";
+export const CALENDLY_NO_LINK = "No scheduling link saved yet — add one so leads can book.";
+
+/**
+ * The drawer's detection state line — HONEST from stored config, never
+ * assumed: `detection: true` reflects a LIVE webhook subscription (the API
+ * sets it only after the subscription is created); anything else says so.
+ */
+export function calendlyDetectionState(config: CalendlyConfig): {
+  detection: boolean;
+  line: string;
+  /** true → render the add-token affordance (link works, detection doesn't). */
+  offerToken: boolean;
+} {
+  if (!config.schedulingUrl) return { detection: false, line: CALENDLY_NO_LINK, offerToken: false };
+  if (config.detection === true) return { detection: true, line: CALENDLY_DETECTION_ON, offerToken: false };
+  return { detection: false, line: CALENDLY_DETECTION_OFF, offerToken: true };
+}
+
+/**
+ * The webhook endpoint PATH the drawer displays — informational (the token is
+ * a capability-URL secret created server-side; detection state is what
+ * matters). Displayed as the path portion with a copy affordance, labeled
+ * "Webhook endpoint (created automatically)".
+ */
+export function calendlyWebhookPath(webhookToken: string): string {
+  return `/webhooks/calendly?token=${webhookToken}`;
+}
+
+// ── stripe config helpers (INT W3 — the calendly helpers' anatomy) ──────────
+
+/** Parse the DTO's `config: unknown` through the REAL core schema; garbage → {}. */
+export function parseStripeConfig(config: unknown): StripeConfig {
+  const parsed = stripeConfigSchema.safeParse(config ?? {});
+  return parsed.success ? parsed.data : {};
+}
+
+export const STRIPE_DETECTION_ON = "Payment detection live — webhook endpoint active";
+export const STRIPE_DETECTION_OFF =
+  "Link active — payment detection off. Add a restricted API key (Webhook Endpoints write) to detect payments.";
+export const STRIPE_NO_LINK = "No payment link saved yet — add one so leads can pay.";
+
+/** The drawer's detection state line — HONEST from stored config (the calendly stance). */
+export function stripeDetectionState(config: StripeConfig): {
+  detection: boolean;
+  line: string;
+  offerKey: boolean;
+} {
+  if (!config.paymentLinkUrl && config.detection !== true)
+    return { detection: false, line: STRIPE_NO_LINK, offerKey: false };
+  if (config.detection === true) return { detection: true, line: STRIPE_DETECTION_ON, offerKey: false };
+  return { detection: false, line: STRIPE_DETECTION_OFF, offerKey: true };
+}
+
+/** The webhook endpoint PATH the drawer displays (created automatically). */
+export function stripeWebhookPath(webhookToken: string): string {
+  return `/webhooks/stripe?token=${webhookToken}`;
+}
+
+// ── webhooks config helpers (INT W3) ────────────────────────────────────────
+
+/** Parse the DTO's `config: unknown` through the REAL core schema; garbage → {}. */
+export function parseWebhooksConfig(config: unknown): WebhooksConfig {
+  const parsed = webhooksConfigSchema.safeParse(config ?? {});
+  return parsed.success ? parsed.data : {};
+}
+
+// ── hubspot config helpers (INT W4) ─────────────────────────────────────────
+
+/** Parse the DTO's `config: unknown` through the REAL core schema; garbage → {}. */
+export function parseHubspotConfig(config: unknown): HubspotConfig {
+  const parsed = hubspotConfigSchema.safeParse(config ?? {});
+  return parsed.success ? parsed.data : {};
 }

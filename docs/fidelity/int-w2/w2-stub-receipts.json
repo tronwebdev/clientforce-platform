@@ -1,0 +1,30 @@
+{
+  "calendlySubscriptions": [
+    {
+      "url": "http://localhost:3001/webhooks/calendly?token=eebf\u2026\u20262161",
+      "events": [
+        "invitee.created",
+        "invitee.canceled",
+        "invitee_no_show.created"
+      ],
+      "signingKey": "\u00abrecorded, not printed\u00bb"
+    }
+  ],
+  "composeCalls": 1,
+  "sentMail": [
+    {
+      "at": "2026-07-22T12:37:14.903Z",
+      "to": "ada@demo-agency.test",
+      "subject": "Re: Quick look at your new-patient flow",
+      "sandbox": true,
+      "bodyPreview": "Hi Ada,\n\nFollowing up on the growth audit \u2014 the write-up is ready whenever you want to walk through it. Most clinics use a 20-minute call to see which openings matter first.\n\nGrab a time that works here: https://calendly.com/demo-agency/intro-call?utm_source=clientforce&utm_content=cmrw1ugu4000i7dhomj7fos9b\n\nHappy to fit around your schedule either way.\n\n--\n100 Demo Street, Suite 4, Austin, TX 787"
+    }
+  ],
+  "slackPosts": [
+    {
+      "at": "2026-07-22T12:37:17.744Z",
+      "channel": "C001",
+      "text": "\ud83d\udcc5 Meeting booked with Ada Lovelace"
+    }
+  ]
+}

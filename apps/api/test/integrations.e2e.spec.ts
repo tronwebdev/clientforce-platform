@@ -21,9 +21,15 @@ import type { INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { INTEGRATION_REFUSALS } from "@clientforce/core";
 import { createAppPrismaClient, createPrismaClient, decryptField, withTenant, type PrismaClient } from "@clientforce/db";
 import { validateEvent } from "@clientforce/events";
-import { SlackAdapter, type IntegrationsDeps } from "@clientforce/integrations";
+import {
+  CalendlyAdapter,
+  GoogleCalendarAdapter,
+  SlackAdapter,
+  type IntegrationsDeps,
+} from "@clientforce/integrations";
 import type { Prisma } from "@clientforce/db";
 import { AppModule } from "../src/app.module";
 import { signDevToken } from "../src/auth/dev-token-verifier";
@@ -60,6 +66,73 @@ const scriptedAdapter = new SlackAdapter({
       return respond({ ok: true, channels: [{ id: "C2", name: "general" }, { id: "C1", name: "alerts" }] });
     if (path.endsWith("auth.revoke")) return respond({ ok: true });
     return respond({ ok: false, error: "unknown_method" });
+  },
+});
+
+/** INT W2: the programmable Google vendor — token endpoint + calendarList. */
+const gcalScript: { exchange?: () => unknown } = {};
+const scriptedGcal = new GoogleCalendarAdapter({
+  clientId: "gcid",
+  clientSecret: "gsecret",
+  baseUrl: "https://gcal.test/v3",
+  authorizeBaseUrl: "https://gcal.test/auth",
+  tokenUrl: "https://gcal.test/token",
+  fetchImpl: async (url) => {
+    const path = String(url);
+    const respond = (body: unknown, status = 200) =>
+      new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+    if (path.startsWith("https://gcal.test/token"))
+      return respond(
+        gcalScript.exchange?.() ?? {
+          access_token: "stubtok-gcal-e2e",
+          refresh_token: "stubtok-gcal-refresh",
+          expires_in: 3600,
+          scope: "https://www.googleapis.com/auth/calendar.readonly",
+        },
+      );
+    if (path.includes("calendarList"))
+      return respond({
+        items: [
+          { id: "team@group.calendar.google.com", summary: "Team", timeZone: "UTC" },
+          { id: "ada@example.test", summary: "Ada", primary: true, timeZone: "America/Chicago" },
+        ],
+      });
+    return respond({ error: { code: 404, message: "Not Found" } }, 404);
+  },
+});
+
+/** INT W2: the programmable Calendly vendor — link probe + /users/me + webhook subscriptions. */
+const calendlyScript: { subscriptionCreate?: () => { body: unknown; status: number } } = {};
+const calendlySubscriptionPosts: Array<Record<string, unknown>> = [];
+const scriptedCalendly = new CalendlyAdapter({
+  baseUrl: "https://calendly.test",
+  fetchImpl: async (url, init) => {
+    const path = String(url);
+    const respond = (body: unknown, status = 200) =>
+      new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+    if (path.startsWith("https://calendly.com/")) {
+      // The scheduling-link probe: /gone 404s, everything else is reachable.
+      return new Response("ok", { status: path.includes("/gone") ? 404 : 200 });
+    }
+    if (path.endsWith("/users/me"))
+      return respond({
+        resource: {
+          uri: "https://calendly.test/users/U1",
+          current_organization: "https://calendly.test/organizations/O1",
+          name: "Ada Lovelace",
+          scheduling_url: "https://calendly.com/ada-from-token",
+          timezone: "America/Chicago",
+        },
+      });
+    if (path.includes("/webhook_subscriptions") && (!init?.method || init.method === "GET"))
+      return respond({ collection: [] });
+    if (path.includes("/webhook_subscriptions") && init?.method === "POST") {
+      calendlySubscriptionPosts.push(JSON.parse(String(init.body)) as Record<string, unknown>);
+      const scripted = calendlyScript.subscriptionCreate?.();
+      if (scripted) return respond(scripted.body, scripted.status);
+      return respond({ resource: { uri: "https://calendly.test/webhook_subscriptions/W1", state: "active" } }, 201);
+    }
+    return respond({ title: "Not Found", message: "nope" }, 404);
   },
 });
 
@@ -109,9 +182,10 @@ describe.skipIf(!hasDb)("integrations e2e (INT W1, DEC-093)", () => {
     ownerToken = await signDevToken(SECRET, { sub: `auth|owner-${suffix}`, email: u1.email });
     agentToken = await signDevToken(SECRET, { sub: `auth|agent-${suffix}`, email: u2.email });
 
+    process.env.INTEGRATIONS_WEBHOOK_BASE = "https://api.staging.test";
     deps = {
       prisma: appClient,
-      adapters: { slack: scriptedAdapter },
+      adapters: { slack: scriptedAdapter, gcal: scriptedGcal, calendly: scriptedCalendly },
       publish: async (input) => {
         const validated = validateEvent(input);
         await withTenant(appClient, { workspaceId: validated.workspaceId }, (tx) =>
@@ -336,5 +410,215 @@ describe.skipIf(!hasDb)("integrations e2e (INT W1, DEC-093)", () => {
     expect(events[0]?.payload).toMatchObject({ provider: "slack", reason: "user" });
     // second disconnect refuses honestly
     await asOwner(api().delete("/integrations/slack")).expect(422);
+  });
+
+  // ── INT W2 (DEC-094): Google Calendar OAuth + the calendar picker ──────────
+  describe("gcal (INT W2)", () => {
+    it("connect mints an authorize URL with offline access, forced consent, and the readonly-only scope", async () => {
+      const res = await asOwner(api().post("/integrations/gcal/connect")).expect(201);
+      const url = new URL(res.body.authorizeUrl);
+      expect(url.origin + url.pathname).toBe("https://gcal.test/auth");
+      expect(url.searchParams.get("access_type")).toBe("offline");
+      expect(url.searchParams.get("prompt")).toBe("consent");
+      expect(url.searchParams.get("scope")).toBe("https://www.googleapis.com/auth/calendar.readonly");
+      expect(url.searchParams.get("state")).toBeTruthy();
+    });
+
+    it("the full OAuth walk (stubbed): probe-backed connected row, refresh token ENCRYPTED at rest", async () => {
+      const start = await asOwner(api().post("/integrations/gcal/connect")).expect(201);
+      const state = new URL(start.body.authorizeUrl).searchParams.get("state") as string;
+      const res = await asOwner(api().post("/integrations/gcal/complete"))
+        .send({ code: "gcal-code", state })
+        .expect(201);
+      expect(res.body.integration).toMatchObject({
+        provider: "gcal",
+        status: "connected",
+        accountLabel: "ada@example.test", // the primary calendar id off the probe
+        scopes: ["https://www.googleapis.com/auth/calendar.readonly"],
+      });
+      expect(JSON.stringify(res.body)).not.toContain("stubtok");
+      const raw = await owner.integration.findUniqueOrThrow({
+        where: { workspaceId_provider: { workspaceId: wsA, provider: "gcal" } },
+      });
+      expect(Buffer.from(raw.credentialsEnc as Uint8Array).toString("utf8")).not.toContain("stubtok");
+      const stored = JSON.parse(decryptField(Buffer.from(raw.credentialsEnc as Uint8Array))) as Record<string, unknown>;
+      expect(stored.accessToken).toBe("stubtok-gcal-e2e");
+      expect(stored.refreshToken).toBe("stubtok-gcal-refresh");
+      expect(typeof stored.expiresAt).toBe("string");
+    });
+
+    it("options kind=calendars lists the picker (with each calendar's own timeZone); wrong kinds refuse typed", async () => {
+      const res = await asOwner(api().get("/integrations/gcal/options?kind=calendars")).expect(200);
+      expect(res.body.options).toEqual([
+        { id: "ada@example.test", name: "Ada", timeZone: "America/Chicago" },
+        { id: "team@group.calendar.google.com", name: "Team", timeZone: "UTC" },
+      ]);
+      await asOwner(api().get("/integrations/gcal/options?kind=channels")).expect(422);
+      await asOwner(api().get("/integrations/slack/options?kind=calendars")).expect(422);
+    });
+
+    it("PATCH config stores the picked calendar + offerSlots through the strict gcal schema", async () => {
+      const ok = await asOwner(api().patch("/integrations/gcal"))
+        .send({ config: { calendar: { id: "ada@example.test", name: "Ada", timeZone: "America/Chicago" }, offerSlots: true } })
+        .expect(200);
+      expect(ok.body.integration.config).toEqual({
+        calendar: { id: "ada@example.test", name: "Ada", timeZone: "America/Chicago" },
+        offerSlots: true,
+      });
+      await asOwner(api().patch("/integrations/gcal"))
+        .send({ config: { calendar: { id: "x" } } })
+        .expect(400); // strict — a partial calendar refuses loudly
+    });
+  });
+
+  // ── INT W2 (DEC-094): Calendly connect-fields, both honest tiers ───────────
+  describe("calendly connect-fields (INT W2)", () => {
+    it("the OAuth routes refuse the fields provider typed (never a broken redirect)", async () => {
+      const res = await asOwner(api().post("/integrations/calendly/connect")).expect(422);
+      expect(res.body.detail).toContain("connect-fields");
+    });
+
+    it("connect-fields is calendly-only and OWNER/ADMIN-gated", async () => {
+      await asAgent(api().post("/integrations/calendly/connect-fields"))
+        .send({ schedulingUrl: "https://calendly.com/ada" })
+        .expect(403);
+      const wrongProvider = await asOwner(api().post("/integrations/slack/connect-fields"))
+        .send({ schedulingUrl: "https://calendly.com/ada" })
+        .expect(422);
+      expect(wrongProvider.body.detail).toContain("OAuth");
+      await asOwner(api().post("/integrations/calendly/connect-fields")).send({}).expect(400);
+    });
+
+    it("LINK tier: live link probe → connected row with config.schedulingUrl, NO credentials, detection off", async () => {
+      const res = await asOwner(api().post("/integrations/calendly/connect-fields"))
+        .send({ schedulingUrl: "https://calendly.com/ada" })
+        .expect(201);
+      expect(res.body.integration).toMatchObject({ provider: "calendly", status: "connected" });
+      expect(res.body.integration.config).toEqual({ schedulingUrl: "https://calendly.com/ada" });
+      const raw = await owner.integration.findUniqueOrThrow({
+        where: { workspaceId_provider: { workspaceId: wsA, provider: "calendly" } },
+      });
+      expect(raw.credentialsEnc).toBeNull();
+      expect(raw.lastProbeAt).not.toBeNull();
+    });
+
+    it("an unreachable link refuses typed CALENDLY_LINK_INVALID", async () => {
+      const res = await asOwner(api().post("/integrations/calendly/connect-fields"))
+        .send({ schedulingUrl: "https://calendly.com/gone" })
+        .expect(422);
+      expect(res.body.detail).toBe(INTEGRATION_REFUSALS.CALENDLY_LINK_INVALID);
+    });
+
+    it("TOKEN tier: /users/me probe + idempotent webhook subscription at the API's public URL; secrets encrypted", async () => {
+      calendlySubscriptionPosts.length = 0;
+      const res = await asOwner(api().post("/integrations/calendly/connect-fields"))
+        .send({ schedulingUrl: "https://calendly.com/ada", apiToken: "stubtok-pat-e2e" })
+        .expect(201);
+      expect(res.body.integration).toMatchObject({
+        provider: "calendly",
+        status: "connected",
+        accountLabel: "Ada Lovelace (Calendly)",
+      });
+      const config = res.body.integration.config as { schedulingUrl: string; webhookToken?: string; detection?: boolean };
+      expect(config.schedulingUrl).toBe("https://calendly.com/ada");
+      expect(config.detection).toBe(true);
+      expect(config.webhookToken).toBeTruthy();
+      // The subscription targets the API service's own public base + token.
+      expect(calendlySubscriptionPosts).toHaveLength(1);
+      expect(calendlySubscriptionPosts[0]?.url).toBe(
+        `https://api.staging.test/webhooks/calendly?token=${config.webhookToken}`,
+      );
+      // PAT + signing key + subscription URI ride credentialsEnc only.
+      expect(JSON.stringify(res.body)).not.toContain("stubtok");
+      const raw = await owner.integration.findUniqueOrThrow({
+        where: { workspaceId_provider: { workspaceId: wsA, provider: "calendly" } },
+      });
+      expect(Buffer.from(raw.credentialsEnc as Uint8Array).toString("utf8")).not.toContain("stubtok");
+      const stored = JSON.parse(decryptField(Buffer.from(raw.credentialsEnc as Uint8Array))) as Record<string, unknown>;
+      expect(stored.apiToken).toBe("stubtok-pat-e2e");
+      expect(typeof stored.signingKey).toBe("string");
+      expect(stored.subscriptionUri).toBe("https://calendly.test/webhook_subscriptions/W1");
+
+      // Reconnect keeps the capability URL stable (webhookToken unchanged).
+      const again = await asOwner(api().post("/integrations/calendly/connect-fields"))
+        .send({ schedulingUrl: "https://calendly.com/ada", apiToken: "stubtok-pat-rotated" })
+        .expect(201);
+      expect((again.body.integration.config as { webhookToken?: string }).webhookToken).toBe(config.webhookToken);
+    });
+
+    it("a free-plan webhook refusal maps to the typed plan-naming 422 — tier 1 stays intact", async () => {
+      calendlyScript.subscriptionCreate = () => ({
+        body: { title: "Permission Denied", message: "Please upgrade your Calendly account" },
+        status: 403,
+      });
+      try {
+        const res = await asOwnerB(api().post("/integrations/calendly/connect-fields"))
+          .send({ schedulingUrl: "https://calendly.com/ada", apiToken: "stubtok-free-plan" })
+          .expect(422);
+        expect(res.body.detail).toContain(INTEGRATION_REFUSALS.CALENDLY_TOKEN_REQUIRED_FOR_DETECTION);
+        expect(res.body.detail).toContain("upgrade");
+      } finally {
+        delete calendlyScript.subscriptionCreate;
+      }
+      // The refusal never left a half-connected row behind.
+      expect(
+        await owner.integration.findUnique({
+          where: { workspaceId_provider: { workspaceId: wsB, provider: "calendly" } },
+        }),
+      ).toBeNull();
+      // …and the LINK tier still connects for that workspace.
+      await asOwnerB(api().post("/integrations/calendly/connect-fields"))
+        .send({ schedulingUrl: "https://calendly.com/ada" })
+        .expect(201);
+    });
+
+    it("token-only connect derives the scheduling link from /users/me", async () => {
+      await owner.integration.deleteMany({ where: { workspaceId: wsB, provider: "calendly" } });
+      const res = await asOwnerB(api().post("/integrations/calendly/connect-fields"))
+        .send({ apiToken: "stubtok-derive" })
+        .expect(201);
+      expect((res.body.integration.config as { schedulingUrl?: string }).schedulingUrl).toBe(
+        "https://calendly.com/ada-from-token",
+      );
+    });
+  });
+
+  describe("stripe PATCH trust-anchors (INT W3)", () => {
+    it("a config PATCH can neither DROP nor FORGE webhookToken/detection (server-minted anchors win) — W3 fix", async () => {
+      await owner.integration.deleteMany({ where: { workspaceId: wsA, provider: "stripe" } });
+      await owner.integration.create({
+        data: {
+          workspaceId: wsA,
+          provider: "stripe",
+          status: "connected",
+          config: { paymentLinkUrl: "https://buy.stripe.com/old", webhookToken: "tok-anchor", detection: true },
+          scopes: [],
+        },
+      });
+
+      // Drop attempt: omit both anchors — the stored values must survive, else
+      // the live Stripe endpoint keeps POSTing at a token the receiver no longer
+      // matches → 401 storms → silent dead detection.
+      const dropped = await asOwner(api().patch("/integrations/stripe"))
+        .send({ config: { paymentLinkUrl: "https://buy.stripe.com/new" } })
+        .expect(200);
+      expect(dropped.body.integration.config).toMatchObject({
+        paymentLinkUrl: "https://buy.stripe.com/new",
+        webhookToken: "tok-anchor",
+        detection: true,
+      });
+
+      // Forge attempt: supply different values — the stored ones still win.
+      const forged = await asOwner(api().patch("/integrations/stripe"))
+        .send({ config: { paymentLinkUrl: "https://buy.stripe.com/new", webhookToken: "forged", detection: false } })
+        .expect(200);
+      expect(forged.body.integration.config).toMatchObject({ webhookToken: "tok-anchor", detection: true });
+
+      const raw = await owner.integration.findUniqueOrThrow({
+        where: { workspaceId_provider: { workspaceId: wsA, provider: "stripe" } },
+      });
+      expect((raw.config as { webhookToken: string; detection: boolean }).webhookToken).toBe("tok-anchor");
+      expect((raw.config as { detection: boolean }).detection).toBe(true);
+    });
   });
 });

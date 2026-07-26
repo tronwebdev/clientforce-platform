@@ -26,6 +26,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@clientforce/automations": "workspace:*",
     "@types/node": "^22.10.5"
   }
 }

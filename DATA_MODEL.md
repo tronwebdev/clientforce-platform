@@ -225,7 +225,8 @@ A directed graph of typed nodes + conditional edges. **Validate every graph agai
 Node types: **`step`** (a channel send), **`delay`** (durable Temporal timer), **`branch`** (waits on an
 event signal, routes by classified intent/condition), **`subcampaign`** (jump into a triggered sub-flow),
 **`action`** (fire an agent tool / integration — e.g. send_proposal, book_meeting), **`end`**.
-Tokens (`{{firstName}}`, `{{company}}`, `{{calendarLink}}`) resolve per-lead at render time.
+Tokens (`{{firstName}}`, `{{company}}`, `{{calendarLink}}`, `{{paymentLink}}` — INT W3, DEC-095)
+resolve per-lead at render time.
 
 ### 3.2 Guardrails schema (typed contract — `PHASE1_HANDOFF.md §A8`)
 
@@ -628,15 +629,31 @@ model Integration {                             // INT W1 (DEC-093): LIVE — on
   // + lastProbeAt · lastSyncAt · connectedById (audit)
 }
 
+model Meeting {                                 // INT W2 (DEC-094): CURRENT booking state + the before_meeting sweep anchor
+  id           String @id @default(cuid())
+  workspaceId  String
+  contactId    String?                          // NULL = an invitee we could not correlate (honest "not our lead")
+  enrollmentId String?
+  campaignId   String?
+  provider     String                           // calendly (detection tier) now; more later
+  externalId   String                           // the invitee URI — moves on reschedule (ONE row per chain)
+  status       String @default("booked")        // booked | canceled | no_show (guarded transitions; cancel ≠ stage change)
+  startAt      DateTime                         // reschedules update this — the sweep key re-arms
+  // + endAt? · timezone? · inviteeEmail? · rescheduleUrl? · cancelUrl? · title? · meta
+  // @@unique([workspaceId, provider, externalId]) — webhook redelivery idempotency
+  // @@index([workspaceId, status, startAt]) — the before_meeting sweep scan
+}
+
 model IntegrationDelivery {                     // INT W1 (DEC-093): outbound delivery audit + redelivery idempotency
   id            String @id @default(cuid())
   workspaceId   String
   integrationId String                          // → Integration (cascade)
   sourceEventId String?                         // the causing catalog Event id (NULL for manual tests)
-  kind          String                          // new_reply | meeting_booked | goal_completed | notify_team (W1)
+  kind          String                          // new_reply | meeting_booked | goal_completed | notify_team (W1) · payment (W3 INBOUND ingest claim) · webhook (W3 outbound) · crm_deal | crm_stage (W4 outbound HubSpot push)
   status        String                          // pending (pre-send claim, at-most-once) | delivered | failed | held
-  detail        Json?
+  detail        Json?                           // outbound: target/error; W3 payment: {amount,currency?}; W4: {op,dealId}
   // @@unique([integrationId, sourceEventId, kind]) — bus redeliveries dedupe
+  // W3 review: the outbound allowance brake counts only OUTBOUND kinds (excludes the inbound `payment` claim); W4 `crmDealId` rides Enrollment.meta (additive), never a new table
 }
 
 model SenderConnection {     // P1.5: the three-tier sender model (replaces `Sender` — DEC-030)
@@ -751,6 +768,11 @@ enum SuppressionReason { UNSUBSCRIBED BOUNCED SPAM_COMPLAINT MANUAL }
 > DESIGN — sends ride move_to_node → graph steps → the unchanged boundary.
 
 Outbound **WebhookEndpoint** (`url`, `secret`, `events[]`) + delivery log; Zapier rides the same dispatcher.
+**INT W3 (DEC-095) — the url+secret half LANDED:** the `webhooks` Integration row carries the default
+Payload URL + the server-minted per-workspace signing secret; the delivery log is `IntegrationDelivery`
+(claim-then-send, the W1 rails); the rule-fired `send_webhook` action POSTs signed
+(`X-Clientforce-Signature: t=…,v1=HMAC-SHA256(secret, "t.body")`) through the general SSRF guard.
+The `events[]` stream half (every catalog event as it happens) + the incoming trigger stay open → Q-054.
 
 ---
 

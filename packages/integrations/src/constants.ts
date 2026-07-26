@@ -24,12 +24,70 @@ export const INTEGRATION_DAILY_DELIVERY_ALLOWANCE = envInt(
 );
 
 /**
+ * INT W3 (DEC-095) review-round fix: IntegrationDelivery rows whose `kind` is
+ * an INBOUND ingest claim (a webhook we RECEIVED, not a delivery we SENT). The
+ * outbound-delivery allowance brake must NOT count these — a workspace taking
+ * 500 Stripe payments in a day would otherwise exhaust its own outbound budget
+ * and start holding legitimate Slack/webhook sends. `payment` is the first such
+ * kind (W3); add future inbound-claim kinds here.
+ */
+export const INBOUND_DELIVERY_KINDS = ["payment"] as const;
+
+/**
+ * INT W3 (DEC-095) review-round fix: the accepted clock-skew window for the
+ * Stripe webhook signature timestamp (Stripe's own SDK default). A signature
+ * whose `t` is older/newer than this is a replay and refuses — a second replay
+ * defense beside the idempotency ledger (which a disconnect can wipe).
+ */
+export const STRIPE_SIGNATURE_TOLERANCE_S = 300;
+
+/**
  * The Slack scopes Clientforce requests (drawer "Clientforce will be able to"
  * renders what was GRANTED, not this wish list): post to the picked channel
  * (public channels without a join via chat:write.public) + list channels for
  * the picker.
  */
 export const SLACK_SCOPES = ["chat:write", "chat:write.public", "channels:read"] as const;
+
+/**
+ * INT W2 (DEC-094): Google Calendar scopes — READONLY ONLY, deliberately.
+ * W2 never creates events (Calendly puts bookings on the connected calendar
+ * natively); requesting `calendar.events` would be scope theater. The write
+ * wave adds it via Google's incremental auth. Owner-flagged default.
+ */
+export const GCAL_SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"] as const;
+
+/**
+ * INT W2: the Calendly webhook subscription's event set — booked, canceled,
+ * and no-show (the canon's canceled + no-show fold into ONE trigger kind via
+ * the `calendar.canceled.v1` payload reason).
+ */
+export const CALENDLY_WEBHOOK_EVENTS = [
+  "invitee.created",
+  "invitee.canceled",
+  "invitee_no_show.created",
+] as const;
+
+/**
+ * INT W3 (DEC-095): the Stripe webhook endpoint's event set — checkout
+ * completion is the ONE payment moment this wave ingests (payment links
+ * complete through Checkout; refunds/disputes/invoices stay out).
+ */
+export const STRIPE_WEBHOOK_EVENTS = ["checkout.session.completed"] as const;
+
+/**
+ * INT W3: the outbound `send_webhook` action's delivery constraints — the
+ * general SSRF guard's port allowlist and response caps.
+ */
+export const WEBHOOK_ALLOWED_PORTS = [443, 8443] as const;
+export const WEBHOOK_TIMEOUT_MS = 5_000;
+export const WEBHOOK_MAX_RESPONSE_BYTES = 4_096;
+
+/** Refresh skew: tokens within this window of expiry refresh proactively. */
+export const TOKEN_REFRESH_SKEW_MS = 60_000;
+
+/** Freebusy-derived slots stay fresh this long; stale = the slots line is omitted. */
+export const SLOTS_CACHE_TTL_MS = 15 * 60_000;
 
 /** UTC day floor — the allowance window boundary. */
 export const utcDayStart = (now: Date): Date =>

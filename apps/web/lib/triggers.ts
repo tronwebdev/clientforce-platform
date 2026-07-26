@@ -27,6 +27,14 @@ const TRIGGER_LABELS: Record<CampaignRuleTriggerKind, string> = {
   lead_captured: "Form / lead captured",
   // SPEC A (DEC-099): a live call hit a question the record could not answer.
   call_knowledge_gap: "Call hit a knowledge gap",
+  // INT W2 (DEC-094): the Meetings wave — labels verbatim from the retired
+  // canon absent entries (the vocabulary lights up, the ledger closes).
+  meeting_rescheduled: "Meeting rescheduled",
+  meeting_canceled: "Meeting canceled / no-show",
+  before_meeting: "Before a meeting",
+  // INT W3 (DEC-095): the payments wave — the canon literal from the retired
+  // absent entry ("Payment succeeded"); the kind matches payment.received.v1.
+  payment_received: "Payment succeeded",
 };
 
 export function triggerLabel(kind: CampaignRuleTriggerKind): string {
@@ -44,6 +52,11 @@ export const TRIGGER_ICONS: Record<CampaignRuleTriggerKind, string> = {
   opted_out: "⊘",
   lead_captured: "⊞",
   call_knowledge_gap: "◇",
+  // INT W2: the canon glyphs from the retired Meetings absent entries.
+  meeting_rescheduled: "⟳",
+  meeting_canceled: "✕",
+  before_meeting: "⏰",
+  payment_received: "＄",
 };
 
 /** R1-UI (DEC-091, additive): canon picker descriptions per kind. */
@@ -56,6 +69,11 @@ export const TRIGGER_DESCRIPTIONS: Record<CampaignRuleTriggerKind, string> = {
   opted_out: "A lead opts out",
   lead_captured: "A form, widget or LinkedIn lead arrives",
   call_knowledge_gap: "A caller asks something the record can't answer",
+  // INT W2: the canon descs from the retired Meetings absent entries.
+  meeting_rescheduled: "A meeting moves",
+  meeting_canceled: "A meeting falls through",
+  before_meeting: "A set time before a meeting",
+  payment_received: "A payment is received",
 };
 
 /** The card-chip text for a concrete trigger (canon: "💬 Reply: Interested",
@@ -66,6 +84,10 @@ export function triggerChip(trigger: CampaignRuleTrigger): string {
       return `💬 Reply: ${trigger.intents.map((i) => intentTint(i).label).join(" · ")}`;
     case "sequence_quiet":
       return `⏱ No reply · ${trigger.days} day${trigger.days === 1 ? "" : "s"}`;
+    // INT W2: the sequence_quiet chip anatomy for the one parameterized
+    // meeting kind (rescheduled/canceled chip as their labels below).
+    case "before_meeting":
+      return `⏰ Before meeting · ${trigger.hours} hour${trigger.hours === 1 ? "" : "s"}`;
     default:
       return TRIGGER_LABELS[trigger.kind];
   }
@@ -77,7 +99,8 @@ export interface TriggerOption {
   chip: (trigger: CampaignRuleTrigger) => string;
 }
 
-/** Creator dropdown entries, in canon order. */
+/** Creator dropdown entries, in canon order (INT W2: the three meeting kinds
+ *  slot in after meeting_booked — the canon Meetings-group order). */
 export const TRIGGER_OPTIONS: readonly TriggerOption[] = (
   [
     "reply_classified",
@@ -85,6 +108,10 @@ export const TRIGGER_OPTIONS: readonly TriggerOption[] = (
     "email_opened",
     "link_clicked",
     "meeting_booked",
+    "meeting_rescheduled",
+    "meeting_canceled",
+    "before_meeting",
+    "payment_received",
     "opted_out",
     "lead_captured",
     // SPEC A (DEC-099). The Automations builder renders its picker FROM this
@@ -113,11 +140,15 @@ export const TRIGGER_GROUP: Record<CampaignRuleTriggerKind, string> = {
   email_opened: "Email engagement",
   link_clicked: "Email engagement",
   meeting_booked: "Meetings",
+  meeting_rescheduled: "Meetings",
+  meeting_canceled: "Meetings",
+  before_meeting: "Meetings",
   opted_out: "Lead lifecycle",
   lead_captured: "Forms & widget",
   // SPEC A (DEC-099): the FIRST live entry in the canon's "Voice & calls"
   // group — until now every entry in it was honest-absent (Q-032).
   call_knowledge_gap: "Voice & calls",
+  payment_received: "Proposals & revenue",
 };
 
 /** Canon group order (`Automations.dc.html` TRIG_GROUPS, verbatim). */
@@ -154,9 +185,10 @@ export const ABSENT_TRIGGERS: readonly AbsentPickerEntry[] = [
   { group: "Voice & calls", icon: "🎙", label: "Voicemail left", desc: "AI leaves a voicemail", reason: "Arrives with answering-machine detection" },
   { group: "Voice & calls", icon: "✖", label: "Call not answered", desc: "No pick-up on a call", reason: "Arrives with call-outcome triggers" },
   { group: "Voice & calls", icon: "↺", label: "Callback requested", desc: "A lead asks for a callback", reason: "Arrives with call-outcome triggers" },
-  { group: "Meetings", icon: "⟳", label: "Meeting rescheduled", desc: "A meeting moves", reason: "Arrives with calendar sync" },
-  { group: "Meetings", icon: "✕", label: "Meeting canceled / no-show", desc: "A meeting falls through", reason: "Arrives with calendar sync" },
-  { group: "Meetings", icon: "⏰", label: "Before a meeting", desc: "A set time before a meeting", reason: "Arrives with calendar sync" },
+  // INT W2 (DEC-094): the three Meetings entries LEFT this ledger — they
+  // plugged behind the live engine kinds (meeting_rescheduled /
+  // meeting_canceled / before_meeting), so absent cards here would shadow
+  // live vocabulary (the notify_team/DEC-093 precedent).
   { group: "Lead lifecycle", icon: "＋", label: "Contact created", desc: "A new contact is added", reason: "Arrives with lifecycle triggers" },
   { group: "Lead lifecycle", icon: "✦", label: "Lead qualified", desc: "A lead is marked qualified", reason: "Arrives with lifecycle triggers" },
   { group: "Lead lifecycle", icon: "⇄", label: "Status changed", desc: "A contact's status changes", reason: "Arrives with lifecycle triggers" },
@@ -176,11 +208,16 @@ export const ABSENT_TRIGGERS: readonly AbsentPickerEntry[] = [
   { group: "Proposals & revenue", icon: "❒", label: "Proposal sent", desc: "A proposal goes out", reason: "Arrives with proposals & payments" },
   { group: "Proposals & revenue", icon: "◔", label: "Proposal viewed", desc: "A prospect opens it", reason: "Arrives with proposals & payments" },
   { group: "Proposals & revenue", icon: "✓", label: "Proposal accepted", desc: "A proposal is signed", reason: "Arrives with proposals & payments" },
-  { group: "Proposals & revenue", icon: "＄", label: "Payment succeeded", desc: "A payment is received", reason: "Arrives with proposals & payments" },
+  // INT W3 (DEC-095): "Payment succeeded" LEFT this ledger — it plugged
+  // behind the live payment_received kind (Q-037's payment half).
   { group: "Proposals & revenue", icon: "⚠", label: "Payment failed", desc: "A charge fails", reason: "Arrives with proposals & payments" },
   { group: "Proposals & revenue", icon: "🧾", label: "Invoice overdue", desc: "An invoice passes due", reason: "Arrives with proposals & payments" },
   { group: "Schedule & system", icon: "🕘", label: "On a schedule", desc: "A recurring date & time", reason: "Arrives with scheduled automations" },
-  { group: "Schedule & system", icon: "⚯", label: "Incoming webhook", desc: "An external system pings us", reason: "Arrives with the webhooks integration" },
+  // INT W3 (DEC-095): the Webhooks integration ships OUTBOUND-only (the
+  // send_webhook action). The INBOUND half — an external system triggering a
+  // Clientforce automation — re-filed to Q-054; the reason names that, not the
+  // already-shipped integration.
+  { group: "Schedule & system", icon: "⚯", label: "Incoming webhook", desc: "An external system pings us", reason: "Arrives with inbound webhook triggers" },
   { group: "Schedule & system", icon: "⚠", label: "Sender health drops", desc: "Deliverability falls", reason: "Arrives with sender-health triggers" },
   { group: "Schedule & system", icon: "⏸", label: "Agent paused / limit hit", desc: "An agent stops sending", reason: "Arrives with agent-status triggers" },
 ];
@@ -196,7 +233,9 @@ export interface TriggerConnectivity {
  * Kinds whose events only exist once an email sender is connected: replies,
  * opens, clicks and unsubscribes ride the email pipeline, and sequence_quiet
  * times out a sequence that could never have sent. `meeting_booked` stays
- * available — stage moves fire it without any channel.
+ * available — stage moves fire it without any channel — and the INT W2
+ * meeting kinds ride calendar detection / the meeting sweep, never email
+ * (kept enabled always: the meeting_booked precedent, the brief's default).
  */
 const EMAIL_BACKED: ReadonlySet<CampaignRuleTriggerKind> = new Set([
   "reply_classified",

@@ -6,7 +6,7 @@
  * no prototype anchor (flagged in the spec) — §0 convention copy used.
  */
 import { useCallback, useEffect, useState } from "react";
-import { cf, intentTint } from "./shared";
+import { cf, intentTint, meetingTime } from "./shared";
 
 interface LogEvent {
   id: string;
@@ -47,7 +47,25 @@ const LOG_ROW: Record<string, { icon: string; bg: string; fg: string }> = {
   // contact never entered the sequence; unlike compose refusals nothing is
   // paused, because nothing was enrolled).
   "contact.enrollment_refused.v1": { icon: "⊘", bg: "rgba(224,121,107,.14)", fg: "#C9543F" },
+  // INT W2 (DEC-094): calendar rows — booked green · rescheduled neutral ·
+  // canceled red (the LeadsTab EVENT_ROW twins).
+  "calendar.booked.v1": { icon: "📅", bg: "rgba(53,232,52,.16)", fg: "#16A82A" },
+  "calendar.rescheduled.v1": { icon: "⟳", bg: "#F2EEE4", fg: "#8A7F6B" },
+  "calendar.canceled.v1": { icon: "✕", bg: "rgba(224,121,107,.16)", fg: "#C9543F" },
+  // INT W3 (DEC-095): the payment record row.
+  "payment.received.v1": { icon: "💳", bg: "rgba(53,232,52,.16)", fg: "#16A82A" },
 };
+
+/** Minor-units → display ("$500.00"); unknown currency falls back to the code. */
+function moneyLabel(amount: unknown, currency: unknown): string {
+  if (typeof amount !== "number" || !Number.isFinite(amount)) return "";
+  const code = typeof currency === "string" && currency ? currency.toUpperCase() : "USD";
+  try {
+    return new Intl.NumberFormat("en-US", { style: "currency", currency: code }).format(amount / 100);
+  } catch {
+    return `${(amount / 100).toFixed(2)} ${code}`;
+  }
+}
 
 function describe(e: LogEvent): string {
   const who = [e.contact?.firstName, e.contact?.lastName].filter(Boolean).join(" ") || e.contact?.email || "a lead";
@@ -76,6 +94,11 @@ function describe(e: LogEvent): string {
     case "call.refused.v1": return `Dial to ${who} refused — ${String(p.reason ?? "rails blocked it")}. Nothing was dialed.`;
     case "voice.compose_refused.v1": return `A spoken turn for ${who} tripped its checks — ${String(p.reason ?? "check failed")}; the agent used the fallback line and the call continued.`;
     case "contact.enrollment_refused.v1": return `Enrollment refused for ${who} — ${p.reason === "CONTACT_INVALID" ? "invalid email address (list hygiene)" : String(p.reason ?? "refused")}${p.detail ? ` (${String(p.detail)})` : ""}. Nothing was enrolled or sent.`;
+    // INT W2 (DEC-094): calendar copy — times render LOCAL from the payload.
+    case "calendar.booked.v1": { const t = meetingTime(p.startAt); return `Meeting booked with ${who}${t ? ` — ${t}` : ""}.`; }
+    case "calendar.rescheduled.v1": { const t = meetingTime(p.toStartAt); return `Meeting with ${who} rescheduled${t ? ` — now ${t}` : ""}.`; }
+    case "calendar.canceled.v1": { const t = meetingTime(p.startAt); return p.reason === "no_show" ? `${who} didn't show for the meeting${t ? ` (${t})` : ""}.` : `Meeting with ${who} canceled${t ? ` (was ${t})` : ""}.`; }
+    case "payment.received.v1": { const m = moneyLabel(p.amount, p.currency); return `Payment received from ${who}${m ? ` — ${m}` : ""}.`; }
     default: return `${e.type} — ${who}`;
   }
 }

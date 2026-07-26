@@ -26,6 +26,15 @@ export const ACTION_LABELS: Record<CampaignRuleActionKind, string> = {
   set_stage: "Set pipeline stage",
   notify_team: "Notify team",
   add_tag: "Add tag",
+  // INT W2 (DEC-094): NOT a send — queues the booking link into the next
+  // boundary-gated composed message (the Q-039 rails-honest form).
+  send_booking_link: "Send booking link",
+  // INT W3 (DEC-095): the booking twin (Q-039 stands) + the outbound webhook.
+  send_payment_link: "Send invoice / payment link",
+  send_webhook: "Send webhook",
+  // INT W4 (DEC-096): the one-way HubSpot CRM push pair.
+  create_crm_deal: "Create CRM deal",
+  update_deal_stage: "Update deal stage",
   run_automation: "Run another automation",
 };
 
@@ -37,6 +46,11 @@ export const ACTION_ICONS: Record<CampaignRuleActionKind, string> = {
   set_stage: "⇄",
   notify_team: "🔔",
   add_tag: "⌗",
+  send_booking_link: "📅",
+  send_payment_link: "🧾",
+  send_webhook: "⚯",
+  create_crm_deal: "❒",
+  update_deal_stage: "❒",
   run_automation: "⟳",
 };
 
@@ -73,6 +87,29 @@ export function actionChip(
       return "Pause contact";
     case "suppress_contact":
       return "Suppress contact";
+    // INT W2: parameterless — the label IS the chip (honest wording: the
+    // link is queued for the next composed message, never sent by the rule).
+    case "send_booking_link":
+      return "Send booking link";
+    // INT W3: the payment twin — same queued-not-sent honesty.
+    case "send_payment_link":
+      return "Send payment link";
+    case "send_webhook": {
+      if (!action.url) return "Send webhook (default URL)";
+      // The builder calls this on the LIVE draft on every keystroke, so
+      // action.url is often an in-progress string `new URL()` would throw on —
+      // fall back to the raw text, never crash the builder mid-type (W3 fix).
+      try {
+        return `Send webhook: ${new URL(action.url).hostname}`;
+      } catch {
+        return `Send webhook: ${action.url}`;
+      }
+    }
+    // INT W4: the one-way CRM push pair — the target stage IS the chip detail.
+    case "create_crm_deal":
+      return action.stage ? `Create CRM deal → ${action.stage}` : "Create CRM deal";
+    case "update_deal_stage":
+      return `Update deal stage → ${action.stage}`;
   }
 }
 
@@ -94,6 +131,15 @@ const ACTION_GROUPS: Record<(typeof ACCOUNT_ACTION_KINDS)[number], { group: stri
   // INT W1 (DEC-093, Q-042): posts to the connected Slack channel; without a
   // Slack connection the run row + Logs entry remain the transport of record.
   notify_team: { group: "Notify the team", desc: "Slack post when connected · always a run row + Logs entry" },
+  // INT W2 (DEC-094): flags the enrollment so the NEXT boundary-gated
+  // composed message carries the booking link as mustSay — never a send path.
+  send_booking_link: { group: "Meetings", desc: "Queues your booking link into the next composed message" },
+  // INT W3 (DEC-095): the payment twin (never a send path) + the signed POST.
+  send_payment_link: { group: "Revenue & CRM", desc: "Queues your payment link into the next composed message" },
+  send_webhook: { group: "Flow & integrations", desc: "Signed POST to your endpoint · run row records delivery" },
+  // INT W4 (DEC-096): one-way HubSpot push (Q-037 CRM half).
+  create_crm_deal: { group: "Revenue & CRM", desc: "Push the lead to HubSpot as a deal" },
+  update_deal_stage: { group: "Revenue & CRM", desc: "Move the contact's HubSpot deal stage" },
   run_automation: { group: "Flow & integrations", desc: "Chain another automation" },
 };
 
@@ -160,13 +206,20 @@ export const ABSENT_ACTIONS: ReadonlyArray<import("./triggers").AbsentPickerEntr
   { group: "Assign & tasks", icon: "☺", label: "Assign teammate", desc: "Route to a person", reason: "Arrives with teammates & tasks" },
   { group: "Assign & tasks", icon: "◎", label: "Assign to agent", desc: "Route to an agent", reason: "Arrives with teammates & tasks" },
   { group: "Assign & tasks", icon: "✓", label: "Create task", desc: "Add a follow-up task", reason: "Arrives with teammates & tasks" },
-  { group: "Meetings", icon: "📅", label: "Send booking link", desc: "Share the calendar link", reason: "Arrives with calendar sync" },
-  { group: "Meetings", icon: "⏰", label: "Send meeting reminder", desc: "Nudge before the meeting", reason: "Arrives with calendar sync" },
-  { group: "Meetings", icon: "🗓", label: "Create calendar event", desc: "Book it on the calendar", reason: "Arrives with calendar sync" },
-  { group: "Revenue & CRM", icon: "❒", label: "Create CRM deal", desc: "Open a pipeline deal", reason: "Arrives with proposals & payments" },
-  { group: "Revenue & CRM", icon: "❒", label: "Update deal stage", desc: "Move the deal along", reason: "Arrives with proposals & payments" },
+  // INT W2 (DEC-094): "Send booking link" LEFT this ledger — it plugged
+  // behind the expressible `send_booking_link` action (the rails-honest
+  // brief-injection form; an absent card would shadow live capability). The
+  // two below stay honestly absent with the Q-033 re-filed reasons: reminder
+  // IS a send (the Q-039 boundary stance) and create-event needs
+  // Clientforce-created bookings + the gcal events scope.
+  { group: "Meetings", icon: "⏰", label: "Send meeting reminder", desc: "Nudge before the meeting", reason: "Arrives with per-channel send rules — today pair a “Before a meeting” trigger with your sequence" },
+  { group: "Meetings", icon: "🗓", label: "Create calendar event", desc: "Book it on the calendar", reason: "Arrives when Clientforce creates bookings — Calendly puts booked meetings on your calendar today" },
+  // INT W4 (DEC-096): "Create CRM deal" + "Update deal stage" LEFT this ledger —
+  // live behind the HubSpot one-way push (Q-037's CRM half). Send proposal /
+  // receipt stay honestly absent (proposals → Phase 9).
   { group: "Revenue & CRM", icon: "❒", label: "Send proposal", desc: "Send a proposal to sign", reason: "Arrives with proposals & payments" },
-  { group: "Revenue & CRM", icon: "🧾", label: "Send invoice / payment link", desc: "Request a payment", reason: "Arrives with proposals & payments" },
+  // INT W3 (DEC-095): "Send invoice / payment link" LEFT this ledger — it
+  // plugged behind the live send_payment_link action (Q-037's payment half).
   { group: "Revenue & CRM", icon: "🧾", label: "Send receipt", desc: "Confirm a payment", reason: "Arrives with proposals & payments" },
   // INT W1 (DEC-093): "Notify Slack" left this ledger — it plugged behind the
   // EXPRESSIBLE notify_team action (Q-042's recorded design: same action, real
@@ -176,7 +229,8 @@ export const ABSENT_ACTIONS: ReadonlyArray<import("./triggers").AbsentPickerEntr
   { group: "Notify the team", icon: "✉", label: "Email internal alert", desc: "Email the team", reason: "Arrives with email alerts" },
   { group: "Flow & integrations", icon: "⏱", label: "Wait", desc: "Pause between actions", reason: "Multi-step chains arrive with automations v2" },
   { group: "Flow & integrations", icon: "⏰", label: "Wait until time", desc: "Hold until a set time", reason: "Multi-step chains arrive with automations v2" },
-  { group: "Flow & integrations", icon: "⚯", label: "Send webhook", desc: "POST to an external URL", reason: "Arrives with the webhooks integration" },
+  // INT W3: "Send webhook" LEFT this ledger — live behind send_webhook
+  // (Q-044's send half; the incoming trigger + Zapier/Sheets re-file → Q-054).
   { group: "Flow & integrations", icon: "⚡", label: "Trigger Zapier / Make", desc: "Hand off to a zap", reason: "Arrives with the Zapier integration" },
   { group: "Flow & integrations", icon: "▦", label: "Add row to Google Sheet", desc: "Append a spreadsheet row", reason: "Arrives with the Google Sheets integration" },
 ];

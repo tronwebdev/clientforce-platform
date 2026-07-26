@@ -27,7 +27,10 @@ const SCHEMA_KINDS = campaignRuleTriggerSchema.options.map(
 describe("trigger display map (lib/triggers)", () => {
   it("covers exactly R1's kinds — the display layer can never fork the union", () => {
     expect(new Set(TRIGGER_OPTIONS.map((o) => o.kind))).toEqual(new Set(SCHEMA_KINDS));
-    expect(TRIGGER_OPTIONS).toHaveLength(8); // +call_knowledge_gap (SPEC A, DEC-099)
+    // +call_knowledge_gap (SPEC A, DEC-099) · INT W2 (DEC-094):
+    // + meeting_rescheduled · meeting_canceled · before_meeting ·
+    // INT W3 (DEC-095): + payment_received.
+    expect(TRIGGER_OPTIONS).toHaveLength(12);
   });
 
   it("owner labels are the canon strings", () => {
@@ -40,6 +43,12 @@ describe("trigger display map (lib/triggers)", () => {
       opted_out: "Unsubscribed / opted out",
       lead_captured: "Form / lead captured",
       call_knowledge_gap: "Call hit a knowledge gap",
+      // INT W2: labels verbatim from the retired canon absent entries.
+      meeting_rescheduled: "Meeting rescheduled",
+      meeting_canceled: "Meeting canceled / no-show",
+      before_meeting: "Before a meeting",
+      // INT W3: the canon literal from the retired absent entry.
+      payment_received: "Payment succeeded",
     });
     for (const o of TRIGGER_OPTIONS) expect(triggerLabel(o.kind)).toBe(o.label);
   });
@@ -61,11 +70,19 @@ describe("trigger display map (lib/triggers)", () => {
     expect(triggerChip({ kind: "sequence_quiet", days: 1 })).toBe("⏱ No reply · 1 day");
   });
 
+  it("before_meeting chips render '⏰ Before meeting · N hours' (singular-aware) — INT W2", () => {
+    expect(triggerChip({ kind: "before_meeting", hours: 24 })).toBe("⏰ Before meeting · 24 hours");
+    expect(triggerChip({ kind: "before_meeting", hours: 1 })).toBe("⏰ Before meeting · 1 hour");
+  });
+
   it("parameterless kinds chip as their label; every entry's chip agrees with triggerChip", () => {
     const cases: CampaignRuleTrigger[] = [
       { kind: "email_opened" },
       { kind: "link_clicked" },
       { kind: "meeting_booked" },
+      { kind: "meeting_rescheduled" },
+      { kind: "meeting_canceled" },
+      { kind: "payment_received" },
       { kind: "opted_out" },
       { kind: "lead_captured" },
     ];
@@ -75,13 +92,30 @@ describe("trigger display map (lib/triggers)", () => {
     }
   });
 
-  it("availability maps exhaustively: email-backed kinds gate on the sender, lead_captured on capture, meeting_booked never", () => {
+  it("availability maps exhaustively: email-backed kinds gate on the sender, lead_captured on capture, meeting kinds never", () => {
     const emailBacked: CampaignRuleTriggerKind[] = [
       "reply_classified",
       "sequence_quiet",
       "email_opened",
       "link_clicked",
       "opted_out",
+    ];
+    // INT W2: the meeting kinds ride calendar detection / the meeting sweep,
+    // never email — always enabled (the meeting_booked precedent).
+    // SPEC A's `call_knowledge_gap` is ungated too: no per-workspace voice
+    // signal exists on main (the from-number is Key Vault config, not a
+    // SenderConnection row), so a gate would have to invent one. An ungated
+    // rule in a voice-less workspace simply never fires — it shows no fake
+    // data and blocks nothing (Q-051 records the gap).
+    // INT W3: payment_received rides payment detection, never email — the
+    // same always-on stance (the meeting_booked precedent).
+    const alwaysOn: CampaignRuleTriggerKind[] = [
+      "meeting_booked",
+      "meeting_rescheduled",
+      "meeting_canceled",
+      "before_meeting",
+      "call_knowledge_gap",
+      "payment_received",
     ];
     for (const kind of SCHEMA_KINDS) {
       // fully connected → everything picks
@@ -92,14 +126,7 @@ describe("trigger display map (lib/triggers)", () => {
       } else if (kind === "lead_captured") {
         expect(bare).toEqual({ enabled: false, reason: TRIGGER_DISABLED_LEAD_CAPTURE });
       } else {
-        // Always-available kinds: `meeting_booked` (stage moves fire it with
-        // no channel) and SPEC A's `call_knowledge_gap`. The latter is NOT
-        // gated on voice connectivity because no per-workspace signal for it
-        // exists on main — the voice from-number is Key Vault config, not a
-        // SenderConnection row — so a gate would have to invent one. An
-        // ungated rule in a voice-less workspace simply never fires; it shows
-        // no fake data and blocks nothing (Q-051 records the gap).
-        expect(["meeting_booked", "call_knowledge_gap"]).toContain(kind);
+        expect(alwaysOn).toContain(kind);
         expect(bare).toEqual({ enabled: true });
       }
       // each flag gates only its own kinds

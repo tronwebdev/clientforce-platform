@@ -71,6 +71,16 @@ for name in SLACK-CLIENT-ID SLACK-CLIENT-SECRET; do
   fi
 done
 
+# INT W2 (DEC-094): the Google app pair — OPTIONAL (vendor spine, the SLACK
+# pattern). Absent = Google Calendar connect refuses with the typed honest
+# owner-clock state; Calendly (fields connect, per-workspace PAT in the DB)
+# needs NO platform secret and keeps working either way.
+for name in GOOGLE-CLIENT-ID GOOGLE-CLIENT-SECRET; do
+  if ! grep -qxF "$name" <<<"$present"; then
+    echo "::warning::Key Vault secret $name not present — Google Calendar connect stays disabled this deploy (INT W2 owner step: create the Google Cloud OAuth client)."
+  fi
+done
+
 # Verify the DEPLOY identity itself can do everything the pipeline needs, before
 # anything destructive runs. This is the read-only "is all access in?" gate:
 # push to ACR, create the Container Apps/identity/job, and (the non-obvious one)
