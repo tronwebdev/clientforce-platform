@@ -198,9 +198,12 @@ describe.skipIf(!hasDb)("widget session rail e2e (WID2, DEC-101)", () => {
   });
 
   describe("flows — the server offers only what it can serve", () => {
-    it("advertises ask_question only, though all six are enabled in setup", async () => {
+    it("advertises only the servable subset, though all six are enabled in setup", async () => {
       const res = await api().post("/widget/v1/session").send(boot()).expect(201);
-      expect(res.body.quickActions).toEqual([{ kind: "ask_question", label: "Ask a question" }]);
+      expect(res.body.quickActions).toEqual([
+        { kind: "schedule_callback", label: "Schedule a callback" },
+        { kind: "ask_question", label: "Ask a question" },
+      ]);
     });
 
     it("refuses a quick action whose server half does not exist yet", async () => {
@@ -225,6 +228,163 @@ describe.skipIf(!hasDb)("widget session rail e2e (WID2, DEC-101)", () => {
         .send({ ...boot(), sessionId: booted.body.sessionId, event: { type: "open" } })
         .expect(201);
       expect(res.body).not.toHaveProperty("quickActions");
+    });
+  });
+
+  describe("capture → a real record → the outcome card (W2)", () => {
+    const submit = (sessionId: string, fields: Record<string, string>) =>
+      api()
+        .post("/widget/v1/session")
+        .send({ ...boot(), sessionId, event: { type: "capture_submit", fields } });
+
+    it("asks for details instead of spending an AI turn", async () => {
+      const booted = await api().post("/widget/v1/session").send(boot()).expect(201);
+      const res = await api()
+        .post("/widget/v1/session")
+        .send({
+          ...boot(),
+          sessionId: booted.body.sessionId,
+          event: { type: "quick_action", action: "schedule_callback" },
+        })
+        .expect(201);
+      expect(res.body.capture).toMatchObject({
+        flow: "scheduleCallback",
+        submitLabel: "Schedule callback",
+      });
+      expect(res.body.capture.fields.map((f: { key: string }) => f.key)).toEqual([
+        "name",
+        "phone",
+        "when",
+      ]);
+      expect(res.body.capture.consent.key).toBe("smsReminder");
+      expect(res.body.messages).toEqual([]); // no model call, no billable turn
+    });
+
+    it("writes a Contact + a Meeting, then describes what it wrote", async () => {
+      const booted = await api().post("/widget/v1/session").send(boot()).expect(201);
+      await api()
+        .post("/widget/v1/session")
+        .send({
+          ...boot(),
+          sessionId: booted.body.sessionId,
+          event: { type: "quick_action", action: "schedule_callback" },
+        })
+        .expect(201);
+
+      const when = new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString();
+      const phone = `+1555${Math.floor(Math.random() * 1e7)}`;
+      const res = await submit(booted.body.sessionId, {
+        name: "Dana Ruiz",
+        phone,
+        when,
+        smsReminder: "true",
+      }).expect(201);
+
+      expect(res.body.outcome).toMatchObject({
+        kind: "callback_scheduled",
+        title: "Callback scheduled",
+      });
+      expect(res.body.outcome.detail).toContain("Dana");
+      expect(res.body.outcome.at).toBe(new Date(when).toISOString());
+
+      const contact = await owner.contact.findFirst({ where: { workspaceId, phone } });
+      expect(contact?.source).toBe("widget");
+      const meeting = await owner.meeting.findFirst({
+        where: { workspaceId, provider: "widget", externalId: booted.body.sessionId },
+      });
+      expect(meeting?.contactId).toBe(contact?.id);
+      expect(meeting?.startAt.toISOString()).toBe(new Date(when).toISOString());
+      // Consent is RECORDED, not enforced here — the send boundary owns that.
+      expect((meeting?.meta as { smsReminderConsent?: unknown })?.smsReminderConsent).toBeTruthy();
+
+      const session = await owner.widgetSession.findUnique({
+        where: { id: booted.body.sessionId },
+      });
+      expect(session?.contactId).toBe(contact?.id); // no longer anonymous
+    });
+
+    it("a retried submit does not double-book", async () => {
+      const booted = await api().post("/widget/v1/session").send(boot()).expect(201);
+      await api()
+        .post("/widget/v1/session")
+        .send({
+          ...boot(),
+          sessionId: booted.body.sessionId,
+          event: { type: "quick_action", action: "schedule_callback" },
+        })
+        .expect(201);
+      const when = new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString();
+      const phone = `+1555${Math.floor(Math.random() * 1e7)}`;
+      const fields = { name: "Sam Vale", phone, when };
+      await submit(booted.body.sessionId, fields).expect(201);
+      // the pending capture is cleared, so the replay refuses rather than
+      // writing a second callback
+      await submit(booted.body.sessionId, fields).expect(422);
+      const count = await owner.meeting.count({
+        where: { workspaceId, provider: "widget", externalId: booted.body.sessionId },
+      });
+      expect(count).toBe(1);
+    });
+
+    it("refuses a submit nobody asked for, and a past time", async () => {
+      const booted = await api().post("/widget/v1/session").send(boot()).expect(201);
+      // no quick_action first ⇒ no pending capture
+      await submit(booted.body.sessionId, {
+        name: "X",
+        phone: "+15550000",
+        when: new Date(Date.now() + 3600_000).toISOString(),
+      }).expect(422);
+
+      await api()
+        .post("/widget/v1/session")
+        .send({
+          ...boot(),
+          sessionId: booted.body.sessionId,
+          event: { type: "quick_action", action: "schedule_callback" },
+        })
+        .expect(201);
+      await submit(booted.body.sessionId, {
+        name: "X",
+        phone: "+15550001",
+        when: new Date(Date.now() - 86_400_000).toISOString(),
+      }).expect(422);
+      await submit(booted.body.sessionId, {
+        name: "X",
+        when: new Date(Date.now() + 3600_000).toISOString(),
+      }).expect(422);
+    });
+
+    it("fires widget.lead_captured.v1 — the second catalog entry that had no producer", async () => {
+      const before = await owner.event.count({
+        where: { workspaceId, type: "widget.lead_captured.v1" },
+      });
+      const booted = await api().post("/widget/v1/session").send(boot()).expect(201);
+      await api()
+        .post("/widget/v1/session")
+        .send({
+          ...boot(),
+          sessionId: booted.body.sessionId,
+          event: { type: "quick_action", action: "schedule_callback" },
+        })
+        .expect(201);
+      await submit(booted.body.sessionId, {
+        name: "Lee Park",
+        phone: `+1555${Math.floor(Math.random() * 1e7)}`,
+        when: new Date(Date.now() + 7200_000).toISOString(),
+      }).expect(201);
+
+      // No polling: unlike the chat-start event, a CAPTURE is published after
+      // the commit and awaited, so it has landed by the time the visitor is
+      // told. Losing it would mean a real lead whose automations never fired.
+      const after = await owner.event.count({
+        where: { workspaceId, type: "widget.lead_captured.v1" },
+      });
+      expect(after).toBe(before + 1);
+      const row = await owner.event.findFirst({
+        where: { workspaceId, type: "widget.lead_captured.v1" },
+        orderBy: { createdAt: "desc" },
+      });
+      expect(row?.contactId).toBeTruthy(); // the lead is attached, not anonymous
     });
   });
 

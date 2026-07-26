@@ -32,6 +32,9 @@ import {
   WIDGET_CONTRACT_VERSION,
   WIDGET_QUICK_ACTION_FLOW,
   WIDGET_REFUSALS,
+  WIDGET_SERVABLE_FLOWS,
+  type WidgetCaptureSpec,
+  type WidgetOutcome,
   type WidgetFlow,
   type WidgetFlows,
   type WidgetMessage,
@@ -47,16 +50,10 @@ import { EVENTS_PUBLISHER, type EventsPublisher } from "../events/publisher";
 import { WIDGET_ANSWERER, type WidgetAnswerer } from "./widget.providers";
 
 /**
- * Flows whose SERVER HALF exists. The workspace's own toggles are intersected
- * with this: enabling "Book a visit" in setup does nothing until the wave that
- * builds slot availability lands, because advertising a chip that cannot
- * complete is the invented surface the repo forbids.
- *
- * W1 ships `askQuestion` — the one flow that needs no third-party provider.
- * The capture flows (call me back · schedule callback · estimate) and booking
- * arrive with their waves; live voice waits on a transport (Q-057).
+ * Servable flows come from `@clientforce/core` so the API and the future config
+ * UI read ONE list — the API refuses to advertise a flow it cannot complete,
+ * and the UI explains the difference instead of showing a dead toggle.
  */
-export const IMPLEMENTED_FLOWS: readonly WidgetFlow[] = ["askQuestion"];
 
 /** Per-session cap on billable agent turns. A visitor conversation that needs
  *  more than this is not a conversation any more. */
@@ -104,6 +101,35 @@ const DEFAULT_LABELS: Record<WidgetQuickActionKind, string> = {
   ask_question: "Ask a question",
 };
 
+/**
+ * What each capture flow asks for (W2). Server-offered, so a tenant can reword
+ * or re-scope it later without a client release — the entry-chip stance applied
+ * to forms. Deliberately SHORT: every extra field on a marketing-page panel is
+ * a visitor who leaves.
+ *
+ * Only flows that can complete end-to-end appear here; the servable list in
+ * core is what actually gates them.
+ */
+const CAPTURE_SPECS: Partial<Record<WidgetFlow, WidgetCaptureSpec>> = {
+  scheduleCallback: {
+    flow: "scheduleCallback",
+    title: "When should we call?",
+    submitLabel: "Schedule callback",
+    fields: [
+      { key: "name", label: "Your name", type: "text", required: true },
+      { key: "phone", label: "Mobile number", type: "tel", required: true },
+      { key: "when", label: "Preferred time", type: "datetime", required: true },
+    ],
+    consent: {
+      key: "smsReminder",
+      // Captured here, ENFORCED at the send boundary — the widget never decides
+      // whether a message may go out.
+      text: "Text me a reminder before the call",
+      required: false,
+    },
+  },
+};
+
 const nowIso = (): string => new Date().toISOString();
 
 const asRecord = (value: unknown): Record<string, unknown> =>
@@ -128,79 +154,150 @@ export class WidgetService {
     const servable = this.servableFlows(widget.flows);
     const attribution = await this.platformAttribution(widget.workspaceId);
 
-    return withTenant(this.prisma.app, { workspaceId: widget.workspaceId }, async (tx) => {
-      const session = await this.loadOrCreateSession(tx, widget, req, originHeader);
-      const turns = this.readTurns(session.turns);
-      const appended: WidgetMessage[] = [];
+    /**
+     * A capture's ledger event, held until the transaction commits.
+     *
+     * `widget.conversation_started.v1` is fire-and-forget on purpose — a
+     * missed chat-start is cosmetic and the bus must not sit on a visitor's
+     * critical path. A CAPTURE is different: losing it means a real person
+     * handed over their phone number and the tenant's new-lead automations
+     * never fired. So this one publishes AFTER the write commits and is
+     * AWAITED, which also avoids opening the publisher's transaction inside
+     * our own.
+     */
+    const { response, captured } = await withTenant(
+      this.prisma.app,
+      { workspaceId: widget.workspaceId },
+      async (tx) => {
+        const session = await this.loadOrCreateSession(tx, widget, req, originHeader);
+        const turns = this.readTurns(session.turns);
+        const appended: WidgetMessage[] = [];
+        let capture: WidgetCaptureSpec | undefined;
+        let outcome: WidgetOutcome | undefined;
+        let captured: { contactId: string; flow: WidgetFlow } | null = null;
 
-      switch (req.event.type) {
-        case "boot":
-          // The greeting is the widget's own copy (client-side default or the
-          // tenant's override) — the server does not compose it, so booting
-          // costs nothing and cannot fail on a missing model key.
-          break;
-        case "open":
-        case "close":
+        switch (req.event.type) {
+          case "boot":
+            // The greeting is the widget's own copy (client-side default or the
+            // tenant's override) — the server does not compose it, so booting
+            // costs nothing and cannot fail on a missing model key.
+            break;
+          case "open":
+          case "close":
+            await tx.widgetSession.update({
+              where: { id: session.id },
+              data: {
+                lastEventAt: new Date(),
+                ...(req.event.type === "close" ? { status: "closed", closedAt: new Date() } : {}),
+              },
+            });
+            break;
+          case "visitor_message": {
+            const visitorTurn = this.turn("visitor", req.event.text);
+            appended.push(visitorTurn);
+            const reply = await this.answer(
+              widget,
+              session,
+              [...turns, visitorTurn],
+              req.event.text,
+            );
+            appended.push(reply);
+            break;
+          }
+          case "quick_action": {
+            const flow = WIDGET_QUICK_ACTION_FLOW[req.event.action];
+            if (!servable.includes(flow)) throw new WidgetRefusal("FLOW_DISABLED", 422);
+            const spec = CAPTURE_SPECS[flow];
+            if (spec) {
+              // A capture flow asks for details rather than spending an AI turn;
+              // the pending flow is remembered server-side so the submit cannot
+              // be pointed at a different one by a crafted request.
+              capture = spec;
+              await tx.widgetSession.update({
+                where: { id: session.id },
+                data: { meta: { pendingCapture: flow }, lastEventAt: new Date() },
+              });
+              break;
+            }
+            const asked = this.turn("visitor", DEFAULT_LABELS[req.event.action]);
+            appended.push(asked);
+            appended.push(
+              await this.answer(
+                widget,
+                session,
+                [...turns, asked],
+                DEFAULT_LABELS[req.event.action],
+              ),
+            );
+            break;
+          }
+          case "capture_submit": {
+            const pending = asRecord(session.meta).pendingCapture as WidgetFlow | undefined;
+            const spec = pending ? CAPTURE_SPECS[pending] : undefined;
+            // No pending capture ⇒ nothing asked for these fields. Refuse rather
+            // than store a bag of PII nobody requested.
+            if (!spec || !servable.includes(pending as WidgetFlow)) {
+              throw new WidgetRefusal("FLOW_DISABLED", 422);
+            }
+            const done = await this.completeCapture(tx, widget, session, spec, req.event.fields);
+            outcome = done.outcome;
+            captured = done.captured;
+            appended.push(this.turn("agent", outcome.title));
+            break;
+          }
+        }
+
+        if (appended.length) {
           await tx.widgetSession.update({
             where: { id: session.id },
             data: {
+              turns: [...turns, ...appended] as unknown as Prisma.InputJsonValue,
+              agentTurns: { increment: appended.filter((m) => m.role === "agent").length },
               lastEventAt: new Date(),
-              ...(req.event.type === "close" ? { status: "closed", closedAt: new Date() } : {}),
             },
           });
-          break;
-        case "visitor_message": {
-          const visitorTurn = this.turn("visitor", req.event.text);
-          appended.push(visitorTurn);
-          const reply = await this.answer(widget, session, [...turns, visitorTurn], req.event.text);
-          appended.push(reply);
-          break;
         }
-        case "quick_action": {
-          const flow = WIDGET_QUICK_ACTION_FLOW[req.event.action];
-          if (!servable.includes(flow)) throw new WidgetRefusal("FLOW_DISABLED", 422);
-          const asked = this.turn("visitor", DEFAULT_LABELS[req.event.action]);
-          appended.push(asked);
-          appended.push(
-            await this.answer(widget, session, [...turns, asked], DEFAULT_LABELS[req.event.action]),
-          );
-          break;
-        }
-        case "capture_submit":
-          // Nothing collects fields until the capture flows land; accepting a
-          // bag of PII with nowhere to put it would be worse than refusing.
-          throw new WidgetRefusal("FLOW_DISABLED", 422);
-      }
 
-      if (appended.length) {
-        await tx.widgetSession.update({
-          where: { id: session.id },
-          data: {
-            turns: [...turns, ...appended] as unknown as Prisma.InputJsonValue,
-            agentTurns: { increment: appended.filter((m) => m.role === "agent").length },
-            lastEventAt: new Date(),
+        const response: WidgetSessionResponse = {
+          contractVersion: WIDGET_CONTRACT_VERSION,
+          sessionId: session.id,
+          agent: {
+            name: (asRecord(widget.design).agentName as string) ?? "Ada",
+            subtitle: (asRecord(widget.design).subtitle as string) ?? "AI Assistant",
+            state: "idle",
           },
-        });
-      }
+          messages: appended,
+          // Chips are offered on boot only. An ABSENT field means "unchanged" —
+          // sending [] mid-conversation would clear the client's chips, so the
+          // other events deliberately omit it.
+          ...(req.event.type === "boot" ? { quickActions: this.chips(servable) } : {}),
+          appearance: null,
+          branding: { platformAttribution: attribution },
+          ...(capture ? { capture } : {}),
+          ...(outcome ? { outcome } : {}),
+          meta: { stub: false },
+        };
+        return { response, captured };
+      },
+    );
 
-      return {
-        contractVersion: WIDGET_CONTRACT_VERSION,
-        sessionId: session.id,
-        agent: {
-          name: (asRecord(widget.design).agentName as string) ?? "Ada",
-          subtitle: (asRecord(widget.design).subtitle as string) ?? "AI Assistant",
-          state: "idle",
-        },
-        messages: appended,
-        // Chips are offered on boot only. An ABSENT field means "unchanged" —
-        // sending [] mid-conversation would clear the client's chips, so the
-        // other events deliberately omit it.
-        ...(req.event.type === "boot" ? { quickActions: this.chips(servable) } : {}),
-        appearance: null,
-        branding: { platformAttribution: attribution },
-        meta: { stub: false },
-      };
-    });
+    if (captured) {
+      try {
+        await this.publisher.publish({
+          workspaceId: widget.workspaceId,
+          type: "widget.lead_captured.v1",
+          contactId: captured.contactId,
+          payload: { widgetId: widget.id, fields: { flow: captured.flow } },
+        });
+      } catch (err) {
+        // The Contact and the callback are already written and the visitor has
+        // been told, so failing the request now would be a lie in the other
+        // direction. Loud log instead — a lost capture event means silent
+        // automations for a real lead.
+        this.logger.error(`widget lead_captured publish FAILED (record stands): ${String(err)}`);
+      }
+    }
+    return response;
   }
 
   /**
@@ -252,7 +349,7 @@ export class WidgetService {
   }
 
   private servableFlows(configured: WidgetFlows): WidgetFlow[] {
-    return IMPLEMENTED_FLOWS.filter((flow) => configured[flow]);
+    return WIDGET_SERVABLE_FLOWS.filter((flow) => configured[flow]);
   }
 
   private chips(servable: WidgetFlow[]): WidgetQuickAction[] {
@@ -283,11 +380,11 @@ export class WidgetService {
     widget: ResolvedWidget,
     req: WidgetSessionRequest,
     origin?: string,
-  ): Promise<{ id: string; turns: unknown; agentTurns: number }> {
+  ): Promise<{ id: string; turns: unknown; agentTurns: number; meta: unknown }> {
     if (req.sessionId) {
       const existing = await tx.widgetSession.findFirst({
         where: { id: req.sessionId, widgetId: widget.id },
-        select: { id: true, turns: true, agentTurns: true },
+        select: { id: true, turns: true, agentTurns: true, meta: true },
       });
       // An unknown/foreign session id is not an error the visitor can fix —
       // start a fresh one rather than leaking that the id belongs elsewhere.
@@ -315,7 +412,7 @@ export class WidgetService {
         locale: req.context?.locale ?? null,
         originHost: this.hostOf(origin),
       },
-      select: { id: true, turns: true, agentTurns: true },
+      select: { id: true, turns: true, agentTurns: true, meta: true },
     });
 
     // `widget.conversation_started.v1` has been in the catalog since the data
@@ -336,6 +433,105 @@ export class WidgetService {
       .catch((err: unknown) => this.logger.warn(`widget event publish failed: ${String(err)}`));
 
     return created;
+  }
+
+  /**
+   * Turn a capture submit into a REAL record, then describe it. Order matters:
+   * the outcome card is built from what was written, never promised ahead of
+   * it, so a failure anywhere leaves the visitor with a refusal rather than a
+   * fabricated receipt.
+   */
+  private async completeCapture(
+    tx: Prisma.TransactionClient,
+    widget: ResolvedWidget,
+    session: { id: string },
+    spec: WidgetCaptureSpec,
+    fields: Record<string, string>,
+  ): Promise<{ outcome: WidgetOutcome; captured: { contactId: string; flow: WidgetFlow } }> {
+    for (const field of spec.fields) {
+      if (field.required && !fields[field.key]?.trim()) {
+        throw new WidgetRefusal("FLOW_DISABLED", 422);
+      }
+    }
+    const when = new Date(fields.when ?? "");
+    if (Number.isNaN(when.getTime()) || when.getTime() < Date.now() - 60_000) {
+      throw new WidgetRefusal("FLOW_DISABLED", 422);
+    }
+
+    const phone = fields.phone!.trim();
+    const name = fields.name!.trim();
+    // The visitor stops being anonymous here. Match on phone within the
+    // workspace so a returning visitor is the same Contact, not a duplicate.
+    const existing = await tx.contact.findFirst({
+      where: { workspaceId: widget.workspaceId, phone },
+      select: { id: true },
+    });
+    const contactId =
+      existing?.id ??
+      (
+        await tx.contact.create({
+          data: {
+            workspaceId: widget.workspaceId,
+            firstName: name.split(" ")[0] ?? name,
+            lastName: name.split(" ").slice(1).join(" ") || null,
+            phone,
+            source: "widget",
+            // A visitor who asks to be called has opted IN to that call; the
+            // per-channel opt-out ledger starts empty and the send boundary
+            // keeps owning it (the seed's shape).
+            optOut: {},
+            tags: [],
+          },
+          select: { id: true },
+        })
+      ).id;
+
+    // A callback lives on `Meeting` rather than a new table, so it appears
+    // wherever the tenant already looks for what is coming up. `provider:
+    // "widget"` + the session id keeps it idempotent under a retried submit.
+    await tx.meeting.upsert({
+      where: {
+        workspaceId_provider_externalId: {
+          workspaceId: widget.workspaceId,
+          provider: "widget",
+          externalId: session.id,
+        },
+      },
+      create: {
+        workspaceId: widget.workspaceId,
+        contactId,
+        provider: "widget",
+        externalId: session.id,
+        status: "booked",
+        title: "Callback request",
+        startAt: when,
+        meta: {
+          flow: spec.flow,
+          // Consent is RECORDED here; the send boundary decides whether a
+          // reminder may actually go out. Never both.
+          smsReminderConsent: fields.smsReminder === "true" ? { at: nowIso() } : null,
+        },
+      },
+      update: { startAt: when, contactId },
+    });
+
+    await tx.widgetSession.update({
+      where: { id: session.id },
+      data: { contactId, meta: { pendingCapture: null, capturedAt: nowIso() } },
+    });
+
+    // `widget.lead_captured.v1` is published by the caller AFTER this
+    // transaction commits — see `captured` in handle() for why this one is not
+    // fire-and-forget like the chat-start event.
+    return {
+      outcome: {
+        kind: "callback_scheduled",
+        title: "Callback scheduled",
+        detail: `We'll call ${name.split(" ")[0] ?? name} on ${phone}`,
+        at: when.toISOString(),
+      },
+      captured: { contactId, flow: spec.flow },
+    };
   }
 
   private readTurns(value: unknown): WidgetMessage[] {

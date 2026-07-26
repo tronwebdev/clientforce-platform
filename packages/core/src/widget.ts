@@ -71,6 +71,29 @@ export const widgetFlowsSchema = z.object({
 export type WidgetFlows = z.infer<typeof widgetFlowsSchema>;
 
 /**
+ * Flows whose SERVER HALF exists today. The ONE list both sides read: the API
+ * intersects a workspace's toggles with it (a flow it cannot complete is never
+ * advertised), and the widget config UI renders the difference as "enabled,
+ * arrives with a later wave" rather than leaving a toggle that looks broken —
+ * the owner's condition on the advertise-only-what-you-serve ruling
+ * (2026-07-26). Keeping it here is what stops the two ends drifting: a wave
+ * that lands a flow flips it in ONE place.
+ *
+ * WID2 W1 shipped `askQuestion` (no third-party provider needed). W2 adds
+ * `scheduleCallback` — the capture flow that completes with no third party: it
+ * writes a real Contact and a real `Meeting`, so the outcome card describes
+ * something that exists. `callMeBack` needs live telephony and `estimate` needs
+ * generation + delivery, so they stay off until their wave; booking waits on a
+ * calendar provider (Q-058) and live voice on a transport (Q-057).
+ */
+export const WIDGET_SERVABLE_FLOWS: readonly WidgetFlow[] = ["askQuestion", "scheduleCallback"];
+
+/** A configured flow that cannot be served yet — what the config UI explains
+ *  instead of rendering a dead toggle. */
+export const isWidgetFlowServable = (flow: WidgetFlow): boolean =>
+  WIDGET_SERVABLE_FLOWS.includes(flow);
+
+/**
  * Entry-chip flows — the five that surface as chips. Labels are server-offered
  * per tenant (industries word them differently); the client draws the icon from
  * the KIND, so a tenant label can never smuggle an emoji back into a shell that
@@ -145,6 +168,73 @@ export const widgetSessionRequestSchema = z.object({
 });
 export type WidgetSessionRequest = z.infer<typeof widgetSessionRequestSchema>;
 
+// ── Capture + outcome (W2) ───────────────────────────────────────────────────
+/**
+ * What a capture flow asks for. Server-offered per tenant and per flow, because
+ * a dentist booking a visit and a roofer quoting a job want different fields —
+ * the panel renders the spec it is given rather than a hard-coded form, which
+ * is the same stance the entry chips take with their labels.
+ */
+export const WIDGET_CAPTURE_FIELD_TYPES = ["text", "email", "tel", "datetime"] as const;
+export type WidgetCaptureFieldType = (typeof WIDGET_CAPTURE_FIELD_TYPES)[number];
+
+export const widgetCaptureFieldSchema = z.object({
+  key: z.string().min(1).max(40),
+  label: z.string().min(1).max(60),
+  type: z.enum(WIDGET_CAPTURE_FIELD_TYPES),
+  required: z.boolean(),
+  placeholder: z.string().max(80).optional(),
+});
+export type WidgetCaptureField = z.infer<typeof widgetCaptureFieldSchema>;
+
+/**
+ * Consent is CAPTURED here and ENFORCED at the send boundary — never both. The
+ * widget records that a visitor ticked the box and when; whether a reminder may
+ * actually be sent stays the channel rail's decision, because forking that
+ * check is exactly how a compliance rail rots.
+ */
+export const widgetCaptureConsentSchema = z.object({
+  key: z.string().min(1).max(40),
+  text: z.string().min(1).max(240),
+  required: z.boolean(),
+});
+
+export const widgetCaptureSpecSchema = z.object({
+  flow: widgetFlowSchema,
+  title: z.string().min(1).max(80),
+  submitLabel: z.string().min(1).max(40),
+  fields: z.array(widgetCaptureFieldSchema).min(1).max(6),
+  consent: widgetCaptureConsentSchema.optional(),
+});
+export type WidgetCaptureSpec = z.infer<typeof widgetCaptureSpecSchema>;
+
+/**
+ * The outcome card — the terminal surface of every capture flow. Canon §7's
+ * SEMANTIC green: it is mint/forest on every panel, white-label or not, because
+ * it means GOOD rather than meaning Clientforce (owner ruling 2026-07-26).
+ *
+ * It carries only what actually happened. There is no "pending" kind on
+ * purpose: a card that says "Booked · Tue 10:30" when nothing was booked is the
+ * fabricated receipt the repo forbids, so the server emits this ONLY after the
+ * record exists.
+ */
+export const WIDGET_OUTCOME_KINDS = [
+  "callback_scheduled",
+  "call_requested",
+  "estimate_sent",
+  "booked",
+] as const;
+export type WidgetOutcomeKind = (typeof WIDGET_OUTCOME_KINDS)[number];
+
+export const widgetOutcomeSchema = z.object({
+  kind: z.enum(WIDGET_OUTCOME_KINDS),
+  title: z.string().min(1).max(80),
+  detail: z.string().max(160).optional(),
+  /** ISO-8601 — the moment the outcome refers to (a callback time, say). */
+  at: z.string().optional(),
+});
+export type WidgetOutcome = z.infer<typeof widgetOutcomeSchema>;
+
 // ── Response ─────────────────────────────────────────────────────────────────
 export const widgetMessageSchema = z.object({
   id: z.string(),
@@ -190,6 +280,14 @@ export const widgetSessionResponseSchema = z.object({
   /** Server-resolved appearance; null until the builder writes one. */
   appearance: z.record(z.string(), z.unknown()).nullish(),
   branding: widgetBrandingSchema.optional(),
+  /**
+   * A form the panel should render now (a capture flow was chosen). Additive
+   * and optional, so a pre-W2 client simply ignores it — which is why
+   * `contractVersion` stays 1.
+   */
+  capture: widgetCaptureSpecSchema.nullish(),
+  /** The terminal card, emitted only once the underlying record exists. */
+  outcome: widgetOutcomeSchema.nullish(),
   meta: z.object({
     /** true ⇒ this response did not come from a live agent. */
     stub: z.boolean(),
