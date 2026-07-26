@@ -116,6 +116,11 @@ export function defaultActionFor(
       // Never offered by the account picker (ACCOUNT_ACTION_OPTIONS) — the
       // exhaustive switch still covers the union so a new kind fails here.
       return { kind, targetNodeId: "" };
+    // INT W4 (DEC-096): update_deal_stage requires a target stage — a valid
+    // HubSpot placeholder (the set_stage precedent); the user edits it, and a
+    // stage the pipeline doesn't have surfaces the typed refusal on the run row.
+    case "update_deal_stage":
+      return { kind, stage: "qualifiedtobuy" };
     default:
       return { kind };
   }
@@ -273,7 +278,9 @@ export function AutomationBuilder({
                   ? "name the stage"
                   : actions.some((a) => a.action.kind === "send_webhook" && !webhookUrlOk(a.action.url))
                     ? "enter a valid https URL for the webhook (or clear it for the default)"
-                    : null;
+                    : actions.some((a) => a.action.kind === "update_deal_stage" && !a.action.stage.trim())
+                      ? "name the HubSpot deal stage to move to"
+                      : null;
   const canSave = valid && !busy;
 
   const save = async () => {
@@ -610,6 +617,13 @@ export function AutomationBuilder({
                         exists — the honest run-time convergence). */}
                     {action.kind === "send_webhook" &&
                       txtRow("URL", action.url ?? "", (v) => updateAction(uid, { kind: "send_webhook", ...(v.trim() ? { url: v.trim() } : {}) }), "https://… (blank = the Webhooks integration default)")}
+                    {/* INT W4 (DEC-096): the HubSpot deal-stage inputs — create's
+                        is optional (blank = the pipeline default), update's is
+                        required (blocked at save when empty). */}
+                    {action.kind === "create_crm_deal" &&
+                      txtRow("Stage", action.stage ?? "", (v) => updateAction(uid, { kind: "create_crm_deal", ...(v.trim() ? { stage: v.trim() } : {}) }), "HubSpot deal stage (blank = pipeline default)")}
+                    {action.kind === "update_deal_stage" &&
+                      txtRow("Stage", action.stage, (v) => updateAction(uid, { kind: "update_deal_stage", stage: v }), "HubSpot deal stage id or label")}
                     {action.kind === "run_automation" && (
                       <div style={{ marginTop: 11, paddingTop: 11, borderTop: "1px solid #F2EEE4", display: "flex", alignItems: "center", gap: 10 }}>
                         <span style={{ fontSize: 12, color: "#9AA59E", fontWeight: 700, width: 74, flex: "none" }}>Automation</span>

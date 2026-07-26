@@ -35,10 +35,12 @@ import {
 } from "@clientforce/automations";
 import {
   GoogleCalendarAdapter,
+  HubspotAdapter,
   SlackAdapter,
   createBookingSlotsProvider,
   createIntegrationNotifier,
   createNotifyTeamTransport,
+  deliverCrm,
   deliverWebhook,
   type IntegrationsDeps,
 } from "@clientforce/integrations";
@@ -189,7 +191,7 @@ function startKnowledgeWorkers(): void {
     publish: async (input) => {
       if (busRef.current) await busRef.current.publish(input);
     },
-    adapters: { slack: new SlackAdapter() },
+    adapters: { slack: new SlackAdapter(), hubspot: new HubspotAdapter() },
   };
   const ruleDeps = {
     prisma,
@@ -213,6 +215,19 @@ function startKnowledgeWorkers(): void {
           rule: params.rule,
           payload: params.event.payload,
         },
+      }),
+    // INT W4 (DEC-096, Q-037 CRM half): create_crm_deal / update_deal_stage
+    // push one-way to HubSpot through the claim + allowance + ledger rails;
+    // failures never change run outcomes.
+    crmTransport: async (params: Parameters<NonNullable<RuleEngineDeps["crmTransport"]>>[0]) =>
+      deliverCrm(integrationsDeps, {
+        workspaceId: params.workspaceId,
+        sourceEventId: params.sourceKey,
+        op: params.op,
+        ...(params.contact ? { contact: params.contact } : {}),
+        ...(params.dealname ? { dealname: params.dealname } : {}),
+        ...(params.stage ? { stage: params.stage } : {}),
+        ...(params.dealId ? { dealId: params.dealId } : {}),
       }),
     publish: async (input: Parameters<EventBus["publish"]>[0]) => {
       if (busRef.current) await busRef.current.publish(input);

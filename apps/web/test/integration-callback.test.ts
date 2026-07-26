@@ -40,7 +40,7 @@ describe("decideCallback (vendor query → outcome)", () => {
   });
 
   it("an unknown provider never reaches the API — typed error, and every core provider passes", () => {
-    const d = decideCallback("hubspot", { code: "c", state: "s", error: null });
+    const d = decideCallback("salesforce", { code: "c", state: "s", error: null });
     expect(d.kind).toBe("error");
     if (d.kind === "error") expect(d.detail).toContain("Unknown integration provider");
     for (const p of INTEGRATION_PROVIDERS) {

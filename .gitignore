@@ -48,3 +48,6 @@ dump.rdb
 
 # P3.0 voice spike scratch output (run-synthetic / bridge metrics dump)
 /metrics.json
+
+# live-proof run artifacts (CI uploads them as artifacts, never committed)
+*-live-proof-receipts.json

@@ -32,6 +32,9 @@ export const ACTION_LABELS: Record<CampaignRuleActionKind, string> = {
   // INT W3 (DEC-095): the booking twin (Q-039 stands) + the outbound webhook.
   send_payment_link: "Send invoice / payment link",
   send_webhook: "Send webhook",
+  // INT W4 (DEC-096): the one-way HubSpot CRM push pair.
+  create_crm_deal: "Create CRM deal",
+  update_deal_stage: "Update deal stage",
   run_automation: "Run another automation",
 };
 
@@ -46,6 +49,8 @@ export const ACTION_ICONS: Record<CampaignRuleActionKind, string> = {
   send_booking_link: "📅",
   send_payment_link: "🧾",
   send_webhook: "⚯",
+  create_crm_deal: "❒",
+  update_deal_stage: "❒",
   run_automation: "⟳",
 };
 
@@ -100,6 +105,11 @@ export function actionChip(
         return `Send webhook: ${action.url}`;
       }
     }
+    // INT W4: the one-way CRM push pair — the target stage IS the chip detail.
+    case "create_crm_deal":
+      return action.stage ? `Create CRM deal → ${action.stage}` : "Create CRM deal";
+    case "update_deal_stage":
+      return `Update deal stage → ${action.stage}`;
   }
 }
 
@@ -127,6 +137,9 @@ const ACTION_GROUPS: Record<(typeof ACCOUNT_ACTION_KINDS)[number], { group: stri
   // INT W3 (DEC-095): the payment twin (never a send path) + the signed POST.
   send_payment_link: { group: "Revenue & CRM", desc: "Queues your payment link into the next composed message" },
   send_webhook: { group: "Flow & integrations", desc: "Signed POST to your endpoint · run row records delivery" },
+  // INT W4 (DEC-096): one-way HubSpot push (Q-037 CRM half).
+  create_crm_deal: { group: "Revenue & CRM", desc: "Push the lead to HubSpot as a deal" },
+  update_deal_stage: { group: "Revenue & CRM", desc: "Move the contact's HubSpot deal stage" },
   run_automation: { group: "Flow & integrations", desc: "Chain another automation" },
 };
 
@@ -201,8 +214,9 @@ export const ABSENT_ACTIONS: ReadonlyArray<import("./triggers").AbsentPickerEntr
   // Clientforce-created bookings + the gcal events scope.
   { group: "Meetings", icon: "⏰", label: "Send meeting reminder", desc: "Nudge before the meeting", reason: "Arrives with per-channel send rules — today pair a “Before a meeting” trigger with your sequence" },
   { group: "Meetings", icon: "🗓", label: "Create calendar event", desc: "Book it on the calendar", reason: "Arrives when Clientforce creates bookings — Calendly puts booked meetings on your calendar today" },
-  { group: "Revenue & CRM", icon: "❒", label: "Create CRM deal", desc: "Open a pipeline deal", reason: "Arrives with proposals & payments" },
-  { group: "Revenue & CRM", icon: "❒", label: "Update deal stage", desc: "Move the deal along", reason: "Arrives with proposals & payments" },
+  // INT W4 (DEC-096): "Create CRM deal" + "Update deal stage" LEFT this ledger —
+  // live behind the HubSpot one-way push (Q-037's CRM half). Send proposal /
+  // receipt stay honestly absent (proposals → Phase 9).
   { group: "Revenue & CRM", icon: "❒", label: "Send proposal", desc: "Send a proposal to sign", reason: "Arrives with proposals & payments" },
   // INT W3 (DEC-095): "Send invoice / payment link" LEFT this ledger — it
   // plugged behind the live send_payment_link action (Q-037's payment half).

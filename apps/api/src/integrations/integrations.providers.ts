@@ -7,6 +7,7 @@ import type { Provider } from "@nestjs/common";
 import {
   CalendlyAdapter,
   GoogleCalendarAdapter,
+  HubspotAdapter,
   SlackAdapter,
   StripeAdapter,
   type IntegrationsDeps,
@@ -34,6 +35,6 @@ export const integrationsDepsProvider: Provider = {
     // INT W2 (DEC-094): gcal reads GOOGLE_CLIENT_ID/SECRET from env (Key
     // Vault-backed; unconfigured = the typed honest owner-clock refusal);
     // calendly is the fields adapter — no platform credentials at all.
-    adapters: { slack: new SlackAdapter(), gcal: new GoogleCalendarAdapter(), calendly: new CalendlyAdapter(), stripe: new StripeAdapter() },
+    adapters: { slack: new SlackAdapter(), gcal: new GoogleCalendarAdapter(), calendly: new CalendlyAdapter(), stripe: new StripeAdapter(), hubspot: new HubspotAdapter() },
   }),
 };

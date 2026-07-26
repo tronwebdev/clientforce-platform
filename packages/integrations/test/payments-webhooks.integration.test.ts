@@ -11,7 +11,6 @@
  *    guard-refusal recorded on the ledger, run outcome never changes.
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { createHmac } from "node:crypto";
 import { createAppPrismaClient, createPrismaClient, type PrismaClient } from "@clientforce/db";
 import { evaluateEventForRules, type RuleEngineDeps } from "@clientforce/automations";
 import { deliverWebhook, ingestPayment, signWebhookBody, type IntegrationsDeps, type PaymentDeps } from "../src";

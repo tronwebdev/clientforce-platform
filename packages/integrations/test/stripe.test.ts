@@ -7,7 +7,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { StripeAdapter, stripeConnectFieldsSchema } from "../src/stripe";
-import { IntegrationDeliveryError, IntegrationProviderError } from "../src/types";
+import { IntegrationDeliveryError } from "../src/types";
 import { STRIPE_WEBHOOK_EVENTS } from "../src/constants";
 
 type FetchLike = NonNullable<NonNullable<ConstructorParameters<typeof StripeAdapter>[0]>["fetchImpl"]>;
