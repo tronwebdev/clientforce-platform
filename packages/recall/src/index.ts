@@ -10,6 +10,7 @@
  * the same facets when they need it.
  */
 export { RecallService, type RecallReceipt } from "./service";
+export { buildRecallTool } from "./tool";
 export {
   fetchBookings,
   fetchHistory,

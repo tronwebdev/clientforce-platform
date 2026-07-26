@@ -71,9 +71,19 @@ export class AnthropicProvider implements CompletionProvider {
     };
   }
 
-  /** Streaming multi-turn completion — the gateway's `voice` route (P3.0). */
+  /**
+   * Streaming multi-turn completion — the gateway's `voice` route (P3.0).
+   *
+   * SPEC A (DEC-094): when `tools` is present the model may open a `tool_use`
+   * block, whose JSON arguments arrive as a delta stream and are only complete
+   * at `content_block_stop`. Text deltas keep flowing exactly as before — a
+   * model that speaks a sentence and THEN calls a tool gets that sentence to
+   * the caller's ear immediately, which is the whole latency story.
+   */
   async *streamText(params: StreamParams): AsyncIterable<StreamEvent> {
     const usage = { inputTokens: 0, outputTokens: 0 };
+    /** Partial tool_use blocks by stream index, accumulating their JSON. */
+    const pending = new Map<number, { id: string; name: string; json: string }>();
     try {
       const stream = await this.client.messages.create(
         {
@@ -81,7 +91,20 @@ export class AnthropicProvider implements CompletionProvider {
           max_tokens: params.maxTokens,
           ...(params.system ? { system: params.system } : {}),
           ...(params.temperature !== undefined ? { temperature: params.temperature } : {}),
-          messages: params.turns.map((t) => ({ role: t.role, content: t.content })),
+          messages: params.turns.map((t) => ({
+            role: t.role,
+            content: t.content as Anthropic.MessageParam["content"],
+          })),
+          // Omitted entirely when absent — a tool-free request is unchanged.
+          ...(params.tools?.length
+            ? {
+                tools: params.tools.map((t) => ({
+                  name: t.name,
+                  description: t.description,
+                  input_schema: t.inputSchema as Anthropic.Tool.InputSchema,
+                })),
+              }
+            : {}),
           stream: true,
         },
         { signal: params.signal },
@@ -89,8 +112,36 @@ export class AnthropicProvider implements CompletionProvider {
       for await (const event of stream) {
         if (event.type === "message_start") {
           usage.inputTokens = event.message.usage.input_tokens;
+        } else if (event.type === "content_block_start" && event.content_block.type === "tool_use") {
+          pending.set(event.index, {
+            id: event.content_block.id,
+            name: event.content_block.name,
+            json: "",
+          });
         } else if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
           yield { type: "delta", text: event.delta.text };
+        } else if (
+          event.type === "content_block_delta" &&
+          event.delta.type === "input_json_delta"
+        ) {
+          const block = pending.get(event.index);
+          if (block) block.json += event.delta.partial_json;
+        } else if (event.type === "content_block_stop") {
+          const block = pending.get(event.index);
+          if (block) {
+            pending.delete(event.index);
+            // An empty argument stream is a zero-arg call, not malformed JSON.
+            let input: unknown = {};
+            try {
+              if (block.json.trim()) input = JSON.parse(block.json);
+            } catch {
+              // Unparsable arguments are the model's error, not the transport's.
+              // Surface the call with empty input and let the tool's own schema
+              // validation produce the typed refusal — never crash the turn.
+              input = {};
+            }
+            yield { type: "tool_use", id: block.id, name: block.name, input };
+          }
         } else if (event.type === "message_delta") {
           usage.outputTokens = event.usage.output_tokens;
         }

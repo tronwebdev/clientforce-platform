@@ -12,7 +12,7 @@
  * conversation, so coverage is measured against the whole transcript and
  * recorded in `Call.meta` — never a mid-call refusal.
  */
-import { registerPrompt, renderPrompt } from "@clientforce/ai";
+import { getPrompt, registerPrompt, renderPrompt } from "@clientforce/ai";
 import {
   BRIEF_TALKING_POINTS_MAX,
   BRIEF_TALKING_POINTS_MIN,
@@ -30,8 +30,17 @@ import {
 // ── Versioning ───────────────────────────────────────────────────────────────
 export const COMPOSER_VOICE_PROMPT_NAME = "composer.voice";
 export const COMPOSER_VOICE_PROMPT_VERSION = 1;
+/**
+ * SPEC A (DEC-094): v2 is v1 plus the record-lookup rules, rendered ONLY when
+ * the call actually has the lookup tool mounted. A call without recall (the
+ * certification harness, the CI demo rig, any workspace path with no database)
+ * still renders v1 byte-identically — regression-pinned, the L1/G2 precedent.
+ * v1 stays registered forever; nothing is ever edited in place.
+ */
+export const COMPOSER_VOICE_PROMPT_VERSION_RECALL = 2;
 /** Persisted into `Message.meta.composerVersion` on every outbound turn (A6). */
 export const COMPOSER_VOICE_VERSION = `${COMPOSER_VOICE_PROMPT_NAME}@v${COMPOSER_VOICE_PROMPT_VERSION}`;
+export const COMPOSER_VOICE_VERSION_RECALL = `${COMPOSER_VOICE_PROMPT_NAME}@v${COMPOSER_VOICE_PROMPT_VERSION_RECALL}`;
 
 /** Spoken turns stay short — the prompt demands ≤2 short sentences; this is
  *  the deterministic backstop (~2 long sentences of speech). */
@@ -70,6 +79,18 @@ export const VOICE_REENGAGE_LINE = "Sorry — are you still there?";
  */
 export const VOICE_BRIDGE_LINE =
   "No rush — take your time. I just have a couple of quick questions for you when you're ready.";
+
+/**
+ * SPEC A (DEC-094): spoken when the brain reaches for a record lookup without
+ * having said anything first. A CONSTANT, never composed — the disclosure
+ * discipline — and never counted as reply TTFA, exactly like the ack clips.
+ *
+ * It exists because the alternative is dead air: a lookup turn pays an extra
+ * model round trip plus the query, and a person who asks "what did we agree
+ * last time?" expects to hear someone go and check, not silence. If the model
+ * speaks its own lead-in first, this stays quiet — one acknowledgement, not two.
+ */
+export const VOICE_LOOKUP_ACK_LINE = "Let me check that for you.";
 
 // ── Inputs ───────────────────────────────────────────────────────────────────
 export interface ComposeVoiceInputs {
@@ -185,6 +206,20 @@ export const COMPOSER_VOICE_SYSTEM =
   "(6) Respect the call brief: work toward its objective, draw only from its talking points, weave every \"must say\" string in naturally over the call, and never use any \"never say\" string in any casing.\n" +
   "(7) If the caller asks you to stop calling, wants out, or says it's a bad time — acknowledge, thank them, and say goodbye. Never argue, never push past a no.";
 
+/**
+ * SPEC A (DEC-094): the v1 rules VERBATIM plus the record-lookup rules. Rule 4
+ * already forbids inventing facts; 8–10 give the agent the way to *get* them
+ * and spell out what to do when the record is silent, which is the failure
+ * mode that actually matters — a model told only "don't invent" will still
+ * reach for its own plausible answer under conversational pressure.
+ */
+export const COMPOSER_VOICE_SYSTEM_RECALL =
+  `${COMPOSER_VOICE_SYSTEM}\n` +
+  "(8) You can look things up mid-call. Whenever the caller asks about something not in your brief — what you discussed before, where they stand with you, a booking, what's saved about them, or anything about price, product, process or policy — call the lookup tool FIRST and answer from what it returns.\n" +
+  "(9) If a lookup comes back with nothing on record, say so plainly (\"I don't have that in front of me\") and offer to have someone follow up. NEVER guess a price, a date, a name, or what was said on a previous conversation. A wrong recollection spoken confidently is worse than admitting you don't have it.\n" +
+  "(10) Look up one thing at a time, only when it's actually needed — don't check the record for something the caller didn't ask about, and don't look up the same thing twice.\n" +
+  "(11) It's fine to say you're checking before a lookup, but keep it to a few words, and never read out record ids, links, or raw field names.";
+
 let registered = false;
 function ensureRegistered(): void {
   if (registered) return;
@@ -209,15 +244,39 @@ WHO YOU ARE CALLING:
 
 {{businessContext}}`,
   });
+  // SPEC A (DEC-094): v2 = the v1 literal with ONE section appended. Derived
+  // from v1's own template string so the shared body can never drift between
+  // versions — only the appended block is new.
+  registerPrompt({
+    name: COMPOSER_VOICE_PROMPT_NAME,
+    version: COMPOSER_VOICE_PROMPT_VERSION_RECALL,
+    template: `${getPrompt(COMPOSER_VOICE_PROMPT_NAME, COMPOSER_VOICE_PROMPT_VERSION).template}
+
+WHAT'S ON RECORD:
+- The context above is what you were briefed with. It is NOT everything this business knows.
+- For anything else about this person or this business, use the lookup tool — that is the only place your facts about them can come from.
+- A lookup that returns nothing means the record is silent. Say so; do not reason your way to an answer.`,
+  });
 }
 
 /**
  * Build the per-call system prompt: static register rules + the rendered
- * `composer.voice@v1` call block. Deterministic — same inputs, same prompt.
+ * `composer.voice` call block. Deterministic — same inputs, same prompt.
+ *
+ * SPEC A (DEC-094): `recall` mounts the v2 rules + the record section. Absent
+ * (the default), the output is byte-identical to the pre-DEC-094 v1 prompt —
+ * pinned by test, because the certification and demo rigs run without a
+ * database and must keep producing exactly the prompt they were certified on.
  */
-export function buildVoiceSystemPrompt(inputs: ComposeVoiceInputs): string {
+export function buildVoiceSystemPrompt(
+  inputs: ComposeVoiceInputs,
+  options: { recall?: boolean } = {},
+): string {
   ensureRegistered();
-  const rendered = renderPrompt(COMPOSER_VOICE_PROMPT_NAME, COMPOSER_VOICE_PROMPT_VERSION, {
+  const version = options.recall
+    ? COMPOSER_VOICE_PROMPT_VERSION_RECALL
+    : COMPOSER_VOICE_PROMPT_VERSION;
+  const rendered = renderPrompt(COMPOSER_VOICE_PROMPT_NAME, version, {
     businessName: inputs.businessName,
     identityLine: inputs.spokenName
       ? `Your name on this call is ${inputs.spokenName}.`
@@ -233,7 +292,8 @@ export function buildVoiceSystemPrompt(inputs: ComposeVoiceInputs): string {
     lead: renderLead(inputs.lead),
     businessContext: inputs.cachedContext,
   });
-  return `${COMPOSER_VOICE_SYSTEM}\n\n${rendered}`;
+  const rules = options.recall ? COMPOSER_VOICE_SYSTEM_RECALL : COMPOSER_VOICE_SYSTEM;
+  return `${rules}\n\n${rendered}`;
 }
 
 // ── Call-brief derivation (until P3.2 puts voice nodes in graphs) ────────────

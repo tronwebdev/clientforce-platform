@@ -21,8 +21,22 @@
  *   short pre-rendered ack clip plays (rotating by turn index — deterministic,
  *   interruptible, never counted as reply TTFA).
  */
-import type { AiGateway } from "@clientforce/ai";
-import { checkComposedVoiceTurn, VOICE_FALLBACK_LINE, VOICE_FAILURE_GOODBYE, VOICE_REENGAGE_LINE, VOICE_BRIDGE_LINE } from "@clientforce/channels";
+import type { AiGateway, VoiceContentBlock, VoiceTool } from "@clientforce/ai";
+import {
+  checkComposedVoiceTurn,
+  VOICE_FALLBACK_LINE,
+  VOICE_FAILURE_GOODBYE,
+  VOICE_REENGAGE_LINE,
+  VOICE_BRIDGE_LINE,
+  VOICE_LOOKUP_ACK_LINE,
+} from "@clientforce/channels";
+import {
+  RECALL_MAX_TOOL_ROUNDS,
+  RECALL_TOOL_NAME,
+  recallLookupSchema,
+  renderRecallResult,
+  type RecallResult,
+} from "@clientforce/core";
 import { monitorEventLoopDelay, type IntervalHistogram } from "node:perf_hooks";
 import { openSttStream, synthesizeAura, type SttParams, type SttStream, type Synthesize } from "./deepgram";
 import { TtsStream, TtsStreamCleared, type TtsStreamDeps } from "./deepgram-tts-stream";
@@ -41,6 +55,19 @@ export interface VoiceTurn {
 }
 
 export type CallEndReason = "caller_hangup" | "idle_timeout" | "max_duration" | "provider_failure";
+
+/**
+ * SPEC A (DEC-094): the session's view of contact recall — deliberately narrow
+ * so the session never learns what a facet is or where the records live. The
+ * product path wires `RecallService`; tests wire a fake.
+ */
+export interface RecallBrain {
+  /** The tool definition handed to the model each turn. */
+  tool: VoiceTool;
+  /** Run one scoped lookup. MUST NOT throw — a store failure is a typed
+   *  result, because a live call cannot be dropped over a database hiccup. */
+  lookup(facet: string, query: string, turn: number): Promise<RecallResult>;
+}
 
 export interface CallSessionDeps {
   gateway: AiGateway;
@@ -92,6 +119,9 @@ export interface CallSessionDeps {
   onsetGraceMs?: number;
   /** Injectable stream factory for tests. */
   openTtsStream?: (deps: TtsStreamDeps) => TtsStream;
+  /** SPEC A (DEC-094): mid-call record lookups. Absent ⇒ no tool is sent and
+   *  the turn loop is the pre-DEC-094 single-stream path, byte-for-byte. */
+  recall?: RecallBrain;
 }
 
 /** A VAD onset that produces no WORDS within this window is line noise — it
@@ -464,24 +494,59 @@ export class CallSession {
     }
 
     try {
-      const stream = this.deps.gateway.streamVoice({
-        system: this.deps.systemPrompt,
-        turns: this.turns.map(({ role, content }) => ({ role, content })),
-        signal: abort.signal,
-      });
-      for await (const delta of stream) {
-        if (abort.signal.aborted) break;
-        if (metric.llmFirstTokenMs === undefined) {
-          metric.llmFirstTokenMs = Date.now() - anchor;
+      // SPEC A (DEC-094): the turn is a bounded loop, not a single stream. A
+      // round that ends with no tool call IS the pre-DEC-094 path — with no
+      // recall wired, `tools` is absent, the loop runs exactly once, and the
+      // request on the wire is unchanged.
+      const convo: Array<{ role: "user" | "assistant"; content: string | VoiceContentBlock[] }> =
+        this.turns.map(({ role, content }) => ({ role, content }));
+
+      for (let round = 0; round < RECALL_MAX_TOOL_ROUNDS + 1; round++) {
+        const roundChunker = round === 0 ? chunker : new SentenceChunker(true);
+        // The final round must ANSWER: withholding the tool is what stops a
+        // model from looking things up forever while a caller waits.
+        const toolsThisRound =
+          this.deps.recall && round < RECALL_MAX_TOOL_ROUNDS
+            ? [this.deps.recall.tool]
+            : undefined;
+        const toolUses: Array<{ id: string; name: string; input: unknown }> = [];
+        let roundText = "";
+
+        const stream = this.deps.gateway.streamVoiceEvents({
+          system: this.deps.systemPrompt,
+          turns: convo,
+          signal: abort.signal,
+          ...(toolsThisRound ? { tools: toolsThisRound } : {}),
+        });
+        for await (const event of stream) {
+          if (abort.signal.aborted) break;
+          if (event.type === "tool_use") {
+            toolUses.push(event);
+            continue;
+          }
+          if (metric.llmFirstTokenMs === undefined) {
+            metric.llmFirstTokenMs = Date.now() - anchor;
+          }
+          roundText += event.text;
+          assistantText += event.text;
+          for (const sentence of roundChunker.push(event.text)) {
+            if (!(await this.checkAndSpeak(sentence, metric, anchor, abort))) return;
+          }
         }
-        assistantText += delta;
-        for (const sentence of chunker.push(delta)) {
-          if (!(await this.checkAndSpeak(sentence, metric, anchor, abort))) return;
+        const roundTail = roundChunker.flush();
+        if (roundTail && !abort.signal.aborted) {
+          if (!(await this.checkAndSpeak(roundTail, metric, anchor, abort))) return;
         }
-      }
-      const tail = chunker.flush();
-      if (tail && !abort.signal.aborted) {
-        if (!(await this.checkAndSpeak(tail, metric, anchor, abort))) return;
+
+        if (toolUses.length === 0 || abort.signal.aborted) break;
+
+        const spoken = await this.runLookups(toolUses, roundText, metric, turn, abort);
+        if (spoken === null) return; // barge-in or teardown mid-lookup
+        assistantText += spoken.ackSpoken;
+        convo.push(
+          { role: "assistant", content: spoken.assistantBlocks },
+          { role: "user", content: spoken.resultBlocks },
+        );
       }
       // DEC-092 (fix a, owner-approved): an EMPTY completion must never
       // produce silence — no audio queued for this turn, nothing refused,
@@ -519,6 +584,144 @@ export class CallSession {
         this.speaking = false;
         this.ttsAbort = undefined;
       }
+    }
+  }
+
+  /**
+   * SPEC A (DEC-094): run the round's lookups and build the two turns that
+   * replay them to the model.
+   *
+   * The latency mask is the point. A lookup round costs an extra model round
+   * trip plus the query, and the caller is on the phone. If the model already
+   * said something this round ("let me check"), that covers it; if it went
+   * straight to the tool, the constant ack fills the gap. Never both — two
+   * acknowledgements in a row is worse than one silence.
+   *
+   * Returns null when the caller barged in mid-lookup: the results are dropped
+   * on the floor, because answering a question the caller has moved on from is
+   * exactly the behaviour the stall-abandon rail exists to prevent.
+   */
+  private async runLookups(
+    toolUses: Array<{ id: string; name: string; input: unknown }>,
+    roundText: string,
+    metric: TurnMetric,
+    turn: number,
+    abort: AbortController,
+  ): Promise<{
+    ackSpoken: string;
+    assistantBlocks: VoiceContentBlock[];
+    resultBlocks: VoiceContentBlock[];
+  } | null> {
+    const recall = this.deps.recall;
+    if (!recall) return null;
+
+    let ackSpoken = "";
+    if (roundText.trim() === "") {
+      // Unmetered on purpose: the ack is platform audio, never reply TTFA —
+      // the same honesty rule the P3.1 ack clips follow.
+      await this.speakUnmetered(VOICE_LOOKUP_ACK_LINE, abort);
+      ackSpoken = ` ${VOICE_LOOKUP_ACK_LINE}`;
+    }
+    if (abort.signal.aborted) return null;
+
+    const startedAt = Date.now();
+    const results = await Promise.all(
+      toolUses.map(async (use) => {
+        // The tool schema constrains the shape, but a stream can still deliver
+        // arguments that do not parse. Refuse by name rather than throw.
+        const parsed = recallLookupSchema.safeParse(use.input);
+        if (use.name !== RECALL_TOOL_NAME || !parsed.success) {
+          return {
+            use,
+            result: {
+              facet: "profile",
+              found: false,
+              items: [],
+              refusalReason: "UNKNOWN_FACET",
+            } as RecallResult,
+          };
+        }
+        try {
+          return {
+            use,
+            result: await recall.lookup(parsed.data.facet, parsed.data.query, turn),
+          };
+        } catch (err) {
+          // The RecallBrain contract says it does not throw. Belt and braces
+          // anyway: a rejected lookup here would propagate to respond()'s
+          // catch and be treated as a provider failure, ending the call over
+          // a failed database read. Degrade to a typed refusal instead.
+          console.error("[recall] lookup threw — degrading to a refusal:", (err as Error).message);
+          return {
+            use,
+            result: {
+              facet: parsed.data.facet,
+              found: false,
+              items: [],
+              refusalReason: "STORE_UNAVAILABLE",
+            } as RecallResult,
+          };
+        }
+      }),
+    );
+    metric.lookupMs = (metric.lookupMs ?? 0) + (Date.now() - startedAt);
+    metric.lookups = [
+      ...(metric.lookups ?? []),
+      ...results.map((r) => ({
+        facet: r.result.facet,
+        found: r.result.found,
+        ...(r.result.refusalReason ? { refusalReason: r.result.refusalReason } : {}),
+      })),
+    ];
+    if (abort.signal.aborted) return null;
+
+    return {
+      ackSpoken,
+      assistantBlocks: [
+        ...(roundText.trim() ? [{ type: "text" as const, text: roundText }] : []),
+        // The ack was spoken aloud, so the model is told it was — otherwise it
+        // opens its grounded answer by offering to check all over again.
+        ...(ackSpoken ? [{ type: "text" as const, text: VOICE_LOOKUP_ACK_LINE }] : []),
+        ...results.map((r) => ({
+          type: "tool_use" as const,
+          id: r.use.id,
+          name: r.use.name,
+          input: r.use.input,
+        })),
+      ],
+      resultBlocks: results.map((r) => ({
+        type: "tool_result" as const,
+        tool_use_id: r.use.id,
+        content: renderRecallResult(r.result),
+      })),
+    };
+  }
+
+  /** Speak a platform CONSTANT — never stamps reply TTFA (ack-clip rule). */
+  private async speakUnmetered(text: string, abort: AbortController): Promise<void> {
+    if (abort.signal.aborted) return;
+    this.deps.metrics.addTtsChars(text.length);
+    const stream = this.ensureTtsStream();
+    try {
+      if (stream) {
+        this.speechCtx = { anchor: Date.now(), signal: abort.signal };
+        const timing = await stream.speak(text);
+        this.deps.metrics.addTtsSentence(timing.firstAudioMs, timing.flushedMs);
+        return;
+      }
+      for await (const chunk of this.synthesize(
+        this.deps.deepgramKey,
+        this.deps.ttsModel,
+        text,
+        abort.signal,
+      )) {
+        if (abort.signal.aborted) return;
+        this.pacer.enqueueAudio(chunk);
+      }
+    } catch (err) {
+      if (abort.signal.aborted || err instanceof TtsStreamCleared) return;
+      // A failed mask must never fail the turn — the answer still lands.
+      console.error("[recall] lookup ack tts failed:", (err as Error).message);
     }
   }
 

@@ -153,6 +153,9 @@ importers:
       '@clientforce/events':
         specifier: workspace:*
         version: link:../../packages/events
+      '@clientforce/recall':
+        specifier: workspace:*
+        version: link:../../packages/recall
       ws:
         specifier: ^8.18.0
         version: 8.21.0

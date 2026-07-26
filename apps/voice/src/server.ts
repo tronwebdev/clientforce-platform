@@ -21,6 +21,7 @@ import { WebSocketServer, type WebSocket } from "ws";
 import { deriveVoiceMediaToken, voiceMediaTokenValid } from "@clientforce/channels";
 import { createAppPrismaClient, type PrismaClient } from "@clientforce/db";
 import { EVENT_TYPES } from "@clientforce/events";
+import { buildRecallTool, RecallService } from "@clientforce/recall";
 import { loadVoiceConfig } from "./config";
 import { loadAckClips } from "./ack";
 import { createVoiceEventsPublisher, type VoiceEventsPublisher } from "./events";
@@ -143,6 +144,8 @@ wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
   let context: CallContext | undefined;
   let startedAt = new Date();
   let finalized = false;
+  /** SPEC A (DEC-094): per-call recall service; its receipts flush at finalize. */
+  let recall: RecallService | undefined;
 
   const finish = (endReason: CallEndReason): void => {
     if (finalized) return;
@@ -187,6 +190,10 @@ wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
         ttsSentenceWindows: report.ttsSentenceWindows,
         audioSendGaps: report.audioSendGaps,
         eventLoopMs: report.eventLoopMs,
+        // SPEC A (DEC-094): what the agent actually read mid-call, and the
+        // TTFA split so a lookup turn never hides inside the certified numbers.
+        recall: report.recall,
+        ttfaByLookup: report.ttfaByLookup,
       })}`,
     );
     if (prisma && publisher && context && session) {
@@ -199,6 +206,7 @@ wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
         startedAt,
         endReason,
         costAlertUsd: config.costAlertUsdPerCall,
+        recall,
       }).catch((err) => console.error("[finalize]", (err as Error).message));
     } else {
       console.log("[voice] standalone mode — no persistence (metrics only)");
@@ -228,6 +236,20 @@ wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
           }
           const ackClips = await loadAckClips(deepgramKey, context.ttsModel, config.ackPhrases, synthesizeAura);
           startedAt = new Date();
+          // SPEC A (DEC-094): recall needs the record, so it mounts only on the
+          // product path. Standalone rigs run the pre-DEC-094 turn loop.
+          if (prisma && context.recallEnabled) {
+            recall = new RecallService(
+              { prisma, gateway },
+              {
+                workspaceId: context.workspaceId,
+                contactId: context.contactId,
+                agentId: context.agentId,
+                campaignId: context.campaignId,
+                callId: context.callId,
+              },
+            );
+          }
           session = new CallSession({
             gateway,
             metrics,
@@ -236,6 +258,14 @@ wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
             systemPrompt: context.systemPrompt,
             disclosure: context.disclosure,
             neverSay: context.neverSay,
+            ...(recall
+              ? {
+                  recall: {
+                    tool: buildRecallTool(),
+                    lookup: (facet, query, turn) => recall!.lookup(facet, query, turn),
+                  },
+                }
+              : {}),
             sttParams: config.stt,
             ttsTransport: config.ttsTransport,
             reengageAfterMs: config.reengageAfterMs,

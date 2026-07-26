@@ -11,6 +11,7 @@ import {
   type StreamVoiceRequest,
   type TokenUsage,
   type UsageHook,
+  type VoiceStreamEvent,
 } from "./types";
 
 export interface AiGatewayOptions {
@@ -142,6 +143,22 @@ export class AiGateway {
    * settles, so the cost log stays complete even on abort/error.
    */
   async *streamVoice(request: StreamVoiceRequest): AsyncIterable<string> {
+    for await (const event of this.streamVoiceEvents(request)) {
+      if (event.type === "text") yield event.text;
+    }
+  }
+
+  /**
+   * SPEC A (DEC-094): the tool-aware voice stream. Same route, same usage
+   * accounting, same no-retry/no-timeout contract as `streamVoice` — which is
+   * now a text-only view of this method, so the two can never drift.
+   *
+   * A `tool_use` event means the model wants a lookup before it can answer.
+   * The caller runs it, appends the result as a turn, and streams again; the
+   * loop and its budget belong to the caller, because only the caller knows
+   * how long the person on the phone has been waiting.
+   */
+  async *streamVoiceEvents(request: StreamVoiceRequest): AsyncIterable<VoiceStreamEvent> {
     const streamText = this.provider.streamText?.bind(this.provider);
     if (!streamText) {
       throw new AiProviderError("Provider does not support streaming", undefined, false);
@@ -162,10 +179,13 @@ export class AiGateway {
         maxTokens: request.maxTokens ?? this.config.maxTokens.voice,
         temperature: request.temperature,
         signal: controller.signal,
+        ...(request.tools?.length ? { tools: request.tools } : {}),
       });
       for await (const event of stream) {
         if (event.type === "delta") {
-          yield event.text;
+          yield { type: "text", text: event.text };
+        } else if (event.type === "tool_use") {
+          yield { type: "tool_use", id: event.id, name: event.name, input: event.input };
         } else {
           usage.inputTokens += event.usage.inputTokens;
           usage.outputTokens += event.usage.outputTokens;

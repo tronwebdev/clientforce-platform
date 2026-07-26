@@ -90,6 +90,12 @@ export const RECALL_MAX_LOOKUPS_PER_TURN = 2;
 /** Lookups across the whole call — the runaway-loop backstop. */
 export const RECALL_MAX_LOOKUPS_PER_CALL = 12;
 /**
+ * Model round trips a single caller turn may spend on lookups before it must
+ * answer with what it has. Two: one to look, one to look again after seeing
+ * the first result. A third would be a third silence the caller sits through.
+ */
+export const RECALL_MAX_TOOL_ROUNDS = 2;
+/**
  * Wall-clock budget for one lookup. Past this the tool returns a typed
  * timeout result rather than holding the caller in silence — the call always
  * continues, degraded and honest, never hung.
@@ -233,17 +239,22 @@ export function toRecallDetail(raw: string): string {
  * harder to misread as an instruction than a nested object.
  */
 export function renderRecallResult(result: RecallResult): string {
-  const head = `${RECALL_FACET_META[result.facet].label} lookup`;
+  // TOTAL by construction. This runs mid-call on the audio path, and a throw
+  // here would surface as a provider failure and end the call — the one thing
+  // a lookup must never do. Unknown facets and missing items degrade to
+  // honest text rather than blowing up.
+  const head = `${RECALL_FACET_META[result.facet]?.label ?? "Record"} lookup`;
   if (result.refusalReason) {
-    return `${head}: NOT AVAILABLE. ${RECALL_REFUSAL_NOTE[result.refusalReason]} Tell the caller you cannot check that right now — do not guess.`;
+    const why =
+      RECALL_REFUSAL_NOTE[result.refusalReason] ?? "The lookup could not be completed.";
+    return `${head}: NOT AVAILABLE. ${why} Tell the caller you cannot check that right now — do not guess.`;
   }
-  if (!result.found || result.items.length === 0) {
+  const items = result.items ?? [];
+  if (!result.found || items.length === 0) {
     return `${head}: NOTHING ON RECORD. ${result.note ?? "The record has no entry matching this question."} Say you do not have that on record — do not guess.`;
   }
-  const lines = result.items.map((i) =>
-    `- ${i.label}${i.at ? ` (${i.at})` : ""}: ${i.detail}`,
-  );
-  return `${head}: ${result.items.length} on record.\n${lines.join("\n")}${
+  const lines = items.map((i) => `- ${i.label}${i.at ? ` (${i.at})` : ""}: ${i.detail}`);
+  return `${head}: ${items.length} on record.\n${lines.join("\n")}${
     result.note ? `\n(${result.note})` : ""
   }`;
 }

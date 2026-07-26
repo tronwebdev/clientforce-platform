@@ -33,11 +33,38 @@ export interface TokenUsage {
 
 // ── Voice streaming (P3.0 spike — `voice` is the only streaming route) ───────
 
+/**
+ * SPEC A (DEC-094): structured turn content, so a tool round trip can be
+ * replayed back to the model. A plain `string` stays legal everywhere and is
+ * what every pre-DEC-094 caller passes — the tool path is purely additive.
+ */
+export type VoiceContentBlock =
+  | { type: "text"; text: string }
+  | { type: "tool_use"; id: string; name: string; input: unknown }
+  | { type: "tool_result"; tool_use_id: string; content: string };
+
 /** One turn of a live call transcript, oldest first. */
 export interface VoiceTurn {
   role: "user" | "assistant";
-  content: string;
+  content: string | VoiceContentBlock[];
 }
+
+/** A tool the voice brain may call mid-turn (SPEC A, DEC-094). */
+export interface VoiceTool {
+  name: string;
+  description: string;
+  /** JSON Schema for the tool input (derived from a zod schema by the caller). */
+  inputSchema: Record<string, unknown>;
+}
+
+/**
+ * What a tool-enabled voice stream yields. `streamVoice` (text-only) stays the
+ * default surface; callers that pass tools use `streamVoiceEvents` and handle
+ * both variants.
+ */
+export type VoiceStreamEvent =
+  | { type: "text"; text: string }
+  | { type: "tool_use"; id: string; name: string; input: unknown };
 
 export interface StreamVoiceRequest {
   system?: string;
@@ -47,6 +74,9 @@ export interface StreamVoiceRequest {
   temperature?: number;
   /** Barge-in: aborting this signal cancels the in-flight generation. */
   signal?: AbortSignal;
+  /** SPEC A: tools the model may call this turn. Absent ⇒ the pre-DEC-094
+   *  request is sent verbatim, so a tool-free call is byte-identical. */
+  tools?: VoiceTool[];
 }
 
 /** One structured record per provider call, emitted through `onUsage`. */
