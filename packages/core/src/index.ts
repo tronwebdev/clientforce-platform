@@ -81,7 +81,7 @@ export * from "./zapier";
 // spoken-register sanitizer, and the retrieval-receipt DTO.
 export * from "./recall";
 
-// Embeddable Agent Widget (WID2, DEC-102) — the one-endpoint session contract
+// Embeddable Agent Widget (WID2, DEC-101) — the one-endpoint session contract
 // promoted from the embed's client-side shapes: the public wgt_ credential, the
 // six workspace-configurable flows, the five entry-chip kinds, and the
 // server-authoritative branding field that is the ONLY path to suppressing the

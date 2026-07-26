@@ -3,7 +3,7 @@
 **STATUS: READY TO DISPATCH — 2026-07-26.** Dispatched off Q-050 by owner
 instruction; inherits `KICKOFF_TEMPLATE.md` in full.
 
-**DEC claim, re-verified against live `main` `ae235d4`:** `DEC-102` (free — live
+**DEC claim, re-verified against live `main` `ae235d4`:** `DEC-101` (free — live
 max is DEC-100). New Q ids claimed: **Q-057** (widget voice transport) ·
 **Q-058** (calendar-provider dependency); live max is Q-056.
 
@@ -147,7 +147,7 @@ this unit MUST build; it is deliberately absent today (a test asserts no
 
 ## 6 · Close-out
 
-`PROGRESS.md` status row + the DEC-102 entry (decisions + deferred list) +
+`PROGRESS.md` status row + the DEC-101 entry (decisions + deferred list) +
 fidelity-log row; Q-049 closes if the voice overlay lands, otherwise its voice
 item carries forward; Q-050 closes when the six flows are either wired or
 recorded as off-with-a-reason; Q-035 closes with the automation registration;

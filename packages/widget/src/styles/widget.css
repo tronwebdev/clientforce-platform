@@ -494,6 +494,124 @@
   background: var(--cfw-brand-tint, color-mix(in srgb, var(--cfw-brand) 8%, var(--cv3-card)));
 }
 
+/* ---------- Capture form (W2) — a thread surface, never a modal: a 376px
+   panel has no room for a layer, and covering the conversation would hide the
+   context the visitor is answering from. ---------- */
+
+.cfw-capture {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0 0 12px 35px;
+  padding: 14px;
+  background: var(--cv3-panel);
+  border: 1px solid var(--cv3-line-soft);
+  border-radius: var(--cv3-radius-lg);
+  animation: cfw-appear var(--cv3-motion-base) var(--cv3-ease);
+}
+
+.cfw-capture-title {
+  font-size: var(--cv3-label-size);
+  font-weight: var(--cv3-h3-weight);
+  color: var(--cv3-ink);
+}
+
+.cfw-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cfw-field-label {
+  font-size: var(--cv3-eyebrow-size);
+  font-weight: var(--cv3-eyebrow-weight);
+  letter-spacing: var(--cv3-eyebrow-tracking);
+  text-transform: uppercase;
+  color: var(--cv3-faint);
+}
+
+.cfw-field-input {
+  font-family: inherit;
+  font-size: var(--cv3-body-size);
+  color: var(--cv3-ink);
+  background: var(--cv3-card);
+  border: 1px solid var(--cv3-line-input);
+  border-radius: var(--cv3-radius-sm);
+  padding: 9px 12px;
+  min-width: 0;
+}
+
+.cfw-field-input:focus-visible {
+  outline: 2px solid var(--cfw-brand);
+  outline-offset: 1px;
+}
+
+.cfw-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: var(--cv3-label-size);
+  color: var(--cv3-muted);
+  line-height: 1.35;
+}
+
+.cfw-consent-box {
+  margin: 2px 0 0;
+  accent-color: var(--cfw-brand);
+  flex: none;
+}
+
+.cfw-capture-submit {
+  align-self: flex-start;
+  height: 32px;
+  padding: 0 16px;
+  font-size: var(--cv3-label-size);
+  font-weight: var(--cv3-h3-weight);
+  color: var(--cfw-on-brand);
+  background: var(--cfw-brand);
+  border-radius: var(--cv3-radius-pill);
+}
+
+.cfw-capture-submit:hover {
+  background: var(--cfw-brand-hover, var(--cfw-brand));
+}
+
+/* ---------- Outcome card (W2) — canon §7 SEMANTIC green. It stays mint +
+   forest on EVERY panel, white-label included, because it means GOOD rather
+   than meaning Clientforce; the brand-green surfaces derive from the accent,
+   this one deliberately does not. ---------- */
+
+.cfw-outcome {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 0 12px 35px;
+  padding: 12px 14px;
+  background: var(--cv3-mint);
+  border: 1px solid var(--cv3-mint-line);
+  border-radius: var(--cv3-radius-lg);
+  animation: cfw-appear var(--cv3-motion-base) var(--cv3-ease);
+}
+
+.cfw-outcome-tick {
+  color: var(--cv3-forest);
+  line-height: 0;
+  flex: none;
+  margin-top: 1px;
+}
+
+.cfw-outcome-title {
+  font-size: var(--cv3-label-size);
+  font-weight: var(--cv3-h3-weight);
+  color: var(--cv3-ink);
+}
+
+.cfw-outcome-detail {
+  font-size: var(--cv3-label-size);
+  color: var(--cv3-muted);
+  margin-top: 2px;
+}
+
 /* ---------- Foot: composer + the platform line ---------- */
 
 .cfw-foot {

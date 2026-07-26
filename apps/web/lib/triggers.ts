@@ -25,7 +25,7 @@ const TRIGGER_LABELS: Record<CampaignRuleTriggerKind, string> = {
   meeting_booked: "Meeting booked",
   opted_out: "Unsubscribed / opted out",
   lead_captured: "Form / lead captured",
-  // WID2 (DEC-102): a visitor opened a conversation on an embedded widget.
+  // WID2 (DEC-101): a visitor opened a conversation on an embedded widget.
   widget_chat_started: "Widget chat started",
   // SPEC A (DEC-099): a live call hit a question the record could not answer.
   call_knowledge_gap: "Call hit a knowledge gap",
@@ -118,7 +118,7 @@ export const TRIGGER_OPTIONS: readonly TriggerOption[] = (
     "payment_received",
     "opted_out",
     "lead_captured",
-    // WID2 (DEC-102): the widget's own moment — distinct from lead_captured,
+    // WID2 (DEC-101): the widget's own moment — distinct from lead_captured,
     // since starting a chat is interest and handing over details is a lead.
     "widget_chat_started",
     // SPEC A (DEC-099). The Automations builder renders its picker FROM this
@@ -463,7 +463,7 @@ export function triggerAvailability(
   kind: CampaignRuleTriggerKind,
   connected: TriggerConnectivity,
 ): TriggerAvailability {
-  // WID2 (DEC-102): `widget_chat_started` rides the same capture connectivity —
+  // WID2 (DEC-101): `widget_chat_started` rides the same capture connectivity —
   // with no widget embedded anywhere there is nothing to start a chat ON, so
   // offering it live would be an option that can never fire.
   if ((kind === "lead_captured" || kind === "widget_chat_started") && !connected.leadCapture) {

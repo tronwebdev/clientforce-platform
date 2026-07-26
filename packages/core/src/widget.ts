@@ -1,5 +1,5 @@
 /**
- * Embeddable Agent Widget — the shared contract (WID2, DEC-102).
+ * Embeddable Agent Widget — the shared contract (WID2, DEC-101).
  *
  * ONE endpoint carries the whole widget: `POST /widget/v1/session`. Unit 27
  * (DEC-097) shipped these shapes client-side as the contract of record and ran

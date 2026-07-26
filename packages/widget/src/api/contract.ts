@@ -11,7 +11,7 @@
  * replies with the messages to append plus the agent descriptor.
  *
  * **The contract of record now lives in `@clientforce/core`** (`widget.ts`,
- * WID2/DEC-102) as zod schemas, shared with the NestJS module that serves this
+ * WID2/DEC-101) as zod schemas, shared with the NestJS module that serves this
  * endpoint. This file re-exports it so the shell keeps one local import
  * surface — and it re-exports **types only, deliberately**:
  *
@@ -26,8 +26,11 @@
 import type {
   WidgetAgentDescriptor,
   WidgetBranding,
+  WidgetCaptureField,
+  WidgetCaptureSpec,
   WidgetClientEvent,
   WidgetMessage,
+  WidgetOutcome,
   WidgetQuickAction,
   WidgetQuickActionKind,
   WidgetSessionRequest,
@@ -37,8 +40,11 @@ import type {
 export type {
   WidgetAgentDescriptor,
   WidgetBranding,
+  WidgetCaptureField,
+  WidgetCaptureSpec,
   WidgetClientEvent,
   WidgetMessage,
+  WidgetOutcome,
   WidgetQuickAction,
   WidgetSessionRequest,
   WidgetSessionResponse,

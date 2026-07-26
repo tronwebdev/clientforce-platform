@@ -293,7 +293,7 @@ describe("keywordHit", () => {
   });
 });
 
-describe("widget_chat_started (WID2, DEC-102)", () => {
+describe("widget_chat_started (WID2, DEC-101)", () => {
   it("matches the widget conversation event", () => {
     expect(
       matchTrigger({ kind: "widget_chat_started" }, event("widget.conversation_started.v1", {})),

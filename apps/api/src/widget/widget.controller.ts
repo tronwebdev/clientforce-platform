@@ -1,5 +1,5 @@
 /**
- * The widget's ONE public endpoint (WID2, DEC-102).
+ * The widget's ONE public endpoint (WID2, DEC-101).
  *
  *   POST /widget/v1/session
  *

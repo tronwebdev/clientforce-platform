@@ -47,7 +47,7 @@ describe("trigger display map (lib/triggers)", () => {
       opted_out: "Unsubscribed / opted out",
       lead_captured: "Form / lead captured",
       call_knowledge_gap: "Call hit a knowledge gap",
-      // WID2 (DEC-102): the canon label from the retired absent entry.
+      // WID2 (DEC-101): the canon label from the retired absent entry.
       widget_chat_started: "Widget chat started",
       // INT W2: labels verbatim from the retired canon absent entries.
       meeting_rescheduled: "Meeting rescheduled",

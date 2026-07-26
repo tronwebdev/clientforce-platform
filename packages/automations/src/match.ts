@@ -13,7 +13,7 @@
  *   link_clicked     — `email.clicked.v1` (same producer)
  *   lead_captured    — `form.submitted.v1` / `widget.lead_captured.v1` /
  *                      `linkedin.captured.v1`
- *   widget_chat_started — `widget.conversation_started.v1` (WID2, DEC-102): a
+ *   widget_chat_started — `widget.conversation_started.v1` (WID2, DEC-101): a
  *                      visitor opened a conversation on an embedded widget.
  *                      Distinct from lead_captured on purpose — starting a
  *                      chat is interest, handing over contact details is a
