@@ -38,13 +38,7 @@ import { z } from "zod";
  * - `profile`   the contact record itself: tags, notes, custom fields, company
  * - `knowledge` "what does it cost?" → the business-knowledge chunk (P1.2 RAG)
  */
-export const RECALL_FACETS = [
-  "history",
-  "pipeline",
-  "bookings",
-  "profile",
-  "knowledge",
-] as const;
+export const RECALL_FACETS = ["history", "pipeline", "bookings", "profile", "knowledge"] as const;
 
 export type RecallFacet = (typeof RECALL_FACETS)[number];
 
@@ -161,8 +155,7 @@ export const RECALL_REFUSAL_REASONS = [
 export type RecallRefusalReason = (typeof RECALL_REFUSAL_REASONS)[number];
 
 export const RECALL_REFUSAL_NOTE: Record<RecallRefusalReason, string> = {
-  BUDGET_EXHAUSTED:
-    "Lookup limit for this call reached — no record was read for this question.",
+  BUDGET_EXHAUSTED: "Lookup limit for this call reached — no record was read for this question.",
   LOOKUP_TIMEOUT: "The record lookup did not come back in time — nothing was read.",
   STORE_UNAVAILABLE: "The record store could not be reached — nothing was read.",
   UNKNOWN_FACET: "That is not a facet this agent can look up — nothing was read.",
@@ -245,8 +238,7 @@ export function renderRecallResult(result: RecallResult): string {
   // honest text rather than blowing up.
   const head = `${RECALL_FACET_META[result.facet]?.label ?? "Record"} lookup`;
   if (result.refusalReason) {
-    const why =
-      RECALL_REFUSAL_NOTE[result.refusalReason] ?? "The lookup could not be completed.";
+    const why = RECALL_REFUSAL_NOTE[result.refusalReason] ?? "The lookup could not be completed.";
     return `${head}: NOT AVAILABLE. ${why} Tell the caller you cannot check that right now — do not guess.`;
   }
   const items = result.items ?? [];

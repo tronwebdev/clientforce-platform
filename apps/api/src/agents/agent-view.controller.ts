@@ -1,5 +1,12 @@
 import { Controller, Get, NotFoundException, Param, Query } from "@nestjs/common";
-import { goalTerminalLabel, goalTerminalPill, parseGuardrails, validateGraph, type CampaignGraph, type ValidationProgress } from "@clientforce/core";
+import {
+  goalTerminalLabel,
+  goalTerminalPill,
+  parseGuardrails,
+  validateGraph,
+  type CampaignGraph,
+  type ValidationProgress,
+} from "@clientforce/core";
 import { TenantClient } from "../db/tenant-client";
 
 /**
@@ -48,7 +55,13 @@ export class AgentViewController {
               where: { campaignId: campaign.id },
               _count: { _all: true },
             })
-          : Promise.resolve([] as Array<{ stepNodeId: string | null; direction: string; _count: { _all: number } }>),
+          : Promise.resolve(
+              [] as Array<{
+                stepNodeId: string | null;
+                direction: string;
+                _count: { _all: number };
+              }>,
+            ),
         Promise.resolve(safeGuardrails(agent.guardrails)),
       ]);
 
@@ -221,7 +234,12 @@ export class AgentViewController {
         orderBy: { createdAt: "asc" },
         select: { id: true },
       });
-      const empty: ValidationProgress = { heldUnverified: 0, heldRisky: 0, heldCapOverflow: 0, refusedInvalid: 0 };
+      const empty: ValidationProgress = {
+        heldUnverified: 0,
+        heldRisky: 0,
+        heldCapOverflow: 0,
+        refusedInvalid: 0,
+      };
       if (!campaign) return empty;
       const groups = await tx.enrollmentHold.groupBy({
         by: ["status", "reason"],
@@ -254,7 +272,9 @@ export class AgentViewController {
         where: { campaignId: campaign.id, ...(contactId ? { contactId } : {}) },
         orderBy: { occurredAt: "desc" },
         take: 200,
-        include: { contact: { select: { id: true, firstName: true, lastName: true, email: true } } },
+        include: {
+          contact: { select: { id: true, firstName: true, lastName: true, email: true } },
+        },
       });
       return {
         events: rows.map((e) => ({

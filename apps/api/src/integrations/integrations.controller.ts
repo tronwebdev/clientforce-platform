@@ -123,11 +123,17 @@ export class IntegrationsController {
   /** Map spine errors to transport-honest HTTP (422 refusal / 502 vendor). */
   private rethrow(err: unknown): never {
     if (err instanceof IntegrationRefusedError) {
-      throw new UnprocessableEntityException({ message: "Integration refused", detail: err.detail });
+      throw new UnprocessableEntityException({
+        message: "Integration refused",
+        detail: err.detail,
+      });
     }
     if (err instanceof IntegrationProviderError) {
       if (err.code === "PROVIDER_AUTH") {
-        throw new UnprocessableEntityException({ message: "Provider rejected the credentials", detail: err.message });
+        throw new UnprocessableEntityException({
+          message: "Provider rejected the credentials",
+          detail: err.message,
+        });
       }
       throw new BadGatewayException({ message: "Provider unavailable", detail: err.message });
     }
@@ -137,7 +143,10 @@ export class IntegrationsController {
     // never a raw 500 (the message carries the vendor error name only,
     // never token bytes).
     if (err instanceof IntegrationDeliveryError) {
-      throw new UnprocessableEntityException({ message: "Provider refused the request", detail: err.message });
+      throw new UnprocessableEntityException({
+        message: "Provider refused the request",
+        detail: err.message,
+      });
     }
     throw err;
   }
@@ -191,7 +200,9 @@ export class IntegrationsController {
         });
       }
       const state = mintOAuthState(this.tenant.workspaceId, provider);
-      return { authorizeUrl: adapter.authorizeUrl({ redirectUri: redirectUriFor(provider), state }) };
+      return {
+        authorizeUrl: adapter.authorizeUrl({ redirectUri: redirectUriFor(provider), state }),
+      };
     } catch (err) {
       this.rethrow(err);
     }
@@ -312,7 +323,10 @@ export class IntegrationsController {
   /** Per-provider config (Slack: channel + notification toggles). */
   @Patch(":provider")
   @Roles(Role.OWNER, Role.ADMIN)
-  async update(@Param("provider") rawProvider: string, @Body() body: unknown): Promise<{ integration: IntegrationDto }> {
+  async update(
+    @Param("provider") rawProvider: string,
+    @Body() body: unknown,
+  ): Promise<{ integration: IntegrationDto }> {
     const provider = this.provider(rawProvider);
     const dto = parse(updateIntegrationSchema, body);
     const config = parse(integrationConfigSchemas[provider], dto.config);
@@ -340,7 +354,10 @@ export class IntegrationsController {
       if (stored.detection === undefined) delete effective.detection;
     }
     const updated = await this.tenant.run((tx) =>
-      tx.integration.update({ where: { id: row.id }, data: { config: effective as Prisma.InputJsonValue } }),
+      tx.integration.update({
+        where: { id: row.id },
+        data: { config: effective as Prisma.InputJsonValue },
+      }),
     );
     return { integration: toIntegrationDto(updated) };
   }
@@ -371,7 +388,9 @@ export class IntegrationsController {
     @Query("kind") kind: string | undefined,
   ): Promise<{ options: Array<{ id: string; name: string; timeZone?: string }> }> {
     const provider = this.provider(rawProvider);
-    const supported = (provider === "slack" && kind === "channels") || (provider === "gcal" && kind === "calendars");
+    const supported =
+      (provider === "slack" && kind === "channels") ||
+      (provider === "gcal" && kind === "calendars");
     if (!supported) {
       throw new UnprocessableEntityException({
         message: "Unknown option kind",
@@ -388,7 +407,9 @@ export class IntegrationsController {
     try {
       if (provider === "gcal") {
         const adapter = oauthAdapterFor(this.deps, provider) as GoogleCalendarAdapter;
-        const calendars = await withFreshCredentials(this.deps, row, (creds) => adapter.listCalendars(creds));
+        const calendars = await withFreshCredentials(this.deps, row, (creds) =>
+          adapter.listCalendars(creds),
+        );
         return { options: calendars };
       }
       const adapter = oauthAdapterFor(this.deps, provider) as SlackAdapter;
@@ -402,7 +423,13 @@ export class IntegrationsController {
   /** The drawer audit trail: delivery rows + the integration.* ledger rows. */
   @Get(":provider/activity")
   async activity(@Param("provider") rawProvider: string): Promise<{
-    deliveries: Array<{ id: string; kind: string; status: string; detail: unknown; createdAt: string }>;
+    deliveries: Array<{
+      id: string;
+      kind: string;
+      status: string;
+      detail: unknown;
+      createdAt: string;
+    }>;
     events: Array<{ id: string; type: string; payload: unknown; occurredAt: string }>;
   }> {
     const provider = this.provider(rawProvider);

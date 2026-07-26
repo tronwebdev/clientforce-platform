@@ -47,7 +47,13 @@ describe.skipIf(!hasInfra)("meeting rules (INT W2)", () => {
 
   const addRule = (order: number, trigger: CampaignRuleTrigger, actions: CampaignRuleAction[]) =>
     owner.campaignRule.create({
-      data: { workspaceId: ws, campaignId, order, trigger: trigger as never, actions: actions as never },
+      data: {
+        workspaceId: ws,
+        campaignId,
+        order,
+        trigger: trigger as never,
+        actions: actions as never,
+      },
     });
 
   const addMeeting = (over: Record<string, unknown> = {}) =>
@@ -69,20 +75,32 @@ describe.skipIf(!hasInfra)("meeting rules (INT W2)", () => {
   beforeAll(async () => {
     owner = createPrismaClient();
     app = createAppPrismaClient();
-    const agency = await owner.agency.create({ data: { name: suffix, slug: suffix, branding: {} } });
+    const agency = await owner.agency.create({
+      data: { name: suffix, slug: suffix, branding: {} },
+    });
     agencyId = agency.id;
-    ws = (await owner.workspace.create({ data: { agencyId, name: "mw2", slug: suffix, settings: {} } })).id;
+    ws = (
+      await owner.workspace.create({ data: { agencyId, name: "mw2", slug: suffix, settings: {} } })
+    ).id;
     const agentId = (
       await owner.agent.create({
         data: { workspaceId: ws, name: "Rules", goal: "book_appointments", guardrails: {} },
       })
     ).id;
     campaignId = (
-      await owner.campaign.create({ data: { workspaceId: ws, agentId, name: "primary", graphId: "" } })
+      await owner.campaign.create({
+        data: { workspaceId: ws, agentId, name: "primary", graphId: "" },
+      })
     ).id;
     contactId = (
       await owner.contact.create({
-        data: { workspaceId: ws, source: "test", optOut: {}, tags: [], email: `lead-${suffix}@t.test` },
+        data: {
+          workspaceId: ws,
+          source: "test",
+          optOut: {},
+          tags: [],
+          email: `lead-${suffix}@t.test`,
+        },
       })
     ).id;
     enrollmentId = (
@@ -172,7 +190,10 @@ describe.skipIf(!hasInfra)("meeting rules (INT W2)", () => {
       // …until the clock walks into the NEW window: the NEW key fires once more.
       const later = new Date(newStart.getTime() - 10 * 3_600_000);
       expect((await runBeforeMeetingSweep(sweepDeps(), later)).fired).toBe(1);
-      const runs = await owner.campaignRuleRun.findMany({ where: { ruleId: rule.id }, orderBy: { ranAt: "asc" } });
+      const runs = await owner.campaignRuleRun.findMany({
+        where: { ruleId: rule.id },
+        orderBy: { ranAt: "asc" },
+      });
       expect(runs).toHaveLength(2);
       expect(new Set(runs.map((r) => r.eventId)).size).toBe(2);
       expect(runs[1]?.eventId).toBe(premeetEventIdFor(meeting.id, newStart));
@@ -246,7 +267,9 @@ describe.skipIf(!hasInfra)("meeting rules (INT W2)", () => {
     });
 
     it("flags Enrollment.meta.bookingLinkRequested — NON-terminal, idempotent, never a send", async () => {
-      const outcome = await executeAction(engineDeps(), ctx(), "rule-x", { kind: "send_booking_link" });
+      const outcome = await executeAction(engineDeps(), ctx(), "rule-x", {
+        kind: "send_booking_link",
+      });
       expect(outcome).toMatchObject({ kind: "send_booking_link", outcome: "executed" });
       expect(outcome.terminal).toBeUndefined(); // never gates the graph continuation
       expect(outcome.detail).toContain("queued for the next composed message");
@@ -255,7 +278,9 @@ describe.skipIf(!hasInfra)("meeting rules (INT W2)", () => {
       // No Message row, no send-shaped side effect — the flag IS the effect.
       expect(await owner.message.count({ where: { workspaceId: ws } })).toBe(0);
 
-      const again = await executeAction(engineDeps(), ctx(), "rule-x", { kind: "send_booking_link" });
+      const again = await executeAction(engineDeps(), ctx(), "rule-x", {
+        kind: "send_booking_link",
+      });
       expect(again).toMatchObject({ outcome: "noop", detail: "booking link already queued" });
     });
 
@@ -270,7 +295,11 @@ describe.skipIf(!hasInfra)("meeting rules (INT W2)", () => {
     it("preserves the rest of Enrollment.meta when flagging", async () => {
       await owner.enrollment.update({
         where: { id: enrollmentId },
-        data: { meta: { events: [{ nodeId: "n1", kind: "note", detail: "keep me", at: "2026-07-01T00:00:00Z" }] } },
+        data: {
+          meta: {
+            events: [{ nodeId: "n1", kind: "note", detail: "keep me", at: "2026-07-01T00:00:00Z" }],
+          },
+        },
       });
       await executeAction(engineDeps(), ctx(), "rule-x", { kind: "send_booking_link" });
       const meta = (await owner.enrollment.findUniqueOrThrow({ where: { id: enrollmentId } }))

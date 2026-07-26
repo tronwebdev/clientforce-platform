@@ -15,7 +15,12 @@ import { Test } from "@nestjs/testing";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { removeStep, type CampaignGraph } from "@clientforce/core";
-import { createAppPrismaClient, createPrismaClient, withTenant, type PrismaClient } from "@clientforce/db";
+import {
+  createAppPrismaClient,
+  createPrismaClient,
+  withTenant,
+  type PrismaClient,
+} from "@clientforce/db";
 import type { CampaignWorkflowInput } from "@clientforce/workflows";
 import { AppModule } from "../src/app.module";
 import { signDevToken } from "../src/auth/dev-token-verifier";
@@ -42,9 +47,25 @@ class FakeEngine implements WorkflowEngine {
 const GRAPH_V1 = {
   entry: "step-1",
   nodes: [
-    { id: "step-1", type: "step", channel: "email", content: { subject: "Hello {{company}}", body: "Hi {{firstName}}, most practices lose bookings to phone tag." } },
+    {
+      id: "step-1",
+      type: "step",
+      channel: "email",
+      content: {
+        subject: "Hello {{company}}",
+        body: "Hi {{firstName}}, most practices lose bookings to phone tag.",
+      },
+    },
     { id: "delay-1", type: "delay", amount: 2, unit: "days" },
-    { id: "step-2", type: "step", channel: "email", content: { subject: "Following up", body: "Hi {{firstName}}, clients see 12 extra bookings a month." } },
+    {
+      id: "step-2",
+      type: "step",
+      channel: "email",
+      content: {
+        subject: "Following up",
+        body: "Hi {{firstName}}, clients see 12 extra bookings a month.",
+      },
+    },
     {
       id: "branch-reply",
       type: "branch",
@@ -55,7 +76,12 @@ const GRAPH_V1 = {
         { when: "default", goto: "end-lost" },
       ],
     },
-    { id: "step-reframe", type: "step", channel: "email", content: { body: "Value first.", threaded: true } },
+    {
+      id: "step-reframe",
+      type: "step",
+      channel: "email",
+      content: { body: "Value first.", threaded: true },
+    },
     { id: "end-won", type: "end" },
     { id: "end-lost", type: "end" },
   ],
@@ -97,7 +123,13 @@ describe.skipIf(!hasDb)("#90 sub-campaign creation e2e (DEC-077)", () => {
     ).id;
     agentId = (
       await owner.agent.create({
-        data: { workspaceId: ws, name: "Brancher", goal: "book_appointments", status: "ACTIVE", guardrails: {} },
+        data: {
+          workspaceId: ws,
+          name: "Brancher",
+          goal: "book_appointments",
+          status: "ACTIVE",
+          guardrails: {},
+        },
       })
     ).id;
     const campaign = await owner.campaign.create({
@@ -109,12 +141,25 @@ describe.skipIf(!hasDb)("#90 sub-campaign creation e2e (DEC-077)", () => {
     });
     await owner.campaign.update({ where: { id: campaignId }, data: { graphId: g1.id } });
     await owner.senderConnection.create({
-      data: { workspaceId: ws, type: "CF_MANAGED", fromEmail: "agent@send.clientforce.io", fromName: "Sam" },
+      data: {
+        workspaceId: ws,
+        type: "CF_MANAGED",
+        fromEmail: "agent@send.clientforce.io",
+        fromName: "Sam",
+      },
     });
     contactId = (
       await owner.contact.create({
         // LH1 (DEC-087): validated fixture — the gate holds unverified contacts.
-        data: { workspaceId: ws, source: "import", optOut: {}, tags: [], email: `c-${suffix}@t.test`, firstName: "Cam", emailVerdict: "valid" },
+        data: {
+          workspaceId: ws,
+          source: "import",
+          optOut: {},
+          tags: [],
+          email: `c-${suffix}@t.test`,
+          firstName: "Cam",
+          emailVerdict: "valid",
+        },
       })
     ).id;
     const u1 = await owner.user.create({
@@ -144,7 +189,12 @@ describe.skipIf(!hasDb)("#90 sub-campaign creation e2e (DEC-077)", () => {
 
   const asOwner = () => ({ Authorization: `Bearer ${ownerToken}`, "x-workspace-id": ws });
   const latestVersion = async () =>
-    (await owner.campaignGraph.findFirstOrThrow({ where: { campaignId }, orderBy: { version: "desc" } })).version;
+    (
+      await owner.campaignGraph.findFirstOrThrow({
+        where: { campaignId },
+        orderBy: { version: "desc" },
+      })
+    ).version;
   const ruleCount = () => owner.campaignRule.count({ where: { campaignId } });
 
   it("creates the branch atomically: MANUAL v2 + pointer + the R1 entry rule targeting the container", async () => {
@@ -156,8 +206,15 @@ describe.skipIf(!hasDb)("#90 sub-campaign creation e2e (DEC-077)", () => {
         name: "Interested follow-up",
         trigger: { kind: "reply_classified", intents: ["interested"] },
         seed: [
-          { channel: "email", content: { subject: "Booking?", body: "Hi {{firstName}}, grab a slot." } },
-          { channel: "email", content: { body: "Still open, {{firstName}}.", threaded: true }, delayDays: 3 },
+          {
+            channel: "email",
+            content: { subject: "Booking?", body: "Hi {{firstName}}, grab a slot." },
+          },
+          {
+            channel: "email",
+            content: { body: "Still open, {{firstName}}.", threaded: true },
+            delayDays: 3,
+          },
         ],
       });
     expect(res.status).toBe(201);
@@ -230,7 +287,10 @@ describe.skipIf(!hasDb)("#90 sub-campaign creation e2e (DEC-077)", () => {
     expect(res.status).toBe(201);
     expect(res.body.version).toBe(3);
     expect(res.body.subcampaignId).toBe("subcampaign-added-2");
-    const rules = await owner.campaignRule.findMany({ where: { campaignId }, orderBy: { order: "asc" } });
+    const rules = await owner.campaignRule.findMany({
+      where: { campaignId },
+      orderBy: { order: "asc" },
+    });
     expect(rules.map((r) => r.order)).toEqual([1, 2]);
   });
 
@@ -322,12 +382,19 @@ describe.skipIf(!hasDb)("#90 sub-campaign creation e2e (DEC-077)", () => {
     const dropped: CampaignGraph = {
       ...current,
       nodes: current.nodes.filter(
-        (n) => n.id !== subcampaignId && n.id !== "step-added-1" && n.id !== "delay-added-1" && n.id !== "step-added-2" && n.id !== "end-added-1",
+        (n) =>
+          n.id !== subcampaignId &&
+          n.id !== "step-added-1" &&
+          n.id !== "delay-added-1" &&
+          n.id !== "step-added-2" &&
+          n.id !== "end-added-1",
       ),
       edges: current.edges.filter(
         (e) =>
           ![subcampaignId, "step-added-1", "delay-added-1", "step-added-2"].includes(e.from) &&
-          ![subcampaignId, "step-added-1", "delay-added-1", "step-added-2", "end-added-1"].includes(e.to),
+          ![subcampaignId, "step-added-1", "delay-added-1", "step-added-2", "end-added-1"].includes(
+            e.to,
+          ),
       ),
     };
     const res = await request(app.getHttpServer())
@@ -466,7 +533,9 @@ describe.skipIf(!hasDb)("#90 sub-campaign creation e2e (DEC-077)", () => {
         }),
       ).toBe(0);
       const campaign = await owner.campaign.findUniqueOrThrow({ where: { id: campaignId } });
-      const pointed = await owner.campaignGraph.findUniqueOrThrow({ where: { id: campaign.graphId } });
+      const pointed = await owner.campaignGraph.findUniqueOrThrow({
+        where: { id: campaign.graphId },
+      });
       expect(pointed.version).toBe(versionBefore);
     } finally {
       await app2.close();
@@ -522,7 +591,10 @@ describe.skipIf(!hasDb)("#90 sub-campaign creation e2e (DEC-077)", () => {
         .get(`/planner/subcampaign-rules?agentId=${agentId}`)
         .set(asOwner());
       expect(res.status).toBe(200);
-      const rules = await owner.campaignRule.findMany({ where: { campaignId }, orderBy: { order: "asc" } });
+      const rules = await owner.campaignRule.findMany({
+        where: { campaignId },
+        orderBy: { order: "asc" },
+      });
       const entry1 = rules.find((r) => r.order === 1)!;
       const entry2 = rules.find((r) => r.order === 2)!;
       expect(res.body).toEqual([

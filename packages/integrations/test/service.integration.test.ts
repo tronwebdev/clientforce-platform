@@ -7,7 +7,12 @@
  * notify_team transport dedupe. Vendor mocked (CI rule); skips without infra.
  */
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { createAppPrismaClient, createPrismaClient, decryptField, type PrismaClient } from "@clientforce/db";
+import {
+  createAppPrismaClient,
+  createPrismaClient,
+  decryptField,
+  type PrismaClient,
+} from "@clientforce/db";
 import { validateEvent, type BusEvent, type EventInput } from "@clientforce/events";
 import {
   IntegrationProviderError,
@@ -39,10 +44,21 @@ function scriptedSlack(script: {
     fetchImpl: async (url) => {
       const path = String(url);
       const respond = (body: unknown) =>
-        new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
+        new Response(JSON.stringify(body), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
       if (path.endsWith("oauth.v2.access"))
-        return respond(script.exchange?.() ?? { ok: true, access_token: "stubtok-scripted", scope: "chat:write,channels:read", team: { id: "T1", name: "Bright" } });
-      if (path.endsWith("auth.test")) return respond(script.authTest?.() ?? { ok: true, team: "Bright" });
+        return respond(
+          script.exchange?.() ?? {
+            ok: true,
+            access_token: "stubtok-scripted",
+            scope: "chat:write,channels:read",
+            team: { id: "T1", name: "Bright" },
+          },
+        );
+      if (path.endsWith("auth.test"))
+        return respond(script.authTest?.() ?? { ok: true, team: "Bright" });
       if (path.endsWith("chat.postMessage")) return respond(script.postMessage?.() ?? { ok: true });
       if (path.endsWith("auth.revoke")) return respond({ ok: true });
       return respond({ ok: false, error: "unknown_method" });
@@ -76,7 +92,13 @@ describe.skipIf(!hasInfra)("integrations spine (INT W1)", () => {
     ...overrides,
   });
 
-  const busEvent = (workspaceId: string, type: string, payload: unknown, id: string, contactId: string | null = null): BusEvent => ({
+  const busEvent = (
+    workspaceId: string,
+    type: string,
+    payload: unknown,
+    id: string,
+    contactId: string | null = null,
+  ): BusEvent => ({
     id,
     workspaceId,
     type: type as BusEvent["type"],
@@ -89,7 +111,12 @@ describe.skipIf(!hasInfra)("integrations spine (INT W1)", () => {
   });
 
   const connect = async (deps: IntegrationsDeps, workspaceId: string) =>
-    completeConnect(deps, { workspaceId, provider: "slack", code: "code", redirectUri: "https://app/cb" });
+    completeConnect(deps, {
+      workspaceId,
+      provider: "slack",
+      code: "code",
+      redirectUri: "https://app/cb",
+    });
 
   const configure = async (workspaceId: string, id: string, config: unknown) =>
     owner.integration.update({ where: { id }, data: { config: config as object } });
@@ -97,7 +124,9 @@ describe.skipIf(!hasInfra)("integrations spine (INT W1)", () => {
   beforeAll(async () => {
     owner = createPrismaClient();
     app = createAppPrismaClient();
-    const agency = await owner.agency.create({ data: { name: suffix, slug: suffix, branding: {} } });
+    const agency = await owner.agency.create({
+      data: { name: suffix, slug: suffix, branding: {} },
+    });
     agencyId = agency.id;
   });
   afterAll(async () => {
@@ -126,7 +155,10 @@ describe.skipIf(!hasInfra)("integrations spine (INT W1)", () => {
     expect(JSON.parse(decryptField(enc)).accessToken).toBe("stubtok-scripted");
 
     expect(events.map((e) => e.type)).toEqual(["integration.connected.v1"]);
-    expect(events[0]?.payload).toMatchObject({ provider: "slack", accountLabel: "Bright workspace" });
+    expect(events[0]?.payload).toMatchObject({
+      provider: "slack",
+      accountLabel: "Bright workspace",
+    });
   });
 
   it("probe transitions are honest and published on ACTUAL change only", async () => {
@@ -138,23 +170,34 @@ describe.skipIf(!hasInfra)("integrations spine (INT W1)", () => {
     events.length = 0;
 
     // healthy probe → still connected → NO transition event
-    expect((await probeIntegration(deps, { workspaceId: ws, provider: "slack" })).status).toBe("connected");
+    expect((await probeIntegration(deps, { workspaceId: ws, provider: "slack" })).status).toBe(
+      "connected",
+    );
     expect(events).toHaveLength(0);
 
     // vendor 200/ok:false invalid_auth → revoked + ONE transition event
     script.authTest = () => ({ ok: false, error: "invalid_auth" });
-    expect((await probeIntegration(deps, { workspaceId: ws, provider: "slack" })).status).toBe("revoked");
+    expect((await probeIntegration(deps, { workspaceId: ws, provider: "slack" })).status).toBe(
+      "revoked",
+    );
     expect(events.map((e) => e.type)).toEqual(["integration.status_changed.v1"]);
     expect(events[0]?.payload).toMatchObject({ from: "connected", to: "revoked" });
 
     // repeat probe while revoked → no duplicate transition
-    expect((await probeIntegration(deps, { workspaceId: ws, provider: "slack" })).status).toBe("revoked");
+    expect((await probeIntegration(deps, { workspaceId: ws, provider: "slack" })).status).toBe(
+      "revoked",
+    );
     expect(events).toHaveLength(1);
 
     // recovery → connected again, second transition
     delete script.authTest;
-    expect((await probeIntegration(deps, { workspaceId: ws, provider: "slack" })).status).toBe("connected");
-    expect(events.map((e) => e.type)).toEqual(["integration.status_changed.v1", "integration.status_changed.v1"]);
+    expect((await probeIntegration(deps, { workspaceId: ws, provider: "slack" })).status).toBe(
+      "connected",
+    );
+    expect(events.map((e) => e.type)).toEqual([
+      "integration.status_changed.v1",
+      "integration.status_changed.v1",
+    ]);
   });
 
   it("transient vendor failure probes to unhealthy, never revoked", async () => {
@@ -164,7 +207,9 @@ describe.skipIf(!hasInfra)("integrations spine (INT W1)", () => {
     const deps = makeDeps(scriptedSlack(script), events);
     await connect(deps, ws);
     script.authTest = () => ({ ok: false, error: "internal_error" });
-    expect((await probeIntegration(deps, { workspaceId: ws, provider: "slack" })).status).toBe("unhealthy");
+    expect((await probeIntegration(deps, { workspaceId: ws, provider: "slack" })).status).toBe(
+      "unhealthy",
+    );
   });
 
   it("disconnect deletes the row and the ledger outlives it", async () => {
@@ -174,7 +219,10 @@ describe.skipIf(!hasInfra)("integrations spine (INT W1)", () => {
     await connect(deps, ws);
     await disconnectIntegration(deps, { workspaceId: ws, provider: "slack" });
     expect(await owner.integration.findFirst({ where: { workspaceId: ws } })).toBeNull();
-    expect(events.map((e) => e.type)).toEqual(["integration.connected.v1", "integration.disconnected.v1"]);
+    expect(events.map((e) => e.type)).toEqual([
+      "integration.connected.v1",
+      "integration.disconnected.v1",
+    ]);
     expect(events[1]?.payload).toMatchObject({ provider: "slack", reason: "user" });
   });
 
@@ -186,16 +234,32 @@ describe.skipIf(!hasInfra)("integrations spine (INT W1)", () => {
     await configure(ws, row.id, { channel: { id: "C1", name: "alerts" } });
     events.length = 0;
 
-    const first = await deliverSlack(deps, { workspaceId: ws, kind: "new_reply", text: "hi", sourceEventId: "evt-1" });
+    const first = await deliverSlack(deps, {
+      workspaceId: ws,
+      kind: "new_reply",
+      text: "hi",
+      sourceEventId: "evt-1",
+    });
     expect(first).toMatchObject({ delivered: true, target: "#alerts" });
     const deliveries = await owner.integrationDelivery.findMany({ where: { workspaceId: ws } });
     expect(deliveries).toHaveLength(1);
-    expect(deliveries[0]).toMatchObject({ kind: "new_reply", status: "delivered", sourceEventId: "evt-1" });
+    expect(deliveries[0]).toMatchObject({
+      kind: "new_reply",
+      status: "delivered",
+      sourceEventId: "evt-1",
+    });
     expect(events.map((e) => e.type)).toEqual(["integration.notified.v1"]);
-    expect((await owner.integration.findUniqueOrThrow({ where: { id: row.id } })).lastSyncAt).not.toBeNull();
+    expect(
+      (await owner.integration.findUniqueOrThrow({ where: { id: row.id } })).lastSyncAt,
+    ).not.toBeNull();
 
     // same source event again → duplicate skipped, no second row/event
-    const dup = await deliverSlack(deps, { workspaceId: ws, kind: "new_reply", text: "hi", sourceEventId: "evt-1" });
+    const dup = await deliverSlack(deps, {
+      workspaceId: ws,
+      kind: "new_reply",
+      text: "hi",
+      sourceEventId: "evt-1",
+    });
     expect(dup.detail).toContain("duplicate");
     expect(await owner.integrationDelivery.count({ where: { workspaceId: ws } })).toBe(1);
     expect(events).toHaveLength(1);
@@ -211,15 +275,30 @@ describe.skipIf(!hasInfra)("integrations spine (INT W1)", () => {
     events.length = 0;
 
     script.postMessage = () => ({ ok: false, error: "token_revoked" });
-    const res = await deliverSlack(deps, { workspaceId: ws, kind: "meeting_booked", text: "x", sourceEventId: "evt-2" });
+    const res = await deliverSlack(deps, {
+      workspaceId: ws,
+      kind: "meeting_booked",
+      text: "x",
+      sourceEventId: "evt-2",
+    });
     expect(res.delivered).toBe(false);
-    expect((await owner.integration.findUniqueOrThrow({ where: { id: row.id } })).status).toBe("revoked");
-    expect(events.map((e) => e.type)).toEqual(["integration.sync_failed.v1", "integration.status_changed.v1"]);
+    expect((await owner.integration.findUniqueOrThrow({ where: { id: row.id } })).status).toBe(
+      "revoked",
+    );
+    expect(events.map((e) => e.type)).toEqual([
+      "integration.sync_failed.v1",
+      "integration.status_changed.v1",
+    ]);
     const failedRow = await owner.integrationDelivery.findFirst({ where: { workspaceId: ws } });
     expect(failedRow).toMatchObject({ status: "failed" });
 
     // revoked connection: later deliveries skip without touching the vendor
-    const after = await deliverSlack(deps, { workspaceId: ws, kind: "new_reply", text: "y", sourceEventId: "evt-3" });
+    const after = await deliverSlack(deps, {
+      workspaceId: ws,
+      kind: "new_reply",
+      text: "y",
+      sourceEventId: "evt-3",
+    });
     expect(after.delivered).toBe(false);
     expect(after.detail).toContain("revoked");
   });
@@ -232,9 +311,16 @@ describe.skipIf(!hasInfra)("integrations spine (INT W1)", () => {
     const row = await connect(deps, ws);
     await configure(ws, row.id, { channel: { id: "GONE", name: "gone" } });
     script.postMessage = () => ({ ok: false, error: "channel_not_found" });
-    const res = await deliverSlack(deps, { workspaceId: ws, kind: "new_reply", text: "x", sourceEventId: "evt-4" });
+    const res = await deliverSlack(deps, {
+      workspaceId: ws,
+      kind: "new_reply",
+      text: "x",
+      sourceEventId: "evt-4",
+    });
     expect(res.delivered).toBe(false);
-    expect((await owner.integration.findUniqueOrThrow({ where: { id: row.id } })).status).toBe("connected");
+    expect((await owner.integration.findUniqueOrThrow({ where: { id: row.id } })).status).toBe(
+      "connected",
+    );
   });
 
   it("allowance trips hold deliveries with the rising-edge event + COST ALERT", async () => {
@@ -246,15 +332,45 @@ describe.skipIf(!hasInfra)("integrations spine (INT W1)", () => {
     events.length = 0;
     const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     try {
-      expect((await deliverSlack(deps, { workspaceId: ws, kind: "new_reply", text: "1", sourceEventId: "a-1" })).delivered).toBe(true);
-      expect((await deliverSlack(deps, { workspaceId: ws, kind: "new_reply", text: "2", sourceEventId: "a-2" })).delivered).toBe(true);
-      const held = await deliverSlack(deps, { workspaceId: ws, kind: "new_reply", text: "3", sourceEventId: "a-3" });
+      expect(
+        (
+          await deliverSlack(deps, {
+            workspaceId: ws,
+            kind: "new_reply",
+            text: "1",
+            sourceEventId: "a-1",
+          })
+        ).delivered,
+      ).toBe(true);
+      expect(
+        (
+          await deliverSlack(deps, {
+            workspaceId: ws,
+            kind: "new_reply",
+            text: "2",
+            sourceEventId: "a-2",
+          })
+        ).delivered,
+      ).toBe(true);
+      const held = await deliverSlack(deps, {
+        workspaceId: ws,
+        kind: "new_reply",
+        text: "3",
+        sourceEventId: "a-3",
+      });
       expect(held.delivered).toBe(false);
       expect(held.detail).toContain("held");
-      const held2 = await deliverSlack(deps, { workspaceId: ws, kind: "new_reply", text: "4", sourceEventId: "a-4" });
+      const held2 = await deliverSlack(deps, {
+        workspaceId: ws,
+        kind: "new_reply",
+        text: "4",
+        sourceEventId: "a-4",
+      });
       expect(held2.delivered).toBe(false);
 
-      const heldRows = await owner.integrationDelivery.findMany({ where: { workspaceId: ws, status: "held" } });
+      const heldRows = await owner.integrationDelivery.findMany({
+        where: { workspaceId: ws, status: "held" },
+      });
       expect(heldRows).toHaveLength(2);
       // rising edge: ONE delivery_held event + ONE cost-alert line for the episode
       expect(events.filter((e) => e.type === "integration.delivery_held.v1")).toHaveLength(1);
@@ -275,20 +391,64 @@ describe.skipIf(!hasInfra)("integrations spine (INT W1)", () => {
       notifications: { goal_completed: false },
     });
     const contact = await owner.contact.create({
-      data: { workspaceId: ws, source: "test", optOut: {}, tags: [], email: "ada@example.test", firstName: "Ada" },
+      data: {
+        workspaceId: ws,
+        source: "test",
+        optOut: {},
+        tags: [],
+        email: "ada@example.test",
+        firstName: "Ada",
+      },
     });
     const notifier = createIntegrationNotifier(deps);
 
-    await notifier.handle(busEvent(ws, "email.replied.v1", { messageId: "m1", intent: "interested" }, "e-reply", contact.id));
-    await notifier.handle(busEvent(ws, "lead.stage_changed.v1", { fromStage: "new", toStage: "booked" }, "e-booked", contact.id));
+    await notifier.handle(
+      busEvent(
+        ws,
+        "email.replied.v1",
+        { messageId: "m1", intent: "interested" },
+        "e-reply",
+        contact.id,
+      ),
+    );
+    await notifier.handle(
+      busEvent(
+        ws,
+        "lead.stage_changed.v1",
+        { fromStage: "new", toStage: "booked" },
+        "e-booked",
+        contact.id,
+      ),
+    );
     // toggled OFF → no delivery
-    await notifier.handle(busEvent(ws, "lead.stage_changed.v1", { fromStage: "a", toStage: "won", goalKey: "g", label: "Won" }, "e-goal", contact.id));
+    await notifier.handle(
+      busEvent(
+        ws,
+        "lead.stage_changed.v1",
+        { fromStage: "a", toStage: "won", goalKey: "g", label: "Won" },
+        "e-goal",
+        contact.id,
+      ),
+    );
     // loop safety
-    await notifier.handle(busEvent(ws, "integration.notified.v1", { provider: "slack", kind: "new_reply" }, "e-loop"));
+    await notifier.handle(
+      busEvent(ws, "integration.notified.v1", { provider: "slack", kind: "new_reply" }, "e-loop"),
+    );
     // redelivery of the same bus event → one row only
-    await notifier.handle(busEvent(ws, "email.replied.v1", { messageId: "m1", intent: "interested" }, "e-reply", contact.id));
+    await notifier.handle(
+      busEvent(
+        ws,
+        "email.replied.v1",
+        { messageId: "m1", intent: "interested" },
+        "e-reply",
+        contact.id,
+      ),
+    );
 
-    const rows = await owner.integrationDelivery.findMany({ where: { workspaceId: ws }, orderBy: { createdAt: "asc" } });
+    const rows = await owner.integrationDelivery.findMany({
+      where: { workspaceId: ws },
+      orderBy: { createdAt: "asc" },
+    });
     expect(rows.map((r) => r.kind).sort()).toEqual(["meeting_booked", "new_reply"]);
     expect(rows.every((r) => r.status === "delivered")).toBe(true);
   });
@@ -304,14 +464,21 @@ describe.skipIf(!hasInfra)("integrations spine (INT W1)", () => {
     const res = await transport({ workspaceId: ws, sourceKey: "evt-9#rule:r1", note: "Hot lead" });
     expect(res).toMatchObject({ delivered: true, target: "#alerts" });
     // a second rule on the same event delivers separately …
-    expect((await transport({ workspaceId: ws, sourceKey: "evt-9#rule:r2", note: "Also fired" })).delivered).toBe(true);
+    expect(
+      (await transport({ workspaceId: ws, sourceKey: "evt-9#rule:r2", note: "Also fired" }))
+        .delivered,
+    ).toBe(true);
     // … but the SAME rule+event redelivery dedupes
     const dup = await transport({ workspaceId: ws, sourceKey: "evt-9#rule:r1", note: "Hot lead" });
     expect(dup.detail).toContain("duplicate");
-    expect(await owner.integrationDelivery.count({ where: { workspaceId: ws, kind: "notify_team" } })).toBe(2);
+    expect(
+      await owner.integrationDelivery.count({ where: { workspaceId: ws, kind: "notify_team" } }),
+    ).toBe(2);
 
     const bare = await newWorkspace("transport-bare");
-    expect((await transport({ workspaceId: bare, sourceKey: "evt-9#rule:r1" })).delivered).toBe(false);
+    expect((await transport({ workspaceId: bare, sourceKey: "evt-9#rule:r1" })).delivered).toBe(
+      false,
+    );
   });
 
   it("RLS: integration + delivery rows are invisible cross-tenant on the app client", async () => {
@@ -321,18 +488,27 @@ describe.skipIf(!hasInfra)("integrations spine (INT W1)", () => {
     const deps = makeDeps(scriptedSlack({}), events);
     const row = await connect(deps, wsA);
     await configure(wsA, row.id, { channel: { id: "C1", name: "alerts" } });
-    await deliverSlack(deps, { workspaceId: wsA, kind: "new_reply", text: "x", sourceEventId: "rls-1" });
+    await deliverSlack(deps, {
+      workspaceId: wsA,
+      kind: "new_reply",
+      text: "x",
+      sourceEventId: "rls-1",
+    });
 
     const { withTenant } = await import("@clientforce/db");
     const fromB = await withTenant(app, { workspaceId: wsB }, (tx) => tx.integration.findMany());
     expect(fromB).toHaveLength(0);
-    const deliveriesFromB = await withTenant(app, { workspaceId: wsB }, (tx) => tx.integrationDelivery.findMany());
+    const deliveriesFromB = await withTenant(app, { workspaceId: wsB }, (tx) =>
+      tx.integrationDelivery.findMany(),
+    );
     expect(deliveriesFromB).toHaveLength(0);
   });
 
   it("adapter probe failure classes map to IntegrationProviderError (spine sanity)", async () => {
     const adapter = scriptedSlack({ authTest: () => ({ ok: false, error: "invalid_auth" }) });
-    await expect(adapter.probe({ accessToken: "x" })).rejects.toBeInstanceOf(IntegrationProviderError);
+    await expect(adapter.probe({ accessToken: "x" })).rejects.toBeInstanceOf(
+      IntegrationProviderError,
+    );
   });
 
   it("reconnect after revoke: the upsert UPDATE branch resets status, swaps the token, preserves config", async () => {
@@ -341,7 +517,10 @@ describe.skipIf(!hasInfra)("integrations spine (INT W1)", () => {
     const script: { exchange?: () => unknown; authTest?: () => unknown } = {};
     const deps = makeDeps(scriptedSlack(script), events);
     const row = await connect(deps, ws);
-    await configure(ws, row.id, { channel: { id: "C1", name: "alerts" }, notifications: { goal_completed: false } });
+    await configure(ws, row.id, {
+      channel: { id: "C1", name: "alerts" },
+      notifications: { goal_completed: false },
+    });
 
     script.authTest = () => ({ ok: false, error: "invalid_auth" });
     await probeIntegration(deps, { workspaceId: ws, provider: "slack" }); // → revoked
@@ -358,10 +537,15 @@ describe.skipIf(!hasInfra)("integrations spine (INT W1)", () => {
     expect(again.status).toBe("connected");
     expect(again.scopes).toEqual(["chat:write"]);
     const raw = await owner.integration.findUniqueOrThrow({ where: { id: row.id } });
-    expect(JSON.parse(decryptField(Buffer.from(raw.credentialsEnc as Uint8Array))).accessToken).toBe("stubtok-second");
+    expect(
+      JSON.parse(decryptField(Buffer.from(raw.credentialsEnc as Uint8Array))).accessToken,
+    ).toBe("stubtok-second");
     // config survives the reconnect — the stored channel + toggle opt-outs
     // are the user's, never clobbered by the OAuth round-trip.
-    expect(raw.config).toMatchObject({ channel: { id: "C1", name: "alerts" }, notifications: { goal_completed: false } });
+    expect(raw.config).toMatchObject({
+      channel: { id: "C1", name: "alerts" },
+      notifications: { goal_completed: false },
+    });
   });
 
   it("bus outage: every operation still lands its row state; publish failures only log", async () => {
@@ -376,9 +560,16 @@ describe.skipIf(!hasInfra)("integrations spine (INT W1)", () => {
     const row = await connect(deps, ws);
     expect(row.status).toBe("connected");
     await configure(ws, row.id, { channel: { id: "C1", name: "alerts" } });
-    const res = await deliverSlack(deps, { workspaceId: ws, kind: "new_reply", text: "x", sourceEventId: "bd-1" });
+    const res = await deliverSlack(deps, {
+      workspaceId: ws,
+      kind: "new_reply",
+      text: "x",
+      sourceEventId: "bd-1",
+    });
     expect(res).toMatchObject({ delivered: true, target: "#alerts" });
-    expect(await owner.integrationDelivery.count({ where: { workspaceId: ws, status: "delivered" } })).toBe(1);
+    expect(
+      await owner.integrationDelivery.count({ where: { workspaceId: ws, status: "delivered" } }),
+    ).toBe(1);
     await probeIntegration(deps, { workspaceId: ws, provider: "slack" });
     await disconnectIntegration(deps, { workspaceId: ws, provider: "slack" });
     expect(await owner.integration.findFirst({ where: { workspaceId: ws } })).toBeNull();
@@ -393,7 +584,14 @@ describe.skipIf(!hasInfra)("integrations spine (INT W1)", () => {
     await configure(ws, row.id, { channel: { id: "C1", name: "alerts" } });
     // Simulate a crashed-mid-delivery claim: a pending row already holds the key.
     await owner.integrationDelivery.create({
-      data: { workspaceId: ws, integrationId: row.id, sourceEventId: "pend-1", kind: "new_reply", status: "pending", detail: {} },
+      data: {
+        workspaceId: ws,
+        integrationId: row.id,
+        sourceEventId: "pend-1",
+        kind: "new_reply",
+        status: "pending",
+        detail: {},
+      },
     });
     const posts: string[] = [];
     const spyAdapter = scriptedSlack({
@@ -415,7 +613,9 @@ describe.skipIf(!hasInfra)("integrations spine (INT W1)", () => {
 
   it("honest-absence pins: unknown provider refuses typed; unwired adapter skips without touching the DB", async () => {
     const { adapterFor, IntegrationRefusedError } = await import("../src/service");
-    expect(() => adapterFor({ prisma: app, adapters: {} }, "slack")).toThrowError(IntegrationRefusedError);
+    expect(() => adapterFor({ prisma: app, adapters: {} }, "slack")).toThrowError(
+      IntegrationRefusedError,
+    );
     const ws = await newWorkspace("unwired");
     const res = await deliverSlack(
       { prisma: app, adapters: {} },
@@ -434,7 +634,14 @@ describe.skipIf(!hasInfra)("integrations spine (INT W1)", () => {
     };
     const notifier = createIntegrationNotifier(broken);
     await expect(
-      notifier.handle(busEvent("ws-any", "email.replied.v1", { messageId: "m", intent: "interested" }, "e-db-down")),
+      notifier.handle(
+        busEvent(
+          "ws-any",
+          "email.replied.v1",
+          { messageId: "m", intent: "interested" },
+          "e-db-down",
+        ),
+      ),
     ).resolves.toBeUndefined();
     expect(logs.some((l) => l.includes("notifier failed"))).toBe(true);
   });

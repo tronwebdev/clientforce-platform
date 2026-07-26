@@ -81,7 +81,8 @@ export class TtsStream {
     this.ws.on("message", (data: Buffer, isBinary: boolean) => this.onMessage(data, isBinary));
     this.ws.on("error", (err) => this.die(err instanceof Error ? err : new Error(String(err))));
     this.ws.on("close", (code, reason) => {
-      if (!this.closedByUs) this.die(new Error(`tts ws closed ${code} ${String(reason).slice(0, 120)}`));
+      if (!this.closedByUs)
+        this.die(new Error(`tts ws closed ${code} ${String(reason).slice(0, 120)}`));
     });
   }
 

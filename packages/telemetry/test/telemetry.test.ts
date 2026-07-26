@@ -70,7 +70,10 @@ describe("bus consumer", () => {
     expect(mapDomainEvent(ev("sms.replied.v1"))?.name).toBe("product.reply.v1");
     expect(mapDomainEvent(ev("email.opened.v1"))).toBeNull();
     // the mapped props carry only ids + the channel label — never the domain payload
-    expect(mapDomainEvent(ev("email.sent.v1"))?.props).toEqual({ workspaceId: "ws1", channel: "email" });
+    expect(mapDomainEvent(ev("email.sent.v1"))?.props).toEqual({
+      workspaceId: "ws1",
+      channel: "email",
+    });
   });
 
   it("records the mapped telemetry through the injected recorder", async () => {

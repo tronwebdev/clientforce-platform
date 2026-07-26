@@ -44,6 +44,9 @@ export function loadConfig(overrides: Partial<AiConfig> = {}): AiConfig {
       // Voice is latency-bound (time-to-first-token gates time-to-first-audio),
       // so it routes to the fastest tier by default (P3.0 spike).
       voice: env("AI_MODEL_VOICE") ?? "claude-haiku-4-5",
+      // The widget answers a stranger on a customer's marketing page: it must
+      // be fast (a visitor is watching a typing indicator) and it never plans.
+      widget: env("AI_MODEL_WIDGET") ?? "claude-haiku-4-5",
     },
     maxTokens: {
       planner: envInt("AI_MAX_TOKENS_PLANNER", 8192),
@@ -51,6 +54,8 @@ export function loadConfig(overrides: Partial<AiConfig> = {}): AiConfig {
       classify: envInt("AI_MAX_TOKENS_CLASSIFY", 1024),
       // Spoken replies must stay short — ~2 sentences ≈ well under 300 tokens.
       voice: envInt("AI_MAX_TOKENS_VOICE", 300),
+      // Two or three sentences in a 376px panel — a long answer is a bug.
+      widget: envInt("AI_MAX_TOKENS_WIDGET", 400),
     },
     timeoutMs: envInt("AI_TIMEOUT_MS", 60_000),
     maxRetries: envInt("AI_MAX_RETRIES", 3),

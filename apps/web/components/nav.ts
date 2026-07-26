@@ -20,8 +20,22 @@ export const MAIN_NAV: NavItem[] = [
 
 /** Tools — shown in the collapsed right-side flyout (sidebar.js). */
 export const TOOLS_NAV: NavItem[] = [
-  { key: "lead-finder", label: "Lead Finder V2", icon: "⌖", href: "/lead-finder", badge: "Auto Prospecting", badgeStyle: "grad" },
-  { key: "proposals", label: "Proposals", icon: "❒", href: "/proposals", badge: "Dynamic", badgeStyle: "cyan" },
+  {
+    key: "lead-finder",
+    label: "Lead Finder V2",
+    icon: "⌖",
+    href: "/lead-finder",
+    badge: "Auto Prospecting",
+    badgeStyle: "grad",
+  },
+  {
+    key: "proposals",
+    label: "Proposals",
+    icon: "❒",
+    href: "/proposals",
+    badge: "Dynamic",
+    badgeStyle: "cyan",
+  },
   { key: "forms", label: "Forms", icon: "⊞", href: "/forms" },
   { key: "widget", label: "Agent Widget", icon: "⊕", href: "/widget" },
   { key: "linkedin", label: "LinkedIn Extension", icon: "in", href: "/linkedin" },

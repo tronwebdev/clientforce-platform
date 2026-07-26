@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { BranchNode, CampaignGraph } from "@clientforce/core";
-import { delayToMs, mainStepPosition, nextAfter, resolveReplyBranch, workflowIdFor } from "../src/shared";
+import {
+  delayToMs,
+  mainStepPosition,
+  nextAfter,
+  resolveReplyBranch,
+  workflowIdFor,
+} from "../src/shared";
 
 describe("workflowIdFor", () => {
   it("is deterministic per enrollment (start-by-id dedupe)", () => {
@@ -108,7 +114,13 @@ describe("resolveReplyBranch (mirrors the T4 executor semantics)", () => {
 
   it("BACK-COMPAT: a legacy 1-branch graph routes NEW intents to its default case", () => {
     // `node` above is the pre-M1b planner shape (interested + default only).
-    for (const intent of ["objection_price", "objection_timing", "wrong_person", "info_request", "not_interested"]) {
+    for (const intent of [
+      "objection_price",
+      "objection_timing",
+      "wrong_person",
+      "info_request",
+      "not_interested",
+    ]) {
       const r = resolveReplyBranch(node, intent);
       expect(r, intent).toMatchObject({ matched: "default", chosen: { goto: "nudge" } });
     }

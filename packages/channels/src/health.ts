@@ -98,9 +98,10 @@ export interface HealthSnapshot extends HealthComputation {
 
 /** A SPIKE = a measured rate at/over its owner-locked DANGER bound — the one
  * predicate shared by the alert events and the warmup interlock hold. */
-export function spikeSignals(
-  rates: HealthComputation["rates"],
-): { bounce: boolean; spam: boolean } {
+export function spikeSignals(rates: HealthComputation["rates"]): {
+  bounce: boolean;
+  spam: boolean;
+} {
   return {
     bounce: rates !== null && rates.bounce >= HEALTH_SIGNALS.bounce.danger,
     spam: rates !== null && rates.spam >= HEALTH_SIGNALS.spam.danger,
@@ -125,13 +126,15 @@ export function computeSenderHealth(sample: LedgerSample): HealthComputation {
   const deliveryRate = deliverySignal ? sample.delivered / sample.sent : null;
 
   const { spam, bounce, delivery, reply } = HEALTH_SIGNALS;
-  const spamPenalty = spam.weight * clamp01((spamRate - spam.healthy) / (spam.danger - spam.healthy));
+  const spamPenalty =
+    spam.weight * clamp01((spamRate - spam.healthy) / (spam.danger - spam.healthy));
   const bouncePenalty =
     bounce.weight * clamp01((bounceRate - bounce.healthy) / (bounce.danger - bounce.healthy));
   const deliveryPenalty =
     deliveryRate === null
       ? 0 // no delivery signal in the window — never penalize missing instrumentation
-      : delivery.weight * clamp01((delivery.healthy - deliveryRate) / (delivery.healthy - delivery.danger));
+      : delivery.weight *
+        clamp01((delivery.healthy - deliveryRate) / (delivery.healthy - delivery.danger));
   const replyBonus = reply.weight * clamp01(replyRate / reply.fullAt);
 
   const score = Math.round(
@@ -153,7 +156,8 @@ export function parseHealthState(raw: unknown): HealthSnapshot | null {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const state = raw as Record<string, unknown>;
   if (state.v !== 1) return null;
-  if (state.state !== "healthy" && state.state !== "unhealthy" && state.state !== "low_data") return null;
+  if (state.state !== "healthy" && state.state !== "unhealthy" && state.state !== "low_data")
+    return null;
   return state as unknown as HealthSnapshot;
 }
 
@@ -211,8 +215,7 @@ export async function loadSenderLedgerSample(
       }),
     ]),
   );
-  const count = (type: EventType): number =>
-    grouped.find((g) => g.type === type)?._count._all ?? 0;
+  const count = (type: EventType): number => grouped.find((g) => g.type === type)?._count._all ?? 0;
   return {
     sent,
     delivered: count(types.delivered),
@@ -252,7 +255,9 @@ export async function recomputeSenderHealth(
 ): Promise<HealthRecomputeResult | null> {
   const now = deps.now?.() ?? new Date();
   const sender = await withTenant(deps.prisma, { workspaceId: params.workspaceId }, (tx) =>
-    tx.senderConnection.findFirst({ where: { id: params.senderId, workspaceId: params.workspaceId } }),
+    tx.senderConnection.findFirst({
+      where: { id: params.senderId, workspaceId: params.workspaceId },
+    }),
   );
   if (!sender) return null;
 
@@ -274,7 +279,9 @@ export async function recomputeSenderHealth(
     computedAt: now.toISOString(),
     sample,
     spikes,
-    ...(computed.state === "unhealthy" ? { collapsedAt: prior?.collapsedAt ?? now.toISOString() } : {}),
+    ...(computed.state === "unhealthy"
+      ? { collapsedAt: prior?.collapsedAt ?? now.toISOString() }
+      : {}),
   };
 
   const transitioned =
@@ -293,9 +300,7 @@ export async function recomputeSenderHealth(
       where: {
         id: params.senderId,
         workspaceId: params.workspaceId,
-        ...(transitioned && prior
-          ? { healthState: { path: ["state"], equals: prior.state } }
-          : {}),
+        ...(transitioned && prior ? { healthState: { path: ["state"], equals: prior.state } } : {}),
       },
       data: { healthState: snapshot as unknown as Prisma.InputJsonValue },
     }),

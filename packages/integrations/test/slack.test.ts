@@ -29,7 +29,11 @@ const CREDS = { accessToken: "stubtok-test-token" };
 
 describe("SlackAdapter", () => {
   it("is unconfigured without platform app credentials and refuses authorizeUrl typed", () => {
-    const adapter = new SlackAdapter({ clientId: undefined, clientSecret: undefined, fetchImpl: async () => jsonResponse({}) });
+    const adapter = new SlackAdapter({
+      clientId: undefined,
+      clientSecret: undefined,
+      fetchImpl: async () => jsonResponse({}),
+    });
     expect(adapter.configured).toBe(false);
     expect(() => adapter.authorizeUrl({ redirectUri: "https://x/cb", state: "s" })).toThrowError(
       IntegrationProviderError,
@@ -37,7 +41,12 @@ describe("SlackAdapter", () => {
   });
 
   it("builds the authorize URL with scopes, state and redirect", () => {
-    const url = new URL(adapterWith(async () => jsonResponse({})).authorizeUrl({ redirectUri: "https://app/integrations/callback/slack", state: "abc.def" }));
+    const url = new URL(
+      adapterWith(async () => jsonResponse({})).authorizeUrl({
+        redirectUri: "https://app/integrations/callback/slack",
+        state: "abc.def",
+      }),
+    );
     expect(url.origin + url.pathname).toBe("https://slack.test/oauth/v2/authorize");
     expect(url.searchParams.get("client_id")).toBe("client-id");
     expect(url.searchParams.get("scope")).toBe(SLACK_SCOPES.join(","));
@@ -74,43 +83,65 @@ describe("SlackAdapter", () => {
   });
 
   it("probe returns ok + account label from auth.test", async () => {
-    const adapter = adapterWith(async () => jsonResponse({ ok: true, team: "BrightPath", team_id: "T1" }));
+    const adapter = adapterWith(async () =>
+      jsonResponse({ ok: true, team: "BrightPath", team_id: "T1" }),
+    );
     const probe = await adapter.probe(CREDS);
     expect(probe.ok).toBe(true);
     expect(probe.accountLabel).toBe("BrightPath workspace");
     expect(probe.detail).toContain("BrightPath");
   });
 
-  it.each([
-    ["invalid_auth"],
-    ["token_revoked"],
-    ["account_inactive"],
-  ])("probe classifies ok:false %s as PROVIDER_AUTH (not retryable)", async (error) => {
-    const adapter = adapterWith(async () => jsonResponse({ ok: false, error }));
-    await expect(adapter.probe(CREDS)).rejects.toMatchObject({ code: "PROVIDER_AUTH", retryable: false });
-  });
+  it.each([["invalid_auth"], ["token_revoked"], ["account_inactive"]])(
+    "probe classifies ok:false %s as PROVIDER_AUTH (not retryable)",
+    async (error) => {
+      const adapter = adapterWith(async () => jsonResponse({ ok: false, error }));
+      await expect(adapter.probe(CREDS)).rejects.toMatchObject({
+        code: "PROVIDER_AUTH",
+        retryable: false,
+      });
+    },
+  );
 
   it("classifies HTTP 429 and ok:false ratelimited as PROVIDER_RATE_LIMITED (retryable)", async () => {
     const via429 = adapterWith(async () => jsonResponse({}, 429));
-    await expect(via429.probe(CREDS)).rejects.toMatchObject({ code: "PROVIDER_RATE_LIMITED", retryable: true });
+    await expect(via429.probe(CREDS)).rejects.toMatchObject({
+      code: "PROVIDER_RATE_LIMITED",
+      retryable: true,
+    });
     const viaBody = adapterWith(async () => jsonResponse({ ok: false, error: "ratelimited" }));
-    await expect(viaBody.probe(CREDS)).rejects.toMatchObject({ code: "PROVIDER_RATE_LIMITED", retryable: true });
+    await expect(viaBody.probe(CREDS)).rejects.toMatchObject({
+      code: "PROVIDER_RATE_LIMITED",
+      retryable: true,
+    });
   });
 
   it("classifies 5xx, network failure and non-JSON as PROVIDER_UNAVAILABLE (retryable)", async () => {
     const via500 = adapterWith(async () => jsonResponse({}, 500));
-    await expect(via500.probe(CREDS)).rejects.toMatchObject({ code: "PROVIDER_UNAVAILABLE", retryable: true });
+    await expect(via500.probe(CREDS)).rejects.toMatchObject({
+      code: "PROVIDER_UNAVAILABLE",
+      retryable: true,
+    });
     const viaThrow = adapterWith(async () => {
       throw new Error("ECONNREFUSED");
     });
-    await expect(viaThrow.probe(CREDS)).rejects.toMatchObject({ code: "PROVIDER_UNAVAILABLE", retryable: true });
+    await expect(viaThrow.probe(CREDS)).rejects.toMatchObject({
+      code: "PROVIDER_UNAVAILABLE",
+      retryable: true,
+    });
     const viaHtml = adapterWith(async () => new Response("<html>", { status: 200 }));
-    await expect(viaHtml.probe(CREDS)).rejects.toMatchObject({ code: "PROVIDER_UNAVAILABLE", retryable: true });
+    await expect(viaHtml.probe(CREDS)).rejects.toMatchObject({
+      code: "PROVIDER_UNAVAILABLE",
+      retryable: true,
+    });
   });
 
   it("lists channels sorted by name and drops malformed entries", async () => {
     const adapter = adapterWith(async () =>
-      jsonResponse({ ok: true, channels: [{ id: "C2", name: "zeta" }, { id: "C1", name: "alerts" }, { id: "C3" }] }),
+      jsonResponse({
+        ok: true,
+        channels: [{ id: "C2", name: "zeta" }, { id: "C1", name: "alerts" }, { id: "C3" }],
+      }),
     );
     expect(await adapter.listChannels(CREDS)).toEqual([
       { id: "C1", name: "alerts" },
@@ -130,7 +161,11 @@ describe("SlackAdapter", () => {
           response_metadata: { next_cursor: "page2" },
         });
       }
-      return jsonResponse({ ok: true, channels: [{ id: "C1", name: "alerts" }], response_metadata: { next_cursor: "" } });
+      return jsonResponse({
+        ok: true,
+        channels: [{ id: "C1", name: "alerts" }],
+        response_metadata: { next_cursor: "" },
+      });
     });
     expect(await adapter.listChannels(CREDS)).toEqual([
       { id: "C1", name: "alerts" },
@@ -141,10 +176,12 @@ describe("SlackAdapter", () => {
   });
 
   it("types request/config refusals (channel_not_found, missing_scope) as IntegrationDeliveryError", async () => {
-    const adapter = adapterWith(async () => jsonResponse({ ok: false, error: "channel_not_found" }));
-    await expect(adapter.postMessage(CREDS, { channelId: "C9", text: "hi" })).rejects.toBeInstanceOf(
-      IntegrationDeliveryError,
+    const adapter = adapterWith(async () =>
+      jsonResponse({ ok: false, error: "channel_not_found" }),
     );
+    await expect(
+      adapter.postMessage(CREDS, { channelId: "C9", text: "hi" }),
+    ).rejects.toBeInstanceOf(IntegrationDeliveryError);
     const scoped = adapterWith(async () => jsonResponse({ ok: false, error: "missing_scope" }));
     await expect(scoped.listChannels(CREDS)).rejects.toMatchObject({ reason: "missing_scope" });
   });
@@ -153,13 +190,20 @@ describe("SlackAdapter", () => {
     const calls: Array<{ url: string; auth: string | undefined; body: string }> = [];
     const adapter = adapterWith(async (url, init) => {
       const headers = new Headers(init?.headers);
-      calls.push({ url: String(url), auth: headers.get("Authorization") ?? undefined, body: String(init?.body) });
+      calls.push({
+        url: String(url),
+        auth: headers.get("Authorization") ?? undefined,
+        body: String(init?.body),
+      });
       return jsonResponse({ ok: true });
     });
     await adapter.postMessage(CREDS, { channelId: "C1", text: "📅 Meeting booked" });
     expect(calls[0]?.url).toBe("https://slack.test/api/chat.postMessage");
     expect(calls[0]?.auth).toBe("Bearer stubtok-test-token");
-    expect(JSON.parse(calls[0]?.body ?? "{}")).toEqual({ channel: "C1", text: "📅 Meeting booked" });
+    expect(JSON.parse(calls[0]?.body ?? "{}")).toEqual({
+      channel: "C1",
+      text: "📅 Meeting booked",
+    });
   });
 
   it("refuses to call the vendor without an access token", async () => {

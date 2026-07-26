@@ -56,7 +56,9 @@ describe.skipIf(!hasDb)("API e2e (Clerk org path)", () => {
       data: { email: `dbrole-${suffix}@t.test`, authProviderId: `auth|dbrole-${suffix}` },
     });
     // Pre-existing VIEWER membership — DB must remain authoritative.
-    await owner.membership.create({ data: { userId: dbrole.id, workspaceId: wsV, role: "VIEWER" } });
+    await owner.membership.create({
+      data: { userId: dbrole.id, workspaceId: wsV, role: "VIEWER" },
+    });
     userIds = [jit.id, dbrole.id];
 
     await owner.contact.createMany({
@@ -99,8 +101,12 @@ describe.skipIf(!hasDb)("API e2e (Clerk org path)", () => {
       // A3: rows created by the lazy-upsert / first-run tests below.
       const lazy = await owner.user.findMany({ where: { email: { contains: `lazy-${suffix}` } } });
       for (const u of lazy) {
-        const ms = await owner.membership.findMany({ where: { userId: u.id }, include: { workspace: true } });
-        for (const m of ms) await owner.agency.delete({ where: { id: m.workspace.agencyId } }).catch(() => undefined);
+        const ms = await owner.membership.findMany({
+          where: { userId: u.id },
+          include: { workspace: true },
+        });
+        for (const m of ms)
+          await owner.agency.delete({ where: { id: m.workspace.agencyId } }).catch(() => undefined);
       }
       await owner.user.deleteMany({ where: { email: { contains: `lazy-${suffix}` } } });
     }
@@ -108,7 +114,9 @@ describe.skipIf(!hasDb)("API e2e (Clerk org path)", () => {
   });
 
   it("provisions a membership just-in-time and seeds the role from org_role", async () => {
-    const res = await request(app.getHttpServer()).get("/me").set("Authorization", `Bearer ${jitToken}`);
+    const res = await request(app.getHttpServer())
+      .get("/me")
+      .set("Authorization", `Bearer ${jitToken}`);
     expect(res.status).toBe(200);
     expect(res.body.memberships).toHaveLength(1);
     expect(res.body.activeWorkspace?.id).toBe(wsC);
@@ -124,7 +132,9 @@ describe.skipIf(!hasDb)("API e2e (Clerk org path)", () => {
   });
 
   it("scopes tenant data to the org's workspace", async () => {
-    const res = await request(app.getHttpServer()).get("/contacts").set("Authorization", `Bearer ${jitToken}`);
+    const res = await request(app.getHttpServer())
+      .get("/contacts")
+      .set("Authorization", `Bearer ${jitToken}`);
     expect(res.status).toBe(200);
     expect(res.body.every((c: { workspaceId: string }) => c.workspaceId === wsC)).toBe(true);
     // 2 seeded + 1 created above
@@ -132,7 +142,9 @@ describe.skipIf(!hasDb)("API e2e (Clerk org path)", () => {
   });
 
   it("keeps the DB role authoritative — org_role cannot escalate a VIEWER", async () => {
-    const me = await request(app.getHttpServer()).get("/me").set("Authorization", `Bearer ${escalateToken}`);
+    const me = await request(app.getHttpServer())
+      .get("/me")
+      .set("Authorization", `Bearer ${escalateToken}`);
     expect(me.status).toBe(200);
     expect(me.body.role).toBe("VIEWER"); // NOT ADMIN despite org_role=org:admin
 
@@ -158,11 +170,15 @@ describe.skipIf(!hasDb)("API e2e (Clerk org path)", () => {
       email: `lazy-${suffix}@t.test`,
       name: "Lazy First",
     });
-    const me = await request(app.getHttpServer()).get("/me").set("Authorization", `Bearer ${token}`);
+    const me = await request(app.getHttpServer())
+      .get("/me")
+      .set("Authorization", `Bearer ${token}`);
     expect(me.status).toBe(403);
     expect(me.body.code).toBe("NO_WORKSPACE");
 
-    const created = await owner.user.findUnique({ where: { authProviderId: `auth|lazy-${suffix}` } });
+    const created = await owner.user.findUnique({
+      where: { authProviderId: `auth|lazy-${suffix}` },
+    });
     expect(created?.email).toBe(`lazy-${suffix}@t.test`);
     expect(created?.name).toBe("Lazy First");
   });
@@ -178,7 +194,9 @@ describe.skipIf(!hasDb)("API e2e (Clerk org path)", () => {
       .send({ name: "Lazy First Workspace" });
     expect(created.status).toBe(201);
 
-    const me = await request(app.getHttpServer()).get("/me").set("Authorization", `Bearer ${token}`);
+    const me = await request(app.getHttpServer())
+      .get("/me")
+      .set("Authorization", `Bearer ${token}`);
     expect(me.status).toBe(200);
     expect(me.body.role).toBe("OWNER");
     expect(me.body.activeWorkspace?.name).toBe("Lazy First Workspace");
@@ -199,7 +217,9 @@ describe.skipIf(!hasDb)("API e2e (Clerk org path)", () => {
       sub: `auth|lazy-link-${suffix}`,
       email: `lazy-${suffix}-seeded@t.test`,
     });
-    const me = await request(app.getHttpServer()).get("/me").set("Authorization", `Bearer ${token}`);
+    const me = await request(app.getHttpServer())
+      .get("/me")
+      .set("Authorization", `Bearer ${token}`);
     expect(me.status).toBe(200);
     const after = await owner.user.findUnique({ where: { id: seeded.id } });
     expect(after?.authProviderId).toBe(`auth|lazy-link-${suffix}`);
@@ -211,7 +231,10 @@ describe.skipIf(!hasDb)("API e2e (Clerk org path)", () => {
       sub: `auth|imposter-${suffix}`,
       email: `lazy-${suffix}-seeded@t.test`, // linked to auth|lazy-link above
     });
-    await request(app.getHttpServer()).get("/me").set("Authorization", `Bearer ${token}`).expect(401);
+    await request(app.getHttpServer())
+      .get("/me")
+      .set("Authorization", `Bearer ${token}`)
+      .expect(401);
   });
 
   it("lazy upsert composes with the org JIT path in one request", async () => {
@@ -221,7 +244,9 @@ describe.skipIf(!hasDb)("API e2e (Clerk org path)", () => {
       orgId: ORG_C,
       orgRole: "org:member",
     });
-    const me = await request(app.getHttpServer()).get("/me").set("Authorization", `Bearer ${token}`);
+    const me = await request(app.getHttpServer())
+      .get("/me")
+      .set("Authorization", `Bearer ${token}`);
     expect(me.status).toBe(200);
     expect(me.body.activeWorkspace?.id).toBe(wsC);
     expect(me.body.role).toBe("AGENT"); // org:member seed

@@ -46,14 +46,20 @@ export class IntegrationRefusedError extends Error {
   }
 }
 
-export function adapterFor(deps: IntegrationsDeps, provider: IntegrationProvider): IntegrationAdapter {
+export function adapterFor(
+  deps: IntegrationsDeps,
+  provider: IntegrationProvider,
+): IntegrationAdapter {
   const adapter = deps.adapters[provider];
   if (!adapter) throw new IntegrationRefusedError(INTEGRATION_REFUSALS.UNKNOWN_PROVIDER);
   return adapter;
 }
 
 /** Narrow to the OAuth shape — a fields provider (calendly) refuses typed. */
-export function oauthAdapterFor(deps: IntegrationsDeps, provider: IntegrationProvider): OAuthIntegrationAdapter {
+export function oauthAdapterFor(
+  deps: IntegrationsDeps,
+  provider: IntegrationProvider,
+): OAuthIntegrationAdapter {
   const adapter = adapterFor(deps, provider);
   if (typeof (adapter as OAuthIntegrationAdapter).exchangeCode !== "function") {
     throw new IntegrationRefusedError(
@@ -98,13 +104,19 @@ export async function getIntegration(
   );
 }
 
-export async function listIntegrations(deps: IntegrationsDeps, workspaceId: string): Promise<IntegrationRow[]> {
+export async function listIntegrations(
+  deps: IntegrationsDeps,
+  workspaceId: string,
+): Promise<IntegrationRow[]> {
   return withTenant(deps.prisma, { workspaceId }, (tx) =>
     tx.integration.findMany({ where: { workspaceId }, orderBy: { createdAt: "asc" } }),
   );
 }
 
-async function publishSafely(deps: IntegrationsDeps, input: Parameters<NonNullable<IntegrationsDeps["publish"]>>[0]): Promise<void> {
+async function publishSafely(
+  deps: IntegrationsDeps,
+  input: Parameters<NonNullable<IntegrationsDeps["publish"]>>[0],
+): Promise<void> {
   if (!deps.publish) return;
   try {
     await deps.publish(input);
@@ -130,7 +142,10 @@ export async function completeConnect(
   },
 ): Promise<IntegrationRow> {
   const adapter = oauthAdapterFor(deps, params.provider);
-  const exchange = await adapter.exchangeCode({ code: params.code, redirectUri: params.redirectUri });
+  const exchange = await adapter.exchangeCode({
+    code: params.code,
+    redirectUri: params.redirectUri,
+  });
   const priorRow = await getIntegration(deps, params.workspaceId, params.provider);
   const priorCreds = priorRow?.credentialsEnc ? decryptCredentials(priorRow) : undefined;
   const probe = await adapter.probe(exchange.credentials);
@@ -138,7 +153,9 @@ export async function completeConnect(
   const accountLabel = probe.accountLabel ?? exchange.accountLabel ?? null;
   const row = await withTenant(deps.prisma, { workspaceId: params.workspaceId }, (tx) =>
     tx.integration.upsert({
-      where: { workspaceId_provider: { workspaceId: params.workspaceId, provider: params.provider } },
+      where: {
+        workspaceId_provider: { workspaceId: params.workspaceId, provider: params.provider },
+      },
       create: {
         workspaceId: params.workspaceId,
         provider: params.provider,
@@ -193,7 +210,8 @@ export async function withFreshCredentials<T>(
   const adapter = adapterFor(deps, row.provider as IntegrationProvider);
   let creds = decryptCredentials(row);
   if (adapter.refresh) {
-    const expiresAt = typeof creds.expiresAt === "string" ? Date.parse(creds.expiresAt) : Number.NaN;
+    const expiresAt =
+      typeof creds.expiresAt === "string" ? Date.parse(creds.expiresAt) : Number.NaN;
     const now = (deps.now ?? (() => new Date()))();
     const stale = !Number.isFinite(expiresAt) || expiresAt - TOKEN_REFRESH_SKEW_MS <= now.getTime();
     if (stale) {
@@ -206,7 +224,10 @@ export async function withFreshCredentials<T>(
         throw err;
       }
       await withTenant(deps.prisma, { workspaceId: row.workspaceId }, (tx) =>
-        tx.integration.update({ where: { id: row.id }, data: { credentialsEnc: encryptCredentials(creds) } }),
+        tx.integration.update({
+          where: { id: row.id },
+          data: { credentialsEnc: encryptCredentials(creds) },
+        }),
       );
     }
   }
@@ -282,7 +303,8 @@ export async function probeIntegration(
       try {
         await (adapter as unknown as { probeLink(u: string): Promise<void> }).probeLink(url);
         to = "connected";
-        detail = params.provider === "calendly" ? "scheduling link reachable" : "payment link reachable";
+        detail =
+          params.provider === "calendly" ? "scheduling link reachable" : "payment link reachable";
       } catch (err) {
         to = "unhealthy";
         detail = err instanceof Error ? err.message : String(err);
@@ -308,7 +330,9 @@ export async function probeIntegration(
   if (params.provider === "stripe" && row.credentialsEnc) {
     const stripeAdapter = adapter as unknown as {
       account(creds: IntegrationCredentials): Promise<{ id: string; businessName?: string }>;
-      listWebhookEndpoints(creds: IntegrationCredentials): Promise<Array<{ id: string; status: string }>>;
+      listWebhookEndpoints(
+        creds: IntegrationCredentials,
+      ): Promise<Array<{ id: string; status: string }>>;
     };
     const creds = decryptCredentials(row);
     const cfg = stripeConfigSchema.safeParse(row.config);
@@ -317,7 +341,8 @@ export async function probeIntegration(
       accountLabel = account.businessName ? `${account.businessName} (${account.id})` : account.id;
       to = "connected";
       detail = `stripe reachable — authed as ${accountLabel}`;
-      const endpointId = typeof creds.webhookEndpointId === "string" ? creds.webhookEndpointId : undefined;
+      const endpointId =
+        typeof creds.webhookEndpointId === "string" ? creds.webhookEndpointId : undefined;
       if (cfg.success && cfg.data.detection && endpointId) {
         const endpoints = await stripeAdapter.listWebhookEndpoints(creds);
         const live = endpoints.some((e) => e.id === endpointId && e.status === "enabled");
@@ -341,7 +366,10 @@ export async function probeIntegration(
     }
     const nowTs = (deps.now ?? (() => new Date()))();
     await withTenant(deps.prisma, { workspaceId: params.workspaceId }, (tx) =>
-      tx.integration.update({ where: { id: row.id }, data: { status: to, lastProbeAt: nowTs, accountLabel } }),
+      tx.integration.update({
+        where: { id: row.id },
+        data: { status: to, lastProbeAt: nowTs, accountLabel },
+      }),
     );
     if (from !== to) {
       await publishSafely(deps, {
@@ -401,7 +429,10 @@ async function probeWithRefresh(
   if (!Number.isFinite(expiresAt) || expiresAt - TOKEN_REFRESH_SKEW_MS <= now.getTime()) {
     creds = await adapter.refresh!(creds);
     await withTenant(deps.prisma, { workspaceId: row.workspaceId }, (tx) =>
-      tx.integration.update({ where: { id: row.id }, data: { credentialsEnc: encryptCredentials(creds) } }),
+      tx.integration.update({
+        where: { id: row.id },
+        data: { credentialsEnc: encryptCredentials(creds) },
+      }),
     );
   }
   return adapter.probe(creds);
@@ -458,7 +489,9 @@ export async function markRevoked(
     type: EVENT_TYPES.INTEGRATION_STATUS_CHANGED,
     payload: { provider: row.provider as IntegrationProvider, from, to: "revoked" },
   });
-  (deps.log ?? console.warn)(`[integrations] ${row.provider} token revoked out-of-band — ${detail}`);
+  (deps.log ?? console.warn)(
+    `[integrations] ${row.provider} token revoked out-of-band — ${detail}`,
+  );
 }
 
 /**
@@ -505,12 +538,15 @@ export async function connectCalendlyFields(
   if (params.fields.apiToken) {
     const tokenCreds: IntegrationCredentials = { apiToken: params.fields.apiToken };
     const user = await adapter.me(tokenCreds); // the live token probe — PROVIDER_AUTH refuses upstream
-    accountLabel = user.name ? `${user.name} (Calendly)` : (user.schedulingUrl ?? "Calendly account");
+    accountLabel = user.name
+      ? `${user.name} (Calendly)`
+      : (user.schedulingUrl ?? "Calendly account");
     schedulingUrl ??= user.schedulingUrl;
     // Reused across reconnects: a rotated token must not orphan the vendor-side
     // subscription or move the capability URL.
     const webhookToken =
-      (existingConfig.success && existingConfig.data.webhookToken) || randomBytes(24).toString("hex");
+      (existingConfig.success && existingConfig.data.webhookToken) ||
+      randomBytes(24).toString("hex");
     const signingKey =
       (typeof existingCreds.signingKey === "string" && existingCreds.signingKey) ||
       randomBytes(32).toString("hex");
@@ -647,11 +683,16 @@ export async function connectStripeFields(
     accountLabel = account.businessName ? `${account.businessName} (${account.id})` : account.id;
     // Reused across reconnects: a rotated key must not move the capability URL.
     const webhookToken =
-      (existingConfig.success && existingConfig.data.webhookToken) || randomBytes(24).toString("hex");
+      (existingConfig.success && existingConfig.data.webhookToken) ||
+      randomBytes(24).toString("hex");
     const priorSecret =
-      typeof existingCreds.webhookSigningSecret === "string" ? existingCreds.webhookSigningSecret : undefined;
+      typeof existingCreds.webhookSigningSecret === "string"
+        ? existingCreds.webhookSigningSecret
+        : undefined;
     const priorEndpointId =
-      typeof existingCreds.webhookEndpointId === "string" ? existingCreds.webhookEndpointId : undefined;
+      typeof existingCreds.webhookEndpointId === "string"
+        ? existingCreds.webhookEndpointId
+        : undefined;
     try {
       const endpoint = await adapter.ensureWebhookEndpoint(keyCreds, {
         callbackUrl: params.webhookUrlFor(webhookToken),
@@ -762,14 +803,17 @@ export async function connectWebhooksFields(
   const existing = await getIntegration(deps, params.workspaceId, "webhooks");
   const existingConfig = webhooksConfigSchema.safeParse(existing?.config ?? {});
   const signingSecret =
-    (existingConfig.success && existingConfig.data.signingSecret) || `whsec_cf_${randomBytes(24).toString("hex")}`;
+    (existingConfig.success && existingConfig.data.signingSecret) ||
+    `whsec_cf_${randomBytes(24).toString("hex")}`;
   const defaultUrl = params.fields.defaultUrl.trim();
 
   // The live probe: guard + a real signed test delivery. Guard refusals name
   // their rule; a refused destination NEVER becomes a connected row.
   const guarded = await assertPublicHttpsUrl(defaultUrl).catch((err) => {
     if (err instanceof IntegrationDeliveryError) {
-      throw new IntegrationRefusedError(`${INTEGRATION_REFUSALS.WEBHOOK_URL_UNSAFE} (${err.message})`);
+      throw new IntegrationRefusedError(
+        `${INTEGRATION_REFUSALS.WEBHOOK_URL_UNSAFE} (${err.message})`,
+      );
     }
     throw err;
   });
@@ -883,7 +927,8 @@ export async function connectHubspotFields(
     ...(portalId ? { portalId } : {}),
     ...(params.fields.defaultPipeline ? { defaultPipeline: params.fields.defaultPipeline } : {}),
   });
-  if (!parsedConfig.success) throw new IntegrationRefusedError(INTEGRATION_REFUSALS.HUBSPOT_TOKEN_INVALID);
+  if (!parsedConfig.success)
+    throw new IntegrationRefusedError(INTEGRATION_REFUSALS.HUBSPOT_TOKEN_INVALID);
 
   const row = await withTenant(deps.prisma, { workspaceId: params.workspaceId }, (tx) =>
     tx.integration.upsert({

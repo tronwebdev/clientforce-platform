@@ -24,11 +24,26 @@ type StepNode = Extract<GraphNode, { type: "step" }>;
 const playbook = (): CampaignGraph => ({
   entry: "step-1",
   nodes: [
-    { id: "step-1", type: "step", channel: "email", content: { subject: "Hello {{company}}", body: "Hi {{firstName}}, intro." } },
+    {
+      id: "step-1",
+      type: "step",
+      channel: "email",
+      content: { subject: "Hello {{company}}", body: "Hi {{firstName}}, intro." },
+    },
     { id: "delay-1", type: "delay", amount: 2, unit: "days" },
-    { id: "step-2", type: "step", channel: "email", content: { subject: "Following up", body: "Hi {{firstName}}, value for {{company}}." } },
+    {
+      id: "step-2",
+      type: "step",
+      channel: "email",
+      content: { subject: "Following up", body: "Hi {{firstName}}, value for {{company}}." },
+    },
     { id: "delay-2", type: "delay", amount: 3, unit: "days" },
-    { id: "step-3", type: "step", channel: "email", content: { subject: "Last note", body: "Door's open, {{firstName}}." } },
+    {
+      id: "step-3",
+      type: "step",
+      channel: "email",
+      content: { subject: "Last note", body: "Door's open, {{firstName}}." },
+    },
     {
       id: "branch-reply",
       type: "branch",
@@ -43,11 +58,36 @@ const playbook = (): CampaignGraph => ({
         { when: "default", goto: "end-lost" },
       ],
     },
-    { id: "step-reframe", type: "step", channel: "email", content: { body: "Value first.", threaded: true } },
-    { id: "step-ack", type: "step", channel: "email", content: { body: "Later then.", threaded: true } },
-    { id: "step-referral", type: "step", channel: "email", content: { body: "Who instead?", threaded: true } },
-    { id: "step-answer", type: "step", channel: "email", content: { body: "Answer.", threaded: true } },
-    { id: "step-close", type: "step", channel: "email", content: { body: "All good.", threaded: true } },
+    {
+      id: "step-reframe",
+      type: "step",
+      channel: "email",
+      content: { body: "Value first.", threaded: true },
+    },
+    {
+      id: "step-ack",
+      type: "step",
+      channel: "email",
+      content: { body: "Later then.", threaded: true },
+    },
+    {
+      id: "step-referral",
+      type: "step",
+      channel: "email",
+      content: { body: "Who instead?", threaded: true },
+    },
+    {
+      id: "step-answer",
+      type: "step",
+      channel: "email",
+      content: { body: "Answer.", threaded: true },
+    },
+    {
+      id: "step-close",
+      type: "step",
+      channel: "email",
+      content: { body: "All good.", threaded: true },
+    },
     { id: "end-won", type: "end" },
     { id: "end-lost", type: "end" },
   ],
@@ -80,9 +120,13 @@ describe("arc invariant — mode flips are wording-only (DEC-086)", () => {
     expect(after.nodes.map((n) => n.id)).toEqual(before.nodes.map((n) => n.id));
     expect(after.nodes.map((n) => n.type)).toEqual(before.nodes.map((n) => n.type));
     // timing: every delay node byte-identical
-    expect(after.nodes.filter((n) => n.type === "delay")).toEqual(before.nodes.filter((n) => n.type === "delay"));
+    expect(after.nodes.filter((n) => n.type === "delay")).toEqual(
+      before.nodes.filter((n) => n.type === "delay"),
+    );
     // routing: the reply branch byte-identical
-    expect(after.nodes.find((n) => n.id === "branch-reply")).toEqual(before.nodes.find((n) => n.id === "branch-reply"));
+    expect(after.nodes.find((n) => n.id === "branch-reply")).toEqual(
+      before.nodes.find((n) => n.id === "branch-reply"),
+    );
     // every node EXCEPT the flipped one byte-identical
     for (const n of before.nodes) {
       if (n.id === "step-2") continue;
@@ -95,11 +139,16 @@ describe("arc invariant — mode flips are wording-only (DEC-086)", () => {
 
   it("guided→scripted: the inverse flip restores the scripted carrier with the same structural byte-identity", () => {
     const guided = setStepMode(playbook(), "step-2", { mode: "guided", brief });
-    const back = setStepMode(guided, "step-2", { mode: "scripted", content: { subject: "Following up", body: "Hi {{firstName}}, value for {{company}}." } });
+    const back = setStepMode(guided, "step-2", {
+      mode: "scripted",
+      content: { subject: "Following up", body: "Hi {{firstName}}, value for {{company}}." },
+    });
     expect(back.entry).toEqual(guided.entry);
     expect(back.edges).toEqual(guided.edges);
     expect(back.nodes.map((n) => n.id)).toEqual(guided.nodes.map((n) => n.id));
-    expect(back.nodes.filter((n) => n.type === "delay")).toEqual(guided.nodes.filter((n) => n.type === "delay"));
+    expect(back.nodes.filter((n) => n.type === "delay")).toEqual(
+      guided.nodes.filter((n) => n.type === "delay"),
+    );
     const restored = back.nodes.find((x) => x.id === "step-2") as StepNode;
     expect(restored.mode).toBeUndefined();
     expect(restored.brief).toBeUndefined();
@@ -127,7 +176,11 @@ describe("arc invariant — mode flips are wording-only (DEC-086)", () => {
         for (let index = 1; index <= count; index++) {
           const got = arcRoleAt(roles, index, count);
           const want =
-            index <= 1 ? roles[0] : index >= count ? roles[roles.length - 1] : roles[Math.min(index - 1, roles.length - 2)];
+            index <= 1
+              ? roles[0]
+              : index >= count
+                ? roles[roles.length - 1]
+                : roles[Math.min(index - 1, roles.length - 2)];
           expect(got, `${arc.key} index=${index} count=${count}`).toBe(want);
         }
       }

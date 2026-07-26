@@ -12,7 +12,11 @@
 import { Prisma, withTenant } from "@clientforce/db";
 import { EVENT_TYPES, type BusEvent, type ConsumerHook } from "@clientforce/events";
 import { slackConfigSchema, type SlackNotificationKind } from "@clientforce/core";
-import { INBOUND_DELIVERY_KINDS, INTEGRATION_DAILY_DELIVERY_ALLOWANCE, utcDayStart } from "./constants";
+import {
+  INBOUND_DELIVERY_KINDS,
+  INTEGRATION_DAILY_DELIVERY_ALLOWANCE,
+  utcDayStart,
+} from "./constants";
 import { decryptCredentials, markRevoked } from "./service";
 import type { SlackAdapter } from "./slack";
 import {
@@ -46,7 +50,9 @@ export function matchNotificationKind(event: BusEvent): SlackNotificationKind | 
   return null;
 }
 
-const contactLabel = (c: { firstName: string | null; lastName: string | null; email: string | null } | null): string | null => {
+const contactLabel = (
+  c: { firstName: string | null; lastName: string | null; email: string | null } | null,
+): string | null => {
   if (!c) return null;
   const name = [c.firstName, c.lastName].filter(Boolean).join(" ").trim();
   return name || c.email;
@@ -113,7 +119,8 @@ export async function deliverSlack(
     }),
   );
   if (!row) return { delivered: false, detail: "slack not connected" };
-  if (row.status === "revoked") return { delivered: false, detail: "slack token revoked — reconnect to resume" };
+  if (row.status === "revoked")
+    return { delivered: false, detail: "slack token revoked — reconnect to resume" };
 
   const config = slackConfigSchema.safeParse(row.config);
   const channel = config.success ? config.data.channel : undefined;
@@ -147,7 +154,9 @@ export async function deliverSlack(
         },
       }),
     );
-    const heldRow = await recordDelivery(deps, row, params, "held", { reason: "workspace_delivery_allowance" });
+    const heldRow = await recordDelivery(deps, row, params, "held", {
+      reason: "workspace_delivery_allowance",
+    });
     if (!heldRow) {
       return { delivered: false, detail: "duplicate delivery skipped" };
     }
@@ -198,7 +207,10 @@ export async function deliverSlack(
     );
 
   try {
-    await adapter.postMessage(decryptCredentials(row), { channelId: channel.id, text: params.text });
+    await adapter.postMessage(decryptCredentials(row), {
+      channelId: channel.id,
+      text: params.text,
+    });
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err);
     await settle("failed", { error: detail });
@@ -209,7 +221,10 @@ export async function deliverSlack(
     });
     if (err instanceof IntegrationProviderError && err.code === "PROVIDER_AUTH") {
       await markRevoked(deps, row, detail);
-    } else if (!(err instanceof IntegrationDeliveryError) && !(err instanceof IntegrationProviderError)) {
+    } else if (
+      !(err instanceof IntegrationDeliveryError) &&
+      !(err instanceof IntegrationProviderError)
+    ) {
       log(`[integrations] unexpected slack delivery failure: ${detail}`);
     }
     return { delivered: false, detail };
@@ -334,7 +349,10 @@ export function createNotifyTeamTransport(deps: IntegrationsDeps) {
     contactId?: string | null;
   }): Promise<DeliveryResult> => {
     const contact = await lookupContact(deps, params.workspaceId, params.contactId);
-    const text = notificationText("notify_team", { contact, ...(params.note ? { note: params.note } : {}) });
+    const text = notificationText("notify_team", {
+      contact,
+      ...(params.note ? { note: params.note } : {}),
+    });
     return deliverSlack(deps, {
       workspaceId: params.workspaceId,
       kind: "notify_team",

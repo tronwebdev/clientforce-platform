@@ -207,7 +207,12 @@ export async function applyUnsubscribeReply(
       });
       if (!existing) {
         await tx.suppression.create({
-          data: { workspaceId, channel: "email", address: contact.email.toLowerCase(), reason: "UNSUBSCRIBED" },
+          data: {
+            workspaceId,
+            channel: "email",
+            address: contact.email.toLowerCase(),
+            reason: "UNSUBSCRIBED",
+          },
         });
       }
       const optOut = (contact.optOut ?? {}) as Record<string, unknown>;

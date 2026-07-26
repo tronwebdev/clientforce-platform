@@ -43,7 +43,8 @@ interface StripeEventPayload {
   data?: { object?: Record<string, unknown> };
 }
 
-const str = (v: unknown): string | undefined => (typeof v === "string" && v.length > 0 ? v : undefined);
+const str = (v: unknown): string | undefined =>
+  typeof v === "string" && v.length > 0 ? v : undefined;
 
 @Controller("webhooks")
 export class StripeWebhookController {
@@ -83,7 +84,8 @@ export class StripeWebhookController {
 
     // 2 · raw-body signature (Stripe's t=…,v1=… — the shared comparator).
     const creds = decryptCredentials(row);
-    const secret = typeof creds.webhookSigningSecret === "string" ? creds.webhookSigningSecret : undefined;
+    const secret =
+      typeof creds.webhookSigningSecret === "string" ? creds.webhookSigningSecret : undefined;
     if (secret) {
       const rawBody = req.rawBody ? req.rawBody.toString("utf8") : JSON.stringify(body);
       const sig = parseCalendlySignatureHeader(signatureHeader);
@@ -113,7 +115,10 @@ export class StripeWebhookController {
     const session = body?.data?.object ?? {};
     const externalId = str(session.id);
     const amountRaw = (session as { amount_total?: unknown }).amount_total;
-    const amount = typeof amountRaw === "number" && Number.isFinite(amountRaw) ? Math.trunc(amountRaw) : undefined;
+    const amount =
+      typeof amountRaw === "number" && Number.isFinite(amountRaw)
+        ? Math.trunc(amountRaw)
+        : undefined;
     // A completed session with no charge amount is an honest no-op, NOT a
     // malformed payload: mode:"setup" card-save sessions and zero/promo
     // completions carry amount_total:null. A 400 here makes Stripe retry-storm
@@ -129,7 +134,9 @@ export class StripeWebhookController {
       externalId,
       amount,
       ...(str(session.currency) ? { currency: str(session.currency)! } : {}),
-      ...(str(session.client_reference_id) ? { clientReferenceId: str(session.client_reference_id)! } : {}),
+      ...(str(session.client_reference_id)
+        ? { clientReferenceId: str(session.client_reference_id)! }
+        : {}),
       ...(str(customer.email) ? { payerEmail: str(customer.email)! } : {}),
     });
     return { ok: true, outcome: result.outcome, matchedBy: result.matchedBy };

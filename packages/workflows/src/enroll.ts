@@ -90,7 +90,10 @@ const dayStartUtc = (now: Date): Date => {
   return d;
 };
 
-export async function enrollContact(deps: EnrollDeps, params: EnrollParams): Promise<EnrollOutcome> {
+export async function enrollContact(
+  deps: EnrollDeps,
+  params: EnrollParams,
+): Promise<EnrollOutcome> {
   const now = deps.now?.() ?? new Date();
   const { workspaceId } = params;
 
@@ -100,8 +103,17 @@ export async function enrollContact(deps: EnrollDeps, params: EnrollParams): Pro
       tx.contact.findUnique({ where: { id: params.contactId } }),
       tx.workspace.findUnique({ where: { id: workspaceId }, select: { settings: true } }),
     ]);
-    if (!agent) return { error: { code: "AGENT_NOT_FOUND" as const, message: `Agent ${params.agentId} not found` } };
-    if (!contact) return { error: { code: "CONTACT_NOT_FOUND" as const, message: `Contact ${params.contactId} not found` } };
+    if (!agent)
+      return {
+        error: { code: "AGENT_NOT_FOUND" as const, message: `Agent ${params.agentId} not found` },
+      };
+    if (!contact)
+      return {
+        error: {
+          code: "CONTACT_NOT_FOUND" as const,
+          message: `Contact ${params.contactId} not found`,
+        },
+      };
 
     // A5: one agent = one auto-created primary campaign (first by createdAt).
     const campaign = await tx.campaign.findFirst({
@@ -109,20 +121,38 @@ export async function enrollContact(deps: EnrollDeps, params: EnrollParams): Pro
       orderBy: { createdAt: "asc" },
     });
     if (!campaign) {
-      return { error: { code: "NO_CAMPAIGN" as const, message: "Agent has no campaign — plan the campaign first (P1.4)" } };
+      return {
+        error: {
+          code: "NO_CAMPAIGN" as const,
+          message: "Agent has no campaign — plan the campaign first (P1.4)",
+        },
+      };
     }
     const graphRow = await tx.campaignGraph.findFirst({
       where: { campaignId: campaign.id },
       orderBy: { version: "desc" },
     });
     if (!graphRow) {
-      return { error: { code: "NO_GRAPH" as const, message: "Campaign has no graph yet — plan the campaign first (P1.4)" } };
+      return {
+        error: {
+          code: "NO_GRAPH" as const,
+          message: "Campaign has no graph yet — plan the campaign first (P1.4)",
+        },
+      };
     }
     const sender = params.senderId
       ? await tx.senderConnection.findUnique({ where: { id: params.senderId } })
-      : await tx.senderConnection.findFirst({ where: { status: "ACTIVE" }, orderBy: { createdAt: "asc" } });
+      : await tx.senderConnection.findFirst({
+          where: { status: "ACTIVE" },
+          orderBy: { createdAt: "asc" },
+        });
     if (!sender || sender.status !== "ACTIVE") {
-      return { error: { code: "NO_SENDER" as const, message: "No active sender connection — connect a sender in Settings first (P1.5)" } };
+      return {
+        error: {
+          code: "NO_SENDER" as const,
+          message: "No active sender connection — connect a sender in Settings first (P1.5)",
+        },
+      };
     }
     const prior = await tx.enrollment.findUnique({
       where: { campaignId_contactId: { campaignId: campaign.id, contactId: contact.id } },
@@ -184,7 +214,9 @@ export async function enrollContact(deps: EnrollDeps, params: EnrollParams): Pro
         }),
       );
       if (enrolledToday >= cap) {
-        return holdOutcome(await upsertHold(deps, workspaceId, campaign.id, params, "cap_overflow"));
+        return holdOutcome(
+          await upsertHold(deps, workspaceId, campaign.id, params, "cap_overflow"),
+        );
       }
     }
   }
@@ -237,9 +269,14 @@ export async function enrollContact(deps: EnrollDeps, params: EnrollParams): Pro
   let row = enrollment;
   if (existed && !deduped) {
     row = await withTenant(deps.prisma, { workspaceId }, async (tx) => {
-      const fresh = await tx.enrollment.findUnique({ where: { id: enrollment.id }, select: { meta: true } });
+      const fresh = await tx.enrollment.findUnique({
+        where: { id: enrollment.id },
+        select: { meta: true },
+      });
       const freshMeta =
-        typeof fresh?.meta === "object" && fresh.meta !== null ? (fresh.meta as Record<string, unknown>) : {};
+        typeof fresh?.meta === "object" && fresh.meta !== null
+          ? (fresh.meta as Record<string, unknown>)
+          : {};
       return tx.enrollment.update({
         where: { id: enrollment.id },
         data: { meta: { ...freshMeta, graphVersion: graphRow.version } },
@@ -350,7 +387,13 @@ export async function drainEnrollmentHolds(
       take: scope.limit ?? 500,
     }),
   );
-  const summary: DrainSummary = { scanned: holds.length, released: 0, refused: 0, capHeld: 0, stillHeld: 0 };
+  const summary: DrainSummary = {
+    scanned: holds.length,
+    released: 0,
+    refused: 0,
+    capHeld: 0,
+    stillHeld: 0,
+  };
   // Campaigns whose cap is exhausted this pass — skip their remaining holds
   // without burning a gate round-trip each.
   const capExhausted = new Set<string>();
@@ -374,7 +417,10 @@ export async function drainEnrollmentHolds(
         const address = contact.email.toLowerCase();
         const [suppressed, pendingItem] = await withTenant(deps.prisma, { workspaceId }, (tx) =>
           Promise.all([
-            tx.suppression.findFirst({ where: { channel: "email", address }, select: { id: true } }),
+            tx.suppression.findFirst({
+              where: { channel: "email", address },
+              select: { id: true },
+            }),
             tx.validationBatchItem.findFirst({
               where: { contactId: hold.contactId, outcome: "pending" },
               select: { id: true },
@@ -413,7 +459,9 @@ export async function drainEnrollmentHolds(
       // Engine unavailable / transient failure — the hold stays pending and
       // the next sweep retries. Never a silent drop, never a crash.
       summary.stillHeld += 1;
-      console.error(`[enroll-drain] hold ${hold.id} deferred: ${err instanceof Error ? err.message : String(err)}`);
+      console.error(
+        `[enroll-drain] hold ${hold.id} deferred: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
   return summary;

@@ -6,9 +6,22 @@ import {
   type Guardrails,
   type StepContent,
 } from "@clientforce/core";
-import { withTenant, type Message, type PrismaClient, type SenderConnection } from "@clientforce/db";
-import { CALENDAR_LINK_TOKEN_RE, clearBookingLinkFlagAfterSend, resolveBookingLink } from "./booking-link";
-import { PAYMENT_LINK_TOKEN_RE, clearPaymentLinkFlagAfterSend, resolvePaymentLink } from "./payment-link";
+import {
+  withTenant,
+  type Message,
+  type PrismaClient,
+  type SenderConnection,
+} from "@clientforce/db";
+import {
+  CALENDAR_LINK_TOKEN_RE,
+  clearBookingLinkFlagAfterSend,
+  resolveBookingLink,
+} from "./booking-link";
+import {
+  PAYMENT_LINK_TOKEN_RE,
+  clearPaymentLinkFlagAfterSend,
+  resolvePaymentLink,
+} from "./payment-link";
 import { HEALTH_AUTO_PAUSE_BELOW, parseHealthState } from "./health";
 import { hasThreadPrefix, renderTokens, stripThreadPrefix, withReplyPrefix } from "./render";
 import { assertChannelLive, assertTenantActive } from "./tenant-status";
@@ -106,7 +119,11 @@ export async function sendStep(deps: SendDeps, params: SendStepParams): Promise<
   // contact can never slip past its suppression. Rail order unchanged.
   const suppressed = await withTenant(prisma, ctx, (tx) =>
     tx.suppression.findFirst({
-      where: { workspaceId: params.workspaceId, channel: "email", address: contact.email!.toLowerCase() },
+      where: {
+        workspaceId: params.workspaceId,
+        channel: "email",
+        address: contact.email!.toLowerCase(),
+      },
     }),
   );
   if (suppressed) throw new SendBlockedError("SUPPRESSED", suppressed.reason);
@@ -143,8 +160,14 @@ export async function sendStep(deps: SendDeps, params: SendStepParams): Promise<
     ? ((await resolvePaymentLink(prisma, params.workspaceId, params.contactId)) ?? undefined)
     : undefined;
 
-  let subject = renderTokens(params.content.subject ?? "", contact, fromName, { calendarLink, paymentLink });
-  const body = renderTokens(params.content.body ?? "", contact, fromName, { calendarLink, paymentLink });
+  let subject = renderTokens(params.content.subject ?? "", contact, fromName, {
+    calendarLink,
+    paymentLink,
+  });
+  const body = renderTokens(params.content.body ?? "", contact, fromName, {
+    calendarLink,
+    paymentLink,
+  });
 
   // Owner rule 3: real threading or no thread markers at all.
   let inReplyTo: string | undefined;

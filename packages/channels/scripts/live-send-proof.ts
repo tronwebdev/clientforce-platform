@@ -46,9 +46,13 @@ async function assertDomainAuthVerified(apiKey: string): Promise<void> {
     const bad = Object.entries(match.dns ?? {})
       .filter(([, v]) => !v.valid)
       .map(([k, v]) => `${k} (${v.type} ${v.host})`);
-    throw new Error(`GATE FAILED: SendGrid domain auth not valid for ${SEND_DOMAIN} — failing records: ${bad.join(", ") || "unknown"}`);
+    throw new Error(
+      `GATE FAILED: SendGrid domain auth not valid for ${SEND_DOMAIN} — failing records: ${bad.join(", ") || "unknown"}`,
+    );
   }
-  console.log(`GATE 1 OK: SendGrid domain auth VALID for ${SEND_DOMAIN} (SPF/DKIM verified by SendGrid)`);
+  console.log(
+    `GATE 1 OK: SendGrid domain auth VALID for ${SEND_DOMAIN} (SPF/DKIM verified by SendGrid)`,
+  );
 
   const dmarc = await resolveTxt(`_dmarc.${ROOT_DOMAIN}`).catch(() => [] as string[][]);
   const record = dmarc.flat().find((t) => t.startsWith("v=DMARC1"));
@@ -82,7 +86,12 @@ async function main(): Promise<void> {
         name: "Live Proof Agent",
         goal: "book_appointments",
         guardrails: {
-          sendingWindow: { days: [1, 2, 3, 4, 5, 6, 7], start: "00:00", end: "23:59", timezone: "UTC" },
+          sendingWindow: {
+            days: [1, 2, 3, 4, 5, 6, 7],
+            start: "00:00",
+            end: "23:59",
+            timezone: "UTC",
+          },
           dailyCap: { email: 10 },
           consent: null,
           unsubscribeFooter: true,
@@ -154,10 +163,13 @@ async function main(): Promise<void> {
       },
     );
     if (!message.providerMessageId) throw new Error("No provider message id returned");
-    if (!message.body.includes(ADDRESS)) throw new Error("Footer does not carry company_address verbatim");
+    if (!message.body.includes(ADDRESS))
+      throw new Error("Footer does not carry company_address verbatim");
     if (!message.body.includes("Unsubscribe: ")) throw new Error("Unsubscribe footer missing");
     console.log(`DELIVERED (live): providerMessageId=${message.providerMessageId}`);
-    console.log(`RFC message id (check the received headers): ${message.providerMessageId}@${SEND_DOMAIN}`);
+    console.log(
+      `RFC message id (check the received headers): ${message.providerMessageId}@${SEND_DOMAIN}`,
+    );
     console.log(`subject: ${message.subject}`);
 
     // Same run: a non-allow-listed recipient MUST refuse (DEC-014 stands).
@@ -174,13 +186,17 @@ async function main(): Promise<void> {
       throw new Error("Non-allow-listed recipient was NOT refused — DEC-014 violated");
     } catch (err) {
       if (err instanceof SendBlockedError && err.reason === "RECIPIENT_NOT_ALLOWLISTED") {
-        console.log(`REFUSED as designed (live mode): RECIPIENT_NOT_ALLOWLISTED for ${outsider.email}`);
+        console.log(
+          `REFUSED as designed (live mode): RECIPIENT_NOT_ALLOWLISTED for ${outsider.email}`,
+        );
       } else {
         throw err;
       }
     }
 
-    console.log("\nA3 gate passed: domain auth verified · one live delivery · allow-list still enforced.");
+    console.log(
+      "\nA3 gate passed: domain auth verified · one live delivery · allow-list still enforced.",
+    );
     console.log("=== END LIVE-SEND PROOF ===");
   } finally {
     await owner.agency.delete({ where: { id: agency.id } }).catch(() => {});

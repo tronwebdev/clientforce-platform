@@ -6,15 +6,8 @@
  * warmup completion stamp + its freshness-gated emission. Skips without infra.
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import {
-  createAppPrismaClient,
-  createPrismaClient,
-  type PrismaClient,
-} from "@clientforce/db";
-import {
-  recomputeSenderHealth,
-  type HealthRecomputeDeps,
-} from "../src/health";
+import { createAppPrismaClient, createPrismaClient, type PrismaClient } from "@clientforce/db";
+import { recomputeSenderHealth, type HealthRecomputeDeps } from "../src/health";
 import {
   applyWarmupHealthInterlock,
   ensureWarmupCompletion,
@@ -33,7 +26,11 @@ describe.skipIf(!hasInfra)("sender health engine integration", () => {
   let ws: string;
   let campaignId: string;
   let contactId: string;
-  let published: Array<{ type: string; senderId?: string | null; payload: Record<string, unknown> }> = [];
+  let published: Array<{
+    type: string;
+    senderId?: string | null;
+    payload: Record<string, unknown>;
+  }> = [];
   const publish: HealthRecomputeDeps["publish"] = async (input) => {
     published.push(input as (typeof published)[number]);
   };
@@ -261,11 +258,16 @@ describe.skipIf(!hasInfra)("sender health engine integration", () => {
     expect(spikes).toHaveLength(1);
     expect(spikes[0]?.payload).toMatchObject({ senderId, signal: "bounce", windowDays: 7 });
     // The spike clears, then returns → a NEW edge emits again.
-    await owner.event.deleteMany({ where: { workspaceId: ws, senderId, type: "email.bounced.v1" } });
+    await owner.event.deleteMany({
+      where: { workspaceId: ws, senderId, type: "email.bounced.v1" },
+    });
     await recomputeSenderHealth(deps(), { workspaceId: ws, senderId });
     await owner.event.createMany({
       data: Array.from({ length: 8 }, (_, i) => ({
-        workspaceId: ws, type: "email.bounced.v1", senderId, payload: { messageId: `respike-${i}` },
+        workspaceId: ws,
+        type: "email.bounced.v1",
+        senderId,
+        payload: { messageId: `respike-${i}` },
       })),
     });
     await recomputeSenderHealth(deps(), { workspaceId: ws, senderId });
@@ -295,6 +297,10 @@ describe.skipIf(!hasInfra)("sender health engine integration", () => {
     expect(again).toEqual({ completed: false, emitted: false });
     const completions = published.filter((e) => e.type === "sender.warmup_completed.v1");
     expect(completions).toHaveLength(1);
-    expect(completions[0]?.payload).toMatchObject({ senderId: freshId, days: WARMUP_DAYS, target: 500 });
+    expect(completions[0]?.payload).toMatchObject({
+      senderId: freshId,
+      days: WARMUP_DAYS,
+      target: 500,
+    });
   });
 });

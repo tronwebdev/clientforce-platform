@@ -36,13 +36,21 @@ describe.skipIf(!hasDb)("API e2e (auth + tenancy + RBAC)", () => {
       data: { name: `api-${suffix}`, slug: `api-${suffix}`, branding: {} },
     });
     agencyId = agency.id;
-    const a = await owner.workspace.create({ data: { agencyId, name: "A", slug: `a-${suffix}`, settings: {} } });
-    const b = await owner.workspace.create({ data: { agencyId, name: "B", slug: `b-${suffix}`, settings: {} } });
+    const a = await owner.workspace.create({
+      data: { agencyId, name: "A", slug: `a-${suffix}`, settings: {} },
+    });
+    const b = await owner.workspace.create({
+      data: { agencyId, name: "B", slug: `b-${suffix}`, settings: {} },
+    });
     wsA = a.id;
     wsB = b.id;
 
     const u1 = await owner.user.create({
-      data: { email: `owner-${suffix}@t.test`, name: "Owner One", authProviderId: `auth|owner-${suffix}` },
+      data: {
+        email: `owner-${suffix}@t.test`,
+        name: "Owner One",
+        authProviderId: `auth|owner-${suffix}`,
+      },
     });
     await owner.membership.create({ data: { userId: u1.id, workspaceId: wsA, role: "OWNER" } });
     await owner.membership.create({ data: { userId: u1.id, workspaceId: wsB, role: "OWNER" } });
@@ -50,7 +58,9 @@ describe.skipIf(!hasDb)("API e2e (auth + tenancy + RBAC)", () => {
     const viewer = await owner.user.create({
       data: { email: `viewer-${suffix}@t.test`, authProviderId: `auth|viewer-${suffix}` },
     });
-    await owner.membership.create({ data: { userId: viewer.id, workspaceId: wsA, role: "VIEWER" } });
+    await owner.membership.create({
+      data: { userId: viewer.id, workspaceId: wsA, role: "VIEWER" },
+    });
 
     const stranger = await owner.user.create({
       data: { email: `stranger-${suffix}@t.test`, authProviderId: `auth|stranger-${suffix}` },
@@ -67,7 +77,10 @@ describe.skipIf(!hasDb)("API e2e (auth + tenancy + RBAC)", () => {
 
     ownerToken = await signDevToken(SECRET, { sub: `auth|owner-${suffix}`, email: u1.email });
     viewerToken = await signDevToken(SECRET, { sub: `auth|viewer-${suffix}`, email: viewer.email });
-    strangerToken = await signDevToken(SECRET, { sub: `auth|stranger-${suffix}`, email: stranger.email });
+    strangerToken = await signDevToken(SECRET, {
+      sub: `auth|stranger-${suffix}`,
+      email: stranger.email,
+    });
 
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication();
@@ -95,7 +108,9 @@ describe.skipIf(!hasDb)("API e2e (auth + tenancy + RBAC)", () => {
   });
 
   it("GET /me with a valid token → 200 with user + memberships + active workspace", async () => {
-    const res = await request(app.getHttpServer()).get("/me").set("Authorization", `Bearer ${ownerToken}`);
+    const res = await request(app.getHttpServer())
+      .get("/me")
+      .set("Authorization", `Bearer ${ownerToken}`);
     expect(res.status).toBe(200);
     expect(res.body.user.email).toBe(`owner-${suffix}@t.test`);
     expect(res.body.memberships).toHaveLength(2);
@@ -140,6 +155,9 @@ describe.skipIf(!hasDb)("API e2e (auth + tenancy + RBAC)", () => {
   });
 
   it("a principal with no membership → 403", async () => {
-    await request(app.getHttpServer()).get("/me").set("Authorization", `Bearer ${strangerToken}`).expect(403);
+    await request(app.getHttpServer())
+      .get("/me")
+      .set("Authorization", `Bearer ${strangerToken}`)
+      .expect(403);
   });
 });

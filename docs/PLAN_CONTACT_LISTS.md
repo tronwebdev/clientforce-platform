@@ -10,6 +10,7 @@
 > model + core surfaces and the JOIN POINTS, not the integrations.
 
 ## Lists vs segments (definition, to prevent scope drift)
+
 - **Segments** (existing tabs: New / Replied / Qualified / Booked / Unsub) =
   dynamic queries over derived status. Never stored membership.
 - **Lists** = static, named membership sets ("Q3 dental leads", "Webinar
@@ -17,6 +18,7 @@
   deletes the contact.
 
 ## Data model
+
 ```prisma
 model ContactList {
   id          String  @id @default(cuid())
@@ -35,6 +37,7 @@ model ContactListMember {
   @@id([listId, contactId])
 }
 ```
+
 - Archive, never delete (consistent with ContactFieldDef).
 - **Event join point:** emit `list.member.added.v1` / `list.member.removed.v1`
   on the existing bus — this is what Automations triggers subscribe to later;
@@ -42,6 +45,7 @@ model ContactListMember {
   No integration UI in v1.
 
 ## API
+
 - `GET/POST /lists`, `PATCH /lists/:id` (name/archived).
 - `POST /lists/:id/members` (bulk contactIds), `DELETE /lists/:id/members`
   (bulk). Membership changes emit the events above.
@@ -50,6 +54,7 @@ model ContactListMember {
   custom fields' admin-only rule). OPEN #2 if owner disagrees.
 
 ## UI surfaces (v1) — the PROTOTYPE ALREADY DESIGNS MOST OF THIS
+
 Discovery (2026-07-07): `Contacts.dc.html` already carries the full lists
 anatomy — 226px LISTS RAIL (All contacts + per-list rows w/ icon + count,
 gradient active state, “＋ New list”), list-scoped header (name + green LIST
@@ -89,11 +94,13 @@ Dropped from v1 (not in prototype): separate list filter dropdown (the rail
 IS the filter).
 
 ## Deferred (design join points only, do not build)
+
 - Forms / Widget / Automations creating or feeding lists (origins + events
   reserved above; Automations prototype already names "list" triggers).
 - Live-sync ("smart") lists; list-based sending caps; list sharing.
 
 ## Design pass — DONE (2026-07-07, additive v4)
+
 - `Contacts.dc.html`: bulk-bar add-to-list menu (header “Add N to list”,
   existing lists w/ icon+count, “＋ New list from selection”) + drawer List
   row with the same menu (✓ on current list) + list-override plumbing so
@@ -102,6 +109,7 @@ IS the filter).
   drawer select, import select, wizard card + picker).
 
 ## Acceptance
+
 Create list from bulk bar (“New list from selection”) → members assigned →
 rail count + scope show exactly them; add-to-existing via the bulk menu
 updates column + counts; add-drawer LIST select attaches on create; CSV
@@ -111,6 +119,7 @@ asserts payloads); archived list vanishes from pickers, membership
 preserved; RLS-scoped; §8 pairs per surface state.
 
 ## OPEN — owner decisions
+
 1. CSV step-3 "add to list" in v1 — proposed YES.
 2. List create/manage = any member — proposed YES (admin-only alternative).
 3. Step-3 enrollment = snapshot at launch — proposed YES (live-sync deferred).

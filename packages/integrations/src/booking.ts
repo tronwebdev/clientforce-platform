@@ -67,7 +67,10 @@ export interface CancellationIngestResult {
 
 const logOf = (deps: BookingDeps) => deps.log ?? console.warn;
 
-async function publishSafely(deps: BookingDeps, input: Parameters<NonNullable<BookingDeps["publish"]>>[0]): Promise<void> {
+async function publishSafely(
+  deps: BookingDeps,
+  input: Parameters<NonNullable<BookingDeps["publish"]>>[0],
+): Promise<void> {
   if (!deps.publish) return;
   try {
     await deps.publish(input);
@@ -155,7 +158,11 @@ async function writeBookedStage(
   });
   if (!moved) return { stageChanged: false, enrollmentId: null, campaignId: null };
   if (moved.event) await publishSafely(deps, moved.event);
-  return { stageChanged: Boolean(moved.event), enrollmentId: moved.enrollmentId, campaignId: moved.campaignId };
+  return {
+    stageChanged: Boolean(moved.event),
+    enrollmentId: moved.enrollmentId,
+    campaignId: moved.campaignId,
+  };
 }
 
 /**
@@ -163,7 +170,10 @@ async function writeBookedStage(
  * publish the record event, drive the stage machinery. Redelivery of the same
  * externalId is a guarded no-op (`duplicate`).
  */
-export async function ingestBooking(deps: BookingDeps, input: BookingIngestInput): Promise<BookingIngestResult> {
+export async function ingestBooking(
+  deps: BookingDeps,
+  input: BookingIngestInput,
+): Promise<BookingIngestResult> {
   const ctx = { workspaceId: input.workspaceId };
 
   // ── Reschedule: the vendor's old booking id names the row to MOVE ─────────
@@ -185,8 +195,12 @@ export async function ingestBooking(deps: BookingDeps, input: BookingIngestInput
       // meta.priorExternalIds (bounded) — moving the unique key must not
       // destroy redelivery idempotency for the old invitee (a retried
       // created(old) would otherwise resurrect a stale booked row).
-      const priorIds = Array.isArray((prior.meta as { priorExternalIds?: unknown } | null)?.priorExternalIds)
-        ? ((prior.meta as { priorExternalIds: unknown[] }).priorExternalIds.filter((v) => typeof v === "string") as string[])
+      const priorIds = Array.isArray(
+        (prior.meta as { priorExternalIds?: unknown } | null)?.priorExternalIds,
+      )
+        ? ((prior.meta as { priorExternalIds: unknown[] }).priorExternalIds.filter(
+            (v) => typeof v === "string",
+          ) as string[])
         : [];
       const tombstones = [...priorIds, prior.externalId].slice(-10);
       await withTenant(deps.prisma, ctx, (tx) =>
@@ -194,7 +208,10 @@ export async function ingestBooking(deps: BookingDeps, input: BookingIngestInput
           where: { id: prior.id },
           data: {
             externalId: input.externalId,
-            meta: { ...((prior.meta as Record<string, unknown> | null) ?? {}), priorExternalIds: tombstones } as Prisma.InputJsonValue,
+            meta: {
+              ...((prior.meta as Record<string, unknown> | null) ?? {}),
+              priorExternalIds: tombstones,
+            } as Prisma.InputJsonValue,
             status: "booked", // a rescheduled meeting is booked again, whatever it was
             startAt: input.startAt,
             endAt: input.endAt ?? null,
@@ -243,7 +260,8 @@ export async function ingestBooking(deps: BookingDeps, input: BookingIngestInput
       select: { id: true },
     }),
   );
-  if (existing) return { outcome: "duplicate", meetingId: existing.id, matchedBy: "none", stageChanged: false };
+  if (existing)
+    return { outcome: "duplicate", meetingId: existing.id, matchedBy: "none", stageChanged: false };
 
   // Review-round hardening: an externalId that lives in some row's
   // priorExternalIds tombstones is a REDELIVERED pre-reschedule invitee —
@@ -258,7 +276,13 @@ export async function ingestBooking(deps: BookingDeps, input: BookingIngestInput
       select: { id: true },
     }),
   );
-  if (superseded) return { outcome: "duplicate", meetingId: superseded.id, matchedBy: "none", stageChanged: false };
+  if (superseded)
+    return {
+      outcome: "duplicate",
+      meetingId: superseded.id,
+      matchedBy: "none",
+      stageChanged: false,
+    };
 
   const { contactId, matchedBy } = await correlateContact(deps, input.workspaceId, input);
   const enrollment = contactId

@@ -117,10 +117,16 @@ export async function assertPublicHttpsUrl(rawUrl: string): Promise<GuardedUrl> 
     throw new IntegrationDeliveryError("webhook_url_invalid", "the destination is not a valid URL");
   }
   if (url.protocol !== "https:") {
-    throw new IntegrationDeliveryError("webhook_url_not_https", "webhooks POST to https endpoints only");
+    throw new IntegrationDeliveryError(
+      "webhook_url_not_https",
+      "webhooks POST to https endpoints only",
+    );
   }
   if (url.username || url.password) {
-    throw new IntegrationDeliveryError("webhook_url_credentials", "credentials in the URL are not allowed");
+    throw new IntegrationDeliveryError(
+      "webhook_url_credentials",
+      "credentials in the URL are not allowed",
+    );
   }
   const port = url.port ? Number(url.port) : 443;
   if (!(WEBHOOK_ALLOWED_PORTS as readonly number[]).includes(port)) {
@@ -139,10 +145,16 @@ export async function assertPublicHttpsUrl(rawUrl: string): Promise<GuardedUrl> 
       const results = await lookup(host, { all: true, verbatim: true });
       addresses = results.map((r) => r.address);
     } catch {
-      throw new IntegrationDeliveryError("webhook_host_unresolvable", `the destination host ${host} does not resolve`);
+      throw new IntegrationDeliveryError(
+        "webhook_host_unresolvable",
+        `the destination host ${host} does not resolve`,
+      );
     }
     if (addresses.length === 0) {
-      throw new IntegrationDeliveryError("webhook_host_unresolvable", `the destination host ${host} does not resolve`);
+      throw new IntegrationDeliveryError(
+        "webhook_host_unresolvable",
+        `the destination host ${host} does not resolve`,
+      );
     }
   }
   for (const addr of addresses) {

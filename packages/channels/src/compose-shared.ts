@@ -88,7 +88,10 @@ export function renderHistory(history: ComposeHistoryLine[]): string {
     return "(first touch — no prior messages; identify the business naturally)";
   }
   return history
-    .map((h) => `- [${h.channel} · ${h.direction === "OUTBOUND" ? "we sent" : "they replied"}] ${h.text}`)
+    .map(
+      (h) =>
+        `- [${h.channel} · ${h.direction === "OUTBOUND" ? "we sent" : "they replied"}] ${h.text}`,
+    )
     .join("\n");
 }
 

@@ -22,13 +22,20 @@ import type { AgentViewData } from "../app/(shell)/agents/[agentId]/[tab]/AgentV
 
 type StepNode = Extract<GraphNode, { type: "step" }>;
 
-const SCRIPTED_BODY_1 = "Hi {{firstName}}, most practices lose bookings to phone tag. Our scheduler fills the gaps automatically.";
-const SCRIPTED_BODY_2 = "Hi {{firstName}}, quick nudge from BrightPath — want the free audit? Reply YES.";
+const SCRIPTED_BODY_1 =
+  "Hi {{firstName}}, most practices lose bookings to phone tag. Our scheduler fills the gaps automatically.";
+const SCRIPTED_BODY_2 =
+  "Hi {{firstName}}, quick nudge from BrightPath — want the free audit? Reply YES.";
 
 const scriptedGraph = (): CampaignGraph => ({
   entry: "step-1",
   nodes: [
-    { id: "step-1", type: "step", channel: "email", content: { subject: "Quick question about {{company}}", body: SCRIPTED_BODY_1 } },
+    {
+      id: "step-1",
+      type: "step",
+      channel: "email",
+      content: { subject: "Quick question about {{company}}", body: SCRIPTED_BODY_1 },
+    },
     { id: "delay-1", type: "delay", amount: 2, unit: "days" },
     { id: "step-2", type: "step", channel: "sms", content: { body: SCRIPTED_BODY_2 } },
     {
@@ -55,7 +62,10 @@ const mixedGraph = (): CampaignGraph => {
   const s2 = g.nodes.find((n) => n.id === "step-2") as StepNode;
   s2.mode = "guided";
   s2.content = {};
-  s2.brief = { objective: "Nudge the unopened email with one easy yes", talkingPoints: ["reference the audit", "one question", "under one segment"] };
+  s2.brief = {
+    objective: "Nudge the unopened email with one easy yes",
+    talkingPoints: ["reference the audit", "one question", "under one segment"],
+  };
   return g;
 };
 
@@ -90,7 +100,12 @@ describe("guidedCardDisplay (the shared resolver)", () => {
   });
 
   it("non-briefable channel under a pending rider → '✦ AI draft' (stays as written — the canon gStep mapping)", () => {
-    const wa: StepNode = { id: "step-w", type: "step", channel: "whatsapp", content: { body: "template text" } };
+    const wa: StepNode = {
+      id: "step-w",
+      type: "step",
+      channel: "whatsapp",
+      content: { body: "template text" },
+    };
     expect(guidedCardDisplay(wa, true, { index: 1, count: 2 }, AGENT)).toEqual({ kind: "aidraft" });
     expect(guidedCardDisplay(wa, false, { index: 1, count: 2 }, AGENT)).toBeNull();
   });
@@ -111,7 +126,9 @@ function wizardProps(graph: CampaignGraph, composeMode: "scripted" | "guided") {
     regenError: null,
     regenerate: anoop,
     addStep: anoop,
-    branchCases: (graph.nodes.find((n) => n.type === "branch") as Extract<GraphNode, { type: "branch" }>).cases,
+    branchCases: (
+      graph.nodes.find((n) => n.type === "branch") as Extract<GraphNode, { type: "branch" }>
+    ).cases,
     windowStart: "09:00",
     windowEnd: "17:00",
     timezone: "UTC",
@@ -165,7 +182,9 @@ function wizardProps(graph: CampaignGraph, composeMode: "scripted" | "guided") {
 
 describe("defect A — wizard step-2 cards key off the rider", () => {
   it("guided selected over a scripted plan: Objective + ✦ Composed at send + credits, NEVER the scripted body; banner + relabel intact", () => {
-    const html = renderToStaticMarkup(<Step2Sequence {...wizardProps(scriptedGraph(), "guided")} />);
+    const html = renderToStaticMarkup(
+      <Step2Sequence {...wizardProps(scriptedGraph(), "guided")} />,
+    );
     expect(html).toContain('data-testid="seq-brief-pending"');
     expect(html).toContain("Objective: ");
     expect(html).toContain(OPENER_ROLE_FRAGMENT);
@@ -179,7 +198,9 @@ describe("defect A — wizard step-2 cards key off the rider", () => {
   });
 
   it("scripted selected: cards render copy exactly as before (no pending treatment, no guided chips)", () => {
-    const html = renderToStaticMarkup(<Step2Sequence {...wizardProps(scriptedGraph(), "scripted")} />);
+    const html = renderToStaticMarkup(
+      <Step2Sequence {...wizardProps(scriptedGraph(), "scripted")} />,
+    );
     expect(html).toContain("phone tag");
     expect(html).toContain("✦ AI draft");
     expect(html).not.toContain('data-testid="seq-brief-pending"');
@@ -201,13 +222,17 @@ describe("defect C — the segmented control reflects the STORED rider", () => {
   };
 
   it("composeMode=guided → the Guided segment carries the selected pill; Scripted does not", () => {
-    const html = renderToStaticMarkup(<Step2Sequence {...wizardProps(scriptedGraph(), "guided")} />);
+    const html = renderToStaticMarkup(
+      <Step2Sequence {...wizardProps(scriptedGraph(), "guided")} />,
+    );
     expect(activePill(html, "seq-mode-guided")).toBe(true);
     expect(activePill(html, "seq-mode-scripted")).toBe(false);
   });
 
   it("composeMode=scripted → the Scripted segment carries the selected pill", () => {
-    const html = renderToStaticMarkup(<Step2Sequence {...wizardProps(scriptedGraph(), "scripted")} />);
+    const html = renderToStaticMarkup(
+      <Step2Sequence {...wizardProps(scriptedGraph(), "scripted")} />,
+    );
     expect(activePill(html, "seq-mode-scripted")).toBe(true);
     expect(activePill(html, "seq-mode-guided")).toBe(false);
   });
@@ -215,7 +240,14 @@ describe("defect C — the segmented control reflects the STORED rider", () => {
 
 function view(graph: CampaignGraph, composeMode?: "scripted" | "guided"): AgentViewData {
   return {
-    agent: { id: "agent-1", name: "Riverbend Reactivation", goal: AGENT.goal, category: AGENT.category, status: "ACTIVE", createdAt: "2026-07-01T00:00:00Z" },
+    agent: {
+      id: "agent-1",
+      name: "Riverbend Reactivation",
+      goal: AGENT.goal,
+      category: AGENT.category,
+      status: "ACTIVE",
+      createdAt: "2026-07-01T00:00:00Z",
+    },
     campaign: { id: "c-1", name: "Riverbend campaign" },
     graph,
     graphVersion: 1,
@@ -236,7 +268,9 @@ function view(graph: CampaignGraph, composeMode?: "scripted" | "guided"): AgentV
 
 describe("defect B — Steps tab card summaries key off the rider (2026-07-15 Campaign View canon)", () => {
   it("guided rider over a scripted plan: pending treatment + the canon banner with the mismatch line, NEVER the scripted body", () => {
-    const html = renderToStaticMarkup(<StepsTab view={view(scriptedGraph(), "guided")} outcomes={null} />);
+    const html = renderToStaticMarkup(
+      <StepsTab view={view(scriptedGraph(), "guided")} outcomes={null} />,
+    );
     expect(html).toContain('data-testid="step-brief-pending"');
     expect(html).toContain(OPENER_ROLE_FRAGMENT);
     expect(html).toContain("✦ Composed at send");
@@ -249,7 +283,9 @@ describe("defect B — Steps tab card summaries key off the rider (2026-07-15 Ca
   });
 
   it("MIXED plan under a guided rider: baked truth per card + the canon banner WITHOUT the mismatch line; the deliberate scripted step tags '✦ AI draft' (hasModeTag = guidedOn)", () => {
-    const html = renderToStaticMarkup(<StepsTab view={view(mixedGraph(), "guided")} outcomes={null} />);
+    const html = renderToStaticMarkup(
+      <StepsTab view={view(mixedGraph(), "guided")} outcomes={null} />,
+    );
     expect(html).toContain("Nudge the unopened email with one easy yes");
     expect(html).toContain("phone tag");
     expect(html).not.toContain('data-testid="step-brief-pending"');
@@ -274,7 +310,9 @@ describe("defect C (dashboard) — the canon header control reflects the STORED 
   };
 
   it("guided rider → the Guided segment carries the selected pill (persisted state, straight from the store)", () => {
-    const html = renderToStaticMarkup(<StepsTab view={view(scriptedGraph(), "guided")} outcomes={null} />);
+    const html = renderToStaticMarkup(
+      <StepsTab view={view(scriptedGraph(), "guided")} outcomes={null} />,
+    );
     expect(html).toContain('data-testid="steps-mode-control"');
     expect(activePill(html, "steps-mode-guided")).toBe(true);
     expect(activePill(html, "steps-mode-scripted")).toBe(false);

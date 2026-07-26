@@ -54,7 +54,11 @@ export class SlackAdapter implements OAuthIntegrationAdapter {
   }) {
     this.clientId = options?.clientId ?? process.env.SLACK_CLIENT_ID;
     this.clientSecret = options?.clientSecret ?? process.env.SLACK_CLIENT_SECRET;
-    this.apiBase = (options?.baseUrl ?? process.env.SLACK_BASE_URL ?? "https://slack.com/api").replace(/\/$/, "");
+    this.apiBase = (
+      options?.baseUrl ??
+      process.env.SLACK_BASE_URL ??
+      "https://slack.com/api"
+    ).replace(/\/$/, "");
     this.authorizeBase =
       options?.authorizeBaseUrl ??
       process.env.SLACK_AUTHORIZE_URL ??
@@ -103,7 +107,11 @@ export class SlackAdapter implements OAuthIntegrationAdapter {
     });
     const accessToken = data.access_token;
     if (typeof accessToken !== "string" || accessToken.length === 0) {
-      throw new IntegrationProviderError("PROVIDER_AUTH", "Slack token exchange returned no access token", false);
+      throw new IntegrationProviderError(
+        "PROVIDER_AUTH",
+        "Slack token exchange returned no access token",
+        false,
+      );
     }
     const team = (data.team ?? {}) as { id?: string; name?: string };
     return {
@@ -138,10 +146,17 @@ export class SlackAdapter implements OAuthIntegrationAdapter {
       url.searchParams.set("exclude_archived", "true");
       url.searchParams.set("limit", "200");
       if (cursor) url.searchParams.set("cursor", cursor);
-      const data = await this.call(url.toString(), { method: "GET", headers: this.bearer(creds) }, true);
-      const channels = Array.isArray(data.channels) ? (data.channels as Array<{ id?: string; name?: string }>) : [];
+      const data = await this.call(
+        url.toString(),
+        { method: "GET", headers: this.bearer(creds) },
+        true,
+      );
+      const channels = Array.isArray(data.channels)
+        ? (data.channels as Array<{ id?: string; name?: string }>)
+        : [];
       for (const c of channels) {
-        if (typeof c.id === "string" && typeof c.name === "string") collected.push({ id: c.id, name: c.name });
+        if (typeof c.id === "string" && typeof c.name === "string")
+          collected.push({ id: c.id, name: c.name });
       }
       const next = (data.response_metadata as { next_cursor?: string } | undefined)?.next_cursor;
       if (!next) return collected.sort((a, b) => a.name.localeCompare(b.name));
@@ -154,7 +169,10 @@ export class SlackAdapter implements OAuthIntegrationAdapter {
     );
   }
 
-  async postMessage(creds: IntegrationCredentials, params: { channelId: string; text: string }): Promise<void> {
+  async postMessage(
+    creds: IntegrationCredentials,
+    params: { channelId: string; text: string },
+  ): Promise<void> {
     await this.call("chat.postMessage", {
       method: "POST",
       headers: { ...this.bearer(creds), "Content-Type": "application/json; charset=utf-8" },
@@ -194,16 +212,28 @@ export class SlackAdapter implements OAuthIntegrationAdapter {
       throw new IntegrationProviderError("PROVIDER_RATE_LIMITED", "slack rate limited (429)", true);
     }
     if (res.status >= 500) {
-      throw new IntegrationProviderError("PROVIDER_UNAVAILABLE", `slack error (HTTP ${res.status})`, true);
+      throw new IntegrationProviderError(
+        "PROVIDER_UNAVAILABLE",
+        `slack error (HTTP ${res.status})`,
+        true,
+      );
     }
     if (res.status === 401 || res.status === 403) {
-      throw new IntegrationProviderError("PROVIDER_AUTH", `slack auth rejected (HTTP ${res.status})`, false);
+      throw new IntegrationProviderError(
+        "PROVIDER_AUTH",
+        `slack auth rejected (HTTP ${res.status})`,
+        false,
+      );
     }
     let data: Record<string, unknown>;
     try {
       data = (await res.json()) as Record<string, unknown>;
     } catch {
-      throw new IntegrationProviderError("PROVIDER_UNAVAILABLE", "slack returned a non-JSON response", true);
+      throw new IntegrationProviderError(
+        "PROVIDER_UNAVAILABLE",
+        "slack returned a non-JSON response",
+        true,
+      );
     }
     if (data.ok === true) return data;
     const error = typeof data.error === "string" ? data.error : "unknown_error";
@@ -211,7 +241,11 @@ export class SlackAdapter implements OAuthIntegrationAdapter {
       throw new IntegrationProviderError("PROVIDER_AUTH", `slack auth rejected (${error})`, false);
     }
     if (error === "ratelimited" || error === "rate_limited") {
-      throw new IntegrationProviderError("PROVIDER_RATE_LIMITED", `slack rate limited (${error})`, true);
+      throw new IntegrationProviderError(
+        "PROVIDER_RATE_LIMITED",
+        `slack rate limited (${error})`,
+        true,
+      );
     }
     if (error === "internal_error" || error === "fatal_error" || error === "service_unavailable") {
       throw new IntegrationProviderError("PROVIDER_UNAVAILABLE", `slack error (${error})`, true);

@@ -71,9 +71,12 @@ describe("resultQuery (outcome → /integrations redirect query)", () => {
 
 describe("apiErrorDetail (non-OK API body → redirect detail)", () => {
   it("a string detail wins — even when a message is present", () => {
-    expect(apiErrorDetail({ detail: "state mismatch — restart the connect flow", message: "Conflict" }, 409)).toBe(
-      "state mismatch — restart the connect flow",
-    );
+    expect(
+      apiErrorDetail(
+        { detail: "state mismatch — restart the connect flow", message: "Conflict" },
+        409,
+      ),
+    ).toBe("state mismatch — restart the connect flow");
   });
 
   it("falls back to a string message when detail is absent or non-string", () => {

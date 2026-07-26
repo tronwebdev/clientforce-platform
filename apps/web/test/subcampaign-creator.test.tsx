@@ -68,7 +68,12 @@ const GRAPH_RES = {
     graph: {
       entry: "step-1",
       nodes: [
-        { id: "step-1", type: "step", channel: "email", content: { subject: "Hello", body: "Hi there" } },
+        {
+          id: "step-1",
+          type: "step",
+          channel: "email",
+          content: { subject: "Hello", body: "Hi there" },
+        },
         { id: "end-1", type: "end" },
       ],
       edges: [{ from: "step-1", to: "end-1" }],
@@ -107,7 +112,11 @@ describe("SubcampaignCreator (modal anatomy — initial render)", () => {
 describe("TriggerMenu (honest absence)", () => {
   it("connected.email=false renders email-backed options dimmed with the reason; meeting_booked stays live", () => {
     const html = renderToStaticMarkup(
-      <TriggerMenu connected={{ email: false, leadCapture: false }} selected={null} onPick={() => {}} />,
+      <TriggerMenu
+        connected={{ email: false, leadCapture: false }}
+        selected={null}
+        onPick={() => {}}
+      />,
     );
     for (const kind of [
       "reply_classified",
@@ -139,7 +148,11 @@ describe("TriggerMenu (honest absence)", () => {
 
   it("connected → all options live, the selected kind shows the ✓", () => {
     const html = renderToStaticMarkup(
-      <TriggerMenu connected={{ email: true, leadCapture: true }} selected={"email_opened"} onPick={() => {}} />,
+      <TriggerMenu
+        connected={{ email: true, leadCapture: true }}
+        selected={"email_opened"}
+        onPick={() => {}}
+      />,
     );
     expect(html).not.toContain("opacity:0.55");
     // Fully connected → EVERY kind in the vocabulary is live. Derived, so a new
@@ -168,7 +181,11 @@ describe("deterministic brief derivation (the honest-AI seed)", () => {
   });
 
   it("quiet-trigger briefs cite the real day count", () => {
-    const [first] = deriveSubcampaignBriefs({ kind: "sequence_quiet", days: 45 }, "Re-engage", null);
+    const [first] = deriveSubcampaignBriefs(
+      { kind: "sequence_quiet", days: 45 },
+      "Re-engage",
+      null,
+    );
     expect(first.objective).toContain("45 days of quiet");
   });
 });
@@ -180,7 +197,9 @@ describe("composeSubcampaignDraft (the REAL sandbox composer, cf mocked)", () =>
       calls.push({ path, body: init?.body ? JSON.parse(String(init.body)) : undefined });
       if (path.startsWith("planner/graph")) return GRAPH_RES;
       const body = JSON.parse(String(init?.body)) as { brief: { objective: string } };
-      return { composed: { subject: `S · ${body.brief.objective.slice(0, 10)}`, body: "Composed body." } };
+      return {
+        composed: { subject: `S · ${body.brief.objective.slice(0, 10)}`, body: "Composed body." },
+      };
     };
     const briefs = deriveSubcampaignBriefs(TRIGGER, "Interested follow-up", "book_appointments");
     const res = await composeSubcampaignDraft(cf, "agent-1", briefs);
@@ -202,15 +221,21 @@ describe("composeSubcampaignDraft (the REAL sandbox composer, cf mocked)", () =>
 
   it("a composer refusal, a thrown cf, or a graph without an email step all fall back honestly", async () => {
     const refusing = async (path: string) =>
-      path.startsWith("planner/graph") ? GRAPH_RES : { refused: { reason: "grounding", detail: "…" } };
-    expect(await composeSubcampaignDraft(refusing, "a", deriveSubcampaignBriefs(TRIGGER, "x", null))).toEqual({
+      path.startsWith("planner/graph")
+        ? GRAPH_RES
+        : { refused: { reason: "grounding", detail: "…" } };
+    expect(
+      await composeSubcampaignDraft(refusing, "a", deriveSubcampaignBriefs(TRIGGER, "x", null)),
+    ).toEqual({
       ok: false,
     });
     const throwing = async () => {
       throw new Error("planner/compose-preview: 503");
     };
     expect(await composeSubcampaignDraft(throwing, "a", [])).toEqual({ ok: false });
-    const emptyGraph = async () => ({ graph: { graph: { entry: "e", nodes: [{ id: "e", type: "end" }], edges: [] } } });
+    const emptyGraph = async () => ({
+      graph: { graph: { entry: "e", nodes: [{ id: "e", type: "end" }], edges: [] } },
+    });
     expect(await composeSubcampaignDraft(emptyGraph, "a", [])).toEqual({ ok: false });
     // The fallback line the review step shows — never canned copy presented as AI.
     expect(AI_DRAFT_FALLBACK).toBe("AI draft unavailable — starting from scratch");
@@ -224,7 +249,10 @@ describe("the W1 POST body (planner/subcampaign)", () => {
       { subject: "ignored for threaded", body: "Still open, {{firstName}}." },
     ]);
     expect(seed).toEqual([
-      { channel: "email", content: { subject: "Booking?", body: "Hi {{firstName}}, grab a slot." } },
+      {
+        channel: "email",
+        content: { subject: "Booking?", body: "Hi {{firstName}}, grab a slot." },
+      },
       {
         channel: "email",
         content: { body: "Still open, {{firstName}}.", threaded: true },
@@ -244,7 +272,12 @@ describe("the W1 POST body (planner/subcampaign)", () => {
   });
 
   it("scratch builds submit an EMPTY seed — nothing invented", () => {
-    const body = buildCreateBody("agent-1", "Quiet re-engage", { kind: "sequence_quiet", days: 30 }, null);
+    const body = buildCreateBody(
+      "agent-1",
+      "Quiet re-engage",
+      { kind: "sequence_quiet", days: 30 },
+      null,
+    );
     expect(body.seed).toEqual([]);
     expect(createSubcampaignSchema.safeParse(body).success).toBe(true);
   });

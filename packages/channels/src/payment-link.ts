@@ -16,7 +16,10 @@ import { stripeConfigSchema, type StepBrief } from "@clientforce/core";
 import { withTenant, type Prisma, type PrismaClient } from "@clientforce/db";
 
 /** The workspace payment link off the stripe Integration row (null = unconfigured/revoked). */
-export async function loadPaymentLinkUrl(prisma: PrismaClient, workspaceId: string): Promise<string | null> {
+export async function loadPaymentLinkUrl(
+  prisma: PrismaClient,
+  workspaceId: string,
+): Promise<string | null> {
   const row = await withTenant(prisma, { workspaceId }, (tx) =>
     tx.integration.findUnique({
       where: { workspaceId_provider: { workspaceId, provider: "stripe" } },
@@ -73,7 +76,8 @@ export async function augmentBriefWithPaymentLink(
   brief: StepBrief,
 ): Promise<StepBrief> {
   if (!params.enrollmentId) return brief;
-  if (!(await paymentLinkRequested(deps.prisma, params.workspaceId, params.enrollmentId))) return brief;
+  if (!(await paymentLinkRequested(deps.prisma, params.workspaceId, params.enrollmentId)))
+    return brief;
   const link = await resolvePaymentLink(deps.prisma, params.workspaceId, params.contactId);
   if (!link) return brief; // unconfigured — the flag stays for a later configured send
   return {

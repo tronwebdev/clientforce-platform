@@ -7,12 +7,14 @@
 > restores it as a working feature).
 
 ## Goal
+
 Workspace-defined custom fields on contacts. Users can create fields
 **manually** (inline, while adding a contact) and **during CSV import**
 (map an unmatched column to a new field). Values are visible and editable on
 the contact, and usable as personalization tokens in sequences.
 
 ## Data model (1 new model + 1 new column)
+
 ```prisma
 model ContactFieldDef {
   id          String   @id @default(cuid())
@@ -27,6 +29,7 @@ model ContactFieldDef {
   @@unique([workspaceId, key])
 }
 ```
+
 - Values: new `Contact.custom Json @default("{}")` keyed by def key.
   **Not** `enrichment` — that stays reserved for future auto-enrichment so
   user data and machine data never mix.
@@ -35,6 +38,7 @@ model ContactFieldDef {
 - Guard: max 30 active defs per workspace (server-enforced).
 
 ## API
+
 - `GET/POST /contact-fields`, `PATCH /contact-fields/:id` (label, options,
   archived). Key + type immutable after creation.
 - Contact create/update accepts `custom: { key: value }` (validated against
@@ -45,6 +49,7 @@ model ContactFieldDef {
 - `GET /contacts` returns `custom`.
 
 ## UI surfaces (v1)
+
 1. **Add-contact drawer** (the 484px drawer from the 36-1 rebuild): CUSTOM
    FIELDS block per the prototype — active defs render as optional inputs;
    "+ Add field" opens the prototype's inline input ("e.g. Industry, Source
@@ -62,6 +67,7 @@ model ContactFieldDef {
    silent send.
 
 ## Explicitly deferred (v1.1+, log as such)
+
 - Custom fields as table columns / sort / filters / segment queries.
 - Field manager page in Settings (rename/archive UI beyond the API).
 - NUMBER/DATE/SELECT **creation** UI — the model supports the types, but v1
@@ -69,6 +75,7 @@ model ContactFieldDef {
 - Auto-enrichment writing into `enrichment`.
 
 ## RESOLVED — owner decisions (2026-07-07)
+
 1. **Tokens in v1: YES**, with mandatory fallback (never-blank rule).
 2. **Field creation is ADMIN-only** (OWNER/ADMIN roles). Non-admins see and
    fill existing custom-field inputs everywhere, but the "+ Add field"
@@ -81,14 +88,17 @@ model ContactFieldDef {
    from the #36 fix round.
 
 ## Design pass (owner/me, before the build starts)
+
 Update `Contacts.dc.html` → commit as the §5 fidelity source:
+
 - detail-drawer DETAILS list with 2 custom rows + inline edit state
 - import step-2 target dropdown open, showing custom targets + create row
 - add-drawer custom block: filled def inputs + the inline create state
-Plus `Create Agent.dc.html` token picker with one `{{custom.*}}` chip +
-fallback input state. Checkpoints §3/§5 amended in the same commit.
+  Plus `Create Agent.dc.html` token picker with one `{{custom.*}}` chip +
+  fallback input state. Checkpoints §3/§5 amended in the same commit.
 
 ## Acceptance (build unit)
+
 Create field inline while adding a contact → appears on a second contact's
 add drawer; CSV import creates a field from an unmatched column and values
 land; detail drawer shows + edits the value; token with fallback renders

@@ -75,6 +75,10 @@ function triggerPhraseOf(trigger: CampaignRuleTrigger): string {
       return "opting out";
     case "lead_captured":
       return "arriving through lead capture";
+    // WID2 (DEC-101): reachable only if the creator's trigger menu offers it;
+    // the phrase is registered here because this switch is exhaustive.
+    case "widget_chat_started":
+      return "starting a chat on your website";
     case "call_knowledge_gap":
       // SPEC A (DEC-099). Reachable here only if the creator's trigger menu
       // ever offers it; today the menu omits it (a knowledge gap is a
@@ -119,12 +123,16 @@ export function deriveSubcampaignBriefs(
   const branch = name.trim() || "this branch";
   return [
     {
-      objective: clamp(`Open the "${branch}" branch: acknowledge ${why} and invite them to ${act}.`),
+      objective: clamp(
+        `Open the "${branch}" branch: acknowledge ${why} and invite them to ${act}.`,
+      ),
       subjectHint: clamp(`a short, direct line about ${act}`, 120),
       talkingPoints: [
         clamp(`This message sends because of ${why}.`),
         clamp(`The one next step for the contact is to ${act}.`),
-        clamp(`This is the first message of the "${branch}" branch — set up the follow-up clearly.`),
+        clamp(
+          `This is the first message of the "${branch}" branch — set up the follow-up clearly.`,
+        ),
       ],
     },
     {
@@ -132,7 +140,9 @@ export function deriveSubcampaignBriefs(
         `Follow up on the "${branch}" branch ${SUBCAMPAIGN_DRAFT_GAP_DAYS} days later: a short nudge that makes it easy to ${act}.`,
       ),
       talkingPoints: [
-        clamp(`This is a short follow-up in the same thread, ${SUBCAMPAIGN_DRAFT_GAP_DAYS} days after the first branch message.`),
+        clamp(
+          `This is a short follow-up in the same thread, ${SUBCAMPAIGN_DRAFT_GAP_DAYS} days after the first branch message.`,
+        ),
         clamp(`The contact entered this branch after ${why}.`),
         clamp(`Offer one clear, low-effort way to ${act}.`),
       ],
@@ -188,7 +198,10 @@ export async function composeSubcampaignDraft(
 export function seedFromDrafts(drafts: DraftedStep[]): SubcampaignSeedStepInput[] {
   return drafts.map((d, i) =>
     i === 0
-      ? { channel: "email" as const, content: { ...(d.subject ? { subject: d.subject } : {}), body: d.body } }
+      ? {
+          channel: "email" as const,
+          content: { ...(d.subject ? { subject: d.subject } : {}), body: d.body },
+        }
       : {
           channel: "email" as const,
           content: { body: d.body, threaded: true },
@@ -204,7 +217,12 @@ export function buildCreateBody(
   name: string,
   trigger: CampaignRuleTrigger,
   drafts: DraftedStep[] | null,
-): { agentId: string; name: string; trigger: CampaignRuleTrigger; seed: SubcampaignSeedStepInput[] } {
+): {
+  agentId: string;
+  name: string;
+  trigger: CampaignRuleTrigger;
+  seed: SubcampaignSeedStepInput[];
+} {
   return { agentId, name: name.trim(), trigger, seed: drafts ? seedFromDrafts(drafts) : [] };
 }
 
@@ -247,10 +265,28 @@ export interface SubcampaignCreatorProps {
   prefill?: { name: string; trigger: CampaignRuleTrigger } | null;
 }
 
-const label11: React.CSSProperties = { display: "block", fontSize: 11, fontWeight: 800, color: "#9AA59E", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 7 };
-const reviewRow: React.CSSProperties = { display: "flex", alignItems: "center", gap: 12, padding: "12px 15px" };
+const label11: React.CSSProperties = {
+  display: "block",
+  fontSize: 11,
+  fontWeight: 800,
+  color: "#9AA59E",
+  textTransform: "uppercase",
+  letterSpacing: ".06em",
+  marginBottom: 7,
+};
+const reviewRow: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 12,
+  padding: "12px 15px",
+};
 const reviewLabel: React.CSSProperties = { fontSize: 12.5, color: "#9AA59E", flex: 1 };
-const reviewValue: React.CSSProperties = { fontSize: 13, fontWeight: 600, color: "#0E1512", textAlign: "right" };
+const reviewValue: React.CSSProperties = {
+  fontSize: 13,
+  fontWeight: 600,
+  color: "#0E1512",
+  textAlign: "right",
+};
 
 /** The trigger dropdown's option list. DISABLED kinds render at opacity .55
  *  with their reason line and take NO click handler — honest absence, never
@@ -266,7 +302,22 @@ export function TriggerMenu({
 }) {
   const [hoverKind, setHoverKind] = useState<CampaignRuleTriggerKind | null>(null);
   return (
-    <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 12, boxShadow: "0 16px 36px rgba(14,21,18,.18)", maxHeight: 230, overflowY: "auto", zIndex: 5 }} data-testid="subnew-trigger-menu">
+    <div
+      style={{
+        position: "absolute",
+        top: "calc(100% + 6px)",
+        left: 0,
+        right: 0,
+        background: "#fff",
+        border: "1px solid #EBE3D6",
+        borderRadius: 12,
+        boxShadow: "0 16px 36px rgba(14,21,18,.18)",
+        maxHeight: 230,
+        overflowY: "auto",
+        zIndex: 5,
+      }}
+      data-testid="subnew-trigger-menu"
+    >
       {TRIGGER_OPTIONS.map((o) => {
         const avail = triggerAvailability(o.kind, connected);
         return (
@@ -275,14 +326,25 @@ export function TriggerMenu({
             onClick={avail.enabled ? () => onPick(o.kind) : undefined}
             onMouseEnter={() => setHoverKind(o.kind)}
             onMouseLeave={() => setHoverKind(null)}
-            style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", fontSize: 13.5, cursor: avail.enabled ? "pointer" : "default", opacity: avail.enabled ? 1 : 0.55, background: avail.enabled && hoverKind === o.kind ? "#FBF7F0" : "#fff" }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: "10px 14px",
+              fontSize: 13.5,
+              cursor: avail.enabled ? "pointer" : "default",
+              opacity: avail.enabled ? 1 : 0.55,
+              background: avail.enabled && hoverKind === o.kind ? "#FBF7F0" : "#fff",
+            }}
             data-testid={`subnew-trigger-option-${o.kind}`}
           >
             <span style={{ flex: 1, minWidth: 0 }}>
               <span style={{ display: "block", fontWeight: 600, color: "#0E1512" }}>{o.label}</span>
               {/* honest absence — the reason renders, the pick doesn't */}
               {!avail.enabled && avail.reason ? (
-                <span style={{ display: "block", fontSize: 11, color: "#9AA59E" }}>{avail.reason}</span>
+                <span style={{ display: "block", fontSize: 11, color: "#9AA59E" }}>
+                  {avail.reason}
+                </span>
               ) : null}
             </span>
             {selected === o.kind ? <span style={{ color: "#16A82A", flex: "none" }}>✓</span> : null}
@@ -310,7 +372,11 @@ export function SubcampaignCreator(props: SubcampaignCreatorProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // The done screen outlives the form state — snapshot what it recaps.
-  const [done, setDone] = useState<{ trigger: CampaignRuleTrigger; builtWithAI: boolean; stepCount: number } | null>(null);
+  const [done, setDone] = useState<{
+    trigger: CampaignRuleTrigger;
+    builtWithAI: boolean;
+    stepCount: number;
+  } | null>(null);
   // Open/close fences the uncancellable compose fetches (the StepsTab epoch
   // pattern): a stale draft can never land in a reopened creator.
   const epochRef = useRef(0);
@@ -359,7 +425,8 @@ export function SubcampaignCreator(props: SubcampaignCreatorProps) {
             : { kind };
 
   const builtWithAI = drafts !== null && drafts.length > 0;
-  const stepValid = step === 0 ? trigger !== null && name.trim().length > 0 : step === 1 ? method !== null : !busy;
+  const stepValid =
+    step === 0 ? trigger !== null && name.trim().length > 0 : step === 1 ? method !== null : !busy;
   const primaryEnabled = stepValid && !draftBusy && !busy;
 
   async function continueFromMethod() {
@@ -372,7 +439,11 @@ export function SubcampaignCreator(props: SubcampaignCreatorProps) {
     }
     const epoch = epochRef.current;
     setDraftBusy(true);
-    const res = await composeSubcampaignDraft(cf, agentId, deriveSubcampaignBriefs(trigger, name, goal));
+    const res = await composeSubcampaignDraft(
+      cf,
+      agentId,
+      deriveSubcampaignBriefs(trigger, name, goal),
+    );
     if (epochRef.current !== epoch) return; // creator closed/reopened — drop the stale draft
     if (res.ok) {
       setDrafts(res.steps);
@@ -395,7 +466,13 @@ export function SubcampaignCreator(props: SubcampaignCreatorProps) {
       const res = (await cf("planner/subcampaign", {
         method: "POST",
         body: JSON.stringify(buildCreateBody(agentId, name, trigger, drafts)),
-      })) as { graph: CampaignGraph; version: number; source?: string; subcampaignId: string; ruleId: string };
+      })) as {
+        graph: CampaignGraph;
+        version: number;
+        source?: string;
+        subcampaignId: string;
+        ruleId: string;
+      };
       if (epochRef.current !== epoch) return;
       onCreated({
         graph: res.graph,
@@ -411,7 +488,13 @@ export function SubcampaignCreator(props: SubcampaignCreatorProps) {
     } catch (err) {
       // 422/409 detail renders verbatim (#88 precedent — never a stuck busy state).
       if (epochRef.current === epoch) {
-        setError(err instanceof CfError && err.detail ? err.detail : err instanceof Error ? err.message : String(err));
+        setError(
+          err instanceof CfError && err.detail
+            ? err.detail
+            : err instanceof Error
+              ? err.message
+              : String(err),
+        );
       }
     } finally {
       if (epochRef.current === epoch) setBusy(false);
@@ -419,7 +502,13 @@ export function SubcampaignCreator(props: SubcampaignCreatorProps) {
   }
 
   const primaryLabel =
-    step === 2 ? (busy ? "Creating…" : "Create sub-campaign") : draftBusy ? "Drafting…" : "Continue";
+    step === 2
+      ? busy
+        ? "Creating…"
+        : "Create sub-campaign"
+      : draftBusy
+        ? "Drafting…"
+        : "Continue";
   const onPrimary =
     step === 0
       ? () => setStep(1)
@@ -428,13 +517,80 @@ export function SubcampaignCreator(props: SubcampaignCreatorProps) {
         : () => void create();
 
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(12,20,15,.5)", zIndex: 60, fontFamily: "'Hanken Grotesk',sans-serif" }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 520, maxWidth: "92vw", maxHeight: "90vh", overflowY: "auto", background: "#fff", borderRadius: 18, boxShadow: "0 30px 80px rgba(0,0,0,.32)" }} data-testid="subnew-modal">
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(12,20,15,.5)",
+        zIndex: 60,
+        fontFamily: "'Hanken Grotesk',sans-serif",
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          position: "absolute",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%,-50%)",
+          width: 520,
+          maxWidth: "92vw",
+          maxHeight: "90vh",
+          overflowY: "auto",
+          background: "#fff",
+          borderRadius: 18,
+          boxShadow: "0 30px 80px rgba(0,0,0,.32)",
+        }}
+        data-testid="subnew-modal"
+      >
         {/* header */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "18px 20px 14px" }}>
-          <span style={{ width: 34, height: 34, borderRadius: 10, background: GRAD, color: "#0A0F0C", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, fontWeight: 800, flex: "none" }}>⎇</span>
-          <span style={{ flex: 1, fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 17, color: "#0E1512" }}>New sub-campaign</span>
-          <span onClick={onClose} style={{ width: 30, height: 30, borderRadius: 9, border: "1px solid #EBE3D6", display: "flex", alignItems: "center", justifyContent: "center", color: "#9AA59E", cursor: "pointer", flex: "none" }}>✕</span>
+          <span
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: 10,
+              background: GRAD,
+              color: "#0A0F0C",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 17,
+              fontWeight: 800,
+              flex: "none",
+            }}
+          >
+            ⎇
+          </span>
+          <span
+            style={{
+              flex: 1,
+              fontFamily: "'Bricolage Grotesque',sans-serif",
+              fontWeight: 700,
+              fontSize: 17,
+              color: "#0E1512",
+            }}
+          >
+            New sub-campaign
+          </span>
+          <span
+            onClick={onClose}
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: 9,
+              border: "1px solid #EBE3D6",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#9AA59E",
+              cursor: "pointer",
+              flex: "none",
+            }}
+          >
+            ✕
+          </span>
         </div>
 
         {/* progress — 3 segments + STEP N OF 3 (hidden on the done screen) */}
@@ -442,17 +598,49 @@ export function SubcampaignCreator(props: SubcampaignCreatorProps) {
           <div style={{ padding: "0 20px 12px" }}>
             <div style={{ display: "flex", gap: 6 }}>
               {[0, 1, 2].map((i) => (
-                <span key={i} style={{ flex: 1, height: 5, borderRadius: 100, background: i <= step ? "#16A82A" : "#E4EAE6" }} />
+                <span
+                  key={i}
+                  style={{
+                    flex: 1,
+                    height: 5,
+                    borderRadius: 100,
+                    background: i <= step ? "#16A82A" : "#E4EAE6",
+                  }}
+                />
               ))}
             </div>
-            <div style={{ fontSize: 11.5, fontWeight: 700, color: "#8A7F6B", textTransform: "uppercase", letterSpacing: ".04em", marginTop: 8 }}>Step {step + 1} of 3</div>
+            <div
+              style={{
+                fontSize: 11.5,
+                fontWeight: 700,
+                color: "#8A7F6B",
+                textTransform: "uppercase",
+                letterSpacing: ".04em",
+                marginTop: 8,
+              }}
+            >
+              Step {step + 1} of 3
+            </div>
           </div>
         ) : null}
 
         {/* DEC-076: the honest versioning line on a launched agent (same
             anatomy as StepEditorDrawer's liveNotice block) */}
         {!isDraft ? (
-          <div style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12.5, color: "#5C6B62", background: "#FBF7F0", borderTop: "1px solid #EBE3D6", borderBottom: "1px solid #EBE3D6", padding: "10px 20px" }} data-testid="subnew-live-notice">
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              alignItems: "flex-start",
+              fontSize: 12.5,
+              color: "#5C6B62",
+              background: "#FBF7F0",
+              borderTop: "1px solid #EBE3D6",
+              borderBottom: "1px solid #EBE3D6",
+              padding: "10px 20px",
+            }}
+            data-testid="subnew-live-notice"
+          >
             <span style={{ flex: "none" }}>⏱</span>
             <span>{LIVE_GRAPH_NOTICE}</span>
           </div>
@@ -460,13 +648,37 @@ export function SubcampaignCreator(props: SubcampaignCreatorProps) {
 
         {step === 0 ? (
           <div style={{ padding: "14px 20px 18px" }}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: "#0E1512" }}>When should contacts enter this branch?</div>
-            <div style={{ fontSize: 13, color: "#9AA59E", marginTop: 3 }}>Pick the behaviour that moves a contact into this sub-campaign.</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#0E1512" }}>
+              When should contacts enter this branch?
+            </div>
+            <div style={{ fontSize: 13, color: "#9AA59E", marginTop: 3 }}>
+              Pick the behaviour that moves a contact into this sub-campaign.
+            </div>
 
             <label style={{ ...label11, marginTop: 18 }}>Trigger</label>
             <div style={{ position: "relative" }}>
-              <div onClick={() => setDropOpen((v) => !v)} style={{ display: "flex", alignItems: "center", gap: 10, borderRadius: 11, background: "#FBF7F0", border: "1px solid #EBE3D6", padding: "12px 14px", fontSize: 13.5, cursor: "pointer" }} data-testid="subnew-trigger-select">
-                <span style={{ flex: 1, color: kind ? "#0E1512" : "#B7BDB6", fontWeight: kind ? 600 : 400 }}>
+              <div
+                onClick={() => setDropOpen((v) => !v)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  borderRadius: 11,
+                  background: "#FBF7F0",
+                  border: "1px solid #EBE3D6",
+                  padding: "12px 14px",
+                  fontSize: 13.5,
+                  cursor: "pointer",
+                }}
+                data-testid="subnew-trigger-select"
+              >
+                <span
+                  style={{
+                    flex: 1,
+                    color: kind ? "#0E1512" : "#B7BDB6",
+                    fontWeight: kind ? 600 : 400,
+                  }}
+                >
                   {kind ? triggerLabel(kind) : "Select a trigger…"}
                 </span>
                 <span style={{ color: "#9AA59E", flex: "none" }}>⌄</span>
@@ -486,15 +698,31 @@ export function SubcampaignCreator(props: SubcampaignCreatorProps) {
             {kind === "reply_classified" ? (
               <div style={{ marginTop: 14 }}>
                 <label style={label11}>Intents</label>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }} data-testid="subnew-intents">
+                <div
+                  style={{ display: "flex", flexWrap: "wrap", gap: 7 }}
+                  data-testid="subnew-intents"
+                >
                   {REPLY_INTENT_OPTIONS.map((i) => {
                     const tint = intentTint(i);
                     const on = intents.includes(i);
                     return (
                       <span
                         key={i}
-                        onClick={() => setIntents((xs) => (xs.includes(i) ? xs.filter((x) => x !== i) : [...xs, i]))}
-                        style={{ fontSize: 12, fontWeight: 700, borderRadius: 100, padding: "5px 12px", cursor: "pointer", background: on ? tint.bg : "#fff", color: on ? tint.fg : "#5C6B62", border: on ? "1px solid transparent" : "1px solid #EBE3D6" }}
+                        onClick={() =>
+                          setIntents((xs) =>
+                            xs.includes(i) ? xs.filter((x) => x !== i) : [...xs, i],
+                          )
+                        }
+                        style={{
+                          fontSize: 12,
+                          fontWeight: 700,
+                          borderRadius: 100,
+                          padding: "5px 12px",
+                          cursor: "pointer",
+                          background: on ? tint.bg : "#fff",
+                          color: on ? tint.fg : "#5C6B62",
+                          border: on ? "1px solid transparent" : "1px solid #EBE3D6",
+                        }}
                         data-testid={`subnew-intent-${i}`}
                       >
                         {tint.label}
@@ -517,7 +745,17 @@ export function SubcampaignCreator(props: SubcampaignCreatorProps) {
                     const v = Number.parseInt(e.target.value, 10);
                     setQuietDays(Number.isNaN(v) ? 30 : Math.min(365, Math.max(1, v)));
                   }}
-                  style={{ width: 110, boxSizing: "border-box", borderRadius: 9, background: "#fff", border: "1px solid #EBE3D6", padding: "9px 12px", fontSize: 13.5, color: "#0E1512", fontFamily: "'Hanken Grotesk',sans-serif" }}
+                  style={{
+                    width: 110,
+                    boxSizing: "border-box",
+                    borderRadius: 9,
+                    background: "#fff",
+                    border: "1px solid #EBE3D6",
+                    padding: "9px 12px",
+                    fontSize: 13.5,
+                    color: "#0E1512",
+                    fontFamily: "'Hanken Grotesk',sans-serif",
+                  }}
                   data-testid="subnew-quiet-days"
                 />
               </div>
@@ -536,7 +774,17 @@ export function SubcampaignCreator(props: SubcampaignCreatorProps) {
                     const v = Number.parseInt(e.target.value, 10);
                     setBeforeHours(Number.isNaN(v) ? 24 : Math.min(336, Math.max(1, v)));
                   }}
-                  style={{ width: 110, boxSizing: "border-box", borderRadius: 9, background: "#fff", border: "1px solid #EBE3D6", padding: "9px 12px", fontSize: 13.5, color: "#0E1512", fontFamily: "'Hanken Grotesk',sans-serif" }}
+                  style={{
+                    width: 110,
+                    boxSizing: "border-box",
+                    borderRadius: 9,
+                    background: "#fff",
+                    border: "1px solid #EBE3D6",
+                    padding: "9px 12px",
+                    fontSize: 13.5,
+                    color: "#0E1512",
+                    fontFamily: "'Hanken Grotesk',sans-serif",
+                  }}
                   data-testid="subnew-before-hours"
                 />
               </div>
@@ -548,7 +796,17 @@ export function SubcampaignCreator(props: SubcampaignCreatorProps) {
               maxLength={SUBCAMPAIGN_NAME_MAX}
               onChange={(e) => setName(e.target.value)}
               placeholder="Interested follow-up"
-              style={{ width: "100%", boxSizing: "border-box", borderRadius: 11, background: "#fff", border: "1px solid #EBE3D6", padding: "12px 14px", fontSize: 14, color: "#0E1512", fontFamily: "'Hanken Grotesk',sans-serif" }}
+              style={{
+                width: "100%",
+                boxSizing: "border-box",
+                borderRadius: 11,
+                background: "#fff",
+                border: "1px solid #EBE3D6",
+                padding: "12px 14px",
+                fontSize: 14,
+                color: "#0E1512",
+                fontFamily: "'Hanken Grotesk',sans-serif",
+              }}
               data-testid="subnew-name"
             />
           </div>
@@ -556,25 +814,100 @@ export function SubcampaignCreator(props: SubcampaignCreatorProps) {
 
         {step === 1 ? (
           <div style={{ padding: "14px 20px 18px" }}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: "#0E1512" }}>How should we build it?</div>
-            <div style={{ fontSize: 13, color: "#9AA59E", marginTop: 3 }}>AI can draft the whole branch, or you can build it yourself.</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#0E1512" }}>
+              How should we build it?
+            </div>
+            <div style={{ fontSize: 13, color: "#9AA59E", marginTop: 3 }}>
+              AI can draft the whole branch, or you can build it yourself.
+            </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16 }}>
-              {(
-                [
-                  { key: "ai" as const, icon: "✦", iconBg: "rgba(53,232,52,.16)", iconFg: "#16A82A", title: "Let AI draft it", sub: "Generates a sequence tuned to the trigger & your goal.", chip: "Recommended", tid: "subnew-pick-ai" },
-                  { key: "scratch" as const, icon: "✎", iconBg: "#F2EEE4", iconFg: "#5C6B62", title: "Build from scratch", sub: "Start empty and add each step yourself.", chip: null, tid: "subnew-pick-scratch" },
-                ]
-              ).map((o) => {
+              {[
+                {
+                  key: "ai" as const,
+                  icon: "✦",
+                  iconBg: "rgba(53,232,52,.16)",
+                  iconFg: "#16A82A",
+                  title: "Let AI draft it",
+                  sub: "Generates a sequence tuned to the trigger & your goal.",
+                  chip: "Recommended",
+                  tid: "subnew-pick-ai",
+                },
+                {
+                  key: "scratch" as const,
+                  icon: "✎",
+                  iconBg: "#F2EEE4",
+                  iconFg: "#5C6B62",
+                  title: "Build from scratch",
+                  sub: "Start empty and add each step yourself.",
+                  chip: null,
+                  tid: "subnew-pick-scratch",
+                },
+              ].map((o) => {
                 const on = method === o.key;
                 return (
-                  <div key={o.key} onClick={() => setMethod(o.key)} style={{ display: "flex", alignItems: "center", gap: 12, borderRadius: 13, padding: "15px 16px", cursor: "pointer", background: on ? "rgba(53,232,52,.05)" : "#fff", border: on ? "2px solid #35E834" : "1px solid #EBE3D6" }} data-testid={o.tid}>
-                    <span style={{ width: 38, height: 38, borderRadius: 11, background: o.iconBg, color: o.iconFg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, fontWeight: 700, flex: "none" }}>{o.icon}</span>
+                  <div
+                    key={o.key}
+                    onClick={() => setMethod(o.key)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      borderRadius: 13,
+                      padding: "15px 16px",
+                      cursor: "pointer",
+                      background: on ? "rgba(53,232,52,.05)" : "#fff",
+                      border: on ? "2px solid #35E834" : "1px solid #EBE3D6",
+                    }}
+                    data-testid={o.tid}
+                  >
+                    <span
+                      style={{
+                        width: 38,
+                        height: 38,
+                        borderRadius: 11,
+                        background: o.iconBg,
+                        color: o.iconFg,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: 17,
+                        fontWeight: 700,
+                        flex: "none",
+                      }}
+                    >
+                      {o.icon}
+                    </span>
                     <span style={{ flex: 1, minWidth: 0 }}>
-                      <span style={{ display: "block", fontSize: 14.5, fontWeight: 700, color: "#0E1512" }}>{o.title}</span>
-                      <span style={{ display: "block", fontSize: 12.5, color: "#8A7F6B", marginTop: 2 }}>{o.sub}</span>
+                      <span
+                        style={{
+                          display: "block",
+                          fontSize: 14.5,
+                          fontWeight: 700,
+                          color: "#0E1512",
+                        }}
+                      >
+                        {o.title}
+                      </span>
+                      <span
+                        style={{ display: "block", fontSize: 12.5, color: "#8A7F6B", marginTop: 2 }}
+                      >
+                        {o.sub}
+                      </span>
                     </span>
                     {o.chip ? (
-                      <span style={{ fontSize: 11, fontWeight: 700, color: "#16A82A", background: "rgba(53,232,52,.12)", borderRadius: 7, padding: "2px 8px", flex: "none" }}>{o.chip}</span>
+                      <span
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 700,
+                          color: "#16A82A",
+                          background: "rgba(53,232,52,.12)",
+                          borderRadius: 7,
+                          padding: "2px 8px",
+                          flex: "none",
+                        }}
+                      >
+                        {o.chip}
+                      </span>
                     ) : null}
                   </div>
                 );
@@ -585,9 +918,22 @@ export function SubcampaignCreator(props: SubcampaignCreatorProps) {
 
         {step === 2 && trigger ? (
           <div style={{ padding: "14px 20px 18px" }}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: "#0E1512" }}>Review &amp; create</div>
-            <div style={{ fontSize: 13, color: "#9AA59E", marginTop: 3 }}>Confirm the branch setup — you can edit everything afterwards.</div>
-            <div style={{ background: "#FBF7F0", border: "1px solid #EBE3D6", borderRadius: 13, marginTop: 14, overflow: "hidden" }} data-testid="subnew-review">
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#0E1512" }}>
+              Review &amp; create
+            </div>
+            <div style={{ fontSize: 13, color: "#9AA59E", marginTop: 3 }}>
+              Confirm the branch setup — you can edit everything afterwards.
+            </div>
+            <div
+              style={{
+                background: "#FBF7F0",
+                border: "1px solid #EBE3D6",
+                borderRadius: 13,
+                marginTop: 14,
+                overflow: "hidden",
+              }}
+              data-testid="subnew-review"
+            >
               <div style={reviewRow}>
                 <span style={reviewLabel}>Name</span>
                 <span style={reviewValue}>{name.trim()}</span>
@@ -598,12 +944,28 @@ export function SubcampaignCreator(props: SubcampaignCreatorProps) {
               </div>
               <div style={{ ...reviewRow, borderTop: "1px solid #EBE3D6" }}>
                 <span style={reviewLabel}>Built with</span>
-                <span style={{ ...reviewValue, color: "#16A82A" }}>{builtWithAI ? "AI-drafted sequence" : "Build from scratch"}</span>
+                <span style={{ ...reviewValue, color: "#16A82A" }}>
+                  {builtWithAI ? "AI-drafted sequence" : "Build from scratch"}
+                </span>
               </div>
             </div>
             {draftFailed ? (
               /* Honest fallback — the compose failed/refused; nothing is faked. */
-              <div style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12.5, color: "#9A6B12", background: "rgba(232,196,91,.1)", border: "1px solid rgba(232,196,91,.4)", borderRadius: 11, padding: "10px 14px", marginTop: 10 }} data-testid="subnew-draft-fallback">
+              <div
+                style={{
+                  display: "flex",
+                  gap: 8,
+                  alignItems: "flex-start",
+                  fontSize: 12.5,
+                  color: "#9A6B12",
+                  background: "rgba(232,196,91,.1)",
+                  border: "1px solid rgba(232,196,91,.4)",
+                  borderRadius: 11,
+                  padding: "10px 14px",
+                  marginTop: 10,
+                }}
+                data-testid="subnew-draft-fallback"
+              >
                 <span style={{ flex: "none" }}>✎</span>
                 <span>{AI_DRAFT_FALLBACK}</span>
               </div>
@@ -614,14 +976,61 @@ export function SubcampaignCreator(props: SubcampaignCreatorProps) {
                 edits it in the sequence editor after creation. */}
             {drafts
               ? drafts.map((d, i) => (
-                  <div key={i} style={{ border: "1px solid rgba(54,215,237,.55)", background: "rgba(54,215,237,.06)", borderRadius: 11, padding: "10px 14px", marginTop: i === 0 ? 12 : 8 }} data-testid="subnew-draft-row">
+                  <div
+                    key={i}
+                    style={{
+                      border: "1px solid rgba(54,215,237,.55)",
+                      background: "rgba(54,215,237,.06)",
+                      borderRadius: 11,
+                      padding: "10px 14px",
+                      marginTop: i === 0 ? 12 : 8,
+                    }}
+                    data-testid="subnew-draft-row"
+                  >
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                      <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: i === 0 ? "#0E1512" : "#5C6B62", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {i === 0 ? d.subject : `Threaded follow-up · ${SUBCAMPAIGN_DRAFT_GAP_DAYS} days later`}
+                      <span
+                        style={{
+                          flex: 1,
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: i === 0 ? "#0E1512" : "#5C6B62",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {i === 0
+                          ? d.subject
+                          : `Threaded follow-up · ${SUBCAMPAIGN_DRAFT_GAP_DAYS} days later`}
                       </span>
-                      <span style={{ fontSize: 10, fontWeight: 800, color: "#1192A6", background: "rgba(54,215,237,.14)", borderRadius: 100, padding: "2px 7px", flex: "none" }} data-testid="subnew-draft-chip">✦ AI-drafted</span>
+                      <span
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 800,
+                          color: "#1192A6",
+                          background: "rgba(54,215,237,.14)",
+                          borderRadius: 100,
+                          padding: "2px 7px",
+                          flex: "none",
+                        }}
+                        data-testid="subnew-draft-chip"
+                      >
+                        ✦ AI-drafted
+                      </span>
                     </div>
-                    <div style={{ fontSize: 12, color: "#5C6B62", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{d.body}</div>
+                    <div
+                      style={{
+                        fontSize: 12,
+                        color: "#5C6B62",
+                        lineHeight: 1.5,
+                        display: "-webkit-box",
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: "vertical",
+                        overflow: "hidden",
+                      }}
+                    >
+                      {d.body}
+                    </div>
                   </div>
                 ))
               : null}
@@ -630,19 +1039,65 @@ export function SubcampaignCreator(props: SubcampaignCreatorProps) {
 
         {step === 3 && done ? (
           <div style={{ padding: "26px 20px 18px", textAlign: "center" }} data-testid="subnew-done">
-            <div style={{ width: 60, height: 60, borderRadius: "50%", background: "#D7F5DD", color: "#16A82A", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, margin: "0 auto" }}>✓</div>
-            <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 22, color: "#0E1512", marginTop: 14 }}>Sub-campaign created</div>
-            <div style={{ fontSize: 13.5, color: "#5C6B62", lineHeight: 1.55, marginTop: 6, maxWidth: 400, marginLeft: "auto", marginRight: "auto" }}>
+            <div
+              style={{
+                width: 60,
+                height: 60,
+                borderRadius: "50%",
+                background: "#D7F5DD",
+                color: "#16A82A",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 26,
+                margin: "0 auto",
+              }}
+            >
+              ✓
+            </div>
+            <div
+              style={{
+                fontFamily: "'Bricolage Grotesque',sans-serif",
+                fontWeight: 800,
+                fontSize: 22,
+                color: "#0E1512",
+                marginTop: 14,
+              }}
+            >
+              Sub-campaign created
+            </div>
+            <div
+              style={{
+                fontSize: 13.5,
+                color: "#5C6B62",
+                lineHeight: 1.55,
+                marginTop: 6,
+                maxWidth: 400,
+                marginLeft: "auto",
+                marginRight: "auto",
+              }}
+            >
               {doneBodyCopy(done.builtWithAI, done.stepCount)}
             </div>
-            <div style={{ background: "#FBF7F0", border: "1px solid #EBE3D6", borderRadius: 13, marginTop: 18, overflow: "hidden", textAlign: "left" }}>
+            <div
+              style={{
+                background: "#FBF7F0",
+                border: "1px solid #EBE3D6",
+                borderRadius: 13,
+                marginTop: 18,
+                overflow: "hidden",
+                textAlign: "left",
+              }}
+            >
               <div style={reviewRow}>
                 <span style={reviewLabel}>Trigger</span>
                 <span style={reviewValue}>{triggerChip(done.trigger)}</span>
               </div>
               <div style={{ ...reviewRow, borderTop: "1px solid #EBE3D6" }}>
                 <span style={reviewLabel}>Built with</span>
-                <span style={{ ...reviewValue, color: "#16A82A" }}>{done.builtWithAI ? "AI-drafted sequence" : "Build from scratch"}</span>
+                <span style={{ ...reviewValue, color: "#16A82A" }}>
+                  {done.builtWithAI ? "AI-drafted sequence" : "Build from scratch"}
+                </span>
               </div>
             </div>
           </div>
@@ -650,18 +1105,49 @@ export function SubcampaignCreator(props: SubcampaignCreatorProps) {
 
         {/* 422/409 detail — verbatim, above the footer (#88 precedent) */}
         {error ? (
-          <div style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12.5, color: "#C9543F", background: "rgba(224,121,107,.07)", borderTop: "1px solid rgba(224,121,107,.35)", padding: "9px 20px" }} data-testid="subnew-error">
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              alignItems: "flex-start",
+              fontSize: 12.5,
+              color: "#C9543F",
+              background: "rgba(224,121,107,.07)",
+              borderTop: "1px solid rgba(224,121,107,.35)",
+              padding: "9px 20px",
+            }}
+            data-testid="subnew-error"
+          >
             <span style={{ flex: "none" }}>⚠</span>
             <span>{error}</span>
           </div>
         ) : null}
 
         {/* footer */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 20px 18px", borderTop: "1px solid #EBE3D6" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            padding: "14px 20px 18px",
+            borderTop: "1px solid #EBE3D6",
+          }}
+        >
           {step < 3 ? (
             <span
-              onClick={draftBusy || busy ? undefined : step === 0 ? onClose : () => setStep((s) => s - 1)}
-              style={{ fontSize: 13.5, fontWeight: 600, color: "#5C6B62", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 11, padding: "10px 18px", cursor: draftBusy || busy ? "default" : "pointer" }}
+              onClick={
+                draftBusy || busy ? undefined : step === 0 ? onClose : () => setStep((s) => s - 1)
+              }
+              style={{
+                fontSize: 13.5,
+                fontWeight: 600,
+                color: "#5C6B62",
+                background: "#fff",
+                border: "1px solid #EBE3D6",
+                borderRadius: 11,
+                padding: "10px 18px",
+                cursor: draftBusy || busy ? "default" : "pointer",
+              }}
               data-testid="subnew-back"
             >
               {step === 0 ? "Cancel" : "‹ Back"}
@@ -670,13 +1156,37 @@ export function SubcampaignCreator(props: SubcampaignCreatorProps) {
           {step < 3 ? (
             <span
               onClick={primaryEnabled ? onPrimary : undefined}
-              style={{ marginLeft: "auto", fontSize: 14, fontWeight: 700, color: primaryEnabled ? "#0A0F0C" : "#9AA59E", background: primaryEnabled ? GRAD : "#ECE7DC", borderRadius: 11, padding: "10px 22px", cursor: primaryEnabled ? "pointer" : "default", boxShadow: primaryEnabled ? "0 6px 16px rgba(53,232,52,.26)" : "none" }}
+              style={{
+                marginLeft: "auto",
+                fontSize: 14,
+                fontWeight: 700,
+                color: primaryEnabled ? "#0A0F0C" : "#9AA59E",
+                background: primaryEnabled ? GRAD : "#ECE7DC",
+                borderRadius: 11,
+                padding: "10px 22px",
+                cursor: primaryEnabled ? "pointer" : "default",
+                boxShadow: primaryEnabled ? "0 6px 16px rgba(53,232,52,.26)" : "none",
+              }}
               data-testid={step === 2 ? "subnew-create" : "subnew-continue"}
             >
               {primaryLabel}
             </span>
           ) : (
-            <span onClick={onClose} style={{ marginLeft: "auto", fontSize: 14, fontWeight: 700, color: "#0A0F0C", background: GRAD, borderRadius: 11, padding: "10px 22px", cursor: "pointer", boxShadow: "0 6px 16px rgba(53,232,52,.26)" }} data-testid="subnew-done-close">
+            <span
+              onClick={onClose}
+              style={{
+                marginLeft: "auto",
+                fontSize: 14,
+                fontWeight: 700,
+                color: "#0A0F0C",
+                background: GRAD,
+                borderRadius: 11,
+                padding: "10px 22px",
+                cursor: "pointer",
+                boxShadow: "0 6px 16px rgba(53,232,52,.26)",
+              }}
+              data-testid="subnew-done-close"
+            >
               Done
             </span>
           )}

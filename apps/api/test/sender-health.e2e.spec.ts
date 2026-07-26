@@ -11,7 +11,12 @@ import type { INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { WARMUP_CURVE_VERSION, type DnsCheckDeps, type EmailSender, type RenderedEmail } from "@clientforce/channels";
+import {
+  WARMUP_CURVE_VERSION,
+  type DnsCheckDeps,
+  type EmailSender,
+  type RenderedEmail,
+} from "@clientforce/channels";
 import { createPrismaClient, type PrismaClient } from "@clientforce/db";
 import { AppModule } from "../src/app.module";
 import { signDevToken } from "../src/auth/dev-token-verifier";
@@ -45,9 +50,24 @@ const dnsDeps: DnsCheckDeps = {
         subdomain: "send",
         valid: true,
         dns: {
-          mail_cname: { valid: true, host: "send.clientforce.io", type: "cname", data: "u1.wl.sendgrid.net" },
-          dkim1: { valid: true, host: "s1._domainkey.clientforce.io", type: "cname", data: "s1.u1.wl.sendgrid.net" },
-          dkim2: { valid: true, host: "s2._domainkey.clientforce.io", type: "cname", data: "s2.u1.wl.sendgrid.net" },
+          mail_cname: {
+            valid: true,
+            host: "send.clientforce.io",
+            type: "cname",
+            data: "u1.wl.sendgrid.net",
+          },
+          dkim1: {
+            valid: true,
+            host: "s1._domainkey.clientforce.io",
+            type: "cname",
+            data: "s1.u1.wl.sendgrid.net",
+          },
+          dkim2: {
+            valid: true,
+            host: "s2._domainkey.clientforce.io",
+            type: "cname",
+            data: "s2.u1.wl.sendgrid.net",
+          },
         },
       },
     ],
@@ -89,7 +109,12 @@ describe.skipIf(!hasDb)("Sender health API e2e (P5 W1)", () => {
           name: "Booker",
           goal: "book_appointments",
           guardrails: {
-            sendingWindow: { days: [1, 2, 3, 4, 5, 6, 7], start: "00:00", end: "23:59", timezone: "UTC" },
+            sendingWindow: {
+              days: [1, 2, 3, 4, 5, 6, 7],
+              start: "00:00",
+              end: "23:59",
+              timezone: "UTC",
+            },
             dailyCap: { email: 100 },
             consent: null,
             unsubscribeFooter: true,
@@ -103,7 +128,9 @@ describe.skipIf(!hasDb)("Sender health API e2e (P5 W1)", () => {
         workspaceId: ws,
         agentId: null,
         status: "READY",
-        fields: { company_address: { value: "42 Demo Street, Austin TX", citations: [], source: "typed" } },
+        fields: {
+          company_address: { value: "42 Demo Street, Austin TX", citations: [], source: "typed" },
+        },
       },
     });
     const u1 = await owner.user.create({
@@ -116,7 +143,10 @@ describe.skipIf(!hasDb)("Sender health API e2e (P5 W1)", () => {
     await owner.membership.create({ data: { userId: viewer.id, workspaceId: ws, role: "VIEWER" } });
     userIds = [u1.id, viewer.id];
     ownerToken = await signDevToken(SECRET, { sub: `auth|shs-owner-${suffix}`, email: u1.email });
-    viewerToken = await signDevToken(SECRET, { sub: `auth|shs-viewer-${suffix}`, email: viewer.email });
+    viewerToken = await signDevToken(SECRET, {
+      sub: `auth|shs-viewer-${suffix}`,
+      email: viewer.email,
+    });
 
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(EMAIL_TRANSPORT)
@@ -139,7 +169,11 @@ describe.skipIf(!hasDb)("Sender health API e2e (P5 W1)", () => {
     const res = await request(app.getHttpServer())
       .post("/senders")
       .set(asOwner())
-      .send({ type: "CF_MANAGED", fromEmail: `fresh-${suffix}@send.clientforce.io`, fromName: "Fresh" });
+      .send({
+        type: "CF_MANAGED",
+        fromEmail: `fresh-${suffix}@send.clientforce.io`,
+        fromName: "Fresh",
+      });
     expect(res.status).toBe(201);
     expect(res.body.warmupState?.curve).toBe(WARMUP_CURVE_VERSION);
     expect(res.body.warmupState?.startedAt).toBeTruthy();
@@ -174,10 +208,14 @@ describe.skipIf(!hasDb)("Sender health API e2e (P5 W1)", () => {
     const senders = await request(app.getHttpServer()).get("/senders").set(asOwner());
     const id = senders.body[0].id;
 
-    const viewerTry = await request(app.getHttpServer()).post(`/senders/${id}/dns-check`).set(asViewer());
+    const viewerTry = await request(app.getHttpServer())
+      .post(`/senders/${id}/dns-check`)
+      .set(asViewer());
     expect(viewerTry.status).toBe(403);
 
-    const verified = await request(app.getHttpServer()).post(`/senders/${id}/dns-check`).set(asOwner());
+    const verified = await request(app.getHttpServer())
+      .post(`/senders/${id}/dns-check`)
+      .set(asOwner());
     expect(verified.status).toBe(201);
     expect(verified.body.domainAuthStatus.spf).toMatchObject({ status: "verified", pass: true });
     expect(verified.body.domainAuthStatus.dkim.status).toBe("verified");
@@ -190,10 +228,14 @@ describe.skipIf(!hasDb)("Sender health API e2e (P5 W1)", () => {
       err.code = "ETIMEOUT";
       throw err;
     };
-    const broken = await request(app.getHttpServer()).post(`/senders/${id}/dns-check`).set(asOwner());
+    const broken = await request(app.getHttpServer())
+      .post(`/senders/${id}/dns-check`)
+      .set(asOwner());
     expect(broken.body.domainAuthStatus.dmarc).toMatchObject({ status: "unchecked", pass: false });
     const persisted = await owner.senderConnection.findUniqueOrThrow({ where: { id } });
-    expect((persisted.domainAuthStatus as { dmarc?: { status?: string } }).dmarc?.status).toBe("unchecked");
+    expect((persisted.domainAuthStatus as { dmarc?: { status?: string } }).dmarc?.status).toBe(
+      "unchecked",
+    );
     dnsWorld.resolveTxt = async () => [["v=DMARC1; p=none;"]];
   });
 
@@ -210,7 +252,13 @@ describe.skipIf(!hasDb)("Sender health API e2e (P5 W1)", () => {
       },
     });
     const contact = await owner.contact.create({
-      data: { workspaceId: ws, source: "seed", optOut: {}, tags: [], email: `storm-lead-${suffix}@t.test` },
+      data: {
+        workspaceId: ws,
+        source: "seed",
+        optOut: {},
+        tags: [],
+        email: `storm-lead-${suffix}@t.test`,
+      },
     });
     const campaign = await owner.campaign.create({
       data: { workspaceId: ws, agentId, name: "storm", graphId: "g1" },
@@ -273,7 +321,11 @@ describe.skipIf(!hasDb)("Sender health API e2e (P5 W1)", () => {
       where: { id: sender.id },
       data: {
         healthState: {
-          v: 1, score: 90, state: "healthy", floor: "ok", windowDays: 7,
+          v: 1,
+          score: 90,
+          state: "healthy",
+          floor: "ok",
+          windowDays: 7,
           computedAt: new Date().toISOString(),
           sample: { sent: 60, delivered: 58, bounced: 0, spam: 0, replied: 2 },
           rates: { bounce: 0, spam: 0, delivery: 0.97, reply: 0.03 },
@@ -332,7 +384,9 @@ describe.skipIf(!hasDb)("Sender health API e2e (P5 W1)", () => {
     expect(resumed.body).toMatchObject({ status: "ACTIVE", dailyLimit: 300 });
 
     // The drawer activity feed returns the audit rows, newest first.
-    const events = await request(app.getHttpServer()).get(`/senders/${sender.id}/events`).set(asOwner());
+    const events = await request(app.getHttpServer())
+      .get(`/senders/${sender.id}/events`)
+      .set(asOwner());
     expect(events.status).toBe(200);
     const types = (events.body as Array<{ type: string }>).map((e) => e.type);
     expect(types.filter((t) => t === "sender.status_changed.v1")).toHaveLength(2);
@@ -347,7 +401,10 @@ describe.skipIf(!hasDb)("Sender health API e2e (P5 W1)", () => {
     expect(disabledTry.status).toBe(400);
 
     // Body must carry status and/or dailyLimit.
-    const emptyTry = await request(app.getHttpServer()).patch(`/senders/${sender.id}`).set(asOwner()).send({});
+    const emptyTry = await request(app.getHttpServer())
+      .patch(`/senders/${sender.id}`)
+      .set(asOwner())
+      .send({});
     expect(emptyTry.status).toBe(400);
   });
 
@@ -365,7 +422,13 @@ describe.skipIf(!hasDb)("Sender health API e2e (P5 W1)", () => {
       data: { workspaceId: ws, agentId, name: "tiles", graphId: "g1" },
     });
     const contact = await owner.contact.create({
-      data: { workspaceId: ws, source: "seed", optOut: {}, tags: [], email: `tiles-${suffix}@t.test` },
+      data: {
+        workspaceId: ws,
+        source: "seed",
+        optOut: {},
+        tags: [],
+        email: `tiles-${suffix}@t.test`,
+      },
     });
     const mk = (daysAgo: number, n: number) =>
       owner.message.createMany({
@@ -383,7 +446,9 @@ describe.skipIf(!hasDb)("Sender health API e2e (P5 W1)", () => {
       });
     await mk(1, 3); // inside the window
     await mk(30, 4); // aged out — all-time only
-    const res = await request(app.getHttpServer()).get(`/senders/${sender.id}/health`).set(asOwner());
+    const res = await request(app.getHttpServer())
+      .get(`/senders/${sender.id}/health`)
+      .set(asOwner());
     expect(res.status).toBe(200);
     expect(res.body.sample.sent).toBe(3);
     expect(res.body.sentAllTime).toBe(7);
@@ -399,7 +464,9 @@ describe.skipIf(!hasDb)("Sender health API e2e (P5 W1)", () => {
         dailyLimit: 50,
       },
     });
-    const res = await request(app.getHttpServer()).post(`/senders/${sms.id}/dns-check`).set(asOwner());
+    const res = await request(app.getHttpServer())
+      .post(`/senders/${sms.id}/dns-check`)
+      .set(asOwner());
     expect(res.status).toBe(400);
   });
 });

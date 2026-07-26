@@ -282,7 +282,11 @@ describe.skipIf(!hasInfra)("sendStep boundary integration", () => {
       params({
         contactId: contact.id,
         stepNodeId: "s2",
-        content: { subject: "ignored", body: "Bump {{firstName}} — {{senderName}}", threaded: true },
+        content: {
+          subject: "ignored",
+          body: "Bump {{firstName}} — {{senderName}}",
+          threaded: true,
+        },
       }),
     );
     const email = split.sent.at(-1)!;

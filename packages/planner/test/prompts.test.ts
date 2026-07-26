@@ -89,9 +89,15 @@ describe("planner prompt v5 (outcome-aware regen layered on the playbook)", () =
     const p = renderCurrent();
     expect(p).toContain("REPLY PLAYBOOK (one case per classified intent — EXACTLY these six");
     expect(p).toContain('{"intent":"interested"}, "pipeline":"booked"');
-    expect(p).toContain('{"intent":"objection_price"}, "pipeline":"replied" → a VALUE-REFRAME "step"');
-    expect(p).toContain("NEVER offer a discount, a lower price, or flexible pricing — unless the business context itself contains such an offer");
-    expect(p).toContain('{"intent":"objection_timing"}, "pipeline":"replied" → an ACKNOWLEDGE "step"');
+    expect(p).toContain(
+      '{"intent":"objection_price"}, "pipeline":"replied" → a VALUE-REFRAME "step"',
+    );
+    expect(p).toContain(
+      "NEVER offer a discount, a lower price, or flexible pricing — unless the business context itself contains such an offer",
+    );
+    expect(p).toContain(
+      '{"intent":"objection_timing"}, "pipeline":"replied" → an ACKNOWLEDGE "step"',
+    );
     expect(p).toContain('a "delay" node of 14-45 days');
     expect(p).toContain('{"intent":"wrong_person"}, "pipeline":"replied" → a REFERRAL-ASK "step"');
     expect(p).toContain('{"intent":"info_request"}, "pipeline":"replied" → an ANSWER "step"');
@@ -128,7 +134,9 @@ describe("planner prompt v3 (selling craft — carried into v4)", () => {
   it("system prompt carries the role ladder, opener discipline and banned openers", () => {
     expect(PLANNER_SYSTEM).toContain("SELLING CRAFT");
     expect(PLANNER_SYSTEM).toContain(`At most ${OPENER_WORD_CAP} words`);
-    expect(PLANNER_SYSTEM).toContain("Ask EXACTLY ONE question and END the body with that question");
+    expect(PLANNER_SYSTEM).toContain(
+      "Ask EXACTLY ONE question and END the body with that question",
+    );
     expect(PLANNER_SYSTEM).toContain("ONE call-to-action per message");
     expect(PLANNER_SYSTEM).toContain("Each message is SHORTER than the previous one");
     expect(PLANNER_SYSTEM).toContain("BREAKUP (always the LAST step");
@@ -144,7 +152,9 @@ describe("planner prompt v3 (selling craft — carried into v4)", () => {
     expect(p).toContain(fixture.arc.roles[fixture.arc.roles.length - 1]!);
     expect(p).toContain(`Tone: ${fixture.toneHints}`);
     expect(p).toContain("Owner strategy notes: Lead with the audit.");
-    expect(p).toContain('NEVER SAY (hard ban — these strings must not appear anywhere in any subject or body, in any casing): "cheap", "guarantee"');
+    expect(p).toContain(
+      'NEVER SAY (hard ban — these strings must not appear anywhere in any subject or body, in any casing): "cheap", "guarantee"',
+    );
   });
 
   it("absent strategy renders the '(none)' defaults", () => {
@@ -232,7 +242,9 @@ describe("planner prompt v7 — both-channel guided briefs (G2, DEC-071; layered
     expect(v7).toContain('EMAIL step briefs ALSO carry "subjectHint"');
     expect(v7).toContain('never "quick question", never clickbait');
     expect(v7).toContain("Sms step briefs carry NO subjectHint.");
-    expect(v7).toContain('Reply-strategy steps stay fully scripted email with "subject" and "body".');
+    expect(v7).toContain(
+      'Reply-strategy steps stay fully scripted email with "subject" and "body".',
+    );
     // Everything ELSE is v5 verbatim (v7 derives from the same literal): the
     // STRATEGY block, the six-case REPLY PLAYBOOK, the outcomes slot.
     expect(v7).toContain("STRATEGY (the selling method for this agent — follow it):");
@@ -248,7 +260,9 @@ describe("planner prompt v7 — both-channel guided briefs (G2, DEC-071; layered
     expect(PLANNER_SYSTEM_GUIDED).toContain("GUIDED BRIEFS");
     expect(PLANNER_SYSTEM_GUIDED).toContain("email and sms alike");
     expect(PLANNER_SYSTEM_GUIDED).toContain('"subjectHint"');
-    expect(PLANNER_SYSTEM_GUIDED).toContain("Reply-strategy steps (the REPLY PLAYBOOK branch) stay fully scripted email");
+    expect(PLANNER_SYSTEM_GUIDED).toContain(
+      "Reply-strategy steps (the REPLY PLAYBOOK branch) stay fully scripted email",
+    );
     // The scripted system itself carries none of it.
     expect(PLANNER_SYSTEM).not.toContain("GUIDED BRIEFS");
   });
@@ -273,7 +287,10 @@ describe("planner prompt v8/v9 — output language (L1, DEC-072; layered on v5/v
   /** The RENDERED language section (labels substituted) — stripping it from a
    *  v8/v9 render must recover the v5/v7 render byte-for-byte. */
   const stripLanguageSection = (p: string) =>
-    p.replace(/OUTPUT LANGUAGE \(the customer's language — non-negotiable\):\n(?:- [^\n]*\n)+\n/, "");
+    p.replace(
+      /OUTPUT LANGUAGE \(the customer's language — non-negotiable\):\n(?:- [^\n]*\n)+\n/,
+      "",
+    );
 
   it("is pinned at versions 8 (scripted) and 9 (guided), registered beside v2–v7 (the #83 reviewer renumber — G2 took v7)", () => {
     expect(PLANNER_PROMPT_VERSION_LANGUAGE).toBe(8);
@@ -292,16 +309,16 @@ describe("planner prompt v8/v9 — output language (L1, DEC-072; layered on v5/v
     expect(p).toContain(
       "Merge tokens stay EXACTLY as given ({{firstName}} and {{company}}) — never translate the words inside {{ }} braces.",
     );
-    expect(p).toContain(
-      "the sending layer appends the compliant line in German (Deutsch) itself",
-    );
+    expect(p).toContain("the sending layer appends the compliant line in German (Deutsch) itself");
     expect(p.indexOf("OUTPUT LANGUAGE")).toBeGreaterThan(p.indexOf("STRATEGY"));
     expect(p.indexOf("OUTPUT LANGUAGE")).toBeLessThan(p.indexOf("GUARDRAILS"));
     // Everything else is the v5 literal: playbook + strategy contract intact,
     // and stripping the language section recovers v5 byte-for-byte.
     expect(p).toContain("REPLY PLAYBOOK (one case per classified intent — EXACTLY these six");
     expect(p).toContain("STRATEGY (the selling method for this agent — follow it):");
-    expect(stripLanguageSection(p)).toBe(renderPrompt(PLANNER_PROMPT_NAME, PLANNER_PROMPT_VERSION, vars));
+    expect(stripLanguageSection(p)).toBe(
+      renderPrompt(PLANNER_PROMPT_NAME, PLANNER_PROMPT_VERSION, vars),
+    );
   });
 
   it("v9 derives from G2's v7 LITERAL — both-channel guided semantics survive for non-English guided agents", () => {

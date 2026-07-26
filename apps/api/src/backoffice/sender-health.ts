@@ -1,5 +1,9 @@
 import { Injectable } from "@nestjs/common";
-import { computeSenderHealth, loadSenderLedgerSample, senderLedgerChannel } from "@clientforce/channels";
+import {
+  computeSenderHealth,
+  loadSenderLedgerSample,
+  senderLedgerChannel,
+} from "@clientforce/channels";
 import type { SenderHealthScore } from "@clientforce/core";
 import { BackofficeDb } from "./backoffice-db.service";
 

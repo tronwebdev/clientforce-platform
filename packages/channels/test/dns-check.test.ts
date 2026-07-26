@@ -18,9 +18,24 @@ const sgDomain = (valid: boolean, recordsValid = valid) => ({
   subdomain: "send",
   valid,
   dns: {
-    mail_cname: { valid: recordsValid, host: "send.clientforce.io", type: "cname", data: "u123.wl.sendgrid.net" },
-    dkim1: { valid: recordsValid, host: "s1._domainkey.clientforce.io", type: "cname", data: "s1.domainkey.u123.wl.sendgrid.net" },
-    dkim2: { valid: recordsValid, host: "s2._domainkey.clientforce.io", type: "cname", data: "s2.domainkey.u123.wl.sendgrid.net" },
+    mail_cname: {
+      valid: recordsValid,
+      host: "send.clientforce.io",
+      type: "cname",
+      data: "u123.wl.sendgrid.net",
+    },
+    dkim1: {
+      valid: recordsValid,
+      host: "s1._domainkey.clientforce.io",
+      type: "cname",
+      data: "s1.domainkey.u123.wl.sendgrid.net",
+    },
+    dkim2: {
+      valid: recordsValid,
+      host: "s2._domainkey.clientforce.io",
+      type: "cname",
+      data: "s2.domainkey.u123.wl.sendgrid.net",
+    },
   },
 });
 
@@ -35,7 +50,11 @@ const deps = (over: Partial<DnsCheckDeps> = {}): DnsCheckDeps => ({
 describe("checkSenderDns", () => {
   it("verified walk: SendGrid-valid SPF/DKIM + DMARC present → all pass, lastCheckedAt stamped", async () => {
     const status = await checkSenderDns(deps(), CF_SENDER);
-    expect(status?.spf).toMatchObject({ status: "verified", pass: true, lastCheckedAt: NOW.toISOString() });
+    expect(status?.spf).toMatchObject({
+      status: "verified",
+      pass: true,
+      lastCheckedAt: NOW.toISOString(),
+    });
     expect(status?.dkim).toMatchObject({ status: "verified", pass: true });
     expect(status?.dmarc).toMatchObject({ status: "verified", pass: true });
     expect(status?.dmarc.found).toContain("v=DMARC1");
@@ -79,7 +98,10 @@ describe("checkSenderDns", () => {
 
   it("provider/API error → unchecked with the reason — NEVER a pass, never a fake fail", async () => {
     const status = await checkSenderDns(
-      deps({ fetchImpl: (async () => ({ ok: false, status: 503 }) as unknown as Response) as unknown as typeof fetch }),
+      deps({
+        fetchImpl: (async () =>
+          ({ ok: false, status: 503 }) as unknown as Response) as unknown as typeof fetch,
+      }),
       CF_SENDER,
     );
     expect(status?.spf).toMatchObject({ status: "unchecked", pass: false });
@@ -105,7 +127,9 @@ describe("checkSenderDns", () => {
     const status = await checkSenderDns(
       deps({
         resolveTxt: async (host: string) =>
-          host.startsWith("_dmarc.") ? [["v=DMARC1; p=quarantine;"]] : [["v=spf1 include:_spf.google.com ~all"]],
+          host.startsWith("_dmarc.")
+            ? [["v=DMARC1; p=quarantine;"]]
+            : [["v=spf1 include:_spf.google.com ~all"]],
       }),
       { type: "SMTP", fromEmail: "sales@example.com" },
     );

@@ -42,7 +42,11 @@ export async function checkMxDomains(
   return states;
 }
 
-async function checkMxDomain(domain: string, resolveMx: ResolveMx, timeoutMs: number): Promise<MxState> {
+async function checkMxDomain(
+  domain: string,
+  resolveMx: ResolveMx,
+  timeoutMs: number,
+): Promise<MxState> {
   let timer: NodeJS.Timeout | undefined;
   try {
     const records = await Promise.race([

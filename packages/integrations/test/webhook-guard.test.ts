@@ -38,7 +38,9 @@ describe("webhook guard — scheme/shape rules", () => {
   });
 
   it("refuses an unresolvable host, naming the rule", async () => {
-    expect(await refusal("https://definitely-not-a-real-host.invalid/hook")).toBe("webhook_host_unresolvable");
+    expect(await refusal("https://definitely-not-a-real-host.invalid/hook")).toBe(
+      "webhook_host_unresolvable",
+    );
   });
 });
 

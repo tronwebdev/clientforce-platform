@@ -5,7 +5,13 @@
  * silently drops.
  */
 import { withTenant, type Prisma, type PrismaClient } from "@clientforce/db";
-import { bullConnectionFromUrl, EventBus, validateEvent, type EventInput, type EventType } from "@clientforce/events";
+import {
+  bullConnectionFromUrl,
+  EventBus,
+  validateEvent,
+  type EventInput,
+  type EventType,
+} from "@clientforce/events";
 
 export interface VoiceEventsPublisher {
   publish<T extends EventType>(input: EventInput<T>): Promise<void>;

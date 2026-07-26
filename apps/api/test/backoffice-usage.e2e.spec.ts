@@ -37,11 +37,31 @@ describe.skipIf(!hasDb)("Platform backoffice W2 e2e — usage · reconciliation 
     process.env.AUTH_DEV_SECRET = SECRET;
     owner = createPrismaClient();
 
-    agencyId = (await owner.agency.create({ data: { name: `w2-${suffix}`, slug: `w2-${suffix}`, branding: {} } })).id;
-    ws = (await owner.workspace.create({ data: { agencyId, name: "W2", slug: `w2-${suffix}`, settings: {} } })).id;
-    const agent = await owner.agent.create({ data: { workspaceId: ws, name: "A", goal: "book_appointments", guardrails: {} } });
-    const campaign = await owner.campaign.create({ data: { workspaceId: ws, agentId: agent.id, name: "C", graphId: "" } });
-    const contact = await owner.contact.create({ data: { workspaceId: ws, source: "manual", optOut: {}, tags: [], email: `c-${suffix}@x.test` } });
+    agencyId = (
+      await owner.agency.create({
+        data: { name: `w2-${suffix}`, slug: `w2-${suffix}`, branding: {} },
+      })
+    ).id;
+    ws = (
+      await owner.workspace.create({
+        data: { agencyId, name: "W2", slug: `w2-${suffix}`, settings: {} },
+      })
+    ).id;
+    const agent = await owner.agent.create({
+      data: { workspaceId: ws, name: "A", goal: "book_appointments", guardrails: {} },
+    });
+    const campaign = await owner.campaign.create({
+      data: { workspaceId: ws, agentId: agent.id, name: "C", graphId: "" },
+    });
+    const contact = await owner.contact.create({
+      data: {
+        workspaceId: ws,
+        source: "manual",
+        optOut: {},
+        tags: [],
+        email: `c-${suffix}@x.test`,
+      },
+    });
 
     // Metered usage: 3 OUTBOUND email sends, one 180s call, and two ledger moves.
     await owner.message.createMany({
@@ -57,7 +77,15 @@ describe.skipIf(!hasDb)("Platform backoffice W2 e2e — usage · reconciliation 
         stepNodeId: "t",
       })),
     });
-    await owner.event.create({ data: { workspaceId: ws, type: "call.completed.v1", payload: { callId: "x", durationSec: 180, outcome: "done" }, occurredAt: AT, createdAt: AT } });
+    await owner.event.create({
+      data: {
+        workspaceId: ws,
+        type: "call.completed.v1",
+        payload: { callId: "x", durationSec: 180, outcome: "done" },
+        occurredAt: AT,
+        createdAt: AT,
+      },
+    });
     await owner.creditLedger.createMany({
       data: [
         { workspaceId: ws, delta: 500, reason: "grant", balanceAfter: 500, createdAt: AT },
@@ -69,20 +97,54 @@ describe.skipIf(!hasDb)("Platform backoffice W2 e2e — usage · reconciliation 
     // anthropic is a metric we don't meter (→ null / not reconcilable).
     await owner.providerInvoice.createMany({
       data: [
-        { provider: "sendgrid", metric: "email_sends", quantity: 3, amount: 300, periodStart: P_START, periodEnd: P_END },
-        { provider: "twilio", metric: "voice_minutes", quantity: 5, amount: 600, periodStart: P_START, periodEnd: P_END },
-        { provider: "anthropic", metric: "ai_tokens", quantity: 1_000_000, amount: 1500, periodStart: P_START, periodEnd: P_END },
+        {
+          provider: "sendgrid",
+          metric: "email_sends",
+          quantity: 3,
+          amount: 300,
+          periodStart: P_START,
+          periodEnd: P_END,
+        },
+        {
+          provider: "twilio",
+          metric: "voice_minutes",
+          quantity: 5,
+          amount: 600,
+          periodStart: P_START,
+          periodEnd: P_END,
+        },
+        {
+          provider: "anthropic",
+          metric: "ai_tokens",
+          quantity: 1_000_000,
+          amount: 1500,
+          periodStart: P_START,
+          periodEnd: P_END,
+        },
       ],
     });
 
     // A platform default for the unique action, so the pricing test has a known baseline.
-    await owner.creditPrice.create({ data: { agencyId: null, action: ACT, credits: 1, effectiveFrom: new Date("2019-01-01T00:00:00.000Z") } });
+    await owner.creditPrice.create({
+      data: {
+        agencyId: null,
+        action: ACT,
+        credits: 1,
+        effectiveFrom: new Date("2019-01-01T00:00:00.000Z"),
+      },
+    });
 
-    const staff = await owner.platformStaff.create({ data: { email: `w2-ops-${suffix}@cf.test`, name: "Ops", role: "ADMIN", status: "ACTIVE" } });
+    const staff = await owner.platformStaff.create({
+      data: { email: `w2-ops-${suffix}@cf.test`, name: "Ops", role: "ADMIN", status: "ACTIVE" },
+    });
     staffToken = await signStaffToken({ sub: staff.id, email: staff.email, role: "ADMIN" });
-    const tenantUser = await owner.user.create({ data: { email: `w2-tenant-${suffix}@t.test`, authProviderId: `auth|w2-${suffix}` } });
+    const tenantUser = await owner.user.create({
+      data: { email: `w2-tenant-${suffix}@t.test`, authProviderId: `auth|w2-${suffix}` },
+    });
     tenantUserId = tenantUser.id;
-    await owner.membership.create({ data: { userId: tenantUser.id, workspaceId: ws, role: "OWNER" } });
+    await owner.membership.create({
+      data: { userId: tenantUser.id, workspaceId: ws, role: "OWNER" },
+    });
     tenantToken = await signDevToken(SECRET, { sub: `auth|w2-${suffix}`, email: tenantUser.email });
 
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
@@ -98,7 +160,9 @@ describe.skipIf(!hasDb)("Platform backoffice W2 e2e — usage · reconciliation 
       await owner.creditLedger.deleteMany({ where: { workspaceId: ws } });
       await owner.event.deleteMany({ where: { workspaceId: ws } });
       await owner.message.deleteMany({ where: { workspaceId: ws } });
-      await owner.backofficeAuditLog.deleteMany({ where: { targetId: { in: [agencyId, ws, "platform"] } } });
+      await owner.backofficeAuditLog.deleteMany({
+        where: { targetId: { in: [agencyId, ws, "platform"] } },
+      });
       await owner.agency.delete({ where: { id: agencyId } }).catch(() => undefined);
       await owner.user.deleteMany({ where: { id: tenantUserId } });
       await owner.platformStaff.deleteMany({ where: { email: `w2-ops-${suffix}@cf.test` } });
@@ -117,7 +181,9 @@ describe.skipIf(!hasDb)("Platform backoffice W2 e2e — usage · reconciliation 
 
   it("usage rollup matches the seeded consumption (AI spend honest-absent)", async () => {
     const res = await request(app.getHttpServer())
-      .get(`/backoffice/usage?scope=workspace&id=${ws}&from=2019-04-01T00:00:00.000Z&to=2019-04-30T23:59:59.000Z`)
+      .get(
+        `/backoffice/usage?scope=workspace&id=${ws}&from=2019-04-01T00:00:00.000Z&to=2019-04-30T23:59:59.000Z`,
+      )
       .set(staff());
     expect(res.status).toBe(200);
     expect(res.body.sendsByChannel.email).toBe(3);
@@ -132,7 +198,9 @@ describe.skipIf(!hasDb)("Platform backoffice W2 e2e — usage · reconciliation 
       .get("/backoffice/reconciliation?month=2019-04")
       .set(staff());
     expect(res.status).toBe(200);
-    const byProvider = Object.fromEntries(res.body.map((r: { provider: string }) => [r.provider, r]));
+    const byProvider = Object.fromEntries(
+      res.body.map((r: { provider: string }) => [r.provider, r]),
+    );
     expect(byProvider.sendgrid.meteredQuantity).toBe(3);
     expect(byProvider.sendgrid.variance).toBe(0);
     expect(byProvider.sendgrid.matchesInvoice).toBe(true);
@@ -163,7 +231,12 @@ describe.skipIf(!hasDb)("Platform backoffice W2 e2e — usage · reconciliation 
       .set(staff());
     const emailAfter = after.body.effective.find((e: { action: string }) => e.action === ACT);
     expect(emailAfter.credits).toBe(7);
-    expect(after.body.history.some((r: { agencyId: string | null; credits: number }) => r.agencyId === agencyId && r.credits === 7)).toBe(true);
+    expect(
+      after.body.history.some(
+        (r: { agencyId: string | null; credits: number }) =>
+          r.agencyId === agencyId && r.credits === 7,
+      ),
+    ).toBe(true);
 
     // A newer override supersedes it (history keeps both).
     await request(app.getHttpServer())
@@ -175,7 +248,10 @@ describe.skipIf(!hasDb)("Platform backoffice W2 e2e — usage · reconciliation 
       .get(`/backoffice/credit-prices?agencyId=${agencyId}`)
       .set(staff());
     expect(latest.body.effective.find((e: { action: string }) => e.action === ACT).credits).toBe(9);
-    expect(latest.body.history.filter((r: { agencyId: string | null }) => r.agencyId === agencyId).length).toBe(2);
+    expect(
+      latest.body.history.filter((r: { agencyId: string | null }) => r.agencyId === agencyId)
+        .length,
+    ).toBe(2);
 
     // Every price change is audited.
     const audit = await request(app.getHttpServer())

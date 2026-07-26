@@ -8,9 +8,20 @@
  *   update_deal_stage finds it). HubSpot is a stateful in-memory script.
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createAppPrismaClient, createPrismaClient, decryptField, type PrismaClient } from "@clientforce/db";
+import {
+  createAppPrismaClient,
+  createPrismaClient,
+  decryptField,
+  type PrismaClient,
+} from "@clientforce/db";
 import { evaluateEventForRules, type RuleEngineDeps } from "@clientforce/automations";
-import { HubspotAdapter, connectHubspotFields, deliverCrm, encryptCredentials, type IntegrationsDeps } from "../src";
+import {
+  HubspotAdapter,
+  connectHubspotFields,
+  deliverCrm,
+  encryptCredentials,
+  type IntegrationsDeps,
+} from "../src";
 
 process.env.FIELD_ENCRYPTION_KEY ??= Buffer.alloc(32, 7).toString("base64");
 const hasInfra = Boolean(process.env.APP_DATABASE_URL ?? process.env.DATABASE_URL);
@@ -22,7 +33,8 @@ function statefulHub(opts?: { authFail?: boolean; accountInfo?: number; assocFai
   let nextD = 1;
   const contacts = new Map<string, string>(); // email → id
   const deals: Array<{ id: string; stage?: string }> = [];
-  const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { "Content-Type": "application/json" } });
+  const json = (b: unknown, s = 200) =>
+    new Response(JSON.stringify(b), { status: s, headers: { "Content-Type": "application/json" } });
   const adapter = new HubspotAdapter({
     baseUrl: "https://hub.test",
     fetchImpl: async (url, init) => {
@@ -32,7 +44,10 @@ function statefulHub(opts?: { authFail?: boolean; accountInfo?: number; assocFai
       if (u.endsWith("/account-info/v3/details")) {
         // A write-only Service Key can't read /account-info → 401 even when the token is valid.
         return opts?.accountInfo && opts.accountInfo >= 400
-          ? json({ status: "error", category: "MISSING_SCOPES", message: "missing read scope" }, opts.accountInfo)
+          ? json(
+              { status: "error", category: "MISSING_SCOPES", message: "missing read scope" },
+              opts.accountInfo,
+            )
           : json({ portalId: 777 });
       }
       if (u.endsWith("/crm/v3/objects/contacts/search")) {
@@ -54,7 +69,14 @@ function statefulHub(opts?: { authFail?: boolean; accountInfo?: number; assocFai
       }
       if (u.includes("/crm/v4/objects/deals/") && method === "PUT")
         return opts?.assocFail
-          ? json({ status: "error", category: "VALIDATION_ERROR", message: "One or more associations are invalid" }, 400) // a write-only key
+          ? json(
+              {
+                status: "error",
+                category: "VALIDATION_ERROR",
+                message: "One or more associations are invalid",
+              },
+              400,
+            ) // a write-only key
           : new Response(null, { status: 204 });
       if (u.includes("/crm/v3/objects/deals/") && method === "PATCH") {
         const id = u.split("/crm/v3/objects/deals/")[1]!;
@@ -92,12 +114,45 @@ describe.skipIf(!hasInfra)("one-way CRM push (INT W4)", () => {
   beforeAll(async () => {
     owner = createPrismaClient();
     app = createAppPrismaClient();
-    agencyId = (await owner.agency.create({ data: { name: suffix, slug: suffix, branding: {} } })).id;
-    ws = (await owner.workspace.create({ data: { agencyId, name: "w4", slug: suffix, settings: {} } })).id;
-    const agentId = (await owner.agent.create({ data: { workspaceId: ws, name: "Closer", goal: "close_deals", guardrails: {} } })).id;
-    campaignId = (await owner.campaign.create({ data: { workspaceId: ws, agentId, name: "primary", graphId: "" } })).id;
-    contactId = (await owner.contact.create({ data: { workspaceId: ws, source: "test", optOut: {}, tags: [], email: `ada-${suffix}@t.test`, firstName: "Ada" } })).id;
-    enrollmentId = (await owner.enrollment.create({ data: { workspaceId: ws, campaignId, contactId, workflowId: `w4-${suffix}`, pipelineStage: "engaged", meta: {} } })).id;
+    agencyId = (await owner.agency.create({ data: { name: suffix, slug: suffix, branding: {} } }))
+      .id;
+    ws = (
+      await owner.workspace.create({ data: { agencyId, name: "w4", slug: suffix, settings: {} } })
+    ).id;
+    const agentId = (
+      await owner.agent.create({
+        data: { workspaceId: ws, name: "Closer", goal: "close_deals", guardrails: {} },
+      })
+    ).id;
+    campaignId = (
+      await owner.campaign.create({
+        data: { workspaceId: ws, agentId, name: "primary", graphId: "" },
+      })
+    ).id;
+    contactId = (
+      await owner.contact.create({
+        data: {
+          workspaceId: ws,
+          source: "test",
+          optOut: {},
+          tags: [],
+          email: `ada-${suffix}@t.test`,
+          firstName: "Ada",
+        },
+      })
+    ).id;
+    enrollmentId = (
+      await owner.enrollment.create({
+        data: {
+          workspaceId: ws,
+          campaignId,
+          contactId,
+          workflowId: `w4-${suffix}`,
+          pipelineStage: "engaged",
+          meta: {},
+        },
+      })
+    ).id;
   });
   afterAll(async () => {
     await owner.agency.delete({ where: { id: agencyId } }).catch(() => {});
@@ -121,7 +176,9 @@ describe.skipIf(!hasInfra)("one-way CRM push (INT W4)", () => {
     expect(row.status).toBe("connected");
     expect(row.accountLabel).toBe("HubSpot"); // portal unknown — the first push is the real probe
     // the token is really stored (trimmed), so deliverCrm can validate it at push time
-    expect((JSON.parse(decryptField(row.credentialsEnc!)) as { apiToken?: string }).apiToken).toBe("sk-writeonly-key");
+    expect((JSON.parse(decryptField(row.credentialsEnc!)) as { apiToken?: string }).apiToken).toBe(
+      "sk-writeonly-key",
+    );
   });
 
   it("create_deal: upsert + create + associate → delivered with the deal id; a redelivery dedupes (no second create)", async () => {
@@ -172,13 +229,21 @@ describe.skipIf(!hasInfra)("one-way CRM push (INT W4)", () => {
 
   it("update_stage with NO stored deal refuses typed (never a silent no-op)", async () => {
     const hub = statefulHub();
-    const res = await deliverCrm(deps(hub), { workspaceId: ws, op: "update_stage", sourceEventId: `evt-${suffix}-u0#rule:r#a:0`, stage: "closedwon" });
+    const res = await deliverCrm(deps(hub), {
+      workspaceId: ws,
+      op: "update_stage",
+      sourceEventId: `evt-${suffix}-u0#rule:r#a:0`,
+      stage: "closedwon",
+    });
     expect(res.delivered).toBe(false);
     expect(res.detail).toContain("no HubSpot deal");
   });
 
   it("a delivery-time 401 flips the hubspot row to the honest revoked state", async () => {
-    await owner.integration.updateMany({ where: { workspaceId: ws, provider: "hubspot" }, data: { status: "connected" } });
+    await owner.integration.updateMany({
+      where: { workspaceId: ws, provider: "hubspot" },
+      data: { status: "connected" },
+    });
     const hub = statefulHub({ authFail: true });
     const res = await deliverCrm(deps(hub), {
       workspaceId: ws,
@@ -188,7 +253,9 @@ describe.skipIf(!hasInfra)("one-way CRM push (INT W4)", () => {
       dealname: "x",
     });
     expect(res.delivered).toBe(false);
-    const row = await owner.integration.findFirstOrThrow({ where: { workspaceId: ws, provider: "hubspot" } });
+    const row = await owner.integration.findFirstOrThrow({
+      where: { workspaceId: ws, provider: "hubspot" },
+    });
     expect(row.status).toBe("revoked");
   });
 
@@ -199,10 +266,26 @@ describe.skipIf(!hasInfra)("one-way CRM push (INT W4)", () => {
     const hub = statefulHub();
     const engineDeps: RuleEngineDeps = {
       prisma: app,
-      crmTransport: async (p) => deliverCrm(deps(hub), { workspaceId: p.workspaceId, sourceEventId: p.sourceKey, op: p.op, ...(p.contact ? { contact: p.contact } : {}), ...(p.dealname ? { dealname: p.dealname } : {}), ...(p.stage ? { stage: p.stage } : {}), ...(p.dealId ? { dealId: p.dealId } : {}) }),
+      crmTransport: async (p) =>
+        deliverCrm(deps(hub), {
+          workspaceId: p.workspaceId,
+          sourceEventId: p.sourceKey,
+          op: p.op,
+          ...(p.contact ? { contact: p.contact } : {}),
+          ...(p.dealname ? { dealname: p.dealname } : {}),
+          ...(p.stage ? { stage: p.stage } : {}),
+          ...(p.dealId ? { dealId: p.dealId } : {}),
+        }),
     };
     const createRule = await owner.campaignRule.create({
-      data: { workspaceId: ws, campaignId, order: 0, enabled: true, trigger: { kind: "payment_received" }, actions: [{ kind: "create_crm_deal", stage: "qualifiedtobuy" }] },
+      data: {
+        workspaceId: ws,
+        campaignId,
+        order: 0,
+        enabled: true,
+        trigger: { kind: "payment_received" },
+        actions: [{ kind: "create_crm_deal", stage: "qualifiedtobuy" }],
+      },
     });
     const event = {
       id: `evt-${suffix}-eng`,
@@ -222,7 +305,10 @@ describe.skipIf(!hasInfra)("one-way CRM push (INT W4)", () => {
     expect(typeof storedDealId).toBe("string");
 
     // A later update_deal_stage rule finds the stored deal and moves it.
-    await owner.campaignRule.update({ where: { id: createRule.id }, data: { actions: [{ kind: "update_deal_stage", stage: "closedwon" }] } });
+    await owner.campaignRule.update({
+      where: { id: createRule.id },
+      data: { actions: [{ kind: "update_deal_stage", stage: "closedwon" }] },
+    });
     const moved = await evaluateEventForRules(engineDeps, { ...event, id: `evt-${suffix}-eng2` });
     expect(moved.matched).toBe(1);
     expect(hub.deals.find((d) => d.id === storedDealId)?.stage).toBe("closedwon");

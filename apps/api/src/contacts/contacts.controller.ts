@@ -30,7 +30,11 @@ import { Roles } from "../auth/decorators";
 import type { AuthenticatedRequest } from "../auth/request-context";
 import { PrismaService } from "../db/prisma.service";
 import { TenantClient } from "../db/tenant-client";
-import { VALIDATION_LIGHT_DEPS, VALIDATION_QUEUE, type ValidationLightDeps } from "./validation.providers";
+import {
+  VALIDATION_LIGHT_DEPS,
+  VALIDATION_QUEUE,
+  type ValidationLightDeps,
+} from "./validation.providers";
 
 interface CreateContactDto {
   email?: string;
@@ -41,7 +45,6 @@ interface CreateContactDto {
   title?: string;
   custom?: unknown;
 }
-
 
 /**
  * Minimal tenant-scoped resource used to exercise tenancy + RBAC:
@@ -56,8 +59,12 @@ export class ContactsController {
     private readonly tenant: TenantClient,
     private readonly prisma: PrismaService,
     @Inject(EVENTS_PUBLISHER) private readonly publisher: EventsPublisher,
-    @Optional() @Inject(VALIDATION_QUEUE) private readonly validationQueue: Queue<ValidationJob> | null,
-    @Optional() @Inject(VALIDATION_LIGHT_DEPS) private readonly lightDeps: ValidationLightDeps | null,
+    @Optional()
+    @Inject(VALIDATION_QUEUE)
+    private readonly validationQueue: Queue<ValidationJob> | null,
+    @Optional()
+    @Inject(VALIDATION_LIGHT_DEPS)
+    private readonly lightDeps: ValidationLightDeps | null,
   ) {}
 
   /**
@@ -102,7 +109,9 @@ export class ContactsController {
       // Workspace dedupe (case-insensitive) + suppression flags, one query each.
       const [existing, suppressions] = await Promise.all([
         tx.contact.findMany({
-          where: { OR: batch.map((b) => ({ email: { equals: b.email, mode: "insensitive" as const } })) },
+          where: {
+            OR: batch.map((b) => ({ email: { equals: b.email, mode: "insensitive" as const } })),
+          },
           select: { email: true },
         }),
         tx.suppression.findMany({ where: { channel: "email" }, select: { address: true } }),
@@ -175,7 +184,12 @@ export class ContactsController {
         const row = await tx.contactList.findUnique({ where: { id: dto.listId } });
         if (row && !row.archived) {
           await tx.contactListMember.createMany({
-            data: createdIds.map((contactId) => ({ workspaceId, listId: row.id, contactId, addedBy })),
+            data: createdIds.map((contactId) => ({
+              workspaceId,
+              listId: row.id,
+              contactId,
+              addedBy,
+            })),
             skipDuplicates: true,
           });
           list = { id: row.id, name: row.name, origin: row.origin };

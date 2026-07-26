@@ -44,9 +44,25 @@ class FakeEngine implements WorkflowEngine {
 const GRAPH_V1 = {
   entry: "step-1",
   nodes: [
-    { id: "step-1", type: "step", channel: "email", content: { subject: "Hello {{company}}", body: "Hi {{firstName}}, most practices lose bookings to phone tag. Our scheduler fills the gaps automatically." } },
+    {
+      id: "step-1",
+      type: "step",
+      channel: "email",
+      content: {
+        subject: "Hello {{company}}",
+        body: "Hi {{firstName}}, most practices lose bookings to phone tag. Our scheduler fills the gaps automatically.",
+      },
+    },
     { id: "delay-1", type: "delay", amount: 2, unit: "days" },
-    { id: "step-2", type: "step", channel: "email", content: { subject: "Following up", body: "Hi {{firstName}}, clients see 12 extra bookings a month. Setup takes one 20-minute call." } },
+    {
+      id: "step-2",
+      type: "step",
+      channel: "email",
+      content: {
+        subject: "Following up",
+        body: "Hi {{firstName}}, clients see 12 extra bookings a month. Setup takes one 20-minute call.",
+      },
+    },
     {
       id: "branch-reply",
       type: "branch",
@@ -61,11 +77,36 @@ const GRAPH_V1 = {
         { when: "default", goto: "end-lost" },
       ],
     },
-    { id: "step-reframe", type: "step", channel: "email", content: { body: "Value first.", threaded: true } },
-    { id: "step-ack", type: "step", channel: "email", content: { body: "Later then.", threaded: true } },
-    { id: "step-referral", type: "step", channel: "email", content: { body: "Who instead?", threaded: true } },
-    { id: "step-answer", type: "step", channel: "email", content: { body: "Here's the answer.", threaded: true } },
-    { id: "step-close", type: "step", channel: "email", content: { body: "All good.", threaded: true } },
+    {
+      id: "step-reframe",
+      type: "step",
+      channel: "email",
+      content: { body: "Value first.", threaded: true },
+    },
+    {
+      id: "step-ack",
+      type: "step",
+      channel: "email",
+      content: { body: "Later then.", threaded: true },
+    },
+    {
+      id: "step-referral",
+      type: "step",
+      channel: "email",
+      content: { body: "Who instead?", threaded: true },
+    },
+    {
+      id: "step-answer",
+      type: "step",
+      channel: "email",
+      content: { body: "Here's the answer.", threaded: true },
+    },
+    {
+      id: "step-close",
+      type: "step",
+      channel: "email",
+      content: { body: "All good.", threaded: true },
+    },
     { id: "end-won", type: "end" },
     { id: "end-lost", type: "end" },
   ],
@@ -107,7 +148,13 @@ describe.skipIf(!hasDb)("W3-4 sequence editor e2e (DEC-076)", () => {
     ).id;
     agentId = (
       await owner.agent.create({
-        data: { workspaceId: ws, name: "Editor", goal: "book_appointments", status: "ACTIVE", guardrails: {} },
+        data: {
+          workspaceId: ws,
+          name: "Editor",
+          goal: "book_appointments",
+          status: "ACTIVE",
+          guardrails: {},
+        },
       })
     ).id;
     const campaign = await owner.campaign.create({
@@ -118,17 +165,38 @@ describe.skipIf(!hasDb)("W3-4 sequence editor e2e (DEC-076)", () => {
     });
     await owner.campaign.update({ where: { id: campaign.id }, data: { graphId: g1.id } });
     await owner.senderConnection.create({
-      data: { workspaceId: ws, type: "CF_MANAGED", fromEmail: "agent@send.clientforce.io", fromName: "Sam" },
+      data: {
+        workspaceId: ws,
+        type: "CF_MANAGED",
+        fromEmail: "agent@send.clientforce.io",
+        fromName: "Sam",
+      },
     });
     // LH1 (DEC-087): validated fixtures — the gate holds unverified contacts.
     contactA = (
       await owner.contact.create({
-        data: { workspaceId: ws, source: "import", optOut: {}, tags: [], email: `a-${suffix}@t.test`, firstName: "Ada", emailVerdict: "valid" },
+        data: {
+          workspaceId: ws,
+          source: "import",
+          optOut: {},
+          tags: [],
+          email: `a-${suffix}@t.test`,
+          firstName: "Ada",
+          emailVerdict: "valid",
+        },
       })
     ).id;
     contactB = (
       await owner.contact.create({
-        data: { workspaceId: ws, source: "import", optOut: {}, tags: [], email: `b-${suffix}@t.test`, firstName: "Bea", emailVerdict: "valid" },
+        data: {
+          workspaceId: ws,
+          source: "import",
+          optOut: {},
+          tags: [],
+          email: `b-${suffix}@t.test`,
+          firstName: "Bea",
+          emailVerdict: "valid",
+        },
       })
     ).id;
     const u1 = await owner.user.create({
@@ -172,16 +240,45 @@ describe.skipIf(!hasDb)("W3-4 sequence editor e2e (DEC-076)", () => {
   it("an edit (add step + flip to guided) persists as v2 MANUAL through the edit gate", async () => {
     const graph = JSON.parse(JSON.stringify(GRAPH_V1)) as CampaignGraph;
     // add a step at the main-sequence end (the mutation helpers' shape)…
-    graph.nodes.splice(3, 0,
+    graph.nodes.splice(
+      3,
+      0,
       { id: "delay-added-1", type: "delay", amount: 2, unit: "days" },
-      { id: "step-added-1", type: "step", channel: "email", content: { subject: "Follow-up 3", body: "Hi {{firstName}}, one more thought for {{company}}…" } },
+      {
+        id: "step-added-1",
+        type: "step",
+        channel: "email",
+        content: {
+          subject: "Follow-up 3",
+          body: "Hi {{firstName}}, one more thought for {{company}}…",
+        },
+      },
     );
     graph.edges = graph.edges.filter((e) => !(e.from === "step-2" && e.to === "branch-reply"));
-    graph.edges.push({ from: "step-2", to: "delay-added-1" }, { from: "delay-added-1", to: "step-added-1" }, { from: "step-added-1", to: "branch-reply" });
+    graph.edges.push(
+      { from: "step-2", to: "delay-added-1" },
+      { from: "delay-added-1", to: "step-added-1" },
+      { from: "step-added-1", to: "branch-reply" },
+    );
     // …and flip step-2 to guided (brief instead of copy).
     graph.nodes = graph.nodes.map((n) =>
       n.id === "step-2" && n.type === "step"
-        ? { id: n.id, type: n.type, channel: n.channel, content: {}, mode: "guided" as const, brief: { objective: "Land the value message", talkingPoints: ["12 extra bookings a month on average", "Setup takes one 20-minute call", "Phone-tag losses stop immediately"], subjectHint: "the bookings their phone line is leaking" } }
+        ? {
+            id: n.id,
+            type: n.type,
+            channel: n.channel,
+            content: {},
+            mode: "guided" as const,
+            brief: {
+              objective: "Land the value message",
+              talkingPoints: [
+                "12 extra bookings a month on average",
+                "Setup takes one 20-minute call",
+                "Phone-tag losses stop immediately",
+              ],
+              subjectHint: "the bookings their phone line is leaking",
+            },
+          }
         : n,
     );
     const res = await request(app.getHttpServer())
@@ -203,8 +300,12 @@ describe.skipIf(!hasDb)("W3-4 sequence editor e2e (DEC-076)", () => {
     const s2 = pinned.graph.nodes.find((n) => n.id === "step-2");
     expect(s2?.type === "step" && s2.mode).toBeUndefined();
     // The row's audit still says v1.
-    const rows = await request(app.getHttpServer()).get(`/enrollments?agentId=${agentId}`).set(asOwner());
-    const a = (rows.body as Array<{ contactId: string; meta: { graphVersion?: number } }>).find((r) => r.contactId === contactA);
+    const rows = await request(app.getHttpServer())
+      .get(`/enrollments?agentId=${agentId}`)
+      .set(asOwner());
+    const a = (rows.body as Array<{ contactId: string; meta: { graphVersion?: number } }>).find(
+      (r) => r.contactId === contactA,
+    );
     expect(a?.meta.graphVersion).toBe(1);
   });
 
@@ -233,7 +334,12 @@ describe.skipIf(!hasDb)("W3-4 sequence editor e2e (DEC-076)", () => {
     const graph = JSON.parse(JSON.stringify(GRAPH_V1)) as CampaignGraph;
     graph.nodes = graph.nodes.map((n) =>
       n.id === "branch-reply" && n.type === "branch"
-        ? { ...n, cases: n.cases.filter((c) => c.when === "default" || c.when.intent !== "not_interested") }
+        ? {
+            ...n,
+            cases: n.cases.filter(
+              (c) => c.when === "default" || c.when.intent !== "not_interested",
+            ),
+          }
         : n,
     );
     const res = await request(app.getHttpServer())
@@ -242,12 +348,16 @@ describe.skipIf(!hasDb)("W3-4 sequence editor e2e (DEC-076)", () => {
       .send({ agentId, graph });
     expect(res.status).toBe(422);
     expect(res.body.detail).toMatch(/lost its case for intent "not_interested"/);
-    const latest = await request(app.getHttpServer()).get(`/planner/graph?agentId=${agentId}`).set(asOwner());
+    const latest = await request(app.getHttpServer())
+      .get(`/planner/graph?agentId=${agentId}`)
+      .set(asOwner());
     expect(latest.body.graph.version).toBe(2); // v2 is still the newest — nothing persisted
   });
 
   it("the deterministic auto-repair path fixes the unambiguous and reports it", async () => {
-    const current = (await request(app.getHttpServer()).get(`/planner/graph?agentId=${agentId}`).set(asOwner())).body.graph.graph as CampaignGraph;
+    const current = (
+      await request(app.getHttpServer()).get(`/planner/graph?agentId=${agentId}`).set(asOwner())
+    ).body.graph.graph as CampaignGraph;
     const messy = {
       ...current,
       edges: [...current.edges, { from: "step-1", to: "delay-1" }, { from: "ghost", to: "step-1" }],
@@ -265,7 +375,9 @@ describe.skipIf(!hasDb)("W3-4 sequence editor e2e (DEC-076)", () => {
   });
 
   it("a guided edit with an invalid brief is refused at the SHAPE layer (min 3 talking points → 400)", async () => {
-    const current = (await request(app.getHttpServer()).get(`/planner/graph?agentId=${agentId}`).set(asOwner())).body.graph.graph as CampaignGraph;
+    const current = (
+      await request(app.getHttpServer()).get(`/planner/graph?agentId=${agentId}`).set(asOwner())
+    ).body.graph.graph as CampaignGraph;
     const bad = {
       ...current,
       nodes: current.nodes.map((n) =>
@@ -284,11 +396,15 @@ describe.skipIf(!hasDb)("W3-4 sequence editor e2e (DEC-076)", () => {
   });
 
   it("sms steps are gated on sender capability (DEC-061) — no Twilio sender, no sms edit", async () => {
-    const current = (await request(app.getHttpServer()).get(`/planner/graph?agentId=${agentId}`).set(asOwner())).body.graph.graph as CampaignGraph;
+    const current = (
+      await request(app.getHttpServer()).get(`/planner/graph?agentId=${agentId}`).set(asOwner())
+    ).body.graph.graph as CampaignGraph;
     const withSms = {
       ...current,
       nodes: current.nodes.map((n) =>
-        n.id === "step-1" && n.type === "step" ? { ...n, channel: "sms" as const, content: { body: "Hi {{firstName}} — quick nudge." } } : n,
+        n.id === "step-1" && n.type === "step"
+          ? { ...n, channel: "sms" as const, content: { body: "Hi {{firstName}} — quick nudge." } }
+          : n,
       ),
     };
     const res = await request(app.getHttpServer())

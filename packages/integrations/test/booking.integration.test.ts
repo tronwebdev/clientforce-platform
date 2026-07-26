@@ -86,16 +86,22 @@ describe.skipIf(!hasInfra)("booking ingest (INT W2)", () => {
   beforeAll(async () => {
     owner = createPrismaClient();
     app = createAppPrismaClient();
-    const agency = await owner.agency.create({ data: { name: suffix, slug: suffix, branding: {} } });
+    const agency = await owner.agency.create({
+      data: { name: suffix, slug: suffix, branding: {} },
+    });
     agencyId = agency.id;
-    ws = (await owner.workspace.create({ data: { agencyId, name: "w2", slug: suffix, settings: {} } })).id;
+    ws = (
+      await owner.workspace.create({ data: { agencyId, name: "w2", slug: suffix, settings: {} } })
+    ).id;
     agentId = (
       await owner.agent.create({
         data: { workspaceId: ws, name: "Booker", goal: "book_appointments", guardrails: {} },
       })
     ).id;
     campaignId = (
-      await owner.campaign.create({ data: { workspaceId: ws, agentId, name: "primary", graphId: "" } })
+      await owner.campaign.create({
+        data: { workspaceId: ws, agentId, name: "primary", graphId: "" },
+      })
     ).id;
     contactId = (
       await owner.contact.create({
@@ -197,9 +203,17 @@ describe.skipIf(!hasInfra)("booking ingest (INT W2)", () => {
       baseUrl: "https://slack.test/api",
       fetchImpl: async (url) => {
         const respond = (body: unknown) =>
-          new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
+          new Response(JSON.stringify(body), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
         if (String(url).endsWith("oauth.v2.access"))
-          return respond({ ok: true, access_token: "stubtok-x", scope: "chat:write", team: { id: "T1", name: "Bright" } });
+          return respond({
+            ok: true,
+            access_token: "stubtok-x",
+            scope: "chat:write",
+            team: { id: "T1", name: "Bright" },
+          });
         if (String(url).endsWith("auth.test")) return respond({ ok: true, team: "Bright" });
         return respond({ ok: true });
       },
@@ -247,9 +261,17 @@ describe.skipIf(!hasInfra)("booking ingest (INT W2)", () => {
     }
 
     // Pure pins: the record event maps to NOTHING.
-    expect(matchTrigger({ kind: "meeting_booked" }, { type: "calendar.booked.v1", payload: {} })).toBe(false);
     expect(
-      matchNotificationKind(asBusEvent({ workspaceId: ws, type: "calendar.booked.v1", payload: { provider: "calendly", meetingId: "m", startAt: "x" } })),
+      matchTrigger({ kind: "meeting_booked" }, { type: "calendar.booked.v1", payload: {} }),
+    ).toBe(false);
+    expect(
+      matchNotificationKind(
+        asBusEvent({
+          workspaceId: ws,
+          type: "calendar.booked.v1",
+          payload: { provider: "calendly", meetingId: "m", startAt: "x" },
+        }),
+      ),
     ).toBeNull();
 
     // EXACTLY ONE rule run (the stage-change event; calendar.booked.v1 fired nothing).
@@ -274,7 +296,11 @@ describe.skipIf(!hasInfra)("booking ingest (INT W2)", () => {
   it("correlation falls back to the lowercase email match when utm is absent", async () => {
     const result = await ingestBooking(
       deps(),
-      bookingInput({ externalId: `inv-${suffix}-email`, utmContent: undefined, inviteeEmail: `lead-${suffix}@t.TEST` }),
+      bookingInput({
+        externalId: `inv-${suffix}-email`,
+        utmContent: undefined,
+        inviteeEmail: `lead-${suffix}@t.TEST`,
+      }),
     );
     expect(result.matchedBy).toBe("email");
     const meeting = await owner.meeting.findFirstOrThrow({ where: { workspaceId: ws } });
@@ -284,7 +310,11 @@ describe.skipIf(!hasInfra)("booking ingest (INT W2)", () => {
   it("an unmatched invitee persists a contact-less Meeting row and acks WITHOUT events", async () => {
     const result = await ingestBooking(
       deps(),
-      bookingInput({ externalId: `inv-${suffix}-stranger`, utmContent: undefined, inviteeEmail: "nobody@else.test" }),
+      bookingInput({
+        externalId: `inv-${suffix}-stranger`,
+        utmContent: undefined,
+        inviteeEmail: "nobody@else.test",
+      }),
     );
     expect(result).toMatchObject({ outcome: "unmatched", matchedBy: "none", stageChanged: false });
     const meeting = await owner.meeting.findFirstOrThrow({ where: { workspaceId: ws } });
@@ -293,7 +323,10 @@ describe.skipIf(!hasInfra)("booking ingest (INT W2)", () => {
   });
 
   it("an already-booked enrollment gets NO second stage event (guarded transition)", async () => {
-    await owner.enrollment.update({ where: { id: enrollmentId }, data: { pipelineStage: "booked" } });
+    await owner.enrollment.update({
+      where: { id: enrollmentId },
+      data: { pipelineStage: "booked" },
+    });
     const result = await ingestBooking(deps(), bookingInput({ externalId: `inv-${suffix}-again` }));
     expect(result.stageChanged).toBe(false);
     expect(published.map((e) => e.type)).toEqual(["calendar.booked.v1"]);
@@ -324,7 +357,8 @@ describe.skipIf(!hasInfra)("booking ingest (INT W2)", () => {
 
   it("cancel + no-show: guarded flips, one event each, unknown ids ack as ignored, NO stage change", async () => {
     await ingestBooking(deps(), bookingInput({ externalId: `inv-${suffix}-c1` }));
-    const stageBefore = (await owner.enrollment.findUniqueOrThrow({ where: { id: enrollmentId } })).pipelineStage;
+    const stageBefore = (await owner.enrollment.findUniqueOrThrow({ where: { id: enrollmentId } }))
+      .pipelineStage;
     published.length = 0;
 
     const canceled = await ingestCancellation(deps(), {
@@ -336,7 +370,9 @@ describe.skipIf(!hasInfra)("booking ingest (INT W2)", () => {
     expect(canceled.outcome).toBe("canceled");
     expect(published.map((e) => e.type)).toEqual(["calendar.canceled.v1"]);
     expect(published[0]?.payload).toMatchObject({ reason: "canceled" });
-    expect((await owner.meeting.findFirstOrThrow({ where: { workspaceId: ws } })).status).toBe("canceled");
+    expect((await owner.meeting.findFirstOrThrow({ where: { workspaceId: ws } })).status).toBe(
+      "canceled",
+    );
     // NO stage change on cancel.
     expect(
       (await owner.enrollment.findUniqueOrThrow({ where: { id: enrollmentId } })).pipelineStage,
@@ -363,11 +399,21 @@ describe.skipIf(!hasInfra)("booking ingest (INT W2)", () => {
 
   it("a booking for a contact with NO enrollment records + announces but moves nothing", async () => {
     const loneContact = await owner.contact.create({
-      data: { workspaceId: ws, source: "test", optOut: {}, tags: [], email: `lone-${suffix}@t.test` },
+      data: {
+        workspaceId: ws,
+        source: "test",
+        optOut: {},
+        tags: [],
+        email: `lone-${suffix}@t.test`,
+      },
     });
     const result = await ingestBooking(
       deps(),
-      bookingInput({ externalId: `inv-${suffix}-lone`, utmContent: loneContact.id, inviteeEmail: `lone-${suffix}@t.test` }),
+      bookingInput({
+        externalId: `inv-${suffix}-lone`,
+        utmContent: loneContact.id,
+        inviteeEmail: `lone-${suffix}@t.test`,
+      }),
     );
     expect(result).toMatchObject({ outcome: "booked", stageChanged: false });
     expect(published.map((e) => e.type)).toEqual(["calendar.booked.v1"]);
@@ -382,9 +428,14 @@ describe.skipIf(!hasInfra)("booking ingest (INT W2)", () => {
         tokenUrl: "https://gcal.test/oauth2/token",
         fetchImpl: async (url) => {
           const respond = (body: unknown, status = 200) =>
-            new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+            new Response(JSON.stringify(body), {
+              status,
+              headers: { "Content-Type": "application/json" },
+            });
           if (String(url).endsWith("/oauth2/token"))
-            return respond(script.refresh?.() ?? { access_token: "stubtok-fresh", expires_in: 3600 });
+            return respond(
+              script.refresh?.() ?? { access_token: "stubtok-fresh", expires_in: 3600 },
+            );
           return respond(script.api?.() ?? { items: [] });
         },
       });
@@ -397,13 +448,21 @@ describe.skipIf(!hasInfra)("booking ingest (INT W2)", () => {
           status: "connected",
           config: {},
           scopes: [],
-          credentialsEnc: encryptCredentials({ accessToken, refreshToken: "stubtok-refresh", expiresAt }),
+          credentialsEnc: encryptCredentials({
+            accessToken,
+            refreshToken: "stubtok-refresh",
+            expiresAt,
+          }),
         },
       });
 
     it("refreshes an expired token, RE-ENCRYPTS + persists, then runs the call on the fresh token", async () => {
       const row = await seedGcalRow(new Date(Date.now() - 1000).toISOString());
-      const idps: IntegrationsDeps = { prisma: app, adapters: { gcal: gcalWith({}) }, log: () => undefined };
+      const idps: IntegrationsDeps = {
+        prisma: app,
+        adapters: { gcal: gcalWith({}) },
+        log: () => undefined,
+      };
       const seen: string[] = [];
       await withFreshCredentials(idps, row, async (creds) => {
         seen.push(String(creds.accessToken));
@@ -447,7 +506,10 @@ describe.skipIf(!hasInfra)("booking ingest (INT W2)", () => {
         clientSecret: "gsecret",
         tokenUrl: "https://gcal.test/oauth2/token",
         fetchImpl: async () =>
-          new Response(JSON.stringify({ error: "invalid_grant" }), { status: 400, headers: { "Content-Type": "application/json" } }),
+          new Response(JSON.stringify({ error: "invalid_grant" }), {
+            status: 400,
+            headers: { "Content-Type": "application/json" },
+          }),
       });
       const idps: IntegrationsDeps = {
         prisma: app,
@@ -461,12 +523,18 @@ describe.skipIf(!hasInfra)("booking ingest (INT W2)", () => {
       await expect(withFreshCredentials(idps, row, async () => "unreached")).rejects.toMatchObject({
         code: "PROVIDER_AUTH",
       });
-      expect((await owner.integration.findUniqueOrThrow({ where: { id: row.id } })).status).toBe("revoked");
+      expect((await owner.integration.findUniqueOrThrow({ where: { id: row.id } })).status).toBe(
+        "revoked",
+      );
       expect(events.map((e) => e.type)).toEqual(["integration.status_changed.v1"]);
     });
 
     it("REGRESSION PIN: Slack (no refresh method) passes through byte-identical — credentialsEnc untouched", async () => {
-      const slack = new SlackAdapter({ clientId: "cid", clientSecret: "csec", fetchImpl: async () => new Response("{}") });
+      const slack = new SlackAdapter({
+        clientId: "cid",
+        clientSecret: "csec",
+        fetchImpl: async () => new Response("{}"),
+      });
       const row = await owner.integration.create({
         data: {
           workspaceId: ws,
@@ -478,14 +546,16 @@ describe.skipIf(!hasInfra)("booking ingest (INT W2)", () => {
         },
       });
       const before = Buffer.from(
-        (await owner.integration.findUniqueOrThrow({ where: { id: row.id } })).credentialsEnc as Uint8Array,
+        (await owner.integration.findUniqueOrThrow({ where: { id: row.id } }))
+          .credentialsEnc as Uint8Array,
       );
       const idps: IntegrationsDeps = { prisma: app, adapters: { slack }, log: () => undefined };
       await withFreshCredentials(idps, row, async (creds) => {
         expect(creds.accessToken).toBe("stubtok-slack");
       });
       const after = Buffer.from(
-        (await owner.integration.findUniqueOrThrow({ where: { id: row.id } })).credentialsEnc as Uint8Array,
+        (await owner.integration.findUniqueOrThrow({ where: { id: row.id } }))
+          .credentialsEnc as Uint8Array,
       );
       expect(after.equals(before)).toBe(true);
     });

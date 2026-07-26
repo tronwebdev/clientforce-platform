@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: 'Type LIVE to confirm real SMS keywords will be exchanged between platform-owned numbers (and a number may be purchased)'
+        description: "Type LIVE to confirm real SMS keywords will be exchanged between platform-owned numbers (and a number may be purchased)"
         required: true
 
 permissions:

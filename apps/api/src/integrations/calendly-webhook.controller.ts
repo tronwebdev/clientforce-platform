@@ -44,7 +44,8 @@ interface CalendlyPayload {
   payload?: Record<string, unknown>;
 }
 
-const str = (v: unknown): string | undefined => (typeof v === "string" && v.length > 0 ? v : undefined);
+const str = (v: unknown): string | undefined =>
+  typeof v === "string" && v.length > 0 ? v : undefined;
 
 @Controller("webhooks")
 export class CalendlyWebhookController {
@@ -107,7 +108,8 @@ export class CalendlyWebhookController {
       const scheduled = (payload.scheduled_event ?? {}) as Record<string, unknown>;
       const externalId = str(payload.uri);
       const startAtRaw = str(scheduled.start_time);
-      if (!externalId || !startAtRaw) throw new BadRequestException("Malformed Calendly invitee payload");
+      if (!externalId || !startAtRaw)
+        throw new BadRequestException("Malformed Calendly invitee payload");
       const tracking = (payload.tracking ?? {}) as Record<string, unknown>;
       const endAtRaw = str(scheduled.end_time);
       const result = await ingestBooking(deps, {

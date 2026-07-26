@@ -13,7 +13,10 @@ const connectionFrom = (
 
 /** Enqueue a planning run (the wizard's step-2 "drafting sequence" polls the graph). */
 export function createPlanQueue(redisUrl?: string): Queue<PlanTarget> {
-  return new Queue<PlanTarget>(PLANNER_QUEUE_NAME, { connection: connectionFrom(redisUrl), prefix: BULL_PREFIX });
+  return new Queue<PlanTarget>(PLANNER_QUEUE_NAME, {
+    connection: connectionFrom(redisUrl),
+    prefix: BULL_PREFIX,
+  });
 }
 
 export function createPlanWorker(deps: PlanDeps, redisUrl?: string): Worker<PlanTarget> {

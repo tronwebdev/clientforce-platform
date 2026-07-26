@@ -169,7 +169,8 @@ export class VoiceController {
             outcome: c.outcome,
             durationSec: c.durationSec,
             startedAt: (c.startedAt ?? c.createdAt).toISOString(),
-            disclosureVariant: (c.meta as { disclosureVariant?: string } | null)?.disclosureVariant ?? null,
+            disclosureVariant:
+              (c.meta as { disclosureVariant?: string } | null)?.disclosureVariant ?? null,
           };
         }),
       };
@@ -193,7 +194,11 @@ export class VoiceController {
         select: { id: true, firstName: true, lastName: true, company: true },
       });
       const transcript = await tx.message.findMany({
-        where: { channel: "voice", contactId: call.contactId, meta: { path: ["callId"], equals: id } },
+        where: {
+          channel: "voice",
+          contactId: call.contactId,
+          meta: { path: ["callId"], equals: id },
+        },
         orderBy: { sentAt: "asc" },
       });
       const retrievals = await tx.callRetrieval.findMany({
@@ -281,7 +286,10 @@ export class VoiceController {
         data: { settings: { ...settings, voiceDefaults } as Prisma.InputJsonValue },
       });
       const next = parseWorkspaceVoiceDefaults(updated.settings);
-      return { spokenName: next.spokenName ?? null, recordingEnabled: next.recordingEnabled ?? false };
+      return {
+        spokenName: next.spokenName ?? null,
+        recordingEnabled: next.recordingEnabled ?? false,
+      };
     });
   }
 

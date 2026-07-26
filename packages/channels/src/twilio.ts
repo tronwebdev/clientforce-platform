@@ -32,7 +32,8 @@ export function parseTwilioConfig(sender: SenderConnection): TwilioSenderConfig 
  */
 export function smsSegmentCount(body: string): number {
   // Basic GSM-7 set + extension chars; anything else forces UCS-2.
-  const gsm7 = /^[A-Za-z0-9 @£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ!"#¤%&'()*+,\-./:;<=>?¡ÄÖÑÜ§¿äöñüà^{}\\[~\]|€]*$/;
+  const gsm7 =
+    /^[A-Za-z0-9 @£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ!"#¤%&'()*+,\-./:;<=>?¡ÄÖÑÜ§¿äöñüà^{}\\[~\]|€]*$/;
   const isGsm = gsm7.test(body);
   const len = body.length;
   if (len === 0) return 0;
@@ -57,7 +58,8 @@ export class TwilioSmsSender implements SmsSender {
     const cfg = parseTwilioConfig(sender);
     const sid = cfg.accountSid ?? this.accountSid;
     const token = cfg.authToken ?? this.authToken;
-    if (!sid || !token) throw new Error("Twilio credentials missing (TWILIO_ACCOUNT_SID/TWILIO_AUTH_TOKEN)");
+    if (!sid || !token)
+      throw new Error("Twilio credentials missing (TWILIO_ACCOUNT_SID/TWILIO_AUTH_TOKEN)");
     const res = await fetch(`${TWILIO_API}/Accounts/${sid}/Messages.json`, {
       method: "POST",
       headers: {
@@ -93,10 +95,18 @@ export function validateTwilioSignature(
   params: Record<string, string>,
   signature: string,
 ): boolean {
-  const data = url + Object.keys(params).sort().map((k) => k + params[k]).join("");
-  const expected = createHmac("sha1", authToken).update(Buffer.from(data, "utf-8")).digest("base64");
+  const data =
+    url +
+    Object.keys(params)
+      .sort()
+      .map((k) => k + params[k])
+      .join("");
+  const expected = createHmac("sha1", authToken)
+    .update(Buffer.from(data, "utf-8"))
+    .digest("base64");
   if (expected.length !== signature.length) return false;
   let diff = 0;
-  for (let i = 0; i < expected.length; i += 1) diff |= expected.charCodeAt(i) ^ signature.charCodeAt(i);
+  for (let i = 0; i < expected.length; i += 1)
+    diff |= expected.charCodeAt(i) ^ signature.charCodeAt(i);
   return diff === 0;
 }

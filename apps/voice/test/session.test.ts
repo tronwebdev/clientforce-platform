@@ -8,7 +8,12 @@
 import { describe, expect, it, vi } from "vitest";
 import { AiGateway } from "@clientforce/ai";
 import type { CompletionProvider, StreamEvent, StreamParams } from "@clientforce/ai";
-import { VOICE_FALLBACK_LINE, VOICE_FAILURE_GOODBYE, VOICE_REENGAGE_LINE, VOICE_BRIDGE_LINE } from "@clientforce/channels";
+import {
+  VOICE_FALLBACK_LINE,
+  VOICE_FAILURE_GOODBYE,
+  VOICE_REENGAGE_LINE,
+  VOICE_BRIDGE_LINE,
+} from "@clientforce/channels";
 import { CallSession, type CallSessionDeps } from "../src/session";
 import type { TtsStream, TtsStreamDeps } from "../src/deepgram-tts-stream";
 import { MetricsCollector } from "../src/metrics";
@@ -74,7 +79,10 @@ function makeSession(over: Partial<CallSessionDeps> & { provider?: CompletionPro
   const ends: string[] = [];
   const { provider, ...deps } = over;
   const session = new CallSession({
-    gateway: new AiGateway({ provider: provider ?? slowProvider("Short reply."), onUsage: () => {} }),
+    gateway: new AiGateway({
+      provider: provider ?? slowProvider("Short reply."),
+      onUsage: () => {},
+    }),
     metrics,
     deepgramKey: "fake",
     ttsModel: "aura-2-thalia-en",
@@ -343,7 +351,7 @@ describe("DEC-092 owner-approved fixes — never silence", () => {
       completeTool: async () => {
         throw new Error("not used");
       },
-       
+
       streamText: async function* (): AsyncIterable<StreamEvent> {
         yield { type: "done", usage: { inputTokens: 5, outputTokens: 0 } };
       },
@@ -398,7 +406,9 @@ describe("DEC-092 start-window wave — the disclosure rides the stream transpor
     s.metrics.markCallStart();
     s.session.start();
     await vi.waitFor(() => expect(s.metrics.disclosureCompleted).toBe(true));
-    expect(state.spoken.join(" ")).toContain("Hi, this is an AI assistant calling on behalf of Acme.");
+    expect(state.spoken.join(" ")).toContain(
+      "Hi, this is an AI assistant calling on behalf of Acme.",
+    );
     expect(s.counter.spoken).toHaveLength(0); // https path never used
     expect(s.metrics.ttsTransportUsed).toBe("stream");
     s.session.close();
@@ -418,7 +428,9 @@ describe("DEC-092 start-window wave — the disclosure rides the stream transpor
     s.metrics.markCallStart();
     s.session.start();
     await vi.waitFor(() => expect(s.metrics.disclosureCompleted).toBe(true));
-    expect(s.counter.spoken.join(" ")).toContain("Hi, this is an AI assistant calling on behalf of Acme.");
+    expect(s.counter.spoken.join(" ")).toContain(
+      "Hi, this is an AI assistant calling on behalf of Acme.",
+    );
     expect(s.metrics.ttsTransportUsed).toBe("stream→https");
     s.session.close();
   });
@@ -427,8 +439,8 @@ describe("DEC-092 start-window wave — the disclosure rides the stream transpor
 describe("DEC-092 owner findings wave — pacing, tail clear, silence ladder", () => {
   /** Stream fake delivering a fixed amount of audio per sentence in ONE burst
    *  — models Deepgram's faster-than-realtime delivery. */
-  const burstStream = (bytesPerSentence: number, state?: { spoken: string[] }) =>
-    (deps: TtsStreamDeps) =>
+  const burstStream =
+    (bytesPerSentence: number, state?: { spoken: string[] }) => (deps: TtsStreamDeps) =>
       ({
         alive: true,
         speak: async (text: string) => {

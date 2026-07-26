@@ -1043,7 +1043,65 @@ model Widget {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  /// WID2 (DEC-101): the PUBLIC credential a host page carries (`wgt_…`). The
+  /// only widget identifier that leaves the platform — the server resolves it
+  /// to workspace/agent, so no tenant id ever reaches the embedding page.
+  /// Nullable for additive safety (the INT W1 `credentialsEnc` precedent); the
+  /// builder mints one at create and the resolver requires it.
+  publicId String? @unique
+
+  /// The six flow toggles (core's `widgetFlowsSchema`). Ungated workspace
+  /// configuration — the panel renders only the active ones, so a flow whose
+  /// provider is absent is simply off rather than a placeholder.
+  flows Json?
+
+  /// Host origins allowed to embed this widget. Empty ⇒ any origin, which is
+  /// the honest default for a public marketing-page script; a tenant that sets
+  /// it gets the allow-list enforced.
+  allowedOrigins String[] @default([])
+
+  sessions WidgetSession[]
+
   @@index([workspaceId])
+}
+
+/// WID2 (DEC-101): one row per visitor conversation with an embedded widget.
+///
+/// Anonymous by construction — `contactId` stays null until a capture flow
+/// identifies the visitor, the FormSubmission precedent. Turns live as JSON on
+/// the row rather than as `Message` rows because `Message` requires a campaign
+/// AND a contact, neither of which exists for a stranger on a marketing page;
+/// promoting a captured thread into `Message` rows is the capture flows' job.
+model WidgetSession {
+  id          String  @id @default(cuid())
+  workspaceId String
+  widgetId    String
+  agentId     String
+  campaignId  String?
+  contactId   String?
+  /// "open" | "closed"
+  status      String  @default("open")
+  /// Append-only transcript: [{ id, role, text, at }] — core's WidgetMessage.
+  turns       Json    @default("[]")
+  /// Billable AI turns taken in this session — the per-session cap reads it,
+  /// and the credits path meters from it.
+  agentTurns  Int     @default(0)
+  pageUrl     String?
+  referrer    String?
+  locale      String?
+  /// The Origin header the boot arrived with — what the allow-list matched.
+  originHost  String?
+
+  startedAt   DateTime  @default(now())
+  lastEventAt DateTime  @default(now())
+  closedAt    DateTime?
+  meta        Json?
+
+  widget Widget @relation(fields: [widgetId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, startedAt])
+  @@index([widgetId, startedAt])
+  @@index([workspaceId, contactId])
 }
 
 // Client-billing / agency payouts (agency charging its own clients) are a

@@ -61,7 +61,12 @@ describe.skipIf(!hasInfra)("assertDialAllowed boundary integration", () => {
     });
     ws = workspace.id;
     const agent = await owner.agent.create({
-      data: { workspaceId: ws, name: "Voice Agent", goal: "book_appointments", guardrails: GUARDRAILS },
+      data: {
+        workspaceId: ws,
+        name: "Voice Agent",
+        goal: "book_appointments",
+        guardrails: GUARDRAILS,
+      },
     });
     agentId = agent.id;
     const campaign = await owner.campaign.create({
@@ -174,9 +179,11 @@ describe.skipIf(!hasInfra)("assertDialAllowed boundary integration", () => {
       }),
     );
     // now() is the same day the rows were created on — cap of 2 is met.
-    expect(await reasonOf(assertDialAllowed(deps({ now: () => new Date("2026-07-07T11:00:00Z") }), base()))).toBe(
-      "DAILY_CAP_REACHED",
-    );
+    expect(
+      await reasonOf(
+        assertDialAllowed(deps({ now: () => new Date("2026-07-07T11:00:00Z") }), base()),
+      ),
+    ).toBe("DAILY_CAP_REACHED");
     await withTenant(app, { workspaceId: ws }, (tx) =>
       tx.call.deleteMany({ where: { campaignId } }),
     );
@@ -205,9 +212,9 @@ describe.skipIf(!hasInfra)("assertDialAllowed boundary integration", () => {
   });
 
   it("RECIPIENT_NOT_ALLOWLISTED: a non-empty allow-list gates; empty = no restriction (sandbox is the guard)", async () => {
-    expect(
-      await reasonOf(assertDialAllowed(deps({ allowlist: ["+15005550000"] }), base())),
-    ).toBe("RECIPIENT_NOT_ALLOWLISTED");
+    expect(await reasonOf(assertDialAllowed(deps({ allowlist: ["+15005550000"] }), base()))).toBe(
+      "RECIPIENT_NOT_ALLOWLISTED",
+    );
     expect(await reasonOf(assertDialAllowed(deps({ allowlist: [] }), base()))).toBe("(allowed)");
   });
 });

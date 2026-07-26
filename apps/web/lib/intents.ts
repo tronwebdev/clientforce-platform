@@ -50,18 +50,19 @@ export function intentTint(intent: string): IntentTint {
  * every strategy chip is on-screen at 1440 (deviation flagged in DEC-068;
  * the row stays horizontally scrollable per the prototype).
  */
-export const INBOX_CATS: ReadonlyArray<{ id: string; label: string; intents: readonly string[] }> = [
-  { id: "all", label: "All", intents: [] },
-  { id: "interested", label: "Interested", intents: ["interested"] },
-  { id: "booked", label: "Meeting booked", intents: ["booked"] },
-  { id: "objection_price", label: "Price objection", intents: ["objection_price"] },
-  { id: "objection_timing", label: "Not now", intents: ["objection_timing"] },
-  { id: "wrong_person", label: "Wrong person", intents: ["wrong_person"] },
-  { id: "question", label: "Question", intents: ["question", "info_request"] },
-  { id: "not", label: "Not interested", intents: ["not", "not_interested"] },
-  { id: "replied", label: "Replied", intents: ["replied"] },
-  { id: "ooo", label: "Auto-reply", intents: ["ooo"] },
-];
+export const INBOX_CATS: ReadonlyArray<{ id: string; label: string; intents: readonly string[] }> =
+  [
+    { id: "all", label: "All", intents: [] },
+    { id: "interested", label: "Interested", intents: ["interested"] },
+    { id: "booked", label: "Meeting booked", intents: ["booked"] },
+    { id: "objection_price", label: "Price objection", intents: ["objection_price"] },
+    { id: "objection_timing", label: "Not now", intents: ["objection_timing"] },
+    { id: "wrong_person", label: "Wrong person", intents: ["wrong_person"] },
+    { id: "question", label: "Question", intents: ["question", "info_request"] },
+    { id: "not", label: "Not interested", intents: ["not", "not_interested"] },
+    { id: "replied", label: "Replied", intents: ["replied"] },
+    { id: "ooo", label: "Auto-reply", intents: ["ooo"] },
+  ];
 
 /** Branch-case "when" copy for the wizard/Steps views — verbatim fallback rule. */
 export function branchWhenLabel(when: { intent: string } | "default"): string {

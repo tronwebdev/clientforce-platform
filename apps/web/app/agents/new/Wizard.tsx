@@ -11,14 +11,54 @@
  * actions (the orchestrator); each step renders from props.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { addStep as addStepMutation, BRIEF_TALKING_POINTS_MIN, CONTACT_INVALID_MESSAGE, CONTEXT_FIELD_META, customTokensMissingFallback, GOAL_KEYS, GraphMutationError, GUIDED_EMAIL_CREDITS, GUIDED_SMS_CREDITS, requiredFieldsFor, subcampaignChains, updateDelay as updateDelayMutation, updateStepBrief, updateStepContent, type GoalKey } from "@clientforce/core";
-import type { CampaignGraph, CampaignOutcomes, CampaignRuleTrigger, ContactFieldDefDto, DraftState, GraphNode } from "@clientforce/core";
+import {
+  addStep as addStepMutation,
+  BRIEF_TALKING_POINTS_MIN,
+  CONTACT_INVALID_MESSAGE,
+  CONTEXT_FIELD_META,
+  customTokensMissingFallback,
+  GOAL_KEYS,
+  GraphMutationError,
+  GUIDED_EMAIL_CREDITS,
+  GUIDED_SMS_CREDITS,
+  requiredFieldsFor,
+  subcampaignChains,
+  updateDelay as updateDelayMutation,
+  updateStepBrief,
+  updateStepContent,
+  type GoalKey,
+} from "@clientforce/core";
+import type {
+  CampaignGraph,
+  CampaignOutcomes,
+  CampaignRuleTrigger,
+  ContactFieldDefDto,
+  DraftState,
+  GraphNode,
+} from "@clientforce/core";
 import type { SubcampaignCreated } from "../../../components/sequence/SubcampaignCreator";
 import { CfError } from "../../../components/sequence/shared";
 import type { WizardSubRule } from "./steps/Step2Sequence";
 import { mainSteps, strategyStepsOf } from "../../../lib/graph-path";
 import { goalFitOf } from "../../../lib/goal-fit";
-import { BSTEPS, BUILD_DELAYS, DEFAULT_CAPTURE, EMPTY_MANUAL, GRAD, cf, type AddMode, type AddedContact, type BriefDraft, type CaptureState, type Citation, type ContextField, type Gap, type KnowledgeSource, type PreviewState, type SenderRow } from "./shared";
+import {
+  BSTEPS,
+  BUILD_DELAYS,
+  DEFAULT_CAPTURE,
+  EMPTY_MANUAL,
+  GRAD,
+  cf,
+  type AddMode,
+  type AddedContact,
+  type BriefDraft,
+  type CaptureState,
+  type Citation,
+  type ContextField,
+  type Gap,
+  type KnowledgeSource,
+  type PreviewState,
+  type SenderRow,
+} from "./shared";
 import { BuildingScreen } from "./steps/BuildingScreen";
 import { Step1 } from "./steps/Step1Setup";
 import { Step2Sequence } from "./steps/Step2Sequence";
@@ -27,7 +67,6 @@ import { Step4Capture } from "./steps/Step4Capture";
 import { Step5Guardrails } from "./steps/Step5Guardrails";
 import { Step6Review } from "./steps/Step6Review";
 
-
 /** Per-field one-liner under each gap row (registry-driven). */
 const FIELD_HINTS: Record<string, string> = Object.fromEntries(
   Object.entries(CONTEXT_FIELD_META).map(([k, v]) => [k, v.hint]),
@@ -35,23 +74,60 @@ const FIELD_HINTS: Record<string, string> = Object.fromEntries(
 
 /** Rail + header copy, verbatim from the prototype's step defs. */
 const STEP_DEFS = [
-  { label: "Set the goal", hint: "Goal & build method", title: "Set the goal", subtitle: "Tell the agent what to achieve — it orchestrates the sequence, channels, and copy." },
-  { label: "Design sequence", hint: "AI-drafted steps", title: "Design the sequence", subtitle: "We drafted an outreach sequence — tweak any step." },
-  { label: "Add contacts", hint: "Import or find leads", title: "Add your contacts", subtitle: "Choose who this agent should reach out to." },
-  { label: "Enable lead capture", hint: "Optional inbound form", title: "Enable lead capture", subtitle: "Turn inbound interest into leads with a branded form." },
-  { label: "Guardrails & compliance", hint: "Consent, schedule & limits", title: "Guardrails & compliance", subtitle: "Set the rules your agent stays within — consent, sending windows, and limits." },
-  { label: "Preview & launch", hint: "Review & deploy", title: "Preview & launch", subtitle: "Review everything, then deploy your agent." },
+  {
+    label: "Set the goal",
+    hint: "Goal & build method",
+    title: "Set the goal",
+    subtitle: "Tell the agent what to achieve — it orchestrates the sequence, channels, and copy.",
+  },
+  {
+    label: "Design sequence",
+    hint: "AI-drafted steps",
+    title: "Design the sequence",
+    subtitle: "We drafted an outreach sequence — tweak any step.",
+  },
+  {
+    label: "Add contacts",
+    hint: "Import or find leads",
+    title: "Add your contacts",
+    subtitle: "Choose who this agent should reach out to.",
+  },
+  {
+    label: "Enable lead capture",
+    hint: "Optional inbound form",
+    title: "Enable lead capture",
+    subtitle: "Turn inbound interest into leads with a branded form.",
+  },
+  {
+    label: "Guardrails & compliance",
+    hint: "Consent, schedule & limits",
+    title: "Guardrails & compliance",
+    subtitle: "Set the rules your agent stays within — consent, sending windows, and limits.",
+  },
+  {
+    label: "Preview & launch",
+    hint: "Review & deploy",
+    title: "Preview & launch",
+    subtitle: "Review everything, then deploy your agent.",
+  },
 ];
 
 /** Success-overlay confetti, verbatim from the prototype. */
 const CONFETTI = [
-  { left: "8%", bg: "#36D7ED", size: 9, delay: "0s", dur: "2.6s" }, { left: "17%", bg: "#35E834", size: 7, delay: ".3s", dur: "3.1s" },
-  { left: "26%", bg: "#D0F56B", size: 11, delay: ".6s", dur: "2.4s" }, { left: "34%", bg: "#36D7ED", size: 6, delay: ".15s", dur: "2.9s" },
-  { left: "43%", bg: "#EEFC53", size: 9, delay: ".5s", dur: "3.3s" }, { left: "52%", bg: "#35E834", size: 8, delay: ".05s", dur: "2.7s" },
-  { left: "60%", bg: "#36D7ED", size: 10, delay: ".45s", dur: "3.0s" }, { left: "68%", bg: "#D0F56B", size: 7, delay: ".2s", dur: "2.5s" },
-  { left: "76%", bg: "#35E834", size: 9, delay: ".6s", dur: "3.2s" }, { left: "84%", bg: "#EEFC53", size: 6, delay: ".1s", dur: "2.8s" },
-  { left: "92%", bg: "#36D7ED", size: 8, delay: ".4s", dur: "3.0s" }, { left: "13%", bg: "#D0F56B", size: 7, delay: ".8s", dur: "2.6s" },
-  { left: "47%", bg: "#35E834", size: 10, delay: ".9s", dur: "3.1s" }, { left: "72%", bg: "#EEFC53", size: 8, delay: ".75s", dur: "2.9s" },
+  { left: "8%", bg: "#36D7ED", size: 9, delay: "0s", dur: "2.6s" },
+  { left: "17%", bg: "#35E834", size: 7, delay: ".3s", dur: "3.1s" },
+  { left: "26%", bg: "#D0F56B", size: 11, delay: ".6s", dur: "2.4s" },
+  { left: "34%", bg: "#36D7ED", size: 6, delay: ".15s", dur: "2.9s" },
+  { left: "43%", bg: "#EEFC53", size: 9, delay: ".5s", dur: "3.3s" },
+  { left: "52%", bg: "#35E834", size: 8, delay: ".05s", dur: "2.7s" },
+  { left: "60%", bg: "#36D7ED", size: 10, delay: ".45s", dur: "3.0s" },
+  { left: "68%", bg: "#D0F56B", size: 7, delay: ".2s", dur: "2.5s" },
+  { left: "76%", bg: "#35E834", size: 9, delay: ".6s", dur: "3.2s" },
+  { left: "84%", bg: "#EEFC53", size: 6, delay: ".1s", dur: "2.8s" },
+  { left: "92%", bg: "#36D7ED", size: 8, delay: ".4s", dur: "3.0s" },
+  { left: "13%", bg: "#D0F56B", size: 7, delay: ".8s", dur: "2.6s" },
+  { left: "47%", bg: "#35E834", size: 10, delay: ".9s", dur: "3.1s" },
+  { left: "72%", bg: "#EEFC53", size: 8, delay: ".75s", dur: "2.9s" },
 ];
 
 interface SystemHealth {
@@ -138,7 +214,9 @@ export function Wizard() {
   const distillKickPending = useRef(false);
   const distillKickFailed = useRef(false);
   const distillFailToasted = useRef(false);
-  const [uploadCfg, setUploadCfg] = useState<{ enabled: boolean; reason?: string | null } | null>(null);
+  const [uploadCfg, setUploadCfg] = useState<{ enabled: boolean; reason?: string | null } | null>(
+    null,
+  );
   const [aboutEditing, setAboutEditing] = useState(false);
   const [aboutDraft, setAboutDraft] = useState("");
 
@@ -189,7 +267,10 @@ export function Wizard() {
   // ✦ AI chips) for branches created this session; resumed drafts render
   // "Rule pending" (honest absence — provenance isn't persisted).
   const [subNewOpen, setSubNewOpen] = useState(false);
-  const [subNewPrefill, setSubNewPrefill] = useState<{ name: string; trigger: CampaignRuleTrigger } | null>(null);
+  const [subNewPrefill, setSubNewPrefill] = useState<{
+    name: string;
+    trigger: CampaignRuleTrigger;
+  } | null>(null);
   const [subRules, setSubRules] = useState<WizardSubRule[]>([]);
 
   // step 3
@@ -197,16 +278,28 @@ export function Wizard() {
   // as a modal over the step; the run lands in a list and the wizard keeps
   // only the REFERENCE (B6: name/count/sample resolve live, never copied).
   const [importOpen, setImportOpen] = useState(false);
-  const [csvImport, setCsvImport] = useState<{ listId: string; name: string; count: number } | null>(null);
+  const [csvImport, setCsvImport] = useState<{
+    listId: string;
+    name: string;
+    count: number;
+  } | null>(null);
   // the import flow's review-step estimate + admin gating (same inputs the
   // Contacts mount feeds it) — fetched when the modal first opens.
-  const [importRows, setImportRows] = useState<{ email: string | null; unsub: boolean }[] | null>(null);
+  const [importRows, setImportRows] = useState<{ email: string | null; unsub: boolean }[] | null>(
+    null,
+  );
   const [isAdmin, setIsAdmin] = useState(false);
   const [listOpen, setListOpen] = useState(false);
   // C2.8: "Choose a list" — picked list enrolls its members at launch
   // (SNAPSHOT semantics: resolved at deploy time, same path as CSV adds).
-  const [wizardLists, setWizardLists] = useState<{ id: string; name: string; memberCount: number; archived: boolean }[]>([]);
-  const [pickedList, setPickedList] = useState<{ id: string; name: string; memberCount: number } | null>(null);
+  const [wizardLists, setWizardLists] = useState<
+    { id: string; name: string; memberCount: number; archived: boolean }[]
+  >([]);
+  const [pickedList, setPickedList] = useState<{
+    id: string;
+    name: string;
+    memberCount: number;
+  } | null>(null);
   const [listSearch, setListSearch] = useState("");
   const [manualOpen, setManualOpen] = useState(false);
   const [manual, setManual] = useState(EMPTY_MANUAL);
@@ -215,7 +308,9 @@ export function Wizard() {
   const [added, setAdded] = useState<AddedContact[]>([]);
   // W3-7: audience-preview member rows per referenced list (first ~4, via the
   // existing contacts/view?listId= — display only; launch re-resolves fully).
-  const [listSamples, setListSamples] = useState<Record<string, { name: string; email: string; company: string }[]>>({});
+  const [listSamples, setListSamples] = useState<
+    Record<string, { name: string; email: string; company: string }[]>
+  >({});
 
   // step 4 — visual only (checkpoints §3): W3-9/W3-10 full config; `ap: null`
   // means the goal-fit default applies until the user toggles (W3-10).
@@ -276,7 +371,8 @@ export function Wizard() {
         if (ds.added) setAdded(ds.added);
         // W3-9: old drafts carry only {widget, form} — merge over defaults;
         // `ap` absent = no explicit choice, the goal-fit default applies.
-        if (ds.capture) setCapture({ ...DEFAULT_CAPTURE, ...ds.capture, ap: ds.capture.ap ?? null });
+        if (ds.capture)
+          setCapture({ ...DEFAULT_CAPTURE, ...ds.capture, ap: ds.capture.ap ?? null });
         if (typeof ds.dailyCap === "number") setDailyCap(ds.dailyCap);
         if (typeof ds.smsDailyCap === "number") setSmsDailyCap(ds.smsDailyCap);
         if (ds.windowStart) setWindowStart(ds.windowStart);
@@ -288,7 +384,12 @@ export function Wizard() {
           void cf("lists")
             .then((ls: { id: string; name: string; memberCount: number; archived: boolean }[]) => {
               const picked = ls.find((x) => x.id === ds.pickedListId && !x.archived);
-              if (picked) setPickedList({ id: picked.id, name: picked.name, memberCount: picked.memberCount });
+              if (picked)
+                setPickedList({
+                  id: picked.id,
+                  name: picked.name,
+                  memberCount: picked.memberCount,
+                });
               const csv = ls.find((x) => x.id === ds.csvListId && !x.archived);
               if (csv) setCsvImport({ listId: csv.id, name: csv.name, count: csv.memberCount });
             })
@@ -361,12 +462,35 @@ export function Wizard() {
           draftSaveFailed.current = false;
         })
         .catch(() => {
-          if (!draftSaveFailed.current) toast("Couldn't save your progress — check your connection.");
+          if (!draftSaveFailed.current)
+            toast("Couldn't save your progress — check your connection.");
           draftSaveFailed.current = true;
         });
     }, 800);
     return () => clearTimeout(t);
-  }, [agentId, launched, resuming, building, step, buildMethod, added, capture, dailyCap, smsDailyCap, windowStart, windowEnd, timezone, sendDays, quietHours, ramp, pickedList, csvImport, goalLabel, category, toast]);
+  }, [
+    agentId,
+    launched,
+    resuming,
+    building,
+    step,
+    buildMethod,
+    added,
+    capture,
+    dailyCap,
+    smsDailyCap,
+    windowStart,
+    windowEnd,
+    timezone,
+    sendDays,
+    quietHours,
+    ramp,
+    pickedList,
+    csvImport,
+    goalLabel,
+    category,
+    toast,
+  ]);
 
   // ── polling (A4: 5s) ────────────────────────────────────────────────────
   const readyCount = useRef(0);
@@ -412,9 +536,7 @@ export function Wizard() {
       // is DISTILLING (the same poll that flips it READY also delivers the
       // fresh fields + summary, so covered gaps/About update in one tick).
       if (!distillKickPending.current) {
-        setDistilling(
-          ctx.agent?.status === "DISTILLING" || ctx.workspace?.status === "DISTILLING",
-        );
+        setDistilling(ctx.agent?.status === "DISTILLING" || ctx.workspace?.status === "DISTILLING");
       }
     } catch {
       /* context not distilled yet — fine */
@@ -434,7 +556,11 @@ export function Wizard() {
           }),
         ),
       );
-      setGapMeta({ resolved: report.resolved ?? 0, total: report.total ?? 0, launchReady: report.launchReady ?? false });
+      setGapMeta({
+        resolved: report.resolved ?? 0,
+        total: report.total ?? 0,
+        launchReady: report.launchReady ?? false,
+      });
       setReportLoaded(true);
     } catch {
       /* gap report unavailable — the registry-seeded local gaps stay */
@@ -457,7 +583,10 @@ export function Wizard() {
   useEffect(() => {
     // W2 (#94): step 2 needs the live sender scan too — the sub-campaign
     // creator's email-backed triggers disable honestly without one.
-    if (step === 1 || step === 4) void cf("senders").then(setSenders).catch(() => {});
+    if (step === 1 || step === 4)
+      void cf("senders")
+        .then(setSenders)
+        .catch(() => {});
   }, [step]);
 
   // F1 (DEC-068): step-2 outcome badges — refetch on entry and on every graph
@@ -475,11 +604,17 @@ export function Wizard() {
 
   // DEC-026: the Upload-doc card is disabled-with-reason when storage is absent.
   useEffect(() => {
-    void cf("knowledge/upload-config").then(setUploadCfg).catch(() => setUploadCfg({ enabled: true }));
+    void cf("knowledge/upload-config")
+      .then(setUploadCfg)
+      .catch(() => setUploadCfg({ enabled: true }));
     // C2.7: workspace custom-field defs feed the token picker.
-    void cf("contact-fields").then(setFieldDefs).catch(() => {});
+    void cf("contact-fields")
+      .then(setFieldDefs)
+      .catch(() => {});
     // C2.8: saved lists feed the step-3 picker.
-    void cf("lists").then(setWizardLists).catch(() => {});
+    void cf("lists")
+      .then(setWizardLists)
+      .catch(() => {});
     // W3-1: the import flow's custom-field CREATE row is admin-gated (C2.7).
     void cf("me")
       .then((m: { role?: string }) => setIsAdmin(m.role === "OWNER" || m.role === "ADMIN"))
@@ -510,14 +645,23 @@ export function Wizard() {
       if (id in listSamples) continue;
       setListSamples((s) => ({ ...s, [id]: [] }));
       void cf(`contacts/view?listId=${id}`)
-        .then((res: { rows: { firstName: string | null; lastName: string | null; email: string | null; company: string | null }[] }) => {
-          const sample = res.rows.slice(0, 4).map((r) => ({
-            name: [r.firstName, r.lastName].filter(Boolean).join(" ") || (r.email ?? "Unknown"),
-            email: r.email ?? "—",
-            company: r.company ?? "—",
-          }));
-          setListSamples((s) => ({ ...s, [id]: sample }));
-        })
+        .then(
+          (res: {
+            rows: {
+              firstName: string | null;
+              lastName: string | null;
+              email: string | null;
+              company: string | null;
+            }[];
+          }) => {
+            const sample = res.rows.slice(0, 4).map((r) => ({
+              name: [r.firstName, r.lastName].filter(Boolean).join(" ") || (r.email ?? "Unknown"),
+              email: r.email ?? "—",
+              company: r.company ?? "—",
+            }));
+            setListSamples((s) => ({ ...s, [id]: sample }));
+          },
+        )
         .catch(() => {});
     }
   }, [pickedList?.id, csvImport?.listId, listSamples]);
@@ -549,10 +693,18 @@ export function Wizard() {
 
   /** Grounded-in chips: citations aggregated BY SOURCE (chunk ids never shown). */
   const groundedSources = useMemo(() => {
-    const bySource = new Map<string, { label: string; type: string; quotes: Citation[]; backs: Set<string> }>();
+    const bySource = new Map<
+      string,
+      { label: string; type: string; quotes: Citation[]; backs: Set<string> }
+    >();
     for (const [key, f] of Object.entries(fields)) {
       for (const c of f.citations ?? []) {
-        const entry = bySource.get(c.sourceId) ?? { label: c.sourceLabel, type: c.sourceType, quotes: [], backs: new Set<string>() };
+        const entry = bySource.get(c.sourceId) ?? {
+          label: c.sourceLabel,
+          type: c.sourceType,
+          quotes: [],
+          backs: new Set<string>(),
+        };
         entry.quotes.push(c);
         entry.backs.add(key.replace(/_/g, " "));
         bySource.set(c.sourceId, entry);
@@ -590,17 +742,31 @@ export function Wizard() {
   // are in play. Never an estimate, never a fake.
   const audienceTotal = added.length + (pickedList?.memberCount ?? 0) + (csvImport?.count ?? 0);
   const audienceSample = useMemo(() => {
-    const rows: { key: string; name: string; email: string; company: string; initials: string }[] = [];
+    const rows: { key: string; name: string; email: string; company: string; initials: string }[] =
+      [];
     const initialsOf = (name: string, email: string) => {
-      const parts = name.replace(/^dr\.?\s+/i, "").split(/\s+/).filter(Boolean);
+      const parts = name
+        .replace(/^dr\.?\s+/i, "")
+        .split(/\s+/)
+        .filter(Boolean);
       const ab = `${parts[0]?.[0] ?? ""}${parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? "") : ""}`;
       return (ab || email.slice(0, 2)).toUpperCase();
     };
     const push = (key: string, name: string, email: string, company: string) =>
       rows.push({ key, name, email, company, initials: initialsOf(name, email) });
-    if (pickedList) for (const [i, r] of (listSamples[pickedList.id] ?? []).entries()) push(`picked-${i}`, r.name, r.email, r.company);
-    if (csvImport) for (const [i, r] of (listSamples[csvImport.listId] ?? []).entries()) push(`csv-${i}`, r.name, r.email, r.company);
-    for (const a of added) push(a.id, [a.firstName, a.lastName].filter(Boolean).join(" ") || a.email, a.email, a.company ?? "—");
+    if (pickedList)
+      for (const [i, r] of (listSamples[pickedList.id] ?? []).entries())
+        push(`picked-${i}`, r.name, r.email, r.company);
+    if (csvImport)
+      for (const [i, r] of (listSamples[csvImport.listId] ?? []).entries())
+        push(`csv-${i}`, r.name, r.email, r.company);
+    for (const a of added)
+      push(
+        a.id,
+        [a.firstName, a.lastName].filter(Boolean).join(" ") || a.email,
+        a.email,
+        a.company ?? "—",
+      );
     return rows.slice(0, 4);
   }, [added, pickedList, csvImport, listSamples]);
 
@@ -613,7 +779,9 @@ export function Wizard() {
       .split(/[,;·\n]|\band\b/gi)
       .map((x) => x.trim().replace(/[.]+$/, "").toLowerCase())
       .filter((x) => x.length >= 3 && x.length <= 32 && /^[a-z0-9"'&() -]+$/i.test(x));
-    return [...new Set(parts)].filter((x) => !capture.apKeywords.some((k) => k.toLowerCase() === x)).slice(0, 6);
+    return [...new Set(parts)]
+      .filter((x) => !capture.apKeywords.some((k) => k.toLowerCase() === x))
+      .slice(0, 6);
   }, [fields, capture.apKeywords]);
 
   const stepValid = [
@@ -684,7 +852,12 @@ export function Wizard() {
       const id = await ensureAgent();
       await cf("knowledge/sources", {
         method: "POST",
-        body: JSON.stringify({ kind: "WEBSITE", uri: urlInput.trim(), label: urlInput.trim().replace(/^https?:\/\//, ""), agentId: id }),
+        body: JSON.stringify({
+          kind: "WEBSITE",
+          uri: urlInput.trim(),
+          label: urlInput.trim().replace(/^https?:\/\//, ""),
+          agentId: id,
+        }),
       });
       setUrlInput("");
       setAddMode(null);
@@ -845,7 +1018,10 @@ export function Wizard() {
     setDrafting(true);
     setPlanFailed(null);
     let postFailed = false;
-    const planned = cf("planner/plan", { method: "POST", body: JSON.stringify({ agentId: id }) }).catch((err: unknown) => {
+    const planned = cf("planner/plan", {
+      method: "POST",
+      body: JSON.stringify({ agentId: id }),
+    }).catch((err: unknown) => {
       postFailed = true;
       setPlanFailed(err instanceof Error ? err.message : String(err));
     });
@@ -1004,7 +1180,9 @@ export function Wizard() {
         return;
       }
       if (editBrief.talkingPoints.length < BRIEF_TALKING_POINTS_MIN) {
-        toast(`Add at least ${BRIEF_TALKING_POINTS_MIN} talking points — the composer needs material to draw from.`);
+        toast(
+          `Add at least ${BRIEF_TALKING_POINTS_MIN} talking points — the composer needs material to draw from.`,
+        );
         return;
       }
       const brief = {
@@ -1065,13 +1243,23 @@ export function Wizard() {
           kind: "composed",
           ...(res.composed.subject ? { subject: res.composed.subject } : {}),
           body: res.composed.body,
-          credits: res.credits ?? (editBrief?.channel === "email" ? GUIDED_EMAIL_CREDITS : GUIDED_SMS_CREDITS),
+          credits:
+            res.credits ??
+            (editBrief?.channel === "email" ? GUIDED_EMAIL_CREDITS : GUIDED_SMS_CREDITS),
         });
       } else if (res.refused) {
-        setPreview({ kind: "refused", reason: res.refused.reason, detail: res.refused.detail ?? "" });
+        setPreview({
+          kind: "refused",
+          reason: res.refused.reason,
+          detail: res.refused.detail ?? "",
+        });
       }
     } catch {
-      setPreview({ kind: "error", message: "Preview isn't available right now — AI composing may not be configured for this environment yet." });
+      setPreview({
+        kind: "error",
+        message:
+          "Preview isn't available right now — AI composing may not be configured for this environment yet.",
+      });
     }
     setPreviewBusy(false);
   }
@@ -1162,25 +1350,39 @@ export function Wizard() {
     setGraphVersion(created.version);
     setSubRules((rs) => [
       ...rs.filter((r) => r.ruleId !== created.ruleId),
-      { ruleId: created.ruleId, targetNodeId: created.subcampaignId, trigger: created.trigger, ai: created.builtWithAI },
+      {
+        ruleId: created.ruleId,
+        targetNodeId: created.subcampaignId,
+        trigger: created.trigger,
+        ai: created.builtWithAI,
+      },
     ]);
   }
 
   /** W3-1: a def created inside the import flow must land in the token
    *  picker too — the same refetch the mount effect ran. */
   function refreshFieldDefs() {
-    void cf("contact-fields").then(setFieldDefs).catch(() => {});
+    void cf("contact-fields")
+      .then(setFieldDefs)
+      .catch(() => {});
   }
 
   /** W3-1: the wizard's import lands in a referenceable list — with none
    *  picked, one is created from the file name at import start (name
    *  collisions get a numbered suffix; POST /lists 409s on duplicates). */
   async function ensureImportList(fileName: string): Promise<{ id: string; name: string }> {
-    const base = fileName.replace(/\.[^.]+$/, "").trim().slice(0, 72) || "CSV import";
+    const base =
+      fileName
+        .replace(/\.[^.]+$/, "")
+        .trim()
+        .slice(0, 72) || "CSV import";
     for (let i = 0; i < 20; i += 1) {
       const listName = i === 0 ? base : `${base} (${i + 1})`;
       try {
-        const created = await cf("lists", { method: "POST", body: JSON.stringify({ name: listName, origin: "csv_import" }) });
+        const created = await cf("lists", {
+          method: "POST",
+          body: JSON.stringify({ name: listName, origin: "csv_import" }),
+        });
         return { id: created.id as string, name: (created.name as string) ?? listName };
       } catch (err) {
         const status = err instanceof Error ? /:\s*(\d+)$/.exec(err.message)?.[1] : null;
@@ -1209,14 +1411,33 @@ export function Wizard() {
       .catch(() => {});
   }
 
-  async function addContacts(rows: Array<{ email: string; firstName?: string; lastName?: string; company?: string; phone?: string }>, src: "manual" | "csv") {
+  async function addContacts(
+    rows: Array<{
+      email: string;
+      firstName?: string;
+      lastName?: string;
+      company?: string;
+      phone?: string;
+    }>,
+    src: "manual" | "csv",
+  ) {
     for (const row of rows) {
       if (!row.email?.includes("@")) continue;
       try {
         const created = await cf("contacts", { method: "POST", body: JSON.stringify(row) });
         // 49-3: the source rides each entry so launch can tell the enrollment.
         // W3-7: name/company ride too — the audience-preview rows render them.
-        setAdded((a) => [...a, { id: created.id, email: row.email, firstName: row.firstName, lastName: row.lastName, company: row.company, src }]);
+        setAdded((a) => [
+          ...a,
+          {
+            id: created.id,
+            email: row.email,
+            firstName: row.firstName,
+            lastName: row.lastName,
+            company: row.company,
+            src,
+          },
+        ]);
       } catch {
         /* skip bad row */
       }
@@ -1227,7 +1448,10 @@ export function Wizard() {
     if (!agentId || !allResolved || deploying || launched) return;
     setDeploying(true);
     // B6: launch clears draftState — a launched agent is no longer resumable.
-    await cf(`agents/${agentId}`, { method: "PATCH", body: JSON.stringify({ status: "ACTIVE", draftState: null }) });
+    await cf(`agents/${agentId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ status: "ACTIVE", draftState: null }),
+    });
     // Enroll every added contact on the primary campaign — each POST starts one
     // durable CampaignWorkflow (P1.6); idempotent on (campaignId, contactId).
     // C2.8: a picked list enrolls its members THROUGH THE SAME PATH — the
@@ -1235,16 +1459,29 @@ export function Wizard() {
     // 49-3: each enrollment carries its provenance — the Leads tab's
     // ORIGINATED FROM column renders it. Adds win over list membership when a
     // contact arrives both ways (the more specific action).
-    const origins = new Map<string, { kind: "manual" | "csv" | "list"; listId?: string; listName?: string }>();
+    const origins = new Map<
+      string,
+      { kind: "manual" | "csv" | "list"; listId?: string; listName?: string }
+    >();
     if (pickedList) {
-      const members = ((await cf(`contacts/view?listId=${pickedList.id}`).catch(() => ({ rows: [] }))) as { rows: { id: string }[] }).rows;
-      for (const m of members) origins.set(m.id, { kind: "list", listId: pickedList.id, listName: pickedList.name });
+      const members = (
+        (await cf(`contacts/view?listId=${pickedList.id}`).catch(() => ({ rows: [] }))) as {
+          rows: { id: string }[];
+        }
+      ).rows;
+      for (const m of members)
+        origins.set(m.id, { kind: "list", listId: pickedList.id, listName: pickedList.name });
     }
     // W3-1: the CSV import's list resolves NOW too (reference, never a copy) —
     // members added to that list after the import still enroll at launch.
     if (csvImport) {
-      const members = ((await cf(`contacts/view?listId=${csvImport.listId}`).catch(() => ({ rows: [] }))) as { rows: { id: string }[] }).rows;
-      for (const m of members) origins.set(m.id, { kind: "csv", listId: csvImport.listId, listName: csvImport.name });
+      const members = (
+        (await cf(`contacts/view?listId=${csvImport.listId}`).catch(() => ({ rows: [] }))) as {
+          rows: { id: string }[];
+        }
+      ).rows;
+      for (const m of members)
+        origins.set(m.id, { kind: "csv", listId: csvImport.listId, listName: csvImport.name });
     }
     for (const c of added) origins.set(c.id, { kind: c.src ?? "manual" });
     // LH1 W3 (DEC-087): the enrollment gate answers per contact — enrolled
@@ -1255,13 +1492,21 @@ export function Wizard() {
     let refused = 0;
     const held = { unverified: 0, risky_held: 0, cap_overflow: 0 };
     for (const [contactId, origin] of origins) {
-      await cf("enrollments", { method: "POST", body: JSON.stringify({ agentId, contactId, origin }) })
+      await cf("enrollments", {
+        method: "POST",
+        body: JSON.stringify({ agentId, contactId, origin }),
+      })
         .then((res: { held?: boolean; reason?: keyof typeof held }) => {
           if (res.held && res.reason && res.reason in held) held[res.reason] += 1;
           else ok += 1;
         })
         .catch((err: unknown) => {
-          if (err instanceof CfError && err.status === 422 && err.detail === CONTACT_INVALID_MESSAGE) refused += 1;
+          if (
+            err instanceof CfError &&
+            err.status === 422 &&
+            err.detail === CONTACT_INVALID_MESSAGE
+          )
+            refused += 1;
         });
     }
     setEnrollTarget(origins.size);
@@ -1288,12 +1533,46 @@ export function Wizard() {
   // ── deploying overlay (prototype: dark, spinner) ─────────────────────────
   if (deploying) {
     return (
-      <div style={{ position: "fixed", inset: 0, zIndex: 55, background: "#0C140F", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 22 }} data-testid="launch-deploying">
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 55,
+          background: "#0C140F",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 22,
+        }}
+        data-testid="launch-deploying"
+      >
         <style>{`@keyframes cfBuildSpin{to{transform:rotate(360deg)}}`}</style>
-        <div style={{ width: 62, height: 62, borderRadius: "50%", border: "4px solid rgba(255,255,255,.12)", borderTopColor: "#35E834", animation: "cfBuildSpin .8s linear infinite" }} />
+        <div
+          style={{
+            width: 62,
+            height: 62,
+            borderRadius: "50%",
+            border: "4px solid rgba(255,255,255,.12)",
+            borderTopColor: "#35E834",
+            animation: "cfBuildSpin .8s linear infinite",
+          }}
+        />
         <div style={{ textAlign: "center" }}>
-          <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 22, color: "#fff", marginBottom: 6 }}>Launching your agent…</div>
-          <div style={{ fontSize: 13.5, color: "rgba(255,255,255,.5)" }}>Activating senders, scheduling sends &amp; arming automations</div>
+          <div
+            style={{
+              fontFamily: "'Bricolage Grotesque',sans-serif",
+              fontWeight: 700,
+              fontSize: 22,
+              color: "#fff",
+              marginBottom: 6,
+            }}
+          >
+            Launching your agent…
+          </div>
+          <div style={{ fontSize: 13.5, color: "rgba(255,255,255,.5)" }}>
+            Activating senders, scheduling sends &amp; arming automations
+          </div>
         </div>
       </div>
     );
@@ -1302,61 +1581,263 @@ export function Wizard() {
   // ── success overlay (prototype: confetti, pop rings, drawn check) ────────
   if (launched) {
     return (
-      <div style={{ position: "fixed", inset: 0, zIndex: 56, overflow: "hidden", background: "radial-gradient(120% 85% at 50% -5%, #13241A 0%, #0C140F 58%)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 40, textAlign: "center" }} data-testid="launch-success">
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 56,
+          overflow: "hidden",
+          background: "radial-gradient(120% 85% at 50% -5%, #13241A 0%, #0C140F 58%)",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 40,
+          textAlign: "center",
+        }}
+        data-testid="launch-success"
+      >
         <style>{`@keyframes cfSuccPop{0%{transform:scale(.5);opacity:0}60%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}@keyframes cfSuccRing{0%{transform:scale(.55);opacity:.65}100%{transform:scale(2);opacity:0}}@keyframes cfCheckDraw{from{stroke-dashoffset:42}to{stroke-dashoffset:0}}@keyframes cfFadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}@keyframes cfConfFall{0%{transform:translateY(-30px) rotate(0);opacity:0}12%{opacity:1}100%{transform:translateY(520px) rotate(600deg);opacity:0}}`}</style>
         {CONFETTI.map((c, i) => (
-          <span key={i} style={{ position: "absolute", top: -30, left: c.left, width: c.size, height: c.size, background: c.bg, borderRadius: 2, animation: `cfConfFall ${c.dur} linear ${c.delay} infinite` }} />
+          <span
+            key={i}
+            style={{
+              position: "absolute",
+              top: -30,
+              left: c.left,
+              width: c.size,
+              height: c.size,
+              background: c.bg,
+              borderRadius: 2,
+              animation: `cfConfFall ${c.dur} linear ${c.delay} infinite`,
+            }}
+          />
         ))}
-        <div style={{ position: "relative", width: 112, height: 112, marginBottom: 30, animation: "cfSuccPop .6s cubic-bezier(.2,.85,.25,1) both" }}>
-          <span style={{ position: "absolute", inset: 0, borderRadius: "50%", background: GRAD, animation: "cfSuccRing 1.8s ease-out .5s infinite" }} />
-          <span style={{ position: "absolute", inset: 0, borderRadius: "50%", background: GRAD, animation: "cfSuccRing 1.8s ease-out 1.1s infinite" }} />
-          <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: GRAD, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 18px 50px rgba(53,232,52,.4)" }}>
-            <svg width="50" height="50" viewBox="0 0 46 46"><path d="M13 24 L20 31 L33 16" fill="none" stroke="#0A0F0C" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="42" strokeDashoffset="42" style={{ animation: "cfCheckDraw .5s .55s ease forwards" }} /></svg>
+        <div
+          style={{
+            position: "relative",
+            width: 112,
+            height: 112,
+            marginBottom: 30,
+            animation: "cfSuccPop .6s cubic-bezier(.2,.85,.25,1) both",
+          }}
+        >
+          <span
+            style={{
+              position: "absolute",
+              inset: 0,
+              borderRadius: "50%",
+              background: GRAD,
+              animation: "cfSuccRing 1.8s ease-out .5s infinite",
+            }}
+          />
+          <span
+            style={{
+              position: "absolute",
+              inset: 0,
+              borderRadius: "50%",
+              background: GRAD,
+              animation: "cfSuccRing 1.8s ease-out 1.1s infinite",
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              borderRadius: "50%",
+              background: GRAD,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "0 18px 50px rgba(53,232,52,.4)",
+            }}
+          >
+            <svg width="50" height="50" viewBox="0 0 46 46">
+              <path
+                d="M13 24 L20 31 L33 16"
+                fill="none"
+                stroke="#0A0F0C"
+                strokeWidth="4.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeDasharray="42"
+                strokeDashoffset="42"
+                style={{ animation: "cfCheckDraw .5s .55s ease forwards" }}
+              />
+            </svg>
           </div>
         </div>
-        <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 34, letterSpacing: "-.02em", color: "#fff", marginBottom: 10, animation: "cfFadeUp .5s .3s both" }}>Your agent is live 🎉</div>
-        <div style={{ fontSize: 15.5, color: "rgba(255,255,255,.6)", maxWidth: 440, lineHeight: 1.55, marginBottom: 22, animation: "cfFadeUp .5s .42s both" }}>
-          <strong style={{ color: "#fff", fontWeight: 600 }}>{name}</strong> is now reaching {enrolled} contact{enrolled === 1 ? "" : "s"} over email. First sends go out in the next scheduled window.
+        <div
+          style={{
+            fontFamily: "'Bricolage Grotesque',sans-serif",
+            fontWeight: 800,
+            fontSize: 34,
+            letterSpacing: "-.02em",
+            color: "#fff",
+            marginBottom: 10,
+            animation: "cfFadeUp .5s .3s both",
+          }}
+        >
+          Your agent is live 🎉
+        </div>
+        <div
+          style={{
+            fontSize: 15.5,
+            color: "rgba(255,255,255,.6)",
+            maxWidth: 440,
+            lineHeight: 1.55,
+            marginBottom: 22,
+            animation: "cfFadeUp .5s .42s both",
+          }}
+        >
+          <strong style={{ color: "#fff", fontWeight: 600 }}>{name}</strong> is now reaching{" "}
+          {enrolled} contact{enrolled === 1 ? "" : "s"} over email. First sends go out in the next
+          scheduled window.
         </div>
         {/* LH1 W3 (DEC-087): honest gate outcomes — held contacts FLOW IN as
             verdicts return (never a blocking state); invalid are excluded. */}
         {enrollHeld.unverified > 0 ? (
-          <div style={{ fontSize: 12.5, color: "#D0F56B", marginBottom: 8, animation: "cfFadeUp .5s .45s both" }} data-testid="enroll-validating">
-            Validating {enrollHeld.unverified} contact{enrollHeld.unverified === 1 ? "" : "s"} — sending starts as they clear.
+          <div
+            style={{
+              fontSize: 12.5,
+              color: "#D0F56B",
+              marginBottom: 8,
+              animation: "cfFadeUp .5s .45s both",
+            }}
+            data-testid="enroll-validating"
+          >
+            Validating {enrollHeld.unverified} contact{enrollHeld.unverified === 1 ? "" : "s"} —
+            sending starts as they clear.
           </div>
         ) : null}
         {enrollHeld.risky_held > 0 ? (
-          <div style={{ fontSize: 12.5, color: "#E8C45B", marginBottom: 8, animation: "cfFadeUp .5s .46s both" }} data-testid="enroll-risky-held">
-            {enrollHeld.risky_held} risky address{enrollHeld.risky_held === 1 ? "" : "es"} held (workspace policy).
+          <div
+            style={{
+              fontSize: 12.5,
+              color: "#E8C45B",
+              marginBottom: 8,
+              animation: "cfFadeUp .5s .46s both",
+            }}
+            data-testid="enroll-risky-held"
+          >
+            {enrollHeld.risky_held} risky address{enrollHeld.risky_held === 1 ? "" : "es"} held
+            (workspace policy).
           </div>
         ) : null}
         {enrollHeld.cap_overflow > 0 ? (
-          <div style={{ fontSize: 12.5, color: "#E8C45B", marginBottom: 8, animation: "cfFadeUp .5s .46s both" }} data-testid="enroll-cap-queued">
+          <div
+            style={{
+              fontSize: 12.5,
+              color: "#E8C45B",
+              marginBottom: 8,
+              animation: "cfFadeUp .5s .46s both",
+            }}
+            data-testid="enroll-cap-queued"
+          >
             {enrollHeld.cap_overflow} queued by the daily enrollment cap — they enroll tomorrow.
           </div>
         ) : null}
         {enrollRefused > 0 ? (
-          <div style={{ fontSize: 12.5, color: "#E0796B", marginBottom: 8, animation: "cfFadeUp .5s .47s both" }} data-testid="enroll-refused">
-            {enrollRefused} invalid address{enrollRefused === 1 ? "" : "es"} excluded (list hygiene).
+          <div
+            style={{
+              fontSize: 12.5,
+              color: "#E0796B",
+              marginBottom: 8,
+              animation: "cfFadeUp .5s .47s both",
+            }}
+            data-testid="enroll-refused"
+          >
+            {enrollRefused} invalid address{enrollRefused === 1 ? "" : "es"} excluded (list
+            hygiene).
           </div>
         ) : null}
         {(() => {
-          const accounted = enrolled + enrollHeld.unverified + enrollHeld.risky_held + enrollHeld.cap_overflow + enrollRefused;
+          const accounted =
+            enrolled +
+            enrollHeld.unverified +
+            enrollHeld.risky_held +
+            enrollHeld.cap_overflow +
+            enrollRefused;
           const failedN = enrollTarget - accounted;
           return failedN > 0 ? (
-            <div style={{ fontSize: 12.5, color: "#E8C45B", marginBottom: 18, animation: "cfFadeUp .5s .47s both" }} data-testid="enroll-warning">
-              ⚠ {failedN} of {enrollTarget} contacts couldn&apos;t be enrolled — retry from the agent&apos;s Leads tab.
+            <div
+              style={{
+                fontSize: 12.5,
+                color: "#E8C45B",
+                marginBottom: 18,
+                animation: "cfFadeUp .5s .47s both",
+              }}
+              data-testid="enroll-warning"
+            >
+              ⚠ {failedN} of {enrollTarget} contacts couldn&apos;t be enrolled — retry from the
+              agent&apos;s Leads tab.
             </div>
           ) : null;
         })()}
-        <div style={{ display: "flex", gap: 9, marginBottom: 32, animation: "cfFadeUp .5s .52s both" }}>
-          {[`${stepCount}-step sequence`, "Email", `${enrolled} contact${enrolled === 1 ? "" : "s"}`].map((chip) => (
-            <span key={chip} style={{ fontSize: 12.5, fontWeight: 600, color: "#D0F56B", background: "rgba(208,245,107,.12)", border: "1px solid rgba(208,245,107,.25)", borderRadius: 100, padding: "7px 15px" }}>{chip}</span>
+        <div
+          style={{ display: "flex", gap: 9, marginBottom: 32, animation: "cfFadeUp .5s .52s both" }}
+        >
+          {[
+            `${stepCount}-step sequence`,
+            "Email",
+            `${enrolled} contact${enrolled === 1 ? "" : "s"}`,
+          ].map((chip) => (
+            <span
+              key={chip}
+              style={{
+                fontSize: 12.5,
+                fontWeight: 600,
+                color: "#D0F56B",
+                background: "rgba(208,245,107,.12)",
+                border: "1px solid rgba(208,245,107,.25)",
+                borderRadius: 100,
+                padding: "7px 15px",
+              }}
+            >
+              {chip}
+            </span>
           ))}
         </div>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14, animation: "cfFadeUp .5s .62s both" }}>
-          <a href={`/agents/${agentId}`} style={{ textDecoration: "none", fontFamily: "'Hanken Grotesk',sans-serif", fontWeight: 700, fontSize: 16, color: "#0A0F0C", background: GRAD, borderRadius: 13, padding: "15px 34px", boxShadow: "0 10px 30px rgba(53,232,52,.35)", cursor: "pointer" }} data-testid="view-agent">View agent dashboard →</a>
-          <span onClick={() => { window.location.href = "/agents/new"; }} style={{ fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,.55)", cursor: "pointer" }}>Create another agent</span>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 14,
+            animation: "cfFadeUp .5s .62s both",
+          }}
+        >
+          <a
+            href={`/agents/${agentId}`}
+            style={{
+              textDecoration: "none",
+              fontFamily: "'Hanken Grotesk',sans-serif",
+              fontWeight: 700,
+              fontSize: 16,
+              color: "#0A0F0C",
+              background: GRAD,
+              borderRadius: 13,
+              padding: "15px 34px",
+              boxShadow: "0 10px 30px rgba(53,232,52,.35)",
+              cursor: "pointer",
+            }}
+            data-testid="view-agent"
+          >
+            View agent dashboard →
+          </a>
+          <span
+            onClick={() => {
+              window.location.href = "/agents/new";
+            }}
+            style={{
+              fontSize: 14,
+              fontWeight: 600,
+              color: "rgba(255,255,255,.55)",
+              cursor: "pointer",
+            }}
+          >
+            Create another agent
+          </span>
         </div>
       </div>
     );
@@ -1365,140 +1846,659 @@ export function Wizard() {
   // B6: hold the canvas while the draft hydrates (avoids a step-1 flash
   // before the resumed step lands).
   if (resuming) {
-    return <div style={{ minHeight: "100vh", background: "#FBF7F0" }} data-testid="wizard-resuming" />;
+    return (
+      <div style={{ minHeight: "100vh", background: "#FBF7F0" }} data-testid="wizard-resuming" />
+    );
   }
 
-  const nextLabel = building ? "Building…" : step === 4 ? "Preview" : step === 0 ? "Generate with AI ✦" : "Next ›";
+  const nextLabel = building
+    ? "Building…"
+    : step === 4
+      ? "Preview"
+      : step === 0
+        ? "Generate with AI ✦"
+        : "Next ›";
 
   return (
     // overflowX "clip" (not "hidden"): hidden creates a scroll container and
     // kills every descendant position:sticky — the v2 rail footer must stick.
-    <div style={{ position: "relative", minHeight: "100vh", width: "100%", background: "#FBF7F0", fontFamily: "'Hanken Grotesk',sans-serif", overflowX: "clip" }}>
+    <div
+      style={{
+        position: "relative",
+        minHeight: "100vh",
+        width: "100%",
+        background: "#FBF7F0",
+        fontFamily: "'Hanken Grotesk',sans-serif",
+        overflowX: "clip",
+      }}
+    >
       {/* wizard top bar */}
-      <div style={{ boxSizing: "border-box", display: "flex", alignItems: "center", gap: 14, height: 66, padding: "16px 26px 16px 72px", borderBottom: "1px solid #EBE3D6", background: "#fff" }}>
-        <a href="/dashboard" style={{ boxSizing: "border-box", textDecoration: "none", display: "flex", alignItems: "center", gap: 7, height: 34, fontSize: 13.5, fontWeight: 600, color: "#5C6B62", border: "1px solid #EBE3D6", borderRadius: 10, padding: "0 13px", marginRight: 2 }}>‹ Dashboard</a>
-        <div style={{ width: 32, height: 32, borderRadius: 9, background: GRAD, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, color: "#0A0F0C", fontSize: 17 }}>f</div>
-        <span style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 18, color: "#0E1512" }}>New agent</span>
-        <span style={{ fontSize: 13, color: "#9AA59E", borderLeft: "1px solid #EBE3D6", paddingLeft: 14 }} data-testid="step-counter">Step {step + 1} of {STEP_DEFS.length}</span>
+      <div
+        style={{
+          boxSizing: "border-box",
+          display: "flex",
+          alignItems: "center",
+          gap: 14,
+          height: 66,
+          padding: "16px 26px 16px 72px",
+          borderBottom: "1px solid #EBE3D6",
+          background: "#fff",
+        }}
+      >
+        <a
+          href="/dashboard"
+          style={{
+            boxSizing: "border-box",
+            textDecoration: "none",
+            display: "flex",
+            alignItems: "center",
+            gap: 7,
+            height: 34,
+            fontSize: 13.5,
+            fontWeight: 600,
+            color: "#5C6B62",
+            border: "1px solid #EBE3D6",
+            borderRadius: 10,
+            padding: "0 13px",
+            marginRight: 2,
+          }}
+        >
+          ‹ Dashboard
+        </a>
+        <div
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: 9,
+            background: GRAD,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontFamily: "'Bricolage Grotesque',sans-serif",
+            fontWeight: 800,
+            color: "#0A0F0C",
+            fontSize: 17,
+          }}
+        >
+          f
+        </div>
+        <span
+          style={{
+            fontFamily: "'Bricolage Grotesque',sans-serif",
+            fontWeight: 700,
+            fontSize: 18,
+            color: "#0E1512",
+          }}
+        >
+          New agent
+        </span>
+        <span
+          style={{
+            fontSize: 13,
+            color: "#9AA59E",
+            borderLeft: "1px solid #EBE3D6",
+            paddingLeft: 14,
+          }}
+          data-testid="step-counter"
+        >
+          Step {step + 1} of {STEP_DEFS.length}
+        </span>
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12 }}>
           {agentId ? (
-            <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: "#16A82A" }} data-testid="draft-saved"><span style={{ width: 6, height: 6, borderRadius: "50%", background: "#35E834" }} />Draft saved · just now</span>
+            <span
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                fontSize: 12.5,
+                fontWeight: 600,
+                color: "#16A82A",
+              }}
+              data-testid="draft-saved"
+            >
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#35E834" }} />
+              Draft saved · just now
+            </span>
           ) : null}
-          <span style={{ boxSizing: "border-box", display: "flex", alignItems: "center", height: 34, fontSize: 13, fontWeight: 600, color: "#5C6B62", border: "1px solid #EBE3D6", borderRadius: 10, padding: "0 15px" }}>Help</span>
-          <a href="/dashboard" style={{ textDecoration: "none", width: 34, height: 34, borderRadius: 10, border: "1px solid #EBE3D6", display: "flex", alignItems: "center", justifyContent: "center", color: "#9AA59E" }}>✕</a>
+          <span
+            style={{
+              boxSizing: "border-box",
+              display: "flex",
+              alignItems: "center",
+              height: 34,
+              fontSize: 13,
+              fontWeight: 600,
+              color: "#5C6B62",
+              border: "1px solid #EBE3D6",
+              borderRadius: 10,
+              padding: "0 15px",
+            }}
+          >
+            Help
+          </span>
+          <a
+            href="/dashboard"
+            style={{
+              textDecoration: "none",
+              width: 34,
+              height: 34,
+              borderRadius: 10,
+              border: "1px solid #EBE3D6",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#9AA59E",
+            }}
+          >
+            ✕
+          </a>
         </div>
       </div>
 
       <div style={{ display: "flex", background: "#FBF7F0", paddingLeft: 64 }}>
-      {/* step rail — §3 v2: 332px, divider lives on the content, sticky footer */}
-      <div style={{ boxSizing: "border-box", flex: "none", width: 332, padding: "26px 24px 0", minHeight: 680, height: "calc(100vh - 66px)", position: "sticky", top: 0, alignSelf: "flex-start", display: "flex", flexDirection: "column" }}>
-        <div>
-          {STEP_DEFS.map((d, i) => {
-            const done = i < step;
-            const current = i === step;
-            return (
-              <div
-                key={d.label}
-                style={{ display: "flex", gap: 13, alignItems: "flex-start", padding: "12px 12px", borderRadius: 13, cursor: "pointer", marginBottom: 4, background: current ? "#fff" : "transparent" }}
-                onClick={() => !building && i <= step && setStep(i)}
-                data-testid={`rail-step-${i}`}
-              >
-                <span style={{ width: 30, height: 30, borderRadius: "50%", flex: "none", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, background: done ? "#16A82A" : current ? GRAD : "#fff", color: done ? "#fff" : current ? "#0A0F0C" : "#9AA59E", border: done || current ? "none" : "1px solid #D8CFBE" }}>
-                  {done ? "✓" : i + 1}
-                </span>
-                <div style={{ minWidth: 0, paddingTop: 2 }}>
-                  <div style={{ fontSize: 14.5, fontWeight: current ? 700 : 600, color: current ? "#0E1512" : done ? "#3B463F" : "#8A7F6B", whiteSpace: "nowrap" }}>{d.label}</div>
-                  <div style={{ fontSize: 12.5, color: "#9AA59E" }}>{d.hint}</div>
+        {/* step rail — §3 v2: 332px, divider lives on the content, sticky footer */}
+        <div
+          style={{
+            boxSizing: "border-box",
+            flex: "none",
+            width: 332,
+            padding: "26px 24px 0",
+            minHeight: 680,
+            height: "calc(100vh - 66px)",
+            position: "sticky",
+            top: 0,
+            alignSelf: "flex-start",
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          <div>
+            {STEP_DEFS.map((d, i) => {
+              const done = i < step;
+              const current = i === step;
+              return (
+                <div
+                  key={d.label}
+                  style={{
+                    display: "flex",
+                    gap: 13,
+                    alignItems: "flex-start",
+                    padding: "12px 12px",
+                    borderRadius: 13,
+                    cursor: "pointer",
+                    marginBottom: 4,
+                    background: current ? "#fff" : "transparent",
+                  }}
+                  onClick={() => !building && i <= step && setStep(i)}
+                  data-testid={`rail-step-${i}`}
+                >
+                  <span
+                    style={{
+                      width: 30,
+                      height: 30,
+                      borderRadius: "50%",
+                      flex: "none",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 14,
+                      fontWeight: 700,
+                      background: done ? "#16A82A" : current ? GRAD : "#fff",
+                      color: done ? "#fff" : current ? "#0A0F0C" : "#9AA59E",
+                      border: done || current ? "none" : "1px solid #D8CFBE",
+                    }}
+                  >
+                    {done ? "✓" : i + 1}
+                  </span>
+                  <div style={{ minWidth: 0, paddingTop: 2 }}>
+                    <div
+                      style={{
+                        fontSize: 14.5,
+                        fontWeight: current ? 700 : 600,
+                        color: current ? "#0E1512" : done ? "#3B463F" : "#8A7F6B",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {d.label}
+                    </div>
+                    <div style={{ fontSize: 12.5, color: "#9AA59E" }}>{d.hint}</div>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
-        <div style={{ marginTop: "auto", display: "flex", gap: 10, paddingTop: 14, position: "sticky", bottom: 0, background: "#FBF7F0", paddingBottom: 24 }}>
-          <button type="button" onClick={() => !building && setStep((s) => Math.max(0, s - 1))} style={{ flex: "none", fontSize: 14, fontWeight: 600, color: "#5C6B62", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 11, padding: "11px 18px", cursor: "pointer", fontFamily: "'Hanken Grotesk',sans-serif" }}>
-            ‹ Back
-          </button>
-          {/* B4: on step 0 the button stays clickable while looking disabled so
+              );
+            })}
+          </div>
+          <div
+            style={{
+              marginTop: "auto",
+              display: "flex",
+              gap: 10,
+              paddingTop: 14,
+              position: "sticky",
+              bottom: 0,
+              background: "#FBF7F0",
+              paddingBottom: 24,
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => !building && setStep((s) => Math.max(0, s - 1))}
+              style={{
+                flex: "none",
+                fontSize: 14,
+                fontWeight: 600,
+                color: "#5C6B62",
+                background: "#fff",
+                border: "1px solid #EBE3D6",
+                borderRadius: 11,
+                padding: "11px 18px",
+                cursor: "pointer",
+                fontFamily: "'Hanken Grotesk',sans-serif",
+              }}
+            >
+              ‹ Back
+            </button>
+            {/* B4: on step 0 the button stays clickable while looking disabled so
               the click can explain (next()'s reason ladder → toast). */}
-          {step < 5 ? (
-            <button type="button" data-testid="wizard-next" onClick={() => void next()} disabled={building || (step !== 0 && !stepValid)} style={{ flex: 1, textAlign: "center", background: stepValid && !building ? GRAD : "#EDE8DC", border: "none", borderRadius: 11, padding: "11px 18px", fontSize: 15, fontWeight: 700, color: stepValid && !building ? "#0A0F0C" : "#A99F8C", cursor: stepValid && !building ? "pointer" : "default", boxShadow: stepValid && !building ? "0 6px 16px rgba(53,232,52,.26)" : "none", opacity: step === 0 && stepValid && !hasContext ? 0.55 : 1, transition: "opacity .2s", fontFamily: "'Hanken Grotesk',sans-serif" }}>
-              {nextLabel}
-            </button>
-          ) : (
-            <button type="button" data-testid="wizard-launch" onClick={() => void launch()} disabled={!allResolved} title={allResolved ? "Deploy agent" : "Resolve every gap before launching"} style={{ flex: 1, textAlign: "center", background: allResolved ? GRAD : "#EDE8DC", border: "none", borderRadius: 11, padding: "11px 18px", fontSize: 15, fontWeight: 700, color: allResolved ? "#0A0F0C" : "#A99F8C", cursor: allResolved ? "pointer" : "default", boxShadow: allResolved ? "0 6px 16px rgba(53,232,52,.26)" : "none", fontFamily: "'Hanken Grotesk',sans-serif" }}>
-              Deploy agent
-            </button>
-          )}
+            {step < 5 ? (
+              <button
+                type="button"
+                data-testid="wizard-next"
+                onClick={() => void next()}
+                disabled={building || (step !== 0 && !stepValid)}
+                style={{
+                  flex: 1,
+                  textAlign: "center",
+                  background: stepValid && !building ? GRAD : "#EDE8DC",
+                  border: "none",
+                  borderRadius: 11,
+                  padding: "11px 18px",
+                  fontSize: 15,
+                  fontWeight: 700,
+                  color: stepValid && !building ? "#0A0F0C" : "#A99F8C",
+                  cursor: stepValid && !building ? "pointer" : "default",
+                  boxShadow: stepValid && !building ? "0 6px 16px rgba(53,232,52,.26)" : "none",
+                  opacity: step === 0 && stepValid && !hasContext ? 0.55 : 1,
+                  transition: "opacity .2s",
+                  fontFamily: "'Hanken Grotesk',sans-serif",
+                }}
+              >
+                {nextLabel}
+              </button>
+            ) : (
+              <button
+                type="button"
+                data-testid="wizard-launch"
+                onClick={() => void launch()}
+                disabled={!allResolved}
+                title={allResolved ? "Deploy agent" : "Resolve every gap before launching"}
+                style={{
+                  flex: 1,
+                  textAlign: "center",
+                  background: allResolved ? GRAD : "#EDE8DC",
+                  border: "none",
+                  borderRadius: 11,
+                  padding: "11px 18px",
+                  fontSize: 15,
+                  fontWeight: 700,
+                  color: allResolved ? "#0A0F0C" : "#A99F8C",
+                  cursor: allResolved ? "pointer" : "default",
+                  boxShadow: allResolved ? "0 6px 16px rgba(53,232,52,.26)" : "none",
+                  fontFamily: "'Hanken Grotesk',sans-serif",
+                }}
+              >
+                Deploy agent
+              </button>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* step content — v2: carries the 1px divider as border-left */}
-      <div style={{ boxSizing: "border-box", flex: 1, minWidth: 0, padding: "28px 32px", position: "relative", borderLeft: "1px solid #EBE3D6" }}>
-        <div style={{ marginBottom: 22 }}>
-          <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 26, letterSpacing: "-.02em", color: "#0E1512" }}>{STEP_DEFS[step]!.title}</div>
-          <div style={{ fontSize: 15, color: "#5C6B62" }}>{STEP_DEFS[step]!.subtitle}</div>
+        {/* step content — v2: carries the 1px divider as border-left */}
+        <div
+          style={{
+            boxSizing: "border-box",
+            flex: 1,
+            minWidth: 0,
+            padding: "28px 32px",
+            position: "relative",
+            borderLeft: "1px solid #EBE3D6",
+          }}
+        >
+          <div style={{ marginBottom: 22 }}>
+            <div
+              style={{
+                fontFamily: "'Bricolage Grotesque',sans-serif",
+                fontWeight: 700,
+                fontSize: 26,
+                letterSpacing: "-.02em",
+                color: "#0E1512",
+              }}
+            >
+              {STEP_DEFS[step]!.title}
+            </div>
+            <div style={{ fontSize: 15, color: "#5C6B62" }}>{STEP_DEFS[step]!.subtitle}</div>
+          </div>
+
+          {envIssue ? (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                border: "1px solid rgba(232,196,91,.48)",
+                background: "rgba(232,196,91,.06)",
+                borderRadius: 12,
+                padding: "12px 16px",
+                marginBottom: 18,
+              }}
+              data-testid="env-banner"
+            >
+              <span style={{ fontSize: 15, color: "#D4A020", flex: "none" }}>⚠</span>
+              <span style={{ fontSize: 13.5, fontWeight: 600, color: "#8A7F6B" }}>{envIssue}</span>
+            </div>
+          ) : null}
+
+          {building ? (
+            <BuildingScreen
+              progress={buildProgress}
+              sources={sources}
+              fields={fields}
+              graph={graph}
+              planFailed={planFailed}
+              onRetry={() => void retryBuild()}
+              onBack={backToSetup}
+            />
+          ) : null}
+
+          {busyMsg ? (
+            <div
+              style={{
+                position: "fixed",
+                bottom: 22,
+                left: "50%",
+                transform: "translateX(-50%)",
+                background: "#0C140F",
+                color: "#fff",
+                borderRadius: 12,
+                padding: "10px 18px",
+                fontSize: 13.5,
+                zIndex: 70,
+              }}
+            >
+              {busyMsg}
+            </div>
+          ) : null}
+
+          {/* §0 toast — Settings treatment: dark pill, 22px green ✓ dot, dismiss ✕ */}
+          {toastMsg ? (
+            <div
+              style={{
+                position: "fixed",
+                bottom: 22,
+                left: "50%",
+                transform: "translateX(-50%)",
+                zIndex: 71,
+                display: "flex",
+                alignItems: "center",
+                gap: 11,
+                background: "#0C140F",
+                color: "#fff",
+                borderRadius: 12,
+                padding: "12px 16px",
+                boxShadow: "0 16px 40px rgba(0,0,0,.3)",
+              }}
+              data-testid="toast"
+            >
+              <span
+                style={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: "50%",
+                  background: "#35E834",
+                  color: "#0A0F0C",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  flex: "none",
+                }}
+              >
+                ✓
+              </span>
+              <span style={{ fontSize: 13.5, fontWeight: 600 }}>{toastMsg}</span>
+              <span
+                onClick={() => setToastMsg("")}
+                style={{ marginLeft: 8, color: "rgba(255,255,255,.5)", cursor: "pointer" }}
+              >
+                ✕
+              </span>
+            </div>
+          ) : null}
+
+          {step === 0 ? (
+            <div style={{ maxWidth: 760 }}>
+              <Step1
+                {...{
+                  name,
+                  setName,
+                  goal,
+                  setGoal,
+                  goalLabel,
+                  setGoalLabel,
+                  sources,
+                  addMode,
+                  setAddMode,
+                  category,
+                  setCategory,
+                  categoryOpen,
+                  setCategoryOpen,
+                  instructions,
+                  setInstructions,
+                  urlInput,
+                  setUrlInput,
+                  addUrl,
+                  contextSummary,
+                  groundedSources,
+                  aboutEv,
+                  setAboutEv,
+                  gaps: openGaps,
+                  covered,
+                  coveredEv,
+                  setCoveredEv,
+                  fields,
+                  gapResolved,
+                  gapTotal,
+                  typedDrafts,
+                  setTypedDrafts,
+                  typeGap,
+                  delegateGap,
+                  undoGap,
+                  buildMethod,
+                  setBuildMethod,
+                  ensureAgent,
+                  refreshKnowledge,
+                  hasContext,
+                  readyCnt,
+                  distilling,
+                  removeSource,
+                  retrySource,
+                  uploadDoc,
+                  uploadCfg,
+                  aboutEditing,
+                  setAboutEditing,
+                  aboutDraft,
+                  setAboutDraft,
+                  saveAbout,
+                  toast,
+                }}
+              />
+            </div>
+          ) : null}
+
+          {step === 1 ? (
+            <Step2Sequence
+              {...{
+                drafting,
+                graph,
+                graphSource,
+                graphVersion,
+                outcomes,
+                seqView,
+                setSeqView,
+                regenError,
+                regenerate,
+                addStep,
+                branchCases,
+                windowStart,
+                windowEnd,
+                timezone,
+                audienceTotal,
+                composeMode,
+                setSequenceMode,
+                editNode,
+                setEditNode,
+                editSubject,
+                setEditSubject,
+                editBody,
+                setEditBody,
+                editBrief,
+                setEditBrief,
+                briefPointInput,
+                setBriefPointInput,
+                briefMustInput,
+                setBriefMustInput,
+                briefNeverInput,
+                setBriefNeverInput,
+                previewBusy,
+                preview,
+                setPreview,
+                fieldDefs,
+                customTokenKey,
+                setCustomTokenKey,
+                customFallback,
+                setCustomFallback,
+                delayEdit,
+                setDelayEdit,
+                delayAmount,
+                setDelayAmount,
+                editStepIndex,
+                editStrategyIntent,
+                insertCustomToken,
+                saveEditedStep,
+                sampleCompose,
+                saveDelay,
+                agentId,
+                goal,
+                category,
+                emailConnected: senders.some(
+                  (s) => s.type !== "TWILIO_SMS" && s.status === "ACTIVE",
+                ),
+                subRules,
+                subNewOpen,
+                setSubNewOpen,
+                subNewPrefill,
+                setSubNewPrefill,
+                onSubcampaignCreated: subcampaignCreated,
+              }}
+            />
+          ) : null}
+
+          {step === 2 ? (
+            <Step3Contacts
+              {...{
+                importOpen,
+                setImportOpen,
+                csvImport,
+                setCsvImport,
+                importRows,
+                isAdmin,
+                fieldDefs,
+                refreshFieldDefs,
+                ensureImportList,
+                importCompleted,
+                listOpen,
+                setListOpen,
+                wizardLists,
+                pickedList,
+                setPickedList,
+                listSearch,
+                setListSearch,
+                manualOpen,
+                setManualOpen,
+                manual,
+                setManual,
+                manualQueue,
+                setManualQueue,
+                addContacts,
+                audienceTotal,
+                audienceSample,
+                toast,
+                goalFit: goalFitOf(goal),
+              }}
+            />
+          ) : null}
+
+          {step === 3 ? (
+            <Step4Capture
+              {...{ capture, setCapture, goal, goalFit: goalFitOf(goal), apSuggestions }}
+            />
+          ) : null}
+
+          {step === 4 ? (
+            <Step5Guardrails
+              {...{
+                senders,
+                setSenders,
+                dailyCap,
+                setDailyCap,
+                smsDailyCap,
+                setSmsDailyCap,
+                windowStart,
+                setWindowStart,
+                windowEnd,
+                setWindowEnd,
+                timezone,
+                setTimezone,
+                tzOpen,
+                setTzOpen,
+                sendDays,
+                setSendDays,
+                quietHours,
+                setQuietHours,
+                ramp,
+                setRamp,
+                limitsOpen,
+                setLimitsOpen,
+                connectOpen,
+                setConnectOpen,
+                saveLimits,
+                toast,
+              }}
+            />
+          ) : null}
+
+          {step === 5 ? (
+            <Step6Review
+              {...{
+                name,
+                graph,
+                audienceTotal,
+                capture,
+                apOn: capture.ap ?? goalFitOf(goal) !== "existing_audience",
+                sendDays,
+                windowStart,
+                windowEnd,
+                timezone,
+                dailyCap,
+                smsDailyCap,
+                allResolved,
+                gapTotal,
+                gapResolved,
+                launch,
+              }}
+            />
+          ) : null}
         </div>
-
-        {envIssue ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 10, border: "1px solid rgba(232,196,91,.48)", background: "rgba(232,196,91,.06)", borderRadius: 12, padding: "12px 16px", marginBottom: 18 }} data-testid="env-banner">
-            <span style={{ fontSize: 15, color: "#D4A020", flex: "none" }}>⚠</span>
-            <span style={{ fontSize: 13.5, fontWeight: 600, color: "#8A7F6B" }}>{envIssue}</span>
-          </div>
-        ) : null}
-
-        {building ? (
-          <BuildingScreen
-            progress={buildProgress}
-            sources={sources}
-            fields={fields}
-            graph={graph}
-            planFailed={planFailed}
-            onRetry={() => void retryBuild()}
-            onBack={backToSetup}
-          />
-        ) : null}
-
-        {busyMsg ? <div style={{ position: "fixed", bottom: 22, left: "50%", transform: "translateX(-50%)", background: "#0C140F", color: "#fff", borderRadius: 12, padding: "10px 18px", fontSize: 13.5, zIndex: 70 }}>{busyMsg}</div> : null}
-
-        {/* §0 toast — Settings treatment: dark pill, 22px green ✓ dot, dismiss ✕ */}
-        {toastMsg ? (
-          <div style={{ position: "fixed", bottom: 22, left: "50%", transform: "translateX(-50%)", zIndex: 71, display: "flex", alignItems: "center", gap: 11, background: "#0C140F", color: "#fff", borderRadius: 12, padding: "12px 16px", boxShadow: "0 16px 40px rgba(0,0,0,.3)" }} data-testid="toast">
-            <span style={{ width: 22, height: 22, borderRadius: "50%", background: "#35E834", color: "#0A0F0C", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flex: "none" }}>✓</span>
-            <span style={{ fontSize: 13.5, fontWeight: 600 }}>{toastMsg}</span>
-            <span onClick={() => setToastMsg("")} style={{ marginLeft: 8, color: "rgba(255,255,255,.5)", cursor: "pointer" }}>✕</span>
-          </div>
-        ) : null}
-
-        {step === 0 ? (
-          <div style={{ maxWidth: 760 }}>
-          <Step1
-            {...{ name, setName, goal, setGoal, goalLabel, setGoalLabel, sources, addMode, setAddMode, category, setCategory, categoryOpen, setCategoryOpen, instructions, setInstructions, urlInput, setUrlInput, addUrl, contextSummary, groundedSources, aboutEv, setAboutEv, gaps: openGaps, covered, coveredEv, setCoveredEv, fields, gapResolved, gapTotal, typedDrafts, setTypedDrafts, typeGap, delegateGap, undoGap, buildMethod, setBuildMethod, ensureAgent, refreshKnowledge, hasContext, readyCnt, distilling, removeSource, retrySource, uploadDoc, uploadCfg, aboutEditing, setAboutEditing, aboutDraft, setAboutDraft, saveAbout, toast }}
-          />
-          </div>
-        ) : null}
-
-        {step === 1 ? (
-          <Step2Sequence
-            {...{ drafting, graph, graphSource, graphVersion, outcomes, seqView, setSeqView, regenError, regenerate, addStep, branchCases, windowStart, windowEnd, timezone, audienceTotal, composeMode, setSequenceMode, editNode, setEditNode, editSubject, setEditSubject, editBody, setEditBody, editBrief, setEditBrief, briefPointInput, setBriefPointInput, briefMustInput, setBriefMustInput, briefNeverInput, setBriefNeverInput, previewBusy, preview, setPreview, fieldDefs, customTokenKey, setCustomTokenKey, customFallback, setCustomFallback, delayEdit, setDelayEdit, delayAmount, setDelayAmount, editStepIndex, editStrategyIntent, insertCustomToken, saveEditedStep, sampleCompose, saveDelay, agentId, goal, category, emailConnected: senders.some((s) => s.type !== "TWILIO_SMS" && s.status === "ACTIVE"), subRules, subNewOpen, setSubNewOpen, subNewPrefill, setSubNewPrefill, onSubcampaignCreated: subcampaignCreated }}
-          />
-        ) : null}
-
-        {step === 2 ? (
-          <Step3Contacts
-            {...{ importOpen, setImportOpen, csvImport, setCsvImport, importRows, isAdmin, fieldDefs, refreshFieldDefs, ensureImportList, importCompleted, listOpen, setListOpen, wizardLists, pickedList, setPickedList, listSearch, setListSearch, manualOpen, setManualOpen, manual, setManual, manualQueue, setManualQueue, addContacts, audienceTotal, audienceSample, toast, goalFit: goalFitOf(goal) }}
-          />
-        ) : null}
-
-        {step === 3 ? <Step4Capture {...{ capture, setCapture, goal, goalFit: goalFitOf(goal), apSuggestions }} /> : null}
-
-        {step === 4 ? (
-          <Step5Guardrails
-            {...{ senders, setSenders, dailyCap, setDailyCap, smsDailyCap, setSmsDailyCap, windowStart, setWindowStart, windowEnd, setWindowEnd, timezone, setTimezone, tzOpen, setTzOpen, sendDays, setSendDays, quietHours, setQuietHours, ramp, setRamp, limitsOpen, setLimitsOpen, connectOpen, setConnectOpen, saveLimits, toast }}
-          />
-        ) : null}
-
-        {step === 5 ? <Step6Review {...{ name, graph, audienceTotal, capture, apOn: capture.ap ?? goalFitOf(goal) !== "existing_audience", sendDays, windowStart, windowEnd, timezone, dailyCap, smsDailyCap, allResolved, gapTotal, gapResolved, launch }} /> : null}
-      </div>
       </div>
     </div>
   );

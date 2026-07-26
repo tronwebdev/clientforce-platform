@@ -57,7 +57,9 @@ export const CATEGORY_LABELS = {
   automation: "Automation",
 } as const;
 export type IntegrationCategory = keyof typeof CATEGORY_LABELS;
-export const INTEGRATION_CATEGORIES = Object.keys(CATEGORY_LABELS) as readonly IntegrationCategory[];
+export const INTEGRATION_CATEGORIES = Object.keys(
+  CATEGORY_LABELS,
+) as readonly IntegrationCategory[];
 
 // ── availability model ──────────────────────────────────────────────────────
 
@@ -93,7 +95,8 @@ const ABSENT_REASONS: Record<string, string> = {
 
 function availabilityFor(id: string): CatalogAvailability {
   if (isIntegrationProvider(id)) return { kind: "live", provider: id };
-  if (id === "twilio") return { kind: "managed", note: MANAGED_TWILIO_NOTE, href: MANAGED_TWILIO_HREF };
+  if (id === "twilio")
+    return { kind: "managed", note: MANAGED_TWILIO_NOTE, href: MANAGED_TWILIO_HREF };
   return { kind: "absent", reason: ABSENT_REASONS[id] ?? "" };
 }
 
@@ -110,21 +113,126 @@ export interface CatalogEntry {
 }
 
 const BASE: ReadonlyArray<Omit<CatalogEntry, "availability">> = [
-  { id: "hubspot", name: "HubSpot", cat: "crm", glyph: "H", tile: "cyan", desc: "Push leads into HubSpot as deals & move deal stages from your rules." },
-  { id: "salesforce", name: "Salesforce", cat: "crm", glyph: "S", tile: "cyan", desc: "Push qualified leads & booked calls into Salesforce." },
-  { id: "pipedrive", name: "Pipedrive", cat: "crm", glyph: "P", tile: "green", desc: "Create a deal automatically when a call is booked." },
-  { id: "gcal", name: "Google Calendar", cat: "calendar", glyph: "G", tile: "green", desc: "Book calls straight onto your team calendar." },
-  { id: "calendly", name: "Calendly", cat: "calendar", glyph: "C", tile: "cyan", desc: "Let leads self-book from any message or form." },
-  { id: "calcom", name: "Cal.com", cat: "calendar", glyph: "◷", tile: "neutral", desc: "Open-source scheduling for your whole team." },
-  { id: "gmail", name: "Gmail", cat: "inbox", glyph: "M", tile: "lime", desc: "Send & track outreach from your own inbox." },
-  { id: "outlook", name: "Outlook", cat: "inbox", glyph: "O", tile: "cyan", desc: "Send from Microsoft 365 mailboxes." },
-  { id: "smtp", name: "Custom SMTP", cat: "inbox", glyph: "✉", tile: "neutral", desc: "Connect any email provider via SMTP." },
-  { id: "twilio", name: "Twilio SMS", cat: "messaging", glyph: "T", tile: "green", desc: "Power SMS outreach, replies & reminders." },
-  { id: "whatsapp", name: "WhatsApp Business", cat: "messaging", glyph: "W", tile: "green", desc: "Message leads on WhatsApp with approved templates." },
-  { id: "slack", name: "Slack", cat: "messaging", glyph: "#", tile: "ink", desc: "Get reply & booking alerts in your channels." },
-  { id: "stripe", name: "Stripe", cat: "payments", glyph: "$", tile: "cyan", desc: "Collect payments and track closed revenue." },
-  { id: "zapier", name: "Zapier", cat: "automation", glyph: "Z", tile: "lime", desc: "Automate workflows across 6,000+ apps." },
-  { id: "webhooks", name: "Webhooks", cat: "automation", glyph: "⇄", tile: "neutral", desc: "POST every event to any endpoint you choose." },
+  {
+    id: "hubspot",
+    name: "HubSpot",
+    cat: "crm",
+    glyph: "H",
+    tile: "cyan",
+    desc: "Push leads into HubSpot as deals & move deal stages from your rules.",
+  },
+  {
+    id: "salesforce",
+    name: "Salesforce",
+    cat: "crm",
+    glyph: "S",
+    tile: "cyan",
+    desc: "Push qualified leads & booked calls into Salesforce.",
+  },
+  {
+    id: "pipedrive",
+    name: "Pipedrive",
+    cat: "crm",
+    glyph: "P",
+    tile: "green",
+    desc: "Create a deal automatically when a call is booked.",
+  },
+  {
+    id: "gcal",
+    name: "Google Calendar",
+    cat: "calendar",
+    glyph: "G",
+    tile: "green",
+    desc: "Book calls straight onto your team calendar.",
+  },
+  {
+    id: "calendly",
+    name: "Calendly",
+    cat: "calendar",
+    glyph: "C",
+    tile: "cyan",
+    desc: "Let leads self-book from any message or form.",
+  },
+  {
+    id: "calcom",
+    name: "Cal.com",
+    cat: "calendar",
+    glyph: "◷",
+    tile: "neutral",
+    desc: "Open-source scheduling for your whole team.",
+  },
+  {
+    id: "gmail",
+    name: "Gmail",
+    cat: "inbox",
+    glyph: "M",
+    tile: "lime",
+    desc: "Send & track outreach from your own inbox.",
+  },
+  {
+    id: "outlook",
+    name: "Outlook",
+    cat: "inbox",
+    glyph: "O",
+    tile: "cyan",
+    desc: "Send from Microsoft 365 mailboxes.",
+  },
+  {
+    id: "smtp",
+    name: "Custom SMTP",
+    cat: "inbox",
+    glyph: "✉",
+    tile: "neutral",
+    desc: "Connect any email provider via SMTP.",
+  },
+  {
+    id: "twilio",
+    name: "Twilio SMS",
+    cat: "messaging",
+    glyph: "T",
+    tile: "green",
+    desc: "Power SMS outreach, replies & reminders.",
+  },
+  {
+    id: "whatsapp",
+    name: "WhatsApp Business",
+    cat: "messaging",
+    glyph: "W",
+    tile: "green",
+    desc: "Message leads on WhatsApp with approved templates.",
+  },
+  {
+    id: "slack",
+    name: "Slack",
+    cat: "messaging",
+    glyph: "#",
+    tile: "ink",
+    desc: "Get reply & booking alerts in your channels.",
+  },
+  {
+    id: "stripe",
+    name: "Stripe",
+    cat: "payments",
+    glyph: "$",
+    tile: "cyan",
+    desc: "Collect payments and track closed revenue.",
+  },
+  {
+    id: "zapier",
+    name: "Zapier",
+    cat: "automation",
+    glyph: "Z",
+    tile: "lime",
+    desc: "Automate workflows across 6,000+ apps.",
+  },
+  {
+    id: "webhooks",
+    name: "Webhooks",
+    cat: "automation",
+    glyph: "⇄",
+    tile: "neutral",
+    desc: "POST every event to any endpoint you choose.",
+  },
 ];
 
 export const INTEGRATION_CATALOG: readonly CatalogEntry[] = BASE.map((e) => ({
@@ -184,11 +292,11 @@ export const GCAL_TEST_USER_DISCLOSURE =
 export const DRAWER_CONTENT = {
   slack: {
     mode: "oauth",
-    authPerms: [
-      "Post alerts to the channel you pick",
-      "See your public channel list",
-    ],
-    syncRows: SLACK_NOTIFICATION_KINDS.map((kind) => ({ kind, label: SLACK_NOTIFICATION_LABELS[kind] })),
+    authPerms: ["Post alerts to the channel you pick", "See your public channel list"],
+    syncRows: SLACK_NOTIFICATION_KINDS.map((kind) => ({
+      kind,
+      label: SLACK_NOTIFICATION_LABELS[kind],
+    })),
     setupSteps: [
       { title: "Sign in with Slack", desc: "Authorize Clientforce via secure OAuth." },
       { title: "Pick a channel", desc: "Where Clientforce posts updates." },
@@ -202,16 +310,16 @@ export const DRAWER_CONTENT = {
   // events in W2 — Calendly puts booked meetings on the calendar natively.
   gcal: {
     mode: "oauth",
-    authPerms: [
-      "See when you're busy (read-only)",
-      "List your calendars",
-    ],
+    authPerms: ["See when you're busy (read-only)", "List your calendars"],
     syncRows: [
       { kind: "availability", label: "Availability — open slots can appear in composed copy" },
       { kind: "bookings", label: "Bookings — Calendly puts booked meetings on this calendar" },
     ],
     setupSteps: [
-      { title: "Sign in with Google", desc: "Authorize read-only calendar access via secure OAuth." },
+      {
+        title: "Sign in with Google",
+        desc: "Authorize read-only calendar access via secure OAuth.",
+      },
       { title: "Pick a calendar", desc: "Which calendar availability is read from." },
       { title: "Confirm & go live", desc: "Review and start syncing automatically." },
     ],
@@ -226,11 +334,20 @@ export const DRAWER_CONTENT = {
     authPerms: [],
     syncRows: [
       { kind: "link", label: "Scheduling link — offered in composed messages" },
-      { kind: "detection", label: "Booking detection — live only with an API token (paid Calendly plans)" },
+      {
+        kind: "detection",
+        label: "Booking detection — live only with an API token (paid Calendly plans)",
+      },
     ],
     setupSteps: [
-      { title: "Paste your scheduling link", desc: "Works day one — leads book on your real Calendly page." },
-      { title: "Add your API token (optional)", desc: "Paid Calendly plans — turns on booking detection via webhooks." },
+      {
+        title: "Paste your scheduling link",
+        desc: "Works day one — leads book on your real Calendly page.",
+      },
+      {
+        title: "Add your API token (optional)",
+        desc: "Paid Calendly plans — turns on booking detection via webhooks.",
+      },
       { title: "Confirm & go live", desc: "Review and connect." },
     ],
     optionsKind: null,
@@ -246,8 +363,14 @@ export const DRAWER_CONTENT = {
       { kind: "detection", label: "Payment detection — live only with a restricted API key" },
     ],
     setupSteps: [
-      { title: "Paste your Payment Link", desc: "Works day one — leads pay on your real Stripe checkout." },
-      { title: "Add a restricted API key (optional)", desc: "Needs Webhook Endpoints write — turns on payment detection." },
+      {
+        title: "Paste your Payment Link",
+        desc: "Works day one — leads pay on your real Stripe checkout.",
+      },
+      {
+        title: "Add a restricted API key (optional)",
+        desc: "Needs Webhook Endpoints write — turns on payment detection.",
+      },
       { title: "Confirm & go live", desc: "Review and connect." },
     ],
     optionsKind: null,
@@ -263,7 +386,10 @@ export const DRAWER_CONTENT = {
       { kind: "signature", label: "Signatures — t/v1 HMAC-SHA256 with your workspace secret" },
     ],
     setupSteps: [
-      { title: "Enter your Payload URL", desc: "A public https endpoint you operate — checked by the delivery guard." },
+      {
+        title: "Enter your Payload URL",
+        desc: "A public https endpoint you operate — checked by the delivery guard.",
+      },
       { title: "We send a signed test", desc: "A 2xx from your receiver confirms the connection." },
       { title: "Confirm & go live", desc: "Copy the signing secret into your receiver." },
     ],
@@ -279,7 +405,10 @@ export const DRAWER_CONTENT = {
       { kind: "stage", label: "Update deal stage — moves the contact's deal (one-way)" },
     ],
     setupSteps: [
-      { title: "Paste a HubSpot token", desc: "A private-app token or Service Key with crm.objects.deals.write + contacts.write." },
+      {
+        title: "Paste a HubSpot token",
+        desc: "A private-app token or Service Key with crm.objects.deals.write + contacts.write.",
+      },
       { title: "Confirm & go live", desc: "We verify the token against your HubSpot account." },
     ],
     optionsKind: null,
@@ -356,7 +485,10 @@ export function slackConfigPayload(
   } = {},
 ): SlackConfig {
   const notifications = Object.fromEntries(
-    SLACK_NOTIFICATION_KINDS.map((k) => [k, changes.notifications?.[k] ?? notificationOn(config, k)]),
+    SLACK_NOTIFICATION_KINDS.map((k) => [
+      k,
+      changes.notifications?.[k] ?? notificationOn(config, k),
+    ]),
   ) as Record<SlackNotificationKind, boolean>;
   const channel = changes.channel ?? config.channel;
   return { ...(channel ? { channel } : {}), notifications };
@@ -419,7 +551,8 @@ export function calendlyDetectionState(config: CalendlyConfig): {
   offerToken: boolean;
 } {
   if (!config.schedulingUrl) return { detection: false, line: CALENDLY_NO_LINK, offerToken: false };
-  if (config.detection === true) return { detection: true, line: CALENDLY_DETECTION_ON, offerToken: false };
+  if (config.detection === true)
+    return { detection: true, line: CALENDLY_DETECTION_ON, offerToken: false };
   return { detection: false, line: CALENDLY_DETECTION_OFF, offerToken: true };
 }
 
@@ -454,7 +587,8 @@ export function stripeDetectionState(config: StripeConfig): {
 } {
   if (!config.paymentLinkUrl && config.detection !== true)
     return { detection: false, line: STRIPE_NO_LINK, offerKey: false };
-  if (config.detection === true) return { detection: true, line: STRIPE_DETECTION_ON, offerKey: false };
+  if (config.detection === true)
+    return { detection: true, line: STRIPE_DETECTION_ON, offerKey: false };
   return { detection: false, line: STRIPE_DETECTION_OFF, offerKey: true };
 }
 

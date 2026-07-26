@@ -55,14 +55,33 @@ import { cf } from "./AutomationsView";
 
 const GRAD = "linear-gradient(135deg,#36D7ED 0%,#35E834 55%,#D0F56B 100%)";
 
-const SECTION: React.CSSProperties = { fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".07em", marginBottom: 9 };
-const GROUP_LABEL: React.CSSProperties = { fontSize: 10.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 };
+const SECTION: React.CSSProperties = {
+  fontSize: 11,
+  fontWeight: 800,
+  textTransform: "uppercase",
+  letterSpacing: ".07em",
+  marginBottom: 9,
+};
+const GROUP_LABEL: React.CSSProperties = {
+  fontSize: 10.5,
+  fontWeight: 800,
+  textTransform: "uppercase",
+  letterSpacing: ".06em",
+  marginBottom: 8,
+};
 const CONNECTOR = (
   <div style={{ display: "flex", justifyContent: "center", padding: "8px 0" }}>
     <span style={{ width: 2, height: 14, background: "#D8CFBE" }} />
   </div>
 );
-const INPUT: React.CSSProperties = { fontSize: 13, color: "#0E1512", border: "1px solid #EBE3D6", borderRadius: 9, padding: "8px 12px", background: "#fff" };
+const INPUT: React.CSSProperties = {
+  fontSize: 13,
+  color: "#0E1512",
+  border: "1px solid #EBE3D6",
+  borderRadius: 9,
+  padding: "8px 12px",
+  background: "#fff",
+};
 
 /**
  * A send_webhook url is optional (blank = the integration default). When
@@ -170,7 +189,10 @@ export const AUTOMATION_RECIPES: readonly AutomationRecipe[] = [
     write: {
       trigger: { kind: "meeting_booked" },
       conditions: [],
-      actions: [{ kind: "add_tag", tag: "booked" }, { kind: "notify_team", note: "Meeting booked" }],
+      actions: [
+        { kind: "add_tag", tag: "booked" },
+        { kind: "notify_team", note: "Meeting booked" },
+      ],
     },
   },
   {
@@ -226,8 +248,8 @@ export function AutomationBuilder({
   const [keywords, setKeywords] = useState<string | null>(
     editing && editing.conditions.length > 0 ? editing.conditions[0]!.keywords.join(", ") : null,
   );
-  const [actions, setActions] = useState<BuilderAction[]>(
-    () => (editing?.actions ?? []).map((action) => ({ uid: nextUid++, action })),
+  const [actions, setActions] = useState<BuilderAction[]>(() =>
+    (editing?.actions ?? []).map((action) => ({ uid: nextUid++, action })),
   );
   const [showActionPicker, setShowActionPicker] = useState(openActionPicker);
   const [triggerSearch, setTriggerSearch] = useState("");
@@ -276,9 +298,13 @@ export function AutomationBuilder({
                 ? "name the tag"
                 : actions.some((a) => a.action.kind === "set_stage" && !a.action.stage.trim())
                   ? "name the stage"
-                  : actions.some((a) => a.action.kind === "send_webhook" && !webhookUrlOk(a.action.url))
+                  : actions.some(
+                        (a) => a.action.kind === "send_webhook" && !webhookUrlOk(a.action.url),
+                      )
                     ? "enter a valid https URL for the webhook (or clear it for the default)"
-                    : actions.some((a) => a.action.kind === "update_deal_stage" && !a.action.stage.trim())
+                    : actions.some(
+                          (a) => a.action.kind === "update_deal_stage" && !a.action.stage.trim(),
+                        )
                       ? "name the HubSpot deal stage to move to"
                       : null;
   const canSave = valid && !busy;
@@ -377,56 +403,244 @@ export function AutomationBuilder({
     actions.length === 1 ? "" : "s"
   }`;
 
-  const txtRow = (label: string, value: string, onChange: (v: string) => void, placeholder?: string) => (
-    <div style={{ marginTop: 11, paddingTop: 11, borderTop: "1px solid #F2EEE4", display: "flex", alignItems: "center", gap: 10 }}>
-      <span style={{ fontSize: 12, color: "#9AA59E", fontWeight: 700, width: 74, flex: "none" }}>{label}</span>
-      <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} style={{ ...INPUT, flex: 1, minWidth: 0 }} />
+  const txtRow = (
+    label: string,
+    value: string,
+    onChange: (v: string) => void,
+    placeholder?: string,
+  ) => (
+    <div
+      style={{
+        marginTop: 11,
+        paddingTop: 11,
+        borderTop: "1px solid #F2EEE4",
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+      }}
+    >
+      <span style={{ fontSize: 12, color: "#9AA59E", fontWeight: 700, width: 74, flex: "none" }}>
+        {label}
+      </span>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        style={{ ...INPUT, flex: 1, minWidth: 0 }}
+      />
     </div>
   );
 
   return (
-    <div data-testid="automation-builder" onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(12,20,15,.5)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: 32, fontFamily: "'Hanken Grotesk',sans-serif" }}>
+    <div
+      data-testid="automation-builder"
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(12,20,15,.5)",
+        zIndex: 50,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 32,
+        fontFamily: "'Hanken Grotesk',sans-serif",
+      }}
+    >
       <style>{`.builder-input:focus{border-color:#9FD8AC !important;outline:none;} .picker-card:hover{border-color:#36D7ED !important;}`}</style>
-      <div onClick={(e) => e.stopPropagation()} style={{ width: 740, maxWidth: "100%", maxHeight: "100%", background: "#FBF7F0", borderRadius: 18, boxShadow: "0 30px 90px rgba(0,0,0,.4)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: 740,
+          maxWidth: "100%",
+          maxHeight: "100%",
+          background: "#FBF7F0",
+          borderRadius: 18,
+          boxShadow: "0 30px 90px rgba(0,0,0,.4)",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+        }}
+      >
         {/* header */}
-        <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "18px 22px", background: "#fff", borderBottom: "1px solid #EBE3D6", flex: "none" }}>
-          <span style={{ width: 38, height: 38, borderRadius: 10, flex: "none", background: GRAD, color: "#0A0F0C", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>⟳</span>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 14,
+            padding: "18px 22px",
+            background: "#fff",
+            borderBottom: "1px solid #EBE3D6",
+            flex: "none",
+          }}
+        >
+          <span
+            style={{
+              width: 38,
+              height: 38,
+              borderRadius: 10,
+              flex: "none",
+              background: GRAD,
+              color: "#0A0F0C",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 18,
+            }}
+          >
+            ⟳
+          </span>
           <input
             data-testid="builder-name"
             className="builder-input"
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Name this automation…"
-            style={{ flex: 1, minWidth: 0, fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 19, color: "#0E1512", border: "1px solid transparent", background: "transparent", borderRadius: 9, padding: "6px 8px" }}
+            style={{
+              flex: 1,
+              minWidth: 0,
+              fontFamily: "'Bricolage Grotesque',sans-serif",
+              fontWeight: 700,
+              fontSize: 19,
+              color: "#0E1512",
+              border: "1px solid transparent",
+              background: "transparent",
+              borderRadius: 9,
+              padding: "6px 8px",
+            }}
           />
           <div style={{ display: "flex", alignItems: "center", gap: 9, flex: "none" }}>
-            <span style={{ fontSize: 12.5, fontWeight: 700, color: enabled ? "#16A82A" : "#9AA59E" }}>{enabled ? "On" : "Off"}</span>
-            <span data-testid="builder-enabled" onClick={() => setEnabled((v) => !v)} style={{ width: 42, height: 24, borderRadius: 100, background: enabled ? GRAD : "#E4EAE6", position: "relative", display: "inline-block", cursor: "pointer" }}>
-              <span style={{ position: "absolute", top: 3, [enabled ? "right" : "left"]: 3, width: 18, height: 18, borderRadius: "50%", background: "#fff", boxShadow: "0 1px 2px rgba(0,0,0,.2)" }} />
+            <span
+              style={{ fontSize: 12.5, fontWeight: 700, color: enabled ? "#16A82A" : "#9AA59E" }}
+            >
+              {enabled ? "On" : "Off"}
+            </span>
+            <span
+              data-testid="builder-enabled"
+              onClick={() => setEnabled((v) => !v)}
+              style={{
+                width: 42,
+                height: 24,
+                borderRadius: 100,
+                background: enabled ? GRAD : "#E4EAE6",
+                position: "relative",
+                display: "inline-block",
+                cursor: "pointer",
+              }}
+            >
+              <span
+                style={{
+                  position: "absolute",
+                  top: 3,
+                  [enabled ? "right" : "left"]: 3,
+                  width: 18,
+                  height: 18,
+                  borderRadius: "50%",
+                  background: "#fff",
+                  boxShadow: "0 1px 2px rgba(0,0,0,.2)",
+                }}
+              />
             </span>
           </div>
-          <span onClick={onClose} style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid #EBE3D6", display: "flex", alignItems: "center", justifyContent: "center", color: "#9AA59E", cursor: "pointer", flex: "none" }}>✕</span>
+          <span
+            onClick={onClose}
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 9,
+              border: "1px solid #EBE3D6",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#9AA59E",
+              cursor: "pointer",
+              flex: "none",
+            }}
+          >
+            ✕
+          </span>
         </div>
 
         <div style={{ flex: 1, overflow: "auto", minHeight: 0, padding: 22 }}>
           {/* recipes — blank & new only (canon) */}
           {showRecipes && (
             <>
-              <div style={{ ...GROUP_LABEL, fontSize: 11, letterSpacing: ".07em", color: "#8A7F6B", marginBottom: 10 }}>Quick start from a recipe</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 22 }}>
+              <div
+                style={{
+                  ...GROUP_LABEL,
+                  fontSize: 11,
+                  letterSpacing: ".07em",
+                  color: "#8A7F6B",
+                  marginBottom: 10,
+                }}
+              >
+                Quick start from a recipe
+              </div>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 10,
+                  marginBottom: 22,
+                }}
+              >
                 {AUTOMATION_RECIPES.map((r, i) => (
-                  <div key={r.name} data-testid={`recipe-${i}`} className="picker-card" onClick={() => pickRecipe(r)} style={{ display: "flex", alignItems: "center", gap: 11, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 13, padding: "12px 14px", cursor: "pointer" }}>
-                    <span style={{ width: 34, height: 34, borderRadius: 9, flex: "none", background: "rgba(54,215,237,.14)", color: "#1192A6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>{r.icon}</span>
+                  <div
+                    key={r.name}
+                    data-testid={`recipe-${i}`}
+                    className="picker-card"
+                    onClick={() => pickRecipe(r)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 11,
+                      background: "#fff",
+                      border: "1px solid #EBE3D6",
+                      borderRadius: 13,
+                      padding: "12px 14px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 34,
+                        height: 34,
+                        borderRadius: 9,
+                        flex: "none",
+                        background: "rgba(54,215,237,.14)",
+                        color: "#1192A6",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: 15,
+                      }}
+                    >
+                      {r.icon}
+                    </span>
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 13.5, fontWeight: 700, color: "#0E1512" }}>{r.name}</div>
-                      <div style={{ fontSize: 11.5, color: "#9AA59E", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.desc}</div>
+                      <div style={{ fontSize: 13.5, fontWeight: 700, color: "#0E1512" }}>
+                        {r.name}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 11.5,
+                          color: "#9AA59E",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {r.desc}
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
                 <div style={{ height: 1, flex: 1, background: "#EBE3D6" }} />
-                <span style={{ fontSize: 12, color: "#9AA59E", fontWeight: 600 }}>or build from scratch</span>
+                <span style={{ fontSize: 12, color: "#9AA59E", fontWeight: 600 }}>
+                  or build from scratch
+                </span>
                 <div style={{ height: 1, flex: 1, background: "#EBE3D6" }} />
               </div>
             </>
@@ -442,7 +656,14 @@ export function AutomationBuilder({
                 value={triggerSearch}
                 onChange={(e) => setTriggerSearch(e.target.value)}
                 placeholder="Search triggers — replies, calls, forms, payments, LinkedIn…"
-                style={{ ...INPUT, width: "100%", borderRadius: 10, padding: "10px 13px", marginBottom: 12, boxSizing: "border-box" }}
+                style={{
+                  ...INPUT,
+                  width: "100%",
+                  borderRadius: 10,
+                  padding: "10px 13px",
+                  marginBottom: 12,
+                  boxSizing: "border-box",
+                }}
               />
               <div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 8 }}>
                 {triggerGroups.map((g) => (
@@ -456,25 +677,111 @@ export function AutomationBuilder({
                             data-testid={`trigger-option-${t.kind}`}
                             className="picker-card"
                             onClick={() => {
-                              setTrigger(trigger?.kind === t.kind ? trigger : defaultTriggerFor(t.kind!));
+                              setTrigger(
+                                trigger?.kind === t.kind ? trigger : defaultTriggerFor(t.kind!),
+                              );
                               if (t.kind !== "reply_classified") setKeywords(null);
                               setChangeTrigger(false);
                               setTriggerSearch("");
                             }}
-                            style={{ display: "flex", alignItems: "center", gap: 11, background: "#fff", border: trigger?.kind === t.kind ? "1.5px solid #36D7ED" : "1px solid #EBE3D6", borderRadius: 12, padding: "11px 13px", cursor: "pointer" }}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 11,
+                              background: "#fff",
+                              border:
+                                trigger?.kind === t.kind
+                                  ? "1.5px solid #36D7ED"
+                                  : "1px solid #EBE3D6",
+                              borderRadius: 12,
+                              padding: "11px 13px",
+                              cursor: "pointer",
+                            }}
                           >
-                            <span style={{ width: 32, height: 32, borderRadius: 9, flex: "none", background: "rgba(54,215,237,.14)", color: "#1192A6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700 }}>{t.icon}</span>
+                            <span
+                              style={{
+                                width: 32,
+                                height: 32,
+                                borderRadius: 9,
+                                flex: "none",
+                                background: "rgba(54,215,237,.14)",
+                                color: "#1192A6",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontSize: 14,
+                                fontWeight: 700,
+                              }}
+                            >
+                              {t.icon}
+                            </span>
                             <div style={{ minWidth: 0 }}>
-                              <div style={{ fontSize: 13, fontWeight: 700, color: "#0E1512" }}>{t.label}</div>
-                              <div style={{ fontSize: 11, color: "#9AA59E", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.sub}</div>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: "#0E1512" }}>
+                                {t.label}
+                              </div>
+                              <div
+                                style={{
+                                  fontSize: 11,
+                                  color: "#9AA59E",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {t.sub}
+                              </div>
                             </div>
                           </div>
                         ) : (
-                          <div key={t.key} data-testid="absent-trigger" aria-disabled="true" title={t.sub} style={{ display: "flex", alignItems: "center", gap: 11, background: "#fff", border: "1px dashed #E4DDD0", borderRadius: 12, padding: "11px 13px", cursor: "not-allowed", opacity: 0.55 }}>
-                            <span style={{ width: 32, height: 32, borderRadius: 9, flex: "none", background: "#F2EEE4", color: "#8A7F6B", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700 }}>{t.icon}</span>
+                          <div
+                            key={t.key}
+                            data-testid="absent-trigger"
+                            aria-disabled="true"
+                            title={t.sub}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 11,
+                              background: "#fff",
+                              border: "1px dashed #E4DDD0",
+                              borderRadius: 12,
+                              padding: "11px 13px",
+                              cursor: "not-allowed",
+                              opacity: 0.55,
+                            }}
+                          >
+                            <span
+                              style={{
+                                width: 32,
+                                height: 32,
+                                borderRadius: 9,
+                                flex: "none",
+                                background: "#F2EEE4",
+                                color: "#8A7F6B",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontSize: 14,
+                                fontWeight: 700,
+                              }}
+                            >
+                              {t.icon}
+                            </span>
                             <div style={{ minWidth: 0 }}>
-                              <div style={{ fontSize: 13, fontWeight: 700, color: "#5C6B62" }}>{t.label}</div>
-                              <div style={{ fontSize: 11, color: "#9AA59E", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.sub}</div>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: "#5C6B62" }}>
+                                {t.label}
+                              </div>
+                              <div
+                                style={{
+                                  fontSize: 11,
+                                  color: "#9AA59E",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {t.sub}
+                              </div>
                             </div>
                           </div>
                         ),
@@ -486,15 +793,76 @@ export function AutomationBuilder({
             </>
           )}
           {trigger && !changeTrigger && (
-            <div style={{ background: "#fff", border: "1px solid rgba(54,215,237,.45)", borderRadius: 13, padding: "14px 16px", marginBottom: 6 }}>
+            <div
+              style={{
+                background: "#fff",
+                border: "1px solid rgba(54,215,237,.45)",
+                borderRadius: 13,
+                padding: "14px 16px",
+                marginBottom: 6,
+              }}
+            >
               <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
-                <span style={{ width: 34, height: 34, borderRadius: 9, flex: "none", background: "rgba(54,215,237,.16)", color: "#1192A6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>{TRIGGER_ICONS[trigger.kind]}</span>
-                <span data-testid="selected-trigger" style={{ fontSize: 14.5, fontWeight: 700, color: "#0E1512", flex: 1 }}>{triggerChip(trigger)}</span>
-                <span onClick={() => setChangeTrigger(true)} style={{ fontSize: 12.5, fontWeight: 700, color: "#1192A6", background: "rgba(54,215,237,.12)", borderRadius: 8, padding: "6px 12px", cursor: "pointer" }}>Change</span>
+                <span
+                  style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: 9,
+                    flex: "none",
+                    background: "rgba(54,215,237,.16)",
+                    color: "#1192A6",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 15,
+                  }}
+                >
+                  {TRIGGER_ICONS[trigger.kind]}
+                </span>
+                <span
+                  data-testid="selected-trigger"
+                  style={{ fontSize: 14.5, fontWeight: 700, color: "#0E1512", flex: 1 }}
+                >
+                  {triggerChip(trigger)}
+                </span>
+                <span
+                  onClick={() => setChangeTrigger(true)}
+                  style={{
+                    fontSize: 12.5,
+                    fontWeight: 700,
+                    color: "#1192A6",
+                    background: "rgba(54,215,237,.12)",
+                    borderRadius: 8,
+                    padding: "6px 12px",
+                    cursor: "pointer",
+                  }}
+                >
+                  Change
+                </span>
               </div>
               {trigger.kind === "reply_classified" && (
-                <div style={{ marginTop: 13, paddingTop: 13, borderTop: "1px solid #F2EEE4", display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
-                  <span style={{ fontSize: 12, color: "#9AA59E", fontWeight: 700, width: 74, flex: "none" }}>Intents</span>
+                <div
+                  style={{
+                    marginTop: 13,
+                    paddingTop: 13,
+                    borderTop: "1px solid #F2EEE4",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 7,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: 12,
+                      color: "#9AA59E",
+                      fontWeight: 700,
+                      width: 74,
+                      flex: "none",
+                    }}
+                  >
+                    Intents
+                  </span>
                   {REPLY_INTENT_OPTIONS.map((intent) => {
                     const on = trigger.intents.includes(intent);
                     const tint = intentTint(intent);
@@ -510,24 +878,105 @@ export function AutomationBuilder({
                               : [...trigger.intents, intent],
                           })
                         }
-                        style={{ fontSize: 12.5, fontWeight: 600, color: on ? tint.fg : "#5C6B62", background: on ? tint.bg : "#fff", border: `1px solid ${on ? tint.fg : "#EBE3D6"}`, borderRadius: 8, padding: "6px 12px", cursor: "pointer" }}
+                        style={{
+                          fontSize: 12.5,
+                          fontWeight: 600,
+                          color: on ? tint.fg : "#5C6B62",
+                          background: on ? tint.bg : "#fff",
+                          border: `1px solid ${on ? tint.fg : "#EBE3D6"}`,
+                          borderRadius: 8,
+                          padding: "6px 12px",
+                          cursor: "pointer",
+                        }}
                       >
                         {tint.label}
                       </span>
                     );
                   })}
                   {trigger.intents.length === 0 && (
-                    <span style={{ fontSize: 12, color: "#C9543F", fontWeight: 600 }}>Pick at least one intent</span>
+                    <span style={{ fontSize: 12, color: "#C9543F", fontWeight: 600 }}>
+                      Pick at least one intent
+                    </span>
                   )}
                 </div>
               )}
               {trigger.kind === "sequence_quiet" && (
-                <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 13, paddingTop: 13, borderTop: "1px solid #F2EEE4" }}>
-                  <span style={{ fontSize: 13, color: "#5C6B62", fontWeight: 600 }}>No reply after</span>
-                  <div style={{ display: "flex", alignItems: "center", gap: 0, border: "1px solid #EBE3D6", borderRadius: 10, overflow: "hidden" }}>
-                    <span data-testid="days-down" onClick={() => setTrigger({ kind: "sequence_quiet", days: Math.max(1, trigger.days - 1) })} style={{ width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", background: "#F7F2EA", color: "#0E1512", fontSize: 18, cursor: "pointer" }}>−</span>
-                    <span style={{ width: 44, textAlign: "center", fontSize: 14, fontWeight: 700, color: "#0E1512", fontVariantNumeric: "tabular-nums" }}>{trigger.days}</span>
-                    <span data-testid="days-up" onClick={() => setTrigger({ kind: "sequence_quiet", days: Math.min(365, trigger.days + 1) })} style={{ width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", background: "#F7F2EA", color: "#0E1512", fontSize: 18, cursor: "pointer" }}>+</span>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    marginTop: 13,
+                    paddingTop: 13,
+                    borderTop: "1px solid #F2EEE4",
+                  }}
+                >
+                  <span style={{ fontSize: 13, color: "#5C6B62", fontWeight: 600 }}>
+                    No reply after
+                  </span>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 0,
+                      border: "1px solid #EBE3D6",
+                      borderRadius: 10,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <span
+                      data-testid="days-down"
+                      onClick={() =>
+                        setTrigger({ kind: "sequence_quiet", days: Math.max(1, trigger.days - 1) })
+                      }
+                      style={{
+                        width: 34,
+                        height: 34,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        background: "#F7F2EA",
+                        color: "#0E1512",
+                        fontSize: 18,
+                        cursor: "pointer",
+                      }}
+                    >
+                      −
+                    </span>
+                    <span
+                      style={{
+                        width: 44,
+                        textAlign: "center",
+                        fontSize: 14,
+                        fontWeight: 700,
+                        color: "#0E1512",
+                        fontVariantNumeric: "tabular-nums",
+                      }}
+                    >
+                      {trigger.days}
+                    </span>
+                    <span
+                      data-testid="days-up"
+                      onClick={() =>
+                        setTrigger({
+                          kind: "sequence_quiet",
+                          days: Math.min(365, trigger.days + 1),
+                        })
+                      }
+                      style={{
+                        width: 34,
+                        height: 34,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        background: "#F7F2EA",
+                        color: "#0E1512",
+                        fontSize: 18,
+                        cursor: "pointer",
+                      }}
+                    >
+                      +
+                    </span>
                   </div>
                   <span style={{ fontSize: 13, color: "#5C6B62", fontWeight: 600 }}>days</span>
                 </div>
@@ -535,14 +984,87 @@ export function AutomationBuilder({
               {/* INT W2 (DEC-094): before_meeting hours — the sequence_quiet
                   stepper anatomy, clamped to the schema's 1..336. */}
               {trigger.kind === "before_meeting" && (
-                <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 13, paddingTop: 13, borderTop: "1px solid #F2EEE4" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    marginTop: 13,
+                    paddingTop: 13,
+                    borderTop: "1px solid #F2EEE4",
+                  }}
+                >
                   <span style={{ fontSize: 13, color: "#5C6B62", fontWeight: 600 }}>Fires</span>
-                  <div style={{ display: "flex", alignItems: "center", gap: 0, border: "1px solid #EBE3D6", borderRadius: 10, overflow: "hidden" }}>
-                    <span data-testid="hours-down" onClick={() => setTrigger({ kind: "before_meeting", hours: Math.max(1, trigger.hours - 1) })} style={{ width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", background: "#F7F2EA", color: "#0E1512", fontSize: 18, cursor: "pointer" }}>−</span>
-                    <span style={{ width: 44, textAlign: "center", fontSize: 14, fontWeight: 700, color: "#0E1512", fontVariantNumeric: "tabular-nums" }}>{trigger.hours}</span>
-                    <span data-testid="hours-up" onClick={() => setTrigger({ kind: "before_meeting", hours: Math.min(336, trigger.hours + 1) })} style={{ width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", background: "#F7F2EA", color: "#0E1512", fontSize: 18, cursor: "pointer" }}>+</span>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 0,
+                      border: "1px solid #EBE3D6",
+                      borderRadius: 10,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <span
+                      data-testid="hours-down"
+                      onClick={() =>
+                        setTrigger({
+                          kind: "before_meeting",
+                          hours: Math.max(1, trigger.hours - 1),
+                        })
+                      }
+                      style={{
+                        width: 34,
+                        height: 34,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        background: "#F7F2EA",
+                        color: "#0E1512",
+                        fontSize: 18,
+                        cursor: "pointer",
+                      }}
+                    >
+                      −
+                    </span>
+                    <span
+                      style={{
+                        width: 44,
+                        textAlign: "center",
+                        fontSize: 14,
+                        fontWeight: 700,
+                        color: "#0E1512",
+                        fontVariantNumeric: "tabular-nums",
+                      }}
+                    >
+                      {trigger.hours}
+                    </span>
+                    <span
+                      data-testid="hours-up"
+                      onClick={() =>
+                        setTrigger({
+                          kind: "before_meeting",
+                          hours: Math.min(336, trigger.hours + 1),
+                        })
+                      }
+                      style={{
+                        width: 34,
+                        height: 34,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        background: "#F7F2EA",
+                        color: "#0E1512",
+                        fontSize: 18,
+                        cursor: "pointer",
+                      }}
+                    >
+                      +
+                    </span>
                   </div>
-                  <span style={{ fontSize: 13, color: "#5C6B62", fontWeight: 600 }}>hours before the meeting starts</span>
+                  <span style={{ fontSize: 13, color: "#5C6B62", fontWeight: 600 }}>
+                    hours before the meeting starts
+                  </span>
                 </div>
               )}
             </div>
@@ -555,14 +1077,41 @@ export function AutomationBuilder({
               {CONNECTOR}
               <div style={{ display: "flex", alignItems: "center", marginBottom: 9 }}>
                 <span style={{ ...SECTION, marginBottom: 0, color: "#8A7F6B", flex: 1 }}>
-                  Only if · filters <span style={{ fontWeight: 600, color: "#B7BDB6" }}>(optional)</span>
+                  Only if · filters{" "}
+                  <span style={{ fontWeight: 600, color: "#B7BDB6" }}>(optional)</span>
                 </span>
               </div>
               {isReply ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 8 }}>
                   {keywords !== null && (
-                    <div data-testid="keyword-filter" style={{ display: "flex", alignItems: "center", gap: 8, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 12, padding: "10px 12px" }}>
-                      <span style={{ display: "inline-flex", alignItems: "center", fontSize: 13, fontWeight: 600, color: "#0E1512", background: "#F7F2EA", border: "1px solid #EBE3D6", borderRadius: 9, padding: "8px 12px", whiteSpace: "nowrap" }}>Reply contains</span>
+                    <div
+                      data-testid="keyword-filter"
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        background: "#fff",
+                        border: "1px solid #EBE3D6",
+                        borderRadius: 12,
+                        padding: "10px 12px",
+                      }}
+                    >
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: "#0E1512",
+                          background: "#F7F2EA",
+                          border: "1px solid #EBE3D6",
+                          borderRadius: 9,
+                          padding: "8px 12px",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        Reply contains
+                      </span>
                       <input
                         data-testid="keyword-input"
                         className="builder-input"
@@ -571,16 +1120,63 @@ export function AutomationBuilder({
                         placeholder="pricing, quote — separate with commas"
                         style={{ ...INPUT, flex: 1, minWidth: 0 }}
                       />
-                      <span onClick={() => setKeywords(null)} style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid #EBE3D6", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", color: "#C9543F", fontSize: 12, cursor: "pointer", flex: "none" }}>✕</span>
+                      <span
+                        onClick={() => setKeywords(null)}
+                        style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: 9,
+                          border: "1px solid #EBE3D6",
+                          background: "#fff",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "#C9543F",
+                          fontSize: 12,
+                          cursor: "pointer",
+                          flex: "none",
+                        }}
+                      >
+                        ✕
+                      </span>
                     </div>
                   )}
                   {keywords === null && (
-                    <span data-testid="add-filter" onClick={() => setKeywords("")} style={{ alignSelf: "flex-start", fontSize: 13, fontWeight: 700, color: "#16A82A", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 10, padding: "9px 14px", cursor: "pointer" }}>+ Add filter</span>
+                    <span
+                      data-testid="add-filter"
+                      onClick={() => setKeywords("")}
+                      style={{
+                        alignSelf: "flex-start",
+                        fontSize: 13,
+                        fontWeight: 700,
+                        color: "#16A82A",
+                        background: "#fff",
+                        border: "1px solid #EBE3D6",
+                        borderRadius: 10,
+                        padding: "9px 14px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      + Add filter
+                    </span>
                   )}
-                  <span style={{ fontSize: 11.5, color: "#B7BDB6" }}>More filters (status, tags, lists, score…) arrive with future units.</span>
+                  <span style={{ fontSize: 11.5, color: "#B7BDB6" }}>
+                    More filters (status, tags, lists, score…) arrive with future units.
+                  </span>
                 </div>
               ) : (
-                <div data-testid="filters-absent" style={{ fontSize: 12.5, color: "#9AA59E", background: "#fff", border: "1px dashed #E4DDD0", borderRadius: 12, padding: "10px 14px", marginBottom: 8 }}>
+                <div
+                  data-testid="filters-absent"
+                  style={{
+                    fontSize: 12.5,
+                    color: "#9AA59E",
+                    background: "#fff",
+                    border: "1px dashed #E4DDD0",
+                    borderRadius: 12,
+                    padding: "10px 14px",
+                    marginBottom: 8,
+                  }}
+                >
                   Filters refine reply triggers only — this trigger fires as-is.
                 </div>
               )}
@@ -590,47 +1186,217 @@ export function AutomationBuilder({
               <div style={{ ...SECTION, color: "#16A82A" }}>Then do this · actions</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
                 {actions.map(({ uid, action }) => (
-                  <div key={uid} data-testid="builder-action" style={{ background: "#fff", border: "1px solid rgba(53,232,52,.4)", borderRadius: 13, padding: "13px 15px" }}>
+                  <div
+                    key={uid}
+                    data-testid="builder-action"
+                    style={{
+                      background: "#fff",
+                      border: "1px solid rgba(53,232,52,.4)",
+                      borderRadius: 13,
+                      padding: "13px 15px",
+                    }}
+                  >
                     <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
-                      <span style={{ width: 32, height: 32, borderRadius: 9, flex: "none", background: "rgba(53,232,52,.14)", color: "#16A82A", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>{ACTION_ICONS[action.kind]}</span>
-                      <span style={{ fontSize: 14, fontWeight: 700, color: "#0E1512", flex: 1 }}>{actionChip(action, automationNames)}</span>
-                      <span onClick={() => moveAction(uid, -1)} style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid #EBE3D6", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", color: "#9AA59E", fontSize: 12, cursor: "pointer", flex: "none" }}>↑</span>
-                      <span onClick={() => moveAction(uid, 1)} style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid #EBE3D6", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", color: "#9AA59E", fontSize: 12, cursor: "pointer", flex: "none" }}>↓</span>
-                      <span data-testid="remove-action" onClick={() => setActions((prev) => prev.filter((a) => a.uid !== uid))} style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid #EBE3D6", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", color: "#C9543F", fontSize: 12, cursor: "pointer", flex: "none" }}>✕</span>
+                      <span
+                        style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: 9,
+                          flex: "none",
+                          background: "rgba(53,232,52,.14)",
+                          color: "#16A82A",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: 15,
+                        }}
+                      >
+                        {ACTION_ICONS[action.kind]}
+                      </span>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: "#0E1512", flex: 1 }}>
+                        {actionChip(action, automationNames)}
+                      </span>
+                      <span
+                        onClick={() => moveAction(uid, -1)}
+                        style={{
+                          width: 28,
+                          height: 28,
+                          borderRadius: 8,
+                          border: "1px solid #EBE3D6",
+                          background: "#fff",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "#9AA59E",
+                          fontSize: 12,
+                          cursor: "pointer",
+                          flex: "none",
+                        }}
+                      >
+                        ↑
+                      </span>
+                      <span
+                        onClick={() => moveAction(uid, 1)}
+                        style={{
+                          width: 28,
+                          height: 28,
+                          borderRadius: 8,
+                          border: "1px solid #EBE3D6",
+                          background: "#fff",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "#9AA59E",
+                          fontSize: 12,
+                          cursor: "pointer",
+                          flex: "none",
+                        }}
+                      >
+                        ↓
+                      </span>
+                      <span
+                        data-testid="remove-action"
+                        onClick={() => setActions((prev) => prev.filter((a) => a.uid !== uid))}
+                        style={{
+                          width: 28,
+                          height: 28,
+                          borderRadius: 8,
+                          border: "1px solid #EBE3D6",
+                          background: "#fff",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "#C9543F",
+                          fontSize: 12,
+                          cursor: "pointer",
+                          flex: "none",
+                        }}
+                      >
+                        ✕
+                      </span>
                     </div>
                     {action.kind === "add_tag" &&
-                      txtRow("Tag", action.tag, (v) => updateAction(uid, { kind: "add_tag", tag: v }), "hot-lead")}
+                      txtRow(
+                        "Tag",
+                        action.tag,
+                        (v) => updateAction(uid, { kind: "add_tag", tag: v }),
+                        "hot-lead",
+                      )}
                     {action.kind === "set_stage" && (
                       <>
-                        {txtRow("Stage", action.stage, (v) => updateAction(uid, { ...action, stage: v }), "qualified")}
-                        <div style={{ marginTop: 9, display: "flex", alignItems: "center", gap: 10 }}>
-                          <span style={{ fontSize: 12, color: "#9AA59E", fontWeight: 700, width: 74, flex: "none" }}>Label</span>
-                          <input value={action.label ?? ""} onChange={(e) => updateAction(uid, { kind: "set_stage", stage: action.stage, ...(e.target.value.trim() ? { label: e.target.value } : {}) })} placeholder="Shown on the timeline (optional)" style={{ ...INPUT, flex: 1, minWidth: 0 }} />
+                        {txtRow(
+                          "Stage",
+                          action.stage,
+                          (v) => updateAction(uid, { ...action, stage: v }),
+                          "qualified",
+                        )}
+                        <div
+                          style={{ marginTop: 9, display: "flex", alignItems: "center", gap: 10 }}
+                        >
+                          <span
+                            style={{
+                              fontSize: 12,
+                              color: "#9AA59E",
+                              fontWeight: 700,
+                              width: 74,
+                              flex: "none",
+                            }}
+                          >
+                            Label
+                          </span>
+                          <input
+                            value={action.label ?? ""}
+                            onChange={(e) =>
+                              updateAction(uid, {
+                                kind: "set_stage",
+                                stage: action.stage,
+                                ...(e.target.value.trim() ? { label: e.target.value } : {}),
+                              })
+                            }
+                            placeholder="Shown on the timeline (optional)"
+                            style={{ ...INPUT, flex: 1, minWidth: 0 }}
+                          />
                         </div>
                       </>
                     )}
                     {action.kind === "notify_team" &&
-                      txtRow("Note", action.note ?? "", (v) => updateAction(uid, { kind: "notify_team", ...(v.trim() ? { note: v } : {}) }), "What should the team know? (optional)")}
+                      txtRow(
+                        "Note",
+                        action.note ?? "",
+                        (v) =>
+                          updateAction(uid, {
+                            kind: "notify_team",
+                            ...(v.trim() ? { note: v } : {}),
+                          }),
+                        "What should the team know? (optional)",
+                      )}
                     {/* INT W3 (DEC-095): the per-action URL override — blank
                         falls back to the Webhooks integration's default
                         Payload URL (the run row names the refusal if neither
                         exists — the honest run-time convergence). */}
                     {action.kind === "send_webhook" &&
-                      txtRow("URL", action.url ?? "", (v) => updateAction(uid, { kind: "send_webhook", ...(v.trim() ? { url: v.trim() } : {}) }), "https://… (blank = the Webhooks integration default)")}
+                      txtRow(
+                        "URL",
+                        action.url ?? "",
+                        (v) =>
+                          updateAction(uid, {
+                            kind: "send_webhook",
+                            ...(v.trim() ? { url: v.trim() } : {}),
+                          }),
+                        "https://… (blank = the Webhooks integration default)",
+                      )}
                     {/* INT W4 (DEC-096): the HubSpot deal-stage inputs — create's
                         is optional (blank = the pipeline default), update's is
                         required (blocked at save when empty). */}
                     {action.kind === "create_crm_deal" &&
-                      txtRow("Stage", action.stage ?? "", (v) => updateAction(uid, { kind: "create_crm_deal", ...(v.trim() ? { stage: v.trim() } : {}) }), "HubSpot deal stage (blank = pipeline default)")}
+                      txtRow(
+                        "Stage",
+                        action.stage ?? "",
+                        (v) =>
+                          updateAction(uid, {
+                            kind: "create_crm_deal",
+                            ...(v.trim() ? { stage: v.trim() } : {}),
+                          }),
+                        "HubSpot deal stage (blank = pipeline default)",
+                      )}
                     {action.kind === "update_deal_stage" &&
-                      txtRow("Stage", action.stage, (v) => updateAction(uid, { kind: "update_deal_stage", stage: v }), "HubSpot deal stage id or label")}
+                      txtRow(
+                        "Stage",
+                        action.stage,
+                        (v) => updateAction(uid, { kind: "update_deal_stage", stage: v }),
+                        "HubSpot deal stage id or label",
+                      )}
                     {action.kind === "run_automation" && (
-                      <div style={{ marginTop: 11, paddingTop: 11, borderTop: "1px solid #F2EEE4", display: "flex", alignItems: "center", gap: 10 }}>
-                        <span style={{ fontSize: 12, color: "#9AA59E", fontWeight: 700, width: 74, flex: "none" }}>Automation</span>
+                      <div
+                        style={{
+                          marginTop: 11,
+                          paddingTop: 11,
+                          borderTop: "1px solid #F2EEE4",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 10,
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: 12,
+                            color: "#9AA59E",
+                            fontWeight: 700,
+                            width: 74,
+                            flex: "none",
+                          }}
+                        >
+                          Automation
+                        </span>
                         <select
                           data-testid="chain-select"
                           value={action.automationId}
-                          onChange={(e) => updateAction(uid, { kind: "run_automation", automationId: e.target.value })}
+                          onChange={(e) =>
+                            updateAction(uid, {
+                              kind: "run_automation",
+                              automationId: e.target.value,
+                            })
+                          }
                           style={{ ...INPUT, flex: 1, minWidth: 0, fontWeight: 600 }}
                         >
                           {!chainable.some((c) => c.id === action.automationId) && (
@@ -639,7 +1405,9 @@ export function AutomationBuilder({
                             </option>
                           )}
                           {chainable.map((c) => (
-                            <option key={c.id} value={c.id}>{c.name}</option>
+                            <option key={c.id} value={c.id}>
+                              {c.name}
+                            </option>
                           ))}
                         </select>
                       </div>
@@ -648,20 +1416,62 @@ export function AutomationBuilder({
                 ))}
 
                 {showActionPicker && (
-                  <div style={{ background: "#fff", border: "1.5px solid #9FD8AC", borderRadius: 13, padding: 14 }}>
-                    <div style={{ fontSize: 11.5, fontWeight: 800, color: "#16A82A", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 10 }}>Choose an action</div>
+                  <div
+                    style={{
+                      background: "#fff",
+                      border: "1.5px solid #9FD8AC",
+                      borderRadius: 13,
+                      padding: 14,
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 11.5,
+                        fontWeight: 800,
+                        color: "#16A82A",
+                        textTransform: "uppercase",
+                        letterSpacing: ".05em",
+                        marginBottom: 10,
+                      }}
+                    >
+                      Choose an action
+                    </div>
                     <input
                       data-testid="action-search"
                       className="builder-input"
                       value={actionSearch}
                       onChange={(e) => setActionSearch(e.target.value)}
                       placeholder="Search actions — message, enroll, tag, CRM, webhook…"
-                      style={{ ...INPUT, width: "100%", borderRadius: 10, padding: "9px 12px", marginBottom: 12, boxSizing: "border-box" }}
+                      style={{
+                        ...INPUT,
+                        width: "100%",
+                        borderRadius: 10,
+                        padding: "9px 12px",
+                        marginBottom: 12,
+                        boxSizing: "border-box",
+                      }}
                     />
-                    <div style={{ display: "flex", flexDirection: "column", gap: 13, maxHeight: 330, overflow: "auto" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 13,
+                        maxHeight: 330,
+                        overflow: "auto",
+                      }}
+                    >
                       {actionGroups.map((g) => (
                         <div key={g.group}>
-                          <div style={{ ...GROUP_LABEL, color: "#16A82A", letterSpacing: ".05em", marginBottom: 7 }}>{g.group}</div>
+                          <div
+                            style={{
+                              ...GROUP_LABEL,
+                              color: "#16A82A",
+                              letterSpacing: ".05em",
+                              marginBottom: 7,
+                            }}
+                          >
+                            {g.group}
+                          </div>
                           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                             {g.items.map((a) =>
                               a.kind ? (
@@ -673,25 +1483,119 @@ export function AutomationBuilder({
                                     setActions((prev) =>
                                       prev.length >= 10
                                         ? prev
-                                        : [...prev, { uid: nextUid++, action: defaultActionFor(a.kind!, chainable[0]?.id ?? null) }],
+                                        : [
+                                            ...prev,
+                                            {
+                                              uid: nextUid++,
+                                              action: defaultActionFor(
+                                                a.kind!,
+                                                chainable[0]?.id ?? null,
+                                              ),
+                                            },
+                                          ],
                                     );
                                     setShowActionPicker(false);
                                     setActionSearch("");
                                   }}
-                                  style={{ display: "flex", alignItems: "center", gap: 10, background: "#FBFAF7", border: "1px solid #EBE3D6", borderRadius: 11, padding: "10px 12px", cursor: "pointer" }}
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 10,
+                                    background: "#FBFAF7",
+                                    border: "1px solid #EBE3D6",
+                                    borderRadius: 11,
+                                    padding: "10px 12px",
+                                    cursor: "pointer",
+                                  }}
                                 >
-                                  <span style={{ width: 30, height: 30, borderRadius: 8, flex: "none", background: "rgba(53,232,52,.12)", color: "#16A82A", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700 }}>{a.icon}</span>
+                                  <span
+                                    style={{
+                                      width: 30,
+                                      height: 30,
+                                      borderRadius: 8,
+                                      flex: "none",
+                                      background: "rgba(53,232,52,.12)",
+                                      color: "#16A82A",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      fontSize: 13,
+                                      fontWeight: 700,
+                                    }}
+                                  >
+                                    {a.icon}
+                                  </span>
                                   <div style={{ minWidth: 0 }}>
-                                    <div style={{ fontSize: 13, fontWeight: 600, color: "#0E1512" }}>{a.label}</div>
-                                    <div style={{ fontSize: 11, color: "#9AA59E", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.sub}</div>
+                                    <div
+                                      style={{ fontSize: 13, fontWeight: 600, color: "#0E1512" }}
+                                    >
+                                      {a.label}
+                                    </div>
+                                    <div
+                                      style={{
+                                        fontSize: 11,
+                                        color: "#9AA59E",
+                                        overflow: "hidden",
+                                        textOverflow: "ellipsis",
+                                        whiteSpace: "nowrap",
+                                      }}
+                                    >
+                                      {a.sub}
+                                    </div>
                                   </div>
                                 </div>
                               ) : (
-                                <div key={a.key} data-testid="absent-action" aria-disabled="true" title={a.sub} style={{ display: "flex", alignItems: "center", gap: 10, background: "#FBFAF7", border: "1px dashed #E4DDD0", borderRadius: 11, padding: "10px 12px", cursor: "not-allowed", opacity: 0.55 }}>
-                                  <span style={{ width: 30, height: 30, borderRadius: 8, flex: "none", background: "#F2EEE4", color: "#8A7F6B", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700 }}>{a.icon}</span>
+                                <div
+                                  key={a.key}
+                                  data-testid="absent-action"
+                                  aria-disabled="true"
+                                  title={a.sub}
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 10,
+                                    background: "#FBFAF7",
+                                    border: "1px dashed #E4DDD0",
+                                    borderRadius: 11,
+                                    padding: "10px 12px",
+                                    cursor: "not-allowed",
+                                    opacity: 0.55,
+                                  }}
+                                >
+                                  <span
+                                    style={{
+                                      width: 30,
+                                      height: 30,
+                                      borderRadius: 8,
+                                      flex: "none",
+                                      background: "#F2EEE4",
+                                      color: "#8A7F6B",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      fontSize: 13,
+                                      fontWeight: 700,
+                                    }}
+                                  >
+                                    {a.icon}
+                                  </span>
                                   <div style={{ minWidth: 0 }}>
-                                    <div style={{ fontSize: 13, fontWeight: 600, color: "#5C6B62" }}>{a.label}</div>
-                                    <div style={{ fontSize: 11, color: "#9AA59E", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.sub}</div>
+                                    <div
+                                      style={{ fontSize: 13, fontWeight: 600, color: "#5C6B62" }}
+                                    >
+                                      {a.label}
+                                    </div>
+                                    <div
+                                      style={{
+                                        fontSize: 11,
+                                        color: "#9AA59E",
+                                        overflow: "hidden",
+                                        textOverflow: "ellipsis",
+                                        whiteSpace: "nowrap",
+                                      }}
+                                    >
+                                      {a.sub}
+                                    </div>
                                   </div>
                                 </div>
                               ),
@@ -705,7 +1609,17 @@ export function AutomationBuilder({
                 <span
                   data-testid="toggle-action-picker"
                   onClick={() => setShowActionPicker((v) => !v)}
-                  style={{ alignSelf: "flex-start", fontSize: 13.5, fontWeight: 700, color: "#16A82A", background: "#fff", border: "1.5px dashed #9FD8AC", borderRadius: 11, padding: "11px 18px", cursor: "pointer" }}
+                  style={{
+                    alignSelf: "flex-start",
+                    fontSize: 13.5,
+                    fontWeight: 700,
+                    color: "#16A82A",
+                    background: "#fff",
+                    border: "1.5px dashed #9FD8AC",
+                    borderRadius: 11,
+                    padding: "11px 18px",
+                    cursor: "pointer",
+                  }}
                 >
                   {showActionPicker ? "✕ Close action list" : "+ Add action"}
                 </span>
@@ -715,21 +1629,66 @@ export function AutomationBuilder({
         </div>
 
         {saveError && (
-          <div data-testid="builder-error" style={{ margin: "0 22px 10px", background: "rgba(224,121,107,.1)", border: "1px solid #F0CFC8", borderRadius: 11, padding: "10px 14px", fontSize: 13, color: "#C9543F" }}>
+          <div
+            data-testid="builder-error"
+            style={{
+              margin: "0 22px 10px",
+              background: "rgba(224,121,107,.1)",
+              border: "1px solid #F0CFC8",
+              borderRadius: 11,
+              padding: "10px 14px",
+              fontSize: 13,
+              color: "#C9543F",
+            }}
+          >
             {saveError}
           </div>
         )}
         {/* footer */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "15px 22px", borderTop: "1px solid #EBE3D6", background: "#fff", flex: "none" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            padding: "15px 22px",
+            borderTop: "1px solid #EBE3D6",
+            background: "#fff",
+            flex: "none",
+          }}
+        >
           <span data-testid="builder-summary" style={{ fontSize: 12.5, color: "#9AA59E" }}>
             {summary}
             {!canSave && !busy && blocker ? ` — ${blocker}` : ""}
           </span>
-          <span onClick={onClose} style={{ marginLeft: "auto", fontSize: 14, fontWeight: 600, color: "#5C6B62", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 11, padding: "10px 18px", cursor: "pointer" }}>Cancel</span>
+          <span
+            onClick={onClose}
+            style={{
+              marginLeft: "auto",
+              fontSize: 14,
+              fontWeight: 600,
+              color: "#5C6B62",
+              background: "#fff",
+              border: "1px solid #EBE3D6",
+              borderRadius: 11,
+              padding: "10px 18px",
+              cursor: "pointer",
+            }}
+          >
+            Cancel
+          </span>
           <span
             data-testid="builder-save"
             onClick={() => void save()}
-            style={{ fontSize: 14, fontWeight: 700, color: canSave ? "#0A0F0C" : "#B7BDB6", background: canSave ? GRAD : "#EDEAE2", borderRadius: 11, padding: "10px 22px", cursor: canSave ? "pointer" : "not-allowed", boxShadow: canSave ? "0 6px 16px rgba(53,232,52,.26)" : "none" }}
+            style={{
+              fontSize: 14,
+              fontWeight: 700,
+              color: canSave ? "#0A0F0C" : "#B7BDB6",
+              background: canSave ? GRAD : "#EDEAE2",
+              borderRadius: 11,
+              padding: "10px 22px",
+              cursor: canSave ? "pointer" : "not-allowed",
+              boxShadow: canSave ? "0 6px 16px rgba(53,232,52,.26)" : "none",
+            }}
           >
             {busy ? "Saving…" : editing ? "Save changes" : "Create automation"}
           </span>

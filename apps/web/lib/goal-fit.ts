@@ -30,9 +30,21 @@ export const goalFitOf = (goal: string | null | undefined): GoalFit =>
 
 /** Step-4 in-card note for existing-audience goals: goal icon + title + one line. */
 export const AP_NOT_TYPICAL_NOTE: Record<string, { icon: string; title: string; line: string }> = {
-  reactivate_leads: { icon: "♻", title: "Reactivate leads", line: "This goal works the contacts you already have — prospecting new leads usually isn't needed." },
-  collect_reviews: { icon: "⭐", title: "Collect reviews", line: "Reviews come from your existing clients — prospecting new leads usually isn't needed." },
-  upsell_clients: { icon: "📈", title: "Upsell clients", line: "Upsells go to current clients — prospecting new leads usually isn't needed." },
+  reactivate_leads: {
+    icon: "♻",
+    title: "Reactivate leads",
+    line: "This goal works the contacts you already have — prospecting new leads usually isn't needed.",
+  },
+  collect_reviews: {
+    icon: "⭐",
+    title: "Collect reviews",
+    line: "Reviews come from your existing clients — prospecting new leads usually isn't needed.",
+  },
+  upsell_clients: {
+    icon: "📈",
+    title: "Upsell clients",
+    line: "Upsells go to current clients — prospecting new leads usually isn't needed.",
+  },
 };
 
 /**
@@ -51,11 +63,35 @@ export interface SuggestedAutomation {
 
 export const SUGGESTED_AUTOMATIONS: Record<GoalFit, [SuggestedAutomation, SuggestedAutomation]> = {
   existing_audience: [
-    { icon: "🔌", title: "Sync lapsed patients from your CRM", desc: "Pull the audience for this goal straight from the system that already knows them.", href: "/integrations", cta: "Open Integrations ›" },
-    { icon: "⏱", title: "Re-enroll a list on a schedule", desc: "Run this campaign again automatically — monthly, quarterly, or on your own cadence.", href: "/automations", cta: "Open Automations ›" },
+    {
+      icon: "🔌",
+      title: "Sync lapsed patients from your CRM",
+      desc: "Pull the audience for this goal straight from the system that already knows them.",
+      href: "/integrations",
+      cta: "Open Integrations ›",
+    },
+    {
+      icon: "⏱",
+      title: "Re-enroll a list on a schedule",
+      desc: "Run this campaign again automatically — monthly, quarterly, or on your own cadence.",
+      href: "/automations",
+      cta: "Open Automations ›",
+    },
   ],
   prospecting: [
-    { icon: "🔗", title: "New form fill → enroll here", desc: "Route every new form submission straight into this campaign.", href: "/automations", cta: "Open Automations ›" },
-    { icon: "☎", title: "Missed call → instant follow-up", desc: "Turn missed calls into an automatic first touch from this agent.", href: "/automations", cta: "Open Automations ›" },
+    {
+      icon: "🔗",
+      title: "New form fill → enroll here",
+      desc: "Route every new form submission straight into this campaign.",
+      href: "/automations",
+      cta: "Open Automations ›",
+    },
+    {
+      icon: "☎",
+      title: "Missed call → instant follow-up",
+      desc: "Turn missed calls into an automatic first touch from this agent.",
+      href: "/automations",
+      cta: "Open Automations ›",
+    },
   ],
 };

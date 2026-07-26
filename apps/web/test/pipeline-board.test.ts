@@ -4,7 +4,13 @@
  * by contract), card sorting, and the card title fallback.
  */
 import { describe, expect, it } from "vitest";
-import { buildBoard, contactName, OVERFLOW_KEY, type BoardEnrollment, type StageRow } from "../lib/pipeline";
+import {
+  buildBoard,
+  contactName,
+  OVERFLOW_KEY,
+  type BoardEnrollment,
+  type StageRow,
+} from "../lib/pipeline";
 
 const stages: StageRow[] = [
   { id: "s2", key: "contacted", label: "Contacted", order: 2 },
@@ -31,7 +37,11 @@ describe("buildBoard", () => {
   it("out-of-set stages collect in ONE honestly-labeled overflow column — only when they exist", () => {
     const clean = buildBoard(stages, [enr("a", "new")]);
     expect(clean.some((c) => c.key === OVERFLOW_KEY)).toBe(false);
-    const board = buildBoard(stages, [enr("a", "new"), enr("b", "replied"), enr("c", "qualified_out")]);
+    const board = buildBoard(stages, [
+      enr("a", "new"),
+      enr("b", "replied"),
+      enr("c", "qualified_out"),
+    ]);
     const overflow = board.find((c) => c.key === OVERFLOW_KEY)!;
     expect(overflow.overflow).toBe(true);
     expect(overflow.label).toBe("Other stages");
@@ -47,8 +57,14 @@ describe("buildBoard", () => {
   });
 
   it("contactName: name → email → honest fallback", () => {
-    expect(contactName({ id: "1", email: "e@x.t", firstName: "Ada", lastName: "L", company: null })).toBe("Ada L");
-    expect(contactName({ id: "1", email: "e@x.t", firstName: null, lastName: null, company: null })).toBe("e@x.t");
-    expect(contactName({ id: "1", email: null, firstName: null, lastName: null, company: null })).toBe("Unknown contact");
+    expect(
+      contactName({ id: "1", email: "e@x.t", firstName: "Ada", lastName: "L", company: null }),
+    ).toBe("Ada L");
+    expect(
+      contactName({ id: "1", email: "e@x.t", firstName: null, lastName: null, company: null }),
+    ).toBe("e@x.t");
+    expect(
+      contactName({ id: "1", email: null, firstName: null, lastName: null, company: null }),
+    ).toBe("Unknown contact");
   });
 });

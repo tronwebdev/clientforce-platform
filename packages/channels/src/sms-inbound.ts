@@ -147,12 +147,21 @@ export async function applySmsStop(
     });
     if (!existing) {
       await tx.suppression.create({
-        data: { workspaceId, channel: "sms", address: phone, reason: "UNSUBSCRIBED", source: "sms-stop" },
+        data: {
+          workspaceId,
+          channel: "sms",
+          address: phone,
+          reason: "UNSUBSCRIBED",
+          source: "sms-stop",
+        },
       });
     }
     const contact = await tx.contact.findUnique({ where: { id: contactId } });
     const optOut = (contact?.optOut ?? {}) as Record<string, unknown>;
-    await tx.contact.update({ where: { id: contactId }, data: { optOut: { ...optOut, sms: true } } });
+    await tx.contact.update({
+      where: { id: contactId },
+      data: { optOut: { ...optOut, sms: true } },
+    });
     const enrollments = await tx.enrollment.findMany({
       where: {
         contactId,

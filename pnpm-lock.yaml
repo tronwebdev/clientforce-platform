@@ -586,6 +586,9 @@ importers:
 
   packages/widget:
     dependencies:
+      '@clientforce/core':
+        specifier: workspace:*
+        version: link:../core
       '@clientforce/theme':
         specifier: workspace:*
         version: link:../theme

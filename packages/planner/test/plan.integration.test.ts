@@ -132,7 +132,11 @@ function craftGraph(audit: string, price: string, dirty: string): object {
         type: "branch",
         on: "reply",
         cases: [
-          { when: { intent: "interested" }, goto: mode === "broken" ? "nowhere" : "end-won", pipeline: "booked" },
+          {
+            when: { intent: "interested" },
+            goto: mode === "broken" ? "nowhere" : "end-won",
+            pipeline: "booked",
+          },
           { when: { intent: "objection_price" }, goto: "step-reframe-price", pipeline: "replied" },
           { when: { intent: "objection_timing" }, goto: "step-ack-timing", pipeline: "replied" },
           { when: { intent: "wrong_person" }, goto: "step-referral", pipeline: "replied" },
@@ -341,9 +345,19 @@ function localizedCraftGraph(lang: "de" | "fr", audit: string, price: string): o
   return {
     entry: "step-1",
     nodes: [
-      { id: "step-1", type: "step", channel: "email", content: { subject: t.s1subj, body: t.s1body } },
+      {
+        id: "step-1",
+        type: "step",
+        channel: "email",
+        content: { subject: t.s1subj, body: t.s1body },
+      },
       { id: "delay-1", type: "delay", amount: 2, unit: "days" },
-      { id: "step-2", type: "step", channel: "email", content: { subject: t.s2subj, body: t.s2body } },
+      {
+        id: "step-2",
+        type: "step",
+        channel: "email",
+        content: { subject: t.s2subj, body: t.s2body },
+      },
       {
         id: "branch-reply",
         type: "branch",
@@ -358,16 +372,56 @@ function localizedCraftGraph(lang: "de" | "fr", audit: string, price: string): o
           { when: "default", goto: "step-3" },
         ],
       },
-      { id: "step-3", type: "step", channel: "email", content: { subject: t.s3subj, body: t.s3body } },
+      {
+        id: "step-3",
+        type: "step",
+        channel: "email",
+        content: { subject: t.s3subj, body: t.s3body },
+      },
       { id: "delay-2", type: "delay", amount: 4, unit: "days" },
-      { id: "step-4", type: "step", channel: "email", content: { subject: t.s4subj, body: t.s4body } },
-      { id: "step-reframe-price", type: "step", channel: "email", content: { subject: t.reSubj, body: t.reframe, threaded: true } },
-      { id: "step-ack-timing", type: "step", channel: "email", content: { subject: t.reSubj, body: t.ack, threaded: true } },
+      {
+        id: "step-4",
+        type: "step",
+        channel: "email",
+        content: { subject: t.s4subj, body: t.s4body },
+      },
+      {
+        id: "step-reframe-price",
+        type: "step",
+        channel: "email",
+        content: { subject: t.reSubj, body: t.reframe, threaded: true },
+      },
+      {
+        id: "step-ack-timing",
+        type: "step",
+        channel: "email",
+        content: { subject: t.reSubj, body: t.ack, threaded: true },
+      },
       { id: "delay-timing", type: "delay", amount: 30, unit: "days" },
-      { id: "step-timing-follow", type: "step", channel: "email", content: { subject: t.reSubj, body: t.follow, threaded: true } },
-      { id: "step-referral", type: "step", channel: "email", content: { subject: t.reSubj, body: t.referral, threaded: true } },
-      { id: "step-answer", type: "step", channel: "email", content: { subject: t.reSubj, body: t.answer, threaded: true } },
-      { id: "step-close", type: "step", channel: "email", content: { subject: t.reSubj, body: t.close, threaded: true } },
+      {
+        id: "step-timing-follow",
+        type: "step",
+        channel: "email",
+        content: { subject: t.reSubj, body: t.follow, threaded: true },
+      },
+      {
+        id: "step-referral",
+        type: "step",
+        channel: "email",
+        content: { subject: t.reSubj, body: t.referral, threaded: true },
+      },
+      {
+        id: "step-answer",
+        type: "step",
+        channel: "email",
+        content: { subject: t.reSubj, body: t.answer, threaded: true },
+      },
+      {
+        id: "step-close",
+        type: "step",
+        channel: "email",
+        content: { subject: t.reSubj, body: t.close, threaded: true },
+      },
       { id: "end-won", type: "end" },
       { id: "end-lost", type: "end" },
     ],
@@ -493,7 +547,8 @@ const questions = (s: string) => (s.match(/\?/g) ?? []).length;
 function arcViolations(graph: CampaignGraph): string[] {
   const steps = followUpSteps(graph);
   const v: string[] = [];
-  if (steps.length < 3) v.push(`only ${steps.length} follow-up steps — no room for objection-preempt + breakup roles`);
+  if (steps.length < 3)
+    v.push(`only ${steps.length} follow-up steps — no room for objection-preempt + breakup roles`);
   const opener = steps[0];
   if (opener) {
     const body = opener.content.body ?? "";
@@ -502,7 +557,8 @@ function arcViolations(graph: CampaignGraph): string[] {
     if (questions(body) !== 1) v.push("opener must ask exactly one question");
   }
   for (const s of steps) {
-    if (questions(s.content.body ?? "") > 1) v.push(`${s.id} asks more than one question (one CTA per message)`);
+    if (questions(s.content.body ?? "") > 1)
+      v.push(`${s.id} asks more than one question (one CTA per message)`);
   }
   for (let i = 1; i < steps.length; i++) {
     if (words(steps[i]!.content.body ?? "") >= words(steps[i - 1]!.content.body ?? "")) {
@@ -698,7 +754,12 @@ describe.skipIf(!hasInfra)("planCampaign integration", () => {
           goal: "book_appointments",
           category: "Dental & Orthodontics",
           guardrails: {
-            sendingWindow: { days: [1, 2, 3, 4, 5], start: "09:00", end: "17:00", timezone: "Europe/Berlin" },
+            sendingWindow: {
+              days: [1, 2, 3, 4, 5],
+              start: "09:00",
+              end: "17:00",
+              timezone: "Europe/Berlin",
+            },
             dailyCap: { email: 200 },
             consent: null,
             language: "de",
@@ -853,9 +914,9 @@ describe.skipIf(!hasInfra)("planCampaign integration", () => {
   it("neverSay still violated after repair → typed failure, NOTHING persisted", async () => {
     banMode = "always";
     const before = await owner.campaignGraph.count({ where: { workspaceId: wsA } });
-    await expect(
-      planCampaign(deps(), { workspaceId: wsA, agentId: craftAgentId }),
-    ).rejects.toThrow(PlannerError);
+    await expect(planCampaign(deps(), { workspaceId: wsA, agentId: craftAgentId })).rejects.toThrow(
+      PlannerError,
+    );
     expect(toolCalls).toBe(2);
     expect(await owner.campaignGraph.count({ where: { workspaceId: wsA } })).toBe(before);
   });
@@ -880,10 +941,17 @@ describe.skipIf(!hasInfra)("planCampaign integration", () => {
 
     // Strategy cases route to STEP nodes; rejoining paths edge back to the branch.
     const byId = new Map(result.graph.nodes.map((n) => [n.id, n]));
-    for (const intent of ["objection_price", "objection_timing", "wrong_person", "info_request", "not_interested"]) {
+    for (const intent of [
+      "objection_price",
+      "objection_timing",
+      "wrong_person",
+      "info_request",
+      "not_interested",
+    ]) {
       expect(byId.get(caseFor(intent)!.goto)?.type, intent).toBe("step");
     }
-    const rejoins = (from: string) => result.graph.edges.some((e) => e.from === from && e.to === branch.id);
+    const rejoins = (from: string) =>
+      result.graph.edges.some((e) => e.from === from && e.to === branch.id);
     expect(rejoins(caseFor("objection_price")!.goto)).toBe(true);
     expect(rejoins(caseFor("info_request")!.goto)).toBe(true);
 
@@ -898,15 +966,21 @@ describe.skipIf(!hasInfra)("planCampaign integration", () => {
     if (branch?.type !== "branch") throw new Error("no branch");
 
     const lost = execute(result.graph, { events: { [branch.id]: { intent: "not_interested" } } });
-    expect(lost.find((a) => a.kind === "branch")).toMatchObject({ matched: "intent:not_interested" });
+    expect(lost.find((a) => a.kind === "branch")).toMatchObject({
+      matched: "intent:not_interested",
+    });
     expect(lost).toContainEqual(expect.objectContaining({ kind: "pipeline_move", stage: "lost" }));
     // The close step SENDS (graceful close is a real message), then the path ends.
-    const closeStep = branch.cases.find((c) => c.when !== "default" && c.when.intent === "not_interested")!.goto;
+    const closeStep = branch.cases.find(
+      (c) => c.when !== "default" && c.when.intent === "not_interested",
+    )!.goto;
     expect(lost).toContainEqual(expect.objectContaining({ kind: "send", nodeId: closeStep }));
     expect(lost.at(-1)?.kind).toBe("end");
 
     const referral = execute(result.graph, { events: { [branch.id]: { intent: "wrong_person" } } });
-    expect(referral.find((a) => a.kind === "branch")).toMatchObject({ matched: "intent:wrong_person" });
+    expect(referral.find((a) => a.kind === "branch")).toMatchObject({
+      matched: "intent:wrong_person",
+    });
     expect(referral.at(-1)?.kind).toBe("end");
   });
 
@@ -1124,7 +1198,9 @@ describe.skipIf(!hasInfra)("planCampaign integration", () => {
     // LAYERED prompt (v5, rebase delta): the outcomes section COEXISTS with
     // the full six-case REPLY PLAYBOOK — it composes with the v4 text, never
     // replaces it, and sits between STRATEGY and GUARDRAILS.
-    expect(lastPrompt).toContain("REPLY PLAYBOOK (one case per classified intent — EXACTLY these six");
+    expect(lastPrompt).toContain(
+      "REPLY PLAYBOOK (one case per classified intent — EXACTLY these six",
+    );
     for (const intent of [
       "interested",
       "objection_price",
@@ -1167,8 +1243,9 @@ describe.skipIf(!hasInfra)("planCampaign integration", () => {
     // Machine identifiers stayed English (branch cases route by shared enum).
     const branch = result.graph.nodes.find((n) => n.type === "branch");
     if (branch?.type !== "branch") throw new Error("no branch");
-    expect(branch.cases.find((c) => c.when !== "default" && c.when.intent === "not_interested"))
-      .toMatchObject({ pipeline: "lost" });
+    expect(
+      branch.cases.find((c) => c.when !== "default" && c.when.intent === "not_interested"),
+    ).toMatchObject({ pipeline: "lost" });
 
     // Merge tokens stayed literal — renderTokens resolves them at send time.
     const copy = JSON.stringify(result.graph);

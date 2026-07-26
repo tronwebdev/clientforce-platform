@@ -185,8 +185,8 @@ async function assertUnderVoiceCaps(
   if (campaignCount >= cap) {
     throw new SendBlockedError("DAILY_CAP_REACHED", `campaign voice cap ${cap}`);
   }
-  const workspaceCap = Number(process.env.VOICE_WORKSPACE_DAILY_CAP ?? "") ||
-    DEFAULT_VOICE_WORKSPACE_DAILY_CAP;
+  const workspaceCap =
+    Number(process.env.VOICE_WORKSPACE_DAILY_CAP ?? "") || DEFAULT_VOICE_WORKSPACE_DAILY_CAP;
   if (workspaceCount >= workspaceCap) {
     throw new SendBlockedError("DAILY_CAP_REACHED", `workspace voice cap ${workspaceCap}`);
   }

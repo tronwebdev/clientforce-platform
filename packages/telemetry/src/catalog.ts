@@ -24,14 +24,26 @@ export const TELEMETRY_SCHEMAS = {
   "product.reply.v1": z.object({ workspaceId: id, channel: label }),
   "product.goal.v1": z.object({ workspaceId: id, goal: label }),
   // Feature usage + operator/agent actions.
-  "wizard.step_completed.v1": z.object({ workspaceId: id, actorId: id, step: z.number().int().nonnegative() }),
-  "wizard.step_abandoned.v1": z.object({ workspaceId: id, actorId: id, step: z.number().int().nonnegative() }),
+  "wizard.step_completed.v1": z.object({
+    workspaceId: id,
+    actorId: id,
+    step: z.number().int().nonnegative(),
+  }),
+  "wizard.step_abandoned.v1": z.object({
+    workspaceId: id,
+    actorId: id,
+    step: z.number().int().nonnegative(),
+  }),
   "feature.first_used.v1": z.object({ workspaceId: id, feature: label, actorId: id.optional() }),
   "agent.takeover.v1": z.object({ workspaceId: id, agentId: id, actorId: id }),
   "agent.regenerated.v1": z.object({ workspaceId: id, agentId: id, actorId: id }),
   "settings.edited.v1": z.object({ workspaceId: id, actorId: id, section: label }),
   // Metering (closes W2's AI-spend honest-absence).
-  "ai.spend.v1": z.object({ workspaceId: id, task: label, credits: z.number().int().nonnegative() }),
+  "ai.spend.v1": z.object({
+    workspaceId: id,
+    task: label,
+    credits: z.number().int().nonnegative(),
+  }),
 } satisfies Record<string, z.ZodTypeAny>;
 
 export type TelemetryType = keyof typeof TELEMETRY_SCHEMAS;

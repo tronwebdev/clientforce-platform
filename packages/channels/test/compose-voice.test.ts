@@ -47,7 +47,10 @@ describe("checkComposedVoiceTurn (deterministic — every check is a string oper
   });
 
   it("names banned phrases from BOTH lists, any casing", () => {
-    const v = checkComposedVoiceTurn("It's a LIMITED TIME offer with rock-bottom prices.", inputs());
+    const v = checkComposedVoiceTurn(
+      "It's a LIMITED TIME offer with rock-bottom prices.",
+      inputs(),
+    );
     const hit = v.find((x) => x.reason === "NEVER_SAY_VIOLATION");
     expect(hit).toBeDefined();
     expect(hit!.detail).toContain('"limited time"');
@@ -60,7 +63,10 @@ describe("checkComposedVoiceTurn (deterministic — every check is a string oper
   });
 
   it("SPOKEN_REGISTER: a URL is never read aloud — grounded or not", () => {
-    const v = checkComposedVoiceTurn("You can book at https://clientforce.io/audit today.", inputs());
+    const v = checkComposedVoiceTurn(
+      "You can book at https://clientforce.io/audit today.",
+      inputs(),
+    );
     const hit = v.find((x) => x.reason === "SPOKEN_REGISTER");
     expect(hit).toBeDefined();
     expect(hit!.detail).toContain("https://clientforce.io/audit");

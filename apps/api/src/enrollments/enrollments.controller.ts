@@ -145,7 +145,8 @@ export class EnrollmentsController {
       });
       // C2.9 (DEC-059): goal-completion moves carry the campaign goal + its
       // terminal label — timelines render the label verbatim.
-      const goal = stage === "booked" ? goalMeta(campaign.agent.goal, campaign.agent.guardrails) : null;
+      const goal =
+        stage === "booked" ? goalMeta(campaign.agent.goal, campaign.agent.guardrails) : null;
       return {
         updated,
         event: {
@@ -166,9 +167,7 @@ export class EnrollmentsController {
   @Roles(Role.OWNER, Role.ADMIN)
   async signalReply(@Param("id") id: string, @Body() body: unknown) {
     const { intent } = parse(signalReplySchema, body);
-    const enrollment = await this.tenant.run((tx) =>
-      tx.enrollment.findUnique({ where: { id } }),
-    );
+    const enrollment = await this.tenant.run((tx) => tx.enrollment.findUnique({ where: { id } }));
     if (!enrollment) throw new NotFoundException(`Enrollment ${id} not found`);
     await this.engine.signalReply(id, intent);
     return { delivered: true, workflowId: enrollment.workflowId };

@@ -22,7 +22,12 @@ const turns: VoiceTurn[] = [
   { role: "user", content: "who is this?", atMs: 4000, commitSource: "speech_final" },
   { role: "assistant", content: "Happy to explain.", atMs: 5100 },
   { role: "user", content: "", atMs: 6000 }, // empty — dropped
-  { role: "assistant", content: "Sorry, let me put that differently…", atMs: 7000, refusalReason: "NEVER_SAY_VIOLATION" },
+  {
+    role: "assistant",
+    content: "Sorry, let me put that differently…",
+    atMs: 7000,
+    refusalReason: "NEVER_SAY_VIOLATION",
+  },
 ];
 
 describe("rowsFromTranscript", () => {

@@ -163,7 +163,12 @@ describe("validateEvent", () => {
     const withGoal = validateEvent({
       workspaceId: "ws1",
       type: EVENT_TYPES.LEAD_STAGE_CHANGED,
-      payload: { fromStage: "replied", toStage: "booked", goalKey: "promote_offer", label: "Purchase made" },
+      payload: {
+        fromStage: "replied",
+        toStage: "booked",
+        goalKey: "promote_offer",
+        label: "Purchase made",
+      },
     });
     expect(withGoal.payload).toEqual({
       fromStage: "replied",
@@ -202,7 +207,11 @@ describe("validateEvent", () => {
       type: EVENT_TYPES.SMS_FAILED,
       payload: { messageId: "m1", reason: "undeliverable", errorCode: "30003" },
     });
-    expect(failed.payload).toEqual({ messageId: "m1", reason: "undeliverable", errorCode: "30003" });
+    expect(failed.payload).toEqual({
+      messageId: "m1",
+      reason: "undeliverable",
+      errorCode: "30003",
+    });
 
     const replied = validateEvent({
       workspaceId: "ws1",
@@ -212,7 +221,11 @@ describe("validateEvent", () => {
     expect(replied.payload).toEqual({ messageId: "m1", body: "yes please", intent: "interested" });
 
     expect(() =>
-      validateEvent({ workspaceId: "ws1", type: EVENT_TYPES.SMS_SENT, payload: { messageId: "m1" } }),
+      validateEvent({
+        workspaceId: "ws1",
+        type: EVENT_TYPES.SMS_SENT,
+        payload: { messageId: "m1" },
+      }),
     ).toThrow(/Invalid payload for "sms.sent.v1"/);
   });
 
@@ -303,7 +316,11 @@ describe("validateEvent", () => {
         matchedBy: "utm",
       },
     });
-    expect(booked.payload).toMatchObject({ provider: "calendly", meetingId: "m1", matchedBy: "utm" });
+    expect(booked.payload).toMatchObject({
+      provider: "calendly",
+      meetingId: "m1",
+      matchedBy: "utm",
+    });
     // Minimal shape stays valid (optionals are optional).
     expect(
       validateEvent({
@@ -313,7 +330,11 @@ describe("validateEvent", () => {
       }).payload,
     ).toEqual({ provider: "calendly", meetingId: "m1", startAt: "2026-07-28T15:00:00.000Z" });
     expect(() =>
-      validateEvent({ workspaceId: "ws1", type: EVENT_TYPES.CALENDAR_BOOKED, payload: { provider: "calendly" } }),
+      validateEvent({
+        workspaceId: "ws1",
+        type: EVENT_TYPES.CALENDAR_BOOKED,
+        payload: { provider: "calendly" },
+      }),
     ).toThrow(/Invalid payload for "calendar.booked.v1"/);
 
     const rescheduled = validateEvent({
@@ -334,7 +355,12 @@ describe("validateEvent", () => {
         validateEvent({
           workspaceId: "ws1",
           type: EVENT_TYPES.CALENDAR_CANCELED,
-          payload: { provider: "calendly", meetingId: "m1", startAt: "2026-07-28T15:00:00.000Z", reason },
+          payload: {
+            provider: "calendly",
+            meetingId: "m1",
+            startAt: "2026-07-28T15:00:00.000Z",
+            reason,
+          },
         }).payload,
       ).toMatchObject({ reason });
     }

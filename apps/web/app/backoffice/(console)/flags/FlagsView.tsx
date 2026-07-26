@@ -5,7 +5,10 @@ import type { BackofficeAgencyRow, FeatureFlagRow } from "@clientforce/core";
 import { Button, Pill, Toast } from "@clientforce/ui";
 
 async function bo(path: string, init?: RequestInit): Promise<unknown> {
-  const res = await fetch(`/api/bo/${path}`, { headers: { "Content-Type": "application/json" }, ...init });
+  const res = await fetch(`/api/bo/${path}`, {
+    headers: { "Content-Type": "application/json" },
+    ...init,
+  });
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as { message?: string };
     throw new Error(body.message ?? `Request failed (${res.status})`);
@@ -19,7 +22,9 @@ async function bo(path: string, init?: RequestInit): Promise<unknown> {
  * `workspaces/:id/flags` — upsert, audited.
  */
 export function FlagsView({ agencies }: { agencies: BackofficeAgencyRow[] }) {
-  const workspaces = agencies.flatMap((a) => a.workspaces.map((w) => ({ ...w, agencyName: a.name })));
+  const workspaces = agencies.flatMap((a) =>
+    a.workspaces.map((w) => ({ ...w, agencyName: a.name })),
+  );
   const [workspaceId, setWorkspaceId] = useState<string>("");
   const [flags, setFlags] = useState<FeatureFlagRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -49,7 +54,10 @@ export function FlagsView({ agencies }: { agencies: BackofficeAgencyRow[] }) {
     setError(null);
     setBusyKey(key);
     try {
-      await bo(`workspaces/${workspaceId}/flags`, { method: "POST", body: JSON.stringify({ key, enabled }) });
+      await bo(`workspaces/${workspaceId}/flags`, {
+        method: "POST",
+        body: JSON.stringify({ key, enabled }),
+      });
       await load(workspaceId);
       setToast(`Flag “${key}” ${enabled ? "enabled" : "disabled"}.`);
     } catch (e) {
@@ -71,20 +79,43 @@ export function FlagsView({ agencies }: { agencies: BackofficeAgencyRow[] }) {
 
   return (
     <div>
-      <h1 style={{ fontFamily: "'Bricolage Grotesque'", fontSize: 28, fontWeight: 700, margin: "0 0 4px" }}>
+      <h1
+        style={{
+          fontFamily: "'Bricolage Grotesque'",
+          fontSize: 28,
+          fontWeight: 700,
+          margin: "0 0 4px",
+        }}
+      >
         Feature flags
       </h1>
       <p style={{ color: "#5b6560", fontSize: 14, margin: "0 0 20px", maxWidth: 720 }}>
-        Per-workspace toggles, set by operators and audited. The flag store is written only from here; the app
-        reads flags to gate features.
+        Per-workspace toggles, set by operators and audited. The flag store is written only from
+        here; the app reads flags to gate features.
       </p>
 
-      <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13, maxWidth: 460, marginBottom: 20 }}>
+      <label
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 6,
+          fontSize: 13,
+          maxWidth: 460,
+          marginBottom: 20,
+        }}
+      >
         Workspace
         <select
           value={workspaceId}
           onChange={(e) => onPick(e.target.value)}
-          style={{ height: 40, borderRadius: 10, border: "1px solid var(--cf-color-hairline, #ebe3d6)", padding: "0 12px", fontSize: 14, background: "#fff" }}
+          style={{
+            height: 40,
+            borderRadius: 10,
+            border: "1px solid var(--cf-color-hairline, #ebe3d6)",
+            padding: "0 12px",
+            fontSize: 14,
+            background: "#fff",
+          }}
         >
           <option value="">Select a workspace…</option>
           {workspaces.map((w) => (
@@ -98,7 +129,15 @@ export function FlagsView({ agencies }: { agencies: BackofficeAgencyRow[] }) {
       {!workspaceId ? null : loading ? (
         <div style={{ color: "#8a938d", fontSize: 13 }}>Loading flags…</div>
       ) : (
-        <div style={{ background: "#fff", border: "1px solid var(--cf-color-hairline, #ebe3d6)", borderRadius: 14, overflow: "hidden", maxWidth: 620 }}>
+        <div
+          style={{
+            background: "#fff",
+            border: "1px solid var(--cf-color-hairline, #ebe3d6)",
+            borderRadius: 14,
+            overflow: "hidden",
+            maxWidth: 620,
+          }}
+        >
           {flags.length === 0 ? (
             <div style={{ padding: "18px 20px", color: "#8a938d", fontSize: 13 }}>
               No flags set for this workspace yet — add one below.
@@ -107,7 +146,13 @@ export function FlagsView({ agencies }: { agencies: BackofficeAgencyRow[] }) {
             flags.map((f) => (
               <div
                 key={f.key}
-                style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 20px", borderBottom: "1px solid var(--cf-color-hairline, #ebe3d6)" }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  padding: "12px 20px",
+                  borderBottom: "1px solid var(--cf-color-hairline, #ebe3d6)",
+                }}
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontFamily: "monospace", fontSize: 13 }}>{f.key}</div>
@@ -144,16 +189,33 @@ export function FlagsView({ agencies }: { agencies: BackofficeAgencyRow[] }) {
               onChange={(e) => setNewKey(e.target.value)}
               placeholder="new_flag_key"
               aria-label="New flag key"
-              style={{ flex: 1, height: 38, borderRadius: 10, border: "1px solid var(--cf-color-hairline, #ebe3d6)", padding: "0 12px", fontFamily: "monospace", fontSize: 13 }}
+              style={{
+                flex: 1,
+                height: 38,
+                borderRadius: 10,
+                border: "1px solid var(--cf-color-hairline, #ebe3d6)",
+                padding: "0 12px",
+                fontFamily: "monospace",
+                fontSize: 13,
+              }}
             />
-            <Button variant="secondary" type="button" onClick={() => void addFlag()} disabled={busyKey !== null}>
+            <Button
+              variant="secondary"
+              type="button"
+              onClick={() => void addFlag()}
+              disabled={busyKey !== null}
+            >
               Add &amp; enable
             </Button>
           </div>
         </div>
       )}
 
-      {error ? <p style={{ color: "var(--cf-color-danger, #c9543f)", fontSize: 13, marginTop: 12 }}>{error}</p> : null}
+      {error ? (
+        <p style={{ color: "var(--cf-color-danger, #c9543f)", fontSize: 13, marginTop: 12 }}>
+          {error}
+        </p>
+      ) : null}
       {toast ? <Toast onClose={() => setToast(null)}>{toast}</Toast> : null}
     </div>
   );

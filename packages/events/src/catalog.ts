@@ -48,7 +48,11 @@ const messageRef = { messageId: z.string().min(1) };
  */
 export const EVENT_SCHEMAS = {
   // ── Messaging · email ──────────────────────────────────────────────────────
-  "email.sent.v1": z.object({ ...messageRef, stepNodeId: z.string().optional(), to: z.string().optional() }),
+  "email.sent.v1": z.object({
+    ...messageRef,
+    stepNodeId: z.string().optional(),
+    to: z.string().optional(),
+  }),
   "email.delivered.v1": z.object({ ...messageRef }),
   "email.opened.v1": z.object({ ...messageRef, link: z.string().optional() }),
   "email.clicked.v1": z.object({ ...messageRef, link: z.string() }),
@@ -66,10 +70,18 @@ export const EVENT_SCHEMAS = {
   }),
 
   // ── Messaging · SMS ────────────────────────────────────────────────────────
-  "sms.sent.v1": z.object({ ...messageRef, segmentCount: z.number().int().nonnegative(), body: z.string().optional() }),
+  "sms.sent.v1": z.object({
+    ...messageRef,
+    segmentCount: z.number().int().nonnegative(),
+    body: z.string().optional(),
+  }),
   "sms.delivered.v1": z.object({ ...messageRef }),
   // P2.1 (DEC-061): provider delivery failure (Twilio status callback).
-  "sms.failed.v1": z.object({ ...messageRef, reason: z.string().optional(), errorCode: z.string().optional() }),
+  "sms.failed.v1": z.object({
+    ...messageRef,
+    reason: z.string().optional(),
+    errorCode: z.string().optional(),
+  }),
   "sms.replied.v1": z.object({ ...messageRef, body: z.string(), intent: IntentSchema }),
   "sms.opted_out.v1": z.object({ ...messageRef, reason: z.string().optional() }),
   // G1 (DEC-070): the guided composer refused after its bounded retry — the
@@ -84,7 +96,11 @@ export const EVENT_SCHEMAS = {
   // ── Messaging · WhatsApp ───────────────────────────────────────────────────
   "whatsapp.sent.v1": z.object({ ...messageRef, templateId: z.string() }),
   "whatsapp.delivered.v1": z.object({ ...messageRef }),
-  "whatsapp.replied.v1": z.object({ ...messageRef, intent: IntentSchema, button: z.string().optional() }),
+  "whatsapp.replied.v1": z.object({
+    ...messageRef,
+    intent: IntentSchema,
+    button: z.string().optional(),
+  }),
   "whatsapp.button_clicked.v1": z.object({ ...messageRef, button: z.string() }),
 
   // ── Voice ──────────────────────────────────────────────────────────────────
@@ -97,7 +113,11 @@ export const EVENT_SCHEMAS = {
     recordingUrl: z.string().optional(),
   }),
   "call.failed.v1": z.object({ callId: z.string(), reason: z.string().optional() }),
-  "call.booked.v1": z.object({ callId: z.string(), durationSec: z.number().int().nonnegative().optional(), outcome: z.string().optional() }),
+  "call.booked.v1": z.object({
+    callId: z.string(),
+    durationSec: z.number().int().nonnegative().optional(),
+    outcome: z.string().optional(),
+  }),
   // P3.1 (DEC-078): the dial boundary refused BEFORE any call existed —
   // window/cap/suppression/allow-list rails (send-sms order, ported). No
   // callId on purpose: no Call row was created (DEC-064: the catalog payload
@@ -140,16 +160,31 @@ export const EVENT_SCHEMAS = {
   }),
 
   // ── Inbound ────────────────────────────────────────────────────────────────
-  "form.submitted.v1": z.object({ formId: z.string(), fields: z.record(z.unknown()), routedTo: z.string().optional() }),
+  "form.submitted.v1": z.object({
+    formId: z.string(),
+    fields: z.record(z.unknown()),
+    routedTo: z.string().optional(),
+  }),
   "widget.conversation_started.v1": z.object({ widgetId: z.string() }),
-  "widget.lead_captured.v1": z.object({ widgetId: z.string(), fields: z.record(z.unknown()), routedTo: z.string().optional() }),
-  "linkedin.captured.v1": z.object({ fields: z.record(z.unknown()), routedTo: z.string().optional() }),
+  "widget.lead_captured.v1": z.object({
+    widgetId: z.string(),
+    fields: z.record(z.unknown()),
+    routedTo: z.string().optional(),
+  }),
+  "linkedin.captured.v1": z.object({
+    fields: z.record(z.unknown()),
+    routedTo: z.string().optional(),
+  }),
 
   // ── Proposals ──────────────────────────────────────────────────────────────
   "proposal.sent.v1": z.object({ proposalId: z.string(), trackedLinkId: z.string() }),
   "proposal.viewed.v1": z.object({ proposalId: z.string(), trackedLinkId: z.string() }),
   "proposal.accepted.v1": z.object({ proposalId: z.string(), trackedLinkId: z.string() }),
-  "proposal.paid.v1": z.object({ proposalId: z.string(), trackedLinkId: z.string(), amount: z.number().int() }),
+  "proposal.paid.v1": z.object({
+    proposalId: z.string(),
+    trackedLinkId: z.string(),
+    amount: z.number().int(),
+  }),
 
   // ── Pipeline ───────────────────────────────────────────────────────────────
   // `lead.replied` was removed from the canonical catalog (handoff A9 /
@@ -285,7 +320,11 @@ export const EVENT_SCHEMAS = {
     provider: z.string().optional(),
     externalId: z.string().optional(),
   }),
-  "credits.consumed.v1": z.object({ amount: z.number().int(), channel: z.string(), balance: z.number().int() }),
+  "credits.consumed.v1": z.object({
+    amount: z.number().int(),
+    channel: z.string(),
+    balance: z.number().int(),
+  }),
   "credits.low.v1": z.object({ balance: z.number().int() }),
 
   // ── Integrations ───────────────────────────────────────────────────────────
@@ -294,7 +333,10 @@ export const EVENT_SCHEMAS = {
   // ADDITIVE optional field on the pre-existing connected event (no version
   // bump); `sync_failed` stays the DELIVERY-failure row (a probe failure is a
   // status transition, not a sync).
-  "integration.connected.v1": z.object({ provider: z.string(), accountLabel: z.string().optional() }),
+  "integration.connected.v1": z.object({
+    provider: z.string(),
+    accountLabel: z.string().optional(),
+  }),
   "integration.sync_failed.v1": z.object({ provider: z.string(), error: z.string().optional() }),
   // The user disconnected — the row is deleted; this ledger row is what
   // outlives it (the automation.deleted stance). W1 emits `reason: "user"`

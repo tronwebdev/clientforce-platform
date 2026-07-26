@@ -87,16 +87,22 @@ describe.skipIf(!hasInfra)("compose-time booking injection (INT W2)", () => {
   beforeAll(async () => {
     owner = createPrismaClient();
     app = createAppPrismaClient();
-    const agency = await owner.agency.create({ data: { name: suffix, slug: suffix, branding: {} } });
+    const agency = await owner.agency.create({
+      data: { name: suffix, slug: suffix, branding: {} },
+    });
     agencyId = agency.id;
-    ws = (await owner.workspace.create({ data: { agencyId, name: "cb", slug: suffix, settings: {} } })).id;
+    ws = (
+      await owner.workspace.create({ data: { agencyId, name: "cb", slug: suffix, settings: {} } })
+    ).id;
     agentId = (
       await owner.agent.create({
         data: { workspaceId: ws, name: "Booker", goal: "book_appointments", guardrails: {} },
       })
     ).id;
     campaignId = (
-      await owner.campaign.create({ data: { workspaceId: ws, agentId, name: "primary", graphId: "" } })
+      await owner.campaign.create({
+        data: { workspaceId: ws, agentId, name: "primary", graphId: "" },
+      })
     ).id;
     contactId = (
       await owner.contact.create({
@@ -129,7 +135,11 @@ describe.skipIf(!hasInfra)("compose-time booking injection (INT W2)", () => {
         agentId: null,
         status: "READY",
         fields: {
-          offer: { value: "We book dental appointments with a free growth audit.", citations: [], source: "typed" },
+          offer: {
+            value: "We book dental appointments with a free growth audit.",
+            citations: [],
+            source: "typed",
+          },
         },
       },
     });
@@ -150,7 +160,10 @@ describe.skipIf(!hasInfra)("compose-time booking injection (INT W2)", () => {
   it("email: the FULL per-lead link rides the brief's talking points and grounds composed copy", async () => {
     await connectCalendly();
     const { gateway, calls } = fakeGateway([
-      { subject: "A time that fits Acme Dental", body: `Ada, grab a time that works: ${SCHEDULING_URL}?utm_source=clientforce&utm_content=${contactId}. Worth a look?` },
+      {
+        subject: "A time that fits Acme Dental",
+        body: `Ada, grab a time that works: ${SCHEDULING_URL}?utm_source=clientforce&utm_content=${contactId}. Worth a look?`,
+      },
     ]);
     const compose = createEmailStepComposer({ prisma: app, gateway });
     const out = await compose(stepParams());
@@ -165,7 +178,10 @@ describe.skipIf(!hasInfra)("compose-time booking injection (INT W2)", () => {
   it("email: a model that drops the params still grounds (substring) — detection degrades to email match", async () => {
     await connectCalendly();
     const { gateway } = fakeGateway([
-      { subject: "A time that fits Acme Dental", body: `Ada, grab a time that works: ${SCHEDULING_URL}. Worth a look?` },
+      {
+        subject: "A time that fits Acme Dental",
+        body: `Ada, grab a time that works: ${SCHEDULING_URL}. Worth a look?`,
+      },
     ]);
     const compose = createEmailStepComposer({ prisma: app, gateway });
     const out = await compose(stepParams());
@@ -173,7 +189,10 @@ describe.skipIf(!hasInfra)("compose-time booking injection (INT W2)", () => {
   });
 
   it("email: NO config → no injected line, and an invented booking link still refuses UNGROUNDED_URL", async () => {
-    const dirty = { subject: "A time that fits Acme Dental", body: `Ada, book here: ${SCHEDULING_URL}. Worth a look?` };
+    const dirty = {
+      subject: "A time that fits Acme Dental",
+      body: `Ada, book here: ${SCHEDULING_URL}. Worth a look?`,
+    };
     const { gateway, calls } = fakeGateway([dirty, dirty]); // first pass + bounded retry, both dirty
     const compose = createEmailStepComposer({ prisma: app, gateway });
     await expect(compose(stepParams())).rejects.toMatchObject({
@@ -193,7 +212,10 @@ describe.skipIf(!hasInfra)("compose-time booking injection (INT W2)", () => {
       subject: "A time that fits Acme Dental",
       body: `Ada, grab a time that works: ${fullLink}. Worth a look?`,
     };
-    const noLink = { subject: "A time that fits Acme Dental", body: "Ada, shall we talk sometime? Worth a look?" };
+    const noLink = {
+      subject: "A time that fits Acme Dental",
+      body: "Ada, shall we talk sometime? Worth a look?",
+    };
     // First pass omits the link → MUST_SAY_MISSING → the bounded retry heals.
     const { gateway, calls } = fakeGateway([noLink, clean]);
     const compose = createEmailStepComposer({ prisma: app, gateway });
@@ -270,7 +292,10 @@ describe.skipIf(!hasInfra)("compose-time booking injection (INT W2)", () => {
         scopes: [],
       },
     });
-    const clean = { subject: "A time that fits Acme Dental", body: "Ada — worth a quick chat sometime?" };
+    const clean = {
+      subject: "A time that fits Acme Dental",
+      body: "Ada — worth a quick chat sometime?",
+    };
     const { gateway, calls } = fakeGateway([clean]);
     await createEmailStepComposer({ prisma: app, gateway })(stepParams());
     expect(calls[0]!.prompt).not.toContain("Booking link (offer it");

@@ -10,7 +10,10 @@
       "default": "./dist/index.js"
     }
   },
-  "files": ["dist", "prisma"],
+  "files": [
+    "dist",
+    "prisma"
+  ],
   "scripts": {
     "build": "prisma generate && tsc -p tsconfig.json && tsc -p tsconfig.seed.json",
     "db:generate": "prisma generate",

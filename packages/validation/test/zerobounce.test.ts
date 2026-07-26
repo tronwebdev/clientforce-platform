@@ -13,7 +13,8 @@ const fetchJson =
   async () =>
     new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
-const provider = (impl: typeof fetch) => new ZeroBounceProvider("test-key", "https://bulk.test", "https://api.test", impl);
+const provider = (impl: typeof fetch) =>
+  new ZeroBounceProvider("test-key", "https://bulk.test", "https://api.test", impl);
 
 describe("ZeroBounce status → verdict mapping (fixtures for every class)", () => {
   it("pins the owner-locked map: hostile → invalid, uncertain → risky", () => {
@@ -47,12 +48,21 @@ describe("ZeroBounce status → verdict mapping (fixtures for every class)", () 
     const out = await p.validateBatch(Object.keys(statuses));
     const byAddress = new Map(out.map((r) => [r.address, r]));
     expect(byAddress.get("ok@t.test")?.verdict).toBe("valid");
-    expect(byAddress.get("dead@t.test")).toMatchObject({ verdict: "invalid", subStatus: "mailbox_not_found" });
+    expect(byAddress.get("dead@t.test")).toMatchObject({
+      verdict: "invalid",
+      subStatus: "mailbox_not_found",
+    });
     expect(byAddress.get("trap@t.test")?.verdict).toBe("invalid");
     expect(byAddress.get("angry@t.test")?.verdict).toBe("invalid");
     expect(byAddress.get("catch@t.test")?.verdict).toBe("risky");
-    expect(byAddress.get("grey@t.test")).toMatchObject({ verdict: "risky", subStatus: "greylisted" });
-    expect(byAddress.get("role@t.test")).toMatchObject({ verdict: "risky", subStatus: "role_based" });
+    expect(byAddress.get("grey@t.test")).toMatchObject({
+      verdict: "risky",
+      subStatus: "greylisted",
+    });
+    expect(byAddress.get("role@t.test")).toMatchObject({
+      verdict: "risky",
+      subStatus: "role_based",
+    });
     expect(out).toHaveLength(7);
   });
 
@@ -76,7 +86,12 @@ describe("ZeroBounce status → verdict mapping (fixtures for every class)", () 
 
 describe("ZeroBounce typed refusals (provider failure is never silent)", () => {
   it("missing key → PROVIDER_AUTH naming the Key Vault secret", async () => {
-    const p = new ZeroBounceProvider(undefined, "https://bulk.test", "https://api.test", fetchJson(200, {}));
+    const p = new ZeroBounceProvider(
+      undefined,
+      "https://bulk.test",
+      "https://api.test",
+      fetchJson(200, {}),
+    );
     await expect(p.validateBatch(["a@t.test"])).rejects.toThrowError(/ZEROBOUNCE-API-KEY/);
     await expect(p.validateBatch(["a@t.test"])).rejects.toBeInstanceOf(ValidationProviderError);
   });

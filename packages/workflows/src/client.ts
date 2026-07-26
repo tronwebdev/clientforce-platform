@@ -7,12 +7,7 @@
 import { Client, Connection, WorkflowExecutionAlreadyStartedError } from "@temporalio/client";
 import { validateGraph, type CampaignGraph } from "@clientforce/core";
 import { withTenant, type PrismaClient } from "@clientforce/db";
-import {
-  REPLY_SIGNAL,
-  TASK_QUEUE,
-  workflowIdFor,
-  type CampaignWorkflowInput,
-} from "./shared";
+import { REPLY_SIGNAL, TASK_QUEUE, workflowIdFor, type CampaignWorkflowInput } from "./shared";
 
 /**
  * Client from env: TEMPORAL_ADDRESS (+ optional TEMPORAL_NAMESPACE, and

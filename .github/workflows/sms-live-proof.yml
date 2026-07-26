@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: 'Type LIVE to confirm one real SMS will be sent to the allow-listed number'
+        description: "Type LIVE to confirm one real SMS will be sent to the allow-listed number"
         required: true
 
 permissions:

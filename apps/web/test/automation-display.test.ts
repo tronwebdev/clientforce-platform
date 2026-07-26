@@ -82,7 +82,9 @@ describe("action display map (lib/actions)", () => {
   it("send_webhook chip: hostname when valid, default-URL when blank, and NEVER crashes mid-type (W3)", () => {
     expect(actionChip({ kind: "send_payment_link" })).toBe("Send payment link");
     expect(actionChip({ kind: "send_webhook" })).toBe("Send webhook (default URL)");
-    expect(actionChip({ kind: "send_webhook", url: "https://ops.example.com/hook" })).toBe("Send webhook: ops.example.com");
+    expect(actionChip({ kind: "send_webhook", url: "https://ops.example.com/hook" })).toBe(
+      "Send webhook: ops.example.com",
+    );
     // Review-round pin (ui #1, CRITICAL): the builder calls actionChip on the
     // LIVE draft every keystroke, so a partial/invalid URL must degrade to the
     // raw text, never throw `new URL()` and unmount the builder.
@@ -92,8 +94,12 @@ describe("action display map (lib/actions)", () => {
 
   it("INT W4: the CRM push chips carry the target stage", () => {
     expect(actionChip({ kind: "create_crm_deal" })).toBe("Create CRM deal");
-    expect(actionChip({ kind: "create_crm_deal", stage: "qualifiedtobuy" })).toBe("Create CRM deal → qualifiedtobuy");
-    expect(actionChip({ kind: "update_deal_stage", stage: "closedwon" })).toBe("Update deal stage → closedwon");
+    expect(actionChip({ kind: "create_crm_deal", stage: "qualifiedtobuy" })).toBe(
+      "Create CRM deal → qualifiedtobuy",
+    );
+    expect(actionChip({ kind: "update_deal_stage", stage: "closedwon" })).toBe(
+      "Update deal stage → closedwon",
+    );
   });
 });
 

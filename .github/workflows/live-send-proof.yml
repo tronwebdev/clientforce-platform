@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: 'Type LIVE to confirm one real email will be sent to the allow-listed inbox'
+        description: "Type LIVE to confirm one real email will be sent to the allow-listed inbox"
         required: true
 
 permissions:

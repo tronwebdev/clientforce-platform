@@ -40,7 +40,11 @@ describe("deriveSlots", () => {
     const slots = deriveSlots(busy, NOW, "UTC", { maxSlots: 3 });
     for (const slot of slots) {
       const end = slot.getTime() + 30 * 60_000;
-      expect(slot.getTime() >= Date.parse("2026-07-21T17:00:00Z") || end <= Date.parse("2026-07-21T09:00:00Z") || slot.toISOString().slice(0, 10) !== "2026-07-21").toBe(true);
+      expect(
+        slot.getTime() >= Date.parse("2026-07-21T17:00:00Z") ||
+          end <= Date.parse("2026-07-21T09:00:00Z") ||
+          slot.toISOString().slice(0, 10) !== "2026-07-21",
+      ).toBe(true);
     }
     expect(slots.some((s) => s.toISOString().slice(0, 10) === "2026-07-21")).toBe(false);
   });
@@ -81,13 +85,23 @@ describe("deriveSlots", () => {
   });
 
   it("is deterministic — same inputs, same output", () => {
-    const a = deriveSlots([{ start: "2026-07-21T14:00:00Z", end: "2026-07-21T15:00:00Z" }], NOW, "Europe/Berlin");
-    const b = deriveSlots([{ start: "2026-07-21T14:00:00Z", end: "2026-07-21T15:00:00Z" }], NOW, "Europe/Berlin");
+    const a = deriveSlots(
+      [{ start: "2026-07-21T14:00:00Z", end: "2026-07-21T15:00:00Z" }],
+      NOW,
+      "Europe/Berlin",
+    );
+    const b = deriveSlots(
+      [{ start: "2026-07-21T14:00:00Z", end: "2026-07-21T15:00:00Z" }],
+      NOW,
+      "Europe/Berlin",
+    );
     expect(a.map((d) => d.toISOString())).toEqual(b.map((d) => d.toISOString()));
   });
 
   it("ignores malformed busy entries instead of throwing", () => {
-    const slots = deriveSlots([{ start: "garbage", end: "also-garbage" }], NOW, "UTC", { maxSlots: 1 });
+    const slots = deriveSlots([{ start: "garbage", end: "also-garbage" }], NOW, "UTC", {
+      maxSlots: 1,
+    });
     expect(slots).toHaveLength(1);
   });
 });

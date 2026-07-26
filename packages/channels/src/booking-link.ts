@@ -27,7 +27,10 @@ import { withTenant, type Prisma, type PrismaClient } from "@clientforce/db";
 export type BookingSlotsLine = (params: { workspaceId: string }) => Promise<string | null>;
 
 /** The workspace scheduling URL off the calendly Integration row (null = unconfigured/revoked). */
-export async function loadSchedulingUrl(prisma: PrismaClient, workspaceId: string): Promise<string | null> {
+export async function loadSchedulingUrl(
+  prisma: PrismaClient,
+  workspaceId: string,
+): Promise<string | null> {
   const row = await withTenant(prisma, { workspaceId }, (tx) =>
     tx.integration.findUnique({
       where: { workspaceId_provider: { workspaceId, provider: "calendly" } },

@@ -28,6 +28,10 @@ export class TenantClient {
 
   run<T>(fn: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
     const { activeWorkspaceId, activeAgencyId } = this.context;
-    return withTenant(this.prisma.app, { workspaceId: activeWorkspaceId, agencyId: activeAgencyId }, fn);
+    return withTenant(
+      this.prisma.app,
+      { workspaceId: activeWorkspaceId, agencyId: activeAgencyId },
+      fn,
+    );
   }
 }

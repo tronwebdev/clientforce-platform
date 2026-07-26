@@ -61,11 +61,32 @@ interface TimelineEvent {
 }
 
 /** Add-a-contact drawer field styles (prototype literals). */
-const addLbl: CSSProperties = { display: "block", fontSize: 11, fontWeight: 800, color: "#9AA59E", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 6 };
-const addInp: CSSProperties = { width: "100%", boxSizing: "border-box", height: 44, borderRadius: 10, background: "#fff", border: "1px solid #EBE3D6", padding: "0 13px", fontSize: 14, color: "#0E1512", fontFamily: "'Hanken Grotesk',sans-serif" };
+const addLbl: CSSProperties = {
+  display: "block",
+  fontSize: 11,
+  fontWeight: 800,
+  color: "#9AA59E",
+  textTransform: "uppercase",
+  letterSpacing: ".05em",
+  marginBottom: 6,
+};
+const addInp: CSSProperties = {
+  width: "100%",
+  boxSizing: "border-box",
+  height: 44,
+  borderRadius: 10,
+  background: "#fff",
+  border: "1px solid #EBE3D6",
+  padding: "0 13px",
+  fontSize: 14,
+  color: "#0E1512",
+  fontFamily: "'Hanken Grotesk',sans-serif",
+};
 
 /** A10 derivation — the single source for chips, pills and filters. */
-export function deriveStatus(c: ContactRow): "New" | "Replied" | "Qualified" | "Booked" | "Unsubscribed" {
+export function deriveStatus(
+  c: ContactRow,
+): "New" | "Replied" | "Qualified" | "Booked" | "Unsubscribed" {
   if (c.unsub) return "Unsubscribed";
   if (c.stage === "booked") return "Booked";
   if (c.stage === "interested") return "Qualified";
@@ -115,28 +136,99 @@ const timeAgo = (iso: string | null) => {
 };
 
 /** Drawer timeline row treatment per live event type. */
-const EVENT_ROW: Record<string, { icon: string; bg: string; fg: string; label: (p: Record<string, unknown>) => string }> = {
-  "lead.enrolled.v1": { icon: "+", bg: "#F2EEE4", fg: "#8A7F6B", label: () => "Enrolled in a sequence" },
-  "email.sent.v1": { icon: "✉", bg: "#F2EEE4", fg: "#8A7F6B", label: (p) => `Step email sent${p.subject ? ` — “${String(p.subject)}”` : ""}` },
+const EVENT_ROW: Record<
+  string,
+  { icon: string; bg: string; fg: string; label: (p: Record<string, unknown>) => string }
+> = {
+  "lead.enrolled.v1": {
+    icon: "+",
+    bg: "#F2EEE4",
+    fg: "#8A7F6B",
+    label: () => "Enrolled in a sequence",
+  },
+  "email.sent.v1": {
+    icon: "✉",
+    bg: "#F2EEE4",
+    fg: "#8A7F6B",
+    label: (p) => `Step email sent${p.subject ? ` — “${String(p.subject)}”` : ""}`,
+  },
   "email.delivered.v1": { icon: "✓", bg: "#F2EEE4", fg: "#8A7F6B", label: () => "Email delivered" },
-  "email.opened.v1": { icon: "◔", bg: "#F2EEE4", fg: "#8A7F6B", label: (p) => `Opened${p.subject ? ` “${String(p.subject)}”` : " an email"}` },
-  "email.clicked.v1": { icon: "🔗", bg: "rgba(54,215,237,.16)", fg: "#1192A6", label: () => "Clicked a link" },
-  "email.replied.v1": { icon: "↩", bg: "rgba(54,215,237,.16)", fg: "#1192A6", label: (p) => `Replied${p.intent ? ` — classified “${intentTint(String(p.intent)).label}”` : ""}` },
-  "email.bounced.v1": { icon: "⚠", bg: "rgba(224,121,107,.14)", fg: "#C9543F", label: () => "Email hard-bounced" },
+  "email.opened.v1": {
+    icon: "◔",
+    bg: "#F2EEE4",
+    fg: "#8A7F6B",
+    label: (p) => `Opened${p.subject ? ` “${String(p.subject)}”` : " an email"}`,
+  },
+  "email.clicked.v1": {
+    icon: "🔗",
+    bg: "rgba(54,215,237,.16)",
+    fg: "#1192A6",
+    label: () => "Clicked a link",
+  },
+  "email.replied.v1": {
+    icon: "↩",
+    bg: "rgba(54,215,237,.16)",
+    fg: "#1192A6",
+    label: (p) =>
+      `Replied${p.intent ? ` — classified “${intentTint(String(p.intent)).label}”` : ""}`,
+  },
+  "email.bounced.v1": {
+    icon: "⚠",
+    bg: "rgba(224,121,107,.14)",
+    fg: "#C9543F",
+    label: () => "Email hard-bounced",
+  },
   // C2.9: goal-completion events carry the campaign's terminal label — render
   // it verbatim; older events fall back to the raw stage.
-  "lead.stage_changed.v1": { icon: "↪", bg: "rgba(53,232,52,.14)", fg: "#16A82A", label: (p) => `Moved to ${String(p.label ?? p.toStage ?? "a new stage")}${p.manual ? " by you" : ""}` },
-  "lead.unsubscribed.v1": { icon: "⊘", bg: "rgba(224,121,107,.16)", fg: "#C9543F", label: () => "Unsubscribed from all sequences" },
+  "lead.stage_changed.v1": {
+    icon: "↪",
+    bg: "rgba(53,232,52,.14)",
+    fg: "#16A82A",
+    label: (p) =>
+      `Moved to ${String(p.label ?? p.toStage ?? "a new stage")}${p.manual ? " by you" : ""}`,
+  },
+  "lead.unsubscribed.v1": {
+    icon: "⊘",
+    bg: "rgba(224,121,107,.16)",
+    fg: "#C9543F",
+    label: () => "Unsubscribed from all sequences",
+  },
   // P2.1 (DEC-061): sms timeline rows — same anatomy, channel-true copy.
   "sms.sent.v1": { icon: "✆", bg: "#F2EEE4", fg: "#8A7F6B", label: () => "Step SMS sent" },
   "sms.delivered.v1": { icon: "✓", bg: "#F2EEE4", fg: "#8A7F6B", label: () => "SMS delivered" },
-  "sms.failed.v1": { icon: "⚠", bg: "rgba(224,121,107,.14)", fg: "#C9543F", label: (p) => `SMS failed${p.reason ? ` — ${String(p.reason)}` : ""}` },
-  "sms.replied.v1": { icon: "💬", bg: "rgba(54,215,237,.16)", fg: "#1192A6", label: (p) => `Replied by SMS${p.intent ? ` — classified “${intentTint(String(p.intent)).label}”` : ""}` },
-  "sms.opted_out.v1": { icon: "⊘", bg: "rgba(224,121,107,.16)", fg: "#C9543F", label: () => "Replied STOP — suppressed for SMS" },
+  "sms.failed.v1": {
+    icon: "⚠",
+    bg: "rgba(224,121,107,.14)",
+    fg: "#C9543F",
+    label: (p) => `SMS failed${p.reason ? ` — ${String(p.reason)}` : ""}`,
+  },
+  "sms.replied.v1": {
+    icon: "💬",
+    bg: "rgba(54,215,237,.16)",
+    fg: "#1192A6",
+    label: (p) =>
+      `Replied by SMS${p.intent ? ` — classified “${intentTint(String(p.intent)).label}”` : ""}`,
+  },
+  "sms.opted_out.v1": {
+    icon: "⊘",
+    bg: "rgba(224,121,107,.16)",
+    fg: "#C9543F",
+    label: () => "Replied STOP — suppressed for SMS",
+  },
 
   // C2.8 (49-1): membership events render human — the slug never surfaces raw.
-  "list.member.added.v1": { icon: "≣", bg: "rgba(53,232,52,.14)", fg: "#16A82A", label: (p) => `Added to ${String(p.listName ?? "a list")}` },
-  "list.member.removed.v1": { icon: "≣", bg: "#F2EEE4", fg: "#8A7F6B", label: (p) => `Removed from ${String(p.listName ?? "a list")}` },
+  "list.member.added.v1": {
+    icon: "≣",
+    bg: "rgba(53,232,52,.14)",
+    fg: "#16A82A",
+    label: (p) => `Added to ${String(p.listName ?? "a list")}`,
+  },
+  "list.member.removed.v1": {
+    icon: "≣",
+    bg: "#F2EEE4",
+    fg: "#8A7F6B",
+    label: (p) => `Removed from ${String(p.listName ?? "a list")}`,
+  },
 };
 
 /** C2.9: the goal-completion row's wording follows the workspace pill. */
@@ -158,7 +250,11 @@ export function ContactsView() {
   const [agentFilter, setAgentFilter] = useState("all");
   const [agentDD, setAgentDD] = useState(false);
   const [moreDD, setMoreDD] = useState(false);
-  const [toggles, setToggles] = useState({ repliedOnly: false, bookedOnly: false, subscribedOnly: false });
+  const [toggles, setToggles] = useState({
+    repliedOnly: false,
+    bookedOnly: false,
+    subscribedOnly: false,
+  });
   const [sourceFilter, setSourceFilter] = useState("all");
   const [sortKey, setSortKey] = useState<"name" | "company" | "status" | null>(null);
   const [sortDir, setSortDir] = useState(1);
@@ -173,7 +269,14 @@ export function ContactsView() {
   const [timeline, setTimeline] = useState<TimelineEvent[] | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
-  const [form, setForm] = useState({ firstName: "", lastName: "", email: "", company: "", phone: "", title: "" });
+  const [form, setForm] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    company: "",
+    phone: "",
+    title: "",
+  });
   // C2.7: add-drawer custom values + the admin inline-create state.
   const [formCustom, setFormCustom] = useState<Record<string, string>>({});
   const [addFieldOpen, setAddFieldOpen] = useState(false);
@@ -209,7 +312,10 @@ export function ContactsView() {
     [wsPill],
   );
   const refreshDefs = useCallback(
-    () => cf("contact-fields").then((d: ContactFieldDefDto[]) => setFieldDefs(d)).catch(() => {}),
+    () =>
+      cf("contact-fields")
+        .then((d: ContactFieldDefDto[]) => setFieldDefs(d))
+        .catch(() => {}),
     [],
   );
   useEffect(() => {
@@ -221,9 +327,10 @@ export function ContactsView() {
 
   const refresh = useCallback(async () => {
     try {
-      const res = (await cf(
-        `contacts/view${activeList ? `?listId=${activeList}` : ""}`,
-      )) as { rows: ContactRow[]; activeGoalKeys: string[] };
+      const res = (await cf(`contacts/view${activeList ? `?listId=${activeList}` : ""}`)) as {
+        rows: ContactRow[];
+        activeGoalKeys: string[];
+      };
       setRows(res.rows);
       setActiveGoalKeys(res.activeGoalKeys);
       setError(false);
@@ -234,7 +341,10 @@ export function ContactsView() {
 
   // C2.8: rail lists (real counts) ride the same 5s poll as the rows.
   const refreshLists = useCallback(
-    () => cf("lists").then((l: ContactListDto[]) => setLists(l)).catch(() => {}),
+    () =>
+      cf("lists")
+        .then((l: ContactListDto[]) => setLists(l))
+        .catch(() => {}),
     [],
   );
 
@@ -255,7 +365,10 @@ export function ContactsView() {
     return () => clearInterval(t);
   }, [refresh, refreshLists]);
 
-  const drawer = useMemo(() => (rows ?? []).find((r) => r.id === drawerId) ?? null, [rows, drawerId]);
+  const drawer = useMemo(
+    () => (rows ?? []).find((r) => r.id === drawerId) ?? null,
+    [rows, drawerId],
+  );
 
   // drawer timeline polls while open (A4)
   // C2.7: leave any in-progress inline edit behind when switching contacts
@@ -292,14 +405,27 @@ export function ContactsView() {
       if (toggles.repliedOnly && !["Replied", "Qualified", "Booked"].includes(st)) return false;
       if (toggles.bookedOnly && st !== "Booked") return false;
       if (toggles.subscribedOnly && st === "Unsubscribed") return false;
-      if (q && !`${fullName(c)} ${c.email ?? ""} ${c.company ?? ""}`.toLowerCase().includes(q)) return false;
+      if (q && !`${fullName(c)} ${c.email ?? ""} ${c.company ?? ""}`.toLowerCase().includes(q))
+        return false;
       return true;
     });
     if (sortKey) {
-      const order: Record<string, number> = { New: 0, Replied: 1, Qualified: 2, Booked: 3, Unsubscribed: 4 };
+      const order: Record<string, number> = {
+        New: 0,
+        Replied: 1,
+        Qualified: 2,
+        Booked: 3,
+        Unsubscribed: 4,
+      };
       list = [...list].sort((a, b) => {
-        const va = sortKey === "status" ? order[deriveStatus(a)]! : (sortKey === "name" ? fullName(a) : a.company ?? "").toLowerCase();
-        const vb = sortKey === "status" ? order[deriveStatus(b)]! : (sortKey === "name" ? fullName(b) : b.company ?? "").toLowerCase();
+        const va =
+          sortKey === "status"
+            ? order[deriveStatus(a)]!
+            : (sortKey === "name" ? fullName(a) : (a.company ?? "")).toLowerCase();
+        const vb =
+          sortKey === "status"
+            ? order[deriveStatus(b)]!
+            : (sortKey === "name" ? fullName(b) : (b.company ?? "")).toLowerCase();
         return (va < vb ? -1 : va > vb ? 1 : 0) * sortDir;
       });
     }
@@ -311,17 +437,22 @@ export function ContactsView() {
   const pageRows = filtered.slice(start, start + perPage);
   const counts = useMemo(() => {
     const c: Record<string, number> = { all: rows?.length ?? 0 };
-    for (const s of SEGMENTS) if (s.id !== "all") c[s.id] = (rows ?? []).filter((r) => deriveStatus(r) === s.id).length;
+    for (const s of SEGMENTS)
+      if (s.id !== "all") c[s.id] = (rows ?? []).filter((r) => deriveStatus(r) === s.id).length;
     return c;
   }, [rows]);
   const selected = Object.keys(sel).filter((k) => sel[k]);
   const allOn = pageRows.length > 0 && pageRows.every((r) => sel[r.id]);
   const moreActive = sourceFilter !== "all" || Object.values(toggles).some(Boolean);
-  const moreCount = (sourceFilter !== "all" ? 1 : 0) + Object.values(toggles).filter(Boolean).length;
+  const moreCount =
+    (sourceFilter !== "all" ? 1 : 0) + Object.values(toggles).filter(Boolean).length;
 
   async function bulkUnsubscribe(ids: string[]) {
     if (ids.length === 0) return;
-    await cf("contacts/unsubscribe", { method: "POST", body: JSON.stringify({ contactIds: ids }) }).catch(() => {});
+    await cf("contacts/unsubscribe", {
+      method: "POST",
+      body: JSON.stringify({ contactIds: ids }),
+    }).catch(() => {});
     setSel({});
     setMoveDD(false);
     void refresh();
@@ -330,7 +461,7 @@ export function ContactsView() {
   // ── C2.8: list mutations (every failure surfaces — B5 rule) ──────────────
   const activeLists = useMemo(() => (lists ?? []).filter((l) => !l.archived), [lists]);
   const activeListRow = useMemo(
-    () => (activeList ? (lists ?? []).find((l) => l.id === activeList) ?? null : null),
+    () => (activeList ? ((lists ?? []).find((l) => l.id === activeList) ?? null) : null),
     [lists, activeList],
   );
 
@@ -408,12 +539,16 @@ export function ContactsView() {
     setMoveDD(false);
     if (stage === "__unsub__") return bulkUnsubscribe([c.id]);
     // stage moves ride the contact's latest enrollment (API resolves it)
-    await cf(`contacts/${c.id}/move`, { method: "POST", body: JSON.stringify({ stage }) }).catch(() => {});
+    await cf(`contacts/${c.id}/move`, { method: "POST", body: JSON.stringify({ stage }) }).catch(
+      () => {},
+    );
     void refresh();
   }
   async function createContact() {
     if (!/.+@.+\..+/.test(form.email) || !form.firstName.trim()) return;
-    const custom = Object.fromEntries(Object.entries(formCustom).filter(([, v]) => v.trim() !== ""));
+    const custom = Object.fromEntries(
+      Object.entries(formCustom).filter(([, v]) => v.trim() !== ""),
+    );
     const created = (await cf("contacts", {
       method: "POST",
       body: JSON.stringify({ ...form, ...(Object.keys(custom).length ? { custom } : {}) }),
@@ -439,20 +574,26 @@ export function ContactsView() {
     if (!label || creatingField) return;
     setCreatingField(true);
     try {
-      await cf("contact-fields", { method: "POST", body: JSON.stringify({ label, origin: "manual" }) });
+      await cf("contact-fields", {
+        method: "POST",
+        body: JSON.stringify({ label, origin: "manual" }),
+      });
       await refreshDefs();
       setAddFieldLabel("");
       setAddFieldOpen(false);
       // plan §UI-1: after create, focus the new def's value input.
       const key = slugifyFieldLabel(label);
-      setTimeout(() => document.querySelector<HTMLInputElement>(`[data-testid='custom-input-${key}']`)?.focus(), 60);
+      setTimeout(
+        () =>
+          document.querySelector<HTMLInputElement>(`[data-testid='custom-input-${key}']`)?.focus(),
+        60,
+      );
     } catch (err) {
       setFieldError(fieldCreateFailureCopy(err));
     } finally {
       setCreatingField(false);
     }
   }
-
 
   const sortArrow = (key: string) => (sortKey === key ? (sortDir === 1 ? "↑" : "↓") : "");
   const clickSort = (key: "name" | "company" | "status") => {
@@ -463,13 +604,29 @@ export function ContactsView() {
     }
   };
   const trigger = (active: boolean): React.CSSProperties => ({
-    display: "flex", alignItems: "center", gap: 8, background: active ? "rgba(53,232,52,.08)" : "#fff",
-    border: `1px solid ${active ? "#9FD8AC" : "#EBE3D6"}`, borderRadius: 11, padding: "10px 14px",
-    fontSize: 14, fontWeight: 600, color: active ? "#16A82A" : "#5C6B62", cursor: "pointer", position: "relative",
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    background: active ? "rgba(53,232,52,.08)" : "#fff",
+    border: `1px solid ${active ? "#9FD8AC" : "#EBE3D6"}`,
+    borderRadius: 11,
+    padding: "10px 14px",
+    fontSize: 14,
+    fontWeight: 600,
+    color: active ? "#16A82A" : "#5C6B62",
+    cursor: "pointer",
+    position: "relative",
   });
   const menuShell: React.CSSProperties = {
-    position: "absolute", top: "calc(100% + 6px)", right: 0, background: "#fff",
-    border: "1px solid #EBE3D6", borderRadius: 12, boxShadow: "0 16px 44px rgba(0,0,0,.18)", zIndex: 25, overflow: "hidden",
+    position: "absolute",
+    top: "calc(100% + 6px)",
+    right: 0,
+    background: "#fff",
+    border: "1px solid #EBE3D6",
+    borderRadius: 12,
+    boxShadow: "0 16px 44px rgba(0,0,0,.18)",
+    zIndex: 25,
+    overflow: "hidden",
   };
 
   const st = drawer ? deriveStatus(drawer) : null;
@@ -480,46 +637,249 @@ export function ContactsView() {
       {/* C2.8: lists rail — LIVE ContactList rows with real counts; clicking a
           list scopes the table (the rail IS the list filter). Archived lists
           are absent (membership preserved). */}
-      <div style={{ width: 226, flex: "none", background: "#F4F0E7", borderRight: "1px solid #EBE3D6", padding: "22px 14px", display: "flex", flexDirection: "column", minWidth: 0, boxSizing: "border-box" }} data-testid="lists-rail">
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 8px", marginBottom: 12 }}>
-          <span style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 12, letterSpacing: ".1em", textTransform: "uppercase", color: "#8A7F6B", flex: 1 }}>Lists</span>
-          <span onClick={() => openNewList(null)} style={{ width: 24, height: 24, borderRadius: 7, background: "#fff", border: "1px solid #EBE3D6", color: "#16A82A", fontSize: 15, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }} data-testid="rail-new-list">＋</span>
+      <div
+        style={{
+          width: 226,
+          flex: "none",
+          background: "#F4F0E7",
+          borderRight: "1px solid #EBE3D6",
+          padding: "22px 14px",
+          display: "flex",
+          flexDirection: "column",
+          minWidth: 0,
+          boxSizing: "border-box",
+        }}
+        data-testid="lists-rail"
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "0 8px",
+            marginBottom: 12,
+          }}
+        >
+          <span
+            style={{
+              fontFamily: "'Bricolage Grotesque',sans-serif",
+              fontWeight: 700,
+              fontSize: 12,
+              letterSpacing: ".1em",
+              textTransform: "uppercase",
+              color: "#8A7F6B",
+              flex: 1,
+            }}
+          >
+            Lists
+          </span>
+          <span
+            onClick={() => openNewList(null)}
+            style={{
+              width: 24,
+              height: 24,
+              borderRadius: 7,
+              background: "#fff",
+              border: "1px solid #EBE3D6",
+              color: "#16A82A",
+              fontSize: 15,
+              fontWeight: 700,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+            }}
+            data-testid="rail-new-list"
+          >
+            ＋
+          </span>
         </div>
-        <div onClick={() => { setActiveList(null); setPage(1); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 11px", borderRadius: 10, marginBottom: 3, cursor: "pointer", background: activeList === null ? "linear-gradient(135deg,rgba(54,215,237,.16),rgba(53,232,52,.16))" : "transparent" }} data-testid="rail-all">
+        <div
+          onClick={() => {
+            setActiveList(null);
+            setPage(1);
+          }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "9px 11px",
+            borderRadius: 10,
+            marginBottom: 3,
+            cursor: "pointer",
+            background:
+              activeList === null
+                ? "linear-gradient(135deg,rgba(54,215,237,.16),rgba(53,232,52,.16))"
+                : "transparent",
+          }}
+          data-testid="rail-all"
+        >
           <span style={{ fontSize: 15, width: 20, textAlign: "center" }}>☺</span>
-          <span style={{ fontSize: 14, fontWeight: activeList === null ? 700 : 600, color: activeList === null ? "#0E1512" : "#3B463F", flex: 1 }}>All contacts</span>
-          <span style={{ fontSize: 11.5, fontWeight: 700, color: activeList === null ? "#16A82A" : "#9AA59E" }}>{activeList === null ? rows?.length ?? 0 : ""}</span>
+          <span
+            style={{
+              fontSize: 14,
+              fontWeight: activeList === null ? 700 : 600,
+              color: activeList === null ? "#0E1512" : "#3B463F",
+              flex: 1,
+            }}
+          >
+            All contacts
+          </span>
+          <span
+            style={{
+              fontSize: 11.5,
+              fontWeight: 700,
+              color: activeList === null ? "#16A82A" : "#9AA59E",
+            }}
+          >
+            {activeList === null ? (rows?.length ?? 0) : ""}
+          </span>
         </div>
         <div style={{ height: 1, background: "#E6E0D4", margin: "8px 6px" }} />
-        <div style={{ overflowY: "auto", flex: 1, minHeight: 0, margin: "0 -4px", padding: "0 4px" }}>
+        <div
+          style={{ overflowY: "auto", flex: 1, minHeight: 0, margin: "0 -4px", padding: "0 4px" }}
+        >
           {activeLists.map((l) => {
             const on = activeList === l.id;
             const glyph = listGlyph(l.name);
             return (
-              <div key={l.id} onClick={() => { setActiveList(on ? null : l.id); setPage(1); setSel({}); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 11px", borderRadius: 10, marginBottom: 3, cursor: "pointer", background: on ? "linear-gradient(135deg,rgba(54,215,237,.16),rgba(53,232,52,.16))" : "transparent" }} data-testid={`rail-list-${l.id}`}>
-                <span style={{ width: 24, height: 24, borderRadius: 7, flex: "none", background: glyph.iconBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13 }}>{glyph.icon}</span>
-                <span style={{ fontSize: 13.5, fontWeight: on ? 700 : 600, color: on ? "#0E1512" : "#3B463F", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.name}</span>
-                <span style={{ fontSize: 11.5, fontWeight: 700, color: on ? "#16A82A" : "#9AA59E" }}>{l.memberCount}</span>
+              <div
+                key={l.id}
+                onClick={() => {
+                  setActiveList(on ? null : l.id);
+                  setPage(1);
+                  setSel({});
+                }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "9px 11px",
+                  borderRadius: 10,
+                  marginBottom: 3,
+                  cursor: "pointer",
+                  background: on
+                    ? "linear-gradient(135deg,rgba(54,215,237,.16),rgba(53,232,52,.16))"
+                    : "transparent",
+                }}
+                data-testid={`rail-list-${l.id}`}
+              >
+                <span
+                  style={{
+                    width: 24,
+                    height: 24,
+                    borderRadius: 7,
+                    flex: "none",
+                    background: glyph.iconBg,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 13,
+                  }}
+                >
+                  {glyph.icon}
+                </span>
+                <span
+                  style={{
+                    fontSize: 13.5,
+                    fontWeight: on ? 700 : 600,
+                    color: on ? "#0E1512" : "#3B463F",
+                    flex: 1,
+                    minWidth: 0,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {l.name}
+                </span>
+                <span
+                  style={{ fontSize: 11.5, fontWeight: 700, color: on ? "#16A82A" : "#9AA59E" }}
+                >
+                  {l.memberCount}
+                </span>
               </div>
             );
           })}
         </div>
-        <div onClick={() => openNewList(null)} onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#9FD8AC"; e.currentTarget.style.color = "#16A82A"; }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#D8CFBE"; e.currentTarget.style.color = "#8A7F6B"; }} style={{ display: "flex", alignItems: "center", gap: 9, padding: "10px 11px", borderRadius: 10, marginTop: 8, border: "1.5px dashed #D8CFBE", color: "#8A7F6B", cursor: "pointer" }} data-testid="rail-new-list-row">
+        <div
+          onClick={() => openNewList(null)}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = "#9FD8AC";
+            e.currentTarget.style.color = "#16A82A";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = "#D8CFBE";
+            e.currentTarget.style.color = "#8A7F6B";
+          }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 9,
+            padding: "10px 11px",
+            borderRadius: 10,
+            marginTop: 8,
+            border: "1.5px dashed #D8CFBE",
+            color: "#8A7F6B",
+            cursor: "pointer",
+          }}
+          data-testid="rail-new-list-row"
+        >
           <span style={{ fontSize: 15 }}>＋</span>
           <span style={{ fontSize: 13, fontWeight: 600 }}>New list</span>
         </div>
       </div>
 
       {/* main */}
-      <div style={{ flex: 1, background: "#FBF7F0", minWidth: 0, padding: "24px 28px 30px", boxSizing: "border-box" }}>
+      <div
+        style={{
+          flex: 1,
+          background: "#FBF7F0",
+          minWidth: 0,
+          padding: "24px 28px 30px",
+          boxSizing: "border-box",
+        }}
+      >
         {/* page header */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: 16,
+          }}
+        >
           <div>
             {/* C2.8: list-scoped header — name + green LIST badge + member line */}
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 26, letterSpacing: "-.02em", color: "#0E1512" }} data-testid="scope-title">{activeListRow ? activeListRow.name : "All contacts"}</span>
+              <span
+                style={{
+                  fontFamily: "'Bricolage Grotesque',sans-serif",
+                  fontWeight: 700,
+                  fontSize: 26,
+                  letterSpacing: "-.02em",
+                  color: "#0E1512",
+                }}
+                data-testid="scope-title"
+              >
+                {activeListRow ? activeListRow.name : "All contacts"}
+              </span>
               {activeListRow ? (
-                <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".06em", color: "#0F7A28", background: "rgba(53,232,52,.14)", border: "1px solid rgba(53,232,52,.35)", borderRadius: 7, padding: "3px 8px" }} data-testid="scope-badge">LIST</span>
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 800,
+                    letterSpacing: ".06em",
+                    color: "#0F7A28",
+                    background: "rgba(53,232,52,.14)",
+                    border: "1px solid rgba(53,232,52,.35)",
+                    borderRadius: 7,
+                    padding: "3px 8px",
+                  }}
+                  data-testid="scope-badge"
+                >
+                  LIST
+                </span>
               ) : null}
             </div>
             <div style={{ fontSize: 14, color: "#5C6B62" }} data-testid="scope-sub">
@@ -531,20 +891,108 @@ export function ContactsView() {
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, flex: "none" }}>
-            <a href="/lead-finder" style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 8, fontSize: 14, fontWeight: 600, color: "#16A82A", background: "rgba(53,232,52,.08)", border: "1px solid #9FD8AC", borderRadius: 12, padding: "11px 18px" }}>⚲ Find leads</a>
-            <span onClick={() => setImportOpen(true)} style={{ fontSize: 14, fontWeight: 600, color: "#0E1512", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 12, padding: "11px 18px", cursor: "pointer" }} data-testid="import-csv">↥ Import CSV</span>
-            <span onClick={() => setAddOpen(true)} style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontWeight: 700, fontSize: 15, color: "#0A0F0C", background: GRAD, borderRadius: 12, padding: "12px 22px", boxShadow: "0 6px 16px rgba(53,232,52,.26)", cursor: "pointer" }} data-testid="add-contact">+ Add contact</span>
+            <a
+              href="/lead-finder"
+              style={{
+                textDecoration: "none",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                fontSize: 14,
+                fontWeight: 600,
+                color: "#16A82A",
+                background: "rgba(53,232,52,.08)",
+                border: "1px solid #9FD8AC",
+                borderRadius: 12,
+                padding: "11px 18px",
+              }}
+            >
+              ⚲ Find leads
+            </a>
+            <span
+              onClick={() => setImportOpen(true)}
+              style={{
+                fontSize: 14,
+                fontWeight: 600,
+                color: "#0E1512",
+                background: "#fff",
+                border: "1px solid #EBE3D6",
+                borderRadius: 12,
+                padding: "11px 18px",
+                cursor: "pointer",
+              }}
+              data-testid="import-csv"
+            >
+              ↥ Import CSV
+            </span>
+            <span
+              onClick={() => setAddOpen(true)}
+              style={{
+                fontFamily: "'Hanken Grotesk',sans-serif",
+                fontWeight: 700,
+                fontSize: 15,
+                color: "#0A0F0C",
+                background: GRAD,
+                borderRadius: 12,
+                padding: "12px 22px",
+                boxShadow: "0 6px 16px rgba(53,232,52,.26)",
+                cursor: "pointer",
+              }}
+              data-testid="add-contact"
+            >
+              + Add contact
+            </span>
           </div>
         </div>
 
         {/* segment tabs — A10 queries */}
-        <div style={{ display: "flex", gap: 4, borderBottom: "1px solid #EBE3D6", marginBottom: 14, overflowX: "auto" }} data-testid="segments">
+        <div
+          style={{
+            display: "flex",
+            gap: 4,
+            borderBottom: "1px solid #EBE3D6",
+            marginBottom: 14,
+            overflowX: "auto",
+          }}
+          data-testid="segments"
+        >
           {segments.map((s) => {
             const on = seg === s.id;
             return (
-              <span key={s.id} onClick={() => { setSeg(s.id); setPage(1); }} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, fontWeight: on ? 700 : 600, color: on ? "#0E1512" : "#8A7F6B", padding: "11px 15px", borderBottom: `2px solid ${on ? "#16A82A" : "transparent"}`, cursor: "pointer", whiteSpace: "nowrap", flex: "none" }} data-testid={`seg-${s.id}`}>
+              <span
+                key={s.id}
+                onClick={() => {
+                  setSeg(s.id);
+                  setPage(1);
+                }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  fontSize: 14,
+                  fontWeight: on ? 700 : 600,
+                  color: on ? "#0E1512" : "#8A7F6B",
+                  padding: "11px 15px",
+                  borderBottom: `2px solid ${on ? "#16A82A" : "transparent"}`,
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                  flex: "none",
+                }}
+                data-testid={`seg-${s.id}`}
+              >
                 {s.label}
-                <span style={{ fontSize: 12, fontWeight: 700, color: on ? "#16A82A" : "#8A7F6B", background: on ? "rgba(53,232,52,.14)" : "#F2EEE4", borderRadius: 100, padding: "1px 8px" }}>{counts[s.id] ?? 0}</span>
+                <span
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: on ? "#16A82A" : "#8A7F6B",
+                    background: on ? "rgba(53,232,52,.14)" : "#F2EEE4",
+                    borderRadius: 100,
+                    padding: "1px 8px",
+                  }}
+                >
+                  {counts[s.id] ?? 0}
+                </span>
               </span>
             );
           })}
@@ -552,18 +1000,73 @@ export function ContactsView() {
 
         {/* toolbar / bulk bar */}
         {selected.length > 0 ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 14, background: "rgba(53,232,52,.08)", border: "1px solid rgba(53,232,52,.3)", borderRadius: 12, padding: "10px 16px" }} data-testid="bulk-bar">
-            <span style={{ fontSize: 14, fontWeight: 700, color: "#0E1512" }}>{selected.length} selected</span>
-            <span onClick={() => setSel({})} style={{ fontSize: 13, fontWeight: 600, color: "#16A82A", cursor: "pointer" }}>Clear</span>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 14,
+              marginBottom: 14,
+              background: "rgba(53,232,52,.08)",
+              border: "1px solid rgba(53,232,52,.3)",
+              borderRadius: 12,
+              padding: "10px 16px",
+            }}
+            data-testid="bulk-bar"
+          >
+            <span style={{ fontSize: 14, fontWeight: 700, color: "#0E1512" }}>
+              {selected.length} selected
+            </span>
+            <span
+              onClick={() => setSel({})}
+              style={{ fontSize: 13, fontWeight: 600, color: "#16A82A", cursor: "pointer" }}
+            >
+              Clear
+            </span>
             <div style={{ marginLeft: "auto", display: "flex", gap: 9 }}>
-              <span title="Sequence enrollment lives on the agent's Leads tab" style={{ fontSize: 13, fontWeight: 600, color: "#0E1512", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 10, padding: "8px 14px", cursor: "default" }}>+ Add to sequence</span>
+              <span
+                title="Sequence enrollment lives on the agent's Leads tab"
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "#0E1512",
+                  background: "#fff",
+                  border: "1px solid #EBE3D6",
+                  borderRadius: 10,
+                  padding: "8px 14px",
+                  cursor: "default",
+                }}
+              >
+                + Add to sequence
+              </span>
               {/* C2.8: the v4 bulk add-to-list menu — the ONE menu component */}
               <div style={{ position: "relative" }}>
-                <span onClick={() => setBulkListDD((v) => !v)} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: "#0E1512", background: bulkListDD ? "rgba(53,232,52,.08)" : "#fff", border: `1px solid ${bulkListDD ? "#9FD8AC" : "#EBE3D6"}`, borderRadius: 10, padding: "8px 14px", cursor: "pointer" }} data-testid="bulk-add-to-list">≣ Add to list <span style={{ color: "#9AA59E", fontSize: 11 }}>⌄</span></span>
+                <span
+                  onClick={() => setBulkListDD((v) => !v)}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "#0E1512",
+                    background: bulkListDD ? "rgba(53,232,52,.08)" : "#fff",
+                    border: `1px solid ${bulkListDD ? "#9FD8AC" : "#EBE3D6"}`,
+                    borderRadius: 10,
+                    padding: "8px 14px",
+                    cursor: "pointer",
+                  }}
+                  data-testid="bulk-add-to-list"
+                >
+                  ≣ Add to list <span style={{ color: "#9AA59E", fontSize: 11 }}>⌄</span>
+                </span>
                 {bulkListDD ? (
                   <AddToListMenu
                     header={`Add ${selected.length} to list`}
-                    options={activeLists.map((l) => ({ id: l.id, name: l.name, count: l.memberCount }))}
+                    options={activeLists.map((l) => ({
+                      id: l.id,
+                      name: l.name,
+                      count: l.memberCount,
+                    }))}
                     showCounts
                     newListLabel="New list from selection"
                     onPick={(listId) => void addToList(listId, selected, true)}
@@ -575,92 +1078,402 @@ export function ContactsView() {
               <span
                 onClick={() => {
                   const list = filtered.filter((r) => sel[r.id]);
-                  const rowsCsv = [["email", "firstName", "lastName", "company", "status"], ...list.map((c) => [c.email ?? "", c.firstName ?? "", c.lastName ?? "", c.company ?? "", deriveStatus(c)])];
-                  const blob = new Blob([rowsCsv.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n")], { type: "text/csv" });
+                  const rowsCsv = [
+                    ["email", "firstName", "lastName", "company", "status"],
+                    ...list.map((c) => [
+                      c.email ?? "",
+                      c.firstName ?? "",
+                      c.lastName ?? "",
+                      c.company ?? "",
+                      deriveStatus(c),
+                    ]),
+                  ];
+                  const blob = new Blob(
+                    [
+                      rowsCsv
+                        .map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
+                        .join("\n"),
+                    ],
+                    { type: "text/csv" },
+                  );
                   const a = document.createElement("a");
                   a.href = URL.createObjectURL(blob);
                   a.download = "contacts.csv";
                   a.click();
                 }}
-                style={{ fontSize: 13, fontWeight: 600, color: "#0E1512", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 10, padding: "8px 14px", cursor: "pointer" }}
-              >↥ Export</span>
-              <span onClick={() => void bulkUnsubscribe(selected)} style={{ fontSize: 13, fontWeight: 600, color: "#C9543F", background: "#fff", border: "1px solid #F0CFC8", borderRadius: 10, padding: "8px 14px", cursor: "pointer" }} data-testid="bulk-unsub">⊘ Unsubscribe</span>
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "#0E1512",
+                  background: "#fff",
+                  border: "1px solid #EBE3D6",
+                  borderRadius: 10,
+                  padding: "8px 14px",
+                  cursor: "pointer",
+                }}
+              >
+                ↥ Export
+              </span>
+              <span
+                onClick={() => void bulkUnsubscribe(selected)}
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "#C9543F",
+                  background: "#fff",
+                  border: "1px solid #F0CFC8",
+                  borderRadius: 10,
+                  padding: "8px 14px",
+                  cursor: "pointer",
+                }}
+                data-testid="bulk-unsub"
+              >
+                ⊘ Unsubscribe
+              </span>
             </div>
           </div>
         ) : (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, marginBottom: 14 }}>
-            <div style={{ flex: "0 0 320px", display: "flex", alignItems: "center", gap: 10, background: "#fff", border: `1px solid ${search ? "#9FD8AC" : "#EBE3D6"}`, borderRadius: 12, padding: "11px 16px", boxSizing: "border-box" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 14,
+              marginBottom: 14,
+            }}
+          >
+            <div
+              style={{
+                flex: "0 0 320px",
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                background: "#fff",
+                border: `1px solid ${search ? "#9FD8AC" : "#EBE3D6"}`,
+                borderRadius: 12,
+                padding: "11px 16px",
+                boxSizing: "border-box",
+              }}
+            >
               <span style={{ color: "#9AA59E" }}>⚲</span>
-              <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Search by name, email or company…" style={{ border: "none", background: "transparent", fontSize: 14, color: "#0E1512", flex: 1, minWidth: 0, outline: "none", fontFamily: "'Hanken Grotesk',sans-serif" }} data-testid="contacts-search" />
-              {search ? <span onClick={() => setSearch("")} style={{ color: "#9AA59E", fontSize: 13, cursor: "pointer" }}>✕</span> : null}
+              <input
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(1);
+                }}
+                placeholder="Search by name, email or company…"
+                style={{
+                  border: "none",
+                  background: "transparent",
+                  fontSize: 14,
+                  color: "#0E1512",
+                  flex: 1,
+                  minWidth: 0,
+                  outline: "none",
+                  fontFamily: "'Hanken Grotesk',sans-serif",
+                }}
+                data-testid="contacts-search"
+              />
+              {search ? (
+                <span
+                  onClick={() => setSearch("")}
+                  style={{ color: "#9AA59E", fontSize: 13, cursor: "pointer" }}
+                >
+                  ✕
+                </span>
+              ) : null}
             </div>
             <div style={{ display: "flex", gap: 9, flex: "none" }}>
               <div style={{ position: "relative" }}>
-                <span onClick={() => { setStatusDD((v) => !v); setAgentDD(false); setMoreDD(false); }} style={trigger(seg !== "all")} data-testid="status-filter">
-                  {seg === "all" ? "Status" : segments.find((s) => s.id === seg)?.label}<span style={{ color: "#9AA59E", fontSize: 12 }}>⌄</span>
+                <span
+                  onClick={() => {
+                    setStatusDD((v) => !v);
+                    setAgentDD(false);
+                    setMoreDD(false);
+                  }}
+                  style={trigger(seg !== "all")}
+                  data-testid="status-filter"
+                >
+                  {seg === "all" ? "Status" : segments.find((s) => s.id === seg)?.label}
+                  <span style={{ color: "#9AA59E", fontSize: 12 }}>⌄</span>
                 </span>
                 {statusDD ? (
                   <div style={{ ...menuShell, width: 200 }}>
                     {[{ id: "all", label: "All statuses" }, ...segments.slice(1)].map((o) => (
-                      <div key={o.id} onClick={() => { setSeg(o.id); setPage(1); setStatusDD(false); }} style={{ display: "flex", alignItems: "center", gap: 9, padding: "10px 14px", fontSize: 13.5, color: "#0E1512", borderBottom: "1px solid #F7F2EA", cursor: "pointer" }}>
+                      <div
+                        key={o.id}
+                        onClick={() => {
+                          setSeg(o.id);
+                          setPage(1);
+                          setStatusDD(false);
+                        }}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 9,
+                          padding: "10px 14px",
+                          fontSize: 13.5,
+                          color: "#0E1512",
+                          borderBottom: "1px solid #F7F2EA",
+                          cursor: "pointer",
+                        }}
+                      >
                         <span style={{ flex: 1 }}>{o.label}</span>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: "#8A7F6B" }}>{o.id === "all" ? rows?.length ?? 0 : counts[o.id] ?? 0}</span>
-                        <span style={{ color: "#16A82A", visibility: seg === o.id ? "visible" : "hidden" }}>✓</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: "#8A7F6B" }}>
+                          {o.id === "all" ? (rows?.length ?? 0) : (counts[o.id] ?? 0)}
+                        </span>
+                        <span
+                          style={{
+                            color: "#16A82A",
+                            visibility: seg === o.id ? "visible" : "hidden",
+                          }}
+                        >
+                          ✓
+                        </span>
                       </div>
                     ))}
                   </div>
                 ) : null}
               </div>
               <div style={{ position: "relative" }}>
-                <span onClick={() => { setAgentDD((v) => !v); setStatusDD(false); setMoreDD(false); }} style={trigger(agentFilter !== "all")} data-testid="agent-filter">
-                  {agentFilter === "all" ? "Agent" : agentFilter.length > 16 ? `${agentFilter.slice(0, 15)}…` : agentFilter}<span style={{ color: "#9AA59E", fontSize: 12 }}>⌄</span>
+                <span
+                  onClick={() => {
+                    setAgentDD((v) => !v);
+                    setStatusDD(false);
+                    setMoreDD(false);
+                  }}
+                  style={trigger(agentFilter !== "all")}
+                  data-testid="agent-filter"
+                >
+                  {agentFilter === "all"
+                    ? "Agent"
+                    : agentFilter.length > 16
+                      ? `${agentFilter.slice(0, 15)}…`
+                      : agentFilter}
+                  <span style={{ color: "#9AA59E", fontSize: 12 }}>⌄</span>
                 </span>
                 {agentDD ? (
                   <div style={{ ...menuShell, width: 236 }}>
                     {["all", ...agents].map((a) => (
-                      <div key={a} onClick={() => { setAgentFilter(a); setPage(1); setAgentDD(false); }} style={{ display: "flex", alignItems: "center", gap: 9, padding: "10px 14px", fontSize: 13.5, color: "#0E1512", borderBottom: "1px solid #F7F2EA", cursor: "pointer" }}>
-                        <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a === "all" ? "All agents" : a}</span>
-                        <span style={{ color: "#16A82A", visibility: agentFilter === a ? "visible" : "hidden" }}>✓</span>
+                      <div
+                        key={a}
+                        onClick={() => {
+                          setAgentFilter(a);
+                          setPage(1);
+                          setAgentDD(false);
+                        }}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 9,
+                          padding: "10px 14px",
+                          fontSize: 13.5,
+                          color: "#0E1512",
+                          borderBottom: "1px solid #F7F2EA",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <span
+                          style={{
+                            flex: 1,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {a === "all" ? "All agents" : a}
+                        </span>
+                        <span
+                          style={{
+                            color: "#16A82A",
+                            visibility: agentFilter === a ? "visible" : "hidden",
+                          }}
+                        >
+                          ✓
+                        </span>
                       </div>
                     ))}
                   </div>
                 ) : null}
               </div>
               <div style={{ position: "relative" }}>
-                <span onClick={() => { setMoreDD((v) => !v); setStatusDD(false); setAgentDD(false); }} style={trigger(moreActive)} data-testid="filters">
+                <span
+                  onClick={() => {
+                    setMoreDD((v) => !v);
+                    setStatusDD(false);
+                    setAgentDD(false);
+                  }}
+                  style={trigger(moreActive)}
+                  data-testid="filters"
+                >
                   ⚙ Filters
-                  {moreActive ? <span style={{ fontSize: 11, fontWeight: 700, color: "#fff", background: "#16A82A", borderRadius: 100, padding: "0 6px" }}>{moreCount}</span> : null}
+                  {moreActive ? (
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: "#fff",
+                        background: "#16A82A",
+                        borderRadius: 100,
+                        padding: "0 6px",
+                      }}
+                    >
+                      {moreCount}
+                    </span>
+                  ) : null}
                   <span style={{ color: "#9AA59E", fontSize: 12 }}>⌄</span>
                 </span>
                 {moreDD ? (
                   <div style={{ ...menuShell, width: 268, padding: 6 }}>
-                    <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: "#9AA59E", padding: "8px 10px 4px" }}>Source</div>
-                    {["all", ...Array.from(new Set((rows ?? []).map((r) => r.source).filter((x): x is string => !!x)))].map((o) => (
-                      <div key={o} onClick={() => { setSourceFilter(o); setPage(1); }} style={{ display: "flex", alignItems: "center", gap: 9, padding: "8px 10px", borderRadius: 8, fontSize: 13.5, color: "#0E1512", cursor: "pointer" }} data-testid={`source-${o}`}>
-                        <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o === "all" ? "All sources" : o}</span>
-                        <span style={{ color: "#16A82A", visibility: sourceFilter === o ? "visible" : "hidden" }}>✓</span>
+                    <div
+                      style={{
+                        fontSize: 10.5,
+                        fontWeight: 800,
+                        letterSpacing: ".07em",
+                        textTransform: "uppercase",
+                        color: "#9AA59E",
+                        padding: "8px 10px 4px",
+                      }}
+                    >
+                      Source
+                    </div>
+                    {[
+                      "all",
+                      ...Array.from(
+                        new Set((rows ?? []).map((r) => r.source).filter((x): x is string => !!x)),
+                      ),
+                    ].map((o) => (
+                      <div
+                        key={o}
+                        onClick={() => {
+                          setSourceFilter(o);
+                          setPage(1);
+                        }}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 9,
+                          padding: "8px 10px",
+                          borderRadius: 8,
+                          fontSize: 13.5,
+                          color: "#0E1512",
+                          cursor: "pointer",
+                        }}
+                        data-testid={`source-${o}`}
+                      >
+                        <span
+                          style={{
+                            flex: 1,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {o === "all" ? "All sources" : o}
+                        </span>
+                        <span
+                          style={{
+                            color: "#16A82A",
+                            visibility: sourceFilter === o ? "visible" : "hidden",
+                          }}
+                        >
+                          ✓
+                        </span>
                       </div>
                     ))}
                     <div style={{ height: 1, background: "#F2EEE4", margin: "6px 4px" }} />
-                    <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: "#9AA59E", padding: "6px 10px 4px" }}>Quick toggles</div>
-                    {(
-                      [
-                        { key: "repliedOnly" as const, label: "Replied or further" },
-                        { key: "bookedOnly" as const, label: `${wsPill} only` },
-                        { key: "subscribedOnly" as const, label: "Hide unsubscribed" },
-                      ]
-                    ).map((t) => {
+                    <div
+                      style={{
+                        fontSize: 10.5,
+                        fontWeight: 800,
+                        letterSpacing: ".07em",
+                        textTransform: "uppercase",
+                        color: "#9AA59E",
+                        padding: "6px 10px 4px",
+                      }}
+                    >
+                      Quick toggles
+                    </div>
+                    {[
+                      { key: "repliedOnly" as const, label: "Replied or further" },
+                      { key: "bookedOnly" as const, label: `${wsPill} only` },
+                      { key: "subscribedOnly" as const, label: "Hide unsubscribed" },
+                    ].map((t) => {
                       const on = toggles[t.key];
                       return (
-                        <div key={t.key} onClick={() => { setToggles((v) => ({ ...v, [t.key]: !v[t.key] })); setPage(1); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 8, cursor: "pointer" }} data-testid={`toggle-${t.key}`}>
-                          <span style={{ fontSize: 13.5, color: "#0E1512", flex: 1 }}>{t.label}</span>
-                          <span style={{ width: 38, height: 22, borderRadius: 100, background: on ? GRAD : "#D8CFBE", position: "relative", flex: "none" }}>
-                            <span style={{ position: "absolute", top: 3, ...(on ? { right: 3 } : { left: 3 }), width: 16, height: 16, borderRadius: "50%", background: "#fff", boxShadow: "0 1px 2px rgba(0,0,0,.2)" }} />
+                        <div
+                          key={t.key}
+                          onClick={() => {
+                            setToggles((v) => ({ ...v, [t.key]: !v[t.key] }));
+                            setPage(1);
+                          }}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 10,
+                            padding: "8px 10px",
+                            borderRadius: 8,
+                            cursor: "pointer",
+                          }}
+                          data-testid={`toggle-${t.key}`}
+                        >
+                          <span style={{ fontSize: 13.5, color: "#0E1512", flex: 1 }}>
+                            {t.label}
+                          </span>
+                          <span
+                            style={{
+                              width: 38,
+                              height: 22,
+                              borderRadius: 100,
+                              background: on ? GRAD : "#D8CFBE",
+                              position: "relative",
+                              flex: "none",
+                            }}
+                          >
+                            <span
+                              style={{
+                                position: "absolute",
+                                top: 3,
+                                ...(on ? { right: 3 } : { left: 3 }),
+                                width: 16,
+                                height: 16,
+                                borderRadius: "50%",
+                                background: "#fff",
+                                boxShadow: "0 1px 2px rgba(0,0,0,.2)",
+                              }}
+                            />
                           </span>
                         </div>
                       );
                     })}
-                    <div onClick={() => { setToggles({ repliedOnly: false, bookedOnly: false, subscribedOnly: false }); setAgentFilter("all"); setSourceFilter("all"); setSeg("all"); setSearch(""); setPage(1); setMoreDD(false); }} style={{ textAlign: "center", fontSize: 12.5, fontWeight: 600, color: "#C9543F", padding: 9, marginTop: 4, borderTop: "1px solid #F2EEE4", cursor: "pointer" }}>Reset all filters</div>
+                    <div
+                      onClick={() => {
+                        setToggles({
+                          repliedOnly: false,
+                          bookedOnly: false,
+                          subscribedOnly: false,
+                        });
+                        setAgentFilter("all");
+                        setSourceFilter("all");
+                        setSeg("all");
+                        setSearch("");
+                        setPage(1);
+                        setMoreDD(false);
+                      }}
+                      style={{
+                        textAlign: "center",
+                        fontSize: 12.5,
+                        fontWeight: 600,
+                        color: "#C9543F",
+                        padding: 9,
+                        marginTop: 4,
+                        borderTop: "1px solid #F2EEE4",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Reset all filters
+                    </div>
                   </div>
                 ) : null}
               </div>
@@ -669,23 +1482,73 @@ export function ContactsView() {
         )}
 
         {/* table */}
-        <div style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 18, boxShadow: "0 6px 24px rgba(14,21,18,.05)", overflow: "hidden" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "46px minmax(0,1.9fr) 1.2fr .95fr 1.15fr .85fr .95fr 44px", alignItems: "center", padding: "0 8px", background: "#FBF7F0", borderBottom: "1.5px solid #EBE3D6" }}>
+        <div
+          style={{
+            background: "#fff",
+            border: "1px solid #EBE3D6",
+            borderRadius: 18,
+            boxShadow: "0 6px 24px rgba(14,21,18,.05)",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "46px minmax(0,1.9fr) 1.2fr .95fr 1.15fr .85fr .95fr 44px",
+              alignItems: "center",
+              padding: "0 8px",
+              background: "#FBF7F0",
+              borderBottom: "1.5px solid #EBE3D6",
+            }}
+          >
             <div style={{ padding: "13px 12px" }}>
-              <span onClick={() => setSel(allOn ? {} : Object.fromEntries(pageRows.map((r) => [r.id, true])))} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: 5, border: `2px solid ${allOn ? "#16A82A" : "#CDBFA8"}`, background: allOn ? "#16A82A" : "transparent", color: "#fff", fontSize: 11, cursor: "pointer", boxSizing: "border-box" }} data-testid="select-all">{allOn ? "✓" : ""}</span>
+              <span
+                onClick={() =>
+                  setSel(allOn ? {} : Object.fromEntries(pageRows.map((r) => [r.id, true])))
+                }
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 18,
+                  height: 18,
+                  borderRadius: 5,
+                  border: `2px solid ${allOn ? "#16A82A" : "#CDBFA8"}`,
+                  background: allOn ? "#16A82A" : "transparent",
+                  color: "#fff",
+                  fontSize: 11,
+                  cursor: "pointer",
+                  boxSizing: "border-box",
+                }}
+                data-testid="select-all"
+              >
+                {allOn ? "✓" : ""}
+              </span>
             </div>
-            {(
-              [
-                { label: "Contact", key: "name" as const },
-                { label: "Company", key: "company" as const },
-                { label: "Status", key: "status" as const },
-                { label: "Agent", key: null },
-                { label: "List", key: null },
-                { label: "Last activity", key: null },
-              ]
-            ).map((h) => (
-              <div key={h.label} onClick={() => h.key && clickSort(h.key)} style={{ padding: "13px 12px", fontSize: 12, fontWeight: 700, letterSpacing: ".02em", textTransform: "uppercase", color: "#5C6B62", cursor: h.key ? "pointer" : "default" }} data-testid={h.key ? `sort-${h.key}` : undefined}>
-                {h.label} {h.key ? <span style={{ color: "#16A82A" }}>{sortArrow(h.key)}</span> : null}
+            {[
+              { label: "Contact", key: "name" as const },
+              { label: "Company", key: "company" as const },
+              { label: "Status", key: "status" as const },
+              { label: "Agent", key: null },
+              { label: "List", key: null },
+              { label: "Last activity", key: null },
+            ].map((h) => (
+              <div
+                key={h.label}
+                onClick={() => h.key && clickSort(h.key)}
+                style={{
+                  padding: "13px 12px",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  letterSpacing: ".02em",
+                  textTransform: "uppercase",
+                  color: "#5C6B62",
+                  cursor: h.key ? "pointer" : "default",
+                }}
+                data-testid={h.key ? `sort-${h.key}` : undefined}
+              >
+                {h.label}{" "}
+                {h.key ? <span style={{ color: "#16A82A" }}>{sortArrow(h.key)}</span> : null}
               </div>
             ))}
             <div />
@@ -694,20 +1557,66 @@ export function ContactsView() {
           {rows === null && !error ? (
             <div data-testid="contacts-skeleton">
               {[0, 1, 2, 3, 4].map((i) => (
-                <div key={i} style={{ display: "flex", gap: 12, padding: "14px 20px", borderTop: i ? "1px solid #F2EEE4" : "none" }}>
-                  <span style={{ width: 36, height: 36, borderRadius: "50%", background: "#F2EEE4", flex: "none" }} />
+                <div
+                  key={i}
+                  style={{
+                    display: "flex",
+                    gap: 12,
+                    padding: "14px 20px",
+                    borderTop: i ? "1px solid #F2EEE4" : "none",
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: "50%",
+                      background: "#F2EEE4",
+                      flex: "none",
+                    }}
+                  />
                   <div style={{ flex: 1 }}>
-                    <div style={{ height: 12, width: "35%", background: "#F2EEE4", borderRadius: 6, marginBottom: 7 }} />
-                    <div style={{ height: 10, width: "55%", background: "#F7F2EA", borderRadius: 6 }} />
+                    <div
+                      style={{
+                        height: 12,
+                        width: "35%",
+                        background: "#F2EEE4",
+                        borderRadius: 6,
+                        marginBottom: 7,
+                      }}
+                    />
+                    <div
+                      style={{ height: 10, width: "55%", background: "#F7F2EA", borderRadius: 6 }}
+                    />
                   </div>
                 </div>
               ))}
             </div>
           ) : error ? (
             <div style={{ padding: "48px 20px", textAlign: "center" }} data-testid="contacts-error">
-              <div style={{ fontSize: 15, fontWeight: 700, color: "#0E1512", marginBottom: 4 }}>Couldn&apos;t load contacts</div>
-              <div style={{ fontSize: 13, color: "#8A7F6B", marginBottom: 14 }}>Something went wrong talking to the API — your data is safe.</div>
-              <button type="button" onClick={() => void refresh()} style={{ background: GRAD, border: "none", borderRadius: 10, padding: "9px 16px", fontSize: 13, fontWeight: 700, color: "#0A0F0C", cursor: "pointer", fontFamily: "'Hanken Grotesk',sans-serif" }}>Retry</button>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#0E1512", marginBottom: 4 }}>
+                Couldn&apos;t load contacts
+              </div>
+              <div style={{ fontSize: 13, color: "#8A7F6B", marginBottom: 14 }}>
+                Something went wrong talking to the API — your data is safe.
+              </div>
+              <button
+                type="button"
+                onClick={() => void refresh()}
+                style={{
+                  background: GRAD,
+                  border: "none",
+                  borderRadius: 10,
+                  padding: "9px 16px",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: "#0A0F0C",
+                  cursor: "pointer",
+                  fontFamily: "'Hanken Grotesk',sans-serif",
+                }}
+              >
+                Retry
+              </button>
             </div>
           ) : (rows?.length ?? 0) === 0 ? (
             <div data-testid="contacts-true-empty">
@@ -718,8 +1627,39 @@ export function ContactsView() {
                 body="Import a CSV or add your first contact to get started."
                 actions={
                   <>
-                    <span onClick={() => setImportOpen(true)} style={{ fontSize: 13, fontWeight: 700, color: "#5C6B62", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 10, padding: "9px 16px", cursor: "pointer" }}>↥ Import CSV</span>
-                    <span onClick={() => setAddOpen(true)} style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 700, color: "#0A0F0C", background: GRAD, borderRadius: 10, padding: "9px 16px", boxShadow: "0 5px 14px rgba(53,232,52,.24)", cursor: "pointer" }}>+ Add contact</span>
+                    <span
+                      onClick={() => setImportOpen(true)}
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 700,
+                        color: "#5C6B62",
+                        background: "#fff",
+                        border: "1px solid #EBE3D6",
+                        borderRadius: 10,
+                        padding: "9px 16px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      ↥ Import CSV
+                    </span>
+                    <span
+                      onClick={() => setAddOpen(true)}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 7,
+                        fontSize: 13,
+                        fontWeight: 700,
+                        color: "#0A0F0C",
+                        background: GRAD,
+                        borderRadius: 10,
+                        padding: "9px 16px",
+                        boxShadow: "0 5px 14px rgba(53,232,52,.24)",
+                        cursor: "pointer",
+                      }}
+                    >
+                      + Add contact
+                    </span>
                   </>
                 }
               />
@@ -733,8 +1673,50 @@ export function ContactsView() {
                 body="Try clearing filters, or find fresh leads to add."
                 actions={
                   <>
-                    <span onClick={() => { setToggles({ repliedOnly: false, bookedOnly: false, subscribedOnly: false }); setAgentFilter("all"); setSourceFilter("all"); setSeg("all"); setSearch(""); setPage(1); }} style={{ fontSize: 13, fontWeight: 700, color: "#5C6B62", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 10, padding: "9px 16px", cursor: "pointer" }}>Reset filters</span>
-                    <a href="/lead-finder" style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 700, color: "#5C6B62", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 10, padding: "9px 16px" }}>⚲ Find leads</a>
+                    <span
+                      onClick={() => {
+                        setToggles({
+                          repliedOnly: false,
+                          bookedOnly: false,
+                          subscribedOnly: false,
+                        });
+                        setAgentFilter("all");
+                        setSourceFilter("all");
+                        setSeg("all");
+                        setSearch("");
+                        setPage(1);
+                      }}
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 700,
+                        color: "#5C6B62",
+                        background: "#fff",
+                        border: "1px solid #EBE3D6",
+                        borderRadius: 10,
+                        padding: "9px 16px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Reset filters
+                    </span>
+                    <a
+                      href="/lead-finder"
+                      style={{
+                        textDecoration: "none",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 7,
+                        fontSize: 13,
+                        fontWeight: 700,
+                        color: "#5C6B62",
+                        background: "#fff",
+                        border: "1px solid #EBE3D6",
+                        borderRadius: 10,
+                        padding: "9px 16px",
+                      }}
+                    >
+                      ⚲ Find leads
+                    </a>
                   </>
                 }
               />
@@ -745,47 +1727,208 @@ export function ContactsView() {
               const pill = ST[status]!;
               // C2.9: per-ROW terminal pills show the completing campaign's
               // wording; every other status keeps the A10 name.
-              const pillLabel = status === "Booked" ? c.goal?.pill ?? wsPill : status;
+              const pillLabel = status === "Booked" ? (c.goal?.pill ?? wsPill) : status;
               const on = Boolean(sel[c.id]);
               return (
-                <div key={c.id} onClick={() => setDrawerId(c.id)} style={{ display: "grid", gridTemplateColumns: "46px minmax(0,1.9fr) 1.2fr .95fr 1.15fr .85fr .95fr 44px", alignItems: "center", padding: "0 8px", borderTop: "1px solid #F2EEE4", background: on ? "rgba(53,232,52,.05)" : i % 2 === 1 ? "#FCFAF6" : "#fff", cursor: "pointer" }} data-testid="contact-row">
+                <div
+                  key={c.id}
+                  onClick={() => setDrawerId(c.id)}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "46px minmax(0,1.9fr) 1.2fr .95fr 1.15fr .85fr .95fr 44px",
+                    alignItems: "center",
+                    padding: "0 8px",
+                    borderTop: "1px solid #F2EEE4",
+                    background: on ? "rgba(53,232,52,.05)" : i % 2 === 1 ? "#FCFAF6" : "#fff",
+                    cursor: "pointer",
+                  }}
+                  data-testid="contact-row"
+                >
                   <div style={{ padding: "14px 12px" }} onClick={(e) => e.stopPropagation()}>
-                    <span onClick={() => setSel((s) => ({ ...s, [c.id]: !s[c.id] }))} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: 5, border: `2px solid ${on ? "#16A82A" : "#CDBFA8"}`, background: on ? "#16A82A" : "transparent", color: "#fff", fontSize: 11, cursor: "pointer", boxSizing: "border-box" }} data-testid="contact-check">{on ? "✓" : ""}</span>
+                    <span
+                      onClick={() => setSel((s) => ({ ...s, [c.id]: !s[c.id] }))}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: 18,
+                        height: 18,
+                        borderRadius: 5,
+                        border: `2px solid ${on ? "#16A82A" : "#CDBFA8"}`,
+                        background: on ? "#16A82A" : "transparent",
+                        color: "#fff",
+                        fontSize: 11,
+                        cursor: "pointer",
+                        boxSizing: "border-box",
+                      }}
+                      data-testid="contact-check"
+                    >
+                      {on ? "✓" : ""}
+                    </span>
                   </div>
-                  <div style={{ padding: "11px 12px", display: "flex", alignItems: "center", gap: 11, minWidth: 0 }}>
-                    <span style={{ width: 36, height: 36, borderRadius: "50%", flex: "none", background: avTint(c.id), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "#0A0F0C" }}>{initials(c)}</span>
+                  <div
+                    style={{
+                      padding: "11px 12px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 11,
+                      minWidth: 0,
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: "50%",
+                        flex: "none",
+                        background: avTint(c.id),
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: 13,
+                        fontWeight: 700,
+                        color: "#0A0F0C",
+                      }}
+                    >
+                      {initials(c)}
+                    </span>
                     <span style={{ minWidth: 0 }}>
-                      <span style={{ display: "block", fontWeight: 600, fontSize: 14.5, color: "#0E1512", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fullName(c)}</span>
+                      <span
+                        style={{
+                          display: "block",
+                          fontWeight: 600,
+                          fontSize: 14.5,
+                          color: "#0E1512",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {fullName(c)}
+                      </span>
                       <span style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-                        <span style={{ fontSize: 12.5, color: "#9AA59E", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.email}</span>
+                        <span
+                          style={{
+                            fontSize: 12.5,
+                            color: "#9AA59E",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {c.email}
+                        </span>
                         {/* LH1: verdict chip — action-relevant states only (valid stays quiet) */}
-                        {c.email && c.emailVerdict && c.emailVerdict !== "valid" && VERDICT_CHIP[c.emailVerdict] ? (
-                          <span title={VERDICT_CHIP[c.emailVerdict]!.title} style={{ flex: "none", fontSize: 10.5, fontWeight: 700, padding: "2px 8px", borderRadius: 100, background: VERDICT_CHIP[c.emailVerdict]!.bg, color: VERDICT_CHIP[c.emailVerdict]!.fg }} data-testid="verdict-chip">
+                        {c.email &&
+                        c.emailVerdict &&
+                        c.emailVerdict !== "valid" &&
+                        VERDICT_CHIP[c.emailVerdict] ? (
+                          <span
+                            title={VERDICT_CHIP[c.emailVerdict]!.title}
+                            style={{
+                              flex: "none",
+                              fontSize: 10.5,
+                              fontWeight: 700,
+                              padding: "2px 8px",
+                              borderRadius: 100,
+                              background: VERDICT_CHIP[c.emailVerdict]!.bg,
+                              color: VERDICT_CHIP[c.emailVerdict]!.fg,
+                            }}
+                            data-testid="verdict-chip"
+                          >
                             {VERDICT_CHIP[c.emailVerdict]!.label}
                           </span>
                         ) : null}
                       </span>
                     </span>
                   </div>
-                  <div style={{ padding: "11px 12px", fontSize: 14, color: "#3B463F", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.company ?? "—"}</div>
-                  <div style={{ padding: "11px 12px" }}>
-                    <span style={{ display: "inline-flex", alignItems: "center", padding: "5px 12px", borderRadius: 100, fontSize: 12.5, fontWeight: 600, background: pill.sbg, color: pill.sfg, whiteSpace: "nowrap" }} data-testid="status-pill">{pillLabel}</span>
+                  <div
+                    style={{
+                      padding: "11px 12px",
+                      fontSize: 14,
+                      color: "#3B463F",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {c.company ?? "—"}
                   </div>
-                  <div style={{ padding: "11px 12px", fontSize: 13.5, color: "#5C6B62", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.agentName ?? "—"}</div>
+                  <div style={{ padding: "11px 12px" }}>
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        padding: "5px 12px",
+                        borderRadius: 100,
+                        fontSize: 12.5,
+                        fontWeight: 600,
+                        background: pill.sbg,
+                        color: pill.sfg,
+                        whiteSpace: "nowrap",
+                      }}
+                      data-testid="status-pill"
+                    >
+                      {pillLabel}
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      padding: "11px 12px",
+                      fontSize: 13.5,
+                      color: "#5C6B62",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {c.agentName ?? "—"}
+                  </div>
                   {/* C2.8: LIST column — primary list; "+N" when in multiple */}
-                  <div style={{ padding: "11px 12px", fontSize: 12.5, color: "#5C6B62", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} data-testid="list-cell">
+                  <div
+                    style={{
+                      padding: "11px 12px",
+                      fontSize: 12.5,
+                      color: "#5C6B62",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                    data-testid="list-cell"
+                  >
                     {c.lists && c.lists.length > 0 ? (
                       <>
                         {c.lists[0]!.name}
-                        {c.lists.length > 1 ? <span style={{ color: "#9AA59E", fontWeight: 700 }}> +{c.lists.length - 1}</span> : null}
+                        {c.lists.length > 1 ? (
+                          <span style={{ color: "#9AA59E", fontWeight: 700 }}>
+                            {" "}
+                            +{c.lists.length - 1}
+                          </span>
+                        ) : null}
                       </>
                     ) : (
                       "—"
                     )}
                   </div>
-                  <div style={{ padding: "11px 12px", fontSize: 13.5, color: "#5C6B62" }}>{timeAgo(c.lastActivity)}</div>
+                  <div style={{ padding: "11px 12px", fontSize: 13.5, color: "#5C6B62" }}>
+                    {timeAgo(c.lastActivity)}
+                  </div>
                   <div style={{ padding: "11px 8px", display: "flex", justifyContent: "center" }}>
-                    <span style={{ width: 30, height: 30, borderRadius: 9, color: "#9AA59E", fontSize: 18, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>⋯</span>
+                    <span
+                      style={{
+                        width: 30,
+                        height: 30,
+                        borderRadius: 9,
+                        color: "#9AA59E",
+                        fontSize: 18,
+                        fontWeight: 700,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      ⋯
+                    </span>
                   </div>
                 </div>
               );
@@ -793,19 +1936,86 @@ export function ContactsView() {
           )}
 
           {/* pagination footer */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "13px 20px", borderTop: "1px solid #EBE3D6", background: "#FBF7F0" }} data-testid="pagination">
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 16,
+              padding: "13px 20px",
+              borderTop: "1px solid #EBE3D6",
+              background: "#FBF7F0",
+            }}
+            data-testid="pagination"
+          >
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <span style={{ fontSize: 13, color: "#8A7F6B" }}>
-                {filtered.length === 0 ? "No contacts" : `Showing ${start + 1}–${Math.min(start + perPage, filtered.length)} of ${filtered.length}`}
+                {filtered.length === 0
+                  ? "No contacts"
+                  : `Showing ${start + 1}–${Math.min(start + perPage, filtered.length)} of ${filtered.length}`}
               </span>
               <div style={{ position: "relative" }}>
-                <span onClick={() => setPerPageDD((v) => !v)} style={{ display: "flex", alignItems: "center", gap: 7, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 9, padding: "6px 11px", fontSize: 12.5, fontWeight: 600, color: "#5C6B62", cursor: "pointer" }} data-testid="per-page">{perPage} per page <span style={{ color: "#9AA59E", fontSize: 11 }}>⌄</span></span>
+                <span
+                  onClick={() => setPerPageDD((v) => !v)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 7,
+                    background: "#fff",
+                    border: "1px solid #EBE3D6",
+                    borderRadius: 9,
+                    padding: "6px 11px",
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    color: "#5C6B62",
+                    cursor: "pointer",
+                  }}
+                  data-testid="per-page"
+                >
+                  {perPage} per page <span style={{ color: "#9AA59E", fontSize: 11 }}>⌄</span>
+                </span>
                 {perPageDD ? (
-                  <div style={{ position: "absolute", bottom: "calc(100% + 6px)", left: 0, width: 150, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 11, boxShadow: "0 16px 44px rgba(0,0,0,.18)", zIndex: 25, overflow: "hidden" }}>
+                  <div
+                    style={{
+                      position: "absolute",
+                      bottom: "calc(100% + 6px)",
+                      left: 0,
+                      width: 150,
+                      background: "#fff",
+                      border: "1px solid #EBE3D6",
+                      borderRadius: 11,
+                      boxShadow: "0 16px 44px rgba(0,0,0,.18)",
+                      zIndex: 25,
+                      overflow: "hidden",
+                    }}
+                  >
                     {[10, 25, 50, 100].map((n) => (
-                      <div key={n} onClick={() => { setPerPage(n); setPage(1); setPerPageDD(false); }} style={{ display: "flex", alignItems: "center", gap: 9, padding: "9px 14px", fontSize: 13, color: "#0E1512", cursor: "pointer" }}>
+                      <div
+                        key={n}
+                        onClick={() => {
+                          setPerPage(n);
+                          setPage(1);
+                          setPerPageDD(false);
+                        }}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 9,
+                          padding: "9px 14px",
+                          fontSize: 13,
+                          color: "#0E1512",
+                          cursor: "pointer",
+                        }}
+                      >
                         <span style={{ flex: 1 }}>{n} per page</span>
-                        <span style={{ color: "#16A82A", visibility: perPage === n ? "visible" : "hidden" }}>✓</span>
+                        <span
+                          style={{
+                            color: "#16A82A",
+                            visibility: perPage === n ? "visible" : "hidden",
+                          }}
+                        >
+                          ✓
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -813,56 +2023,292 @@ export function ContactsView() {
               </div>
             </div>
             <div style={{ display: "flex", gap: 6 }}>
-              <span onClick={() => setPage((p) => Math.max(1, p - 1))} style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid #EBE3D6", background: "#fff", color: page > 1 ? "#0E1512" : "#C9CFC9", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", boxSizing: "border-box" }}>‹</span>
+              <span
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 9,
+                  border: "1px solid #EBE3D6",
+                  background: "#fff",
+                  color: page > 1 ? "#0E1512" : "#C9CFC9",
+                  fontSize: 14,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  boxSizing: "border-box",
+                }}
+              >
+                ‹
+              </span>
               {Array.from({ length: pages }, (_, i) => i + 1)
                 .filter((p) => pages <= 7 || Math.abs(p - page) <= 2 || p === 1 || p === pages)
                 .map((p) => (
-                  <span key={p} onClick={() => setPage(p)} style={{ minWidth: 32, height: 32, padding: "0 6px", borderRadius: 9, border: `1px solid ${p === page ? "#0C140F" : "#EBE3D6"}`, background: p === page ? "#0C140F" : "#fff", color: p === page ? "#fff" : "#0E1512", fontWeight: p === page ? 700 : 500, fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", boxSizing: "border-box" }}>{p}</span>
+                  <span
+                    key={p}
+                    onClick={() => setPage(p)}
+                    style={{
+                      minWidth: 32,
+                      height: 32,
+                      padding: "0 6px",
+                      borderRadius: 9,
+                      border: `1px solid ${p === page ? "#0C140F" : "#EBE3D6"}`,
+                      background: p === page ? "#0C140F" : "#fff",
+                      color: p === page ? "#fff" : "#0E1512",
+                      fontWeight: p === page ? 700 : 500,
+                      fontSize: 14,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      cursor: "pointer",
+                      boxSizing: "border-box",
+                    }}
+                  >
+                    {p}
+                  </span>
                 ))}
-              <span onClick={() => setPage((p) => Math.min(pages, p + 1))} style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid #EBE3D6", background: "#fff", color: page < pages ? "#0E1512" : "#C9CFC9", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", boxSizing: "border-box" }}>›</span>
+              <span
+                onClick={() => setPage((p) => Math.min(pages, p + 1))}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 9,
+                  border: "1px solid #EBE3D6",
+                  background: "#fff",
+                  color: page < pages ? "#0E1512" : "#C9CFC9",
+                  fontSize: 14,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  boxSizing: "border-box",
+                }}
+              >
+                ›
+              </span>
             </div>
           </div>
         </div>
 
         {/* contact drawer — 450px (prototype literal), live timeline */}
         {drawer ? (
-          <div onClick={() => setDrawerId(null)} style={{ position: "fixed", inset: 0, background: "rgba(12,20,15,.4)", zIndex: 60 }}>
-            <div onClick={(e) => e.stopPropagation()} style={{ position: "absolute", top: 0, right: 0, bottom: 0, width: 450, maxWidth: "100%", background: "#FBF7F0", boxShadow: "-24px 0 70px rgba(0,0,0,.28)", display: "flex", flexDirection: "column" }} data-testid="contact-drawer">
-              <div style={{ display: "flex", alignItems: "flex-start", gap: 13, padding: "20px 22px", background: "#fff", borderBottom: "1px solid #EBE3D6", flex: "none" }}>
-                <span style={{ width: 46, height: 46, borderRadius: "50%", flex: "none", background: avTint(drawer.id), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 700, color: "#0A0F0C" }}>{initials(drawer)}</span>
+          <div
+            onClick={() => setDrawerId(null)}
+            style={{ position: "fixed", inset: 0, background: "rgba(12,20,15,.4)", zIndex: 60 }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                position: "absolute",
+                top: 0,
+                right: 0,
+                bottom: 0,
+                width: 450,
+                maxWidth: "100%",
+                background: "#FBF7F0",
+                boxShadow: "-24px 0 70px rgba(0,0,0,.28)",
+                display: "flex",
+                flexDirection: "column",
+              }}
+              data-testid="contact-drawer"
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 13,
+                  padding: "20px 22px",
+                  background: "#fff",
+                  borderBottom: "1px solid #EBE3D6",
+                  flex: "none",
+                }}
+              >
+                <span
+                  style={{
+                    width: 46,
+                    height: 46,
+                    borderRadius: "50%",
+                    flex: "none",
+                    background: avTint(drawer.id),
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 16,
+                    fontWeight: 700,
+                    color: "#0A0F0C",
+                  }}
+                >
+                  {initials(drawer)}
+                </span>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 18, color: "#0E1512" }}>{fullName(drawer)}</div>
+                  <div
+                    style={{
+                      fontFamily: "'Bricolage Grotesque',sans-serif",
+                      fontWeight: 700,
+                      fontSize: 18,
+                      color: "#0E1512",
+                    }}
+                  >
+                    {fullName(drawer)}
+                  </div>
                   <div style={{ fontSize: 13, color: "#9AA59E" }}>{drawer.email}</div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 7, flexWrap: "wrap" }}>
-                    <span style={{ display: "inline-flex", padding: "4px 11px", borderRadius: 100, fontSize: 12, fontWeight: 600, background: ST[st!]!.sbg, color: ST[st!]!.sfg }} data-testid="drawer-pill">{st === "Booked" ? drawer.goal?.pill ?? wsPill : st}</span>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 7,
+                      marginTop: 7,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        padding: "4px 11px",
+                        borderRadius: 100,
+                        fontSize: 12,
+                        fontWeight: 600,
+                        background: ST[st!]!.sbg,
+                        color: ST[st!]!.sfg,
+                      }}
+                      data-testid="drawer-pill"
+                    >
+                      {st === "Booked" ? (drawer.goal?.pill ?? wsPill) : st}
+                    </span>
                     {/* LH1: the drawer shows the FULL verdict state, valid included */}
                     {drawer.email && drawer.emailVerdict && VERDICT_CHIP[drawer.emailVerdict] ? (
-                      <span title={VERDICT_CHIP[drawer.emailVerdict]!.title} style={{ display: "inline-flex", padding: "4px 11px", borderRadius: 100, fontSize: 12, fontWeight: 600, background: VERDICT_CHIP[drawer.emailVerdict]!.bg, color: VERDICT_CHIP[drawer.emailVerdict]!.fg }} data-testid="drawer-verdict-chip">
+                      <span
+                        title={VERDICT_CHIP[drawer.emailVerdict]!.title}
+                        style={{
+                          display: "inline-flex",
+                          padding: "4px 11px",
+                          borderRadius: 100,
+                          fontSize: 12,
+                          fontWeight: 600,
+                          background: VERDICT_CHIP[drawer.emailVerdict]!.bg,
+                          color: VERDICT_CHIP[drawer.emailVerdict]!.fg,
+                        }}
+                        data-testid="drawer-verdict-chip"
+                      >
                         {VERDICT_CHIP[drawer.emailVerdict]!.label}
                       </span>
                     ) : null}
                   </div>
                 </div>
-                <span onClick={() => setDrawerId(null)} style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid #EBE3D6", color: "#9AA59E", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flex: "none" }}>✕</span>
+                <span
+                  onClick={() => setDrawerId(null)}
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 9,
+                    border: "1px solid #EBE3D6",
+                    color: "#9AA59E",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: "pointer",
+                    flex: "none",
+                  }}
+                >
+                  ✕
+                </span>
               </div>
               <div style={{ flex: 1, overflow: "auto", minHeight: 0, padding: "18px 22px" }}>
                 <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
-                  <a href="/agents" style={{ textDecoration: "none", flex: 1, textAlign: "center", fontSize: 13, fontWeight: 700, color: "#0A0F0C", background: GRAD, borderRadius: 11, padding: 10, boxShadow: "0 5px 14px rgba(53,232,52,.24)" }}>✉ Email</a>
+                  <a
+                    href="/agents"
+                    style={{
+                      textDecoration: "none",
+                      flex: 1,
+                      textAlign: "center",
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: "#0A0F0C",
+                      background: GRAD,
+                      borderRadius: 11,
+                      padding: 10,
+                      boxShadow: "0 5px 14px rgba(53,232,52,.24)",
+                    }}
+                  >
+                    ✉ Email
+                  </a>
                   <div style={{ position: "relative", flex: 1 }}>
-                    <span onClick={() => setMoveDD((v) => !v)} style={{ display: "block", textAlign: "center", fontSize: 13, fontWeight: 600, color: "#0E1512", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 11, padding: 10, cursor: "pointer" }} data-testid="contact-move">↪ Move ▾</span>
+                    <span
+                      onClick={() => setMoveDD((v) => !v)}
+                      style={{
+                        display: "block",
+                        textAlign: "center",
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: "#0E1512",
+                        background: "#fff",
+                        border: "1px solid #EBE3D6",
+                        borderRadius: 11,
+                        padding: 10,
+                        cursor: "pointer",
+                      }}
+                      data-testid="contact-move"
+                    >
+                      ↪ Move ▾
+                    </span>
                     {moveDD ? (
-                      <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, width: 230, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 12, boxShadow: "0 16px 44px rgba(0,0,0,.2)", zIndex: 30, overflow: "hidden" }}>
-                        <div style={{ fontSize: 10.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".07em", color: "#9AA59E", padding: "10px 14px 6px" }}>Move to</div>
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: "calc(100% + 6px)",
+                          right: 0,
+                          width: 230,
+                          background: "#fff",
+                          border: "1px solid #EBE3D6",
+                          borderRadius: 12,
+                          boxShadow: "0 16px 44px rgba(0,0,0,.2)",
+                          zIndex: 30,
+                          overflow: "hidden",
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: 10.5,
+                            fontWeight: 800,
+                            textTransform: "uppercase",
+                            letterSpacing: ".07em",
+                            color: "#9AA59E",
+                            padding: "10px 14px 6px",
+                          }}
+                        >
+                          Move to
+                        </div>
                         {moveOptions(wsPill).map((m) => {
                           const current =
                             (m.stage === "interested" && st === "Qualified") ||
                             (m.stage === "booked" && st === "Booked") ||
                             (m.stage === "__unsub__" && st === "Unsubscribed");
                           return (
-                            <div key={m.label} onClick={() => void moveStage(drawer, m.stage)} style={{ display: "flex", alignItems: "center", gap: 9, padding: "10px 14px", fontSize: 13.5, color: m.color, borderTop: "1px solid #F7F2EA", cursor: "pointer" }}>
+                            <div
+                              key={m.label}
+                              onClick={() => void moveStage(drawer, m.stage)}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 9,
+                                padding: "10px 14px",
+                                fontSize: 13.5,
+                                color: m.color,
+                                borderTop: "1px solid #F7F2EA",
+                                cursor: "pointer",
+                              }}
+                            >
                               <span style={{ width: 18, textAlign: "center" }}>{m.icon}</span>
                               <span style={{ flex: 1 }}>{m.label}</span>
-                              <span style={{ color: "#16A82A", visibility: current ? "visible" : "hidden" }}>✓</span>
+                              <span
+                                style={{
+                                  color: "#16A82A",
+                                  visibility: current ? "visible" : "hidden",
+                                }}
+                              >
+                                ✓
+                              </span>
                             </div>
                           );
                         })}
@@ -872,33 +2318,113 @@ export function ContactsView() {
                 </div>
 
                 {/* live stats — Opens/Replies from Event rows; AI Score omitted (DEC-038a) */}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9, marginBottom: 18 }} data-testid="drawer-stats">
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: 9,
+                    marginBottom: 18,
+                  }}
+                  data-testid="drawer-stats"
+                >
                   {[
-                    { label: "Opens", value: (timeline ?? []).filter((e) => e.type === "email.opened.v1").length },
-                    { label: "Replies", value: (timeline ?? []).filter((e) => e.type === "email.replied.v1").length },
+                    {
+                      label: "Opens",
+                      value: (timeline ?? []).filter((e) => e.type === "email.opened.v1").length,
+                    },
+                    {
+                      label: "Replies",
+                      value: (timeline ?? []).filter((e) => e.type === "email.replied.v1").length,
+                    },
                   ].map((s) => (
-                    <div key={s.label} style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 12, padding: 12, textAlign: "center" }}>
-                      <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 20, color: "#0E1512" }}>{s.value}</div>
+                    <div
+                      key={s.label}
+                      style={{
+                        background: "#fff",
+                        border: "1px solid #EBE3D6",
+                        borderRadius: 12,
+                        padding: 12,
+                        textAlign: "center",
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontFamily: "'Bricolage Grotesque',sans-serif",
+                          fontWeight: 800,
+                          fontSize: 20,
+                          color: "#0E1512",
+                        }}
+                      >
+                        {s.value}
+                      </div>
                       <div style={{ fontSize: 11.5, color: "#9AA59E" }}>{s.label}</div>
                     </div>
                   ))}
                 </div>
 
                 {/* C2.8: List row atop DETAILS (v4) — current list + the ONE menu */}
-                <div style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 13, overflow: "visible", marginBottom: 18 }} data-testid="drawer-list-row">
-                  <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 15px" }}>
-                    <span style={{ fontSize: 13, color: "#9AA59E", flex: "none", width: 92 }}>List</span>
-                    <span style={{ flex: 1, minWidth: 0, fontSize: 13.5, color: "#0E1512", fontWeight: 600, textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} data-testid="drawer-list-value">
+                <div
+                  style={{
+                    background: "#fff",
+                    border: "1px solid #EBE3D6",
+                    borderRadius: 13,
+                    overflow: "visible",
+                    marginBottom: 18,
+                  }}
+                  data-testid="drawer-list-row"
+                >
+                  <div
+                    style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 15px" }}
+                  >
+                    <span style={{ fontSize: 13, color: "#9AA59E", flex: "none", width: 92 }}>
+                      List
+                    </span>
+                    <span
+                      style={{
+                        flex: 1,
+                        minWidth: 0,
+                        fontSize: 13.5,
+                        color: "#0E1512",
+                        fontWeight: 600,
+                        textAlign: "right",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                      data-testid="drawer-list-value"
+                    >
                       {drawer.lists && drawer.lists.length > 0
                         ? `${drawer.lists[0]!.name}${drawer.lists.length > 1 ? ` +${drawer.lists.length - 1}` : ""}`
                         : "—"}
                     </span>
                     <div style={{ position: "relative", flex: "none" }}>
-                      <span onClick={() => setDrawerListDD((v) => !v)} style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 700, color: "#16A82A", background: "rgba(53,232,52,.08)", border: "1px solid #9FD8AC", borderRadius: 8, padding: "5px 10px", cursor: "pointer" }} data-testid="drawer-add-to-list">＋ Add to list</span>
+                      <span
+                        onClick={() => setDrawerListDD((v) => !v)}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 5,
+                          fontSize: 12,
+                          fontWeight: 700,
+                          color: "#16A82A",
+                          background: "rgba(53,232,52,.08)",
+                          border: "1px solid #9FD8AC",
+                          borderRadius: 8,
+                          padding: "5px 10px",
+                          cursor: "pointer",
+                        }}
+                        data-testid="drawer-add-to-list"
+                      >
+                        ＋ Add to list
+                      </span>
                       {drawerListDD ? (
                         <AddToListMenu
                           header="Add to list"
-                          options={activeLists.map((l) => ({ id: l.id, name: l.name, current: (drawer.lists ?? []).some((m) => m.id === l.id) }))}
+                          options={activeLists.map((l) => ({
+                            id: l.id,
+                            name: l.name,
+                            current: (drawer.lists ?? []).some((m) => m.id === l.id),
+                          }))}
                           newListLabel="New list"
                           onPick={(listId) => void addToList(listId, [drawer.id], false)}
                           onNewList={() => openNewList(drawer.id)}
@@ -909,8 +2435,27 @@ export function ContactsView() {
                   </div>
                 </div>
 
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#8A7F6B", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 }}>Details</div>
-                <div style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 13, overflow: "hidden", marginBottom: 18 }}>
+                <div
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: "#8A7F6B",
+                    textTransform: "uppercase",
+                    letterSpacing: ".06em",
+                    marginBottom: 8,
+                  }}
+                >
+                  Details
+                </div>
+                <div
+                  style={{
+                    background: "#fff",
+                    border: "1px solid #EBE3D6",
+                    borderRadius: 13,
+                    overflow: "hidden",
+                    marginBottom: 18,
+                  }}
+                >
                   {[
                     ["Company", drawer.company ?? "—"],
                     ["Title", drawer.title ?? "—"],
@@ -919,9 +2464,33 @@ export function ContactsView() {
                     ["Agent", drawer.agentName ?? "—"],
                     ["Added", new Date(drawer.createdAt).toLocaleDateString()],
                   ].map(([k, v], i) => (
-                    <div key={k} style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 15px", borderTop: i ? "1px solid #F2EEE4" : "none" }}>
-                      <span style={{ fontSize: 13, color: "#9AA59E", width: 92, flex: "none" }}>{k}</span>
-                      <span style={{ fontSize: 13.5, color: "#0E1512", fontWeight: 600, flex: 1, textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{v}</span>
+                    <div
+                      key={k}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                        padding: "11px 15px",
+                        borderTop: i ? "1px solid #F2EEE4" : "none",
+                      }}
+                    >
+                      <span style={{ fontSize: 13, color: "#9AA59E", width: 92, flex: "none" }}>
+                        {k}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: 13.5,
+                          color: "#0E1512",
+                          fontWeight: 600,
+                          flex: 1,
+                          textAlign: "right",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {v}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -932,19 +2501,78 @@ export function ContactsView() {
                 {(() => {
                   const customRows = activeDefs
                     .map((d) => ({ def: d, value: drawer.custom?.[d.key] }))
-                    .filter((r): r is { def: ContactFieldDefDto; value: string } => typeof r.value === "string" && r.value !== "");
+                    .filter(
+                      (r): r is { def: ContactFieldDefDto; value: string } =>
+                        typeof r.value === "string" && r.value !== "",
+                    );
                   if (customRows.length === 0) return null;
                   return (
                     <>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: "#8A7F6B", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 }}>Custom fields</div>
-                      <div style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 13, overflow: "hidden", marginBottom: 18 }} data-testid="drawer-custom">
+                      <div
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 700,
+                          color: "#8A7F6B",
+                          textTransform: "uppercase",
+                          letterSpacing: ".06em",
+                          marginBottom: 8,
+                        }}
+                      >
+                        Custom fields
+                      </div>
+                      <div
+                        style={{
+                          background: "#fff",
+                          border: "1px solid #EBE3D6",
+                          borderRadius: 13,
+                          overflow: "hidden",
+                          marginBottom: 18,
+                        }}
+                        data-testid="drawer-custom"
+                      >
                         {customRows.map(({ def, value }, i) => {
                           const editing = detailEdit?.key === def.key;
                           return (
-                            <div key={def.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 15px", borderTop: i ? "1px solid #F2EEE4" : "none", minHeight: 30 }}>
-                              <span style={{ fontSize: 13, color: "#1192A6", flex: "none", width: 120, fontWeight: 600 }}>{def.label}</span>
+                            <div
+                              key={def.id}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 12,
+                                padding: "8px 15px",
+                                borderTop: i ? "1px solid #F2EEE4" : "none",
+                                minHeight: 30,
+                              }}
+                            >
+                              <span
+                                style={{
+                                  fontSize: 13,
+                                  color: "#1192A6",
+                                  flex: "none",
+                                  width: 120,
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {def.label}
+                              </span>
                               {!editing ? (
-                                <span onClick={() => setDetailEdit({ key: def.key, value })} title="Edit value" style={{ fontSize: 13.5, color: "#0E1512", fontWeight: 600, flex: 1, textAlign: "right", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 7 }} data-testid={`drawer-custom-${def.key}`}>
+                                <span
+                                  onClick={() => setDetailEdit({ key: def.key, value })}
+                                  title="Edit value"
+                                  style={{
+                                    fontSize: 13.5,
+                                    color: "#0E1512",
+                                    fontWeight: 600,
+                                    flex: 1,
+                                    textAlign: "right",
+                                    cursor: "pointer",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "flex-end",
+                                    gap: 7,
+                                  }}
+                                  data-testid={`drawer-custom-${def.key}`}
+                                >
                                   {value} <span style={{ fontSize: 11, color: "#C2B79F" }}>✎</span>
                                 </span>
                               ) : (
@@ -952,12 +2580,49 @@ export function ContactsView() {
                                   <input
                                     autoFocus
                                     value={detailEdit.value}
-                                    onChange={(e) => setDetailEdit({ key: def.key, value: e.target.value })}
-                                    onKeyDown={(e) => { if (e.key === "Enter") void saveDetailEdit(drawer.id); }}
-                                    style={{ flex: 1, minWidth: 0, height: 32, borderRadius: 8, background: "#FBF7F0", border: "1px solid #35E834", padding: "0 10px", fontSize: 13, fontWeight: 600, color: "#0E1512", textAlign: "right", outline: "none", boxSizing: "border-box", fontFamily: "'Hanken Grotesk',sans-serif" }}
+                                    onChange={(e) =>
+                                      setDetailEdit({ key: def.key, value: e.target.value })
+                                    }
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") void saveDetailEdit(drawer.id);
+                                    }}
+                                    style={{
+                                      flex: 1,
+                                      minWidth: 0,
+                                      height: 32,
+                                      borderRadius: 8,
+                                      background: "#FBF7F0",
+                                      border: "1px solid #35E834",
+                                      padding: "0 10px",
+                                      fontSize: 13,
+                                      fontWeight: 600,
+                                      color: "#0E1512",
+                                      textAlign: "right",
+                                      outline: "none",
+                                      boxSizing: "border-box",
+                                      fontFamily: "'Hanken Grotesk',sans-serif",
+                                    }}
                                     data-testid="drawer-custom-input"
                                   />
-                                  <span onClick={() => void saveDetailEdit(drawer.id)} style={{ width: 30, height: 30, borderRadius: 8, background: "rgba(53,232,52,.14)", color: "#16A82A", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, cursor: "pointer", flex: "none" }} data-testid="drawer-custom-save">✓</span>
+                                  <span
+                                    onClick={() => void saveDetailEdit(drawer.id)}
+                                    style={{
+                                      width: 30,
+                                      height: 30,
+                                      borderRadius: 8,
+                                      background: "rgba(53,232,52,.14)",
+                                      color: "#16A82A",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      fontSize: 13,
+                                      cursor: "pointer",
+                                      flex: "none",
+                                    }}
+                                    data-testid="drawer-custom-save"
+                                  >
+                                    ✓
+                                  </span>
                                 </>
                               )}
                             </div>
@@ -968,24 +2633,74 @@ export function ContactsView() {
                   );
                 })()}
 
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#8A7F6B", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 10 }}>Activity</div>
+                <div
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: "#8A7F6B",
+                    textTransform: "uppercase",
+                    letterSpacing: ".06em",
+                    marginBottom: 10,
+                  }}
+                >
+                  Activity
+                </div>
                 {timeline === null ? (
                   <div style={{ fontSize: 13, color: "#9AA59E" }}>Loading activity…</div>
                 ) : timeline.length === 0 ? (
-                  <div style={{ fontSize: 13, color: "#9AA59E" }} data-testid="drawer-timeline-empty">No activity yet.</div>
+                  <div
+                    style={{ fontSize: 13, color: "#9AA59E" }}
+                    data-testid="drawer-timeline-empty"
+                  >
+                    No activity yet.
+                  </div>
                 ) : (
                   <div data-testid="drawer-timeline">
                     {timeline.map((e, i) => {
-                      const row = EVENT_ROW[e.type] ?? { icon: "•", bg: "#F2EEE4", fg: "#8A7F6B", label: () => e.type };
+                      const row = EVENT_ROW[e.type] ?? {
+                        icon: "•",
+                        bg: "#F2EEE4",
+                        fg: "#8A7F6B",
+                        label: () => e.type,
+                      };
                       return (
                         <div key={e.id} style={{ display: "flex", gap: 12, paddingBottom: 14 }}>
-                          <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                            <span style={{ width: 28, height: 28, borderRadius: 8, background: row.bg, color: row.fg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, flex: "none" }}>{row.icon}</span>
-                            {i < timeline.length - 1 ? <span style={{ flex: 1, width: 2, background: "#EBE3D6", marginTop: 4 }} /> : null}
+                          <div
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems: "center",
+                            }}
+                          >
+                            <span
+                              style={{
+                                width: 28,
+                                height: 28,
+                                borderRadius: 8,
+                                background: row.bg,
+                                color: row.fg,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontSize: 13,
+                                flex: "none",
+                              }}
+                            >
+                              {row.icon}
+                            </span>
+                            {i < timeline.length - 1 ? (
+                              <span
+                                style={{ flex: 1, width: 2, background: "#EBE3D6", marginTop: 4 }}
+                              />
+                            ) : null}
                           </div>
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: 13.5, color: "#0E1512", lineHeight: 1.4 }}>{row.label((e.payload ?? {}) as Record<string, unknown>)}</div>
-                            <div style={{ fontSize: 12, color: "#9AA59E", marginTop: 2 }}>{timeAgo(e.occurredAt)}</div>
+                            <div style={{ fontSize: 13.5, color: "#0E1512", lineHeight: 1.4 }}>
+                              {row.label((e.payload ?? {}) as Record<string, unknown>)}
+                            </div>
+                            <div style={{ fontSize: 12, color: "#9AA59E", marginTop: 2 }}>
+                              {timeAgo(e.occurredAt)}
+                            </div>
                           </div>
                         </div>
                       );
@@ -1001,59 +2716,244 @@ export function ContactsView() {
             Omissions logged in DEC-044: STATUS picker (A10 conflict), LIST
             select (lists inert), CUSTOM FIELDS (no model), LOCATION (no field). */}
         {addOpen ? (
-          <div onClick={() => setAddOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(12,20,15,.4)", zIndex: 60 }}>
-            <div onClick={(e) => e.stopPropagation()} style={{ position: "absolute", top: 0, right: 0, bottom: 0, width: 484, maxWidth: "100%", background: "#FBF7F0", boxShadow: "-24px 0 70px rgba(0,0,0,.28)", display: "flex", flexDirection: "column" }} data-testid="add-modal">
-              <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "18px 22px", background: "#fff", borderBottom: "1px solid #EBE3D6", flex: "none" }}>
-                <span style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 17, color: "#0E1512", flex: 1 }}>Add a contact</span>
-                <span onClick={() => setAddOpen(false)} style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid #EBE3D6", display: "flex", alignItems: "center", justifyContent: "center", color: "#9AA59E", cursor: "pointer" }}>✕</span>
+          <div
+            onClick={() => setAddOpen(false)}
+            style={{ position: "fixed", inset: 0, background: "rgba(12,20,15,.4)", zIndex: 60 }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                position: "absolute",
+                top: 0,
+                right: 0,
+                bottom: 0,
+                width: 484,
+                maxWidth: "100%",
+                background: "#FBF7F0",
+                boxShadow: "-24px 0 70px rgba(0,0,0,.28)",
+                display: "flex",
+                flexDirection: "column",
+              }}
+              data-testid="add-modal"
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  padding: "18px 22px",
+                  background: "#fff",
+                  borderBottom: "1px solid #EBE3D6",
+                  flex: "none",
+                }}
+              >
+                <span
+                  style={{
+                    fontFamily: "'Bricolage Grotesque',sans-serif",
+                    fontWeight: 700,
+                    fontSize: 17,
+                    color: "#0E1512",
+                    flex: 1,
+                  }}
+                >
+                  Add a contact
+                </span>
+                <span
+                  onClick={() => setAddOpen(false)}
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 9,
+                    border: "1px solid #EBE3D6",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "#9AA59E",
+                    cursor: "pointer",
+                  }}
+                >
+                  ✕
+                </span>
               </div>
               <div style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: "20px 22px" }}>
                 <div style={{ display: "flex", gap: 12, marginBottom: 13 }}>
                   <div style={{ flex: 1 }}>
                     <label style={addLbl}>First name *</label>
-                    <input value={form.firstName} onChange={(e) => setForm((f) => ({ ...f, firstName: e.target.value }))} placeholder="Jane" style={addInp} data-testid="form-firstName" />
+                    <input
+                      value={form.firstName}
+                      onChange={(e) => setForm((f) => ({ ...f, firstName: e.target.value }))}
+                      placeholder="Jane"
+                      style={addInp}
+                      data-testid="form-firstName"
+                    />
                   </div>
                   <div style={{ flex: 1 }}>
                     <label style={addLbl}>Last name</label>
-                    <input value={form.lastName} onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))} placeholder="Doe" style={addInp} data-testid="form-lastName" />
+                    <input
+                      value={form.lastName}
+                      onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))}
+                      placeholder="Doe"
+                      style={addInp}
+                      data-testid="form-lastName"
+                    />
                   </div>
                 </div>
                 <div style={{ marginBottom: 13 }}>
                   <label style={addLbl}>Email *</label>
-                  <input value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} placeholder="jane@clinic.com" style={{ ...addInp, borderColor: form.email && !/.+@.+\..+/.test(form.email) ? "#E0A99E" : "#EBE3D6" }} data-testid="form-email" />
+                  <input
+                    value={form.email}
+                    onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                    placeholder="jane@clinic.com"
+                    style={{
+                      ...addInp,
+                      borderColor:
+                        form.email && !/.+@.+\..+/.test(form.email) ? "#E0A99E" : "#EBE3D6",
+                    }}
+                    data-testid="form-email"
+                  />
                 </div>
                 <div style={{ display: "flex", gap: 12, marginBottom: 13 }}>
                   <div style={{ flex: 1 }}>
                     <label style={addLbl}>Company</label>
-                    <input value={form.company} onChange={(e) => setForm((f) => ({ ...f, company: e.target.value }))} placeholder="Clinic name" style={addInp} data-testid="form-company" />
+                    <input
+                      value={form.company}
+                      onChange={(e) => setForm((f) => ({ ...f, company: e.target.value }))}
+                      placeholder="Clinic name"
+                      style={addInp}
+                      data-testid="form-company"
+                    />
                   </div>
                   <div style={{ flex: 1 }}>
                     <label style={addLbl}>Phone</label>
-                    <input value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} placeholder="+1 …" style={addInp} data-testid="form-phone" />
+                    <input
+                      value={form.phone}
+                      onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                      placeholder="+1 …"
+                      style={addInp}
+                      data-testid="form-phone"
+                    />
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: 12, marginBottom: 13 }}>
                   <div style={{ flex: 1 }}>
                     <label style={addLbl}>Title</label>
-                    <input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} placeholder="Owner" style={addInp} data-testid="form-title" />
+                    <input
+                      value={form.title}
+                      onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                      placeholder="Owner"
+                      style={addInp}
+                      data-testid="form-title"
+                    />
                   </div>
                   {/* C2.8: LIST select — active per the plan (DEC-044 waiver closed) */}
                   <div style={{ flex: 1, position: "relative" }}>
                     <label style={addLbl}>List</label>
-                    <div onClick={() => setFormListDD((v) => !v)} style={{ ...addInp, display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }} data-testid="form-list">
-                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: formListId ? "#0E1512" : "#9AA59E" }}>
-                        {formListId ? activeLists.find((l) => l.id === formListId)?.name ?? "No list" : "No list"}
+                    <div
+                      onClick={() => setFormListDD((v) => !v)}
+                      style={{
+                        ...addInp,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        cursor: "pointer",
+                      }}
+                      data-testid="form-list"
+                    >
+                      <span
+                        style={{
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          color: formListId ? "#0E1512" : "#9AA59E",
+                        }}
+                      >
+                        {formListId
+                          ? (activeLists.find((l) => l.id === formListId)?.name ?? "No list")
+                          : "No list"}
                       </span>
                       <span style={{ color: "#9AA59E", fontSize: 11 }}>▾</span>
                     </div>
                     {formListDD ? (
-                      <div style={{ position: "absolute", top: "100%", left: 0, right: 0, marginTop: 6, background: "#fff", border: "1px solid #EBE3D6", borderRadius: 12, boxShadow: "0 16px 44px rgba(0,0,0,.18)", zIndex: 30, maxHeight: 212, overflowY: "auto" }} data-testid="form-list-menu">
-                        <div onClick={() => { setFormListId(""); setFormListDD(false); }} style={{ padding: "9px 14px", fontSize: 13.5, color: "#5C6B62", cursor: "pointer" }}>No list</div>
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: "100%",
+                          left: 0,
+                          right: 0,
+                          marginTop: 6,
+                          background: "#fff",
+                          border: "1px solid #EBE3D6",
+                          borderRadius: 12,
+                          boxShadow: "0 16px 44px rgba(0,0,0,.18)",
+                          zIndex: 30,
+                          maxHeight: 212,
+                          overflowY: "auto",
+                        }}
+                        data-testid="form-list-menu"
+                      >
+                        <div
+                          onClick={() => {
+                            setFormListId("");
+                            setFormListDD(false);
+                          }}
+                          style={{
+                            padding: "9px 14px",
+                            fontSize: 13.5,
+                            color: "#5C6B62",
+                            cursor: "pointer",
+                          }}
+                        >
+                          No list
+                        </div>
                         {activeLists.map((l) => (
-                          <div key={l.id} onClick={() => { setFormListId(l.id); setFormListDD(false); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 14px", fontSize: 13.5, fontWeight: 600, color: "#0E1512", cursor: "pointer", background: formListId === l.id ? "rgba(53,232,52,.07)" : "#fff" }} data-testid={`form-list-opt-${l.id}`}>
-                            <span style={{ width: 24, height: 24, borderRadius: 7, flex: "none", background: listGlyph(l.name).iconBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13 }}>{listGlyph(l.name).icon}</span>
-                            <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.name}</span>
-                            {formListId === l.id ? <span style={{ color: "#16A82A" }}>✓</span> : null}
+                          <div
+                            key={l.id}
+                            onClick={() => {
+                              setFormListId(l.id);
+                              setFormListDD(false);
+                            }}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 10,
+                              padding: "9px 14px",
+                              fontSize: 13.5,
+                              fontWeight: 600,
+                              color: "#0E1512",
+                              cursor: "pointer",
+                              background: formListId === l.id ? "rgba(53,232,52,.07)" : "#fff",
+                            }}
+                            data-testid={`form-list-opt-${l.id}`}
+                          >
+                            <span
+                              style={{
+                                width: 24,
+                                height: 24,
+                                borderRadius: 7,
+                                flex: "none",
+                                background: listGlyph(l.name).iconBg,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontSize: 13,
+                              }}
+                            >
+                              {listGlyph(l.name).icon}
+                            </span>
+                            <span
+                              style={{
+                                flex: 1,
+                                minWidth: 0,
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {l.name}
+                            </span>
+                            {formListId === l.id ? (
+                              <span style={{ color: "#16A82A" }}>✓</span>
+                            ) : null}
                           </div>
                         ))}
                       </div>
@@ -1064,11 +2964,51 @@ export function ContactsView() {
                 {/* C2.7 — CUSTOM FIELDS block (v3 Contacts.dc.html:440). Def inputs
                     render for everyone; the create affordances are admin-only
                     (plan decision 2 — the prototype's ADMIN pill is decorative). */}
-                <div style={{ display: "flex", alignItems: "center", marginBottom: 10, marginTop: 4 }} data-testid="custom-fields-block">
-                  <span style={{ fontSize: 11, fontWeight: 800, color: "#9AA59E", textTransform: "uppercase", letterSpacing: ".05em", flex: 1 }}>Custom fields</span>
+                <div
+                  style={{ display: "flex", alignItems: "center", marginBottom: 10, marginTop: 4 }}
+                  data-testid="custom-fields-block"
+                >
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 800,
+                      color: "#9AA59E",
+                      textTransform: "uppercase",
+                      letterSpacing: ".05em",
+                      flex: 1,
+                    }}
+                  >
+                    Custom fields
+                  </span>
                   {isAdmin ? (
-                    <span onClick={() => { setAddFieldOpen(true); setFieldError(null); }} title="Creates a workspace-wide field — admins only" style={{ fontSize: 12.5, fontWeight: 700, color: "#16A82A", cursor: "pointer" }} data-testid="add-field">
-                      ＋ Add field <span style={{ fontSize: 10, fontWeight: 800, color: "#8A7F6B", background: "#F2EEE4", borderRadius: 100, padding: "2px 7px", verticalAlign: 1 }}>ADMIN</span>
+                    <span
+                      onClick={() => {
+                        setAddFieldOpen(true);
+                        setFieldError(null);
+                      }}
+                      title="Creates a workspace-wide field — admins only"
+                      style={{
+                        fontSize: 12.5,
+                        fontWeight: 700,
+                        color: "#16A82A",
+                        cursor: "pointer",
+                      }}
+                      data-testid="add-field"
+                    >
+                      ＋ Add field{" "}
+                      <span
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 800,
+                          color: "#8A7F6B",
+                          background: "#F2EEE4",
+                          borderRadius: 100,
+                          padding: "2px 7px",
+                          verticalAlign: 1,
+                        }}
+                      >
+                        ADMIN
+                      </span>
                     </span>
                   ) : null}
                 </div>
@@ -1076,44 +3016,180 @@ export function ContactsView() {
                   <div style={{ display: "flex", gap: 12, marginBottom: 13, flexWrap: "wrap" }}>
                     {activeDefs.map((d) => (
                       <div key={d.id} style={{ flex: 1, minWidth: "calc(50% - 6px)" }}>
-                        <label style={{ display: "block", fontSize: 11, fontWeight: 800, color: "#1192A6", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 6 }}>{d.label}</label>
-                        <input value={formCustom[d.key] ?? ""} onChange={(e) => setFormCustom((v) => ({ ...v, [d.key]: e.target.value }))} placeholder={d.label === "Industry" ? "e.g. Dental" : d.label === "Plan" ? "e.g. Growth" : "Value"} style={addInp} data-testid={`custom-input-${d.key}`} />
+                        <label
+                          style={{
+                            display: "block",
+                            fontSize: 11,
+                            fontWeight: 800,
+                            color: "#1192A6",
+                            textTransform: "uppercase",
+                            letterSpacing: ".05em",
+                            marginBottom: 6,
+                          }}
+                        >
+                          {d.label}
+                        </label>
+                        <input
+                          value={formCustom[d.key] ?? ""}
+                          onChange={(e) =>
+                            setFormCustom((v) => ({ ...v, [d.key]: e.target.value }))
+                          }
+                          placeholder={
+                            d.label === "Industry"
+                              ? "e.g. Dental"
+                              : d.label === "Plan"
+                                ? "e.g. Growth"
+                                : "Value"
+                          }
+                          style={addInp}
+                          data-testid={`custom-input-${d.key}`}
+                        />
                       </div>
                     ))}
                   </div>
                 ) : null}
                 {addFieldOpen ? (
-                  <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }} data-testid="add-field-row">
+                  <div
+                    style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}
+                    data-testid="add-field-row"
+                  >
                     <input
                       autoFocus
                       value={addFieldLabel}
                       onChange={(e) => setAddFieldLabel(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") void createFieldInline(); }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") void createFieldInline();
+                      }}
                       placeholder="New field name"
-                      style={{ flex: "0 0 150px", height: 40, borderRadius: 10, background: "#fff", border: "1px solid #EBE3D6", padding: "0 12px", fontSize: 13, color: "#0E1512", boxSizing: "border-box", fontFamily: "'Hanken Grotesk',sans-serif" }}
+                      style={{
+                        flex: "0 0 150px",
+                        height: 40,
+                        borderRadius: 10,
+                        background: "#fff",
+                        border: "1px solid #EBE3D6",
+                        padding: "0 12px",
+                        fontSize: 13,
+                        color: "#0E1512",
+                        boxSizing: "border-box",
+                        fontFamily: "'Hanken Grotesk',sans-serif",
+                      }}
                       data-testid="add-field-name"
                     />
-                    <span onClick={() => void createFieldInline()} style={{ flex: 1, minWidth: 0, fontSize: 12.5, fontWeight: 700, color: addFieldLabel.trim() ? "#16A82A" : "#9AA59E", cursor: addFieldLabel.trim() ? "pointer" : "default" }} data-testid="add-field-save">
+                    <span
+                      onClick={() => void createFieldInline()}
+                      style={{
+                        flex: 1,
+                        minWidth: 0,
+                        fontSize: 12.5,
+                        fontWeight: 700,
+                        color: addFieldLabel.trim() ? "#16A82A" : "#9AA59E",
+                        cursor: addFieldLabel.trim() ? "pointer" : "default",
+                      }}
+                      data-testid="add-field-save"
+                    >
                       {creatingField ? "Creating…" : "＋ Create field"}
                     </span>
-                    <span onClick={() => { setAddFieldOpen(false); setAddFieldLabel(""); setFieldError(null); }} style={{ width: 34, height: 34, borderRadius: 9, border: "1px solid #EBE3D6", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", color: "#C9543F", fontSize: 14, cursor: "pointer", flex: "none" }}>✕</span>
+                    <span
+                      onClick={() => {
+                        setAddFieldOpen(false);
+                        setAddFieldLabel("");
+                        setFieldError(null);
+                      }}
+                      style={{
+                        width: 34,
+                        height: 34,
+                        borderRadius: 9,
+                        border: "1px solid #EBE3D6",
+                        background: "#fff",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "#C9543F",
+                        fontSize: 14,
+                        cursor: "pointer",
+                        flex: "none",
+                      }}
+                    >
+                      ✕
+                    </span>
                   </div>
                 ) : null}
-                {fieldError ? <div style={{ fontSize: 12, color: "#C9543F", marginBottom: 8 }} data-testid="field-error">{fieldError}</div> : null}
+                {fieldError ? (
+                  <div
+                    style={{ fontSize: 12, color: "#C9543F", marginBottom: 8 }}
+                    data-testid="field-error"
+                  >
+                    {fieldError}
+                  </div>
+                ) : null}
                 {isAdmin && !addFieldOpen && activeDefs.length === 0 ? (
-                  <div onClick={() => setAddFieldOpen(true)} style={{ border: "1.5px dashed #D8CFBE", borderRadius: 11, padding: 14, textAlign: "center", fontSize: 13, color: "#9AA59E", cursor: "pointer", marginBottom: 16 }} data-testid="add-field-empty-cta">
+                  <div
+                    onClick={() => setAddFieldOpen(true)}
+                    style={{
+                      border: "1.5px dashed #D8CFBE",
+                      borderRadius: 11,
+                      padding: 14,
+                      textAlign: "center",
+                      fontSize: 13,
+                      color: "#9AA59E",
+                      cursor: "pointer",
+                      marginBottom: 16,
+                    }}
+                    data-testid="add-field-empty-cta"
+                  >
                     ＋ New field for this workspace (e.g. Source URL) · Admin
                   </div>
                 ) : null}
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 22px", borderTop: "1px solid #EBE3D6", background: "#fff", flex: "none" }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  padding: "16px 22px",
+                  borderTop: "1px solid #EBE3D6",
+                  background: "#fff",
+                  flex: "none",
+                }}
+              >
                 {(() => {
                   const valid = form.firstName.trim() && /.+@.+\..+/.test(form.email);
                   return (
                     <>
-                      <span style={{ fontSize: 13, color: valid ? "#16A82A" : "#9AA59E", flex: 1 }}>{valid ? "Ready to create" : "First name & a valid email required"}</span>
-                      <span onClick={() => setAddOpen(false)} style={{ fontSize: 14, fontWeight: 600, color: "#5C6B62", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 11, padding: "10px 16px", cursor: "pointer" }}>Cancel</span>
-                      <span onClick={() => void createContact()} style={{ fontSize: 14, fontWeight: 700, color: valid ? "#0A0F0C" : "#9AA59E", background: valid ? GRAD : "#ECE7DC", borderRadius: 11, padding: "10px 20px", cursor: valid ? "pointer" : "not-allowed", boxShadow: valid ? "0 6px 16px rgba(53,232,52,.26)" : "none" }} data-testid="create-contact">Create contact</span>
+                      <span style={{ fontSize: 13, color: valid ? "#16A82A" : "#9AA59E", flex: 1 }}>
+                        {valid ? "Ready to create" : "First name & a valid email required"}
+                      </span>
+                      <span
+                        onClick={() => setAddOpen(false)}
+                        style={{
+                          fontSize: 14,
+                          fontWeight: 600,
+                          color: "#5C6B62",
+                          background: "#fff",
+                          border: "1px solid #EBE3D6",
+                          borderRadius: 11,
+                          padding: "10px 16px",
+                          cursor: "pointer",
+                        }}
+                      >
+                        Cancel
+                      </span>
+                      <span
+                        onClick={() => void createContact()}
+                        style={{
+                          fontSize: 14,
+                          fontWeight: 700,
+                          color: valid ? "#0A0F0C" : "#9AA59E",
+                          background: valid ? GRAD : "#ECE7DC",
+                          borderRadius: 11,
+                          padding: "10px 20px",
+                          cursor: valid ? "pointer" : "not-allowed",
+                          boxShadow: valid ? "0 6px 16px rgba(53,232,52,.26)" : "none",
+                        }}
+                        data-testid="create-contact"
+                      >
+                        Create contact
+                      </span>
                     </>
                   );
                 })()}
@@ -1145,24 +3221,112 @@ export function ContactsView() {
         {/* C2.8: New-list modal (prototype anatomy) — creates via POST /lists;
             optionally assigns the bulk selection / a single contact on create. */}
         {newListOpen ? (
-          <div onClick={() => setNewListOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(12,20,15,.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 36, zIndex: 70 }}>
-            <div onClick={(e) => e.stopPropagation()} style={{ width: 420, maxWidth: "100%", background: "#fff", borderRadius: 18, boxShadow: "0 40px 90px rgba(0,0,0,.45)", overflow: "hidden" }} data-testid="new-list-modal">
-              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "18px 22px", borderBottom: "1px solid #EBE3D6" }}>
-                <span style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 700, fontSize: 17, color: "#0E1512", flex: 1 }}>Create a list</span>
-                <span onClick={() => setNewListOpen(false)} style={{ width: 30, height: 30, borderRadius: 9, border: "1px solid #EBE3D6", display: "flex", alignItems: "center", justifyContent: "center", color: "#9AA59E", cursor: "pointer" }}>✕</span>
+          <div
+            onClick={() => setNewListOpen(false)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(12,20,15,.5)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 36,
+              zIndex: 70,
+            }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                width: 420,
+                maxWidth: "100%",
+                background: "#fff",
+                borderRadius: 18,
+                boxShadow: "0 40px 90px rgba(0,0,0,.45)",
+                overflow: "hidden",
+              }}
+              data-testid="new-list-modal"
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "18px 22px",
+                  borderBottom: "1px solid #EBE3D6",
+                }}
+              >
+                <span
+                  style={{
+                    fontFamily: "'Bricolage Grotesque',sans-serif",
+                    fontWeight: 700,
+                    fontSize: 17,
+                    color: "#0E1512",
+                    flex: 1,
+                  }}
+                >
+                  Create a list
+                </span>
+                <span
+                  onClick={() => setNewListOpen(false)}
+                  style={{
+                    width: 30,
+                    height: 30,
+                    borderRadius: 9,
+                    border: "1px solid #EBE3D6",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "#9AA59E",
+                    cursor: "pointer",
+                  }}
+                >
+                  ✕
+                </span>
               </div>
               <div style={{ padding: "20px 22px" }}>
-                <label style={{ display: "block", fontSize: 11, fontWeight: 800, color: "#9AA59E", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 7 }}>List name</label>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: 11,
+                    fontWeight: 800,
+                    color: "#9AA59E",
+                    textTransform: "uppercase",
+                    letterSpacing: ".05em",
+                    marginBottom: 7,
+                  }}
+                >
+                  List name
+                </label>
                 <input
                   value={newListName}
-                  onChange={(e) => { setNewListName(e.target.value); setNewListErr(null); }}
-                  onKeyDown={(e) => { if (e.key === "Enter") void createList(); }}
+                  onChange={(e) => {
+                    setNewListName(e.target.value);
+                    setNewListErr(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") void createList();
+                  }}
                   placeholder="e.g. Q4 webinar signups"
                   autoFocus
-                  style={{ width: "100%", boxSizing: "border-box", height: 46, borderRadius: 11, background: "#FBF7F0", border: `1px solid ${newListErr ? "#E0A99E" : "#EBE3D6"}`, padding: "0 14px", fontSize: 14.5, color: "#0E1512", marginBottom: 6, fontFamily: "'Hanken Grotesk',sans-serif" }}
+                  style={{
+                    width: "100%",
+                    boxSizing: "border-box",
+                    height: 46,
+                    borderRadius: 11,
+                    background: "#FBF7F0",
+                    border: `1px solid ${newListErr ? "#E0A99E" : "#EBE3D6"}`,
+                    padding: "0 14px",
+                    fontSize: 14.5,
+                    color: "#0E1512",
+                    marginBottom: 6,
+                    fontFamily: "'Hanken Grotesk',sans-serif",
+                  }}
                   data-testid="new-list-name"
                 />
-                <div style={{ fontSize: 12.5, color: newListErr ? "#C9543F" : "#9AA59E" }} data-testid="new-list-hint">
+                <div
+                  style={{ fontSize: 12.5, color: newListErr ? "#C9543F" : "#9AA59E" }}
+                  data-testid="new-list-hint"
+                >
                   {newListErr ??
                     (newListAssign === "sel"
                       ? `The ${selected.length} selected contact${selected.length === 1 ? "" : "s"} will be added to it.`
@@ -1171,9 +3335,47 @@ export function ContactsView() {
                         : "Group contacts for targeting — a contact can be in many lists.")}
                 </div>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 22px", borderTop: "1px solid #EBE3D6" }}>
-                <span onClick={() => setNewListOpen(false)} style={{ marginLeft: "auto", fontSize: 14, fontWeight: 600, color: "#5C6B62", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 11, padding: "10px 16px", cursor: "pointer" }}>Cancel</span>
-                <span onClick={() => void createList()} style={{ fontSize: 14, fontWeight: 700, color: newListName.trim() ? "#0A0F0C" : "#9AA59E", background: newListName.trim() ? GRAD : "#ECE7DC", borderRadius: 11, padding: "10px 20px", cursor: newListName.trim() ? "pointer" : "not-allowed", boxShadow: newListName.trim() ? "0 6px 16px rgba(53,232,52,.26)" : "none" }} data-testid="new-list-create">Create list</span>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  padding: "14px 22px",
+                  borderTop: "1px solid #EBE3D6",
+                }}
+              >
+                <span
+                  onClick={() => setNewListOpen(false)}
+                  style={{
+                    marginLeft: "auto",
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: "#5C6B62",
+                    background: "#fff",
+                    border: "1px solid #EBE3D6",
+                    borderRadius: 11,
+                    padding: "10px 16px",
+                    cursor: "pointer",
+                  }}
+                >
+                  Cancel
+                </span>
+                <span
+                  onClick={() => void createList()}
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 700,
+                    color: newListName.trim() ? "#0A0F0C" : "#9AA59E",
+                    background: newListName.trim() ? GRAD : "#ECE7DC",
+                    borderRadius: 11,
+                    padding: "10px 20px",
+                    cursor: newListName.trim() ? "pointer" : "not-allowed",
+                    boxShadow: newListName.trim() ? "0 6px 16px rgba(53,232,52,.26)" : "none",
+                  }}
+                  data-testid="new-list-create"
+                >
+                  Create list
+                </span>
               </div>
             </div>
           </div>
@@ -1181,10 +3383,48 @@ export function ContactsView() {
 
         {/* §0 toast — dark pill, green ✓ dot, dismiss ✕ */}
         {toastMsg ? (
-          <div style={{ position: "fixed", bottom: 22, left: "50%", transform: "translateX(-50%)", zIndex: 71, display: "flex", alignItems: "center", gap: 11, background: "#0C140F", color: "#fff", borderRadius: 12, padding: "12px 16px", boxShadow: "0 16px 40px rgba(0,0,0,.3)" }} data-testid="toast">
-            <span style={{ width: 22, height: 22, borderRadius: "50%", background: "#35E834", color: "#0A0F0C", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flex: "none" }}>✓</span>
+          <div
+            style={{
+              position: "fixed",
+              bottom: 22,
+              left: "50%",
+              transform: "translateX(-50%)",
+              zIndex: 71,
+              display: "flex",
+              alignItems: "center",
+              gap: 11,
+              background: "#0C140F",
+              color: "#fff",
+              borderRadius: 12,
+              padding: "12px 16px",
+              boxShadow: "0 16px 40px rgba(0,0,0,.3)",
+            }}
+            data-testid="toast"
+          >
+            <span
+              style={{
+                width: 22,
+                height: 22,
+                borderRadius: "50%",
+                background: "#35E834",
+                color: "#0A0F0C",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 12,
+                fontWeight: 700,
+                flex: "none",
+              }}
+            >
+              ✓
+            </span>
             <span style={{ fontSize: 13.5, fontWeight: 600 }}>{toastMsg}</span>
-            <span onClick={() => setToastMsg("")} style={{ marginLeft: 8, color: "rgba(255,255,255,.5)", cursor: "pointer" }}>✕</span>
+            <span
+              onClick={() => setToastMsg("")}
+              style={{ marginLeft: 8, color: "rgba(255,255,255,.5)", cursor: "pointer" }}
+            >
+              ✕
+            </span>
           </div>
         ) : null}
       </div>

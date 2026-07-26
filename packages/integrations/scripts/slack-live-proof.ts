@@ -72,7 +72,15 @@ async function main(): Promise<void> {
     data: { agencyId: agency.id, name: "Slack proof", slug: suffix, settings: {} },
   });
   const contact = await owner.contact.create({
-    data: { workspaceId: ws.id, source: "proof", optOut: {}, tags: [], email: "ada@proof.test", firstName: "Ada", lastName: "Lovelace" },
+    data: {
+      workspaceId: ws.id,
+      source: "proof",
+      optOut: {},
+      tags: [],
+      email: "ada@proof.test",
+      firstName: "Ada",
+      lastName: "Lovelace",
+    },
   });
 
   const deps: IntegrationsDeps = { prisma: app, adapters: { slack: adapter } };
@@ -89,7 +97,9 @@ async function main(): Promise<void> {
   try {
     // 1 — live probe on the vault token
     const creds = { accessToken: BOT_TOKEN };
-    const probe = await adapter.probe(creds).catch((err) => fail("1 live probe", String(err?.message ?? err)));
+    const probe = await adapter
+      .probe(creds)
+      .catch((err) => fail("1 live probe", String(err?.message ?? err)));
     if (!probe.ok) fail("1 live probe", probe.detail);
     pass("1 live probe", `auth.test ok — ${probe.accountLabel ?? "workspace"}`);
 
@@ -111,7 +121,10 @@ async function main(): Promise<void> {
     await deps.publish({
       workspaceId: ws.id,
       type: "integration.connected.v1",
-      payload: { provider: "slack", ...(probe.accountLabel ? { accountLabel: probe.accountLabel } : {}) },
+      payload: {
+        provider: "slack",
+        ...(probe.accountLabel ? { accountLabel: probe.accountLabel } : {}),
+      },
     });
 
     // 2 — real channel list, pick the proof channel. DEGRADED path: a token
@@ -142,7 +155,10 @@ async function main(): Promise<void> {
       );
     }
     await withTenant(app, { workspaceId: ws.id }, (tx) =>
-      tx.integration.update({ where: { id: row.id }, data: { config: { channel: { id: channel.id, name: channel.name } } } }),
+      tx.integration.update({
+        where: { id: row.id },
+        data: { config: { channel: { id: channel.id, name: channel.name } } },
+      }),
     );
 
     // 3 — REAL notification through the REAL bus + notifier consumer
@@ -159,23 +175,41 @@ async function main(): Promise<void> {
       // immediately with the vendor's own refusal detail in the gate output —
       // never a mute 30s timeout hiding a channel_not_found.
       const settled = await owner.integrationDelivery.findFirst({
-        where: { workspaceId: ws.id, kind: "new_reply", status: { in: ["delivered", "failed", "held"] } },
+        where: {
+          workspaceId: ws.id,
+          kind: "new_reply",
+          status: { in: ["delivered", "failed", "held"] },
+        },
       });
       if (settled?.status === "delivered") delivery = settled;
       else if (settled) {
         fail("3 notify delivered", `delivery ${settled.status}: ${JSON.stringify(settled.detail)}`);
       }
     }
-    if (!delivery) fail("3 notify delivered", "no delivery row at all within 30s — the bus consumer never fired; check REDIS_URL/worker wiring");
-    const notified = await owner.event.findFirst({ where: { workspaceId: ws.id, type: "integration.notified.v1" } });
+    if (!delivery)
+      fail(
+        "3 notify delivered",
+        "no delivery row at all within 30s — the bus consumer never fired; check REDIS_URL/worker wiring",
+      );
+    const notified = await owner.event.findFirst({
+      where: { workspaceId: ws.id, type: "integration.notified.v1" },
+    });
     if (!notified) fail("3 notify delivered", "integration.notified.v1 missing from the ledger");
     pass("3 notify delivered", `REAL Slack post in #${channel.name} — delivery ${delivery.id}`);
 
     // 4 — redelivery dedupe (same source event id)
     const sourceEventId = delivery.sourceEventId as string;
-    const dup = await deliverSlack(deps, { workspaceId: ws.id, kind: "new_reply", text: "dup probe", sourceEventId });
-    const count = await owner.integrationDelivery.count({ where: { workspaceId: ws.id, kind: "new_reply" } });
-    if (count !== 1 || dup.detail?.includes("duplicate") !== true) fail("4 redelivery dedupe", `rows=${count} detail=${dup.detail}`);
+    const dup = await deliverSlack(deps, {
+      workspaceId: ws.id,
+      kind: "new_reply",
+      text: "dup probe",
+      sourceEventId,
+    });
+    const count = await owner.integrationDelivery.count({
+      where: { workspaceId: ws.id, kind: "new_reply" },
+    });
+    if (count !== 1 || dup.detail?.includes("duplicate") !== true)
+      fail("4 redelivery dedupe", `rows=${count} detail=${dup.detail}`);
     pass("4 redelivery dedupe", "second delivery skipped, ONE row");
 
     // 5 — the notify_team transport (Q-042's Slack half), a second REAL post
@@ -191,27 +225,48 @@ async function main(): Promise<void> {
 
     // 6 — revoked honesty WITHOUT harming the shared token: corrupt, probe, restore
     await withTenant(app, { workspaceId: ws.id }, (tx) =>
-      tx.integration.update({ where: { id: row.id }, data: { credentialsEnc: encryptCredentials({ accessToken: `${BOT_TOKEN.slice(0, 6)}-corrupted` }) } }),
+      tx.integration.update({
+        where: { id: row.id },
+        data: {
+          credentialsEnc: encryptCredentials({ accessToken: `${BOT_TOKEN.slice(0, 6)}-corrupted` }),
+        },
+      }),
     );
     const revoked = await probeIntegration(deps, { workspaceId: ws.id, provider: "slack" });
-    if (revoked.status !== "revoked") fail("6 revoked honesty", `expected revoked, got ${revoked.status}`);
+    if (revoked.status !== "revoked")
+      fail("6 revoked honesty", `expected revoked, got ${revoked.status}`);
     await withTenant(app, { workspaceId: ws.id }, (tx) =>
-      tx.integration.update({ where: { id: row.id }, data: { credentialsEnc: encryptCredentials(creds) } }),
+      tx.integration.update({
+        where: { id: row.id },
+        data: { credentialsEnc: encryptCredentials(creds) },
+      }),
     );
     const recovered = await probeIntegration(deps, { workspaceId: ws.id, provider: "slack" });
-    if (recovered.status !== "connected") fail("6 revoked honesty", `recovery expected connected, got ${recovered.status}`);
-    const transitions = await owner.event.count({ where: { workspaceId: ws.id, type: "integration.status_changed.v1" } });
+    if (recovered.status !== "connected")
+      fail("6 revoked honesty", `recovery expected connected, got ${recovered.status}`);
+    const transitions = await owner.event.count({
+      where: { workspaceId: ws.id, type: "integration.status_changed.v1" },
+    });
     if (transitions !== 2) fail("6 revoked honesty", `expected 2 transitions, got ${transitions}`);
     pass("6 revoked honesty", "REAL invalid_auth → revoked → recovery → connected (2 transitions)");
 
     // 7 — disconnect audit; vendor revoke DELIBERATELY skipped (shared token)
     const noRevokeAdapter = new SlackAdapter();
     (noRevokeAdapter as { revoke?: unknown }).revoke = undefined;
-    await disconnectIntegration({ ...deps, adapters: { slack: noRevokeAdapter } }, { workspaceId: ws.id, provider: "slack" });
+    await disconnectIntegration(
+      { ...deps, adapters: { slack: noRevokeAdapter } },
+      { workspaceId: ws.id, provider: "slack" },
+    );
     const gone = await owner.integration.findFirst({ where: { workspaceId: ws.id } });
-    const disconnected = await owner.event.findFirst({ where: { workspaceId: ws.id, type: "integration.disconnected.v1" } });
-    if (gone || !disconnected) fail("7 disconnect audit", `row=${Boolean(gone)} event=${Boolean(disconnected)}`);
-    pass("7 disconnect audit", "row deleted; the ledger outlives it (vendor revoke skipped — shared token)");
+    const disconnected = await owner.event.findFirst({
+      where: { workspaceId: ws.id, type: "integration.disconnected.v1" },
+    });
+    if (gone || !disconnected)
+      fail("7 disconnect audit", `row=${Boolean(gone)} event=${Boolean(disconnected)}`);
+    pass(
+      "7 disconnect audit",
+      "row deleted; the ledger outlives it (vendor revoke skipped — shared token)",
+    );
 
     writeFileSync(
       "slack-live-proof-receipts.json",
@@ -243,6 +298,9 @@ async function main(): Promise<void> {
 
 void main().catch((err) => {
   console.error(err);
-  writeFileSync("slack-live-proof-receipts.json", JSON.stringify({ gates, error: String(err?.message ?? err) }, null, 2));
+  writeFileSync(
+    "slack-live-proof-receipts.json",
+    JSON.stringify({ gates, error: String(err?.message ?? err) }, null, 2),
+  );
   process.exit(1);
 });

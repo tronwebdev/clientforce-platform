@@ -16,7 +16,13 @@ import {
 const sample: CampaignGraph = {
   entry: "n1",
   nodes: [
-    { id: "n1", type: "step", channel: "email", content: { subject: "Hi", body: "..." }, pipelineOnSend: "contacted" },
+    {
+      id: "n1",
+      type: "step",
+      channel: "email",
+      content: { subject: "Hi", body: "..." },
+      pipelineOnSend: "contacted",
+    },
     { id: "d1", type: "delay", amount: 2, unit: "days" },
     { id: "n2", type: "step", channel: "sms", content: { body: "still there?" } },
     {
@@ -48,7 +54,9 @@ describe("validateGraph", () => {
   });
 
   it("rejects a missing entry", () => {
-    expect(() => validateGraph({ ...sample, entry: "ghost" })).toThrow(/entry "ghost" is not a known node/);
+    expect(() => validateGraph({ ...sample, entry: "ghost" })).toThrow(
+      /entry "ghost" is not a known node/,
+    );
   });
 
   it("rejects an edge to an unknown node", () => {
@@ -185,7 +193,9 @@ describe("validateGraph", () => {
 
   it("rejects a sequential node with no outgoing edge", () => {
     const bad = { ...sample, edges: sample.edges.filter((e) => e.from !== "n2") };
-    expect(() => validateGraph(bad)).toThrow(/node "n2" \(step\) must have exactly one outgoing edge/);
+    expect(() => validateGraph(bad)).toThrow(
+      /node "n2" \(step\) must have exactly one outgoing edge/,
+    );
   });
 
   // M1b (DEC-068): branch cases are keyed by intent — ambiguity is rejected.
@@ -231,15 +241,20 @@ describe("validateGraph", () => {
       entry: "s1",
       nodes: [
         { id: "s1", type: "step", channel: "email", content: { subject: "a", body: "b" } },
-        { id: "br", type: "branch", on: "reply", cases: [
-          { when: { intent: "interested" }, goto: "end-won", pipeline: "booked" },
-          { when: { intent: "objection_price" }, goto: "reframe", pipeline: "replied" },
-          { when: { intent: "objection_timing" }, goto: "ack" },
-          { when: { intent: "wrong_person" }, goto: "referral" },
-          { when: { intent: "info_request" }, goto: "answer" },
-          { when: { intent: "not_interested" }, goto: "close", pipeline: "lost" },
-          { when: "default", goto: "end-lost" },
-        ] },
+        {
+          id: "br",
+          type: "branch",
+          on: "reply",
+          cases: [
+            { when: { intent: "interested" }, goto: "end-won", pipeline: "booked" },
+            { when: { intent: "objection_price" }, goto: "reframe", pipeline: "replied" },
+            { when: { intent: "objection_timing" }, goto: "ack" },
+            { when: { intent: "wrong_person" }, goto: "referral" },
+            { when: { intent: "info_request" }, goto: "answer" },
+            { when: { intent: "not_interested" }, goto: "close", pipeline: "lost" },
+            { when: "default", goto: "end-lost" },
+          ],
+        },
         { id: "reframe", type: "step", channel: "email", content: { body: "value" } },
         { id: "ack", type: "step", channel: "email", content: { body: "later" } },
         { id: "referral", type: "step", channel: "email", content: { body: "who?" } },
@@ -262,7 +277,9 @@ describe("validateGraph", () => {
     // branch each visit, so the executor's cycle guard bounds it — the
     // RUNTIME loop is safe because step sends are idempotent per node (P1.6).
     const actions = execute(sixCase, { events: { br: { intent: "interested" } } });
-    expect(actions.find((a) => a.kind === "branch")).toMatchObject({ matched: "intent:interested" });
+    expect(actions.find((a) => a.kind === "branch")).toMatchObject({
+      matched: "intent:interested",
+    });
     expect(actions.find((a) => a.kind === "pipeline_move")).toMatchObject({ stage: "booked" });
   });
 });

@@ -17,7 +17,14 @@ import { z } from "zod";
  * prototype canon; anything not in this list is honest-absent there and the
  * API refuses it typed — the picker↔vocabulary drift test pins the two ends.
  */
-export const INTEGRATION_PROVIDERS = ["slack", "gcal", "calendly", "stripe", "webhooks", "hubspot"] as const;
+export const INTEGRATION_PROVIDERS = [
+  "slack",
+  "gcal",
+  "calendly",
+  "stripe",
+  "webhooks",
+  "hubspot",
+] as const;
 export const integrationProviderSchema = z.enum(INTEGRATION_PROVIDERS);
 export type IntegrationProvider = z.infer<typeof integrationProviderSchema>;
 
@@ -51,7 +58,10 @@ export type SlackNotificationKind = (typeof SLACK_NOTIFICATION_KINDS)[number];
 export const slackConfigSchema = z
   .object({
     /** The channel Clientforce posts to — picked per workspace (drawer step 2). */
-    channel: z.object({ id: z.string().min(1), name: z.string().min(1) }).strict().optional(),
+    channel: z
+      .object({ id: z.string().min(1), name: z.string().min(1) })
+      .strict()
+      .optional(),
     notifications: z
       .object({
         new_reply: z.boolean().optional(),
@@ -74,7 +84,10 @@ export type SlackConfig = z.infer<typeof slackConfigSchema>;
  */
 export const gcalConfigSchema = z
   .object({
-    calendar: z.object({ id: z.string().min(1), name: z.string().min(1), timeZone: z.string().min(1) }).strict().optional(),
+    calendar: z
+      .object({ id: z.string().min(1), name: z.string().min(1), timeZone: z.string().min(1) })
+      .strict()
+      .optional(),
     offerSlots: z.boolean().optional(),
   })
   .strict();
@@ -204,5 +217,6 @@ export const INTEGRATION_REFUSALS = {
     "That HubSpot token was rejected — check the private-app / Service Key has the crm.objects.deals.write and crm.objects.contacts.write scopes",
   CRM_DEAL_MISSING:
     "No HubSpot deal on this contact yet — add a “Create CRM deal” step before “Update deal stage”",
-  CRM_PUSH_REFUSED: "HubSpot refused the request — check the pipeline/stage names and the token scopes",
+  CRM_PUSH_REFUSED:
+    "HubSpot refused the request — check the pipeline/stage names and the token scopes",
 } as const;

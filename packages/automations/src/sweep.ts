@@ -44,7 +44,10 @@ export async function runSequenceQuietSweep(
   });
 
   // Parse + group by campaign, keeping row order within each campaign.
-  const byCampaign = new Map<string, { workspaceId: string; rules: Array<ParsedRule & { days: number }> }>();
+  const byCampaign = new Map<
+    string,
+    { workspaceId: string; rules: Array<ParsedRule & { days: number }> }
+  >();
   for (const row of rows) {
     const trigger = campaignRuleTriggerSchema.safeParse(row.trigger);
     const actions = actionsSchema.safeParse(row.actions);

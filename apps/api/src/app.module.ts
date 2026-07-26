@@ -18,6 +18,7 @@ import { WorkspacesController } from "./workspaces/workspaces.controller";
 import { PlannerModule } from "./planner/planner.module";
 import { SystemModule } from "./system/system.module";
 import { VoiceModule } from "./voice/voice.module";
+import { WidgetModule } from "./widget/widget.module";
 import { ContactsController } from "./contacts/contacts.controller";
 import { ContactsViewController } from "./contacts/contacts-view.controller";
 import { ContactFieldsController } from "./contacts/contact-fields.controller";
@@ -41,8 +42,18 @@ import { BusOrInlinePublisher, EVENTS_PUBLISHER } from "./events/publisher";
     BackofficeModule,
     SystemModule,
     VoiceModule,
+    WidgetModule,
   ],
-  controllers: [HealthController, MeController, WorkspacesController, ContactsController, ContactsViewController, ContactFieldsController, ContactListsController, ContactValidationController],
+  controllers: [
+    HealthController,
+    MeController,
+    WorkspacesController,
+    ContactsController,
+    ContactsViewController,
+    ContactFieldsController,
+    ContactListsController,
+    ContactValidationController,
+  ],
   providers: [
     // Order matters: authenticate + resolve tenancy first, then enforce RBAC.
     { provide: APP_GUARD, useClass: AuthGuard },

@@ -30,6 +30,7 @@ Pixel-diffing is **not** required (font rasterization differs); geometry/color/c
 parity is. DOM structure does not need to match the prototype — behavior and appearance do.
 
 **Global conventions (apply to every screen):**
+
 - Canvas `#FBF7F0`; cards `#fff`, border `1px #EBE3D6`, radius 16–18, shadow `0 4px 16px rgba(14,21,18,.04)` (tables: radius 18, `0 6px 24px rgba(14,21,18,.05)`).
 - Table anatomy: header row bg `#FBF7F0` with `1.5px` bottom border `#EBE3D6`; header labels 12px/700
   uppercase `#5C6B62`; body rows separated by `1px #F2EEE4`; row hover tint; 18px checkboxes with
@@ -57,6 +58,7 @@ parity is. DOM structure does not need to match the prototype — behavior and a
 ## 1. App shell + Sidebar — `sidebar.js` (binding), every screen
 
 **Geometry & color**
+
 - Sidebar: `#0C140F`, **248px** wide (the prototype literal — supersedes the 256px previously
   written here, per the "prototype values win" rule), full height, padding `22px 16px`; content
   area offset by exactly 248px.
@@ -73,6 +75,7 @@ parity is. DOM structure does not need to match the prototype — behavior and a
   14px/600, role 12px `rgba(255,255,255,.5)`, chevron flips open/closed.
 
 **Interaction script**
+
 1. Click Tools → flyout opens, chevron flips; click Workspace → workspace flyout opens **and Tools
    closes** (single-open). 2. Click outside → all close. 3. Active nav item reflects the current
    route on every Phase-1 page. 4. Switching workspace changes tenant context (lists re-scope).
@@ -86,6 +89,7 @@ stub pages, never dead `#` links.
 ## 2. Agents List — `Agents List.dc.html`
 
 **Geometry**
+
 - Toolbar: search field + Status / Channel / More / **Columns** dropdown buttons. Active filter
   button state: bg `rgba(53,232,52,.08)`, border `#9FD8AC`, count chip. Columns menu 236px wide,
   checkbox rows toggle columns live.
@@ -112,8 +116,8 @@ completed rows checked. `‹ Back` (white secondary) + gradient `Next`/`Generate
 footer at the rail's viewport bottom** (`position:sticky;bottom:0`, bg `#FBF7F0`, padding-top 14px,
 padding-bottom 24px); Generate dims to `opacity:.55` and is a **no-op** on step 1 while no context
 exists (see the gating note below). Step title Bricolage 26px; subtitle 15px `#5C6B62`.
-*(Amended in the wizard-v2 PR — prototype v2 moved the divider and made the footer sticky; the
-previous "pinned at the rail bottom" wording is superseded.)*
+_(Amended in the wizard-v2 PR — prototype v2 moved the divider and made the footer sticky; the
+previous "pinned at the rail bottom" wording is superseded.)_
 
 Rail labels, verbatim: **1 Set the goal · 2 Design sequence · 3 Add contacts · 4 Enable lead capture ·
 5 Guardrails & compliance · 6 Preview & launch.**
@@ -155,7 +159,7 @@ distill one for personalisation.`;
 "How should we build the sequence?" — 3 method cards, gap 9, **gated on ≥1 READY source or a
 typed answer**: without context it renders the dashed locked placeholder `✦ Add a knowledge source
 or answer a question above to unlock sequence building.` and Generate is dimmed + no-op.
-*(Step-1 items amended in the wizard-v2 PR against prototype v2.)*
+_(Step-1 items amended in the wizard-v2 PR against prototype v2.)_
 **Step 2 — Design sequence:** renders the **planner's CampaignGraph** (P1.4): one card per `step`
 node (Step N label + email ChannelChip + `✦ AI draft` badge + `✎ Edit`), delay chips between from
 `delay` nodes, the reply branch from the `branch` node. **Step editor = 560px right drawer**
@@ -164,8 +168,8 @@ channel chip + subject title + `✕`; body = subject/body fields, **`✦ AI deli
 card** (deterministically-computable rows only — subject length, reading level, read time, links,
 "free" count; the AI-only /100 score and verdict are omitted until a real scorer exists) and the
 **PERSONALIZATION chips** (the real merge-token set); footer = `✦ Rewrite with AI` · Cancel ·
-gradient `Save step`. *(Amended in PR #34 — this section previously said "modal", stale vs the
-updated prototype.)* Delay modal opens/closes; edits persist to the graph (new version,
+gradient `Save step`. _(Amended in PR #34 — this section previously said "modal", stale vs the
+updated prototype.)_ Delay modal opens/closes; edits persist to the graph (new version,
 `source: MANUAL`).
 **Step 3 — Add contacts:** 3 source cards (`repeat(3,1fr)` gap 12); CSV modal flow; **manual-add
 drawer** (480px, bg `#FBF7F0`, shadow `-24px 0 70px rgba(0,0,0,.28)`, scrim `rgba(12,20,15,.4)`):
@@ -173,7 +177,7 @@ header `Add contacts manually` (Bricolage 17) + 32px ✕; white form card (radiu
 micro-caps labels — 2-col First/Last name, full-width Email, 2-col Company/**Phone** — and an
 in-card tinted `+ Add contact` **multi-add** button; `ADDED THIS SESSION · N` micro-caps label over
 rows with 34px initials avatars + red `Remove`; footer `N contacts ready to add` + gradient
-`Add to campaign`. *(Amended in the wizard-v2 PR per DEC-039a — previously "minimal wiring".)*
+`Add to campaign`. _(Amended in the wizard-v2 PR per DEC-039a — previously "minimal wiring".)_
 Minimal wiring: CSV of ≥1 test contact + manual single add.
 **C2.8 amendment (contact lists — `docs/PLAN_CONTACT_LISTS.md`):** the **"Choose a list"** source
 card is live: opens the **480px list picker modal** (prototype anatomy) listing active lists w/
@@ -230,6 +234,7 @@ amended in PR #36, owner-approved).
 static mock):** Calls, Preview, Stats. Do not delete them.
 
 **Leads tab**
+
 - Table grid **`44px 1.9fr 1.3fr 1.1fr 1.05fr .7fr .9fr`**; body scroll region max-height 512px;
   global table anatomy; search + **source filter** dropdown + export + add; bulk bar (sequence /
   export / unsubscribe).
@@ -295,6 +300,7 @@ the event within one poll interval (≤5s).
   pill flips.
 
 **C2.7 amendment (custom fields — binding from the C2.7 kickoff, v3 `Contacts.dc.html`):**
+
 - **Add-contact drawer — CUSTOM FIELDS block:** active workspace defs render as optional inputs in
   the 2-col row (e.g. Industry / Plan) above the **admin-only `＋ Add field`** inline-create (ADMIN
   pill; input placeholder "e.g. Industry, Source URL, Plan" → creates a TEXT def and focuses its
@@ -313,6 +319,7 @@ the event within one poll interval (≤5s).
 
 **C2.8 amendment (contact lists — binding from the C2.8 kickoff, `docs/PLAN_CONTACT_LISTS.md`, v4
 `Contacts.dc.html`; supersedes the C2.5/DEC-044 "lists rail inert / LIST select omitted" waivers):**
+
 - **Lists rail (226px):** live `ContactList` rows — All contacts + per-list rows with icon + real
   member count, gradient active state; clicking a list scopes the table (the rail IS the list
   filter — no separate dropdown); **`＋ New list`** → New-list modal → `POST /lists`. Archived
@@ -335,14 +342,14 @@ the event within one poll interval (≤5s).
 - **States:** rail default / list-scoped · New-list modal (empty · named · error-duplicate) · bulk
   menu open / after-add · drawer List row + menu open · add-drawer select open · CSV step-3 select ·
   archived list absent from rail + every picker (membership preserved).
-**C2.9 amendment (dynamic goal-completion state — `docs/PLAN_GOAL_STATE.md`, label table = fidelity
-source):** the "Booked" wording becomes goal-dynamic across: segment tab · per-row status pill ·
-status-filter dropdown · "Booked only" quick toggle · bulk "Move to" menu ("Mark as …") · drawer
-timeline stage rows. **Aggregation rule (Contacts is cross-agent):** per-ROW pills show the
-completing campaign's specific short pill (from the stage-change event's `{ goalKey, label }`);
-workspace-level labels (tab / filter / toggle / Move-to) show the shared goal's pill when every
-ACTIVE agent has one goal, else generic **"Goal met"**. Internal stage key + A10 derivation
-unchanged; mixed-goal state must show the generic tab with per-row specific pills side by side.
+  **C2.9 amendment (dynamic goal-completion state — `docs/PLAN_GOAL_STATE.md`, label table = fidelity
+  source):** the "Booked" wording becomes goal-dynamic across: segment tab · per-row status pill ·
+  status-filter dropdown · "Booked only" quick toggle · bulk "Move to" menu ("Mark as …") · drawer
+  timeline stage rows. **Aggregation rule (Contacts is cross-agent):** per-ROW pills show the
+  completing campaign's specific short pill (from the stage-change event's `{ goalKey, label }`);
+  workspace-level labels (tab / filter / toggle / Move-to) show the shared goal's pill when every
+  ACTIVE agent has one goal, else generic **"Goal met"**. Internal stage key + A10 derivation
+  unchanged; mixed-goal state must show the generic tab with per-row specific pills side by side.
 
 - Left sub-nav (7 sections); **Channels + Suppression + Brand kit wired**; others render inert with
   real layouts (no dead ends — each shows its prototype layout with mock/disabled controls).
@@ -353,15 +360,15 @@ unchanged; mixed-goal state must show the generic tab with per-row specific pill
   collapsed rows show a provenance chip (`N sources` `rgba(255,255,255,.38)` / `✦ AI-inferred`
   `#EFCB68` / `✎ edited` `#7FE8A0`); expanded sections show a **Grounded in** chip row (dark pills,
   active border `#7FE8A0`) — chip click reveals the verbatim cited quote (2px `#7FE8A0` left border)
-  + source locator + `Open source ↗`; **editing a section flips it to "✎ Edited by you — overrides
-  docs" with ↺ Revert** (restores the distilled body); AI-inferred sections carry an amber note
-  "✦ Inferred by AI — no direct source in your docs. Edit to confirm, or add a doc and regenerate.";
-  Regenerate clears edits + citations refresh; **Company docs** upload (PDF, DOCX,
-  XLSX, TXT, MD · 25 MB — ⚠ Q-009: XLSX extraction not yet in P1.2; at wiring time the accept
-  list must match the extractor's real capabilities, never advertise a format that fails after
-  upload) → workspace-level P1.2 ingestion with live IngestStatus rows; Company
-  description + Core offer fields; **Guardrails writing rules** tagged Always / Never / Tone (fed
-  to the planner). Connect-a-source grid + Brand identity (logo/colors/tagline) render inert.
+  - source locator + `Open source ↗`; **editing a section flips it to "✎ Edited by you — overrides
+    docs" with ↺ Revert** (restores the distilled body); AI-inferred sections carry an amber note
+    "✦ Inferred by AI — no direct source in your docs. Edit to confirm, or add a doc and regenerate.";
+    Regenerate clears edits + citations refresh; **Company docs** upload (PDF, DOCX,
+    XLSX, TXT, MD · 25 MB — ⚠ Q-009: XLSX extraction not yet in P1.2; at wiring time the accept
+    list must match the extractor's real capabilities, never advertise a format that fails after
+    upload) → workspace-level P1.2 ingestion with live IngestStatus rows; Company
+    description + Core offer fields; **Guardrails writing rules** tagged Always / Never / Tone (fed
+    to the planner). Connect-a-source grid + Brand identity (logo/colors/tagline) render inert.
 - **Email senders table:** columns = sender, sending status, receiving status, domain-auth badges
   (SPF/DKIM pass/fail pills), daily limit, sender id; row → sender detail drawer (same 500px drawer
   as §4). "Add sender" flow = P1.5 connect surface (CF Mailer / Gmail / Outlook / SMTP picker;
@@ -370,7 +377,6 @@ unchanged; mixed-goal state must show the generic tab with per-row specific pill
 - **Suppression list:** table of suppressed addresses (address, channel, reason, source, date) +
   add/remove; **wired to the real `Suppression` model** — adding an address here must actually block
   a send (this is tested in P1.5's acceptance).
-
 
 **P2.1 amendment (Twilio SMS — §6, DEC-061/062):** the Communication rail's **"Phone & SMS"**
 section is LIVE: SMS senders table (number · label · status · daily · id) + the sender drawer for
@@ -395,6 +401,6 @@ provider decision (tracked in PROGRESS.md §Open questions).
 
 Every UI PR attaches, at 1440×900: default state · loading skeleton · empty state · error state ·
 each overlay open (drawer/modal/dropdown) · each wired tab/segment — **prototype next to build** for
-each. Stateful controls additionally show closed *and* open (the T6 sidebar slip rule). The PR
+each. Stateful controls additionally show closed _and_ open (the T6 sidebar slip rule). The PR
 description lists any deliberate deviation with its PROGRESS.md decision ID; undocumented deviations
 are review-blockers.

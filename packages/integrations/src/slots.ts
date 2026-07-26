@@ -181,7 +181,10 @@ export function createBookingSlotsProvider(
       await withTenant(deps.prisma, { workspaceId }, (tx) =>
         tx.integration.update({ where: { id: row.id }, data: { lastSyncAt: now } }),
       );
-      const line = formatSlotsLine(deriveSlots(busy, now, calendar.timeZone, opts), calendar.timeZone);
+      const line = formatSlotsLine(
+        deriveSlots(busy, now, calendar.timeZone, opts),
+        calendar.timeZone,
+      );
       cache.set(workspaceId, { at: now.getTime(), line });
       return line;
     } catch (err) {

@@ -118,7 +118,9 @@ describe("per-provider drawer content (DRAWER_CONTENT, drift-guarded against cor
 
   it("the slack what's-syncing rows are SLACK_NOTIFICATION_KINDS exactly, in order", () => {
     expect(DRAWER_CONTENT.slack.syncRows.map((r) => r.kind)).toEqual([...SLACK_NOTIFICATION_KINDS]);
-    expect(new Set(Object.keys(SLACK_NOTIFICATION_LABELS))).toEqual(new Set(SLACK_NOTIFICATION_KINDS));
+    expect(new Set(Object.keys(SLACK_NOTIFICATION_LABELS))).toEqual(
+      new Set(SLACK_NOTIFICATION_KINDS),
+    );
     const labels = DRAWER_CONTENT.slack.syncRows.map((r) => r.label);
     for (const l of labels) expect(l.length).toBeGreaterThan(0);
     expect(new Set(labels).size).toBe(labels.length);
@@ -231,20 +233,32 @@ describe("Slack config helpers (full-payload-preserving PATCH bodies)", () => {
     const cfg = { channel: { id: "C1", name: "alerts" }, notifications: { meeting_booked: false } };
     const out = slackConfigPayload(cfg, { notifications: { new_reply: false } });
     expect(out.channel).toEqual({ id: "C1", name: "alerts" });
-    expect(out.notifications).toEqual({ new_reply: false, meeting_booked: false, goal_completed: true });
+    expect(out.notifications).toEqual({
+      new_reply: false,
+      meeting_booked: false,
+      goal_completed: true,
+    });
   });
 
   it("slackConfigPayload: channel change preserves the notification state", () => {
     const cfg = { notifications: { goal_completed: false } };
     const out = slackConfigPayload(cfg, { channel: { id: "C9", name: "growth" } });
     expect(out.channel).toEqual({ id: "C9", name: "growth" });
-    expect(out.notifications).toEqual({ new_reply: true, meeting_booked: true, goal_completed: false });
+    expect(out.notifications).toEqual({
+      new_reply: true,
+      meeting_booked: true,
+      goal_completed: false,
+    });
   });
 
   it("slackConfigPayload with no channel anywhere omits the channel key", () => {
     const out = slackConfigPayload({});
     expect("channel" in out).toBe(false);
-    expect(out.notifications).toEqual({ new_reply: true, meeting_booked: true, goal_completed: true });
+    expect(out.notifications).toEqual({
+      new_reply: true,
+      meeting_booked: true,
+      goal_completed: true,
+    });
   });
 
   it("a drawer draft seeded from a stored config with goal_completed:false round-trips false through the payload builder", () => {
@@ -308,12 +322,18 @@ describe("calendly config helpers (INT W2 — the two honest tiers)", () => {
   it("parseCalendlyConfig: null/garbage → {}, valid config round-trips (token/detection ride verbatim)", () => {
     expect(parseCalendlyConfig(null)).toEqual({});
     expect(parseCalendlyConfig({ schedulingUrl: "not a url" })).toEqual({});
-    const cfg = { schedulingUrl: "https://calendly.com/you/intro", webhookToken: "wt_1", detection: true };
+    const cfg = {
+      schedulingUrl: "https://calendly.com/you/intro",
+      webhookToken: "wt_1",
+      detection: true,
+    };
     expect(parseCalendlyConfig(cfg)).toEqual(cfg);
   });
 
   it("detection state: detection:true → live line; link without token → honest off line + the add-token affordance", () => {
-    expect(calendlyDetectionState({ schedulingUrl: "https://calendly.com/you", detection: true })).toEqual({
+    expect(
+      calendlyDetectionState({ schedulingUrl: "https://calendly.com/you", detection: true }),
+    ).toEqual({
       detection: true,
       line: CALENDLY_DETECTION_ON,
       offerToken: false,
@@ -324,8 +344,18 @@ describe("calendly config helpers (INT W2 — the two honest tiers)", () => {
       offerToken: true,
     });
     // detection is NEVER assumed from a stored token alone.
-    expect(calendlyDetectionState({ schedulingUrl: "https://calendly.com/you", webhookToken: "wt", detection: false }).detection).toBe(false);
-    expect(calendlyDetectionState({})).toEqual({ detection: false, line: CALENDLY_NO_LINK, offerToken: false });
+    expect(
+      calendlyDetectionState({
+        schedulingUrl: "https://calendly.com/you",
+        webhookToken: "wt",
+        detection: false,
+      }).detection,
+    ).toBe(false);
+    expect(calendlyDetectionState({})).toEqual({
+      detection: false,
+      line: CALENDLY_NO_LINK,
+      offerToken: false,
+    });
   });
 
   it("the drawer copy is the mandated wording", () => {
@@ -344,10 +374,29 @@ describe("activity merge (the drawer audit trail — designed addition)", () => 
   it("merges deliveries + events newest first, verbatim text, honest tones", () => {
     const items = mergeActivity(
       [
-        { id: "1", kind: "slack.message", status: "sent", detail: null, createdAt: "2026-07-21T10:00:00.000Z" },
-        { id: "2", kind: "slack.message", status: "failed", detail: "channel_not_found", createdAt: "2026-07-21T12:00:00.000Z" },
+        {
+          id: "1",
+          kind: "slack.message",
+          status: "sent",
+          detail: null,
+          createdAt: "2026-07-21T10:00:00.000Z",
+        },
+        {
+          id: "2",
+          kind: "slack.message",
+          status: "failed",
+          detail: "channel_not_found",
+          createdAt: "2026-07-21T12:00:00.000Z",
+        },
       ],
-      [{ id: "3", type: "integration.connected.v1", payload: {}, occurredAt: "2026-07-21T11:00:00.000Z" }],
+      [
+        {
+          id: "3",
+          type: "integration.connected.v1",
+          payload: {},
+          occurredAt: "2026-07-21T11:00:00.000Z",
+        },
+      ],
     );
     expect(items.map((i) => i.id)).toEqual(["d-2", "e-3", "d-1"]);
     expect(items[0]!.text).toBe("slack.message — failed");
@@ -372,29 +421,49 @@ describe("W3 stripe/webhooks drawer helpers (INT W3, DEC-095) — review-round p
   });
 
   it("stripeDetectionState is HONEST from stored config — a KEY-only (link-less) workspace still reads detection LIVE", () => {
-    expect(stripeDetectionState({})).toMatchObject({ detection: false, line: STRIPE_NO_LINK, offerKey: false });
+    expect(stripeDetectionState({})).toMatchObject({
+      detection: false,
+      line: STRIPE_NO_LINK,
+      offerKey: false,
+    });
     expect(stripeDetectionState({ paymentLinkUrl: "https://buy.stripe.com/x" })).toMatchObject({
       detection: false,
       line: STRIPE_DETECTION_OFF,
       offerKey: true,
     });
-    expect(stripeDetectionState({ paymentLinkUrl: "https://buy.stripe.com/x", detection: true })).toMatchObject({
+    expect(
+      stripeDetectionState({ paymentLinkUrl: "https://buy.stripe.com/x", detection: true }),
+    ).toMatchObject({
       detection: true,
       line: STRIPE_DETECTION_ON,
     });
     // The load-bearing pin: detection is decided BEFORE the link guard, so a
     // key-only detection-live workspace is NOT mislabeled "No payment link"/off.
-    expect(stripeDetectionState({ detection: true })).toMatchObject({ detection: true, line: STRIPE_DETECTION_ON });
+    expect(stripeDetectionState({ detection: true })).toMatchObject({
+      detection: true,
+      line: STRIPE_DETECTION_ON,
+    });
   });
 
   it("parseStripeConfig / parseWebhooksConfig round-trip through the REAL core schemas; garbage → {}", () => {
-    expect(parseStripeConfig({ paymentLinkUrl: "https://buy.stripe.com/x", webhookToken: "t", detection: true })).toMatchObject({
+    expect(
+      parseStripeConfig({
+        paymentLinkUrl: "https://buy.stripe.com/x",
+        webhookToken: "t",
+        detection: true,
+      }),
+    ).toMatchObject({
       paymentLinkUrl: "https://buy.stripe.com/x",
       webhookToken: "t",
       detection: true,
     });
     expect(parseStripeConfig("nonsense")).toEqual({});
-    expect(parseWebhooksConfig({ defaultUrl: "https://ops.example.com/hook", signingSecret: "whsec_cf_x" })).toMatchObject({
+    expect(
+      parseWebhooksConfig({
+        defaultUrl: "https://ops.example.com/hook",
+        signingSecret: "whsec_cf_x",
+      }),
+    ).toMatchObject({
       defaultUrl: "https://ops.example.com/hook",
     });
     expect(parseWebhooksConfig(null)).toEqual({});

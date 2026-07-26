@@ -18,12 +18,12 @@ per-sender rates; penalty scales LINEARLY between the signal's healthy→danger
 bounds — 0 at/below healthy, the full weight at/above danger). All bounds and
 weights are config constants (`HEALTH_SIGNALS`), not logic:
 
-| signal | healthy | danger | weight |
-|---|---|---|---|
-| spam-complaint rate | <0.1% | >0.3% | **40** |
-| hard-bounce rate | <2% | >5% | **30** |
-| delivery rate | >95% | <90% | **20** (no penalty when NO delivery signal exists — missing webhooks never read as failure) |
-| reply/engagement | — | — | **10, BONUS ONLY** (adds back up to +10 at ≥2% reply, clamped at 100; its absence never drives a pause) |
+| signal              | healthy | danger | weight                                                                                                  |
+| ------------------- | ------- | ------ | ------------------------------------------------------------------------------------------------------- |
+| spam-complaint rate | <0.1%   | >0.3%  | **40**                                                                                                  |
+| hard-bounce rate    | <2%     | >5%    | **30**                                                                                                  |
+| delivery rate       | >95%    | <90%   | **20** (no penalty when NO delivery signal exists — missing webhooks never read as failure)             |
+| reply/engagement    | —       | —      | **10, BONUS ONLY** (adds back up to +10 at ≥2% reply, clamped at 100; its absence never drives a pause) |
 
 Sample floor = F1's `SIGNAL_MIN_SENDS` (none <20 · low 20–49 · ok ≥50): below
 20 sends there is **no score and no gate** — "warming / low data".
@@ -32,20 +32,20 @@ Sample floor = F1's `SIGNAL_MIN_SENDS` (none <20 · low 20–49 · ok ≥50): be
 refusal threshold, a SHARP line (the four-band model replaced the earlier
 hysteresis; 40–59 is a sendable at-risk band).
 
-| fixture | sent | dlv | bounce | spam | reply | → score | band | state |
-|---|---|---|---|---|---|---|---|---|
-| below floor (19 sent, all bounced) | 19 | 0 | 19 | 0 | 0 | **—** | — | low_data |
-| clean sender (owner pin ≥80) | 100 | 0 | 0 | 0 | 0 | **100** | healthy | healthy |
-| fully engaged (+10 bonus, clamped) | 100 | 98 | 0 | 0 | 2 | **100** | healthy | healthy |
-| bounce 3% (linear penalty 10) | 200 | 190 | 6 | 0 | 0 | **90** | healthy | healthy |
-| band edge 80 (bounce 4%) | 2000 | 1900 | 80 | 0 | 0 | **80** | healthy | healthy |
-| band edge 79 (bounce 4.1%) | 2000 | 1900 | 82 | 0 | 0 | **79** | watch | healthy |
-| band edge 60 (spam at danger 0.3%) | 2000 | 1900 | 0 | 6 | 0 | **60** | watch | healthy |
-| band edge 59 | 2000 | 1900 | 42 | 6 | 0 | **59** | at_risk | healthy |
-| band edge 40 (gate still OPEN) | 2000 | 1900 | 80 | 6 | 0 | **40** | at_risk | healthy |
-| band edge 39 (auto-pause) | 2000 | 1900 | 82 | 6 | 0 | **39** | paused | unhealthy |
-| complaint spike (owner pin <40) | 2000 | 1820 | 90 | 8 | 0 | **19** | paused | unhealthy |
-| reply bonus lifts 39 → 49 | 2000 | 1900 | 82 | 6 | 40 | **49** | at_risk | healthy |
+| fixture                            | sent | dlv  | bounce | spam | reply | → score | band    | state     |
+| ---------------------------------- | ---- | ---- | ------ | ---- | ----- | ------- | ------- | --------- |
+| below floor (19 sent, all bounced) | 19   | 0    | 19     | 0    | 0     | **—**   | —       | low_data  |
+| clean sender (owner pin ≥80)       | 100  | 0    | 0      | 0    | 0     | **100** | healthy | healthy   |
+| fully engaged (+10 bonus, clamped) | 100  | 98   | 0      | 0    | 2     | **100** | healthy | healthy   |
+| bounce 3% (linear penalty 10)      | 200  | 190  | 6      | 0    | 0     | **90**  | healthy | healthy   |
+| band edge 80 (bounce 4%)           | 2000 | 1900 | 80     | 0    | 0     | **80**  | healthy | healthy   |
+| band edge 79 (bounce 4.1%)         | 2000 | 1900 | 82     | 0    | 0     | **79**  | watch   | healthy   |
+| band edge 60 (spam at danger 0.3%) | 2000 | 1900 | 0      | 6    | 0     | **60**  | watch   | healthy   |
+| band edge 59                       | 2000 | 1900 | 42     | 6    | 0     | **59**  | at_risk | healthy   |
+| band edge 40 (gate still OPEN)     | 2000 | 1900 | 80     | 6    | 0     | **40**  | at_risk | healthy   |
+| band edge 39 (auto-pause)          | 2000 | 1900 | 82     | 6    | 0     | **39**  | paused  | unhealthy |
+| complaint spike (owner pin <40)    | 2000 | 1820 | 90     | 8    | 0     | **19**  | paused  | unhealthy |
+| reply bonus lifts 39 → 49          | 2000 | 1900 | 82     | 6    | 40    | **49**  | at_risk | healthy   |
 
 ## 2 · Ramp curve walk (OWNER-LOCKED curve v2, 2026-07-15)
 
@@ -59,21 +59,21 @@ never retroactive** (DEC-019): it rides `warmupState.startedAt`, stamped by
 the create endpoint on NEW senders — every pre-W1 sender keeps byte-identical
 send behavior (regression-pinned).
 
-| day | curve cap | limit 500 | limit 200 (default) | limit 50 (SMS) |
-|---|---|---|---|---|
-| 1–3 | 50 | 50 | 50 | 50 |
-| 4–6 | 100 | 100 | 100 | 50 |
-| 7–9 | 250 | 250 | 200 | 50 |
-| 10–12 | 500 | 500 | 200 | 50 |
-| 13 | 1,000 | 500 | 200 | 50 |
-| 14 | 1,281 | 500 | 200 | 50 |
-| 17 | 2,125 | 500 | 200 | 50 |
-| 21 | 3,250 | 500 | 200 | 50 |
-| 28 | 5,219 | 500 | 200 | 50 |
-| 35 | 7,188 | 500 | 200 | 50 |
-| 40 | 8,594 | 500 | 200 | 50 |
-| 45 | 10,000 | 500 | 200 | 50 |
-| 46+ | — ramp over; the configured dailyLimit rules alone — | | | |
+| day   | curve cap                                            | limit 500 | limit 200 (default) | limit 50 (SMS) |
+| ----- | ---------------------------------------------------- | --------- | ------------------- | -------------- |
+| 1–3   | 50                                                   | 50        | 50                  | 50             |
+| 4–6   | 100                                                  | 100       | 100                 | 50             |
+| 7–9   | 250                                                  | 250       | 200                 | 50             |
+| 10–12 | 500                                                  | 500       | 200                 | 50             |
+| 13    | 1,000                                                | 500       | 200                 | 50             |
+| 14    | 1,281                                                | 500       | 200                 | 50             |
+| 17    | 2,125                                                | 500       | 200                 | 50             |
+| 21    | 3,250                                                | 500       | 200                 | 50             |
+| 28    | 5,219                                                | 500       | 200                 | 50             |
+| 35    | 7,188                                                | 500       | 200                 | 50             |
+| 40    | 8,594                                                | 500       | 200                 | 50             |
+| 45    | 10,000                                               | 500       | 200                 | 50             |
+| 46+   | — ramp over; the configured dailyLimit rules alone — |           |                     |                |
 
 **Health interlock (owner-locked, pinned):** a complaint/bounce spike (a rate
 at/over its DANGER bound) mid-warmup **HOLDS the current cap** — the ramp day
@@ -123,11 +123,11 @@ Real lookups (SendGrid domain-auth API for CF_MANAGED SPF/DKIM + direct
 lastCheckedAt }` persisted into `domainAuthStatus` (the shape the Settings UI
 already reads, extended additively). States walked in tests:
 
-| state | when | example detail |
-|---|---|---|
-| `verified` | the check that wrote `lastCheckedAt` confirmed the record | "Policy record present at _dmarc.clientforce.io" |
-| `failed` | provider/DNS answered and the record is wrong/missing — with a **copyable expected record** | "Not configured — no TXT record at _dmarc…" + `expected` |
-| `unchecked` | the check could not run (no provider key, API 5xx, resolver timeout) | "Lookup failed (ETIMEOUT) — could not verify" |
+| state       | when                                                                                        | example detail                                           |
+| ----------- | ------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| `verified`  | the check that wrote `lastCheckedAt` confirmed the record                                   | "Policy record present at _dmarc.clientforce.io"         |
+| `failed`    | provider/DNS answered and the record is wrong/missing — with a **copyable expected record** | "Not configured — no TXT record at _dmarc…" + `expected` |
+| `unchecked` | the check could not run (no provider key, API 5xx, resolver timeout)                        | "Lookup failed (ETIMEOUT) — could not verify"            |
 
 **Never cached-as-verified** (pinned e2e): a verified sender whose next
 re-check hits a resolver timeout is REPLACED with `unchecked` — a stale pass
