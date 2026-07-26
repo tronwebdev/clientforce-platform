@@ -495,6 +495,31 @@ importers:
         specifier: ^22.10.5
         version: 22.20.0
 
+  packages/recall:
+    dependencies:
+      '@clientforce/ai':
+        specifier: workspace:*
+        version: link:../ai
+      '@clientforce/core':
+        specifier: workspace:*
+        version: link:../core
+      '@clientforce/db':
+        specifier: workspace:*
+        version: link:../db
+      '@clientforce/knowledge':
+        specifier: workspace:*
+        version: link:../knowledge
+      zod:
+        specifier: ^3.24.1
+        version: 3.25.76
+    devDependencies:
+      '@clientforce/channels':
+        specifier: workspace:*
+        version: link:../channels
+      '@types/node':
+        specifier: ^22.10.5
+        version: 22.20.0
+
   packages/telemetry:
     dependencies:
       '@clientforce/events':
