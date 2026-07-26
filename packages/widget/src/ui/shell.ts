@@ -12,6 +12,7 @@ import {
 } from "@clientforce/theme";
 import type { QuickActionKind, WidgetQuickAction } from "../api/contract";
 import { CORNER_RADIUS_PX, type ResolvedWidgetConfig } from "../config";
+import { QUICK_ACTION_ICON, iconEl } from "./icons";
 
 export interface ShellHandlers {
   onLauncherClick(): void;
@@ -81,7 +82,8 @@ export class WidgetShell {
     this.label = el(doc, "span", "cfw-label");
     this.launcher = el(doc, "button", "cfw-launcher");
     this.launcher.type = "button";
-    // Canon §6: the agent mark is the ✦ glyph (it breathes when ready).
+    // Mock KEY SURFACES: the mark sits on WHITE. Canon §6: the mark is the ✦
+    // glyph on the signature gradient (here gradient-painted via background-clip).
     this.launcher.appendChild(el(doc, "span", "cfw-launcher-mark", AGENT_MARK));
     this.badge = el(doc, "span", "cfw-badge", "1");
     this.badge.setAttribute("aria-hidden", "true");
@@ -106,7 +108,8 @@ export class WidgetShell {
     sub.appendChild(this.subEl);
     headText.appendChild(this.nameEl);
     headText.appendChild(sub);
-    const close = el(doc, "button", "cfw-close", "✕");
+    const close = el(doc, "button", "cfw-close");
+    close.appendChild(iconEl(doc, "x", 16));
     close.type = "button";
     close.setAttribute("aria-label", "Close chat");
     close.addEventListener("click", () => this.handlers.onCloseClick());
@@ -139,11 +142,13 @@ export class WidgetShell {
     });
     this.input.addEventListener("focus", () => this.handlers.onInputFocus());
     this.input.addEventListener("blur", () => this.handlers.onInputBlur());
-    this.mic = el(doc, "button", "cfw-mic", "🎙");
+    this.mic = el(doc, "button", "cfw-mic");
+    this.mic.appendChild(iconEl(doc, "mic", 16));
     this.mic.type = "button";
     this.mic.setAttribute("aria-label", "Voice chat");
     this.mic.addEventListener("click", () => this.handlers.onMicClick());
-    const send = el(doc, "button", "cfw-send", "➤");
+    const send = el(doc, "button", "cfw-send");
+    send.appendChild(iconEl(doc, "send", 15));
     send.type = "button";
     send.setAttribute("aria-label", "Send message");
     send.addEventListener("click", () => this.submit());
@@ -233,7 +238,10 @@ export class WidgetShell {
     for (const action of actions) {
       const featureKey = FEATURE_BY_ACTION[action.kind];
       if (featureKey && !features[featureKey]) continue;
-      const chip = el(this.doc, "button", "cfw-chip", action.label);
+      const chip = el(this.doc, "button", "cfw-chip");
+      const iconName = QUICK_ACTION_ICON[action.kind];
+      if (iconName) chip.appendChild(iconEl(this.doc, iconName, 14));
+      chip.appendChild(el(this.doc, "span", "cfw-chip-label", action.label));
       chip.type = "button";
       chip.setAttribute("data-action", action.kind);
       chip.addEventListener("click", () => this.handlers.onQuickAction(action));

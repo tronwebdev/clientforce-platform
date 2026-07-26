@@ -13,6 +13,8 @@
  *   widget test counts these two declarations.
  * - Motion (§5): event-driven only, canon verbs + timings, all disabled under
  *   prefers-reduced-motion.
+ * - No emoji (mock build note): all iconography is stroke line icons
+ *   (src/ui/icons.ts) plus the ✦ mark.
  */
 
 :host {
@@ -82,26 +84,34 @@
   flex-direction: row-reverse;
 }
 
-/* Documented shadow exception 1 of 2 — floats over an unknown host page. */
+/* Documented shadow exception 1 of 2 — floats over an unknown host page.
+   Mock KEY SURFACES: the brand mark sits on WHITE (the accent stays the one
+   customer-brandable token and paints the send button, chips + rings). */
 .cfw-launcher {
   width: 60px;
   height: 60px;
   border-radius: 50%;
-  background: var(--cfw-brand);
+  background: var(--cv3-card);
+  border: 1px solid var(--cv3-line);
   box-shadow: var(--cv3-shadow-float);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
-  color: var(--cfw-on-brand);
   position: relative;
   flex: none;
 }
 
-/* §5/§6: the ready mark breathes. No perpetual decorative bob — canon motion
-   is event-driven, so the launcher itself never floats-for-show. */
+/* Canon §6: the ✦ mark, painted with the signature gradient. §5/§6: the ready
+   mark breathes — no perpetual decorative bob, motion is event-driven. */
 .cfw-launcher-mark {
   line-height: 1;
+  font-family: var(--cv3-font-display);
+  font-weight: var(--cv3-h1-weight);
+  font-size: 24px;
+  background: var(--cv3-gradient-signature);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .cfw-root[data-agent-state="idle"] .cfw-launcher-mark {
@@ -240,9 +250,8 @@
 
 .cfw-close {
   color: var(--cfw-on-brand-sub);
-  font-size: 15px;
   flex: none;
-  line-height: 1;
+  line-height: 0;
   padding: 4px;
 }
 
@@ -378,6 +387,9 @@
 }
 
 .cfw-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   font-size: 12.5px;
   font-weight: var(--cv3-label-weight);
   color: var(--cv3-forest);
@@ -430,7 +442,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  color: var(--cv3-muted);
   flex: none;
 }
 
@@ -443,7 +455,6 @@
   align-items: center;
   justify-content: center;
   color: var(--cfw-on-brand);
-  font-size: 14px;
   flex: none;
   transition: background var(--cv3-motion-fast) var(--cv3-ease);
 }

@@ -20,11 +20,12 @@ export interface WidgetTransport {
   send(req: WidgetSessionRequest): Promise<WidgetSessionResponse>;
 }
 
-/** Prototype chip set, verbatim (labels incl. glyphs). */
+/** Prototype chip set. Labels are emoji-free — the mock build note retires the
+ * legacy emoji in favour of line icons (the client renders one per kind). */
 export const CANON_QUICK_ACTIONS: ReadonlyArray<{ kind: QuickActionKind; label: string }> = [
-  { kind: "book_call", label: "📅 Book a call" },
-  { kind: "call_me_back", label: "📞 Call me back" },
-  { kind: "get_proposal", label: "📄 Get a proposal" },
+  { kind: "book_call", label: "Book a call" },
+  { kind: "call_me_back", label: "Call me back" },
+  { kind: "get_proposal", label: "Get a proposal" },
 ];
 
 /** Visible-thinking pause so the motion states read in the demo. */

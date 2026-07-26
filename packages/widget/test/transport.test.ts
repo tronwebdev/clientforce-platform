@@ -41,12 +41,12 @@ describe("StubTransport (the seam, exercised without a backend)", () => {
     expect(res.appearance).toBeNull();
   });
 
-  it("offers the prototype's three quick actions verbatim", async () => {
+  it("offers the three quick actions, emoji-free (icons render client-side)", async () => {
     const res = await stub().send(req({ type: "boot" }));
     expect(res.quickActions).toEqual([
-      { kind: "book_call", label: "📅 Book a call" },
-      { kind: "call_me_back", label: "📞 Call me back" },
-      { kind: "get_proposal", label: "📄 Get a proposal" },
+      { kind: "book_call", label: "Book a call" },
+      { kind: "call_me_back", label: "Call me back" },
+      { kind: "get_proposal", label: "Get a proposal" },
     ]);
     expect(CANON_QUICK_ACTIONS.map((a) => a.kind)).toEqual([
       "book_call",

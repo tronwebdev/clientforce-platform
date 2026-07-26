@@ -9,6 +9,8 @@ import { describe, expect, it } from "vitest";
 import { resolveConfig } from "../src/config";
 
 const widgetCss = readFileSync(join(__dirname, "..", "src", "styles", "widget.css"), "utf8");
+const shellSrc = readFileSync(join(__dirname, "..", "src", "ui", "shell.ts"), "utf8");
+const transportSrc = readFileSync(join(__dirname, "..", "src", "api", "transport.ts"), "utf8");
 const canon = readFileSync(join(__dirname, "..", "..", "..", "CONSOLE_V3_CANON.md"), "utf8");
 
 describe("§4 elevation — the widget's ONE shadow exception", () => {
@@ -87,5 +89,44 @@ describe("§1/§7 color — canon tokens only", () => {
     // white numerals + 2px white ring
     expect(badge.slice(0, 420)).toContain("border: 2px solid var(--cv3-card)");
     expect(badge.slice(0, 420)).toContain("color: var(--cv3-card)");
+  });
+});
+
+describe("mock build note — NO EMOJI: line icons + the ✦ mark", () => {
+  it("the shell renders no emoji iconography", () => {
+    // Emoji_Presentation catches the retired 📅 📞 📄 🎙 set; ✦ (U+2726) is a
+    // text-presentation glyph and is the canon mark, so it stays.
+    expect(shellSrc).not.toMatch(/\p{Emoji_Presentation}/u);
+    expect(shellSrc).toContain("AGENT_MARK");
+  });
+
+  it("server-offered quick-action labels are emoji-free (the client draws the icon)", () => {
+    expect(transportSrc).not.toMatch(/\p{Emoji_Presentation}/u);
+    expect(transportSrc).toContain('label: "Book a call"');
+  });
+
+  it("every interactive glyph is a stroke line icon on currentColor", () => {
+    const icons = readFileSync(join(__dirname, "..", "src", "ui", "icons.ts"), "utf8");
+    expect(icons).toContain('stroke", "currentColor"');
+    expect(icons).toContain('fill", "none"');
+    expect(icons).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+  });
+});
+
+describe("mock KEY SURFACES — launcher", () => {
+  it("the mark sits on WHITE with a hairline, not on the brand fill", () => {
+    const block = widgetCss.slice(
+      widgetCss.indexOf(".cfw-launcher {"),
+      widgetCss.indexOf(".cfw-launcher-mark"),
+    );
+    expect(block).toContain("background: var(--cv3-card)");
+    expect(block).toContain("border: 1px solid var(--cv3-line)");
+    expect(block).not.toContain("var(--cfw-brand)");
+  });
+
+  it("the mark itself is gradient-painted (canon §6)", () => {
+    const mark = widgetCss.slice(widgetCss.indexOf(".cfw-launcher-mark {"));
+    expect(mark.slice(0, 400)).toContain("background: var(--cv3-gradient-signature)");
+    expect(mark.slice(0, 400)).toContain("background-clip: text");
   });
 });

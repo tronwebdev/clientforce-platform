@@ -70,3 +70,84 @@ motion verbs and timings** (and the launcher's decorative bob removed — §5 is
 event-driven only). The voice overlay's canon (light `#FBFDFB`, gradient orb,
 forest waveform) is recorded for the unit that builds that surface — live voice
 chat is honest-absent here (Q-049).
+
+---
+
+## Mock-fidelity pass — `Agent Widget v3 — Mock` (2026-07-26, DEC-098)
+
+**Mock image: NOT COMMITTED — the file never reached this environment.** The
+owner supplied it inline; only `CONSOLE_V3_CANON.md` arrived as an uploadable
+file, so there are no PNG bytes to commit here. This pass was run against the
+mock as delivered (its specs are transcribed below so the findings stand on
+their own); committing `agent-widget-v3-mock.png` under this directory remains
+open on Q-049.
+
+**What the mock frame does and does not show.** It is an _interactive_ mock
+("Interactive · try every flow"); the static frame renders the host-website
+shell, a FLOWS-SHIPPED list, two KEY SURFACES specs, and BUILD NOTES — **the
+open widget panel is not visible in it**. So panel-internal placement still has
+no image anchor and stays bound to the prototype composition (the standing
+ruling); everything the mock _does_ state explicitly is now honored or logged
+below.
+
+### Conforms already
+
+| Mock says                                                                                                    | Build                                                                          |
+| ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
+| "Shadow is the one brand exception — launcher + panel float; everything inside stays flat + hairline per v3" | Pinned by test: `box-shadow` appears exactly twice, both the canon float token |
+| "Isolation — ships in shadow DOM"                                                                            | One host element, open shadow root, `all: initial`, inlined sheet              |
+| "Accent is the one customer-brandable token"                                                                 | `appearance.brandColor` is the only color knob; everything else is canon       |
+| "Live voice mode is a _light_ overlay, not the retired dark surface"                                         | No dark set exists; the widget is light-first                                  |
+
+### Deltas found and FIXED in this pass
+
+1. **NO EMOJI (build note).** The build still shipped the legacy emoji as
+   iconography — `📅 📞 📄` on the quick-action chips, `🎙` on the mic, `➤` on
+   send, `✕` on close. All are now **stroke line icons** on `currentColor`
+   (`src/ui/icons.ts`, standard 24×24 geometry per the PROGRESS icon map),
+   rendered inline so the bundle still fetches nothing. The ✦ mark stays. The
+   seam's quick-action labels are emoji-free too — the client draws the icon per
+   `kind`, so a server-supplied label can never smuggle an emoji back in.
+   Pinned by test (`Emoji_Presentation` must not appear in the shell or the
+   transport).
+2. **Launcher treatment (KEY SURFACES).** Mock: "brand mark on **white**". The
+   build had the ✦ on the brand fill. The launcher is now a **white surface with
+   a hairline**, and the mark is **gradient-painted** (canon §6 — signature
+   gradient via `background-clip: text`). The accent no longer paints the
+   launcher; it stays on the send button, chip text, rings and badge.
+
+### Open — needs the owner or a later unit
+
+3. **`assets/mark.svg` is not in the repo.** The mock names the launcher art as
+   that file. The build uses the canon ✦ glyph as the mark, which is a faithful
+   stand-in but not the real logo mark — dropping in the SVG is a one-line
+   change once supplied.
+4. **Flow parity is a scope gap, not a defect.** The mock lists six flows as
+   shipped — Book a visit (qualify → capture → **live slot pick** → confirmed
+   card) · Call me back — live (**animated dialing/ringing/live/done** +
+   transcript quote) · Schedule callback (later time + SMS-reminder consent) ·
+   Instant estimate (goal → email → **generating** → sent card with document) ·
+   Live voice mode (**voice overlay**) · Ask a question (grounded FAQ + nudge).
+   Unit 27's dispatch scoped the shell, the config surface and a stubbed seam;
+   every one of these flows needs the server half (slots, dialing state,
+   generation, voice transport). They are the next unit's work, riding Q-050,
+   and **none of them can be faked client-side** — a slot picker with no
+   calendar or a "dialing" animation with no call would be exactly the invented
+   surface the repo forbids.
+5. **Outcome card** ("mint confirm, forest ✓, receipt") — the terminal surface of
+   every flow above. Its canon is recorded; it ships with the flows, since
+   rendering "Booked · Tue 10:30 AM" without a booking would be fabricated data.
+6. **Flow naming.** The mock's labels are clinic-flavoured ("Book a visit",
+   "Instant estimate") where the build carries the prototype's ("Book a call",
+   "Get a proposal"). Labels are server-offered per tenant in the contract, so
+   this needs no client change — flagged so the wiring unit picks the canonical
+   default set.
+7. **Conflict, flagged not silently chosen:** the mock says the launcher carries
+   an "unread **pip**"; canon §7 specifies "forest fill, **white numerals**, 2px
+   white ring". The build ships the canon numbered pip (small forest dot, white
+   ring, numeral inside). One word from the owner switches it to a numberless
+   dot.
+8. **Welcome-copy emoji.** The default welcome message is still the prototype's
+   `Hi! 👋 How can I help?`. The build note retires emoji as _iconography_; this
+   is owner-configurable **copy**, so it was left alone rather than changed
+   silently — flagged for a ruling.

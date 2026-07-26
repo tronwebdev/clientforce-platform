@@ -90,10 +90,12 @@ describe("mount + isolation", () => {
     expect(bubbles[0]!.textContent).toBe("Hi! 👋 How can I help?");
     const chips = shadow.querySelectorAll(".cfw-chip");
     expect([...chips].map((c) => c.textContent)).toEqual([
-      "📅 Book a call",
-      "📞 Call me back",
-      "📄 Get a proposal",
+      "Book a call",
+      "Call me back",
+      "Get a proposal",
     ]);
+    // Mock build note: emoji became line icons — one per chip.
+    expect(shadow.querySelectorAll(".cfw-chip svg[data-icon]")).toHaveLength(3);
     expect(shadow.querySelector(".cfw-root")!.getAttribute("data-unread")).toBe("1");
   });
 
@@ -101,7 +103,7 @@ describe("mount + isolation", () => {
     active = create({ features: { callMeBack: false, proposal: false, voiceChat: false } });
     await flush();
     const chips = active.shadow.querySelectorAll(".cfw-chip");
-    expect([...chips].map((c) => c.textContent)).toEqual(["📅 Book a call"]);
+    expect([...chips].map((c) => c.textContent)).toEqual(["Book a call"]);
     expect((active.shadow.querySelector(".cfw-mic") as HTMLElement).style.display).toBe("none");
   });
 
@@ -219,7 +221,7 @@ describe("conversation round-trip + agent-identity motion states", () => {
     expect(active.shadow.querySelectorAll(".cfw-chip")).toHaveLength(0);
     expect(
       active.shadow.querySelector('.cfw-row[data-role="visitor"] .cfw-bubble')!.textContent,
-    ).toBe("📅 Book a call");
+    ).toBe("Book a call");
     const agentBubbles = active.shadow.querySelectorAll('.cfw-row[data-role="agent"] .cfw-bubble');
     expect(agentBubbles[agentBubbles.length - 1]!.textContent).toContain("Book a call");
   });
