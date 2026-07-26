@@ -3,9 +3,10 @@ import type { ZodIssue } from "zod";
 /**
  * The AI tasks the platform performs. Routing (which model serves which task)
  * is config-driven — see `config.ts`. Later phases extend this union (voice
- * brain, widget chat) without changing the gateway interface.
+ * brain, widget chat) without changing the gateway interface — `widget` is that
+ * anticipated extension arriving with WID2 (DEC-101).
  */
-export type AiTask = "planner" | "copy" | "classify" | "voice";
+export type AiTask = "planner" | "copy" | "classify" | "voice" | "widget";
 
 export interface CompleteRequest {
   /** System prompt (optional). */
@@ -63,8 +64,7 @@ export interface VoiceTool {
  * both variants.
  */
 export type VoiceStreamEvent =
-  | { type: "text"; text: string }
-  | { type: "tool_use"; id: string; name: string; input: unknown };
+  { type: "text"; text: string } | { type: "tool_use"; id: string; name: string; input: unknown };
 
 export interface StreamVoiceRequest {
   system?: string;

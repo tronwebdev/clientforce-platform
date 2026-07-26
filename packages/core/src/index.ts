@@ -80,6 +80,13 @@ export * from "./integrations";
 // spoken-register sanitizer, and the retrieval-receipt DTO.
 export * from "./recall";
 
+// Embeddable Agent Widget (WID2, DEC-101) — the one-endpoint session contract
+// promoted from the embed's client-side shapes: the public wgt_ credential, the
+// six workspace-configurable flows, the five entry-chip kinds, and the
+// server-authoritative branding field that is the ONLY path to suppressing the
+// platform attribution line.
+export * from "./widget";
+
 /**
  * Narrow an arbitrary string to a branded {@link Id}. Real validation arrives
  * with the data model; this keeps the type honest without runtime cost.
