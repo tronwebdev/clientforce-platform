@@ -254,7 +254,7 @@ export const DRAWER_CONTENT = {
   },
   // INT W3: Webhooks — the outbound send_webhook action's config surface
   // (default Payload URL + the per-workspace signing secret). The canon's
-  // events-pick stream half is honestly ABSENT (re-filed → Q-048).
+  // events-pick stream half is honestly ABSENT (re-filed → Q-054).
   webhooks: {
     mode: "fields",
     authPerms: [],

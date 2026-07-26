@@ -215,7 +215,7 @@ export const ABSENT_TRIGGERS: readonly AbsentPickerEntry[] = [
   { group: "Schedule & system", icon: "🕘", label: "On a schedule", desc: "A recurring date & time", reason: "Arrives with scheduled automations" },
   // INT W3 (DEC-095): the Webhooks integration ships OUTBOUND-only (the
   // send_webhook action). The INBOUND half — an external system triggering a
-  // Clientforce automation — re-filed to Q-048; the reason names that, not the
+  // Clientforce automation — re-filed to Q-054; the reason names that, not the
   // already-shipped integration.
   { group: "Schedule & system", icon: "⚯", label: "Incoming webhook", desc: "An external system pings us", reason: "Arrives with inbound webhook triggers" },
   { group: "Schedule & system", icon: "⚠", label: "Sender health drops", desc: "Deliverability falls", reason: "Arrives with sender-health triggers" },

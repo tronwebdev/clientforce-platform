@@ -133,7 +133,7 @@ async function main(): Promise<void> {
     // The deal + stage are the gated one-way-push outcome. The deal↔contact
     // link is REPORTED (best-effort): HubSpot 400s the association "invalid"
     // even with the read scope + both records present (a validation issue, not
-    // scope — under investigation, Q-050); the deal delivers unlinked.
+    // scope — under investigation, Q-056); the deal delivers unlinked.
     pass(
       "2 create deal",
       `REAL HubSpot deal ${dealId} created ${linked ? "+ LINKED to the contact" : "(contact link DEFERRED — HubSpot 400 'associations are invalid' even with read scope; deal delivered unlinked)"} · IntegrationDelivery ${createClaim.id} delivered`,

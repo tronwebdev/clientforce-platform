@@ -6,7 +6,7 @@ PASSED** ([run 30200590807](https://github.com/tronwebdev/clientforce-platform/a
 — a real Contact + Deal `512959987899` on `api-eu1.hubapi.com`, portal 148594354;
 idempotent redelivery; stage → `closedwon`); the **live build UI frames** are the
 one remaining §8 piece and ride that proof on the real local stack (DEC-096 ·
-Q-050) — exactly like W1's Slack proof, the wave ships fully built + green with
+Q-056) — exactly like W1's Slack proof, the wave ships fully built + green with
 HubSpot stubbed at its HTTP seam. Seven 2026-07-26 staging runs fixed real
 HubSpot facts (all unit-pinned): the **write-only Service Key** handling
 (best-effort `/account-info` connect + create-first upsert — the key can't
@@ -17,7 +17,7 @@ read/search), the **EU regional host** (`api-eu1.hubapi.com`, derived from the
 **association** (the v4 DEFAULT association, best-effort — HubSpot 400s it
 `"One or more associations are invalid"` on both v4 shapes and both before/after
 the read grant, a per-account/Service-Key permission not a scope, so the deal
-delivers UNLINKED; owner shipped deferred, auto-link → Q-050). The evidence here is the **canon twins** + the **real-rails push
+delivers UNLINKED; owner shipped deferred, auto-link → Q-056). The evidence here is the **canon twins** + the **real-rails push
 walk** (script-fired, the engine + `deliverCrm` + the ledger all real, HubSpot at
 the `HUBSPOT_BASE_URL` stub) + the **test-pinned build** (below).
 
@@ -32,7 +32,7 @@ each flagged:
 | Axis | Canon (proto) | Build (this wave) | Flag |
 | ---- | ------------- | ----------------- | ---- |
 | **Auth** | OAuth "Sign in with HubSpot" (a public developer app) | the **private-app token** `fields` step (paste a token) | DEC-096 + the #108 plan comment: marketplace framing is OUT (a public OAuth app IS that shape); the W2 Calendly / W3 Stripe-key token precedent; NO owner clock for connect. Owner can override to OAuth. |
-| **Direction** | two-way "Read & write" | **one-way push** (write-only: `crm.objects.deals.write` + `crm.objects.contacts.write`) | The card desc corrected from "two-way sync" to the honest one-way push; two-way (read HubSpot changes back) re-files → **Q-049**. |
+| **Direction** | two-way "Read & write" | **one-way push** (write-only: `crm.objects.deals.write` + `crm.objects.contacts.write`) | The card desc corrected from "two-way sync" to the honest one-way push; two-way (read HubSpot changes back) re-files → **Q-055**. |
 
 This is the `fields`-vs-OAuth adaptation precedent (W2 Calendly, W3 Stripe) —
 the build is honestly NARROWER than the canon's two-way claim, and says so.

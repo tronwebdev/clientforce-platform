@@ -772,7 +772,7 @@ Outbound **WebhookEndpoint** (`url`, `secret`, `events[]`) + delivery log; Zapie
 Payload URL + the server-minted per-workspace signing secret; the delivery log is `IntegrationDelivery`
 (claim-then-send, the W1 rails); the rule-fired `send_webhook` action POSTs signed
 (`X-Clientforce-Signature: t=…,v1=HMAC-SHA256(secret, "t.body")`) through the general SSRF guard.
-The `events[]` stream half (every catalog event as it happens) + the incoming trigger stay open → Q-048.
+The `events[]` stream half (every catalog event as it happens) + the incoming trigger stay open → Q-054.
 
 ---
 
