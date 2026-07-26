@@ -240,6 +240,7 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
   const isStripe = provider === "stripe";
   const isWebhooks = provider === "webhooks";
   const isHubspot = provider === "hubspot";
+  const isZapier = provider === "zapier";
   // The slack-typed content (narrow syncRows kinds) for the toggle machinery.
   const slackContent = DRAWER_CONTENT.slack;
   const config = useMemo(() => parseSlackConfig(row?.config), [row]);
@@ -250,6 +251,10 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
   const stripeDetection = stripeDetectionState(stripeCfg);
   const whCfg = useMemo(() => parseWebhooksConfig(row?.config), [row]);
   const hubspotCfg = useMemo(() => parseHubspotConfig(row?.config), [row]);
+  const zapierCfg = useMemo(() => {
+    const c = (row?.config ?? {}) as { keyPrefix?: string; inviteUrl?: string };
+    return { keyPrefix: c.keyPrefix, inviteUrl: c.inviteUrl };
+  }, [row]);
 
   // Wizard step (1..3 oauth · 1..2 fields) or null = connected mode.
   const [wizStep, setWizStep] = useState<number | null>(() => (bootMode === "config" ? 2 : row ? null : 1));
@@ -1352,6 +1357,37 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
             <div style={{ padding: "8px 15px", borderTop: "1px solid #F2EEE4", fontSize: 11.5, color: "#9AA59E", lineHeight: 1.45 }}>
               One-way push — Create CRM deal &amp; Update deal stage rules write to HubSpot; changes are never read back.
             </div>
+          </div>
+        )}
+
+
+        {isZapier && (
+          <div style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 13, marginBottom: 18 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 15px" }}>
+              <span style={{ fontSize: 13, color: "#5C6B62", flex: "none" }}>API key</span>
+              <span data-testid="zapier-key-prefix" style={{ fontSize: 12.5, fontFamily: "monospace", fontWeight: 600, color: zapierCfg.keyPrefix ? "#0E1512" : "#9AA59E", flex: 1, textAlign: "right" }}>
+                {zapierCfg.keyPrefix ? `cfk_${zapierCfg.keyPrefix}_…` : "—"}
+              </span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 15px", borderTop: "1px solid #F2EEE4" }}>
+              <span style={{ fontSize: 13, color: "#5C6B62", flex: "none" }}>Invite link</span>
+              <span data-testid="zapier-invite" style={{ fontSize: 12.5, fontWeight: 600, color: zapierCfg.inviteUrl ? "#0E1512" : "#9AA59E", flex: 1, textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {zapierCfg.inviteUrl ?? "Not generated yet"}
+              </span>
+            </div>
+            <div style={{ padding: "8px 15px", borderTop: "1px solid #F2EEE4", fontSize: 11.5, color: "#9AA59E", lineHeight: 1.45 }}>
+              Private app — the invite link adds it to your Zapier account; a public directory listing is a separate step. The key is stored as a hash only, so a lost key is re-minted, never recovered.
+            </div>
+          </div>
+        )}
+
+        {isZapier && (
+          <div style={{ marginBottom: 18 }}>
+            {content.syncRows.map((r) => (
+              <div key={r.kind} data-testid={`zapier-sync-${r.kind}`} style={{ fontSize: 12.5, color: "#3B463F", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 10, padding: "8px 12px", marginBottom: 6 }}>
+                {r.label}
+              </div>
+            ))}
           </div>
         )}
 

@@ -295,7 +295,11 @@ export const DRAWER_CONTENT = {
     syncRows: [
       { kind: "triggers", label: "Triggers — booked · replied · stage changed · enrolled · knowledge gap" },
       { kind: "writes", label: "Actions — create/update contact, enroll in campaign" },
-      { kind: "actions", label: "Actions — stage, tags, suppression, CRM deal (from your automation vocabulary)" },
+      // HONEST SCOPE: the exposure map decides every rule-action kind, but the
+      // published app renders only the writes until the engine transports are
+      // wired (Q-060). Naming them here would advertise steps a Zapier user
+      // cannot pick.
+      { kind: "soon", label: "Rule actions (stage, tags, suppression, CRM deal) — decided, not yet published as Zap steps" },
     ],
     setupSteps: [
       { title: "Mint an API key", desc: "Shown once — copy it straight into Zapier. We store only a hash, so a lost key is re-minted, never recovered." },
