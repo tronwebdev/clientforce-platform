@@ -10,7 +10,12 @@ import {
   textOnColor,
   type AgentState,
 } from "@clientforce/theme";
-import type { QuickActionKind, WidgetQuickAction } from "../api/contract";
+import type {
+  QuickActionKind,
+  WidgetCaptureSpec,
+  WidgetOutcome,
+  WidgetQuickAction,
+} from "../api/contract";
 import { CORNER_RADIUS_PX, type ResolvedWidgetConfig } from "../config";
 import markSvg from "@clientforce/theme/assets/mark.svg?raw";
 import { iconEl } from "./icons";
@@ -20,6 +25,8 @@ export interface ShellHandlers {
   onCloseClick(): void;
   onSend(text: string): void;
   onQuickAction(action: WidgetQuickAction): void;
+  /** A capture form was submitted — key → value, consent included as "true". */
+  onCaptureSubmit(fields: Record<string, string>): void;
   onMicClick(): void;
   onEscape(): void;
   onInputFocus(): void;
@@ -69,6 +76,7 @@ function el<K extends keyof HTMLElementTagNameMap>(
 }
 
 export class WidgetShell {
+  private capture: HTMLFormElement | null = null;
   readonly root: HTMLDivElement;
   private readonly doc: Document;
   private readonly handlers: ShellHandlers;
@@ -328,6 +336,103 @@ export class WidgetShell {
       chip.addEventListener("click", () => this.handlers.onQuickAction(action));
       this.chips.appendChild(chip);
     }
+  }
+
+  /**
+   * Render the server's capture spec as a form IN THE THREAD, not a modal — a
+   * 376px panel has no room for a layer, and a form that covers the
+   * conversation loses the context the visitor is answering from.
+   *
+   * The fields are whatever the server offered: the client draws them, it does
+   * not decide them, so a tenant can reword or re-scope without a release.
+   */
+  showCapture(spec: WidgetCaptureSpec): void {
+    this.hideQuickActions();
+    this.clearCapture();
+    const form = this.doc.createElement("form");
+    form.className = "cfw-capture";
+    form.setAttribute("data-flow", spec.flow);
+    form.appendChild(el(this.doc, "div", "cfw-capture-title", spec.title));
+
+    const inputs = new Map<string, HTMLInputElement>();
+    for (const field of spec.fields) {
+      const label = el(this.doc, "label", "cfw-field");
+      label.appendChild(el(this.doc, "span", "cfw-field-label", field.label));
+      const input = this.doc.createElement("input");
+      input.className = "cfw-field-input";
+      input.type =
+        field.type === "datetime" ? "datetime-local" : field.type === "text" ? "text" : field.type;
+      input.required = field.required;
+      if (field.placeholder) input.placeholder = field.placeholder;
+      input.setAttribute("data-key", field.key);
+      label.appendChild(input);
+      inputs.set(field.key, input);
+      form.appendChild(label);
+    }
+
+    let consent: HTMLInputElement | undefined;
+    if (spec.consent) {
+      const row = el(this.doc, "label", "cfw-consent");
+      consent = this.doc.createElement("input");
+      consent.type = "checkbox";
+      consent.className = "cfw-consent-box";
+      consent.required = spec.consent.required;
+      consent.setAttribute("data-key", spec.consent.key);
+      row.appendChild(consent);
+      row.appendChild(el(this.doc, "span", "cfw-consent-text", spec.consent.text));
+      form.appendChild(row);
+    }
+
+    const submit = el(this.doc, "button", "cfw-capture-submit", spec.submitLabel);
+    submit.type = "submit";
+    form.appendChild(submit);
+
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const fields: Record<string, string> = {};
+      for (const [key, input] of inputs) fields[key] = input.value.trim();
+      // The consent box travels as a plain string — the server records the
+      // tick; whether a reminder may actually be sent is the send boundary's
+      // decision, never the panel's.
+      if (consent) fields[consent.getAttribute("data-key")!] = String(consent.checked);
+      this.handlers.onCaptureSubmit(fields);
+    });
+
+    this.capture = form;
+    this.messages.insertBefore(
+      form,
+      this.typing.parentNode === this.messages ? this.typing : null,
+    );
+    this.scroller.scrollTop = this.scroller.scrollHeight;
+    inputs.values().next().value?.focus();
+  }
+
+  clearCapture(): void {
+    if (this.capture?.parentNode === this.messages) this.messages.removeChild(this.capture);
+    this.capture = null;
+  }
+
+  /**
+   * The terminal card. Canon §7 SEMANTIC green: mint fill + forest check on
+   * EVERY panel, white-label or not, because it means GOOD rather than meaning
+   * Clientforce — the one green the accent must not repaint.
+   */
+  showOutcome(outcome: WidgetOutcome): void {
+    this.clearCapture();
+    const card = el(this.doc, "div", "cfw-outcome");
+    card.setAttribute("data-kind", outcome.kind);
+    const tick = el(this.doc, "span", "cfw-outcome-tick");
+    tick.appendChild(iconEl(this.doc, "check", 14));
+    card.appendChild(tick);
+    const body = el(this.doc, "div", "cfw-outcome-body");
+    body.appendChild(el(this.doc, "div", "cfw-outcome-title", outcome.title));
+    if (outcome.detail) body.appendChild(el(this.doc, "div", "cfw-outcome-detail", outcome.detail));
+    card.appendChild(body);
+    this.messages.insertBefore(
+      card,
+      this.typing.parentNode === this.messages ? this.typing : null,
+    );
+    this.scroller.scrollTop = this.scroller.scrollHeight;
   }
 
   hideQuickActions(): void {

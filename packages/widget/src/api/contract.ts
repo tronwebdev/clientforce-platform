@@ -26,8 +26,11 @@
 import type {
   WidgetAgentDescriptor,
   WidgetBranding,
+  WidgetCaptureField,
+  WidgetCaptureSpec,
   WidgetClientEvent,
   WidgetMessage,
+  WidgetOutcome,
   WidgetQuickAction,
   WidgetQuickActionKind,
   WidgetSessionRequest,
@@ -37,8 +40,11 @@ import type {
 export type {
   WidgetAgentDescriptor,
   WidgetBranding,
+  WidgetCaptureField,
+  WidgetCaptureSpec,
   WidgetClientEvent,
   WidgetMessage,
+  WidgetOutcome,
   WidgetQuickAction,
   WidgetSessionRequest,
   WidgetSessionResponse,

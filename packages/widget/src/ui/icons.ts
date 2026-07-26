@@ -58,6 +58,9 @@ const ICONS: Record<string, Shape[]> = {
     ["path", { d: "M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" }],
     ["line", { x1: "12", y1: "17", x2: "12.01", y2: "17" }],
   ],
+  // WID2 W2: the outcome card's tick — SEMANTIC green, so it keeps forest on
+  // every panel including white-label.
+  check: [["polyline", { points: "20 6 9 17 4 12" }]],
   x: [
     ["line", { x1: "18", y1: "6", x2: "6", y2: "18" }],
     ["line", { x1: "6", y1: "6", x2: "18", y2: "18" }],

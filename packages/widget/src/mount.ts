@@ -34,6 +34,8 @@ export type WidgetEventName =
   | "message:sent"
   | "message:received"
   | "agent:state"
+  | "capture:shown"
+  | "outcome"
   | "error"
   | "destroy";
 
@@ -95,6 +97,7 @@ export class WidgetInstance {
       onCloseClick: () => this.close(),
       onSend: (text) => void this.send(text),
       onQuickAction: (action) => void this.quickAction(action),
+      onCaptureSubmit: (fields) => void this.captureSubmit(fields),
       onMicClick: () => this.micNotice(),
       onEscape: () => this.close(),
       onInputFocus: () => {
@@ -205,6 +208,17 @@ export class WidgetInstance {
     if (res.quickActions && !this.interacted) {
       this.shell.setQuickActions(res.quickActions, this.cfg.flows);
     }
+    // A capture flow was chosen: the server says WHICH fields to ask for, the
+    // panel just draws them. An outcome means the record already exists — the
+    // client never invents either surface.
+    if (res.capture) {
+      this.shell.showCapture(res.capture);
+      this.emit("capture:shown", res.capture);
+    }
+    if (res.outcome) {
+      this.shell.showOutcome(res.outcome);
+      this.emit("outcome", res.outcome);
+    }
     return res;
   }
 
@@ -265,6 +279,19 @@ export class WidgetInstance {
     this.shell.appendMessage({ role: "visitor", text: action.label });
     this.emit("message:sent", { text: action.label, quickAction: action.kind });
     await this.roundTrip({ type: "quick_action", action: action.kind });
+  }
+
+  /**
+   * Send the capture form. The panel does not validate beyond what the browser
+   * enforces on the inputs — the SERVER decides whether a submit is acceptable
+   * (it knows which flow was pending, and a submit nobody asked for is refused
+   * there), so duplicating that judgement here would only let the two drift.
+   */
+  private async captureSubmit(fields: Record<string, string>): Promise<void> {
+    this.markInteracted();
+    this.shell.clearCapture();
+    this.emit("message:sent", { capture: true });
+    await this.roundTrip({ type: "capture_submit", fields });
   }
 
   private markInteracted(): void {

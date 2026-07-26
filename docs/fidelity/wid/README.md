@@ -58,6 +58,7 @@ Build-only states (no static proto anchor — the preview is a single frame):
 - `build-12-panel-crop-3x` — the panel alone at 3× (1128×1920), the like-for-like pair for `widget-panel-canon` (1134×1926). Captured under `prefers-reduced-motion: reduce`, because at rest the idle mark BREATHES (§5, scale 1→1.05) and would inflate a geometry measurement by ~2px; that also makes this frame the reduced-motion evidence.
 - `build-13-white-label-panel-3x` — the same panel with attribution suppressed by the server: ✦ tiles on the workspace accent, accent send + chip label, **no platform line**
 - `build-14-white-label-launcher` — the white-label launcher: the ✦ on the accent in place of the brand mark
+- `build-16-capture-form-3x` · `build-17-outcome-card-3x` · `build-18-white-label-outcome-3x` — the capture form and the outcome card (last section)
 
 **Read `build-04` with the caret in mind:** its composer wears the focus ring
 because the frame is taken right after typing, so the field genuinely holds
@@ -147,10 +148,16 @@ below.
    generation, voice transport). They are the next unit's work, riding Q-050,
    and **none of them can be faked client-side** — a slot picker with no
    calendar or a "dialing" animation with no call would be exactly the invented
-   surface the repo forbids.
+   surface the repo forbids. **Partly closed (WID2/DEC-101):** Schedule
+   callback is complete end-to-end — it was first precisely because it needs no
+   third party. The other four still have no server half and are therefore
+   still not offered.
 5. **Outcome card** ("mint confirm, forest ✓, receipt") — the terminal surface of
    every flow above. Its canon is recorded; it ships with the flows, since
    rendering "Booked · Tue 10:30 AM" without a booking would be fabricated data.
+   **CLOSED (WID2/DEC-101)** — built with the first flow that writes a real
+   record; see the last section (`build-17`, and `build-18` for the
+   white-label proof that its green does not move).
 6. **Flow naming.** The mock's labels are clinic-flavoured ("Book a visit",
    "Instant estimate") where the build carries the prototype's ("Book a call",
    "Get a proposal"). Labels are server-offered per tenant in the contract, so
@@ -277,11 +284,13 @@ accent. `--cfw-brand-tint` / `--cfw-brand-tint-line` carry **canon mint verbatim
 for the canon accent, so the default panel stays byte-identical to the mock
 (measured: dot `#146B33`, chip fill `#EAF5EE`, chip border `#CFE8D8` — the mock's
 exact values); any other accent falls through to a `color-mix` tint (measured on
-`build-13`: dot `#1F3A93`, fill `#EDEFF6`, border `#CED4E7`). **Outcome cards are
-deliberately NOT written** — they are the semantic-green surface and are
-honest-absent until the flows ship (Q-050); canon §7 now records that they keep
-mint/forest on every panel, white-label or not. Both halves are pinned by test,
-including "no bare `--cv3-mint` survives in the sheet".
+`build-13`: dot `#1F3A93`, fill `#EDEFF6`, border `#CED4E7`). **Outcome cards were
+deliberately NOT written here** — they are the semantic-green surface and stayed
+honest-absent until a flow could actually complete; canon §7 records that they
+keep mint/forest on every panel, white-label or not. They shipped one unit later
+(DEC-101, last section), which is why the sheet's `--cv3-mint` pin moved from
+"no bare `--cv3-mint` survives" to "`.cfw-outcome` is its only user". Both
+halves of the accent split are still pinned by test.
 
 ### Found while capturing — three defects fixed
 
@@ -376,3 +385,38 @@ from numbers instead of a re-read.
 and the ADA eyebrow all derive from `--cfw-brand`; the **hang-up stays `#B0483A`
 because danger is semantic**. That is the same split already shipped for the chat
 panel, so the overlay inherits it rather than restating it.
+
+---
+
+## Capture form + outcome card — the first completed flow (2026-07-26, DEC-101)
+
+The two surfaces the mock listed and the shell could not honestly draw until the
+server half existed. Both are **server-driven by construction**: the panel
+renders a capture spec it was handed and an outcome that describes a record that
+already exists, so neither can be reached by a client knob — which is why these
+frames run the real `HttpTransport` against a canned session endpoint (the
+`build-13`/`14` route-interception precedent, disclosed the same way).
+
+| Frame                             | What it evidences                                                                                                                         |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `build-16-capture-form-3x`        | The server's fields drawn in the thread: title, three labelled inputs (`datetime` → the native picker), the consent tick, the pill submit |
+| `build-17-outcome-card-3x`        | The terminal card after the record is written — mint fill, forest ✓, title + detail                                                       |
+| `build-18-white-label-outcome-3x` | The same card on a `#1F3A93` workspace: tiles, dot and send move to the accent, attribution is gone, **the outcome green does not move**  |
+
+`build-18` is the owner's brand-vs-semantic ruling made visible in one frame. It
+is the reason the card is worth capturing under white-label at all: everything
+around it repaints and the confirmation does not, because it is green for
+meaning rather than for Clientforce.
+
+**Placement.** The form and the card both sit at the agent bubble's left edge
+(35px, the same indent as the entry-chip row) so the thread keeps one left
+margin; the form is a `panel`-surface card with a `line-soft` hairline at
+`radius-lg`, and the card is mint at the same radius. Neither is a modal: a
+376px panel has no room for a layer, and a form that covers the conversation
+loses the context the visitor is answering from.
+
+**Not built, said plainly.** Four of the six flows still have no capture spec on
+the server (`bookVisit` needs slots, `callMeBack` a telephony leg, `estimate`
+generation + delivery, live voice a transport), so the panel never offers them —
+the entry-chip row advertises only what the server can serve. The card has no
+"pending" kind for the same reason.

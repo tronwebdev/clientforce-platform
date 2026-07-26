@@ -275,6 +275,115 @@ describe("conversation round-trip + agent-identity motion states", () => {
   });
 });
 
+describe("capture form + outcome card (W2)", () => {
+  const SPEC = {
+    flow: "scheduleCallback" as const,
+    title: "When should we call?",
+    submitLabel: "Schedule callback",
+    fields: [
+      { key: "name", label: "Your name", type: "text" as const, required: true },
+      { key: "when", label: "Preferred time", type: "datetime" as const, required: true },
+    ],
+    consent: { key: "smsReminder", text: "Text me a reminder", required: false },
+  };
+
+  /**
+   * Boot, then take the schedule-callback chip — the capture form only ever
+   * arrives as the server's answer to a flow the visitor chose, so the tests
+   * reach it the way a visitor does rather than by calling showCapture().
+   *
+   * The chip is asserted non-null on purpose: with `?.click()` a missing chip
+   * is a silent no-op, and the NEXT respond() then resolves whatever request
+   * is still pending — the test goes green-ish against the wrong round trip.
+   */
+  async function chooseCallbackFlow(transport: ManualTransport): Promise<WidgetInstance> {
+    const widget = (active = create({}, { transport }));
+    transport.respond({
+      quickActions: [{ kind: "schedule_callback", label: "Schedule a callback" }],
+    });
+    await flush();
+    widget.shadow.querySelector<HTMLElement>(".cfw-chip")!.click();
+    await flush();
+    transport.respond({ capture: SPEC });
+    await flush();
+    return widget;
+  }
+
+  function submitCapture(widget: WidgetInstance): void {
+    widget.shadow
+      .querySelector<HTMLFormElement>(".cfw-capture")!
+      .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+  }
+
+  it("renders the SERVER's fields — the panel draws them, it does not decide them", async () => {
+    const widget = await chooseCallbackFlow(new ManualTransport());
+
+    const form = widget.shadow.querySelector(".cfw-capture");
+    expect(form?.getAttribute("data-flow")).toBe("scheduleCallback");
+    expect(
+      [...widget.shadow.querySelectorAll(".cfw-field-input")].map((i) => i.getAttribute("data-key")),
+    ).toEqual(["name", "when"]);
+    // datetime maps to the native picker; the spec's type vocabulary is the
+    // server's, the input type is the client's translation of it.
+    expect(widget.shadow.querySelector<HTMLInputElement>('[data-key="when"]')?.type).toBe(
+      "datetime-local",
+    );
+    expect(widget.shadow.querySelector(".cfw-consent-text")?.textContent).toBe("Text me a reminder");
+    // choosing a flow retires the chips — the visitor has already answered them
+    expect(widget.shadow.querySelector(".cfw-chip")).toBeNull();
+  });
+
+  it("submitting sends capture_submit with the consent tick as a field", async () => {
+    const transport = new ManualTransport();
+    const widget = await chooseCallbackFlow(transport);
+
+    widget.shadow.querySelector<HTMLInputElement>('[data-key="name"]')!.value = "Dana Ruiz";
+    widget.shadow.querySelector<HTMLInputElement>('[data-key="when"]')!.value = "2026-08-01T10:30";
+    widget.shadow.querySelector<HTMLInputElement>(".cfw-consent-box")!.checked = true;
+    submitCapture(widget);
+    await flush();
+
+    const sent = transport.requests.at(-1)!;
+    expect(sent.event).toEqual({
+      type: "capture_submit",
+      fields: { name: "Dana Ruiz", when: "2026-08-01T10:30", smsReminder: "true" },
+    });
+    // the form is gone the moment it is submitted — no double-submit surface
+    expect(widget.shadow.querySelector(".cfw-capture")).toBeNull();
+  });
+
+  it("renders the outcome card ONLY from the server's outcome", async () => {
+    const transport = new ManualTransport();
+    const widget = await chooseCallbackFlow(transport);
+    submitCapture(widget);
+    await flush();
+    transport.respond({
+      outcome: {
+        kind: "callback_scheduled",
+        title: "Callback scheduled",
+        detail: "We'll call Dana on +15551234",
+        at: "2026-08-01T10:30:00.000Z",
+      },
+    });
+    await flush();
+
+    const card = widget.shadow.querySelector(".cfw-outcome");
+    expect(card?.getAttribute("data-kind")).toBe("callback_scheduled");
+    expect(card?.querySelector(".cfw-outcome-title")?.textContent).toBe("Callback scheduled");
+    expect(card?.querySelector(".cfw-outcome-detail")?.textContent).toContain("Dana");
+  });
+
+  it("no outcome in the response ⇒ no card. The client never invents one", async () => {
+    const transport = new ManualTransport();
+    const widget = await chooseCallbackFlow(transport);
+    submitCapture(widget);
+    await flush();
+    transport.respond({}); // server wrote nothing, said nothing
+    await flush();
+    expect(widget.shadow.querySelector(".cfw-outcome")).toBeNull();
+  });
+});
+
 describe("update + destroy", () => {
   it("update re-themes in place (brand, position) without remounting", async () => {
     active = create();

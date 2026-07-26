@@ -110,9 +110,13 @@ describe("§1/§7 color — canon tokens only", () => {
     expect(badge.slice(0, 420)).toContain("border: 2px solid var(--cv3-card)");
     expect(badge.slice(0, 420)).toContain("color: var(--cfw-on-brand)");
     expect(textOnColor(consoleV3.forest).toLowerCase()).toBe("#ffffff");
-    // The chip fill is brand green too — no bare canon mint left in the sheet.
-    expect(widgetCss).not.toContain("var(--cv3-mint)");
-    expect(widgetCss).not.toContain("var(--cv3-mint-line)");
+    // The chip fill is brand green too. Canon mint may still appear — but ONLY
+    // on the outcome card, which is semantic green (below); anywhere else it
+    // would be a brand surface that ignores the workspace accent.
+    const mintUsers = [...widgetCss.matchAll(/([^{}]+)\{[^}]*var\(--cv3-mint(-line)?\)[^}]*\}/g)].map(
+      (m) => m[1]!.trim().split("\n").pop()!.trim(),
+    );
+    expect(mintUsers.sort()).toEqual([".cfw-outcome"]);
   });
 
   it("SEMANTIC green stays canon — the mint pair is exact on the canon accent", () => {
@@ -122,10 +126,29 @@ describe("§1/§7 color — canon tokens only", () => {
     expect(shellSrc).toContain('setProperty("--cfw-brand-tint", consoleV3.mint)');
     expect(shellSrc).toContain('setProperty("--cfw-brand-tint-line", consoleV3.mintLine)');
     expect(widgetCss).toContain("var(--cfw-brand-tint, color-mix(");
-    // Outcome cards (booked/sent/confirmed) are the semantic-green surface and
-    // are honest-absent this unit — they ship with the flows, on canon mint.
     expect(canon).toContain("outcome confirmation");
-    expect(widgetCss).not.toContain("cfw-outcome");
+  });
+
+  it("the OUTCOME CARD is semantic green and survives white-label untouched", () => {
+    // Canon §7's carve-out, made structural: the card means GOOD rather than
+    // meaning Clientforce, so unlike every brand-green surface it must NOT
+    // derive from the accent — a #1F3A93 workspace still gets mint + forest.
+    const card = widgetCss.slice(widgetCss.indexOf(".cfw-outcome {"));
+    expect(card.slice(0, 400)).toContain("background: var(--cv3-mint)");
+    expect(card.slice(0, 400)).toContain("border: 1px solid var(--cv3-mint-line)");
+    expect(card.slice(0, 400)).not.toContain("--cfw-brand");
+    const tick = widgetCss.slice(widgetCss.indexOf(".cfw-outcome-tick {"));
+    expect(tick.slice(0, 200)).toContain("color: var(--cv3-forest)");
+    // No white-label rule may repaint it — that is the whole distinction.
+    const whiteLabelRules = [...widgetCss.matchAll(/\[data-white-label\][^{]*\{/g)].map((m) => m[0]);
+    expect(whiteLabelRules.some((r) => r.includes("outcome"))).toBe(false);
+  });
+
+  it("the card only exists because a record does — it is built from the response", () => {
+    // No "pending" state and no client-side fabrication: the shell renders what
+    // the server sends after the write, never a card it invented.
+    expect(shellSrc).toContain("showOutcome(outcome: WidgetOutcome)");
+    expect(shellSrc).not.toMatch(/showOutcome\([^)]*\)\s*\{[\s\S]{0,400}(Booked|Confirmed)\b/);
   });
 });
 
