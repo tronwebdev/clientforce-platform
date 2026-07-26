@@ -106,11 +106,13 @@ describe("TriggerMenu (honest absence)", () => {
     // meeting_booked + rescheduled/canceled/before), SPEC A's
     // call_knowledge_gap and payment_received (INT W3) keep full opacity +
     // pointer (none of them is gated).
-    expect(html.match(/opacity:0\.55/g)).toHaveLength(6);
+    // WID2 (DEC-101): widget_chat_started is capture-gated too, so the dim set
+    // is 5 email-backed + lead_captured + it.
+    expect(html.match(/opacity:0\.55/g)).toHaveLength(7);
     expect(html.match(/cursor:pointer/g)).toHaveLength(6);
     // Disabled options carry no click affordance — a click cannot select
     // (the availability gate is asserted exhaustively in subcampaign-triggers).
-    expect(html.match(/cursor:default/g)).toHaveLength(6);
+    expect(html.match(/cursor:default/g)).toHaveLength(7);
   });
 
   it("connected → all options live, the selected kind shows the ✓", () => {
@@ -118,9 +120,9 @@ describe("TriggerMenu (honest absence)", () => {
       <TriggerMenu connected={{ email: true, leadCapture: true }} selected={"email_opened"} onPick={() => {}} />,
     );
     expect(html).not.toContain("opacity:0.55");
-    // 12 kinds in the menu: 7 base + call_knowledge_gap + the three W2
-    // meeting kinds + payment_received.
-    expect(html.match(/cursor:pointer/g)).toHaveLength(12);
+    // 13 kinds: 7 base + call_knowledge_gap + the three W2 meeting kinds +
+    // payment_received + WID2's widget_chat_started.
+    expect(html.match(/cursor:pointer/g)).toHaveLength(13);
     expect(html).toContain("✓");
   });
 });

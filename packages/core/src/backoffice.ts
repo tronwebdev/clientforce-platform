@@ -186,9 +186,12 @@ export interface UsageRollup {
  * ship a silent no-op (Q-025, owner ruling 2026-07-15). Each channel RE-ENTERS
  * this list via the ride-along on the PR that wires its boundary rail — the
  * CHECKLIST_B1_BACKOFFICE_COVERAGE rule. Voice re-entered with #93's dial rail
- * (`assertDialAllowed` gates on it); WhatsApp stays out until its finish PR.
+ * (`assertDialAllowed` gates on it); the WIDGET re-entered with WID2/DEC-101,
+ * whose answer boundary calls `assertTenantActive` + `assertChannelLive`
+ * before an embedded agent may say anything to the public; WhatsApp stays out
+ * until its finish PR.
  */
-export const KILL_SWITCH_CHANNELS = ["email", "sms", "voice"] as const;
+export const KILL_SWITCH_CHANNELS = ["email", "sms", "voice", "widget"] as const;
 
 /** Set/clear a per-agency/per-channel kill switch (audited, reversible). */
 export const killSwitchSetSchema = z.object({

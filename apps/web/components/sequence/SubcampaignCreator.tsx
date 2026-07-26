@@ -75,6 +75,10 @@ function triggerPhraseOf(trigger: CampaignRuleTrigger): string {
       return "opting out";
     case "lead_captured":
       return "arriving through lead capture";
+    // WID2 (DEC-101): reachable only if the creator's trigger menu offers it;
+    // the phrase is registered here because this switch is exhaustive.
+    case "widget_chat_started":
+      return "starting a chat on your website";
     case "call_knowledge_gap":
       // SPEC A (DEC-099). Reachable here only if the creator's trigger menu
       // ever offers it; today the menu omits it (a knowledge gap is a

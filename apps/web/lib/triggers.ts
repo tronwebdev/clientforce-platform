@@ -25,6 +25,8 @@ const TRIGGER_LABELS: Record<CampaignRuleTriggerKind, string> = {
   meeting_booked: "Meeting booked",
   opted_out: "Unsubscribed / opted out",
   lead_captured: "Form / lead captured",
+  // WID2 (DEC-101): a visitor opened a conversation on an embedded widget.
+  widget_chat_started: "Widget chat started",
   // SPEC A (DEC-099): a live call hit a question the record could not answer.
   call_knowledge_gap: "Call hit a knowledge gap",
   // INT W2 (DEC-094): the Meetings wave — labels verbatim from the retired
@@ -51,6 +53,7 @@ export const TRIGGER_ICONS: Record<CampaignRuleTriggerKind, string> = {
   meeting_booked: "📅",
   opted_out: "⊘",
   lead_captured: "⊞",
+  widget_chat_started: "💬",
   call_knowledge_gap: "◇",
   // INT W2: the canon glyphs from the retired Meetings absent entries.
   meeting_rescheduled: "⟳",
@@ -68,6 +71,7 @@ export const TRIGGER_DESCRIPTIONS: Record<CampaignRuleTriggerKind, string> = {
   meeting_booked: "A meeting is scheduled",
   opted_out: "A lead opts out",
   lead_captured: "A form, widget or LinkedIn lead arrives",
+  widget_chat_started: "A visitor opens chat",
   call_knowledge_gap: "A caller asks something the record can't answer",
   // INT W2: the canon descs from the retired Meetings absent entries.
   meeting_rescheduled: "A meeting moves",
@@ -114,6 +118,9 @@ export const TRIGGER_OPTIONS: readonly TriggerOption[] = (
     "payment_received",
     "opted_out",
     "lead_captured",
+    // WID2 (DEC-101): the widget's own moment — distinct from lead_captured,
+    // since starting a chat is interest and handing over details is a lead.
+    "widget_chat_started",
     // SPEC A (DEC-099). The Automations builder renders its picker FROM this
     // list (filtered by TRIGGER_GROUP), so a kind absent here is invisible
     // there — the vocabulary drives the picker, never a curated fork.
@@ -145,6 +152,7 @@ export const TRIGGER_GROUP: Record<CampaignRuleTriggerKind, string> = {
   before_meeting: "Meetings",
   opted_out: "Lead lifecycle",
   lead_captured: "Forms & widget",
+  widget_chat_started: "Forms & widget",
   // SPEC A (DEC-099): the FIRST live entry in the canon's "Voice & calls"
   // group — until now every entry in it was honest-absent (Q-032).
   call_knowledge_gap: "Voice & calls",
@@ -202,7 +210,6 @@ export const ABSENT_TRIGGERS: readonly AbsentPickerEntry[] = [
   { group: "Lead Finder & prospecting", icon: "◎", label: "High-fit ICP match", desc: "A strong-fit lead appears", reason: "Arrives with Lead Finder" },
   { group: "Lead Finder & prospecting", icon: "⚯", label: "Lead enriched", desc: "New data is appended", reason: "Arrives with enrichment" },
   { group: "Lead Finder & prospecting", icon: "⬆", label: "Import completed", desc: "A CSV import finishes", reason: "Arrives with import triggers" },
-  { group: "Forms & widget", icon: "💬", label: "Widget chat started", desc: "A visitor opens chat", reason: "Arrives with widget chat rules" },
   { group: "LinkedIn", icon: "in", label: "Connection accepted", desc: "A LinkedIn invite is accepted", reason: "Arrives with the LinkedIn channel" },
   { group: "LinkedIn", icon: "in", label: "LinkedIn reply", desc: "A reply on LinkedIn", reason: "Arrives with the LinkedIn channel" },
   { group: "Proposals & revenue", icon: "❒", label: "Proposal sent", desc: "A proposal goes out", reason: "Arrives with proposals & payments" },
@@ -258,7 +265,10 @@ export function triggerAvailability(
   kind: CampaignRuleTriggerKind,
   connected: TriggerConnectivity,
 ): TriggerAvailability {
-  if (kind === "lead_captured" && !connected.leadCapture) {
+  // WID2 (DEC-101): `widget_chat_started` rides the same capture connectivity —
+  // with no widget embedded anywhere there is nothing to start a chat ON, so
+  // offering it live would be an option that can never fire.
+  if ((kind === "lead_captured" || kind === "widget_chat_started") && !connected.leadCapture) {
     return { enabled: false, reason: TRIGGER_DISABLED_LEAD_CAPTURE };
   }
   if (EMAIL_BACKED.has(kind) && !connected.email) {

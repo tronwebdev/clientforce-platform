@@ -40,8 +40,10 @@ import {
   type WidgetSessionRequest,
   type WidgetSessionResponse,
 } from "@clientforce/core";
+import { assertChannelLive, assertTenantActive } from "@clientforce/channels";
 import { withTenant, type Prisma } from "@clientforce/db";
 import { PrismaService } from "../db/prisma.service";
+import { EVENTS_PUBLISHER, type EventsPublisher } from "../events/publisher";
 import { WIDGET_ANSWERER, type WidgetAnswerer } from "./widget.providers";
 
 /**
@@ -116,6 +118,7 @@ export class WidgetService {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(WIDGET_ANSWERER) private readonly answerer: WidgetAnswerer,
+    @Inject(EVENTS_PUBLISHER) private readonly publisher: EventsPublisher,
   ) {}
 
   async handle(req: WidgetSessionRequest, originHeader?: string): Promise<WidgetSessionResponse> {
@@ -302,7 +305,7 @@ export class WidgetService {
     });
     if (today >= MAX_SESSIONS_PER_WIDGET_PER_DAY) throw new WidgetRefusal("RATE_LIMITED", 429);
 
-    return tx.widgetSession.create({
+    const created = await tx.widgetSession.create({
       data: {
         workspaceId: widget.workspaceId,
         widgetId: widget.id,
@@ -314,6 +317,25 @@ export class WidgetService {
       },
       select: { id: true, turns: true, agentTurns: true },
     });
+
+    // `widget.conversation_started.v1` has been in the catalog since the data
+    // model was authored with NOTHING producing it. This is that producer —
+    // and it is what lights up the `widget_chat_started` automation trigger
+    // (Q-035's widget half). One firing per session, never per event: a
+    // visitor who opens, closes and reopens the panel is one conversation.
+    //
+    // Publishing is best-effort ON PURPOSE. The bus is not on the visitor's
+    // critical path — a Redis blip must not turn a working chat into a 500 on
+    // a customer's marketing page.
+    void this.publisher
+      .publish({
+        workspaceId: widget.workspaceId,
+        type: "widget.conversation_started.v1",
+        payload: { widgetId: widget.id },
+      })
+      .catch((err: unknown) => this.logger.warn(`widget event publish failed: ${String(err)}`));
+
+    return created;
   }
 
   private readTurns(value: unknown): WidgetMessage[] {
@@ -341,6 +363,14 @@ export class WidgetService {
     question: string,
   ): Promise<WidgetMessage> {
     try {
+      // The send boundary, ported not forked (the standing rail): a suspended
+      // tenant or a killed "widget" channel stops the agent talking to the
+      // public. This call is what puts "widget" in KILL_SWITCH_CHANNELS —
+      // offering a switch whose boundary never checks it would ship a silent
+      // no-op (Q-025's ruling).
+      await assertTenantActive(this.prisma.app, widget.workspaceId);
+      await assertChannelLive(this.prisma.app, widget.workspaceId, "widget");
+
       const text = await this.answerer.answer({
         workspaceId: widget.workspaceId,
         agentId: widget.agentId,

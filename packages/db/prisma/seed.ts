@@ -39,6 +39,10 @@ const DEFAULT_CREDIT_PRICES: ReadonlyArray<{ action: string; credits: number }> 
   { action: "voice_minute", credits: 40 },
   { action: "enrichment", credits: 10 },
   { action: "signal_lead", credits: 15 },
+  // WID2 (DEC-101): one agent turn in an embedded widget. Registering the
+  // delta TYPE is the spine-2 ride-along; metering stays with Phase 10's
+  // reconciliation — the checklist forbids a parallel meter.
+  { action: "widget_turn", credits: 2 },
 ];
 
 /** The 3 agency-level plan tiers (priceMonthly in integer cents). */

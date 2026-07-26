@@ -24,7 +24,7 @@ import { Test } from "@nestjs/testing";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createPrismaClient, type PrismaClient } from "@clientforce/db";
-import { WIDGET_CONTRACT_VERSION } from "@clientforce/core";
+import { KILL_SWITCH_CHANNELS, WIDGET_CONTRACT_VERSION } from "@clientforce/core";
 import { AppModule } from "../src/app.module";
 import { MAX_AGENT_TURNS_PER_SESSION } from "../src/widget/widget.service";
 
@@ -280,6 +280,89 @@ describe.skipIf(!hasDb)("widget session rail e2e (WID2, DEC-101)", () => {
         })
         .expect(429);
       expect(res.body.message?.code ?? res.body.code).toBe("RATE_LIMITED");
+    });
+  });
+
+  describe("ride-along: the automation vocabulary lights up", () => {
+    it("a new session fires widget.conversation_started.v1 — the catalog entry that had no producer", async () => {
+      const before = await owner.event.count({
+        where: { workspaceId, type: "widget.conversation_started.v1" },
+      });
+      const res = await api().post("/widget/v1/session").send(boot()).expect(201);
+
+      // Publishing is best-effort off the visitor's critical path, so poll
+      // briefly rather than assuming the write landed inside the response.
+      let after = before;
+      for (let i = 0; i < 20 && after <= before; i++) {
+        await new Promise((r) => setTimeout(r, 25));
+        after = await owner.event.count({
+          where: { workspaceId, type: "widget.conversation_started.v1" },
+        });
+      }
+      expect(after).toBe(before + 1);
+
+      const row = await owner.event.findFirst({
+        where: { workspaceId, type: "widget.conversation_started.v1" },
+        orderBy: { createdAt: "desc" },
+      });
+      expect((row?.payload as { widgetId?: string })?.widgetId).toBe(widgetId);
+      expect(res.body.sessionId).toBeTruthy();
+    });
+
+    it("ONE firing per session — reopening the same session does not re-fire", async () => {
+      const start = await owner.event.count({
+        where: { workspaceId, type: "widget.conversation_started.v1" },
+      });
+      const booted = await api().post("/widget/v1/session").send(boot()).expect(201);
+      // Wait for the boot's OWN event to land first — publishing is
+      // deliberately off the visitor's critical path, so counting immediately
+      // would measure the race, not a re-fire.
+      let before = start;
+      for (let i = 0; i < 20 && before <= start; i++) {
+        await new Promise((r) => setTimeout(r, 25));
+        before = await owner.event.count({
+          where: { workspaceId, type: "widget.conversation_started.v1" },
+        });
+      }
+      expect(before).toBe(start + 1);
+      await api()
+        .post("/widget/v1/session")
+        .send({ ...boot(), sessionId: booted.body.sessionId, event: { type: "open" } })
+        .expect(201);
+      await new Promise((r) => setTimeout(r, 150));
+      const after = await owner.event.count({
+        where: { workspaceId, type: "widget.conversation_started.v1" },
+      });
+      expect(after).toBe(before);
+    });
+  });
+
+  describe("ride-along: the widget is genuinely KILLABLE", () => {
+    it("a killed widget channel stops the agent answering — the switch is not a no-op", async () => {
+      // Q-025's ruling: a channel only belongs in KILL_SWITCH_CHANNELS if its
+      // boundary actually checks. Prove the check by flipping the switch and
+      // watching the answer path refuse BEFORE it reaches the model.
+      const booted = await api().post("/widget/v1/session").send(boot()).expect(201);
+      await owner.killSwitch.create({
+        data: { agencyId, channel: "widget", active: true, reason: "e2e proof" },
+      });
+      try {
+        const res = await api()
+          .post("/widget/v1/session")
+          .send({
+            ...boot(),
+            sessionId: booted.body.sessionId,
+            event: { type: "visitor_message", text: "hello?" },
+          })
+          .expect(503);
+        expect(res.body.message?.code ?? res.body.code).toBe("AGENT_UNAVAILABLE");
+      } finally {
+        await owner.killSwitch.deleteMany({ where: { agencyId, channel: "widget" } });
+      }
+    });
+
+    it("the widget is in the kill-switch enum (it earned the entry above)", () => {
+      expect([...KILL_SWITCH_CHANNELS]).toContain("widget");
     });
   });
 
