@@ -664,6 +664,28 @@ model Integration {
 // idempotency ledger. Unique (integrationId, sourceEventId, kind) dedupes bus
 // redeliveries (Postgres NULLs are distinct, so manual test deliveries with a
 // NULL source never collide).
+/// INT W5 (DEC-101): a workspace-scoped API key — v1 auth for the Zapier
+/// private app (owner ruling: key, not OAuth). The SECRET IS NEVER STORED.
+/// `prefix` is the public half used to look the row up; `hash` is SHA-256 of
+/// the full token, compared in constant time. A lost key is re-minted, never
+/// recovered. Revocation is a timestamp, so an audit trail outlives the key.
+model WorkspaceApiKey {
+  id          String    @id @default(cuid())
+  workspaceId String
+  /// Human label ("Zapier"), shown in Settings so a workspace can tell keys apart.
+  name        String
+  /// Public lookup half of the token — safe to display and to log.
+  prefix      String    @unique
+  /// SHA-256 of the WHOLE token. Never the token, never reversible.
+  hash        String
+  /// Coarse (per-use) touch, so an unused key is visibly stale before revoking.
+  lastUsedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([workspaceId, revokedAt])
+}
+
 model IntegrationDelivery {
   id            String   @id @default(cuid())
   workspaceId   String

@@ -39,7 +39,7 @@ export const campaignRuleTriggerSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("email_opened") }),
   z.object({ kind: z.literal("link_clicked") }),
   z.object({ kind: z.literal("lead_captured") }),
-  // WID2 (DEC-101): a visitor opened a conversation with an embedded widget.
+  // WID2 (DEC-102): a visitor opened a conversation with an embedded widget.
   // Fires off `widget.conversation_started.v1` — a catalog entry that has
   // existed since the data model was authored and, until this unit, had no
   // producer. This is Q-035's widget half: the moment an owner most plausibly

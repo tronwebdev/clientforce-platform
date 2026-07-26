@@ -186,7 +186,7 @@ export interface UsageRollup {
  * ship a silent no-op (Q-025, owner ruling 2026-07-15). Each channel RE-ENTERS
  * this list via the ride-along on the PR that wires its boundary rail — the
  * CHECKLIST_B1_BACKOFFICE_COVERAGE rule. Voice re-entered with #93's dial rail
- * (`assertDialAllowed` gates on it); the WIDGET re-entered with WID2/DEC-101,
+ * (`assertDialAllowed` gates on it); the WIDGET re-entered with WID2/DEC-102,
  * whose answer boundary calls `assertTenantActive` + `assertChannelLive`
  * before an embedded agent may say anything to the public; WhatsApp stays out
  * until its finish PR.

@@ -1,5 +1,5 @@
 /**
- * Agent Widget — the seam's server half (WID2, DEC-101).
+ * Agent Widget — the seam's server half (WID2, DEC-102).
  *
  * ONE endpoint serves the whole embed: `POST /widget/v1/session`. Unit 27
  * shipped the client against an honest stub; this is the real thing behind the

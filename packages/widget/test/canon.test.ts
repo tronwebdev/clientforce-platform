@@ -296,7 +296,7 @@ describe("owner panel spec (2026-07-26) — the accent never paints a surface", 
   });
 });
 
-describe("contract promotion (WID2/DEC-101) — one contract, zero bundle cost", () => {
+describe("contract promotion (WID2/DEC-102) — one contract, zero bundle cost", () => {
   const contractSrc = readFileSync(join(__dirname, "..", "src", "api", "contract.ts"), "utf8");
   const coreWidgetSrc = readFileSync(
     join(__dirname, "..", "..", "core", "src", "widget.ts"),

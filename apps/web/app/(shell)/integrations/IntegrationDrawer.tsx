@@ -484,6 +484,13 @@ export function IntegrationDrawer({
   const isStripe = provider === "stripe";
   const isWebhooks = provider === "webhooks";
   const isHubspot = provider === "hubspot";
+  const isZapier = provider === "zapier";
+  // INT W5 (DEC-102): the minted token is held in component state ONLY, for the
+  // one render after minting. It is never re-fetchable — the server keeps a
+  // hash — so closing the drawer genuinely loses it, and the copy says so.
+  const [zapMintedToken, setZapMintedToken] = useState<string | null>(null);
+  const [zapCopied, setZapCopied] = useState(false);
+  const [zapBusy, setZapBusy] = useState(false);
   // The slack-typed content (narrow syncRows kinds) for the toggle machinery.
   const slackContent = DRAWER_CONTENT.slack;
   const config = useMemo(() => parseSlackConfig(row?.config), [row]);
@@ -493,7 +500,38 @@ export function IntegrationDrawer({
   const stripeCfg = useMemo(() => parseStripeConfig(row?.config), [row]);
   const stripeDetection = stripeDetectionState(stripeCfg);
   const whCfg = useMemo(() => parseWebhooksConfig(row?.config), [row]);
+  const mintZapierKey = useCallback(async () => {
+    setZapBusy(true);
+    try {
+      const res = (await cf("integrations/zapier/keys", { method: "POST" })) as { token: string };
+      setZapMintedToken(res.token);
+      setZapCopied(false);
+      await onChanged?.();
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : "Could not mint a key");
+    } finally {
+      setZapBusy(false);
+    }
+  }, [onChanged]);
+
+  const revokeZapierKey = useCallback(async () => {
+    setZapBusy(true);
+    try {
+      await cf("integrations/zapier/keys/revoke", { method: "POST" });
+      setZapMintedToken(null);
+      await onChanged?.();
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : "Could not revoke the key");
+    } finally {
+      setZapBusy(false);
+    }
+  }, [onChanged]);
+
   const hubspotCfg = useMemo(() => parseHubspotConfig(row?.config), [row]);
+  const zapierCfg = useMemo(() => {
+    const c = (row?.config ?? {}) as { keyPrefix?: string; inviteUrl?: string };
+    return { keyPrefix: c.keyPrefix, inviteUrl: c.inviteUrl };
+  }, [row]);
 
   // Wizard step (1..3 oauth · 1..2 fields) or null = connected mode.
   const [wizStep, setWizStep] = useState<number | null>(() =>
@@ -2742,6 +2780,81 @@ export function IntegrationDrawer({
               One-way push — Create CRM deal &amp; Update deal stage rules write to HubSpot; changes
               are never read back.
             </div>
+          </div>
+        )}
+
+
+        {isZapier && (
+          <div style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 13, marginBottom: 18 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 15px" }}>
+              <span style={{ fontSize: 13, color: "#5C6B62", flex: "none" }}>API key</span>
+              <span data-testid="zapier-key-prefix" style={{ fontSize: 12.5, fontFamily: "monospace", fontWeight: 600, color: zapierCfg.keyPrefix ? "#0E1512" : "#9AA59E", flex: 1, textAlign: "right" }}>
+                {zapierCfg.keyPrefix ? `cfk_${zapierCfg.keyPrefix}_…` : "—"}
+              </span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 15px", borderTop: "1px solid #F2EEE4" }}>
+              <span style={{ fontSize: 13, color: "#5C6B62", flex: "none" }}>Invite link</span>
+              <span data-testid="zapier-invite" style={{ fontSize: 12.5, fontWeight: 600, color: zapierCfg.inviteUrl ? "#0E1512" : "#9AA59E", flex: 1, textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {zapierCfg.inviteUrl ?? "Not generated yet"}
+              </span>
+            </div>
+            <div style={{ padding: "8px 15px", borderTop: "1px solid #F2EEE4", fontSize: 11.5, color: "#9AA59E", lineHeight: 1.45 }}>
+              Private app — the invite link adds it to your Zapier account; a public directory listing is a separate step. The key is stored as a hash only, so a lost key is re-minted, never recovered.
+            </div>
+            {/* The token exists in the UI for exactly one render after minting.
+                There is no "show key" affordance because the server cannot
+                produce one — it keeps a hash. Minting again revokes the old key. */}
+            {zapMintedToken && (
+              <div data-testid="zapier-minted" style={{ padding: "11px 15px", borderTop: "1px solid #F2EEE4", background: "rgba(53,232,52,.06)" }}>
+                <div style={{ fontSize: 11.5, fontWeight: 700, color: "#16A82A", marginBottom: 6 }}>
+                  Copy this key now — it is not shown again
+                </div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <code data-testid="zapier-token" style={{ flex: 1, fontSize: 11.5, fontFamily: "monospace", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 8, padding: "7px 9px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {zapMintedToken}
+                  </code>
+                  <button
+                    data-testid="zapier-copy"
+                    onClick={() => { void navigator.clipboard?.writeText(zapMintedToken); setZapCopied(true); }}
+                    style={{ flex: "none", fontSize: 12, fontWeight: 700, color: "#0E1512", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 8, padding: "7px 11px", cursor: "pointer" }}
+                  >
+                    {zapCopied ? "Copied" : "Copy"}
+                  </button>
+                </div>
+              </div>
+            )}
+            {canManage && (
+              <div style={{ display: "flex", gap: 8, padding: "11px 15px", borderTop: "1px solid #F2EEE4" }}>
+                <button
+                  data-testid="zapier-mint"
+                  disabled={zapBusy}
+                  onClick={() => void mintZapierKey()}
+                  style={{ fontSize: 12.5, fontWeight: 700, color: "#fff", background: "#16A82A", border: "none", borderRadius: 9, padding: "8px 13px", cursor: zapBusy ? "default" : "pointer", opacity: zapBusy ? 0.6 : 1 }}
+                >
+                  {zapierCfg.keyPrefix ? "Re-mint key" : "Mint API key"}
+                </button>
+                {zapierCfg.keyPrefix && (
+                  <button
+                    data-testid="zapier-revoke"
+                    disabled={zapBusy}
+                    onClick={() => void revokeZapierKey()}
+                    style={{ fontSize: 12.5, fontWeight: 700, color: "#B4231C", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 9, padding: "8px 13px", cursor: zapBusy ? "default" : "pointer", opacity: zapBusy ? 0.6 : 1 }}
+                  >
+                    Revoke
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {isZapier && (
+          <div style={{ marginBottom: 18 }}>
+            {content.syncRows.map((r) => (
+              <div key={r.kind} data-testid={`zapier-sync-${r.kind}`} style={{ fontSize: 12.5, color: "#3B463F", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 10, padding: "8px 12px", marginBottom: 6 }}>
+                {r.label}
+              </div>
+            ))}
           </div>
         )}
 

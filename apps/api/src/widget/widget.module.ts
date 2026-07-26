@@ -5,7 +5,7 @@ import { WidgetController } from "./widget.controller";
 import { widgetProviders } from "./widget.providers";
 import { WidgetService } from "./widget.service";
 
-/** The embeddable Agent Widget's server half (WID2, DEC-101). */
+/** The embeddable Agent Widget's server half (WID2, DEC-102). */
 @Module({
   imports: [DbModule],
   controllers: [WidgetController],

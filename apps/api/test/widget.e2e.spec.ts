@@ -1,5 +1,5 @@
 /**
- * WID2 (DEC-101) widget rail e2e vs real Postgres+RLS — the public endpoint
+ * WID2 (DEC-102) widget rail e2e vs real Postgres+RLS — the public endpoint
  * end-to-end. What each block is actually protecting:
  *
  *   resolution   — `wgt_…` → workspace/agent server-side; an unknown id is a
@@ -33,7 +33,7 @@ const suffix = `wid-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 
 process.env.AUTH_DEV_SECRET ??= "test-dev-secret";
 
-describe.skipIf(!hasDb)("widget session rail e2e (WID2, DEC-101)", () => {
+describe.skipIf(!hasDb)("widget session rail e2e (WID2, DEC-102)", () => {
   let app: INestApplication;
   let owner: PrismaClient;
   let agencyId: string;

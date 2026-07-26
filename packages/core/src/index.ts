@@ -74,13 +74,14 @@ export * from "./validation";
 // Integrations (INT W1, DEC-093) — the ONE provider registry, probe-backed
 // connection states, per-provider config schemas, typed refusal vocabulary.
 export * from "./integrations";
+export * from "./zapier";
 
 // On-call contact recall (SPEC A, DEC-099) — the facet union the
 // `lookup_contact_context` tool enumerates, the bounded result shape, the
 // spoken-register sanitizer, and the retrieval-receipt DTO.
 export * from "./recall";
 
-// Embeddable Agent Widget (WID2, DEC-101) — the one-endpoint session contract
+// Embeddable Agent Widget (WID2, DEC-102) — the one-endpoint session contract
 // promoted from the embed's client-side shapes: the public wgt_ credential, the
 // six workspace-configurable flows, the five entry-chip kinds, and the
 // server-authoritative branding field that is the ONLY path to suppressing the

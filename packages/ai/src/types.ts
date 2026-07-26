@@ -4,7 +4,7 @@ import type { ZodIssue } from "zod";
  * The AI tasks the platform performs. Routing (which model serves which task)
  * is config-driven — see `config.ts`. Later phases extend this union (voice
  * brain, widget chat) without changing the gateway interface — `widget` is that
- * anticipated extension arriving with WID2 (DEC-101).
+ * anticipated extension arriving with WID2 (DEC-102).
  */
 export type AiTask = "planner" | "copy" | "classify" | "voice" | "widget";
 

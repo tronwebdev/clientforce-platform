@@ -1,5 +1,5 @@
 /**
- * The widget's answer seam (WID2, DEC-101).
+ * The widget's answer seam (WID2, DEC-102).
  *
  * "Ask a question" is a GROUNDED answer: retrieve from the workspace's own
  * knowledge, then compose strictly from what came back. Both halves are
