@@ -5,6 +5,7 @@ import { AuthGuard } from "./auth/auth.guard";
 import { AgentsModule } from "./agents/agents.module";
 import { AutomationsModule } from "./automations/automations.module";
 import { IntegrationsModule } from "./integrations/integrations.module";
+import { ZapierModule } from "./zapier/zapier.module";
 import { RolesGuard } from "./auth/roles.guard";
 import { DbModule } from "./db/db.module";
 import { HealthController } from "./health.controller";
@@ -34,6 +35,7 @@ import { BusOrInlinePublisher, EVENTS_PUBLISHER } from "./events/publisher";
     AgentsModule,
     AutomationsModule,
     IntegrationsModule,
+    ZapierModule,
     KnowledgeModule,
     ContextModule,
     PlannerModule,

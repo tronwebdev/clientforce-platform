@@ -399,10 +399,7 @@ export class WidgetShell {
     });
 
     this.capture = form;
-    this.messages.insertBefore(
-      form,
-      this.typing.parentNode === this.messages ? this.typing : null,
-    );
+    this.messages.insertBefore(form, this.typing.parentNode === this.messages ? this.typing : null);
     this.scroller.scrollTop = this.scroller.scrollHeight;
     inputs.values().next().value?.focus();
   }
@@ -428,10 +425,7 @@ export class WidgetShell {
     body.appendChild(el(this.doc, "div", "cfw-outcome-title", outcome.title));
     if (outcome.detail) body.appendChild(el(this.doc, "div", "cfw-outcome-detail", outcome.detail));
     card.appendChild(body);
-    this.messages.insertBefore(
-      card,
-      this.typing.parentNode === this.messages ? this.typing : null,
-    );
+    this.messages.insertBefore(card, this.typing.parentNode === this.messages ? this.typing : null);
     this.scroller.scrollTop = this.scroller.scrollHeight;
   }
 

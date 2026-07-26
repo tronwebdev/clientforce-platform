@@ -113,9 +113,9 @@ describe("§1/§7 color — canon tokens only", () => {
     // The chip fill is brand green too. Canon mint may still appear — but ONLY
     // on the outcome card, which is semantic green (below); anywhere else it
     // would be a brand surface that ignores the workspace accent.
-    const mintUsers = [...widgetCss.matchAll(/([^{}]+)\{[^}]*var\(--cv3-mint(-line)?\)[^}]*\}/g)].map(
-      (m) => m[1]!.trim().split("\n").pop()!.trim(),
-    );
+    const mintUsers = [
+      ...widgetCss.matchAll(/([^{}]+)\{[^}]*var\(--cv3-mint(-line)?\)[^}]*\}/g),
+    ].map((m) => m[1]!.trim().split("\n").pop()!.trim());
     expect(mintUsers.sort()).toEqual([".cfw-outcome"]);
   });
 
@@ -140,7 +140,9 @@ describe("§1/§7 color — canon tokens only", () => {
     const tick = widgetCss.slice(widgetCss.indexOf(".cfw-outcome-tick {"));
     expect(tick.slice(0, 200)).toContain("color: var(--cv3-forest)");
     // No white-label rule may repaint it — that is the whole distinction.
-    const whiteLabelRules = [...widgetCss.matchAll(/\[data-white-label\][^{]*\{/g)].map((m) => m[0]);
+    const whiteLabelRules = [...widgetCss.matchAll(/\[data-white-label\][^{]*\{/g)].map(
+      (m) => m[0],
+    );
     expect(whiteLabelRules.some((r) => r.includes("outcome"))).toBe(false);
   });
 

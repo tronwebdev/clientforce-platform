@@ -321,14 +321,18 @@ describe("capture form + outcome card (W2)", () => {
     const form = widget.shadow.querySelector(".cfw-capture");
     expect(form?.getAttribute("data-flow")).toBe("scheduleCallback");
     expect(
-      [...widget.shadow.querySelectorAll(".cfw-field-input")].map((i) => i.getAttribute("data-key")),
+      [...widget.shadow.querySelectorAll(".cfw-field-input")].map((i) =>
+        i.getAttribute("data-key"),
+      ),
     ).toEqual(["name", "when"]);
     // datetime maps to the native picker; the spec's type vocabulary is the
     // server's, the input type is the client's translation of it.
     expect(widget.shadow.querySelector<HTMLInputElement>('[data-key="when"]')?.type).toBe(
       "datetime-local",
     );
-    expect(widget.shadow.querySelector(".cfw-consent-text")?.textContent).toBe("Text me a reminder");
+    expect(widget.shadow.querySelector(".cfw-consent-text")?.textContent).toBe(
+      "Text me a reminder",
+    );
     // choosing a flow retires the chips — the visitor has already answered them
     expect(widget.shadow.querySelector(".cfw-chip")).toBeNull();
   });
