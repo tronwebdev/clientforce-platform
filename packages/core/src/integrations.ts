@@ -17,7 +17,7 @@ import { z } from "zod";
  * prototype canon; anything not in this list is honest-absent there and the
  * API refuses it typed — the picker↔vocabulary drift test pins the two ends.
  */
-export const INTEGRATION_PROVIDERS = ["slack", "gcal", "calendly"] as const;
+export const INTEGRATION_PROVIDERS = ["slack", "gcal", "calendly", "stripe", "webhooks"] as const;
 export const integrationProviderSchema = z.enum(INTEGRATION_PROVIDERS);
 export type IntegrationProvider = z.infer<typeof integrationProviderSchema>;
 
@@ -95,10 +95,44 @@ export const calendlyConfigSchema = z
   .strict();
 export type CalendlyConfig = z.infer<typeof calendlyConfigSchema>;
 
+/**
+ * INT W3 (DEC-095): Stripe, the Calendly two-tier anatomy — the PAYMENT LINK
+ * works day one (config only, `?client_reference_id=<contactId>` per lead);
+ * payment DETECTION additionally needs the restricted-key connect (Stripe
+ * mints the endpoint signing secret; webhookToken = the per-workspace
+ * capability-URL token; detection reflects a LIVE webhook endpoint).
+ */
+export const stripeConfigSchema = z
+  .object({
+    paymentLinkUrl: z.string().url().max(500).optional(),
+    webhookToken: z.string().min(1).optional(),
+    detection: z.boolean().optional(),
+  })
+  .strict();
+export type StripeConfig = z.infer<typeof stripeConfigSchema>;
+
+/**
+ * INT W3: the outbound Webhooks integration (the DATA_MODEL §6 sketch's
+ * url+secret half) — the workspace default Payload URL the `send_webhook`
+ * action falls back to, plus the server-minted signing secret the receiver
+ * verifies with. The secret rides config deliberately (the calendly
+ * webhookToken capability precedent — redacted below OWNER/ADMIN); the
+ * canon's events-pick stream half is NOT built (re-filed).
+ */
+export const webhooksConfigSchema = z
+  .object({
+    defaultUrl: z.string().url().max(500).optional(),
+    signingSecret: z.string().min(1).optional(),
+  })
+  .strict();
+export type WebhooksConfig = z.infer<typeof webhooksConfigSchema>;
+
 export const integrationConfigSchemas: Record<IntegrationProvider, z.ZodTypeAny> = {
   slack: slackConfigSchema,
   gcal: gcalConfigSchema,
   calendly: calendlyConfigSchema,
+  stripe: stripeConfigSchema,
+  webhooks: webhooksConfigSchema,
 };
 
 export const updateIntegrationSchema = z.object({
@@ -140,4 +174,13 @@ export const INTEGRATION_REFUSALS = {
   CALENDLY_LINK_INVALID: "That scheduling link isn't reachable — check the URL and try again",
   CALENDLY_TOKEN_REQUIRED_FOR_DETECTION:
     "Booking detection needs a Calendly API token (available on paid Calendly plans) — the link keeps working without it",
+  PAYMENT_NOT_CONFIGURED:
+    "No payment link is configured — connect Stripe (paste your Payment Link) first",
+  STRIPE_LINK_INVALID: "That payment link isn't reachable — check the URL and try again",
+  STRIPE_TOKEN_REQUIRED_FOR_DETECTION:
+    "Payment detection needs a restricted Stripe API key with Webhook Endpoints write — the link keeps working without it",
+  WEBHOOK_URL_REQUIRED:
+    "No destination URL — set a default Payload URL on the Webhooks integration, or put one on the action",
+  WEBHOOK_URL_UNSAFE:
+    "That destination was refused by the delivery guard — webhooks POST to public https endpoints only (no private or internal addresses, ports 443/8443)",
 } as const;

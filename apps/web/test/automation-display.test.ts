@@ -78,6 +78,17 @@ describe("action display map (lib/actions)", () => {
       "Run automation (missing)",
     );
   });
+
+  it("send_webhook chip: hostname when valid, default-URL when blank, and NEVER crashes mid-type (W3)", () => {
+    expect(actionChip({ kind: "send_payment_link" })).toBe("Send payment link");
+    expect(actionChip({ kind: "send_webhook" })).toBe("Send webhook (default URL)");
+    expect(actionChip({ kind: "send_webhook", url: "https://ops.example.com/hook" })).toBe("Send webhook: ops.example.com");
+    // Review-round pin (ui #1, CRITICAL): the builder calls actionChip on the
+    // LIVE draft every keystroke, so a partial/invalid URL must degrade to the
+    // raw text, never throw `new URL()` and unmount the builder.
+    expect(() => actionChip({ kind: "send_webhook", url: "h" })).not.toThrow();
+    expect(actionChip({ kind: "send_webhook", url: "https:/" })).toBe("Send webhook: https:/");
+  });
 });
 
 describe("trigger display additions (lib/triggers, DEC-091)", () => {

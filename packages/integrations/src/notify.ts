@@ -12,7 +12,7 @@
 import { Prisma, withTenant } from "@clientforce/db";
 import { EVENT_TYPES, type BusEvent, type ConsumerHook } from "@clientforce/events";
 import { slackConfigSchema, type SlackNotificationKind } from "@clientforce/core";
-import { INTEGRATION_DAILY_DELIVERY_ALLOWANCE, utcDayStart } from "./constants";
+import { INBOUND_DELIVERY_KINDS, INTEGRATION_DAILY_DELIVERY_ALLOWANCE, utcDayStart } from "./constants";
 import { decryptCredentials, markRevoked } from "./service";
 import type { SlackAdapter } from "./slack";
 import {
@@ -124,16 +124,27 @@ export async function deliverSlack(
 
   const allowance = deps.config?.dailyDeliveryAllowance ?? INTEGRATION_DAILY_DELIVERY_ALLOWANCE;
   // Pending rows are in-flight claims, not attempts — only settled outcomes
-  // count against the allowance.
+  // count against the allowance. INBOUND ingest claims (kind `payment`) are
+  // NOT outbound sends and must never brake the outbound budget (W3 fix).
   const attemptsToday = await withTenant(deps.prisma, { workspaceId: params.workspaceId }, (tx) =>
     tx.integrationDelivery.count({
-      where: { workspaceId: params.workspaceId, createdAt: { gte: dayStart }, status: { in: ["delivered", "failed"] } },
+      where: {
+        workspaceId: params.workspaceId,
+        createdAt: { gte: dayStart },
+        status: { in: ["delivered", "failed"] },
+        kind: { notIn: [...INBOUND_DELIVERY_KINDS] },
+      },
     }),
   );
   if (attemptsToday >= allowance) {
     const heldBefore = await withTenant(deps.prisma, { workspaceId: params.workspaceId }, (tx) =>
       tx.integrationDelivery.count({
-        where: { workspaceId: params.workspaceId, createdAt: { gte: dayStart }, status: "held" },
+        where: {
+          workspaceId: params.workspaceId,
+          createdAt: { gte: dayStart },
+          status: "held",
+          kind: { notIn: [...INBOUND_DELIVERY_KINDS] },
+        },
       }),
     );
     const heldRow = await recordDelivery(deps, row, params, "held", { reason: "workspace_delivery_allowance" });

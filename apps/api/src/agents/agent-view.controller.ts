@@ -135,7 +135,12 @@ export class AgentViewController {
       const calendarEvents =
         contactIds.length > 0
           ? await tx.event.findMany({
-              where: { contactId: { in: contactIds }, type: { startsWith: "calendar." } },
+              // INT W3 (DEC-095): payments interleave beside bookings — the
+              // same Event-sourced system-row treatment (never a Message).
+              where: {
+                contactId: { in: contactIds },
+                OR: [{ type: { startsWith: "calendar." } }, { type: "payment.received.v1" }],
+              },
               orderBy: { occurredAt: "asc" },
             })
           : [];

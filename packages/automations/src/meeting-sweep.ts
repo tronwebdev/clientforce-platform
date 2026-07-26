@@ -102,6 +102,11 @@ export async function runBeforeMeetingSweep(
         enrollmentId: meeting.enrollmentId,
         depth: 0,
         terminalState: { fired: false },
+        event: {
+          type: "sweep.before_meeting",
+          payload: { meetingId: meeting.id, startAt: meeting.startAt.toISOString() },
+          occurredAt: now.toISOString(),
+        },
       };
       try {
         const summary = await executeMatchedRules(deps, ctx, due);
@@ -166,6 +171,11 @@ export async function runBeforeMeetingSweep(
         enrollmentId: meeting.enrollmentId,
         depth: 0,
         terminalState: { fired: false },
+        event: {
+          type: "sweep.before_meeting",
+          payload: { meetingId: meeting.id, startAt: meeting.startAt.toISOString() },
+          occurredAt: now.toISOString(),
+        },
       };
       try {
         const summary = await executeMatchedAccountRules(deps, ctx, due);

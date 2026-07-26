@@ -300,6 +300,74 @@ async function run(
         : { kind: action.kind, outcome: "noop", detail: "booking link already queued" };
     }
 
+    case "send_payment_link": {
+      // INT W3 (DEC-095): the send_booking_link twin — NOT a send (Q-039
+      // stands). Flags the enrollment so the NEXT boundary-gated composed
+      // message carries the workspace payment link as mustSay; the send
+      // boundary clears the flag once a sent message actually carried it.
+      if (!ctx.enrollmentId) {
+        return {
+          kind: action.kind,
+          outcome: "noop",
+          detail: "no enrollment on this event — nothing to queue the payment link on",
+        };
+      }
+      const flagged = await withTenant(deps.prisma, { workspaceId: ctx.workspaceId }, async (tx) => {
+        const enrollment = await tx.enrollment.findUnique({ where: { id: ctx.enrollmentId! } });
+        if (!enrollment) throw new Error(`MISSING_ENROLLMENT: ${ctx.enrollmentId}`);
+        const meta = { ...((enrollment.meta ?? {}) as Record<string, unknown>) };
+        if (meta.paymentLinkRequested === true) return false;
+        meta.paymentLinkRequested = true;
+        await tx.enrollment.update({
+          where: { id: enrollment.id },
+          data: { meta: meta as Prisma.InputJsonValue },
+        });
+        return true;
+      });
+      return flagged
+        ? {
+            kind: action.kind,
+            outcome: "executed",
+            detail: "payment link queued for the next composed message",
+          }
+        : { kind: action.kind, outcome: "noop", detail: "payment link already queued" };
+    }
+
+    case "send_webhook": {
+      // INT W3: delivery rides the worker-wired transport seam (guard + sign
+      // + ledger). Absent transport = the honest recorded absence; a delivery
+      // failure NEVER changes the run outcome (the notify_team stance).
+      if (!deps.webhookTransport) {
+        return {
+          kind: action.kind,
+          outcome: "executed",
+          detail: "webhook delivery not wired on this worker — recorded only",
+        };
+      }
+      let suffix: string;
+      try {
+        const res = await deps.webhookTransport({
+          workspaceId: ctx.workspaceId,
+          sourceKey: `${ctx.eventId}#rule:${ruleId}${actionPath}`,
+          ...(action.url ? { url: action.url } : {}),
+          event: {
+            id: ctx.eventId,
+            type: ctx.event?.type ?? "unknown",
+            occurredAt: ctx.event?.occurredAt ?? new Date().toISOString(),
+            contactId: ctx.contactId,
+            payload: ctx.event?.payload ?? {},
+          },
+          rule: { id: ruleId },
+        });
+        suffix = res.delivered
+          ? `delivered${res.target ? ` to ${res.target}` : ""}${res.detail ? ` (${res.detail})` : ""}`
+          : `webhook delivery skipped${res.detail ? ` (${res.detail})` : ""}`;
+      } catch (err) {
+        suffix = `webhook delivery failed (${err instanceof Error ? err.message : String(err)})`;
+      }
+      return { kind: action.kind, outcome: "executed", detail: suffix };
+    }
+
     case "run_automation": {
       const automation = await withTenant(deps.prisma, { workspaceId: ctx.workspaceId }, (tx) =>
         tx.automation.findUnique({ where: { id: action.automationId } }),

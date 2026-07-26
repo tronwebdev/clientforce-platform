@@ -31,6 +31,7 @@ import {
   runSequenceQuietSweep,
   type MeetingSweepDeps,
   type QuietSweepDeps,
+  type RuleEngineDeps,
 } from "@clientforce/automations";
 import {
   GoogleCalendarAdapter,
@@ -38,6 +39,7 @@ import {
   createBookingSlotsProvider,
   createIntegrationNotifier,
   createNotifyTeamTransport,
+  deliverWebhook,
   type IntegrationsDeps,
 } from "@clientforce/integrations";
 import {
@@ -194,6 +196,24 @@ function startKnowledgeWorkers(): void {
     // INT W1 (Q-042 Slack half): notify_team delivers to the connected Slack
     // channel; absent connection keeps the run-row transport byte-identical.
     notifyTransport: createNotifyTeamTransport(integrationsDeps),
+    // INT W3 (DEC-095, Q-044 send half): send_webhook delivers through the
+    // guard + sign + ledger transport; failures never change run outcomes.
+    webhookTransport: async (params: Parameters<NonNullable<RuleEngineDeps["webhookTransport"]>>[0]) =>
+      deliverWebhook(integrationsDeps, {
+        workspaceId: params.workspaceId,
+        sourceEventId: params.sourceKey,
+        ...(params.url ? { url: params.url } : {}),
+        payload: {
+          v: 1,
+          eventId: params.event.id,
+          type: params.event.type,
+          occurredAt: params.event.occurredAt,
+          workspaceId: params.workspaceId,
+          ...(params.event.contactId ? { contactId: params.event.contactId } : {}),
+          rule: params.rule,
+          payload: params.event.payload,
+        },
+      }),
     publish: async (input: Parameters<EventBus["publish"]>[0]) => {
       if (busRef.current) await busRef.current.publish(input);
     },

@@ -76,6 +76,20 @@ export function calendarSystemRow(
         border: "rgba(224,121,107,.35)",
       };
     }
+    // INT W3 (DEC-095): the payment record row (amount in minor units).
+    case "payment.received.v1": {
+      const amount = typeof payload.amount === "number" && Number.isFinite(payload.amount) ? payload.amount : null;
+      const code = typeof payload.currency === "string" && payload.currency ? payload.currency.toUpperCase() : "USD";
+      let money = "";
+      if (amount !== null) {
+        try {
+          money = new Intl.NumberFormat("en-US", { style: "currency", currency: code }).format(amount / 100);
+        } catch {
+          money = `${(amount / 100).toFixed(2)} ${code}`;
+        }
+      }
+      return { text: `💳 Payment received${money ? ` — ${money}` : ""}`, fg: "#16A82A", bg: "rgba(53,232,52,.1)", border: "rgba(53,232,52,.3)" };
+    }
     default:
       return null;
   }

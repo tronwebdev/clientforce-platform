@@ -10,11 +10,13 @@
  * FIELD-ENCRYPTION-KEY — the SenderConnection/DEC-030 rule).
  */
 import { randomBytes } from "node:crypto";
-import { decryptField, encryptField, withTenant } from "@clientforce/db";
+import { decryptField, encryptField, withTenant, Prisma } from "@clientforce/db";
 import { EVENT_TYPES } from "@clientforce/events";
 import {
   INTEGRATION_REFUSALS,
   calendlyConfigSchema,
+  stripeConfigSchema,
+  webhooksConfigSchema,
   type IntegrationDto,
   type IntegrationProvider,
   type IntegrationStatus,
@@ -28,8 +30,11 @@ import {
   type IntegrationsDeps,
   type OAuthIntegrationAdapter,
 } from "./types";
-import { TOKEN_REFRESH_SKEW_MS } from "./constants";
+import { TOKEN_REFRESH_SKEW_MS, WEBHOOK_TIMEOUT_MS } from "./constants";
 import type { CalendlyAdapter, CalendlyConnectFieldsDto } from "./calendly";
+import type { StripeAdapter, StripeConnectFieldsDto } from "./stripe";
+import { assertPublicHttpsUrl } from "./webhook-guard";
+import { signWebhookBody, type WebhooksConnectFieldsDto } from "./webhook-deliver";
 
 /** Typed service-level refusal (the API maps these to 422s verbatim). */
 export class IntegrationRefusedError extends Error {
@@ -221,24 +226,61 @@ export async function probeIntegration(
   deps: IntegrationsDeps,
   params: { workspaceId: string; provider: IntegrationProvider },
 ): Promise<{ status: IntegrationStatus; detail: string }> {
-  const adapter = adapterFor(deps, params.provider);
   const row = await getIntegration(deps, params.workspaceId, params.provider);
   if (!row) throw new IntegrationRefusedError(INTEGRATION_REFUSALS.NOT_CONNECTED);
   const from = row.status as IntegrationStatus;
   let to: IntegrationStatus;
   let detail: string;
   let accountLabel = row.accountLabel;
-  // Review-round fix: a LINK-tier calendly row (no credentials BY DESIGN)
-  // probes the LINK — its honest health check; the token probe would throw
-  // PROVIDER_AUTH and flip a healthy connection to revoked.
-  if (params.provider === "calendly" && !row.credentialsEnc) {
-    const cfg = calendlyConfigSchema.safeParse(row.config);
-    const url = cfg.success ? cfg.data.schedulingUrl : undefined;
+  // W3: the Webhooks provider has no vendor token — its honest health check
+  // is the delivery guard against the default URL (a URL that stopped
+  // resolving or went private flips unhealthy, never revoked).
+  if (params.provider === "webhooks") {
+    const cfg = webhooksConfigSchema.safeParse(row.config);
+    const url = cfg.success ? cfg.data.defaultUrl : undefined;
+    try {
+      if (!url) throw new Error("no default Payload URL configured");
+      await assertPublicHttpsUrl(url);
+      to = "connected";
+      detail = "destination passes the delivery guard";
+    } catch (err) {
+      to = "unhealthy";
+      detail = err instanceof Error ? err.message : String(err);
+    }
+    const nowTs = (deps.now ?? (() => new Date()))();
+    await withTenant(deps.prisma, { workspaceId: params.workspaceId }, (tx) =>
+      tx.integration.update({ where: { id: row.id }, data: { status: to, lastProbeAt: nowTs } }),
+    );
+    if (from !== to) {
+      await publishSafely(deps, {
+        workspaceId: params.workspaceId,
+        type: EVENT_TYPES.INTEGRATION_STATUS_CHANGED,
+        payload: { provider: params.provider, from, to },
+      });
+    }
+    return { status: to, detail };
+  }
+  const adapter = adapterFor(deps, params.provider);
+  // Review-round fix (W2, generalized W3): a LINK-tier calendly/stripe row
+  // (no credentials BY DESIGN) probes the LINK — its honest health check;
+  // the token probe would throw PROVIDER_AUTH and flip a healthy connection
+  // to revoked.
+  if ((params.provider === "calendly" || params.provider === "stripe") && !row.credentialsEnc) {
+    const url =
+      params.provider === "calendly"
+        ? (() => {
+            const cfg = calendlyConfigSchema.safeParse(row.config);
+            return cfg.success ? cfg.data.schedulingUrl : undefined;
+          })()
+        : (() => {
+            const cfg = stripeConfigSchema.safeParse(row.config);
+            return cfg.success ? cfg.data.paymentLinkUrl : undefined;
+          })();
     if (url) {
       try {
         await (adapter as unknown as { probeLink(u: string): Promise<void> }).probeLink(url);
         to = "connected";
-        detail = "scheduling link reachable";
+        detail = params.provider === "calendly" ? "scheduling link reachable" : "payment link reachable";
       } catch (err) {
         to = "unhealthy";
         detail = err instanceof Error ? err.message : String(err);
@@ -256,6 +298,57 @@ export async function probeIntegration(
       }
       return { status: to, detail };
     }
+  }
+  // W3 review fix: a KEY-tier stripe row's health is the account probe AND the
+  // webhook endpoint detection depends on — `detection` must reflect a LIVE
+  // endpoint, never an assumed one. If the endpoint was deleted/disabled
+  // out-of-band, flip detection off (honest) rather than keep rendering it live.
+  if (params.provider === "stripe" && row.credentialsEnc) {
+    const stripeAdapter = adapter as unknown as {
+      account(creds: IntegrationCredentials): Promise<{ id: string; businessName?: string }>;
+      listWebhookEndpoints(creds: IntegrationCredentials): Promise<Array<{ id: string; status: string }>>;
+    };
+    const creds = decryptCredentials(row);
+    const cfg = stripeConfigSchema.safeParse(row.config);
+    try {
+      const account = await stripeAdapter.account(creds);
+      accountLabel = account.businessName ? `${account.businessName} (${account.id})` : account.id;
+      to = "connected";
+      detail = `stripe reachable — authed as ${accountLabel}`;
+      const endpointId = typeof creds.webhookEndpointId === "string" ? creds.webhookEndpointId : undefined;
+      if (cfg.success && cfg.data.detection && endpointId) {
+        const endpoints = await stripeAdapter.listWebhookEndpoints(creds);
+        const live = endpoints.some((e) => e.id === endpointId && e.status === "enabled");
+        if (!live) {
+          await withTenant(deps.prisma, { workspaceId: params.workspaceId }, (tx) =>
+            tx.integration.update({
+              where: { id: row.id },
+              data: { config: { ...cfg.data, detection: false } as Prisma.InputJsonValue },
+            }),
+          );
+          detail = `${detail} — payment detection endpoint missing; reconnect the key tier to restore`;
+        }
+      }
+    } catch (err) {
+      if (err instanceof IntegrationProviderError) {
+        to = err.code === "PROVIDER_AUTH" ? "revoked" : "unhealthy";
+      } else {
+        to = "unhealthy";
+      }
+      detail = err instanceof Error ? err.message : String(err);
+    }
+    const nowTs = (deps.now ?? (() => new Date()))();
+    await withTenant(deps.prisma, { workspaceId: params.workspaceId }, (tx) =>
+      tx.integration.update({ where: { id: row.id }, data: { status: to, lastProbeAt: nowTs, accountLabel } }),
+    );
+    if (from !== to) {
+      await publishSafely(deps, {
+        workspaceId: params.workspaceId,
+        type: EVENT_TYPES.INTEGRATION_STATUS_CHANGED,
+        payload: { provider: params.provider, from, to },
+      });
+    }
+    return { status: to, detail };
   }
   try {
     // W2: refreshing providers probe on a FRESH token (an expired-but-
@@ -320,10 +413,11 @@ export async function disconnectIntegration(
   deps: IntegrationsDeps,
   params: { workspaceId: string; provider: IntegrationProvider },
 ): Promise<void> {
-  const adapter = adapterFor(deps, params.provider);
+  // W3: the Webhooks provider has no vendor adapter — nothing to revoke.
+  const adapter = params.provider === "webhooks" ? null : adapterFor(deps, params.provider);
   const row = await getIntegration(deps, params.workspaceId, params.provider);
   if (!row) throw new IntegrationRefusedError(INTEGRATION_REFUSALS.NOT_CONNECTED);
-  if (adapter.revoke && row.credentialsEnc) {
+  if (adapter?.revoke && row.credentialsEnc) {
     try {
       await adapter.revoke(decryptCredentials(row));
     } catch (err) {
@@ -492,6 +586,262 @@ export async function connectCalendlyFields(
     workspaceId: params.workspaceId,
     type: EVENT_TYPES.INTEGRATION_CONNECTED,
     payload: { provider: "calendly", ...(accountLabel ? { accountLabel } : {}) },
+  });
+  return row;
+}
+
+/**
+ * INT W3 (DEC-095): the Stripe fields connect — the connectCalendlyFields
+ * anatomy on payments. Key tier first (probe /v1/account, ensure the webhook
+ * endpoint — STRIPE MINTS THE SIGNING SECRET at create; a reused endpoint
+ * without a stored secret refuses typed), then the link tier (live payment-
+ * link probe; both tiers store/refresh the link when one exists).
+ */
+export async function connectStripeFields(
+  deps: IntegrationsDeps,
+  params: {
+    workspaceId: string;
+    fields: StripeConnectFieldsDto;
+    /** Builds the API-public callback URL from the minted webhook token. */
+    webhookUrlFor: (webhookToken: string) => string;
+    connectedById?: string;
+  },
+): Promise<IntegrationRow> {
+  const adapter = deps.adapters.stripe as unknown as StripeAdapter | undefined;
+  if (!adapter) throw new IntegrationRefusedError(INTEGRATION_REFUSALS.UNKNOWN_PROVIDER);
+  const now = (deps.now ?? (() => new Date()))();
+
+  const existing = await getIntegration(deps, params.workspaceId, "stripe");
+  const existingConfig = stripeConfigSchema.safeParse(existing?.config ?? {});
+  const existingCreds = existing ? decryptCredentials(existing) : {};
+
+  let credentials: IntegrationCredentials | undefined;
+  let accountLabel = existing?.accountLabel ?? null;
+  const paymentLinkUrl = params.fields.paymentLinkUrl?.trim() || undefined;
+  const config: Record<string, unknown> = existingConfig.success ? { ...existingConfig.data } : {};
+
+  // ── Link tier probe FIRST (read-only) ──────────────────────────────────────
+  // A bad link must refuse BEFORE the key tier mutates Stripe (creates an
+  // endpoint) — otherwise every failed attempt orphans a webhook endpoint at a
+  // never-persisted capability URL that no later code path can match or revoke.
+  if (paymentLinkUrl) {
+    try {
+      await adapter.probeLink(paymentLinkUrl); // the live link probe
+    } catch (err) {
+      if (err instanceof IntegrationDeliveryError) {
+        throw new IntegrationRefusedError(INTEGRATION_REFUSALS.STRIPE_LINK_INVALID);
+      }
+      throw err;
+    }
+    config.paymentLinkUrl = paymentLinkUrl;
+  } else if (!config.paymentLinkUrl && !params.fields.apiKey) {
+    throw new IntegrationRefusedError(INTEGRATION_REFUSALS.PAYMENT_NOT_CONFIGURED);
+  }
+
+  // ── Key tier (vendor-mutating — runs only after the link validated) ────────
+  if (params.fields.apiKey) {
+    const keyCreds: IntegrationCredentials = { apiKey: params.fields.apiKey };
+    const account = await adapter.account(keyCreds); // the live key probe — PROVIDER_AUTH refuses upstream
+    accountLabel = account.businessName ? `${account.businessName} (${account.id})` : account.id;
+    // Reused across reconnects: a rotated key must not move the capability URL.
+    const webhookToken =
+      (existingConfig.success && existingConfig.data.webhookToken) || randomBytes(24).toString("hex");
+    const priorSecret =
+      typeof existingCreds.webhookSigningSecret === "string" ? existingCreds.webhookSigningSecret : undefined;
+    const priorEndpointId =
+      typeof existingCreds.webhookEndpointId === "string" ? existingCreds.webhookEndpointId : undefined;
+    try {
+      const endpoint = await adapter.ensureWebhookEndpoint(keyCreds, {
+        callbackUrl: params.webhookUrlFor(webhookToken),
+      });
+      let secret = endpoint.secret;
+      let endpointId = endpoint.id;
+      if (!secret) {
+        // A URL-matched endpoint returns NO secret (Stripe reveals it only at
+        // create). The stored secret is trustworthy ONLY when it belongs to
+        // THIS SAME endpoint — reusing it against a different endpoint id (a
+        // test↔live or account-switch reconnect that matched a different row)
+        // silently mismatches every signature. Verify identity; else recreate.
+        if (priorSecret && priorEndpointId === endpoint.id) {
+          secret = priorSecret;
+        } else {
+          await adapter.deleteWebhookEndpoint(keyCreds, endpoint.id);
+          const fresh = await adapter.ensureWebhookEndpoint(keyCreds, {
+            callbackUrl: params.webhookUrlFor(webhookToken),
+          });
+          if (!fresh.secret) {
+            throw new IntegrationRefusedError(
+              `${INTEGRATION_REFUSALS.STRIPE_TOKEN_REQUIRED_FOR_DETECTION} (Stripe returned no signing secret for the webhook endpoint)`,
+            );
+          }
+          secret = fresh.secret;
+          endpointId = fresh.id;
+        }
+      }
+      // Strand cleanup: a previously-stored endpoint that is NOT the one we now
+      // keep (account/mode switch) would keep POSTing unverifiable events at the
+      // capability URL and could never be revoked later — best-effort delete it.
+      if (priorEndpointId && priorEndpointId !== endpointId) {
+        await adapter.deleteWebhookEndpoint(keyCreds, priorEndpointId).catch(() => {});
+      }
+      credentials = {
+        apiKey: params.fields.apiKey,
+        webhookSigningSecret: secret,
+        webhookEndpointId: endpointId,
+        accountId: account.id,
+      };
+    } catch (err) {
+      if (err instanceof IntegrationDeliveryError) {
+        // A restricted key without Webhook Endpoints write — typed, permission-naming.
+        throw new IntegrationRefusedError(
+          `${INTEGRATION_REFUSALS.STRIPE_TOKEN_REQUIRED_FOR_DETECTION} (Stripe said: ${err.message})`,
+        );
+      }
+      throw err;
+    }
+    config.webhookToken = webhookToken;
+    config.detection = true;
+  }
+
+  const parsedConfig = stripeConfigSchema.safeParse(config);
+  if (!parsedConfig.success) {
+    throw new IntegrationRefusedError(INTEGRATION_REFUSALS.STRIPE_LINK_INVALID);
+  }
+
+  const row = await withTenant(deps.prisma, { workspaceId: params.workspaceId }, (tx) =>
+    tx.integration.upsert({
+      where: { workspaceId_provider: { workspaceId: params.workspaceId, provider: "stripe" } },
+      create: {
+        workspaceId: params.workspaceId,
+        provider: "stripe",
+        status: "connected",
+        config: parsedConfig.data,
+        ...(credentials ? { credentialsEnc: encryptCredentials(credentials) } : {}),
+        accountLabel,
+        scopes: [],
+        lastProbeAt: now,
+        connectedById: params.connectedById ?? null,
+      },
+      update: {
+        status: "connected",
+        config: parsedConfig.data,
+        ...(credentials ? { credentialsEnc: encryptCredentials(credentials) } : {}),
+        accountLabel,
+        lastProbeAt: now,
+        connectedById: params.connectedById ?? null,
+      },
+    }),
+  );
+  await publishSafely(deps, {
+    workspaceId: params.workspaceId,
+    type: EVENT_TYPES.INTEGRATION_CONNECTED,
+    payload: { provider: "stripe", ...(accountLabel ? { accountLabel } : {}) },
+  });
+  return row;
+}
+
+/**
+ * INT W3: the Webhooks fields connect — no vendor, so the "probe" IS the
+ * canon test step: a real signed POST to the default Payload URL through the
+ * full delivery guard (SSRF rules + timeout + no-redirects). The signing
+ * secret is server-minted once and kept across reconnects (rotating it would
+ * silently break the owner's receiver); it rides config deliberately (the
+ * calendly webhookToken capability precedent — redacted below OWNER/ADMIN).
+ */
+export async function connectWebhooksFields(
+  deps: IntegrationsDeps,
+  params: {
+    workspaceId: string;
+    fields: WebhooksConnectFieldsDto;
+    connectedById?: string;
+  },
+): Promise<IntegrationRow> {
+  const now = (deps.now ?? (() => new Date()))();
+  const existing = await getIntegration(deps, params.workspaceId, "webhooks");
+  const existingConfig = webhooksConfigSchema.safeParse(existing?.config ?? {});
+  const signingSecret =
+    (existingConfig.success && existingConfig.data.signingSecret) || `whsec_cf_${randomBytes(24).toString("hex")}`;
+  const defaultUrl = params.fields.defaultUrl.trim();
+
+  // The live probe: guard + a real signed test delivery. Guard refusals name
+  // their rule; a refused destination NEVER becomes a connected row.
+  const guarded = await assertPublicHttpsUrl(defaultUrl).catch((err) => {
+    if (err instanceof IntegrationDeliveryError) {
+      throw new IntegrationRefusedError(`${INTEGRATION_REFUSALS.WEBHOOK_URL_UNSAFE} (${err.message})`);
+    }
+    throw err;
+  });
+  const testBody = JSON.stringify({
+    v: 1,
+    eventId: `test-${randomBytes(8).toString("hex")}`,
+    type: "webhook.test",
+    occurredAt: now.toISOString(),
+    workspaceId: params.workspaceId,
+    rule: { id: "connect-test" },
+    payload: { message: "Clientforce webhook test — connection succeeded" },
+  });
+  const t = String(Math.floor(now.getTime() / 1000));
+  const v1 = signWebhookBody(signingSecret, t, testBody);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), WEBHOOK_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(guarded.url.toString(), {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "user-agent": "Clientforce-Webhook/1",
+        "x-clientforce-signature": `t=${t},v1=${v1}`,
+        "x-clientforce-event": "webhook.test",
+      },
+      body: testBody,
+      redirect: "manual",
+      signal: controller.signal,
+    });
+  } catch (err) {
+    const detail =
+      err instanceof Error && err.name === "AbortError"
+        ? `test delivery timed out after ${WEBHOOK_TIMEOUT_MS}ms`
+        : err instanceof Error
+          ? err.message
+          : String(err);
+    throw new IntegrationRefusedError(`The test delivery could not reach that URL (${detail})`);
+  } finally {
+    clearTimeout(timer);
+  }
+  if (res.status >= 300) {
+    throw new IntegrationRefusedError(
+      `The test delivery was not accepted — the destination answered HTTP ${res.status} (2xx confirms the receiver)`,
+    );
+  }
+
+  const config = { defaultUrl, signingSecret };
+  const row = await withTenant(deps.prisma, { workspaceId: params.workspaceId }, (tx) =>
+    tx.integration.upsert({
+      where: { workspaceId_provider: { workspaceId: params.workspaceId, provider: "webhooks" } },
+      create: {
+        workspaceId: params.workspaceId,
+        provider: "webhooks",
+        status: "connected",
+        config,
+        accountLabel: guarded.url.hostname,
+        scopes: [],
+        lastProbeAt: now,
+        connectedById: params.connectedById ?? null,
+      },
+      update: {
+        status: "connected",
+        config,
+        accountLabel: guarded.url.hostname,
+        lastProbeAt: now,
+        connectedById: params.connectedById ?? null,
+      },
+    }),
+  );
+  await publishSafely(deps, {
+    workspaceId: params.workspaceId,
+    type: EVENT_TYPES.INTEGRATION_CONNECTED,
+    payload: { provider: "webhooks", accountLabel: guarded.url.hostname },
   });
   return row;
 }

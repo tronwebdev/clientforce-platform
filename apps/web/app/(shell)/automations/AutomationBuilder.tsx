@@ -64,6 +64,23 @@ const CONNECTOR = (
 );
 const INPUT: React.CSSProperties = { fontSize: 13, color: "#0E1512", border: "1px solid #EBE3D6", borderRadius: 9, padding: "8px 12px", background: "#fff" };
 
+/**
+ * A send_webhook url is optional (blank = the integration default). When
+ * present it must parse and stay within core's `.url().max(500)` — mirrors what
+ * the API's zod rejects, so the gray Save button can NAME the reason instead of
+ * dead-ending silently on an in-progress or over-long URL (W3 fix).
+ */
+function webhookUrlOk(url: string | undefined): boolean {
+  if (url === undefined) return true;
+  if (url.length > 500) return false;
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** The default payload per picked kind (canon TRIG cfg defaults). */
 export function defaultTriggerFor(kind: CampaignRuleTriggerKind): CampaignRuleTrigger {
   switch (kind) {
@@ -254,7 +271,9 @@ export function AutomationBuilder({
                 ? "name the tag"
                 : actions.some((a) => a.action.kind === "set_stage" && !a.action.stage.trim())
                   ? "name the stage"
-                  : null;
+                  : actions.some((a) => a.action.kind === "send_webhook" && !webhookUrlOk(a.action.url))
+                    ? "enter a valid https URL for the webhook (or clear it for the default)"
+                    : null;
   const canSave = valid && !busy;
 
   const save = async () => {
@@ -585,6 +604,12 @@ export function AutomationBuilder({
                     )}
                     {action.kind === "notify_team" &&
                       txtRow("Note", action.note ?? "", (v) => updateAction(uid, { kind: "notify_team", ...(v.trim() ? { note: v } : {}) }), "What should the team know? (optional)")}
+                    {/* INT W3 (DEC-095): the per-action URL override — blank
+                        falls back to the Webhooks integration's default
+                        Payload URL (the run row names the refusal if neither
+                        exists — the honest run-time convergence). */}
+                    {action.kind === "send_webhook" &&
+                      txtRow("URL", action.url ?? "", (v) => updateAction(uid, { kind: "send_webhook", ...(v.trim() ? { url: v.trim() } : {}) }), "https://… (blank = the Webhooks integration default)")}
                     {action.kind === "run_automation" && (
                       <div style={{ marginTop: 11, paddingTop: 11, borderTop: "1px solid #F2EEE4", display: "flex", alignItems: "center", gap: 10 }}>
                         <span style={{ fontSize: 12, color: "#9AA59E", fontWeight: 700, width: 74, flex: "none" }}>Automation</span>

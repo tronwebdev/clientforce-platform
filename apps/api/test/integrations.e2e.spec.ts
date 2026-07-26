@@ -582,4 +582,43 @@ describe.skipIf(!hasDb)("integrations e2e (INT W1, DEC-093)", () => {
       );
     });
   });
+
+  describe("stripe PATCH trust-anchors (INT W3)", () => {
+    it("a config PATCH can neither DROP nor FORGE webhookToken/detection (server-minted anchors win) — W3 fix", async () => {
+      await owner.integration.deleteMany({ where: { workspaceId: wsA, provider: "stripe" } });
+      await owner.integration.create({
+        data: {
+          workspaceId: wsA,
+          provider: "stripe",
+          status: "connected",
+          config: { paymentLinkUrl: "https://buy.stripe.com/old", webhookToken: "tok-anchor", detection: true },
+          scopes: [],
+        },
+      });
+
+      // Drop attempt: omit both anchors — the stored values must survive, else
+      // the live Stripe endpoint keeps POSTing at a token the receiver no longer
+      // matches → 401 storms → silent dead detection.
+      const dropped = await asOwner(api().patch("/integrations/stripe"))
+        .send({ config: { paymentLinkUrl: "https://buy.stripe.com/new" } })
+        .expect(200);
+      expect(dropped.body.integration.config).toMatchObject({
+        paymentLinkUrl: "https://buy.stripe.com/new",
+        webhookToken: "tok-anchor",
+        detection: true,
+      });
+
+      // Forge attempt: supply different values — the stored ones still win.
+      const forged = await asOwner(api().patch("/integrations/stripe"))
+        .send({ config: { paymentLinkUrl: "https://buy.stripe.com/new", webhookToken: "forged", detection: false } })
+        .expect(200);
+      expect(forged.body.integration.config).toMatchObject({ webhookToken: "tok-anchor", detection: true });
+
+      const raw = await owner.integration.findUniqueOrThrow({
+        where: { workspaceId_provider: { workspaceId: wsA, provider: "stripe" } },
+      });
+      expect((raw.config as { webhookToken: string; detection: boolean }).webhookToken).toBe("tok-anchor");
+      expect((raw.config as { detection: boolean }).detection).toBe(true);
+    });
+  });
 });

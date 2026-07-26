@@ -112,7 +112,20 @@ export const EVENT_ROW: Record<string, { icon: string; bg: string; fg: string; l
   "calendar.booked.v1": { icon: "📅", bg: "rgba(53,232,52,.14)", fg: "#16A82A", label: (p) => { const t = meetingTime(p.startAt); return `Meeting booked${t ? ` — ${t}` : ""}`; } },
   "calendar.rescheduled.v1": { icon: "⟳", bg: "#F2EEE4", fg: "#8A7F6B", label: (p) => { const t = meetingTime(p.toStartAt); return `Meeting rescheduled${t ? ` — now ${t}` : ""}`; } },
   "calendar.canceled.v1": { icon: "✕", bg: "rgba(224,121,107,.14)", fg: "#C9543F", label: (p) => { const t = meetingTime(p.startAt); return `${p.reason === "no_show" ? "Meeting no-show" : "Meeting canceled"}${t ? ` — was ${t}` : ""}`; } },
+  // INT W3 (DEC-095): the payment record row (amount in minor units).
+  "payment.received.v1": { icon: "💳", bg: "rgba(53,232,52,.14)", fg: "#16A82A", label: (p) => `Payment received${moneyLabel(p.amount, p.currency) ? ` — ${moneyLabel(p.amount, p.currency)}` : ""}` },
 };
+
+/** Minor-units → display ("$500.00"); unknown currency falls back to the code. */
+function moneyLabel(amount: unknown, currency: unknown): string {
+  if (typeof amount !== "number" || !Number.isFinite(amount)) return "";
+  const code = typeof currency === "string" && currency ? currency.toUpperCase() : "USD";
+  try {
+    return new Intl.NumberFormat("en-US", { style: "currency", currency: code }).format(amount / 100);
+  } catch {
+    return `${(amount / 100).toFixed(2)} ${code}`;
+  }
+}
 
 /** C2.9: the goal-completion move follows the agent goal's short pill. */
 const moveOptions = (goalPill: string) => [

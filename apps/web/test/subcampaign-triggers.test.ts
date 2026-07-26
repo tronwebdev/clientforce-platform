@@ -27,9 +27,10 @@ const SCHEMA_KINDS = campaignRuleTriggerSchema.options.map(
 describe("trigger display map (lib/triggers)", () => {
   it("covers exactly R1's kinds — the display layer can never fork the union", () => {
     expect(new Set(TRIGGER_OPTIONS.map((o) => o.kind))).toEqual(new Set(SCHEMA_KINDS));
-    // +call_knowledge_gap (SPEC A, DEC-099) and INT W2 (DEC-094):
-    // + meeting_rescheduled · meeting_canceled · before_meeting.
-    expect(TRIGGER_OPTIONS).toHaveLength(11);
+    // +call_knowledge_gap (SPEC A, DEC-099) · INT W2 (DEC-094):
+    // + meeting_rescheduled · meeting_canceled · before_meeting ·
+    // INT W3 (DEC-095): + payment_received.
+    expect(TRIGGER_OPTIONS).toHaveLength(12);
   });
 
   it("owner labels are the canon strings", () => {
@@ -46,6 +47,8 @@ describe("trigger display map (lib/triggers)", () => {
       meeting_rescheduled: "Meeting rescheduled",
       meeting_canceled: "Meeting canceled / no-show",
       before_meeting: "Before a meeting",
+      // INT W3: the canon literal from the retired absent entry.
+      payment_received: "Payment succeeded",
     });
     for (const o of TRIGGER_OPTIONS) expect(triggerLabel(o.kind)).toBe(o.label);
   });
@@ -79,6 +82,7 @@ describe("trigger display map (lib/triggers)", () => {
       { kind: "meeting_booked" },
       { kind: "meeting_rescheduled" },
       { kind: "meeting_canceled" },
+      { kind: "payment_received" },
       { kind: "opted_out" },
       { kind: "lead_captured" },
     ];
@@ -103,12 +107,15 @@ describe("trigger display map (lib/triggers)", () => {
     // SenderConnection row), so a gate would have to invent one. An ungated
     // rule in a voice-less workspace simply never fires — it shows no fake
     // data and blocks nothing (Q-051 records the gap).
+    // INT W3: payment_received rides payment detection, never email — the
+    // same always-on stance (the meeting_booked precedent).
     const alwaysOn: CampaignRuleTriggerKind[] = [
       "meeting_booked",
       "meeting_rescheduled",
       "meeting_canceled",
       "before_meeting",
       "call_knowledge_gap",
+      "payment_received",
     ];
     for (const kind of SCHEMA_KINDS) {
       // fully connected → everything picks

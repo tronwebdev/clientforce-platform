@@ -81,6 +81,9 @@ function triggerPhraseOf(trigger: CampaignRuleTrigger): string {
       // training signal, not a reason to start a sub-campaign), but the
       // union is exhaustive so the phrase exists rather than compiling away.
       return "asking something the record couldn't answer on a call";
+    // INT W3 (DEC-095): the payments wave's mechanical phrase.
+    case "payment_received":
+      return "a payment landing";
   }
 }
 

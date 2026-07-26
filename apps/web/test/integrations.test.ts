@@ -42,6 +42,13 @@ import {
   parseSlackConfig,
   slackConfigPayload,
   statusPill,
+  STRIPE_DETECTION_ON,
+  STRIPE_DETECTION_OFF,
+  STRIPE_NO_LINK,
+  parseStripeConfig,
+  parseWebhooksConfig,
+  stripeDetectionState,
+  stripeWebhookPath,
   type DrawerContent,
 } from "../lib/integrations";
 import { mergeActivity } from "../app/(shell)/integrations/IntegrationDrawer";
@@ -353,5 +360,44 @@ describe("activity merge (the drawer audit trail — designed addition)", () => 
 
   it("empty in → empty out (the honest 'No activity yet' path)", () => {
     expect(mergeActivity([], [])).toEqual([]);
+  });
+});
+
+describe("W3 stripe/webhooks drawer helpers (INT W3, DEC-095) — review-round pins", () => {
+  it("stripe + webhooks connect via the canon `fields` step KIND (never a fake oauth Sign-in)", () => {
+    // Regression pin (ui #5): flipping either mode to "oauth" would render a
+    // fake "Sign in with Stripe/Webhooks" for a provider with no OAuth adapter.
+    expect(DRAWER_CONTENT.stripe.mode).toBe("fields");
+    expect(DRAWER_CONTENT.webhooks.mode).toBe("fields");
+  });
+
+  it("stripeDetectionState is HONEST from stored config — a KEY-only (link-less) workspace still reads detection LIVE", () => {
+    expect(stripeDetectionState({})).toMatchObject({ detection: false, line: STRIPE_NO_LINK, offerKey: false });
+    expect(stripeDetectionState({ paymentLinkUrl: "https://buy.stripe.com/x" })).toMatchObject({
+      detection: false,
+      line: STRIPE_DETECTION_OFF,
+      offerKey: true,
+    });
+    expect(stripeDetectionState({ paymentLinkUrl: "https://buy.stripe.com/x", detection: true })).toMatchObject({
+      detection: true,
+      line: STRIPE_DETECTION_ON,
+    });
+    // The load-bearing pin: detection is decided BEFORE the link guard, so a
+    // key-only detection-live workspace is NOT mislabeled "No payment link"/off.
+    expect(stripeDetectionState({ detection: true })).toMatchObject({ detection: true, line: STRIPE_DETECTION_ON });
+  });
+
+  it("parseStripeConfig / parseWebhooksConfig round-trip through the REAL core schemas; garbage → {}", () => {
+    expect(parseStripeConfig({ paymentLinkUrl: "https://buy.stripe.com/x", webhookToken: "t", detection: true })).toMatchObject({
+      paymentLinkUrl: "https://buy.stripe.com/x",
+      webhookToken: "t",
+      detection: true,
+    });
+    expect(parseStripeConfig("nonsense")).toEqual({});
+    expect(parseWebhooksConfig({ defaultUrl: "https://ops.example.com/hook", signingSecret: "whsec_cf_x" })).toMatchObject({
+      defaultUrl: "https://ops.example.com/hook",
+    });
+    expect(parseWebhooksConfig(null)).toEqual({});
+    expect(stripeWebhookPath("tok-abc")).toBe("/webhooks/stripe?token=tok-abc");
   });
 });
