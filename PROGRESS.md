@@ -289,9 +289,14 @@ campaign-lifecycle event · Q-059 `run_automation` re-entry budget · Q-060
 Zapier rule-action execution.
 
 **Owner-side clocks still open:** the Calendly paid-tier token (W2 detection
-walk) and a 2nd Twilio number (Q-048 loopback + the owed §8 shot). The Zapier
-developer account is needed ONLY for a public directory listing — the
-invite-link app does not wait on it.
+walk) and a 2nd Twilio number (Q-048 loopback + the owed §8 shot).
+
+**Zapier public directory listing — a CLOCK, not a blocker (owner, 2026-07-26).**
+The Zapier developer account is now available, so listing is unblocked: submit
+the app for Zapier's directory review as a separate owner-gated step AFTER W5
+merges. The invite-link app is unaffected and stays usable throughout — nothing
+in the build waits on the review, and the drawer copy already says a public
+listing is a separate step rather than implying one is pending.
 
 
 ## Live verification log
