@@ -138,20 +138,24 @@ export async function deliverCrm(deps: IntegrationsDeps, input: CrmPushInput): P
         ...(defaultPipeline ? { pipeline: defaultPipeline } : {}),
         ...(input.stage ? { stage: input.stage } : {}),
       });
-      // Link the deal to the contact — a REAL association: a key with
-      // `crm.objects.contacts.read` lets HubSpot validate + create it. It stays
-      // BEST-EFFORT as the FALLBACK for a WRITE-ONLY key — HubSpot reads both
-      // records to validate the link, so a key without read gets "associations
-      // are invalid"; the deal must still deliver UNLINKED rather than fail (and
-      // is never orphaned/duplicated on retry, since a genuine token/deal
-      // failure already threw above). `associated` records which path ran.
+      // Link the deal to the contact — BEST-EFFORT by design. HubSpot can
+      // refuse the v4 association with `"One or more associations are invalid"`
+      // even when both records exist AND the key holds
+      // `crm.objects.contacts.read`: that grant was live on the proof portal and
+      // the refusal was byte-identical before and after it, on both documented
+      // v4 shapes (default + typed). So this is a per-account/Service-Key
+      // ASSOCIATION PERMISSION, not a missing scope — do NOT tell an operator to
+      // add read and expect a fix (Q-056 tracks the HubSpot-side enablement).
+      // Either way the deal must deliver UNLINKED rather than fail, and is never
+      // orphaned/duplicated on retry, since a genuine token/deal failure already
+      // threw above. `associated` records which path ran.
       associated = false;
       try {
         await adapter.associateDealToContact(creds, dealId, contactId);
         associated = true;
       } catch (assocErr) {
         log(
-          `[integrations] hubspot deal ${dealId} created; association to contact ${contactId} failed (${assocErr instanceof Error ? assocErr.message : String(assocErr)}) — deal stands, link deferred (grant crm.objects.contacts.read to auto-link)`,
+          `[integrations] hubspot deal ${dealId} created; association to contact ${contactId} failed (${assocErr instanceof Error ? assocErr.message : String(assocErr)}) — deal stands, link deferred; enable associations for this key in HubSpot (a read scope alone does NOT fix this)`,
         );
       }
     } else {

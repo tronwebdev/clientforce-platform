@@ -29,17 +29,30 @@
   and the combined status reads `pending` with `total_count: 0`. That is the failure
   mode where **the symptom masks the diagnostic**: the conflict suppresses the very
   gate that would have caught it. Never read an empty check list as "CI hasn't
-  reported yet" — resolve the conflict, then require a real green. A LOCAL
+  reported yet" — resolve the conflict, then require a real green. And do NOT read
+  "it only affects conflicted PRs" as low-risk: it is not a gap that degrades gently
+  across healthy PRs, it **fails hard on precisely the PR that most needs the gate** —
+  the one whose history diverged far enough to conflict. A LOCAL
   `pnpm build/lint/test` and a `workflow_dispatch` live-proof are real evidence of
   different things, but NEITHER is a merge gate: dispatch runs never attach to a PR
   as a check however they end.
-- **Recompute counted vocabulary from the COMMON BASE on any cross-track merge**
+- **NEVER assert a counted vocabulary against a LITERAL — derive it from the union**
   (the 11-vs-12 class, DEC-096 amendment 3). Where two tracks both extend a counted
   set (trigger/action options, picker lengths, dimmed/clickable tallies), each side's
   `toHaveLength(n)` is correct only for ITS OWN lineage. Two branches can assert the
   SAME WRONG number for DIFFERENT reasons; three-way merge sees identical text, keeps
-  it, and merges clean. Git is structurally blind to this — the only thing that catches
-  it is deriving `base + additions(ours) + additions(theirs)` by hand and re-running.
+  it, and merges clean. Git is structurally blind to this, and a rule that says
+  "recompute by hand during a conflict resolution" is exactly the rule that fails
+  during a conflict resolution — the merge that most needs the arithmetic is the one
+  where attention is thinnest. So make the bug UNREPRESENTABLE, not documented:
+  `toHaveLength(SCHEMA_KINDS.length)`, never `toHaveLength(12)`; render-affordance
+  tallies derive from the vocabulary filtered through the real gate (the `menuCounts`
+  helper in `subcampaign-creator.test.tsx`). A new kind then moves every count BY
+  CONSTRUCTION. Keep the semantic pins literal on purpose — canon labels and
+  availability classification SHOULD fail until a human decides them; it is only the
+  arithmetic that gets derived. Where a Set-equality pin already exists, the derived
+  length still earns its place: a Set collapses duplicates, so only length catches a
+  kind listed twice.
 - **Exact-match gating on `workflow_dispatch` inputs — never negated matches.**
   `if: inputs.walk == 'slack'`, never `!= 'other-walk'`: a negated gate silently
   ADOPTS every future input value, so adding a third walk fires the first walk's job
