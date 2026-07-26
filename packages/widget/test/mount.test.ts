@@ -97,8 +97,10 @@ describe("mount + isolation", () => {
       "Get an estimate",
       "Ask a question",
     ]);
-    // Mock build note: emoji became line icons — one per chip.
-    expect(shadow.querySelectorAll(".cfw-chip svg[data-icon]")).toHaveLength(5);
+    // Panel mock: text-only pills, first active flow primary.
+    expect(shadow.querySelectorAll(".cfw-chip svg")).toHaveLength(0);
+    expect(shadow.querySelectorAll(".cfw-chip[data-primary]")).toHaveLength(1);
+    expect(shadow.querySelector(".cfw-chip[data-primary]")!.textContent).toBe("Book a visit");
     expect(shadow.querySelector(".cfw-root")!.getAttribute("data-unread")).toBe("1");
   });
 
@@ -118,13 +120,12 @@ describe("mount + isolation", () => {
     expect((active.shadow.querySelector(".cfw-mic") as HTMLElement).style.display).toBe("none");
   });
 
-  it("the launcher and header carry the brand mark asset (inlined, no request)", async () => {
+  it("the launcher carries the brand mark asset; the header carries the ✦ agent mark", async () => {
     active = create();
     await flush();
-    const marks = active.shadow.querySelectorAll(".cfw-mark svg");
-    expect(marks.length).toBeGreaterThanOrEqual(2);
     expect(active.shadow.querySelector(".cfw-launcher .cfw-mark svg")).toBeTruthy();
-    expect(active.shadow.querySelector(".cfw-orb .cfw-mark svg")).toBeTruthy();
+    expect(active.shadow.querySelector(".cfw-orb .cfw-agent-mark")!.textContent).toBe("✦");
+    expect(active.shadow.querySelector(".cfw-orb .cfw-mark")).toBeNull();
   });
 
   it("applies appearance config as instance vars + data attributes", async () => {
@@ -144,7 +145,7 @@ describe("mount + isolation", () => {
     expect(root.style.getPropertyValue("--cfw-radius")).toBe("9px"); // corner "s"
     expect(root.getAttribute("data-position")).toBe("left");
     expect(active.shadow.querySelector(".cfw-name")!.textContent).toBe("Acme Sales Agent");
-    expect(active.shadow.querySelector(".cfw-orb .cfw-mark svg")).toBeTruthy(); // brand mark
+    expect(active.shadow.querySelector(".cfw-orb .cfw-agent-mark")!.textContent).toBe("✦");
     expect(active.shadow.querySelector(".cfw-label")!.textContent).toBe("Talk");
   });
 });
@@ -295,6 +296,28 @@ describe("update + destroy", () => {
     expect(document.head.querySelectorAll("link")).toHaveLength(1);
   });
 
+  it("update carries businessName forward — it must not fall back to the default", async () => {
+    active = create({ businessName: "Bright Smile" });
+    await flush();
+    active.update({ appearance: { position: "left" } });
+    expect(active.cfg.businessName).toBe("Bright Smile");
+    expect(active.cfg.appearance.welcomeMessage).toContain("Bright Smile's assistant");
+  });
+
+  it("update({apiBase}) reaches the seam — stub gives way to the HTTP transport", async () => {
+    active = create();
+    await flush();
+    const fetchMock = vi.fn(async () => new Response("{}", { status: 500 }));
+    vi.stubGlobal("fetch", fetchMock);
+    active.update({ apiBase: "https://widget-api.test" });
+    active.open();
+    await flush();
+    expect(fetchMock).toHaveBeenCalled();
+    expect(String((fetchMock.mock.calls[0] as unknown[])[0])).toBe(
+      "https://widget-api.test/widget/v1/session",
+    );
+  });
+
   it("destroy removes the host, stops timers/listeners, is idempotent", async () => {
     vi.useFakeTimers();
     active = create({ behavior: { openAfterSeconds: 4, exitIntent: true } });
@@ -326,6 +349,25 @@ describe("platform attribution — canon §7, plan-gated on the server", () => {
     expect((active.shadow.querySelector(".cfw-poweredby") as HTMLElement).style.display).toBe(
       "none",
     );
+  });
+
+  it("suppression also flips the panel off platform-owned brand assets", async () => {
+    const transport = new ManualTransport();
+    active = create({}, { transport });
+    transport.respond({ branding: { platformAttribution: false } });
+    await flush();
+    const root = active.shadow.querySelector(".cfw-root") as HTMLElement;
+    expect(root.hasAttribute("data-white-label")).toBe(true);
+    // The ✦ agent mark survives — it is the agent's identity, not branding.
+    expect(active.shadow.querySelector(".cfw-orb .cfw-agent-mark")!.textContent).toBe("✦");
+  });
+
+  it("attribution ON leaves the panel in normal brand mode", async () => {
+    active = create();
+    await flush();
+    expect(
+      (active.shadow.querySelector(".cfw-root") as HTMLElement).hasAttribute("data-white-label"),
+    ).toBe(false);
   });
 
   it("a host page CANNOT switch it off — no data-attribute, no init option", async () => {

@@ -164,6 +164,12 @@ surface shows a quiet hairline "connect" affordance.
   workspaces owned by an agency whose plan tier includes white-label;
   suppression is **plan-gated, never a user toggle** (and never a client-side
   option — the embed has no attribute or init flag that can switch it off).
+  Suppression also removes every **platform-owned brand asset** from the panel:
+  the brand mark yields to the ✦ agent mark, and the signature gradient — a
+  Clientforce asset, not the workspace's — yields to the **workspace accent** on
+  the launcher, header tile, message avatars and the working sweep. The ✦ itself
+  STAYS: it is the agent's identity mark (the same one the console states use),
+  not platform branding. One signal, no second flag.
 - **Two layers, kept separate.** *Widget appearance* — accent color, logo/mark,
   and which flows are enabled — is **workspace-level and ungated**: any
   workspace configures it from widget setup, with no plan check. *White-label*

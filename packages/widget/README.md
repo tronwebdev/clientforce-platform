@@ -75,26 +75,39 @@ Commands: `init` · `open` · `close` · `toggle` · `send` · `update` ·
 Events: `ready` · `open` · `close` · `message:sent` · `message:received` ·
 `agent:state` · `error` · `destroy`.
 
-## 2. Panel anatomy (owner spec, 2026-07-26)
+## 2. Panel anatomy — measured off `docs/fidelity/wid/widget-panel-canon.png`
 
-The accent **never paints a surface**. Panel 376×640 at radius 20, the float
-shadow being the one canon exception; header on `panel` with a `line` hairline
-bottom, the brand mark (`packages/theme/assets/mark.svg`) as a 38px tile at radius 11 on the signature gradient, name
-in ink 800/15.5px, subtitle in muted behind a forest presence dot, close in
-faint. Thread scrolls; composer + platform line stay pinned at the foot.
-Composer is white with a `line-input` hairline at radius 15 — mic a 32px white
-circle, send a 32px forest circle — and its focus ring appears on interaction
-only (opening moves focus to the panel, not the field, so no ring is ever
-parked). Agent bubbles are `bubble-agent` with a `5px 14px 14px 14px` notch
-pointing at the mark; visitor bubbles are ink with panel-tone text at
-`14px 14px 4px 14px`. Every panel carries **Powered by Clientforce Ai** at the
-foot (10.5px faint, behind an 11px gradient square).
+The accent **never paints a surface**. Panel 376×640 at radius 20 inside a 1px
+`line` border, the float shadow being the one canon exception. Header 66px on
+`panel` with a `line` hairline bottom: the ✦ agent mark as a 38px tile at radius
+11 on the signature gradient (inset 16/14), name in ink 800/15.5px, subtitle in
+muted behind a 7px forest presence dot, close an 11px ✕ in faint. Thread on
+`card`, scrolling; composer + platform line pinned to a `panel` foot band.
+Composer is a **48px white pill** with a `line-input` hairline — 16px text
+inset, a 34px white mic circle, a 32px accent send circle, 8px apart, 12px
+inset from the panel — and its focus ring appears on interaction only (opening
+moves focus to the panel, not the field, so no ring is ever parked). Agent
+bubbles are `bubble-agent` with a `5px 14px 14px 14px` notch pointing at the
+26px message mark and run the full row width; visitor bubbles are ink with
+panel-tone text at `14px 14px 4px 14px`, capped at 82%. Entry chips are 32px
+pills (`0 14px`, `line-soft` hairline, muted label; the first active flow takes
+mint + accent), indented to the bubble's left edge. Every panel carries
+**Powered by Clientforce Ai** at the foot (10.5px faint, behind an 11px gradient
+square).
+
+Two things are flagged rather than settled, both in the §8 report: the mock's
+panel renders 592 tall against the owner's written 640 (640 shipped), and the
+mock's type renders ~5% smaller than canon §3 (canon shipped, per
+`UI_PORTING_RULES`: token atoms follow the token doc, composition follows the
+mock).
 
 ## 3. Flows, appearance, and white-label — two separate layers
 
 **Workspace-level and ungated** (any workspace configures this in widget setup,
-no plan check): the accent color, the logo/mark, and **which of the six flows
-are enabled** — Book a visit · Call me back · Schedule callback · Get an
+no plan check): the accent color — `--cfw-brand`, which defaults to canon forest
+and paints the send circle, unread badge, primary-chip label and focus rings, so
+a workspace's own accent actually reaches the panel — the logo/mark, and **which
+of the six flows are enabled** — Book a visit · Call me back · Schedule callback · Get an
 estimate · Live voice (rides the composer mic) · Ask a question. Industries use
 different subsets, so the panel renders **only the active flows** and never a
 placeholder for a disabled one. Labels stay server-offered per tenant; the

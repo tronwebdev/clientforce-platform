@@ -45,6 +45,10 @@ const ICONS: Record<string, Shape[]> = {
     ["line", { x1: "22", y1: "2", x2: "11", y2: "13" }],
     ["polygon", { points: "22 2 15 22 11 13 2 9 22 2" }],
   ],
+  "arrow-up": [
+    ["line", { x1: "12", y1: "19", x2: "12", y2: "5" }],
+    ["polyline", { points: "5 12 12 5 19 12" }],
+  ],
   clock: [
     ["circle", { cx: "12", cy: "12", r: "10" }],
     ["polyline", { points: "12 6 12 12 16 14" }],
@@ -83,7 +87,12 @@ export function iconEl(doc: Document, name: IconName, size = 16): SVGSVGElement 
   return svg;
 }
 
-/** Flow kind → icon (the mock's flow list, mapped to iconography). */
+/**
+ * Flow kind → icon. NOTE: the panel mock renders entry chips as TEXT-ONLY
+ * pills, so the shell does not draw these today — the map stays as the
+ * kind→icon vocabulary for surfaces that do want them (and the icon set is
+ * still what the composer/header use).
+ */
 export const QUICK_ACTION_ICON: Record<string, IconName> = {
   book_visit: "calendar",
   call_me_back: "phone",

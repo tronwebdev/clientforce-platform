@@ -8,8 +8,12 @@ TOKEN layer is **`CONSOLE_V3_CANON.md`** (repo root, LOCKED 2026-07-12) — fore
 `#146B33`, canon surfaces/hairlines, Schibsted Grotesk (Direction D), the ✦
 agent mark, light-first, flat hairline interiors — and it **intentionally
 diverges from the prototype's legacy skin**. The pairs below are therefore
-COMPOSITION comparisons, not pixel comparisons. The remaining pass against the
-`Agent Widget v3 — Mock` image (not committed) is **Q-049**.
+COMPOSITION comparisons, not pixel comparisons. Panel-internal placement is
+bound to the committed panel mock instead — see the last section.
+
+**The panel mock is now IN the repo** — `widget-panel-canon.png` (the owner
+uploaded it to `main`; it is the placement source for everything panel-internal).
+The pass against it is the last section of this file.
 
 **Capture:** 1440×900 (narrow-viewport frame 390×844), dev-local Playwright
 against the preinstalled Chromium; capture script lives outside the repo and is
@@ -42,7 +46,7 @@ legacy dark set was dropped and the widget ships no dark theme.
 
 Build-only states (no static proto anchor — the preview is a single frame):
 
-- `build-01-closed-launcher-right-light` — launcher with the ✦ mark + label pill (flat + hairline) + forest unread badge
+- `build-01-closed-launcher-right-light` — launcher with the brand mark + label pill (flat + hairline) + accent unread badge
 - `build-03-thinking-during-roundtrip` — motion **spin**: the mark's conic ring + typing dots, mid seam round-trip
 - `build-04-stub-reply-honest` — the honest stub reply + mint visitor bubble
 - `build-05-agent-state-listening` — motion **ping** (border ring)
@@ -50,6 +54,14 @@ Build-only states (no static proto anchor — the preview is a single frame):
 - `build-09-brand-ink-auto-contrast` — brand `#101613`, auto text-on-brand flips to white
 - `build-10-closed-unread-badge` — post-conversation closed state
 - `build-11-narrow-viewport-390` — 300px panel centered (flagged deviation: bottom-anchored)
+- `build-12-panel-crop-3x` — the panel alone at 3× (1128×1920), the like-for-like pair for `widget-panel-canon` (1134×1926). Captured under `prefers-reduced-motion: reduce`, because at rest the idle mark BREATHES (§5, scale 1→1.05) and would inflate a geometry measurement by ~2px; that also makes this frame the reduced-motion evidence.
+- `build-13-white-label-panel-3x` — the same panel with attribution suppressed by the server: ✦ tiles on the workspace accent, accent send + chip label, **no platform line**
+- `build-14-white-label-launcher` — the white-label launcher: the ✦ on the accent in place of the brand mark
+
+**Read `build-04` with the caret in mind:** its composer wears the focus ring
+because the frame is taken right after typing, so the field genuinely holds
+keyboard focus. `build-02` / `build-12` are the rest state — no ring. That pair
+is the evidence that the ring is interaction-only rather than parked.
 
 ## Flagged deviations (all logged under DEC-097)
 
@@ -57,7 +69,7 @@ Build-only states (no static proto anchor — the preview is a single frame):
 2. **Messages scroll region** (max-height 342px) — the preview is static; a live thread needs a cap + scroll.
 3. **Narrow viewports: bottom-anchored** — the preview's mobile frame is top-anchored inside its 560px mock; on a real page the widget stays a bottom-corner surface. Final ruling rides the mock image (Q-049).
 4. **Typing-dots indicator** during thinking/replying — standard chat pattern, no canon anchor in the preview.
-5. **Composer focus = outline ring** on `:focus-within` (flat — canon §4 allows no third shadow).
+5. **Composer focus = outline ring** on `:focus-visible` via `:has()` (flat — canon §4 allows no third shadow).
 
 ## Closed by canon (no longer deviations)
 
@@ -208,3 +220,94 @@ platform line is mandatory per canon while the product is white-label
   two-layer split. The theme test reads those rows straight from the doc — the
   §1 parser guard went 15 → 16 rows on the amendment, which is how the new row
   proved itself.
+
+---
+
+## Panel placement pass — `widget-panel-canon.png` (2026-07-26, DEC-098 amendment 3)
+
+The mock finally landed as a file, so this is the real placement pass: the mock
+and `build-12-panel-crop-3x` are both 3× crops of the panel, measured
+pixel-for-pixel with the same script (dev-local, not committed) and divided by 3
+for CSS px. **Everything below is measured, not eyeballed.**
+
+### Matches (no change needed)
+
+| Property                      | Mock                                    | Build                 |
+| ----------------------------- | --------------------------------------- | --------------------- |
+| Panel width · border · radius | 376 + 1px `line` · 20                   | 376 + 1px `line` · 20 |
+| Header height · hairline      | 66 · `line` bottom                      | 66 · `line` bottom    |
+| Mark tile · inset             | 38 at 16/14                             | 38 at 16/14           |
+| Surfaces                      | header/foot `panel`, thread `card`      | same                  |
+| Bubble fill · notch · left    | `#F2F6F3` · 5/14/14/14 · 51             | same                  |
+| Bubble → chip gap             | 13                                      | 13                    |
+| Chip gaps (row + column)      | 8 · 8                                   | 8 · 8                 |
+| Composer height · insets      | 48 · 12/12                              | 48 · 12/12            |
+| Send circle                   | 32, forest                              | 32, accent (= forest) |
+| Foot pad-top · footer         | 9 · 10.5px faint + 11px gradient square | same                  |
+| Text tones                    | ink / muted / faint / forest dot        | same                  |
+
+### Deltas found and FIXED in this pass
+
+| Was                                   | Mock says                                                                                             | Now                                                                                                                                         |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Composer at radius 15                 | a 48px-tall **pill** (its ends are true semicircles — measured, and radius 15 does not fit the curve) | `--cv3-radius-pill`; **conflicts with the written "radius 15"** — the mock wins as the placement source, flagged here for a one-word ruling |
+| Mic 32px                              | 34 (34 + 6/6 padding + hairline = the measured 48)                                                    | 34                                                                                                                                          |
+| Chips `padding: 10px 16px` (≈40 tall) | 32 tall, `0 14px`                                                                                     | `height: 32px; padding: 0 14px`                                                                                                             |
+| Chip hairline `line-input` `#DCE5DE`  | `line-soft` `#E2EAE4`                                                                                 | `line-soft`                                                                                                                                 |
+| Chip label ink                        | muted `#5A6660` (primary stays forest on mint)                                                        | muted                                                                                                                                       |
+| Message orb 28 at radius 9            | 26 at radius ~7–8 (the tile's 38/11 proportion scaled)                                                | 26 at radius 8                                                                                                                              |
+| Chip row indented 37                  | 35 — flush with the bubble's left edge                                                                | 35                                                                                                                                          |
+| Row gap 14                            | 12                                                                                                    | 12                                                                                                                                          |
+| Agent bubble capped at 82%            | runs the full row (308 measured vs 280 built) — it changes where the greeting WRAPS                   | 100% for the agent row (flex shrink caps it at 309); the visitor bubble keeps 82%                                                           |
+| Close ✕ an 8px glyph                  | 11px at a ~2px stroke                                                                                 | icon at 22 with `stroke-width: 2`                                                                                                           |
+
+### Flagged, not silently chosen
+
+1. **Panel height: mock 592, spec 640.** Width and radius agree exactly; the
+   height does not. 640 is the owner's explicit written number and it stays —
+   the mock's thread area is mostly empty, so 592 reads as an export height
+   rather than a spec change. One word switches it.
+2. **The mock's type renders ~5% smaller than canon §3.** Measured: body 14.5 →
+   ~14 (line pitch 22 vs 21), label 13 → ~12.2 (chip label 72 wide vs 66.7),
+   composer 14.5 → ~13, footer 10.5 → ~10.2, subtitle 13 → ~11.8. Canon holds
+   in the build, because `UI_PORTING_RULES` gives token atoms to the token doc
+   and composition to the mock — and §3 assigns every one of those roles a size.
+   The visible effect is a slightly taller bubble (89 vs 85) and slightly wider
+   chips. Say the word and the panel gets pinned to the mock's rendered sizes
+   instead; nothing else in the geometry moves.
+3. **The presence dot stays canon forest under white-label.** §7 pins it to
+   `#146B33`, and a dot is a state color rather than a brand asset — but it is
+   now the one green mark left on a foreign-accented panel (visible in
+   `build-13`). Same question for the **mint chip fill**, which stays canon while
+   its label follows the accent.
+
+### Found while capturing — three defects fixed
+
+- **`appearance.brandColor` barely reached the panel.** `--cfw-brand` painted
+  only the white-label ✦ while the send circle, unread badge, chip label and
+  focus rings were hard-wired to `--cv3-forest` — so the accent, which the mock's
+  own build notes call "the one customer-brandable token", did almost nothing.
+  Those now ride `--cfw-brand`, whose default IS canon forest, so a default panel
+  is unchanged (measured: `build-12`'s send is `#146B33`) while a branded one is
+  actually branded (`build-13`). The presence dot is excluded per §7 above.
+- **`update()` dropped `businessName`**, silently reverting the welcome copy to
+  "your assistant" on any later `update` call. Regression test added.
+- **`update({ apiBase })` never reached the seam** — the transport was built once
+  in the constructor, so switching to a live API did nothing. It is rebuilt on
+  change now (an injected transport still wins). This is also what makes the
+  white-label frame honest: it runs the real `HttpTransport`.
+
+### White-label evidence (route-interception disclosure)
+
+`build-13` / `build-14` are the only frames that do not use the stub. Suppressing
+the platform line is server-authoritative — there is deliberately no client knob
+— so the frame has to come from a session response carrying
+`branding: { platformAttribution: false }`. Playwright fulfils
+`POST https://widget-api.test/widget/v1/session` with a canned body (CORS +
+preflight included) and the widget runs its real `HttpTransport` against it. The
+workspace accent is `#1F3A93`, deliberately nothing like forest, so the swap is
+unambiguous: **the signature gradient is gone from the header tile, the message
+orbs and the launcher; the ✦ agent mark stays** (it is the agent's identity, not
+platform branding) on the workspace's own accent, and the "Powered by
+Clientforce Ai" line is absent. No page-level attribute can reproduce this —
+that is pinned by test.
