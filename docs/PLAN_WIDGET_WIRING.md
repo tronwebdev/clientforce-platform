@@ -6,8 +6,12 @@ instruction; inherits `KICKOFF_TEMPLATE.md` in full.
 **DEC claim at dispatch, verified against live `main` `ea69b26`:** `DEC-101`.
 Live max is DEC-100 (this session's WID narrow-viewport/voice-anchor unit); #108
 holds DEC-093..096, the on-call retrieval unit merged DEC-099. Renumber-on-collision
-stands; never renumber a merged DEC. New Q ids claimed: **Q-052** (voice
-transport) · **Q-053** (calendar-provider dependency), live max being Q-051.
+stands; never renumber a merged DEC. New Q ids claimed: **Q-053** (voice
+transport) · **Q-054** (calendar-provider dependency). Live max is Q-052 — the
+`pnpm lint:ledger` guard added under DEC-100 found a live **Q-046 collision** on
+`main` (two tracks, both merged), and renumber-on-collision moved the
+second-merged row to Q-052; these claims moved up so a merged row keeps the
+lower id.
 
 **Slot check (two-track cap):** #108 INT holds one track (W2–W4 outstanding). The
 WID track freed its slot when #113 merged, so this unit takes it. No parked PR is
@@ -63,7 +67,7 @@ capability plus the surface it needs:
 | Call me back      | live dial via the voice rail; dialing/ringing/live/done states | call-state strip + transcript quote       |
 | Schedule callback | a scheduled callback + SMS-reminder consent                    | time picker + consent line + outcome card |
 | Get an estimate   | goal → email capture → generation → delivery                   | generating state + sent card              |
-| Live voice        | the widget voice transport (Q-052)                             | the voice overlay (anchor is committed)   |
+| Live voice        | the widget voice transport (Q-053)                             | the voice overlay (anchor is committed)   |
 | Ask a question    | grounded FAQ retrieval + the nudge                             | none (thread only)                        |
 
 **The outcome card is the terminal surface of five of the six**, and per the
@@ -106,14 +110,16 @@ this unit MUST build; it is deliberately absent today (a test asserts no
 
 - **Calendar/booking** — #108's W2 wave (Google Calendar test-user mode +
   Calendly) is the natural provider for "Book a visit". Until it merges, that
-  flow's server half has no calendar to talk to → **Q-053**. Options at dispatch:
-  sequence behind #108 W2, or land the flow against the `Integration` spine's
-  probe so it is off until a provider is connected. **Recommendation:** the
-  latter — it matches the honest-absence rule and does not couple two tracks.
+  flow's server half has no calendar to talk to → **Q-054**. **RULED (owner,
+  2026-07-26): gate the flow on the `Integration` spine's probe** — it is
+  honestly off until a provider connects, which is the same honest-absence
+  pattern used everywhere else. Sequencing behind #108's W2 would couple two
+  tracks and make the widget's ship date depend on an unrelated merge.
 - **Voice** — the on-call retrieval unit (DEC-099) landed live-call tooling, but
   the WIDGET voice transport (browser mic → agent → audio back) is a distinct
-  rail and is **not** assumed to exist → **Q-052**. Live voice stays off until it
-  does; the overlay is built only when there is a call to render.
+  rail and is **not** assumed to exist → **Q-053**. Live voice stays off until it
+  does; the overlay is built only when there is a call to render — its placement
+  anchor and measured spec are already in `docs/fidelity/wid/` (DEC-100).
 - **Credits/billing** — widget turns are billable; the metering path must exist
   before the flows can bill, which is why the backoffice ride-along is scoped in
   the same PR rather than retrofitted.

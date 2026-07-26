@@ -171,7 +171,8 @@ export const ABSENT_ACTIONS: ReadonlyArray<import("./triggers").AbsentPickerEntr
   // INT W1 (DEC-093): "Notify Slack" left this ledger — it plugged behind the
   // EXPRESSIBLE notify_team action (Q-042's recorded design: same action, real
   // transport once Slack is connected), so a separate absent card would shadow
-  // a live capability. Email internal alert stays honestly absent (Q-046).
+  // a live capability. Email internal alert stays honestly absent (Q-052,
+  // renumbered from Q-046 — see PROGRESS).
   { group: "Notify the team", icon: "✉", label: "Email internal alert", desc: "Email the team", reason: "Arrives with email alerts" },
   { group: "Flow & integrations", icon: "⏱", label: "Wait", desc: "Pause between actions", reason: "Multi-step chains arrive with automations v2" },
   { group: "Flow & integrations", icon: "⏰", label: "Wait until time", desc: "Hold until a set time", reason: "Multi-step chains arrive with automations v2" },

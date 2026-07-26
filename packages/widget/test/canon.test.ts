@@ -296,8 +296,17 @@ describe("owner panel spec (2026-07-26) — the accent never paints a surface", 
   });
 });
 
-describe("narrow viewports — owner rule (no image anchor; the mock is desktop-only)", () => {
+describe("narrow viewports — canon §7 (no image anchor; the mock is desktop-only)", () => {
   const narrow = widgetCss.slice(widgetCss.indexOf("@media (max-width: 480px)"));
+
+  it("the rule lives in the canon doc, not just in this sheet", () => {
+    // Folded into §7 as a widget carryover on the owner's ruling, so a future
+    // unit reads the geometry from canon rather than from an evidence note.
+    expect(canon).toContain("Narrow viewports");
+    expect(canon).toContain("full-bleed");
+    expect(canon).toMatch(/Below a \*\*480px\*\* viewport/);
+    expect(canon).toMatch(/376×640\*\* panel at radius 20\s*\n?\s*with its 24px inset/);
+  });
 
   it("below 480px the panel is FULL-BLEED: inset 0, radius 0, no float", () => {
     expect(narrow).toContain("inset: 0");

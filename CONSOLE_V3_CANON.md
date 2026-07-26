@@ -176,6 +176,13 @@ surface shows a quiet hairline "connect" affordance.
   the launcher, header tile, message avatars and the working sweep. The ✦ itself
   STAYS: it is the agent's identity mark (the same one the console states use),
   not platform branding. One signal, no second flag.
+- **Narrow viewports.** Below a **480px** viewport the widget panel goes
+  **full-bleed**: `inset: 0`, radius 0, full height and width, **no float
+  shadow** — it is no longer floating over a page, it is the page. The launcher
+  hides while the panel is open (nothing to float beside), the composer foot
+  respects `env(safe-area-inset-bottom)`, and the header keeps its 66px with the
+  ✕ as the only exit. Above 480px the floating **376×640** panel at radius 20
+  with its 24px inset applies unchanged.
 - **Brand green vs semantic green.** Split the greens by MEANING, not by
   appearance. Green that is decorative or simply _is_ Clientforce derives from
   the workspace accent — the **presence dot** and the **entry-chip fill** are both

@@ -11,8 +11,9 @@
     "build": "turbo run build",
     "dev": "turbo run dev",
     "test": "turbo run test",
-    "lint": "turbo run lint && pnpm lint:css",
+    "lint": "turbo run lint && pnpm lint:css && pnpm lint:ledger",
     "lint:css": "stylelint \"**/*.css\"",
+    "lint:ledger": "node infra/scripts/ledger-lint.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

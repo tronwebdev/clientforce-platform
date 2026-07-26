@@ -342,15 +342,15 @@ read rather than a visual impression alone:
 
 `box-shadow: none` on the full-bleed panel is a **removal, not a third
 elevation** — the §4 test now counts shadow _setters_ (still exactly two, both
-the canon float token) and ignores `none`. Also worth a ruling: the rule is
-recorded here and in the package README, **not** folded into `CONSOLE_V3_CANON.md`
-— say the word and it becomes a §7 widget carryover.
+the canon float token) and ignores `none`. **RULED: folded into canon.** It is a geometry rule
+future units need, not an evidence note, so it now lives in
+`CONSOLE_V3_CANON.md` §7 as a widget carryover — and the widget test reads that
+clause from the doc, so the rule and the build cannot drift apart.
 
-**Desktop anchoring, 2px note:** the ruling described the floating panel as
-"inset-26 anchoring"; the build has always used **24** (`right: 24px`,
-`bottom: 96px` = 60px launcher + 20px bottom inset + 16px gap). Since the
-instruction was "applies unchanged", 24 is untouched — flagging the number in
-case 26 was intended.
+**Desktop anchoring — RULED: 24 is correct, keep it.** The "inset-26" in the
+ruling came from the mock's demo padding rather than intent; `right: 24px` with
+`bottom: 96px` (60px launcher + 20px inset + 16px gap) is the better math and was
+already shipped, so it is not churned.
 
 ---
 
