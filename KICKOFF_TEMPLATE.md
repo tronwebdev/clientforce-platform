@@ -55,6 +55,21 @@
   arithmetic that gets derived. Where a Set-equality pin already exists, the derived
   length still earns its place: a Set collapses duplicates, so only length catches a
   kind listed twice.
+- **A check that can pass on a SUBSTRING is not a check — verify STRUCTURE, not text**
+  (INT/DEC-102, owner directive 2026-07-26). Three failures in one session shared
+  this exact shape, so treat it as a pattern rather than three accidents:
+  `grep 'error TS'` on a turbo run reported clean while the run had FAILED (the
+  exit code knew); the `lint:ledger` id patterns required exactly one space and so
+  went blind to Prettier-padded rows, missing the very DEC collision they exist to
+  catch; and `grep -c 'P7 close-out'` returned a hit because the PHRASE appeared
+  inside two status rows while the SECTION HEADING had been dropped by a merge.
+  Every one PASSED while the thing it checked was absent — the failure direction is
+  always FALSE CONFIDENCE, which is the direction you cannot feel. So: prefer the
+  EXIT CODE over parsing output; assert the parsed node or the anchored heading
+  (`^## P7 close-out`) rather than "the words appear somewhere"; and prefer a
+  DERIVED COUNT over a string match wherever one exists. If a check would still
+  pass with the artifact deleted and only its name mentioned elsewhere, it is not
+  verifying anything.
 - **Exact-match gating on `workflow_dispatch` inputs — never negated matches.**
   `if: inputs.walk == 'slack'`, never `!= 'other-walk'`: a negated gate silently
   ADOPTS every future input value, so adding a third walk fires the first walk's job
