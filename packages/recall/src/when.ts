@@ -1,5 +1,5 @@
 /**
- * Spoken-form relative dates (SPEC A, DEC-094).
+ * Spoken-form relative dates (SPEC A, DEC-099).
  *
  * Every fetched fact carries a "when", and the model SPEAKS it. An ISO date is
  * the wrong currency for that: the brain has no dependable notion of today, so

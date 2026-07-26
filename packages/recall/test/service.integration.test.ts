@@ -1,5 +1,5 @@
 /**
- * SPEC A (DEC-094): the recall service vs REAL Postgres + RLS.
+ * SPEC A (DEC-099): the recall service vs REAL Postgres + RLS.
  *
  * What these pin, in order of how badly the unit fails without them:
  * - every facet is CONTACT-scoped and TENANT-scoped (a caller cannot be told
@@ -24,7 +24,7 @@ import type { RecallTarget } from "../src/types";
 const hasInfra = Boolean(process.env.APP_DATABASE_URL ?? process.env.DATABASE_URL);
 const suffix = `reca-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 
-describe.skipIf(!hasInfra)("recall service (SPEC A / DEC-094)", () => {
+describe.skipIf(!hasInfra)("recall service (SPEC A / DEC-099)", () => {
   let owner: PrismaClient;
   let app: PrismaClient;
   let agencyId: string;

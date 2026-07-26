@@ -32,7 +32,7 @@ export interface TurnMetric {
   /** DEC-092 (fix a): the model returned an EMPTY completion — the locked
    *  fallback line was spoken instead of silence. */
   emptyReply?: boolean;
-  /** SPEC A (DEC-094): record lookups this turn spent, in call order. */
+  /** SPEC A (DEC-099): record lookups this turn spent, in call order. */
   lookups?: Array<{ facet: string; found: boolean; refusalReason?: string }>;
   /** SPEC A: total wall-clock this turn spent inside lookups, ms. */
   lookupMs?: number;
@@ -180,7 +180,7 @@ export class MetricsCollector {
     for (const t of this.turns) {
       if (t.commitSource) sources[t.commitSource] = (sources[t.commitSource] ?? 0) + 1;
     }
-    // SPEC A (DEC-094): a turn that pauses to read the record is structurally
+    // SPEC A (DEC-099): a turn that pauses to read the record is structurally
     // slower than one answered straight from the brief. Blending them would
     // quietly move the certified TTFA numbers, so they are reported SPLIT and
     // the pooled figure keeps its original meaning.

@@ -74,7 +74,7 @@ export class AnthropicProvider implements CompletionProvider {
   /**
    * Streaming multi-turn completion — the gateway's `voice` route (P3.0).
    *
-   * SPEC A (DEC-094): when `tools` is present the model may open a `tool_use`
+   * SPEC A (DEC-099): when `tools` is present the model may open a `tool_use`
    * block, whose JSON arguments arrive as a delta stream and are only complete
    * at `content_block_stop`. Text deltas keep flowing exactly as before — a
    * model that speaks a sentence and THEN calls a tool gets that sentence to

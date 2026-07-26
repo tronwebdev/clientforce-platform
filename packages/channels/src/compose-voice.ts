@@ -31,7 +31,7 @@ import {
 export const COMPOSER_VOICE_PROMPT_NAME = "composer.voice";
 export const COMPOSER_VOICE_PROMPT_VERSION = 1;
 /**
- * SPEC A (DEC-094): v2 is v1 plus the record-lookup rules, rendered ONLY when
+ * SPEC A (DEC-099): v2 is v1 plus the record-lookup rules, rendered ONLY when
  * the call actually has the lookup tool mounted. A call without recall (the
  * certification harness, the CI demo rig, any workspace path with no database)
  * still renders v1 byte-identically — regression-pinned, the L1/G2 precedent.
@@ -81,7 +81,7 @@ export const VOICE_BRIDGE_LINE =
   "No rush — take your time. I just have a couple of quick questions for you when you're ready.";
 
 /**
- * SPEC A (DEC-094): spoken when the brain reaches for a record lookup without
+ * SPEC A (DEC-099): spoken when the brain reaches for a record lookup without
  * having said anything first. A CONSTANT, never composed — the disclosure
  * discipline — and never counted as reply TTFA, exactly like the ack clips.
  *
@@ -207,7 +207,7 @@ export const COMPOSER_VOICE_SYSTEM =
   "(7) If the caller asks you to stop calling, wants out, or says it's a bad time — acknowledge, thank them, and say goodbye. Never argue, never push past a no.";
 
 /**
- * SPEC A (DEC-094): the v1 rules VERBATIM plus the record-lookup rules. Rule 4
+ * SPEC A (DEC-099): the v1 rules VERBATIM plus the record-lookup rules. Rule 4
  * already forbids inventing facts; 8–10 give the agent the way to *get* them
  * and spell out what to do when the record is silent, which is the failure
  * mode that actually matters — a model told only "don't invent" will still
@@ -244,7 +244,7 @@ WHO YOU ARE CALLING:
 
 {{businessContext}}`,
   });
-  // SPEC A (DEC-094): v2 = the v1 literal with ONE section appended. Derived
+  // SPEC A (DEC-099): v2 = the v1 literal with ONE section appended. Derived
   // from v1's own template string so the shared body can never drift between
   // versions — only the appended block is new.
   registerPrompt({
@@ -263,8 +263,8 @@ WHAT'S ON RECORD:
  * Build the per-call system prompt: static register rules + the rendered
  * `composer.voice` call block. Deterministic — same inputs, same prompt.
  *
- * SPEC A (DEC-094): `recall` mounts the v2 rules + the record section. Absent
- * (the default), the output is byte-identical to the pre-DEC-094 v1 prompt —
+ * SPEC A (DEC-099): `recall` mounts the v2 rules + the record section. Absent
+ * (the default), the output is byte-identical to the pre-DEC-099 v1 prompt —
  * pinned by test, because the certification and demo rigs run without a
  * database and must keep producing exactly the prompt they were certified on.
  */

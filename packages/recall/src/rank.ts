@@ -1,5 +1,5 @@
 /**
- * Deterministic relevance ranking (SPEC A, DEC-094).
+ * Deterministic relevance ranking (SPEC A, DEC-099).
  *
  * The `history` and `profile` facets fetch a bounded recent window and then
  * rank it against the caller's question. That ranking is a PURE STRING

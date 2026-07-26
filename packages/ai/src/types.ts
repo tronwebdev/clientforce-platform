@@ -34,9 +34,9 @@ export interface TokenUsage {
 // ── Voice streaming (P3.0 spike — `voice` is the only streaming route) ───────
 
 /**
- * SPEC A (DEC-094): structured turn content, so a tool round trip can be
+ * SPEC A (DEC-099): structured turn content, so a tool round trip can be
  * replayed back to the model. A plain `string` stays legal everywhere and is
- * what every pre-DEC-094 caller passes — the tool path is purely additive.
+ * what every pre-DEC-099 caller passes — the tool path is purely additive.
  */
 export type VoiceContentBlock =
   | { type: "text"; text: string }
@@ -49,7 +49,7 @@ export interface VoiceTurn {
   content: string | VoiceContentBlock[];
 }
 
-/** A tool the voice brain may call mid-turn (SPEC A, DEC-094). */
+/** A tool the voice brain may call mid-turn (SPEC A, DEC-099). */
 export interface VoiceTool {
   name: string;
   description: string;
@@ -74,7 +74,7 @@ export interface StreamVoiceRequest {
   temperature?: number;
   /** Barge-in: aborting this signal cancels the in-flight generation. */
   signal?: AbortSignal;
-  /** SPEC A: tools the model may call this turn. Absent ⇒ the pre-DEC-094
+  /** SPEC A: tools the model may call this turn. Absent ⇒ the pre-DEC-099
    *  request is sent verbatim, so a tool-free call is byte-identical. */
   tools?: VoiceTool[];
 }

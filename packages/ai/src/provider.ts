@@ -50,8 +50,8 @@ export interface StreamParams {
   maxTokens: number;
   temperature?: number;
   signal: AbortSignal;
-  /** SPEC A (DEC-094): absent ⇒ no `tools` field on the wire at all, so the
-   *  pre-DEC-094 request is byte-identical. */
+  /** SPEC A (DEC-099): absent ⇒ no `tools` field on the wire at all, so the
+   *  pre-DEC-099 request is byte-identical. */
   tools?: VoiceTool[];
 }
 

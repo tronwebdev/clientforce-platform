@@ -57,7 +57,7 @@ export interface VoiceTurn {
 export type CallEndReason = "caller_hangup" | "idle_timeout" | "max_duration" | "provider_failure";
 
 /**
- * SPEC A (DEC-094): the session's view of contact recall — deliberately narrow
+ * SPEC A (DEC-099): the session's view of contact recall — deliberately narrow
  * so the session never learns what a facet is or where the records live. The
  * product path wires `RecallService`; tests wire a fake.
  */
@@ -119,8 +119,8 @@ export interface CallSessionDeps {
   onsetGraceMs?: number;
   /** Injectable stream factory for tests. */
   openTtsStream?: (deps: TtsStreamDeps) => TtsStream;
-  /** SPEC A (DEC-094): mid-call record lookups. Absent ⇒ no tool is sent and
-   *  the turn loop is the pre-DEC-094 single-stream path, byte-for-byte. */
+  /** SPEC A (DEC-099): mid-call record lookups. Absent ⇒ no tool is sent and
+   *  the turn loop is the pre-DEC-099 single-stream path, byte-for-byte. */
   recall?: RecallBrain;
 }
 
@@ -494,8 +494,8 @@ export class CallSession {
     }
 
     try {
-      // SPEC A (DEC-094): the turn is a bounded loop, not a single stream. A
-      // round that ends with no tool call IS the pre-DEC-094 path — with no
+      // SPEC A (DEC-099): the turn is a bounded loop, not a single stream. A
+      // round that ends with no tool call IS the pre-DEC-099 path — with no
       // recall wired, `tools` is absent, the loop runs exactly once, and the
       // request on the wire is unchanged.
       const convo: Array<{ role: "user" | "assistant"; content: string | VoiceContentBlock[] }> =
@@ -588,7 +588,7 @@ export class CallSession {
   }
 
   /**
-   * SPEC A (DEC-094): run the round's lookups and build the two turns that
+   * SPEC A (DEC-099): run the round's lookups and build the two turns that
    * replay them to the model.
    *
    * The latency mask is the point. A lookup round costs an extra model round

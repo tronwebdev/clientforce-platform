@@ -1,5 +1,5 @@
 /**
- * SPEC A (DEC-094): the mid-call lookup turn, against fake providers.
+ * SPEC A (DEC-099): the mid-call lookup turn, against fake providers.
  *
  * The behaviours that matter on a live call, in order:
  * - a turn that needs a fact CALLS the tool, then answers from what came back;
@@ -9,7 +9,7 @@
  * - the loop is bounded — the last round has no tool, so it must answer;
  * - a barge-in mid-lookup drops the answer on the floor;
  * - lookup turns are reported SEPARATELY from the certified TTFA numbers;
- * - with NO recall wired, the turn loop is the pre-DEC-094 single stream and
+ * - with NO recall wired, the turn loop is the pre-DEC-099 single stream and
  *   no `tools` field goes on the wire at all.
  */
 import { describe, expect, it, vi } from "vitest";
@@ -402,7 +402,7 @@ describe("metrics — a lookup turn is reported honestly, never blended", () => 
   });
 });
 
-describe("no recall wired — the pre-DEC-094 path is untouched", () => {
+describe("no recall wired — the pre-DEC-099 path is untouched", () => {
   it("sends NO tools field and runs exactly one round", async () => {
     const seen: StreamParams[] = [];
     const s = makeSession({ provider: scriptedProvider([{ text: "Short reply." }], seen) });

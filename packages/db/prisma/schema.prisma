@@ -804,7 +804,7 @@ enum CallStatus {
   FAILED
 }
 
-/// SPEC A (DEC-094): one row per mid-call context lookup — the RECEIPT for
+/// SPEC A (DEC-099): one row per mid-call context lookup — the RECEIPT for
 /// `lookup_contact_context`. The agent answers a caller's question from the
 /// record, so the record must show what it actually read before it spoke:
 /// which facet, the question in its own words, whether anything was found,

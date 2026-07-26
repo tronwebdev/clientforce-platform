@@ -149,7 +149,7 @@ export class AiGateway {
   }
 
   /**
-   * SPEC A (DEC-094): the tool-aware voice stream. Same route, same usage
+   * SPEC A (DEC-099): the tool-aware voice stream. Same route, same usage
    * accounting, same no-retry/no-timeout contract as `streamVoice` — which is
    * now a text-only view of this method, so the two can never drift.
    *

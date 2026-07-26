@@ -1,7 +1,7 @@
--- SPEC A (DEC-094): on-call contact awareness — the retrieval RECEIPT ledger.
+-- SPEC A (DEC-099): on-call contact awareness — the retrieval RECEIPT ledger.
 --
 -- Purely additive: one new workspace-scoped table. Nothing existing is
--- altered, so every pre-DEC-094 call row and query behaves byte-identically.
+-- altered, so every pre-DEC-099 call row and query behaves byte-identically.
 --
 -- `CallRetrieval` records one row per mid-call `lookup_contact_context` call:
 -- the facet scoped, the model's own phrasing of the question, whether the

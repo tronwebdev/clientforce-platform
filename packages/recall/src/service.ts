@@ -1,5 +1,5 @@
 /**
- * The recall service (SPEC A, DEC-094) — one instance per live call.
+ * The recall service (SPEC A, DEC-099) — one instance per live call.
  *
  * Everything the brain's tool calls go through, and the single place the three
  * hard guarantees are enforced:

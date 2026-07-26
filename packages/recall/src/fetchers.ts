@@ -1,5 +1,5 @@
 /**
- * The five scoped fetchers (SPEC A, DEC-094).
+ * The five scoped fetchers (SPEC A, DEC-099).
  *
  * Each one answers ONE kind of question against ONE store, bounded and
  * contact-scoped, through `withTenant` — never the owner client (CLAUDE.md).

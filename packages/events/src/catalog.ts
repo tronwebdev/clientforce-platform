@@ -117,6 +117,21 @@ export const EVENT_SCHEMAS = {
     reason: z.string(),
     detail: z.string().optional(),
   }),
+  // SPEC A (DEC-099): ONE summary per call, not one per lookup — a call may
+  // read the record a dozen times and the bus is not a debug log (the
+  // P5-W1 "transitions only" stance). The per-lookup detail lives in the
+  // CallRetrieval receipt ledger.
+  //
+  // `empty` is the product signal worth having: a caller asked something the
+  // record could not answer, so the agent had to say it didn't know. That is
+  // a knowledge gap with a timestamp on it.
+  "voice.context_retrieved.v1": z.object({
+    callId: z.string(),
+    lookups: z.number().int().nonnegative(),
+    found: z.number().int().nonnegative(),
+    empty: z.number().int().nonnegative(),
+    refused: z.number().int().nonnegative(),
+  }),
 
   // ── Inbound ────────────────────────────────────────────────────────────────
   "form.submitted.v1": z.object({ formId: z.string(), fields: z.record(z.unknown()), routedTo: z.string().optional() }),
@@ -373,6 +388,7 @@ export const EVENT_TYPES = {
   CALL_BOOKED: "call.booked.v1",
   CALL_REFUSED: "call.refused.v1",
   VOICE_COMPOSE_REFUSED: "voice.compose_refused.v1",
+  VOICE_CONTEXT_RETRIEVED: "voice.context_retrieved.v1",
   FORM_SUBMITTED: "form.submitted.v1",
   WIDGET_CONVERSATION_STARTED: "widget.conversation_started.v1",
   WIDGET_LEAD_CAPTURED: "widget.lead_captured.v1",

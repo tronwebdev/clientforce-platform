@@ -1,5 +1,5 @@
 /**
- * The tool the voice brain sees (SPEC A, DEC-094).
+ * The tool the voice brain sees (SPEC A, DEC-099).
  *
  * Written out longhand rather than generated from the zod schema, because the
  * DESCRIPTIONS are the load-bearing part: they are the only thing that decides

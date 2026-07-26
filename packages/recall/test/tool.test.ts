@@ -1,5 +1,5 @@
 /**
- * SPEC A (DEC-094): the tool the model sees. Its descriptions are hand-written
+ * SPEC A (DEC-099): the tool the model sees. Its descriptions are hand-written
  * (they decide whether the brain reaches for a lookup at the right moment), so
  * the ENUM is drift-guarded against the vocabulary of record instead — the
  * wording stays editable, the facet list cannot silently diverge.

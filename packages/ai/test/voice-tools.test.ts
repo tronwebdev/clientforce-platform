@@ -1,8 +1,8 @@
 /**
- * SPEC A (DEC-094): the tool-use voice stream.
+ * SPEC A (DEC-099): the tool-use voice stream.
  *
  * Two properties matter. First, a request with NO tools must be byte-identical
- * to the pre-DEC-094 one — the whole voice service was certified on that wire
+ * to the pre-DEC-099 one — the whole voice service was certified on that wire
  * shape, so widening it silently would invalidate the certification. Second,
  * tool arguments arrive as a JSON delta stream and are only complete at
  * `content_block_stop`; assembling them early yields truncated garbage.
@@ -26,7 +26,7 @@ const recording = (events: StreamEvent[], seen: StreamParams[] = []): Completion
 
 const usage = { type: "done" as const, usage: { inputTokens: 1, outputTokens: 1 } };
 
-describe("streamVoice — the pre-DEC-094 surface is untouched", () => {
+describe("streamVoice — the pre-DEC-099 surface is untouched", () => {
   it("yields plain text deltas and sends NO tools field when none are given", async () => {
     const seen: StreamParams[] = [];
     const gw = new AiGateway({

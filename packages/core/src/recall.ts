@@ -1,5 +1,5 @@
 /**
- * On-call contact recall — the shared vocabulary (SPEC A, DEC-094).
+ * On-call contact recall — the shared vocabulary (SPEC A, DEC-099).
  *
  * The voice brain does NOT get the contact's whole history stuffed into its
  * prompt. It gets ONE tool, `lookup_contact_context`, and calls it per

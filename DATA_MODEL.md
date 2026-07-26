@@ -482,6 +482,57 @@ model Call {
 enum CallStatus { QUEUED IN_PROGRESS COMPLETED FAILED }
 ```
 
+
+### 4.4 CallRetrieval — the mid-call lookup receipt (SPEC A amendment, DEC-099)
+
+On a live call the agent does not carry the contact's whole history in its
+prompt. It calls ONE tool, `lookup_contact_context`, per question — five facets,
+one store each (`history` · `pipeline` · `bookings` · `profile` · `knowledge`;
+`RECALL_FACETS` in `@clientforce/core` is the vocabulary of record). This table
+is the receipt: what the agent read from the record before it spoke.
+
+Every lookup writes a row — **including the ones that found nothing and the ones
+that were refused**. That is the point rather than an oversight: an honest "I
+don't have that on record" is only provable if the empty lookup left a trace,
+and a turn with no receipt was answered from the brief alone, which is itself
+the audit signal. `query` is the model's own phrasing, verbatim, so a reviewer
+can see what the agent believed it was asked. `sources` carries provenance ids
+only — never the retrieved bodies, which already live in the stores it points at.
+
+Append-only (the `CreditLedger` stance — enforced in code). Receipts buffer in
+memory during the call and flush once at finalize, the `persistTranscript`
+precedent: writing mid-call would put an avoidable write on the audio path, and
+the DEC-092 pacing work exists because that path is where jitter becomes
+audible. `(callId, seq)` is the idempotency key, so a retried finalize writes
+each receipt exactly once. Loose `callId` reference with no FK, matching `Call`.
+
+```prisma
+model CallRetrieval {
+  id            String   @id @default(cuid())
+  workspaceId   String
+  callId        String             // loose reference (Call carries no FKs either)
+  contactId     String
+  turn          Int                // 1-based caller turn served (0 = before any turn)
+  seq           Int                // order within the call
+  facet         String             // RECALL_FACETS: history|pipeline|bookings|profile|knowledge
+  query         String             // the model's own phrasing, verbatim
+  found         Boolean
+  itemCount     Int
+  latencyMs     Int
+  refusalReason String?            // BUDGET_EXHAUSTED | LOOKUP_TIMEOUT | STORE_UNAVAILABLE | UNKNOWN_FACET
+  sources       Json     @default("[]")  // provenance ids only, never bodies
+  createdAt     DateTime @default(now())
+  @@unique([callId, seq])
+  @@index([workspaceId, callId, seq])
+}
+```
+
+Bounds are hard (`@clientforce/core`): 5 items per lookup, 240 chars per item,
+2 lookups per turn, 12 per call, a 1.5s per-lookup timeout, and 2 tool rounds
+whose final round is sent WITHOUT the tool so the turn must end in an answer.
+Every bound produces a typed refusal rather than a throw — a store failure costs
+the answer, never the call.
+
 ---
 
 ## 5. The event catalog (the backbone — `ARCHITECTURE.md §3c`)
@@ -511,7 +562,7 @@ model Event {
 | Messaging    | `email.sent.v1 · email.delivered.v1 · email.opened.v1 · email.clicked.v1 · email.bounced.v1 · email.spam.v1 · email.replied.v1` | messageId, channel, stepNodeId, link?, intent?   |
 |              | `sms.sent.v1 · sms.delivered.v1 · sms.replied.v1 · sms.opted_out.v1`                                                            | segmentCount, body, intent?                      |
 |              | `whatsapp.sent.v1 · whatsapp.delivered.v1 · whatsapp.replied.v1 · whatsapp.button_clicked.v1`                                   | templateId, button?                              |
-| Voice        | `call.started.v1 · call.completed.v1 · call.failed.v1 · call.booked.v1 · call.refused.v1 · voice.compose_refused.v1` (P3.1)     | durationSec, transcriptId, outcome, recordingUrl; refusals carry reason/detail (no callId on `call.refused.v1` — no Call row exists) |
+| Voice        | `call.started.v1 · call.completed.v1 · call.failed.v1 · call.booked.v1 · call.refused.v1 · voice.compose_refused.v1` (P3.1) · `voice.context_retrieved.v1` (SPEC A) | durationSec, transcriptId, outcome, recordingUrl; refusals carry reason/detail (no callId on `call.refused.v1` — no Call row exists). `voice.context_retrieved.v1` is ONE summary per call, not per lookup (the P5-W1 transitions-only stance — per-lookup detail lives in `CallRetrieval`): `{callId, lookups, found, empty, refused}`. `empty` is the product signal — a caller asked something the record could not answer |
 | Inbound      | `form.submitted.v1 · widget.conversation_started.v1 · widget.lead_captured.v1 · linkedin.captured.v1`                           | formId/widgetId, fields, routedTo                |
 | Proposals    | `proposal.sent.v1 · proposal.viewed.v1 · proposal.accepted.v1 · proposal.paid.v1`                                               | proposalId, trackedLinkId, amount?               |
 | Pipeline     | `lead.enrolled.v1 · lead.stage_changed.v1 · lead.unsubscribed.v1`                                                               | campaignId?, fromStage, toStage, channel?        |

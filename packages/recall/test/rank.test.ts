@@ -1,5 +1,5 @@
 /**
- * SPEC A (DEC-094): the pure layer — ranking, spoken dates, and the
+ * SPEC A (DEC-099): the pure layer — ranking, spoken dates, and the
  * spoken-register sanitizer that keeps retrieved history from tripping the
  * voice checks.
  */

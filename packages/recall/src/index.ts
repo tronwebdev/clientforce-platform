@@ -1,5 +1,5 @@
 /**
- * @clientforce/recall — on-call contact awareness (SPEC A, DEC-094).
+ * @clientforce/recall — on-call contact awareness (SPEC A, DEC-099).
  *
  * The retrieval spine behind `lookup_contact_context`: question → scoped
  * lookup → grounded answer, with honest absence and a receipt per lookup.

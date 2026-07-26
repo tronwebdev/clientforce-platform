@@ -144,7 +144,7 @@ wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
   let context: CallContext | undefined;
   let startedAt = new Date();
   let finalized = false;
-  /** SPEC A (DEC-094): per-call recall service; its receipts flush at finalize. */
+  /** SPEC A (DEC-099): per-call recall service; its receipts flush at finalize. */
   let recall: RecallService | undefined;
 
   const finish = (endReason: CallEndReason): void => {
@@ -190,7 +190,7 @@ wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
         ttsSentenceWindows: report.ttsSentenceWindows,
         audioSendGaps: report.audioSendGaps,
         eventLoopMs: report.eventLoopMs,
-        // SPEC A (DEC-094): what the agent actually read mid-call, and the
+        // SPEC A (DEC-099): what the agent actually read mid-call, and the
         // TTFA split so a lookup turn never hides inside the certified numbers.
         recall: report.recall,
         ttfaByLookup: report.ttfaByLookup,
@@ -236,8 +236,8 @@ wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
           }
           const ackClips = await loadAckClips(deepgramKey, context.ttsModel, config.ackPhrases, synthesizeAura);
           startedAt = new Date();
-          // SPEC A (DEC-094): recall needs the record, so it mounts only on the
-          // product path. Standalone rigs run the pre-DEC-094 turn loop.
+          // SPEC A (DEC-099): recall needs the record, so it mounts only on the
+          // product path. Standalone rigs run the pre-DEC-099 turn loop.
           if (prisma && context.recallEnabled) {
             recall = new RecallService(
               { prisma, gateway },

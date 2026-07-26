@@ -1,5 +1,5 @@
 /**
- * Recall types (SPEC A, DEC-094) — what a fetcher needs and what it returns.
+ * Recall types (SPEC A, DEC-099) — what a fetcher needs and what it returns.
  */
 import type { AiGateway } from "@clientforce/ai";
 import type { PrismaClient } from "@clientforce/db";
