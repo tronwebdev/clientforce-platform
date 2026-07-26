@@ -63,6 +63,7 @@ export class WidgetShell {
   private readonly nameEl: HTMLDivElement;
   private readonly subEl: HTMLSpanElement;
   private readonly messages: HTMLDivElement;
+  private readonly scroller: HTMLDivElement;
   private readonly typing: HTMLDivElement;
   private readonly chips: HTMLDivElement;
   readonly input: HTMLInputElement;
@@ -95,6 +96,10 @@ export class WidgetShell {
     // Panel: header / body (messages + chips) / composer.
     this.panel = el(doc, "div", "cfw-panel");
     this.panel.setAttribute("role", "dialog");
+    // Opening moves focus INTO the panel, not into the text field: a focused
+    // text field always matches :focus-visible, which would park a ring on the
+    // composer (the owner's "never a permanent ring").
+    this.panel.setAttribute("tabindex", "-1");
 
     this.header = el(doc, "div", "cfw-header");
     // Canon §6: ✦ on the signature gradient — one identity across surfaces.
@@ -119,7 +124,9 @@ export class WidgetShell {
     // Canon §6 working: a slide sweep under the mark (CSS-gated on the state).
     this.header.appendChild(el(doc, "div", "cfw-sweep"));
 
+    // Body scrolls; the foot (composer + platform line) stays pinned.
     const body = el(doc, "div", "cfw-body");
+    this.scroller = body;
     this.messages = el(doc, "div", "cfw-messages");
     this.messages.setAttribute("aria-live", "polite");
 
@@ -156,9 +163,17 @@ export class WidgetShell {
     composer.appendChild(this.mic);
     composer.appendChild(send);
 
+    const foot = el(doc, "div", "cfw-foot");
+    foot.appendChild(composer);
+    // Canon: every panel carries the platform line at the foot.
+    const powered = el(doc, "div", "cfw-poweredby");
+    powered.appendChild(el(doc, "span", "cfw-poweredby-mark"));
+    powered.appendChild(el(doc, "span", "cfw-poweredby-text", "Powered by Clientforce Ai"));
+    foot.appendChild(powered);
+
     this.panel.appendChild(this.header);
-    body.appendChild(composer);
     this.panel.appendChild(body);
+    this.panel.appendChild(foot);
 
     this.root.appendChild(cluster);
     this.root.appendChild(this.panel);
@@ -184,6 +199,9 @@ export class WidgetShell {
       // Custom brands have no canon hover shade — fall back to the brand fill.
       this.root.style.removeProperty("--cfw-brand-hover");
     }
+    // The accent never paints a surface, so on-brand tones apply only where a
+    // brand FILL survives (the send circle is canon forest; kept for a custom
+    // accent whose contrast must still resolve).
     this.root.style.setProperty("--cfw-on-brand", onBrand);
     this.root.style.setProperty("--cfw-on-brand-sub", subtleTextOnColor(a.brandColor));
     this.root.style.setProperty("--cfw-radius", `${CORNER_RADIUS_PX[a.corner]}px`);
@@ -220,14 +238,14 @@ export class WidgetShell {
     if (msg.role === "agent") row.appendChild(el(this.doc, "div", "cfw-msg-orb", AGENT_MARK));
     row.appendChild(el(this.doc, "div", "cfw-bubble", msg.text));
     this.messages.insertBefore(row, this.typing.parentNode === this.messages ? this.typing : null);
-    this.messages.scrollTop = this.messages.scrollHeight;
+    this.scroller.scrollTop = this.scroller.scrollHeight;
     return row;
   }
 
   setTyping(on: boolean): void {
     if (on && this.typing.parentNode !== this.messages) {
       this.messages.appendChild(this.typing);
-      this.messages.scrollTop = this.messages.scrollHeight;
+      this.scroller.scrollTop = this.scroller.scrollHeight;
     } else if (!on && this.typing.parentNode === this.messages) {
       this.messages.removeChild(this.typing);
     }
@@ -255,6 +273,11 @@ export class WidgetShell {
 
   focusInput(): void {
     this.input.focus();
+  }
+
+  /** Focus target on open — the panel itself (see the tabindex note above). */
+  focusPanel(): void {
+    this.panel.focus();
   }
 
   focusLauncher(): void {

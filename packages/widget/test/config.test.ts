@@ -17,7 +17,8 @@ describe("defaults (Agent Widget prototype state, ported verbatim)", () => {
       textOnBrand: "auto",
       launcherText: "Chat with our AI Sales Agent",
       subtitle: "AI Sales Assistant",
-      welcomeMessage: "Hi! 👋 How can I help?",
+      welcomeMessage:
+        "Hi — I'm Ada, your assistant. I can book you in, call you back, send an estimate, or answer a question.",
       showUnreadBadge: true,
       theme: "light",
       corner: "l",
@@ -26,11 +27,24 @@ describe("defaults (Agent Widget prototype state, ported verbatim)", () => {
   });
 
   it("pins the canon corner radius map (XL/L/M/S/None on the v3 scale)", () => {
-    expect(CORNER_RADIUS_PX).toEqual({ xl: 22, l: 16, m: 12, s: 9, none: 0 });
+    expect(CORNER_RADIUS_PX).toEqual({ xl: 22, l: 20, m: 12, s: 9, none: 0 });
   });
 
   it("the unconfigured agent name is the canon default (§6 — Ada)", () => {
     expect(WIDGET_DEFAULTS.agentName).toBe("Ada");
+  });
+
+  it("the welcome line is the owner's canon copy — emoji retired from COPY too", () => {
+    expect(WIDGET_DEFAULTS.appearance.welcomeMessage).not.toMatch(/\p{Emoji_Presentation}/u);
+    expect(WIDGET_DEFAULTS.appearance.welcomeMessage).toContain("I can book you in, call you back");
+  });
+
+  it('a business name flows into the welcome copy (mock: "Bright Smile\'s assistant")', () => {
+    const cfg = resolveConfig({ widgetId: "w", businessName: "Bright Smile" });
+    expect(cfg.businessName).toBe("Bright Smile");
+    expect(cfg.appearance.welcomeMessage).toBe(
+      "Hi — I'm Ada, Bright Smile's assistant. I can book you in, call you back, send an estimate, or answer a question.",
+    );
   });
 
   it("pins behavior + feature defaults (Open after 4s on, exit intent off, all features on)", () => {

@@ -6,7 +6,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { resolveConfig } from "../src/config";
+import { CORNER_RADIUS_PX, resolveConfig } from "../src/config";
 
 const widgetCss = readFileSync(join(__dirname, "..", "src", "styles", "widget.css"), "utf8");
 const shellSrc = readFileSync(join(__dirname, "..", "src", "ui", "shell.ts"), "utf8");
@@ -128,5 +128,78 @@ describe("mock KEY SURFACES — launcher", () => {
     const mark = widgetCss.slice(widgetCss.indexOf(".cfw-launcher-mark {"));
     expect(mark.slice(0, 400)).toContain("background: var(--cv3-gradient-signature)");
     expect(mark.slice(0, 400)).toContain("background-clip: text");
+  });
+});
+
+describe("owner panel spec (2026-07-26) — the accent never paints a surface", () => {
+  function block(selector: string, until: string): string {
+    const start = widgetCss.indexOf(selector);
+    expect(start, `${selector} missing`).toBeGreaterThan(-1);
+    return widgetCss.slice(start, widgetCss.indexOf(until, start + 1));
+  }
+
+  it("header sits on the panel surface with a hairline bottom, never on the brand", () => {
+    const header = block(".cfw-header {", "}");
+    expect(header).toContain("background: var(--cv3-panel)");
+    expect(header).toContain("border-bottom: 1px solid var(--cv3-line)");
+    expect(header).not.toContain("var(--cfw-brand)");
+  });
+
+  it("header text is ink / muted / faint — not white-on-accent", () => {
+    expect(block(".cfw-name {", "}")).toContain("color: var(--cv3-ink)");
+    expect(block(".cfw-sub {", "}")).toContain("color: var(--cv3-muted)");
+    expect(block(".cfw-close {", "}")).toContain("color: var(--cv3-faint)");
+  });
+
+  it("the mark is a 38px tile at radius 11 on the signature gradient", () => {
+    const orb = block(".cfw-orb {", "}");
+    expect(orb).toContain("width: 38px");
+    expect(orb).toContain("border-radius: 11px");
+    expect(orb).toContain("background: var(--cv3-gradient-signature)");
+  });
+
+  it("composer is white + hairline at radius 15; mic 32px white, send 32px forest", () => {
+    const composer = block(".cfw-composer {", "}");
+    expect(composer).toContain("background: var(--cv3-card)");
+    expect(composer).toContain("border: 1px solid var(--cv3-line-input)");
+    expect(composer).toContain("border-radius: 15px");
+    const mic = block(".cfw-mic {", "}");
+    expect(mic).toContain("width: 32px");
+    expect(mic).toContain("background: var(--cv3-card)");
+    const send = block(".cfw-send {", "}");
+    expect(send).toContain("width: 32px");
+    expect(send).toContain("background: var(--cv3-forest)");
+  });
+
+  it("no parked focus ring — the composer ring is keyboard-focus only", () => {
+    expect(widgetCss).not.toContain(".cfw-composer:focus-within");
+    expect(widgetCss).toContain(".cfw-composer:has(.cfw-input:focus-visible)");
+  });
+
+  it("bubbles carry the owner values and notch toward the mark", () => {
+    const agent = block(".cfw-bubble {", "}");
+    expect(agent).toContain("background: var(--cv3-bubble-agent)");
+    expect(agent).toContain("border-radius: 5px 14px 14px 14px");
+    const visitor = block('.cfw-row[data-role="visitor"] .cfw-bubble {', "}");
+    expect(visitor).toContain("background: var(--cv3-ink)");
+    expect(visitor).toContain("color: var(--cv3-panel)");
+    expect(visitor).toContain("border-radius: 14px 14px 4px 14px");
+  });
+
+  it("panel geometry is 376×640 at radius 20 (the default corner)", () => {
+    const panel = block(".cfw-panel {", "}");
+    expect(panel).toContain("width: 376px");
+    expect(panel).toContain("height: 640px");
+    expect(CORNER_RADIUS_PX.l).toBe(20);
+  });
+
+  it("every panel carries the platform line: 10.5px faint + an 11px gradient square", () => {
+    const line = block(".cfw-poweredby {", "}");
+    expect(line).toContain("font-size: 10.5px");
+    expect(line).toContain("color: var(--cv3-faint)");
+    const mark = block(".cfw-poweredby-mark {", "}");
+    expect(mark).toContain("width: 11px");
+    expect(mark).toContain("background: var(--cv3-gradient-signature)");
+    expect(shellSrc).toContain("Powered by Clientforce Ai");
   });
 });

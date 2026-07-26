@@ -151,3 +151,30 @@ below.
    `Hi! 👋 How can I help?`. The build note retires emoji as _iconography_; this
    is owner-configurable **copy**, so it was left alone rather than changed
    silently — flagged for a ruling.
+
+---
+
+## Panel-spec round — owner screenshot ruling (2026-07-26, DEC-098 amendment)
+
+The owner reviewed a build frame and ruled the shell off-canon on six points.
+All six are fixed; the frames above are the result.
+
+| Was                                        | Now                                                                                                                                                                                                                                                                                                   |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Header a solid forest fill with white text | Header on `panel` `#FBFDFB` with a `#E9EEEA` hairline bottom — **the accent never paints a surface**; mark = 38px tile at radius 11 on the signature gradient, name ink 800/15.5px, subtitle muted behind a forest dot, close in faint `#8B968F`                                                      |
+| Composer wearing a heavy forest ring       | White fill, `#DCE5DE` hairline, radius 15; mic a 32px white circle with hairline, send a 32px forest circle. The ring is keyboard-focus only — **opening now focuses the panel, not the field**, so nothing is parked (a focused text field always matches `:focus-visible`, which is what parked it) |
+| `👋` in the welcome copy                   | Owner copy, emoji-free: _"Hi — I'm Ada, [business]'s assistant. I can book you in, call you back, send an estimate, or answer a question."_ — derived from the agent + new `businessName` config                                                                                                      |
+| No footer                                  | Every panel carries **Powered by Clientforce Ai** — 10.5px faint behind an 11px gradient square                                                                                                                                                                                                       |
+| Bubbles on wash/mint                       | Agent `#F2F6F3` + ink at `5px 14px 14px 14px` (notch toward the mark); visitor ink `#101613` with `#FBFDFB` text at `14px 14px 4px 14px`                                                                                                                                                              |
+| Panel 344px, corner-mapped radius          | 376×640, radius 20 at the shipped default corner                                                                                                                                                                                                                                                      |
+
+Each of these is now a structural pin in `packages/widget/test/canon.test.ts`
+(header surface + text tones, mark tile, composer geometry, no `:focus-within`
+ring, bubble values, panel geometry, the platform line), so the shell cannot
+drift back.
+
+**Still open on Q-049:** the mock PNG itself (no file reached the session) and
+`assets/mark.svg` — the owner is delivering the mark next turn, at which point
+it is committed and the ✦ glyph stand-in is swapped for it. Also flagged: the
+platform line is mandatory per canon while the product is white-label
+(`CLAUDE.md`) — worth a ruling on whether an agency tier may suppress it.

@@ -228,7 +228,7 @@ export class WidgetInstance {
     this.unread = 0;
     this.shell.setUnread(0);
     this.shell.setOpen(true);
-    this.shell.focusInput();
+    this.shell.focusPanel();
     this.emit("open");
     void this.request({ type: "open" }).catch(() => undefined);
   }

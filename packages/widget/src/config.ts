@@ -23,12 +23,13 @@ export type WidgetTheme = "light";
 export type WidgetCorner = "xl" | "l" | "m" | "s" | "none";
 export type FontLoading = "none" | "google";
 
-/** The prototype's Corners option set mapped onto the Console v3 canon radii
- * scale (9–12 / 14–16 / 22; owner ruling 2026-07-22 — the legacy 28/20/14/8
- * prototype values are retired). */
+/** The prototype's Corners option set on the Console v3 radii scale. `l` is the
+ * SHIPPED DEFAULT and carries the owner's panel geometry (radius 20, ruling
+ * 2026-07-26); the rest stay on the canon scale. The legacy 28/20/14/8
+ * prototype values are retired. */
 export const CORNER_RADIUS_PX: Record<WidgetCorner, number> = {
   xl: 22,
-  l: 16,
+  l: 20,
   m: 12,
   s: 9,
   none: 0,
@@ -74,6 +75,9 @@ export interface WidgetInitOptions {
   apiBase?: string;
   /** Header title. Server-resolved once the wiring unit lands. */
   agentName?: string;
+  /** The tenant's business name — used by the default welcome copy and the
+   * header subtitle. Server-resolved once the wiring unit lands. */
+  businessName?: string;
   zIndex?: number;
   /** "google" injects the brand font stylesheet into the host document head.
    * Default "none": the embed makes zero third-party requests. */
@@ -89,6 +93,7 @@ export interface ResolvedWidgetConfig {
   campaignId: string | null;
   apiBase: string | null;
   agentName: string;
+  businessName: string | null;
   zIndex: number;
   fontLoading: FontLoading;
   appearance: WidgetAppearance;
@@ -96,13 +101,24 @@ export interface ResolvedWidgetConfig {
   features: WidgetFeatures;
 }
 
-/** Prototype defaults, ported verbatim (welcome = the Design-tab placeholder;
- * the prototype's Acme copy is demo content, not a default). */
+/**
+ * The canon welcome line (owner copy, 2026-07-26) — emoji retired here too, not
+ * just in iconography. Derived so it names the agent and, when known, the
+ * business: "Hi — I'm Ada, Bright Smile's assistant. I can book you in, call
+ * you back, send an estimate, or answer a question."
+ */
+export function defaultWelcome(agentName: string, businessName: string | null): string {
+  const whose = businessName ? `${businessName}'s` : "your";
+  return `Hi — I'm ${agentName}, ${whose} assistant. I can book you in, call you back, send an estimate, or answer a question.`;
+}
+
+/** Prototype defaults, on the canon copy/geometry where the owner has ruled. */
 export const WIDGET_DEFAULTS: Omit<ResolvedWidgetConfig, "widgetId"> = {
   agentId: null,
   campaignId: null,
   apiBase: null,
   agentName: DEFAULT_AGENT_NAME,
+  businessName: null,
   zIndex: 2147483000,
   fontLoading: "none",
   appearance: {
@@ -110,7 +126,7 @@ export const WIDGET_DEFAULTS: Omit<ResolvedWidgetConfig, "widgetId"> = {
     textOnBrand: "auto",
     launcherText: "Chat with our AI Sales Agent",
     subtitle: "AI Sales Assistant",
-    welcomeMessage: "Hi! 👋 How can I help?",
+    welcomeMessage: defaultWelcome(DEFAULT_AGENT_NAME, null),
     showUnreadBadge: true,
     theme: "light",
     corner: "l",
@@ -196,6 +212,7 @@ export function resolveConfig(init: WidgetInitOptions): ResolvedWidgetConfig {
     campaignId: pickString(init.campaignId, "") || null,
     apiBase: pickString(init.apiBase, "") || null,
     agentName: pickString(init.agentName, d.agentName),
+    businessName: pickString(init.businessName, "") || null,
     zIndex: pickNumber(init.zIndex, "zIndex", d.zIndex),
     fontLoading: pickEnum(
       init.fontLoading,
@@ -208,7 +225,13 @@ export function resolveConfig(init: WidgetInitOptions): ResolvedWidgetConfig {
       textOnBrand,
       launcherText: pickString(a.launcherText, d.appearance.launcherText),
       subtitle: pickString(a.subtitle, d.appearance.subtitle),
-      welcomeMessage: pickString(a.welcomeMessage, d.appearance.welcomeMessage),
+      welcomeMessage: pickString(
+        a.welcomeMessage,
+        defaultWelcome(
+          pickString(init.agentName, d.agentName),
+          pickString(init.businessName, "") || null,
+        ),
+      ),
       showUnreadBadge: pickBool(a.showUnreadBadge, d.appearance.showUnreadBadge),
       theme: pickEnum(a.theme, ["light"] as const, "appearance.theme", d.appearance.theme),
       corner: pickEnum(
@@ -259,6 +282,7 @@ export function configFromScriptDataset(ds: DOMStringMap): WidgetInitOptions {
   if (ds.campaignId) init.campaignId = ds.campaignId;
   if (ds.apiBase) init.apiBase = ds.apiBase;
   if (ds.agentName) init.agentName = ds.agentName;
+  if (ds.businessName) init.businessName = ds.businessName;
   if (ds.zIndex !== undefined) init.zIndex = Number(ds.zIndex);
   if (ds.fontLoading) init.fontLoading = ds.fontLoading as FontLoading;
 

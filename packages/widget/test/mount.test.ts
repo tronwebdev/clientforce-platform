@@ -87,7 +87,7 @@ describe("mount + isolation", () => {
     const shadow = active.shadow;
     const bubbles = shadow.querySelectorAll('.cfw-row[data-role="agent"] .cfw-bubble');
     expect(bubbles).toHaveLength(1);
-    expect(bubbles[0]!.textContent).toBe("Hi! 👋 How can I help?");
+    expect(bubbles[0]!.textContent).toContain("I'm Ada, your assistant");
     const chips = shadow.querySelectorAll(".cfw-chip");
     expect([...chips].map((c) => c.textContent)).toEqual([
       "Book a call",
@@ -121,7 +121,7 @@ describe("mount + isolation", () => {
     const root = active.shadow.querySelector(".cfw-root") as HTMLElement;
     expect(root.style.getPropertyValue("--cfw-brand")).toBe("#0F5227");
     expect(root.style.getPropertyValue("--cfw-on-brand")).toBe("#FFFFFF");
-    expect(root.style.getPropertyValue("--cfw-radius")).toBe("9px");
+    expect(root.style.getPropertyValue("--cfw-radius")).toBe("9px"); // corner "s"
     expect(root.getAttribute("data-position")).toBe("left");
     expect(active.shadow.querySelector(".cfw-name")!.textContent).toBe("Acme Sales Agent");
     expect(active.shadow.querySelector(".cfw-orb")!.textContent).toBe("✦"); // canon §6 mark

@@ -27,6 +27,7 @@ export const consoleV3Vars: Record<string, string> = {
   "--cv3-warn-bg": "#f7efda",
   "--cv3-danger": "#b0483a",
   "--cv3-teal": "#0e7d93",
+  "--cv3-bubble-agent": "#f2f6f3",
   "--cv3-gradient-signature": "linear-gradient(135deg, #36d7ed, #35e834 55%, #d0f56b)",
   "--cv3-gradient-hero-ink": "linear-gradient(180deg, #101613 25%, #14743a 120%)",
   "--cv3-vivid": "#35e834",

@@ -35,13 +35,14 @@ Optional data-attributes (all have prototype defaults):
 | ------------------------------------------------------------------------ | ----------------------------------------------------- | ------------------------------------------------------------------------------------- |
 | `data-agent-id` / `data-campaign-id`                                     | ids                                                   | — (preview/dev override; the server's `widgetId` mapping is authoritative once wired) |
 | `data-api-base`                                                          | origin                                                | — (absent ⇒ stubbed transport)                                                        |
+| `data-business-name`                                                     | text                                                  | — (names the tenant in the welcome copy + subtitle)                                   |
 | `data-agent-name`                                                        | text                                                  | `Ada` (canon §6 default)                                                              |
 | `data-brand-color`                                                       | `#rgb`/`#rrggbb`                                      | `#146b33` (canon forest accent)                                                       |
 | `data-text-on-brand`                                                     | color or omit                                         | auto (prototype luminance rule)                                                       |
 | `data-launcher-text`                                                     | text                                                  | `Chat with our AI Sales Agent`                                                        |
 | `data-subtitle`                                                          | text                                                  | `AI Sales Assistant`                                                                  |
-| `data-welcome-message`                                                   | text                                                  | `Hi! 👋 How can I help?`                                                              |
-| `data-corner`                                                            | `xl` \| `l` \| `m` \| `s` \| `none` (22/16/12/9/0 px) | `l`                                                                                   |
+| `data-welcome-message`                                                   | text                                                  | derived canon copy (see §2) — emoji-free                                              |
+| `data-corner`                                                            | `xl` \| `l` \| `m` \| `s` \| `none` (22/20/12/9/0 px) | `l` (= the owner's panel radius 20)                                                   |
 | `data-position`                                                          | `left` \| `right`                                     | `right`                                                                               |
 | `data-unread-badge`                                                      | `true` \| `false`                                     | `true`                                                                                |
 | `data-open-after`                                                        | seconds \| `off`                                      | `4`                                                                                   |
@@ -74,7 +75,22 @@ Commands: `init` · `open` · `close` · `toggle` · `send` · `update` ·
 Events: `ready` · `open` · `close` · `message:sent` · `message:received` ·
 `agent:state` · `error` · `destroy`.
 
-## 2. Isolation contract
+## 2. Panel anatomy (owner spec, 2026-07-26)
+
+The accent **never paints a surface**. Panel 376×640 at radius 20, the float
+shadow being the one canon exception; header on `panel` with a `line` hairline
+bottom, the ✦ mark as a 38px tile at radius 11 on the signature gradient, name
+in ink 800/15.5px, subtitle in muted behind a forest presence dot, close in
+faint. Thread scrolls; composer + platform line stay pinned at the foot.
+Composer is white with a `line-input` hairline at radius 15 — mic a 32px white
+circle, send a 32px forest circle — and its focus ring appears on interaction
+only (opening moves focus to the panel, not the field, so no ring is ever
+parked). Agent bubbles are `bubble-agent` with a `5px 14px 14px 14px` notch
+pointing at the mark; visitor bubbles are ink with panel-tone text at
+`14px 14px 4px 14px`. Every panel carries **Powered by Clientforce Ai** at the
+foot (10.5px faint, behind an 11px gradient square).
+
+## 3. Isolation contract
 
 - One host element (`#clientforce-widget-host`) appended to `<body>`; ALL
   markup and styles live in its open shadow root (`:host { all: initial }`,
@@ -88,7 +104,7 @@ Events: `ready` · `open` · `close` · `message:sent` · `message:received` ·
   no dark theme — `theme:"dark"` warns and renders light rather than shipping
   an un-canon'd skin.
 
-## 3. API seam — ONE documented endpoint (stubbed this unit)
+## 4. API seam — ONE documented endpoint (stubbed this unit)
 
 ```
 POST {apiBase}/widget/v1/session
@@ -147,7 +163,7 @@ lands; that unit also registers the `widget.*` event-catalog entries and the
 `widget_chat_started` automation trigger (Q-035) once real producers exist —
 nothing is registered now because nothing fires now.
 
-## 4. Console-v3 shell
+## 5. Console-v3 shell
 
 Composition ported from the prototype preview: 60px launcher (float loop,
 unread badge, label pill) + 344px panel — brand header with the
@@ -164,7 +180,7 @@ canon §6 forbids forcing a fifth. They map into the five console states via
 `WIDGET_STATE_TO_CONSOLE` in `@clientforce/theme` (`needs-you` and `held` are
 console-surface states with no widget analogue).
 
-## 5. Develop
+## 6. Develop
 
 ```
 pnpm --filter @clientforce/widget build   # typecheck + esbuild IIFE → dist/
