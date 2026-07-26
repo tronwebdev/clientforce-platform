@@ -22,6 +22,41 @@
 - Additive-only schema; events versioned; PROGRESS.md append-only, rebase before merge.
 - One PR per wave; plan comment first (files / migration / tests / claimed DEC ids);
   §8 evidence pairs (prototype ↔ build) on a real local stack; merge-on-green after review.
+- **ZERO check runs is UNGATED, not "pending" — a HARD BLOCKER** (INT/DEC-096
+  amendment 3, owner directive 2026-07-26). `ci.yml` fires on `pull_request`, and
+  GitHub can only run it against a TEST-MERGE of head into base — which it cannot
+  build while the PR is conflicted. So a conflicted PR gets NO check suite at all,
+  and the combined status reads `pending` with `total_count: 0`. That is the failure
+  mode where **the symptom masks the diagnostic**: the conflict suppresses the very
+  gate that would have caught it. Never read an empty check list as "CI hasn't
+  reported yet" — resolve the conflict, then require a real green. And do NOT read
+  "it only affects conflicted PRs" as low-risk: it is not a gap that degrades gently
+  across healthy PRs, it **fails hard on precisely the PR that most needs the gate** —
+  the one whose history diverged far enough to conflict. A LOCAL
+  `pnpm build/lint/test` and a `workflow_dispatch` live-proof are real evidence of
+  different things, but NEITHER is a merge gate: dispatch runs never attach to a PR
+  as a check however they end.
+- **NEVER assert a counted vocabulary against a LITERAL — derive it from the union**
+  (the 11-vs-12 class, DEC-096 amendment 3). Where two tracks both extend a counted
+  set (trigger/action options, picker lengths, dimmed/clickable tallies), each side's
+  `toHaveLength(n)` is correct only for ITS OWN lineage. Two branches can assert the
+  SAME WRONG number for DIFFERENT reasons; three-way merge sees identical text, keeps
+  it, and merges clean. Git is structurally blind to this, and a rule that says
+  "recompute by hand during a conflict resolution" is exactly the rule that fails
+  during a conflict resolution — the merge that most needs the arithmetic is the one
+  where attention is thinnest. So make the bug UNREPRESENTABLE, not documented:
+  `toHaveLength(SCHEMA_KINDS.length)`, never `toHaveLength(12)`; render-affordance
+  tallies derive from the vocabulary filtered through the real gate (the `menuCounts`
+  helper in `subcampaign-creator.test.tsx`). A new kind then moves every count BY
+  CONSTRUCTION. Keep the semantic pins literal on purpose — canon labels and
+  availability classification SHOULD fail until a human decides them; it is only the
+  arithmetic that gets derived. Where a Set-equality pin already exists, the derived
+  length still earns its place: a Set collapses duplicates, so only length catches a
+  kind listed twice.
+- **Exact-match gating on `workflow_dispatch` inputs — never negated matches.**
+  `if: inputs.walk == 'slack'`, never `!= 'other-walk'`: a negated gate silently
+  ADOPTS every future input value, so adding a third walk fires the first walk's job
+  against a real vendor (this nearly posted a HubSpot dispatch to the owner's Slack).
 
 ## ⭑ Backoffice-coverage ride-along (STANDING — every unit)
 If this unit introduces a **new billable action, a new event type, a new kill-worthy

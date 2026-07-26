@@ -27,10 +27,14 @@ const SCHEMA_KINDS = campaignRuleTriggerSchema.options.map(
 describe("trigger display map (lib/triggers)", () => {
   it("covers exactly R1's kinds — the display layer can never fork the union", () => {
     expect(new Set(TRIGGER_OPTIONS.map((o) => o.kind))).toEqual(new Set(SCHEMA_KINDS));
-    // +call_knowledge_gap (SPEC A, DEC-099) · INT W2 (DEC-094):
-    // + meeting_rescheduled · meeting_canceled · before_meeting ·
-    // INT W3 (DEC-095): + payment_received.
-    expect(TRIGGER_OPTIONS).toHaveLength(12);
+    // Length DERIVED from the schema, never a literal (DEC-096 amendment 3, the
+    // 11-vs-12 class): a literal is right for one lineage only, so two tracks
+    // each adding a trigger can assert the same wrong number for different
+    // reasons and three-way merge keeps it because the text matches. This still
+    // earns its keep next to the set-equality above — a Set COLLAPSES duplicate
+    // entries, so only the length catches a kind listed twice.
+    expect(TRIGGER_OPTIONS).toHaveLength(SCHEMA_KINDS.length);
+    expect(SCHEMA_KINDS).toHaveLength(new Set(SCHEMA_KINDS).size);
   });
 
   it("owner labels are the canon strings", () => {

@@ -11,6 +11,7 @@ import { describe, expect, it } from "vitest";
 import { createSubcampaignSchema, stepBriefSchema } from "@clientforce/core";
 import type { CampaignRuleTrigger } from "@clientforce/core";
 import { LIVE_GRAPH_NOTICE } from "../components/sequence/shared";
+import { TRIGGER_OPTIONS, triggerAvailability } from "../lib/triggers";
 import {
   AI_DRAFT_FALLBACK,
   buildCreateBody,
@@ -25,6 +26,25 @@ import {
 } from "../components/sequence/SubcampaignCreator";
 
 const TRIGGER: CampaignRuleTrigger = { kind: "reply_classified", intents: ["interested"] };
+
+/**
+ * Menu affordance counts DERIVED from the vocabulary + the availability gate —
+ * never literals (DEC-096 amendment 3, the 11-vs-12 class). A literal here is
+ * only ever right for one lineage: when two tracks each add a trigger, both can
+ * assert the SAME WRONG number for DIFFERENT reasons, and because the text
+ * matches, three-way merge keeps it and merges clean. Deriving from
+ * `TRIGGER_OPTIONS` (which `subcampaign-triggers` pins set-equal to
+ * `campaignRuleTriggerSchema`) makes that bug unrepresentable rather than
+ * merely documented: a new trigger moves these numbers by construction.
+ */
+const menuCounts = (connected: { email: boolean; leadCapture: boolean }) => {
+  const enabled = TRIGGER_OPTIONS.filter((o) => triggerAvailability(o.kind, connected).enabled);
+  return {
+    total: TRIGGER_OPTIONS.length,
+    enabled: enabled.length,
+    dimmed: TRIGGER_OPTIONS.length - enabled.length,
+  };
+};
 
 function creator(over: Partial<SubcampaignCreatorProps> = {}) {
   return (
@@ -102,15 +122,19 @@ describe("TriggerMenu (honest absence)", () => {
     }
     expect(html).toContain("Connect an email sender first");
     expect(html).toContain("Arrives with lead capture sources");
-    // 5 email-backed + lead_captured dim; the four meeting kinds (INT W2:
-    // meeting_booked + rescheduled/canceled/before), SPEC A's
-    // call_knowledge_gap and payment_received (INT W3) keep full opacity +
-    // pointer (none of them is gated).
-    expect(html.match(/opacity:0\.55/g)).toHaveLength(6);
-    expect(html.match(/cursor:pointer/g)).toHaveLength(6);
+    // The email-backed kinds + lead_captured dim; everything ungated (the
+    // meeting kinds, call_knowledge_gap, payment_received) keeps full opacity +
+    // pointer. Counts DERIVE from the vocabulary + the gate — see `menuCounts`.
+    const bare = menuCounts({ email: false, leadCapture: false });
+    expect(html.match(/opacity:0\.55/g)).toHaveLength(bare.dimmed);
+    expect(html.match(/cursor:pointer/g)).toHaveLength(bare.enabled);
     // Disabled options carry no click affordance — a click cannot select
     // (the availability gate is asserted exhaustively in subcampaign-triggers).
-    expect(html.match(/cursor:default/g)).toHaveLength(6);
+    expect(html.match(/cursor:default/g)).toHaveLength(bare.dimmed);
+    // A bare workspace must gate SOMETHING and leave SOMETHING live, else the
+    // three assertions above could pass vacuously on an all-or-nothing menu.
+    expect(bare.dimmed).toBeGreaterThan(0);
+    expect(bare.enabled).toBeGreaterThan(0);
   });
 
   it("connected → all options live, the selected kind shows the ✓", () => {
@@ -118,9 +142,11 @@ describe("TriggerMenu (honest absence)", () => {
       <TriggerMenu connected={{ email: true, leadCapture: true }} selected={"email_opened"} onPick={() => {}} />,
     );
     expect(html).not.toContain("opacity:0.55");
-    // 12 kinds in the menu: 7 base + call_knowledge_gap + the three W2
-    // meeting kinds + payment_received.
-    expect(html.match(/cursor:pointer/g)).toHaveLength(12);
+    // Fully connected → EVERY kind in the vocabulary is live. Derived, so a new
+    // trigger raises this by construction instead of leaving a stale literal.
+    const all = menuCounts({ email: true, leadCapture: true });
+    expect(all.enabled).toBe(all.total);
+    expect(html.match(/cursor:pointer/g)).toHaveLength(all.total);
     expect(html).toContain("✓");
   });
 });
