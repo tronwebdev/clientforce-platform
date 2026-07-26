@@ -71,6 +71,9 @@ export function defaultTriggerFor(kind: CampaignRuleTriggerKind): CampaignRuleTr
       return { kind, intents: ["interested"] };
     case "sequence_quiet":
       return { kind, days: 14 };
+    // INT W2 (DEC-094): the one parameterized meeting kind — a day before.
+    case "before_meeting":
+      return { kind, hours: 24 };
     default:
       return { kind };
   }
@@ -501,6 +504,19 @@ export function AutomationBuilder({
                     <span data-testid="days-up" onClick={() => setTrigger({ kind: "sequence_quiet", days: Math.min(365, trigger.days + 1) })} style={{ width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", background: "#F7F2EA", color: "#0E1512", fontSize: 18, cursor: "pointer" }}>+</span>
                   </div>
                   <span style={{ fontSize: 13, color: "#5C6B62", fontWeight: 600 }}>days</span>
+                </div>
+              )}
+              {/* INT W2 (DEC-094): before_meeting hours — the sequence_quiet
+                  stepper anatomy, clamped to the schema's 1..336. */}
+              {trigger.kind === "before_meeting" && (
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 13, paddingTop: 13, borderTop: "1px solid #F2EEE4" }}>
+                  <span style={{ fontSize: 13, color: "#5C6B62", fontWeight: 600 }}>Fires</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 0, border: "1px solid #EBE3D6", borderRadius: 10, overflow: "hidden" }}>
+                    <span data-testid="hours-down" onClick={() => setTrigger({ kind: "before_meeting", hours: Math.max(1, trigger.hours - 1) })} style={{ width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", background: "#F7F2EA", color: "#0E1512", fontSize: 18, cursor: "pointer" }}>−</span>
+                    <span style={{ width: 44, textAlign: "center", fontSize: 14, fontWeight: 700, color: "#0E1512", fontVariantNumeric: "tabular-nums" }}>{trigger.hours}</span>
+                    <span data-testid="hours-up" onClick={() => setTrigger({ kind: "before_meeting", hours: Math.min(336, trigger.hours + 1) })} style={{ width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", background: "#F7F2EA", color: "#0E1512", fontSize: 18, cursor: "pointer" }}>+</span>
+                  </div>
+                  <span style={{ fontSize: 13, color: "#5C6B62", fontWeight: 600 }}>hours before the meeting starts</span>
                 </div>
               )}
             </div>

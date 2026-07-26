@@ -80,6 +80,12 @@ param slackSecretAvailable bool = false
 @description('INT W1 (DEC-093): the public web origin the api hands to OAuth vendors as the callback base (…/integrations/callback/<provider>). Empty = the api falls back to its localhost default, so OAuth connects stay refused until the pipeline passes the real staging web URL.')
 param webAppUrl string = ''
 
+@description('INT W2 (DEC-094): whether Key Vault holds the Google app pair (GOOGLE-CLIENT-ID + GOOGLE-CLIENT-SECRET — the owner-created Google Cloud OAuth client). Probed by the pipeline; absent = the Integrations page refuses Google Calendar connect with the typed honest owner-clock state, never a broken redirect.')
+param googleSecretAvailable bool = false
+
+@description('INT W2 (DEC-094): the API service\'s own public https base — the base VENDOR WEBHOOKS must reach (Calendly POSTs to <base>/webhooks/calendly?token=…; the webhook targets the API, never the web app, and deriving the base from request origins is unreliable behind ingress). Empty = the api falls back to PUBLIC_API_URL then localhost, so webhook subscriptions stay dev-only until the pipeline passes the real staging api URL (the webAppUrl pattern).')
+param integrationsWebhookBase string = ''
+
 param apiAppName string = 'clientforce-api'
 param workerAppName string = 'clientforce-worker'
 param webAppName string = 'clientforce-web'
@@ -205,7 +211,18 @@ var slackEnv = slackSecretAvailable ? [
   { name: 'SLACK_CLIENT_ID', secretRef: 'slack-client-id' }
   { name: 'SLACK_CLIENT_SECRET', secretRef: 'slack-client-secret' }
 ] : []
+// INT W2 (DEC-094): the Google app pair — the API only (OAuth start/exchange +
+// token refresh); the SLACK pair pattern exactly. Calendly needs NO platform
+// secret (fields connect: per-workspace PAT field-encrypted in the DB).
+var googleClientIdSecret = { name: 'google-client-id', keyVaultUrl: '${kvUri}secrets/GOOGLE-CLIENT-ID', identity: uami.id }
+var googleClientSecretSecret = { name: 'google-client-secret', keyVaultUrl: '${kvUri}secrets/GOOGLE-CLIENT-SECRET', identity: uami.id }
+var googleSecrets = googleSecretAvailable ? [googleClientIdSecret, googleClientSecretSecret] : []
+var googleEnv = googleSecretAvailable ? [
+  { name: 'GOOGLE_CLIENT_ID', secretRef: 'google-client-id' }
+  { name: 'GOOGLE_CLIENT_SECRET', secretRef: 'google-client-secret' }
+] : []
 var webAppUrlEnv = empty(webAppUrl) ? [] : [{ name: 'WEB_APP_URL', value: webAppUrl }]
+var integrationsWebhookBaseEnv = empty(integrationsWebhookBase) ? [] : [{ name: 'INTEGRATIONS_WEBHOOK_BASE', value: integrationsWebhookBase }]
 var smsEnv = concat(
   [{ name: 'SMS_SANDBOX', value: smsSandbox }],
   smsAllowlistAvailable ? [{ name: 'CHANNELS_SMS_ALLOWLIST', secretRef: 'sms-allowlist' }] : []
@@ -241,7 +258,7 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
       activeRevisionsMode: 'Single'
       ingress: { external: true, targetPort: 3001, transport: 'auto', allowInsecure: false }
       registries: registries
-      secrets: concat([dbUrlSecret, appDbUrlSecret, authDevSecret, redisUrlSecret, openaiKeySecret, anthropicKeySecret, sendgridKeySecret, fieldEncKeySecret], storageSecrets, temporalSecrets, inboundTokenSecrets, sgWebhookKeySecrets, clerkApiSecrets, twilioSecrets, smsAllowlistSecrets, voiceFromSecrets, voiceAllowlistSecrets, slackSecrets)
+      secrets: concat([dbUrlSecret, appDbUrlSecret, authDevSecret, redisUrlSecret, openaiKeySecret, anthropicKeySecret, sendgridKeySecret, fieldEncKeySecret], storageSecrets, temporalSecrets, inboundTokenSecrets, sgWebhookKeySecrets, clerkApiSecrets, twilioSecrets, smsAllowlistSecrets, voiceFromSecrets, voiceAllowlistSecrets, slackSecrets, googleSecrets)
     }
     template: {
       containers: [
@@ -269,7 +286,7 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
             // A3 (DEC-060a): env-controlled sandbox; 'true' everywhere except
             // an explicit production parameter — see the param description.
             { name: 'SENDGRID_SANDBOX', value: sendgridSandbox }
-          ], storageEnv, temporalEnv, inboundTokenEnv, sgWebhookKeyEnv, clerkApiEnv, twilioEnv, smsEnv, voiceEnv, slackEnv, webAppUrlEnv)
+          ], storageEnv, temporalEnv, inboundTokenEnv, sgWebhookKeyEnv, clerkApiEnv, twilioEnv, smsEnv, voiceEnv, slackEnv, googleEnv, webAppUrlEnv, integrationsWebhookBaseEnv)
         }
       ]
       scale: { minReplicas: 1, maxReplicas: 3 }
@@ -288,7 +305,10 @@ resource worker 'Microsoft.App/containerApps@2024-03-01' = {
     configuration: {
       activeRevisionsMode: 'Single'
       registries: registries
-      secrets: concat([dbUrlSecret, appDbUrlSecret, redisUrlSecret, openaiKeySecret, anthropicKeySecret, sendgridKeySecret, fieldEncKeySecret], storageSecrets, temporalSecrets, twilioSecrets, smsAllowlistSecrets, zerobounceSecrets)
+      // INT W2 (DEC-094): unlike Slack, the worker DOES need the Google app
+      // pair — refreshing a workspace's expiring gcal token (the compose-time
+      // freebusy/slots seam) requires the app client id+secret.
+      secrets: concat([dbUrlSecret, appDbUrlSecret, redisUrlSecret, openaiKeySecret, anthropicKeySecret, sendgridKeySecret, fieldEncKeySecret], storageSecrets, temporalSecrets, twilioSecrets, smsAllowlistSecrets, zerobounceSecrets, googleSecrets)
     }
     template: {
       containers: [
@@ -309,7 +329,7 @@ resource worker 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'FIELD_ENCRYPTION_KEY', secretRef: 'field-encryption-key' }
             { name: 'CHANNELS_ALLOWLIST', value: 'tronwebng@gmail.com' }
             { name: 'SENDGRID_SANDBOX', value: sendgridSandbox }
-          ], storageEnv, temporalEnv, twilioEnv, smsEnv, zerobounceEnv)
+          ], storageEnv, temporalEnv, twilioEnv, smsEnv, zerobounceEnv, googleEnv)
         }
       ]
       scale: { minReplicas: 1, maxReplicas: 1 }

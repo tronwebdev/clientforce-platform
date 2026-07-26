@@ -26,6 +26,9 @@ export const ACTION_LABELS: Record<CampaignRuleActionKind, string> = {
   set_stage: "Set pipeline stage",
   notify_team: "Notify team",
   add_tag: "Add tag",
+  // INT W2 (DEC-094): NOT a send — queues the booking link into the next
+  // boundary-gated composed message (the Q-039 rails-honest form).
+  send_booking_link: "Send booking link",
   run_automation: "Run another automation",
 };
 
@@ -37,6 +40,7 @@ export const ACTION_ICONS: Record<CampaignRuleActionKind, string> = {
   set_stage: "⇄",
   notify_team: "🔔",
   add_tag: "⌗",
+  send_booking_link: "📅",
   run_automation: "⟳",
 };
 
@@ -73,6 +77,10 @@ export function actionChip(
       return "Pause contact";
     case "suppress_contact":
       return "Suppress contact";
+    // INT W2: parameterless — the label IS the chip (honest wording: the
+    // link is queued for the next composed message, never sent by the rule).
+    case "send_booking_link":
+      return "Send booking link";
   }
 }
 
@@ -94,6 +102,9 @@ const ACTION_GROUPS: Record<(typeof ACCOUNT_ACTION_KINDS)[number], { group: stri
   // INT W1 (DEC-093, Q-042): posts to the connected Slack channel; without a
   // Slack connection the run row + Logs entry remain the transport of record.
   notify_team: { group: "Notify the team", desc: "Slack post when connected · always a run row + Logs entry" },
+  // INT W2 (DEC-094): flags the enrollment so the NEXT boundary-gated
+  // composed message carries the booking link as mustSay — never a send path.
+  send_booking_link: { group: "Meetings", desc: "Queues your booking link into the next composed message" },
   run_automation: { group: "Flow & integrations", desc: "Chain another automation" },
 };
 
@@ -160,9 +171,14 @@ export const ABSENT_ACTIONS: ReadonlyArray<import("./triggers").AbsentPickerEntr
   { group: "Assign & tasks", icon: "☺", label: "Assign teammate", desc: "Route to a person", reason: "Arrives with teammates & tasks" },
   { group: "Assign & tasks", icon: "◎", label: "Assign to agent", desc: "Route to an agent", reason: "Arrives with teammates & tasks" },
   { group: "Assign & tasks", icon: "✓", label: "Create task", desc: "Add a follow-up task", reason: "Arrives with teammates & tasks" },
-  { group: "Meetings", icon: "📅", label: "Send booking link", desc: "Share the calendar link", reason: "Arrives with calendar sync" },
-  { group: "Meetings", icon: "⏰", label: "Send meeting reminder", desc: "Nudge before the meeting", reason: "Arrives with calendar sync" },
-  { group: "Meetings", icon: "🗓", label: "Create calendar event", desc: "Book it on the calendar", reason: "Arrives with calendar sync" },
+  // INT W2 (DEC-094): "Send booking link" LEFT this ledger — it plugged
+  // behind the expressible `send_booking_link` action (the rails-honest
+  // brief-injection form; an absent card would shadow live capability). The
+  // two below stay honestly absent with the Q-033 re-filed reasons: reminder
+  // IS a send (the Q-039 boundary stance) and create-event needs
+  // Clientforce-created bookings + the gcal events scope.
+  { group: "Meetings", icon: "⏰", label: "Send meeting reminder", desc: "Nudge before the meeting", reason: "Arrives with per-channel send rules — today pair a “Before a meeting” trigger with your sequence" },
+  { group: "Meetings", icon: "🗓", label: "Create calendar event", desc: "Book it on the calendar", reason: "Arrives when Clientforce creates bookings — Calendly puts booked meetings on your calendar today" },
   { group: "Revenue & CRM", icon: "❒", label: "Create CRM deal", desc: "Open a pipeline deal", reason: "Arrives with proposals & payments" },
   { group: "Revenue & CRM", icon: "❒", label: "Update deal stage", desc: "Move the deal along", reason: "Arrives with proposals & payments" },
   { group: "Revenue & CRM", icon: "❒", label: "Send proposal", desc: "Send a proposal to sign", reason: "Arrives with proposals & payments" },

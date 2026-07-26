@@ -5,7 +5,7 @@
  * rules, suppression/opt-out, guardrail window + caps, real threading, and
  * webhook suppression side-effects. Skips without infra.
  */
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   createAppPrismaClient,
   createPrismaClient,
@@ -446,5 +446,127 @@ describe.skipIf(!hasInfra)("sendStep boundary integration", () => {
     const enc = encryptField("smtp-password-123", key);
     expect(decryptField(enc, key)).toBe("smtp-password-123");
     expect(() => decryptField(enc, other)).toThrow();
+  });
+
+  // ── INT W2 (DEC-094): {{calendarLink}} + the booking-link flag clear ───────
+  describe("booking link at the send boundary (INT W2)", () => {
+    const SCHEDULING_URL = "https://calendly.com/send-test";
+    let bookContactId: string;
+    let bookEnrollmentId: string;
+
+    beforeAll(async () => {
+      bookContactId = (
+        await owner.contact.create({
+          data: {
+            workspaceId: ws,
+            source: "seed",
+            optOut: {},
+            tags: [],
+            email: `booker-${suffix}@t.test`,
+            firstName: "Bea",
+            company: "BookCo",
+          },
+        })
+      ).id;
+      bookEnrollmentId = (
+        await owner.enrollment.create({
+          data: {
+            workspaceId: ws,
+            campaignId,
+            contactId: bookContactId,
+            workflowId: `enroll-book-${suffix}`,
+            pipelineStage: "new",
+            meta: {},
+          },
+        })
+      ).id;
+    });
+
+    beforeEach(async () => {
+      await owner.integration.deleteMany({ where: { workspaceId: ws } });
+      await owner.enrollment.update({ where: { id: bookEnrollmentId }, data: { meta: {} } });
+    });
+
+    const connectCalendly = () =>
+      owner.integration.create({
+        data: {
+          workspaceId: ws,
+          provider: "calendly",
+          status: "connected",
+          config: { schedulingUrl: SCHEDULING_URL },
+          scopes: [],
+        },
+      });
+
+    it("{{calendarLink}} resolves to the per-lead booking link (utm_content = contactId)", async () => {
+      await connectCalendly();
+      const message = await sendStep(
+        deps(),
+        params({
+          contactId: bookContactId,
+          stepNodeId: "step-cal-1",
+          content: { subject: "Grab a time, {{firstName}}", body: "Book here: {{calendarLink}}" },
+        }),
+      );
+      expect(message.body).toContain(
+        `${SCHEDULING_URL}?utm_source=clientforce&utm_content=${bookContactId}`,
+      );
+    });
+
+    it("{{calendarLink}} with NO booking config fails the send (MissingTokenError — the house rule)", async () => {
+      const { MissingTokenError } = await import("../src/render");
+      await expect(
+        sendStep(
+          deps(),
+          params({
+            contactId: bookContactId,
+            stepNodeId: "step-cal-2",
+            content: { subject: "Grab a time", body: "Book here: {{calendarLink}}" },
+          }),
+        ),
+      ).rejects.toBeInstanceOf(MissingTokenError);
+      // Nothing was emitted or persisted.
+      expect(
+        await owner.message.count({ where: { workspaceId: ws, stepNodeId: "step-cal-2" } }),
+      ).toBe(0);
+    });
+
+    it("a sent message carrying the link CLEARS bookingLinkRequested; one without it leaves the flag", async () => {
+      await connectCalendly();
+      await owner.enrollment.update({
+        where: { id: bookEnrollmentId },
+        data: { meta: { bookingLinkRequested: true, events: [] } },
+      });
+
+      // A link-less send leaves the queued request in place…
+      await sendStep(
+        deps(),
+        params({
+          contactId: bookContactId,
+          enrollmentId: bookEnrollmentId,
+          stepNodeId: "step-cal-3",
+          content: { subject: "Just checking", body: "Hi {{firstName}}, following up." },
+        }),
+      );
+      let meta = (await owner.enrollment.findUniqueOrThrow({ where: { id: bookEnrollmentId } }))
+        .meta as Record<string, unknown>;
+      expect(meta.bookingLinkRequested).toBe(true);
+
+      // …the send that actually carries the link fulfills + clears it (and
+      // preserves the rest of meta).
+      await sendStep(
+        deps(),
+        params({
+          contactId: bookContactId,
+          enrollmentId: bookEnrollmentId,
+          stepNodeId: "step-cal-4",
+          content: { subject: "Grab a time", body: "Book here: {{calendarLink}}" },
+        }),
+      );
+      meta = (await owner.enrollment.findUniqueOrThrow({ where: { id: bookEnrollmentId } }))
+        .meta as Record<string, unknown>;
+      expect(meta.bookingLinkRequested).toBeUndefined();
+      expect(Array.isArray(meta.events)).toBe(true);
+    });
   });
 });

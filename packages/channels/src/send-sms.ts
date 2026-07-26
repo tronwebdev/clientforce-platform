@@ -16,6 +16,7 @@ import {
   type StepContent,
 } from "@clientforce/core";
 import { withTenant, type Message, type PrismaClient, type SenderConnection } from "@clientforce/db";
+import { CALENDAR_LINK_TOKEN_RE, clearBookingLinkFlagAfterSend, resolveBookingLink } from "./booking-link";
 import { HEALTH_AUTO_PAUSE_BELOW, parseHealthState } from "./health";
 import { renderTokens } from "./render";
 import { assertChannelLive, assertTenantActive } from "./tenant-status";
@@ -128,7 +129,13 @@ export async function sendSmsStep(deps: SendSmsDeps, params: SendSmsStepParams):
   }
 
   const senderLabel = sender.fromName?.trim() || "your Clientforce agent";
-  let body = renderTokens(params.content.body ?? "", contact, senderLabel);
+  // INT W2 (DEC-094): {{calendarLink}} — the email boundary's twin; missing
+  // booking config → MissingTokenError, the send fails honestly (house rule).
+  const wantsCalendarLink = CALENDAR_LINK_TOKEN_RE.test(params.content.body ?? "");
+  const calendarLink = wantsCalendarLink
+    ? ((await resolveBookingLink(prisma, params.workspaceId, params.contactId)) ?? undefined)
+    : undefined;
+  let body = renderTokens(params.content.body ?? "", contact, senderLabel, { calendarLink });
 
   // The sms unsubscribeFooter: the FIRST outbound SMS of an enrollment carries
   // the opt-out line, literally and unconditionally (DEC-062).
@@ -151,7 +158,7 @@ export async function sendSmsStep(deps: SendSmsDeps, params: SendSmsStepParams):
   const { providerMessageId, segments } = await transport.send(rendered, sender);
 
   // A6: persist AS RENDERED at send time — segment count in meta.
-  return withTenant(prisma, ctx, (tx) =>
+  const message = await withTenant(prisma, ctx, (tx) =>
     tx.message.create({
       data: {
         workspaceId: params.workspaceId,
@@ -177,6 +184,16 @@ export async function sendSmsStep(deps: SendSmsDeps, params: SendSmsStepParams):
       },
     }),
   );
+  // INT W2 (DEC-094): the email boundary's twin — a sent SMS carrying the
+  // booking link fulfills a queued send_booking_link request.
+  if (params.enrollmentId) {
+    await clearBookingLinkFlagAfterSend(prisma, {
+      workspaceId: params.workspaceId,
+      enrollmentId: params.enrollmentId,
+      sentBody: body,
+    });
+  }
+  return message;
 }
 
 function assertInsideWindow(guardrails: Guardrails, now: Date): void {

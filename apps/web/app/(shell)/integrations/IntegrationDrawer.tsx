@@ -1,23 +1,32 @@
 "use client";
 
 /**
- * Integration detail / setup drawer (INT W1-UI) — the canon 460px right drawer
- * from `Integrations.dc.html`, two modes:
+ * Integration detail / setup drawer (INT W1-UI · W2) — the canon 460px right
+ * drawer from `Integrations.dc.html`, two modes:
  *
  * CONNECTED — honest status pill (probe-backed vocabulary, `statusPill`),
  * Connection card (Account · Last sync · health line · "↻ Sync now" → POST
- * probe), "What's syncing" (channel row + the three notification-kind toggles,
- * full-payload-preserving PATCHes), Scopes, Setup (all-✓ per the prototype),
- * Activity, footer Disconnect (two-click confirm → DELETE) + Settings (jumps
- * to the config step).
+ * probe), a per-provider "What's syncing" section (slack: channel row + the
+ * three notification-kind toggles, full-payload-preserving PATCHes · gcal:
+ * calendar row + the offer-slots toggle · calendly: link row + detection
+ * state + the webhook-endpoint row), Scopes, Setup (all-✓ per the
+ * prototype), Activity, footer Disconnect (two-click confirm → DELETE) +
+ * Settings (jumps to the config step).
  *
- * NOT CONNECTED — the canon wizard (step segments bar; auth → select →
- * summary). BEHAVIOR ADAPTATION vs the prototype (flagged): the prototype
- * simulates connect in-page; real Slack OAuth LEAVES the page at step 1
- * (POST connect → window.location.assign(authorizeUrl)) and returns via the
- * callback route with `?connected=slack`, which re-opens this drawer at
- * step 2. A 422 (platform app credentials absent) renders its `detail`
- * VERBATIM (`data-testid="connect-refused"`) — never a dead button.
+ * NOT CONNECTED — the canon wizard (step segments bar). Two shapes:
+ *   - OAuth providers (slack, gcal): auth → select → summary. BEHAVIOR
+ *     ADAPTATION vs the prototype (flagged): the prototype simulates connect
+ *     in-page; real OAuth LEAVES the page at step 1 (POST connect →
+ *     window.location.assign(authorizeUrl)) and returns via the callback
+ *     route with `?connected=<provider>`, which re-opens this drawer at
+ *     step 2. gcal's auth step additionally renders the test-user-mode
+ *     disclosure line (DRAWER_CONTENT.gcal.disclosure — mandated copy).
+ *   - Fields provider (calendly, INT W2): fields → summary (the canon
+ *     `fields` step kind, the SMTP/Twilio flows' anatomy) — "Finish &
+ *     connect" POSTs `connect-fields`; its typed 422 refusals (link
+ *     unreachable · token tier) render their `detail` VERBATIM.
+ * A 422 (platform app credentials absent) renders its `detail` VERBATIM
+ * (`data-testid="connect-refused"`) — never a dead button.
  *
  * The Activity section is a DESIGNED ADDITION vs the prototype (no canon
  * anchor): the drawer's audit trail merges IntegrationDelivery rows with the
@@ -30,12 +39,19 @@ import {
   CATEGORY_LABELS,
   DRAWER_CONTENT,
   TILE,
+  calendlyDetectionState,
+  calendlyWebhookPath,
+  gcalConfigPayload,
   healthLine,
   notificationOn,
+  offerSlotsOn,
+  parseCalendlyConfig,
+  parseGcalConfig,
   parseSlackConfig,
   slackConfigPayload,
   statusPill,
   type CatalogEntry,
+  type DrawerContent,
 } from "../../../lib/integrations";
 import { cf, relTime } from "./IntegrationsView";
 
@@ -43,8 +59,11 @@ const BRICO = "'Bricolage Grotesque',sans-serif";
 const GRAD = "linear-gradient(135deg,#36D7ED 0%,#35E834 55%,#D0F56B 100%)";
 const SECTION: React.CSSProperties = { fontSize: 11, fontWeight: 700, color: "#8A7F6B", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 };
 const RBAC_TITLE = "Owners and admins manage integrations";
+const FIELD_INPUT: React.CSSProperties = { width: "100%", boxSizing: "border-box", borderRadius: 11, background: "#fff", border: "1px solid #EBE3D6", padding: "11px 14px", fontSize: 14, color: "#0E1512", fontFamily: "inherit", outline: "none" };
 
 type Channel = { id: string; name: string };
+/** One options-endpoint row — gcal's `calendars` kind rides `timeZone` along. */
+type OptionRow = { id: string; name: string; timeZone?: string };
 
 // ── activity merge (pure, tested) ───────────────────────────────────────────
 
@@ -139,6 +158,57 @@ function ChannelPicker({ options, loading, error, value, disabled, onPick, onRet
   );
 }
 
+/** INT W2: the gcal calendar picker — ChannelPicker's anatomy, rendering the
+ *  calendar name + its OWN timeZone (calendarList truth, stored at pick time). */
+function CalendarPicker({ options, loading, error, value, disabled, onPick, onRetry }: {
+  options: OptionRow[] | null;
+  loading: boolean;
+  error: string | null;
+  value: { id: string } | null;
+  disabled: boolean;
+  onPick: (c: OptionRow) => void;
+  onRetry: () => void;
+}) {
+  return (
+    <div style={{ marginBottom: 13 }}>
+      <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#5C6B62", marginBottom: 6 }}>Calendar</label>
+      {loading && (
+        <div style={{ borderRadius: 11, background: "#fff", border: "1px solid #EBE3D6", padding: "11px 14px", fontSize: 14, color: "#9AA59E" }}>Loading calendars…</div>
+      )}
+      {error && !loading && (
+        <div data-testid="calendars-error" style={{ borderRadius: 11, background: "rgba(224,121,107,.1)", border: "1px solid #F0CFC8", padding: "11px 14px", fontSize: 13, color: "#C9543F", display: "flex", alignItems: "flex-start", gap: 10 }}>
+          <span style={{ flex: 1, minWidth: 0 }}>{error}</span>
+          <span onClick={onRetry} style={{ fontWeight: 700, cursor: "pointer", flex: "none", textDecoration: "underline" }}>Retry</span>
+        </div>
+      )}
+      {options && !loading && !error && (
+        <div style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 11, overflow: "auto", maxHeight: 180 }}>
+          {options.length === 0 && (
+            <div style={{ padding: "11px 14px", fontSize: 13, color: "#9AA59E" }}>No calendars found on this Google account.</div>
+          )}
+          {options.map((c, i) => {
+            const on = value?.id === c.id;
+            return (
+              <div
+                key={c.id}
+                data-testid={`calendar-${c.id}`}
+                onClick={disabled ? undefined : () => onPick(c)}
+                style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderTop: i === 0 ? "none" : "1px solid #F2EEE4", cursor: disabled ? "not-allowed" : "pointer", background: on ? "rgba(53,232,52,.08)" : "transparent" }}
+              >
+                <span style={{ minWidth: 0, flex: 1 }}>
+                  <span style={{ display: "block", fontSize: 14, fontWeight: on ? 700 : 600, color: "#0E1512", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</span>
+                  {c.timeZone && <span style={{ display: "block", fontSize: 11.5, color: "#9AA59E" }}>{c.timeZone}</span>}
+                </span>
+                {on && <span style={{ color: "#16A82A", fontSize: 13, fontWeight: 700, flex: "none" }}>✓</span>}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── the drawer ──────────────────────────────────────────────────────────────
 
 export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, onClose, onChanged }: {
@@ -146,7 +216,7 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
   /** The LIVE core provider this drawer renders — picks its DRAWER_CONTENT. */
   provider: IntegrationProvider;
   row: IntegrationDto | null;
-  /** "config" = post-OAuth return (`?connected=slack`) — boot at the select step. */
+  /** "config" = post-OAuth return (`?connected=<provider>`) — boot at the select step. */
   bootMode: "auto" | "config";
   canManage: boolean;
   onClose: () => void;
@@ -155,26 +225,46 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
   const tile = TILE[entry.tile];
   // Per-provider drawer content — a W2 provider without an entry is a compile
   // error in lib/integrations.ts, never Slack copy silently rendered here.
-  const content = DRAWER_CONTENT[provider];
+  // (Annotated to the interface: the satisfies-narrowed union would refuse
+  // access to fields only some providers carry, e.g. `disclosure`.)
+  const content: DrawerContent = DRAWER_CONTENT[provider];
+  const isSlack = provider === "slack";
+  const isGcal = provider === "gcal";
+  const isCalendly = provider === "calendly";
+  // The slack-typed content (narrow syncRows kinds) for the toggle machinery.
+  const slackContent = DRAWER_CONTENT.slack;
   const config = useMemo(() => parseSlackConfig(row?.config), [row]);
+  const gcalConfig = useMemo(() => parseGcalConfig(row?.config), [row]);
+  const calConfig = useMemo(() => parseCalendlyConfig(row?.config), [row]);
+  const detection = calendlyDetectionState(calConfig);
 
-  // Wizard step (1..3) or null = connected mode.
+  // Wizard step (1..3 oauth · 1..2 fields) or null = connected mode.
   const [wizStep, setWizStep] = useState<number | null>(() => (bootMode === "config" ? 2 : row ? null : 1));
   const [configOpen, setConfigOpen] = useState(false);
 
-  // Draft config (wizard step 2/3 + the connected-mode Settings panel).
+  // Draft config (wizard config step + the connected-mode Settings panel).
   const [draft, setDraft] = useState<{ channel: Channel | null; toggles: Record<SlackNotificationKind, boolean> }>(() => {
     const cfg = parseSlackConfig(row?.config);
     return {
       channel: cfg.channel ?? null,
-      toggles: Object.fromEntries(content.syncRows.map((r) => [r.kind, notificationOn(cfg, r.kind)])) as Record<SlackNotificationKind, boolean>,
+      toggles: Object.fromEntries(slackContent.syncRows.map((r) => [r.kind, notificationOn(cfg, r.kind)])) as Record<SlackNotificationKind, boolean>,
     };
   });
+  // INT W2: the gcal draft (calendar pick + offer-slots) — same seeding rules.
+  const [gcalDraft, setGcalDraft] = useState<{ calendar: { id: string; name: string; timeZone: string } | null; offerSlots: boolean }>(() => {
+    const cfg = parseGcalConfig(row?.config);
+    return { calendar: cfg.calendar ?? null, offerSlots: offerSlotsOn(cfg) };
+  });
+  // INT W2: the calendly fields form (the token is write-only — never echoed).
+  const [fields, setFields] = useState<{ schedulingUrl: string; apiToken: string }>(() => {
+    const cfg = parseCalendlyConfig(row?.config);
+    return { schedulingUrl: cfg.schedulingUrl ?? "", apiToken: "" };
+  });
 
-  // One-shot draft re-seed for the post-OAuth boot (`?connected=slack`): the
-  // drawer mounts BEFORE the polled row lands (row null → row), so the
+  // One-shot draft re-seed for the post-OAuth boot (`?connected=<provider>`):
+  // the drawer mounts BEFORE the polled row lands (row null → row), so the
   // mount-time seed above saw only defaults. When the row first arrives after
-  // a null-row mount, re-seed the draft ONCE from the REAL stored config —
+  // a null-row mount, re-seed the drafts ONCE from the REAL stored config —
   // otherwise "Finish & connect" would PATCH the default full payload and
   // clobber a previously stored channel / toggle opt-outs on reconnect. Never
   // re-runs after that, so later user edits are never clobbered.
@@ -184,11 +274,13 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
     setDraftSeeded(true);
     setDraft({
       channel: config.channel ?? null,
-      toggles: Object.fromEntries(content.syncRows.map((r) => [r.kind, notificationOn(config, r.kind)])) as Record<SlackNotificationKind, boolean>,
+      toggles: Object.fromEntries(slackContent.syncRows.map((r) => [r.kind, notificationOn(config, r.kind)])) as Record<SlackNotificationKind, boolean>,
     });
-  }, [draftSeeded, row, config, content.syncRows]);
+    setGcalDraft({ calendar: gcalConfig.calendar ?? null, offerSlots: offerSlotsOn(gcalConfig) });
+    setFields({ schedulingUrl: calConfig.schedulingUrl ?? "", apiToken: "" });
+  }, [draftSeeded, row, config, gcalConfig, calConfig, slackContent.syncRows]);
 
-  // OAuth start (step-1 auth + the revoked Reconnect repair).
+  // OAuth start (step-1 auth + the revoked Reconnect repair — oauth providers).
   const [connectBusy, setConnectBusy] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
   const startOAuth = useCallback(async () => {
@@ -204,29 +296,53 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
     }
   }, [canManage, connectBusy, entry.id]);
 
-  // Channel options (wizard step 2 + config panel).
-  const [options, setOptions] = useState<Channel[] | null>(null);
+  // INT W2: the calendly connect-fields POST (both tiers; typed 422 verbatim).
+  const [fieldsBusy, setFieldsBusy] = useState(false);
+  const [fieldsError, setFieldsError] = useState<string | null>(null);
+  const connectFields = useCallback(async (): Promise<boolean> => {
+    if (fieldsBusy || !canManage) return false;
+    setFieldsBusy(true);
+    setFieldsError(null);
+    try {
+      const body: { schedulingUrl?: string; apiToken?: string } = {};
+      if (fields.schedulingUrl.trim()) body.schedulingUrl = fields.schedulingUrl.trim();
+      if (fields.apiToken.trim()) body.apiToken = fields.apiToken.trim();
+      await cf(`integrations/${entry.id}/connect-fields`, { method: "POST", body: JSON.stringify(body) });
+      onChanged();
+      return true;
+    } catch (err) {
+      // The typed refusals (link unreachable · token tier) render VERBATIM.
+      setFieldsError(err instanceof CfError && err.detail ? err.detail : "Couldn't connect — try again");
+      return false;
+    } finally {
+      setFieldsBusy(false);
+    }
+  }, [canManage, entry.id, fields, fieldsBusy, onChanged]);
+
+  // Options (wizard config step + config panel) — slack channels · gcal calendars.
+  const [options, setOptions] = useState<OptionRow[] | null>(null);
   const [optionsLoading, setOptionsLoading] = useState(false);
   const [optionsError, setOptionsError] = useState<string | null>(null);
   const loadOptions = useCallback(async () => {
+    if (content.optionsKind === null) return;
     setOptionsLoading(true);
     setOptionsError(null);
     try {
-      const data = (await cf(`integrations/${entry.id}/options?kind=${content.optionsKind}`)) as { options: Channel[] };
+      const data = (await cf(`integrations/${entry.id}/options?kind=${content.optionsKind}`)) as { options: OptionRow[] };
       setOptions(data.options);
     } catch (err) {
       // 502 vendor failures carry an honest detail — render it verbatim.
-      setOptionsError(err instanceof CfError && err.detail ? err.detail : "Couldn't load channels — try again");
+      setOptionsError(err instanceof CfError && err.detail ? err.detail : `Couldn't load ${content.optionsKind} — try again`);
     } finally {
       setOptionsLoading(false);
     }
   }, [entry.id, content.optionsKind]);
-  const needOptions = wizStep === 2 || configOpen;
+  const needOptions = content.optionsKind !== null && (wizStep === 2 || configOpen) && !isCalendly;
   useEffect(() => {
     if (needOptions && options === null && !optionsLoading && !optionsError) void loadOptions();
   }, [needOptions, options, optionsLoading, optionsError, loadOptions]);
 
-  // Save config (wizard finish + Settings panel save).
+  // Save config (wizard finish + Settings panel save — slack/gcal PATCH).
   const [saveBusy, setSaveBusy] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const saveConfig = useCallback(async (): Promise<boolean> => {
@@ -234,10 +350,15 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
     setSaveBusy(true);
     setSaveError(null);
     try {
-      const payload = slackConfigPayload(config, {
-        ...(draft.channel ? { channel: draft.channel } : {}),
-        notifications: draft.toggles,
-      });
+      const payload = isGcal
+        ? gcalConfigPayload(gcalConfig, {
+            ...(gcalDraft.calendar ? { calendar: gcalDraft.calendar } : {}),
+            offerSlots: gcalDraft.offerSlots,
+          })
+        : slackConfigPayload(config, {
+            ...(draft.channel ? { channel: draft.channel } : {}),
+            notifications: draft.toggles,
+          });
       await cf(`integrations/${entry.id}`, { method: "PATCH", body: JSON.stringify({ config: payload }) });
       onChanged();
       return true;
@@ -247,7 +368,7 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
     } finally {
       setSaveBusy(false);
     }
-  }, [canManage, config, draft, entry.id, onChanged, saveBusy]);
+  }, [canManage, config, draft, entry.id, gcalConfig, gcalDraft, isGcal, onChanged, saveBusy]);
 
   // Probe ("↻ Sync now").
   const [probeBusy, setProbeBusy] = useState(false);
@@ -269,7 +390,7 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
     }
   }, [canManage, entry.id, onChanged, probeBusy]);
 
-  // Notification toggles (connected mode) — full-payload-preserving PATCH.
+  // Notification toggles (slack connected mode) — full-payload-preserving PATCH.
   const [toggleBusy, setToggleBusy] = useState<SlackNotificationKind | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const toggleKind = useCallback(
@@ -289,6 +410,31 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
     },
     [canManage, config, entry.id, onChanged, row, toggleBusy],
   );
+
+  // INT W2: the gcal offer-slots toggle (connected mode) — calendar-preserving.
+  const [slotsBusy, setSlotsBusy] = useState(false);
+  const toggleOfferSlots = useCallback(async () => {
+    if (!row || slotsBusy || !canManage) return;
+    setSlotsBusy(true);
+    setActionError(null);
+    try {
+      const payload = gcalConfigPayload(gcalConfig, { offerSlots: !offerSlotsOn(gcalConfig) });
+      await cf(`integrations/${entry.id}`, { method: "PATCH", body: JSON.stringify({ config: payload }) });
+      onChanged();
+    } catch (err) {
+      setActionError(err instanceof CfError && err.detail ? err.detail : "Couldn't update — try again");
+    } finally {
+      setSlotsBusy(false);
+    }
+  }, [canManage, entry.id, gcalConfig, onChanged, row, slotsBusy]);
+
+  // INT W2: copy affordances (calendly link + webhook endpoint).
+  const [copied, setCopied] = useState<string | null>(null);
+  const copyText = (id: string, text: string) => {
+    void navigator.clipboard?.writeText(text);
+    setCopied(id);
+    window.setTimeout(() => setCopied((c) => (c === id ? null : c)), 1600);
+  };
 
   // Disconnect (two-click confirm → DELETE).
   const [discArmed, setDiscArmed] = useState(false);
@@ -339,12 +485,15 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
   }, [connectedMode, entry.id]);
 
   const openSettings = () => {
-    // Re-seed the draft from the REAL stored config, then jump to the step.
+    // Re-seed the drafts from the REAL stored config, then jump to the step.
     setDraft({
       channel: config.channel ?? null,
-      toggles: Object.fromEntries(content.syncRows.map((r) => [r.kind, notificationOn(config, r.kind)])) as Record<SlackNotificationKind, boolean>,
+      toggles: Object.fromEntries(slackContent.syncRows.map((r) => [r.kind, notificationOn(config, r.kind)])) as Record<SlackNotificationKind, boolean>,
     });
+    setGcalDraft({ calendar: gcalConfig.calendar ?? null, offerSlots: offerSlotsOn(gcalConfig) });
+    setFields({ schedulingUrl: calConfig.schedulingUrl ?? "", apiToken: "" });
     setSaveError(null);
+    setFieldsError(null);
     setConfigOpen(true);
   };
 
@@ -355,7 +504,7 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
 
   const draftTogglesUI = (
     <div>
-      {content.syncRows.map((r) => (
+      {slackContent.syncRows.map((r) => (
         <div key={r.kind} style={{ display: "flex", alignItems: "center", gap: 10, border: "1px solid #EBE3D6", borderRadius: 11, padding: "11px 14px", background: "#fff", marginTop: 4 }}>
           <span style={{ fontSize: 13.5, fontWeight: 600, color: "#0E1512", flex: 1 }}>{r.label}</span>
           <ToggleSwitch
@@ -384,6 +533,76 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
     />
   );
 
+  // INT W2: gcal config UI (wizard step 2 + Settings) — picker + slots toggle.
+  const gcalConfigUI = (
+    <>
+      <CalendarPicker
+        options={options}
+        loading={optionsLoading}
+        error={optionsError}
+        value={gcalDraft.calendar}
+        disabled={!canManage}
+        onPick={(c) =>
+          // timeZone rides the calendars options contract; UTC is a defensive
+          // fallback only — the picker row itself renders the vendor value.
+          setGcalDraft((d) => ({ ...d, calendar: { id: c.id, name: c.name, timeZone: c.timeZone ?? "UTC" } }))
+        }
+        onRetry={() => {
+          setOptions(null);
+          setOptionsError(null);
+        }}
+      />
+      <div style={{ display: "flex", alignItems: "center", gap: 10, border: "1px solid #EBE3D6", borderRadius: 11, padding: "11px 14px", background: "#fff", marginTop: 4 }}>
+        <span style={{ fontSize: 13.5, fontWeight: 600, color: "#0E1512", flex: 1 }}>Offer open slots in composed copy</span>
+        <ToggleSwitch
+          on={gcalDraft.offerSlots}
+          disabled={!canManage}
+          title={canManage ? undefined : RBAC_TITLE}
+          onToggle={() => setGcalDraft((d) => ({ ...d, offerSlots: !d.offerSlots }))}
+        />
+      </div>
+      {/* The honest W2 stance: slots are informational, the LINK books. */}
+      <div style={{ fontSize: 11.5, color: "#9AA59E", marginTop: 8, lineHeight: 1.45 }}>
+        Slots in copy are informational — the booking link is the booking mechanism.
+      </div>
+    </>
+  );
+
+  // INT W2: calendly fields UI (wizard step 1 + Settings) — canon fields step.
+  const calendlyFieldsUI = (
+    <>
+      <div style={{ marginBottom: 13 }}>
+        <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#5C6B62", marginBottom: 6 }}>Scheduling link</label>
+        <input
+          data-testid="calendly-url"
+          value={fields.schedulingUrl}
+          disabled={!canManage}
+          onChange={(e) => setFields((f) => ({ ...f, schedulingUrl: e.target.value }))}
+          placeholder="https://calendly.com/you/intro-call"
+          style={FIELD_INPUT}
+        />
+      </div>
+      <div style={{ marginBottom: 13 }}>
+        <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#5C6B62", marginBottom: 6 }}>
+          API token <span style={{ fontWeight: 600, color: "#9AA59E" }}>(optional)</span>
+        </label>
+        <input
+          data-testid="calendly-token"
+          type="password"
+          value={fields.apiToken}
+          disabled={!canManage}
+          onChange={(e) => setFields((f) => ({ ...f, apiToken: e.target.value }))}
+          placeholder="Personal access token — paid plans"
+          style={FIELD_INPUT}
+        />
+      </div>
+      <div style={{ fontSize: 12, color: "#9AA59E", lineHeight: 1.5 }}>
+        Booking detection needs an API token from Calendly → Integrations → API &amp; Webhooks (paid Calendly
+        plans). The scheduling link works without it.
+      </div>
+    </>
+  );
+
   // ── body per mode ─────────────────────────────────────────────────────────
 
   let body: React.ReactNode;
@@ -391,20 +610,38 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
 
   if (wizStep !== null) {
     // NOT-CONNECTED WIZARD ----------------------------------------------------
-    const segs = [1, 2, 3];
-    const stepTitle = wizStep === 1 ? `Authorize ${entry.name}` : wizStep === 2 ? "Alerts" : "Confirm & go live";
+    const segCount = content.mode === "fields" ? 2 : 3;
+    const segs = Array.from({ length: segCount }, (_, i) => i + 1);
+    const stepTitle =
+      content.mode === "fields"
+        ? wizStep === 1
+          ? `Your ${entry.name} details`
+          : "Confirm & go live"
+        : wizStep === 1
+          ? `Authorize ${entry.name}`
+          : wizStep === 2
+            ? isGcal
+              ? "Calendar settings"
+              : "Alerts"
+            : "Confirm & go live";
     const stepDesc =
-      wizStep === 1
-        ? `Sign in to ${entry.name} to grant secure access.`
-        : wizStep === 2
-          ? "Where Clientforce posts updates."
-          : "Review what will sync, then connect.";
-    const onNotifs = content.syncRows.filter((r) => draft.toggles[r.kind]);
+      content.mode === "fields"
+        ? wizStep === 1
+          ? "Paste your scheduling link — add an API token to detect bookings."
+          : "Review what will connect."
+        : wizStep === 1
+          ? `Sign in to ${entry.name} to grant secure access.`
+          : wizStep === 2
+            ? isGcal
+              ? "Where booked calls land."
+              : "Where Clientforce posts updates."
+            : "Review what will sync, then connect.";
+    const onNotifs = slackContent.syncRows.filter((r) => draft.toggles[r.kind]);
 
     body = (
       <>
         <div style={{ fontSize: 13.5, color: "#5C6B62", lineHeight: 1.5, marginBottom: 18 }}>{entry.desc}</div>
-        <span style={SECTION}>Step {wizStep} of 3</span>
+        <span style={SECTION}>Step {wizStep} of {segCount}</span>
         <div style={{ display: "flex", gap: 5, margin: "8px 0 18px" }}>
           {segs.map((s) => (
             <span key={s} style={{ flex: 1, height: 5, borderRadius: 100, background: s <= wizStep ? "#16A82A" : "#E4EAE6" }} />
@@ -413,7 +650,7 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
         <div style={{ fontFamily: BRICO, fontWeight: 700, fontSize: 17, color: "#0E1512" }}>{stepTitle}</div>
         <div style={{ fontSize: 13, color: "#8A7F6B", marginBottom: 16 }}>{stepDesc}</div>
 
-        {wizStep === 1 && (
+        {content.mode === "oauth" && wizStep === 1 && (
           <>
             <div
               data-testid="oauth-signin"
@@ -425,51 +662,113 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
               <span style={{ width: 24, height: 24, borderRadius: 7, background: tile.tilebg, color: tile.tilefg, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: BRICO, fontWeight: 800, fontSize: 13 }}>{entry.glyph}</span>
               {connectBusy ? `Redirecting to ${entry.name}…` : `Sign in with ${entry.name}`}
             </div>
+            {/* INT W2: the gcal test-user-mode disclosure — mandated copy,
+                rendered unconditionally on the auth step (honest platform
+                state; a non-test user gets Google's access_denied banner). */}
+            {content.disclosure && (
+              <div data-testid="auth-disclosure" style={{ background: "rgba(232,196,91,.14)", border: "1px solid #EBD9A8", borderRadius: 11, padding: "10px 14px", fontSize: 12.5, color: "#8A6D1C", lineHeight: 1.5, marginBottom: 16 }}>
+                {content.disclosure}
+              </div>
+            )}
             {connectError && (
               // Honest-absence rail: the 422 NOT_CONFIGURED detail renders verbatim.
               <div data-testid="connect-refused" style={{ background: "rgba(224,121,107,.1)", border: "1px solid #F0CFC8", borderRadius: 11, padding: "10px 14px", fontSize: 13, color: "#C9543F", marginBottom: 16 }}>
                 {connectError}
               </div>
             )}
-            <div style={SECTION}>Clientforce will be able to</div>
-            <div style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 14, overflow: "hidden" }}>
-              {content.authPerms.map((pm, i) => (
-                <div key={pm} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 15px", borderTop: i === 0 ? "none" : "1px solid #F2EEE4" }}>
-                  <span style={{ color: "#16A82A", fontSize: 13 }}>✓</span>
-                  <span style={{ fontSize: 13, color: "#3B463F" }}>{pm}</span>
+            {content.authPerms.length > 0 && (
+              <>
+                <div style={SECTION}>Clientforce will be able to</div>
+                <div style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 14, overflow: "hidden" }}>
+                  {content.authPerms.map((pm, i) => (
+                    <div key={pm} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 15px", borderTop: i === 0 ? "none" : "1px solid #F2EEE4" }}>
+                      <span style={{ color: "#16A82A", fontSize: 13 }}>✓</span>
+                      <span style={{ fontSize: 13, color: "#3B463F" }}>{pm}</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </>
+            )}
           </>
         )}
 
-        {wizStep === 2 && (
+        {content.mode === "fields" && wizStep === 1 && calendlyFieldsUI}
+
+        {content.mode === "oauth" && wizStep === 2 && (isGcal ? gcalConfigUI : (
           <>
             {channelPickerUI}
             {draftTogglesUI}
           </>
+        ))}
+
+        {content.mode === "fields" && wizStep === 2 && (
+          <>
+            <div style={SECTION}>What will connect</div>
+            <div style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 14, overflow: "hidden" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 15px" }}>
+                <span style={{ color: "#16A82A", fontSize: 13 }}>✓</span>
+                <span style={{ fontSize: 13.5, color: "#3B463F", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Scheduling link — {fields.schedulingUrl.trim()}</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 15px", borderTop: "1px solid #F2EEE4" }}>
+                <span style={{ color: fields.apiToken.trim() ? "#16A82A" : "#C9CFC9", fontSize: 13 }}>{fields.apiToken.trim() ? "✓" : "○"}</span>
+                <span style={{ fontSize: 13.5, color: "#3B463F" }}>
+                  {fields.apiToken.trim()
+                    ? "API token supplied — booking detection will be enabled"
+                    : "No API token — link only (add one later to detect bookings)"}
+                </span>
+              </div>
+            </div>
+            {fieldsError && (
+              <div data-testid="connect-refused" style={{ marginTop: 12, background: "rgba(224,121,107,.1)", border: "1px solid #F0CFC8", borderRadius: 11, padding: "10px 14px", fontSize: 13, color: "#C9543F" }}>
+                {fieldsError}
+              </div>
+            )}
+          </>
         )}
 
-        {wizStep === 3 && (
+        {content.mode === "oauth" && wizStep === 3 && (
           <>
             <div style={SECTION}>What will sync</div>
             <div style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 14, overflow: "hidden" }}>
-              {draft.channel && (
-                <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 15px" }}>
-                  <span style={{ color: "#16A82A", fontSize: 13 }}>✓</span>
-                  <span style={{ fontSize: 13.5, color: "#3B463F" }}>Alerts post to #{draft.channel.name}</span>
-                </div>
-              )}
-              {onNotifs.map((r) => (
-                <div key={r.kind} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 15px", borderTop: "1px solid #F2EEE4" }}>
-                  <span style={{ color: "#16A82A", fontSize: 13 }}>✓</span>
-                  <span style={{ fontSize: 13.5, color: "#3B463F" }}>{r.label}</span>
-                </div>
-              ))}
-              {onNotifs.length === 0 && (
-                <div style={{ padding: "10px 15px", fontSize: 13, color: "#9AA59E", borderTop: draft.channel ? "1px solid #F2EEE4" : "none" }}>
-                  No alerts enabled yet — you can turn them on later.
-                </div>
+              {isGcal ? (
+                <>
+                  {gcalDraft.calendar && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 15px" }}>
+                      <span style={{ color: "#16A82A", fontSize: 13 }}>✓</span>
+                      <span style={{ fontSize: 13.5, color: "#3B463F" }}>Availability reads from “{gcalDraft.calendar.name}” ({gcalDraft.calendar.timeZone})</span>
+                    </div>
+                  )}
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 15px", borderTop: gcalDraft.calendar ? "1px solid #F2EEE4" : "none" }}>
+                    <span style={{ color: gcalDraft.offerSlots ? "#16A82A" : "#C9CFC9", fontSize: 13 }}>{gcalDraft.offerSlots ? "✓" : "○"}</span>
+                    <span style={{ fontSize: 13.5, color: "#3B463F" }}>
+                      {gcalDraft.offerSlots ? "Open slots may appear in composed copy" : "Slots in copy off — the booking link is the mechanism"}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 15px", borderTop: "1px solid #F2EEE4" }}>
+                    <span style={{ color: "#16A82A", fontSize: 13 }}>✓</span>
+                    <span style={{ fontSize: 13.5, color: "#3B463F" }}>Calendly puts booked meetings on this calendar</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {draft.channel && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 15px" }}>
+                      <span style={{ color: "#16A82A", fontSize: 13 }}>✓</span>
+                      <span style={{ fontSize: 13.5, color: "#3B463F" }}>Alerts post to #{draft.channel.name}</span>
+                    </div>
+                  )}
+                  {onNotifs.map((r) => (
+                    <div key={r.kind} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 15px", borderTop: "1px solid #F2EEE4" }}>
+                      <span style={{ color: "#16A82A", fontSize: 13 }}>✓</span>
+                      <span style={{ fontSize: 13.5, color: "#3B463F" }}>{r.label}</span>
+                    </div>
+                  ))}
+                  {onNotifs.length === 0 && (
+                    <div style={{ padding: "10px 15px", fontSize: 13, color: "#9AA59E", borderTop: draft.channel ? "1px solid #F2EEE4" : "none" }}>
+                      No alerts enabled yet — you can turn them on later.
+                    </div>
+                  )}
+                </>
               )}
             </div>
             {saveError && (
@@ -483,7 +782,17 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
     );
 
     const backLabel = wizStep > 1 ? "‹ Back" : "Cancel";
-    const canContinue = wizStep !== 2 || draft.channel !== null;
+    const canContinue =
+      content.mode === "fields"
+        ? wizStep !== 1 || fields.schedulingUrl.trim().length > 0
+        : wizStep !== 2 || (isGcal ? gcalDraft.calendar !== null : draft.channel !== null);
+    const continueBlockedTitle = content.mode === "fields"
+      ? "Paste your scheduling link first"
+      : isGcal
+        ? "Pick a calendar first"
+        : "Pick a channel first";
+    const lastStep = segCount;
+    const wizBusy = content.mode === "fields" ? fieldsBusy : saveBusy;
     footer = (
       <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 22px", borderTop: "1px solid #EBE3D6", background: "#fff", flex: "none" }}>
         <span
@@ -493,7 +802,7 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
         >
           {backLabel}
         </span>
-        {wizStep === 1 ? (
+        {content.mode === "oauth" && wizStep === 1 ? (
           // The prototype's Continue is the simulated connect; real OAuth makes
           // the primary the sign-in itself (adaptation flagged in the header).
           <span
@@ -509,54 +818,75 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
           <span
             data-testid="wiz-primary"
             onClick={() => {
-              if (!canContinue || saveBusy) return;
-              if (wizStep === 2) setWizStep(3);
+              if (!canContinue || wizBusy) return;
+              if (wizStep < lastStep) setWizStep(wizStep + 1);
+              else if (content.mode === "fields")
+                void connectFields().then((ok) => {
+                  if (ok) setWizStep(null); // flip to connected mode
+                });
               else
                 void saveConfig().then((ok) => {
                   if (ok) setWizStep(null); // flip to connected mode
                 });
             }}
             aria-disabled={canContinue ? undefined : "true"}
-            title={canContinue ? undefined : "Pick a channel first"}
-            style={{ marginLeft: "auto", fontSize: 14, fontWeight: 700, color: "#0A0F0C", background: GRAD, borderRadius: 11, padding: "10px 20px", cursor: canContinue && !saveBusy ? "pointer" : "not-allowed", opacity: canContinue && !saveBusy ? 1 : 0.6, boxShadow: "0 6px 16px rgba(53,232,52,.26)" }}
+            title={canContinue ? undefined : continueBlockedTitle}
+            style={{ marginLeft: "auto", fontSize: 14, fontWeight: 700, color: "#0A0F0C", background: GRAD, borderRadius: 11, padding: "10px 20px", cursor: canContinue && !wizBusy ? "pointer" : "not-allowed", opacity: canContinue && !wizBusy ? 1 : 0.6, boxShadow: "0 6px 16px rgba(53,232,52,.26)" }}
           >
-            {wizStep === 2 ? "Continue" : saveBusy ? "Connecting…" : "Finish & connect"}
+            {wizStep < lastStep ? "Continue" : wizBusy ? "Connecting…" : "Finish & connect"}
           </span>
         )}
       </div>
     );
   } else if (configOpen && row) {
     // CONNECTED → SETTINGS / CONFIG STEP -------------------------------------
+    const settingsTitle = isGcal ? "Calendar settings" : isCalendly ? `Your ${entry.name} details` : "Alerts";
+    const settingsDesc = isGcal
+      ? "Where booked calls land."
+      : isCalendly
+        ? "Update the link, or add an API token to turn on booking detection."
+        : "Where Clientforce posts updates.";
     body = (
       <>
         <span style={SECTION}>Settings</span>
-        <div style={{ fontFamily: BRICO, fontWeight: 700, fontSize: 17, color: "#0E1512", marginTop: 8 }}>Alerts</div>
-        <div style={{ fontSize: 13, color: "#8A7F6B", marginBottom: 16 }}>Where Clientforce posts updates.</div>
-        {channelPickerUI}
-        {draftTogglesUI}
-        {saveError && (
+        <div style={{ fontFamily: BRICO, fontWeight: 700, fontSize: 17, color: "#0E1512", marginTop: 8 }}>{settingsTitle}</div>
+        <div style={{ fontSize: 13, color: "#8A7F6B", marginBottom: 16 }}>{settingsDesc}</div>
+        {isGcal ? gcalConfigUI : isCalendly ? calendlyFieldsUI : (
+          <>
+            {channelPickerUI}
+            {draftTogglesUI}
+          </>
+        )}
+        {isCalendly && fieldsError && (
+          <div data-testid="connect-refused" style={{ marginTop: 12, background: "rgba(224,121,107,.1)", border: "1px solid #F0CFC8", borderRadius: 11, padding: "10px 14px", fontSize: 13, color: "#C9543F" }}>
+            {fieldsError}
+          </div>
+        )}
+        {!isCalendly && saveError && (
           <div style={{ marginTop: 12, background: "rgba(224,121,107,.1)", border: "1px solid #F0CFC8", borderRadius: 11, padding: "10px 14px", fontSize: 13, color: "#C9543F" }}>
             {saveError}
           </div>
         )}
       </>
     );
+    const settingsBusy = isCalendly ? fieldsBusy : saveBusy;
     footer = (
       <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 22px", borderTop: "1px solid #EBE3D6", background: "#fff", flex: "none" }}>
         <span onClick={() => setConfigOpen(false)} style={{ fontSize: 14, fontWeight: 600, color: "#5C6B62", background: "#fff", border: "1px solid #EBE3D6", borderRadius: 11, padding: "10px 18px", cursor: "pointer" }}>Cancel</span>
         <span
           data-testid="config-save"
           onClick={() => {
-            if (saveBusy || !canManage) return;
-            void saveConfig().then((ok) => {
+            if (settingsBusy || !canManage) return;
+            const run = isCalendly ? connectFields : saveConfig;
+            void run().then((ok) => {
               if (ok) setConfigOpen(false);
             });
           }}
           aria-disabled={canManage ? undefined : "true"}
           title={canManage ? undefined : RBAC_TITLE}
-          style={{ marginLeft: "auto", fontSize: 14, fontWeight: 700, color: "#0A0F0C", background: GRAD, borderRadius: 11, padding: "10px 20px", cursor: canManage && !saveBusy ? "pointer" : "not-allowed", opacity: canManage && !saveBusy ? 1 : 0.6, boxShadow: "0 6px 16px rgba(53,232,52,.26)" }}
+          style={{ marginLeft: "auto", fontSize: 14, fontWeight: 700, color: "#0A0F0C", background: GRAD, borderRadius: 11, padding: "10px 20px", cursor: canManage && !settingsBusy ? "pointer" : "not-allowed", opacity: canManage && !settingsBusy ? 1 : 0.6, boxShadow: "0 6px 16px rgba(53,232,52,.26)" }}
         >
-          {saveBusy ? "Saving…" : "Save settings"}
+          {isCalendly ? (settingsBusy ? "Connecting…" : "Save & reconnect") : settingsBusy ? "Saving…" : "Save settings"}
         </span>
       </div>
     );
@@ -574,7 +904,8 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
             </div>
             <span
               data-testid="reconnect"
-              onClick={() => void startOAuth()}
+              // Fields providers re-connect via the fields form, never OAuth.
+              onClick={() => (content.mode === "fields" ? openSettings() : void startOAuth())}
               aria-disabled={canManage ? undefined : "true"}
               title={canManage ? undefined : RBAC_TITLE}
               style={{ display: "inline-block", fontSize: 13, fontWeight: 700, color: "#0A0F0C", background: GRAD, borderRadius: 10, padding: "9px 16px", cursor: canManage ? "pointer" : "not-allowed", opacity: canManage && !connectBusy ? 1 : 0.6 }}
@@ -616,31 +947,102 @@ export function IntegrationDrawer({ entry, provider, row, bootMode, canManage, o
         </div>
 
         <div style={SECTION}>What's syncing</div>
-        <div style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 14, overflow: "hidden", marginBottom: 18 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 15px" }}>
-            <span style={{ fontSize: 12.5, color: "#9AA59E", flex: "none" }}>Channel</span>
-            <span data-testid="channel-value" style={{ fontSize: 13.5, fontWeight: 600, color: config.channel ? "#0E1512" : "#9AA59E", flex: 1, textAlign: "right" }}>
-              {config.channel ? `#${config.channel.name}` : "Not picked yet"}
-            </span>
-            <span data-testid="channel-change" onClick={openSettings} style={{ fontSize: 12.5, fontWeight: 700, color: "#16A82A", cursor: "pointer", flex: "none" }}>Change</span>
+        {isSlack && (
+          <div style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 14, overflow: "hidden", marginBottom: 18 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 15px" }}>
+              <span style={{ fontSize: 12.5, color: "#9AA59E", flex: "none" }}>Channel</span>
+              <span data-testid="channel-value" style={{ fontSize: 13.5, fontWeight: 600, color: config.channel ? "#0E1512" : "#9AA59E", flex: 1, textAlign: "right" }}>
+                {config.channel ? `#${config.channel.name}` : "Not picked yet"}
+              </span>
+              <span data-testid="channel-change" onClick={openSettings} style={{ fontSize: 12.5, fontWeight: 700, color: "#16A82A", cursor: "pointer", flex: "none" }}>Change</span>
+            </div>
+            {slackContent.syncRows.map((r) => {
+              const on = notificationOn(config, r.kind);
+              return (
+                <div key={r.kind} data-testid={`sync-row-${r.kind}`} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 15px", borderTop: "1px solid #F2EEE4" }}>
+                  <span style={{ color: on ? "#16A82A" : "#C9CFC9", fontSize: 13, flex: "none" }}>{on ? "✓" : "○"}</span>
+                  <span style={{ fontSize: 13.5, color: "#3B463F", flex: 1 }}>{r.label}</span>
+                  <ToggleSwitch
+                    on={on}
+                    busy={toggleBusy === r.kind}
+                    disabled={!canManage}
+                    title={canManage ? undefined : RBAC_TITLE}
+                    onToggle={() => void toggleKind(r.kind)}
+                  />
+                </div>
+              );
+            })}
           </div>
-          {content.syncRows.map((r) => {
-            const on = notificationOn(config, r.kind);
-            return (
-              <div key={r.kind} data-testid={`sync-row-${r.kind}`} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 15px", borderTop: "1px solid #F2EEE4" }}>
-                <span style={{ color: on ? "#16A82A" : "#C9CFC9", fontSize: 13, flex: "none" }}>{on ? "✓" : "○"}</span>
-                <span style={{ fontSize: 13.5, color: "#3B463F", flex: 1 }}>{r.label}</span>
-                <ToggleSwitch
-                  on={on}
-                  busy={toggleBusy === r.kind}
-                  disabled={!canManage}
-                  title={canManage ? undefined : RBAC_TITLE}
-                  onToggle={() => void toggleKind(r.kind)}
-                />
+        )}
+        {isGcal && (
+          <div style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 14, overflow: "hidden", marginBottom: 18 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 15px" }}>
+              <span style={{ fontSize: 12.5, color: "#9AA59E", flex: "none" }}>Calendar</span>
+              <span data-testid="calendar-value" style={{ fontSize: 13.5, fontWeight: 600, color: gcalConfig.calendar ? "#0E1512" : "#9AA59E", flex: 1, textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {gcalConfig.calendar ? `${gcalConfig.calendar.name} · ${gcalConfig.calendar.timeZone}` : "Not picked yet"}
+              </span>
+              <span data-testid="calendar-change" onClick={openSettings} style={{ fontSize: 12.5, fontWeight: 700, color: "#16A82A", cursor: "pointer", flex: "none" }}>Change</span>
+            </div>
+            {/* Availability's check is honest: it reads only once a calendar
+                is picked. The offer-slots toggle is the ONE config switch. */}
+            <div data-testid="sync-row-availability" style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 15px", borderTop: "1px solid #F2EEE4" }}>
+              <span style={{ color: gcalConfig.calendar ? "#16A82A" : "#C9CFC9", fontSize: 13, flex: "none" }}>{gcalConfig.calendar ? "✓" : "○"}</span>
+              <span style={{ fontSize: 13.5, color: "#3B463F", flex: 1 }}>Availability — open slots can appear in composed copy</span>
+            </div>
+            <div data-testid="sync-row-offer-slots" style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 15px", borderTop: "1px solid #F2EEE4" }}>
+              <span style={{ color: offerSlotsOn(gcalConfig) ? "#16A82A" : "#C9CFC9", fontSize: 13, flex: "none" }}>{offerSlotsOn(gcalConfig) ? "✓" : "○"}</span>
+              <span style={{ fontSize: 13.5, color: "#3B463F", flex: 1 }}>Offer open slots in composed copy</span>
+              <ToggleSwitch
+                on={offerSlotsOn(gcalConfig)}
+                busy={slotsBusy}
+                disabled={!canManage}
+                title={canManage ? undefined : RBAC_TITLE}
+                onToggle={() => void toggleOfferSlots()}
+              />
+            </div>
+            <div data-testid="sync-row-bookings" style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 15px", borderTop: "1px solid #F2EEE4" }}>
+              <span style={{ color: "#16A82A", fontSize: 13, flex: "none" }}>✓</span>
+              <span style={{ fontSize: 13.5, color: "#3B463F", flex: 1 }}>Bookings — Calendly puts booked meetings on this calendar</span>
+            </div>
+          </div>
+        )}
+        {isCalendly && (
+          <div style={{ background: "#fff", border: "1px solid #EBE3D6", borderRadius: 14, overflow: "hidden", marginBottom: 18 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 15px" }}>
+              <span style={{ fontSize: 12.5, color: "#9AA59E", flex: "none" }}>Scheduling link</span>
+              <span data-testid="calendly-link" style={{ fontSize: 12.5, fontFamily: "monospace", fontWeight: 600, color: calConfig.schedulingUrl ? "#0E1512" : "#9AA59E", flex: 1, textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {calConfig.schedulingUrl ?? "Not saved yet"}
+              </span>
+              {calConfig.schedulingUrl && (
+                <span data-testid="copy-link" onClick={() => copyText("link", calConfig.schedulingUrl!)} style={{ fontSize: 12.5, fontWeight: 700, color: "#16A82A", cursor: "pointer", flex: "none" }}>
+                  {copied === "link" ? "Copied ✓" : "Copy"}
+                </span>
+              )}
+            </div>
+            {/* The honest two-tier state line — detection is never assumed. */}
+            <div data-testid="calendly-detection" style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 15px", borderTop: "1px solid #F2EEE4" }}>
+              <span style={{ color: detection.detection ? "#16A82A" : "#C9CFC9", fontSize: 13, flex: "none" }}>{detection.detection ? "✓" : "○"}</span>
+              <span style={{ fontSize: 13, color: detection.detection ? "#16A82A" : "#5C6B62", flex: 1, lineHeight: 1.45, fontWeight: detection.detection ? 600 : 400 }}>{detection.line}</span>
+              {detection.offerToken && (
+                <span data-testid="add-token" onClick={openSettings} style={{ fontSize: 12, fontWeight: 700, color: "#16A82A", background: "rgba(53,232,52,.08)", border: "1px solid #9FD8AC", borderRadius: 8, padding: "4px 10px", cursor: "pointer", flex: "none", whiteSpace: "nowrap" }}>＋ Add token</span>
+              )}
+            </div>
+            {calConfig.webhookToken && (
+              <div data-testid="calendly-webhook" style={{ padding: "10px 15px", borderTop: "1px solid #F2EEE4" }}>
+                <div style={{ fontSize: 12.5, color: "#9AA59E", marginBottom: 4 }}>Webhook endpoint (created automatically)</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontFamily: "monospace", color: "#3B463F", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{calendlyWebhookPath(calConfig.webhookToken)}</span>
+                  <span data-testid="copy-webhook" onClick={() => copyText("webhook", calendlyWebhookPath(calConfig.webhookToken!))} style={{ fontSize: 12.5, fontWeight: 700, color: "#16A82A", cursor: "pointer", flex: "none" }}>
+                    {copied === "webhook" ? "Copied ✓" : "Copy"}
+                  </span>
+                </div>
+                <div style={{ fontSize: 11.5, color: "#9AA59E", marginTop: 4, lineHeight: 1.45 }}>
+                  Informational — Calendly posts booking events here; the detection state above is what matters.
+                </div>
               </div>
-            );
-          })}
-        </div>
+            )}
+          </div>
+        )}
 
         <div style={SECTION}>Scopes</div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 18 }}>

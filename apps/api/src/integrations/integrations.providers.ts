@@ -4,7 +4,12 @@
  * fetch-injected adapters so CI never touches a vendor.
  */
 import type { Provider } from "@nestjs/common";
-import { SlackAdapter, type IntegrationsDeps } from "@clientforce/integrations";
+import {
+  CalendlyAdapter,
+  GoogleCalendarAdapter,
+  SlackAdapter,
+  type IntegrationsDeps,
+} from "@clientforce/integrations";
 import { PrismaService } from "../db/prisma.service";
 import { BusOrInlinePublisher, EVENTS_PUBLISHER } from "../events/publisher";
 
@@ -25,6 +30,9 @@ export const integrationsDepsProvider: Provider = {
         campaignId: input.campaignId ?? undefined,
         senderId: input.senderId ?? undefined,
       }),
-    adapters: { slack: new SlackAdapter() },
+    // INT W2 (DEC-094): gcal reads GOOGLE_CLIENT_ID/SECRET from env (Key
+    // Vault-backed; unconfigured = the typed honest owner-clock refusal);
+    // calendly is the fields adapter — no platform credentials at all.
+    adapters: { slack: new SlackAdapter(), gcal: new GoogleCalendarAdapter(), calendly: new CalendlyAdapter() },
   }),
 };

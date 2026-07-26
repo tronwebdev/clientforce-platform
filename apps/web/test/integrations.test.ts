@@ -19,19 +19,30 @@ import {
   type SlackNotificationKind,
 } from "@clientforce/core";
 import {
+  CALENDLY_DETECTION_OFF,
+  CALENDLY_DETECTION_ON,
+  CALENDLY_NO_LINK,
   CATEGORY_LABELS,
   DRAWER_CONTENT,
+  GCAL_TEST_USER_DISCLOSURE,
   INTEGRATION_CATALOG,
   INTEGRATION_CATEGORIES,
   MANAGED_TWILIO_HREF,
   SLACK_NOTIFICATION_LABELS,
   TILE,
+  calendlyDetectionState,
+  calendlyWebhookPath,
   catalogEntry,
+  gcalConfigPayload,
   healthLine,
   notificationOn,
+  offerSlotsOn,
+  parseCalendlyConfig,
+  parseGcalConfig,
   parseSlackConfig,
   slackConfigPayload,
   statusPill,
+  type DrawerContent,
 } from "../lib/integrations";
 import { mergeActivity } from "../app/(shell)/integrations/IntegrationDrawer";
 
@@ -120,6 +131,47 @@ describe("per-provider drawer content (DRAWER_CONTENT, drift-guarded against cor
       expect(s.desc.length).toBeGreaterThan(0);
     }
     expect(DRAWER_CONTENT.slack.optionsKind).toBe("channels");
+    expect(DRAWER_CONTENT.slack.mode).toBe("oauth");
+  });
+
+  // ── INT W2 (DEC-094): the gcal + calendly drawer entries ──────────────────
+
+  it("gcal: the W1 OAuth anatomy — read-only perms pair, calendars options kind, the mandated test-user disclosure", () => {
+    expect(DRAWER_CONTENT.gcal.mode).toBe("oauth");
+    expect(DRAWER_CONTENT.gcal.authPerms).toEqual([
+      "See when you're busy (read-only)",
+      "List your calendars",
+    ]);
+    expect(DRAWER_CONTENT.gcal.optionsKind).toBe("calendars");
+    expect(DRAWER_CONTENT.gcal.disclosure).toBe(GCAL_TEST_USER_DISCLOSURE);
+    expect(GCAL_TEST_USER_DISCLOSURE).toBe(
+      "Available to test accounts while Google verification completes — connecting requires your Google account to be on the app's test-user list.",
+    );
+    expect(DRAWER_CONTENT.gcal.setupSteps).toHaveLength(3);
+    for (const s of DRAWER_CONTENT.gcal.setupSteps) {
+      expect(s.title.length).toBeGreaterThan(0);
+      expect(s.desc.length).toBeGreaterThan(0);
+    }
+    // What ACTUALLY syncs (honest copy): availability → slots in copy;
+    // bookings land via Calendly natively — never a claimed event-writer.
+    const labels = DRAWER_CONTENT.gcal.syncRows.map((r) => r.label).join(" · ");
+    expect(labels).toContain("open slots can appear in composed copy");
+    expect(labels).toContain("Calendly puts booked meetings");
+  });
+
+  it("calendly: fields-based — NO auth perms, NO options picker, the two-tier setup copy", () => {
+    // Widened to the interface: the satisfies-narrowed entry has no
+    // `disclosure` key at the type level (that's the point being pinned).
+    const calendly: DrawerContent = DRAWER_CONTENT.calendly;
+    expect(calendly.mode).toBe("fields");
+    expect(calendly.authPerms).toEqual([]);
+    expect(calendly.optionsKind).toBeNull();
+    expect(calendly.disclosure).toBeUndefined();
+    expect(calendly.setupSteps).toHaveLength(3);
+    const steps = calendly.setupSteps.map((s) => `${s.title} ${s.desc}`).join(" · ");
+    expect(steps).toContain("scheduling link");
+    expect(steps).toContain("API token");
+    expect(steps.toLowerCase()).toContain("paid calendly plans");
   });
 });
 
@@ -211,6 +263,73 @@ describe("Slack config helpers (full-payload-preserving PATCH bodies)", () => {
       channel: { id: "C7", name: "wins" },
       notifications: { new_reply: true, meeting_booked: true, goal_completed: false },
     });
+  });
+});
+
+describe("gcal config helpers (INT W2 — full-payload-preserving, opt-in slots)", () => {
+  const cal = { id: "cal-1", name: "BrightPath — Bookings", timeZone: "America/Chicago" };
+
+  it("parseGcalConfig: null/garbage → {}, valid config round-trips", () => {
+    expect(parseGcalConfig(null)).toEqual({});
+    expect(parseGcalConfig("nope")).toEqual({});
+    expect(parseGcalConfig({ calendar: { id: "x" } })).toEqual({}); // missing name/timeZone refuses
+    const cfg = { calendar: cal, offerSlots: true };
+    expect(parseGcalConfig(cfg)).toEqual(cfg);
+  });
+
+  it("offerSlotsOn is OPT-IN: absent/false = OFF, only explicit true = ON", () => {
+    expect(offerSlotsOn({})).toBe(false);
+    expect(offerSlotsOn({ offerSlots: false })).toBe(false);
+    expect(offerSlotsOn({ offerSlots: true })).toBe(true);
+  });
+
+  it("gcalConfigPayload: a slots toggle preserves the calendar, a calendar change preserves slots", () => {
+    const stored = { calendar: cal, offerSlots: true };
+    const toggled = gcalConfigPayload(stored, { offerSlots: false });
+    expect(toggled).toEqual({ calendar: cal, offerSlots: false });
+    const other = { id: "cal-2", name: "Team", timeZone: "Europe/Berlin" };
+    const swapped = gcalConfigPayload(stored, { calendar: other });
+    expect(swapped).toEqual({ calendar: other, offerSlots: true });
+    // No calendar anywhere → the key is omitted (never a fabricated pick).
+    const bare = gcalConfigPayload({}, { offerSlots: true });
+    expect("calendar" in bare).toBe(false);
+    expect(bare.offerSlots).toBe(true);
+  });
+});
+
+describe("calendly config helpers (INT W2 — the two honest tiers)", () => {
+  it("parseCalendlyConfig: null/garbage → {}, valid config round-trips (token/detection ride verbatim)", () => {
+    expect(parseCalendlyConfig(null)).toEqual({});
+    expect(parseCalendlyConfig({ schedulingUrl: "not a url" })).toEqual({});
+    const cfg = { schedulingUrl: "https://calendly.com/you/intro", webhookToken: "wt_1", detection: true };
+    expect(parseCalendlyConfig(cfg)).toEqual(cfg);
+  });
+
+  it("detection state: detection:true → live line; link without token → honest off line + the add-token affordance", () => {
+    expect(calendlyDetectionState({ schedulingUrl: "https://calendly.com/you", detection: true })).toEqual({
+      detection: true,
+      line: CALENDLY_DETECTION_ON,
+      offerToken: false,
+    });
+    expect(calendlyDetectionState({ schedulingUrl: "https://calendly.com/you" })).toEqual({
+      detection: false,
+      line: CALENDLY_DETECTION_OFF,
+      offerToken: true,
+    });
+    // detection is NEVER assumed from a stored token alone.
+    expect(calendlyDetectionState({ schedulingUrl: "https://calendly.com/you", webhookToken: "wt", detection: false }).detection).toBe(false);
+    expect(calendlyDetectionState({})).toEqual({ detection: false, line: CALENDLY_NO_LINK, offerToken: false });
+  });
+
+  it("the drawer copy is the mandated wording", () => {
+    expect(CALENDLY_DETECTION_ON).toBe("Booking detection live — webhook subscription active");
+    expect(CALENDLY_DETECTION_OFF).toBe(
+      "Link active — booking detection off. Add your Calendly API token (paid plans) to detect bookings.",
+    );
+  });
+
+  it("the webhook display path is the capability URL's path portion", () => {
+    expect(calendlyWebhookPath("wt_abc123")).toBe("/webhooks/calendly?token=wt_abc123");
   });
 });
 

@@ -6,7 +6,7 @@
  * list + reading pane rendering real Message bodies. A4: 5s polling.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { cf, GRAD, INBOX_CATS, intentTint, avTint, initials, timeAgo } from "./shared";
+import { cf, GRAD, INBOX_CATS, intentTint, avTint, initials, meetingTime, timeAgo } from "./shared";
 
 interface ThreadMessage {
   id: string;
@@ -21,6 +21,16 @@ interface ThreadMessage {
    *  absent provenance renders unmarked, never inferred. */
   composed?: { composerVersion: string | null };
 }
+/** INT W2 (DEC-094): a `calendar.*` Event row the inbox endpoint attaches to
+ *  the thread — Event-sourced, never a fabricated Message (Message is the
+ *  send ledger, A6; nothing was sent when a lead books). */
+export interface ThreadEvent {
+  id: string;
+  type: string;
+  payload: Record<string, unknown>;
+  occurredAt: string;
+}
+
 export interface Thread {
   contactId: string;
   /** P2.1 (DEC-061): channels present in the thread ("email" | "sms"). */
@@ -33,6 +43,42 @@ export interface Thread {
   preview: string;
   messageCount: number;
   messages: ThreadMessage[];
+  /** INT W2: the contact's calendar.* Event rows (absent on older payloads). */
+  events?: ThreadEvent[];
+}
+
+/**
+ * INT W2 (DEC-094) — DESIGNED ADDITION vs the prototype (flagged; the W1
+ * drawer-Activity precedent): the reading pane interleaves booking
+ * confirmations as centered SYSTEM rows by timestamp. Pure map so the
+ * treatment is pinnable: booked green · rescheduled neutral · canceled red;
+ * non-calendar types return null and never render in the thread.
+ */
+export function calendarSystemRow(
+  type: string,
+  payload: Record<string, unknown>,
+): { text: string; fg: string; bg: string; border: string } | null {
+  switch (type) {
+    case "calendar.booked.v1": {
+      const t = meetingTime(payload.startAt);
+      return { text: `📅 Meeting booked${t ? ` — ${t}` : ""}`, fg: "#16A82A", bg: "rgba(53,232,52,.1)", border: "rgba(53,232,52,.3)" };
+    }
+    case "calendar.rescheduled.v1": {
+      const t = meetingTime(payload.toStartAt);
+      return { text: `⟳ Meeting rescheduled${t ? ` — now ${t}` : ""}`, fg: "#8A7F6B", bg: "#F2EEE4", border: "#EBE3D6" };
+    }
+    case "calendar.canceled.v1": {
+      const t = meetingTime(payload.startAt);
+      return {
+        text: `✕ ${payload.reason === "no_show" ? "Meeting no-show" : "Meeting canceled"}${t ? ` — was ${t}` : ""}`,
+        fg: "#C9543F",
+        bg: "rgba(224,121,107,.1)",
+        border: "rgba(224,121,107,.35)",
+      };
+    }
+    default:
+      return null;
+  }
 }
 
 const CHANNEL_OPTIONS = [
@@ -106,6 +152,19 @@ export function InboxTab({ agentId, goalLabel }: { agentId: string; goalLabel?: 
     () => visible.find((t) => t.contactId === selId) ?? visible[0] ?? null,
     [visible, selId],
   );
+
+  // INT W2: message bubbles + calendar system rows, interleaved by timestamp
+  // (ISO strings compare lexicographically — the list-pane sort precedent).
+  const threadItems = useMemo(() => {
+    if (!sel) return [];
+    const items: Array<{ key: string; at: string; msg?: ThreadMessage; ev?: ThreadEvent }> = [
+      ...sel.messages.map((m) => ({ key: `m-${m.id}`, at: m.sentAt, msg: m })),
+      ...(sel.events ?? [])
+        .filter((e) => calendarSystemRow(e.type, (e.payload ?? {}) as Record<string, unknown>) !== null)
+        .map((e) => ({ key: `e-${e.id}`, at: e.occurredAt, ev: e })),
+    ];
+    return items.sort((a, b) => a.at.localeCompare(b.at));
+  }, [sel]);
 
   async function markDone() {
     if (!sel) return;
@@ -266,10 +325,22 @@ export function InboxTab({ agentId, goalLabel }: { agentId: string; goalLabel?: 
                 </div>
               </div>
               <div style={{ overflowY: "auto", flex: 1, padding: 20, background: "#FCFAF6" }} data-testid="thread-view">
-                {sel.messages.map((m) => {
+                {threadItems.map((item) => {
+                  // INT W2 (designed addition, flagged): calendar Event rows
+                  // render as centered system rows — never message bubbles.
+                  if (item.ev) {
+                    const row = calendarSystemRow(item.ev.type, (item.ev.payload ?? {}) as Record<string, unknown>)!;
+                    return (
+                      <div key={item.key} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, marginBottom: 16 }} data-testid="thread-system-row">
+                        <span style={{ fontSize: 12.5, fontWeight: 700, color: row.fg, background: row.bg, border: `1px solid ${row.border}`, borderRadius: 100, padding: "6px 14px", maxWidth: "80%", textAlign: "center" }}>{row.text}</span>
+                        <span style={{ fontSize: 11, color: "#9AA59E" }}>{timeAgo(item.ev.occurredAt)}</span>
+                      </div>
+                    );
+                  }
+                  const m = item.msg!;
                   const inbound = m.direction === "INBOUND";
                   return (
-                    <div key={m.id} style={{ display: "flex", flexDirection: "column", alignItems: inbound ? "flex-start" : "flex-end", marginBottom: 16 }}>
+                    <div key={item.key} style={{ display: "flex", flexDirection: "column", alignItems: inbound ? "flex-start" : "flex-end", marginBottom: 16 }}>
                       <div style={{ maxWidth: "80%", minWidth: 0 }}>
                         <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 5, justifyContent: inbound ? "flex-start" : "flex-end" }}>
                           <span style={{ fontSize: 12.5, fontWeight: 700, color: inbound ? "#0E1512" : "#16A82A" }}>{inbound ? [sel.contact?.firstName, sel.contact?.lastName].filter(Boolean).join(" ") || sel.contact?.email : "Agent"}</span>

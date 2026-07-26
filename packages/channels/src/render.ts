@@ -18,6 +18,14 @@ export function renderTokens(
   contact: Pick<Contact, "firstName" | "lastName" | "company" | "email"> &
     Partial<Pick<Contact, "custom">>,
   senderName: string,
+  /**
+   * INT W2 (DEC-094): boundary-resolved tokens (`{{calendarLink}}` —
+   * DATA_MODEL.md's render-time token, resolved from the workspace booking
+   * config with the per-lead correlation rider). An undefined/absent value
+   * for a referenced token throws MissingTokenError — the house rule: a
+   * missing booking config FAILS the send, never renders blank.
+   */
+  extra?: { calendarLink?: string },
 ): string {
   // C2.7 custom tokens first: {{custom.<key>|fallback}} → value-or-fallback.
   // No value AND no fallback throws — custom tokens never render blank; the
@@ -41,6 +49,7 @@ export function renderTokens(
     company: contact.company,
     email: contact.email,
     senderName,
+    calendarLink: extra?.calendarLink,
   };
   return withCustom.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_m, token: string) => {
     const value = values[token];

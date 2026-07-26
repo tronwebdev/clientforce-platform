@@ -58,6 +58,16 @@ export function initials(first?: string | null, last?: string | null, email?: st
   return (a + b || (email ?? "?").slice(0, 2)).toUpperCase();
 }
 
+/** INT W2 (DEC-094): compact LOCAL meeting-time rendering for `calendar.*`
+ *  rows ("Tue, Jul 28, 10:00 AM") — null for absent/garbage payload values so
+ *  callers degrade to copy without a time, never "Invalid Date". */
+export function meetingTime(v: unknown): string | null {
+  if (typeof v !== "string" || v.length === 0) return null;
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
 export function timeAgo(iso: string): string {
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
   if (s < 60) return "just now";

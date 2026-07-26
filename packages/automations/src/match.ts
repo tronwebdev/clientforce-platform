@@ -18,6 +18,15 @@
  *                      `emptyFacets` (SPEC A, DEC-099): a real customer asked
  *                      something the record could not answer. ONE firing per
  *                      call, because the event is one summary per call
+ *   meeting_rescheduled — `calendar.rescheduled.v1` (INT W2, DEC-094)
+ *   meeting_canceled — `calendar.canceled.v1` (payload reason folds no-show in)
+ *   before_meeting   — NEVER matches a bus event; the meeting sweep evaluates
+ *                      it (the sequence_quiet pattern, re-arms per reschedule)
+ *
+ * DELIBERATELY UNMAPPED (INT W2 no-double-fire pin): `calendar.booked.v1` is
+ * the booking RECORD — the booking service also publishes the ONE
+ * `lead.stage_changed.v1` (toStage "booked") that carries meeting_booked;
+ * mapping both would double-fire every rule and double-post Slack.
  */
 import type { CampaignRuleTrigger } from "@clientforce/core";
 import type { BusEvent } from "@clientforce/events";
@@ -52,6 +61,10 @@ export function matchTrigger(
       return event.type === "email.clicked.v1";
     case "lead_captured":
       return LEAD_CAPTURED_EVENTS.has(event.type);
+    case "meeting_rescheduled":
+      return event.type === "calendar.rescheduled.v1";
+    case "meeting_canceled":
+      return event.type === "calendar.canceled.v1";
     case "sequence_quiet":
       return false;
     case "call_knowledge_gap": {
@@ -65,6 +78,10 @@ export function matchTrigger(
       if (!trigger.facets || trigger.facets.length === 0) return true;
       return empty.some((f) => typeof f === "string" && trigger.facets!.includes(f));
     }
+    case "before_meeting":
+      // NEVER a bus event — the meeting sweep evaluates it (fire-once per
+      // (meeting, startAt); a reschedule re-arms under a new synthetic key).
+      return false;
   }
 }
 

@@ -32,18 +32,22 @@ import {
 } from "@clientforce/core";
 import { Role, type Prisma } from "@clientforce/db";
 import {
+  GoogleCalendarAdapter,
   IntegrationDeliveryError,
   IntegrationProviderError,
   IntegrationRefusedError,
   SlackAdapter,
-  adapterFor,
+  calendlyConnectFieldsSchema,
   completeConnect,
+  connectCalendlyFields,
   decryptCredentials,
   disconnectIntegration,
   getIntegration,
   listIntegrations,
+  oauthAdapterFor,
   probeIntegration,
   toIntegrationDto,
+  withFreshCredentials,
   type IntegrationsDeps,
 } from "@clientforce/integrations";
 import { z, type ZodTypeAny } from "zod";
@@ -68,6 +72,29 @@ function parse<S extends ZodTypeAny>(schema: S, value: unknown): z.output<S> {
 function redirectUriFor(provider: IntegrationProvider): string {
   const base = (process.env.WEB_APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
   return `${base}/integrations/callback/${provider}`;
+}
+
+/**
+ * INT W2 (DEC-094): the public base vendor webhooks must reach — the API
+ * service itself (Calendly POSTs to /webhooks/calendly, which lives HERE,
+ * never on the web app). Deriving it from the request origin is unreliable
+ * behind ingress, so it is env-pinned: INTEGRATIONS_WEBHOOK_BASE (bicep param
+ * `integrationsWebhookBase`, the webAppUrl pattern), falling back to
+ * PUBLIC_API_URL (the Twilio-signature base) and finally localhost for dev.
+ */
+function webhookBase(): string {
+  const configured = process.env.INTEGRATIONS_WEBHOOK_BASE ?? process.env.PUBLIC_API_URL;
+  // Review-round fix: registering a localhost callback with the vendor is a
+  // silent production no-op — refuse typed instead (the honest owner-clock
+  // state); dev keeps the localhost fallback.
+  if (!configured && process.env.NODE_ENV === "production") {
+    throw new UnprocessableEntityException({
+      message: "Webhook base not configured",
+      detail:
+        "Booking detection needs the public API base (INTEGRATIONS_WEBHOOK_BASE) configured on this deploy — the scheduling link keeps working without it",
+    });
+  }
+  return (configured ?? `http://localhost:${process.env.PORT ?? 3001}`).replace(/\/$/, "");
 }
 
 @Controller("integrations")
@@ -109,17 +136,32 @@ export class IntegrationsController {
     throw err;
   }
 
+  /** The capability token is OWNER/ADMIN material — members see the config redacted. */
+  private redactForRole(dto: IntegrationDto, req: AuthenticatedRequest): IntegrationDto {
+    const role = req.auth?.role;
+    if (role === "OWNER" || role === "ADMIN") return dto;
+    const cfg = dto.config as Record<string, unknown> | null;
+    if (cfg && typeof cfg === "object" && "webhookToken" in cfg) {
+      const { webhookToken: _redacted, ...rest } = cfg;
+      return { ...dto, config: rest };
+    }
+    return dto;
+  }
+
   @Get()
-  async list(): Promise<{ integrations: IntegrationDto[] }> {
+  async list(@Req() req: AuthenticatedRequest): Promise<{ integrations: IntegrationDto[] }> {
     const rows = await listIntegrations(this.deps, this.tenant.workspaceId);
-    return { integrations: rows.map(toIntegrationDto) };
+    return { integrations: rows.map((r) => this.redactForRole(toIntegrationDto(r), req)) };
   }
 
   @Get(":provider")
-  async detail(@Param("provider") rawProvider: string): Promise<{ integration: IntegrationDto | null }> {
+  async detail(
+    @Param("provider") rawProvider: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<{ integration: IntegrationDto | null }> {
     const provider = this.provider(rawProvider);
     const row = await getIntegration(this.deps, this.tenant.workspaceId, provider);
-    return { integration: row ? toIntegrationDto(row) : null };
+    return { integration: row ? this.redactForRole(toIntegrationDto(row), req) : null };
   }
 
   /**
@@ -132,7 +174,9 @@ export class IntegrationsController {
   connect(@Param("provider") rawProvider: string): { authorizeUrl: string } {
     const provider = this.provider(rawProvider);
     try {
-      const adapter = adapterFor(this.deps, provider);
+      // W2: fields providers (calendly) refuse the OAuth path typed — they
+      // connect through POST :provider/connect-fields instead.
+      const adapter = oauthAdapterFor(this.deps, provider);
       if (!adapter.configured) {
         throw new UnprocessableEntityException({
           message: "Integration not configured",
@@ -141,6 +185,44 @@ export class IntegrationsController {
       }
       const state = mintOAuthState(this.tenant.workspaceId, provider);
       return { authorizeUrl: adapter.authorizeUrl({ redirectUri: redirectUriFor(provider), state }) };
+    } catch (err) {
+      this.rethrow(err);
+    }
+  }
+
+  /**
+   * INT W2 (DEC-094): the FIELDS connect path (calendly only) — the non-OAuth
+   * connect W1 reserved. Body {schedulingUrl?, apiToken?}: link-only tier
+   * probes the link live and stores config.schedulingUrl (no credentialsEnc);
+   * the token tier additionally probes /users/me, mints the per-workspace
+   * webhookToken + signing key, and creates the idempotent webhook
+   * subscription pointing at `<INTEGRATIONS_WEBHOOK_BASE>/webhooks/calendly
+   * ?token=…` (the API's own public URL — the webhook must hit the API
+   * service). PAT + signing key + subscription URI ride credentialsEnc.
+   */
+  @Post(":provider/connect-fields")
+  @Roles(Role.OWNER, Role.ADMIN)
+  async connectFields(
+    @Param("provider") rawProvider: string,
+    @Body() body: unknown,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<{ integration: IntegrationDto }> {
+    const provider = this.provider(rawProvider);
+    if (provider !== "calendly") {
+      throw new UnprocessableEntityException({
+        message: "Integration refused",
+        detail: `${provider} connects with OAuth — use the connect flow`,
+      });
+    }
+    const dto = parse(calendlyConnectFieldsSchema, body);
+    try {
+      const row = await connectCalendlyFields(this.deps, {
+        workspaceId: this.tenant.workspaceId,
+        fields: dto,
+        webhookUrlFor: (token) => `${webhookBase()}/webhooks/calendly?token=${token}`,
+        ...(req.auth ? { connectedById: req.auth.user.id } : {}),
+      });
+      return { integration: toIntegrationDto(row) };
     } catch (err) {
       this.rethrow(err);
     }
@@ -203,8 +285,22 @@ export class IntegrationsController {
         detail: INTEGRATION_REFUSALS.NOT_CONNECTED,
       });
     }
+    // Review-round fix: webhookToken + detection are SERVER-MINTED trust
+    // anchors (the capability URL + the live-subscription marker) — a PATCH
+    // must never let a client drop or forge them; the stored values win.
+    let effective = config as Record<string, unknown>;
+    if (provider === "calendly") {
+      const stored = (row.config ?? {}) as Record<string, unknown>;
+      effective = {
+        ...effective,
+        ...(stored.webhookToken !== undefined ? { webhookToken: stored.webhookToken } : {}),
+        ...(stored.detection !== undefined ? { detection: stored.detection } : {}),
+      };
+      if (stored.webhookToken === undefined) delete effective.webhookToken;
+      if (stored.detection === undefined) delete effective.detection;
+    }
     const updated = await this.tenant.run((tx) =>
-      tx.integration.update({ where: { id: row.id }, data: { config: config as Prisma.InputJsonValue } }),
+      tx.integration.update({ where: { id: row.id }, data: { config: effective as Prisma.InputJsonValue } }),
     );
     return { integration: toIntegrationDto(updated) };
   }
@@ -221,15 +317,22 @@ export class IntegrationsController {
     }
   }
 
-  /** Vendor-side option listings for the config UI (Slack: channels). */
+  /**
+   * Vendor-side option listings for the config UI, per provider:
+   * slack `kind=channels` (W1, byte-identical) · gcal `kind=calendars`
+   * (W2 — the calendar picker; each option carries the calendar's own
+   * timeZone, stored into config at pick time; listed on a FRESH token via
+   * `withFreshCredentials`). Anything else refuses typed.
+   */
   @Get(":provider/options")
   @Roles(Role.OWNER, Role.ADMIN)
   async options(
     @Param("provider") rawProvider: string,
     @Query("kind") kind: string | undefined,
-  ): Promise<{ options: Array<{ id: string; name: string }> }> {
+  ): Promise<{ options: Array<{ id: string; name: string; timeZone?: string }> }> {
     const provider = this.provider(rawProvider);
-    if (provider !== "slack" || kind !== "channels") {
+    const supported = (provider === "slack" && kind === "channels") || (provider === "gcal" && kind === "calendars");
+    if (!supported) {
       throw new UnprocessableEntityException({
         message: "Unknown option kind",
         detail: `No "${kind ?? ""}" options exist for ${provider}`,
@@ -243,7 +346,12 @@ export class IntegrationsController {
       });
     }
     try {
-      const adapter = adapterFor(this.deps, provider) as SlackAdapter;
+      if (provider === "gcal") {
+        const adapter = oauthAdapterFor(this.deps, provider) as GoogleCalendarAdapter;
+        const calendars = await withFreshCredentials(this.deps, row, (creds) => adapter.listCalendars(creds));
+        return { options: calendars };
+      }
+      const adapter = oauthAdapterFor(this.deps, provider) as SlackAdapter;
       const channels = await adapter.listChannels(decryptCredentials(row));
       return { options: channels };
     } catch (err) {
