@@ -1,0 +1,141 @@
+/**
+ * console-v3 design tokens — a VERBATIM mirror of `CONSOLE_V3_CANON.md`
+ * (repo root, LOCKED by the owner 2026-07-12). Token names and values follow
+ * the canon's own names; when the canon and any other source disagree, the
+ * canon wins (it supersedes relayed chat values and the legacy prototypes).
+ *
+ * Sections mirrored here: §1 color · §2 semantic labels · §3 type ·
+ * §4 radius/space/elevation · §5 motion. §6's state names live in index.ts;
+ * §7 widget carryovers are folded into the color/motion sets; §8 shell
+ * structure is layout, not tokens — implementations read it from the doc.
+ *
+ * Consumers: `@clientforce/widget` today (first reference implementation);
+ * the future app re-skin adopts THIS module. The legacy skin
+ * (packages/ui/src/tokens.css, `--cf-*`) must not import it and does not.
+ *
+ * This file is a design-token SOURCE: the only place in packages/theme where
+ * raw color literals are allowed (stylelint override, same rule as
+ * packages/ui/src/tokens.css). Everything else consumes var(--cv3-*).
+ *
+ * `:host` is included so the sheet works when injected into a shadow root
+ * (the widget's isolation boundary) as well as at document level.
+ */
+:root,
+:host {
+  /* ---- §1 Color ---- */
+  --cv3-wash: #e9efea; /* page background */
+  --cv3-panel: #fbfdfb; /* rail · dock · lists · voice overlay (§7) */
+  --cv3-card: #ffffff; /* cards · thread */
+  --cv3-ink: #101613; /* primary text */
+  --cv3-muted: #5a6660; /* secondary text · slate state */
+  --cv3-faint: #8b968f; /* labels · meta · placeholder */
+  --cv3-line: #e9eeea; /* structure hairline */
+  --cv3-line-input: #dce5de; /* input · button hairline */
+  --cv3-line-soft: #e2eae4; /* inner dividers */
+  --cv3-forest: #146b33; /* THE accent — links, primary buttons, live numbers */
+  --cv3-forest-deep: #0f5227; /* hover / pressed accent */
+  --cv3-mint: #eaf5ee; /* selected · chips · good-state fill */
+  --cv3-mint-line: #cfe8d8; /* mint border */
+  --cv3-warn: #8a6d1a; /* needs-you ink */
+  --cv3-warn-bg: #f7efda; /* needs-you fill */
+  --cv3-danger: #b0483a; /* held / error */
+  --cv3-teal: #0e7d93; /* scheduled state · engaged ramp step */
+
+  /* Signature gradient — logo mark, agent mark, one or two moments per screen.
+     Never fills, buttons, toggles, or large surfaces. */
+  --cv3-gradient-signature: linear-gradient(135deg, #36d7ed, #35e834 55%, #d0f56b);
+  /* Hero ink — largest headline on a surface only, via background-clip:text. */
+  --cv3-gradient-hero-ink: linear-gradient(180deg, #101613 25%, #14743a 120%);
+  /* #35E834 appears ONLY inside the signature gradient and in motion. */
+  --cv3-vivid: #35e834;
+  --cv3-vivid-ring: rgba(53, 232, 52, 0.35);
+
+  /* ---- §2 Semantic labels — pipeline temperature ramp ---- */
+  --cv3-stage-new-fg: #5a6660;
+  --cv3-stage-new-bg: #f1f4f2;
+  --cv3-stage-new-line: #e2eae4;
+  --cv3-stage-contacted-fg: #356170;
+  --cv3-stage-contacted-bg: #eaf3f5;
+  --cv3-stage-contacted-line: #cfe4e9;
+  --cv3-stage-engaged-fg: #0e7d93;
+  --cv3-stage-engaged-bg: #e2f3f6;
+  --cv3-stage-engaged-line: #bfe3eb;
+  --cv3-stage-interested-fg: #8a6d1a;
+  --cv3-stage-interested-bg: #f7efda;
+  --cv3-stage-interested-line: #ead9a8;
+  --cv3-stage-booked-fg: #146b33;
+  --cv3-stage-booked-bg: #eaf5ee;
+  --cv3-stage-booked-line: #cfe8d8;
+  --cv3-stage-won-fg: #ffffff;
+  --cv3-stage-won-bg: #146b33;
+  --cv3-stage-won-line: #0f5227;
+  --cv3-stage-lost-fg: #b0483a;
+  --cv3-stage-lost-bg: #fbeeea;
+  --cv3-stage-lost-line: #f0cfc8;
+
+  /* §2 Channel tints — subtle, never full color (labels own the weight) */
+  --cv3-channel-email-fg: #146b33;
+  --cv3-channel-email-bg: #f1f8f3;
+  --cv3-channel-email-line: #dcebe1;
+  --cv3-channel-sms-fg: #0e7d93;
+  --cv3-channel-sms-bg: #f0f8fa;
+  --cv3-channel-sms-line: #d5eaef;
+  --cv3-channel-whatsapp-fg: #2e7d4f;
+  --cv3-channel-whatsapp-bg: #f1f8f3;
+  --cv3-channel-whatsapp-line: #d8eadf;
+  --cv3-channel-voice-fg: #8a6d1a;
+  --cv3-channel-voice-bg: #fbf6e9;
+  --cv3-channel-voice-line: #eee0bf;
+
+  /* ---- §3 Type — Direction D: ONE grotesk for display AND body/UI;
+     IBM Plex Mono for data/IDs/timestamps only ---- */
+  --cv3-font-display: "Schibsted Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --cv3-font-ui: "Schibsted Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --cv3-font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --cv3-display-tracking: -0.02em;
+  --cv3-display-tracking-tight: -0.035em;
+  --cv3-h1-size: 32px;
+  --cv3-h1-weight: 900;
+  --cv3-h2-size: 22px;
+  --cv3-h2-weight: 800;
+  --cv3-h3-size: 16px;
+  --cv3-h3-weight: 700;
+  --cv3-body-size: 14.5px;
+  --cv3-body-weight: 400;
+  --cv3-label-size: 13px;
+  --cv3-label-weight: 600;
+  --cv3-eyebrow-size: 11px;
+  --cv3-eyebrow-weight: 700;
+  --cv3-eyebrow-tracking: 0.08em;
+  --cv3-mono-size: 12px;
+  --cv3-mono-weight: 500;
+
+  /* ---- §4 Radius · space · elevation ---- */
+  --cv3-radius-sm: 9px; /* chips, inputs, buttons (9–12) */
+  --cv3-radius-md: 12px;
+  --cv3-radius-lg: 16px; /* cards (14–16) */
+  --cv3-radius-frame: 22px; /* frames */
+  --cv3-radius-pill: 999px; /* status pills */
+  --cv3-space-1: 4px;
+  --cv3-space-2: 8px;
+  --cv3-space-3: 12px;
+  --cv3-space-4: 16px;
+  --cv3-space-5: 22px;
+  --cv3-space-6: 30px;
+
+  /* Elevation (Direction D — hybrid): these TWO floats are the only shadows.
+     Everything else is a hairline border. The widget's launcher + panel are
+     the documented exception that use the overlay float over unknown hosts. */
+  --cv3-shadow-card: 0 1px 2px rgba(16, 22, 19, 0.04), 0 10px 30px rgba(16, 22, 19, 0.07);
+  --cv3-shadow-float: 0 1px 2px rgba(16, 22, 19, 0.05), 0 18px 44px rgba(16, 22, 19, 0.16);
+
+  /* ---- §5 Motion — event-driven only; disabled under prefers-reduced-motion ---- */
+  --cv3-breathe: 3.6s; /* idle / ready mark */
+  --cv3-ping: 2.2s; /* listening · needs-you badge (border ring) */
+  --cv3-spin: 2.4s; /* thinking (conic ring) */
+  --cv3-slide: 1.7s; /* replying / working progress sweep */
+  --cv3-glow: 4.5s; /* Ada's composer presence */
+  --cv3-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --cv3-motion-fast: 150ms; /* interaction transitions (not a canon verb) */
+  --cv3-motion-base: 200ms;
+}

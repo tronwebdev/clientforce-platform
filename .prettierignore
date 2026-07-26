@@ -4,3 +4,6 @@
 **/node_modules/**
 **/coverage/**
 pnpm-lock.yaml
+
+# Owner design artifacts — kept byte-identical to what was supplied
+CONSOLE_V3_CANON.md

@@ -1,0 +1,28 @@
+{
+  "name": "@clientforce/theme",
+  "version": "0.0.0",
+  "private": true,
+  "description": "console-v3 design tokens — the refresh-brand token source the widget embeds today and the future app re-skin adopts. The legacy skin (packages/ui, apps/web) must NOT import this package.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./console-v3.css": "./src/console-v3.css"
+  },
+  "files": [
+    "dist",
+    "src/console-v3.css"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "clean": "rm -rf dist .turbo"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5"
+  }
+}

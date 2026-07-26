@@ -1,0 +1,27 @@
+{
+  "name": "@clientforce/widget",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Embeddable Agent Widget — drop-in <script> bundle with shadow-DOM isolation. First reference implementation of the console-v3 language (@clientforce/theme).",
+  "main": "./dist/clientforce-widget.js",
+  "exports": {
+    ".": "./dist/clientforce-widget.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json --noEmit && node build.mjs",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "@clientforce/theme": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "esbuild": "^0.25.0",
+    "jsdom": "^25.0.1"
+  }
+}

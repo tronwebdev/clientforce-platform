@@ -4,7 +4,7 @@
 > **`PROGRESS.md` wins** — its Status board and Decision log (the **DEC log**) are
 > the live source of truth, updated in the same PR as the work they describe. The
 > repo also wins over any copy of a doc outside it (fix forks by PR, never edit
-> two places). Treat this file as where to *start*, not where decisions are settled.
+> two places). Treat this file as where to _start_, not where decisions are settled.
 
 **Product.** Clientforce — a multi-tenant, white-label go-to-market SaaS
 (**Agency → Workspace → User**), Postgres **RLS** on every `workspaceId` table.
@@ -14,6 +14,7 @@ staging; the build has since advanced unit-by-unit well beyond that framing
 backoffice…). **Read `PROGRESS.md` first** for exactly where things stand.
 
 ## Canonical docs (read for the area you touch)
+
 - `PROGRESS.md` — Status board · Decision log (DEC-###) · Open questions ·
   Fidelity log · Icon map. The update protocol is `PHASE1_HANDOFF.md §E`.
 - `PHASE1_HANDOFF.md` — locked architecture corrections **A1–A12** (still binding).
@@ -22,12 +23,17 @@ backoffice…). **Read `PROGRESS.md` first** for exactly where things stand.
   `ARCHITECTURE.md` / `BUILD_PLAN.md` — system design + the phased plan.
 - `UI_PORTING_RULES.md` + `DESIGN_TOKENS.md` + `design_handoff_.../prototypes/` —
   port UI from the prototype; atom conflict → token doc wins; composition → prototype wins.
+- `CONSOLE_V3_CANON.md` — the **console-v3** refresh canon (LOCKED 2026-07-12): the
+  design source for NEW work, mirrored in code by `packages/theme` (`--cv3-*`). The
+  shipped app still wears the legacy skin (`packages/ui`, `--cf-*`) until the re-skin
+  unit; console-v3 and the legacy skin never mix in one surface.
 - `KICKOFF_TEMPLATE.md` — standing conventions every unit prompt inherits (DEC-claim
   rule, the send-boundary/no-planner-prompt rails, the ⭑ backoffice-coverage ride-along).
 - `CHECKLIST_B1_BACKOFFICE_COVERAGE.md` — the five backoffice spines × surface coverage;
   the reference the ride-along line points at (extend a spine, never a per-feature panel).
 
 ## Stack (locked — see handoff §A; don't relitigate)
+
 - **Monorepo:** Turborepo + pnpm, Node 22, TypeScript strict everywhere.
 - **Web** (`apps/web`): Next.js 15 + React 19 (App Router). Domain data flows
   through the NestJS API as **REST + zod DTOs** (schemas in `packages/core`); Next
@@ -42,6 +48,7 @@ backoffice…). **Read `PROGRESS.md` first** for exactly where things stand.
 - **AI:** `packages/ai` gateway only — no direct model-SDK imports elsewhere.
 
 ## Working agreement
+
 - **One PR per unit; post the plan as the first PR comment**, then update
   `PROGRESS.md` **in the same PR** (protocol: handoff §E). **Claim DEC ids at
   dispatch**, collision-free vs `main`; renumber on collision.
@@ -55,6 +62,7 @@ backoffice…). **Read `PROGRESS.md` first** for exactly where things stand.
 - **Verify before you claim:** run `pnpm build`, `pnpm lint`, `pnpm test`.
 
 ## Commands
+
 - `pnpm build` / `pnpm lint` / `pnpm test` — turbo across the workspace.
 - `pnpm --filter @clientforce/db db:migrate` · `db:migrate:dev` · `db:seed`.
 - `pnpm --filter @clientforce/e2e run e2e` — Playwright (`E2E_BASE_URL`).

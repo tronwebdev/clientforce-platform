@@ -15,7 +15,9 @@ module.exports = {
   ignoreFiles: ["**/dist/**", "**/.next/**", "**/node_modules/**", "**/.turbo/**"],
   overrides: [
     {
-      files: ["packages/ui/src/tokens.css"],
+      // Design-token SOURCES — the only files allowed raw color literals:
+      // the legacy skin's tokens and the console-v3 module (widget unit).
+      files: ["packages/ui/src/tokens.css", "packages/theme/src/console-v3.css"],
       rules: {
         "color-no-hex": null,
         "color-named": null,
