@@ -10,12 +10,15 @@
  * lands (the widgetId → agent/campaign mapping lives server-side; the
  * client-side agentId/campaignId fields are preview/dev overrides only).
  */
-import { consoleV3 } from "@clientforce/theme";
+import { DEFAULT_AGENT_NAME, consoleV3 } from "@clientforce/theme";
 
 export const WIDGET_GLOBAL_NAME = "ClientforceWidget";
 
 export type WidgetPosition = "left" | "right";
-export type WidgetTheme = "light" | "dark";
+/** Canon §7: the v3 widget is LIGHT-FIRST — there is no dark canon. A dark
+ * theme would be a new design decision, so "dark" is not offered (passing it
+ * warns and falls back to light rather than rendering an un-canon'd skin). */
+export type WidgetTheme = "light";
 /** Prototype "Corners" options XL/L/M/S/None. */
 export type WidgetCorner = "xl" | "l" | "m" | "s" | "none";
 export type FontLoading = "none" | "google";
@@ -99,11 +102,11 @@ export const WIDGET_DEFAULTS: Omit<ResolvedWidgetConfig, "widgetId"> = {
   agentId: null,
   campaignId: null,
   apiBase: null,
-  agentName: "AI Sales Agent",
+  agentName: DEFAULT_AGENT_NAME,
   zIndex: 2147483000,
   fontLoading: "none",
   appearance: {
-    brandColor: consoleV3.accent,
+    brandColor: consoleV3.forest,
     textOnBrand: "auto",
     launcherText: "Chat with our AI Sales Agent",
     subtitle: "AI Sales Assistant",
@@ -207,7 +210,7 @@ export function resolveConfig(init: WidgetInitOptions): ResolvedWidgetConfig {
       subtitle: pickString(a.subtitle, d.appearance.subtitle),
       welcomeMessage: pickString(a.welcomeMessage, d.appearance.welcomeMessage),
       showUnreadBadge: pickBool(a.showUnreadBadge, d.appearance.showUnreadBadge),
-      theme: pickEnum(a.theme, ["light", "dark"] as const, "appearance.theme", d.appearance.theme),
+      theme: pickEnum(a.theme, ["light"] as const, "appearance.theme", d.appearance.theme),
       corner: pickEnum(
         a.corner,
         ["xl", "l", "m", "s", "none"] as const,

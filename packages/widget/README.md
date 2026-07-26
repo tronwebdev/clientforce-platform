@@ -3,8 +3,9 @@
 Drop-in `<script>` embed that mounts the Agent Widget on any host page with
 **shadow-DOM isolation** (host styles cannot reach in; widget styles cannot
 leak out). First reference implementation of the **console-v3** language —
-all atoms come from `@clientforce/theme` (`--cv3-*`, Console v3 Build Spec
-canon: forest `#146B33`, Schibsted Grotesk + IBM Plex type, flat interiors);
+all atoms come from `@clientforce/theme` (`--cv3-*`), the typed mirror of
+`CONSOLE_V3_CANON.md` at the repo root — forest `#146B33`, Schibsted Grotesk
+type, light-first, flat hairline interiors;
 flow composition is ported from the Agent Widget prototype's live-preview
 panel (`design_handoff_clientforce_restyle/prototypes/Agent Widget.dc.html`)
 — per the owner's 2026-07-22 review, only the visual/token layer moves to
@@ -34,13 +35,12 @@ Optional data-attributes (all have prototype defaults):
 | ------------------------------------------------------------------------ | ----------------------------------------------------- | ------------------------------------------------------------------------------------- |
 | `data-agent-id` / `data-campaign-id`                                     | ids                                                   | — (preview/dev override; the server's `widgetId` mapping is authoritative once wired) |
 | `data-api-base`                                                          | origin                                                | — (absent ⇒ stubbed transport)                                                        |
-| `data-agent-name`                                                        | text                                                  | `AI Sales Agent`                                                                      |
-| `data-brand-color`                                                       | `#rgb`/`#rrggbb`                                      | `#146b33` (console-v3 forest accent)                                                  |
+| `data-agent-name`                                                        | text                                                  | `Ada` (canon §6 default)                                                              |
+| `data-brand-color`                                                       | `#rgb`/`#rrggbb`                                      | `#146b33` (canon forest accent)                                                       |
 | `data-text-on-brand`                                                     | color or omit                                         | auto (prototype luminance rule)                                                       |
 | `data-launcher-text`                                                     | text                                                  | `Chat with our AI Sales Agent`                                                        |
 | `data-subtitle`                                                          | text                                                  | `AI Sales Assistant`                                                                  |
 | `data-welcome-message`                                                   | text                                                  | `Hi! 👋 How can I help?`                                                              |
-| `data-theme`                                                             | `light` \| `dark`                                     | `light`                                                                               |
 | `data-corner`                                                            | `xl` \| `l` \| `m` \| `s` \| `none` (22/16/12/9/0 px) | `l`                                                                                   |
 | `data-position`                                                          | `left` \| `right`                                     | `right`                                                                               |
 | `data-unread-badge`                                                      | `true` \| `false`                                     | `true`                                                                                |
@@ -84,6 +84,9 @@ Events: `ready` · `open` · `close` · `message:sent` · `message:received` ·
   from inside a shadow root).
 - `--cv3-*` tokens + `--cfw-*` instance vars; zero collision with host CSS or
   the legacy `--cf-*` skin.
+- **Light-first:** canon §7 states there is no dark canon, so the embed ships
+  no dark theme — `theme:"dark"` warns and renders light rather than shipping
+  an un-canon'd skin.
 
 ## 3. API seam — ONE documented endpoint (stubbed this unit)
 
@@ -152,13 +155,14 @@ agent-identity orb, presence dot, thread bubbles (asymmetric-corner radius),
 quick-action chips, pill composer with mic + send. Light/dark themes, corner
 and position options per the builder's Design tab.
 
-Agent-identity motion states (`idle | listening | thinking | replying`) run
-on the identity orb using the canon motion verbs (Agent Identity & States):
-idle→**breathe** · listening→**ping** · thinking→**spin** (ring-spin) ·
-replying→**slide** (the reply row slides in) + typing dots — CSS-driven off
-`data-agent-state`, disabled under `prefers-reduced-motion`. The states
-canon names FIVE agent states; the fifth reconciles when the canon doc
-lands in-repo, with the Build-Spec/mock fidelity pass (Q-049).
+Agent-identity motion (canon §5/§6) runs on the ✦ mark: idle→**breathe** ·
+listening→**ping** (border ring) · thinking→**spin** (conic ring) ·
+replying→**slide** (a sweep under the mark) + typing dots — CSS-driven off
+`data-agent-state`, canon timings, all disabled under
+`prefers-reduced-motion`. The widget keeps exactly these FOUR chat verbs;
+canon §6 forbids forcing a fifth. They map into the five console states via
+`WIDGET_STATE_TO_CONSOLE` in `@clientforce/theme` (`needs-you` and `held` are
+console-surface states with no widget analogue).
 
 ## 5. Develop
 

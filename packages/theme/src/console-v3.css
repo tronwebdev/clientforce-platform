@@ -1,24 +1,17 @@
 /**
- * console-v3 design tokens — the refresh-brand language: light surfaces,
- * hairline structure, forest accent, signature gradient used sparingly.
+ * console-v3 design tokens — a VERBATIM mirror of `CONSOLE_V3_CANON.md`
+ * (repo root, LOCKED by the owner 2026-07-12). Token names and values follow
+ * the canon's own names; when the canon and any other source disagree, the
+ * canon wins (it supersedes relayed chat values and the legacy prototypes).
  *
- * First reference implementation: the Agent Widget embed (@clientforce/widget).
- * The future app re-skin (its own unit) adopts THIS module; the legacy skin
- * (packages/ui/src/tokens.css, --cf-*) must not import it and does not.
+ * Sections mirrored here: §1 color · §2 semantic labels · §3 type ·
+ * §4 radius/space/elevation · §5 motion. §6's state names live in index.ts;
+ * §7 widget carryovers are folded into the color/motion sets; §8 shell
+ * structure is layout, not tokens — implementations read it from the doc.
  *
- * BINDING SOURCE (owner ruling 2026-07-22, Q-049): the Console v3 Build Spec
- * + the owner's mock — values below are the canon set the owner relayed at
- * the unit review (the spec/mock files land in-repo with the Q-049 fidelity
- * pass). They SUPERSEDE the legacy Agent Widget prototype literals this
- * module first shipped with (the retired pre-refresh green #16A82A/#0F7A28
- * is gone). Tokens marked "carryover pending spec" have no canon value yet
- * and keep their prototype literals, flagged.
- *
- * HARD RULES (pinned in test/tokens.test.ts):
- * - #35E834 (vivid) lives ONLY inside the signature gradient + motion —
- *   never a solid fill, button, or text color. Vivid-green-as-fill is retired.
- * - Zero box-shadows except the launcher + panel float (the one documented
- *   widget exception) — interiors stay flat + hairline.
+ * Consumers: `@clientforce/widget` today (first reference implementation);
+ * the future app re-skin adopts THIS module. The legacy skin
+ * (packages/ui/src/tokens.css, `--cf-*`) must not import it and does not.
  *
  * This file is a design-token SOURCE: the only place in packages/theme where
  * raw color literals are allowed (stylelint override, same rule as
@@ -29,76 +22,120 @@
  */
 :root,
 :host {
-  /* ---- Forest accent ---- */
-  --cv3-accent: #146b33; /* forest — the v3 accent */
-  --cv3-accent-hover: #0f5227; /* hover / pressed */
-
-  /* ---- Light surfaces ---- */
-  --cv3-wash: #e9efea; /* page wash / soft wells */
-  --cv3-panel: #fbfdfb; /* panel surface */
-  --cv3-card: #ffffff; /* cards, floating surfaces */
-
-  /* ---- Ink ---- */
+  /* ---- §1 Color ---- */
+  --cv3-wash: #e9efea; /* page background */
+  --cv3-panel: #fbfdfb; /* rail · dock · lists · voice overlay (§7) */
+  --cv3-card: #ffffff; /* cards · thread */
   --cv3-ink: #101613; /* primary text */
-  --cv3-muted: #5a6660; /* secondary text */
-  --cv3-faint: #8b968f; /* tertiary text, placeholders */
+  --cv3-muted: #5a6660; /* secondary text · slate state */
+  --cv3-faint: #8b968f; /* labels · meta · placeholder */
+  --cv3-line: #e9eeea; /* structure hairline */
+  --cv3-line-input: #dce5de; /* input · button hairline */
+  --cv3-line-soft: #e2eae4; /* inner dividers */
+  --cv3-forest: #146b33; /* THE accent — links, primary buttons, live numbers */
+  --cv3-forest-deep: #0f5227; /* hover / pressed accent */
+  --cv3-mint: #eaf5ee; /* selected · chips · good-state fill */
+  --cv3-mint-line: #cfe8d8; /* mint border */
+  --cv3-warn: #8a6d1a; /* needs-you ink */
+  --cv3-warn-bg: #f7efda; /* needs-you fill */
+  --cv3-danger: #b0483a; /* held / error */
+  --cv3-teal: #0e7d93; /* scheduled state · engaged ramp step */
 
-  /* ---- Hairline structure ---- */
-  --cv3-hairline: #e9eeea; /* structure */
-  --cv3-hairline-input: #dce5de; /* inputs / crisp edges */
-  --cv3-divider: #e2eae4; /* dividers */
-
-  /* ---- Tints + status ---- */
-  --cv3-mint: #eaf5ee; /* accent-tinted fill (selected / visitor bubble) */
-  --cv3-mint-border: #cfe8d8;
-  --cv3-warn-ink: #8a6d1a;
-  --cv3-warn-bg: #f7efda;
-  --cv3-danger: #b0483a;
-
-  /* ---- Signature gradient — used sparingly (identity orb) ----
-     The ONLY home of #35E834 besides motion. */
+  /* Signature gradient — logo mark, agent mark, one or two moments per screen.
+     Never fills, buttons, toggles, or large surfaces. */
   --cv3-gradient-signature: linear-gradient(135deg, #36d7ed, #35e834 55%, #d0f56b);
-  --cv3-vivid: #35e834; /* gradient + motion ONLY — never a solid fill/button/text */
-  --cv3-vivid-fade: rgba(53, 232, 52, 0); /* motion keyframe terminal */
+  /* Hero ink — largest headline on a surface only, via background-clip:text. */
+  --cv3-gradient-hero-ink: linear-gradient(180deg, #101613 25%, #14743a 120%);
+  /* #35E834 appears ONLY inside the signature gradient and in motion. */
+  --cv3-vivid: #35e834;
+  --cv3-vivid-ring: rgba(53, 232, 52, 0.35);
 
-  /* ---- Typography (canon: Schibsted display 800–900 · IBM Plex UI/data) ---- */
+  /* ---- §2 Semantic labels — pipeline temperature ramp ---- */
+  --cv3-stage-new-fg: #5a6660;
+  --cv3-stage-new-bg: #f1f4f2;
+  --cv3-stage-new-line: #e2eae4;
+  --cv3-stage-contacted-fg: #356170;
+  --cv3-stage-contacted-bg: #eaf3f5;
+  --cv3-stage-contacted-line: #cfe4e9;
+  --cv3-stage-engaged-fg: #0e7d93;
+  --cv3-stage-engaged-bg: #e2f3f6;
+  --cv3-stage-engaged-line: #bfe3eb;
+  --cv3-stage-interested-fg: #8a6d1a;
+  --cv3-stage-interested-bg: #f7efda;
+  --cv3-stage-interested-line: #ead9a8;
+  --cv3-stage-booked-fg: #146b33;
+  --cv3-stage-booked-bg: #eaf5ee;
+  --cv3-stage-booked-line: #cfe8d8;
+  --cv3-stage-won-fg: #ffffff;
+  --cv3-stage-won-bg: #146b33;
+  --cv3-stage-won-line: #0f5227;
+  --cv3-stage-lost-fg: #b0483a;
+  --cv3-stage-lost-bg: #fbeeea;
+  --cv3-stage-lost-line: #f0cfc8;
+
+  /* §2 Channel tints — subtle, never full color (labels own the weight) */
+  --cv3-channel-email-fg: #146b33;
+  --cv3-channel-email-bg: #f1f8f3;
+  --cv3-channel-email-line: #dcebe1;
+  --cv3-channel-sms-fg: #0e7d93;
+  --cv3-channel-sms-bg: #f0f8fa;
+  --cv3-channel-sms-line: #d5eaef;
+  --cv3-channel-whatsapp-fg: #2e7d4f;
+  --cv3-channel-whatsapp-bg: #f1f8f3;
+  --cv3-channel-whatsapp-line: #d8eadf;
+  --cv3-channel-voice-fg: #8a6d1a;
+  --cv3-channel-voice-bg: #fbf6e9;
+  --cv3-channel-voice-line: #eee0bf;
+
+  /* ---- §3 Type — Direction D: ONE grotesk for display AND body/UI;
+     IBM Plex Mono for data/IDs/timestamps only ---- */
   --cv3-font-display: "Schibsted Grotesk", ui-sans-serif, system-ui, sans-serif;
-  --cv3-font-ui: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --cv3-font-ui: "Schibsted Grotesk", ui-sans-serif, system-ui, sans-serif;
   --cv3-font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --cv3-display-tracking: -0.02em;
+  --cv3-display-tracking-tight: -0.035em;
+  --cv3-h1-size: 32px;
+  --cv3-h1-weight: 900;
+  --cv3-h2-size: 22px;
+  --cv3-h2-weight: 800;
+  --cv3-h3-size: 16px;
+  --cv3-h3-weight: 700;
+  --cv3-body-size: 14.5px;
+  --cv3-body-weight: 400;
+  --cv3-label-size: 13px;
+  --cv3-label-weight: 600;
+  --cv3-eyebrow-size: 11px;
+  --cv3-eyebrow-weight: 700;
+  --cv3-eyebrow-tracking: 0.08em;
+  --cv3-mono-size: 12px;
+  --cv3-mono-weight: 500;
 
-  /* ---- Radii (canon scale: 9–12 / 14–16 / 22 / 999) ---- */
-  --cv3-radius-sm: 9px;
+  /* ---- §4 Radius · space · elevation ---- */
+  --cv3-radius-sm: 9px; /* chips, inputs, buttons (9–12) */
   --cv3-radius-md: 12px;
-  --cv3-radius-lg: 16px;
-  --cv3-radius-xl: 22px;
-  --cv3-radius-pill: 999px;
+  --cv3-radius-lg: 16px; /* cards (14–16) */
+  --cv3-radius-frame: 22px; /* frames */
+  --cv3-radius-pill: 999px; /* status pills */
+  --cv3-space-1: 4px;
+  --cv3-space-2: 8px;
+  --cv3-space-3: 12px;
+  --cv3-space-4: 16px;
+  --cv3-space-5: 22px;
+  --cv3-space-6: 30px;
 
-  /* ---- Shadows — ZERO except these two documented widget floats
-     (values = the widget prototype's float literals; interiors are flat) ---- */
-  --cv3-shadow-panel: 0 18px 50px rgba(14, 21, 18, 0.22); /* chat panel float */
-  --cv3-shadow-launcher: 0 10px 26px rgba(14, 21, 18, 0.28); /* launcher float */
+  /* Elevation (Direction D — hybrid): these TWO floats are the only shadows.
+     Everything else is a hairline border. The widget's launcher + panel are
+     the documented exception that use the overlay float over unknown hosts. */
+  --cv3-shadow-card: 0 1px 2px rgba(16, 22, 19, 0.04), 0 10px 30px rgba(16, 22, 19, 0.07);
+  --cv3-shadow-float: 0 1px 2px rgba(16, 22, 19, 0.05), 0 18px 44px rgba(16, 22, 19, 0.16);
 
-  /* ---- Motion (150–220ms ease; loop periods from the widget prototype) ---- */
-  --cv3-motion-fast: 150ms;
-  --cv3-motion-base: 200ms;
+  /* ---- §5 Motion — event-driven only; disabled under prefers-reduced-motion ---- */
+  --cv3-breathe: 3.6s; /* idle / ready mark */
+  --cv3-ping: 2.2s; /* listening · needs-you badge (border ring) */
+  --cv3-spin: 2.4s; /* thinking (conic ring) */
+  --cv3-slide: 1.7s; /* replying / working progress sweep */
+  --cv3-glow: 4.5s; /* Ada's composer presence */
   --cv3-ease: cubic-bezier(0.4, 0, 0.2, 1);
-  --cv3-breathe-period: 2s;
-  --cv3-float-period: 3.5s;
-  --cv3-ping-ring: rgba(53, 232, 52, 0.35); /* motion-only vivid (listening ping) */
-
-  /* ---- Widget carryovers pending their spec values (flagged, Q-049) ---- */
-  --cv3-online: #7cf59b; /* presence dot (widget prototype) */
-  --cv3-badge: #ff5a5a; /* unread badge (widget prototype) */
-  --cv3-orb-overlay: rgba(255, 255, 255, 0.22); /* header identity orb on brand */
-
-  /* ---- Dark widget theme (prototype literals — dark canon pends the spec) ---- */
-  --cv3-dark-surface: #141b17;
-  --cv3-dark-hairline: rgba(255, 255, 255, 0.1);
-  --cv3-dark-bubble: rgba(255, 255, 255, 0.07);
-  --cv3-dark-ink: rgba(255, 255, 255, 0.9);
-  --cv3-dark-chip: rgba(255, 255, 255, 0.06);
-  --cv3-dark-chip-border: rgba(255, 255, 255, 0.14);
-  --cv3-dark-field: rgba(255, 255, 255, 0.06);
-  --cv3-dark-field-border: rgba(255, 255, 255, 0.12);
-  --cv3-dark-placeholder: rgba(255, 255, 255, 0.4);
+  --cv3-motion-fast: 150ms; /* interaction transitions (not a canon verb) */
+  --cv3-motion-base: 200ms;
 }

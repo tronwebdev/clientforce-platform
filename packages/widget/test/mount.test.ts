@@ -75,7 +75,7 @@ describe("mount + isolation", () => {
     const shadow = active.shadow;
     expect(shadow.mode ?? "open").toBe("open");
     expect(shadow.querySelector(".cfw-root")).toBeTruthy();
-    expect(shadow.querySelector("style")!.textContent).toContain("--cv3-accent");
+    expect(shadow.querySelector("style")!.textContent).toContain("--cv3-forest");
     // Host document stays clean: no styles, no extra nodes.
     expect(document.head.querySelectorAll("style, link")).toHaveLength(0);
     expect(document.querySelector(".cfw-root")).toBeNull();
@@ -110,7 +110,6 @@ describe("mount + isolation", () => {
       agentName: "Acme Sales Agent",
       appearance: {
         brandColor: "#0F5227",
-        theme: "dark",
         corner: "s",
         position: "left",
         launcherText: "Talk",
@@ -121,10 +120,9 @@ describe("mount + isolation", () => {
     expect(root.style.getPropertyValue("--cfw-brand")).toBe("#0F5227");
     expect(root.style.getPropertyValue("--cfw-on-brand")).toBe("#FFFFFF");
     expect(root.style.getPropertyValue("--cfw-radius")).toBe("9px");
-    expect(root.getAttribute("data-theme")).toBe("dark");
     expect(root.getAttribute("data-position")).toBe("left");
     expect(active.shadow.querySelector(".cfw-name")!.textContent).toBe("Acme Sales Agent");
-    expect(active.shadow.querySelector(".cfw-orb")!.textContent).toBe("a");
+    expect(active.shadow.querySelector(".cfw-orb")!.textContent).toBe("✦"); // canon §6 mark
     expect(active.shadow.querySelector(".cfw-label")!.textContent).toBe("Talk");
   });
 });

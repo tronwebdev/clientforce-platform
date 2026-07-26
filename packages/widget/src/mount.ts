@@ -23,7 +23,7 @@ import { WidgetShell } from "./ui/shell";
 export const HOST_ELEMENT_ID = "clientforce-widget-host";
 export const FONT_LINK_ID = "clientforce-widget-fonts";
 const FONT_HREF =
-  "https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;700;800;900&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap";
+  "https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800;900&family=IBM+Plex+Mono:wght@500&display=swap";
 /** How long the orb holds "replying" after a reply lands before settling. */
 export const REPLY_SETTLE_MS = 900;
 

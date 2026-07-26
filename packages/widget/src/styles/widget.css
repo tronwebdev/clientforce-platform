@@ -1,14 +1,18 @@
 /**
- * Agent Widget shell — composition ported from the Agent Widget prototype's
- * live-preview panel (design_handoff_clientforce_restyle/prototypes/
- * Agent Widget.dc.html; flow composition unchanged per the owner's 2026-07-22
- * review); the visual/token layer is Console v3 Build Spec canon via
+ * Agent Widget shell — FLOW composition ported from the Agent Widget
+ * prototype's live-preview panel (design_handoff_clientforce_restyle/
+ * prototypes/Agent Widget.dc.html; unchanged per the owner's 2026-07-22
+ * review); the visual layer is `CONSOLE_V3_CANON.md` (repo root) via
  * @clientforce/theme. No raw colors here — instance values arrive as --cfw-*
  * custom properties set by mount.
  *
- * Shadow rule: ZERO box-shadows except the launcher + panel float (the one
- * documented widget exception) — interiors stay flat + hairline.
- * Deviations from the static preview are flagged in PROGRESS (DEC-096).
+ * Canon rules honored structurally:
+ * - Light-first: there is NO dark canon (§7) — no dark rules exist here.
+ * - Elevation (§4): box-shadow appears exactly TWICE — launcher + panel, the
+ *   documented widget exception. Every internal is flat + hairline. The
+ *   widget test counts these two declarations.
+ * - Motion (§5): event-driven only, canon verbs + timings, all disabled under
+ *   prefers-reduced-motion.
  */
 
 :host {
@@ -17,7 +21,8 @@
 
 .cfw-root {
   font-family: var(--cv3-font-ui);
-  font-size: 14px;
+  font-size: var(--cv3-body-size);
+  font-weight: var(--cv3-body-weight);
   line-height: 1.4;
   color: var(--cv3-ink);
   -webkit-font-smoothing: antialiased;
@@ -41,21 +46,20 @@
 }
 
 .cfw-root button:focus-visible {
-  outline: 2px solid var(--cv3-accent);
+  outline: 2px solid var(--cv3-forest);
   outline-offset: 2px;
 }
 
-/* The composer carries the input's focus ring (visible focus, flat — outline,
-   never a box-shadow). */
+/* The composer carries the input's focus ring — an outline, never a shadow. */
 .cfw-root .cfw-input:focus,
 .cfw-root .cfw-input:focus-visible {
   outline: none;
 }
 
 .cfw-composer:focus-within {
-  outline: 2px solid var(--cv3-accent);
+  outline: 2px solid var(--cv3-forest);
   outline-offset: 1px;
-  border-color: var(--cv3-accent);
+  border-color: var(--cv3-forest);
 }
 
 /* ---------- Launcher cluster (prototype: bottom 20px, side 24px) ---------- */
@@ -65,7 +69,7 @@
   bottom: 20px;
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: var(--cv3-space-3);
   z-index: var(--cfw-z);
 }
 
@@ -78,34 +82,46 @@
   flex-direction: row-reverse;
 }
 
+/* Documented shadow exception 1 of 2 — floats over an unknown host page. */
 .cfw-launcher {
   width: 60px;
   height: 60px;
   border-radius: 50%;
   background: var(--cfw-brand);
-  box-shadow: var(--cv3-shadow-launcher); /* documented float exception */
+  box-shadow: var(--cv3-shadow-float);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
+  font-size: 22px;
   color: var(--cfw-on-brand);
-  animation: cfw-float var(--cv3-float-period) ease-in-out infinite;
   position: relative;
   flex: none;
 }
 
+/* §5/§6: the ready mark breathes. No perpetual decorative bob — canon motion
+   is event-driven, so the launcher itself never floats-for-show. */
+.cfw-launcher-mark {
+  line-height: 1;
+}
+
+.cfw-root[data-agent-state="idle"] .cfw-launcher-mark {
+  animation: cfw-breathe var(--cv3-breathe) ease-in-out infinite;
+}
+
+/* §7: forest fill, white numerals, 2px white ring. */
 .cfw-badge {
   position: absolute;
   top: -2px;
   right: -2px;
-  width: 18px;
+  min-width: 18px;
   height: 18px;
-  border-radius: 50%;
-  background: var(--cv3-badge);
+  padding: 0 4px;
+  border-radius: var(--cv3-radius-pill);
+  background: var(--cv3-forest);
   border: 2px solid var(--cv3-card);
   color: var(--cv3-card);
-  font-size: 10px;
-  font-weight: 700;
+  font-size: var(--cv3-eyebrow-size);
+  font-weight: var(--cv3-eyebrow-weight);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -116,13 +132,12 @@
   display: none;
 }
 
-/* Flat + hairline (canon: no label float shadow). */
 .cfw-label {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--cv3-label-size);
+  font-weight: var(--cv3-label-weight);
   color: var(--cv3-ink);
   background: var(--cv3-card);
-  border: 1px solid var(--cv3-hairline-input);
+  border: 1px solid var(--cv3-line-input);
   border-radius: var(--cv3-radius-pill);
   padding: 10px 16px;
   white-space: nowrap;
@@ -134,16 +149,17 @@
   display: none;
 }
 
-/* ---------- Panel (prototype: 344px, bottom 96px, side 24px) ---------- */
+/* ---------- Panel (prototype: 344px, bottom 96px, side 24px) ----------
+   Documented shadow exception 2 of 2. ---------- */
 
 .cfw-panel {
   position: fixed;
   bottom: 96px;
   width: 344px;
   background: var(--cv3-card);
-  border: 1px solid var(--cv3-hairline);
+  border: 1px solid var(--cv3-line);
   border-radius: var(--cfw-radius);
-  box-shadow: var(--cv3-shadow-panel); /* documented float exception */
+  box-shadow: var(--cv3-shadow-float);
   overflow: hidden;
   z-index: var(--cfw-z);
   display: none;
@@ -166,23 +182,25 @@
 .cfw-header {
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: var(--cv3-space-3);
   padding: 15px 16px;
   background: var(--cfw-brand);
+  position: relative;
 }
 
+/* §6: the agent mark is ✦ on the signature gradient. */
 .cfw-orb {
   width: 38px;
   height: 38px;
   border-radius: 50%;
-  background: var(--cv3-orb-overlay);
+  background: var(--cv3-gradient-signature);
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: var(--cv3-font-display);
-  font-weight: 800;
-  font-size: 17px;
-  color: var(--cfw-on-brand);
+  font-weight: var(--cv3-h1-weight);
+  font-size: 18px;
+  color: var(--cv3-ink);
   flex: none;
   position: relative;
 }
@@ -194,8 +212,9 @@
 }
 
 .cfw-name {
-  font-size: 14.5px;
-  font-weight: 700;
+  font-size: var(--cv3-h3-size);
+  font-weight: var(--cv3-h3-weight);
+  letter-spacing: var(--cv3-display-tracking);
   color: var(--cfw-on-brand);
   white-space: nowrap;
   overflow: hidden;
@@ -210,11 +229,12 @@
   gap: 6px;
 }
 
+/* §7: presence dot = forest. */
 .cfw-dot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--cv3-online);
+  background: var(--cv3-forest);
   flex: none;
 }
 
@@ -224,6 +244,30 @@
   flex: none;
   line-height: 1;
   padding: 4px;
+}
+
+/* §6 working/replying: a slide sweep under the mark (canon's slide verb). */
+.cfw-sweep {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  width: 100%;
+  overflow: hidden;
+  display: none;
+}
+
+.cfw-root[data-agent-state="replying"] .cfw-sweep {
+  display: block;
+}
+
+.cfw-sweep::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 38%;
+  background: var(--cv3-gradient-signature);
+  animation: cfw-slide var(--cv3-slide) ease-in-out infinite;
 }
 
 /* ---------- Body ---------- */
@@ -245,11 +289,7 @@
   display: flex;
   gap: 9px;
   margin-bottom: 14px;
-}
-
-/* Canon motion verb SLIDE: replies slide in (entrance, agent rows). */
-.cfw-row[data-role="agent"] {
-  animation: cfw-slide-in var(--cv3-motion-base) var(--cv3-ease);
+  animation: cfw-appear var(--cv3-motion-base) var(--cv3-ease);
 }
 
 .cfw-msg-orb {
@@ -257,6 +297,12 @@
   height: 28px;
   border-radius: 50%;
   background: var(--cv3-gradient-signature);
+  color: var(--cv3-ink);
+  font-family: var(--cv3-font-display);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex: none;
 }
 
@@ -277,7 +323,7 @@
 
 .cfw-row[data-role="visitor"] .cfw-bubble {
   background: var(--cv3-mint);
-  border: 1px solid var(--cv3-mint-border);
+  border: 1px solid var(--cv3-mint-line);
   color: var(--cv3-ink);
   border-radius: 14px 14px 4px 14px;
 }
@@ -326,24 +372,25 @@
 .cfw-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--cv3-space-2);
   margin-bottom: 16px;
   padding-left: 37px;
 }
 
 .cfw-chip {
   font-size: 12.5px;
-  font-weight: 600;
-  color: var(--cv3-accent);
+  font-weight: var(--cv3-label-weight);
+  color: var(--cv3-forest);
   background: var(--cv3-card);
-  border: 1px solid var(--cv3-hairline-input);
+  border: 1px solid var(--cv3-line-input);
   border-radius: var(--cv3-radius-pill);
   padding: 7px 13px;
+  transition: background var(--cv3-motion-fast) var(--cv3-ease);
 }
 
 .cfw-chip:hover {
-  color: var(--cv3-accent-hover);
-  border-color: var(--cv3-mint-border);
+  color: var(--cv3-forest-deep);
+  border-color: var(--cv3-mint-line);
   background: var(--cv3-mint);
 }
 
@@ -354,7 +401,7 @@
   align-items: center;
   gap: 9px;
   background: var(--cv3-wash);
-  border: 1px solid var(--cv3-hairline-input);
+  border: 1px solid var(--cv3-line-input);
   border-radius: var(--cv3-radius-pill);
   padding: 7px 7px 7px 15px;
 }
@@ -365,7 +412,7 @@
   border: none;
   background: transparent;
   font-family: inherit;
-  font-size: 13px;
+  font-size: var(--cv3-label-size);
   color: var(--cv3-ink);
   outline: none;
 }
@@ -379,7 +426,7 @@
   height: 34px;
   border-radius: 50%;
   background: var(--cv3-card);
-  border: 1px solid var(--cv3-hairline-input);
+  border: 1px solid var(--cv3-line-input);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -398,66 +445,19 @@
   color: var(--cfw-on-brand);
   font-size: 14px;
   flex: none;
+  transition: background var(--cv3-motion-fast) var(--cv3-ease);
 }
 
 .cfw-send:hover {
   background: var(--cfw-brand-hover, var(--cfw-brand));
 }
 
-/* ---------- Dark theme (prototype dark literals — dark canon pends the
-   Build Spec, flagged Q-049) ---------- */
-
-.cfw-root[data-theme="dark"] .cfw-panel {
-  background: var(--cv3-dark-surface);
-  border-color: var(--cv3-dark-hairline);
-}
-
-.cfw-root[data-theme="dark"] .cfw-body {
-  background: var(--cv3-dark-surface);
-}
-
-.cfw-root[data-theme="dark"] .cfw-bubble {
-  background: var(--cv3-dark-bubble);
-  color: var(--cv3-dark-ink);
-}
-
-.cfw-root[data-theme="dark"] .cfw-row[data-role="visitor"] .cfw-bubble {
-  background: var(--cv3-dark-bubble);
-  border-color: var(--cv3-dark-chip-border);
-  color: var(--cv3-dark-ink);
-}
-
-.cfw-root[data-theme="dark"] .cfw-chip {
-  background: var(--cv3-dark-chip);
-  border-color: var(--cv3-dark-chip-border);
-}
-
-.cfw-root[data-theme="dark"] .cfw-composer {
-  background: var(--cv3-dark-field);
-  border-color: var(--cv3-dark-field-border);
-}
-
-.cfw-root[data-theme="dark"] .cfw-input {
-  color: var(--cv3-dark-ink);
-}
-
-.cfw-root[data-theme="dark"] .cfw-input::placeholder {
-  color: var(--cv3-dark-placeholder);
-}
-
-.cfw-root[data-theme="dark"] .cfw-mic {
-  background: var(--cv3-dark-chip);
-  border-color: var(--cv3-dark-chip-border);
-}
-
-/* ---------- Agent-identity motion states — canon verbs (Agent Identity &
-   States): idle→BREATHE · listening→PING · thinking→SPIN · replying→SLIDE
-   (the reply row's entrance above). The canon's fifth state reconciles when
-   the states doc lands (Q-049). Vivid green appears here (motion) and in the
-   signature gradient ONLY. ---------- */
+/* ---------- §5/§6 Agent-identity motion — canon verbs on the ✦ mark:
+   idle→breathe · listening→ping (border ring) · thinking→spin (conic ring) ·
+   replying→slide (the header sweep above). ---------- */
 
 .cfw-root[data-agent-state="idle"] .cfw-orb {
-  animation: cfw-breathe var(--cv3-breathe-period) ease-in-out infinite;
+  animation: cfw-breathe var(--cv3-breathe) ease-in-out infinite;
 }
 
 .cfw-root[data-agent-state="listening"] .cfw-orb::after {
@@ -465,8 +465,8 @@
   position: absolute;
   inset: -3px;
   border-radius: 50%;
-  border: 2px solid var(--cv3-ping-ring);
-  animation: cfw-ping 1.6s ease-out infinite;
+  border: 2px solid var(--cv3-vivid-ring);
+  animation: cfw-ping var(--cv3-ping) ease-out infinite;
 }
 
 .cfw-root[data-agent-state="thinking"] .cfw-orb::after {
@@ -474,24 +474,19 @@
   position: absolute;
   inset: -4px;
   border-radius: 50%;
-  border: 2px solid transparent;
-  border-top-color: var(--cv3-vivid);
-  animation: cfw-spin 0.9s linear infinite;
-}
-
-.cfw-root[data-agent-state="replying"] .cfw-orb {
-  animation: cfw-breathe 1s ease-in-out infinite;
-}
-
-@keyframes cfw-float {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-
-  50% {
-    transform: translateY(-5px);
-  }
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    var(--cv3-vivid) 300deg,
+    transparent 340deg
+  );
+  -webkit-mask: radial-gradient(
+    farthest-side,
+    transparent calc(100% - 2px),
+    rgb(0 0 0) calc(100% - 2px)
+  );
+  mask: radial-gradient(farthest-side, transparent calc(100% - 2px), rgb(0 0 0) calc(100% - 2px));
+  animation: cfw-spin var(--cv3-spin) linear infinite;
 }
 
 @keyframes cfw-breathe {
@@ -525,9 +520,19 @@
   }
 }
 
-@keyframes cfw-slide-in {
+@keyframes cfw-slide {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(340%);
+  }
+}
+
+@keyframes cfw-appear {
   from {
-    transform: translateY(5px);
+    transform: translateY(4px);
     opacity: 0;
   }
 
@@ -549,7 +554,7 @@
   }
 }
 
-/* ---------- Reduced motion ---------- */
+/* ---------- Reduced motion (§5) ---------- */
 
 @media (prefers-reduced-motion: reduce) {
   .cfw-root *,

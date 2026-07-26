@@ -3,7 +3,13 @@
  * panel: brand header with identity orb, thread, quick-action chips, pill
  * composer), built imperatively so the embed ships dependency-free.
  */
-import { consoleV3, subtleTextOnColor, textOnColor, type AgentState } from "@clientforce/theme";
+import {
+  AGENT_MARK,
+  consoleV3,
+  subtleTextOnColor,
+  textOnColor,
+  type AgentState,
+} from "@clientforce/theme";
 import type { QuickActionKind, WidgetQuickAction } from "../api/contract";
 import { CORNER_RADIUS_PX, type ResolvedWidgetConfig } from "../config";
 
@@ -75,7 +81,8 @@ export class WidgetShell {
     this.label = el(doc, "span", "cfw-label");
     this.launcher = el(doc, "button", "cfw-launcher");
     this.launcher.type = "button";
-    this.launcher.appendChild(el(doc, "span", "cfw-launcher-icon", "💬"));
+    // Canon §6: the agent mark is the ✦ glyph (it breathes when ready).
+    this.launcher.appendChild(el(doc, "span", "cfw-launcher-mark", AGENT_MARK));
     this.badge = el(doc, "span", "cfw-badge", "1");
     this.badge.setAttribute("aria-hidden", "true");
     this.launcher.appendChild(this.badge);
@@ -88,7 +95,8 @@ export class WidgetShell {
     this.panel.setAttribute("role", "dialog");
 
     this.header = el(doc, "div", "cfw-header");
-    this.orb = el(doc, "div", "cfw-orb");
+    // Canon §6: ✦ on the signature gradient — one identity across surfaces.
+    this.orb = el(doc, "div", "cfw-orb", AGENT_MARK);
     this.orb.setAttribute("data-orb", "");
     const headText = el(doc, "div", "cfw-head-text");
     this.nameEl = el(doc, "div", "cfw-name");
@@ -105,13 +113,15 @@ export class WidgetShell {
     this.header.appendChild(this.orb);
     this.header.appendChild(headText);
     this.header.appendChild(close);
+    // Canon §6 working: a slide sweep under the mark (CSS-gated on the state).
+    this.header.appendChild(el(doc, "div", "cfw-sweep"));
 
     const body = el(doc, "div", "cfw-body");
     this.messages = el(doc, "div", "cfw-messages");
     this.messages.setAttribute("aria-live", "polite");
 
     this.typing = el(doc, "div", "cfw-row cfw-typing");
-    this.typing.appendChild(el(doc, "div", "cfw-msg-orb"));
+    this.typing.appendChild(el(doc, "div", "cfw-msg-orb", AGENT_MARK));
     const typingBubble = el(doc, "div", "cfw-bubble");
     for (let i = 0; i < 3; i += 1) typingBubble.appendChild(el(doc, "span", "cfw-typing-dot"));
     this.typing.appendChild(typingBubble);
@@ -163,8 +173,8 @@ export class WidgetShell {
     const { appearance: a } = cfg;
     const onBrand = a.textOnBrand === "auto" ? textOnColor(a.brandColor) : a.textOnBrand;
     this.root.style.setProperty("--cfw-brand", a.brandColor);
-    if (a.brandColor.toLowerCase() === consoleV3.accent) {
-      this.root.style.setProperty("--cfw-brand-hover", consoleV3.accentHover);
+    if (a.brandColor.toLowerCase() === consoleV3.forest) {
+      this.root.style.setProperty("--cfw-brand-hover", consoleV3.forestDeep);
     } else {
       // Custom brands have no canon hover shade — fall back to the brand fill.
       this.root.style.removeProperty("--cfw-brand-hover");
@@ -173,14 +183,12 @@ export class WidgetShell {
     this.root.style.setProperty("--cfw-on-brand-sub", subtleTextOnColor(a.brandColor));
     this.root.style.setProperty("--cfw-radius", `${CORNER_RADIUS_PX[a.corner]}px`);
     this.root.style.setProperty("--cfw-z", String(cfg.zIndex));
-    this.root.setAttribute("data-theme", a.theme);
     this.root.setAttribute("data-position", a.position);
     this.root.setAttribute("data-corner", a.corner);
     this.label.textContent = a.launcherText;
     this.launcher.setAttribute("aria-label", a.launcherText);
     this.nameEl.textContent = cfg.agentName;
     this.subEl.textContent = a.subtitle;
-    this.orb.textContent = (cfg.agentName.trim().charAt(0) || "A").toLowerCase();
     this.panel.setAttribute("aria-label", cfg.agentName);
     this.mic.style.display = cfg.features.voiceChat ? "" : "none";
     if (!a.showUnreadBadge) this.badge.style.display = "none";
@@ -204,7 +212,7 @@ export class WidgetShell {
     const row = el(this.doc, "div", "cfw-row");
     row.setAttribute("data-role", msg.role);
     if (msg.kind === "error") row.setAttribute("data-kind", "error");
-    if (msg.role === "agent") row.appendChild(el(this.doc, "div", "cfw-msg-orb"));
+    if (msg.role === "agent") row.appendChild(el(this.doc, "div", "cfw-msg-orb", AGENT_MARK));
     row.appendChild(el(this.doc, "div", "cfw-bubble", msg.text));
     this.messages.insertBefore(row, this.typing.parentNode === this.messages ? this.typing : null);
     this.messages.scrollTop = this.messages.scrollHeight;

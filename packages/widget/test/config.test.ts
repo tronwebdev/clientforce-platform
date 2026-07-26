@@ -11,7 +11,7 @@ afterEach(() => {
 });
 
 describe("defaults (Agent Widget prototype state, ported verbatim)", () => {
-  it("pins the prototype's appearance defaults", () => {
+  it("pins the appearance defaults (prototype copy, canon color/theme)", () => {
     expect(WIDGET_DEFAULTS.appearance).toEqual({
       brandColor: "#146b33",
       textOnBrand: "auto",
@@ -27,6 +27,10 @@ describe("defaults (Agent Widget prototype state, ported verbatim)", () => {
 
   it("pins the canon corner radius map (XL/L/M/S/None on the v3 scale)", () => {
     expect(CORNER_RADIUS_PX).toEqual({ xl: 22, l: 16, m: 12, s: 9, none: 0 });
+  });
+
+  it("the unconfigured agent name is the canon default (§6 — Ada)", () => {
+    expect(WIDGET_DEFAULTS.agentName).toBe("Ada");
   });
 
   it("pins behavior + feature defaults (Open after 4s on, exit intent off, all features on)", () => {
@@ -77,7 +81,7 @@ describe("resolveConfig", () => {
       zIndex: Number.NaN,
       appearance: {
         position: "top" as never,
-        theme: "sepia" as never,
+        theme: "dark" as never, // canon §7: no dark canon → refused, falls back
         corner: "round" as never,
         brandColor: "green",
       },
@@ -121,7 +125,7 @@ describe("configFromScriptDataset (snippet data-attributes)", () => {
       subtitle: "Here to help",
       welcomeMessage: "Hello!",
       unreadBadge: "false",
-      theme: "dark",
+      theme: "light",
       corner: "s",
       position: "left",
       openAfter: "off",
@@ -142,7 +146,7 @@ describe("configFromScriptDataset (snippet data-attributes)", () => {
       subtitle: "Here to help",
       welcomeMessage: "Hello!",
       showUnreadBadge: false,
-      theme: "dark",
+      theme: "light",
       corner: "s",
       position: "left",
     });
