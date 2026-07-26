@@ -50,6 +50,20 @@ sign-off so nothing important is left out.
 Never ship a feature whose events exist but whose automation hooks silently
 don't.
 
+## Local-environment gotchas (cost a unit time; not bugs)
+
+- **A red build right after pulling `main` is usually STALE DIST, not a broken merge.**
+  When another track lands a new workspace package (or new exports on an existing one),
+  your `node_modules` links still point at the old `dist` — TypeScript reports it as
+  `has no exported member`, in files you never touched, which reads exactly like someone
+  merged something broken. Run `pnpm install` then build the changed package (or
+  `pnpm build`) before diagnosing anything. WID2 lost time to this twice in one session
+  (`@clientforce/recall`, then `@clientforce/integrations`).
+- **Postgres is not running by default.** DB-backed suites `describe.skipIf` themselves
+  into silence, so "all green" can mean "never ran". If your unit touches schema or RLS,
+  start one and prove the migration + policy for real — a migration nobody executed is a
+  claim, not a verification.
+
 ## Close-out (every unit ends with)
 
 - PROGRESS.md status row + DEC entry (decisions + deferred list) + fidelity-log row.
