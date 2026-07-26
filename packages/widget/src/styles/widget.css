@@ -1,18 +1,26 @@
 /**
- * Agent Widget shell — FLOW composition ported from the Agent Widget
- * prototype's live-preview panel (design_handoff_clientforce_restyle/
- * prototypes/Agent Widget.dc.html; unchanged per the owner's 2026-07-22
- * review); the visual layer is `CONSOLE_V3_CANON.md` (repo root) via
- * @clientforce/theme. No raw colors here — instance values arrive as --cfw-*
- * custom properties set by mount.
+ * Agent Widget shell — the visual layer is `CONSOLE_V3_CANON.md` (repo root)
+ * via @clientforce/theme, with the panel anatomy per the owner's mock +
+ * screenshot ruling (2026-07-26). No raw colors here — instance values arrive
+ * as --cfw-* custom properties set by mount.
  *
  * Canon rules honored structurally:
+ * - The ACCENT NEVER PAINTS A SURFACE: header and composer sit on panel/card
+ *   with hairlines; the accent appears on the send circle, chip text, badge and
+ *   rings — via --cfw-brand, the workspace's own accent, which defaults to
+ *   canon forest.
+ * - §7 brand-vs-semantic green: green that is decorative or simply IS
+ *   Clientforce derives from the accent (presence dot, entry-chip fill);
+ *   SEMANTIC green stays canon — outcome confirmations keep mint/forest on
+ *   every panel, and they ship with the flows, not here.
  * - Light-first: there is NO dark canon (§7) — no dark rules exist here.
  * - Elevation (§4): box-shadow appears exactly TWICE — launcher + panel, the
  *   documented widget exception. Every internal is flat + hairline. The
  *   widget test counts these two declarations.
  * - Motion (§5): event-driven only, canon verbs + timings, all disabled under
- *   prefers-reduced-motion.
+ *   prefers-reduced-motion. Focus rings appear on interaction, never parked.
+ * - No emoji (mock build note): all iconography is stroke line icons
+ *   (src/ui/icons.ts) plus the ✦ mark.
  */
 
 :host {
@@ -45,24 +53,15 @@
   color: inherit;
 }
 
+/* Focus rings ride the WORKSPACE accent (--cfw-brand defaults to canon forest,
+   so a default panel is unchanged) — the accent is the one customer-brandable
+   token, per the mock's build notes. */
 .cfw-root button:focus-visible {
-  outline: 2px solid var(--cv3-forest);
+  outline: 2px solid var(--cfw-brand);
   outline-offset: 2px;
 }
 
-/* The composer carries the input's focus ring — an outline, never a shadow. */
-.cfw-root .cfw-input:focus,
-.cfw-root .cfw-input:focus-visible {
-  outline: none;
-}
-
-.cfw-composer:focus-within {
-  outline: 2px solid var(--cv3-forest);
-  outline-offset: 1px;
-  border-color: var(--cv3-forest);
-}
-
-/* ---------- Launcher cluster (prototype: bottom 20px, side 24px) ---------- */
+/* ---------- Launcher cluster ---------- */
 
 .cfw-cluster {
   position: fixed;
@@ -82,33 +81,69 @@
   flex-direction: row-reverse;
 }
 
-/* Documented shadow exception 1 of 2 — floats over an unknown host page. */
+/* Documented shadow exception 1 of 2 — floats over an unknown host page.
+   Mock KEY SURFACES: the brand mark sits on WHITE. */
 .cfw-launcher {
   width: 60px;
   height: 60px;
   border-radius: 50%;
-  background: var(--cfw-brand);
+  background: var(--cv3-card);
+  border: 1px solid var(--cv3-line);
   box-shadow: var(--cv3-shadow-float);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
-  color: var(--cfw-on-brand);
   position: relative;
   flex: none;
 }
 
-/* §5/§6: the ready mark breathes. No perpetual decorative bob — canon motion
-   is event-driven, so the launcher itself never floats-for-show. */
-.cfw-launcher-mark {
-  line-height: 1;
+/* The brand mark, inlined from packages/theme/assets/mark.svg (its own
+   gradients — no token needed). §5/§6: the ready mark breathes; no perpetual
+   decorative bob, motion is event-driven. */
+.cfw-mark {
+  display: block;
+  line-height: 0;
+  flex: none;
 }
 
-.cfw-root[data-agent-state="idle"] .cfw-launcher-mark {
+.cfw-mark svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* The ✦ agent mark — the identity glyph (canon §6). It renders on the
+   signature gradient normally, and on the WORKSPACE ACCENT under white-label,
+   where no Clientforce-owned asset may appear. */
+.cfw-agent-mark {
+  font-family: var(--cv3-font-display);
+  font-weight: var(--cv3-h1-weight);
+  line-height: 1;
+  color: var(--cv3-ink);
+}
+
+/* Launcher: brand mark by default, ✦ on the accent under white-label. */
+.cfw-launcher .cfw-agent-mark {
+  display: none;
+  font-size: 26px;
+  color: var(--cfw-brand);
+}
+
+.cfw-root[data-white-label] .cfw-launcher .cfw-mark {
+  display: none;
+}
+
+.cfw-root[data-white-label] .cfw-launcher .cfw-agent-mark {
+  display: block;
+}
+
+.cfw-root[data-agent-state="idle"] .cfw-launcher .cfw-mark,
+.cfw-root[data-agent-state="idle"] .cfw-launcher .cfw-agent-mark {
   animation: cfw-breathe var(--cv3-breathe) ease-in-out infinite;
 }
 
-/* §7: forest fill, white numerals, 2px white ring. */
+/* §7: accent fill, white numerals, 2px white ring (owner: numbered pip).
+   Default accent = canon forest. */
 .cfw-badge {
   position: absolute;
   top: -2px;
@@ -117,9 +152,9 @@
   height: 18px;
   padding: 0 4px;
   border-radius: var(--cv3-radius-pill);
-  background: var(--cv3-forest);
+  background: var(--cfw-brand);
   border: 2px solid var(--cv3-card);
-  color: var(--cv3-card);
+  color: var(--cfw-on-brand);
   font-size: var(--cv3-eyebrow-size);
   font-weight: var(--cv3-eyebrow-weight);
   display: flex;
@@ -143,19 +178,21 @@
   white-space: nowrap;
 }
 
-/* Deviation (flagged): the static preview shows both; hiding the label while
-   the panel is open avoids double copy on real pages. */
+/* Deviation (flagged): hiding the label while the panel is open avoids
+   double copy on real pages. */
 .cfw-root[data-state="open"] .cfw-label {
   display: none;
 }
 
-/* ---------- Panel (prototype: 344px, bottom 96px, side 24px) ----------
+/* ---------- Panel — 376×640, radius 20 all corners (owner geometry).
    Documented shadow exception 2 of 2. ---------- */
 
 .cfw-panel {
   position: fixed;
   bottom: 96px;
-  width: 344px;
+  width: 376px;
+  height: 640px;
+  max-height: calc(100vh - 128px);
   background: var(--cv3-card);
   border: 1px solid var(--cv3-line);
   border-radius: var(--cfw-radius);
@@ -163,10 +200,16 @@
   overflow: hidden;
   z-index: var(--cfw-z);
   display: none;
+  flex-direction: column;
 }
 
 .cfw-root[data-state="open"] .cfw-panel {
-  display: block;
+  display: flex;
+}
+
+/* The panel is a programmatic focus target only — no ring of its own. */
+.cfw-panel:focus {
+  outline: none;
 }
 
 .cfw-root[data-position="right"] .cfw-panel {
@@ -177,30 +220,31 @@
   left: 24px;
 }
 
-/* ---------- Header (brand bar) ---------- */
+/* ---------- Header — panel surface + hairline bottom; the accent never
+   paints it ---------- */
 
 .cfw-header {
   display: flex;
   align-items: center;
   gap: var(--cv3-space-3);
-  padding: 15px 16px;
-  background: var(--cfw-brand);
+  padding: 14px 16px;
+  background: var(--cv3-panel);
+  border-bottom: 1px solid var(--cv3-line);
   position: relative;
+  flex: none;
 }
 
-/* §6: the agent mark is ✦ on the signature gradient. */
+/* §6: the agent mark — a 38px tile at radius 11 on the signature gradient
+   (workspace accent under white-label). */
 .cfw-orb {
   width: 38px;
   height: 38px;
-  border-radius: 50%;
+  border-radius: 11px;
   background: var(--cv3-gradient-signature);
+  font-size: 17px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: var(--cv3-font-display);
-  font-weight: var(--cv3-h1-weight);
-  font-size: 18px;
-  color: var(--cv3-ink);
   flex: none;
   position: relative;
 }
@@ -208,42 +252,58 @@
 .cfw-head-text {
   flex: 1;
   min-width: 0;
-  line-height: 1.25;
+  line-height: 1.3;
 }
 
 .cfw-name {
-  font-size: var(--cv3-h3-size);
-  font-weight: var(--cv3-h3-weight);
+  font-size: 15.5px;
+  font-weight: var(--cv3-h2-weight);
   letter-spacing: var(--cv3-display-tracking);
-  color: var(--cfw-on-brand);
+  color: var(--cv3-ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .cfw-sub {
-  font-size: 12px;
-  color: var(--cfw-on-brand-sub);
+  font-size: var(--cv3-label-size);
+  color: var(--cv3-muted);
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
+  min-width: 0;
 }
 
-/* §7: presence dot = forest. */
+.cfw-sub-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* §7 brand-vs-semantic green: the presence dot is decorative brand green, so it
+   rides the workspace accent (canon forest by default). */
 .cfw-dot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--cv3-forest);
+  background: var(--cfw-brand);
   flex: none;
 }
 
 .cfw-close {
-  color: var(--cfw-on-brand-sub);
-  font-size: 15px;
+  color: var(--cv3-faint);
   flex: none;
-  line-height: 1;
+  line-height: 0;
   padding: 4px;
+}
+
+/* Mock: an 11px glyph at a ~2px stroke (the icon renders at 22 — see shell). */
+.cfw-close svg {
+  stroke-width: 2;
+}
+
+.cfw-close:hover {
+  color: var(--cv3-muted);
 }
 
 /* §6 working/replying: a slide sweep under the mark (canon's slide verb). */
@@ -270,35 +330,46 @@
   animation: cfw-slide var(--cv3-slide) ease-in-out infinite;
 }
 
-/* ---------- Body ---------- */
-
-.cfw-body {
-  padding: 16px;
-  background: var(--cv3-card);
+/* White-label (attribution suppressed): the signature gradient is a
+   Clientforce asset, so the accent takes over on every identity surface. */
+.cfw-root[data-white-label] .cfw-orb,
+.cfw-root[data-white-label] .cfw-msg-orb {
+  background: var(--cfw-brand);
 }
 
-/* Deviation (flagged): the preview is static; a live conversation needs a
-   scroll region. Cap keeps the default panel within the preview's 560 frame. */
-.cfw-messages {
-  max-height: 342px;
+.cfw-root[data-white-label] .cfw-orb .cfw-agent-mark,
+.cfw-root[data-white-label] .cfw-msg-orb .cfw-agent-mark {
+  color: var(--cfw-on-brand);
+}
+
+.cfw-root[data-white-label] .cfw-sweep::after {
+  background: var(--cfw-brand);
+}
+
+/* ---------- Thread (scrolls; composer + footer stay pinned) ---------- */
+
+.cfw-body {
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+  padding: 16px;
+  background: var(--cv3-card);
 }
 
 .cfw-row {
   display: flex;
   gap: 9px;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
   animation: cfw-appear var(--cv3-motion-base) var(--cv3-ease);
 }
 
+/* 26px at radius 8 — the header tile's 38/11 proportion, scaled (panel mock). */
 .cfw-msg-orb {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
   background: var(--cv3-gradient-signature);
-  color: var(--cv3-ink);
-  font-family: var(--cv3-font-display);
   font-size: 13px;
   display: flex;
   align-items: center;
@@ -306,14 +377,17 @@
   flex: none;
 }
 
+/* Agent bubble — notch points at the mark. The mock's agent bubble runs the
+   full width left after the orb (flex shrink caps it), so the greeting wraps
+   where the mock wraps; the visitor bubble stays inset. */
 .cfw-bubble {
-  background: var(--cv3-wash);
+  background: var(--cv3-bubble-agent);
   color: var(--cv3-ink);
-  font-size: 13.5px;
+  font-size: var(--cv3-body-size);
   line-height: 1.5;
-  padding: 11px 13px;
-  border-radius: 4px 14px 14px 14px;
-  max-width: 80%;
+  padding: 12px 14px;
+  border-radius: 5px 14px 14px 14px;
+  max-width: 100%;
   overflow-wrap: anywhere;
 }
 
@@ -321,16 +395,16 @@
   justify-content: flex-end;
 }
 
+/* Visitor bubble — ink surface, panel-tone text. */
 .cfw-row[data-role="visitor"] .cfw-bubble {
-  background: var(--cv3-mint);
-  border: 1px solid var(--cv3-mint-line);
-  color: var(--cv3-ink);
+  background: var(--cv3-ink);
+  color: var(--cv3-panel);
   border-radius: 14px 14px 4px 14px;
+  max-width: 82%;
 }
 
 .cfw-row[data-kind="error"] .cfw-bubble {
   border: 1px solid var(--cv3-danger);
-  color: var(--cv3-ink);
 }
 
 /* Typing indicator (rides the agent row while thinking/replying) */
@@ -369,41 +443,94 @@
 
 /* ---------- Quick-action chips ---------- */
 
+/* Indented to the bubble's left edge: the 26px orb + the row's 9px gap. */
 .cfw-chips {
   display: flex;
   flex-wrap: wrap;
   gap: var(--cv3-space-2);
-  margin-bottom: 16px;
-  padding-left: 37px;
+  padding-left: 35px;
 }
 
+/* Panel mock: text-only pills. The first active flow is the primary chip
+   (mint fill + forest label — canon §1 lists mint as the chip fill); the rest
+   are neutral white with an ink label. */
 .cfw-chip {
-  font-size: 12.5px;
-  font-weight: var(--cv3-label-weight);
-  color: var(--cv3-forest);
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  font-size: var(--cv3-label-size);
+  font-weight: var(--cv3-h3-weight);
+  color: var(--cv3-muted);
   background: var(--cv3-card);
-  border: 1px solid var(--cv3-line-input);
+  border: 1px solid var(--cv3-line-soft);
   border-radius: var(--cv3-radius-pill);
-  padding: 7px 13px;
-  transition: background var(--cv3-motion-fast) var(--cv3-ease);
+  padding: 0 14px;
+  transition:
+    background var(--cv3-motion-fast) var(--cv3-ease),
+    color var(--cv3-motion-fast) var(--cv3-ease);
 }
 
-.cfw-chip:hover {
-  color: var(--cv3-forest-deep);
-  border-color: var(--cv3-mint-line);
-  background: var(--cv3-mint);
+/* §7 brand-vs-semantic green: the entry-chip fill is brand green, so it derives
+   from the accent. --cfw-brand-tint carries canon mint for the canon accent
+   (byte-exact default); any other accent falls back to a tint mixed from it.
+   Semantic green — the outcome card's booked/sent/confirmed — stays canon mint
+   and is NOT written here: it ships with the flows (Q-050). */
+.cfw-chip[data-primary] {
+  color: var(--cfw-brand);
+  background: var(--cfw-brand-tint, color-mix(in srgb, var(--cfw-brand) 8%, var(--cv3-card)));
+  border-color: var(
+    --cfw-brand-tint-line,
+    color-mix(in srgb, var(--cfw-brand) 22%, var(--cv3-card))
+  );
 }
 
-/* ---------- Composer ---------- */
+.cfw-chip:hover,
+.cfw-chip:focus-visible {
+  color: var(--cfw-brand);
+  border-color: var(
+    --cfw-brand-tint-line,
+    color-mix(in srgb, var(--cfw-brand) 22%, var(--cv3-card))
+  );
+  background: var(--cfw-brand-tint, color-mix(in srgb, var(--cfw-brand) 8%, var(--cv3-card)));
+}
 
+/* ---------- Foot: composer + the platform line ---------- */
+
+.cfw-foot {
+  flex: none;
+  background: var(--cv3-panel);
+  border-top: 1px solid var(--cv3-line);
+  padding: 10px 12px 9px;
+}
+
+/* Panel mock: a 48px PILL (its ends are true semicircles), not the radius-15
+   rounded rect the written spec called for — flagged in the §8 report, mock
+   wins as the placement source. 34px mic + 6px padding + hairline = 48. */
 .cfw-composer {
   display: flex;
   align-items: center;
-  gap: 9px;
-  background: var(--cv3-wash);
+  gap: var(--cv3-space-2);
+  background: var(--cv3-card);
   border: 1px solid var(--cv3-line-input);
   border-radius: var(--cv3-radius-pill);
-  padding: 7px 7px 7px 15px;
+  padding: 6px 6px 6px 16px;
+}
+
+/* Focus shows on interaction only — never a parked ring. */
+.cfw-input:focus-visible {
+  outline: 2px solid var(--cfw-brand);
+  outline-offset: 3px;
+}
+
+@supports selector(:has(*)) {
+  .cfw-input:focus-visible {
+    outline: none;
+  }
+
+  .cfw-composer:has(.cfw-input:focus-visible) {
+    outline: 2px solid var(--cfw-brand);
+    outline-offset: 1px;
+  }
 }
 
 .cfw-input {
@@ -412,9 +539,10 @@
   border: none;
   background: transparent;
   font-family: inherit;
-  font-size: var(--cv3-label-size);
+  font-size: var(--cv3-body-size);
   color: var(--cv3-ink);
   outline: none;
+  padding: 5px 0;
 }
 
 .cfw-input::placeholder {
@@ -430,26 +558,46 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  color: var(--cv3-muted);
   flex: none;
 }
 
 .cfw-send {
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   background: var(--cfw-brand);
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--cfw-on-brand);
-  font-size: 14px;
   flex: none;
   transition: background var(--cv3-motion-fast) var(--cv3-ease);
 }
 
+/* Canon forest hovers to forest-deep; a custom accent has no canon shade, so
+   the fallback holds the fill rather than flashing a foreign green. */
 .cfw-send:hover {
   background: var(--cfw-brand-hover, var(--cfw-brand));
+}
+
+.cfw-poweredby {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin-top: 8px;
+  font-size: 10.5px;
+  font-weight: var(--cv3-label-weight);
+  color: var(--cv3-faint);
+}
+
+.cfw-poweredby-mark {
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+  background: var(--cv3-gradient-signature);
+  flex: none;
 }
 
 /* ---------- §5/§6 Agent-identity motion — canon verbs on the ✦ mark:
@@ -464,7 +612,7 @@
   content: "";
   position: absolute;
   inset: -3px;
-  border-radius: 50%;
+  border-radius: 13px;
   border: 2px solid var(--cv3-vivid-ring);
   animation: cfw-ping var(--cv3-ping) ease-out infinite;
 }
@@ -473,7 +621,7 @@
   content: "";
   position: absolute;
   inset: -4px;
-  border-radius: 50%;
+  border-radius: 14px;
   background: conic-gradient(
     from 0deg,
     transparent 0deg,
@@ -509,7 +657,7 @@
   }
 
   100% {
-    transform: scale(1.35);
+    transform: scale(1.3);
     opacity: 0;
   }
 }
@@ -565,13 +713,12 @@
   }
 }
 
-/* ---------- Narrow viewports (prototype mobile: 300px, centered).
-   Deviation (flagged): anchored to the BOTTOM on real pages — the preview's
-   top placement fits its 560px frame, not a live site. ---------- */
+/* ---------- Narrow viewports.
+   Deviation (flagged): anchored to the BOTTOM on real pages. ---------- */
 
 @media (max-width: 480px) {
   .cfw-panel {
-    width: min(300px, calc(100vw - 32px));
+    width: min(376px, calc(100vw - 24px));
     left: 50% !important;
     right: auto !important;
     transform: translateX(-50%);

@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { defineConfig, type Plugin } from "vitest/config";
 
 /**
- * `x.css?raw` → the file's source text as the default export. Vitest's CSS
+ * `x?raw` → the file's source text as the default export (CSS + the brand SVG). Vitest's CSS
  * pipeline otherwise intercepts .css ids and returns empty content; resolving
  * to a non-.css marker id keeps it out of that path. build.mjs mirrors this
  * for the bundle with an esbuild text-loader plugin.
@@ -14,7 +14,7 @@ const rawCss: Plugin = {
   name: "cfw-raw-css",
   enforce: "pre",
   async resolveId(source, importer) {
-    if (!source.endsWith(".css?raw")) return null;
+    if (!source.endsWith("?raw")) return null;
     const resolved = await this.resolve(source.slice(0, -"?raw".length), importer, {
       skipSelf: true,
     });

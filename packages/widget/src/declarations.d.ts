@@ -1,9 +1,10 @@
 /**
- * CSS imported with the `?raw` query resolves to its source text:
+ * Assets imported with the `?raw` query resolve to their source text:
  * vite/vitest handle `?raw` natively; build.mjs mirrors it with an esbuild
- * plugin (text loader). The widget inlines all styles into its shadow root.
+ * plugin (text loader). The widget inlines its styles and the brand mark so
+ * the bundle fetches nothing at runtime.
  */
-declare module "*.css?raw" {
-  const css: string;
-  export default css;
+declare module "*?raw" {
+  const contents: string;
+  export default contents;
 }

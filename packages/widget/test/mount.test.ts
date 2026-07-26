@@ -5,6 +5,7 @@ import {
   type WidgetSessionResponse,
 } from "../src/api/contract";
 import type { WidgetTransport } from "../src/api/transport";
+import { configFromScriptDataset } from "../src/config";
 import { HOST_ELEMENT_ID, REPLY_SETTLE_MS, WidgetInstance } from "../src/mount";
 
 function flush(): Promise<void> {
@@ -87,22 +88,44 @@ describe("mount + isolation", () => {
     const shadow = active.shadow;
     const bubbles = shadow.querySelectorAll('.cfw-row[data-role="agent"] .cfw-bubble');
     expect(bubbles).toHaveLength(1);
-    expect(bubbles[0]!.textContent).toBe("Hi! 👋 How can I help?");
+    expect(bubbles[0]!.textContent).toContain("I'm Ada, your assistant");
     const chips = shadow.querySelectorAll(".cfw-chip");
     expect([...chips].map((c) => c.textContent)).toEqual([
-      "📅 Book a call",
-      "📞 Call me back",
-      "📄 Get a proposal",
+      "Book a visit",
+      "Call me back",
+      "Schedule callback",
+      "Get an estimate",
+      "Ask a question",
     ]);
+    // Panel mock: text-only pills, first active flow primary.
+    expect(shadow.querySelectorAll(".cfw-chip svg")).toHaveLength(0);
+    expect(shadow.querySelectorAll(".cfw-chip[data-primary]")).toHaveLength(1);
+    expect(shadow.querySelector(".cfw-chip[data-primary]")!.textContent).toBe("Book a visit");
     expect(shadow.querySelector(".cfw-root")!.getAttribute("data-unread")).toBe("1");
   });
 
-  it("feature config masks the server-offered chips and the composer mic", async () => {
-    active = create({ features: { callMeBack: false, proposal: false, voiceChat: false } });
+  it("workspace flow config masks the server-offered chips — no placeholder for a disabled flow", async () => {
+    active = create({
+      flows: {
+        callMeBack: false,
+        scheduleCallback: false,
+        estimate: false,
+        liveVoice: false,
+      },
+    });
     await flush();
     const chips = active.shadow.querySelectorAll(".cfw-chip");
-    expect([...chips].map((c) => c.textContent)).toEqual(["📅 Book a call"]);
+    expect([...chips].map((c) => c.textContent)).toEqual(["Book a visit", "Ask a question"]);
+    // liveVoice off ⇒ the mic is gone (it is the sixth flow, not a chip).
     expect((active.shadow.querySelector(".cfw-mic") as HTMLElement).style.display).toBe("none");
+  });
+
+  it("the launcher carries the brand mark asset; the header carries the ✦ agent mark", async () => {
+    active = create();
+    await flush();
+    expect(active.shadow.querySelector(".cfw-launcher .cfw-mark svg")).toBeTruthy();
+    expect(active.shadow.querySelector(".cfw-orb .cfw-agent-mark")!.textContent).toBe("✦");
+    expect(active.shadow.querySelector(".cfw-orb .cfw-mark")).toBeNull();
   });
 
   it("applies appearance config as instance vars + data attributes", async () => {
@@ -119,10 +142,10 @@ describe("mount + isolation", () => {
     const root = active.shadow.querySelector(".cfw-root") as HTMLElement;
     expect(root.style.getPropertyValue("--cfw-brand")).toBe("#0F5227");
     expect(root.style.getPropertyValue("--cfw-on-brand")).toBe("#FFFFFF");
-    expect(root.style.getPropertyValue("--cfw-radius")).toBe("9px");
+    expect(root.style.getPropertyValue("--cfw-radius")).toBe("9px"); // corner "s"
     expect(root.getAttribute("data-position")).toBe("left");
     expect(active.shadow.querySelector(".cfw-name")!.textContent).toBe("Acme Sales Agent");
-    expect(active.shadow.querySelector(".cfw-orb")!.textContent).toBe("✦"); // canon §6 mark
+    expect(active.shadow.querySelector(".cfw-orb .cfw-agent-mark")!.textContent).toBe("✦");
     expect(active.shadow.querySelector(".cfw-label")!.textContent).toBe("Talk");
   });
 });
@@ -213,15 +236,15 @@ describe("conversation round-trip + agent-identity motion states", () => {
   it("quick actions send the chip label as the visitor turn and hide the chips", async () => {
     active = create();
     await flush();
-    const chip = active.shadow.querySelector('.cfw-chip[data-action="book_call"]') as HTMLElement;
+    const chip = active.shadow.querySelector('.cfw-chip[data-action="book_visit"]') as HTMLElement;
     chip.click();
     await flush();
     expect(active.shadow.querySelectorAll(".cfw-chip")).toHaveLength(0);
     expect(
       active.shadow.querySelector('.cfw-row[data-role="visitor"] .cfw-bubble')!.textContent,
-    ).toBe("📅 Book a call");
+    ).toBe("Book a visit");
     const agentBubbles = active.shadow.querySelectorAll('.cfw-row[data-role="agent"] .cfw-bubble');
-    expect(agentBubbles[agentBubbles.length - 1]!.textContent).toContain("Book a call");
+    expect(agentBubbles[agentBubbles.length - 1]!.textContent).toContain("Book a visit");
   });
 
   it("transport failure renders an honest error bubble, emits error, returns to idle", async () => {
@@ -273,6 +296,28 @@ describe("update + destroy", () => {
     expect(document.head.querySelectorAll("link")).toHaveLength(1);
   });
 
+  it("update carries businessName forward — it must not fall back to the default", async () => {
+    active = create({ businessName: "Bright Smile" });
+    await flush();
+    active.update({ appearance: { position: "left" } });
+    expect(active.cfg.businessName).toBe("Bright Smile");
+    expect(active.cfg.appearance.welcomeMessage).toContain("Bright Smile's assistant");
+  });
+
+  it("update({apiBase}) reaches the seam — stub gives way to the HTTP transport", async () => {
+    active = create();
+    await flush();
+    const fetchMock = vi.fn(async () => new Response("{}", { status: 500 }));
+    vi.stubGlobal("fetch", fetchMock);
+    active.update({ apiBase: "https://widget-api.test" });
+    active.open();
+    await flush();
+    expect(fetchMock).toHaveBeenCalled();
+    expect(String((fetchMock.mock.calls[0] as unknown[])[0])).toBe(
+      "https://widget-api.test/widget/v1/session",
+    );
+  });
+
   it("destroy removes the host, stops timers/listeners, is idempotent", async () => {
     vi.useFakeTimers();
     active = create({ behavior: { openAfterSeconds: 4, exitIntent: true } });
@@ -284,5 +329,58 @@ describe("update + destroy", () => {
     expect(active.isOpen()).toBe(false);
     active.destroy();
     active = null;
+  });
+});
+
+describe("platform attribution — canon §7, plan-gated on the server", () => {
+  it("renders by default and stays rendered when the stub attributes", async () => {
+    active = create();
+    await flush();
+    const line = active.shadow.querySelector(".cfw-poweredby") as HTMLElement;
+    expect(line.textContent).toContain("Powered by Clientforce Ai");
+    expect(line.style.display).toBe("");
+  });
+
+  it("only the SERVER can suppress it (plan check behind the endpoint)", async () => {
+    const transport = new ManualTransport();
+    active = create({}, { transport });
+    transport.respond({ branding: { platformAttribution: false } });
+    await flush();
+    expect((active.shadow.querySelector(".cfw-poweredby") as HTMLElement).style.display).toBe(
+      "none",
+    );
+  });
+
+  it("suppression also flips the panel off platform-owned brand assets", async () => {
+    const transport = new ManualTransport();
+    active = create({}, { transport });
+    transport.respond({ branding: { platformAttribution: false } });
+    await flush();
+    const root = active.shadow.querySelector(".cfw-root") as HTMLElement;
+    expect(root.hasAttribute("data-white-label")).toBe(true);
+    // The ✦ agent mark survives — it is the agent's identity, not branding.
+    expect(active.shadow.querySelector(".cfw-orb .cfw-agent-mark")!.textContent).toBe("✦");
+  });
+
+  it("attribution ON leaves the panel in normal brand mode", async () => {
+    active = create();
+    await flush();
+    expect(
+      (active.shadow.querySelector(".cfw-root") as HTMLElement).hasAttribute("data-white-label"),
+    ).toBe(false);
+  });
+
+  it("a host page CANNOT switch it off — no data-attribute, no init option", async () => {
+    const init = configFromScriptDataset({
+      widgetId: "wgt_x",
+      platformAttribution: "false",
+      poweredBy: "false",
+      whiteLabel: "true",
+    } as unknown as DOMStringMap);
+    // Nothing in the client config surface carries attribution/white-label.
+    expect(JSON.stringify(init)).not.toMatch(/attribution|poweredBy|whiteLabel/i);
+    active = create({ ...init, behavior: { openAfterSeconds: null } });
+    await flush();
+    expect((active.shadow.querySelector(".cfw-poweredby") as HTMLElement).style.display).toBe("");
   });
 });

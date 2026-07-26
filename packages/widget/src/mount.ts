@@ -55,7 +55,10 @@ export class WidgetInstance {
 
   private readonly doc: Document;
   private readonly shell: WidgetShell;
-  private readonly transport: WidgetTransport;
+  private transport: WidgetTransport;
+  /** An injected transport (tests/preview) always wins over apiBase. */
+  private readonly injectedTransport: WidgetTransport | null;
+  private readonly stubDelayMs: number | undefined;
   private readonly listeners = new Map<WidgetEventName, Set<Listener>>();
   private sessionId: string | null = null;
   private agentState: AgentState = "idle";
@@ -74,15 +77,9 @@ export class WidgetInstance {
   constructor(init: WidgetInitOptions, opts: WidgetInstanceOptions = {}) {
     this.doc = opts.doc ?? document;
     this.cfg = resolveConfig(init);
-    this.transport =
-      opts.transport ??
-      createTransport({
-        apiBase: this.cfg.apiBase,
-        agentName: this.cfg.agentName,
-        subtitle: this.cfg.appearance.subtitle,
-        welcomeMessage: this.cfg.appearance.welcomeMessage,
-        stubDelayMs: opts.stubDelayMs,
-      });
+    this.injectedTransport = opts.transport ?? null;
+    this.stubDelayMs = opts.stubDelayMs;
+    this.transport = this.injectedTransport ?? this.buildTransport();
 
     this.host = this.doc.createElement("div");
     this.host.id = HOST_ELEMENT_ID;
@@ -203,8 +200,10 @@ export class WidgetInstance {
         this.shell.setUnread(this.unread);
       }
     }
+    // Server-authoritative: only a plan-gated `false` suppresses the line.
+    if (res.branding) this.shell.setPlatformAttribution(res.branding.platformAttribution);
     if (res.quickActions && !this.interacted) {
-      this.shell.setQuickActions(res.quickActions, this.cfg.features);
+      this.shell.setQuickActions(res.quickActions, this.cfg.flows);
     }
     return res;
   }
@@ -228,7 +227,7 @@ export class WidgetInstance {
     this.unread = 0;
     this.shell.setUnread(0);
     this.shell.setOpen(true);
-    this.shell.focusInput();
+    this.shell.focusPanel();
     this.emit("open");
     void this.request({ type: "open" }).catch(() => undefined);
   }
@@ -323,17 +322,19 @@ export class WidgetInstance {
 
   update(partial: WidgetUpdateOptions): void {
     if (this.destroyed) return;
+    const previousApiBase = this.cfg.apiBase;
     const current: WidgetInitOptions = {
       widgetId: this.cfg.widgetId,
       agentId: this.cfg.agentId ?? undefined,
       campaignId: this.cfg.campaignId ?? undefined,
       apiBase: this.cfg.apiBase ?? undefined,
       agentName: this.cfg.agentName,
+      businessName: this.cfg.businessName ?? undefined,
       zIndex: this.cfg.zIndex,
       fontLoading: this.cfg.fontLoading,
       appearance: { ...this.cfg.appearance },
       behavior: { ...this.cfg.behavior },
-      features: { ...this.cfg.features },
+      flows: { ...this.cfg.flows },
     };
     this.cfg = resolveConfig({
       ...current,
@@ -341,11 +342,27 @@ export class WidgetInstance {
       widgetId: this.cfg.widgetId,
       appearance: { ...current.appearance, ...partial.appearance },
       behavior: { ...current.behavior, ...partial.behavior },
-      features: { ...current.features, ...partial.features },
+      flows: { ...current.flows, ...partial.flows },
     });
+    // apiBase decides stub-vs-HTTP, so a change to it has to reach the seam —
+    // an accepted option that silently did nothing would be a trap for the
+    // wiring unit. An injected transport still wins.
+    if (!this.injectedTransport && this.cfg.apiBase !== previousApiBase) {
+      this.transport = this.buildTransport();
+    }
     this.shell.applyConfig(this.cfg);
     this.applyFontLoading();
     this.armBehaviors();
+  }
+
+  private buildTransport(): WidgetTransport {
+    return createTransport({
+      apiBase: this.cfg.apiBase,
+      agentName: this.cfg.agentName,
+      subtitle: this.cfg.appearance.subtitle,
+      welcomeMessage: this.cfg.appearance.welcomeMessage,
+      stubDelayMs: this.stubDelayMs,
+    });
   }
 
   /* ---------------- teardown ---------------- */

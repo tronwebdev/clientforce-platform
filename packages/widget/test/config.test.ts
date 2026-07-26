@@ -17,7 +17,8 @@ describe("defaults (Agent Widget prototype state, ported verbatim)", () => {
       textOnBrand: "auto",
       launcherText: "Chat with our AI Sales Agent",
       subtitle: "AI Sales Assistant",
-      welcomeMessage: "Hi! 👋 How can I help?",
+      welcomeMessage:
+        "Hi — I'm Ada, your assistant. I can book you in, call you back, send an estimate, or answer a question.",
       showUnreadBadge: true,
       theme: "light",
       corner: "l",
@@ -26,20 +27,35 @@ describe("defaults (Agent Widget prototype state, ported verbatim)", () => {
   });
 
   it("pins the canon corner radius map (XL/L/M/S/None on the v3 scale)", () => {
-    expect(CORNER_RADIUS_PX).toEqual({ xl: 22, l: 16, m: 12, s: 9, none: 0 });
+    expect(CORNER_RADIUS_PX).toEqual({ xl: 22, l: 20, m: 12, s: 9, none: 0 });
   });
 
   it("the unconfigured agent name is the canon default (§6 — Ada)", () => {
     expect(WIDGET_DEFAULTS.agentName).toBe("Ada");
   });
 
-  it("pins behavior + feature defaults (Open after 4s on, exit intent off, all features on)", () => {
+  it("the welcome line is the owner's canon copy — emoji retired from COPY too", () => {
+    expect(WIDGET_DEFAULTS.appearance.welcomeMessage).not.toMatch(/\p{Emoji_Presentation}/u);
+    expect(WIDGET_DEFAULTS.appearance.welcomeMessage).toContain("I can book you in, call you back");
+  });
+
+  it('a business name flows into the welcome copy (mock: "Bright Smile\'s assistant")', () => {
+    const cfg = resolveConfig({ widgetId: "w", businessName: "Bright Smile" });
+    expect(cfg.businessName).toBe("Bright Smile");
+    expect(cfg.appearance.welcomeMessage).toBe(
+      "Hi — I'm Ada, Bright Smile's assistant. I can book you in, call you back, send an estimate, or answer a question.",
+    );
+  });
+
+  it("pins behavior + the six flow toggles (all on by default; workspace-level)", () => {
     expect(WIDGET_DEFAULTS.behavior).toEqual({ openAfterSeconds: 4, exitIntent: false });
-    expect(WIDGET_DEFAULTS.features).toEqual({
-      bookCall: true,
+    expect(WIDGET_DEFAULTS.flows).toEqual({
+      bookVisit: true,
       callMeBack: true,
-      voiceChat: true,
-      proposal: true,
+      scheduleCallback: true,
+      estimate: true,
+      liveVoice: true,
+      askQuestion: true,
     });
   });
 });
@@ -55,7 +71,7 @@ describe("resolveConfig", () => {
       agentId: "agt_1",
       appearance: { position: "left", brandColor: "#0E1512" },
       behavior: { openAfterSeconds: null },
-      features: { callMeBack: false },
+      flows: { callMeBack: false },
     });
     expect(cfg.widgetId).toBe("wgt_test");
     expect(cfg.agentId).toBe("agt_1");
@@ -66,11 +82,13 @@ describe("resolveConfig", () => {
     expect(cfg.appearance.theme).toBe("light");
     expect(cfg.behavior.openAfterSeconds).toBeNull();
     expect(cfg.behavior.exitIntent).toBe(false);
-    expect(cfg.features).toEqual({
-      bookCall: true,
+    expect(cfg.flows).toEqual({
+      bookVisit: true,
       callMeBack: false,
-      voiceChat: true,
-      proposal: true,
+      scheduleCallback: true,
+      estimate: true,
+      liveVoice: true,
+      askQuestion: true,
     });
   });
 
@@ -130,8 +148,9 @@ describe("configFromScriptDataset (snippet data-attributes)", () => {
       position: "left",
       openAfter: "off",
       exitIntent: "true",
-      featureCallMeBack: "false",
-      featureVoiceChat: "false",
+      flowCallMeBack: "false",
+      flowLiveVoice: "false",
+      flowScheduleCallback: "false",
     } as unknown as DOMStringMap);
     const cfg = resolveConfig(init);
     expect(cfg.agentId).toBe("agt_1");
@@ -151,11 +170,13 @@ describe("configFromScriptDataset (snippet data-attributes)", () => {
       position: "left",
     });
     expect(cfg.behavior).toEqual({ openAfterSeconds: null, exitIntent: true });
-    expect(cfg.features).toEqual({
-      bookCall: true,
+    expect(cfg.flows).toEqual({
+      bookVisit: true,
       callMeBack: false,
-      voiceChat: false,
-      proposal: true,
+      scheduleCallback: false,
+      estimate: true,
+      liveVoice: false,
+      askQuestion: true,
     });
   });
 

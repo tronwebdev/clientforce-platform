@@ -29,6 +29,7 @@ wears the legacy skin; the re-skin is a separately sequenced build unit.
 | mint-line | `#CFE8D8` | Mint border |
 | warn | `#8A6D1A` on `#F7EFDA` | Needs-you |
 | danger | `#B0483A` | Held / error |
+| bubble-agent | `#F2F6F3` | Agent message surface (widget + console thread) |
 
 **Retired — must never return:** `#16A82A`, `#0F7A28` (pre-refresh greens),
 warm cream surfaces (`#FBF7F0`, `#F7F9F8`), dark sidebar `#0C140F`.
@@ -92,6 +93,11 @@ UI label 13px/600 · eyebrow 11px/700 .08em uppercase · mono data 12px/500.
 Radius: 9–12 small (chips, inputs, buttons) · 14–16 cards · 22 frames ·
 `999px` status pills.
 
+Widget pill exception: the widget's **composer and its entry chips are pills**
+(`999px`), not 9–12 inputs/chips. A 48px-tall composer at radius 15 reads as a
+rounded rectangle and loses the composer's softness against the squarer cards
+around it; the entry chips take the same shape.
+
 Space: layout runs on flex/grid `gap` — 4 / 8 / 12 / 16 / 22 / 30.
 
 **Elevation (Direction D — hybrid):** soft borderless lift on floating and
@@ -148,8 +154,9 @@ surface shows a quiet hairline "connect" affordance.
 
 ## 7 · Widget carryovers (closes the flagged prototype literals)
 
-- **Presence / live dot:** forest `#146B33`.
-- **Launcher unread badge:** forest `#146B33` fill, white numerals, 2px white ring.
+- **Presence / live dot:** the workspace accent — forest `#146B33` by default.
+- **Launcher unread badge:** the workspace accent (forest `#146B33` by default)
+  fill, white numerals, 2px white ring.
 - **Voice overlay:** background is **light** — panel `#FBFDFB`, not the retired
   dark surface. Orb = signature gradient with ✦. Waveform bars forest
   `#146B33`. Hang-up danger `#B0483A`. Mute neutral (white + hairline;
@@ -157,6 +164,31 @@ surface shows a quiet hairline "connect" affordance.
 - **Dark set:** the v3 widget is **light-first — there is no dark canon.** Do not
   port the legacy dark set. A dark theme, if wanted later, is a new design
   decision, not a prototype carryover.
+- **Platform attribution.** Every widget panel carries "Powered by Clientforce Ai"
+  in the foot — 10.5px faint text behind an 11px gradient square. This is
+  default-on and **not workspace-configurable**. It may be suppressed only for
+  workspaces owned by an agency whose plan tier includes white-label;
+  suppression is **plan-gated, never a user toggle** (and never a client-side
+  option — the embed has no attribute or init flag that can switch it off).
+  Suppression also removes every **platform-owned brand asset** from the panel:
+  the brand mark yields to the ✦ agent mark, and the signature gradient — a
+  Clientforce asset, not the workspace's — yields to the **workspace accent** on
+  the launcher, header tile, message avatars and the working sweep. The ✦ itself
+  STAYS: it is the agent's identity mark (the same one the console states use),
+  not platform branding. One signal, no second flag.
+- **Brand green vs semantic green.** Split the greens by MEANING, not by
+  appearance. Green that is decorative or simply _is_ Clientforce derives from
+  the workspace accent — the **presence dot** and the **entry-chip fill** are both
+  in this bucket, so a `#1F3A93` workspace gets a `#1F3A93` dot and an accent-
+  tinted chip (a forest dot on a blue panel reads as a rendering bug, not as
+  branding). Green that MEANS something stays canon on every panel, white-label
+  or not: an **outcome confirmation** — booked, sent, confirmed — is mint/forest
+  because it means good, not because it means Clientforce.
+- **Two layers, kept separate.** *Widget appearance* — accent color, logo/mark,
+  and which flows are enabled — is **workspace-level and ungated**: any
+  workspace configures it from widget setup, with no plan check. *White-label*
+  is solely the suppression of the attribution line above, and is the only
+  plan-gated piece.
 
 ---
 

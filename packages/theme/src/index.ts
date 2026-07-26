@@ -27,6 +27,7 @@ export const consoleV3Vars: Record<string, string> = {
   "--cv3-warn-bg": "#f7efda",
   "--cv3-danger": "#b0483a",
   "--cv3-teal": "#0e7d93",
+  "--cv3-bubble-agent": "#f2f6f3",
   "--cv3-gradient-signature": "linear-gradient(135deg, #36d7ed, #35e834 55%, #d0f56b)",
   "--cv3-gradient-hero-ink": "linear-gradient(180deg, #101613 25%, #14743a 120%)",
   "--cv3-vivid": "#35e834",
@@ -125,6 +126,11 @@ export const consoleV3 = {
   card: consoleV3Vars["--cv3-card"] as string,
   panel: consoleV3Vars["--cv3-panel"] as string,
   wash: consoleV3Vars["--cv3-wash"] as string,
+  /** Good-state fill + its border — SEMANTIC green (§7): outcome cards keep
+   * these on every panel, white-label or not. Brand-green surfaces derive from
+   * the workspace accent instead. */
+  mint: consoleV3Vars["--cv3-mint"] as string,
+  mintLine: consoleV3Vars["--cv3-mint-line"] as string,
   gradientSignature: consoleV3Vars["--cv3-gradient-signature"] as string,
   /** Gradient + motion ONLY — never pass this to a fill/text slot (§1). */
   vivid: consoleV3Vars["--cv3-vivid"] as string,

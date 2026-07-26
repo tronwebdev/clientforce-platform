@@ -23,23 +23,34 @@ export type WidgetTheme = "light";
 export type WidgetCorner = "xl" | "l" | "m" | "s" | "none";
 export type FontLoading = "none" | "google";
 
-/** The prototype's Corners option set mapped onto the Console v3 canon radii
- * scale (9–12 / 14–16 / 22; owner ruling 2026-07-22 — the legacy 28/20/14/8
- * prototype values are retired). */
+/** The prototype's Corners option set on the Console v3 radii scale. `l` is the
+ * SHIPPED DEFAULT and carries the owner's panel geometry (radius 20, ruling
+ * 2026-07-26); the rest stay on the canon scale. The legacy 28/20/14/8
+ * prototype values are retired. */
 export const CORNER_RADIUS_PX: Record<WidgetCorner, number> = {
   xl: 22,
-  l: 16,
+  l: 20,
   m: 12,
   s: 9,
   none: 0,
 };
 
-/** Prototype "Conversation features" toggles (Behaviour tab). */
-export interface WidgetFeatures {
-  bookCall: boolean;
+/**
+ * The six widget FLOWS. Each is independently enabled per workspace in widget
+ * setup — industries use different subsets, and the panel renders only the
+ * active ones (no placeholder for a disabled flow). This is ungated WORKSPACE
+ * configuration, the same layer as the accent color and the logo — it is NOT
+ * plan-gated (only the platform-attribution line is; see the contract's
+ * `branding`, which is server-authoritative and has no client knob).
+ */
+export interface WidgetFlows {
+  bookVisit: boolean;
   callMeBack: boolean;
-  voiceChat: boolean;
-  proposal: boolean;
+  scheduleCallback: boolean;
+  estimate: boolean;
+  /** Rides the composer mic rather than an entry chip. */
+  liveVoice: boolean;
+  askQuestion: boolean;
 }
 
 export interface WidgetAppearance {
@@ -74,13 +85,16 @@ export interface WidgetInitOptions {
   apiBase?: string;
   /** Header title. Server-resolved once the wiring unit lands. */
   agentName?: string;
+  /** The tenant's business name — used by the default welcome copy and the
+   * header subtitle. Server-resolved once the wiring unit lands. */
+  businessName?: string;
   zIndex?: number;
   /** "google" injects the brand font stylesheet into the host document head.
    * Default "none": the embed makes zero third-party requests. */
   fontLoading?: FontLoading;
   appearance?: Partial<WidgetAppearance>;
   behavior?: Partial<WidgetBehavior>;
-  features?: Partial<WidgetFeatures>;
+  flows?: Partial<WidgetFlows>;
 }
 
 export interface ResolvedWidgetConfig {
@@ -89,20 +103,32 @@ export interface ResolvedWidgetConfig {
   campaignId: string | null;
   apiBase: string | null;
   agentName: string;
+  businessName: string | null;
   zIndex: number;
   fontLoading: FontLoading;
   appearance: WidgetAppearance;
   behavior: WidgetBehavior;
-  features: WidgetFeatures;
+  flows: WidgetFlows;
 }
 
-/** Prototype defaults, ported verbatim (welcome = the Design-tab placeholder;
- * the prototype's Acme copy is demo content, not a default). */
+/**
+ * The canon welcome line (owner copy, 2026-07-26) — emoji retired here too, not
+ * just in iconography. Derived so it names the agent and, when known, the
+ * business: "Hi — I'm Ada, Bright Smile's assistant. I can book you in, call
+ * you back, send an estimate, or answer a question."
+ */
+export function defaultWelcome(agentName: string, businessName: string | null): string {
+  const whose = businessName ? `${businessName}'s` : "your";
+  return `Hi — I'm ${agentName}, ${whose} assistant. I can book you in, call you back, send an estimate, or answer a question.`;
+}
+
+/** Prototype defaults, on the canon copy/geometry where the owner has ruled. */
 export const WIDGET_DEFAULTS: Omit<ResolvedWidgetConfig, "widgetId"> = {
   agentId: null,
   campaignId: null,
   apiBase: null,
   agentName: DEFAULT_AGENT_NAME,
+  businessName: null,
   zIndex: 2147483000,
   fontLoading: "none",
   appearance: {
@@ -110,7 +136,7 @@ export const WIDGET_DEFAULTS: Omit<ResolvedWidgetConfig, "widgetId"> = {
     textOnBrand: "auto",
     launcherText: "Chat with our AI Sales Agent",
     subtitle: "AI Sales Assistant",
-    welcomeMessage: "Hi! 👋 How can I help?",
+    welcomeMessage: defaultWelcome(DEFAULT_AGENT_NAME, null),
     showUnreadBadge: true,
     theme: "light",
     corner: "l",
@@ -120,11 +146,13 @@ export const WIDGET_DEFAULTS: Omit<ResolvedWidgetConfig, "widgetId"> = {
     openAfterSeconds: 4,
     exitIntent: false,
   },
-  features: {
-    bookCall: true,
+  flows: {
+    bookVisit: true,
     callMeBack: true,
-    voiceChat: true,
-    proposal: true,
+    scheduleCallback: true,
+    estimate: true,
+    liveVoice: true,
+    askQuestion: true,
   },
 };
 
@@ -179,7 +207,7 @@ export function resolveConfig(init: WidgetInitOptions): ResolvedWidgetConfig {
   const d = WIDGET_DEFAULTS;
   const a = init.appearance ?? {};
   const b = init.behavior ?? {};
-  const f = init.features ?? {};
+  const f = init.flows ?? {};
   if (typeof init.widgetId !== "string" || init.widgetId.length === 0) {
     throw new Error("[clientforce-widget] init requires a widgetId (wgt_…)");
   }
@@ -196,6 +224,7 @@ export function resolveConfig(init: WidgetInitOptions): ResolvedWidgetConfig {
     campaignId: pickString(init.campaignId, "") || null,
     apiBase: pickString(init.apiBase, "") || null,
     agentName: pickString(init.agentName, d.agentName),
+    businessName: pickString(init.businessName, "") || null,
     zIndex: pickNumber(init.zIndex, "zIndex", d.zIndex),
     fontLoading: pickEnum(
       init.fontLoading,
@@ -208,7 +237,13 @@ export function resolveConfig(init: WidgetInitOptions): ResolvedWidgetConfig {
       textOnBrand,
       launcherText: pickString(a.launcherText, d.appearance.launcherText),
       subtitle: pickString(a.subtitle, d.appearance.subtitle),
-      welcomeMessage: pickString(a.welcomeMessage, d.appearance.welcomeMessage),
+      welcomeMessage: pickString(
+        a.welcomeMessage,
+        defaultWelcome(
+          pickString(init.agentName, d.agentName),
+          pickString(init.businessName, "") || null,
+        ),
+      ),
       showUnreadBadge: pickBool(a.showUnreadBadge, d.appearance.showUnreadBadge),
       theme: pickEnum(a.theme, ["light"] as const, "appearance.theme", d.appearance.theme),
       corner: pickEnum(
@@ -240,11 +275,13 @@ export function resolveConfig(init: WidgetInitOptions): ResolvedWidgetConfig {
               ),
       exitIntent: pickBool(b.exitIntent, d.behavior.exitIntent),
     },
-    features: {
-      bookCall: pickBool(f.bookCall, d.features.bookCall),
-      callMeBack: pickBool(f.callMeBack, d.features.callMeBack),
-      voiceChat: pickBool(f.voiceChat, d.features.voiceChat),
-      proposal: pickBool(f.proposal, d.features.proposal),
+    flows: {
+      bookVisit: pickBool(f.bookVisit, d.flows.bookVisit),
+      callMeBack: pickBool(f.callMeBack, d.flows.callMeBack),
+      scheduleCallback: pickBool(f.scheduleCallback, d.flows.scheduleCallback),
+      estimate: pickBool(f.estimate, d.flows.estimate),
+      liveVoice: pickBool(f.liveVoice, d.flows.liveVoice),
+      askQuestion: pickBool(f.askQuestion, d.flows.askQuestion),
     },
   };
 }
@@ -259,6 +296,7 @@ export function configFromScriptDataset(ds: DOMStringMap): WidgetInitOptions {
   if (ds.campaignId) init.campaignId = ds.campaignId;
   if (ds.apiBase) init.apiBase = ds.apiBase;
   if (ds.agentName) init.agentName = ds.agentName;
+  if (ds.businessName) init.businessName = ds.businessName;
   if (ds.zIndex !== undefined) init.zIndex = Number(ds.zIndex);
   if (ds.fontLoading) init.fontLoading = ds.fontLoading as FontLoading;
 
@@ -281,12 +319,15 @@ export function configFromScriptDataset(ds: DOMStringMap): WidgetInitOptions {
   if (ds.exitIntent !== undefined) behavior.exitIntent = ds.exitIntent === "true";
   if (Object.keys(behavior).length > 0) init.behavior = behavior;
 
-  const features: Partial<WidgetFeatures> = {};
-  if (ds.featureBookCall !== undefined) features.bookCall = ds.featureBookCall !== "false";
-  if (ds.featureCallMeBack !== undefined) features.callMeBack = ds.featureCallMeBack !== "false";
-  if (ds.featureVoiceChat !== undefined) features.voiceChat = ds.featureVoiceChat !== "false";
-  if (ds.featureProposal !== undefined) features.proposal = ds.featureProposal !== "false";
-  if (Object.keys(features).length > 0) init.features = features;
+  const flows: Partial<WidgetFlows> = {};
+  if (ds.flowBookVisit !== undefined) flows.bookVisit = ds.flowBookVisit !== "false";
+  if (ds.flowCallMeBack !== undefined) flows.callMeBack = ds.flowCallMeBack !== "false";
+  if (ds.flowScheduleCallback !== undefined)
+    flows.scheduleCallback = ds.flowScheduleCallback !== "false";
+  if (ds.flowEstimate !== undefined) flows.estimate = ds.flowEstimate !== "false";
+  if (ds.flowLiveVoice !== undefined) flows.liveVoice = ds.flowLiveVoice !== "false";
+  if (ds.flowAskQuestion !== undefined) flows.askQuestion = ds.flowAskQuestion !== "false";
+  if (Object.keys(flows).length > 0) init.flows = flows;
 
   return init;
 }

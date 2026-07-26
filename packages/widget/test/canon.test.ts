@@ -6,9 +6,12 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { resolveConfig } from "../src/config";
+import { consoleV3, textOnColor } from "@clientforce/theme";
+import { CORNER_RADIUS_PX, resolveConfig, WIDGET_DEFAULTS } from "../src/config";
 
 const widgetCss = readFileSync(join(__dirname, "..", "src", "styles", "widget.css"), "utf8");
+const shellSrc = readFileSync(join(__dirname, "..", "src", "ui", "shell.ts"), "utf8");
+const transportSrc = readFileSync(join(__dirname, "..", "src", "api", "transport.ts"), "utf8");
 const canon = readFileSync(join(__dirname, "..", "..", "..", "CONSOLE_V3_CANON.md"), "utf8");
 
 describe("§4 elevation — the widget's ONE shadow exception", () => {
@@ -60,13 +63,19 @@ describe("§5 motion — canon verbs, canon timings, event-driven only", () => {
   });
 
   it("the launcher never bobs for show — no perpetual decorative motion", () => {
-    // Canon §5: "Event-driven only — the UI never fakes busy."
+    // Canon §5: "Event-driven only — the UI never fakes busy." The launcher
+    // surface itself animates never; only the mark breathes, and only while
+    // the agent state is idle/ready.
     expect(widgetCss).not.toContain("cfw-float");
     const launcherBlock = widgetCss.slice(
       widgetCss.indexOf(".cfw-launcher {"),
-      widgetCss.indexOf(".cfw-launcher-mark"),
+      widgetCss.indexOf("}", widgetCss.indexOf(".cfw-launcher {")),
     );
     expect(launcherBlock).not.toContain("animation:");
+    // The mark breathes (either art), and only while the agent state is idle.
+    expect(widgetCss).toMatch(
+      /\[data-agent-state="idle"\] \.cfw-launcher \.cfw-mark,[\s\S]{0,120}animation: cfw-breathe var\(--cv3-breathe\)/,
+    );
   });
 
   it("all animation is disabled under prefers-reduced-motion", () => {
@@ -79,13 +88,230 @@ describe("§1/§7 color — canon tokens only", () => {
     expect(widgetCss).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
   });
 
-  it("the presence dot and unread badge are forest per §7", () => {
+  it("BRAND green derives from the accent: presence dot, unread badge, chip fill", () => {
+    // Canon §7 (owner ruling 2026-07-26): split the greens by MEANING. Green
+    // that is decorative or simply IS Clientforce derives from the workspace
+    // accent, which DEFAULTS to canon forest — so §7's "forest dot / forest
+    // badge" holds for every default workspace, and a #1F3A93 workspace gets no
+    // stray green.
+    expect(canon).toContain("Brand green vs semantic green");
+    expect(WIDGET_DEFAULTS.appearance.brandColor).toBe(consoleV3.forest);
     const dot = widgetCss.slice(widgetCss.indexOf(".cfw-dot {"));
-    expect(dot.slice(0, 200)).toContain("var(--cv3-forest)");
+    expect(dot.slice(0, 200)).toContain("background: var(--cfw-brand)");
     const badge = widgetCss.slice(widgetCss.indexOf(".cfw-badge {"));
-    expect(badge.slice(0, 420)).toContain("background: var(--cv3-forest)");
+    expect(badge.slice(0, 420)).toContain("background: var(--cfw-brand)");
     // white numerals + 2px white ring
     expect(badge.slice(0, 420)).toContain("border: 2px solid var(--cv3-card)");
-    expect(badge.slice(0, 420)).toContain("color: var(--cv3-card)");
+    expect(badge.slice(0, 420)).toContain("color: var(--cfw-on-brand)");
+    expect(textOnColor(consoleV3.forest).toLowerCase()).toBe("#ffffff");
+    // The chip fill is brand green too — no bare canon mint left in the sheet.
+    expect(widgetCss).not.toContain("var(--cv3-mint)");
+    expect(widgetCss).not.toContain("var(--cv3-mint-line)");
+  });
+
+  it("SEMANTIC green stays canon — the mint pair is exact on the canon accent", () => {
+    // The tint vars carry canon mint verbatim for the canon accent, so the
+    // default panel is byte-identical to the panel canon; any other accent
+    // falls through to the sheet's color-mix tint.
+    expect(shellSrc).toContain('setProperty("--cfw-brand-tint", consoleV3.mint)');
+    expect(shellSrc).toContain('setProperty("--cfw-brand-tint-line", consoleV3.mintLine)');
+    expect(widgetCss).toContain("var(--cfw-brand-tint, color-mix(");
+    // Outcome cards (booked/sent/confirmed) are the semantic-green surface and
+    // are honest-absent this unit — they ship with the flows, on canon mint.
+    expect(canon).toContain("outcome confirmation");
+    expect(widgetCss).not.toContain("cfw-outcome");
+  });
+});
+
+describe("mock build note — NO EMOJI: line icons + the ✦ mark", () => {
+  it("the shell renders no emoji iconography", () => {
+    // Emoji_Presentation catches the retired 📅 📞 📄 🎙 set; ✦ (U+2726) is a
+    // text-presentation glyph and is the canon mark, so it stays.
+    expect(shellSrc).not.toMatch(/\p{Emoji_Presentation}/u);
+    expect(shellSrc).toContain("AGENT_MARK");
+  });
+
+  it("server-offered quick-action labels are emoji-free (the client draws the icon)", () => {
+    expect(transportSrc).not.toMatch(/\p{Emoji_Presentation}/u);
+    expect(transportSrc).toContain('label: "Book a visit"');
+  });
+
+  it("every interactive glyph is a stroke line icon on currentColor", () => {
+    const icons = readFileSync(join(__dirname, "..", "src", "ui", "icons.ts"), "utf8");
+    expect(icons).toContain('stroke", "currentColor"');
+    expect(icons).toContain('fill", "none"');
+    expect(icons).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+  });
+});
+
+describe("mock KEY SURFACES — launcher", () => {
+  it("the mark sits on WHITE with a hairline, not on the brand fill", () => {
+    const start = widgetCss.indexOf(".cfw-launcher {");
+    const block = widgetCss.slice(start, widgetCss.indexOf("}", start));
+    expect(block).toContain("background: var(--cv3-card)");
+    expect(block).toContain("border: 1px solid var(--cv3-line)");
+    expect(block).not.toContain("var(--cfw-brand)");
+  });
+
+  it("the header tile is the ✦ AGENT mark; the brand mark is the launcher's", () => {
+    // Panel mock + canon §6. The brand mark is platform-owned art and belongs
+    // to the launcher surface only.
+    expect(shellSrc).toMatch(
+      /this\.orb\.appendChild\(el\(doc, "span", "cfw-agent-mark", AGENT_MARK\)\)/,
+    );
+    expect(shellSrc).toMatch(/this\.launcher\.appendChild\(markEl\(doc, 30\)\)/);
+  });
+
+  it("entry chips are TEXT-ONLY pills, first active flow primary (panel mock)", () => {
+    expect(shellSrc).not.toContain("QUICK_ACTION_ICON");
+    expect(shellSrc).toContain('chip.setAttribute("data-primary"');
+    const primary = widgetCss.slice(widgetCss.indexOf(".cfw-chip[data-primary] {"));
+    // Label AND fill ride the accent (§7 brand green); on the canon accent the
+    // fill resolves to canon mint exactly — see the semantic-green test.
+    expect(primary.slice(0, 260)).toContain("color: var(--cfw-brand)");
+    expect(primary.slice(0, 260)).toContain("background: var(--cfw-brand-tint,");
+  });
+
+  it("the mark is the inlined brand asset — packages/theme/assets/mark.svg", () => {
+    // Shipped from the shared theme layer (console + widget consume the same
+    // file) and inlined, so the embed still fetches nothing at runtime.
+    expect(shellSrc).toContain('from "@clientforce/theme/assets/mark.svg?raw"');
+    const asset = readFileSync(join(__dirname, "..", "..", "theme", "assets", "mark.svg"), "utf8");
+    expect(asset).toContain("<svg");
+    expect(asset).toContain("linearGradient");
+    const mark = widgetCss.slice(widgetCss.indexOf(".cfw-mark {"));
+    expect(mark.slice(0, 300)).toContain("line-height: 0");
+  });
+});
+
+describe("owner panel spec (2026-07-26) — the accent never paints a surface", () => {
+  function block(selector: string, until: string): string {
+    const start = widgetCss.indexOf(selector);
+    expect(start, `${selector} missing`).toBeGreaterThan(-1);
+    return widgetCss.slice(start, widgetCss.indexOf(until, start + 1));
+  }
+
+  it("header sits on the panel surface with a hairline bottom, never on the brand", () => {
+    const header = block(".cfw-header {", "}");
+    expect(header).toContain("background: var(--cv3-panel)");
+    expect(header).toContain("border-bottom: 1px solid var(--cv3-line)");
+    expect(header).not.toContain("var(--cfw-brand)");
+  });
+
+  it("header text is ink / muted / faint — not white-on-accent", () => {
+    expect(block(".cfw-name {", "}")).toContain("color: var(--cv3-ink)");
+    expect(block(".cfw-sub {", "}")).toContain("color: var(--cv3-muted)");
+    expect(block(".cfw-close {", "}")).toContain("color: var(--cv3-faint)");
+  });
+
+  it("the mark is a 38px tile at radius 11 on the signature gradient", () => {
+    const orb = block(".cfw-orb {", "}");
+    expect(orb).toContain("width: 38px");
+    expect(orb).toContain("border-radius: 11px");
+    expect(orb).toContain("background: var(--cv3-gradient-signature)");
+  });
+
+  it("composer is a white hairline PILL; mic 34px white, send 32px forest", () => {
+    // Geometry measured off docs/fidelity/wid/widget-panel-canon.png: the
+    // composer's ends are true semicircles (48px tall ⇒ radius 24), so it is a
+    // pill, not the radius-15 rect the written spec called for. 34px mic + 6px
+    // padding + hairline = the measured 48px height.
+    const composer = block(".cfw-composer {", "}");
+    expect(composer).toContain("background: var(--cv3-card)");
+    expect(composer).toContain("border: 1px solid var(--cv3-line-input)");
+    expect(composer).toContain("border-radius: var(--cv3-radius-pill)");
+    expect(composer).not.toContain("border-radius: 15px");
+    const mic = block(".cfw-mic {", "}");
+    expect(mic).toContain("width: 34px");
+    expect(mic).toContain("background: var(--cv3-card)");
+    const send = block(".cfw-send {", "}");
+    expect(send).toContain("width: 32px");
+    // "a 32px forest circle" — via the accent, whose default IS canon forest,
+    // so a custom accent paints its own send button (README: brand fill for
+    // launcher/send) instead of stranding platform green on the panel.
+    expect(send).toContain("background: var(--cfw-brand)");
+    expect(WIDGET_DEFAULTS.appearance.brandColor).toBe(consoleV3.forest);
+  });
+
+  it("chips are 32px pills: mint+forest primary, white/soft-hairline/muted rest", () => {
+    const chip = block(".cfw-chip {", "}");
+    expect(chip).toContain("height: 32px");
+    expect(chip).toContain("padding: 0 14px");
+    expect(chip).toContain("border: 1px solid var(--cv3-line-soft)");
+    expect(chip).toContain("color: var(--cv3-muted)");
+    expect(chip).toContain("border-radius: var(--cv3-radius-pill)");
+  });
+
+  it("message orbs are 26px and the chip row aligns to the bubble's left edge", () => {
+    // Anchored to the line start — the white-label group also ends in
+    // `.cfw-msg-orb {` and appears earlier in the sheet.
+    const orb = block("\n.cfw-msg-orb {", "}");
+    expect(orb).toContain("width: 26px");
+    expect(orb).toContain("border-radius: 8px");
+    // 26px orb + the row's 9px gap ⇒ chips start where the bubble starts.
+    expect(block(".cfw-chips {", "}")).toContain("padding-left: 35px");
+    expect(block(".cfw-row {", "}")).toContain("gap: 9px");
+  });
+
+  it("no parked focus ring — the composer ring is keyboard-focus only", () => {
+    expect(widgetCss).not.toContain(".cfw-composer:focus-within");
+    expect(widgetCss).toContain(".cfw-composer:has(.cfw-input:focus-visible)");
+  });
+
+  it("bubbles carry the owner values and notch toward the mark", () => {
+    const agent = block(".cfw-bubble {", "}");
+    expect(agent).toContain("background: var(--cv3-bubble-agent)");
+    expect(agent).toContain("border-radius: 5px 14px 14px 14px");
+    const visitor = block('.cfw-row[data-role="visitor"] .cfw-bubble {', "}");
+    expect(visitor).toContain("background: var(--cv3-ink)");
+    expect(visitor).toContain("color: var(--cv3-panel)");
+    expect(visitor).toContain("border-radius: 14px 14px 4px 14px");
+  });
+
+  // Width + radius are confirmed by the mock (376 content box inside a 1px
+  // `line` border, 20px corners). Height stays the owner's written 640: the
+  // mock frame renders 592, which is a viewport-bound export height, not a spec
+  // change — flagged in the §8 report rather than silently adopted.
+  it("panel geometry is 376×640 at radius 20 (the default corner)", () => {
+    const panel = block(".cfw-panel {", "}");
+    expect(panel).toContain("width: 376px");
+    expect(panel).toContain("height: 640px");
+    expect(CORNER_RADIUS_PX.l).toBe(20);
+  });
+
+  it("every panel carries the platform line: 10.5px faint + an 11px gradient square", () => {
+    const line = block(".cfw-poweredby {", "}");
+    expect(line).toContain("font-size: 10.5px");
+    expect(line).toContain("color: var(--cv3-faint)");
+    const mark = block(".cfw-poweredby-mark {", "}");
+    expect(mark).toContain("width: 11px");
+    expect(mark).toContain("background: var(--cv3-gradient-signature)");
+    expect(shellSrc).toContain("Powered by Clientforce Ai");
+  });
+});
+
+describe("white-label — no platform-owned asset survives suppression", () => {
+  it("the ✦ agent mark replaces the brand mark on the launcher", () => {
+    expect(widgetCss).toContain(".cfw-root[data-white-label] .cfw-launcher .cfw-mark");
+    const hidden = widgetCss.slice(
+      widgetCss.indexOf(".cfw-root[data-white-label] .cfw-launcher .cfw-mark"),
+    );
+    expect(hidden.slice(0, 120)).toContain("display: none");
+  });
+
+  it("the workspace accent replaces the signature gradient on every identity surface", () => {
+    const block = widgetCss.slice(
+      widgetCss.indexOf(".cfw-root[data-white-label] .cfw-orb,"),
+      widgetCss.indexOf("/* ---------- Thread"),
+    );
+    expect(block).toContain(".cfw-msg-orb");
+    expect(block).toContain("background: var(--cfw-brand)");
+    expect(block).toContain(".cfw-sweep::after");
+    expect(block).not.toContain("gradient-signature");
+  });
+
+  it("the ✦ itself stays — it is the agent identity, not platform branding", () => {
+    expect(shellSrc).toContain("AGENT_MARK");
+    expect(canon).toMatch(/The ✦ itself\s+STAYS/);
   });
 });

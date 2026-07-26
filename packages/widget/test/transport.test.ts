@@ -39,19 +39,25 @@ describe("StubTransport (the seam, exercised without a backend)", () => {
     expect(res.messages[0]!.id).toMatch(/^msg_stub_/);
     expect(res.meta.stub).toBe(true);
     expect(res.appearance).toBeNull();
+    // A stub can't run a plan check, so it never suppresses attribution.
+    expect(res.branding).toEqual({ platformAttribution: true });
   });
 
-  it("offers the prototype's three quick actions verbatim", async () => {
+  it("offers the five entry flows, emoji-free (icons render client-side)", async () => {
     const res = await stub().send(req({ type: "boot" }));
     expect(res.quickActions).toEqual([
-      { kind: "book_call", label: "📅 Book a call" },
-      { kind: "call_me_back", label: "📞 Call me back" },
-      { kind: "get_proposal", label: "📄 Get a proposal" },
+      { kind: "book_visit", label: "Book a visit" },
+      { kind: "call_me_back", label: "Call me back" },
+      { kind: "schedule_callback", label: "Schedule callback" },
+      { kind: "estimate", label: "Get an estimate" },
+      { kind: "ask_question", label: "Ask a question" },
     ]);
     expect(CANON_QUICK_ACTIONS.map((a) => a.kind)).toEqual([
-      "book_call",
+      "book_visit",
       "call_me_back",
-      "get_proposal",
+      "schedule_callback",
+      "estimate",
+      "ask_question",
     ]);
   });
 
@@ -72,8 +78,8 @@ describe("StubTransport (the seam, exercised without a backend)", () => {
   });
 
   it("quick actions are acknowledged by name, honestly", async () => {
-    const res = await stub().send(req({ type: "quick_action", action: "book_call" }));
-    expect(res.messages[0]!.text).toContain("Book a call");
+    const res = await stub().send(req({ type: "quick_action", action: "book_visit" }));
+    expect(res.messages[0]!.text).toContain("Book a visit");
     expect(res.messages[0]!.text).toMatch(/stub|backend unit/i);
   });
 

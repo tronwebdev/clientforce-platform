@@ -93,11 +93,12 @@ describe("CONSOLE_V3_CANON.md §1 — color tokens are the doc's, verbatim", () 
       expect(consoleV3Vars[base], `${base} missing (canon §1 row "${label}")`).toBe(values[0]);
       seen.push(label);
     }
-    // Guard the parser itself: §1 has 15 value rows (wash → danger; `teal`
-    // is named by §2's ramp/operational states, not §1).
-    expect(seen).toHaveLength(15);
+    // Guard the parser itself: §1 has 16 value rows (wash → bubble-agent;
+    // `teal` is named by §2's ramp/operational states, not §1).
+    expect(seen).toHaveLength(16);
     expect(seen).toContain("forest");
     expect(consoleV3Vars["--cv3-teal"]).toBe("#0e7d93"); // §2 engaged fg / Scheduled teal
+    expect(consoleV3Vars["--cv3-bubble-agent"]).toBe("#f2f6f3"); // §1 (added 2026-07-26)
   });
 
   it("RETIRED values never appear in any token — the doc's must-never-return list", () => {
