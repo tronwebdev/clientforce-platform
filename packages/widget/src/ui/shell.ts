@@ -225,9 +225,17 @@ export class WidgetShell {
     this.root.style.setProperty("--cfw-brand", a.brandColor);
     if (a.brandColor.toLowerCase() === consoleV3.forest) {
       this.root.style.setProperty("--cfw-brand-hover", consoleV3.forestDeep);
+      // Canon accent ⇒ the canon mint pair exactly, so the default panel is
+      // byte-identical to the panel canon. Any other accent falls through to
+      // the sheet's color-mix tint (canon §7: brand green derives, semantic
+      // green stays canon).
+      this.root.style.setProperty("--cfw-brand-tint", consoleV3.mint);
+      this.root.style.setProperty("--cfw-brand-tint-line", consoleV3.mintLine);
     } else {
       // Custom brands have no canon hover shade — fall back to the brand fill.
       this.root.style.removeProperty("--cfw-brand-hover");
+      this.root.style.removeProperty("--cfw-brand-tint");
+      this.root.style.removeProperty("--cfw-brand-tint-line");
     }
     // The accent never paints a surface, so on-brand tones apply only where a
     // brand FILL survives (the send circle is canon forest; kept for a custom

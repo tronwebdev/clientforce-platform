@@ -93,6 +93,11 @@ UI label 13px/600 · eyebrow 11px/700 .08em uppercase · mono data 12px/500.
 Radius: 9–12 small (chips, inputs, buttons) · 14–16 cards · 22 frames ·
 `999px` status pills.
 
+Widget pill exception: the widget's **composer and its entry chips are pills**
+(`999px`), not 9–12 inputs/chips. A 48px-tall composer at radius 15 reads as a
+rounded rectangle and loses the composer's softness against the squarer cards
+around it; the entry chips take the same shape.
+
 Space: layout runs on flex/grid `gap` — 4 / 8 / 12 / 16 / 22 / 30.
 
 **Elevation (Direction D — hybrid):** soft borderless lift on floating and
@@ -149,8 +154,9 @@ surface shows a quiet hairline "connect" affordance.
 
 ## 7 · Widget carryovers (closes the flagged prototype literals)
 
-- **Presence / live dot:** forest `#146B33`.
-- **Launcher unread badge:** forest `#146B33` fill, white numerals, 2px white ring.
+- **Presence / live dot:** the workspace accent — forest `#146B33` by default.
+- **Launcher unread badge:** the workspace accent (forest `#146B33` by default)
+  fill, white numerals, 2px white ring.
 - **Voice overlay:** background is **light** — panel `#FBFDFB`, not the retired
   dark surface. Orb = signature gradient with ✦. Waveform bars forest
   `#146B33`. Hang-up danger `#B0483A`. Mute neutral (white + hairline;
@@ -170,6 +176,14 @@ surface shows a quiet hairline "connect" affordance.
   the launcher, header tile, message avatars and the working sweep. The ✦ itself
   STAYS: it is the agent's identity mark (the same one the console states use),
   not platform branding. One signal, no second flag.
+- **Brand green vs semantic green.** Split the greens by MEANING, not by
+  appearance. Green that is decorative or simply _is_ Clientforce derives from
+  the workspace accent — the **presence dot** and the **entry-chip fill** are both
+  in this bucket, so a `#1F3A93` workspace gets a `#1F3A93` dot and an accent-
+  tinted chip (a forest dot on a blue panel reads as a rendering bug, not as
+  branding). Green that MEANS something stays canon on every panel, white-label
+  or not: an **outcome confirmation** — booked, sent, confirmed — is mint/forest
+  because it means good, not because it means Clientforce.
 - **Two layers, kept separate.** *Widget appearance* — accent color, logo/mark,
   and which flows are enabled — is **workspace-level and ungated**: any
   workspace configures it from widget setup, with no plan check. *White-label*

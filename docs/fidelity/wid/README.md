@@ -67,7 +67,7 @@ is the evidence that the ring is interaction-only rather than parked.
 
 1. **Label pill hidden while the panel is open** — the static preview shows both; on a live page the copy would double.
 2. **Messages scroll region** (max-height 342px) — the preview is static; a live thread needs a cap + scroll.
-3. **Narrow viewports: bottom-anchored** — the preview's mobile frame is top-anchored inside its 560px mock; on a real page the widget stays a bottom-corner surface. Final ruling rides the mock image (Q-049).
+3. **Narrow viewports: bottom-anchored** — the preview's mobile frame is top-anchored inside its 560px mock; on a real page the widget stays a bottom-corner surface. The committed mock is a panel-only crop and shows no mobile frame, so this one is still open (Q-049).
 4. **Typing-dots indicator** during thinking/replying — standard chat pattern, no canon anchor in the preview.
 5. **Composer focus = outline ring** on `:focus-visible` via `:has()` (flat — canon §4 allows no third shadow).
 
@@ -76,8 +76,9 @@ is the evidence that the ring is interaction-only rather than parked.
 The kickoff's flagged prototype literals are all resolved by
 `CONSOLE_V3_CANON.md` §6/§7 and are now canon, not deltas: the **✦ agent mark
 on the signature gradient** (replacing the prototype's hard-coded platform mark
-and the kickoff's agent-initial orb) · **forest presence dot** · **forest unread
-badge with white numerals + 2px white ring** · **no dark theme** · **canon
+and the kickoff's agent-initial orb) · **accent presence dot** and **accent unread
+badge with white numerals + 2px white ring** (canon forest by default — §7's
+brand-green rule) · **no dark theme** · **canon
 motion verbs and timings** (and the launcher's decorative bob removed — §5 is
 event-driven only). The voice overlay's canon (light `#FBFDFB`, gradient orb,
 forest waveform) is recorded for the unit that builds that surface — live voice
@@ -261,25 +262,25 @@ for CSS px. **Everything below is measured, not eyeballed.**
 | Agent bubble capped at 82%            | runs the full row (308 measured vs 280 built) — it changes where the greeting WRAPS                   | 100% for the agent row (flex shrink caps it at 309); the visitor bubble keeps 82%                                                           |
 | Close ✕ an 8px glyph                  | 11px at a ~2px stroke                                                                                 | icon at 22 with `stroke-width: 2`                                                                                                           |
 
-### Flagged, not silently chosen
+### Ruled by the owner (2026-07-26) — all four settled
 
-1. **Panel height: mock 592, spec 640.** Width and radius agree exactly; the
-   height does not. 640 is the owner's explicit written number and it stays —
-   the mock's thread area is mostly empty, so 592 reads as an export height
-   rather than a spec change. One word switches it.
-2. **The mock's type renders ~5% smaller than canon §3.** Measured: body 14.5 →
-   ~14 (line pitch 22 vs 21), label 13 → ~12.2 (chip label 72 wide vs 66.7),
-   composer 14.5 → ~13, footer 10.5 → ~10.2, subtitle 13 → ~11.8. Canon holds
-   in the build, because `UI_PORTING_RULES` gives token atoms to the token doc
-   and composition to the mock — and §3 assigns every one of those roles a size.
-   The visible effect is a slightly taller bubble (89 vs 85) and slightly wider
-   chips. Say the word and the panel gets pinned to the mock's rendered sizes
-   instead; nothing else in the geometry moves.
-3. **The presence dot stays canon forest under white-label.** §7 pins it to
-   `#146B33`, and a dot is a state color rather than a brand asset — but it is
-   now the one green mark left on a foreign-accented panel (visible in
-   `build-13`). Same question for the **mint chip fill**, which stays canon while
-   its label follows the accent.
+| Question raised by the pass                                | Ruling                                                                                                                                                                                                                                                                                                                                                      |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Composer: the mock's **pill** vs the written **radius 15** | **Pill wins — amend canon, not the build.** "A 48-tall bar at radius 15 reads as a rounded rectangle and loses the composer's softness against the squarer cards around it." Canon §4 now carries the widget pill exception (composer + entry chips).                                                                                                       |
+| Panel height: mock **592** vs written **640**              | **640 ships.** The mock's 592 is the demo viewport clamping `max-height`, not design intent.                                                                                                                                                                                                                                                                |
+| Type: the mock renders **~5% smaller** than canon §3       | **Canon type ships**, for the stated reason — atoms follow the token doc, composition follows the mock. An 89 vs 85 bubble is the right price.                                                                                                                                                                                                              |
+| Presence dot + mint chip fill under white-label            | **Split the greens by MEANING, not appearance.** Decorative/brand green derives from `--cfw-brand` — the presence dot and the entry-chip fill are both in that bucket (a forest dot on a `#1F3A93` panel reads as a rendering bug). Semantic green stays canon: an outcome confirmation is green because it means _good_, not because it means Clientforce. |
+
+Implemented: the presence dot and the chip fill/border now derive from the
+accent. `--cfw-brand-tint` / `--cfw-brand-tint-line` carry **canon mint verbatim**
+for the canon accent, so the default panel stays byte-identical to the mock
+(measured: dot `#146B33`, chip fill `#EAF5EE`, chip border `#CFE8D8` — the mock's
+exact values); any other accent falls through to a `color-mix` tint (measured on
+`build-13`: dot `#1F3A93`, fill `#EDEFF6`, border `#CED4E7`). **Outcome cards are
+deliberately NOT written** — they are the semantic-green surface and are
+honest-absent until the flows ship (Q-050); canon §7 now records that they keep
+mint/forest on every panel, white-label or not. Both halves are pinned by test,
+including "no bare `--cv3-mint` survives in the sheet".
 
 ### Found while capturing — three defects fixed
 

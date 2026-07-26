@@ -95,19 +95,24 @@ mint + accent), indented to the bubble's left edge. Every panel carries
 **Powered by Clientforce Ai** at the foot (10.5px faint, behind an 11px gradient
 square).
 
-Two things are flagged rather than settled, both in the §8 report: the mock's
-panel renders 592 tall against the owner's written 640 (640 shipped), and the
-mock's type renders ~5% smaller than canon §3 (canon shipped, per
-`UI_PORTING_RULES`: token atoms follow the token doc, composition follows the
-mock).
+All four questions the measuring raised are ruled (owner, 2026-07-26; recorded
+in the §8 report): the composer **pill** wins over the written radius 15 and
+canon §4 was amended rather than the build, **640** ships (the mock's 592 is the
+demo viewport clamping `max-height`), **canon type** ships (atoms follow the
+token doc, composition follows the mock), and the greens split by MEANING —
+decorative/brand green derives from the accent (presence dot, entry-chip fill),
+while semantic green stays canon (outcome confirmations are green because they
+mean _good_).
 
 ## 3. Flows, appearance, and white-label — two separate layers
 
 **Workspace-level and ungated** (any workspace configures this in widget setup,
 no plan check): the accent color — `--cfw-brand`, which defaults to canon forest
-and paints the send circle, unread badge, primary-chip label and focus rings, so
-a workspace's own accent actually reaches the panel — the logo/mark, and **which
-of the six flows are enabled** — Book a visit · Call me back · Schedule callback · Get an
+and paints the send circle, presence dot, unread badge, primary-chip label and
+fill, and focus rings, so a workspace's own accent actually reaches the panel
+(`--cfw-brand-tint` carries canon mint verbatim for the canon accent, so the
+default panel is byte-identical to the mock) — the logo/mark, and **which of the
+six flows are enabled** — Book a visit · Call me back · Schedule callback · Get an
 estimate · Live voice (rides the composer mic) · Ask a question. Industries use
 different subsets, so the panel renders **only the active flows** and never a
 placeholder for a disabled one. Labels stay server-offered per tenant; the

@@ -88,19 +88,38 @@ describe("§1/§7 color — canon tokens only", () => {
     expect(widgetCss).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
   });
 
-  it("the presence dot is forest per §7, and the badge is the accent (default forest)", () => {
-    const dot = widgetCss.slice(widgetCss.indexOf(".cfw-dot {"));
-    expect(dot.slice(0, 200)).toContain("var(--cv3-forest)");
-    const badge = widgetCss.slice(widgetCss.indexOf(".cfw-badge {"));
-    // §7 says a forest badge; the accent is the customer-brandable token and
-    // DEFAULTS to canon forest, so §7 holds for every default workspace while a
-    // custom accent no longer leaves a forest pip on a foreign-branded panel.
-    expect(badge.slice(0, 420)).toContain("background: var(--cfw-brand)");
+  it("BRAND green derives from the accent: presence dot, unread badge, chip fill", () => {
+    // Canon §7 (owner ruling 2026-07-26): split the greens by MEANING. Green
+    // that is decorative or simply IS Clientforce derives from the workspace
+    // accent, which DEFAULTS to canon forest — so §7's "forest dot / forest
+    // badge" holds for every default workspace, and a #1F3A93 workspace gets no
+    // stray green.
+    expect(canon).toContain("Brand green vs semantic green");
     expect(WIDGET_DEFAULTS.appearance.brandColor).toBe(consoleV3.forest);
+    const dot = widgetCss.slice(widgetCss.indexOf(".cfw-dot {"));
+    expect(dot.slice(0, 200)).toContain("background: var(--cfw-brand)");
+    const badge = widgetCss.slice(widgetCss.indexOf(".cfw-badge {"));
+    expect(badge.slice(0, 420)).toContain("background: var(--cfw-brand)");
     // white numerals + 2px white ring
     expect(badge.slice(0, 420)).toContain("border: 2px solid var(--cv3-card)");
     expect(badge.slice(0, 420)).toContain("color: var(--cfw-on-brand)");
     expect(textOnColor(consoleV3.forest).toLowerCase()).toBe("#ffffff");
+    // The chip fill is brand green too — no bare canon mint left in the sheet.
+    expect(widgetCss).not.toContain("var(--cv3-mint)");
+    expect(widgetCss).not.toContain("var(--cv3-mint-line)");
+  });
+
+  it("SEMANTIC green stays canon — the mint pair is exact on the canon accent", () => {
+    // The tint vars carry canon mint verbatim for the canon accent, so the
+    // default panel is byte-identical to the panel canon; any other accent
+    // falls through to the sheet's color-mix tint.
+    expect(shellSrc).toContain('setProperty("--cfw-brand-tint", consoleV3.mint)');
+    expect(shellSrc).toContain('setProperty("--cfw-brand-tint-line", consoleV3.mintLine)');
+    expect(widgetCss).toContain("var(--cfw-brand-tint, color-mix(");
+    // Outcome cards (booked/sent/confirmed) are the semantic-green surface and
+    // are honest-absent this unit — they ship with the flows, on canon mint.
+    expect(canon).toContain("outcome confirmation");
+    expect(widgetCss).not.toContain("cfw-outcome");
   });
 });
 
@@ -147,9 +166,10 @@ describe("mock KEY SURFACES — launcher", () => {
     expect(shellSrc).not.toContain("QUICK_ACTION_ICON");
     expect(shellSrc).toContain('chip.setAttribute("data-primary"');
     const primary = widgetCss.slice(widgetCss.indexOf(".cfw-chip[data-primary] {"));
-    expect(primary.slice(0, 200)).toContain("background: var(--cv3-mint)");
-    // Canon mint fill; the label rides the accent (default = canon forest).
-    expect(primary.slice(0, 200)).toContain("color: var(--cfw-brand)");
+    // Label AND fill ride the accent (§7 brand green); on the canon accent the
+    // fill resolves to canon mint exactly — see the semantic-green test.
+    expect(primary.slice(0, 260)).toContain("color: var(--cfw-brand)");
+    expect(primary.slice(0, 260)).toContain("background: var(--cfw-brand-tint,");
   });
 
   it("the mark is the inlined brand asset — packages/theme/assets/mark.svg", () => {

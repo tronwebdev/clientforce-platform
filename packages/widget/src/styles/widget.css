@@ -8,7 +8,11 @@
  * - The ACCENT NEVER PAINTS A SURFACE: header and composer sit on panel/card
  *   with hairlines; the accent appears on the send circle, chip text, badge and
  *   rings — via --cfw-brand, the workspace's own accent, which defaults to
- *   canon forest. Canon forest itself stays on the presence dot (§7 pins it).
+ *   canon forest.
+ * - §7 brand-vs-semantic green: green that is decorative or simply IS
+ *   Clientforce derives from the accent (presence dot, entry-chip fill);
+ *   SEMANTIC green stays canon — outcome confirmations keep mint/forest on
+ *   every panel, and they ship with the flows, not here.
  * - Light-first: there is NO dark canon (§7) — no dark rules exist here.
  * - Elevation (§4): box-shadow appears exactly TWICE — launcher + panel, the
  *   documented widget exception. Every internal is flat + hairline. The
@@ -276,12 +280,13 @@
   text-overflow: ellipsis;
 }
 
-/* §7: presence dot = forest. */
+/* §7 brand-vs-semantic green: the presence dot is decorative brand green, so it
+   rides the workspace accent (canon forest by default). */
 .cfw-dot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--cv3-forest);
+  background: var(--cfw-brand);
   flex: none;
 }
 
@@ -465,17 +470,28 @@
     color var(--cv3-motion-fast) var(--cv3-ease);
 }
 
+/* §7 brand-vs-semantic green: the entry-chip fill is brand green, so it derives
+   from the accent. --cfw-brand-tint carries canon mint for the canon accent
+   (byte-exact default); any other accent falls back to a tint mixed from it.
+   Semantic green — the outcome card's booked/sent/confirmed — stays canon mint
+   and is NOT written here: it ships with the flows (Q-050). */
 .cfw-chip[data-primary] {
   color: var(--cfw-brand);
-  background: var(--cv3-mint);
-  border-color: var(--cv3-mint-line);
+  background: var(--cfw-brand-tint, color-mix(in srgb, var(--cfw-brand) 8%, var(--cv3-card)));
+  border-color: var(
+    --cfw-brand-tint-line,
+    color-mix(in srgb, var(--cfw-brand) 22%, var(--cv3-card))
+  );
 }
 
 .cfw-chip:hover,
 .cfw-chip:focus-visible {
   color: var(--cfw-brand);
-  border-color: var(--cv3-mint-line);
-  background: var(--cv3-mint);
+  border-color: var(
+    --cfw-brand-tint-line,
+    color-mix(in srgb, var(--cfw-brand) 22%, var(--cv3-card))
+  );
+  background: var(--cfw-brand-tint, color-mix(in srgb, var(--cfw-brand) 8%, var(--cv3-card)));
 }
 
 /* ---------- Foot: composer + the platform line ---------- */
