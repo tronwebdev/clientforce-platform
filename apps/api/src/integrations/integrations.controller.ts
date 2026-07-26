@@ -58,6 +58,7 @@ import {
 } from "@clientforce/integrations";
 import { z, type ZodTypeAny } from "zod";
 import { Roles } from "../auth/decorators";
+import { mintApiKey } from "@clientforce/integrations";
 import type { AuthenticatedRequest } from "../auth/request-context";
 import { TenantClient } from "../db/tenant-client";
 import { INTEGRATIONS_DEPS } from "./integrations.providers";
@@ -207,6 +208,93 @@ export class IntegrationsController {
    * ?token=…` (the API's own public URL — the webhook must hit the API
    * service). PAT + signing key + subscription URI ride credentialsEnc.
    */
+  /**
+   * INT W5 (DEC-101): mint a workspace API key for the Zapier private app.
+   *
+   * The plaintext token is returned EXACTLY ONCE, here, and never again — only
+   * a prefix and a SHA-256 hash are stored, so no later endpoint (and no
+   * support engineer) can hand it back. Minting also brings the `Integration`
+   * row up as connected, so Zapier gets the same connection lifecycle, status
+   * pill and disconnect audit as every other provider rather than a bespoke
+   * side surface.
+   */
+  @Post("zapier/keys")
+  @Roles(Role.OWNER, Role.ADMIN)
+  async mintZapierKey(@Req() req: AuthenticatedRequest): Promise<{
+    token: string;
+    prefix: string;
+    integration: IntegrationDto;
+  }> {
+    const minted = mintApiKey();
+    const row = await this.tenant.run(async (tx) => {
+      // One live key per workspace keeps the mental model honest: minting
+      // again REVOKES the previous one rather than silently leaving two valid
+      // credentials, so "I rotated the key" actually means the old one stops.
+      await tx.workspaceApiKey.updateMany({
+        where: { workspaceId: this.tenant.workspaceId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      await tx.workspaceApiKey.create({
+        data: {
+          workspaceId: this.tenant.workspaceId,
+          name: "Zapier",
+          prefix: minted.prefix,
+          hash: minted.hash,
+        },
+      });
+      const existing = await tx.integration.findFirst({
+        where: { workspaceId: this.tenant.workspaceId, provider: "zapier" },
+      });
+      const config = { ...((existing?.config as Record<string, unknown>) ?? {}), keyPrefix: minted.prefix };
+      return existing
+        ? tx.integration.update({
+            where: { id: existing.id },
+            data: { status: "connected", accountLabel: "Zapier (private app)", config, lastProbeAt: new Date() },
+          })
+        : tx.integration.create({
+            data: {
+              workspaceId: this.tenant.workspaceId,
+              provider: "zapier",
+              status: "connected",
+              accountLabel: "Zapier (private app)",
+              config,
+              lastProbeAt: new Date(),
+              ...(req.auth ? { connectedById: req.auth.user.id } : {}),
+            },
+          });
+    });
+    return { token: minted.token, prefix: minted.prefix, integration: toIntegrationDto(row) };
+  }
+
+  /**
+   * Revoke the live key. Revocation is a TIMESTAMP, not a delete: the row
+   * outlives the credential so an audit can still answer "what was live, and
+   * when did it stop" (the IntegrationDelivery-outlives-the-row precedent).
+   */
+  @Post("zapier/keys/revoke")
+  @Roles(Role.OWNER, Role.ADMIN)
+  async revokeZapierKey(): Promise<{ revoked: number; integration: IntegrationDto | null }> {
+    return this.tenant.run(async (tx) => {
+      const res = await tx.workspaceApiKey.updateMany({
+        where: { workspaceId: this.tenant.workspaceId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      const existing = await tx.integration.findFirst({
+        where: { workspaceId: this.tenant.workspaceId, provider: "zapier" },
+      });
+      if (!existing) return { revoked: res.count, integration: null };
+      // No live key means Zapier can no longer authenticate — say so honestly
+      // instead of leaving a green "Connected" pill over a dead credential.
+      const config = { ...((existing.config as Record<string, unknown>) ?? {}) };
+      delete config.keyPrefix;
+      const row = await tx.integration.update({
+        where: { id: existing.id },
+        data: { status: "revoked", config: config as Prisma.InputJsonValue },
+      });
+      return { revoked: res.count, integration: toIntegrationDto(row) };
+    });
+  }
+
   @Post(":provider/connect-fields")
   @Roles(Role.OWNER, Role.ADMIN)
   async connectFields(
