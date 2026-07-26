@@ -88,7 +88,6 @@ const ABSENT_REASONS: Record<string, string> = {
   outlook: "Arrives with bring-your-own inbox (v2)",
   smtp: "Arrives with bring-your-own inbox (v2)",
   whatsapp: "Arrives with the WhatsApp channel",
-  zapier: "Arrives with the Zapier integration",
 };
 
 function availabilityFor(id: string): CatalogAvailability {
@@ -281,6 +280,26 @@ export const DRAWER_CONTENT = {
     setupSteps: [
       { title: "Paste a HubSpot token", desc: "A private-app token or Service Key with crm.objects.deals.write + contacts.write." },
       { title: "Confirm & go live", desc: "We verify the token against your HubSpot account." },
+    ],
+    optionsKind: null,
+  },
+  // INT W5 (DEC-101): Zapier is the one provider where the trust direction is
+  // INVERTED — Zapier authenticates to US with a workspace API key, so there is
+  // no vendor token to paste and nothing to probe. The drawer's job is to mint
+  // the key (shown once) and hand over the private-app invite link. Public
+  // directory listing is a separate owner-gated step (Zapier's review process),
+  // so the copy promises an invite link and nothing more.
+  zapier: {
+    mode: "fields",
+    authPerms: [],
+    syncRows: [
+      { kind: "triggers", label: "Triggers — booked · replied · stage changed · enrolled · knowledge gap" },
+      { kind: "writes", label: "Actions — create/update contact, enroll in campaign" },
+      { kind: "actions", label: "Actions — stage, tags, suppression, CRM deal (from your automation vocabulary)" },
+    ],
+    setupSteps: [
+      { title: "Mint an API key", desc: "Shown once — copy it straight into Zapier. We store only a hash, so a lost key is re-minted, never recovered." },
+      { title: "Open the invite link", desc: "Our Zapier app is private: the invite link adds it to your Zapier account. A public directory listing is a separate step." },
     ],
     optionsKind: null,
   },

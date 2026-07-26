@@ -230,7 +230,10 @@ export const ABSENT_ACTIONS: ReadonlyArray<import("./triggers").AbsentPickerEntr
   { group: "Flow & integrations", icon: "⏱", label: "Wait", desc: "Pause between actions", reason: "Multi-step chains arrive with automations v2" },
   { group: "Flow & integrations", icon: "⏰", label: "Wait until time", desc: "Hold until a set time", reason: "Multi-step chains arrive with automations v2" },
   // INT W3: "Send webhook" LEFT this ledger — live behind send_webhook
-  // (Q-044's send half; the incoming trigger + Zapier/Sheets re-file → Q-054).
-  { group: "Flow & integrations", icon: "⚡", label: "Trigger Zapier / Make", desc: "Hand off to a zap", reason: "Arrives with the Zapier integration" },
+  // (Q-044's send half; the incoming trigger + the Sheets rider re-file → Q-054).
+  // INT W5 (DEC-101): "Trigger Zapier / Make" LEFT it too — the Zapier app is
+  // live, so a Zap starts from a real Clientforce trigger and `send_webhook`
+  // already POSTs to a catch hook. An absent card here would shadow a shipped
+  // capability (the notify_team/DEC-093 precedent). Make/Sheets stay absent.
   { group: "Flow & integrations", icon: "▦", label: "Add row to Google Sheet", desc: "Append a spreadsheet row", reason: "Arrives with the Google Sheets integration" },
 ];
