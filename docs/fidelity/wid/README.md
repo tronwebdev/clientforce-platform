@@ -53,7 +53,8 @@ Build-only states (no static proto anchor — the preview is a single frame):
 - `build-06-agent-state-replying` — motion **slide** (sweep under the mark) + dots
 - `build-09-brand-ink-auto-contrast` — brand `#101613`, auto text-on-brand flips to white
 - `build-10-closed-unread-badge` — post-conversation closed state
-- `build-11-narrow-viewport-390` — 300px panel centered (flagged deviation: bottom-anchored)
+- `build-11-narrow-viewport-390` — the FULL-BLEED narrow-viewport panel (owner rule, DEC-100)
+- `build-15-narrow-closed-launcher` — narrow + closed: the launcher still corners per config
 - `build-12-panel-crop-3x` — the panel alone at 3× (1128×1920), the like-for-like pair for `widget-panel-canon` (1134×1926). Captured under `prefers-reduced-motion: reduce`, because at rest the idle mark BREATHES (§5, scale 1→1.05) and would inflate a geometry measurement by ~2px; that also makes this frame the reduced-motion evidence.
 - `build-13-white-label-panel-3x` — the same panel with attribution suppressed by the server: ✦ tiles on the workspace accent, accent send + chip label, **no platform line**
 - `build-14-white-label-launcher` — the white-label launcher: the ✦ on the accent in place of the brand mark
@@ -67,7 +68,7 @@ is the evidence that the ring is interaction-only rather than parked.
 
 1. **Label pill hidden while the panel is open** — the static preview shows both; on a live page the copy would double.
 2. **Messages scroll region** (max-height 342px) — the preview is static; a live thread needs a cap + scroll.
-3. **Narrow viewports: bottom-anchored** — the preview's mobile frame is top-anchored inside its 560px mock; on a real page the widget stays a bottom-corner surface. The committed mock is a panel-only crop and shows no mobile frame, so this one is still open (Q-049).
+3. ~~**Narrow viewports: bottom-anchored**~~ — **RETIRED (DEC-100).** The owner ruled the narrow-viewport behaviour as a written spec: below 480px the panel is full-bleed. Built and evidenced; see the narrow-viewport section.
 4. **Typing-dots indicator** during thinking/replying — standard chat pattern, no canon anchor in the preview.
 5. **Composer focus = outline ring** on `:focus-visible` via `:has()` (flat — canon §4 allows no third shadow).
 
@@ -80,9 +81,9 @@ and the kickoff's agent-initial orb) · **accent presence dot** and **accent unr
 badge with white numerals + 2px white ring** (canon forest by default — §7's
 brand-green rule) · **no dark theme** · **canon
 motion verbs and timings** (and the launcher's decorative bob removed — §5 is
-event-driven only). The voice overlay's canon (light `#FBFDFB`, gradient orb,
-forest waveform) is recorded for the unit that builds that surface — live voice
-chat is honest-absent here (Q-049).
+event-driven only). The voice overlay now has a committed placement
+anchor (`widget-voice-overlay.png`) and a measured spec in the last section, but
+it is still honest-absent in the build: it needs a voice transport (Q-049/Q-050).
 
 ---
 
@@ -312,3 +313,66 @@ orbs and the launcher; the ✦ agent mark stays** (it is the agent's identity, n
 platform branding) on the workspace's own accent, and the "Powered by
 Clientforce Ai" line is absent. No page-level attribute can reproduce this —
 that is pinned by test.
+
+---
+
+## Narrow viewports — owner rule, built (2026-07-26, DEC-100)
+
+No image anchor by design: the mock is desktop-only, so this is a **written
+rule** rather than a placement comparison, and the flagged "bottom-anchored /
+centred 300px panel" deviation is retired with it.
+
+**Below 480px the panel goes full-bleed** — `inset: 0`, radius 0, full width and
+height, **no float shadow**: it is no longer floating over a page, it _is_ the
+page. The launcher hides while the panel is open (nothing to float beside), so
+the header ✕ is the only exit; the header keeps its 66px; the composer foot adds
+`env(safe-area-inset-bottom)` for the home bar. **Above 480px the floating
+376×640 panel at radius 20 is untouched** — pinned by a test that re-asserts the
+desktop block after the media query.
+
+Evidence — `build-11-narrow-viewport-390` (390×844 at 3×, mobile emulation) and
+`build-15-narrow-closed-launcher` (the launcher still corners per config when
+closed; it is only hidden while open). The frame is backed by a computed-style
+read rather than a visual impression alone:
+
+```
+{"rect":[0,0,390,844],"radius":"0px","shadow":"none","border":"0px",
+ "viewport":[390,844],"launcherVisible":"none"}
+```
+
+`box-shadow: none` on the full-bleed panel is a **removal, not a third
+elevation** — the §4 test now counts shadow _setters_ (still exactly two, both
+the canon float token) and ignores `none`. Also worth a ruling: the rule is
+recorded here and in the package README, **not** folded into `CONSOLE_V3_CANON.md`
+— say the word and it becomes a §7 widget carryover.
+
+**Desktop anchoring, 2px note:** the ruling described the floating panel as
+"inset-26 anchoring"; the build has always used **24** (`right: 24px`,
+`bottom: 96px` = 60px launcher + 20px bottom inset + 16px gap). Since the
+instruction was "applies unchanged", 24 is untouched — flagging the number in
+case 26 was intended.
+
+---
+
+## Voice overlay — placement anchor recorded (2026-07-26, DEC-100)
+
+`widget-voice-overlay.png` is committed as the anchor for Q-049's voice item.
+**Nothing is built from it this unit** — the overlay needs a voice transport, and
+a waveform that animates without a call is exactly the invented surface the repo
+forbids. What lands here is the measured spec, so the unit that builds it starts
+from numbers instead of a re-read.
+
+| Region     | Measured (CSS px, ÷3 from the 3× anchor)                                                                                                                                                                |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Surface    | panel `#FBFDFB` — **light**, confirming §7 over the retired dark surface                                                                                                                                |
+| Header     | **50** tall (the chat header's 66 does not carry over) + a `#E9EEEA` hairline; 7px forest presence dot at an 18px inset, `Live voice · m:ss` in muted `#5A6660` ≈13px/700, close ✕ 11px faint `#8B968F` |
+| Orb        | **90** circle, signature gradient, ✦ in ink, with a soft green halo bleeding ~12 beyond the edge                                                                                                        |
+| Waveform   | **five** forest `#146B33` bars, 4 wide at a 7 pitch (32 overall), heights 9 / 11 / 17 / 22 / 24 rising to the right                                                                                     |
+| Caption    | `Agent speaking…` in muted, centred under the waveform                                                                                                                                                  |
+| Transcript | scrolls; eyebrow labels 11px/700 tracked — **ADA forest `#146B33`, YOU faint `#8B968F`** — above ink `#101613` body copy                                                                                |
+| Foot       | a neutral white ~50 mic circle with a hairline beside a `#B0483A` hang-up circle at ~58, centred as a pair                                                                                              |
+
+**White-label, per the brand-vs-semantic ruling:** the orb, waveform, presence dot
+and the ADA eyebrow all derive from `--cfw-brand`; the **hang-up stays `#B0483A`
+because danger is semantic**. That is the same split already shipped for the chat
+panel, so the overlay inherits it rather than restating it.

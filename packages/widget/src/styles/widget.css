@@ -713,20 +713,38 @@
   }
 }
 
-/* ---------- Narrow viewports.
-   Deviation (flagged): anchored to the BOTTOM on real pages. ---------- */
+/* ---------- Narrow viewports — owner rule (2026-07-26), no image anchor: the
+   mock is desktop-only by design, so this is a written spec.
+
+   Below 480px the panel goes FULL-BLEED. It is no longer floating over a page,
+   it IS the page: inset 0, radius 0, full width and height, and no float
+   shadow (nothing left to float above). The launcher hides while the panel is
+   open — there is nothing to float beside — so the header ✕ is the only exit.
+   Above 480px the floating 376×640 panel at radius 20 applies unchanged.
+   ---------- */
 
 @media (max-width: 480px) {
-  .cfw-panel {
-    width: min(376px, calc(100vw - 24px));
-    left: 50% !important;
-    right: auto !important;
-    transform: translateX(-50%);
+  /* Grouped position selectors match the desktop anchoring's specificity and
+     win on order, so full-bleed needs no !important. */
+  .cfw-root[data-position="right"] .cfw-panel,
+  .cfw-root[data-position="left"] .cfw-panel {
+    inset: 0;
+    width: auto;
+    height: auto;
+    max-height: none;
+    border: none;
+    border-radius: 0;
+    /* Not a third elevation — the two float tokens are unchanged; a full-bleed
+       surface simply has nothing to cast onto. */
+    box-shadow: none;
   }
 
-  .cfw-cluster {
-    left: 50% !important;
-    right: auto !important;
-    transform: translateX(-50%);
+  .cfw-root[data-state="open"] .cfw-cluster {
+    display: none;
+  }
+
+  /* Home bar / notch clearance under the composer. */
+  .cfw-foot {
+    padding-bottom: calc(9px + env(safe-area-inset-bottom));
   }
 }

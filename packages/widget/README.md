@@ -138,6 +138,14 @@ page cannot strip the attribution (canon §7; pinned by test).
 - **Light-first:** canon §7 states there is no dark canon, so the embed ships
   no dark theme — `theme:"dark"` warns and renders light rather than shipping
   an un-canon'd skin.
+- **Narrow viewports (owner rule, 2026-07-26):** below **480px** the panel goes
+  **full-bleed** — `inset: 0`, radius 0, full width and height, no float shadow.
+  It is no longer floating over a page, it _is_ the page. The launcher hides
+  while the panel is open (nothing to float beside), so the header ✕ is the only
+  exit; the header keeps its 66px, and the composer foot adds
+  `env(safe-area-inset-bottom)` for the home bar. Above 480px the floating
+  376×640 panel at radius 20 applies unchanged. Pinned by test in both
+  directions.
 
 ## 5. API seam — ONE documented endpoint (stubbed this unit)
 

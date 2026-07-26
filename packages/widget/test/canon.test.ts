@@ -15,14 +15,20 @@ const transportSrc = readFileSync(join(__dirname, "..", "src", "api", "transport
 const canon = readFileSync(join(__dirname, "..", "..", "..", "CONSOLE_V3_CANON.md"), "utf8");
 
 describe("§4 elevation — the widget's ONE shadow exception", () => {
-  it("box-shadow appears exactly twice: launcher + panel", () => {
-    const declarations = widgetCss.match(/^\s*box-shadow:/gm) ?? [];
-    expect(declarations).toHaveLength(2);
+  it("box-shadow is SET exactly twice: launcher + panel", () => {
+    // `box-shadow: none` is a removal, not an elevation — the full-bleed
+    // narrow-viewport panel has nothing to cast onto. Count only the setters.
+    const setters = [...widgetCss.matchAll(/^\s*box-shadow:\s*([^;]+);/gm)]
+      .map((m) => m[1]!.trim())
+      .filter((v) => v !== "none");
+    expect(setters).toHaveLength(2);
     expect(canon).toContain("launcher + panel float over unknown host backgrounds");
   });
 
   it("both use the canon float token — no bespoke shadow values", () => {
-    const values = [...widgetCss.matchAll(/box-shadow:\s*([^;]+);/g)].map((m) => m[1]!.trim());
+    const values = [...widgetCss.matchAll(/box-shadow:\s*([^;]+);/g)]
+      .map((m) => m[1]!.trim())
+      .filter((v) => v !== "none");
     expect(values).toEqual(["var(--cv3-shadow-float)", "var(--cv3-shadow-float)"]);
   });
 
@@ -287,6 +293,36 @@ describe("owner panel spec (2026-07-26) — the accent never paints a surface", 
     expect(mark).toContain("width: 11px");
     expect(mark).toContain("background: var(--cv3-gradient-signature)");
     expect(shellSrc).toContain("Powered by Clientforce Ai");
+  });
+});
+
+describe("narrow viewports — owner rule (no image anchor; the mock is desktop-only)", () => {
+  const narrow = widgetCss.slice(widgetCss.indexOf("@media (max-width: 480px)"));
+
+  it("below 480px the panel is FULL-BLEED: inset 0, radius 0, no float", () => {
+    expect(narrow).toContain("inset: 0");
+    expect(narrow).toContain("border-radius: 0");
+    expect(narrow).toContain("box-shadow: none");
+    expect(narrow).toContain("max-height: none");
+    // and it no longer centres a floating 376px panel (the retired deviation)
+    expect(narrow).not.toContain("translateX(-50%)");
+    expect(narrow).not.toContain("min(376px");
+  });
+
+  it("the launcher hides while the panel owns the viewport — ✕ is the only exit", () => {
+    expect(narrow).toMatch(/\[data-state="open"\] \.cfw-cluster \{\s*display: none/);
+  });
+
+  it("the composer foot clears the home bar", () => {
+    expect(narrow).toContain("env(safe-area-inset-bottom)");
+  });
+
+  it("above 480px the floating panel is untouched", () => {
+    const desktop = widgetCss.slice(0, widgetCss.indexOf("@media (max-width: 480px)"));
+    const panel = desktop.slice(desktop.indexOf(".cfw-panel {"));
+    expect(panel.slice(0, 400)).toContain("width: 376px");
+    expect(panel.slice(0, 400)).toContain("height: 640px");
+    expect(panel.slice(0, 400)).toContain("box-shadow: var(--cv3-shadow-float)");
   });
 });
 
