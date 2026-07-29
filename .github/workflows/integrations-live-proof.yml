@@ -438,7 +438,7 @@ jobs:
 
       - name: Run the staging-ingress walk (secrets masked)
         env:
-          PHASE: ${{ github.event.inputs.walk == 'calendly-staging-verify' && 'verify' || 'arm' }}
+          PHASE: ${{ github.event.inputs.walk == 'calendly-staging-verify' && 'verify' || github.event.inputs.walk == 'calendly-staging-preflight' && 'preflight' || 'arm' }}
           STAGING_API_URL: ${{ steps.ingress.outputs.api }}
           CALENDLY_SCHEDULING_URL: ${{ github.event.inputs.calendly_link }}
         run: |

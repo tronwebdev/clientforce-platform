@@ -595,12 +595,89 @@ async function verify(db: PrismaClient): Promise<Record<string, unknown>> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// PHASE: preflight — exercise the plumbing WITHOUT spending the booking.
+//
+// The verify gates only run after a real booking exists, so a broken query would
+// surface for the first time on one-shot genuine data. This phase runs the exact
+// reads verify depends on — the field-encrypted credential decrypt and BOTH JSON
+// path filters (`payload.toStage`, `meta.priorExternalIds array_contains`) — and
+// asserts nothing about the booking. It also reports whether the vendor
+// subscription is still live and whether a booking has landed yet.
+// ─────────────────────────────────────────────────────────────────────────────
+async function preflight(db: PrismaClient): Promise<Record<string, unknown>> {
+  const adapter = new CalendlyAdapter();
+  const creds = { apiToken: PAT };
+  const ctx = await stagingAuth();
+  const conn = await readConnection(db, ctx.workspaceId);
+  must(
+    "credentials decrypt",
+    "genuine",
+    conn.signingKey.length === 64 && conn.webhookToken.length > 0,
+    `field-encrypted signing key + capability token read back from the staging row (since ${conn.since.toISOString()})`,
+  );
+
+  const meetings = await db.meeting.count({
+    where: {
+      workspaceId: ctx.workspaceId,
+      provider: "calendly",
+      createdAt: { gte: conn.since },
+    },
+  });
+  // The two JSON path filters verify relies on — run them for real so a bad
+  // filter shape fails HERE, not after the owner has booked.
+  const bookedStage = await db.event.count({
+    where: {
+      workspaceId: ctx.workspaceId,
+      type: "lead.stage_changed.v1",
+      occurredAt: { gte: conn.since },
+      payload: { path: ["toStage"], equals: "booked" },
+    },
+  });
+  const tombstoned = await db.meeting.count({
+    where: {
+      workspaceId: ctx.workspaceId,
+      provider: "calendly",
+      meta: { path: ["priorExternalIds"], array_contains: ["preflight-probe"] },
+    },
+  });
+  must(
+    "verify-phase queries execute",
+    "genuine",
+    Number.isInteger(bookedStage) && Number.isInteger(tombstoned),
+    `payload.toStage filter -> ${bookedStage} row(s); meta.priorExternalIds array_contains -> ${tombstoned} row(s) (both filters are valid Prisma JSON paths)`,
+  );
+
+  const user = await adapter.me(creds);
+  const subs = await adapter.listWebhookSubscriptions(creds, {
+    organization: user.organization,
+    user: user.uri,
+  });
+  const live = subs.find((s) => s.uri === conn.subscriptionUri);
+  must(
+    "subscription still armed",
+    "genuine",
+    Boolean(live) && live!.state === "active",
+    `${conn.subscriptionUri} is ${live?.state ?? "MISSING"} — Calendly still has somewhere to deliver`,
+  );
+
+  console.log(
+    `\nbookings landed so far: ${meetings} (verify needs exactly 1, after the booking AND the reschedule)\n`,
+  );
+  return { workspaceId: ctx.workspaceId, meetingsSinceConnect: meetings, bookedStage };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 async function main(): Promise<void> {
   const db = createPrismaClient({ url: DB_URL });
   let summary: Record<string, unknown> = {};
   let error: string | null = null;
   try {
-    summary = PHASE === "verify" ? await verify(db) : await arm(db);
+    summary =
+      PHASE === "verify"
+        ? await verify(db)
+        : PHASE === "preflight"
+          ? await preflight(db)
+          : await arm(db);
   } catch (err) {
     error = err instanceof Error ? err.message : String(err);
   } finally {
