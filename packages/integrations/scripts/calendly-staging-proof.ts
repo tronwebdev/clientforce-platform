@@ -155,7 +155,8 @@ interface Connection {
   webhookToken: string;
   signingKey: string;
   subscriptionUri: string;
-  connectedAt: Date;
+  /** Lower bound for "meetings this walk armed" — see the note in readConnection. */
+  since: Date;
 }
 
 async function readConnection(db: PrismaClient, workspaceId: string): Promise<Connection> {
@@ -169,11 +170,18 @@ async function readConnection(db: PrismaClient, workspaceId: string): Promise<Co
   if (!webhookToken || !signingKey || !subscriptionUri) {
     throw new Error("calendly row is missing the token-tier material (detection not armed)");
   }
+  // Scope the "what did the genuine deliveries write" window by the row's
+  // CREATION, not lastProbeAt: connect is idempotent and re-arming (e.g. to
+  // exercise the deployed endpoint once a fix ships) moves lastProbeAt
+  // FORWARD, which would silently exclude a booking that already landed and
+  // make the walk report zero meetings. createdAt is stable across re-arms.
+  // SINCE overrides it when staging carries calendly rows from earlier work.
+  const override = process.env.SINCE ? new Date(process.env.SINCE) : null;
   return {
     webhookToken,
     signingKey,
     subscriptionUri,
-    connectedAt: row.lastProbeAt ?? row.updatedAt,
+    since: override && !Number.isNaN(override.getTime()) ? override : row.createdAt,
   };
 }
 
@@ -347,7 +355,7 @@ async function verify(db: PrismaClient): Promise<Record<string, unknown>> {
     where: {
       workspaceId: ctx.workspaceId,
       provider: "calendly",
-      createdAt: { gte: conn.connectedAt },
+      createdAt: { gte: conn.since },
     },
     orderBy: { createdAt: "asc" },
   })) as unknown as MeetingRow[];
@@ -382,7 +390,7 @@ async function verify(db: PrismaClient): Promise<Record<string, unknown>> {
       where: {
         workspaceId: ctx.workspaceId,
         type,
-        occurredAt: { gte: conn.connectedAt },
+        occurredAt: { gte: conn.since },
         ...(meeting.contactId ? { contactId: meeting.contactId } : {}),
       },
     });
@@ -393,7 +401,7 @@ async function verify(db: PrismaClient): Promise<Record<string, unknown>> {
     where: {
       workspaceId: ctx.workspaceId,
       type: "lead.stage_changed.v1",
-      occurredAt: { gte: conn.connectedAt },
+      occurredAt: { gte: conn.since },
       ...(meeting.contactId ? { contactId: meeting.contactId } : {}),
     },
   });
@@ -483,14 +491,14 @@ async function verify(db: PrismaClient): Promise<Record<string, unknown>> {
     where: {
       workspaceId: ctx.workspaceId,
       provider: "calendly",
-      createdAt: { gte: conn.connectedAt },
+      createdAt: { gte: conn.since },
     },
   })) as unknown as MeetingRow[];
   const afterStage = await db.event.count({
     where: {
       workspaceId: ctx.workspaceId,
       type: "lead.stage_changed.v1",
-      occurredAt: { gte: conn.connectedAt },
+      occurredAt: { gte: conn.since },
       ...(meeting.contactId ? { contactId: meeting.contactId } : {}),
     },
   });
