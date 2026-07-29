@@ -28,7 +28,13 @@ type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
 export const calendlyConnectFieldsSchema = z
   .object({
     schedulingUrl: z.string().url().max(500).optional(),
-    apiToken: z.string().min(1).max(500).optional(),
+    // The staging-ingress walk (DEC-103) caught this on the FIRST real token:
+    // a Calendly PAT is a signed JWT, not a short opaque key — the vault's
+    // Standard-plan PAT is >500 chars, so the old cap refused every genuine
+    // token with a validation 400 while the §8 stub's short fake sailed
+    // through. 2000 keeps a sane upper bound (the DTO still refuses a pasted
+    // file) without encoding a guess about vendor token length as a limit.
+    apiToken: z.string().min(1).max(2000).optional(),
   })
   .strict()
   .refine((v) => v.schedulingUrl || v.apiToken, {

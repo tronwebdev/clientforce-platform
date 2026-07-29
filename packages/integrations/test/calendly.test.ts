@@ -228,4 +228,19 @@ describe("calendlyConnectFieldsSchema", () => {
       calendlyConnectFieldsSchema.safeParse({ schedulingUrl: "https://x.test", extra: 1 }).success,
     ).toBe(false);
   });
+
+  // Regression pin for the DEC-103 staging-ingress finding: a REAL Calendly PAT
+  // is a signed JWT, comfortably past the old 500-char cap, so the connect DTO
+  // used to 400 every genuine token ("String must contain at most 500
+  // character(s)") while the §8 stub's short fake passed. The stub could never
+  // have caught it — only a real vault token did.
+  it("accepts a real-length Calendly PAT (a JWT, not a short opaque key)", () => {
+    const jwtish = `eyJraWQiOiIxY2UxZTEzNjE3ZGNmNzY2YjNjZWJjY2Y4ZGM1YmFmYSIsImFsZyI6IkVTMjU2In0.${"a".repeat(820)}.${"b".repeat(86)}`;
+    expect(jwtish.length).toBeGreaterThan(500);
+    expect(calendlyConnectFieldsSchema.safeParse({ apiToken: jwtish }).success).toBe(true);
+    // Still bounded — the field refuses a pasted file rather than any long string.
+    expect(calendlyConnectFieldsSchema.safeParse({ apiToken: "x".repeat(2001) }).success).toBe(
+      false,
+    );
+  });
 });
