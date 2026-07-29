@@ -334,6 +334,8 @@ interface MeetingRow {
   externalId: string;
   status: string;
   contactId: string | null;
+  enrollmentId: string | null;
+  title: string | null;
   startAt: Date;
   meta: unknown;
   createdAt: Date;
@@ -397,14 +399,20 @@ async function verify(db: PrismaClient): Promise<Record<string, unknown>> {
   const booked = await eventsFor("calendar.booked.v1");
   const rescheduled = await eventsFor("calendar.rescheduled.v1");
   const canceled = await eventsFor("calendar.canceled.v1");
-  const stageChanges = await db.event.count({
-    where: {
-      workspaceId: ctx.workspaceId,
-      type: "lead.stage_changed.v1",
-      occurredAt: { gte: conn.since },
-      ...(meeting.contactId ? { contactId: meeting.contactId } : {}),
-    },
-  });
+  // Scope the no-double-fire gate to the BOOKED carrier specifically. Counting
+  // every lead.stage_changed.v1 for the contact would fail on an unrelated
+  // stage move in the same window — a false "booking detection double-fired".
+  const countBookedStage = async (): Promise<number> =>
+    db.event.count({
+      where: {
+        workspaceId: ctx.workspaceId,
+        type: "lead.stage_changed.v1",
+        occurredAt: { gte: conn.since },
+        payload: { path: ["toStage"], equals: "booked" },
+        ...(meeting.contactId ? { contactId: meeting.contactId } : {}),
+      },
+    });
+  const stageChanges = await countBookedStage();
 
   must(
     "the canceled half published NOTHING",
@@ -441,10 +449,14 @@ async function verify(db: PrismaClient): Promise<Record<string, unknown>> {
 
   const replayNew = createdBody(meeting.externalId, oldExternalId);
   const r1 = await postWebhook(conn.webhookToken, replayNew, signBody(replayNew, conn.signingKey));
+  // Must be exactly "duplicate". Accepting "rescheduled" here would mask the two
+  // failures this gate exists to catch: a chain that never converged (a row still
+  // keyed on the OLD invitee), or a redelivery that MUTATED the live row's
+  // startAt/title from the replay's values.
   must(
     "valid signature verifies (replayed redelivery)",
     "replayed",
-    r1.status === 200 && /"outcome":"(duplicate|rescheduled)"/.test(r1.body),
+    r1.status === 200 && /"outcome":"duplicate"/.test(r1.body),
     `HTTP ${r1.status} ${r1.body.slice(0, 160)}`,
   );
 
@@ -479,10 +491,14 @@ async function verify(db: PrismaClient): Promise<Record<string, unknown>> {
     canceledBody,
     signBody(canceledBody, conn.signingKey),
   );
+  // "ignored" is the REQUIRED outcome, not merely a 200: after convergence the old
+  // invitee is a tombstone, not the unique key, so the stale canceled twin must
+  // find nothing. An "canceled" outcome here would mean it flipped the live
+  // booked row — a reschedule silently reading as a loss.
   must(
     "out-of-order redelivery",
     "replayed",
-    r4.status === 200,
+    r4.status === 200 && /"outcome":"ignored"/.test(r4.body),
     `the canceled twin replayed AFTER convergence -> ${r4.body.slice(0, 120)}`,
   );
 
@@ -494,15 +510,15 @@ async function verify(db: PrismaClient): Promise<Record<string, unknown>> {
       createdAt: { gte: conn.since },
     },
   })) as unknown as MeetingRow[];
-  const afterStage = await db.event.count({
-    where: {
-      workspaceId: ctx.workspaceId,
-      type: "lead.stage_changed.v1",
-      occurredAt: { gte: conn.since },
-      ...(meeting.contactId ? { contactId: meeting.contactId } : {}),
-    },
-  });
+  const afterStage = await countBookedStage();
   const still = after.find((m) => m.id === meeting.id);
+  // Compare EVERY field a replay could plausibly overwrite, not just status +
+  // startAt: the reschedule branch would also rewrite title/endAt and GROW the
+  // tombstone list, and a gate that ignored those would call a real mutation
+  // "unchanged". `meeting` is the pre-replay DB snapshot, `still` the post-replay
+  // one, so this is genuinely before-vs-after.
+  const sameTombstones =
+    JSON.stringify(priorIdsOf(still?.meta)) === JSON.stringify(tombstones);
   must(
     "replays changed nothing",
     "replayed",
@@ -510,12 +526,50 @@ async function verify(db: PrismaClient): Promise<Record<string, unknown>> {
       still?.status === "booked" &&
       still.externalId === meeting.externalId &&
       still.startAt.getTime() === meeting.startAt.getTime() &&
+      still.title === meeting.title &&
+      sameTombstones &&
       afterStage === 1,
-    `still ONE meeting, still booked at ${meeting.startAt.toISOString()}, still ONE stage change`,
+    `still ONE meeting, still booked at ${meeting.startAt.toISOString()}, title/tombstones untouched, still ONE booked stage change`,
+  );
+
+  // ── attribution diagnostic (reported, not gated) ───────────────────────────
+  // ingestBooking picks the latest ACTIVE enrollment for the Meeting row, but
+  // writeBookedStage picks the latest enrollment with NO status filter. When a
+  // contact has a newer non-ACTIVE enrollment those two disagree, so record which
+  // enrollment carries the Meeting and which one actually ended up booked rather
+  // than assuming they match.
+  const bookedEnrollments = meeting.contactId
+    ? await db.enrollment.findMany({
+        where: { workspaceId: ctx.workspaceId, contactId: meeting.contactId },
+        select: { id: true, status: true, pipelineStage: true },
+        orderBy: { createdAt: "desc" },
+      })
+    : [];
+  const stageMoved = bookedEnrollments.filter((e) => e.pipelineStage === "booked");
+  record(
+    "stage attribution",
+    "genuine",
+    stageMoved.length === 1 && stageMoved[0]!.id === meeting.enrollmentId,
+    `Meeting.enrollmentId=${meeting.enrollmentId ?? "(none)"} · booked enrollment(s)=${
+      stageMoved.map((e) => `${e.id}(${e.status})`).join(", ") || "(none)"
+    } · ${bookedEnrollments.length} enrollment(s) on the contact`,
   );
 
   // ── gate 8 · teardown: delete -> list -> gone ──────────────────────────────
+  // Assert the subscription was PRESENT first: deleteWebhookSubscription treats a
+  // 404 as success, so "it is not in the list afterwards" alone would pass even
+  // if nothing was ever there to delete.
   const user = await adapter.me(creds);
+  const beforeDelete = await adapter.listWebhookSubscriptions(creds, {
+    organization: user.organization,
+    user: user.uri,
+  });
+  must(
+    "subscription live before teardown",
+    "genuine",
+    beforeDelete.some((s) => s.uri === conn.subscriptionUri),
+    `the subscription Calendly delivered through is still registered (${beforeDelete.length} total) — the delete below is a real delete`,
+  );
   await adapter.deleteWebhookSubscription(creds, conn.subscriptionUri);
   const remaining = await adapter.listWebhookSubscriptions(creds, {
     organization: user.organization,
