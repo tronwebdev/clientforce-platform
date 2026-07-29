@@ -190,11 +190,27 @@ jobs:
           if [ "$zerobounce" = false ]; then
             echo "ZeroBounce key not in Key Vault (checked ZEROBOUNCE-API-KEY, ASMITH-KEY-L1) — email validation holds batches with the typed provider refusal (LH1 owner step)."
           fi
+          # INT W2 (DEC-094): the base VENDOR WEBHOOKS must reach — the api's own
+          # public ingress (Calendly POSTs to <base>/webhooks/calendly?token=…).
+          # Resolved from the already-deployed api app, the webAppUrl pattern: on
+          # the very first deploy the app does not exist yet, so this stays empty
+          # and bicep keeps the documented fallback; every later deploy pins it,
+          # so a redeploy never silently un-arms booking detection.
+          integrationsWebhookBase=""
+          api_fqdn="$(az containerapp show --name clientforce-api --resource-group "$RG" \
+            --query "properties.configuration.ingress.fqdn" -o tsv 2>/dev/null || true)"
+          if [ -n "$api_fqdn" ]; then
+            integrationsWebhookBase="https://$api_fqdn"
+            echo "integrationsWebhookBase=$integrationsWebhookBase"
+          else
+            echo "::notice::api app not deployed yet — integrationsWebhookBase stays empty this pass (booking detection arms on the next deploy)."
+          fi
           az deployment group create \
             --resource-group "$RG" \
             --template-file infra/main.bicep \
             --parameters \
               location="$LOCATION" \
+              integrationsWebhookBase="$integrationsWebhookBase" \
               containerAppsEnvName="$CONTAINER_APPS_ENV" \
               keyVaultName="$KEY_VAULT_NAME" \
               acrName="$ACR_NAME" \

@@ -24,14 +24,14 @@ on:
         description: "Channel NAME to post to (optional — defaults to the first listed public channel)"
         required: false
       walk:
-        description: "Which proof: slack · calendly-demo (W2) · hubspot-demo (W4) · zapier (W5 rail)"
+        description: "Which proof: slack · calendly-demo (W2) · calendly-staging-arm / calendly-staging-verify (W2 staging ingress) · hubspot-demo (W4) · zapier (W5 rail)"
         required: false
         default: "slack"
       recipient:
         description: "calendly-demo only: the allow-listed inbox the REAL email delivers to"
         required: false
       calendly_link:
-        description: "calendly-demo only: the real scheduling link (default https://calendly.com/clientforce/30min)"
+        description: "calendly walks: the real scheduling link (calendly-demo default https://calendly.com/clientforce/30min; the staging walks fall back to the PAT account's own scheduling_url)"
         required: false
 
 permissions:
@@ -354,3 +354,111 @@ jobs:
         with:
           name: zapier-live-proof-receipts
           path: zapier-live-proof-receipts.json
+
+  # ── INT W2 (DEC-094) · the STAGING-INGRESS booking walk (owner ruling
+  #    2026-07-29). The `calendly-demo` walk above proves the LINK tier with an
+  #    ephemeral CI Postgres. These two walks prove the DETECTION tier for real:
+  #    the subscription is created BY the deployed staging API, pointing at that
+  #    API's own public ingress, so Calendly delivers genuine webhooks into a
+  #    running service. The owner books (and reschedules) against the real
+  #    scheduling link between the two dispatches.
+  #
+  #    `arm`    — PAT probe → connect the token tier on staging (server-minted
+  #               signing key + capability token, REAL subscription create) →
+  #               list it back from the vendor → print what to book.
+  #    `verify` — assert what the genuine deliveries wrote, run the replay-only
+  #               proofs (tampered / redelivery / out-of-order — none of which a
+  #               vendor can be asked to perform, all labelled `replayed`), then
+  #               delete the subscription and list it gone.
+  #
+  #    The staging DB is opened READ-ONLY for inspection; every asserted row was
+  #    written by the deployed API off a real delivery.
+  calendly-staging:
+    name: W2 staging ingress · real PAT · real subscription · real deliveries
+    if: ${{ startsWith(github.event.inputs.walk, 'calendly-staging') }}
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Refuse without explicit confirmation
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "LIVE" ]; then
+            echo "::error::Dispatch input 'confirm' must be exactly LIVE — this walk creates a REAL Calendly webhook subscription against deployed staging."
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Builds the prisma client too (db build = prisma generate). NOTE: this
+      # walk NEVER runs db:migrate — staging's schema is owned by the deploy.
+      - run: pnpm --filter @clientforce/integrations... build
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # The load-bearing ingress step: Calendly can only deliver if the API
+      # registered its OWN public https base as the callback. bicep takes it as
+      # `integrationsWebhookBase` (wired into deploy.yml alongside this walk);
+      # this step makes the running revision match without waiting for a deploy,
+      # and is a no-op once it does.
+      - name: Ensure INTEGRATIONS_WEBHOOK_BASE points at the staging API
+        id: ingress
+        env:
+          RG: ${{ vars.AZURE_RESOURCE_GROUP }}
+        run: |
+          set -euo pipefail
+          api_fqdn="$(az containerapp show --name clientforce-api --resource-group "$RG" \
+            --query "properties.configuration.ingress.fqdn" -o tsv)"
+          [ -n "$api_fqdn" ] || { echo "::error::could not resolve the staging api FQDN"; exit 1; }
+          want="https://$api_fqdn"
+          echo "api=$want" >> "$GITHUB_OUTPUT"
+          have="$(az containerapp show --name clientforce-api --resource-group "$RG" \
+            --query "properties.template.containers[0].env[?name=='INTEGRATIONS_WEBHOOK_BASE'].value | [0]" -o tsv)"
+          if [ "$have" = "$want" ]; then
+            echo "::notice::INTEGRATIONS_WEBHOOK_BASE already $want"
+          else
+            echo "::notice::setting INTEGRATIONS_WEBHOOK_BASE=$want (was '${have:-unset}')"
+            az containerapp update --name clientforce-api --resource-group "$RG" \
+              --set-env-vars "INTEGRATIONS_WEBHOOK_BASE=$want" >/dev/null
+          fi
+          echo "waiting for the api revision to answer /healthz…"
+          for i in $(seq 1 40); do
+            code="$(curl -sS -o /dev/null -w '%{http_code}' "$want/healthz" || true)"
+            [ "$code" = "200" ] && { echo "api healthy after ${i} tries"; exit 0; }
+            sleep 6
+          done
+          echo "::error::staging api never answered /healthz at $want"; exit 1
+
+      - name: Run the staging-ingress walk (secrets masked)
+        env:
+          PHASE: ${{ github.event.inputs.walk == 'calendly-staging-verify' && 'verify' || 'arm' }}
+          STAGING_API_URL: ${{ steps.ingress.outputs.api }}
+          CALENDLY_SCHEDULING_URL: ${{ github.event.inputs.calendly_link }}
+        run: |
+          set -euo pipefail
+          pat="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name CALENDLY-DEMO-TOKEN --query value -o tsv)"
+          echo "::add-mask::$pat"
+          dev="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name AUTH-DEV-SECRET --query value -o tsv)"
+          echo "::add-mask::$dev"
+          dburl="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name DATABASE-URL --query value -o tsv)"
+          echo "::add-mask::$dburl"
+          FIELD_ENCRYPTION_KEY="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name FIELD-ENCRYPTION-KEY --query value -o tsv)"
+          echo "::add-mask::$FIELD_ENCRYPTION_KEY"
+          export FIELD_ENCRYPTION_KEY
+          CALENDLY_API_TOKEN="$pat" AUTH_DEV_SECRET="$dev" STAGING_DATABASE_URL="$dburl" \
+          OUT_FILE="calendly-staging-${PHASE}-receipts.json" \
+            pnpm exec tsx packages/integrations/scripts/calendly-staging-proof.ts
+
+      - name: Upload receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calendly-staging-receipts
+          path: calendly-staging-*-receipts.json
