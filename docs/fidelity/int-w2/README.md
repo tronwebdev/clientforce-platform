@@ -153,11 +153,64 @@ vendor).
 - Zero secrets: the PAT, the server-minted signing key and the capability token
   appear only as short prefixes + lengths in logs and receipts.
 
-### Verify half — NOT YET CAPTURED
+### Verify half — run [30723628687](https://github.com/tronwebdev/clientforce-platform/actions/runs/30723628687) (2026-08-01)
 
-The verify phase (twin convergence via `priorExternalIds`, the canceled half
-publishing nothing, tombstone idempotency including out-of-order redelivery,
-signature verification, teardown) runs after the owner's real booking and
-reschedule, and its live frames land here with the run stamp. **Until that row
-is filled in, this evidence set proves the arm half only** — the booking
-semantics above the line remain the stubbed §8 walk's, not staging's.
+The owner made a **real booking** against the live scheduling link. Calendly
+delivered `invitee.created` to the deployed staging API and it landed. The owner
+did **not** reschedule, so the twin-semantics proofs were **not earned** — see
+below. `not-earned` is a first-class gate outcome in the receipts, distinct from
+both pass and fail, precisely so a missing precondition can never read as
+coverage.
+
+**Earned — GENUINE (the vendor really did this):**
+
+| Gate                               | Result                                                                                                                |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| genuine delivery landed            | 1 Meeting row since connect — written by the deployed API off a real Calendly POST                                    |
+| booking correlated + booked        | meeting `cms6f6kyf…` · status `booked` · contact `cmrck3xp6…` (the `utm_content` lead) · start `2026-07-30T12:00:00Z` |
+| no double-fire (ONE stage carrier) | exactly ONE `lead.stage_changed.v1` with `toStage=booked`; `calendar.booked.v1` stays the RECORD                      |
+| stage attribution                  | `Meeting.enrollmentId` == the enrollment that moved to booked (`f8a09bac…`, ACTIVE) — the two selectors agreed here   |
+
+The **valid-signature** proof is genuine and needed no replay: the booking landed
+at all only because Calendly's own HMAC, over its own bytes, verified against the
+SERVER-MINTED signing key. A bad signature is a 401 that writes nothing, so the
+Meeting row's existence IS the verification.
+
+**Earned — REPLAYED (re-POSTed by the walk; no vendor can be asked to do these):**
+
+| Gate                                  | Result                                                                                                         |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| valid signature verifies (redelivery) | HTTP 201 `{"received":true,"outcome":"duplicate"}` — redelivering a processed invitee is a guarded no-op       |
+| tampered body refused                 | HTTP 401 — the HMAC is over the RAW body, so one flipped byte fails constant-time verification                 |
+| replays changed nothing               | still ONE meeting, still booked at the same start, title + tombstones untouched, still ONE booked stage change |
+
+**NOT EARNED — and deliberately not simulated:**
+
+| Gate                                | Why it could not be earned                                                                                                                                |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| reschedule twin convergence         | no reschedule, so Calendly never sent the `invitee.canceled` + `invitee.created` pair; `meta.priorExternalIds` is empty and there is no chain to converge |
+| the canceled half published NOTHING | `calendar.canceled.v1 = 0` is TRUE but **vacuously** — no canceled twin was ever delivered, so the silence proves nothing                                 |
+| tombstone idempotency               | no superseded invitee id exists to redeliver; a fabricated id would test a synthetic string, not the vendor's own chain                                   |
+| out-of-order redelivery             | no canceled twin exists to replay out of order                                                                                                            |
+| subscription delete → list          | teardown withheld (`TEARDOWN=1`) so the subscription stays armed and the outstanding proofs can still be earned from real deliveries                      |
+
+**To finish the set** the owner must make a **NEW booking on a FUTURE slot** and
+then reschedule it. The existing booking cannot serve: its start (`2026-07-30
+12:00Z`) is already in the past, and Calendly does not offer a reschedule on an
+elapsed event.
+
+### A second finding: the ack contract says 200, the route answers 201
+
+`/webhooks/calendly` carries no `@HttpCode`, so Nest answers POST with **201**,
+while the controller's own doc comment states "always 200-with-ack semantics".
+Nothing breaks — Calendly retries only on non-2xx and 201 is a 2xx — but the
+stated contract and the shipped behaviour disagree, and a reader trusting the
+comment would be wrong. Flagged rather than changed mid-walk; the walk's gates
+assert the real contract (any 2xx).
+
+### Scope of this evidence set, stated plainly
+
+The booking half of W2's detection story is now earned on **genuine vendor
+deliveries into deployed staging**. The **reschedule/twin half is not** — it
+remains proven only by the stubbed §8 walk above the line and by unit/e2e pins,
+and nothing in this section should be read as claiming otherwise.
