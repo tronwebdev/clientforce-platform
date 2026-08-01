@@ -477,6 +477,9 @@ jobs:
     if: ${{ github.event.inputs.walk == 'calendly-staging-frames' }}
     runs-on: ubuntu-latest
     environment: staging
+    # A capture job must never sit burning a runner: without this a hung apt
+    # step inside `playwright install --with-deps` stalls until the 6h default.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -485,7 +488,11 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # Observed hanging indefinitely on a runner whose apt mirror stalled
+      # (the same step took ~25s on other runners). Fail fast so a re-dispatch
+      # lands on a healthy runner instead of waiting the job out.
       - run: pnpm --filter @clientforce/e2e exec playwright install --with-deps chromium
+        timeout-minutes: 6
 
       - name: Azure login (OIDC)
         uses: azure/login@v2
