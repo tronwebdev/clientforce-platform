@@ -208,6 +208,33 @@ stated contract and the shipped behaviour disagree, and a reader trusting the
 comment would be wrong. Flagged rather than changed mid-walk; the walk's gates
 assert the real contract (any 2xx).
 
+### §8 LIVE frames — run [30724310006](https://github.com/tronwebdev/clientforce-platform/actions/runs/30724310006)
+
+Captured at 1440×900 against the DEPLOYED staging web app (staging is not
+reachable from the dev container, so the frames come from CI). Every surface
+below is showing the booking Calendly genuinely delivered through the staging
+ingress — not seeded, not local-stack state.
+
+| Frame                            | What it shows                                                             |
+| -------------------------------- | ------------------------------------------------------------------------- |
+| `live-pipeline-booked-card`      | the correlated lead in the Pipeline **BOOKED** column on deployed staging |
+| `live-contact-drawer-timeline`   | the contact drawer timeline carrying the booking history                  |
+| `live-integrations-calendly`     | the Calendly card live on the integrations grid                           |
+| `live-calendly-drawer-detection` | the drawer's **booking-detection** row — the token tier, armed            |
+
+**Capture is assertion-gated.** Each shot asserts the specific evidence it
+claims to show _before_ the screenshot: the BOOKED column must contain the
+lead's name, the timeline must be non-empty, the `calendly-detection` row must
+be present. That is not ceremony — it caught two real mistakes. The first run
+aimed the timeline frame at the agent Leads tab when `drawer-timeline` lives on
+the Contacts drawer; the second still missed because staging's demo workspace is
+a working workspace and the contact was not on page one. Both would have
+produced a plausible-looking screenshot of the wrong pane had the capture been
+unasserted, and that image would then have sat in this directory as "evidence".
+
+Frames upload as a workflow artifact rather than auto-committing, so a green run
+can never silently rewrite this evidence set.
+
 ### Scope of this evidence set, stated plainly
 
 The booking half of W2's detection story is now earned on **genuine vendor
