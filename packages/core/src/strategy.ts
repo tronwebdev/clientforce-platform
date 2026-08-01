@@ -232,6 +232,14 @@ export const GUIDED_EMAIL_CREDITS = 2;
  * lands — until then nothing is emitted or charged off these (Q-020), and
  * scripted sends price by channel here while guided sends keep their
  * GUIDED_*_CREDITS display figures above.
+ *
+ * STALE vs the LOCKED cost model → Q-063 (DEC-103, 2026-08-01): the audit fixed
+ * SMS at 2, the voice minute at 15 and split enrichment into standard 5 / deep
+ * 10. Left untouched on the owner's explicit "no code" ruling — the live rates
+ * are `CreditPrice` rows entered in the backoffice editor — but note this map is
+ * TENANT-FACING (the wizard's launch estimate), so it is the one that should be
+ * SOURCED from `CreditPrice` first when metering lands. The GUIDED_* figures
+ * above (email 2 · SMS 3) still agree with the locked card.
  */
 export const CREDIT_PRICES = {
   email_send: 1,

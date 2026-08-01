@@ -45,6 +45,13 @@ later backoffice retrofit:
 
 - **WhatsApp finish** → emit whatsapp.* catalog events · port the refusal rail, and RE-ENTER
   `KILL_SWITCH_CHANNELS` in the same PR (killable). Until then WhatsApp is NOT in the kill-switch enum (Q-025).
+  **Inherits DEC-103 (the 2026-08-01 pricing amendment):** its spine-2 entry is NOT one `whatsapp_msg`
+  price — Meta bills per DELIVERED template message per **category × country** (utility 2 ·
+  service-window reply 3 · intl marketing 5–20 · **no US marketing SKU**, Meta-blocked). So that PR also
+  carries the deferred schema half: additive nullable `CreditPrice.country` (null = single-rate action)
+  + most-specific-first resolution (agency+country → agency → platform+country → platform) + a country
+  column in the price editor for WhatsApp actions only. Designed and recorded, deliberately unbuilt
+  until there is a producer — `DATA_MODEL.md §7a`.
 - **Voice graph nodes (P3.2)** → inherits voice's spine coverage; no new work if it reuses call.* + the rail.
 - ~~**Widget**~~ **SHIPPED (W1) — WID2, DEC-101:** exactly as scoped — the catalog
   event has a producer, the billable action (`widget_turn`) has a registered price with
@@ -54,6 +61,14 @@ later backoffice retrofit:
   events · register credit deltas for any billable action · proposals' Stripe path emits
   payment events.
 - **Lead Finder / prospecting** → emit discovery events · credit delta per enriched/signal lead · per-source kill via the boundary pattern if it sends.
+  **Inherits DEC-103:** enrichment is TWO priced actions now — standard 5 / deep 10 — so register both, not one.
+- **SMS activation / A2P registration** (the flow, ISV auto-registration, the `pending_registration`
+  sender state) → **no new billable action, no credit delta** (DEC-103): the $15/mo per SMS-active tenant
+  + the one-time TCR vetting fee are a Stripe pass-through **at cost, never credits**, and each
+  sub-account gets its OWN A2P brand+campaign (no pooling). Its spine touch is reconciliation — those
+  fees arrive as **per-tenant fixed lines** on Twilio invoices, which today reconcile honestly as
+  "not metered" (an unmapped `ProviderInvoice.metric`); that unit decides whether a per-tenant A2P meter
+  belongs in `METERED`.
 - ~~**Automations UI (R1 remainder)** → runs are already events; surface run history read-only.~~
   **SHIPPED — R1-UI (PR #105, DEC-091):** exactly as scoped — run history is LEDGER-sourced
   (`automation.rule.run.v1` Event rows, read-only) so spine 1 covers it automatically; the two
@@ -62,6 +77,9 @@ later backoffice retrofit:
   BY DESIGN — kill-switch n/a), NO new manageable tenant entity beyond the workspace-scoped
   rows the fleet views already see. NIL spine delta, stated per the ride-along rule.
 - **Analytics / Billing (Phase 10)** → billing enforcement (FR-BILL-04) consumes W2's reconciliation; no parallel meter.
+  **Inherits DEC-103:** the locked rate card is `CreditPrice` DATA (never a code constant), and the two
+  stale hardcodes (`DEFAULT_CREDIT_PRICES`, `CREDIT_PRICES`) get SOURCED from it here rather than
+  re-hardcoded a third time (Q-063).
 
 ## The rule (also in the kickoff template)
 

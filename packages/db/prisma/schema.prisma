@@ -969,6 +969,13 @@ model Plan {
   @@index([agencyId])
 }
 
+// Effective-dated pricing: the editor APPENDS rows (never updates in place), so
+// the row sequence per (agencyId, action) is the change history. DEFERRED
+// (DEC-103, the 2026-08-01 pricing amendment) — NOT BUILT: WhatsApp needs a
+// `country String?` column (null = single-rate action; additive, no backfill),
+// with resolution becoming most-specific-first — agency+country → agency →
+// platform+country → platform. It lands with the WhatsApp channel unit or Phase
+// 10 enforcement, whichever comes first; no WhatsApp producer exists today.
 model CreditPrice {
   id            String   @id @default(cuid())
   agencyId      String?

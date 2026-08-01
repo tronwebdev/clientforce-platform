@@ -783,9 +783,12 @@ model Plan { id String @id @default(cuid()) agencyId String? name String priceMo
 model CreditPrice {         // EDITABLE pricing — admin-managed via UI, not hard-coded
   id        String  @id @default(cuid())
   agencyId  String?                            // null = platform default; per-agency override allowed
-  action    String                             // email_send | sms_segment | whatsapp_msg | voice_minute | enrichment | signal_lead
-  credits   Int                                // seed from market rates + small markup; changeable anytime
+  action    String                             // free text (max 60): email_send | sms_segment | voice_minute | signal_lead | widget_turn | ai_reply_draft | enrichment_standard | enrichment_deep | …
+  credits   Int                                // the LOCKED cost model's card; entered in the editor, never hard-coded
   effectiveFrom DateTime @default(now())
+  // DEFERRED (DEC-103, 2026-08-01) — NOT BUILT:
+  //   country String?                         // null = single-rate action; set only for WhatsApp category SKUs
+  // …with resolution then most-specific-first: agency+country → agency → platform+country → platform.
   @@index([agencyId, action])
 }
 
@@ -834,6 +837,49 @@ model Widget {              // embeddable chat config
 }
 ```
 
+### 7a. Credit pricing — where the numbers live (LOCKED 2026-08-01, DEC-103)
+
+`COST_MODEL_AND_PRICING.md` (owner-held) was re-audited and **LOCKED** on
+2026-08-01. Rates are **data, not code**: they are `CreditPrice` rows entered in
+the shipped backoffice editor (B1 W2, DEC-080), which **appends** effective-dated
+rows so the sequence per `(agencyId, action)` IS the change history and a
+superseding row is the undo. The API takes a free-text `action`, so a new action
+key never needs a deploy.
+
+The locked card: **email 1 · SMS 2 · guided email 2 · guided SMS 3 · regen 10 ·
+voice minute 15** (all unchanged by the audit) · **AI reply draft 1 → 2**
+(effective 2026-09-01; owner rationale: breakeven at standard Sonnet $3/$15) ·
+**enrichment splits into standard 5 / deep 10** where one action stood.
+
+> **Two stale copies exist and are known → Q-063.** `DEFAULT_CREDIT_PRICES`
+> (`packages/db/prisma/seed.ts`) and the tenant-facing `CREDIT_PRICES`
+> (`packages/core/src/strategy.ts`) still carry pre-audit numbers. Nothing is
+> charged off either (Q-020 — display-only, no ledger), and both should be
+> SOURCED from `CreditPrice` when FR-BILL-04 metering lands, never re-hardcoded.
+
+**WhatsApp needs a country dimension — designed, DEFERRED, not built.** Meta
+bills per **delivered template message** (since 2025-07-01) per **category ×
+country**: utility 2 · service-window reply 3 · international marketing
+country-tiered 5–20 · **US marketing templates are Meta-blocked** (since
+2025-04-01), so there is no US marketing SKU. The recorded shape is the additive
+nullable `CreditPrice.country` above (null = single-rate action, no backfill) plus
+most-specific-first resolution — `agency+country → agency → platform+country →
+platform` — and a country column in the editor **for WhatsApp actions only**. It
+lands with the WhatsApp channel unit or Phase 10 enforcement, whichever comes
+first; there is no WhatsApp producer today, so a priced action would have nothing
+to consume it (the same reasoning that kept `whatsapp` out of
+`KILL_SWITCH_CHANNELS`, Q-025).
+
+**SMS activation is a pass-through, NEVER credits** (cost model §5a,
+FR-BILL-07/FR-SEND-07): $15/mo per SMS-active tenant + the one-time TCR vetting
+fee, billed **at cost as a Stripe line item**; each sub-account gets its **own
+A2P brand + campaign — no pooling**. The activation flow, ISV auto-registration
+and the `pending_registration` sender state are a separate future unit. For
+reconciliation (§7 `ProviderInvoice`, DEC-080): A2P fees arrive as **per-tenant
+fixed lines** on Twilio invoices, and an unmapped `metric` already reconciles
+honestly as "not metered" rather than as a false variance — correct for a
+pass-through we never meter.
+
 ---
 
 ## 8. Analytics
@@ -852,6 +898,6 @@ KPI/funnel/channel/revenue/leaderboard views, plus on-demand funnel queries
 3. Generate the **event catalog** (§5) as typed constants + payload types in `packages/events`.
 4. Seed script: one Agency → one Workspace → one User (OWNER) → a sample Agent + default PipelineStages.
 
-> Open product decisions that refine this (don't block Phase 0): exact **credit prices per channel**,
-> **v1 integration list**, **Lead Finder signal sources**, and the **default pipeline stages**. Captured
-> as the "remaining product decisions" doc next.
+> Open product decisions that refine this (don't block Phase 0): ~~exact **credit prices per channel**~~
+> (**LOCKED 2026-08-01** — see §7a / DEC-103), **v1 integration list**, **Lead Finder signal sources**,
+> and the **default pipeline stages**. Captured as the "remaining product decisions" doc next.

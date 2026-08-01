@@ -111,6 +111,16 @@ export interface CreditPriceRow {
  * the newest row whose `effectiveFrom <= at`, with a per-agency override beating
  * the platform default (`agencyId = null`). Returns `null` if none applies. Pure
  * — the credit-price editor and any cost estimate read the same rule.
+ *
+ * DEFERRED (DEC-103, the 2026-08-01 pricing amendment) — NOT BUILT, do not build
+ * it here speculatively: WhatsApp needs a COUNTRY dimension, because Meta bills
+ * per delivered template message per category × country (utility 2 ·
+ * service-window reply 3 · intl marketing country-tiered 5–20 · US marketing
+ * templates blocked, so no US marketing SKU). When the WhatsApp channel unit or
+ * Phase 10 enforcement lands, `CreditPriceRow` gains a nullable `country` (null =
+ * single-rate action, so every row today keeps its meaning) and this resolution
+ * becomes MOST-SPECIFIC-FIRST: agency+country → agency → platform+country →
+ * platform. Until a WhatsApp producer exists there is nothing to price.
  */
 export function resolveCreditPrice(
   rows: CreditPriceRow[],

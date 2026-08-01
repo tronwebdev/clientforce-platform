@@ -30,7 +30,16 @@ const DEFAULT_PIPELINE_STAGES = [
 /**
  * Platform-default credit prices (agencyId = null). Seeded from rough market
  * rate + a small markup; these are admin-editable at runtime (per-agency
- * overrides allowed) and the exact numbers are an open product decision.
+ * overrides allowed).
+ *
+ * STALE vs the LOCKED cost model → Q-063 (DEC-103, 2026-08-01). The audit fixed
+ * SMS at 2, the voice minute at 15 and split enrichment into standard 5 / deep
+ * 10, and WhatsApp is no longer one price (category × country). The owner's
+ * amendment is explicit that rates are entered in the shipped effective-dated
+ * editor — "no code", "not a seed" — so these values are DELIBERATELY untouched
+ * and are a fresh-DB bootstrap only; the live rates are `CreditPrice` rows. The
+ * fix is to source this list from `CreditPrice` when FR-BILL-04 metering lands,
+ * never a second hand-maintained copy.
  */
 const DEFAULT_CREDIT_PRICES: ReadonlyArray<{ action: string; credits: number }> = [
   { action: "email_send", credits: 1 },

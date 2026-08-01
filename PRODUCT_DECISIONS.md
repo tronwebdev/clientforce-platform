@@ -10,7 +10,27 @@
 ## D1. Credit pricing per channel
 
 Credits meter usage (`CreditLedger`, `DATA_MODEL.md §7`). Voice and enrichment cost real money, so they
-should cost more credits. Proposed starting model (1 credit ≈ your unit; tune to margin):
+should cost more credits.
+
+**LOCKED 2026-08-01 (DEC-103) — `COST_MODEL_AND_PRICING.md` re-audited; this supersedes the Phase-0
+proposal below.** The card, entered as effective-dated `CreditPrice` rows in the shipped backoffice
+editor (B1 W2) — rates are **data, never a code constant**:
+
+| Action                     | Credits      | Note                                                                                                                                                                           |
+| -------------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Email send                 | 1            | unchanged by the audit                                                                                                                                                         |
+| SMS segment                | 2            | unchanged; carrier + A2P fees are a Stripe pass-through, never credits                                                                                                         |
+| Guided email               | 2            | unchanged                                                                                                                                                                      |
+| Guided SMS                 | 3            | unchanged                                                                                                                                                                      |
+| Regen                      | 10           | unchanged                                                                                                                                                                      |
+| Voice minute               | 15           | unchanged                                                                                                                                                                      |
+| AI reply draft             | **2**        | **was 1** — effective 2026-09-01; breakeven at standard Sonnet $3/$15                                                                                                          |
+| Lead enrichment — standard | **5**        | the single enrichment action **splits in two**                                                                                                                                 |
+| Lead enrichment — deep     | **10**       | ditto                                                                                                                                                                          |
+| WhatsApp message           | 2 · 3 · 5–20 | per **category × country** (utility · service-window reply · intl marketing); **no US marketing SKU** — Meta-blocked. Needs the DEFERRED `country` column, `DATA_MODEL.md §7a` |
+
+<details>
+<summary>Superseded — the Phase-0 proposal (historical)</summary>
 
 | Action                    | Proposed credits | Notes                                           |
 | ------------------------- | ---------------- | ----------------------------------------------- |
@@ -21,10 +41,13 @@ should cost more credits. Proposed starting model (1 credit ≈ your unit; tune 
 | Lead enrichment           | 5 / contact      | provider cost                                   |
 | Auto-prospect signal lead | 10               | scraping + enrichment + scoring                 |
 
+</details>
+
 **DECIDED:** Pricing must be **editable from an admin interface** (not hard-coded) — modeled as the
 `CreditPrice` table in `DATA_MODEL.md §7` (platform default + per-agency override, effective-dated).
 Seed values from **studied market rates of the providers we use (SendGrid, Twilio, Deepgram, TTS,
-Apollo/PDL) + a small markup**. The proposed table below is the seed; change anytime via UI.
+Apollo/PDL) + a small markup**. That editor shipped in B1 W2 (DEC-080) and is now the only place rates
+change; the db seed's `DEFAULT_CREDIT_PRICES` is a fresh-DB bootstrap, not the price list (Q-063).
 
 ## D2. Plan tiers & limits
 
