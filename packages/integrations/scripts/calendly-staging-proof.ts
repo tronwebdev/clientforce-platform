@@ -79,17 +79,28 @@ const mask = (v: string): string =>
 interface Gate {
   gate: string;
   mode: "genuine" | "replayed";
-  ok: boolean;
+  /**
+   * `not-earned` is a FIRST-CLASS outcome, distinct from both pass and fail: the
+   * proof was not attempted because the real-world precondition for it did not
+   * happen (e.g. no reschedule was performed, so there is no twin to converge).
+   * Reporting that as a pass would launder missing coverage; reporting it as a
+   * fail would blame the product for something it was never asked to do.
+   */
+  status: "pass" | "fail" | "not-earned";
   detail: string;
 }
 const gates: Gate[] = [];
 const record = (gate: string, mode: Gate["mode"], ok: boolean, detail: string): void => {
-  gates.push({ gate, mode, ok, detail });
+  gates.push({ gate, mode, status: ok ? "pass" : "fail", detail });
   console.log(`${ok ? "✓" : "✗"} [${mode}] ${gate} — ${detail}`);
 };
 const must = (gate: string, mode: Gate["mode"], ok: boolean, detail: string): void => {
   record(gate, mode, ok, detail);
   if (!ok) throw new Error(`gate failed: ${gate} — ${detail}`);
+};
+const notEarned = (gate: string, mode: Gate["mode"], reason: string): void => {
+  gates.push({ gate, mode, status: "not-earned", detail: reason });
+  console.log(`— [${mode}] ${gate} — NOT EARNED: ${reason}`);
 };
 
 // ── staging API helpers (the sms-rail1-proof precedent) ──────────────────────
@@ -378,14 +389,28 @@ async function verify(db: PrismaClient): Promise<Record<string, unknown>> {
   );
 
   // ── gate 2 · reschedule twin convergence via priorExternalIds ──────────────
+  // A tombstone exists ONLY if the vendor delivered a reschedule pair. Without
+  // one there is nothing to converge, so the twin-semantics gates are NOT
+  // EARNED rather than passed — the whole point of this walk is that these
+  // prove on genuine deliveries, and a vacuous pass would be the laundering the
+  // owner explicitly ruled out.
   const tombstones = priorIdsOf(meeting.meta);
-  must(
-    "reschedule twin convergence",
-    "genuine",
-    tombstones.length >= 1 && !tombstones.includes(meeting.externalId),
-    `externalId moved to the NEW invitee; ${tombstones.length} prior id(s) tombstoned in meta.priorExternalIds`,
-  );
-  const oldExternalId = tombstones[tombstones.length - 1]!;
+  const rescheduled = tombstones.length > 0;
+  if (rescheduled) {
+    must(
+      "reschedule twin convergence",
+      "genuine",
+      !tombstones.includes(meeting.externalId),
+      `externalId moved to the NEW invitee; ${tombstones.length} prior id(s) tombstoned in meta.priorExternalIds`,
+    );
+  } else {
+    notEarned(
+      "reschedule twin convergence",
+      "genuine",
+      "no reschedule was performed, so Calendly never sent the invitee.canceled + invitee.created twins — meta.priorExternalIds is empty and there is no chain to converge",
+    );
+  }
+  const oldExternalId = rescheduled ? tombstones[tombstones.length - 1]! : null;
 
   const eventsFor = async (type: string): Promise<number> =>
     db.event.count({
@@ -397,7 +422,7 @@ async function verify(db: PrismaClient): Promise<Record<string, unknown>> {
       },
     });
   const booked = await eventsFor("calendar.booked.v1");
-  const rescheduled = await eventsFor("calendar.rescheduled.v1");
+  const rescheduledEvents = await eventsFor("calendar.rescheduled.v1");
   const canceled = await eventsFor("calendar.canceled.v1");
   // Scope the no-double-fire gate to the BOOKED carrier specifically. Counting
   // every lead.stage_changed.v1 for the contact would fail on an unrelated
@@ -414,17 +439,28 @@ async function verify(db: PrismaClient): Promise<Record<string, unknown>> {
     });
   const stageChanges = await countBookedStage();
 
-  must(
-    "the canceled half published NOTHING",
-    "genuine",
-    canceled === 0,
-    `calendar.canceled.v1 = 0 for the rescheduled chain (a reschedule must never read as a loss); booked=${booked} rescheduled=${rescheduled}`,
-  );
+  if (rescheduled) {
+    must(
+      "the canceled half published NOTHING",
+      "genuine",
+      canceled === 0 && rescheduledEvents === 1,
+      `calendar.canceled.v1 = 0 and calendar.rescheduled.v1 = ${rescheduledEvents} for the chain (a reschedule must never read as a loss); booked=${booked}`,
+    );
+  } else {
+    // canceled === 0 is TRUE here but vacuously so — nothing was ever canceled.
+    notEarned(
+      "the canceled half published NOTHING",
+      "genuine",
+      `calendar.canceled.v1 = ${canceled} but vacuously — no reschedule means no canceled twin was ever delivered, so the silence proves nothing`,
+    );
+  }
   must(
     "no double-fire (ONE stage carrier)",
     "genuine",
     stageChanges === 1,
-    `exactly ONE lead.stage_changed.v1 across booking + reschedule — calendar.booked.v1 stays the RECORD`,
+    rescheduled
+      ? "exactly ONE lead.stage_changed.v1 across booking + reschedule — calendar.booked.v1 stays the RECORD"
+      : `exactly ONE lead.stage_changed.v1 for the BOOKING (booked=${booked}) — calendar.booked.v1 stays the RECORD; the across-reschedule half needs a reschedule`,
   );
 
   // ── gate 3 · REPLAYED: valid signature verifies (idempotent duplicate) ─────
@@ -447,7 +483,7 @@ async function verify(db: PrismaClient): Promise<Record<string, unknown>> {
       },
     });
 
-  const replayNew = createdBody(meeting.externalId, oldExternalId);
+  const replayNew = createdBody(meeting.externalId, oldExternalId ?? undefined);
   const r1 = await postWebhook(conn.webhookToken, replayNew, signBody(replayNew, conn.signingKey));
   // Must be exactly "duplicate". Accepting "rescheduled" here would mask the two
   // failures this gate exists to catch: a chain that never converged (a row still
@@ -471,36 +507,51 @@ async function verify(db: PrismaClient): Promise<Record<string, unknown>> {
     `HTTP ${r2.status} — the HMAC is over the RAW body, so one flipped byte fails constant-time verification`,
   );
 
-  // ── gate 5 · REPLAYED: tombstone idempotency (pre-reschedule invitee) ──────
-  const replayOld = createdBody(oldExternalId);
-  const r3 = await postWebhook(conn.webhookToken, replayOld, signBody(replayOld, conn.signingKey));
-  must(
-    "tombstone idempotency",
-    "replayed",
-    r3.status === 200 && /"outcome":"duplicate"/.test(r3.body),
-    `redelivering the SUPERSEDED invitee ${oldExternalId.slice(-12)} acks duplicate — no resurrected booked row`,
-  );
+  // ── gates 5 + 6 · REPLAYED, and BOTH need a real tombstone to mean anything ─
+  // Replaying a superseded invitee requires an invitee that was actually
+  // superseded. Without a reschedule there is no such id, and inventing one
+  // would test a synthetic string rather than the vendor's own chain.
+  if (oldExternalId) {
+    const replayOld = createdBody(oldExternalId);
+    const r3 = await postWebhook(conn.webhookToken, replayOld, signBody(replayOld, conn.signingKey));
+    must(
+      "tombstone idempotency",
+      "replayed",
+      r3.status === 200 && /"outcome":"duplicate"/.test(r3.body),
+      `redelivering the SUPERSEDED invitee ${oldExternalId.slice(-12)} acks duplicate — no resurrected booked row`,
+    );
 
-  // ── gate 6 · REPLAYED: out-of-order redelivery of the canceled twin ────────
-  const canceledBody = JSON.stringify({
-    event: "invitee.canceled",
-    payload: { uri: oldExternalId, rescheduled: true },
-  });
-  const r4 = await postWebhook(
-    conn.webhookToken,
-    canceledBody,
-    signBody(canceledBody, conn.signingKey),
-  );
-  // "ignored" is the REQUIRED outcome, not merely a 200: after convergence the old
-  // invitee is a tombstone, not the unique key, so the stale canceled twin must
-  // find nothing. An "canceled" outcome here would mean it flipped the live
-  // booked row — a reschedule silently reading as a loss.
-  must(
-    "out-of-order redelivery",
-    "replayed",
-    r4.status === 200 && /"outcome":"ignored"/.test(r4.body),
-    `the canceled twin replayed AFTER convergence -> ${r4.body.slice(0, 120)}`,
-  );
+    const canceledBody = JSON.stringify({
+      event: "invitee.canceled",
+      payload: { uri: oldExternalId, rescheduled: true },
+    });
+    const r4 = await postWebhook(
+      conn.webhookToken,
+      canceledBody,
+      signBody(canceledBody, conn.signingKey),
+    );
+    // "ignored" is REQUIRED, not merely a 200: after convergence the old invitee
+    // is a tombstone, not the unique key, so the stale canceled twin must find
+    // nothing. "canceled" would mean it flipped the live booked row — a
+    // reschedule silently reading as a loss.
+    must(
+      "out-of-order redelivery",
+      "replayed",
+      r4.status === 200 && /"outcome":"ignored"/.test(r4.body),
+      `the canceled twin replayed AFTER convergence -> ${r4.body.slice(0, 120)}`,
+    );
+  } else {
+    notEarned(
+      "tombstone idempotency",
+      "replayed",
+      "no reschedule means no superseded invitee id exists to redeliver; a fabricated id would test a synthetic string, not the vendor's chain",
+    );
+    notEarned(
+      "out-of-order redelivery",
+      "replayed",
+      "no reschedule means there is no canceled twin to replay out of order",
+    );
+  }
 
   // ── gate 7 · nothing moved: the replays were true no-ops ───────────────────
   const after = (await db.meeting.findMany({
@@ -556,6 +607,27 @@ async function verify(db: PrismaClient): Promise<Record<string, unknown>> {
   );
 
   // ── gate 8 · teardown: delete -> list -> gone ──────────────────────────────
+  // OPT-IN. Tearing down ends the walk's ability to receive anything further, so
+  // it must never happen implicitly while proofs are still outstanding — a
+  // partial run would otherwise destroy the only route to completing them.
+  if (process.env.TEARDOWN !== "1") {
+    notEarned(
+      "subscription delete -> list",
+      "genuine",
+      "teardown withheld (TEARDOWN=1 to run it) — the subscription stays armed so outstanding proofs can still be earned from real deliveries",
+    );
+    return {
+      workspaceId: ctx.workspaceId,
+      meetingId: meeting.id,
+      contactId: meeting.contactId,
+      rescheduled,
+      newExternalIdTail: meeting.externalId.slice(-12),
+      tombstonedIdTails: tombstones.map((t) => t.slice(-12)),
+      finalStartAt: meeting.startAt.toISOString(),
+      events: { booked, rescheduled: rescheduledEvents, canceled, stageChanges },
+      subscriptionUri: conn.subscriptionUri,
+    };
+  }
   // Assert the subscription was PRESENT first: deleteWebhookSubscription treats a
   // 404 as success, so "it is not in the list afterwards" alone would pass even
   // if nothing was ever there to delete.
@@ -586,10 +658,11 @@ async function verify(db: PrismaClient): Promise<Record<string, unknown>> {
     workspaceId: ctx.workspaceId,
     meetingId: meeting.id,
     contactId: meeting.contactId,
+    rescheduled,
     newExternalIdTail: meeting.externalId.slice(-12),
     tombstonedIdTails: tombstones.map((t) => t.slice(-12)),
     finalStartAt: meeting.startAt.toISOString(),
-    events: { booked, rescheduled, canceled, stageChanges },
+    events: { booked, rescheduled: rescheduledEvents, canceled, stageChanges },
     subscriptionUri: conn.subscriptionUri,
   };
 }
@@ -684,8 +757,16 @@ async function main(): Promise<void> {
     await db.$disconnect();
   }
 
-  const genuine = gates.filter((g) => g.mode === "genuine");
-  const replayed = gates.filter((g) => g.mode === "replayed");
+  const tally = (m: Gate["mode"]) => {
+    const set = gates.filter((g) => g.mode === m);
+    const pass = set.filter((g) => g.status === "pass").length;
+    const fail = set.filter((g) => g.status === "fail").length;
+    const missing = set.filter((g) => g.status === "not-earned").length;
+    return `${pass}/${set.length} passed${fail ? `, ${fail} FAILED` : ""}${
+      missing ? `, ${missing} NOT EARNED` : ""
+    }`;
+  };
+  const unearned = gates.filter((g) => g.status === "not-earned");
   writeFileSync(
     OUT_FILE,
     JSON.stringify(
@@ -701,10 +782,10 @@ async function main(): Promise<void> {
             "re-POSTed by this script because no vendor can be asked to perform them: a tampered body, a redelivery of an already-processed invitee, and an out-of-order twin redelivery",
         },
         gates,
-        counts: {
-          genuine: `${genuine.filter((g) => g.ok).length}/${genuine.length}`,
-          replayed: `${replayed.filter((g) => g.ok).length}/${replayed.length}`,
-        },
+        counts: { genuine: tally("genuine"), replayed: tally("replayed") },
+        // Surfaced at the top level so a reader cannot skim the pass counts and
+        // conclude the walk covered everything it set out to.
+        notEarned: unearned.map((g) => ({ gate: g.gate, reason: g.detail })),
         summary,
         error,
       },
