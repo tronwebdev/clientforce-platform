@@ -24,7 +24,7 @@ on:
         description: "Channel NAME to post to (optional — defaults to the first listed public channel)"
         required: false
       walk:
-        description: "Which proof: slack · calendly-demo (W2) · calendly-staging-arm / calendly-staging-verify (W2 staging ingress) · hubspot-demo (W4) · zapier (W5 rail)"
+        description: "Which proof: slack · calendly-demo (W2) · calendly-staging-arm / -preflight / -verify / -frames (W2 staging ingress) · hubspot-demo (W4) · zapier (W5 rail)"
         required: false
         default: "slack"
       recipient:
@@ -462,3 +462,56 @@ jobs:
         with:
           name: calendly-staging-receipts
           path: calendly-staging-*-receipts.json
+
+  # ── INT W2 (DEC-103) · the §8 LIVE frames from DEPLOYED STAGING. The booking
+  #    behind every surface was written by the deployed API off a REAL Calendly
+  #    delivery, so these are staging-ingress frames, not local-stack ones.
+  #    Capture is assertion-gated (see the spec): a mis-navigation fails the run
+  #    instead of producing a plausible but worthless image. Frames are uploaded
+  #    as an artifact; committing them into docs/fidelity/int-w2/live/ is a
+  #    deliberate human step, so a green run can never silently rewrite evidence.
+  calendly-staging-frames:
+    name: W2 staging ingress · §8 live frames (1440x900 vs deployed staging)
+    if: ${{ github.event.inputs.walk == 'calendly-staging-frames' }}
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @clientforce/e2e exec playwright install --with-deps chromium
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Resolve the staging web FQDN
+        id: web
+        env:
+          RG: ${{ vars.AZURE_RESOURCE_GROUP }}
+        run: |
+          set -euo pipefail
+          web="$(az containerapp show --name clientforce-web --resource-group "$RG" \
+            --query "properties.configuration.ingress.fqdn" -o tsv)"
+          [ -n "$web" ] || { echo "::error::could not resolve the staging web FQDN"; exit 1; }
+          echo "url=https://$web" >> "$GITHUB_OUTPUT"
+          echo "web: https://$web"
+
+      - name: Capture the live frames
+        env:
+          E2E_BASE_URL: ${{ steps.web.outputs.url }}
+        run: pnpm --filter @clientforce/e2e exec playwright test int-w2-staging-frames
+
+      - name: Upload frames
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: int-w2-live-frames
+          path: docs/fidelity/int-w2/live/*.png
