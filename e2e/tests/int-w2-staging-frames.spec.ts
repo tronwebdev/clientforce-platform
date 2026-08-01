@@ -76,6 +76,12 @@ test("contact drawer timeline carries the calendar record + stage change", async
   // assertion-gated capture is for.
   await page.goto("/contacts");
 
+  // Staging's demo workspace is a WORKING workspace, so the contact is not
+  // necessarily on the first page — the previous run failed here even though
+  // the pipeline frame found the same lead. Search for it rather than assuming
+  // list position.
+  await page.getByTestId("contacts-search").fill(LEAD_NAME);
+
   const row = page.getByTestId("contact-row").filter({ hasText: LEAD_NAME }).first();
   await expect(row).toBeVisible();
   await row.click();
