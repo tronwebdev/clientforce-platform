@@ -375,7 +375,9 @@ jobs:
   #    written by the deployed API off a real delivery.
   calendly-staging:
     name: W2 staging ingress · real PAT · real subscription · real deliveries
-    if: ${{ startsWith(github.event.inputs.walk, 'calendly-staging') }}
+    # NOT startsWith: 'calendly-staging-frames' is its own job, and a prefix
+    # match made a frames dispatch silently re-run the arm walk too.
+    if: ${{ github.event.inputs.walk == 'calendly-staging-arm' || github.event.inputs.walk == 'calendly-staging-preflight' || github.event.inputs.walk == 'calendly-staging-verify' }}
     runs-on: ubuntu-latest
     environment: staging
     steps:

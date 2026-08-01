@@ -69,15 +69,18 @@ test("pipeline board shows the genuinely delivered booking", async ({ page }) =>
   await page.screenshot({ path: `${OUT}/live-pipeline-booked-card.png` });
 });
 
-test("lead drawer timeline carries the calendar record + stage change", async ({ page }) => {
+test("contact drawer timeline carries the calendar record + stage change", async ({ page }) => {
   await signIn(page);
-  await openFirstAgent(page, "leads");
+  // The timeline lives on the CONTACTS drawer (ContactsView), not the agent
+  // Leads tab — the first dry run failed here, which is exactly what an
+  // assertion-gated capture is for.
+  await page.goto("/contacts");
 
-  const row = page.getByTestId("lead-row").filter({ hasText: LEAD_NAME }).first();
+  const row = page.getByTestId("contact-row").filter({ hasText: LEAD_NAME }).first();
   await expect(row).toBeVisible();
   await row.click();
 
-  const drawer = page.getByTestId("lead-drawer");
+  const drawer = page.getByTestId("contact-drawer");
   await expect(drawer).toBeVisible();
   const timeline = page.getByTestId("drawer-timeline");
   await expect(timeline).toBeVisible();
@@ -85,7 +88,7 @@ test("lead drawer timeline carries the calendar record + stage change", async ({
   await expect(page.getByTestId("drawer-timeline-empty")).toHaveCount(0);
   await expect(timeline).toContainText(/booked|meeting/i);
 
-  await page.screenshot({ path: `${OUT}/live-lead-drawer-timeline.png` });
+  await page.screenshot({ path: `${OUT}/live-contact-drawer-timeline.png` });
 });
 
 test("integrations grid + drawer show Calendly detection live", async ({ page }) => {
