@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <meta charset="utf-8">
+  <title>Bright Smile Dental — Client portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800;900&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    html, body { margin: 0; padding: 0; background: #EFF1F0; }
+    body { font-family: 'IBM Plex Sans', sans-serif; color: #101613; -webkit-font-smoothing: antialiased; }
+    a { color: #146B33; } a:hover { color: #0F5227; }
+    input, textarea { outline: none; }
+    input:focus, textarea:focus { border-color: #146B33 !important; }
+    @keyframes cpIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</helmet>
+
+<div data-screen-label="Client portal" style="min-height:100vh;background:#EFF1F0;display:flex;flex-direction:column;">
+
+  <!-- entry strip: client magic-link OR agency preview -->
+  <sc-if value="{{ clientView }}" hint-placeholder-val="{{ true }}">
+    <div style="background:#101613;color:rgba(255,255,255,.82);font-size:11.5px;padding:7px 0;text-align:center;">
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em;color:#8BE8A8;">SECURE LINK</span>
+      <span style="margin:0 8px;color:rgba(255,255,255,.3);">·</span>Signed in without a password — this link is yours alone and expires in 7 days.
+    </div>
+  </sc-if>
+  <sc-if value="{{ previewAs }}" hint-placeholder-val="{{ false }}">
+    <div style="background:#101613;display:flex;align-items:center;gap:10px;padding:9px 18px;">
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em;color:#F2D98B;">AGENCY PREVIEW</span>
+      <span style="font-size:11.5px;color:rgba(255,255,255,.82);flex:1;">You're seeing exactly what Dr. Elena Reyes sees. Approving and commenting are the client's — your replies go from the workspace inbox.</span>
+      <a href="Clientforce Account.dc.html" style="font-size:11.5px;font-weight:700;color:#8BE8A8;text-decoration:none;white-space:nowrap;">← Back to account</a>
+    </div>
+  </sc-if>
+
+  <!-- topbar -->
+  <div style="background:#FCFCFC;border-bottom:1px solid #ECEDEC;">
+    <div style="max-width:1060px;margin:0 auto;padding:0 28px;height:64px;display:flex;align-items:center;gap:14px;">
+      <span style="width:34px;height:34px;border-radius:10px;background:{{ accent }};color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Schibsted Grotesk',sans-serif;font-weight:800;font-size:15px;">{{ agencyInitial }}</span>
+      <div style="line-height:1.25;">
+        <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:800;font-size:15px;letter-spacing:-.015em;">{{ agencyName }}</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.09em;color:#8B968F;">CLIENT PORTAL</div>
+      </div>
+      <span style="flex:1;"></span>
+      <div style="text-align:right;line-height:1.3;">
+        <div style="font-size:13px;font-weight:700;">Dr. Elena Reyes</div>
+        <div style="font-size:11.5px;color:#8B968F;">Bright Smile Dental</div>
+      </div>
+      <span style="width:36px;height:36px;border-radius:50%;background:#EAF5EE;border:1px solid #CFE8D8;color:#146B33;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;">ER</span>
+    </div>
+  </div>
+
+  <div style="flex:1;max-width:1060px;width:100%;margin:0 auto;padding:30px 28px 56px;box-sizing:border-box;">
+
+    <!-- ============ HOME ============ -->
+    <sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
+
+      <div style="display:flex;align-items:flex-end;gap:16px;margin-bottom:18px;flex-wrap:wrap;">
+        <div>
+          <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:900;font-size:29px;letter-spacing:-.04em;background:linear-gradient(180deg,#101613 25%,#14743A 120%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;">Your August so far</div>
+          <div style="font-size:13.5px;color:#5A6660;margin-top:5px;">Live outcomes from the campaigns {{ agencyName }} runs for you · updated 9:41 AM</div>
+        </div>
+        <span style="flex:1;"></span>
+        <span style="font-size:11.5px;font-weight:600;color:#146B33;background:#EAF5EE;border:1px solid #CFE8D8;border-radius:100px;padding:5px 13px;">✦ Prepared from live campaign data</span>
+      </div>
+
+      <!-- outcome numbers -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px;">
+        <sc-for list="{{ heroStats }}" as="st" hint-placeholder-count="4">
+          <div style="background:#fff;border:1px solid #ECEDEC;border-radius:16px;padding:18px 19px;animation:cpIn .3s ease;">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.09em;color:#8B968F;margin-bottom:9px;">{{ st.k }}</div>
+            <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:900;font-size:28px;letter-spacing:-.032em;color:{{ st.c }};">{{ st.v }}</div>
+            <div style="font-size:11.5px;color:#5A6660;margin-top:5px;">{{ st.sub }}</div>
+          </div>
+        </sc-for>
+      </div>
+
+      <!-- agency read -->
+      <div style="background:#fff;border:1px solid #CFE8D8;border-radius:16px;overflow:hidden;margin-bottom:26px;">
+        <div style="height:2px;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);"></div>
+        <div style="display:flex;gap:13px;padding:16px 19px;">
+          <span style="width:34px;height:34px;flex:none;border-radius:10px;background:#EAF5EE;border:1px solid #CFE8D8;color:#146B33;display:flex;align-items:center;justify-content:center;font-size:15px;">✦</span>
+          <div style="font-size:13.5px;line-height:1.65;color:#3B463F;">31 appointments booked with three weeks gone — you're pacing <strong>12% ahead of July</strong>. The reactivation wave is doing the heavy lifting (19 of the 31), and Saturday slots keep selling out first. <strong>One thing waits on you:</strong> the September offer below needs your approval to go out on the 1st.<div style="font-size:11px;color:#8B968F;margin-top:7px;">Written by {{ agencyName }}'s AI from your live numbers · reviewed by Jordan Rivera</div></div>
+        </div>
+      </div>
+
+      <!-- approvals -->
+      <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+        <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:900;font-size:19px;letter-spacing:-.03em;">Waiting on you</div>
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#8A6D1A;white-space:nowrap;flex:none;">{{ pendingCount }} pending</span>
+        <span style="flex:1;"></span>
+        <span style="font-size:11.5px;color:#8B968F;">{{ approvalsModeLine }}</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:30px;">
+        <sc-for list="{{ approvals }}" as="ap" hint-placeholder-count="3">
+          <div style="background:#fff;border:1px solid {{ ap.bd }};border-radius:16px;padding:17px 19px;animation:cpIn .3s ease;">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:9px;">
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.08em;color:#8B968F;">{{ ap.kind }}</span>
+              <span style="flex:1;"></span>
+              <sc-if value="{{ ap.isPending }}" hint-placeholder-val="{{ true }}"><span style="font-size:10.5px;font-weight:700;color:#8A6D1A;background:#F7EFDA;border:1px solid #EAD9A8;border-radius:100px;padding:3px 10px;">Needs approval</span></sc-if>
+              <sc-if value="{{ ap.isApproved }}" hint-placeholder-val="{{ false }}"><span style="font-size:10.5px;font-weight:700;color:#146B33;background:#EAF5EE;border:1px solid #CFE8D8;border-radius:100px;padding:3px 10px;">✓ Approved {{ ap.when }}</span></sc-if>
+            </div>
+            <div style="font-size:15px;font-weight:700;margin-bottom:5px;">{{ ap.title }}</div>
+            <div style="font-size:12.5px;color:#5A6660;line-height:1.55;margin-bottom:11px;">{{ ap.why }}</div>
+            <div style="background:#FCFCFC;border:1px solid #ECEDEC;border-radius:11px;padding:12px 14px;font-size:12.5px;color:#3B463F;line-height:1.6;margin-bottom:12px;"><span style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.08em;color:#8B968F;display:block;margin-bottom:6px;">{{ ap.previewLabel }}</span>{{ ap.preview }}</div>
+            <sc-if value="{{ ap.isPending }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;gap:9px;">
+                <span onClick="{{ ap.onApprove }}" style="font-size:12.5px;font-weight:700;color:#fff;background:#146B33;border-radius:10px;padding:9px 18px;cursor:pointer;">✓ Approve</span>
+                <span onClick="{{ ap.onChanges }}" style="font-size:12.5px;font-weight:600;color:#101613;background:#fff;border:1px solid #E2E4E3;border-radius:10px;padding:9px 15px;cursor:pointer;" style-hover="border-color:#BFDECB;color:#146B33;">Request changes</span>
+                <span style="flex:1;"></span>
+                <span style="font-size:11px;color:#8B968F;align-self:center;">{{ ap.deadline }}</span>
+              </div>
+            </sc-if>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:16px;align-items:start;">
+        <div style="display:flex;flex-direction:column;gap:16px;min-width:0;">
+
+          <!-- monthly reports -->
+          <div style="background:#fff;border:1px solid #ECEDEC;border-radius:16px;overflow:hidden;">
+            <div style="display:flex;align-items:center;padding:15px 19px;border-bottom:1px solid #F1F2F1;">
+              <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:800;font-size:16px;letter-spacing:-.015em;flex:1;">Your reports</div>
+              <span style="font-size:11.5px;color:#8B968F;">Monthly · lands the 1st</span>
+            </div>
+            <div onClick="{{ openReport }}" style="display:flex;align-items:center;gap:13px;padding:14px 19px;border-bottom:1px solid #F1F2F1;cursor:pointer;" style-hover="background:#F6F7F7;">
+              <span style="width:40px;height:40px;flex:none;border-radius:11px;background:#EAF5EE;border:1px solid #CFE8D8;color:#146B33;display:flex;align-items:center;justify-content:center;font-size:17px;">▤</span>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:13.5px;font-weight:700;">July 2026 — Monthly outcome report</div>
+                <div style="font-size:11.5px;color:#8B968F;margin-top:2px;">Sent Aug 1 · you opened it Aug 2</div>
+              </div>
+              <span style="font-size:12.5px;font-weight:700;color:#146B33;">Read ›</span>
+            </div>
+            <sc-for list="{{ reportArchive }}" as="r" hint-placeholder-count="2">
+              <div style="display:flex;align-items:center;gap:13px;padding:12px 19px;border-bottom:1px solid #F1F2F1;">
+                <span style="width:40px;height:40px;flex:none;border-radius:11px;background:#F6F7F7;border:1px solid #ECEDEC;color:#8B968F;display:flex;align-items:center;justify-content:center;font-size:17px;">▤</span>
+                <div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:600;color:#3B463F;">{{ r.title }}</div><div style="font-size:11.5px;color:#8B968F;margin-top:2px;">{{ r.meta }}</div></div>
+                <span onClick="{{ r.onOpen }}" style="font-size:12px;font-weight:600;color:#5A6660;cursor:pointer;" style-hover="color:#146B33;">Open</span>
+              </div>
+            </sc-for>
+            <div style="padding:11px 19px;font-size:11.5px;color:#8B968F;background:#FCFCFC;">August's report is being assembled from live data — it lands Sep 1 after {{ agencyName }} reviews it.</div>
+          </div>
+
+          <!-- comments -->
+          <div style="background:#fff;border:1px solid #ECEDEC;border-radius:16px;overflow:hidden;">
+            <div style="display:flex;align-items:center;padding:15px 19px;border-bottom:1px solid #F1F2F1;">
+              <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:800;font-size:16px;letter-spacing:-.015em;flex:1;">Notes between us</div>
+              <span style="font-size:11.5px;color:#8B968F;">{{ agencyName }} replies within a business day</span>
+            </div>
+            <div style="display:flex;flex-direction:column;">
+              <sc-for list="{{ comments }}" as="cm" hint-placeholder-count="3">
+                <div style="display:flex;gap:12px;padding:14px 19px;border-bottom:1px solid #F1F2F1;animation:cpIn .3s ease;">
+                  <span style="width:32px;height:32px;flex:none;border-radius:50%;background:{{ cm.avBg }};color:{{ cm.avFg }};border:1px solid {{ cm.avBd }};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">{{ cm.initials }}</span>
+                  <div style="flex:1;min-width:0;">
+                    <div style="display:flex;align-items:baseline;gap:8px;"><span style="font-size:12.5px;font-weight:700;">{{ cm.who }}</span><span style="font-size:10.5px;color:#8B968F;">{{ cm.when }}</span></div>
+                    <div style="font-size:13px;color:#3B463F;line-height:1.6;margin-top:3px;">{{ cm.text }}</div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+            <div style="display:flex;gap:10px;padding:14px 19px;background:#FCFCFC;">
+              <textarea value="{{ composer }}" onInput="{{ onComposer }}" placeholder="{{ composerPh }}" style="flex:1;min-height:44px;resize:vertical;box-sizing:border-box;padding:11px 13px;border:1px solid #E2E4E3;border-radius:11px;background:#fff;font-size:13px;font-family:'IBM Plex Sans',sans-serif;color:#101613;line-height:1.5;"></textarea>
+              <span onClick="{{ sendComment }}" style="align-self:flex-end;font-size:12.5px;font-weight:700;color:#fff;background:#146B33;border-radius:10px;padding:10px 16px;cursor:pointer;opacity:{{ sendOpacity }};">Send</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:16px;min-width:0;">
+          <!-- upcoming appointments -->
+          <div style="background:#fff;border:1px solid #ECEDEC;border-radius:16px;overflow:hidden;">
+            <div style="display:flex;align-items:center;padding:15px 19px;border-bottom:1px solid #F1F2F1;">
+              <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:800;font-size:16px;letter-spacing:-.015em;flex:1;">Booked for you</div>
+              <span style="font-size:11.5px;color:#8B968F;">next 7 days</span>
+            </div>
+            <sc-for list="{{ appts }}" as="a" hint-placeholder-count="4">
+              <div style="display:flex;align-items:center;gap:12px;padding:12px 19px;border-bottom:1px solid #F1F2F1;">
+                <div style="width:46px;flex:none;text-align:center;background:#FCFCFC;border:1px solid #ECEDEC;border-radius:10px;padding:6px 0;"><div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.06em;color:#8B968F;">{{ a.day }}</div><div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:800;font-size:15px;">{{ a.date }}</div></div>
+                <div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:700;">{{ a.who }} <sc-if value="{{ a.ai }}" hint-placeholder-val="{{ true }}"><span style="color:#146B33;">✦</span></sc-if></div><div style="font-size:11.5px;color:#8B968F;margin-top:1px;">{{ a.what }}</div></div>
+                <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#5A6660;flex:none;">{{ a.time }}</span>
+              </div>
+            </sc-for>
+            <div style="padding:10px 19px;font-size:11px;color:#8B968F;background:#FCFCFC;">✦ marks bookings made by your AI campaigns. Full calendar lives in your practice system.</div>
+          </div>
+
+          <!-- what we're running -->
+          <div style="background:#fff;border:1px solid #ECEDEC;border-radius:16px;overflow:hidden;">
+            <div style="padding:15px 19px;border-bottom:1px solid #F1F2F1;font-family:'Schibsted Grotesk',sans-serif;font-weight:800;font-size:16px;letter-spacing:-.02em;">Running for you now</div>
+            <sc-for list="{{ running }}" as="rn" hint-placeholder-count="3">
+              <div style="display:flex;align-items:center;gap:11px;padding:12px 19px;border-bottom:1px solid #F1F2F1;">
+                <span style="width:8px;height:8px;flex:none;border-radius:50%;background:{{ rn.dot }};"></span>
+                <div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:600;">{{ rn.name }}</div><div style="font-size:11.5px;color:#8B968F;margin-top:1px;">{{ rn.line }}</div></div>
+              </div>
+            </sc-for>
+            <div style="padding:10px 19px;font-size:11px;color:#8B968F;background:#FCFCFC;">Plain-language view — {{ agencyName }} handles the mechanics.</div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ============ REPORT ============ -->
+    <sc-if value="{{ isReport }}" hint-placeholder-val="{{ false }}">
+      <div style="max-width:780px;margin:0 auto;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+          <span onClick="{{ backHome }}" style="display:inline-flex;align-items:center;gap:7px;font-size:13.5px;font-weight:700;color:#5A6660;cursor:pointer;" style-hover="color:#146B33;">← Back to your portal</span>
+          <span style="flex:1;"></span>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em;color:#8B968F;">{{ reportTag }}</span>
+        </div>
+        <div style="background:#fff;border:1px solid #ECEDEC;border-radius:20px;overflow:hidden;">
+          <div style="height:3px;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);"></div>
+          <div style="padding:30px 34px 24px;border-bottom:1px solid #F1F2F1;">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+              <span style="width:30px;height:30px;border-radius:10px;background:{{ accent }};color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Schibsted Grotesk',sans-serif;font-weight:800;font-size:13px;">{{ agencyInitial }}</span>
+              <span style="font-size:13px;font-weight:700;">{{ agencyName }}</span>
+              <span style="flex:1;"></span>
+              <span style="font-size:11.5px;color:#8B968F;">Prepared for Bright Smile Dental</span>
+            </div>
+            <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:900;font-size:26px;letter-spacing:-.036em;">{{ reportTitle }}</div>
+            <div style="font-size:13px;color:#5A6660;margin-top:6px;line-height:1.6;">{{ reportIntro }}</div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid #F1F2F1;">
+            <sc-for list="{{ reportStats }}" as="st" hint-placeholder-count="4">
+              <div style="padding:18px 20px;border-right:1px solid #F1F2F1;"><div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.09em;color:#8B968F;margin-bottom:7px;">{{ st.k }}</div><div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:800;font-size:22px;color:{{ st.c }};">{{ st.v }}</div><div style="font-size:11px;color:#5A6660;margin-top:3px;">{{ st.sub }}</div></div>
+            </sc-for>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;padding:10px 34px;border-bottom:1px solid #F1F2F1;background:#FCFCFC;font-size:11.5px;color:#8B968F;"><span style="width:6px;height:6px;border-radius:50%;background:#146B33;flex:none;"></span>1,240 credits powered July — every send, call and enrichment above is metered against them.</div>
+          <div style="padding:24px 34px;border-bottom:1px solid #F1F2F1;">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.1em;color:#8B968F;margin-bottom:13px;">WHAT WE RAN</div>
+            <div style="display:flex;flex-direction:column;gap:13px;">
+              <sc-for list="{{ reportRan }}" as="r" hint-placeholder-count="3">
+                <div style="display:flex;gap:13px;">
+                  <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#146B33;flex:none;padding-top:2px;">{{ r.n }}</span>
+                  <div style="flex:1;"><div style="font-size:14px;font-weight:700;">{{ r.name }}</div><div style="font-size:12.5px;color:#5A6660;line-height:1.6;margin-top:2px;">{{ r.line }}</div></div>
+                  <span style="font-family:'Schibsted Grotesk',sans-serif;font-weight:800;font-size:16px;color:#146B33;flex:none;">{{ r.num }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="padding:24px 34px;border-bottom:1px solid #F1F2F1;">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.1em;color:#8B968F;margin-bottom:13px;">NEXT MONTH</div>
+            <div style="display:flex;flex-direction:column;gap:9px;">
+              <sc-for list="{{ reportNext }}" as="n" hint-placeholder-count="3">
+                <div style="display:flex;gap:10px;align-items:baseline;"><span style="color:#146B33;font-weight:700;">→</span><span style="font-size:13px;color:#3B463F;line-height:1.6;">{{ n }}</span></div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;padding:16px 34px;background:#FCFCFC;">
+            <span style="font-size:11px;color:#8B968F;flex:1;line-height:1.5;">✦ Numbers pulled from live campaign data · narrative drafted by AI, reviewed and sent by Jordan Rivera, {{ agencyName }}.</span>
+            <span onClick="{{ backHome }}" style="font-size:12px;font-weight:700;color:#146B33;background:#fff;border:1px solid #CFE8D8;border-radius:10px;padding:8px 14px;cursor:pointer;flex:none;" style-hover="background:#EAF5EE;">Leave a note ›</span>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+  </div>
+
+  <!-- footer -->
+  <div style="background:#FCFCFC;border-top:1px solid #ECEDEC;">
+    <div style="max-width:1060px;margin:0 auto;padding:18px 28px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+      <span style="font-size:12.5px;color:#5A6660;">Questions? <strong>hello@riveradigital.co</strong> · (512) 555-0100</span>
+      <span style="flex:1;"></span>
+      <span style="font-size:11px;color:#8B968F;">You can only view and comment here — nothing you do changes campaigns.</span>
+      <sc-if value="{{ poweredBy }}" hint-placeholder-val="{{ true }}"><span style="font-size:11px;color:#8B968F;">Powered by <strong style="color:#146B33;">Clientforce Ai</strong></span></sc-if>
+    </div>
+  </div>
+
+  <sc-if value="{{ toastOn }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#101613;color:#fff;font-size:13px;font-weight:600;border-radius:12px;padding:12px 20px;z-index:99;animation:cpIn .25s ease;">{{ toast }}</div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;: {&quot;width&quot;: 1280, &quot;height&quot;: 900}, &quot;agencyName&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;Rivera Digital&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;White-label&quot;}, &quot;accent&quot;: {&quot;editor&quot;: &quot;color&quot;, &quot;default&quot;: &quot;#146B33&quot;, &quot;options&quot;: [&quot;#146B33&quot;, &quot;#0E7D93&quot;, &quot;#6B4FE0&quot;, &quot;#101613&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;White-label&quot;}, &quot;poweredBy&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;White-label&quot;}, &quot;approvalsRequired&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;Behavior&quot;}}">
+class Component extends DCLogic {
+  state = { view: 'home', reportId: 'jul', composer: '', toast: '', apState: {}, previewAs: false, comments: [
+    { who: 'Dr. Elena Reyes', initials: 'ER', client: true, when: 'Aug 9', text: 'Can we push more Saturday slots? They fill first every week.' },
+    { who: 'Jordan Rivera', initials: 'JR', client: false, when: 'Aug 9', text: 'On it — adding a Saturday bias to the booking rules this week. You should see the shift in next month\u2019s report.' },
+    { who: 'Dr. Elena Reyes', initials: 'ER', client: true, when: 'Aug 4', text: 'July report looks great. The reactivation numbers surprised me.' },
+  ] };
+  toastMsg(msg) { this.setState({ toast: msg }); clearTimeout(this._tt); this._tt = setTimeout(() => this.setState({ toast: '' }), 2600); }
+  componentDidMount() { if ((window.location.hash || '').indexOf('preview') !== -1) this.setState({ previewAs: true }); }
+  componentWillUnmount() { clearTimeout(this._tt); }
+  renderVals() {
+    const accent = this.props.accent ?? '#146B33';
+    const agencyName = this.props.agencyName ?? 'Rivera Digital';
+    const approvalsRequired = this.props.approvalsRequired ?? true;
+    const APS = [
+      { id: 'sept', kind: 'CAMPAIGN OFFER', title: 'September reactivation offer — $79 cleaning special', why: 'Goes to 214 lapsed patients on Sep 1. It changes your public pricing, so it needs your sign-off.', previewLabel: 'THE TEXT PATIENTS GET', preview: '"Hi {first name} — it\u2019s been a while since your last visit to Bright Smile. Through September we\u2019re holding $79 cleanings for returning patients. Want me to find you a time? — Bright Smile\u2019s AI assistant"', deadline: 'Needed by Aug 28' },
+      { id: 'sat', kind: 'BOOKING RULES', title: 'Open 4 extra Saturday slots to campaign booking', why: 'You asked for more Saturday capacity — this lets the AI book 9:00–11:00 Saturday slots directly.', previewLabel: 'WHAT CHANGES', preview: 'Saturday 9:00 / 9:40 / 10:20 / 11:00 become bookable by campaigns and the receptionist. Everything still lands on your Google Calendar instantly.', deadline: 'Needed by Aug 22' },
+      { id: 'jul-offer', kind: 'CAMPAIGN OFFER', title: 'August new-mover welcome offer', why: 'Free consult + X-rays for new residents within 3 miles.', previewLabel: 'THE OFFER', preview: 'New to the neighborhood? First consult and X-rays on us at Bright Smile Dental.', deadline: '', approvedWhen: 'Jul 28' },
+    ];
+    const aps = APS.map((a) => { const st = this.state.apState[a.id] || (a.approvedWhen ? 'approved' : 'pending'); return { ...a, st }; });
+    const pending = aps.filter((a) => a.st === 'pending');
+    return {
+      accent, agencyName, agencyInitial: (agencyName[0] || 'A').toUpperCase(),
+      poweredBy: this.props.poweredBy ?? true,
+      previewAs: this.state.previewAs, clientView: !this.state.previewAs,
+      composerPh: this.state.previewAs ? 'Preview — replies go from the workspace inbox, so it stays one conversation.' : 'Leave a note for the team — a question, a request, anything.',
+      isHome: this.state.view === 'home', isReport: this.state.view === 'report',
+      openReport: () => this.setState({ view: 'report', reportId: 'jul' }),
+      backHome: () => this.setState({ view: 'home' }),
+      heroStats: [
+        { k: 'APPOINTMENTS BOOKED', v: '31', c: '#146B33', sub: '19 from reactivation' },
+        { k: 'PATIENT REPLIES', v: '128', c: '#101613', sub: 'across text & email' },
+        { k: 'REVENUE ATTRIBUTED', v: '$18.4k', c: '#146B33', sub: 'from booked visits' },
+        { k: 'SHOW RATE', v: '87%', c: '#101613', sub: 'reminders doing their job' },
+      ],
+      pendingCount: '' + pending.length,
+      approvalsModeLine: approvalsRequired ? 'Nothing above goes out without your approval.' : 'FYI — these go out unless you object.',
+      approvals: aps.map((a) => ({
+        kind: a.kind, title: a.title, why: a.why, previewLabel: a.previewLabel, preview: a.preview, deadline: a.deadline,
+        isPending: a.st === 'pending', isApproved: a.st === 'approved', when: a.approvedWhen || 'today',
+        bd: a.st === 'pending' ? '#EAD9A8' : '#ECEDEC',
+        onApprove: () => { if (this.state.previewAs) { this.toastMsg('Approving is the client\u2019s call \u2014 you\u2019re previewing their portal.'); return; } this.setState((s) => ({ apState: { ...s.apState, [a.id]: 'approved' } })); this.toastMsg('Approved — ' + agencyName + ' has been notified.'); },
+        onChanges: () => { if (this.state.previewAs) { this.toastMsg('Requesting changes is the client\u2019s call \u2014 you\u2019re previewing.'); return; } this.setState({ composer: 'Changes on \u201c' + a.title + '\u201d: ' }); this.toastMsg('Tell us what to change in the note box below.'); },
+      })),
+      comments: this.state.comments.map((c) => ({ ...c, avBg: c.client ? '#EAF5EE' : '#101613', avFg: c.client ? '#146B33' : '#fff', avBd: c.client ? '#CFE8D8' : '#101613' })),
+      composer: this.state.composer, onComposer: (e) => this.setState({ composer: e.target.value }),
+      sendOpacity: this.state.previewAs ? '.45' : (this.state.composer.trim() ? '1' : '.55'),
+      sendComment: () => { if (this.state.previewAs) { this.toastMsg('Reply from the workspace inbox \u2014 it lands in this thread with your branding.'); return; } const t = this.state.composer.trim(); if (!t) return; this.setState((s) => ({ comments: [{ who: 'Dr. Elena Reyes', initials: 'ER', client: true, when: 'Just now', text: t }].concat(s.comments), composer: '' })); this.toastMsg('Sent — the team sees it in their inbox.'); },
+      appts: [
+        { day: 'THU', date: '14', who: 'Maria Vidal', what: 'Cleaning · booked by reactivation', time: '2:10 PM', ai: true },
+        { day: 'FRI', date: '15', who: 'James Park', what: 'Consult · asked about financing', time: '9:40 AM', ai: true },
+        { day: 'SAT', date: '16', who: 'Rosa Beltr\u00e1n', what: 'Implant consult · new-mover campaign', time: '10:20 AM', ai: true },
+        { day: 'TUE', date: '19', who: 'Dan Okafor', what: 'Crown fitting · rebooked by reminder', time: '3:30 PM', ai: false },
+      ],
+      running: [
+        { name: 'Lapsed-patient reactivation', line: 'Texting patients overdue 6+ months — 19 booked so far', dot: '#146B33' },
+        { name: 'New-mover welcome', line: 'Greeting new residents within 3 miles — 6 consults', dot: '#146B33' },
+        { name: 'Review follow-up', line: 'Asking happy visits for a Google review — 11 new, 4.8\u2605', dot: '#0E7D93' },
+      ],
+      reportTag: 'JULY 2026 · FINAL', reportTitle: 'July 2026 — Monthly outcome report',
+      reportIntro: 'The short version: July was your best booking month this year. Reactivation did most of it, reviews kept climbing, and August is set up to beat it.',
+      reportStats: [
+        { k: 'BOOKED', v: '28', c: '#146B33', sub: '+8 vs June' },
+        { k: 'REPLIES', v: '117', c: '#101613', sub: '31% reply rate' },
+        { k: 'REVENUE', v: '$16.9k', c: '#146B33', sub: 'attributed' },
+        { k: 'SHOW RATE', v: '84%', c: '#101613', sub: '+3 pts' },
+      ],
+      reportRan: [
+        { n: '01', name: 'Lapsed-patient reactivation — wave 2', line: '412 patients reached in a friendly two-text sequence. 41 conversations, most booked without you lifting a finger.', num: '17 booked' },
+        { n: '02', name: 'New-mover welcome', line: 'New residents near the practice got a welcome + free-consult offer.', num: '6 consults' },
+        { n: '03', name: 'Review follow-up', line: 'Every happy visit got a review nudge the same evening.', num: '11 reviews · 4.8\u2605' },
+      ],
+      reportNext: [
+        'September $79 cleaning special — waiting on your approval (top of your portal).',
+        'Saturday capacity: opening 4 more AI-bookable slots once you approve the rule change.',
+        'Insurance-question auto-answers go live after the front desk confirms the coverage list.',
+      ],
+      reportArchive: [
+        { title: 'June 2026 — Monthly outcome report', meta: 'Sent Jul 1 · opened', onOpen: () => { this.setState({ view: 'report' }); } },
+        { title: 'May 2026 — Monthly outcome report', meta: 'Sent Jun 1 · opened', onOpen: () => { this.setState({ view: 'report' }); } },
+      ],
+      toastOn: !!this.state.toast, toast: this.state.toast,
+    };
+  }
+}
+</script>
+</body>
+</html>

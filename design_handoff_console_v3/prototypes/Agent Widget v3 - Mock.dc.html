@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@700;800;900&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#E9EFEA;font-family:'IBM Plex Sans',sans-serif;color:#101613;}
+a{color:#146B33;text-decoration:none;} a:hover{color:#0F5227;text-decoration:underline;}
+input::placeholder{color:#8B968F;}
+@keyframes wFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes wPop{from{opacity:0;transform:translateY(14px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes wMsg{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+@keyframes wDot{0%,80%,100%{opacity:.25;transform:scale(.85)}40%{opacity:1;transform:scale(1)}}
+@keyframes wProg{from{width:8%}to{width:94%}}
+@keyframes wPulse{0%{box-shadow:0 0 0 0 rgba(20,107,51,.32)}70%{box-shadow:0 0 0 12px rgba(20,107,51,0)}100%{box-shadow:0 0 0 0 rgba(20,107,51,0)}}
+@keyframes vOrb{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+@keyframes vBar{0%,100%{height:8px}50%{height:24px}}
+@media (prefers-reduced-motion:reduce){*{animation:none !important}}
+</style>
+</helmet>
+<div data-screen-label="Agent Widget v3 Mock" style="width:1480px;margin:0 auto;background:#E9EFEA;padding:30px 30px 46px;box-sizing:border-box;display:flex;flex-direction:column;gap:20px;">
+
+  <!-- MASTHEAD -->
+  <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:24px;border-bottom:1px solid #DCE5DE;padding-bottom:18px;">
+    <div style="display:flex;flex-direction:column;gap:7px;">
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.14em;color:#8B968F;">CLIENTFORCE AI · CONSOLE V3</span>
+      <span style="font-family:'Schibsted Grotesk',sans-serif;font-weight:900;font-size:34px;letter-spacing:-.035em;line-height:1;background:linear-gradient(180deg,#101613 25%,#14743A 120%);-webkit-background-clip:text;background-clip:text;color:transparent;">Agent Widget — mock</span>
+      <span style="font-size:13px;color:#5A6660;max-width:700px;line-height:1.55;text-wrap:pretty;">The customer-facing embed, in the v3 brand — full feature parity with the legacy widget: book · live callback · schedule callback · instant proposal · live voice. Source of truth for the widget build (unit 27).</span>
+    </div>
+    <span style="font-size:12.5px;font-weight:600;color:#146B33;background:#EAF5EE;border:1px solid #CFE8D8;border-radius:999px;padding:6px 13px;flex:none;">Interactive · try every flow</span>
+  </div>
+
+  <div style="display:flex;gap:20px;align-items:stretch;">
+
+    <!-- HOST BACKDROP + LIVE WIDGET -->
+    <div style="flex:1;min-width:0;position:relative;border-radius:18px;overflow:hidden;border:1px solid {{ hostLine }};background:{{ hostBg }};height:760px;">
+      <div style="padding:30px 40px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:44px;">
+          <div style="display:flex;align-items:center;gap:10px;"><span style="width:26px;height:26px;border-radius:8px;background:{{ hostInk }};opacity:.9;"></span><span style="width:120px;height:13px;border-radius:5px;background:{{ hostBlock }};"></span></div>
+          <div style="display:flex;gap:20px;"><span style="width:52px;height:11px;border-radius:5px;background:{{ hostBlock }};"></span><span style="width:52px;height:11px;border-radius:5px;background:{{ hostBlock }};"></span><span style="width:80px;height:26px;border-radius:100px;background:{{ hostInk }};opacity:.85;"></span></div>
+        </div>
+        <div style="max-width:560px;">
+          <div style="width:120px;height:22px;border-radius:6px;background:{{ hostBlock }};margin-bottom:22px;"></div>
+          <div style="width:88%;height:40px;border-radius:8px;background:{{ hostBlock2 }};margin-bottom:12px;"></div>
+          <div style="width:64%;height:40px;border-radius:8px;background:{{ hostBlock2 }};margin-bottom:24px;"></div>
+          <div style="width:92%;height:12px;border-radius:5px;background:{{ hostBlock }};margin-bottom:9px;"></div>
+          <div style="width:86%;height:12px;border-radius:5px;background:{{ hostBlock }};margin-bottom:9px;"></div>
+          <div style="width:70%;height:12px;border-radius:5px;background:{{ hostBlock }};"></div>
+        </div>
+      </div>
+      <span style="position:absolute;top:16px;left:20px;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;color:{{ hostTag }};">HOST WEBSITE · {{ hostThemeLabel }}</span>
+
+      <!-- LAUNCHER (closed) -->
+      <sc-if value="{{ closed }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;bottom:26px;right:26px;display:flex;align-items:center;gap:12px;">
+          <span style="font-size:13px;font-weight:600;color:#101613;background:#fff;border:1px solid #E9EEEA;border-radius:999px;padding:10px 16px;box-shadow:0 10px 26px rgba(16,22,19,.16);">Book a visit in 60 seconds</span>
+          <span onClick="{{ onOpen }}" style="width:60px;height:60px;border-radius:50%;background:#FFFFFF;border:1px solid #E9EEEA;box-shadow:0 12px 30px rgba(16,22,19,.24);display:flex;align-items:center;justify-content:center;cursor:pointer;animation:wFloat 3.6s ease-in-out infinite;position:relative;"><img src="assets/mark.svg" alt="Clientforce" style="height:30px;width:auto;display:block;"><span style="position:absolute;top:0;right:0;width:17px;height:17px;border-radius:99px;background:#146B33;border:2px solid #fff;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;">1</span></span>
+        </div>
+      </sc-if>
+
+      <!-- CHAT PANEL (open) -->
+      <sc-if value="{{ open }}" hint-placeholder-val="{{ true }}">
+        <div data-capture="widget-panel" style="position:absolute;bottom:26px;right:26px;width:376px;height:640px;max-height:calc(100% - 52px);background:#FFFFFF;border:1px solid #E9EEEA;border-radius:20px;box-shadow:0 20px 54px rgba(16,22,19,.22);overflow:hidden;display:flex;flex-direction:column;animation:wPop .3s cubic-bezier(.2,.9,.3,1);">
+          <!-- header -->
+          <div style="flex:none;display:flex;align-items:center;gap:11px;padding:14px 16px;background:#FBFDFB;border-bottom:1px solid #E9EEEA;">
+            <span style="width:38px;height:38px;flex:none;border-radius:11px;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);display:flex;align-items:center;justify-content:center;color:#0A1F12;font-size:17px;">✦</span>
+            <div style="flex:1;min-width:0;line-height:1.3;">
+              <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:800;font-size:15.5px;letter-spacing:-.01em;color:#101613;">Ada</div>
+              <div style="font-size:11.5px;color:#5A6660;display:flex;align-items:center;gap:6px;"><span style="width:7px;height:7px;border-radius:50%;background:{{ accent }};"></span>Bright Smile's front desk</div>
+            </div>
+            <span onClick="{{ onClose }}" style="color:#8B968F;font-size:16px;cursor:pointer;padding:4px;line-height:1;">✕</span>
+          </div>
+
+          <!-- messages -->
+          <div ref="{{ chatRef }}" style="flex:1;min-height:0;overflow-y:auto;padding:16px 16px 8px;display:flex;flex-direction:column;gap:12px;">
+            <sc-for list="{{ msgs }}" as="m" hint-placeholder-count="1">
+              <sc-if value="{{ m.isAgent }}" hint-placeholder-val="{{ true }}">
+                <div style="display:flex;gap:9px;animation:wMsg .26s ease;">
+                  <span style="width:26px;height:26px;flex:none;border-radius:8px;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);display:flex;align-items:center;justify-content:center;color:#0A1F12;font-size:12px;">✦</span>
+                  <div style="background:#F2F6F3;color:#101613;font-size:13.5px;line-height:1.55;padding:11px 13px;border-radius:5px 14px 14px 14px;max-width:82%;">{{ m.text }}</div>
+                </div>
+              </sc-if>
+              <sc-if value="{{ m.isUser }}" hint-placeholder-val="{{ false }}">
+                <div style="align-self:flex-end;max-width:80%;background:#101613;color:#FBFDFB;font-size:13.5px;line-height:1.5;padding:10px 14px;border-radius:14px 14px 4px 14px;animation:wMsg .26s ease;">{{ m.text }}</div>
+              </sc-if>
+              <sc-if value="{{ m.isBooked }}" hint-placeholder-val="{{ false }}">
+                <div style="margin-left:35px;border:1px solid #CFE8D8;background:#EAF5EE;border-radius:14px;padding:14px 15px;animation:wMsg .26s ease;">
+                  <div style="display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:700;color:#146B33;"><span style="width:18px;height:18px;border-radius:99px;background:{{ accent }};color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;">✓</span>Booked · {{ m.when }}</div>
+                  <div style="font-size:13px;color:#101613;margin-top:8px;font-weight:600;">{{ m.detail }}</div>
+                  <div style="font-size:12px;color:#5A6660;margin-top:3px;">Calendar invite sent to {{ m.email }}</div>
+                </div>
+              </sc-if>
+              <sc-if value="{{ m.isSched }}" hint-placeholder-val="{{ false }}">
+                <div style="margin-left:35px;border:1px solid #CFE8D8;background:#EAF5EE;border-radius:14px;padding:14px 15px;animation:wMsg .26s ease;">
+                  <div style="display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:700;color:#146B33;"><span style="width:20px;height:20px;flex:none;display:flex;align-items:center;justify-content:center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#146B33" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"></path></svg></span>AI callback scheduled</div>
+                  <div style="font-size:13px;color:#101613;margin-top:8px;font-weight:600;">{{ m.when }} · we'll call {{ m.phone }}</div>
+                  <div style="font-size:12px;color:#5A6660;margin-top:3px;">✦ Voice agent · SMS reminder 15 min before · reply STOP to cancel.</div>
+                </div>
+              </sc-if>
+              <sc-if value="{{ m.isCall }}" hint-placeholder-val="{{ false }}">
+                <div style="margin-left:35px;border:1px solid {{ callBorder }};background:{{ callBg }};border-radius:14px;padding:14px 15px;animation:wMsg .26s ease;">
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <span style="width:34px;height:34px;flex:none;border-radius:50%;background:{{ callIconBg }};display:flex;align-items:center;justify-content:center;animation:{{ callAnim }};"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="{{ callStroke }}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"></path></svg></span>
+                    <div style="flex:1;min-width:0;"><div style="font-size:13.5px;font-weight:700;color:#101613;">{{ callTitle }}</div><div style="font-size:12px;color:#5A6660;margin-top:1px;">{{ callSub }}</div></div>
+                  </div>
+                  <sc-if value="{{ callLive }}" hint-placeholder-val="{{ false }}">
+                    <div style="margin-top:11px;border-left:2px solid #35E834;padding:1px 0 1px 10px;font-size:12.5px;color:#3B463F;line-height:1.5;font-style:italic;">"{{ callQuote }}"</div>
+                  </sc-if>
+                  <sc-if value="{{ callDone }}" hint-placeholder-val="{{ false }}">
+                    <div style="margin-top:11px;display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:#3B463F;">
+                      <div style="display:flex;gap:6px;"><span style="color:#146B33;font-weight:700;flex:none;">✓</span><span>{{ callQ1 }}</span></div>
+                      <div style="display:flex;gap:6px;"><span style="color:#146B33;font-weight:700;flex:none;">✓</span><span>{{ callQ2 }}</span></div>
+                    </div>
+                  </sc-if>
+                </div>
+              </sc-if>
+              <sc-if value="{{ m.isPropGen }}" hint-placeholder-val="{{ false }}">
+                <div style="margin-left:35px;border:1px solid #E2EAE4;border-radius:14px;padding:14px 15px;animation:wMsg .26s ease;">
+                  <div style="display:flex;align-items:center;gap:9px;font-size:13.5px;font-weight:700;color:#101613;"><span style="width:22px;height:22px;flex:none;display:flex;align-items:center;justify-content:center;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#146B33" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6"></path></svg></span>{{ propGenLabel }}</div>
+                  <div style="height:6px;border-radius:100px;background:#EFF3F0;margin-top:11px;overflow:hidden;"><div style="height:100%;border-radius:100px;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);animation:wProg 2.6s ease-out forwards;"></div></div>
+                </div>
+              </sc-if>
+              <sc-if value="{{ m.isPropSent }}" hint-placeholder-val="{{ false }}">
+                <div style="margin-left:35px;border:1px solid #CFE8D8;background:#EAF5EE;border-radius:14px;padding:14px 15px;animation:wMsg .26s ease;">
+                  <div style="display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:700;color:#146B33;"><span style="width:18px;height:18px;border-radius:99px;background:{{ accent }};color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;">✓</span>{{ propSentTitle }}</div>
+                  <div style="display:flex;align-items:center;gap:11px;margin-top:10px;background:#fff;border:1px solid #E2EAE4;border-radius:11px;padding:10px 12px;">
+                    <span style="width:34px;height:42px;flex:none;border-radius:6px;background:#101613;display:flex;align-items:center;justify-content:center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6"></path></svg></span>
+                    <div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:700;color:#101613;">{{ m.doc }}</div><div style="font-size:11.5px;color:#5A6660;margin-top:1px;">{{ propDocSub }}</div></div>
+                    <span style="font-size:12px;font-weight:700;color:#146B33;flex:none;cursor:pointer;">Open ↗</span>
+                  </div>
+                  <div style="font-size:12px;color:#5A6660;margin-top:8px;">Sent to {{ m.email }}</div>
+                </div>
+              </sc-if>
+            </sc-for>
+
+            <sc-if value="{{ typing }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;gap:9px;">
+                <span style="width:26px;height:26px;flex:none;border-radius:8px;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);"></span>
+                <div style="background:#F2F6F3;border-radius:5px 14px 14px 14px;padding:13px 14px;display:flex;gap:4px;align-items:center;">
+                  <span style="width:6px;height:6px;border-radius:50%;background:#8B968F;animation:wDot 1.1s infinite;"></span>
+                  <span style="width:6px;height:6px;border-radius:50%;background:#8B968F;animation:wDot 1.1s infinite .18s;"></span>
+                  <span style="width:6px;height:6px;border-radius:50%;background:#8B968F;animation:wDot 1.1s infinite .36s;"></span>
+                </div>
+              </div>
+            </sc-if>
+
+            <!-- capture form (book) -->
+            <sc-if value="{{ showForm }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-left:35px;border:1px solid #DCE5DE;border-radius:14px;padding:13px 14px;display:flex;flex-direction:column;gap:9px;animation:wMsg .26s ease;">
+                <input value="{{ formName }}" onInput="{{ onFormName }}" placeholder="Full name" style="width:100%;padding:10px 12px;font-size:13.5px;color:#101613;border:1px solid #DCE5DE;border-radius:10px;outline:none;font-family:'IBM Plex Sans',sans-serif;" style-focus="border-color:#CFE8D8;" />
+                <input value="{{ formEmail }}" onInput="{{ onFormEmail }}" placeholder="Email" style="width:100%;padding:10px 12px;font-size:13.5px;color:#101613;border:1px solid #DCE5DE;border-radius:10px;outline:none;font-family:'IBM Plex Sans',sans-serif;" style-focus="border-color:#CFE8D8;" />
+                <span onClick="{{ onFormSubmit }}" style="text-align:center;font-size:13.5px;font-weight:700;color:#fff;background:{{ accent }};border-radius:10px;padding:11px 14px;cursor:pointer;opacity:{{ formOpacity }};">Confirm details</span>
+                <span style="font-size:11px;color:#8B968F;text-align:center;">We only use this to send your calendar invite.</span>
+              </div>
+            </sc-if>
+
+            <!-- phone card (callback) -->
+            <sc-if value="{{ showPhone }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-left:35px;border:1px solid #DCE5DE;border-radius:14px;padding:13px 14px;display:flex;flex-direction:column;gap:9px;animation:wMsg .26s ease;">
+                <input value="{{ phone }}" onInput="{{ onPhone }}" placeholder="Your phone number" style="width:100%;padding:10px 12px;font-size:13.5px;color:#101613;border:1px solid #DCE5DE;border-radius:10px;outline:none;font-family:'IBM Plex Sans',sans-serif;" style-focus="border-color:#CFE8D8;" />
+                <span onClick="{{ onCallNow }}" style="text-align:center;font-size:13.5px;font-weight:700;color:#fff;background:{{ accent }};border-radius:10px;padding:11px 14px;cursor:pointer;opacity:{{ phoneOpacity }};">Call me now — ~1 min</span>
+                <span onClick="{{ onSchedLater }}" style="text-align:center;font-size:13px;font-weight:600;color:#101613;border:1px solid #DCE5DE;border-radius:10px;padding:10px 14px;cursor:pointer;background:#fff;" style-hover="border-color:#CFE8D8;">Schedule for later</span>
+                <span style="font-size:11px;color:#8B968F;text-align:center;">One call from our AI agent — no spam, ever.</span>
+              </div>
+            </sc-if>
+
+            <!-- email card (proposal) -->
+            <sc-if value="{{ showPropEmail }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-left:35px;border:1px solid #DCE5DE;border-radius:14px;padding:13px 14px;display:flex;flex-direction:column;gap:9px;animation:wMsg .26s ease;">
+                <input value="{{ formEmail }}" onInput="{{ onFormEmail }}" placeholder="Email" style="width:100%;padding:10px 12px;font-size:13.5px;color:#101613;border:1px solid #DCE5DE;border-radius:10px;outline:none;font-family:'IBM Plex Sans',sans-serif;" style-focus="border-color:#CFE8D8;" />
+                <span onClick="{{ onPropSubmit }}" style="text-align:center;font-size:13.5px;font-weight:700;color:#fff;background:{{ accent }};border-radius:10px;padding:11px 14px;cursor:pointer;opacity:{{ propOpacity }};">{{ propBtnLabel }}</span>
+              </div>
+            </sc-if>
+
+            <!-- quick-reply chips -->
+            <sc-if value="{{ showChips }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;flex-wrap:wrap;gap:8px;padding-left:35px;">
+                <sc-for list="{{ chips }}" as="c" hint-placeholder-count="3">
+                  <span onClick="{{ c.onPick }}" style="font-size:12.5px;font-weight:{{ c.w }};color:{{ c.fg }};background:{{ c.bg }};border:1px solid {{ c.bd }};border-radius:999px;padding:7px 13px;cursor:pointer;" style-hover="border-color:#CFE8D8;background:#EAF5EE;color:#146B33;">{{ c.label }}</span>
+                </sc-for>
+              </div>
+            </sc-if>
+          </div>
+
+          <!-- composer -->
+          <div style="flex:none;padding:10px 12px 8px;border-top:1px solid #E9EEEA;background:#FBFDFB;">
+            <div style="display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #DCE5DE;border-radius:999px;padding:6px 6px 6px 14px;">
+              <input value="{{ draft }}" onInput="{{ onDraft }}" onKeyDown="{{ onKey }}" placeholder="Type your message…" style="flex:1;font-size:13px;color:#101613;background:transparent;border:none;outline:none;font-family:'IBM Plex Sans',sans-serif;" />
+              <span onClick="{{ onVoiceStart }}" title="Talk instead" style="width:32px;height:32px;flex:none;border-radius:50%;background:#fff;border:1px solid #DCE5DE;display:flex;align-items:center;justify-content:center;cursor:pointer;" style-hover="border-color:#CFE8D8;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#5A6660" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z M19 10v1a7 7 0 0 1-14 0v-1 M12 18v4"></path></svg></span>
+              <span onClick="{{ onSend }}" style="width:32px;height:32px;flex:none;border-radius:50%;background:{{ accent }};display:flex;align-items:center;justify-content:center;cursor:pointer;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5 M5 12l7-7 7 7"></path></svg></span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:center;gap:6px;padding:7px 0 2px;font-size:10.5px;font-weight:600;color:#8B968F;">
+              <span style="width:11px;height:11px;border-radius:3px;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);"></span>Powered by Clientforce Ai
+            </div>
+          </div>
+
+          <!-- LIVE VOICE MODE overlay -->
+          <sc-if value="{{ voice }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute;inset:0;background:#FBFDFB;display:flex;flex-direction:column;z-index:10;animation:wPop .3s ease;">
+              <div style="flex:none;display:flex;align-items:center;justify-content:space-between;padding:15px 18px;border-bottom:1px solid #E9EEEA;">
+                <span style="font-size:12.5px;font-weight:600;color:#5A6660;display:flex;align-items:center;gap:8px;"><span style="width:7px;height:7px;border-radius:50%;background:#146B33;"></span>Live voice · {{ voiceTimer }}</span>
+                <span onClick="{{ onVoiceEnd }}" style="color:#8B968F;font-size:15px;cursor:pointer;">✕</span>
+              </div>
+              <div style="flex:none;display:flex;flex-direction:column;align-items:center;padding:22px 0 8px;">
+                <div style="width:90px;height:90px;border-radius:50%;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);display:flex;align-items:center;justify-content:center;animation:vOrb 2.2s ease-in-out infinite;box-shadow:0 0 46px rgba(53,232,52,.32);"><span style="font-size:34px;color:#0A1F12;">✦</span></div>
+                <div style="display:flex;align-items:flex-end;gap:3px;height:26px;margin-top:16px;">
+                  <span style="width:4px;border-radius:2px;background:#146B33;animation:vBar 1s ease-in-out infinite;"></span>
+                  <span style="width:4px;border-radius:2px;background:#146B33;animation:vBar 1s ease-in-out infinite .12s;"></span>
+                  <span style="width:4px;border-radius:2px;background:#146B33;animation:vBar 1s ease-in-out infinite .24s;"></span>
+                  <span style="width:4px;border-radius:2px;background:#146B33;animation:vBar 1s ease-in-out infinite .36s;"></span>
+                  <span style="width:4px;border-radius:2px;background:#146B33;animation:vBar 1s ease-in-out infinite .48s;"></span>
+                </div>
+                <div style="font-size:12px;color:#8B968F;margin-top:10px;">{{ voiceStatus }}</div>
+              </div>
+              <div style="flex:1;min-height:0;overflow-y:auto;padding:14px 20px;display:flex;flex-direction:column;gap:11px;">
+                <sc-for list="{{ voiceLines }}" as="v" hint-placeholder-count="1">
+                  <div style="animation:wMsg .3s ease;">
+                    <div style="font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:{{ v.who }};margin-bottom:3px;">{{ v.label }}</div>
+                    <div style="font-size:13.5px;line-height:1.5;color:#101613;">{{ v.text }}</div>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="flex:none;display:flex;align-items:center;justify-content:center;gap:16px;padding:14px 0 22px;">
+                <span onClick="{{ onMute }}" style="width:48px;height:48px;border-radius:50%;background:{{ muteBg }};border:1px solid #DCE5DE;display:flex;align-items:center;justify-content:center;cursor:pointer;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{ muteStroke }}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z M19 10v1a7 7 0 0 1-14 0v-1 M12 18v4"></path></svg></span>
+                <span onClick="{{ onVoiceEnd }}" style="width:58px;height:58px;border-radius:50%;background:#B0483A;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 8px 22px rgba(176,72,58,.34);"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18 M6 6l12 12"></path></svg></span>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </sc-if>
+    </div>
+
+    <!-- FEATURE PARITY / ANATOMY -->
+    <div style="width:452px;flex:none;display:flex;flex-direction:column;gap:14px;">
+      <div style="background:#fff;border:1px solid #E9EEEA;border-radius:16px;padding:18px 20px;display:flex;flex-direction:column;gap:11px;">
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.12em;color:#8B968F;">FLOWS SHIPPED — FEATURE PARITY</span>
+        <sc-for list="{{ flowList }}" as="f" hint-placeholder-count="5">
+          <div style="display:flex;align-items:flex-start;gap:10px;border-bottom:1px solid #F2F6F3;padding-bottom:10px;">
+            <span style="width:18px;height:18px;flex:none;border-radius:99px;background:#EAF5EE;border:1px solid #CFE8D8;color:#146B33;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;margin-top:1px;">✓</span>
+            <div><div style="font-size:13px;font-weight:700;color:#101613;">{{ f.name }}</div><div style="font-size:12px;color:#5A6660;line-height:1.45;">{{ f.detail }}</div></div>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="background:#fff;border:1px solid #E9EEEA;border-radius:16px;padding:18px 20px;display:flex;flex-direction:column;gap:14px;">
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.12em;color:#8B968F;">KEY SURFACES</span>
+        <div style="display:flex;align-items:center;gap:14px;border-bottom:1px solid #F2F6F3;padding-bottom:14px;">
+          <div style="width:150px;flex:none;font-size:12.5px;color:#5A6660;line-height:1.45;"><strong style="color:#101613;">Launcher</strong> — brand mark (assets/mark.svg) on white, unread pip.</div>
+          <span style="width:46px;height:46px;flex:none;border-radius:50%;background:#FFFFFF;border:1px solid #E9EEEA;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 20px rgba(16,22,19,.2);"><img src="assets/mark.svg" alt="Clientforce" style="height:24px;width:auto;display:block;"></span>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:14px;">
+          <div style="width:150px;flex:none;font-size:12.5px;color:#5A6660;line-height:1.45;"><strong style="color:#101613;">Outcome card</strong> — mint confirm, forest ✓, receipt.</div>
+          <div style="flex:1;border:1px solid #CFE8D8;background:#EAF5EE;border-radius:12px;padding:11px 12px;">
+            <div style="display:flex;align-items:center;gap:7px;font-size:12px;font-weight:700;color:#146B33;"><span style="width:16px;height:16px;border-radius:99px;background:#146B33;color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;">✓</span>Booked · Tue 10:30 AM</div>
+            <div style="font-size:11px;color:#5A6660;margin-top:6px;">Invite sent · logged to the console</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="background:#FBFDFB;border:1px solid #E9EEEA;border-radius:16px;padding:16px 18px;display:flex;flex-direction:column;gap:9px;">
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.12em;color:#8B968F;">BUILD NOTES</span>
+        <div style="font-size:12px;color:#5A6660;line-height:1.55;">· <strong style="color:#101613;">Shadow is the one brand exception</strong> — the launcher + panel float over unknown host backgrounds. Everything inside stays flat + hairline per v3.</div>
+        <div style="font-size:12px;color:#5A6660;line-height:1.55;">· <strong style="color:#101613;">No emoji</strong> — legacy widget's emoji became line icons + the ✦ mark. Live voice mode is a <em>light</em> overlay, not the retired dark surface.</div>
+        <div style="font-size:12px;color:#5A6660;line-height:1.55;">· <strong style="color:#101613;">Isolation</strong> — ships in shadow DOM. Accent is the one customer-brandable token (tweak top-right).</div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1480,&quot;height&quot;:860},&quot;startOpen&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Widget&quot;},&quot;hostTheme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;light&quot;,&quot;dark&quot;],&quot;default&quot;:&quot;light&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Demo&quot;},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;options&quot;:[&quot;#146B33&quot;,&quot;#0E8FA8&quot;,&quot;#101613&quot;],&quot;default&quot;:&quot;#146B33&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Widget&quot;}}">
+class Component extends DCLogic {
+  constructor(props){ super(props); this.state = { open: null, stage: 'intent', msgs: [], typing: false, formName: '', formEmail: '', phone: '', draft: '', callPhase: null, propGoal: '', voice: false, voiceStep: 0, voiceSec: 0, muted: false }; }
+  componentDidUpdate(){ if (this._chat) this._chat.scrollTop = this._chat.scrollHeight; }
+  componentWillUnmount(){ clearTimeout(this._t); clearTimeout(this._c); clearInterval(this._v); }
+  C(){ return {
+    welcome: "Hi — I'm Ada, Bright Smile's assistant. I can book you in, call you back, send an estimate, or answer a question.",
+    bookAsk: 'Happy to get you in this week — new patient or returning?',
+    qualify: [
+      { label: 'New patient', say: 'Welcome! First visit is a cleaning, exam and X-rays. Where should we send your confirmation?' },
+      { label: 'Returning', say: 'Welcome back! Where should we send your confirmation?' },
+      { label: 'Just looking', say: 'No pressure — a quick visit gets you real answers. Where should we send your confirmation?' },
+    ],
+    slotsIntro: 'Here are the next openings with Dr. Patel (all times CST):',
+    bookedAfter: "You're all set — we'll text directions and a short intake form before your visit. Anything else?",
+    callAsk: "Our AI agent can call within a minute, or whenever suits you. What's the best number?",
+    callQuote: "Hi! This is Bright Smile calling as promised — let's find a time that works…",
+    callQ1: 'New patient — cleaning + exam + X-rays', callQ2: 'Booked — Tue, Jul 28 · 10:30 AM with Dr. Patel',
+    callAfter: "All wrapped up — the invite's on its way to your phone. Anything else I can help with?",
+    schedAfter: "Done — our AI agent will call you then, with an SMS reminder 15 minutes before. Anything else?",
+    propAsk: 'I can generate a personalized estimate right now. Which treatment are you considering?',
+    propChips: [
+      { label: 'Cleaning + X-rays', goal: 'Cleaning + X-rays', say: 'Our most popular visit. Where should I send your estimate?' },
+      { label: 'Invisalign', goal: 'Invisalign', say: 'Great choice — consults are free this month. Where should I send your estimate?' },
+      { label: 'Implants', goal: 'Implants', say: "I'll include payment-plan options too. Where should I send your estimate?" },
+    ],
+    propBtnLabel: 'Send my estimate', propGenLabel: 'Preparing your estimate…', propSentTitle: 'Estimate sent',
+    docPrefix: 'Care estimate — ', propDocSub: 'Pricing · insurance notes · payment plans',
+    propAfter: "Estimate's in your inbox — pricing, insurance notes and payment plans. Want to lock in an appointment while you're here?",
+    faqAsk: 'Ask away — insurance, pricing, treatments, anything.',
+    faqAnswer: "We're in-network with most PPO plans, offer 0% payment plans, and a new-patient cleaning + exam + X-rays is $149. A quick visit gets you exact numbers. Want me to book you in?",
+    voiceScript: [
+      { label: 'Ada', who: '#146B33', text: 'Hi! You\u2019re talking to Bright Smile\u2019s AI front desk — ask me anything, or say "book it" and I\u2019ll find you a time.' },
+      { label: 'You', who: '#8B968F', text: 'Do you offer Invisalign?' },
+      { label: 'Ada', who: '#146B33', text: 'We do — Dr. Patel is a certified provider and consults are free this month. Plans start at 0% interest.' },
+      { label: 'You', who: '#8B968F', text: 'Okay — book it.' },
+      { label: 'Ada', who: '#146B33', text: 'On it. I\u2019ll grab your details in the chat when we hang up — Tuesday 10:30 or 3 PM are open.' },
+    ],
+    voiceAfter: 'Great talking with you! Picking up where we left off — where should we send your confirmation?',
+  }; }
+  say(text, extra, delay){ this.setState({ typing: true }); this._t = setTimeout(() => this.setState(s => Object.assign({ typing: false, msgs: s.msgs.concat([{ k: 'agent', text }]) }, extra || {})), delay || 850); }
+  user(text){ this.setState(s => ({ msgs: s.msgs.concat([{ k: 'user', text }]) })); }
+  book(when){ const C = this.C(); const email = this.state.formEmail.trim() || 'you@email.com'; this.user(when); this.setState({ typing: true, stage: 'ended' });
+    this._t = setTimeout(() => this.setState(s => ({ typing: false, stage: 'done', msgs: s.msgs.concat([{ k: 'booked', when, detail: 'Cleaning + exam with Dr. Patel', email }, { k: 'agent', text: C.bookedAfter }]) })), 950); }
+  schedule(when){ const C = this.C(); const phone = this.state.phone.trim() || 'your number'; this.user(when); this.setState({ typing: true, stage: 'ended' });
+    this._t = setTimeout(() => this.setState(s => ({ typing: false, stage: 'done', msgs: s.msgs.concat([{ k: 'sched', when, phone }, { k: 'agent', text: C.schedAfter }]) })), 950); }
+  startCall(){ const C = this.C(); const phone = this.state.phone.trim(); this.user(phone);
+    this.setState(s => ({ stage: 'calling', callPhase: 'dialing', msgs: s.msgs.concat([{ k: 'call' }]) }));
+    this._c = setTimeout(() => { this.setState({ callPhase: 'ringing' });
+      this._c = setTimeout(() => { this.setState({ callPhase: 'live' });
+        this._c = setTimeout(() => { this.setState({ callPhase: 'done' }); this.say(C.callAfter, { stage: 'done' }, 700); }, 4200);
+      }, 1500);
+    }, 1400); }
+  startVoice(){ this.setState({ voice: true, voiceStep: 1, voiceSec: 0, muted: false }); clearInterval(this._v);
+    this._v = setInterval(() => this.setState(s => ({ voiceSec: s.voiceSec + 1, voiceStep: (s.voiceSec > 0 && s.voiceSec % 3 === 0 && s.voiceStep < 5) ? s.voiceStep + 1 : s.voiceStep })), 1000); }
+  endVoice(){ clearInterval(this._v); const C = this.C(); const spoke = this.state.voiceStep >= 4;
+    this.setState(s => ({ voice: false, msgs: s.msgs.concat([{ k: 'user', text: 'Voice conversation · ' + this.fmt(s.voiceSec) }]) }));
+    if (spoke) this.say(C.voiceAfter, { stage: 'capture' }); else this.say("No problem — we can keep it in chat. What would you like to do?", { stage: 'intent' }); }
+  fmt(sec){ return Math.floor(sec / 60) + ':' + ('0' + (sec % 60)).slice(-2); }
+
+  renderVals(){
+    const s = this.state; const C = this.C();
+    const accent = this.props.accent ?? '#146B33';
+    const open = s.open ?? (this.props.startOpen ?? true);
+    const dark = (this.props.hostTheme ?? 'light') === 'dark';
+
+    const pick = (label, next) => () => { this.user(label); next(); };
+    const CHIPS = {
+      intent: [
+        { label: 'Book a visit', onPick: pick('Book a visit', () => this.say(C.bookAsk, { stage: 'qualify' })) },
+        { label: 'Call me back', onPick: pick('Call me back', () => this.say(C.callAsk, { stage: 'phone' })) },
+        { label: 'Get an estimate', onPick: pick('Get an estimate', () => this.say(C.propAsk, { stage: 'propQualify' })) },
+        { label: 'Ask a question', onPick: pick('Ask a question', () => this.say(C.faqAsk, { stage: 'faq' })) },
+      ],
+      qualify: C.qualify.map(q => ({ label: q.label, onPick: pick(q.label, () => this.say(q.say, { stage: 'capture' })) })),
+      slots: [
+        { label: 'Tue · 10:30 AM', onPick: () => this.book('Tue, Jul 28 · 10:30 AM') },
+        { label: 'Tue · 3:00 PM', onPick: () => this.book('Tue, Jul 28 · 3:00 PM') },
+        { label: 'Wed · 9:00 AM', onPick: () => this.book('Wed, Jul 29 · 9:00 AM') },
+      ],
+      schedule: [
+        { label: 'Today · 4:00 PM', onPick: () => this.schedule('Today · 4:00 PM') },
+        { label: 'Tomorrow · 10:00 AM', onPick: () => this.schedule('Tomorrow · 10:00 AM') },
+        { label: 'Tomorrow · 2:30 PM', onPick: () => this.schedule('Tomorrow · 2:30 PM') },
+      ],
+      propQualify: C.propChips.map(p => ({ label: p.label, onPick: pick(p.label, () => this.say(p.say, { stage: 'propEmail', propGoal: p.goal })) })),
+      faq: [{ label: 'Book a visit', onPick: pick('Book a visit', () => this.say(C.bookAsk, { stage: 'qualify' })) }],
+      done: [{ label: "That's all — thanks", onPick: pick("That's all — thanks", () => this.say('Anytime — talk soon.', { stage: 'ended' })) }],
+      capture: [], phone: [], propEmail: [], calling: [], ended: [],
+    };
+    const chips = (CHIPS[s.stage] || []).map((c, i) => ({ label: c.label, onPick: c.onPick,
+      w: i === 0 ? 700 : 600, fg: i === 0 ? '#146B33' : '#5A6660', bg: i === 0 ? '#EAF5EE' : '#fff', bd: i === 0 ? '#CFE8D8' : '#E2EAE4' }));
+
+    const formValid = s.formName.trim().length > 1 && s.formEmail.includes('@');
+    const phoneValid = s.phone.replace(/[^0-9]/g, '').length >= 7;
+    const propValid = s.formEmail.includes('@');
+
+    const sendDraft = () => { const t = s.draft.trim(); if (!t) return; this.user(t); this.setState({ draft: '' });
+      if (s.stage === 'faq') this.say(C.faqAnswer, { stage: 'faq' }, 1100);
+      else this.say('Got it — the fastest way is a quick visit. Want me to find you a time?', { stage: 'faq' }, 950); };
+
+    const CALL_UI = {
+      dialing: { title: 'Calling you now…', sub: 'Dialing ' + (s.phone || 'your number'), border: '#E9EEEA', bg: '#fff', iconBg: '#F2F6F3', stroke: '#5A6660', anim: 'wPulse 1.4s infinite' },
+      ringing: { title: 'Ringing…', sub: "Pick up — it's us, not spam", border: '#E9EEEA', bg: '#fff', iconBg: '#F2F6F3', stroke: '#5A6660', anim: 'wPulse 1.4s infinite' },
+      live: { title: 'On call with our AI agent', sub: 'Qualifying & booking — hang up anytime', border: '#CFE8D8', bg: '#EAF5EE', iconBg: '#DBF0E2', stroke: '#146B33', anim: 'wPulse 1.4s infinite' },
+      done: { title: 'Call completed · 2:14', sub: 'Summary saved to your conversation', border: '#CFE8D8', bg: '#EAF5EE', iconBg: '#DBF0E2', stroke: '#146B33', anim: 'none' },
+    };
+    const cu = CALL_UI[s.callPhase] || CALL_UI.dialing;
+
+    const hostPal = dark
+      ? { hostBg: '#12211A', hostLine: '#1E3128', hostInk: '#EAF5EE', hostBlock: 'rgba(234,245,238,.14)', hostBlock2: 'rgba(234,245,238,.20)', hostTag: 'rgba(234,245,238,.4)' }
+      : { hostBg: '#F2F5F3', hostLine: '#DCE5DE', hostInk: '#101613', hostBlock: '#D5DED8', hostBlock2: '#C6D2CA', hostTag: '#8B968F' };
+
+    return {
+      accent, open, closed: !open,
+      onOpen: () => this.setState({ open: true }),
+      onClose: () => this.setState({ open: false, stage: 'intent', msgs: [], formName: '', formEmail: '', phone: '', draft: '', callPhase: null, voice: false }),
+      chatRef: (el) => { this._chat = el; },
+      msgs: [{ k: 'agent', text: C.welcome }].concat(s.msgs).map(m => ({
+        isAgent: m.k === 'agent', isUser: m.k === 'user', isBooked: m.k === 'booked', isSched: m.k === 'sched', isCall: m.k === 'call', isPropGen: m.k === 'propgen', isPropSent: m.k === 'propsent',
+        text: m.text || '', when: m.when || '', detail: m.detail || '', email: m.email || '', phone: m.phone || '', doc: m.doc || '',
+      })),
+      typing: s.typing,
+      chips, showChips: !s.typing && chips.length > 0,
+      showForm: s.stage === 'capture' && !s.typing,
+      showPhone: s.stage === 'phone' && !s.typing,
+      showPropEmail: s.stage === 'propEmail' && !s.typing,
+      callTitle: cu.title, callSub: cu.sub, callBorder: cu.border, callBg: cu.bg, callIconBg: cu.iconBg, callStroke: cu.stroke, callAnim: cu.anim,
+      callLive: s.callPhase === 'live', callDone: s.callPhase === 'done',
+      callQuote: C.callQuote, callQ1: C.callQ1, callQ2: C.callQ2,
+      propGenLabel: C.propGenLabel, propSentTitle: C.propSentTitle, propDocSub: C.propDocSub, propBtnLabel: C.propBtnLabel,
+      formName: s.formName, onFormName: (e) => this.setState({ formName: e.target.value }),
+      formEmail: s.formEmail, onFormEmail: (e) => this.setState({ formEmail: e.target.value }),
+      formOpacity: formValid ? '1' : '.5',
+      onFormSubmit: () => { if (!formValid) return; this.user(s.formName.trim() + ' · ' + s.formEmail.trim()); this.say('Thanks ' + s.formName.trim().split(' ')[0] + '! ' + C.slotsIntro, { stage: 'slots' }); },
+      phone: s.phone, onPhone: (e) => this.setState({ phone: e.target.value }), phoneOpacity: phoneValid ? '1' : '.5',
+      onCallNow: () => { if (phoneValid) this.startCall(); },
+      onSchedLater: () => { if (!phoneValid) return; this.user(s.phone.trim() + ' — schedule for later'); this.say('No problem — when should our AI agent call?', { stage: 'schedule' }); },
+      propOpacity: propValid ? '1' : '.5',
+      onPropSubmit: () => { if (!propValid) return; this.user(s.formEmail.trim());
+        this.setState(sx => ({ stage: 'propGen', msgs: sx.msgs.concat([{ k: 'propgen' }]) }));
+        this._t = setTimeout(() => this.setState(sx => ({ stage: 'done', msgs: sx.msgs.filter(m => m.k !== 'propgen').concat([{ k: 'propsent', email: s.formEmail.trim(), doc: C.docPrefix + (s.propGoal || C.propChips[0].goal) }, { k: 'agent', text: C.propAfter }]) })), 2800); },
+      draft: s.draft, onDraft: (e) => this.setState({ draft: e.target.value }),
+      onKey: (e) => { if (e.key === 'Enter') { e.preventDefault(); sendDraft(); } },
+      onSend: sendDraft,
+      voice: s.voice, onVoiceStart: () => this.startVoice(), onVoiceEnd: () => this.endVoice(),
+      voiceLines: C.voiceScript.slice(0, s.voiceStep), voiceTimer: this.fmt(s.voiceSec),
+      voiceStatus: s.muted ? "Muted — the agent can't hear you" : (s.voiceStep % 2 === 1 ? 'Agent speaking…' : 'Listening…'),
+      onMute: () => this.setState(sx => ({ muted: !sx.muted })),
+      muteBg: s.muted ? '#FBEEEA' : '#fff', muteStroke: s.muted ? '#B0483A' : '#5A6660',
+      flowList: [
+        { name: 'Book a visit', detail: 'Qualify → name + email capture → live slot pick → confirmed card with invite.' },
+        { name: 'Call me back — live', detail: 'Phone capture → animated dialing · ringing · live · done, with transcript quote + outcomes.' },
+        { name: 'Schedule callback', detail: 'Pick a later time → scheduled-callback card with SMS-reminder note + consent.' },
+        { name: 'Instant estimate', detail: 'Treatment goal → email → generating progress → sent card with document attachment.' },
+        { name: 'Live voice mode', detail: 'Mic → light voice overlay: gradient orb, waveform, transcript, mute / hang up.' },
+        { name: 'Ask a question', detail: 'Free-text FAQ with a grounded answer, then a book-a-visit nudge.' },
+      ],
+      hostThemeLabel: dark ? 'dark' : 'light',
+      ...hostPal,
+    };
+  }
+}
+</script>
+</body>
+</html>

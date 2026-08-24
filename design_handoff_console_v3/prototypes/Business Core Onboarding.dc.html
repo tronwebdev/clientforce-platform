@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800;900&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;}
+body{margin:0;background:#EFF1F0;font-family:'IBM Plex Sans',system-ui,sans-serif;color:#101613;-webkit-font-smoothing:antialiased;}
+a{color:#0E7D93;text-decoration:none;}
+a:hover{color:#146B33;}
+input,button{font-family:inherit;}
+input::placeholder{color:#A8B2AC;}
+::-webkit-scrollbar{width:7px;height:7px;}
+::-webkit-scrollbar-thumb{background:#D9DEDB;border-radius:100px;}
+::-webkit-scrollbar-track{background:transparent;}
+@keyframes bIn{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+@keyframes bPulse{0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes bGrow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes aDrift{0%{transform:translate3d(0,0,0) scale(1)}33%{transform:translate3d(7%,-5%,0) scale(1.12)}66%{transform:translate3d(-5%,6%,0) scale(.94)}100%{transform:translate3d(0,0,0) scale(1)}}
+@keyframes aScan{0%{transform:translateY(-12%);opacity:0}12%{opacity:.5}88%{opacity:.5}100%{transform:translateY(112%);opacity:0}}
+@keyframes aRise{0%{transform:translateY(14px);opacity:0}18%,82%{opacity:1;transform:translateY(0)}100%{transform:translateY(-14px);opacity:0}}
+@keyframes aTick{0%,45%{opacity:.2;transform:scale(.9)}55%,100%{opacity:1;transform:scale(1)}}
+</style>
+</helmet>
+
+<sc-if value="{{ isAuth }}" hint-placeholder-val="{{ true }}">
+<div data-screen-label="Sign in" style="height:100vh;background:#EFF1F0;display:flex;padding:26px;overflow:hidden;">
+  <div style="flex:1;min-height:0;display:flex;gap:18px;animation:bIn .5s ease both;">
+
+    <div style="flex:1;min-width:0;position:relative;overflow:hidden;border-radius:22px;background:radial-gradient(120% 100% at 12% 0%,#12512C 0%,#0A2A38 54%,#0A0F14 100%);padding:44px 64px 44px 78px;display:flex;flex-direction:column;">
+      <div style="position:absolute;inset:-18%;pointer-events:none;">
+        <span style="position:absolute;left:6%;top:8%;width:52%;height:46%;border-radius:50%;background:radial-gradient(circle,rgba(53,232,52,.34),transparent 68%);filter:blur(34px);animation:aDrift 19s ease-in-out infinite;"></span>
+        <span style="position:absolute;right:2%;bottom:4%;width:46%;height:44%;border-radius:50%;background:radial-gradient(circle,rgba(54,215,237,.28),transparent 68%);filter:blur(38px);animation:aDrift 25s ease-in-out infinite reverse;"></span>
+      </div>
+      <div style="position:absolute;inset:0;pointer-events:none;background-image:linear-gradient(rgba(255,255,255,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.045) 1px,transparent 1px);background-size:46px 46px;"></div>
+      <div style="position:absolute;left:0;right:0;height:34%;pointer-events:none;background:linear-gradient(180deg,transparent,rgba(53,232,52,.10) 58%,transparent);animation:aScan 7.5s cubic-bezier(.4,0,.6,1) infinite;"></div>
+
+      <div style="position:relative;flex:none;">
+        <img src="assets/logo-white.svg" alt="Clientforce Ai" style="height:24px;">
+      </div>
+      <div style="position:relative;flex:1;display:flex;flex-direction:column;justify-content:center;padding:40px 0;">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.18em;color:rgba(255,255,255,.5);">{{ au.leftEyebrow }}</div>
+        <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:900;font-size:46px;letter-spacing:-.04em;line-height:1.02;color:#fff;margin-top:18px;max-width:9ch;text-wrap:balance;">{{ au.leftTitle }}</div>
+        <div style="font-size:16px;font-weight:500;color:rgba(255,255,255,.72);line-height:1.6;margin-top:20px;max-width:34ch;text-wrap:pretty;">{{ au.leftSub }}</div>
+      </div>
+    </div>
+
+    <div style="width:466px;flex:none;background:linear-gradient(180deg,#FFFFFF 0%,#FCFDFC 55%,#F7FAF8 100%);border:1px solid #E4E7E5;border-radius:22px;padding:34px 40px;display:flex;flex-direction:column;justify-content:center;box-shadow:0 1px 2px rgba(16,22,19,.05),0 14px 38px -16px rgba(16,22,19,.16);">
+      <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:900;font-size:24px;letter-spacing:-.034em;line-height:1.1;">{{ au.title }}</div>
+
+      <sc-if value="{{ au.isForm }}" hint-placeholder-val="{{ true }}">
+        <div onClick="{{ au.google }}" style="display:flex;align-items:center;justify-content:center;gap:11px;height:48px;background:#fff;border:1px solid #E2E4E3;border-radius:13px;cursor:pointer;margin-top:20px;box-shadow:0 1px 2px rgba(16,22,19,.04);" style-hover="background:#F6F7F7;border-color:#D4DAD6;">
+          <svg width="17" height="17" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.71-1.57 2.68-3.89 2.68-6.62z"></path><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.81.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.34A8.99 8.99 0 0 0 9 18z"></path><path fill="#FBBC05" d="M3.97 10.72a5.41 5.41 0 0 1 0-3.44V4.94H.96a8.99 8.99 0 0 0 0 8.12l3.01-2.34z"></path><path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.59A8.99 8.99 0 0 0 .96 4.94l3.01 2.34C4.68 5.16 6.66 3.58 9 3.58z"></path></svg>
+          <span style="font-size:13.5px;font-weight:700;letter-spacing:-.015em;color:#101613;">{{ au.googleL }}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;margin:18px 0;">
+          <span style="flex:1;height:1px;background:#ECEDEC;"></span>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.16em;color:#A8B2AC;">OR</span>
+          <span style="flex:1;height:1px;background:#ECEDEC;"></span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:9px;">
+          <sc-for list="{{ au.fields }}" as="f" hint-placeholder-count="2">
+            <input value="{{ f.v }}" onChange="{{ f.set }}" type="{{ f.type }}" placeholder="{{ f.ph }}" style="width:100%;height:46px;background:#F4F6F5;border:1px solid #DFE3E1;border-radius:13px;padding:0 15px;font-size:13.5px;color:#101613;outline:none;box-shadow:inset 0 1px 2px rgba(16,22,19,.05);">
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ au.isCode }}" hint-placeholder-val="{{ false }}">
+        <div style="background:#F6F7F7;border-radius:16px;padding:20px;margin-top:20px;text-align:center;">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.18em;color:#8B968F;">SENT TO</div>
+          <div style="font-size:13.5px;font-weight:600;margin-top:6px;">{{ au.mail }}</div>
+          <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:900;font-size:26px;letter-spacing:.22em;margin-top:14px;color:#146B33;">{{ au.code }}</div>
+        </div>
+      </sc-if>
+
+      <span onClick="{{ au.go }}" style="display:block;text-align:center;height:48px;line-height:48px;border-radius:13px;background:#146B33;font-size:14px;font-weight:800;color:#fff;cursor:pointer;margin-top:16px;" style-hover="background:#0E5C2B;">{{ au.cta }}</span>
+      <div onClick="{{ au.swap }}" style="text-align:center;font-size:12.5px;color:#0E7D93;cursor:pointer;margin-top:15px;">{{ au.swapL }}</div>
+      <sc-if value="{{ au.isForm }}" hint-placeholder-val="{{ true }}">
+        <div style="font-size:11px;color:#A8B2AC;line-height:1.5;text-align:center;margin-top:14px;">{{ au.legal }}</div>
+      </sc-if>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isPlan }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Choose your plan" style="height:100vh;background:radial-gradient(120% 90% at 78% -10%,#F3F6F4 0%,#EDF0EE 45%,#E7EBE9 100%);display:flex;flex-direction:column;padding:26px;overflow:hidden;">
+  <div style="flex:none;display:flex;align-items:center;gap:11px;padding-bottom:20px;">
+    <img src="assets/logo-dark.svg" alt="Clientforce Ai" style="height:22px;">
+    <span style="flex:1;"></span>
+    <span style="display:flex;align-items:center;gap:7px;background:#FCFCFC;border:1px solid #EAEBEA;border-radius:999px;padding:7px 13px;">
+      <span style="width:7px;height:7px;border-radius:50%;background:#146B33;animation:bPulse 2s ease-in-out infinite;"></span>
+      <span style="font-size:11.5px;font-weight:700;">Your Core is live</span>
+    </span>
+  </div>
+  <div style="flex:1;min-height:0;overflow-y:auto;display:flex;justify-content:center;">
+    <div style="width:100%;max-width:512px;animation:bIn .45s ease both;">
+      <div style="background:linear-gradient(180deg,#FFFFFF 0%,#FCFDFC 50%,#F7FAF8 100%);border:1px solid #E4E7E5;border-radius:22px;overflow:hidden;box-shadow:0 1px 2px rgba(16,22,19,.05),0 14px 38px -14px rgba(16,22,19,.18);">
+        <div style="height:3px;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);"></div>
+        <div style="padding:26px 30px;">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.18em;color:#8B968F;">LAST STEP</div>
+          <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:900;font-size:26px;letter-spacing:-.034em;line-height:1.1;margin-top:9px;">Start free for 14 days</div>
+          <div style="font-size:13.5px;color:#5A6660;line-height:1.6;margin-top:9px;">Pick the size that fits. Nothing is charged today, and you can change tier whenever.</div>
+
+          <div style="display:flex;flex-direction:column;gap:8px;margin-top:22px;">
+            <sc-for list="{{ tiers }}" as="p" hint-placeholder-count="3">
+              <div onClick="{{ p.go }}" style="display:flex;align-items:center;gap:14px;background:{{ p.bg }};border:1px solid {{ p.bd }};border-radius:16px;padding:16px 18px;cursor:pointer;box-shadow:0 1px 2px rgba(16,22,19,.035);" style-hover="border-color:#CFE8D8;">
+                <span style="width:18px;height:18px;flex:none;border-radius:50%;border:1.5px solid {{ p.ring }};background:{{ p.dot }};"></span>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:900;font-size:16px;letter-spacing:-.026em;">{{ p.name }}</div>
+                  <div style="font-size:12px;color:#8B968F;margin-top:3px;">{{ p.sub }}</div>
+                </div>
+                <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:900;font-size:19px;letter-spacing:-.03em;flex:none;color:{{ p.pFg }};">{{ p.price }}</div>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:9px;margin-top:24px;">
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.18em;color:#8B968F;">CARD DETAILS</span>
+            <span style="flex:1;height:1px;background:#ECEDEC;"></span>
+            <span style="display:flex;align-items:center;gap:5px;">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#8B968F" stroke-width="2" stroke-linecap="round"><rect x="4" y="11" width="16" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>
+              <span style="font-size:10.5px;color:#8B968F;">Secured by Stripe</span>
+            </span>
+          </div>
+
+          <div style="margin-top:12px;background:#F4F6F5;border:1px solid #E2E6E4;border-radius:14px;overflow:hidden;box-shadow:inset 0 1px 2px rgba(16,22,19,.05);">
+            <div style="display:flex;align-items:center;gap:10px;padding:0 14px;height:48px;border-bottom:1px solid #E7EAE8;">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#8B968F" stroke-width="1.7"><rect x="2" y="5" width="20" height="14" rx="3"></rect><path d="M2 10h20"></path></svg>
+              <input value="{{ cardNum }}" onChange="{{ setCardNum }}" placeholder="Card number" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font-family:'IBM Plex Mono',monospace;font-size:13.5px;letter-spacing:.04em;color:#101613;">
+              <span style="display:flex;gap:4px;flex:none;opacity:{{ cardBrandOp }};transition:opacity .3s ease;">
+                <span style="width:26px;height:17px;border-radius:3px;background:#1A1F71;color:#fff;font-size:8px;font-weight:800;display:flex;align-items:center;justify-content:center;letter-spacing:-.02em;">VISA</span>
+                <span style="width:26px;height:17px;border-radius:3px;background:#EB001B;position:relative;"><span style="position:absolute;right:4px;top:3px;width:11px;height:11px;border-radius:50%;background:#F79E1B;opacity:.85;"></span></span>
+              </span>
+            </div>
+            <div style="display:flex;">
+              <div style="flex:1;display:flex;align-items:center;gap:10px;padding:0 14px;height:46px;border-right:1px solid #E7EAE8;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8B968F" stroke-width="1.7"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg>
+                <input value="{{ cardExp }}" onChange="{{ setCardExp }}" placeholder="MM / YY" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font-family:'IBM Plex Mono',monospace;font-size:13.5px;color:#101613;">
+              </div>
+              <div style="flex:1;display:flex;align-items:center;gap:10px;padding:0 14px;height:46px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8B968F" stroke-width="1.7"><rect x="4" y="11" width="16" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>
+                <input value="{{ cardCvc }}" onChange="{{ setCardCvc }}" placeholder="CVC" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font-family:'IBM Plex Mono',monospace;font-size:13.5px;color:#101613;">
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;background:#EAF5EE;border:1px solid #CFE8D8;border-radius:13px;padding:12px 15px;margin-top:10px;">
+            <span style="font-size:12.5px;color:#1D5B34;line-height:1.45;">{{ trialLine }}</span>
+            <span style="font-family:'Schibsted Grotesk',sans-serif;font-weight:900;font-size:15px;letter-spacing:-.028em;color:#146B33;flex:none;">$0.00</span>
+          </div>
+
+          <span onClick="{{ enterConsole }}" style="display:block;text-align:center;height:48px;line-height:48px;border-radius:13px;background:{{ payBg }};font-size:14px;font-weight:800;color:#fff;cursor:pointer;margin-top:16px;box-shadow:0 1px 2px rgba(16,22,19,.12),0 8px 20px -8px rgba(20,107,51,.55);transition:background .25s ease;" style-hover="background:#0E5C2B;">{{ payL }}</span>
+          <div style="font-size:11.5px;color:#8B968F;text-align:center;margin-top:12px;line-height:1.5;">{{ trialFoot }}</div>
+        </div>
+      </div>
+      <div onClick="{{ backToCore }}" style="text-align:center;font-size:12.5px;color:#0E7D93;cursor:pointer;padding:18px 0 30px;">← Back to my Core</div>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isCore }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Business Core setup" style="height:100vh;overflow:hidden;padding:26px;display:flex;gap:18px;background:radial-gradient(120% 90% at 78% -10%,#F3F6F4 0%,#EDF0EE 45%,#E7EBE9 100%);">
+
+  <div style="width:288px;flex:none;display:flex;flex-direction:column;gap:14px;height:100%;overflow:hidden;">
+    <div style="flex:none;display:flex;align-items:center;gap:11px;padding:13px 18px;border-radius:15px;background:linear-gradient(180deg,#FFFFFF,#F6F9F7);border:1px solid #DDE3DF;box-shadow:0 1px 2px rgba(16,22,19,.06),0 10px 26px -14px rgba(16,22,19,.18);">
+      <img src="assets/mark.svg" alt="" style="width:28px;height:28px;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:800;font-size:13.5px;letter-spacing:-.022em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ bizName }}</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.13em;color:#8B968F;margin-top:2px;">SETTING UP</div>
+      </div>
+    </div>
+
+    <div style="flex:1;min-height:0;background:linear-gradient(180deg,#FFFFFF,#FAFCFB 60%,#F4F7F5);border:1px solid #DDE3DF;border-radius:18px;padding:20px 22px;box-shadow:0 1px 2px rgba(16,22,19,.06),0 14px 34px -16px rgba(16,22,19,.2);display:flex;flex-direction:column;overflow:hidden;">
+      <div style="flex:none;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.13em;color:#7C8781;">BUSINESS CORE</div>
+      <div style="flex:none;display:flex;align-items:baseline;gap:7px;margin-top:9px;">
+        <span style="font-family:'Schibsted Grotesk',sans-serif;font-weight:900;font-size:28px;letter-spacing:-.034em;line-height:1;">{{ pct }}</span>
+        <span style="font-size:11.5px;color:#8B968F;">assembled</span>
+      </div>
+      <div style="flex:none;height:5px;border-radius:3px;background:#E4E9E6;margin-top:14px;overflow:hidden;box-shadow:inset 0 1px 2px rgba(16,22,19,.06);">
+        <span style="display:block;height:5px;width:{{ pct }};background:linear-gradient(90deg,#146B33,#35E834);transition:width .6s cubic-bezier(.32,.72,0,1);"></span>
+      </div>
+      <div style="flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;margin-top:6px;">
+        <sc-for list="{{ facets }}" as="k" hint-placeholder-count="6">
+          <div style="display:flex;align-items:center;gap:10px;padding:12px 0;border-top:1px solid #E9EDEA;">
+            <span style="width:18px;height:18px;flex:none;border-radius:6px;background:{{ k.bg }};border:1px solid {{ k.bd }};color:{{ k.tickFg }};display:flex;align-items:center;justify-content:center;font-size:9px;">{{ k.tick }}</span>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:13px;font-weight:{{ k.fw }};letter-spacing:-.014em;color:{{ k.fg }};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ k.n }}</div>
+              <sc-if value="{{ k.hasVal }}" hint-placeholder-val="{{ false }}">
+                <div style="font-size:11.5px;color:#6E7A74;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="{{ k.v }}">{{ k.v }}</div>
+              </sc-if>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="flex:none;display:flex;align-items:center;gap:10px;background:{{ adaBg }};border:1px solid {{ adaBd }};border-radius:16px;padding:14px 18px;box-shadow:0 1px 2px rgba(16,22,19,.05),0 10px 24px -14px rgba(16,22,19,.16);">
+      <span style="width:28px;height:28px;flex:none;border-radius:9px;background:{{ adaTile }};border:1px solid {{ adaTileBd }};color:{{ adaTileFg }};display:flex;align-items:center;justify-content:center;font-size:12px;">✦</span>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:12px;font-weight:700;letter-spacing:-.012em;color:{{ adaFg }};">Ada</div>
+        <div style="font-size:11.5px;color:{{ adaSubFg }};margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ adaState }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:14px;height:100%;overflow:hidden;">
+    <div style="flex:none;display:flex;align-items:center;gap:5px;">
+      <sc-for list="{{ dots }}" as="d" hint-placeholder-count="7">
+        <span title="{{ d.l }}" style="height:4px;flex:{{ d.flex }};border-radius:2px;background:{{ d.bg }};transition:flex .5s ease,background .4s ease;"></span>
+      </sc-for>
+    </div>
+
+    <div style="flex:1;min-height:0;background:linear-gradient(180deg,#FFFFFF 0%,#FCFDFC 46%,#F7FAF8 100%);border:1px solid #E4E7E5;border-radius:22px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 1px 2px rgba(16,22,19,.05),0 12px 34px -14px rgba(16,22,19,.16);">
+      <div style="flex:none;height:3px;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);"></div>
+      <div style="flex:1;min-height:0;overflow-y:auto;padding:34px 38px 34px;">
+        <div style="max-width:492px;animation:bIn .4s ease both;">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.18em;color:#8B968F;">{{ st.eyebrow }}</div>
+          <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:900;font-size:27px;letter-spacing:-.034em;line-height:1.1;margin-top:9px;background:linear-gradient(180deg,#101613 30%,#14743A 130%);-webkit-background-clip:text;background-clip:text;color:transparent;">{{ st.title }}</div>
+          <div style="font-size:13.5px;color:#5A6660;line-height:1.6;margin-top:10px;">{{ st.sub }}</div>
+
+          <sc-if value="{{ st.isSite }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;align-items:center;gap:2px;background:#F4F6F5;border:1px solid #DFE3E1;border-radius:15px;padding:0 16px;height:56px;margin-top:24px;box-shadow:inset 0 1px 2px rgba(16,22,19,.05);">
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#A8B2AC;flex:none;">https://</span>
+              <input value="{{ site }}" onChange="{{ setSite }}" placeholder="yourbusiness.com" style="flex:1;min-width:0;border:none;outline:none;background:transparent;font-size:15px;font-weight:600;letter-spacing:-.015em;color:#101613;">
+            </div>
+            <div style="font-size:12px;color:#8B968F;margin-top:12px;line-height:1.55;">She reads your pages once, then keeps what matters. Nothing is published or changed.</div>
+            <div onClick="{{ noSite }}" style="font-size:12.5px;color:#0E7D93;cursor:pointer;margin-top:14px;">No website? Tell her about the business instead →</div>
+          </sc-if>
+
+          <sc-if value="{{ st.isRead }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:8px;margin-top:24px;">
+              <sc-for list="{{ found }}" as="r" hint-placeholder-count="5">
+                <div style="display:flex;align-items:flex-start;gap:12px;background:#fff;border:1px solid #E7EAE8;border-radius:15px;padding:15px 17px;box-shadow:0 1px 2px rgba(16,22,19,.035);">
+                  <span style="width:26px;height:26px;flex:none;border-radius:9px;background:#EAF5EE;border:1px solid #CFE8D8;color:#146B33;display:flex;align-items:center;justify-content:center;font-size:11px;">✓</span>
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.14em;color:#8B968F;">{{ r.k }}</div>
+                    <div style="font-size:13px;line-height:1.5;margin-top:5px;">{{ r.v }}</div>
+                  </div>
+                  <span onClick="{{ r.fix }}" style="font-size:11.5px;font-weight:700;color:#0E7D93;cursor:pointer;flex:none;">Change</span>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ st.isPick }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:8px;margin-top:24px;">
+              <sc-for list="{{ picks }}" as="o" hint-placeholder-count="4">
+                <div onClick="{{ o.go }}" style="display:flex;align-items:center;gap:13px;background:{{ o.bg }};border:1px solid {{ o.bd }};border-radius:15px;padding:15px 17px;cursor:pointer;box-shadow:0 1px 2px rgba(16,22,19,.035);" style-hover="border-color:#CFE8D8;">
+                  <span style="width:18px;height:18px;flex:none;border-radius:{{ o.shape }};border:1.5px solid {{ o.ring }};background:{{ o.dot }};"></span>
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-size:13.5px;font-weight:700;letter-spacing:-.015em;color:{{ o.fg }};">{{ o.n }}</div>
+                    <sc-if value="{{ o.hasSub }}" hint-placeholder-val="{{ true }}">
+                      <div style="font-size:12px;color:#8B968F;margin-top:3px;line-height:1.5;">{{ o.sub }}</div>
+                    </sc-if>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ st.isAsk }}" hint-placeholder-val="{{ false }}">
+            <div style="background:#FDFBF5;border:1px solid #EFE6D0;border-radius:16px;padding:18px;margin-top:24px;">
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.16em;color:#8A6D1A;">SHE NEEDS THIS TO HIT THE GOAL</div>
+              <div style="font-size:13.5px;font-weight:600;line-height:1.5;margin-top:8px;">{{ askQ }}</div>
+              <input value="{{ askV }}" onChange="{{ setAsk }}" placeholder="{{ askPh }}" style="width:100%;height:46px;background:#F4F6F5;border:1px solid #DFE3E1;border-radius:13px;padding:0 15px;font-size:13.5px;color:#101613;outline:none;box-shadow:inset 0 1px 2px rgba(16,22,19,.05);margin-top:12px;">
+            </div>
+            <div onClick="{{ skipAsk }}" style="font-size:12.5px;color:#0E7D93;cursor:pointer;margin-top:14px;">Skip — she will ask you when it comes up →</div>
+          </sc-if>
+
+          <sc-if value="{{ st.isSend }}" hint-placeholder-val="{{ false }}">
+            <div style="background:#fff;border:1px solid #E7EAE8;border-radius:16px;padding:18px;margin-top:24px;box-shadow:0 1px 2px rgba(16,22,19,.035);">
+              <div style="display:flex;align-items:center;gap:11px;">
+                <span style="width:30px;height:30px;flex:none;border-radius:10px;background:#EAF5EE;border:1px solid #CFE8D8;color:#146B33;display:flex;align-items:center;justify-content:center;font-size:13px;">✉</span>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:13px;font-weight:700;letter-spacing:-.015em;">Clientforce Mailer</div>
+                  <div style="font-size:11.5px;color:#8B968F;margin-top:2px;">Ready now — no DNS, no waiting</div>
+                </div>
+                <span style="font-size:10px;font-weight:700;color:#146B33;background:#EAF5EE;border:1px solid #CFE8D8;border-radius:999px;padding:3px 9px;flex:none;">On</span>
+              </div>
+              <div style="border-top:1px solid #F1F2F1;margin-top:15px;padding-top:15px;">
+                <div style="font-size:12.5px;color:#5A6660;line-height:1.55;">Replies come back to you. Which address?</div>
+                <input value="{{ mail }}" onChange="{{ setMail }}" placeholder="you@yourbusiness.com" style="width:100%;height:46px;background:#F4F6F5;border:1px solid #DFE3E1;border-radius:13px;padding:0 15px;font-size:13.5px;color:#101613;outline:none;box-shadow:inset 0 1px 2px rgba(16,22,19,.05);margin-top:10px;">
+              </div>
+            </div>
+            <div style="font-size:12px;color:#8B968F;margin-top:12px;line-height:1.55;">SMS and voice attach later in settings, once you pick a number.</div>
+          </sc-if>
+
+          <sc-if value="{{ st.isDone }}" hint-placeholder-val="{{ false }}">
+            <div style="background:radial-gradient(120% 100% at 12% 0%,#12512C 0%,#0A2A38 58%,#0A0F14 100%);border-radius:20px;padding:26px 28px;margin-top:24px;">
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.18em;color:rgba(255,255,255,.5);">FIRST CAMPAIGN — READY TO REVIEW</div>
+              <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:900;font-size:24px;letter-spacing:-.032em;line-height:1.12;color:#fff;margin-top:11px;">{{ campName }}</div>
+              <div style="font-size:13px;color:rgba(255,255,255,.64);line-height:1.55;margin-top:10px;">{{ campSub }}</div>
+              <div style="display:flex;align-items:baseline;gap:8px;margin-top:18px;">
+                <span style="font-family:'Schibsted Grotesk',sans-serif;font-weight:900;font-size:34px;letter-spacing:-.036em;color:#35E834;line-height:1;">{{ campValue }}</span>
+                <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.14em;color:rgba(255,255,255,.4);">IF IT HITS</span>
+              </div>
+            </div>
+            <div style="font-size:12.5px;color:#8B968F;margin-top:14px;line-height:1.55;">Nothing sends until you say so. Everything here is editable from the console.</div>
+          </sc-if>
+        </div>
+      </div>
+
+      <div style="flex:none;display:flex;align-items:center;gap:12px;border-top:1px solid #EBEEEC;padding:15px 38px;background:#F4F7F5;">
+        <sc-if value="{{ hasBack }}" hint-placeholder-val="{{ false }}">
+          <span onClick="{{ back }}" style="font-size:12.5px;font-weight:600;color:#8B968F;cursor:pointer;flex:none;" style-hover="color:#101613;">← Back</span>
+        </sc-if>
+        <span style="flex:1;min-width:0;font-size:11.5px;color:#A8B2AC;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ st.foot }}</span>
+        <span onClick="{{ next }}" style="flex:none;height:44px;line-height:44px;padding:0 22px;border-radius:13px;background:{{ nextBg }};font-size:13.5px;font-weight:800;color:#fff;cursor:pointer;box-shadow:0 1px 2px rgba(16,22,19,.12),0 6px 16px -8px rgba(20,107,51,.55);" style-hover="background:#0E5C2B;">{{ st.cta }}</span>
+      </div>
+    </div>
+  </div>
+
+  <div title="{{ dockNote }}" style="width:52px;flex:none;display:flex;flex-direction:column;gap:4px;align-items:center;height:100%;overflow-y:auto;">
+    <sc-for list="{{ ghostDock }}" as="d" hint-placeholder-count="11">
+      <span title="{{ d.name }}" style="width:38px;height:38px;border-radius:13px;background:{{ d.bg }};border:1px solid {{ d.bd }};display:flex;align-items:center;justify-content:center;flex:none;opacity:{{ d.op }};transition:opacity .6s ease;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="{{ d.fg }}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="{{ d.d }}"></path></svg>
+      </span>
+    </sc-for>
+  </div>
+</div>
+</sc-if>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1320,&quot;height&quot;:860}}">
+class Component extends DCLogic {
+  state = { phase: 'auth', authMode: 'up', authStep: 0, name: '', biz: '', email: '', step: 0,
+    site: 'brightsmile.co', icp: null, goal: null, ask: '', mail: '', reading: false };
+
+  set(p) { this.setState(p); }
+
+  read() {
+    this.setState({ reading: true });
+    setTimeout(() => this.setState({ reading: false, step: 1 }), 1400);
+  }
+
+  renderVals() {
+    const s = this.state;
+    const phase = s.phase;
+
+    // ---------- auth ----------
+    const AU = [
+      { eyebrow: 'CREATE YOUR ACCOUNT', title: 'Create your account', sub: 'Ada answers in seconds, keeps going for weeks without going cold, and hands you the ones ready to buy — trial, demo, quote or checkout. Nothing sends without your say-so.',
+        cta: 'Create account →', fields: ['name', 'biz', 'email', 'pass'] },
+      { eyebrow: 'CONFIRM IT IS YOU', title: 'Check your email', sub: 'Six digits and you are in. Your first campaign is about ten minutes away.', cta: 'Verify and continue →', code: true },
+    ];
+    const isSignIn = s.authMode === 'in';
+    const aStep = AU[s.authStep] || AU[0];
+    const FLD = {
+      name: { ph: 'Your name', type: 'text', k: 'name' }, biz: { ph: 'Business name', type: 'text', k: 'biz' },
+      email: { ph: 'you@business.com', type: 'email', k: 'email' }, pass: { ph: 'Password', type: 'password', k: 'pass' },
+    };
+    const proof = (rows) => rows.map((t, i) => ({ t, dur: '9s', delay: (i * 0.7) + 's' }));
+    const LEFT_UP = {
+      leftEyebrow: 'WHAT YOU GET',
+      leftTitle: 'Revenue, not activity',
+      leftSub: 'Open rates do not pay you. Ada is measured in appointments, sign-ups and money collected.',
+      proof: proof(['Every lead worked until it books, buys or bows out',
+        'Answers in seconds — 2am, Sunday, mid-meeting, does not matter',
+        'Reads every reply and tells you which ones are money',
+        'Closes what she can, escalates what she should not decide alone']),
+      leftFoot: '14 DAYS FREE · NO CARD TODAY',
+    };
+    const LEFT_IN = {
+      leftEyebrow: 'WHILE YOU WERE AWAY',
+      leftTitle: 'She worked while you slept',
+      leftSub: 'Campaigns kept running, replies were answered inside your guardrails, and anything she was unsure of is waiting for you.',
+      proof: proof(['61 replies handled — 14 of them booked',
+        '$33.6k in the diary since Monday',
+        '2 she would not decide alone, waiting on you']),
+      leftFoot: 'EVERYTHING IS WHERE YOU LEFT IT',
+    };
+    const legal = 'By continuing you agree to the terms and privacy policy.';
+    const au = isSignIn
+      ? { ...LEFT_IN, eyebrow: 'WELCOME BACK', title: 'Sign in', sub: 'Pick up where you left off.',
+          isForm: true, isCode: false, cta: 'Sign in →', swapL: 'New here? Create an account',
+          googleL: 'Continue with Google', legal,
+          google: () => this.setState({ phase: 'core' }),
+          fields: ['email', 'pass'].map((k) => ({ ...FLD[k], v: s[k] || '', set: (e) => this.setState({ [k]: e.target.value }) })),
+          go: () => this.setState({ phase: 'core' }), swap: () => this.setState({ authMode: 'up', authStep: 0 }) }
+      : { ...LEFT_UP, eyebrow: aStep.eyebrow, title: aStep.title, sub: aStep.sub, isForm: !aStep.code, isCode: !!aStep.code,
+          cta: aStep.cta, swapL: s.authStep === 0 ? 'Already have an account? Sign in' : 'Send the code again',
+          mail: s.email || 'you@business.com', code: '4 8 2 9 1 6',
+          googleL: 'Sign up with Google', legal,
+          google: () => this.setState({ phase: 'core' }),
+          fields: (aStep.fields || []).map((k) => ({ ...FLD[k], v: s[k] || '', set: (e) => this.setState({ [k]: e.target.value }) })),
+          go: () => s.authStep === 0 ? this.setState({ authStep: 1 }) : this.setState({ phase: 'core' }),
+          swap: () => s.authStep === 0 ? this.setState({ authMode: 'in' }) : this.setState({ authStep: 0 }) };
+
+    // ---------- core wizard ----------
+    const bizName = s.biz || 'Bright Smile Dental';
+    const host = (s.site || 'brightsmile.co').replace(/^https?:\/\//, '');
+
+    const ICP = [
+      { k: 'i1', n: 'People who match what you sell best', sub: 'Drawn from your own pages — the buyer your offer already speaks to' },
+      { k: 'i2', n: 'Customers who went quiet', sub: 'Already in your records, already know you. Cheapest revenue you have.' },
+      { k: 'i3', n: 'Anyone who asks about you', sub: 'Widest net, lowest fit — more volume, more sorting' },
+      { k: 'i4', n: 'Let me describe them myself', sub: 'Industry, size, role, region — whatever defines a good one' },
+    ];
+    const GOALS = [
+      { k: 'lead', n: 'Qualify and hand over', sub: 'She works them, sorts them, your team closes' },
+      { k: 'book', n: 'Get meetings booked', sub: 'Demos, calls, consults — time in the diary' },
+      { k: 'sell', n: 'Take payment or sign-up', sub: 'Checkout, trial start, subscription — a closed sale' },
+      { k: 'revive', n: 'Win back quiet accounts', sub: 'Revenue from customers you already have' },
+    ];
+    const ASK = {
+      book: ['When can people actually meet you, and how long does it take?', 'e.g. 20 minutes · weekdays and Saturday mornings'],
+      sell: ['What is the price, and what does it include?', 'e.g. $249/mo — all seats, onboarding included'],
+      revive: ['What would bring a lapsed customer back?', 'e.g. two months free, no setup charge'],
+      lead: ['What makes a lead worth your team\u2019s time?', 'e.g. 10+ seats, evaluating this quarter'],
+    };
+    const goalName = (GOALS.find((g) => g.k === s.goal) || {}).n || '';
+    const askQ = (ASK[s.goal] || ASK.book)[0];
+    const askPh = (ASK[s.goal] || ASK.book)[1];
+
+    const FOUND = [
+      { k: 'WHAT YOU SELL', v: 'Implants, crowns, whitening and routine care' },
+      { k: 'PRICES SHE FOUND', v: 'Implant consult free · whitening kit $249 · full-arch from $8,400' },
+      { k: 'HOURS', v: 'Mon–Fri 8–5, Saturday 9–1 — quiet hours 8pm to 8am' },
+      { k: 'HOW YOU SOUND', v: 'Warm and plain. Short sentences, no jargon, never pushy.' },
+      { k: 'PROOF', v: '412 reviews at 4.9 · in the same building since 2009' },
+    ];
+
+    const FACETS = [
+      { n: 'Business & offer', v: 'Implants, crowns, whitening · Austin, TX', at: 1 },
+      { n: 'Voice & tone', v: 'Warm, plain, never pushy', at: 1 },
+      { n: 'Ideal customer', v: (ICP.find((i) => i.k === s.icp) || {}).n || '', at: 3 },
+      { n: 'Primary goal', v: goalName, at: 4 },
+      { n: 'Goal readiness', v: s.ask ? s.ask.slice(0, 34) : '', at: 5 },
+      { n: 'Channels', v: s.mail ? 'Mailer · reply-to ' + s.mail : '', at: 6 },
+    ];
+    const facets = FACETS.map((k) => {
+      const reached = s.step >= k.at;
+      const done = reached && !!k.v;
+      const gap = reached && !k.v;
+      return { n: k.n, v: gap ? 'Not set — she will ask when it comes up' : k.v,
+        hasVal: done || gap, tick: done ? '✓' : gap ? '!' : '',
+        bg: done ? '#EAF5EE' : gap ? '#F7EFDA' : '#F6F7F7',
+        bd: done ? '#CFE8D8' : gap ? '#EAD9A8' : '#EAEBEA',
+        tickFg: done ? '#146B33' : '#8A6D1A',
+        fg: done ? '#101613' : gap ? '#8A6D1A' : '#8B968F', fw: reached ? '700' : '500' };
+    });
+    const filled = facets.filter((k) => k.tick === '✓').length;
+    const pct = Math.round((filled / facets.length) * 100) + '%';
+
+    const STEPS = [
+      { eyebrow: 'STEP 1 OF 6', title: 'Skip the setup forms', sub: 'Give Ada your address and she works out what you sell, what it costs and how you sound. Nothing to fill in by hand.',
+        cta: 'Read my site →', foot: 'About ten seconds — you correct anything she gets wrong', isSite: true },
+      { eyebrow: 'STEP 2 OF 6', title: 'This is what she will say about you', sub: 'Every message she writes comes from these five things. Change any of them and she keeps your version for good.',
+        cta: 'This is right →', foot: 'Editable any time from your Core', isRead: true },
+      { eyebrow: 'STEP 3 OF 6', title: 'Who is worth chasing?', sub: 'She writes differently for each of these. Pick where the money actually is.',
+        cta: 'Continue →', foot: 'Add more audiences whenever you like', isPick: true },
+      { eyebrow: 'STEP 4 OF 6', title: 'What counts as a win?', sub: 'This sets how hard she pushes, when she follows up and which replies get your attention.',
+        cta: 'Continue →', foot: 'One goal now — add campaigns later', isPick: true },
+      { eyebrow: 'STEP 5 OF 6', title: 'One thing she cannot guess', sub: 'Your site never says this, and she will not invent it. Without it she has to stall on a hot reply.',
+        cta: 'Continue →', foot: 'Skip it and she asks you in the moment instead', isAsk: true },
+      { eyebrow: 'STEP 6 OF 6', title: 'Where should replies land?', sub: 'She sends from your Clientforce address today, so you can start now. Replies come straight back to you.',
+        cta: 'Finish setup →', foot: 'Your own domain connects later, in settings', isSend: true },
+      { eyebrow: 'YOUR CORE IS LIVE', title: 'Your first campaign is written', sub: 'Built from what you just told her — audience, timing, every message. Read it before anything sends.',
+        cta: 'Choose your plan →', foot: 'Nothing sends without your approval', isDone: true },
+    ];
+    const st0 = STEPS[Math.min(s.step, STEPS.length - 1)];
+    const st = { ...st0, isSite: !!st0.isSite, isRead: !!st0.isRead, isPick: !!st0.isPick,
+      isAsk: !!st0.isAsk, isSend: !!st0.isSend, isDone: !!st0.isDone,
+      cta: s.reading ? 'Reading ' + host + '…' : st0.cta };
+
+    const isGoalStep = s.step === 3;
+    const src = isGoalStep ? GOALS : ICP;
+    const sel = isGoalStep ? s.goal : s.icp;
+    const picks = src.map((o) => {
+      const on = sel === o.k;
+      return { n: o.n, sub: o.sub, hasSub: true, shape: '50%',
+        bg: on ? '#EAF5EE' : '#fff', bd: on ? '#CFE8D8' : '#ECEDEC',
+        ring: on ? '#146B33' : '#D4DAD6', dot: on ? '#146B33' : 'transparent',
+        fg: on ? '#0E3D22' : '#101613',
+        go: () => this.setState(isGoalStep ? { goal: o.k } : { icp: o.k }) };
+    });
+
+    const dots = STEPS.map((x, i) => ({ l: x.title, flex: i === s.step ? '2.4' : '1',
+      bg: i < s.step ? '#146B33' : i === s.step ? '#35E834' : '#E4E6E5' }));
+
+    const DOCK = [
+      ['Campaigns', 'M4 6h16M4 12h16M4 18h10'],
+      ['Contacts', 'M16 20v-1a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v1M10 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7M20 8v6M17 11h6'],
+      ['Inbox', 'M3 12h5l2 3h4l2-3h5M5 5h14l2 7v7H3v-7z'],
+      ['Analytics', 'M4 20V10M10 20V4M16 20v-7M22 20H2'],
+      ['Forms', 'M5 3h14v18H5zM9 8h6M9 12h6M9 16h3'],
+      ['Site agent', 'M4 5h16v11H9l-5 4z'],
+      ['Proposals', 'M6 2h9l5 5v15H6zM14 2v6h6'],
+      ['Automations', 'M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8'],
+      ['Lead finder', 'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14M20 20l-4.5-4.5'],
+      ['Integrations', 'M10 3v6M14 3v6M7 9h10v4a5 5 0 0 1-10 0zM12 18v3'],
+      ['Settings', 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6M20 12h2M2 12h2M12 2v2M12 20v2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19'],
+    ];
+    const live = s.step >= 6;
+    const ghostDock = DOCK.map((d, i) => {
+      const wave = Math.min(1, Math.max(0, (filled / facets.length) * 12 - i));
+      return { name: live ? d[0] : d[0] + ' · unlocks when your Core is live', d: d[1],
+        bg: live ? '#FCFCFC' : '#F6F7F7', bd: live ? '#ECEDEC' : '#F0F1F0',
+        fg: live ? '#7C8781' : '#C3CBC6', op: live ? '1' : String(0.35 + wave * 0.4) };
+    });
+
+    const TIERS = [
+      { k: 'starter', name: 'Starter', sub: '1 workspace · email · 2,500 credits', price: '$49' },
+      { k: 'growth', name: 'Growth', sub: '5 workspaces · email and SMS · 10,000 credits', price: '$149' },
+      { k: 'scale', name: 'Scale', sub: '15 workspaces · every channel · 30,000 credits', price: '$399' },
+    ];
+    const tier = s.tier || 'growth';
+    const cardReady = (s.cardNum || '').replace(/\D/g, '').length >= 15 && (s.cardExp || '').length >= 5 && (s.cardCvc || '').length >= 3;
+    const trialEnd = (() => { const d = new Date(Date.now() + 14 * 864e5); return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); })();
+    const tiers = TIERS.map((p) => {
+      const on = tier === p.k;
+      return { ...p, bg: on ? '#EAF5EE' : '#fff', bd: on ? '#CFE8D8' : '#ECEDEC',
+        ring: on ? '#146B33' : '#D4DAD6', dot: on ? '#146B33' : 'transparent',
+        pFg: on ? '#146B33' : '#101613', go: () => this.setState({ tier: p.k }) };
+    });
+
+    const canGo = s.step === 2 ? !!s.icp : s.step === 3 ? !!s.goal : true;
+
+    return {
+      isAuth: phase === 'auth', isCore: phase === 'core', isPlan: phase === 'plan',
+      cardNum: s.cardNum || '', cardExp: s.cardExp || '', cardCvc: s.cardCvc || '',
+      setCardNum: (e) => {
+        const raw = (e.target.value || '').replace(/[^\d]/g, '').slice(0, 16);
+        this.setState({ cardNum: raw.replace(/(.{4})/g, '$1 ').trim() });
+      },
+      setCardExp: (e) => {
+        const raw = (e.target.value || '').replace(/[^\d]/g, '').slice(0, 4);
+        this.setState({ cardExp: raw.length > 2 ? raw.slice(0, 2) + ' / ' + raw.slice(2) : raw });
+      },
+      setCardCvc: (e) => this.setState({ cardCvc: (e.target.value || '').replace(/[^\d]/g, '').slice(0, 4) }),
+      cardBrandOp: (s.cardNum || '').length > 2 ? '.35' : '1',
+      trialLine: 'Free until ' + trialEnd + ' — then ' + (TIERS.find((t) => t.k === tier) || TIERS[1]).price + '/mo. Charged today',
+      trialFoot: 'Cancel any time before ' + trialEnd + ' and you are never charged. One click, inside billing.',
+      payL: cardReady ? 'Start free trial — open my console →' : 'Add your card to start the trial',
+      payBg: cardReady ? '#146B33' : '#8FA79A',
+      au, bizName, pct, facets, dots, st, picks, found: FOUND, ghostDock, tiers,
+      site: s.site, setSite: (e) => this.setState({ site: e.target.value }),
+      noSite: () => this.setState({ step: 1 }),
+      askQ, askPh, askV: s.ask, setAsk: (e) => this.setState({ ask: e.target.value }),
+      skipAsk: () => this.setState({ step: 5 }),
+      mail: s.mail, setMail: (e) => this.setState({ mail: e.target.value }),
+      campName: goalName === 'Sell a product or plan' ? 'Whitening kit — Saturday fittings' : 'Implant open day — 21st',
+      campSub: 'Twelve consult slots, ' + (s.mail ? 'replies to ' + s.mail : 'email only') + ', paced across ten days.',
+      campValue: goalName === 'Sell a product or plan' ? '$2,988' : '$28.8k',
+      hasBack: s.step > 0, back: () => this.setState({ step: Math.max(0, s.step - 1) }),
+      nextBg: canGo ? '#146B33' : '#B6C4BB',
+      next: () => {
+        if (!canGo) return;
+        if (s.step === 0) return this.read();
+        if (s.step >= 6) return this.setState({ phase: 'plan' });
+        this.setState({ step: s.step + 1 });
+      },
+      adaState: s.reading ? 'Reading ' + host + '…' : s.step === 0 ? 'Waiting on your site'
+        : s.step >= 6 ? (filled === facets.length ? 'Core live — campaign ready' : 'Core live · ' + (facets.length - filled) + ' to fill in later')
+        : 'Building your Core · ' + pct,
+      adaBg: s.step >= 6 ? '#EAF5EE' : '#FCFCFC', adaBd: s.step >= 6 ? '#CFE8D8' : '#EAEBEA',
+      adaTile: s.step >= 6 ? '#146B33' : '#EAF5EE', adaTileBd: s.step >= 6 ? '#146B33' : '#CFE8D8',
+      adaTileFg: s.step >= 6 ? '#fff' : '#146B33',
+      adaFg: s.step >= 6 ? '#0E3D22' : '#101613', adaSubFg: s.step >= 6 ? '#1D5B34' : '#8B968F',
+      dockNote: live ? 'Everything Ada runs, one tap away' : 'These unlock the moment your Core is live',
+      enterConsole: () => { if (cardReady) window.location.href = 'Console Bold.dc.html'; },
+      backToCore: () => this.setState({ phase: 'core', step: 6 }),
+    };
+  }
+}
+</script>
+</body>
+</html>

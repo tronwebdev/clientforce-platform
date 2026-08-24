@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;700;800;900&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <style>
+    body { margin: 0; background: #FFFFFF; color: #101613; font-family: 'IBM Plex Sans', sans-serif; -webkit-font-smoothing: antialiased; }
+    a { color: #146B33; text-decoration: none; } a:hover { color: #0E5228; }
+    @keyframes awFade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</helmet>
+
+<div data-screen-label="Agency website" style="min-height:100vh;display:flex;flex-direction:column;background:#fff;">
+
+  <sc-if value="{{ lmBarShow }}" hint-placeholder-val="{{ true }}">
+    <div onClick="{{ lmOpenFn }}" style="background:#101613;color:#fff;font-size:13px;text-align:center;padding:10px 20px;cursor:pointer;">
+      <strong style="color:#D0F56B;">Free:</strong> The Revenue Leak Audit — see where your pipeline loses money every week <span style="font-weight:700;color:#D0F56B;">Get it →</span>
+    </div>
+  </sc-if>
+
+  <div style="position:sticky;top:0;z-index:50;background:rgba(255,255,255,.96);backdrop-filter:blur(8px);border-bottom:1px solid #E9EEEA;">
+    <div style="max-width:1180px;margin:0 auto;display:flex;align-items:center;gap:26px;padding:16px 28px;">
+      <div onClick="{{ goHome }}" style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+        <span style="width:34px;height:34px;border-radius:10px;background:{{ pal }};color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Schibsted Grotesk',sans-serif;font-weight:900;font-size:16px;">{{ agInitial }}</span>
+        <span style="font-family:'Schibsted Grotesk',sans-serif;font-weight:800;font-size:17px;letter-spacing:-.02em;">{{ agencyName }}</span>
+      </div>
+      <span style="flex:1;"></span>
+      <sc-for list="{{ navLinks }}" as="n" hint-placeholder-count="4">
+        <span onClick="{{ n.go }}" style="font-size:14px;font-weight:{{ n.w }};color:{{ n.c }};cursor:pointer;border-bottom:2px solid {{ n.u }};padding-bottom:3px;">{{ n.label }}</span>
+      </sc-for>
+      <span onClick="{{ goBook }}" style="font-size:14px;font-weight:700;color:#fff;background:{{ pal }};border-radius:11px;padding:11px 20px;cursor:pointer;">Book a strategy call</span>
+    </div>
+  </div>
+
+  <!-- ============ HOME ============ -->
+  <sc-if value="{{ pgHome }}" hint-placeholder-val="{{ true }}">
+    <div style="animation:awFade .35s ease;">
+      <sc-if value="{{ heroV1 }}" hint-placeholder-val="{{ true }}">
+      <div style="max-width:1180px;margin:0 auto;padding:84px 28px 64px;">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.14em;color:{{ pal }};margin-bottom:18px;">AI REVENUE AGENCY · AUSTIN, TX</div>
+        <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:900;font-size:64px;line-height:1.02;letter-spacing:-.035em;max-width:820px;">We don't sell marketing.<br>We sell <span style="background:linear-gradient(180deg,#101613 25%,{{ pal }} 120%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;">booked revenue.</span></div>
+        <div style="font-size:19px;color:#5A6660;line-height:1.6;max-width:600px;margin-top:24px;">AI agents that fill your calendar, revive your dead leads and answer every call — installed and run for you. You pay when outcomes land, not for hours.</div>
+        <div style="display:flex;align-items:center;gap:14px;margin-top:34px;">
+          <span onClick="{{ goBook }}" style="font-size:15.5px;font-weight:700;color:#fff;background:{{ pal }};border-radius:12px;padding:16px 28px;cursor:pointer;">Book a free strategy call</span>
+          <span onClick="{{ goResults }}" style="font-size:15.5px;font-weight:700;color:#101613;border:1.5px solid #DCE5DE;border-radius:12px;padding:15px 24px;cursor:pointer;" style-hover="border-color:{{ pal }};color:{{ pal }};">See the results →</span>
+        </div>
+        <div style="display:flex;gap:0;margin-top:64px;border:1px solid #E9EEEA;border-radius:16px;overflow:hidden;">
+          <sc-for list="{{ heroStats }}" as="st" hint-placeholder-count="4">
+            <div style="flex:1;padding:22px 26px;border-right:1px solid #E9EEEA;">
+              <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:900;font-size:30px;letter-spacing:-.02em;color:{{ pal }};">{{ st.v }}</div>
+              <div style="font-size:12.5px;color:#5A6660;margin-top:4px;">{{ st.k }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ heroV2 }}" hint-placeholder-val="{{ false }}">
+      <div style="background:{{ palSoft }};border-bottom:1px solid {{ palBd }};">
+        <div style="max-width:900px;margin:0 auto;padding:80px 28px 0;text-align:center;">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.14em;color:{{ pal }};margin-bottom:18px;">AI REVENUE AGENCY · AUSTIN, TX</div>
+          <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:900;font-size:56px;line-height:1.04;letter-spacing:-.035em;">We don't sell marketing.<br>We sell <span style="color:{{ pal }};">booked revenue.</span></div>
+          <div style="font-size:18px;color:#5A6660;line-height:1.65;max-width:560px;margin:22px auto 0;">AI agents that fill your calendar, revive your dead leads and answer every call — installed and run for you. You pay when outcomes land.</div>
+          <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin-top:32px;">
+            <span onClick="{{ goBook }}" style="font-size:15.5px;font-weight:700;color:#fff;background:{{ pal }};border-radius:100px;padding:16px 30px;cursor:pointer;">Book a free strategy call</span>
+            <span onClick="{{ goResults }}" style="font-size:15.5px;font-weight:700;color:{{ pal }};cursor:pointer;">See the results →</span>
+          </div>
+          <div style="display:flex;gap:0;margin-top:56px;background:#fff;border:1px solid {{ palBd }};border-bottom:none;border-radius:16px 16px 0 0;overflow:hidden;">
+            <sc-for list="{{ heroStats }}" as="st" hint-placeholder-count="4">
+              <div style="flex:1;padding:20px 18px;border-right:1px solid #E9EEEA;">
+                <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:900;font-size:26px;letter-spacing:-.02em;color:{{ pal }};">{{ st.v }}</div>
+                <div style="font-size:12px;color:#5A6660;margin-top:4px;">{{ st.k }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ heroV3 }}" hint-placeholder-val="{{ false }}">
+      <div style="max-width:1180px;margin:0 auto;padding:76px 28px 64px;display:grid;grid-template-columns:1.15fr 0.85fr;gap:52px;align-items:center;">
+        <div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.14em;color:{{ pal }};margin-bottom:16px;">AI REVENUE AGENCY · AUSTIN, TX</div>
+          <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:900;font-size:50px;line-height:1.05;letter-spacing:-.035em;">We don't sell marketing. We sell <span style="background:linear-gradient(180deg,#101613 25%,{{ pal }} 120%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;">booked revenue.</span></div>
+          <div style="font-size:17px;color:#5A6660;line-height:1.65;max-width:520px;margin-top:20px;">AI agents that fill your calendar, revive your dead leads and answer every call — installed and run for you.</div>
+          <div style="display:flex;align-items:center;gap:14px;margin-top:30px;">
+            <span onClick="{{ goBook }}" style="font-size:15px;font-weight:700;color:#fff;background:{{ pal }};border-radius:12px;padding:15px 26px;cursor:pointer;">Book a strategy call</span>
+            <span onClick="{{ goServices }}" style="font-size:15px;font-weight:700;color:#101613;border:1.5px solid #DCE5DE;border-radius:12px;padding:14px 22px;cursor:pointer;" style-hover="border-color:{{ pal }};color:{{ pal }};">Our services →</span>
+          </div>
+        </div>
+        <div style="border:1px solid #E9EEEA;border-radius:18px;overflow:hidden;">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.14em;color:{{ pal }};background:{{ palSoft }};border-bottom:1px solid {{ palBd }};padding:12px 18px;">LIVE OUTCOMES · THIS QUARTER</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;">
+            <sc-for list="{{ heroStats }}" as="st" hint-placeholder-count="4">
+              <div style="padding:22px 20px;border-right:1px solid #F2F6F3;border-bottom:1px solid #F2F6F3;">
+                <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:900;font-size:28px;letter-spacing:-.02em;color:{{ pal }};">{{ st.v }}</div>
+                <div style="font-size:12px;color:#5A6660;margin-top:4px;line-height:1.4;">{{ st.k }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ heroV4 }}" hint-placeholder-val="{{ false }}">
+      <div style="background:#101613;">
+        <div style="max-width:1180px;margin:0 auto;padding:88px 28px 72px;">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.14em;color:#D0F56B;margin-bottom:20px;">AI REVENUE AGENCY · AUSTIN, TX</div>
+          <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:900;font-size:74px;line-height:.98;letter-spacing:-.04em;color:#fff;max-width:900px;">We don't sell marketing.<br><span style="color:#D0F56B;">We sell booked revenue.</span></div>
+          <div style="font-size:19px;color:rgba(255,255,255,.72);line-height:1.6;max-width:580px;margin-top:26px;">AI agents that fill your calendar, revive your dead leads and answer every call — installed and run for you. You pay when outcomes land.</div>
+          <div style="display:flex;align-items:center;gap:14px;margin-top:36px;">
+            <span onClick="{{ goBook }}" style="font-size:15.5px;font-weight:700;color:#101613;background:#D0F56B;border-radius:12px;padding:16px 30px;cursor:pointer;">Book a free strategy call</span>
+            <span onClick="{{ goResults }}" style="font-size:15.5px;font-weight:700;color:#fff;border:1.5px solid rgba(255,255,255,.28);border-radius:12px;padding:15px 24px;cursor:pointer;" style-hover="border-color:#D0F56B;color:#D0F56B;">See the results →</span>
+          </div>
+          <div style="display:flex;gap:0;margin-top:64px;border:1px solid rgba(255,255,255,.14);border-radius:16px;overflow:hidden;">
+            <sc-for list="{{ heroStats }}" as="st" hint-placeholder-count="4">
+              <div style="flex:1;padding:22px 26px;border-right:1px solid rgba(255,255,255,.14);">
+                <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:900;font-size:30px;letter-spacing:-.02em;color:#D0F56B;">{{ st.v }}</div>
+                <div style="font-size:12.5px;color:rgba(255,255,255,.62);margin-top:4px;">{{ st.k }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <div style="background:#FBFDFB;border-top:1px solid #E9EEEA;border-bottom:1px solid #E9EEEA;">
+        <div style="max-width:1180px;margin:0 auto;padding:72px 28px;">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;letter-spacing:.14em;color:#8B968F;margin-bottom:12px;">WHAT WE RUN FOR YOU</div>
+          <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:36px;">
+            <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:800;font-size:34px;letter-spacing:-.03em;max-width:520px;line-height:1.1;">Six ways we turn missed opportunities into money</div>
+            <span onClick="{{ goServices }}" style="font-size:14px;font-weight:700;color:{{ pal }};cursor:pointer;white-space:nowrap;">All services →</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
+            <sc-for list="{{ services }}" as="sv" hint-placeholder-count="6">
+              <div onClick="{{ goServices }}" style="background:#fff;border:1px solid #E9EEEA;border-radius:16px;padding:24px;cursor:pointer;transition:transform .18s ease, border-color .18s ease;" style-hover="border-color:{{ pal }};transform:translateY(-4px);">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+                  <span style="width:42px;height:42px;border-radius:12px;background:{{ palSoft }};border:1px solid {{ palBd }};color:{{ pal }};display:flex;align-items:center;justify-content:center;font-size:19px;">{{ sv.icon }}</span>
+                  <sc-if value="{{ sv.isNew }}" hint-placeholder-val="{{ false }}"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.08em;color:{{ pal }};background:{{ palSoft }};border:1px solid {{ palBd }};border-radius:100px;padding:3px 9px;">NEW</span></sc-if>
+                </div>
+                <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:800;font-size:17px;margin-bottom:8px;">{{ sv.name }}</div>
+                <div style="font-size:13.5px;color:#5A6660;line-height:1.6;">{{ sv.blurb }}</div>
+                <div style="font-size:12.5px;font-weight:700;color:{{ pal }};margin-top:14px;">{{ sv.outcome }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+
+      <div style="max-width:1180px;margin:0 auto;padding:72px 28px;">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;letter-spacing:.14em;color:#8B968F;margin-bottom:12px;">HOW IT WORKS</div>
+        <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:800;font-size:34px;letter-spacing:-.03em;margin-bottom:36px;">Live in a week. Paying for itself in a month.</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
+          <sc-for list="{{ steps }}" as="sp" hint-placeholder-count="3">
+            <div style="border:1px solid #E9EEEA;border-radius:16px;padding:26px;">
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:{{ pal }};margin-bottom:14px;">{{ sp.n }}</div>
+              <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:800;font-size:18px;margin-bottom:8px;">{{ sp.t }}</div>
+              <div style="font-size:14px;color:#5A6660;line-height:1.65;">{{ sp.d }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="background:#101613;color:#fff;">
+        <div style="max-width:1180px;margin:0 auto;padding:72px 28px;display:grid;grid-template-columns:1.1fr 1fr;gap:56px;align-items:center;">
+          <div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;letter-spacing:.14em;color:#D0F56B;margin-bottom:14px;">CASE STUDY · BRIGHT SMILE DENTAL</div>
+            <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:800;font-size:32px;letter-spacing:-.03em;line-height:1.12;">31 booked patients in 60 days — from leads they'd already written off</div>
+            <div style="font-size:15px;color:rgba(255,255,255,.72);line-height:1.7;margin-top:16px;">A database reactivation campaign plus an AI receptionist on their main line. No new ad spend — just answering everything and following up like clockwork.</div>
+            <span onClick="{{ goResults }}" style="display:inline-block;font-size:14px;font-weight:700;color:#D0F56B;margin-top:20px;cursor:pointer;">Read the full case study →</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+            <sc-for list="{{ caseStats }}" as="cs" hint-placeholder-count="4">
+              <div style="border:1px solid rgba(255,255,255,.14);border-radius:14px;padding:20px;">
+                <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:900;font-size:28px;color:#D0F56B;">{{ cs.v }}</div>
+                <div style="font-size:12.5px;color:rgba(255,255,255,.66);margin-top:4px;">{{ cs.k }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+
+      <div style="max-width:1180px;margin:0 auto;padding:72px 28px;">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;letter-spacing:.14em;color:#8B968F;margin-bottom:12px;">WHAT OWNERS SAY</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
+          <sc-for list="{{ quotes }}" as="q" hint-placeholder-count="3">
+            <div style="border:1px solid #E9EEEA;border-radius:16px;padding:26px;display:flex;flex-direction:column;gap:16px;">
+              <div style="font-size:15px;line-height:1.7;color:#101613;">"{{ q.text }}"</div>
+              <div style="display:flex;align-items:center;gap:11px;margin-top:auto;">
+                <span style="width:38px;height:38px;border-radius:50%;background:{{ q.mbg }};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;">{{ q.init }}</span>
+                <div><div style="font-size:13.5px;font-weight:700;">{{ q.who }}</div><div style="font-size:12px;color:#8B968F;">{{ q.biz }}</div></div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <sc-if value="{{ lmBarShow }}" hint-placeholder-val="{{ true }}">
+        <div style="max-width:1180px;margin:0 auto;padding:0 28px 72px;">
+          <div style="background:{{ palSoft }};border:1px solid {{ palBd }};border-radius:20px;padding:44px;display:flex;align-items:center;gap:40px;">
+            <div style="flex:1;">
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;letter-spacing:.14em;color:{{ pal }};margin-bottom:10px;">FREE AUDIT</div>
+              <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:800;font-size:26px;letter-spacing:-.02em;">The Revenue Leak Audit</div>
+              <div style="font-size:14.5px;color:#5A6660;line-height:1.65;margin-top:10px;max-width:480px;">We audit a week of your calls, leads and follow-up and show you — in dollars — where revenue leaks out. Ten minutes to read, uncomfortable to ignore.</div>
+            </div>
+            <span onClick="{{ lmOpenFn }}" style="flex:none;font-size:15px;font-weight:700;color:#fff;background:{{ pal }};border-radius:12px;padding:15px 26px;cursor:pointer;">Get the free report</span>
+          </div>
+        </div>
+      </sc-if>
+
+      <div style="max-width:840px;margin:0 auto;padding:0 28px 72px;">
+        <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:800;font-size:28px;letter-spacing:-.02em;margin-bottom:24px;">Fair questions</div>
+        <sc-for list="{{ faqs }}" as="f" hint-placeholder-count="5">
+          <div style="border-bottom:1px solid #E9EEEA;">
+            <div onClick="{{ f.toggle }}" style="display:flex;align-items:center;gap:14px;padding:19px 2px;cursor:pointer;">
+              <span style="flex:1;font-size:16px;font-weight:700;">{{ f.q }}</span>
+              <span style="font-size:18px;color:{{ pal }};font-weight:700;">{{ f.mark }}</span>
+            </div>
+            <sc-if value="{{ f.open }}" hint-placeholder-val="{{ false }}">
+              <div style="font-size:14.5px;color:#5A6660;line-height:1.7;padding:0 2px 20px;max-width:640px;">{{ f.a }}</div>
+            </sc-if>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="background:#101613;">
+        <div style="max-width:1180px;margin:0 auto;padding:80px 28px;text-align:center;">
+          <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:900;font-size:42px;letter-spacing:-.03em;color:#fff;line-height:1.08;">Stop paying for activity.<br>Start paying for outcomes.</div>
+          <div style="font-size:16px;color:rgba(255,255,255,.66);margin-top:16px;">Free 20-minute strategy call. We'll tell you if it's not a fit.</div>
+          <span onClick="{{ goBook }}" style="display:inline-block;font-size:15.5px;font-weight:700;color:#101613;background:#D0F56B;border-radius:12px;padding:16px 30px;cursor:pointer;margin-top:28px;">Book a strategy call</span>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ============ SERVICES ============ -->
+  <sc-if value="{{ pgServices }}" hint-placeholder-val="{{ false }}">
+    <div style="animation:awFade .35s ease;">
+      <div style="max-width:1180px;margin:0 auto;padding:72px 28px 20px;">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.14em;color:{{ pal }};margin-bottom:14px;">SERVICES</div>
+        <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:900;font-size:46px;letter-spacing:-.035em;max-width:700px;line-height:1.05;">Every service ends in the same place: your calendar.</div>
+        <div style="font-size:17px;color:#5A6660;line-height:1.65;max-width:560px;margin-top:18px;">Installed, run and reported by us on the Clientforce platform. Priced per outcome wherever we can measure one.</div>
+      </div>
+      <div style="max-width:1180px;margin:0 auto;padding:36px 28px 72px;display:flex;flex-direction:column;gap:18px;">
+        <sc-for list="{{ servicesFull }}" as="sv" hint-placeholder-count="6">
+          <div style="border:1px solid #E9EEEA;border-radius:18px;padding:32px;display:grid;grid-template-columns:1.2fr 1fr;gap:36px;">
+            <div>
+              <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;"><span style="font-size:22px;">{{ sv.icon }}</span><span style="font-family:'Schibsted Grotesk',sans-serif;font-weight:800;font-size:22px;letter-spacing:-.02em;">{{ sv.name }}</span></div>
+              <div style="font-size:15px;color:#5A6660;line-height:1.7;">{{ sv.desc }}</div>
+              <div style="display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:{{ pal }};background:{{ palSoft }};border:1px solid {{ palBd }};border-radius:100px;padding:7px 14px;margin-top:16px;">{{ sv.outcome }}</div>
+            </div>
+            <div>
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.12em;color:#8B968F;margin-bottom:12px;">WHAT'S INCLUDED</div>
+              <div style="display:flex;flex-direction:column;gap:9px;">
+                <sc-for list="{{ sv.inc }}" as="it" hint-placeholder-count="4">
+                  <div style="display:flex;gap:10px;align-items:baseline;font-size:14px;color:#3B463F;"><span style="color:{{ pal }};font-weight:800;">✓</span><span style="line-height:1.5;">{{ it }}</span></div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </sc-for>
+        <div style="background:{{ palSoft }};border:1px solid {{ palBd }};border-radius:18px;padding:30px 32px;display:flex;align-items:center;gap:24px;">
+          <div style="flex:1;"><div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:800;font-size:20px;">The guarantee</div><div style="font-size:14.5px;color:#5A6660;line-height:1.65;margin-top:6px;">If we don't produce measurable booked outcomes in the first 60 days, we work free until we do. Written into every agreement.</div></div>
+          <span onClick="{{ goBook }}" style="flex:none;font-size:14.5px;font-weight:700;color:#fff;background:{{ pal }};border-radius:11px;padding:13px 22px;cursor:pointer;">Book a call</span>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ============ RESULTS ============ -->
+  <sc-if value="{{ pgResults }}" hint-placeholder-val="{{ false }}">
+    <div style="animation:awFade .35s ease;">
+      <div style="max-width:1180px;margin:0 auto;padding:72px 28px 20px;">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.14em;color:{{ pal }};margin-bottom:14px;">RESULTS</div>
+        <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:900;font-size:46px;letter-spacing:-.035em;line-height:1.05;max-width:680px;">Numbers first. Adjectives never.</div>
+      </div>
+      <div style="max-width:1180px;margin:0 auto;padding:36px 28px 72px;display:flex;flex-direction:column;gap:18px;">
+        <sc-for list="{{ cases }}" as="c" hint-placeholder-count="3">
+          <div style="border:1px solid #E9EEEA;border-radius:18px;overflow:hidden;">
+            <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:36px;padding:32px;">
+              <div>
+                <div style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.12em;color:#8B968F;margin-bottom:10px;">{{ c.tag }}</div>
+                <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:800;font-size:24px;letter-spacing:-.02em;line-height:1.15;">{{ c.title }}</div>
+                <div style="font-size:14.5px;color:#5A6660;line-height:1.7;margin-top:12px;">{{ c.story }}</div>
+                <div style="border-left:3px solid {{ pal }};padding:4px 0 4px 16px;margin-top:18px;font-size:14.5px;line-height:1.65;color:#101613;">"{{ c.quote }}" <span style="color:#8B968F;font-size:13px;">— {{ c.who }}</span></div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-content:start;">
+                <sc-for list="{{ c.stats }}" as="st" hint-placeholder-count="4">
+                  <div style="background:#FBFDFB;border:1px solid #E9EEEA;border-radius:13px;padding:18px;">
+                    <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:900;font-size:26px;color:{{ pal }};">{{ st.v }}</div>
+                    <div style="font-size:12px;color:#5A6660;margin-top:3px;line-height:1.4;">{{ st.k }}</div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </sc-for>
+        <div style="text-align:center;padding:26px 0 0;">
+          <span onClick="{{ goBook }}" style="display:inline-block;font-size:15px;font-weight:700;color:#fff;background:{{ pal }};border-radius:12px;padding:15px 28px;cursor:pointer;">Get numbers like these →</span>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ============ ABOUT ============ -->
+  <sc-if value="{{ pgAbout }}" hint-placeholder-val="{{ false }}">
+    <div style="animation:awFade .35s ease;">
+      <div style="max-width:840px;margin:0 auto;padding:72px 28px;">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.14em;color:{{ pal }};margin-bottom:14px;">ABOUT</div>
+        <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:900;font-size:42px;letter-spacing:-.035em;line-height:1.08;">Built by an operator, not an ad buyer.</div>
+        <div style="font-size:16px;color:#3B463F;line-height:1.8;margin-top:24px;">{{ agencyName }} exists because most local businesses don't have a marketing problem — they have a follow-up problem. Calls go to voicemail. Leads sit in a spreadsheet. Past customers never hear from you again. We install AI agents on the Clientforce platform that fix exactly that, then we run them, tune them and report the outcomes every week.</div>
+        <div style="font-size:16px;color:#3B463F;line-height:1.8;margin-top:16px;">We price on outcomes wherever one can be measured. When you pay for a booked appointment instead of a retainer, every incentive points the same direction.</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:36px;">
+          <sc-for list="{{ values }}" as="v" hint-placeholder-count="3">
+            <div style="border:1px solid #E9EEEA;border-radius:15px;padding:22px;">
+              <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:800;font-size:16px;margin-bottom:7px;">{{ v.t }}</div>
+              <div style="font-size:13.5px;color:#5A6660;line-height:1.6;">{{ v.d }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:flex;align-items:center;gap:18px;border:1px solid #E9EEEA;border-radius:16px;padding:24px;margin-top:36px;">
+          <span style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,{{ pal }},#36D7ED);color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Schibsted Grotesk',sans-serif;font-weight:800;font-size:20px;flex:none;">JR</span>
+          <div style="flex:1;"><div style="font-size:15.5px;font-weight:700;">Jordan Rivera — Founder</div><div style="font-size:13.5px;color:#5A6660;line-height:1.6;margin-top:4px;">Ten years running growth for local service businesses before building {{ agencyName }} on Clientforce.</div></div>
+          <span onClick="{{ goBook }}" style="flex:none;font-size:13.5px;font-weight:700;color:{{ pal }};border:1.5px solid {{ palBd }};border-radius:10px;padding:11px 18px;cursor:pointer;" style-hover="background:{{ palSoft }};">Talk to Jordan</span>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ============ BOOK ============ -->
+  <sc-if value="{{ pgBook }}" hint-placeholder-val="{{ false }}">
+    <div style="animation:awFade .35s ease;">
+      <div style="max-width:1180px;margin:0 auto;padding:64px 28px 80px;display:grid;grid-template-columns:1fr 1.1fr;gap:52px;align-items:start;">
+        <div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.14em;color:{{ pal }};margin-bottom:14px;">BOOK A STRATEGY CALL</div>
+          <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:900;font-size:40px;letter-spacing:-.035em;line-height:1.08;">20 minutes. A straight answer.</div>
+          <div style="font-size:15.5px;color:#5A6660;line-height:1.7;margin-top:16px;">No deck, no pressure. We look at your call volume and lead flow and tell you exactly what an AI agent would recover — or that you don't need one yet.</div>
+          <div style="display:flex;flex-direction:column;gap:14px;margin-top:28px;">
+            <sc-for list="{{ callAgenda }}" as="ca" hint-placeholder-count="3">
+              <div style="display:flex;gap:12px;align-items:baseline;"><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:{{ pal }};flex:none;">{{ ca.n }}</span><div><div style="font-size:14.5px;font-weight:700;">{{ ca.t }}</div><div style="font-size:13.5px;color:#5A6660;line-height:1.55;margin-top:2px;">{{ ca.d }}</div></div></div>
+            </sc-for>
+          </div>
+          <div style="border:1px solid #E9EEEA;border-radius:14px;padding:20px;margin-top:30px;">
+            <div style="font-size:14px;line-height:1.65;">"Best 20 minutes I've spent on the business this year. They told me one of our two locations wasn't ready — and were right."</div>
+            <div style="font-size:12.5px;color:#8B968F;margin-top:9px;">— Priya N., MedSpa owner</div>
+          </div>
+        </div>
+        <div style="background:#fff;border:1px solid #E9EEEA;border-radius:20px;padding:28px;position:sticky;top:96px;">
+          <sc-if value="{{ notBooked }}" hint-placeholder-val="{{ true }}">
+            <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:800;font-size:19px;margin-bottom:18px;">Pick a time</div>
+            <div style="display:flex;gap:8px;margin-bottom:16px;">
+              <sc-for list="{{ days }}" as="d" hint-placeholder-count="5">
+                <span onClick="{{ d.pick }}" style="flex:1;text-align:center;border:1.5px solid {{ d.bd }};background:{{ d.bg }};border-radius:11px;padding:10px 4px;cursor:pointer;">
+                  <span style="display:block;font-size:10.5px;color:#8B968F;font-weight:600;">{{ d.dow }}</span>
+                  <span style="display:block;font-size:15px;font-weight:800;color:{{ d.fg }};margin-top:2px;">{{ d.num }}</span>
+                </span>
+              </sc-for>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:20px;">
+              <sc-for list="{{ slots }}" as="sl" hint-placeholder-count="6">
+                <span onClick="{{ sl.pick }}" style="text-align:center;font-size:13px;font-weight:700;color:{{ sl.fg }};background:{{ sl.bg }};border:1.5px solid {{ sl.bd }};border-radius:10px;padding:11px 0;cursor:pointer;">{{ sl.t }}</span>
+              </sc-for>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:11px;">
+              <input value="{{ bfName }}" onInput="{{ onBfName }}" type="text" placeholder="Your name" style="width:100%;height:46px;box-sizing:border-box;padding:0 14px;border:1px solid #DCE5DE;border-radius:11px;font-size:14px;font-family:'IBM Plex Sans',sans-serif;">
+              <input value="{{ bfBiz }}" onInput="{{ onBfBiz }}" type="text" placeholder="Business" style="width:100%;height:46px;box-sizing:border-box;padding:0 14px;border:1px solid #DCE5DE;border-radius:11px;font-size:14px;font-family:'IBM Plex Sans',sans-serif;">
+              <input value="{{ bfEmail }}" onInput="{{ onBfEmail }}" type="email" placeholder="Email" style="width:100%;height:46px;box-sizing:border-box;padding:0 14px;border:1px solid #DCE5DE;border-radius:11px;font-size:14px;font-family:'IBM Plex Sans',sans-serif;">
+              <input value="{{ bfPhone }}" onInput="{{ onBfPhone }}" type="text" placeholder="Phone" style="width:100%;height:46px;box-sizing:border-box;padding:0 14px;border:1px solid #DCE5DE;border-radius:11px;font-size:14px;font-family:'IBM Plex Sans',sans-serif;">
+            </div>
+            <span onClick="{{ bookIt }}" style="display:block;text-align:center;font-size:15px;font-weight:700;color:#fff;background:{{ pal }};border-radius:12px;padding:15px 0;cursor:pointer;margin-top:16px;opacity:{{ bookOpacity }};">{{ bookCta }}</span>
+            <div style="font-size:11.5px;color:#8B968F;text-align:center;margin-top:12px;">Confirmation lands by email & SMS. Reschedule any time.</div>
+          </sc-if>
+          <sc-if value="{{ isBooked }}" hint-placeholder-val="{{ false }}">
+            <div style="text-align:center;padding:24px 8px;">
+              <span style="display:inline-flex;width:58px;height:58px;border-radius:50%;background:{{ palSoft }};border:1.5px solid {{ palBd }};color:{{ pal }};align-items:center;justify-content:center;font-size:26px;font-weight:800;margin-bottom:18px;">✓</span>
+              <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:800;font-size:22px;">You're booked, {{ bookedFirst }}.</div>
+              <div style="font-size:14.5px;color:#5A6660;margin-top:8px;">{{ bookedLine }}</div>
+              <div style="border:1px solid #E9EEEA;border-radius:13px;padding:16px;margin-top:20px;text-align:left;">
+                <div style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.1em;color:#8B968F;margin-bottom:8px;">WHAT HAPPENS NOW</div>
+                <div style="font-size:13.5px;color:#3B463F;line-height:1.8;">Calendar invite + SMS confirmation sent · We'll review your call flow before we meet · Bring one month of call volume if handy</div>
+              </div>
+              <span onClick="{{ bookAgain }}" style="display:inline-block;font-size:13px;font-weight:700;color:{{ pal }};cursor:pointer;margin-top:16px;">Book another time</span>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ============ FOOTER ============ -->
+  <div style="border-top:1px solid #E9EEEA;background:#FBFDFB;margin-top:auto;">
+    <div style="max-width:1180px;margin:0 auto;padding:44px 28px 36px;display:flex;gap:40px;align-items:flex-start;">
+      <div style="flex:1.4;">
+        <div style="display:flex;align-items:center;gap:9px;margin-bottom:12px;"><span style="width:28px;height:28px;border-radius:8px;background:{{ pal }};color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Schibsted Grotesk',sans-serif;font-weight:900;font-size:13px;">{{ agInitial }}</span><span style="font-family:'Schibsted Grotesk',sans-serif;font-weight:800;font-size:15px;">{{ agencyName }}</span></div>
+        <div style="font-size:13px;color:#5A6660;line-height:1.65;max-width:300px;">AI revenue agency. Booked outcomes for local businesses, priced per result.</div>
+        <div style="font-size:12px;color:#8B968F;margin-top:14px;">✦ Our agents disclose they're AI on every call and message.</div>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;gap:9px;">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.12em;color:#8B968F;margin-bottom:4px;">PAGES</div>
+        <sc-for list="{{ footLinks }}" as="fl" hint-placeholder-count="5">
+          <span onClick="{{ fl.go }}" style="font-size:13.5px;color:#3B463F;cursor:pointer;" style-hover="color:{{ pal }};">{{ fl.label }}</span>
+        </sc-for>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;gap:9px;">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.12em;color:#8B968F;margin-bottom:4px;">CONTACT</div>
+        <span style="font-size:13.5px;color:#3B463F;">hello@riveradigital.co</span>
+        <span style="font-size:13.5px;color:#3B463F;">(512) 555-0100</span>
+        <span style="font-size:13.5px;color:#3B463F;">Instagram · Facebook · LinkedIn</span>
+      </div>
+    </div>
+    <div style="border-top:1px solid #E9EEEA;">
+      <div style="max-width:1180px;margin:0 auto;padding:16px 28px;display:flex;align-items:center;gap:10px;">
+        <span style="font-size:12px;color:#8B968F;flex:1;">© 2026 {{ agencyName }} · Privacy · Terms</span>
+        <span style="font-size:12px;color:#8B968F;">Powered by</span>
+        <span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:#101613;"><span style="width:14px;height:14px;border-radius:4px;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);"></span>Clientforce Ai</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ LEAD MAGNET MODAL ============ -->
+  <sc-if value="{{ lmOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ lmClose }}" style="position:fixed;inset:0;background:rgba(16,22,19,.5);z-index:90;display:flex;align-items:center;justify-content:center;">
+      <div onClick="{{ eatClick }}" style="width:480px;background:#fff;border-radius:20px;overflow:hidden;animation:awFade .25s ease;">
+        <div style="height:4px;background:{{ pal }};"></div>
+        <div style="padding:30px 30px 28px;">
+          <sc-if value="{{ lmNotDone }}" hint-placeholder-val="{{ true }}">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.12em;color:{{ pal }};margin-bottom:10px;">FREE AUDIT</div>
+            <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:800;font-size:24px;letter-spacing:-.02em;line-height:1.15;">The Revenue Leak Audit</div>
+            <div style="font-size:14px;color:#5A6660;line-height:1.65;margin-top:10px;">Where a business like yours leaks revenue — missed calls, unworked leads, silent follow-up — with the math shown. Sent straight to your inbox.</div>
+            <div style="display:flex;gap:9px;margin-top:20px;">
+              <input value="{{ lmEmail }}" onInput="{{ onLmEmail }}" type="email" placeholder="you@yourbusiness.com" style="flex:1;height:48px;box-sizing:border-box;padding:0 15px;border:1px solid #DCE5DE;border-radius:11px;font-size:14px;font-family:'IBM Plex Sans',sans-serif;">
+              <span onClick="{{ lmSubmit }}" style="flex:none;display:flex;align-items:center;font-size:14px;font-weight:700;color:#fff;background:{{ pal }};border-radius:11px;padding:0 20px;cursor:pointer;">Send it</span>
+            </div>
+            <div style="font-size:11.5px;color:#8B968F;margin-top:12px;">No list-blasting. One report, one follow-up, done.</div>
+          </sc-if>
+          <sc-if value="{{ lmDone }}" hint-placeholder-val="{{ false }}">
+            <div style="text-align:center;padding:14px 0;">
+              <span style="display:inline-flex;width:54px;height:54px;border-radius:50%;background:{{ palSoft }};border:1.5px solid {{ palBd }};color:{{ pal }};align-items:center;justify-content:center;font-size:24px;font-weight:800;margin-bottom:16px;">✓</span>
+              <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:800;font-size:21px;">On its way.</div>
+              <div style="font-size:14px;color:#5A6660;margin-top:8px;">Check {{ lmEmailShown }} in the next few minutes.</div>
+              <span onClick="{{ lmClose }}" style="display:inline-block;font-size:13.5px;font-weight:700;color:{{ pal }};cursor:pointer;margin-top:16px;">Close</span>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900},&quot;variant&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;forward&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;forward&quot;,&quot;centered&quot;,&quot;split&quot;,&quot;bold&quot;],&quot;section&quot;:&quot;Brand&quot;},&quot;palette&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#146B33&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;#146B33&quot;,&quot;#0E7D93&quot;,&quot;#6B4FE0&quot;,&quot;#101613&quot;],&quot;section&quot;:&quot;Brand&quot;},&quot;agencyName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Rivera Digital&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Brand&quot;},&quot;leadMagnet&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Conversion&quot;}}">
+class Component extends DCLogic {
+  state = { page: 'home', faqOpen: 0, day: 2, slot: null, bf: { name: '', biz: '', email: '', phone: '' }, booked: false, bookedAt: '', lmOpen: false, lmDone: false, lmEmail: '', vOv: null };
+  componentDidMount() {
+    const read = () => { const m = (window.location.hash || '').match(/v=([a-z]+)/); if (m) this.setState({ vOv: m[1] }); };
+    read(); this._onHash = read; window.addEventListener('hashchange', this._onHash);
+  }
+  componentWillUnmount() { if (this._onHash) window.removeEventListener('hashchange', this._onHash); }
+  renderVals() {
+    const s = this.state;
+    const pal = this.props.palette ?? '#146B33';
+    const variant = s.vOv || this.props.variant || 'forward';
+    const TINTS = { '#146B33': ['#EAF5EE', '#CFE8D8'], '#0E7D93': ['#E2F3F6', '#BFE3EB'], '#6B4FE0': ['#EFEAFB', '#D8CCF5'], '#101613': ['#EFF1EF', '#D8DDD9'] };
+    const [palSoft, palBd] = TINTS[pal] || TINTS['#146B33'];
+    const name = this.props.agencyName ?? 'Rivera Digital';
+    const go = (p) => () => { this.setState({ page: p }); const el = document.scrollingElement; if (el) el.scrollTop = 0; };
+    const PAGES = [['home', 'Home'], ['services', 'Services'], ['results', 'Results'], ['about', 'About']];
+    const setBf = (k) => (e) => this.setState((st) => ({ bf: Object.assign({}, st.bf, { [k]: e.target.value }) }));
+    const DAYS = [['Mon', '17'], ['Tue', '18'], ['Wed', '19'], ['Thu', '20'], ['Fri', '21']];
+    const SLOTS = ['9:00 AM', '10:30 AM', '11:40 AM', '1:00 PM', '2:30 PM', '4:10 PM'];
+    const bfOk = s.bf.name.trim() && s.bf.biz.trim() && /.+@.+\..+/.test(s.bf.email) && s.slot !== null;
+    const lmShow = (this.props.leadMagnet ?? true) !== false;
+    return {
+      pal, palSoft, palBd, agencyName: name, agInitial: (name.trim()[0] || 'A').toUpperCase(),
+      heroV1: variant === 'forward' || ['centered', 'split', 'bold'].indexOf(variant) === -1, heroV2: variant === 'centered', heroV3: variant === 'split', heroV4: variant === 'bold',
+      pgHome: s.page === 'home', pgServices: s.page === 'services', pgResults: s.page === 'results', pgAbout: s.page === 'about', pgBook: s.page === 'book',
+      goHome: go('home'), goServices: go('services'), goResults: go('results'), goAbout: go('about'), goBook: go('book'),
+      navLinks: PAGES.map(([id, label]) => ({ label, go: go(id), w: s.page === id ? 800 : 600, c: s.page === id ? '#101613' : '#5A6660', u: s.page === id ? pal : 'transparent' })),
+      footLinks: PAGES.concat([['book', 'Book a call']]).map(([id, label]) => ({ label, go: go(id) })),
+      heroStats: [
+        { v: '2,400+', k: 'calls answered for clients' },
+        { v: '312', k: 'appointments booked last quarter' },
+        { v: '< 1 wk', k: 'from install to first outcome' },
+        { v: '$0', k: 'paid until outcomes land' }],
+      services: [
+        { icon: '➤', name: 'Outbound Campaigns', blurb: 'Goal-first, multi-channel outreach that runs until the calendar fills.', outcome: 'Priced per showed appointment' },
+        { icon: '⟳', name: 'Database Reactivation', blurb: 'Your old lead list, revived with offers people actually answer.', outcome: 'Priced per booked visit' },
+        { icon: '✦', name: 'AI Chat & Lead Capture', blurb: 'A website agent that answers, qualifies and books while you sleep.', outcome: 'Priced per captured lead' },
+        { icon: '★', name: 'Reviews & Reputation', blurb: 'Review requests timed to happy moments; responses drafted for you.', outcome: 'Priced per new review' },
+        { icon: '☎', name: 'AI Receptionist', isNew: true, blurb: 'Every call answered in two rings, 24/7 — booked, routed or messaged.', outcome: 'Priced per call handled' },
+        { icon: '✆', name: 'Missed-Call Text-Back', blurb: 'Anyone you miss gets a text inside a minute — before they call a competitor.', outcome: 'Priced per recovered lead' }],
+      servicesFull: [
+        { icon: '➤', name: 'Outbound Campaigns', outcome: 'Outcome: showed appointments', desc: 'Goal-first campaigns on Clientforce: we define the outcome, the AI works the list across channels, a human approves anything sensitive, and your calendar fills. You see every send and every reply.', inc: ['ICP + targeting built with you', 'Multi-channel: email, SMS, voice', 'Human-approval guardrails', 'Live outcome dashboard'] },
+        { icon: '⟳', name: 'Database Reactivation', outcome: 'Outcome: booked visits from dead leads', desc: 'We take the list you already paid for — old inquiries, lapsed customers — and run a compliant multi-touch campaign that turns silence into bookings. Most clients see results in the first two weeks.', inc: ['List hygiene & consent check first', 'Offer strategy + copy written for you', 'SMS & email sequences, throttled politely', 'Pay per booked appointment'] },
+        { icon: '✦', name: 'AI Chat & Lead Capture', outcome: 'Outcome: qualified leads', desc: 'A website chat agent grounded in your business — services, pricing, availability — that qualifies visitors and books them, with every conversation logged to your CRM.', inc: ['Trained on your business brain', 'Books into your real calendar', 'Hands off to humans gracefully', 'Every chat transcribed & tagged'] },
+        { icon: '★', name: 'Reviews & Reputation', outcome: 'Outcome: new 5-star reviews', desc: 'Review requests triggered at the right moment — right after a booked outcome — plus drafted responses to every review, good or bad, in your voice.', inc: ['Timed review requests by SMS', 'Response drafts for your approval', 'Negative-review early warning', 'Monthly reputation report'] },
+        { icon: '☎', name: 'AI Receptionist', isNew: true, outcome: 'Outcome: every call answered', desc: 'Our newest add-on: an AI agent on your existing number that answers in two rings, books straight into your calendar, routes urgent calls to a human and takes structured messages — with full transcripts. Discloses it\u2019s AI on every call.', inc: ['24/7 answering on your current number', 'Direct calendar booking + SMS confirmations', 'Human routing rules you control', 'Weekly call & outcome report'] },
+        { icon: '✆', name: 'Missed-Call Text-Back', outcome: 'Outcome: recovered leads', desc: 'The highest-ROI fix in local business: every missed call gets an SMS inside 60 seconds with a booking link. Installed in a day.', inc: ['60-second SLA', 'Booking link + reply handling', 'After-hours coverage', 'Monthly recovered-revenue report'] }],
+      steps: [
+        { n: '01 · WEEK ONE', t: 'Install', d: 'We connect your number, calendar and lead list to Clientforce, train the agents on your business, and set your guardrails together.' },
+        { n: '02 · ALWAYS ON', t: 'Run', d: 'Agents answer, follow up and book around the clock. Anything sensitive waits for human approval — yours or ours.' },
+        { n: '03 · EVERY FRIDAY', t: 'Report', d: 'A one-page outcome report: calls answered, visits booked, revenue recovered. You pay on what landed.' }],
+      caseStats: [
+        { v: '31', k: 'patients booked in 60 days' },
+        { v: '$42k', k: 'treatment value recovered' },
+        { v: '94%', k: 'of calls answered < 2 rings' },
+        { v: '11×', k: 'return on program cost' }],
+      quotes: [
+        { text: 'The receptionist paid for itself the first weekend. Two implant consults from calls we would have missed.', who: 'Dr. Elena Reyes', biz: 'Bright Smile Dental', init: 'ER', mbg: 'linear-gradient(135deg,#146B33,#35E834)' },
+        { text: 'They reactivated a lead list I was embarrassed about. 19 bookings from people who inquired last year.', who: 'Marcus Webb', biz: 'Webb Home Services', init: 'MW', mbg: 'linear-gradient(135deg,#0E8FA8,#36D7ED)' },
+        { text: 'I see every conversation the AI has. That transparency is why I stayed past the trial.', who: 'Priya Natarajan', biz: 'Glow MedSpa', init: 'PN', mbg: 'linear-gradient(135deg,#6B4FE0,#36D7ED)' }],
+      faqs: [
+        { q: 'Will callers know it\u2019s an AI?', a: 'Yes — always. The agent introduces itself as an AI assistant on every call and message. It books faster than a busy front desk, and callers who want a human get routed to one immediately.' },
+        { q: 'What does "pay per outcome" actually mean?', a: 'Where an outcome is measurable — a booked appointment, a recovered lead, a new review — that\u2019s the unit you pay on. Platform costs are a flat monthly fee; the performance fee only triggers when the outcome lands on your calendar or in your CRM.' },
+        { q: 'How fast can we be live?', a: 'Missed-call text-back: one day. AI receptionist: three to five days including training and test calls. Reactivation and outbound campaigns: inside two weeks, since consent checks and offer strategy come first.' },
+        { q: 'Do you need to replace my phone system or CRM?', a: 'No. We attach to your existing number and calendar. If you have a CRM we sync to it; if you don\u2019t, you get one as part of the platform.' },
+        { q: 'What if it doesn\u2019t work for my business?', a: 'The 60-day guarantee: if we haven\u2019t produced measurable booked outcomes in your first 60 days, we work free until we have. And we\u2019ll tell you on the strategy call if we think you\u2019re not a fit — it happens.' }].map((f, i) => ({ q: f.q, a: f.a, open: s.faqOpen === i, mark: s.faqOpen === i ? '−' : '+', toggle: () => this.setState((st) => ({ faqOpen: st.faqOpen === i ? -1 : i })) })),
+      cases: [
+        { tag: 'DENTAL · AUSTIN, TX', title: 'Bright Smile Dental: 31 booked patients in 60 days', story: 'Their front desk missed 40% of calls after 3pm. We installed the AI receptionist on the main line and ran a reactivation campaign over 1,900 lapsed patients. No new ad spend.', quote: 'Two implant consults came from Saturday calls we would never have answered.', who: 'Dr. Elena Reyes, owner', stats: [{ v: '31', k: 'patients booked' }, { v: '$42k', k: 'treatment value' }, { v: '94%', k: 'calls answered' }, { v: '60d', k: 'time to result' }] },
+        { tag: 'HOME SERVICES · ROUND ROCK, TX', title: 'Webb Home Services: 19 jobs from a dead lead list', story: 'A spreadsheet of 1,100 quotes that never closed, some 14 months old. One consent-checked reactivation sequence with a seasonal offer, throttled over three weeks.', quote: 'I assumed those leads were gone. They just needed someone to follow up.', who: 'Marcus Webb, owner', stats: [{ v: '19', k: 'jobs booked' }, { v: '$31k', k: 'revenue recovered' }, { v: '3wk', k: 'campaign length' }, { v: '$0', k: 'ad spend' }] },
+        { tag: 'MEDSPA · AUSTIN, TX', title: 'Glow MedSpa: after-hours chat that books 40% of its own leads', story: 'Most of their inquiries came in after close. The website chat agent now answers, qualifies and books consults directly into their calendar — with every transcript reviewed weekly.', quote: 'It books while we sleep, and I can read every word it said.', who: 'Priya Natarajan, owner', stats: [{ v: '112', k: 'leads captured' }, { v: '40%', k: 'self-booked' }, { v: '< 5s', k: 'response time' }, { v: '24/7', k: 'coverage' }] }],
+      values: [
+        { t: 'Outcomes over hours', d: 'We price on what lands, not on activity. Reports show outcomes, not impressions.' },
+        { t: 'Honest AI', d: 'Agents disclose what they are, log every conversation, and hand off to humans without a fight.' },
+        { t: 'Your data stays yours', d: 'Lists, transcripts, calendars — exportable any day. No hostage-taking.' }],
+      callAgenda: [
+        { n: '01', t: 'Where revenue leaks', d: 'We walk your call flow and lead handling to find what\u2019s slipping — usually in the first ten minutes.' },
+        { n: '02', t: 'What an agent would recover', d: 'A realistic monthly number, from your volume — not a template projection.' },
+        { n: '03', t: 'A straight recommendation', d: 'Start, wait, or don\u2019t bother. We say which and why.' }],
+      days: DAYS.map(([dow, num], i) => ({ dow, num, bd: s.day === i ? pal : '#DCE5DE', bg: s.day === i ? palSoft : '#fff', fg: s.day === i ? pal : '#101613', pick: () => this.setState({ day: i, slot: null }) })),
+      slots: SLOTS.map((t, i) => ({ t, fg: s.slot === i ? '#fff' : '#101613', bg: s.slot === i ? pal : '#fff', bd: s.slot === i ? pal : '#DCE5DE', pick: () => this.setState({ slot: i }) })),
+      bfName: s.bf.name, onBfName: setBf('name'), bfBiz: s.bf.biz, onBfBiz: setBf('biz'), bfEmail: s.bf.email, onBfEmail: setBf('email'), bfPhone: s.bf.phone, onBfPhone: setBf('phone'),
+      bookOpacity: bfOk ? '1' : '.55', bookCta: s.slot === null ? 'Pick a time slot above' : 'Confirm my call',
+      bookIt: () => { if (!bfOk) { return; } const d = DAYS[s.day]; this.setState({ booked: true, bookedAt: d[0] + ' Aug ' + d[1] + ' · ' + SLOTS[s.slot] }); },
+      notBooked: !s.booked, isBooked: s.booked,
+      bookedFirst: (s.bf.name.trim().split(' ')[0] || 'there'), bookedLine: s.bookedAt + ' with Jordan — 20 minutes.',
+      bookAgain: () => this.setState({ booked: false, slot: null }),
+      lmBarShow: lmShow, lmOpen: s.lmOpen, lmNotDone: !s.lmDone, lmDone: s.lmDone,
+      lmOpenFn: () => this.setState({ lmOpen: true, lmDone: false }),
+      lmClose: () => this.setState({ lmOpen: false }),
+      eatClick: (e) => e.stopPropagation(),
+      lmEmail: s.lmEmail, onLmEmail: (e) => this.setState({ lmEmail: e.target.value }),
+      lmEmailShown: s.lmEmail || 'your inbox',
+      lmSubmit: () => { if (!/.+@.+\..+/.test(s.lmEmail)) return; this.setState({ lmDone: true }); },
+    };
+  }
+}
+</script>
+</body>
+</html>
