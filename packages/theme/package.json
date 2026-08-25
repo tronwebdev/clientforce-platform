@@ -11,11 +11,13 @@
       "default": "./dist/index.js"
     },
     "./console-v3.css": "./src/console-v3.css",
+    "./console-bold.css": "./src/console-bold.css",
     "./assets/mark.svg": "./assets/mark.svg"
   },
   "files": [
     "dist",
     "src/console-v3.css",
+    "src/console-bold.css",
     "assets"
   ],
   "scripts": {

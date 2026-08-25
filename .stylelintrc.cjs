@@ -16,8 +16,13 @@ module.exports = {
   overrides: [
     {
       // Design-token SOURCES — the only files allowed raw color literals:
-      // the legacy skin's tokens and the console-v3 module (widget unit).
-      files: ["packages/ui/src/tokens.css", "packages/theme/src/console-v3.css"],
+      // the legacy skin's tokens, the console-v3 module (widget unit), and the
+      // additive Console Bold layer (B0 wave, DESIGN_TOKENS_V3.md §Bold).
+      files: [
+        "packages/ui/src/tokens.css",
+        "packages/theme/src/console-v3.css",
+        "packages/theme/src/console-bold.css",
+      ],
       rules: {
         "color-no-hex": null,
         "color-named": null,

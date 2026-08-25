@@ -1,0 +1,697 @@
+/**
+ * Console Bold — B0 shell chrome (behind the `consoleBold` flag, /bold only).
+ *
+ * Pixel truth: design_handoff_console_v3/prototypes/Console Bold.dc.html.
+ * Geometry is lifted verbatim from the prototype; every colour goes through
+ * the additive `--cvb-*` tokens (@clientforce/theme/console-bold.css) — the
+ * stylelint token rule forbids raw colours here by design. The legacy skin
+ * (`--cf-*`, .cf-*) is untouched; nothing in this file leaks outside .cvb-root.
+ *
+ * Shell contract (ADDENDUM_4_BOLD §1 — each rule was a real defect):
+ *   1. The page never scrolls — each column owns its scroll.
+ *   2. The Ada bar is pinned inside the canvas column, outside the scroller.
+ *   3. Every column: header flex:none → scroll flex:1/min-height:0 → footer.
+ *   4. Every card inside a scrolling flex column carries flex:none.
+ *   5. The dock fits 11 tiles at 540px viewport height (38px/4px/r13).
+ */
+
+@keyframes cvb-in {
+  0% { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes cvb-grow {
+  0% { transform: scaleX(0); }
+  100% { transform: scaleX(1); }
+}
+@keyframes cvb-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.82); }
+}
+@keyframes cvb-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(20, 107, 51, 0.12); }
+  50% { box-shadow: 0 0 0 8px rgba(20, 107, 51, 0); }
+}
+@keyframes cvb-rise {
+  0% { opacity: 0; transform: translateY(14px) scale(0.99); }
+  100% { opacity: 1; transform: none; }
+}
+/* Collapsed-rail pill glow (canon collapsed-rail paragraph: "glowing"). */
+@keyframes cvb-slim-glow {
+  0%, 100% { box-shadow: 0 1px 2px rgba(16, 22, 19, 0.04); }
+  50% { box-shadow: 0 0 0 4px rgba(53, 232, 52, 0.13), 0 2px 14px rgba(16, 22, 19, 0.07); }
+}
+/* Focus choreography (LOCKED SHARP, Addendum 2 §F): canvas approach/recede. */
+@keyframes cvb-approach {
+  from { transform: scale(0.885); }
+  to { transform: scale(1); }
+}
+@keyframes cvb-recede {
+  from { transform: scale(0.955); }
+  to { transform: scale(1); }
+}
+
+/* ------------------------------------------------------------------ shell */
+
+/* The prototype's global `*{box-sizing:border-box}` — scoped to Bold so the
+   legacy skin is untouched. Without it 100vh + 26px padding = a 52px page
+   scroll, which is exactly what shell rule 1 forbids. */
+.cvb-root,
+.cvb-root *,
+.cvb-tour-layer,
+.cvb-tour-layer *,
+.cvb-tour-offer,
+.cvb-tour-offer * {
+  box-sizing: border-box;
+}
+
+.cvb-root {
+  height: 100vh;
+  overflow: hidden;
+  padding: var(--cvb-shell-pad);
+  display: flex;
+  gap: var(--cvb-shell-gap);
+  background: var(--cvb-wash);
+  color: var(--cvb-ink);
+  font-family: var(--cvb-font-ui);
+  -webkit-font-smoothing: antialiased;
+}
+.cvb-root ::-webkit-scrollbar { width: 9px; height: 9px; }
+.cvb-root ::-webkit-scrollbar-thumb { background: var(--cvb-scrollbar); border-radius: 100px; }
+.cvb-root ::-webkit-scrollbar-track { background: transparent; }
+
+.cvb-mono { font-family: var(--cvb-font-mono); }
+.cvb-display { font-family: var(--cvb-font-display); }
+
+/* ------------------------------------------------------------------- rail */
+
+.cvb-rail-wrap { flex: none; position: relative; height: 100%; transition: width var(--cvb-t-rail-slide) var(--cvb-ease); }
+.cvb-rail-wrap[data-open="true"] { width: var(--cvb-rail-w); }
+.cvb-rail-wrap[data-open="false"] { width: var(--cvb-rail-slim-w); }
+
+.cvb-rail {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--cvb-rail-w);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow: hidden;
+  will-change: transform, opacity;
+  transition: opacity var(--cvb-t-rail-fade) ease, transform var(--cvb-t-rail-slide) var(--cvb-ease), filter var(--cvb-t-rail-slide) ease;
+}
+.cvb-rail-wrap[data-open="false"] .cvb-rail {
+  opacity: 0.16;
+  transform: translateX(-10px) scale(0.96);
+  filter: blur(3px) saturate(0.55);
+  pointer-events: none;
+}
+
+/* Collapsed icon column — the rail lives on the console mark (ruling). */
+.cvb-rail-slim {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--cvb-rail-slim-w);
+  display: flex;
+  flex-direction: column;
+  transition: opacity 0.18s ease;
+}
+.cvb-rail-wrap[data-open="true"] .cvb-rail-slim { opacity: 0; pointer-events: none; }
+.cvb-rail-wrap[data-open="false"] .cvb-rail-slim { opacity: 1; transition-delay: 0.12s; }
+/* NOT a full-height bar (canon): a compact pill only as tall as its content
+   (mark · » · count · vertical CAMPAIGNS, glowing); the wrap is transparent
+   and the B business tile stands alone at the bottom. */
+.cvb-rail-slim-card {
+  width: var(--cvb-rail-slim-w);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  background: var(--cvb-panel);
+  border: 1px solid var(--cvb-line);
+  border-radius: 16px;
+  padding: 11px 0 12px;
+  cursor: pointer;
+  animation: cvb-slim-glow 3.6s ease-in-out infinite;
+}
+.cvb-rail-slim-card:hover { background: var(--cvb-mint-wash); }
+.cvb-rail-slim-biz {
+  width: var(--cvb-rail-slim-w);
+  height: var(--cvb-rail-slim-w);
+  box-sizing: border-box;
+  border-radius: 16px;
+  background: var(--cvb-panel);
+  border: 1px solid var(--cvb-line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.cvb-rail-slim-biz:hover { background: var(--cvb-mint-wash); }
+
+/* Workspace card (rail header row: card + focus capsule). */
+.cvb-ws-row { flex: none; display: flex; align-items: center; gap: 8px; }
+.cvb-ws-card {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 10px;
+  border-radius: 14px;
+  background: var(--cvb-panel);
+  border: 1px solid var(--cvb-line-3);
+  cursor: pointer;
+}
+.cvb-ws-card:hover { background: var(--cvb-hover); border-color: var(--cvb-line-hover); }
+
+/* Focus capsule — 27px, gradient wash, dbl-chevron, green glow (A2 §F LOCKED). */
+.cvb-capsule {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 27px;
+  height: 27px;
+  border-radius: 10px;
+  background: var(--cvb-gradient-capsule);
+  border: 1px solid var(--cvb-capsule-line);
+  box-shadow: 0 0 10px var(--cvb-capsule-glow);
+  cursor: pointer;
+  flex: none;
+  transition: box-shadow 0.3s, border-color 0.3s;
+}
+.cvb-capsule:hover { box-shadow: 0 0 16px var(--cvb-capsule-glow-hover); border-color: var(--cvb-capsule-line-hover); }
+
+/* Rail middle — the scrolling zone between workspace card and core card. */
+.cvb-rail-mid {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-right: 2px;
+}
+.cvb-rail-camps { flex: 1; min-height: 96px; display: flex; flex-direction: column; }
+.cvb-rail-eyebrow {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 4px 10px;
+  font-family: var(--cvb-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  color: var(--cvb-faint);
+}
+.cvb-rail-camps-list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; }
+.cvb-camp-row {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 13px;
+  border-radius: 13px;
+  cursor: pointer;
+  background: transparent;
+}
+.cvb-camp-row:hover { background: var(--cvb-well-fill); }
+.cvb-camp-row[data-active="true"] { background: var(--cvb-wash); }
+
+/* Always on / inbound rows. */
+.cvb-alwayson-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border-radius: 12px;
+  padding: 9px 11px;
+  cursor: pointer;
+  border: 1px solid var(--cvb-line);
+  background: var(--cvb-panel);
+}
+.cvb-alwayson-row:hover { border-color: var(--cvb-mint-line); }
+.cvb-alwayson-row[data-warn="true"] { background: var(--cvb-amber-soft-bg); border-color: var(--cvb-amber-soft-line); }
+
+/* Ada suggests (muted block below ALWAYS ON — prototype composition). */
+.cvb-sugg-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  background: var(--cvb-panel);
+  border: 1px solid var(--cvb-line-soft);
+  border-radius: 11px;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+.cvb-sugg-row:hover { background: var(--cvb-hover); border-color: var(--cvb-line-hover); }
+.cvb-sugg-start {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--cvb-muted);
+  background: var(--cvb-card);
+  border: 1px solid var(--cvb-line-ctl);
+  border-radius: 8px;
+  padding: 4px 8px;
+  cursor: pointer;
+  flex: none;
+}
+.cvb-sugg-start:hover { color: var(--cvb-forest); border-color: var(--cvb-mint-line); }
+
+/* ICP + credits card — pinned bottom, flex:none. */
+.cvb-core-card {
+  flex: none;
+  background: var(--cvb-panel);
+  border: 1px solid var(--cvb-line-3);
+  border-radius: 17px;
+  overflow: hidden;
+}
+.cvb-core-top { padding: 13px; cursor: pointer; }
+.cvb-core-top:hover { background: var(--cvb-hover); }
+.cvb-core-credits { border-top: 1px solid var(--cvb-line-inner); padding: 13px 14px; }
+.cvb-topup {
+  font-size: 11.5px;
+  font-weight: 800;
+  color: var(--cvb-card);
+  background: var(--cvb-forest);
+  border-radius: 10px;
+  padding: 8px 12px;
+  cursor: pointer;
+  flex: none;
+  border: 0;
+  font-family: inherit;
+}
+.cvb-credit-bar { height: 4px; border-radius: 2px; background: var(--cvb-wash); margin-top: 11px; overflow: hidden; }
+.cvb-credit-bar > span {
+  display: block;
+  height: 4px;
+  background: var(--cvb-forest);
+  border-radius: 2px;
+  transform-origin: left;
+  animation: cvb-grow 0.7s var(--cvb-ease) both;
+}
+
+/* ----------------------------------------------------------------- canvas */
+
+.cvb-canvas-col { flex: 1; min-width: 0; position: relative; height: 100%; }
+.cvb-canvas-col[data-choreo="approach"] .cvb-canvas { animation: cvb-approach var(--cvb-t-canvas-approach) var(--cvb-ease) both; }
+.cvb-canvas-col[data-choreo="recede"] .cvb-canvas { animation: cvb-recede var(--cvb-t-canvas-recede) var(--cvb-ease) both; }
+
+.cvb-canvas {
+  background: var(--cvb-card);
+  border: 1px solid var(--cvb-line);
+  border-radius: var(--cvb-r-canvas);
+  overflow: hidden;
+  position: relative;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  will-change: transform;
+  transform-origin: center center;
+}
+
+/* Chat-bubble tail: canvas → active dock tile (runtime-measured, dock pages
+   only — A2 §F mechanics on Bold geometry). */
+.cvb-canvas-tail {
+  position: absolute;
+  right: -6px;
+  width: 19px;
+  height: 19px;
+  transform: rotate(45deg);
+  background: var(--cvb-card);
+  border-top: 1px solid var(--cvb-line-strong);
+  border-right: 1px solid var(--cvb-line-strong);
+  border-radius: 0 5px 0 5px;
+  box-shadow: 3px -3px 8px rgba(16, 22, 19, 0.05);
+  z-index: 5;
+  transition: top var(--cvb-t-tail) var(--cvb-ease);
+}
+
+.cvb-canvas-head { flex: none; padding: 20px 40px 16px; display: flex; align-items: flex-start; gap: 16px; }
+.cvb-eyebrow {
+  font-family: var(--cvb-font-mono);
+  font-size: var(--cvb-eyebrow-size);
+  letter-spacing: var(--cvb-eyebrow-tracking);
+  color: var(--cvb-faint);
+}
+.cvb-page-title {
+  font-family: var(--cvb-font-display);
+  font-weight: 900;
+  font-size: var(--cvb-title-canvas);
+  letter-spacing: -0.032em;
+  line-height: 1.08;
+  margin-top: 6px;
+  background: var(--cvb-gradient-ink);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.cvb-status-pill {
+  font-size: 10.5px;
+  font-weight: 700;
+  border-radius: var(--cvb-r-pill);
+  padding: 6px 12px;
+  flex: none;
+  margin-top: 9px;
+  border: 1px solid transparent;
+}
+.cvb-status-pill[data-tone="live"] { color: var(--cvb-forest); background: var(--cvb-mint); border-color: var(--cvb-mint-line); }
+.cvb-status-pill[data-tone="capped"] { color: var(--cvb-amber); background: var(--cvb-amber-bg); border-color: var(--cvb-amber-line); }
+.cvb-status-pill[data-tone="idle"] { color: var(--cvb-muted); background: var(--cvb-well); border-color: var(--cvb-line-ctl); }
+.cvb-tour-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 11px;
+  border: 1px solid var(--cvb-line-ctl);
+  background: var(--cvb-panel);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cvb-muted);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  flex: none;
+  margin-top: 11px;
+  font-family: inherit;
+}
+.cvb-tour-btn:hover { border-color: var(--cvb-mint-line); color: var(--cvb-forest); background: var(--cvb-mint-wash); }
+
+.cvb-canvas-scroll { flex: 1; min-height: 0; overflow-y: auto; }
+
+/* B0 canvas stub — replaced surface-by-surface from B1 on. */
+.cvb-stub { padding: 26px 40px 40px; }
+.cvb-stub-stage {
+  background: var(--cvb-gradient-stage);
+  border: 1px solid var(--cvb-line-stage);
+  border-radius: var(--cvb-r-stage);
+  overflow: hidden;
+  animation: cvb-rise 0.45s var(--cvb-ease) both;
+}
+.cvb-stub-hairline { height: 3px; background: var(--cvb-gradient-signature); }
+.cvb-stub-body { padding: 26px 28px 28px; }
+.cvb-stub-title {
+  font-family: var(--cvb-font-display);
+  font-weight: 900;
+  font-size: var(--cvb-title-card);
+  letter-spacing: -0.034em;
+  margin-top: 9px;
+}
+.cvb-stub-copy { font-size: 13.5px; color: var(--cvb-muted); line-height: 1.55; margin-top: 9px; max-width: 520px; }
+.cvb-stub-wave {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 16px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--cvb-slate);
+  background: var(--cvb-slate-tint);
+  border: 1px solid var(--cvb-slate-line);
+  border-radius: var(--cvb-r-pill);
+  padding: 3px 9px;
+}
+
+/* ---------------------------------------------------------------- Ada bar */
+
+.cvb-ada-bar { flex: none; background: var(--cvb-panel); border-top: 1px solid var(--cvb-line-inner); padding: 11px 18px 13px; }
+.cvb-ada-pill {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  background: var(--cvb-card);
+  border: 1px solid var(--cvb-scrollbar);
+  border-radius: 16px;
+  padding: 8px 8px 8px 14px;
+  cursor: pointer;
+  box-shadow: 0 0 0 4px var(--cvb-glow-ring);
+}
+.cvb-ada-mark {
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  flex: none;
+  background: var(--cvb-gradient-signature);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--cvb-ink);
+}
+.cvb-ada-hint { flex: 1; min-width: 0; font-size: 13px; color: var(--cvb-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cvb-ada-send {
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  flex: none;
+  background: var(--cvb-forest);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cvb-card);
+  font-size: 14px;
+  border: 0;
+  cursor: pointer;
+}
+
+/* Ada panel — rises off the bar inside the canvas (74% height sheet). */
+.cvb-ada-scrim { position: absolute; inset: 0; background: rgba(10, 14, 12, 0.18); display: flex; align-items: flex-end; z-index: 8; }
+.cvb-ada-panel {
+  width: 100%;
+  background: var(--cvb-panel);
+  border-top: 1px solid var(--cvb-line-ctl);
+  border-radius: 22px 22px 24px 24px;
+  padding: 22px 26px 26px;
+  height: 74%;
+  max-height: 74%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: cvb-in 0.3s var(--cvb-ease) both;
+}
+.cvb-ada-close {
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  border: 1px solid var(--cvb-line-ctl);
+  background: var(--cvb-card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cvb-muted);
+  font-size: 12px;
+  cursor: pointer;
+  flex: none;
+}
+.cvb-ada-chat { flex: 1; min-height: 60px; overflow-y: auto; display: flex; flex-direction: column; gap: 11px; }
+.cvb-ada-msg { flex: none; max-width: 76%; border-radius: 15px; padding: 13px 16px; font-size: 13.5px; line-height: 1.55; border: 1px solid transparent; }
+.cvb-ada-msg[data-who="me"] { align-self: flex-end; background: var(--cvb-forest); border-color: var(--cvb-forest); color: var(--cvb-card); }
+.cvb-ada-msg[data-who="ada"] { align-self: flex-start; background: var(--cvb-card); border-color: var(--cvb-line-ctl); color: var(--cvb-ink); }
+.cvb-ada-chips { flex: none; display: flex; gap: 6px; flex-wrap: wrap; margin-top: 18px; }
+.cvb-ada-chip {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--cvb-ink-soft);
+  background: var(--cvb-card);
+  border: 1px solid var(--cvb-line-ctl);
+  border-radius: var(--cvb-r-pill);
+  padding: 8px 12px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.cvb-ada-chip:hover { border-color: var(--cvb-mint-line); color: var(--cvb-forest); }
+/* ------------------------------------------------------ workspace picker */
+
+.cvb-ws-scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 14, 12, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9;
+  padding: 22px;
+}
+.cvb-ws-modal {
+  width: 440px;
+  max-width: 100%;
+  max-height: 100%;
+  overflow-y: auto;
+  background: var(--cvb-panel);
+  border: 1px solid var(--cvb-line-ctl);
+  border-radius: 22px;
+  padding: 22px;
+  animation: cvb-rise 0.3s var(--cvb-ease) both;
+}
+.cvb-ws-option {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  background: var(--cvb-card);
+  border: 1px solid var(--cvb-line);
+  border-radius: 15px;
+  padding: 13px;
+  cursor: pointer;
+}
+.cvb-ws-option:hover { border-color: var(--cvb-mint-line); }
+.cvb-ws-option[data-here="true"] { background: var(--cvb-mint); border-color: var(--cvb-mint-line); }
+.cvb-ws-primary {
+  flex: 1;
+  text-align: center;
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--cvb-card);
+  background: var(--cvb-forest);
+  border-radius: 12px;
+  padding: 12px;
+  cursor: pointer;
+  border: 0;
+  font-family: inherit;
+}
+.cvb-ws-secondary {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--cvb-ink-soft);
+  background: var(--cvb-well);
+  border: 1px solid var(--cvb-line-ctl);
+  border-radius: 12px;
+  padding: 12px 16px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+/* ------------------------------------------------------------------- dock */
+
+.cvb-dock {
+  width: var(--cvb-dock-w);
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cvb-dock-gap);
+  align-items: center;
+  height: 100%;
+  overflow-y: auto;
+}
+.cvb-dock-tile {
+  position: relative;
+  width: var(--cvb-dock-tile);
+  height: var(--cvb-dock-tile);
+  border-radius: var(--cvb-r-tile);
+  background: var(--cvb-panel);
+  border: 1px solid var(--cvb-line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex: none;
+  padding: 0;
+}
+.cvb-dock-tile[data-active="true"] { background: var(--cvb-mint); border-color: var(--cvb-mint-line); }
+.cvb-dock-tile[data-warn="true"] { border-color: var(--cvb-amber-line); }
+.cvb-dock-tile[data-rcp="true"] { background: var(--cvb-mint-wash); border-color: var(--cvb-mint-line); margin-bottom: 10px; }
+.cvb-dock-tile[data-rcp="true"][data-active="true"] { background: var(--cvb-gradient-rcp); border-color: transparent; }
+.cvb-dock-dot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 2px solid var(--cvb-panel);
+}
+.cvb-dock-dot[data-kind="live"] { background: var(--cvb-live); animation: cvb-pulse 1.6s ease-in-out infinite; }
+.cvb-dock-dot[data-kind="warn"] { background: var(--cvb-warn-dot); }
+
+/* ------------------------------------------------------------------- tour */
+
+.cvb-tour-layer { position: fixed; inset: 0; z-index: 60; pointer-events: none; }
+.cvb-tour-ring {
+  position: absolute;
+  border-radius: 17px;
+  border: 2px solid var(--cvb-live);
+  box-shadow: 0 0 0 9999px rgba(8, 14, 11, 0.6), 0 0 24px rgba(53, 232, 52, 0.35);
+  transition: left 0.5s var(--cvb-ease), top 0.5s var(--cvb-ease), width 0.5s var(--cvb-ease), height 0.5s var(--cvb-ease);
+}
+.cvb-tour-card {
+  position: absolute;
+  width: 344px;
+  background: var(--cvb-panel);
+  border: 1px solid var(--cvb-line-ctl);
+  border-radius: 20px;
+  padding: 19px 20px 17px;
+  pointer-events: auto;
+  transition: left 0.5s var(--cvb-ease), top 0.5s var(--cvb-ease);
+}
+.cvb-tour-next {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--cvb-card);
+  background: var(--cvb-forest);
+  border-radius: 11px;
+  padding: 9px 15px;
+  cursor: pointer;
+  flex: none;
+  border: 0;
+  font-family: inherit;
+}
+.cvb-tour-chapter { height: 4px; border-radius: 2px; transition: width 0.4s ease, background 0.4s ease; }
+
+/* Tour offer — fixed bottom-left dark card. */
+.cvb-tour-offer {
+  position: fixed;
+  left: 26px;
+  bottom: 26px;
+  width: 274px;
+  background: var(--cvb-ink);
+  border-radius: 19px;
+  padding: 17px 18px;
+  z-index: 55;
+  animation: cvb-in 0.4s var(--cvb-ease) both;
+}
+.cvb-tour-offer-cta {
+  flex: 1;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--cvb-ink);
+  background: var(--cvb-gradient-signature);
+  border-radius: 11px;
+  padding: 10px;
+  cursor: pointer;
+  border: 0;
+  font-family: inherit;
+}
+.cvb-tour-offer-later {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.62);
+  background: rgba(255, 255, 255, 0.09);
+  border-radius: 11px;
+  padding: 10px 13px;
+  cursor: pointer;
+  border: 0;
+  font-family: inherit;
+}
+
+/* ------------------------------------------------------------------ toast */
+
+.cvb-toast {
+  position: absolute;
+  left: 50%;
+  bottom: 98px;
+  transform: translateX(-50%);
+  background: var(--cvb-ink);
+  border-radius: 14px;
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 9;
+  animation: cvb-in 0.26s ease both;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cvb-root *, .cvb-tour-ring, .cvb-tour-card { animation: none !important; transition: none !important; }
+}

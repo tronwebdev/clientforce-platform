@@ -34,6 +34,17 @@ export const fetchMe = cache(async (): Promise<Me | { noWorkspace: true } | null
   return (await res.json()) as Me;
 });
 
+/** Fetch enabled feature-flag keys for the active workspace (B0, Console
+ *  Bold gate). Fail-closed: any error reads as "no flags enabled". */
+export const fetchWorkspaceFlags = cache(async (): Promise<string[]> => {
+  const headers = await authHeaders();
+  if (!headers) return [];
+  const res = await fetch(`${API_URL}/flags`, { headers, cache: "no-store" });
+  if (!res.ok) return [];
+  const body = (await res.json().catch(() => null)) as { flags?: string[] } | null;
+  return Array.isArray(body?.flags) ? body.flags : [];
+});
+
 /** Fetch contacts in the active workspace (RLS-scoped server-side). */
 export async function fetchContacts(): Promise<Contact[]> {
   const headers = await authHeaders();

@@ -259,6 +259,14 @@ async function main(): Promise<void> {
   const primary = await prisma.workspace.findFirstOrThrow({
     where: { agencyId: agency.id, slug: "demo" },
   });
+  // B0 (Console Bold): the flag defaults OFF everywhere; the seed enables it
+  // for the demo workspace only, so the dev stack and the Bold e2e can reach
+  // /bold. Launch stays a per-workspace backoffice flag flip (Flags spine).
+  await prisma.featureFlag.upsert({
+    where: { workspaceId_key: { workspaceId: primary.id, key: "consoleBold" } },
+    update: { enabled: true },
+    create: { workspaceId: primary.id, key: "consoleBold", enabled: true },
+  });
   const agentCount = await prisma.agent.count({ where: { workspaceId: primary.id } });
   if (agentCount === 0) {
     await prisma.agent.create({
