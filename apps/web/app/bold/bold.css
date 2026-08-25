@@ -35,6 +35,11 @@
   0% { opacity: 0; transform: translateY(14px) scale(0.99); }
   100% { opacity: 1; transform: none; }
 }
+/* Collapsed-rail pill glow (canon collapsed-rail paragraph: "glowing"). */
+@keyframes cvb-slim-glow {
+  0%, 100% { box-shadow: 0 1px 2px rgba(16, 22, 19, 0.04); }
+  50% { box-shadow: 0 0 0 4px rgba(53, 232, 52, 0.13), 0 2px 14px rgba(16, 22, 19, 0.07); }
+}
 /* Focus choreography (LOCKED SHARP, Addendum 2 §F): canvas approach/recede. */
 @keyframes cvb-approach {
   from { transform: scale(0.885); }
@@ -112,6 +117,9 @@
 }
 .cvb-rail-wrap[data-open="true"] .cvb-rail-slim { opacity: 0; pointer-events: none; }
 .cvb-rail-wrap[data-open="false"] .cvb-rail-slim { opacity: 1; transition-delay: 0.12s; }
+/* NOT a full-height bar (canon): a compact pill only as tall as its content
+   (mark · » · count · vertical CAMPAIGNS, glowing); the wrap is transparent
+   and the B business tile stands alone at the bottom. */
 .cvb-rail-slim-card {
   width: var(--cvb-rail-slim-w);
   box-sizing: border-box;
@@ -124,6 +132,7 @@
   border-radius: 16px;
   padding: 11px 0 12px;
   cursor: pointer;
+  animation: cvb-slim-glow 3.6s ease-in-out infinite;
 }
 .cvb-rail-slim-card:hover { background: var(--cvb-mint-wash); }
 .cvb-rail-slim-biz {
