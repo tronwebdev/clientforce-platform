@@ -67,6 +67,10 @@ export * from "./campaign-rules";
 // cross-tenant, platform-staff auth, never tenant-scoped.
 export * from "./backoffice";
 
+// Tenant-side feature-flag read (B0, Console Bold port) — the app-readable
+// half of the B1 W4 FeatureFlag table; backoffice write DTOs stay in ./backoffice.
+export * from "./flags";
+
 // List hygiene — email validation at every ingress (LH1, DEC-087): the
 // verdict enum of record, batch report DTOs, gate refusal/hold vocabulary.
 export * from "./validation";

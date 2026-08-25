@@ -1,0 +1,153 @@
+/**
+ * Console Bold design tokens — the ADDITIVE Bold layer beside console-v3.
+ *
+ * Binding sources: `design_handoff_console_v3/DESIGN_TOKENS_V3.md` (Apple pass
+ * head + the §Bold amendment at the foot, 2026-08-16) and the built values in
+ * `prototypes/Console Bold.dc.html` (pixel truth). Where §Bold and the v3 canon
+ * differ, §Bold wins for Bold-era surfaces — which is why this is a separate
+ * sheet: `packages/theme/src/console-v3.css` stays the verbatim v3 canon mirror
+ * (its test pins it to CONSOLE_V3_CANON.md) and nothing here overwrites it.
+ * The `--cvb-` prefix is collision-free against both `--cv3-` and the legacy
+ * `--cf-` set, so all three sheets can coexist in one document.
+ *
+ * This file is a design-token SOURCE: the only Bold file where raw color
+ * literals are allowed (stylelint override, same rule as console-v3.css).
+ * Everything else consumes var(--cvb-*).
+ */
+:root,
+:host {
+  /* ---- Surfaces (neutralized — green lives in accents only) ---- */
+  --cvb-wash: #eff1f0; /* page background */
+  --cvb-panel: #fcfcfc; /* rail cards · dock tiles · quiet fills */
+  --cvb-card: #ffffff; /* cards · canvas */
+  --cvb-hover: #f6f7f7; /* hover fill */
+  --cvb-well: #f2f3f3; /* wells */
+
+  /* Hairlines — the lightened Apple-pass set (legacy #E9EEEA family retired
+     for the console) plus the prototype's built companions. */
+  --cvb-line: #ecedec; /* structure hairline (canvas, dock tiles) */
+  --cvb-line-2: #f0f1f0;
+  --cvb-line-3: #eaebea; /* rail card hairline */
+  --cvb-line-strong: #e2e4e3;
+  --cvb-line-inner: #f1f2f1; /* row dividers · tracks · Ada bar top */
+  --cvb-line-ctl: #e4e6e5; /* control borders (buttons, chips, closers) */
+  --cvb-line-hover: #dee1df;
+  --cvb-line-soft: #edeeed; /* muted suggestion rows */
+  --cvb-scrollbar: #dcdfdd;
+
+  /* ---- Ink & text ---- */
+  --cvb-ink: #101613;
+  --cvb-ink-soft: #3e4b44; /* strong body copy */
+  --cvb-muted: #5a6660;
+  --cvb-faint: #8b968f;
+  --cvb-faint-2: #a8b2ac; /* quieter labels (ADA SUGGESTS eyebrow) */
+  --cvb-ghost: #c3cbc6; /* dismiss ✕ · disabled marks */
+
+  /* ---- Color ROLES (hard rule — see DESIGN_TOKENS_V3 §Color ROLES) ---- */
+  --cvb-forest: #146b33; /* Ada / live / create / approve ONLY */
+  --cvb-mint: #eaf5ee;
+  --cvb-mint-line: #cfe8d8;
+  --cvb-mint-wash: #f4faf6; /* receptionist idle tile · header ? hover */
+  --cvb-cyan: #0e7d93; /* navigate/inspect links */
+  --cvb-cyan-tint: #e2f3f6;
+  --cvb-cyan-line: #bfe3eb;
+  --cvb-amber: #8a6d1a; /* needs-you/caution ink */
+  --cvb-amber-bg: #f7efda;
+  --cvb-amber-line: #ead9a8;
+  --cvb-amber-soft-bg: #fdfbf5; /* not-installed rail row */
+  --cvb-amber-soft-line: #efe6d0;
+  --cvb-amber-soft-ink: #a08749;
+  --cvb-danger: #b0483a;
+  --cvb-danger-bg: #fbeeea;
+  --cvb-slate: #356170; /* system/data */
+  --cvb-slate-tint: #eaf3f5;
+  --cvb-slate-line: #cfe4e9;
+
+  /* ---- Indicators ---- */
+  --cvb-live: #35e834; /* live dot 11px, 2px panel-coloured ring, bPulse */
+  --cvb-warn-dot: #e0a83a; /* warn dot 11px, solid */
+  --cvb-dot-amber: #d9a82b; /* capped campaign dot */
+  --cvb-icon-idle: #7c8781; /* dock idle mark */
+
+  /* ---- Gradients ---- */
+  /* Signature gradient: logo mark + ≤2 moments/screen. Never fills or buttons. */
+  --cvb-gradient-signature: linear-gradient(135deg, #36d7ed, #35e834 55%, #d0f56b);
+  /* Gradient ink for page titles (Bold prototype: 30% → 130%). */
+  --cvb-gradient-ink: linear-gradient(180deg, #101613 30%, #14743a 130%);
+  /* Ada/business mark tile + the workspace-avatar palette (prototype wsList). */
+  --cvb-gradient-mark: linear-gradient(135deg, #146b33, #35e834);
+  --cvb-gradient-mark-2: linear-gradient(135deg, #0e7d93, #36d7ed);
+  --cvb-gradient-mark-3: linear-gradient(135deg, #5b4a8a, #9b87d4);
+  /* Receptionist active dock tile. */
+  --cvb-gradient-rcp: linear-gradient(150deg, #0c2a1b, #0a1524);
+  /* §Bold card gradient — stage and plan cards. */
+  --cvb-gradient-stage: linear-gradient(180deg, #ffffff 0%, #fcfdfc 50%, #f7faf8 100%);
+  --cvb-line-stage: #e4e7e5;
+  /* §Bold page wash for focused screens. */
+  --cvb-gradient-focus-wash: radial-gradient(120% 90% at 78% -10%, #f3f6f4 0%, #edf0ee 45%, #e7ebe9 100%);
+  /* Focus capsule wash (locked v3-era recipe, carried by Addendum 2 §F). */
+  --cvb-gradient-capsule:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0) 55%),
+    linear-gradient(135deg, rgba(54, 215, 237, 0.16), rgba(53, 232, 52, 0.13) 55%, rgba(208, 245, 107, 0.18));
+  --cvb-capsule-line: rgba(53, 232, 52, 0.32);
+  --cvb-capsule-line-hover: rgba(53, 232, 52, 0.6);
+  --cvb-capsule-glow: rgba(53, 232, 52, 0.16);
+  --cvb-capsule-glow-hover: rgba(53, 232, 52, 0.4);
+
+  /* ---- Elevation (§Bold amends "zero box-shadows"; hard grey drops banned) ---- */
+  --cvb-shadow-card: 0 1px 2px rgba(16, 22, 19, 0.05), 0 14px 38px -14px rgba(16, 22, 19, 0.18);
+  --cvb-shadow-subtle: 0 1px 2px rgba(16, 22, 19, 0.035);
+  --cvb-shadow-lift: 0 1px 2px rgba(16, 22, 19, 0.12), 0 8px 20px -8px rgba(20, 107, 51, 0.55);
+  /* Soft green glow ring — live/active accent (compose sizes in consumers). */
+  --cvb-glow-ring: rgba(20, 107, 51, 0.045);
+  --cvb-glow-live: 0 0 0 7px rgba(20, 107, 51, 0.045);
+
+  /* ---- Inputs — recessed wells (not more white boxes) ---- */
+  --cvb-well-fill: #f4f6f5;
+  --cvb-well-line: #e2e6e4;
+  --cvb-well-divider: #e7eae8;
+  --cvb-shadow-well: inset 0 1px 2px rgba(16, 22, 19, 0.05);
+
+  /* ---- Type ---- */
+  --cvb-font-display: "Schibsted Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --cvb-font-ui: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --cvb-font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  /* §Bold type scale */
+  --cvb-title-hero: 46px; /* auth / marketing hero · 900 · -.04em */
+  --cvb-title-stage: 34px; /* focused page + stage title · 900 · gradient ink */
+  --cvb-title-canvas: 27px; /* console canvas header (prototype-built) · 900 */
+  --cvb-title-card: 26px; /* card title · 900 · -.034em */
+  --cvb-eyebrow-size: 9.5px; /* section eyebrow · mono · .18em */
+  --cvb-eyebrow-tracking: 0.18em;
+  --cvb-statlabel-size: 10px; /* stat/meta label · mono · .13em */
+  --cvb-statlabel-tracking: 0.13em;
+
+  /* ---- Shell metrics (§Bold — fixed, not suggestions) ---- */
+  --cvb-shell-pad: 26px;
+  --cvb-shell-gap: 18px;
+  --cvb-rail-w: 228px;
+  --cvb-rail-slim-w: 46px;
+  --cvb-dock-w: 52px;
+  --cvb-dock-tile: 38px;
+  --cvb-dock-gap: 4px;
+  --cvb-r-tile: 13px;
+
+  /* ---- Radius (Bold) ---- */
+  --cvb-r-pill: 999px;
+  --cvb-r-chip: 13px;
+  --cvb-r-well: 14px;
+  --cvb-r-card: 17px;
+  --cvb-r-card-lg: 20px;
+  --cvb-r-stage: 22px;
+  --cvb-r-canvas: 24px;
+
+  /* ---- Motion (focus choreography LOCKED SHARP — Addendum 2 §F) ---- */
+  --cvb-ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --cvb-t-rail-fade: 0.22s;
+  --cvb-t-rail-slide: 0.3s;
+  --cvb-t-canvas-recede: 0.34s;
+  --cvb-t-canvas-approach: 0.4s;
+  --cvb-t-dock: 0.38s;
+  --cvb-t-tail: 0.3s;
+}

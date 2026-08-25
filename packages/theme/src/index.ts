@@ -5,7 +5,12 @@
  * 2026-07-12). `consoleV3Vars` mirrors src/console-v3.css one-to-one; the
  * package test pins the two in both directions AND pins the canon's hard
  * rules, so neither can drift from the doc silently.
+ *
+ * The Console Bold layer (`--cvb-*`, DESIGN_TOKENS_V3.md §Bold) is ADDITIVE
+ * beside this mirror — see ./console-bold. Nothing there overwrites `--cv3-*`.
  */
+
+export * from "./console-bold";
 
 /** Exact mirror of the custom properties in console-v3.css. */
 export const consoleV3Vars: Record<string, string> = {
