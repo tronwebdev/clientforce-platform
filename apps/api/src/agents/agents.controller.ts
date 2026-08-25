@@ -12,6 +12,7 @@ import {
 import {
   createAgentSchema,
   DEFAULT_GUARDRAILS,
+  goalTerminalPill,
   parseGuardrails,
   updateAgentSchema,
   validateGraph,
@@ -143,6 +144,14 @@ export class AgentsController {
           // DEC-037: the only derived field — Warn when the agent can't run.
           health: (m.steps > 0 && activeSenders > 0 ? "Good" : "Warn") as "Good" | "Warn",
           createdAt: agent.createdAt.toISOString(),
+          // B1 (DEC-104): the BACKEND_TOUCH_MAP goal-met EXTEND — met at least
+          // once (any enrollment reached the goal-terminal stage), plus the
+          // C2.9 pill wording and the Addendum-2 §D value fields (null = unset).
+          goalMet: m.booked > 0,
+          goalPill: goalTerminalPill(agent.goal),
+          valueEstCents: agent.valueEstCents,
+          valueGoalUnits: agent.valueGoalUnits,
+          valueSalesGoalCents: agent.valueSalesGoalCents,
         };
       });
     });

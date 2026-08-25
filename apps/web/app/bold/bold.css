@@ -31,6 +31,10 @@
   0%, 100% { box-shadow: 0 0 0 0 rgba(20, 107, 51, 0.12); }
   50% { box-shadow: 0 0 0 8px rgba(20, 107, 51, 0); }
 }
+@keyframes cvb-over {
+  0% { opacity: 0; transform: translateX(30px); }
+  100% { opacity: 1; transform: none; }
+}
 @keyframes cvb-rise {
   0% { opacity: 0; transform: translateY(14px) scale(0.99); }
   100% { opacity: 1; transform: none; }

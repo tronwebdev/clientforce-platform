@@ -196,6 +196,11 @@ model Agent {
   guardrails      Json
   /// B6: wizard draft-resume working set (core `draftStateSchema`); NULL once launched.
   draftState      Json?
+  /// B1 (DEC-104, Addendum-2 §D): campaign value model — owner-editable in the
+  /// Bold overview strip. All nullable; money renders only once set (honest absence).
+  valueEstCents       Int?
+  valueGoalUnits      Int?
+  valueSalesGoalCents Int?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   campaigns        Campaign[]

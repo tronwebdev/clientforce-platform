@@ -23,67 +23,15 @@ export type BoldSurface =
   | "integrations"
   | "wssettings"
   | "credits"
-  | "camps";
+  | "camps"
+  | "activity";
 
 /* ---------------------------------------------------------------- fixture */
 
-export interface BoldCampaignFixture {
-  key: string;
-  name: string;
-  /** Rail live value (`8/12`, `$6.4k`, `—`). */
-  value: string;
-  /** Rail dot colour token. */
-  dot: "forest" | "amber" | "faint";
-  status: { label: string; tone: "live" | "capped" | "idle" };
-  isSuggested?: boolean;
-  goalMet?: boolean;
-}
-
-/** B0 FIXTURE — the prototype's four sample campaigns (B1 wires the real list). */
-export const FIXTURE_CAMPAIGNS: BoldCampaignFixture[] = [
-  {
-    key: "openday",
-    name: "Implant open day",
-    value: "8/12",
-    dot: "forest",
-    status: { label: "Live", tone: "live" },
-  },
-  {
-    key: "whitening",
-    name: "Whitening kit push",
-    value: "$6.4k",
-    dot: "forest",
-    status: { label: "Live", tone: "live" },
-    goalMet: true,
-  },
-  {
-    key: "lapsed",
-    name: "Lapsed revival",
-    value: "$4.1k",
-    dot: "amber",
-    status: { label: "Capped", tone: "capped" },
-  },
-  {
-    key: "reviews",
-    name: "Review asks",
-    value: "—",
-    dot: "faint",
-    status: { label: "Not started", tone: "idle" },
-    isSuggested: true,
-  },
-];
-
-export interface BoldSuggestionFixture {
-  id: string;
-  name: string;
-  value: string;
-}
-
-/** B0 FIXTURE — Ada's rail suggestions (one muted row at a time; B1 wires). */
-export const FIXTURE_SUGGESTIONS: BoldSuggestionFixture[] = [
-  { id: "g1", name: "Recall overdue patients", value: "~$12k lifetime" },
-  { id: "g2", name: "Ask your happiest for reviews", value: "2 steps · ~90 credits" },
-];
+// B1 (DEC-104): the B0 campaign-list and Ada-suggestion fixtures are RETIRED —
+// the rail reads live AgentListItem rows, and Ada's proposals render only when
+// a real proposal source ships (Q-066: no engine exists; nothing canned
+// renders as live). ALWAYS ON and the core card stay fixture until B4/B7.
 
 /** B0 FIXTURE — the ALWAYS ON / INBOUND block (B4 wires the one-flag truth). */
 export const FIXTURE_ALWAYS_ON = {
@@ -118,6 +66,7 @@ export const SURFACE_TITLES: Record<Exclude<BoldSurface, "campaign">, [string, s
   wsinbox: ["WORKSPACE · 5 CONVERSATIONS", "Inbox"],
   integrations: ["3 CONNECTED · 2 ADD-ONS", "Integrations"],
   rcp: ["ADD-ON · INBOUND CALLS", "AI Receptionist"],
+  activity: ["AGENT ACTIVITY", "Everything Ada did"],
 };
 
 /** Which wave delivers each surface — shown on the B0 canvas stub. */
@@ -136,6 +85,7 @@ export const SURFACE_WAVE: Record<BoldSurface, string> = {
   integrations: "B8 · integrations",
   wssettings: "B7 · settings & business core",
   credits: "B7 · credits spend view",
+  activity: "B1 · campaign console",
 };
 
 /* --------------------------------------------------------- Ada map (ADAMAP) */
@@ -272,7 +222,7 @@ export interface BoldTourStep {
   title: string;
   body: string;
   grow?: boolean;
-  pre?: { surface?: BoldSurface; camp?: string };
+  pre?: { surface?: BoldSurface; tab?: string };
 }
 
 /**
@@ -310,7 +260,7 @@ export const TOUR_STEPS: BoldTourStep[] = [
     sel: "hero",
     title: "The number is money, not activity",
     body: "Goal, brief, value booked so far, and pace against target. Underneath: the three counts that produced it.",
-    pre: { surface: "campaign", camp: "openday" },
+    pre: { surface: "campaign", tab: "overview" },
   },
   {
     ch: "A CAMPAIGN",
@@ -324,25 +274,28 @@ export const TOUR_STEPS: BoldTourStep[] = [
     sel: "tabs",
     title: "Pipeline is people, not stages you maintain",
     body: "She moves contacts herself as replies land. Board or list, and every card opens the contact.",
+    pre: { surface: "campaign", tab: "pipeline" },
   },
   {
     ch: "A CAMPAIGN",
     sel: "tabs",
     title: "The plan, and what happens off-plan",
     body: "The sequence is only what she sends. Below it sit the branch rules — interested, question, price pushback, silence — which run without you.",
+    pre: { surface: "campaign", tab: "plan" },
   },
   {
     ch: "A CAMPAIGN",
     sel: "tabs",
     title: "The inbox is where you step in",
     body: "Filter by channel or status. She drafts; you send, rewrite, move or call. Nothing sends behind your back when approval is on.",
+    pre: { surface: "campaign", tab: "inbox" },
   },
   {
     ch: "THE WORKSPACE",
     sel: "dock",
     title: "Everything else lives on the dock",
     body: "Inbox, contacts, lead finder, automations, forms, chatbot, proposals, analytics, integrations, settings. The receptionist sits on top with a live dot when she is answering your line.",
-    pre: { surface: "campaign" },
+    pre: { surface: "campaign", tab: "overview" },
   },
   {
     ch: "THE WORKSPACE",
@@ -370,7 +323,7 @@ export const TOUR_STEPS: BoldTourStep[] = [
     sel: "ada",
     title: "This bar changes with the page",
     body: "On a campaign it asks about that campaign. On contacts it segments and imports. On forms it builds one. Type, or take one of her suggestions.",
-    pre: { surface: "campaign" },
+    pre: { surface: "campaign", tab: "overview" },
   },
 ];
 

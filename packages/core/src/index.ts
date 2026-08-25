@@ -71,6 +71,11 @@ export * from "./backoffice";
 // half of the B1 W4 FeatureFlag table; backoffice write DTOs stay in ./backoffice.
 export * from "./flags";
 
+// Campaign value semantics + Bold activity/needs DTOs (B1, DEC-104) — value
+// wording per shipped goal key beside GOAL_META; money fields are nullable
+// Agent columns, honest-absent until the owner sets them.
+export * from "./goal-value";
+
 // List hygiene — email validation at every ingress (LH1, DEC-087): the
 // verdict enum of record, batch report DTOs, gate refusal/hold vocabulary.
 export * from "./validation";
