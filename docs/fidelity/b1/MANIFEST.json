@@ -1,80 +1,80 @@
 {
   "unit": "b1",
-  "commit": "ab4f2e9131c0b6f9978d39b8b2337f24a7f168f4",
+  "commit": "7719071771ecd13dd51076265b38039df8ccfc50",
   "workingTreeDirtyAtCapture": true,
-  "capturedAt": "2026-08-26T08:26:57.205Z",
+  "capturedAt": "2026-08-26T09:49:53.390Z",
   "baseUrl": "http://localhost:3000",
   "note": "Single-run capture; every frame from one build. Verify a frame by hashing its bytes against this manifest — never by trusting an image cache. pnpm lint:fidelity enforces the binding.",
   "frames": {
     "build-activity-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 107988,
-      "sha256": "25d1ac621d9ad3c09610c6c738158c39216dbe0be59f8f0238be7f0397196ccd"
+      "bytes": 108006,
+      "sha256": "b23ad29163f58acb1ab19ebe5ea859562470ee767332c5de7e1c5830832141bd"
     },
     "build-camps-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 110257,
-      "sha256": "9bbd2360836f526c3d67f5ebf0f9020cf8e61b55276c02498b554f81539733ef"
+      "bytes": 110236,
+      "sha256": "f0a75c4cda730c118733ea650cdad6d3b6ec135bbcdc64969cb9d542e32edae1"
     },
     "build-grp-drawer-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 114827,
-      "sha256": "acc09950d4c29106f06e435a9d51f8dc75452b7c50069d00d4110bc636be263d"
+      "bytes": 114796,
+      "sha256": "22d257c00280c2f98b6f4556ad2b7dedf4add48374a0ca4db0ba35f4c37c7fc5"
     },
     "build-num-drawer-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 173787,
-      "sha256": "83c696c2b42c93a933c40ff9d098114583362b033106aaa63d660d81d5215736"
+      "bytes": 173759,
+      "sha256": "a564d96f320178462cbcf2ddcf3721f24e2e8ebe4da12a968d526c9b4a349df8"
     },
     "build-overview-1280x720.png": {
       "viewport": "1280x720",
-      "bytes": 159759,
-      "sha256": "87b12852c6672d10b744670ee8314e796c9830045b7de4b7a6008e4b00323216"
+      "bytes": 159760,
+      "sha256": "f58663a738e3fc9851809ab3b225f3f3acb26ea16deba79b2f415cac11fa4725"
     },
     "build-overview-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 194482,
-      "sha256": "e78dd128fe4becce0cca67ddd3710603899cc0ea69777c67959f036a6202e027"
+      "bytes": 194407,
+      "sha256": "8837e2724734d5462de991d2e4990cd7f8a576e1a15cb92d5f56282bdfd1e1a5"
     },
     "build-overview-924x540.png": {
       "viewport": "924x540",
-      "bytes": 129209,
-      "sha256": "6729d760156acf87ab6531189787e76a3c6d4c5e564f1949e6c6a144f68dbef2"
+      "bytes": 129315,
+      "sha256": "8a7d4ec0172e4c6d6f4df6978f17a79e7c47c386ae68fd9b219a075099032aa5"
     },
     "build-overview-empty-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 176037,
-      "sha256": "06202606b6e15e43c3a0297fecf80c5ef0e9bb616497dca9a7cc189ce793b3ad"
+      "bytes": 175986,
+      "sha256": "50062dcdd07a770c6f9a54daec473e33a61b083fe064dbc034cb5a5a2f0234de"
     },
     "build-person-drawer-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 124705,
-      "sha256": "0e3a69354df71d988ad5c95813ba5fbcc74f4ee5722babddd722ef6bf02c45b8"
+      "bytes": 124697,
+      "sha256": "a984c387016a7f1bfcea3fd356f0aa0d46b29606ed31ec98ead838274d6a7ef2"
     },
     "build-tab-stub-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 102355,
-      "sha256": "5227ce957c357488684408f4ab02f291140ea21529e2bc3cddb8753c8264609a"
+      "bytes": 102363,
+      "sha256": "ef2b00bd52e707b65aeb873d471bb19ae7f7b65ba47a3a3c466f5533eab8726a"
     },
     "build-value-edit-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 222290,
-      "sha256": "561b4797786f0e4c18d4bbcb327e67954313c7da36e214165538657bb14477b1"
+      "bytes": 201952,
+      "sha256": "413960253111a31fd7aa7d66d3c07e3fd0094d971a9e8e2b37130a6ca08319ff"
     },
     "proto-activity-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 133760,
-      "sha256": "b4b44a32523750df11cf76fcee2673eb09d521d5deceba41b7f9796f838188cd"
+      "bytes": 133749,
+      "sha256": "a881918893eb8e4175dba2543e90c5571bd306c9acb8bbc441b9af008b563fda"
     },
     "proto-camps-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 149971,
-      "sha256": "fd321018d3962e419f275736a50693215a8aff50f73002212565cbe2da69198e"
+      "bytes": 149986,
+      "sha256": "f29ac8f293295d9077464d64430a6a6e7a7d278e2eba1cd1f729073684b4cf47"
     },
     "proto-grp-drawer-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 199595,
-      "sha256": "41b047f7fdf8956e3a99c06a7a9febbe8c7f3557813c65758144eb43741f4dab"
+      "bytes": 199576,
+      "sha256": "76ac9f1c46a02318765ce50ed8038bb8b665d386d40eb9c77bb03d684da3f588"
     },
     "proto-num-drawer-1440x900.png": {
       "viewport": "1440x900",
@@ -83,13 +83,13 @@
     },
     "proto-overview-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 207581,
-      "sha256": "0ca8e58982d7160aec83cca6e9ef1ac5fee24158ea3b841aa856afea69bf00e9"
+      "bytes": 207623,
+      "sha256": "bf913e8aa19915e7685460c18846f7d32459ceb72e256b23709565d790d24e4d"
     },
     "proto-person-drawer-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 217287,
-      "sha256": "664df36275fe3b10d64329908624aa7721ba2a395262e609fb8ee46e5044817f"
+      "bytes": 217303,
+      "sha256": "f68030ef4f3cb7e7d006efd032eb2915d29571c350ada7c72d8c088022c6e716"
     }
   }
 }

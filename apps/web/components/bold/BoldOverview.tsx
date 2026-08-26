@@ -200,9 +200,9 @@ export function BoldOverview({ agent, onOpenDrawer, onAllActivity, onValueSaved,
   return (
     <div style={{ padding: "26px 40px 40px" }}>
       {/* Hero — dark stage, gradient hairline, goal stated explicitly. */}
-      <div data-tour="hero" style={{ border: "1px solid var(--cvb-line)", borderRadius: 22, overflow: "hidden", animation: "cvb-rise .45s var(--cvb-ease) both" }}>
-        <div style={{ background: "linear-gradient(150deg,#0C2A1B,#0A1524 66%,#0A0F14)" }}>
-          <div style={{ height: 2, background: "var(--cvb-gradient-signature)" }} />
+      <div data-tour="hero" style={{ border: "1px solid var(--cvb-line)", borderRadius: 22, animation: "cvb-rise .45s var(--cvb-ease) both" }}>
+        <div style={{ background: "linear-gradient(150deg,#0C2A1B,#0A1524 66%,#0A0F14)", borderRadius: "21px 21px 0 0" }}>
+          <div style={{ height: 2, background: "var(--cvb-gradient-signature)", borderRadius: "21px 21px 0 0" }} />
           <div style={{ padding: "26px 28px 28px", display: "flex", alignItems: "flex-end", gap: 26, flexWrap: "wrap" }}>
             <div style={{ flex: 1, minWidth: 190 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
@@ -241,107 +241,117 @@ export function BoldOverview({ agent, onOpenDrawer, onAllActivity, onValueSaved,
                 </div>
               )}
               {/* Review-kind goals never render money (Addendum-2 §E) — no
-                  value estimate exists to edit on them. */}
+                  value estimate exists to edit on them. The editor is an
+                  OVERLAY POPOVER anchored to the button (owner ruling, B1
+                  approval): opening it never reflows the hero — no layout
+                  shift, no reserved gap; % OF GOAL stays exactly in place. */}
               {meta.monetary ? (
-              !editing ? (
-                <button
-                  type="button"
-                  data-testid="bold-value-edit"
-                  onClick={() => {
-                    setEstDraft(est != null ? String(est / 100) : "");
-                    setTargetDraft(target != null ? String(target) : "");
-                    setEditing(true);
-                  }}
-                  style={{
-                    marginTop: 12,
-                    fontSize: 10.5,
-                    fontWeight: 700,
-                    color: "rgba(255,255,255,.75)",
-                    background: "rgba(255,255,255,.08)",
-                    border: "1px solid rgba(255,255,255,.2)",
-                    borderRadius: 9,
-                    padding: "6px 10px",
-                    cursor: "pointer",
-                    fontFamily: "inherit",
-                  }}
-                >
-                  {est != null || target != null ? "Edit value" : `Set ${meta.valueBasis}`}
-                </button>
-              ) : (
-                <div
-                  style={{
-                    marginTop: 12,
-                    background: "var(--cvb-panel)",
-                    border: "1px solid var(--cvb-line-strong)",
-                    borderRadius: 14,
-                    padding: 10,
-                    boxShadow: "var(--cvb-shadow-subtle)",
-                  }}
-                >
-                  {/* One shared recessed well, fields divided — the 2026-08-16
-                      input amendment. Labels carry the unit; no bare numbers. */}
-                  <div
+                <div style={{ position: "relative" }}>
+                  <button
+                    type="button"
+                    data-testid="bold-value-edit"
+                    onClick={() => {
+                      if (!editing) {
+                        setEstDraft(est != null ? String(est / 100) : "");
+                        setTargetDraft(target != null ? String(target) : "");
+                      }
+                      setEditing((e) => !e);
+                    }}
                     style={{
-                      background: "var(--cvb-well-fill)",
-                      border: "1px solid var(--cvb-well-line)",
-                      borderRadius: "var(--cvb-r-well)",
-                      boxShadow: "var(--cvb-shadow-well)",
-                      overflow: "hidden",
+                      marginTop: 12,
+                      fontSize: 10.5,
+                      fontWeight: 700,
+                      color: "rgba(255,255,255,.75)",
+                      background: "rgba(255,255,255,.08)",
+                      border: "1px solid rgba(255,255,255,.2)",
+                      borderRadius: 9,
+                      padding: "6px 10px",
+                      cursor: "pointer",
+                      fontFamily: "inherit",
                     }}
                   >
-                    <label style={{ display: "block", padding: "7px 10px 8px" }}>
-                      <span style={{ ...mono, display: "block", fontSize: 8.5, letterSpacing: ".13em", color: "var(--cvb-faint)" }}>
-                        $ PER {meta.unitNoun.toUpperCase()}
-                      </span>
-                      <input
-                        data-testid="bold-value-est"
-                        value={estDraft}
-                        onChange={(e) => setEstDraft(e.target.value)}
-                        placeholder="2,400"
-                        inputMode="decimal"
-                        style={{ width: "100%", border: 0, outline: "none", background: "transparent", fontFamily: "inherit", fontSize: 13, fontWeight: 600, color: "var(--cvb-ink)", marginTop: 3 }}
-                      />
-                    </label>
-                    <div style={{ height: 1, background: "var(--cvb-well-divider)" }} />
-                    <label style={{ display: "block", padding: "7px 10px 8px" }}>
-                      <span style={{ ...mono, display: "block", fontSize: 8.5, letterSpacing: ".13em", color: "var(--cvb-faint)" }}>
-                        TARGET {meta.unitNoun.toUpperCase()}S
-                      </span>
-                      <input
-                        data-testid="bold-value-target"
-                        value={targetDraft}
-                        onChange={(e) => setTargetDraft(e.target.value)}
-                        placeholder="12"
-                        inputMode="numeric"
-                        style={{ width: "100%", border: 0, outline: "none", background: "transparent", fontFamily: "inherit", fontSize: 13, fontWeight: 600, color: "var(--cvb-ink)", marginTop: 3 }}
-                      />
-                    </label>
-                  </div>
-                  <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-                    <button
-                      type="button"
-                      data-testid="bold-value-save"
-                      onClick={() => void saveValue()}
-                      style={{ flex: 1, fontSize: 11.5, fontWeight: 700, color: "var(--cvb-card)", background: "var(--cvb-forest)", border: 0, borderRadius: 10, padding: "8px 0", cursor: "pointer", fontFamily: "inherit" }}
+                    {est != null || target != null ? "Edit value" : `Set ${meta.valueBasis}`}
+                  </button>
+                  {editing ? (
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: "calc(100% + 8px)",
+                        right: 0,
+                        width: 210,
+                        zIndex: 7,
+                        background: "var(--cvb-panel)",
+                        border: "1px solid var(--cvb-line-strong)",
+                        borderRadius: 14,
+                        padding: 8,
+                        boxShadow: "var(--cvb-shadow-card)",
+                      }}
                     >
-                      Save
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEditing(false)}
-                      style={{ fontSize: 11.5, fontWeight: 600, color: "var(--cvb-ink-soft)", background: "transparent", border: "1px solid var(--cvb-line-ctl)", borderRadius: 10, padding: "8px 12px", cursor: "pointer", fontFamily: "inherit" }}
-                    >
-                      Cancel
-                    </button>
-                  </div>
+                      {/* One shared recessed well, fields divided — the
+                          2026-08-16 input amendment. Labels carry the unit. */}
+                      <div
+                        style={{
+                          background: "var(--cvb-well-fill)",
+                          border: "1px solid var(--cvb-well-line)",
+                          borderRadius: "var(--cvb-r-well)",
+                          boxShadow: "var(--cvb-shadow-well)",
+                          overflow: "hidden",
+                        }}
+                      >
+                        <label style={{ display: "block", padding: "6px 9px 7px" }}>
+                          <span style={{ ...mono, display: "block", fontSize: 8.5, letterSpacing: ".13em", color: "var(--cvb-faint)" }}>
+                            $ PER {meta.unitNoun.toUpperCase()}
+                          </span>
+                          <input
+                            data-testid="bold-value-est"
+                            value={estDraft}
+                            onChange={(e) => setEstDraft(e.target.value)}
+                            placeholder="2,400"
+                            inputMode="decimal"
+                            style={{ width: "100%", border: 0, outline: "none", background: "transparent", fontFamily: "inherit", fontSize: 13, fontWeight: 600, color: "var(--cvb-ink)", marginTop: 2 }}
+                          />
+                        </label>
+                        <div style={{ height: 1, background: "var(--cvb-well-divider)" }} />
+                        <label style={{ display: "block", padding: "6px 9px 7px" }}>
+                          <span style={{ ...mono, display: "block", fontSize: 8.5, letterSpacing: ".13em", color: "var(--cvb-faint)" }}>
+                            TARGET {meta.unitNoun.toUpperCase()}S
+                          </span>
+                          <input
+                            data-testid="bold-value-target"
+                            value={targetDraft}
+                            onChange={(e) => setTargetDraft(e.target.value)}
+                            placeholder="12"
+                            inputMode="numeric"
+                            style={{ width: "100%", border: 0, outline: "none", background: "transparent", fontFamily: "inherit", fontSize: 13, fontWeight: 600, color: "var(--cvb-ink)", marginTop: 2 }}
+                          />
+                        </label>
+                      </div>
+                      <div style={{ display: "flex", gap: 6, marginTop: 7 }}>
+                        <button
+                          type="button"
+                          data-testid="bold-value-save"
+                          onClick={() => void saveValue()}
+                          style={{ flex: 1, fontSize: 11.5, fontWeight: 700, color: "var(--cvb-card)", background: "var(--cvb-forest)", border: 0, borderRadius: 10, padding: "7px 0", cursor: "pointer", fontFamily: "inherit" }}
+                        >
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditing(false)}
+                          style={{ fontSize: 11.5, fontWeight: 600, color: "var(--cvb-ink-soft)", background: "transparent", border: "1px solid var(--cvb-line-ctl)", borderRadius: 10, padding: "7px 11px", cursor: "pointer", fontFamily: "inherit" }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
-              )
               ) : null}
             </div>
           </div>
         </div>
         {/* One-row stats — every figure carries its qualifier (ruling). */}
-        <div style={{ display: "flex", background: "var(--cvb-panel)" }} data-testid="bold-stats-row">
+        <div style={{ display: "flex", background: "var(--cvb-panel)", borderRadius: "0 0 21px 21px", overflow: "hidden" }} data-testid="bold-stats-row">
           {stats.map((m, i) => (
             <div
               key={m.k}
