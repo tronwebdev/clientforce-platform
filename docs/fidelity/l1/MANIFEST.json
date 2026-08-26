@@ -1,0 +1,43 @@
+{
+  "unit": "l1",
+  "commit": null,
+  "capturedAt": null,
+  "note": "PRE-GATE LOCK: these frames predate the fidelity freshness gate (B1 review, 2026-08-26) and were reviewed in their own PRs. Hashes recorded when the gate landed so any later drift fails lint; this manifest attests bytes, not capture provenance.",
+  "frames": {
+    "build-footer-preview-german.png": {
+      "viewport": null,
+      "bytes": 47846,
+      "sha256": "1fe4b2ae8c76ff17ba37eb9a9a2d539e8d2a94d1422d0ac91ebd4a7995beda1d"
+    },
+    "build-inbox-german-thread.png": {
+      "viewport": null,
+      "bytes": 161144,
+      "sha256": "c96e9f5cea0d37c89a0d1b2fd61c8250fe00ca8d8326b5c38dc1fae5bbb32bcf"
+    },
+    "build-settings-language-detected.png": {
+      "viewport": null,
+      "bytes": 148005,
+      "sha256": "a54ddf15f55350b6909b54603f893b683879e307977faf8054eaeedce70ba87b"
+    },
+    "build-settings-language-edited.png": {
+      "viewport": null,
+      "bytes": 145445,
+      "sha256": "d8ec809e2ebf64aa1adfdc9521881f9fc64d152a6832aff3026ccdd4c313af0c"
+    },
+    "build-steps-german-reply-strategies.png": {
+      "viewport": null,
+      "bytes": 163723,
+      "sha256": "a098a478e0d139557327ff1375af89548c245d2556c1b1550b45ac57ba88763c"
+    },
+    "build-steps-german.png": {
+      "viewport": null,
+      "bytes": 157255,
+      "sha256": "dd130225bcf507a3eb1de8cc50ed8a01e0c15b2668c70800334c76b1e87192ca"
+    },
+    "build-wizard-step2-german.png": {
+      "viewport": null,
+      "bytes": 144427,
+      "sha256": "d5ab2fc04f24fae6bc6393d77abcc84c4c3b2f9bc6170c2e51db251eb7fce4cc"
+    }
+  }
+}

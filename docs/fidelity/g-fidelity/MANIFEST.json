@@ -1,0 +1,68 @@
+{
+  "unit": "g-fidelity",
+  "commit": null,
+  "capturedAt": null,
+  "note": "PRE-GATE LOCK: these frames predate the fidelity freshness gate (B1 review, 2026-08-26) and were reviewed in their own PRs. Hashes recorded when the gate landed so any later drift fails lint; this manifest attests bytes, not capture provenance.",
+  "frames": {
+    "build-steps-tab-guided-pending.png": {
+      "viewport": null,
+      "bytes": 170850,
+      "sha256": "2bcb6115e6d7c847ecc57f506ddc11f1a0f8c3fdca5bfdb5aa0269c75a80518d"
+    },
+    "build-steps-tab-guided-reload.png": {
+      "viewport": null,
+      "bytes": 170850,
+      "sha256": "2bcb6115e6d7c847ecc57f506ddc11f1a0f8c3fdca5bfdb5aa0269c75a80518d"
+    },
+    "build-steps-tab-mixed.png": {
+      "viewport": null,
+      "bytes": 169612,
+      "sha256": "0387905c32fcc5dc7c324fb76c56a5c3fd0e935f32d616abf52003be2cfe799e"
+    },
+    "build-steps-tab-scripted.png": {
+      "viewport": null,
+      "bytes": 167987,
+      "sha256": "8417b5ed30b003561e0500d929deece56aae300b5892a1dcd0d9780620ec89e6"
+    },
+    "build-wizard-step2-guided-pending.png": {
+      "viewport": null,
+      "bytes": 150249,
+      "sha256": "f24907f430e9ba3bb9f344472365702163a479e1f150f6018ec59504128adc1a"
+    },
+    "build-wizard-step2-guided-reload.png": {
+      "viewport": null,
+      "bytes": 150249,
+      "sha256": "f24907f430e9ba3bb9f344472365702163a479e1f150f6018ec59504128adc1a"
+    },
+    "build-wizard-step2-guided-tabswitch.png": {
+      "viewport": null,
+      "bytes": 150249,
+      "sha256": "f24907f430e9ba3bb9f344472365702163a479e1f150f6018ec59504128adc1a"
+    },
+    "build-wizard-step2-scripted.png": {
+      "viewport": null,
+      "bytes": 145807,
+      "sha256": "88f7c2fb8d842da3263b55abb1ebf45d879b01101160b54207ec254657fc76aa"
+    },
+    "proto-steps-guided.png": {
+      "viewport": null,
+      "bytes": 141180,
+      "sha256": "3d300e6d27db9c21fca333ce8585a9cc0c42f20b09d7f8578d88ad00dc8c0dff"
+    },
+    "proto-steps-scripted.png": {
+      "viewport": null,
+      "bytes": 133119,
+      "sha256": "0311dc49fa046e61a984984170d2a77b33e0066ea9c370452950431b25e1a6b7"
+    },
+    "proto-wizard-step2-guided.png": {
+      "viewport": null,
+      "bytes": 157247,
+      "sha256": "ff66978c7fb3f5933102a8f7e4e0c6b4ff3a77474c01bffed64d64109ff88020"
+    },
+    "proto-wizard-step2-scripted.png": {
+      "viewport": null,
+      "bytes": 150937,
+      "sha256": "91cdcefa5dbe7378d95d989a52ca9e2560531a80cbca5c46de578d1ce2d7cd19"
+    }
+  }
+}

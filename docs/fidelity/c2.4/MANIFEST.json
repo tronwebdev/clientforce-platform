@@ -1,0 +1,213 @@
+{
+  "unit": "c2.4",
+  "commit": null,
+  "capturedAt": null,
+  "note": "PRE-GATE LOCK: these frames predate the fidelity freshness gate (B1 review, 2026-08-26) and were reviewed in their own PRs. Hashes recorded when the gate landed so any later drift fails lint; this manifest attests bytes, not capture provenance.",
+  "frames": {
+    "build-calls-inert.png": {
+      "viewport": null,
+      "bytes": 82088,
+      "sha256": "01996bd6dc67faeb44cdaf47ed775104c9a3ef4a500e0986a13e9e8eaade2716"
+    },
+    "build-inbox-channel-dd.png": {
+      "viewport": null,
+      "bytes": 209241,
+      "sha256": "da020f00eed9263fa51bf0806050c75269d7762ba53c866465ba77d2b9b190e2"
+    },
+    "build-inbox-done.png": {
+      "viewport": null,
+      "bytes": 201251,
+      "sha256": "f1eec61c7691bf7cd94ebe3578d5e3bf5b217ac3ecaf3d093a9ce397c6f80832"
+    },
+    "build-inbox-empty.png": {
+      "viewport": null,
+      "bytes": 88815,
+      "sha256": "b742613f53b90eb03b5e5bb04091cb963304589d2f1e8872fbf2a0a09781105f"
+    },
+    "build-inbox-filtered.png": {
+      "viewport": null,
+      "bytes": 144570,
+      "sha256": "10b88c1dffc6c5fb9a75ef1a827352e583b78c2399f75534e59577d3598871c3"
+    },
+    "build-inbox-menu.png": {
+      "viewport": null,
+      "bytes": 211400,
+      "sha256": "518d093c758cec3e2cc3d2cd2153c8e82fae73790e67b2023a1993040ec2c7b1"
+    },
+    "build-inbox-skeleton.png": {
+      "viewport": null,
+      "bytes": 91874,
+      "sha256": "841adfdee67c22f802a4b25b8bde66a012177871211bbf05dc805a75ff5b3e77"
+    },
+    "build-inbox-sort-dd.png": {
+      "viewport": null,
+      "bytes": 205400,
+      "sha256": "40453e5a2fe045247ec6b44a94ffd8f959f8221da27d086577682078c03e0fcd"
+    },
+    "build-inbox.png": {
+      "viewport": null,
+      "bytes": 200491,
+      "sha256": "c77b430cd5abf08dc893e73e1daf716ce5cd2382610fc66fec43f0e50ada3fa2"
+    },
+    "build-lead-drawer-move.png": {
+      "viewport": null,
+      "bytes": 200488,
+      "sha256": "4fd273da0fc178e25902b978ef396c9ec33f3d93683a0d84044c5e6acbd6015c"
+    },
+    "build-lead-drawer.png": {
+      "viewport": null,
+      "bytes": 190165,
+      "sha256": "83b98efa8b629f2bf0685fddcba40174cb7747916e831e61bb38510efb1a6546"
+    },
+    "build-leads-bulk.png": {
+      "viewport": null,
+      "bytes": 168246,
+      "sha256": "b2e427ffeda83483f169894cb84946e47a92106f34c15bb4c27d751d8c55625f"
+    },
+    "build-leads-empty.png": {
+      "viewport": null,
+      "bytes": 87546,
+      "sha256": "28a8c27145d0f2d200310d49f54d1018426d7b5d8ac8df884ae5f9fa82306438"
+    },
+    "build-leads-filter-dd.png": {
+      "viewport": null,
+      "bytes": 160475,
+      "sha256": "8adf5259cf029f6531d4303020146f3d90c1d7f099a3081da8f83fe3ea02ac2e"
+    },
+    "build-leads-filtered-empty.png": {
+      "viewport": null,
+      "bytes": 85407,
+      "sha256": "959d10d388088e6d968551ff7d8a4aa869a151470d296fcb6e1a89b70e8bb806"
+    },
+    "build-leads-skeleton.png": {
+      "viewport": null,
+      "bytes": 88756,
+      "sha256": "17c06673401fdc355643550c2d97f6debcc81b71b55b730e7aaf317356d4d77a"
+    },
+    "build-leads.png": {
+      "viewport": null,
+      "bytes": 162303,
+      "sha256": "3f6e7bc386cd0bc0341ac607c7c1e4b80d43df81704df47f4abb419a79d8a99e"
+    },
+    "build-logs-empty.png": {
+      "viewport": null,
+      "bytes": 72747,
+      "sha256": "846804fa8816d4b9d974ef3b876522b9f3b48ba3ac6cbe45869b3aa7ac9322b1"
+    },
+    "build-logs.png": {
+      "viewport": null,
+      "bytes": 126087,
+      "sha256": "ea56c553696d5fecbc22e0a650033502fec7143a4103d99dae93b2e7861eba16"
+    },
+    "build-sender-drawer.png": {
+      "viewport": null,
+      "bytes": 142263,
+      "sha256": "1f88fa74fb69af336d6d08f68099a6f6cca9ced327a8f169d680ac408ae07c69"
+    },
+    "build-settings-behavior.png": {
+      "viewport": null,
+      "bytes": 131933,
+      "sha256": "122981c8467500e4a4ee6eb758c542bf5a43395bb40c13bb6086b1b6c9dbafe3"
+    },
+    "build-settings-compliance.png": {
+      "viewport": null,
+      "bytes": 109693,
+      "sha256": "e30e12473e77118efe17debf10202885f2fcc5cc49da7e0ad1d42597cd15e120"
+    },
+    "build-settings-top.png": {
+      "viewport": null,
+      "bytes": 131933,
+      "sha256": "122981c8467500e4a4ee6eb758c542bf5a43395bb40c13bb6086b1b6c9dbafe3"
+    },
+    "build-sidebar-tools-open.png": {
+      "viewport": null,
+      "bytes": 142828,
+      "sha256": "33492056e54d876d6bf42b11170aa85f4bfbf780a55a061fc6782d7118983c65"
+    },
+    "build-steps-empty.png": {
+      "viewport": null,
+      "bytes": 72798,
+      "sha256": "184ceb9de6db54230b8acb08b1101a72dbbc0695deae9e61990cec7802f4a510"
+    },
+    "build-steps.png": {
+      "viewport": null,
+      "bytes": 142929,
+      "sha256": "d2c92edb077353630118f636926ae23338bb4321a4f517960f209534f9660c63"
+    },
+    "build-view-error.png": {
+      "viewport": null,
+      "bytes": 68482,
+      "sha256": "452be37135d86c99e1f2f4c4493c42593d8bb8a6dfde1873af7be827b45afe47"
+    },
+    "build-volume-modal.png": {
+      "viewport": null,
+      "bytes": 152786,
+      "sha256": "9fc534ee9f4a234b7bd0f1799c47b48a845a9321bb8b4ed2863e168f47116cd2"
+    },
+    "proto-calls.png": {
+      "viewport": null,
+      "bytes": 195032,
+      "sha256": "42002d7d32d6382d297e603babdcb025179b9554fa5740d52aea8ad406659469"
+    },
+    "proto-inbox-channel-dd.png": {
+      "viewport": null,
+      "bytes": 231225,
+      "sha256": "9f619d623e47395cc8277a4dca22ae767a2dee27812f9a85fa74dd8afad87ad2"
+    },
+    "proto-inbox-menu.png": {
+      "viewport": null,
+      "bytes": 200403,
+      "sha256": "7f3df4db052ad6745f447a78c012596ebf8d8b4247ca8296eb96315019eb4c8f"
+    },
+    "proto-inbox.png": {
+      "viewport": null,
+      "bytes": 231225,
+      "sha256": "9f619d623e47395cc8277a4dca22ae767a2dee27812f9a85fa74dd8afad87ad2"
+    },
+    "proto-lead-drawer.png": {
+      "viewport": null,
+      "bytes": 210527,
+      "sha256": "510e4a6dc995a57ddc92cce7b4b088596b0becf447dc4838e0f667e1f9a21f22"
+    },
+    "proto-leads.png": {
+      "viewport": null,
+      "bytes": 186112,
+      "sha256": "fc9232cf050d1b147eb045bab4609ad61c44716e7fcc81993289cd5d7ca30b41"
+    },
+    "proto-logs.png": {
+      "viewport": null,
+      "bytes": 120916,
+      "sha256": "925d7e83d455b70ac9a53669813bb2086deac65514cda079e464a14114f3edf3"
+    },
+    "proto-sender-drawer.png": {
+      "viewport": null,
+      "bytes": 151196,
+      "sha256": "75b15c44a59ec8432dd29f90dfce8b5a6197437763cbe5921a3379bfc4f67ff5"
+    },
+    "proto-settings-behavior.png": {
+      "viewport": null,
+      "bytes": 102238,
+      "sha256": "9bf4922c9defa363507cd1a553fd9e2c9789a1dbfdcd9e830569864231385db5"
+    },
+    "proto-settings-compliance.png": {
+      "viewport": null,
+      "bytes": 102238,
+      "sha256": "9bf4922c9defa363507cd1a553fd9e2c9789a1dbfdcd9e830569864231385db5"
+    },
+    "proto-settings-top.png": {
+      "viewport": null,
+      "bytes": 143180,
+      "sha256": "20b95b994b9de325c5cb4b5be596f0a4e3b93f840bda7b509f3fa39001dbff40"
+    },
+    "proto-steps.png": {
+      "viewport": null,
+      "bytes": 151039,
+      "sha256": "cf16cca7e90411a3edf4c0cd4085e6bf311c520bc5494d68fe25b44dd97be12a"
+    },
+    "proto-volume-modal.png": {
+      "viewport": null,
+      "bytes": 131179,
+      "sha256": "2c1c8025ff6ced0b56d77d8f1ff24bfca20a3f565b7117b7b0dcf62be6211fc1"
+    }
+  }
+}

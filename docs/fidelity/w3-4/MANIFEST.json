@@ -1,0 +1,118 @@
+{
+  "unit": "w3-4",
+  "commit": null,
+  "capturedAt": null,
+  "note": "PRE-GATE LOCK: these frames predate the fidelity freshness gate (B1 review, 2026-08-26) and were reviewed in their own PRs. Hashes recorded when the gate landed so any later drift fails lint; this manifest attests bytes, not capture provenance.",
+  "frames": {
+    "build-settings-regen-deeplink.png": {
+      "viewport": null,
+      "bytes": 155934,
+      "sha256": "846f6e61f84eb61ccbeb109f538d20dc2cc9722b7a9b30deae078e8572780653"
+    },
+    "build-steps-add-picker.png": {
+      "viewport": null,
+      "bytes": 164358,
+      "sha256": "1da406c091911f4ebca4e51f2b9e017b3d0f43971f3c0c1b3ddfc437d94bd99e"
+    },
+    "build-steps-brief-editor-email.png": {
+      "viewport": null,
+      "bytes": 234950,
+      "sha256": "629f3fc885356ae212667753b2c56e113b9d35bec0a3dd1cf0a730837f55bc41"
+    },
+    "build-steps-brief-editor-sms.png": {
+      "viewport": null,
+      "bytes": 226736,
+      "sha256": "efe0e3a9ad8e2f08477166ccef97aa5874defd2117742b12e64357fe21efbccc"
+    },
+    "build-steps-chain-and-absence.png": {
+      "viewport": null,
+      "bytes": 116923,
+      "sha256": "7f3ad0d0b494a068c5c661cb103000865f580511ab0a044c8a707783dbeaebe5"
+    },
+    "build-steps-delay-editing.png": {
+      "viewport": null,
+      "bytes": 166352,
+      "sha256": "feca7dcb6cf042900dbdbd1618ae2d4f5bec65b44279fd676a1f04c1a3ccca4b"
+    },
+    "build-steps-drawer-scripted.png": {
+      "viewport": null,
+      "bytes": 211668,
+      "sha256": "9b3bb796473dbd84bef7a67fe3b0b6585935a296ac069c2004043bca3f8832c7"
+    },
+    "build-steps-editable-default.png": {
+      "viewport": null,
+      "bytes": 165524,
+      "sha256": "329b293fba80c25aecd9f903e7969fa48f93b15ec35d0e28845d42ffa545b1b3"
+    },
+    "build-steps-flip-guided-composed.png": {
+      "viewport": null,
+      "bytes": 236606,
+      "sha256": "4f69fa3eedc3d20bb914058d2f8e118e1cd3b1b9e88a3ccce222665c0956a071"
+    },
+    "build-steps-flip-guided-seeded.png": {
+      "viewport": null,
+      "bytes": 231164,
+      "sha256": "48151455ac5383da0d30861c51b8766966efd44da9c32cf73d8e1efed56929d3"
+    },
+    "build-steps-flip-scripted-drafted.png": {
+      "viewport": null,
+      "bytes": 227766,
+      "sha256": "57e22942b2eb49429ae82170f170c00838816598f2867e5adf84e17c65b44923"
+    },
+    "build-steps-flip-scripted-empty.png": {
+      "viewport": null,
+      "bytes": 202392,
+      "sha256": "d3befd81d24d63612344d0392ed512b1dabbfabf1527a5a8549363e01b07235d"
+    },
+    "build-steps-guided-cards.png": {
+      "viewport": null,
+      "bytes": 164195,
+      "sha256": "00296bee76523adc76e2d0fdd91387c7c490f853b8f2f87c1214de4ae000dae6"
+    },
+    "build-steps-invalid-guided-edit.png": {
+      "viewport": null,
+      "bytes": 236394,
+      "sha256": "cf0e847e389dbcbd0165729ccb5c28ff2dc120cce8910cd3dd61b49d16391054"
+    },
+    "build-steps-reordered.png": {
+      "viewport": null,
+      "bytes": 163185,
+      "sha256": "a71294ebafe465f6ecc783d542f653f64ecc2571742ff9c381111c5494495355"
+    },
+    "build-steps-sample-composed.png": {
+      "viewport": null,
+      "bytes": 233254,
+      "sha256": "bb620c3325d458efa97d9e2a4d70df1ba7e9577e82744d1723a622b4ca171ed3"
+    },
+    "build-steps-sample-refused.png": {
+      "viewport": null,
+      "bytes": 236559,
+      "sha256": "f776ba437fa3115a31f852467b5feed1ef70bb4c59508a53f39e8a8bbcf7457c"
+    },
+    "proto-branches-subcampaigns.png": {
+      "viewport": null,
+      "bytes": 143816,
+      "sha256": "47ee821c4d5eba1df6994bfa74b268eb3a469b650df128c94f3792735098ae39"
+    },
+    "proto-delay-editing.png": {
+      "viewport": null,
+      "bytes": 143985,
+      "sha256": "bedcee7eb55179166f2f5191dccffd936ea61f332377bb68f48949ee546cf491"
+    },
+    "proto-step-editor.png": {
+      "viewport": null,
+      "bytes": 143253,
+      "sha256": "40a8b29d7878aba897973ae84e048bb7645458bbcb57b35c8164d57375ab8c78"
+    },
+    "proto-steps-add-picker.png": {
+      "viewport": null,
+      "bytes": 143253,
+      "sha256": "40a8b29d7878aba897973ae84e048bb7645458bbcb57b35c8164d57375ab8c78"
+    },
+    "proto-steps-sequence.png": {
+      "viewport": null,
+      "bytes": 151039,
+      "sha256": "cf16cca7e90411a3edf4c0cd4085e6bf311c520bc5494d68fe25b44dd97be12a"
+    }
+  }
+}

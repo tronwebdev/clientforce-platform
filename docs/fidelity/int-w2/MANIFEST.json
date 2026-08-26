@@ -1,0 +1,93 @@
+{
+  "unit": "int-w2",
+  "commit": null,
+  "capturedAt": null,
+  "note": "PRE-GATE LOCK: these frames predate the fidelity freshness gate (B1 review, 2026-08-26) and were reviewed in their own PRs. Hashes recorded when the gate landed so any later drift fails lint; this manifest attests bytes, not capture provenance.",
+  "frames": {
+    "build-action-picker-booking-link.png": {
+      "viewport": null,
+      "bytes": 100869,
+      "sha256": "4a3614a4a247a5b2f5d7641ea4b41aa20ef1b77d1244c8fb66cbe727c6798c6c"
+    },
+    "build-calendly-drawer-connected.png": {
+      "viewport": null,
+      "bytes": 206142,
+      "sha256": "b9b39c05719c703b928e8cb222322d4a38d08007c9b6442e9fd52b047302b845"
+    },
+    "build-calendly-fields-step.png": {
+      "viewport": null,
+      "bytes": 181510,
+      "sha256": "192d74cbd97a3ddea22992fab09892bc1cf7280ccbdc7f73a0fdc701fe940111"
+    },
+    "build-gcal-drawer-connected.png": {
+      "viewport": null,
+      "bytes": 200997,
+      "sha256": "4327c516e49d533fc11908f9d3b7b18c1588e5a9d90dab45e09771ab95f10e53"
+    },
+    "build-gcal-wizard-auth-disclosure.png": {
+      "viewport": null,
+      "bytes": 187461,
+      "sha256": "ba500cc4782e7496af5f593e0be8a1894c1ea4c3309ce6ee9f5edf15c05deef7"
+    },
+    "build-gcal-wizard-calendar-picker.png": {
+      "viewport": null,
+      "bytes": 177308,
+      "sha256": "468067aff8554f0496724f9ecc4997117439360bc3798fdd6c43db083cf30492"
+    },
+    "build-inbox-thread-booking-link-email.png": {
+      "viewport": null,
+      "bytes": 166270,
+      "sha256": "ae58f65894fcfb9ae4df6347e514bcdfc425f502a1120225a31b4abfd1e46bbd"
+    },
+    "build-inbox-thread-booking-system-row.png": {
+      "viewport": null,
+      "bytes": 161382,
+      "sha256": "2bc996368cbc345b642aa825818986496c268e59fa5124d595b4ca87090f7d64"
+    },
+    "build-integrations-grid-calendar-live.png": {
+      "viewport": null,
+      "bytes": 158627,
+      "sha256": "fefec933f2722595487badd8fbe733c613494ee69b9b5f2fb74aea77bd2196cc"
+    },
+    "build-lead-drawer-calendar-timeline.png": {
+      "viewport": null,
+      "bytes": 129634,
+      "sha256": "66fbe8aea494f437ec63226cd41bbe7273933b06cf5628f8646c8a136ac588ce"
+    },
+    "build-pipeline-booked-card.png": {
+      "viewport": null,
+      "bytes": 81427,
+      "sha256": "031ef847f09f3c6d573d8c2a5778eea6612748d3c3f0319286f8f50bb328e749"
+    },
+    "build-trigger-picker-meetings-live.png": {
+      "viewport": null,
+      "bytes": 127890,
+      "sha256": "b01343fef39836aceeaca1808035a0a228869aaa47caf588b36ce1e431d3bca8"
+    },
+    "proto-calendar-wizard-auth.png": {
+      "viewport": null,
+      "bytes": 157263,
+      "sha256": "ca046be50d2c6dcdb3de1162b05eb6d081f2364cf541d42e6f685fc0784c8e87"
+    },
+    "proto-calendar-wizard-calendar-settings.png": {
+      "viewport": null,
+      "bytes": 158595,
+      "sha256": "4c39b677bdd721107b35ddc2395fa3dc08f278a7fa1a19a6a7edca15d4523478"
+    },
+    "proto-fields-step-smtp.png": {
+      "viewport": null,
+      "bytes": 152730,
+      "sha256": "b5b5184a8ae3e77e31fa2674f680fb97fc61412a2950aaf42584a245100365b3"
+    },
+    "proto-gcal-drawer-connected.png": {
+      "viewport": null,
+      "bytes": 183340,
+      "sha256": "2d6b3dbdb32a59145fe678bd977b4ceb71dc947a2fbca81e2a09d8ae0cee4467"
+    },
+    "proto-integrations-grid-calendar.png": {
+      "viewport": null,
+      "bytes": 148961,
+      "sha256": "367ee240e3d1e7647c1bc08bcd55b1d4f54f6a268715ab7dda7da1e3fd4606a9"
+    }
+  }
+}

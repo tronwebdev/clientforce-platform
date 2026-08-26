@@ -268,28 +268,69 @@ export function BoldOverview({ agent, onOpenDrawer, onAllActivity, onValueSaved,
                   {est != null || target != null ? "Edit value" : `Set ${meta.valueBasis}`}
                 </button>
               ) : (
-                <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 6 }}>
-                  <input
-                    data-testid="bold-value-est"
-                    value={estDraft}
-                    onChange={(e) => setEstDraft(e.target.value)}
-                    placeholder={`$ per ${meta.unitNoun}`}
-                    inputMode="decimal"
-                    style={{ fontSize: 11.5, padding: "7px 9px", borderRadius: 9, border: "1px solid rgba(255,255,255,.25)", background: "rgba(255,255,255,.1)", color: "#fff", outline: "none", fontFamily: "inherit" }}
-                  />
-                  <input
-                    data-testid="bold-value-target"
-                    value={targetDraft}
-                    onChange={(e) => setTargetDraft(e.target.value)}
-                    placeholder={`target ${meta.unitNoun}s`}
-                    inputMode="numeric"
-                    style={{ fontSize: 11.5, padding: "7px 9px", borderRadius: 9, border: "1px solid rgba(255,255,255,.25)", background: "rgba(255,255,255,.1)", color: "#fff", outline: "none", fontFamily: "inherit" }}
-                  />
-                  <div style={{ display: "flex", gap: 6 }}>
-                    <button type="button" data-testid="bold-value-save" onClick={() => void saveValue()} style={{ flex: 1, fontSize: 11, fontWeight: 800, color: "var(--cvb-ink)", background: "var(--cvb-live)", border: 0, borderRadius: 9, padding: "7px 0", cursor: "pointer", fontFamily: "inherit" }}>
+                <div
+                  style={{
+                    marginTop: 12,
+                    background: "var(--cvb-panel)",
+                    border: "1px solid var(--cvb-line-strong)",
+                    borderRadius: 14,
+                    padding: 10,
+                    boxShadow: "var(--cvb-shadow-subtle)",
+                  }}
+                >
+                  {/* One shared recessed well, fields divided — the 2026-08-16
+                      input amendment. Labels carry the unit; no bare numbers. */}
+                  <div
+                    style={{
+                      background: "var(--cvb-well-fill)",
+                      border: "1px solid var(--cvb-well-line)",
+                      borderRadius: "var(--cvb-r-well)",
+                      boxShadow: "var(--cvb-shadow-well)",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <label style={{ display: "block", padding: "7px 10px 8px" }}>
+                      <span style={{ ...mono, display: "block", fontSize: 8.5, letterSpacing: ".13em", color: "var(--cvb-faint)" }}>
+                        $ PER {meta.unitNoun.toUpperCase()}
+                      </span>
+                      <input
+                        data-testid="bold-value-est"
+                        value={estDraft}
+                        onChange={(e) => setEstDraft(e.target.value)}
+                        placeholder="2,400"
+                        inputMode="decimal"
+                        style={{ width: "100%", border: 0, outline: "none", background: "transparent", fontFamily: "inherit", fontSize: 13, fontWeight: 600, color: "var(--cvb-ink)", marginTop: 3 }}
+                      />
+                    </label>
+                    <div style={{ height: 1, background: "var(--cvb-well-divider)" }} />
+                    <label style={{ display: "block", padding: "7px 10px 8px" }}>
+                      <span style={{ ...mono, display: "block", fontSize: 8.5, letterSpacing: ".13em", color: "var(--cvb-faint)" }}>
+                        TARGET {meta.unitNoun.toUpperCase()}S
+                      </span>
+                      <input
+                        data-testid="bold-value-target"
+                        value={targetDraft}
+                        onChange={(e) => setTargetDraft(e.target.value)}
+                        placeholder="12"
+                        inputMode="numeric"
+                        style={{ width: "100%", border: 0, outline: "none", background: "transparent", fontFamily: "inherit", fontSize: 13, fontWeight: 600, color: "var(--cvb-ink)", marginTop: 3 }}
+                      />
+                    </label>
+                  </div>
+                  <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                    <button
+                      type="button"
+                      data-testid="bold-value-save"
+                      onClick={() => void saveValue()}
+                      style={{ flex: 1, fontSize: 11.5, fontWeight: 700, color: "var(--cvb-card)", background: "var(--cvb-forest)", border: 0, borderRadius: 10, padding: "8px 0", cursor: "pointer", fontFamily: "inherit" }}
+                    >
                       Save
                     </button>
-                    <button type="button" onClick={() => setEditing(false)} style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,.7)", background: "transparent", border: "1px solid rgba(255,255,255,.25)", borderRadius: 9, padding: "7px 10px", cursor: "pointer", fontFamily: "inherit" }}>
+                    <button
+                      type="button"
+                      onClick={() => setEditing(false)}
+                      style={{ fontSize: 11.5, fontWeight: 600, color: "var(--cvb-ink-soft)", background: "transparent", border: "1px solid var(--cvb-line-ctl)", borderRadius: 10, padding: "8px 12px", cursor: "pointer", fontFamily: "inherit" }}
+                    >
                       Cancel
                     </button>
                   </div>

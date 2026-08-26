@@ -1,0 +1,263 @@
+{
+  "unit": "c2.3",
+  "commit": null,
+  "capturedAt": null,
+  "note": "PRE-GATE LOCK: these frames predate the fidelity freshness gate (B1 review, 2026-08-26) and were reviewed in their own PRs. Hashes recorded when the gate landed so any later drift fails lint; this manifest attests bytes, not capture provenance.",
+  "frames": {
+    "build-building.png": {
+      "viewport": null,
+      "bytes": 133750,
+      "sha256": "49f90d26450f909cd5a00236b6bb37b8ad98f99cd170e5202cd5acd00e0dc109"
+    },
+    "build-deploying.png": {
+      "viewport": null,
+      "bytes": 18803,
+      "sha256": "f6bf83a9966ef09490b4480573919a4f61474026f7aeb95c32d4e354566bfc23"
+    },
+    "build-step1-addsource-picker.png": {
+      "viewport": null,
+      "bytes": 126614,
+      "sha256": "ad5d4038ba0b9eea5749a7f4d280d0450a9957b5f1dc851fa64c133853d55891"
+    },
+    "build-step1-addsource-url.png": {
+      "viewport": null,
+      "bytes": 86080,
+      "sha256": "1daf1a773c0aba28ab9302492043eadc80d962ac13474bccb0ba33ae2f839aa6"
+    },
+    "build-step1-citation-open.png": {
+      "viewport": null,
+      "bytes": 129211,
+      "sha256": "d478de095c27a6e3751d9449e06ebab59f7fc3aaaf478c179fa5521c6e425345"
+    },
+    "build-step1-covered-evidence.png": {
+      "viewport": null,
+      "bytes": 124809,
+      "sha256": "9d1963e61c7c5c339a0724bc35b0bedb9f87058b0968ca20f60d7cbf5f8b543e"
+    },
+    "build-step1-empty.png": {
+      "viewport": null,
+      "bytes": 111858,
+      "sha256": "ddf83d5dc51422d0f64b5a3b5525e4b9fd7f7ade0cfab36030518a781eb1a9ad"
+    },
+    "build-step1-gap-typing.png": {
+      "viewport": null,
+      "bytes": 111597,
+      "sha256": "eaaefaebc634158e64c4c5998540bf3e98e63ab791a6e8387d8cd3f84a02fec4"
+    },
+    "build-step1-gaps-resolved.png": {
+      "viewport": null,
+      "bytes": 110585,
+      "sha256": "320b0a80285472d17eb514fd848291b177f764337b3e619c58e7e6467e8e7ff5"
+    },
+    "build-step1-gaps.png": {
+      "viewport": null,
+      "bytes": 113952,
+      "sha256": "91b811de4206d4a139073b4ce47806483e7fd388c29c22c8a71a54a7206a6a7c"
+    },
+    "build-step1-goal.png": {
+      "viewport": null,
+      "bytes": 126535,
+      "sha256": "d0f7d7bb758f9224d72f354c3faec2bb66a41280af390e4356d2e8dedf657e25"
+    },
+    "build-step1-ingesting.png": {
+      "viewport": null,
+      "bytes": 106828,
+      "sha256": "9355f929589c190a2587efe63868fae8bd10161ee6a566ddfc1addc85449b851"
+    },
+    "build-step1-method.png": {
+      "viewport": null,
+      "bytes": 94564,
+      "sha256": "7e2b5856ac0836eeeedc4d2b769a1743386f392299b219b3d62f253565ddc02f"
+    },
+    "build-step1-ready.png": {
+      "viewport": null,
+      "bytes": 117442,
+      "sha256": "1514b3379a0f2e9cb782968efc88faf064ff6cd1294f29af6252267fe6fb1b9b"
+    },
+    "build-step1-source-failed.png": {
+      "viewport": null,
+      "bytes": 113462,
+      "sha256": "850f087d2d6c2bd10d2d05d3fdf85fcafba49343f0e8bf02747e0072d0b254ff"
+    },
+    "build-step2-branches.png": {
+      "viewport": null,
+      "bytes": 97664,
+      "sha256": "a63b3c6362d55fcda74c75fcd545bd3bad7f7b2c6b631fc77b19c9a79554139f"
+    },
+    "build-step2-delay.png": {
+      "viewport": null,
+      "bytes": 138821,
+      "sha256": "19811d78650d9fbc4e4632bc94ef5019fde98bad7b3ba6ca056e0c03ec121f96"
+    },
+    "build-step2-editor.png": {
+      "viewport": null,
+      "bytes": 206608,
+      "sha256": "d6dc54d23ae250dcf075499f77b8e14431547d497d0548d8bc5d9e4a8c882216"
+    },
+    "build-step2.png": {
+      "viewport": null,
+      "bytes": 142945,
+      "sha256": "55d66e36079a4623fd4d7c58bc71661a7e4aaeca6b2c731098e1397718968773"
+    },
+    "build-step3-added.png": {
+      "viewport": null,
+      "bytes": 86437,
+      "sha256": "3ec333c3d8d7baeb36e7fb8de6bdfbf6130db47e3fed0de46aaa32d0d28b1f4b"
+    },
+    "build-step3-csv.png": {
+      "viewport": null,
+      "bytes": 105565,
+      "sha256": "3397d2f7ff76f4e3222553c350fc082b259a527f73c5781c100944110bf0cd57"
+    },
+    "build-step3-manual.png": {
+      "viewport": null,
+      "bytes": 101795,
+      "sha256": "484e8429e01bcb70ae41b3487c2094f7a3bc86c54f4556997e2b0c61ce290d6c"
+    },
+    "build-step3.png": {
+      "viewport": null,
+      "bytes": 72548,
+      "sha256": "024398d4ddec92a5e6e5dc1ca471ad111170204f2e424b747ff27459180889c6"
+    },
+    "build-step4-toggled.png": {
+      "viewport": null,
+      "bytes": 79435,
+      "sha256": "118040f108237fbebffbad19800737954fb4733c5aed33c7cd2948797d863624"
+    },
+    "build-step4.png": {
+      "viewport": null,
+      "bytes": 77821,
+      "sha256": "9ce1c8edaa3ae74190c9d1cd854eae697a1580afff08ce8ff407a4fd61f1ca16"
+    },
+    "build-step5-behavior.png": {
+      "viewport": null,
+      "bytes": 133190,
+      "sha256": "fe8e945345c32e5e5f6fdf1287ec7a077d1b70d11206e69c9a97cb320ee8ce87"
+    },
+    "build-step5-compliance.png": {
+      "viewport": null,
+      "bytes": 130651,
+      "sha256": "797b9dff9192bd2dc32d4a6814f3061fd9d6c4bce8062ef61e6eb3dbc6d37d7d"
+    },
+    "build-step5-limits-modal.png": {
+      "viewport": null,
+      "bytes": 133463,
+      "sha256": "f10586bd76e5521f0968c16d54c355c6c503bfb9cd8dbee6872391daae9f8535"
+    },
+    "build-step5-top.png": {
+      "viewport": null,
+      "bytes": 132997,
+      "sha256": "f58d9afc17db19bd540d3377b9de3264da17c86c8915d8a815a021a24fc79708"
+    },
+    "build-step6.png": {
+      "viewport": null,
+      "bytes": 77864,
+      "sha256": "d05da5b175bea906747d09bcffd61f46e98eeaa6cc523eab3e8a7435cf4f01ee"
+    },
+    "build-success.png": {
+      "viewport": null,
+      "bytes": 196354,
+      "sha256": "9c5c3fc9c5a4c09877d6f02f0bd7cc7226ab50080e9cf62f8e03ac8e39c6d7cd"
+    },
+    "proto-building.png": {
+      "viewport": null,
+      "bytes": 145932,
+      "sha256": "eed22493b9e480a9f9d2c8e35188efad6a6bfad4a892d4c3e32b8eaa734c31c3"
+    },
+    "proto-deploying.png": {
+      "viewport": null,
+      "bytes": 17548,
+      "sha256": "0f26163122875c040683bdef17833cb5b8e189de10da9a00c3cda110b9d5c782"
+    },
+    "proto-step1-citation-open.png": {
+      "viewport": null,
+      "bytes": 120321,
+      "sha256": "fe1d5ab95ce60636313eb3349d4363b740685ab47b70453a2c191630a9ca2113"
+    },
+    "proto-step1-covered-evidence.png": {
+      "viewport": null,
+      "bytes": 118037,
+      "sha256": "0e00de32e3a2499278f87cffb7339dab9564cc0468a45e0fb88bc715140123c6"
+    },
+    "proto-step1-gap-typing.png": {
+      "viewport": null,
+      "bytes": 112657,
+      "sha256": "8333bf024a47a09266c90fb3203c1041e97a214923efda12c79c1cba7fb33f2d"
+    },
+    "proto-step1-gaps.png": {
+      "viewport": null,
+      "bytes": 107666,
+      "sha256": "f89c782cf529eb32be9897d8536f1c350e451f05e60c53a68d00607bb97772a0"
+    },
+    "proto-step1-knowledge.png": {
+      "viewport": null,
+      "bytes": 107674,
+      "sha256": "7f4557982206c7cd71953d90c85c1dbd3484014b0ed3c0196f5637437a385e3f"
+    },
+    "proto-step1-method.png": {
+      "viewport": null,
+      "bytes": 113561,
+      "sha256": "714078e9a64bf42b8954c23d1badd47c90515b2d566b2019dfc2b7d4e4330ca7"
+    },
+    "proto-step1-top.png": {
+      "viewport": null,
+      "bytes": 136021,
+      "sha256": "1c6ebe8a68a54d5d9b7a2c3f9205adeef079da0ce63bb46a2784f0f450971a81"
+    },
+    "proto-step2-editor.png": {
+      "viewport": null,
+      "bytes": 209188,
+      "sha256": "a134963f68a04d8ccf7353ee1fd8bad198342c20fdf49bfe81dbba75938bf2b4"
+    },
+    "proto-step2.png": {
+      "viewport": null,
+      "bytes": 146767,
+      "sha256": "c2db74e22d0733750a93ccd32ec22dd7b6804840ccfd99e431289f1000176539"
+    },
+    "proto-step3-csv.png": {
+      "viewport": null,
+      "bytes": 133793,
+      "sha256": "20dad1e3ed2de0bc8cabe73751e0d6ea6869427775d035de8f9d6ca3e2fa0dcb"
+    },
+    "proto-step3-manual.png": {
+      "viewport": null,
+      "bytes": 142378,
+      "sha256": "27e935ca295d0856559739bfcf81daab9684e6f3cfbbdafec437d2dd4f81c230"
+    },
+    "proto-step3.png": {
+      "viewport": null,
+      "bytes": 111458,
+      "sha256": "fe86c290d85051334f56008d1ef170bb5442e84921a65249c04251585d6fdc19"
+    },
+    "proto-step4.png": {
+      "viewport": null,
+      "bytes": 168771,
+      "sha256": "4b625c994ab266abd7718744710998fc6c9dc6364cd8c8197080baa8cb1e14a5"
+    },
+    "proto-step5-behavior.png": {
+      "viewport": null,
+      "bytes": 137819,
+      "sha256": "b1057ceb7fa141de3d90159769f422ba4ad79687c427fc7569f7e052f4708ee0"
+    },
+    "proto-step5-compliance.png": {
+      "viewport": null,
+      "bytes": 154202,
+      "sha256": "af9ec5cd005e21202bdcc028d0693d4adc13fa99adc1542e4383779ee1101b4e"
+    },
+    "proto-step5-top.png": {
+      "viewport": null,
+      "bytes": 146200,
+      "sha256": "aa472540d9bd5f5d87da2be0ffe7b5587deaa76f21911340fec6b8c224166739"
+    },
+    "proto-step6.png": {
+      "viewport": null,
+      "bytes": 122287,
+      "sha256": "475a8595eba7b43a002f16cdd52193d3c0197c1dc030ecb42e0bc1256c9b68a1"
+    },
+    "proto-success.png": {
+      "viewport": null,
+      "bytes": 197225,
+      "sha256": "83400551e8a1e0b858aeb48cfae267b8b50a2dc7f2d4ae600faaea5d9a06f4d8"
+    }
+  }
+}

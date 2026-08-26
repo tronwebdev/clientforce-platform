@@ -1,0 +1,63 @@
+{
+  "unit": "wizard-b8-b10",
+  "commit": null,
+  "capturedAt": null,
+  "note": "PRE-GATE LOCK: these frames predate the fidelity freshness gate (B1 review, 2026-08-26) and were reviewed in their own PRs. Hashes recorded when the gate landed so any later drift fails lint; this manifest attests bytes, not capture provenance.",
+  "frames": {
+    "b10-tz-open.png": {
+      "viewport": null,
+      "bytes": 131568,
+      "sha256": "3e99f0896251391e8d660e75dc6245d94e1e4ce4591890dbc457fe745b9a73e6"
+    },
+    "b10-tz-resumed.png": {
+      "viewport": null,
+      "bytes": 133524,
+      "sha256": "4fab24b9888f836b6199eb9ee91e35d2543d30e3a5a8436b5687b68836642935"
+    },
+    "b10-tz-selected.png": {
+      "viewport": null,
+      "bytes": 144934,
+      "sha256": "48aacfc5e30995560dedeb787bb8ba1724660471ca8f944be931e2f5a9035223"
+    },
+    "b8-after-covered.png": {
+      "viewport": null,
+      "bytes": 130178,
+      "sha256": "7a39a22edaea28144384c3a56fee2cf934a0fdb20105e981b060bc0419b2302c"
+    },
+    "b8-distilling.png": {
+      "viewport": null,
+      "bytes": 122450,
+      "sha256": "8794c3e3ac5d8899a3dd8843981aaf68ff2dfdc955340982c69820f49a698025"
+    },
+    "b9-connect-drawer.png": {
+      "viewport": null,
+      "bytes": 152030,
+      "sha256": "a68ba9888243c9327834f91e2b3367d6046728079408150c8a4c3d270b039863"
+    },
+    "hard-storage-banner.png": {
+      "viewport": null,
+      "bytes": 125081,
+      "sha256": "85d1a0174990b1a39ff43204546023e875acb75b9e121bb9ff91cfad0656d193"
+    },
+    "hard-storage-upload-failed.png": {
+      "viewport": null,
+      "bytes": 111221,
+      "sha256": "3d034153f9045b2ca544144d21b07b69cebe5bedd811fd9d6ab1bb20808d9591"
+    },
+    "proto-connect-email.png": {
+      "viewport": null,
+      "bytes": 130316,
+      "sha256": "34aeab19721ac1362282f5a2110b6c5a89d6f34051391e6cb7ffd5739fdc8675"
+    },
+    "proto-guardrails-schedule.png": {
+      "viewport": null,
+      "bytes": 127116,
+      "sha256": "f851102de7c391261d717ad7622d4e269b09554d85da8c591b94956cebfa4ede"
+    },
+    "proto-guardrails-senders.png": {
+      "viewport": null,
+      "bytes": 127116,
+      "sha256": "f851102de7c391261d717ad7622d4e269b09554d85da8c591b94956cebfa4ede"
+    }
+  }
+}

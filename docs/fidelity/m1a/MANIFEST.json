@@ -1,0 +1,33 @@
+{
+  "unit": "m1a",
+  "commit": null,
+  "capturedAt": null,
+  "note": "PRE-GATE LOCK: these frames predate the fidelity freshness gate (B1 review, 2026-08-26) and were reviewed in their own PRs. Hashes recorded when the gate landed so any later drift fails lint; this manifest attests bytes, not capture provenance.",
+  "frames": {
+    "build-settings-strategy-default.png": {
+      "viewport": null,
+      "bytes": 118963,
+      "sha256": "67060c2d55569690aa3b6db5caee3c0a370224d3ec29353ddf595e9df38e164c"
+    },
+    "build-settings-strategy-edited.png": {
+      "viewport": null,
+      "bytes": 128163,
+      "sha256": "29810527bf0fbef16b0db7525b55ab45306ac65cea349f9996a5cc0c1c5f4e39"
+    },
+    "build-settings-strategy-filled.png": {
+      "viewport": null,
+      "bytes": 125082,
+      "sha256": "ced4224286e423fbc01ffd6b280fb753ae7d6e0b1e3b8a76da942bd48f30634e"
+    },
+    "build-steps-after-playbook.png": {
+      "viewport": null,
+      "bytes": 150504,
+      "sha256": "419ff7e704912f00ac60934e9de8e13094b5fc966043e464fa0af4d4b959ae8e"
+    },
+    "build-steps-before-playbook.png": {
+      "viewport": null,
+      "bytes": 128995,
+      "sha256": "0fc9a422259608433713dd703e18b0577636672de859d084434e291c67e6f54b"
+    }
+  }
+}

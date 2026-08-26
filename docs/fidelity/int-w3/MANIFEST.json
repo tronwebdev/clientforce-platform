@@ -1,0 +1,83 @@
+{
+  "unit": "int-w3",
+  "commit": null,
+  "capturedAt": null,
+  "note": "PRE-GATE LOCK: these frames predate the fidelity freshness gate (B1 review, 2026-08-26) and were reviewed in their own PRs. Hashes recorded when the gate landed so any later drift fails lint; this manifest attests bytes, not capture provenance.",
+  "frames": {
+    "build-action-picker-webhook-url.png": {
+      "viewport": null,
+      "bytes": 121741,
+      "sha256": "8ee2f27edfe25a8d33dbae2ff830ad92143d96421d91684c19c7c53c7ac780c7"
+    },
+    "build-automation-drawer-run-row.png": {
+      "viewport": null,
+      "bytes": 109025,
+      "sha256": "875a92f6af09a689c179b1cfe2ef647e9e4df31efc9ab67c999548e094d45809"
+    },
+    "build-inbox-thread-payment-link-email.png": {
+      "viewport": null,
+      "bytes": 160459,
+      "sha256": "71d4ff0ded8d9a33c05f1398bfe43eef4fa09230e9cf37981f238a0939783fdf"
+    },
+    "build-inbox-thread-payment-system-row.png": {
+      "viewport": null,
+      "bytes": 162824,
+      "sha256": "191cd7e72c837769bf52226746b9c05cd5d80e13b2c26926239575ca80526b75"
+    },
+    "build-integrations-grid-payments-live.png": {
+      "viewport": null,
+      "bytes": 164397,
+      "sha256": "af1ef02314491d099574d4fd39912dd8d4d66f2255f51a2821ff67e5c5823bd6"
+    },
+    "build-lead-drawer-payment-timeline.png": {
+      "viewport": null,
+      "bytes": 135986,
+      "sha256": "d197e9210284f943d0ab321764fa897f7392ca73d5cd39eae22c88fd905588f2"
+    },
+    "build-stripe-drawer-connected.png": {
+      "viewport": null,
+      "bytes": 205604,
+      "sha256": "bd38522ea8e30fa68d32f11cdd8c503257ea9af33435327e773065b79ae6d329"
+    },
+    "build-stripe-fields-step.png": {
+      "viewport": null,
+      "bytes": 176510,
+      "sha256": "60f18bde762bea7ce03dc0ee5aaf3f3b24f9c0336e6d126603f1f86659cc16dd"
+    },
+    "build-trigger-picker-payment-live.png": {
+      "viewport": null,
+      "bytes": 139764,
+      "sha256": "dd2de538f47ec101c016a65c2718c2584a3f75fa6037bb01ab9cab342196af7e"
+    },
+    "build-webhooks-drawer-connected.png": {
+      "viewport": null,
+      "bytes": 199789,
+      "sha256": "eae170ce7b9124f7917af1f39c7840a4e5283858174f129cca0d90e3175e4790"
+    },
+    "build-webhooks-fields-step.png": {
+      "viewport": null,
+      "bytes": 179456,
+      "sha256": "b452b29cc5f789db53736912d8e8ffed74a30c806522d08ab3a8a9d9db468d9a"
+    },
+    "proto-stripe-drawer-connected.png": {
+      "viewport": null,
+      "bytes": 182822,
+      "sha256": "0e4b7cb1e389a790e06cfd1e06ef91fca7e90b982553b7b221cd151a3dc9b5fc"
+    },
+    "proto-webhooks-wizard-events.png": {
+      "viewport": null,
+      "bytes": 152629,
+      "sha256": "556aa9d693a105373de2ff0404a7b433ac10e14afa90eba862d2ca1c4f28501a"
+    },
+    "proto-webhooks-wizard-fields.png": {
+      "viewport": null,
+      "bytes": 157741,
+      "sha256": "42dd13b9152a78052d72814315b2dfae584753e11569f6ad90423cefc8fa9f05"
+    },
+    "proto-webhooks-wizard-test.png": {
+      "viewport": null,
+      "bytes": 153844,
+      "sha256": "0dfb96c2f0b7ba3814d262fd1cd6b05344c87ebd19fea52ef6660b2caf6d4e35"
+    }
+  }
+}

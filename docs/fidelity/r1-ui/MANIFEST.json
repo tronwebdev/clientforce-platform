@@ -1,0 +1,78 @@
+{
+  "unit": "r1-ui",
+  "commit": null,
+  "capturedAt": null,
+  "note": "PRE-GATE LOCK: these frames predate the fidelity freshness gate (B1 review, 2026-08-26) and were reviewed in their own PRs. Hashes recorded when the gate landed so any later drift fails lint; this manifest attests bytes, not capture provenance.",
+  "frames": {
+    "build-automations-drawer.png": {
+      "viewport": null,
+      "bytes": 114626,
+      "sha256": "5d1e24fc2f04ca5f6feea852787070ab6153d9cef9e4f305742e3537d9a4f894"
+    },
+    "build-automations-empty.png": {
+      "viewport": null,
+      "bytes": 76109,
+      "sha256": "14313a538651184aa48434573171210b1cbf66205b5dd9207d36063a3d23a921"
+    },
+    "build-automations-list-one.png": {
+      "viewport": null,
+      "bytes": 81079,
+      "sha256": "59380a07ab9266ea60dce1005bef281692796e0e2ca5f29024ceec49e595b418"
+    },
+    "build-automations-list.png": {
+      "viewport": null,
+      "bytes": 91579,
+      "sha256": "5e4aa745fdaf6f279ff4be0ee7866d7e5ca902827e1960cfa58f32d3d1eca423"
+    },
+    "build-automations-toggle-paused.png": {
+      "viewport": null,
+      "bytes": 97939,
+      "sha256": "140c4c93955cd59b04ff1fa5520df759f2ad07c772f68fe6532a33cf71687e2b"
+    },
+    "build-builder-action-picker.png": {
+      "viewport": null,
+      "bytes": 145125,
+      "sha256": "85ca54c52759f8e5ac069397c75e5bdf2857caf1a5461fa7fc6afe3c78ed51e7"
+    },
+    "build-builder-blank-recipes.png": {
+      "viewport": null,
+      "bytes": 146736,
+      "sha256": "ff0ec80dc93491ce8bc34a353ebaa77513d62f21bf02d354f04e5ce83d751a51"
+    },
+    "build-builder-dup-422.png": {
+      "viewport": null,
+      "bytes": 130014,
+      "sha256": "77bf6bdf015b98df8c7b22e8c88c3b26b6db642765f91b972d1083b20480d8aa"
+    },
+    "build-builder-edit-mode.png": {
+      "viewport": null,
+      "bytes": 126612,
+      "sha256": "960997cf1361aed34a62c814b5229f6128242643acf46e6c280f686b3bbbe49a"
+    },
+    "build-builder-recipe-configured.png": {
+      "viewport": null,
+      "bytes": 118099,
+      "sha256": "ff51c706d5dd4d5a8f60f6151922025b2ca23cbbc4175b02346663a166fcaf53"
+    },
+    "build-builder-trigger-picker-tail.png": {
+      "viewport": null,
+      "bytes": 159998,
+      "sha256": "c92b74819d675f585f54538b7fb1939d95c4adc77b3ab41a0d88002953bf0cc0"
+    },
+    "proto-automations-list.png": {
+      "viewport": null,
+      "bytes": 173506,
+      "sha256": "65ad18e9031ce7a5e9b8fee906e7106149938399cb5d91d397026533b92f1570"
+    },
+    "proto-builder-blank-recipes.png": {
+      "viewport": null,
+      "bytes": 180809,
+      "sha256": "1ac7903b3e3abfd063b4b3a9032df212c741ec435fcebcd68b4d04dd6804fca0"
+    },
+    "proto-builder-configured.png": {
+      "viewport": null,
+      "bytes": 153199,
+      "sha256": "b725d3d322ee1a53104d5ea0ace12d5d856e796bbd29db4e18b6ee24dbeccd74"
+    }
+  }
+}

@@ -1,0 +1,93 @@
+{
+  "unit": "b0",
+  "commit": null,
+  "capturedAt": null,
+  "note": "PRE-GATE LOCK: these frames predate the fidelity freshness gate (B1 review, 2026-08-26) and were reviewed in their own PRs. Hashes recorded when the gate landed so any later drift fails lint; this manifest attests bytes, not capture provenance.",
+  "frames": {
+    "build-ada-panel-1440x900.png": {
+      "viewport": null,
+      "bytes": 97525,
+      "sha256": "973351743abd513c7c80afbcc1a8dcf5b8e457853cd28e30d0ef8cda1cb9ab7b"
+    },
+    "build-default-1280x720.png": {
+      "viewport": null,
+      "bytes": 97387,
+      "sha256": "b889f0aed704a37ea6c975de80349a68538662e1c3f53f0c7c9e08491f6688dc"
+    },
+    "build-default-1440x900.png": {
+      "viewport": null,
+      "bytes": 102925,
+      "sha256": "60fcbc461b9ece55931f1085c3ef70a635d1372eca0e67755678761a48e85229"
+    },
+    "build-default-924x540.png": {
+      "viewport": null,
+      "bytes": 84956,
+      "sha256": "ea540108c305dcebe4fe80528b48deae64eb7371342411c28698b57cbf4078ec"
+    },
+    "build-dock-contacts-1440x900.png": {
+      "viewport": null,
+      "bytes": 102539,
+      "sha256": "b578aab50e066421c37443b301ea77c9843e5d1cd384665e63355d645159cf97"
+    },
+    "build-rail-collapsed-1440x900.png": {
+      "viewport": null,
+      "bytes": 76759,
+      "sha256": "b2f82e1b201da11a63179b99a52d76b650982beb4162a45ac747a8093bbcea12"
+    },
+    "build-tour-offer-1440x900.png": {
+      "viewport": null,
+      "bytes": 106304,
+      "sha256": "742f4dd71c2171c5d9345a67ce0804b9998a4d86aa0d847d20dfea4c37809933"
+    },
+    "build-tour-step1-1440x900.png": {
+      "viewport": null,
+      "bytes": 98524,
+      "sha256": "8dac9b93166734a6b9d67777f61f560991bceb84f4559365d0379baff51cd43e"
+    },
+    "build-ws-picker-1440x900.png": {
+      "viewport": null,
+      "bytes": 125011,
+      "sha256": "d784a6e4a9ca814bd9c061472d4dd3c3eae5a4d656c2856932ec29ee27800afd"
+    },
+    "proto-ada-panel-1440x900.png": {
+      "viewport": null,
+      "bytes": 93255,
+      "sha256": "453e798b64193a4fac655de79cc6149ced4f9f26585254d0a5da47e4c9c4a747"
+    },
+    "proto-default-1280x720.png": {
+      "viewport": null,
+      "bytes": 177903,
+      "sha256": "9684dca86edc7f727c5043e73b94ed96696478bd1d2f722a44edc586c647b0d6"
+    },
+    "proto-default-1440x900.png": {
+      "viewport": null,
+      "bytes": 208275,
+      "sha256": "5ea1c007b0b4ae0406d6fa0c4c1f975733d99dc6af00cf3edbba2ca72d6048b2"
+    },
+    "proto-default-924x540.png": {
+      "viewport": null,
+      "bytes": 123601,
+      "sha256": "8a85e65fdbfc911d2c5ec6805c6a12d421af1e85a7478a8ddf9d0e94a9330024"
+    },
+    "proto-dock-contacts-1440x900.png": {
+      "viewport": null,
+      "bytes": 143274,
+      "sha256": "1df94527b9a35553b4728c20518e63d8030d35fa524a7d454c21d187387eada7"
+    },
+    "proto-tour-offer-1440x900.png": {
+      "viewport": null,
+      "bytes": 210844,
+      "sha256": "861de01a158272cf3483537872bef2165cb3d1c1b516e8c315399a644e3f59fa"
+    },
+    "proto-tour-step1-1440x900.png": {
+      "viewport": null,
+      "bytes": 159530,
+      "sha256": "1524d243c4504bd8f463dd33abe3bfcec51dd02551daa58827a0e6b3c5911b18"
+    },
+    "proto-ws-picker-1440x900.png": {
+      "viewport": null,
+      "bytes": 197962,
+      "sha256": "040edb90e313ef327990b10b04e840a7ed1f8f90de585e228b8584f0c55706b0"
+    }
+  }
+}

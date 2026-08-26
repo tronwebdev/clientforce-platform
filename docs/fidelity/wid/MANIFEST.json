@@ -1,0 +1,113 @@
+{
+  "unit": "wid",
+  "commit": null,
+  "capturedAt": null,
+  "note": "PRE-GATE LOCK: these frames predate the fidelity freshness gate (B1 review, 2026-08-26) and were reviewed in their own PRs. Hashes recorded when the gate landed so any later drift fails lint; this manifest attests bytes, not capture provenance.",
+  "frames": {
+    "build-01-closed-launcher-right-light.png": {
+      "viewport": null,
+      "bytes": 207283,
+      "sha256": "e3f4941fbd9b18f11275e60cc0edba50cf666e4098aedbb8eb11e6c9c8f5aa85"
+    },
+    "build-02-open-panel-light.png": {
+      "viewport": null,
+      "bytes": 229504,
+      "sha256": "9ef12854006e0cf1a04889c36716c9f116c8e9cd78cd2c2cbf2dc3d95d6e29b0"
+    },
+    "build-03-thinking-during-roundtrip.png": {
+      "viewport": null,
+      "bytes": 229009,
+      "sha256": "05e3a0685e2b12a37554dd616081dc8d265c3c1e52f5c2dc929c2ad395dcab64"
+    },
+    "build-04-stub-reply-honest.png": {
+      "viewport": null,
+      "bytes": 252920,
+      "sha256": "e408387b68c9a7f16ce61b161e3fe0dce8307346eb8fd301fb359ef848b19fe2"
+    },
+    "build-05-agent-state-listening.png": {
+      "viewport": null,
+      "bytes": 253142,
+      "sha256": "db013598aed3bc591748fb91613bc015d9ee98e7c9b377fb0ee8590cf1ed3d65"
+    },
+    "build-06-agent-state-replying.png": {
+      "viewport": null,
+      "bytes": 252245,
+      "sha256": "e10632034afae68ee591b3393a275f73befa3d9190ff94545dc4496857531e77"
+    },
+    "build-08-open-panel-left.png": {
+      "viewport": null,
+      "bytes": 254535,
+      "sha256": "ce8fbacfb188b3366fcafc77419919f4fdc4bc725ed5a58165c060e30d3e7444"
+    },
+    "build-09-brand-ink-auto-contrast.png": {
+      "viewport": null,
+      "bytes": 253014,
+      "sha256": "90e2038933c98ca3f3fb78c4bafa03931a165d5d5cd706ca54859ef91a7a6173"
+    },
+    "build-10-closed-unread-badge.png": {
+      "viewport": null,
+      "bytes": 208402,
+      "sha256": "fb51ae7dea9e2fdc168139fd0c085993135ce00a820d63abba8391972392d010"
+    },
+    "build-11-narrow-viewport-390.png": {
+      "viewport": null,
+      "bytes": 135147,
+      "sha256": "e5385469e6cc33e2754f996e4c0338a7cf038a80fa4df04b936984dfea25309b"
+    },
+    "build-12-panel-crop-3x.png": {
+      "viewport": null,
+      "bytes": 134257,
+      "sha256": "cd15b95570897bcd5c086c6dbc864557fe788ce556c2a04df736d6a0cbae5676"
+    },
+    "build-13-white-label-panel-3x.png": {
+      "viewport": null,
+      "bytes": 120964,
+      "sha256": "f284fabeec205f4651640369f7d96b19761923fde60ea4062f3ea88b217e5a02"
+    },
+    "build-14-white-label-launcher.png": {
+      "viewport": null,
+      "bytes": 1038244,
+      "sha256": "8cb34b21ccbd64cf09c5d9cb9e04e8ee92fb984db53d26746fe9c2822a7f672a"
+    },
+    "build-15-narrow-closed-launcher.png": {
+      "viewport": null,
+      "bytes": 332489,
+      "sha256": "8451932f7be390e6a865cf3765b41fdbbc6c8fa6fa51a39cc76e951cd18ab126"
+    },
+    "build-16-capture-form-3x.png": {
+      "viewport": null,
+      "bytes": 163829,
+      "sha256": "ce85b60fc5f33b5d9322ed36e11b77967e112cfc3346290d30ecaa0844118b3e"
+    },
+    "build-17-outcome-card-3x.png": {
+      "viewport": null,
+      "bytes": 190320,
+      "sha256": "275442d703373e23ae822ce406241ed1e610ab463f5cb66a20dc695dc8d0c8e9"
+    },
+    "build-18-white-label-outcome-3x.png": {
+      "viewport": null,
+      "bytes": 171957,
+      "sha256": "5e4521713c690a88ff102c5f1fea3a6662bbc320b43355035a6662dc5422f620"
+    },
+    "proto-01-design-default-light-right.png": {
+      "viewport": null,
+      "bytes": 225177,
+      "sha256": "0fd1f19493715e765b775fbdf66f99e8a5aa68e4175c0950f54f82574e15c466"
+    },
+    "proto-03-design-position-left.png": {
+      "viewport": null,
+      "bytes": 202729,
+      "sha256": "2f56f4c02f8dd7c8d97174dbf5c7f30c208b19db0c7f4b39b9f878d6bfff9ffd"
+    },
+    "widget-panel-canon.png": {
+      "viewport": null,
+      "bytes": 220646,
+      "sha256": "4f4613b484383e9e9144eff3e4e00f30f0a2e97b312ab861f0ce5c21894590ff"
+    },
+    "widget-voice-overlay.png": {
+      "viewport": null,
+      "bytes": 381832,
+      "sha256": "365e4f36395e33fd791b01dfcc7e670ab934c3a30108e7e3a71b5fd553da5b09"
+    }
+  }
+}

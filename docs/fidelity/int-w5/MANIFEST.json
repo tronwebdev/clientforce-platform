@@ -1,0 +1,18 @@
+{
+  "unit": "int-w5",
+  "commit": null,
+  "capturedAt": null,
+  "note": "PRE-GATE LOCK: these frames predate the fidelity freshness gate (B1 review, 2026-08-26) and were reviewed in their own PRs. Hashes recorded when the gate landed so any later drift fails lint; this manifest attests bytes, not capture provenance.",
+  "frames": {
+    "build-integrations-grid.png": {
+      "viewport": null,
+      "bytes": 163272,
+      "sha256": "41f6f3f5a1fb544d844a88b2e40e8eab2f7f939b4b8c323533c717111d12094c"
+    },
+    "build-zapier-drawer.png": {
+      "viewport": null,
+      "bytes": 192850,
+      "sha256": "b1e61812acc39c827da4edd420ebdc975a3fe394f2ca263d0ea1d891098ee6e2"
+    }
+  }
+}

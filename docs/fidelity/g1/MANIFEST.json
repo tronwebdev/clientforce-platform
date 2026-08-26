@@ -1,0 +1,58 @@
+{
+  "unit": "g1",
+  "commit": null,
+  "capturedAt": null,
+  "note": "PRE-GATE LOCK: these frames predate the fidelity freshness gate (B1 review, 2026-08-26) and were reviewed in their own PRs. Hashes recorded when the gate landed so any later drift fails lint; this manifest attests bytes, not capture provenance.",
+  "frames": {
+    "build-brief-editor.png": {
+      "viewport": null,
+      "bytes": 214723,
+      "sha256": "05f385f32cb47d49dc19ae3543e8bca15516ef783b103308787576395f4eff09"
+    },
+    "build-inbox-guided-thread-1.png": {
+      "viewport": null,
+      "bytes": 142855,
+      "sha256": "f1b347f84935ce87d55d2873ef68b66bae0cdbebd1eea907ba5bcc8b84f65e7d"
+    },
+    "build-inbox-guided-thread-2.png": {
+      "viewport": null,
+      "bytes": 147277,
+      "sha256": "c4a86a970760d267311bcc89e9e0a656b454eb67144db1c30864b3236273691a"
+    },
+    "build-logs-refusal-row.png": {
+      "viewport": null,
+      "bytes": 80404,
+      "sha256": "907d7da83cbd98f31610d305d1368008ca2e7de98b30c896e177c9a4b8bc2bcc"
+    },
+    "build-sample-preview-composed.png": {
+      "viewport": null,
+      "bytes": 227607,
+      "sha256": "584dbf6f9693f4fc5f3caf1f42fd7ddc0768ddca0328318f308bb5b8991aa54c"
+    },
+    "build-sample-preview-refused.png": {
+      "viewport": null,
+      "bytes": 226393,
+      "sha256": "6725e551dadcfa8c7866a20d069d142f78cd47287e90e21405328574771ca7d5"
+    },
+    "build-settings-compose-guided.png": {
+      "viewport": null,
+      "bytes": 130988,
+      "sha256": "3b20f43c5d1cfcd4bee2b96710065130fcbc4a4fac295598cdcb691fc3efc5bd"
+    },
+    "build-settings-compose-scripted.png": {
+      "viewport": null,
+      "bytes": 131225,
+      "sha256": "048bb3a3d534adb4b4309cee4a7d1fa743b1f4ad81b6017b644714250ac84355"
+    },
+    "build-steps-brief-card.png": {
+      "viewport": null,
+      "bytes": 140040,
+      "sha256": "f512a2714d4d0b2d5d156afb8c56989e9993ba212e9955c07391d85159ce2f72"
+    },
+    "build-wizard-brief-card.png": {
+      "viewport": null,
+      "bytes": 140614,
+      "sha256": "9ba2a224fc45ad8a80ca473af88a8478bb693c3cfa5c519f7de41774906e331c"
+    }
+  }
+}

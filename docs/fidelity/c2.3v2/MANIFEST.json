@@ -1,0 +1,163 @@
+{
+  "unit": "c2.3v2",
+  "commit": null,
+  "capturedAt": null,
+  "note": "PRE-GATE LOCK: these frames predate the fidelity freshness gate (B1 review, 2026-08-26) and were reviewed in their own PRs. Hashes recorded when the gate landed so any later drift fails lint; this manifest attests bytes, not capture provenance.",
+  "frames": {
+    "build-doc-added.png": {
+      "viewport": null,
+      "bytes": 128187,
+      "sha256": "4b9880960a084d78fc1ba76dadf7b74d05612ef3ab7b66f726e2b75a8c598415"
+    },
+    "build-doc-ready.png": {
+      "viewport": null,
+      "bytes": 130764,
+      "sha256": "a83f8035f365ab4eccfabdb4052c88dda318f4fabbfe0701d026a9287e199aa8"
+    },
+    "build-footer-scrolled.png": {
+      "viewport": null,
+      "bytes": 131711,
+      "sha256": "db1782286631547e4be5f41321a02b18708b4b85840133261ddef44fc8532a4f"
+    },
+    "build-goal-event.png": {
+      "viewport": null,
+      "bytes": 100821,
+      "sha256": "3d0ec37132e0a05d8fc5197a85d041e158aea94c1dc984cb989761cba28f60ed"
+    },
+    "build-goal-offer.png": {
+      "viewport": null,
+      "bytes": 98641,
+      "sha256": "8efbe9468be6bd4aa6f9d13c19518a5e6b7dab33feef41b2b976a7428a4cf896"
+    },
+    "build-goal-upsell.png": {
+      "viewport": null,
+      "bytes": 98842,
+      "sha256": "4bd996aca3a0c8b84e25c311a6028dcd895815fa968340da8764950f48b07dd3"
+    },
+    "build-goals-9.png": {
+      "viewport": null,
+      "bytes": 124620,
+      "sha256": "964ddf6b121b1f2390caeb11c62604b6650a86563f651a36859c63ad9ebe95ed"
+    },
+    "build-manual-drawer.png": {
+      "viewport": null,
+      "bytes": 109557,
+      "sha256": "dd740f93425227a88e1badf2bb0d5699ab0a4bfd1fb0d34762093e3173695f2e"
+    },
+    "build-settings-danger-row.png": {
+      "viewport": null,
+      "bytes": 113527,
+      "sha256": "8327b3bfc2364bfd4445d58ef882399f9d3db6db2c3361b815bdf3f9aff73921"
+    },
+    "build-settings-tracking-on.png": {
+      "viewport": null,
+      "bytes": 109505,
+      "sha256": "aa14d4184148090022976ac43ce3750351e82aeefe70d5a92f89859953bf4552"
+    },
+    "build-settings-tracking-persisted.png": {
+      "viewport": null,
+      "bytes": 109187,
+      "sha256": "be63e183522ef4d3aaaff7069cb0522cf21e2d4aec1eb603dc99112b2a82be7a"
+    },
+    "build-source-failed.png": {
+      "viewport": null,
+      "bytes": 127314,
+      "sha256": "b1e3546ba25c32409b6c6ac4da20f0778be8511423dc9c0bb45f6cdd7f9dbaba"
+    },
+    "build-source-removed.png": {
+      "viewport": null,
+      "bytes": 110584,
+      "sha256": "c38a8325ac253165c8e8553a618e2a33118b56524e8935857be50cda081b2fa0"
+    },
+    "build-upload-disabled.png": {
+      "viewport": null,
+      "bytes": 107787,
+      "sha256": "32addad05ee224b14e0fdda90baab1597e7e11f785a947a061fcb680eeb3b5f2"
+    },
+    "build-url-ingesting.png": {
+      "viewport": null,
+      "bytes": 104706,
+      "sha256": "6b1cbb90446aa35242c0d095745ccf4c4e20bd91d0b2918e6964d68137db25b3"
+    },
+    "build-url-ready.png": {
+      "viewport": null,
+      "bytes": 110584,
+      "sha256": "c38a8325ac253165c8e8553a618e2a33118b56524e8935857be50cda081b2fa0"
+    },
+    "build-zero-context-builder.png": {
+      "viewport": null,
+      "bytes": 98646,
+      "sha256": "403a4df66fce1e6a957c4def2b6fe1c47d2b726f93650eca38627dc5af6ce956"
+    },
+    "build-zero-context-top.png": {
+      "viewport": null,
+      "bytes": 98646,
+      "sha256": "403a4df66fce1e6a957c4def2b6fe1c47d2b726f93650eca38627dc5af6ce956"
+    },
+    "proto-doc-ingesting.png": {
+      "viewport": null,
+      "bytes": 122283,
+      "sha256": "0500694c7297eba3bdcc0018d8d1d0f784345848b5419a4e1a690b3abfd64fd9"
+    },
+    "proto-doc-ready.png": {
+      "viewport": null,
+      "bytes": 121987,
+      "sha256": "acc8161f9da25c0fcd028787597c8027b66478ee69beeeb2d4f09476562b3b46"
+    },
+    "proto-footer-scrolled.png": {
+      "viewport": null,
+      "bytes": 148980,
+      "sha256": "7c3428b7637d93688d64628cb0a6bfcb9602578efb498666e3a5af6ff4bccf6b"
+    },
+    "proto-goal-event.png": {
+      "viewport": null,
+      "bytes": 110637,
+      "sha256": "f2e98b40c5face9eec4f5e0d5d601a1dbc61e3257f9ae5382067c50e814e0e3d"
+    },
+    "proto-goal-offer.png": {
+      "viewport": null,
+      "bytes": 109456,
+      "sha256": "271efe35f78e3ce181016ffb7a8939979a17bc8fe5f25692de8327f008b3dba6"
+    },
+    "proto-goal-upsell.png": {
+      "viewport": null,
+      "bytes": 109831,
+      "sha256": "ff0399868c07b2f0b2d49b7e6d867aaded01dd6a733c9062b00bb38b0676066c"
+    },
+    "proto-goals-9.png": {
+      "viewport": null,
+      "bytes": 148980,
+      "sha256": "7c3428b7637d93688d64628cb0a6bfcb9602578efb498666e3a5af6ff4bccf6b"
+    },
+    "proto-manual-drawer.png": {
+      "viewport": null,
+      "bytes": 142268,
+      "sha256": "4d976b13711c7dfed237e54bab03fb3f80805d50699a43530826804e6c72cbae"
+    },
+    "proto-settings-tracking.png": {
+      "viewport": null,
+      "bytes": 102238,
+      "sha256": "9bf4922c9defa363507cd1a553fd9e2c9789a1dbfdcd9e830569864231385db5"
+    },
+    "proto-url-ingesting.png": {
+      "viewport": null,
+      "bytes": 109549,
+      "sha256": "6166c49d0fe9c6271b1c9537e11850bc323394a73f1c577875b94875421c7686"
+    },
+    "proto-url-ready.png": {
+      "viewport": null,
+      "bytes": 124369,
+      "sha256": "ca1e098062598105bdea1b2f4a7fad32dbb63a2a523392e08ec06822cd6136f6"
+    },
+    "proto-zero-context-builder.png": {
+      "viewport": null,
+      "bytes": 111209,
+      "sha256": "3b4e4bf2af1d452eea406f2770e1b132dcaddf807c30b99b5472c9fd3a8407f5"
+    },
+    "proto-zero-context-top.png": {
+      "viewport": null,
+      "bytes": 111209,
+      "sha256": "3b4e4bf2af1d452eea406f2770e1b132dcaddf807c30b99b5472c9fd3a8407f5"
+    }
+  }
+}
