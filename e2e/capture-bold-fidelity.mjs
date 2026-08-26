@@ -200,10 +200,19 @@ if (UNIT === "b25") {
     await p.getByText("All", { exact: true }).click();
     await p.getByTestId("bold-new-campaign").click();
     await p.getByTestId("bold-create").waitFor();
+    // Focusing inputs scrolls the canvas — every b25 shot snaps back to top
+    // first so the pane header and full rail are always in frame.
+    const snap = async (name) => {
+      await p.evaluate(() => {
+        const el = document.querySelector('[data-testid="bold-canvas-scroll"]');
+        if (el) el.scrollTop = 0;
+      });
+      await shot(p, name);
+    };
     await p.getByTestId("bold-goal-book_appointments").click();
     await p.getByTestId("bold-create-spec").fill("Implant consults for the 21st");
     await p.waitForTimeout(300);
-    await shot(p, "build-create-goal-1440x900");
+    await snap("build-create-goal-1440x900");
     await p.getByTestId("bold-create-next").click();
     await p.getByTestId("bold-who-csv").click();
     // The mapping state only — Import is never clicked in a capture run
@@ -216,36 +225,36 @@ if (UNIT === "b25") {
       ),
     });
     await p.waitForTimeout(400);
-    await shot(p, "build-create-who-csv-1440x900");
+    await snap("build-create-who-csv-1440x900");
     await p.getByTestId("bold-who-list").click();
     await p.getByTestId("bold-list-picker").waitFor();
     await p.waitForTimeout(400);
-    await shot(p, "build-create-who-picker-1440x900");
+    await snap("build-create-who-picker-1440x900");
     await p.locator('[data-testid^="bold-list-pick-"]').first().click();
     await p.getByTestId("bold-create-next").click();
     await p.getByTestId("bold-know-stat").waitFor();
     await p.waitForTimeout(500);
-    await shot(p, "build-create-know-1440x900");
+    await snap("build-create-know-1440x900");
     await p.getByTestId("bold-create-next").click();
     await p.getByTestId("bold-value-unit").fill("2400");
     await p.getByTestId("bold-value-target").fill("12");
     await p.waitForTimeout(300);
-    await shot(p, "build-create-value-1440x900");
+    await snap("build-create-value-1440x900");
     await p.getByTestId("bold-create-next").click();
     await p.getByTestId("bold-chan-email").waitFor();
-    await shot(p, "build-create-chan-1440x900");
+    await snap("build-create-chan-1440x900");
     await p.getByTestId("bold-create-next").click();
     await p.getByTestId("bold-plan-starter").click();
     await p.getByTestId("bold-plan-node-create-step-1").waitFor();
     await p.waitForTimeout(400);
-    await shot(p, "build-create-plan-1440x900");
+    await snap("build-create-plan-1440x900");
     await p.getByTestId("bold-create-next").click();
     await p.getByTestId("bold-guard-suppress").waitFor();
-    await shot(p, "build-create-guard-1440x900");
+    await snap("build-create-guard-1440x900");
     await p.getByTestId("bold-create-next").click();
     await p.getByTestId("bold-review").waitFor();
     await p.waitForTimeout(300);
-    await shot(p, "build-create-review-1440x900");
+    await snap("build-create-review-1440x900");
     // Cleanup: the capture run's draft agent (never launched) is deleted
     // through the shipped surface so evidence runs leave no rows behind.
     const agents = await (await p.request.get(`${BASE}/api/cf/agents`)).json();
