@@ -194,11 +194,21 @@ export class PlannerController {
     const dto = parse(putGraphSchema, body);
     const workspaceId = this.tenant.workspaceId;
     return this.tenant.run(async (tx) => {
-      const campaign = await tx.campaign.findFirst({
+      let campaign = await tx.campaign.findFirst({
         where: { agentId: dto.agentId },
         orderBy: { createdAt: "asc" },
       });
-      if (!campaign) throw new NotFoundException(`Agent ${dto.agentId} has no campaign`);
+      if (!campaign) {
+        // B2.5 (DEC-108): a manual first graph stands the campaign up lazily —
+        // the SAME "A5: one agent = one auto-created primary campaign" move the
+        // planner worker (plan.ts) and the test-send path already make. Before
+        // this, a graph could only ever exist once the AI planner had run.
+        const agent = await tx.agent.findUnique({ where: { id: dto.agentId } });
+        if (!agent) throw new NotFoundException(`Agent ${dto.agentId} not found`);
+        campaign = await tx.campaign.create({
+          data: { workspaceId, agentId: agent.id, name: `${agent.name} — primary`, graphId: "" },
+        });
+      }
       const latest = await tx.campaignGraph.findFirst({
         where: { campaignId: campaign.id },
         orderBy: { version: "desc" },
@@ -265,11 +275,21 @@ export class PlannerController {
     }
     const workspaceId = this.tenant.workspaceId;
     return this.tenant.run(async (tx) => {
-      const campaign = await tx.campaign.findFirst({
+      let campaign = await tx.campaign.findFirst({
         where: { agentId: dto.agentId },
         orderBy: { createdAt: "asc" },
       });
-      if (!campaign) throw new NotFoundException(`Agent ${dto.agentId} has no campaign`);
+      if (!campaign) {
+        // B2.5 (DEC-108): a manual first graph stands the campaign up lazily —
+        // the SAME "A5: one agent = one auto-created primary campaign" move the
+        // planner worker (plan.ts) and the test-send path already make. Before
+        // this, a graph could only ever exist once the AI planner had run.
+        const agent = await tx.agent.findUnique({ where: { id: dto.agentId } });
+        if (!agent) throw new NotFoundException(`Agent ${dto.agentId} not found`);
+        campaign = await tx.campaign.create({
+          data: { workspaceId, agentId: agent.id, name: `${agent.name} — primary`, graphId: "" },
+        });
+      }
       const latest = await tx.campaignGraph.findFirst({
         where: { campaignId: campaign.id },
         orderBy: { version: "desc" },

@@ -95,6 +95,31 @@ export const GOAL_VALUE_META: Record<GoalKey, GoalValueMeta> = {
     monetary: true,
     heroMode: "count",
   },
+  // B2.5 (DEC-109): the Q-067 EXTEND rows — Bold-canon wording verbatim.
+  accept_quotes: {
+    kindLabel: "Quotes",
+    brief: "Proposals and estimates already sent, waiting on a yes.",
+    valueBasis: "value per accepted quote",
+    unitNoun: "accepted quote",
+    monetary: true,
+    heroMode: "count",
+  },
+  nurture_leads: {
+    kindLabel: "Nurture",
+    brief: "Not ready yet. Stay useful until they are.",
+    valueBasis: "no direct revenue",
+    unitNoun: "warmed lead",
+    monetary: false,
+    heroMode: "count",
+  },
+  winback_deals: {
+    kindLabel: "Deal recovery",
+    brief: "People who said no or went quiet mid-conversation.",
+    valueBasis: "value per recovered deal",
+    unitNoun: "recovered deal",
+    monetary: true,
+    heroMode: "count",
+  },
   custom: {
     kindLabel: "Custom goal",
     brief: "The goal you described, in her words.",
@@ -110,12 +135,15 @@ export function goalValueMeta(goalKey: string): GoalValueMeta {
 }
 
 /**
- * The campaign's own goal sentence for the hero/list lead (owner note, B1
- * review): pre-enum agents carry free text in `goal` — that IS their sentence;
- * key-based agents fall back to the registry brief until guided create writes
- * a real per-campaign summary (Q-069, the creation wave).
+ * The campaign's own goal sentence for the hero/list lead. Three-tier
+ * resolution (Q-069, closed in B2.5/DEC-109): the guided-create summary the
+ * owner typed wins; pre-enum agents carry free text in `goal` — that IS
+ * their sentence; key-based agents without a summary fall back to the
+ * registry brief (the exact fallback Q-069 approved).
  */
-export function goalSentence(goal: string): string {
+export function goalSentence(goal: string, summary?: string | null): string {
+  const typed = summary?.trim();
+  if (typed) return typed;
   return (GOAL_KEYS as readonly string[]).includes(goal) ? goalValueMeta(goal).brief : goal;
 }
 

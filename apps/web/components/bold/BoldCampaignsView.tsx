@@ -8,9 +8,9 @@ import { money } from "./bold-live";
 /**
  * The all-campaigns page (B1, prototype `vCamps`) — live AgentListItem rows.
  * Ada's inline proposal rows (amber spine · "Ada's idea" pill · Start) have
- * NO shipped source (Q-066): the composition waits for the proposal engine's
- * wave rather than rendering canned AI as live. "New campaign" routes to the
- * shipped wizard until the Bold creation flow's wave.
+ * NO shipped source (Q-066): the composition waits for B2.6, the suggested-
+ * campaigns wave, rather than rendering canned AI as live. "New campaign"
+ * opens the B2.5 Bold creation flow (DEC-108) — one create path, in Bold.
  */
 
 const mono = { fontFamily: "var(--cvb-font-mono)" } as const;
@@ -31,9 +31,11 @@ const CH_TONES: Record<string, [string, string, string, string]> = {
 export function BoldCampaignsView({
   agents,
   onSelect,
+  onNew,
 }: {
   agents: AgentListItem[];
   onSelect: (id: string) => void;
+  onNew: () => void;
 }) {
   const [filter, setFilter] = useState("All");
   const filters = ["All", "Live", "Needs you", "Drafts"];
@@ -68,11 +70,8 @@ export function BoldCampaignsView({
         </div>
         <span style={{ flex: 1 }} />
         <span
-          onClick={() => {
-            // The Bold creation flow arrives with its own wave — until then the
-            // shipped wizard is the one true create path (no forked flows).
-            window.location.assign("/agents/new");
-          }}
+          onClick={onNew}
+          data-testid="bold-new-campaign"
           style={{ fontSize: 12.5, fontWeight: 800, color: "var(--cvb-card)", background: "var(--cvb-forest)", borderRadius: 12, padding: "11px 17px", cursor: "pointer" }}
         >
           New campaign
@@ -109,7 +108,7 @@ export function BoldCampaignsView({
                 ) : null}
               </div>
               <div style={{ fontSize: 12, color: "var(--cvb-faint)", marginTop: 4 }}>
-                {meta.kindLabel} · {goalSentence(a.goal)}
+                {meta.kindLabel} · {goalSentence(a.goal, a.goalSummary)}
               </div>
             </div>
             <div style={{ width: 108, flex: "none" }}>

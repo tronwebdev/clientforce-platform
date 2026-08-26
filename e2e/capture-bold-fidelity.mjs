@@ -15,7 +15,7 @@
  *    of impersonating evidence. Reviewers verify what they are looking at by
  *    hashing the file — never by trusting an image cache.
  *
- * Usage:  node e2e/capture-bold-fidelity.mjs [unit]     (b1 | b2; default b1)
+ * Usage:  node e2e/capture-bold-fidelity.mjs [unit]     (b1 | b2 | b25; default b1)
  * Env:    CAPTURE_BASE_URL (default http://localhost:3000)
  *         PLAYWRIGHT_CHROMIUM_EXECUTABLE (a pre-provisioned Chromium)
  *
@@ -33,8 +33,8 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const UNIT = process.argv[2] ?? "b1";
-if (UNIT !== "b1" && UNIT !== "b2") {
-  console.error(`Unknown unit "${UNIT}" — this tool knows b1 and b2.`);
+if (UNIT !== "b1" && UNIT !== "b2" && UNIT !== "b25") {
+  console.error(`Unknown unit "${UNIT}" — this tool knows b1, b2 and b25.`);
   process.exit(1);
 }
 const OUT = join(ROOT, "docs", "fidelity", UNIT);
@@ -147,6 +147,113 @@ const toBoldCampaign = async (p) => {
   await p.getByTestId("bold-camps-list").getByText("Implant open day").click();
   await p.waitForTimeout(900);
 };
+
+
+/* -------------------------------------------------------------- the b25 set */
+if (UNIT === "b25") {
+  await run("prototype-b25", async () => {
+    const p = await page({ width: 1440, height: 900 });
+    await freshProto(p);
+    await p.getByText("All", { exact: true }).first().click();
+    await p.getByText("New campaign", { exact: true }).first().click();
+    await p.waitForTimeout(500);
+    await shot(p, "proto-create-goal-1440x900");
+    const protoNext = async () => {
+      const anyway = p.getByText("Continue anyway", { exact: true }).first();
+      if (await anyway.isVisible().catch(() => false)) await anyway.click();
+      else await p.getByText("Continue", { exact: true }).first().click();
+      await p.waitForTimeout(400);
+    };
+    await protoNext(); // → who
+    await p.getByText("A file you upload").first().click();
+    await p.waitForTimeout(300);
+    await p.getByText("Choose a CSV", { exact: true }).first().click();
+    await p.waitForTimeout(400);
+    await shot(p, "proto-create-who-csv-1440x900");
+    await protoNext(); // → know
+    await shot(p, "proto-create-know-1440x900");
+    await protoNext(); // → value
+    await shot(p, "proto-create-value-1440x900");
+    await protoNext(); // → chan
+    await shot(p, "proto-create-chan-1440x900");
+    await protoNext(); // → plan ("The plan looks right" is the label here)
+    await shot(p, "proto-create-plan-1440x900");
+    const planNext = p.getByText("The plan looks right", { exact: true }).first();
+    if (await planNext.isVisible().catch(() => false)) await planNext.click();
+    else await protoNext();
+    await p.waitForTimeout(400); // → guard
+    await shot(p, "proto-create-guard-1440x900");
+    await protoNext(); // → review
+    await shot(p, "proto-create-review-1440x900");
+    await p.context().close();
+  });
+
+  await run("build-b25", async () => {
+    const p = await page({ width: 1440, height: 900 });
+    await signInBuild(p);
+    await p.goto(`${BASE}/bold`);
+    await p.getByTestId("bold-root").waitFor();
+    await p.addStyleTag({ content: "nextjs-portal{display:none!important}" });
+    await p.waitForTimeout(700);
+    const later = p.getByText("Later", { exact: true }).first();
+    if (await later.isVisible().catch(() => false)) await later.click();
+    await p.getByText("All", { exact: true }).click();
+    await p.getByTestId("bold-new-campaign").click();
+    await p.getByTestId("bold-create").waitFor();
+    await p.getByTestId("bold-goal-book_appointments").click();
+    await p.getByTestId("bold-create-spec").fill("Implant consults for the 21st");
+    await p.waitForTimeout(300);
+    await shot(p, "build-create-goal-1440x900");
+    await p.getByTestId("bold-create-next").click();
+    await p.getByTestId("bold-who-csv").click();
+    // The mapping state only — Import is never clicked in a capture run
+    // (evidence must not write demo rows).
+    await p.getByTestId("bold-csv-input").setInputFiles({
+      name: "lapsed-patients-2026.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from(
+        "Full Name,Email Address,Mobile,Opted In\nSofia Reyes,sofia.reyes@example.test,+15125550142,yes\nAlan Turing,alan@demo-agency.test,,yes\nQuiet Row,quiet@example.test,,no",
+      ),
+    });
+    await p.waitForTimeout(400);
+    await shot(p, "build-create-who-csv-1440x900");
+    await p.getByTestId("bold-who-list").click();
+    await p.getByTestId("bold-list-picker").waitFor();
+    await p.waitForTimeout(400);
+    await shot(p, "build-create-who-picker-1440x900");
+    await p.locator('[data-testid^="bold-list-pick-"]').first().click();
+    await p.getByTestId("bold-create-next").click();
+    await p.getByTestId("bold-know-stat").waitFor();
+    await p.waitForTimeout(500);
+    await shot(p, "build-create-know-1440x900");
+    await p.getByTestId("bold-create-next").click();
+    await p.getByTestId("bold-value-unit").fill("2400");
+    await p.getByTestId("bold-value-target").fill("12");
+    await p.waitForTimeout(300);
+    await shot(p, "build-create-value-1440x900");
+    await p.getByTestId("bold-create-next").click();
+    await p.getByTestId("bold-chan-email").waitFor();
+    await shot(p, "build-create-chan-1440x900");
+    await p.getByTestId("bold-create-next").click();
+    await p.getByTestId("bold-plan-starter").click();
+    await p.getByTestId("bold-plan-node-create-step-1").waitFor();
+    await p.waitForTimeout(400);
+    await shot(p, "build-create-plan-1440x900");
+    await p.getByTestId("bold-create-next").click();
+    await p.getByTestId("bold-guard-suppress").waitFor();
+    await shot(p, "build-create-guard-1440x900");
+    await p.getByTestId("bold-create-next").click();
+    await p.getByTestId("bold-review").waitFor();
+    await p.waitForTimeout(300);
+    await shot(p, "build-create-review-1440x900");
+    // Cleanup: the capture run's draft agent (never launched) is deleted
+    // through the shipped surface so evidence runs leave no rows behind.
+    const agents = await (await p.request.get(`${BASE}/api/cf/agents`)).json();
+    const draft = agents.find((a) => a.name === "Implant consults for the 21st");
+    if (draft) await p.request.delete(`${BASE}/api/cf/agents/${draft.id}`);
+    await p.context().close();
+  });
+}
 
 /* --------------------------------------------------------------- the b2 set */
 if (UNIT === "b2") {

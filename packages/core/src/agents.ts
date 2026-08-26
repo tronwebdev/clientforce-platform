@@ -18,6 +18,9 @@ export const createAgentSchema = z.object({
    */
   category: businessCategorySchema.optional(),
   instructions: z.string().max(2000).optional(),
+  /** B2.5 (DEC-109, closes Q-069): the guided-create goal summary — the
+   *  owner's one-line sentence for the hero/list lead (spec answer). */
+  goalSummary: z.string().trim().max(160).optional(),
 });
 export type CreateAgentInput = z.infer<typeof createAgentSchema>;
 
@@ -100,6 +103,8 @@ export const updateAgentSchema = z
     /** B1 (DEC-104): campaign value estimate — Addendum-2 §D fields, edited
      *  in the Bold overview strip (never a wizard field, D0). Null clears. */
     ...agentValueSchema.shape,
+    /** B2.5 (DEC-109): the Q-069 goal summary — editable after create; null clears. */
+    goalSummary: z.string().trim().max(160).nullable().optional(),
   })
   .refine(
     (v) =>
@@ -141,4 +146,6 @@ export interface AgentListItem {
   valueEstCents: number | null;
   valueGoalUnits: number | null;
   valueSalesGoalCents: number | null;
+  /** B2.5 (DEC-109, Q-069): the guided-create goal sentence; null on legacy rows. */
+  goalSummary: string | null;
 }

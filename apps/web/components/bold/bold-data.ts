@@ -24,7 +24,8 @@ export type BoldSurface =
   | "wssettings"
   | "credits"
   | "camps"
-  | "activity";
+  | "activity"
+  | "newcamp";
 
 /* ---------------------------------------------------------------- fixture */
 
@@ -67,6 +68,8 @@ export const SURFACE_TITLES: Record<Exclude<BoldSurface, "campaign">, [string, s
   integrations: ["3 CONNECTED · 2 ADD-ONS", "Integrations"],
   rcp: ["ADD-ON · INBOUND CALLS", "AI Receptionist"],
   activity: ["AGENT ACTIVITY", "Everything Ada did"],
+  // B2.5 (DEC-108): the create-campaign surface (prototype `SURF.newcamp`).
+  newcamp: ["SET IT UP ONCE", "New campaign"],
 };
 
 /** Which wave delivers each surface — shown on the B0 canvas stub. */
@@ -86,6 +89,7 @@ export const SURFACE_WAVE: Record<BoldSurface, string> = {
   wssettings: "B7 · settings & business core",
   credits: "B7 · credits spend view",
   activity: "B1 · campaign console",
+  newcamp: "B2.5 · create campaign",
 };
 
 /* --------------------------------------------------------- Ada map (ADAMAP) */
