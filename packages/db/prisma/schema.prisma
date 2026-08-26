@@ -204,6 +204,10 @@ model Agent {
   /// B2.5 (DEC-109, Q-069): the guided-create goal sentence (hero/list lead);
   /// null on legacy rows — goalSentence() falls back to free text / the brief.
   goalSummary         String?
+  /// B2.6 (DEC-110, Q-066): the Ada-suggestion marker (core agentSuggestionSchema);
+  /// null = owner-created. Dismissal stamps dismissedAt inside the Json — the
+  /// row stays so the signal never re-suggests.
+  suggestion          Json?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   campaigns        Campaign[]

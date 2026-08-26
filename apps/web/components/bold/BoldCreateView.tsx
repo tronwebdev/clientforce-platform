@@ -86,20 +86,24 @@ interface Audience {
 }
 
 export function BoldCreateView({
+  resume = null,
   onCancel,
   onLaunched,
   flash,
 }: {
+  /** B2.6 (DEC-110): open ON an existing suggested draft — goal/name/summary
+   *  prefill from the row and the agent is never re-created. */
+  resume?: { agentId: string; goal: string; name: string; summary: string | null } | null;
   onCancel: () => void;
   onLaunched: (agentId: string) => void;
   flash: (msg: string) => void;
 }) {
   const [step, setStep] = useState(0);
-  const [goalKey, setGoalKey] = useState<string | null>(null);
-  const [spec, setSpec] = useState("");
-  const [agentId, setAgentId] = useState<string | null>(null);
-  const createdGoal = useRef<string | null>(null);
-  const [name, setName] = useState("");
+  const [goalKey, setGoalKey] = useState<string | null>(resume?.goal ?? null);
+  const [spec, setSpec] = useState(resume?.summary ?? "");
+  const [agentId, setAgentId] = useState<string | null>(resume?.agentId ?? null);
+  const createdGoal = useRef<string | null>(resume?.goal ?? null);
+  const [name, setName] = useState(resume?.name ?? "");
   const [audience, setAudience] = useState<Audience | null>(null);
   const [whoMode, setWhoMode] = useState<"list" | "csv" | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -126,6 +130,19 @@ export function BoldCreateView({
   const spec4 = goalKey ? SPEC_QUESTIONS[goalKey] ?? SPEC_QUESTIONS.custom! : null;
 
   useEffect(() => {
+    if (resume) {
+      void refreshKnowledge(resume.agentId, resume.goal);
+      void fetchPlannerGraph(resume.agentId).then((g) => {
+        if (g?.graph) {
+          try {
+            setGraph(validateGraph(g.graph.graph));
+            setGraphSource("starter");
+          } catch {
+            /* unreadable stored row — the plan step offers both paths */
+          }
+        }
+      });
+    }
     void fetchCreditPrices().then(setPrices);
     void fetchSenders().then((rows) => {
       const list = rows ?? [];

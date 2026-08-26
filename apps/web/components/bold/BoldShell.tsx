@@ -16,7 +16,7 @@ import { BoldPlanView } from "./BoldPlanView";
 import { BoldRail } from "./BoldRail";
 import { BoldTourLayer, BoldTourOffer, useBoldTour } from "./BoldTour";
 import { BoldWsPicker } from "./BoldWsPicker";
-import { fetchBoldAgents } from "./bold-live";
+import { dismissSuggestion, fetchBoldAgents, sweepSuggestions } from "./bold-live";
 import {
   SURFACE_TITLES,
   SURFACE_WAVE,
@@ -82,7 +82,9 @@ export function BoldShell({
     () => [...agents].sort((a, b) => (STATUS_ORDER[a.status] ?? 3) - (STATUS_ORDER[b.status] ?? 3)),
     [agents, STATUS_ORDER],
   );
-  const firstCampaign = orderedAgents.find((a) => a.status === "ACTIVE") ?? orderedAgents[0] ?? null;
+  const isSuggested = (a: AgentListItem) => a.status === "DRAFT" && a.suggestion != null && !a.suggestion.dismissedAt;
+  const firstCampaign =
+    orderedAgents.find((a) => a.status === "ACTIVE") ?? orderedAgents.find((a) => !isSuggested(a)) ?? null;
   const [surface, setSurface] = useState<BoldSurface>("campaign");
   const [campId, setCampId] = useState<string | null>(firstCampaign?.id ?? null);
   const [tab, setTab] = useState<CampaignTab>("overview");
@@ -117,6 +119,45 @@ export function BoldShell({
       if (rows) setAgents(rows);
     });
   }, []);
+
+  // B2.6 (DEC-110): fire the deterministic suggestion sweep once per load —
+  // idempotent server-side; AGENT members 403 into the fail-soft path.
+  useEffect(() => {
+    void sweepSuggestions().then((res) => {
+      if (res.ok) refreshAgents();
+    });
+  }, [refreshAgents]);
+
+  // Non-dismissed Ada-suggested drafts — the ✦ block + camps-page rows.
+  const suggestions = useMemo(
+    () => orderedAgents.filter((a) => a.status === "DRAFT" && a.suggestion != null && !a.suggestion.dismissedAt),
+    [orderedAgents],
+  );
+  const [resumeSuggestion, setResumeSuggestion] = useState<AgentListItem | null>(null);
+  const startSuggestion = useCallback(
+    (id: string) => {
+      const row = suggestions.find((g) => g.id === id);
+      if (!row) return;
+      setResumeSuggestion(row);
+      setSurface("newcamp");
+      setAdaOn(false);
+      setDrawer(null);
+    },
+    [suggestions],
+  );
+  const dismissSugg = useCallback(
+    (id: string) => {
+      void dismissSuggestion(id).then((res) => {
+        if (!res.ok) {
+          flash(res.error);
+          return;
+        }
+        flash("Dismissed — she will not re-suggest it");
+        refreshAgents();
+      });
+    },
+    [flash, refreshAgents],
+  );
 
   /* ------------------------------------------------------------------ tour */
 
@@ -211,7 +252,13 @@ export function BoldShell({
         ? (["CAMPAIGN", activeCamp.name] as const)
         : (["CAMPAIGN", "No campaigns yet"] as const)
       : surface === "camps"
-        ? ([`${agents.length} CAMPAIGN${agents.length === 1 ? "" : "S"}`, "Campaigns"] as const)
+        ? // A suggestion isn't a campaign until started (owner ruling, B2.6
+          // review) — both counts exclude undismissed suggestions; the ✦
+          // blocks carry them.
+          ([
+            `${agents.length - suggestions.length} CAMPAIGN${agents.length - suggestions.length === 1 ? "" : "S"}`,
+            "Campaigns",
+          ] as const)
         : surface === "activity"
           ? ([`AGENT ACTIVITY · ${activeCamp?.name ?? ""}`, "Everything Ada did"] as const)
           : SURFACE_TITLES[surface];
@@ -231,6 +278,9 @@ export function BoldShell({
         me={me}
         open={railOpen}
         agents={orderedAgents}
+        suggestions={suggestions}
+        onStartSuggestion={startSuggestion}
+        onDismissSuggestion={dismissSugg}
         activeCampId={onCampaign ? (activeCamp?.id ?? null) : null}
         needs={needs}
         onFocus={focusMode}
@@ -352,12 +402,36 @@ export function BoldShell({
               </div>
             ) : null}
             {surface === "camps" ? (
-              <BoldCampaignsView agents={orderedAgents} onSelect={selectCampaign} onNew={() => selectDock("newcamp")} />
+              <BoldCampaignsView
+                agents={orderedAgents}
+                suggestions={suggestions}
+                onSelect={selectCampaign}
+                onNew={() => {
+                  setResumeSuggestion(null);
+                  selectDock("newcamp");
+                }}
+                onStartSuggestion={startSuggestion}
+              />
             ) : null}
             {surface === "newcamp" ? (
               <BoldCreateView
-                onCancel={() => selectDock("camps")}
+                key={resumeSuggestion?.id ?? "new"}
+                resume={
+                  resumeSuggestion
+                    ? {
+                        agentId: resumeSuggestion.id,
+                        goal: resumeSuggestion.goal,
+                        name: resumeSuggestion.name,
+                        summary: resumeSuggestion.goalSummary,
+                      }
+                    : null
+                }
+                onCancel={() => {
+                  setResumeSuggestion(null);
+                  selectDock("camps");
+                }}
                 onLaunched={(id) => {
+                  setResumeSuggestion(null);
                   refreshAgents();
                   selectCampaign(id);
                 }}

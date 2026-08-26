@@ -28,6 +28,7 @@ import { ContactValidationController } from "./contacts/contact-validation.contr
 import { FlagsController } from "./flags/flags.controller";
 import { MeNeedsController } from "./me/needs.controller";
 import { CreditPricesController } from "./pricing/credit-prices.controller";
+import { SuggestionsController } from "./suggestions/suggestions.controller";
 import { validationProviders } from "./contacts/validation.providers";
 import { BusOrInlinePublisher, EVENTS_PUBLISHER } from "./events/publisher";
 
@@ -64,6 +65,8 @@ import { BusOrInlinePublisher, EVENTS_PUBLISHER } from "./events/publisher";
     MeNeedsController,
     // B2 (DEC-106): tenant read of resolved credit prices (D1 — prices are data).
     CreditPricesController,
+    // B2.6 (DEC-110): the deterministic suggestion sweep (drafts via the one create path).
+    SuggestionsController,
   ],
   providers: [
     // Order matters: authenticate + resolve tenancy first, then enforce RBAC.

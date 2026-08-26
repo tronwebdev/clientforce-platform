@@ -282,6 +282,12 @@ export const fetchListMemberIds = async (listId: string): Promise<string[] | nul
   if (!res) return null;
   return (res.rows ?? []).map((r) => r.id);
 };
+/** B2.6 (DEC-110): the deterministic suggestion sweep (idempotent; the shell
+ *  fires it best-effort on load — AGENT members simply 403 into fail-soft). */
+export const sweepSuggestions = () => send("suggestions/sweep", "POST", {});
+export const dismissSuggestion = (agentId: string) =>
+  send(`agents/${encodeURIComponent(agentId)}`, "PATCH", { dismissSuggestion: true });
+
 export const enrollContact = (
   agentId: string,
   contactId: string,
