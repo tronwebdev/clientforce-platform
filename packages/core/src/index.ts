@@ -30,6 +30,8 @@ export * from "./planner";
 
 // Selling-strategy registry (M1a, DEC-065) — arcs, tone map, strategy block.
 export * from "./strategy";
+// B2: SMS segment arithmetic (hoisted from channels; channels re-exports).
+export * from "./sms";
 
 // Agent output language (L1, DEC-072) — launch list, detector, compliance map.
 export * from "./language";

@@ -26,20 +26,12 @@ export function parseTwilioConfig(sender: SenderConnection): TwilioSenderConfig 
   return JSON.parse(decryptField(sender.credentialsEnc)) as TwilioSenderConfig;
 }
 
-/**
- * GSM-7 vs UCS-2 segment estimate — persisted into `Message.meta.segments`.
- * 160/153 for GSM-7, 70/67 for UCS-2 (concatenated headers eat capacity).
- */
-export function smsSegmentCount(body: string): number {
-  // Basic GSM-7 set + extension chars; anything else forces UCS-2.
-  const gsm7 =
-    /^[A-Za-z0-9 @£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ!"#¤%&'()*+,\-./:;<=>?¡ÄÖÑÜ§¿äöñüà^{}\\[~\]|€]*$/;
-  const isGsm = gsm7.test(body);
-  const len = body.length;
-  if (len === 0) return 0;
-  if (isGsm) return len <= 160 ? 1 : Math.ceil(len / 153);
-  return len <= 70 ? 1 : Math.ceil(len / 67);
-}
+// B2: the segment estimate moved to @clientforce/core (the Bold plan sheet
+// shows it live and the web bundle can't import this package's server SDKs);
+// re-exported here so every existing channels-side import stays valid.
+import { smsSegmentCount } from "@clientforce/core";
+
+export { smsSegmentCount };
 
 export class TwilioSmsSender implements SmsSender {
   constructor(

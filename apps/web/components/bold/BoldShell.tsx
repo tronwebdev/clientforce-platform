@@ -8,7 +8,10 @@ import { BoldActivityView } from "./BoldActivityView";
 import { BoldCampaignsView } from "./BoldCampaignsView";
 import { BoldDock } from "./BoldDock";
 import { BoldDrawer, type BoldDrawerState } from "./BoldDrawer";
+import { BoldInboxView } from "./BoldInboxView";
 import { BoldOverview } from "./BoldOverview";
+import { BoldPipelineView } from "./BoldPipelineView";
+import { BoldPlanView } from "./BoldPlanView";
 import { BoldRail } from "./BoldRail";
 import { BoldTourLayer, BoldTourOffer, useBoldTour } from "./BoldTour";
 import { BoldWsPicker } from "./BoldWsPicker";
@@ -50,18 +53,15 @@ const TABS: Array<[CampaignTab, string]> = [
   ["settings", "Settings"],
 ];
 /** Which wave delivers each not-yet-live tab (stub pill copy). */
-const TAB_WAVE: Record<Exclude<CampaignTab, "overview">, string> = {
-  pipeline: "B2 · pipeline board and list",
-  plan: "B2 · plan + branches",
-  inbox: "B2 · campaign inbox",
+const TAB_WAVE: Record<"stats" | "settings", string> = {
   stats: "B8 · analytics",
   settings: "B7 · settings waves",
 };
 
 /**
- * Console Bold shell — B1: the campaign console goes LIVE. The rail campaign
- * list, overview (hero · one-row stats · activity feed), the full activity
- * page, the six-tab frame and the all-campaigns page all read shipped data;
+ * Console Bold shell — B1 brought the campaign console live (rail · overview ·
+ * activity · all-campaigns); B2 (DEC-105) brings the Pipeline, Plan and Inbox
+ * tabs live on shipped reads. Stats/Settings still carry their wave stubs;
  * Ada proposals wait for their engine (Q-066 — nothing canned renders as live).
  */
 export function BoldShell({
@@ -317,8 +317,14 @@ export function BoldShell({
                     onValueSaved={refreshAgents}
                     flash={flash}
                   />
+                ) : tab === "pipeline" ? (
+                  <BoldPipelineView agent={activeCamp} onOpenDrawer={setDrawer} flash={flash} />
+                ) : tab === "plan" ? (
+                  <BoldPlanView agent={activeCamp} flash={flash} />
+                ) : tab === "inbox" ? (
+                  <BoldInboxView agent={activeCamp} onOpenDrawer={setDrawer} flash={flash} />
                 ) : (
-                  <SurfaceStub title={`${activeCamp.name} — ${TABS.find(([k]) => k === tab)?.[1] ?? ""}`} wave={TAB_WAVE[tab as Exclude<CampaignTab, "overview">]} />
+                  <SurfaceStub title={`${activeCamp.name} — ${TABS.find(([k]) => k === tab)?.[1] ?? ""}`} wave={TAB_WAVE[tab as "stats" | "settings"]} />
                 )}
               </>
             ) : null}

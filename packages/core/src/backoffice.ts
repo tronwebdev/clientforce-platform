@@ -135,6 +135,18 @@ export function resolveCreditPrice(
   return applicable[0]!.credits;
 }
 
+/**
+ * B2 (DEC-106): the TENANT read of resolved credit prices (`GET /credit-prices`)
+ * — D1 says prices are data (the effective-dated table), never UI constants.
+ * `effective` maps action → credits through {@link resolveCreditPrice}, so the
+ * agency override beats the platform default by the same rule the backoffice
+ * editor uses. Read-only: price writes stay backoffice-only (DEC-080).
+ */
+export interface EffectiveCreditPrices {
+  agencyId: string | null;
+  effective: Record<string, number>;
+}
+
 /** Append an effective-dated credit price (platform default when agencyId null). */
 export const creditPriceUpsertSchema = z.object({
   agencyId: z.string().min(1).nullable().optional(),
