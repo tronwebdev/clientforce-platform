@@ -1,0 +1,95 @@
+{
+  "unit": "b25",
+  "commit": "891d896f70ee83a8b82052a1887a78bdec307a05",
+  "workingTreeDirtyAtCapture": false,
+  "capturedAt": "2026-08-26T19:51:54.306Z",
+  "baseUrl": "http://localhost:3000",
+  "note": "Single-run capture; every frame from one build. Verify a frame by hashing its bytes against this manifest — never by trusting an image cache. pnpm lint:fidelity enforces the binding.",
+  "frames": {
+    "build-create-chan-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 117077,
+      "sha256": "679a9a60bafadb29ff40e90c01ddc99cbb34ca081282481ff98b68db1ee96af3"
+    },
+    "build-create-goal-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 164634,
+      "sha256": "12cc4bdfaf211f886e3ac0d7ca819bfe363ca160bb07f06e98a52296a393824c"
+    },
+    "build-create-guard-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 120036,
+      "sha256": "1619c89de2444114bd026020a98abc1e6e687f95d8edee6a482bc3375ff7aefb"
+    },
+    "build-create-know-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 133058,
+      "sha256": "cef9dee35037c7f7f6ba3369479cf7641780828978ca7ce35bdae3fd4944d661"
+    },
+    "build-create-plan-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 138572,
+      "sha256": "c0f20711aa0483aa0690b134f0ee81394ecff2afddbacb7f015428b705a0b89b"
+    },
+    "build-create-review-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 161152,
+      "sha256": "e45c8981b22290701a80b44cae8b29a8390ca3a38a27cc97745586f5224f9367"
+    },
+    "build-create-value-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 156294,
+      "sha256": "9bfc2c330a0ef54e9271728786d22b4675c8d7bbb363a25214efaebbb9b31d46"
+    },
+    "build-create-who-csv-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 145952,
+      "sha256": "920b03d5e1e8fbb42eaf64e23131888a5bd0d8e8fab76ef5235b4c0136d940d4"
+    },
+    "build-create-who-picker-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 136757,
+      "sha256": "00f81b99484c31561918a7af4bab26000f76eb78b0ae64eb9946f14cac99b250"
+    },
+    "proto-create-chan-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 124471,
+      "sha256": "dcb4ac68dbc9aa407c05f2c93a52463b92a771a2a4825b72ce01db94fb9069bb"
+    },
+    "proto-create-goal-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 171909,
+      "sha256": "3d44f132cc945649e70027725b8f7acde6f2fb2a3872e832d498813820d99737"
+    },
+    "proto-create-guard-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 131572,
+      "sha256": "6b9f0c12916901b6094fbca4fe970066c6ee0217dbcfcbf9c301ef1f63e99b4f"
+    },
+    "proto-create-know-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 133201,
+      "sha256": "af3be234db3d4fb2bb74a8cda9eb17960b9620207d4af4dc1f93a551f61872b4"
+    },
+    "proto-create-plan-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 157119,
+      "sha256": "ab0982e84b23156533a2f7b0f0950c22c4c890b42693cef0bc9596a88f0b7672"
+    },
+    "proto-create-review-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 166927,
+      "sha256": "f2a4f7396f6a5105fb5fe60c3236a420f9fe372afa21822d839b5065129dcf24"
+    },
+    "proto-create-value-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 175812,
+      "sha256": "7f6442d0cf2e965e52d8a398486e53c38a8ee03556ef965800ed8eef85e2b22f"
+    },
+    "proto-create-who-csv-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 155494,
+      "sha256": "0ef82f8a433d3f5fc5333c4503528787ba5412971c67002e4ad1c0df6cb43285"
+    }
+  }
+}
