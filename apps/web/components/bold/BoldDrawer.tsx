@@ -2,7 +2,15 @@
 
 import { useEffect, useState } from "react";
 import type { BoldActivityContact, BoldSendRecipient } from "@clientforce/core";
-import { avTint, contactName, fetchBoldRecipients, fetchContactTimeline, initials, relTime } from "./bold-live";
+import {
+  avTint,
+  contactName,
+  fetchBoldRecipients,
+  fetchContactTimeline,
+  initials,
+  relTime,
+  type TimelineEvent,
+} from "./bold-live";
 
 /**
  * The Bold right drawer (392px, slides in over the canvas — prototype
@@ -260,11 +268,11 @@ function GrpBody({ state, onClose }: { state: Extract<BoldDrawerState, { t: "grp
 }
 
 function PersonBody({ state, onClose }: { state: Extract<BoldDrawerState, { t: "person" }>; onClose: () => void }) {
-  const [timeline, setTimeline] = useState<Array<{ id: string; type: string; payload: unknown; occurredAt: string }> | null>(null);
+  const [timeline, setTimeline] = useState<TimelineEvent[] | null>(null);
   useEffect(() => {
     let alive = true;
     void fetchContactTimeline(state.contact.id).then((r) => {
-      if (alive) setTimeline(r ?? []);
+      if (alive) setTimeline(Array.isArray(r) ? r : []);
     });
     return () => {
       alive = false;

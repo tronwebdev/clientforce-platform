@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { AgentListItem } from "@clientforce/core";
-import { goalValueMeta } from "@clientforce/core";
+import { goalSentence, goalValueMeta } from "@clientforce/core";
 import { money } from "./bold-live";
 
 /**
@@ -109,7 +109,7 @@ export function BoldCampaignsView({
                 ) : null}
               </div>
               <div style={{ fontSize: 12, color: "var(--cvb-faint)", marginTop: 4 }}>
-                {meta.kindLabel} · {meta.brief}
+                {meta.kindLabel} · {goalSentence(a.goal)}
               </div>
             </div>
             <div style={{ width: 108, flex: "none" }}>

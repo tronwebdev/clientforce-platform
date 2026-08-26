@@ -74,7 +74,14 @@ export function BoldShell({
   needs: MeNeedsResponse | null;
 }) {
   const [agents, setAgents] = useState<AgentListItem[]>(initialAgents);
-  const firstCampaign = initialAgents.find((a) => a.status === "ACTIVE") ?? initialAgents[0] ?? null;
+  // Rail/list order: live → paused → draft (owner ruling, B1 review; the
+  // prototype's order), stable within each group by the shipped createdAt desc.
+  const STATUS_ORDER: Record<string, number> = useMemo(() => ({ ACTIVE: 0, PAUSED: 1, DRAFT: 2 }), []);
+  const orderedAgents = useMemo(
+    () => [...agents].sort((a, b) => (STATUS_ORDER[a.status] ?? 3) - (STATUS_ORDER[b.status] ?? 3)),
+    [agents, STATUS_ORDER],
+  );
+  const firstCampaign = orderedAgents.find((a) => a.status === "ACTIVE") ?? orderedAgents[0] ?? null;
   const [surface, setSurface] = useState<BoldSurface>("campaign");
   const [campId, setCampId] = useState<string | null>(firstCampaign?.id ?? null);
   const [tab, setTab] = useState<CampaignTab>("overview");
@@ -91,8 +98,8 @@ export function BoldShell({
   const canvasColRef = useRef<HTMLDivElement | null>(null);
 
   const activeCamp = useMemo(
-    () => agents.find((a) => a.id === campId) ?? agents[0] ?? null,
-    [agents, campId],
+    () => orderedAgents.find((a) => a.id === campId) ?? orderedAgents[0] ?? null,
+    [orderedAgents, campId],
   );
 
   const flash = useCallback((t: string) => {
@@ -222,7 +229,7 @@ export function BoldShell({
       <BoldRail
         me={me}
         open={railOpen}
-        agents={agents}
+        agents={orderedAgents}
         activeCampId={onCampaign ? (activeCamp?.id ?? null) : null}
         needs={needs}
         onFocus={focusMode}
@@ -316,9 +323,28 @@ export function BoldShell({
               </>
             ) : null}
             {surface === "campaign" && !activeCamp ? (
-              <SurfaceStub title="No campaigns yet" wave="Create one with the shipped wizard — Ada's first proposal arrives with its engine (Q-066)" />
+              <div style={{ textAlign: "center", padding: "80px 40px" }}>
+                <div className="cvb-display" style={{ fontWeight: 900, fontSize: 22, letterSpacing: "-.03em" }}>No campaigns yet</div>
+                <span
+                  role="button"
+                  onClick={() => window.location.assign("/agents/new")}
+                  style={{
+                    display: "inline-block",
+                    marginTop: 18,
+                    fontSize: 12.5,
+                    fontWeight: 800,
+                    color: "var(--cvb-card)",
+                    background: "var(--cvb-forest)",
+                    borderRadius: 12,
+                    padding: "11px 17px",
+                    cursor: "pointer",
+                  }}
+                >
+                  New campaign
+                </span>
+              </div>
             ) : null}
-            {surface === "camps" ? <BoldCampaignsView agents={agents} onSelect={selectCampaign} /> : null}
+            {surface === "camps" ? <BoldCampaignsView agents={orderedAgents} onSelect={selectCampaign} /> : null}
             {surface === "activity" && activeCamp ? <BoldActivityView agentId={activeCamp.id} onOpenDrawer={setDrawer} /> : null}
             {surface !== "campaign" && surface !== "camps" && surface !== "activity" ? (
               <SurfaceStub title={title} wave={SURFACE_WAVE[surface]} />

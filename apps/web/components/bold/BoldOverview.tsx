@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AgentListItem, BoldActivityRow, CampaignOutcomes } from "@clientforce/core";
-import { goalValueMeta } from "@clientforce/core";
+import { goalSentence, goalValueMeta } from "@clientforce/core";
 import type { BoldDrawerState } from "./BoldDrawer";
 import {
   KIND_TONES,
@@ -61,16 +61,19 @@ export function BoldOverview({ agent, onOpenDrawer, onAllActivity, onValueSaved,
   const est = agent.valueEstCents;
   const target = agent.valueGoalUnits;
   const monetary = meta.monetary && est != null && est > 0;
-  const potentialCents = monetary ? est * (target ?? completions) : null;
+  // Potential = money already in motion (completions × est) — the goal
+  // ceiling is expressed ONLY through % OF GOAL + "to go" (owner ruling,
+  // B1 review; prototype: 8 booked × $2,400 = $19.2k potential).
+  const potentialCents = monetary ? est * completions : null;
   const realizedCents = wonRows.reduce((n, r) => n + (r.amountCents ?? 0), 0);
   const pct = target ? Math.min(100, Math.round((completions / target) * 100)) : null;
 
   const heroValue =
     meta.heroMode === "money" && monetary && completions > 0 ? money(est * completions) : String(completions);
   const heroSub = monetary
-    ? target
+    ? completions > 0
       ? `${money(potentialCents ?? 0)} potential at ${money(est)} a ${meta.unitNoun}`
-      : `${money(est)} a ${meta.unitNoun} — no target set yet`
+      : `${money(est)} a ${meta.unitNoun} — potential lands with the first ${meta.unitNoun}`
     : meta.monetary
       ? `Set a value per ${meta.unitNoun} to see money here`
       : `${meta.valueBasis} — this goal is its own reward`;
@@ -105,8 +108,8 @@ export function BoldOverview({ agent, onOpenDrawer, onAllActivity, onValueSaved,
             k: "potential",
             label: "POTENTIAL",
             v: money(potentialCents ?? 0),
-            delta: target ? `${target} × ${money(est)}` : `${completions} × ${money(est)}`,
-            fg: "var(--cvb-ink)",
+            delta: `${completions} × ${money(est)}`,
+            fg: completions > 0 ? "var(--cvb-ink)" : "var(--cvb-faint)",
           }
         : {
             k: "potential",
@@ -155,7 +158,7 @@ export function BoldOverview({ agent, onOpenDrawer, onAllActivity, onValueSaved,
       onOpenDrawer({
         t: "num",
         label: "POTENTIAL VALUE",
-        v: money(done + remaining),
+        v: money(done),
         read: `${pill} multiplied by the per-${meta.unitNoun} value you set. It becomes realized when a payment receipt lands.`,
         breakLabel: "HOW IT SPLITS",
         rows: [
@@ -210,7 +213,7 @@ export function BoldOverview({ agent, onOpenDrawer, onAllActivity, onValueSaved,
                   {meta.kindLabel}
                 </span>
               </div>
-              <div style={{ fontSize: 12.5, color: "rgba(255,255,255,.72)", lineHeight: 1.5, marginTop: 9, maxWidth: 340 }}>{meta.brief}</div>
+              <div style={{ fontSize: 12.5, color: "rgba(255,255,255,.72)", lineHeight: 1.5, marginTop: 9, maxWidth: 340 }}>{goalSentence(agent.goal)}</div>
               <div className="cvb-display" style={{ fontWeight: 900, fontSize: 50, letterSpacing: "-.036em", lineHeight: 0.98, color: "#fff", marginTop: 11 }} data-testid="bold-hero-value">
                 {heroValue}
               </div>
@@ -237,7 +240,10 @@ export function BoldOverview({ agent, onOpenDrawer, onAllActivity, onValueSaved,
                   No target set — pace shows once you set one.
                 </div>
               )}
-              {!editing ? (
+              {/* Review-kind goals never render money (Addendum-2 §E) — no
+                  value estimate exists to edit on them. */}
+              {meta.monetary ? (
+              !editing ? (
                 <button
                   type="button"
                   data-testid="bold-value-edit"
@@ -288,7 +294,8 @@ export function BoldOverview({ agent, onOpenDrawer, onAllActivity, onValueSaved,
                     </button>
                   </div>
                 </div>
-              )}
+              )
+              ) : null}
             </div>
           </div>
         </div>

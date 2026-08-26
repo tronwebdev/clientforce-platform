@@ -38,10 +38,20 @@ export const fetchBoldRecipients = (agentId: string, stepNodeId: string | null, 
   get<BoldSendRecipientsResponse>(
     `agents/${agentId}/activity/recipients?day=${day}${stepNodeId ? `&stepNodeId=${encodeURIComponent(stepNodeId)}` : ""}`,
   );
-export const fetchContactTimeline = (contactId: string) =>
-  get<Array<{ id: string; type: string; payload: unknown; occurredAt: string }>>(
-    `contacts/${contactId}/timeline`,
-  );
+export interface TimelineEvent {
+  id: string;
+  type: string;
+  payload: unknown;
+  occurredAt: string;
+}
+
+/** The shipped timeline read returns `{ events: [...] }` — unwrap defensively
+ *  (this exact shape mismatch crashed the person drawer in review). */
+export const fetchContactTimeline = async (contactId: string): Promise<TimelineEvent[] | null> => {
+  const res = await get<{ events?: TimelineEvent[] }>(`contacts/${contactId}/timeline`);
+  if (!res) return null;
+  return Array.isArray(res.events) ? res.events : [];
+};
 
 export async function patchAgentValue(
   agentId: string,

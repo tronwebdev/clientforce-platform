@@ -43,11 +43,15 @@ test("rail lists live campaigns; the overview hero reads the value model", async
     return;
   }
 
-  // The rail campaign list is live AgentListItem rows, not fixture.
+  // The rail campaign list is live AgentListItem rows, ordered
+  // live → paused → draft (owner ruling, B1 review).
   const rail = page.getByTestId("bold-camps-list");
   await expect(rail.getByText("Implant open day")).toBeVisible();
   await expect(rail.getByText("Whitening kit push")).toBeVisible();
   await expect(rail.getByText("Review asks")).toBeVisible();
+  const firstRow = rail.locator(".cvb-camp-row").first();
+  await expect(firstRow).not.toContainText("Review asks");
+  await expect(firstRow).not.toContainText("New-Patient");
 
   // Selecting the seeded campaign lands on its overview with the tab frame.
   await rail.getByText("Implant open day").click();
@@ -56,14 +60,30 @@ test("rail lists live campaigns; the overview hero reads the value model", async
     await expect(page.getByTestId(`bold-tab-${tab}`)).toBeVisible();
   }
 
-  // Hero: count leads for booking goals; the money expression rides the sub
-  // line (1 booked × $2,400, target 12 → $28.8k potential).
+  // Hero: count leads for booking goals; POTENTIAL is money already in
+  // motion — completions × est (owner ruling, B1 review), never the goal
+  // ceiling, which shows only as % OF GOAL + "11 of 12 to go".
   await expect(page.getByTestId("bold-hero-value")).toHaveText("1");
-  await expect(page.getByText("$28.8k potential at $2,400 a booking")).toBeVisible();
-  await expect(page.getByTestId("bold-stats-row")).toContainText("POTENTIAL");
-  await expect(page.getByTestId("bold-stats-row")).toContainText("REPLY RATE");
+  await expect(page.getByText("$2,400 potential at $2,400 a booking")).toBeVisible();
+  await expect(page.getByText("11 of 12 to go.")).toBeVisible();
+  const statsRow = page.getByTestId("bold-stats-row");
+  await expect(statsRow).toContainText("POTENTIAL");
+  await expect(statsRow).toContainText("1 × $2,400");
+  await expect(statsRow).toContainText("REPLY RATE");
   // F1 honesty floor: 3 sends < 20 → the rate is honest-absent, never invented.
-  await expect(page.getByTestId("bold-stats-row")).toContainText("needs 20 sends");
+  await expect(statsRow).toContainText("needs 20 sends");
+
+  // Drawer kind 1 — the stat drill (num): opens and RENDERS content (this
+  // suite must fail if a drawer dies client-side).
+  await statsRow.getByText("POTENTIAL", { exact: true }).click();
+  const numDrawer = page.getByTestId("bold-drawer");
+  await expect(numDrawer).toBeVisible();
+  await expect(numDrawer).toContainText("POTENTIAL VALUE");
+  await expect(numDrawer).toContainText("HOW IT SPLITS");
+  await expect(numDrawer).toContainText("Booked (1)");
+  await expect(numDrawer).toContainText("To go (11)");
+  await page.mouse.click(400, 300);
+  await expect(numDrawer).toHaveCount(0);
 
   // The latest goal/won event rides the HAPPENING NOW card (deduped from the
   // feed below it); the feed carries the rest of the seeded activity.
@@ -71,7 +91,7 @@ test("rail lists live campaigns; the overview hero reads the value model", async
   await expect(page.getByTestId("bold-feed").getByText(/Meeting booked/).first()).toBeVisible();
 });
 
-test("the activity page filters, and a send row drills into its recipients", async ({ page }) => {
+test("the activity page filters; send rows drill to recipients; contact rows open the person peek", async ({ page }) => {
   if (!(await signInToBold(page))) {
     test.skip(true, "consoleBold not enabled for the demo workspace on this deployment");
     return;
@@ -80,7 +100,7 @@ test("the activity page filters, and a send row drills into its recipients", asy
   await page.getByTestId("bold-all-activity").click();
   await expect(page.getByTestId("bold-activity-page")).toBeVisible();
 
-  // Filter to sends, open the aggregated row, land in the sorted subset.
+  // Drawer kind 2 — the sent-to-N recipients subset (grp).
   await page.getByTestId("bold-act-filter-send").click();
   const sendRow = page.getByTestId("bold-activity-page").getByText(/Sent to 3/);
   await expect(sendRow).toBeVisible();
@@ -89,6 +109,20 @@ test("the activity page filters, and a send row drills into its recipients", asy
   await expect(drawer).toBeVisible();
   await expect(drawer.getByText("Ada Lovelace")).toBeVisible();
   await expect(drawer.getByText("Replied", { exact: true }).first()).toBeVisible();
+  await page.mouse.click(400, 300);
+  await expect(drawer).toHaveCount(0);
+
+  // Drawer kind 3 — the person peek: it must RENDER the shipped timeline
+  // read, not die client-side (the review blocker: the timeline endpoint
+  // returns { events } and the drawer crashed on the unwrapped shape).
+  await page.getByTestId("bold-act-filter-all").click();
+  await page.getByTestId("bold-activity-page").getByText(/Meeting booked/).first().click();
+  await expect(drawer).toBeVisible();
+  await expect(drawer).toContainText("Ada Lovelace");
+  await expect(drawer).toContainText("TIMELINE");
+  await expect(drawer).toContainText("Payment received.");
+  await page.mouse.click(400, 300);
+  await expect(drawer).toHaveCount(0);
 });
 
 test("the all-campaigns page shows live rows with goal state", async ({ page }) => {

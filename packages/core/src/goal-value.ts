@@ -109,6 +109,16 @@ export function goalValueMeta(goalKey: string): GoalValueMeta {
   return GOAL_VALUE_META[(GOAL_KEYS as readonly string[]).includes(goalKey) ? (goalKey as GoalKey) : "custom"];
 }
 
+/**
+ * The campaign's own goal sentence for the hero/list lead (owner note, B1
+ * review): pre-enum agents carry free text in `goal` — that IS their sentence;
+ * key-based agents fall back to the registry brief until guided create writes
+ * a real per-campaign summary (Q-069, the creation wave).
+ */
+export function goalSentence(goal: string): string {
+  return (GOAL_KEYS as readonly string[]).includes(goal) ? goalValueMeta(goal).brief : goal;
+}
+
 /** Additive PATCH fields for the per-campaign value estimate (owner-editable
  *  in the Bold overview strip; D0-safe — no wizard fields, edit-after). */
 export const agentValueSchema = z.object({

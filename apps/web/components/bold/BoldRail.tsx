@@ -173,7 +173,7 @@ export function BoldRail(props: BoldRailProps) {
               })}
               {agents.length === 0 ? (
                 <div style={{ fontSize: 11.5, color: "var(--cvb-faint)", padding: "10px 13px", lineHeight: 1.5 }}>
-                  No campaigns yet — Ada's first proposal arrives with its engine.
+                  No campaigns yet.
                 </div>
               ) : null}
             </div>
