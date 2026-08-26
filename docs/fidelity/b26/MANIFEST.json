@@ -1,0 +1,35 @@
+{
+  "unit": "b26",
+  "commit": "7cd954a52f0b26396b019075c192f32fcdb8131d",
+  "workingTreeDirtyAtCapture": false,
+  "capturedAt": "2026-08-26T20:45:31.236Z",
+  "baseUrl": "http://localhost:3000",
+  "note": "Single-run capture; every frame from one build. Verify a frame by hashing its bytes against this manifest — never by trusting an image cache. pnpm lint:fidelity enforces the binding.",
+  "frames": {
+    "build-sugg-camps-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 124151,
+      "sha256": "d81c0c5021ae45d4919ce15bd83d1a06f17fe4139d96fca785924aa40f27e97d"
+    },
+    "build-sugg-rail-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 181502,
+      "sha256": "a2bb6c5244236a00d27f00ac23f361af98e1f15a2d2bc7b5c9235623cb7c7d2a"
+    },
+    "build-sugg-resume-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 167489,
+      "sha256": "065027f07da2fa099c5d10965477de8f9977cf05a3a655032197f2e90e6c57eb"
+    },
+    "proto-sugg-camps-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 149990,
+      "sha256": "7ff81088cd23a3d31ac8ebcac19239dac4bc32ea1fbcbb59a8c8d25aef022661"
+    },
+    "proto-sugg-rail-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 207628,
+      "sha256": "738df331921409ee157fb05977416062e89a671b71a53cc17a61e2e3db9ba4a2"
+    }
+  }
+}
