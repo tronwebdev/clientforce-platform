@@ -27,6 +27,7 @@ import { ContactListsController } from "./contacts/contact-lists.controller";
 import { ContactValidationController } from "./contacts/contact-validation.controller";
 import { FlagsController } from "./flags/flags.controller";
 import { MeNeedsController } from "./me/needs.controller";
+import { CreditPricesController } from "./pricing/credit-prices.controller";
 import { validationProviders } from "./contacts/validation.providers";
 import { BusOrInlinePublisher, EVENTS_PUBLISHER } from "./events/publisher";
 
@@ -61,6 +62,8 @@ import { BusOrInlinePublisher, EVENTS_PUBLISHER } from "./events/publisher";
     FlagsController,
     // B1 (DEC-104): cross-workspace replies-waiting read (rail needs pill).
     MeNeedsController,
+    // B2 (DEC-106): tenant read of resolved credit prices (D1 — prices are data).
+    CreditPricesController,
   ],
   providers: [
     // Order matters: authenticate + resolve tenancy first, then enforce RBAC.

@@ -4,7 +4,12 @@ import type {
   AgentListItem,
   BoldActivityRow,
   BoldSendRecipientsResponse,
+  CampaignGraph,
   CampaignOutcomes,
+  CampaignRuleTrigger,
+  ContactListDto,
+  EffectiveCreditPrices,
+  Guardrails,
 } from "@clientforce/core";
 
 /**
@@ -52,6 +57,162 @@ export const fetchContactTimeline = async (contactId: string): Promise<TimelineE
   if (!res) return null;
   return Array.isArray(res.events) ? res.events : [];
 };
+
+/* ---------------------------------------------------------- B2 (DEC-105) */
+
+/** One contact ref as the shipped reads select it (inbox · enrollments). */
+export interface BoldContactRef {
+  id: string;
+  email: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  company: string | null;
+}
+
+/** `GET /pipeline-stages` row (workspace defaults, ordered). */
+export interface PipelineStageRow {
+  id: string;
+  key: string;
+  label: string;
+  order: number;
+}
+
+/** `GET /enrollments?agentId=` row — raw Enrollment columns + contact
+ *  (the shipped read returns Prisma rows verbatim; typed to what B2 uses). */
+export interface BoldEnrollmentRow {
+  id: string;
+  contactId: string;
+  pipelineStage: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  contact: BoldContactRef | null;
+}
+
+/** One message inside a `GET /agents/:id/inbox` thread. */
+export interface BoldInboxMessage {
+  id: string;
+  direction: "OUTBOUND" | "INBOUND";
+  channel: string;
+  subject: string | null;
+  body: string | null;
+  intent: string | null;
+  sentAt: string;
+  /** Compose provenance — guided-meta OUTBOUND rows only (shipped contract). */
+  composed?: { composerVersion: string | null };
+}
+
+/** `GET /agents/:id/inbox` thread — keyed by contactId (no Thread table);
+ *  the same local-typing precedent as TimelineEvent above (the controller
+ *  builds this shape in-memory; there is no core DTO to import). */
+export interface BoldInboxThread {
+  contactId: string;
+  contact: BoldContactRef | null;
+  enrollmentId: string | null;
+  stage: string | null;
+  channels: string[];
+  intent: string | null;
+  unread: boolean;
+  done: boolean;
+  lastAt: string;
+  preview: string;
+  messageCount: number;
+  events: TimelineEvent[];
+  messages: BoldInboxMessage[];
+}
+
+/** `GET /agents/:id/view` — the slice the Bold plan tab reads. */
+export interface BoldAgentView {
+  agent: {
+    id: string;
+    name: string;
+    goal: string;
+    goalLabel?: string;
+    status: string;
+    createdAt: string;
+  };
+  campaign: { id: string; name: string } | null;
+  graph: CampaignGraph | null;
+  graphVersion: number | null;
+  guardrails: Guardrails | null;
+  perStep: Record<string, { sent: number; replies: number }>;
+}
+
+/** `GET /planner/subcampaign-rules?agentId=` row (enabled, container-targeting). */
+export interface SubcampaignRuleRow {
+  ruleId: string;
+  targetNodeId: string;
+  trigger: CampaignRuleTrigger;
+}
+
+/** `GET /senders` — the slice B2 needs (DEC-061 channel capability). */
+export interface BoldSenderRow {
+  id: string;
+  type: string;
+  status: string;
+}
+
+export const fetchBoldView = (agentId: string) => get<BoldAgentView>(`agents/${agentId}/view`);
+export const fetchPipelineStages = () => get<PipelineStageRow[]>("pipeline-stages");
+export const fetchEnrollments = (agentId: string) =>
+  get<BoldEnrollmentRow[]>(`enrollments?agentId=${encodeURIComponent(agentId)}`);
+export const fetchBoldInbox = (agentId: string) =>
+  get<{ threads: BoldInboxThread[] }>(`agents/${agentId}/inbox`);
+export const fetchCreditPrices = () => get<EffectiveCreditPrices>("credit-prices");
+export const fetchSubcampaignRules = (agentId: string) =>
+  get<SubcampaignRuleRow[]>(`planner/subcampaign-rules?agentId=${encodeURIComponent(agentId)}`);
+export const fetchSenders = () => get<BoldSenderRow[]>("senders");
+export const fetchLists = () => get<ContactListDto[]>("lists");
+
+export type BoldWriteResult = { ok: true; body: unknown } | { ok: false; error: string };
+
+/** Writes surface the API's owner-readable message (422 gate detail, 409
+ *  version race) instead of failing soft — a swallowed write is a lie. */
+async function send(path: string, method: string, body: unknown): Promise<BoldWriteResult> {
+  try {
+    const res = await fetch(`/api/cf/${path}`, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const parsed: unknown = await res.json().catch(() => null);
+    if (res.ok) return { ok: true, body: parsed };
+    const b = parsed as { detail?: unknown; message?: unknown } | null;
+    const detail =
+      typeof b?.detail === "string"
+        ? b.detail
+        : typeof b?.message === "string"
+          ? b.message
+          : `Request failed (${res.status})`;
+    return { ok: false, error: detail };
+  } catch {
+    return { ok: false, error: "Network error — nothing was saved" };
+  }
+}
+
+/** Stage move — `PATCH /enrollments/:id` publishes `lead.stage_changed.v1`
+ *  on the bus, so rules fire for human moves exactly like machine moves
+ *  (DEC-085). Never the `/contacts/:id/move` sibling (inline write, no bus). */
+export const moveEnrollmentStage = (enrollmentId: string, pipelineStage: string) =>
+  send(`enrollments/${encodeURIComponent(enrollmentId)}`, "PATCH", { pipelineStage });
+
+/** Mark the thread's LAST INBOUND message done/undone (the read side inspects
+ *  exactly that row's meta). */
+export const setMessageDone = (messageId: string, done: boolean) =>
+  send(`messages/${encodeURIComponent(messageId)}/done`, "PATCH", { done });
+
+/** The ONE graph write path (DEC-076): whole-graph PUT against latest+1.
+ *  409 = the sequence changed underneath the edit; 422 = the gate's message. */
+export const putPlannerGraph = (agentId: string, graph: CampaignGraph) =>
+  send("planner/graph", "PUT", { agentId, graph });
+
+export const addContactsToList = (listId: string, contactIds: string[]) =>
+  send(`lists/${encodeURIComponent(listId)}/members`, "POST", { contactIds });
+
+/** Full-replace guardrails write (`PATCH /agents/:id`) — the server preserves
+ *  its own riders; the caller must send the complete object back. */
+export const patchAgentGuardrails = (agentId: string, guardrails: Guardrails) =>
+  send(`agents/${encodeURIComponent(agentId)}`, "PATCH", { guardrails });
 
 export async function patchAgentValue(
   agentId: string,

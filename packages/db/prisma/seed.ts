@@ -291,12 +291,18 @@ async function main(): Promise<void> {
   const implant = await prisma.agent.findFirst({
     where: { workspaceId: primary.id, name: "Implant open day" },
   });
+  // B2: schema-valid A8 guardrails (the legacy `{start,end}`-only blob fails
+  // `parseGuardrails`, so views honestly render no sending window at all).
+  const validGuardrails = {
+    sendingWindow: { days: [1, 2, 3, 4, 5], start: "09:00", end: "17:00", timezone: "UTC" },
+    dailyCap: { email: 200 },
+    consent: null,
+    tracking: { openTracking: true, linkTracking: true },
+    unsubscribeFooter: true,
+    suppressionCheck: true,
+  };
   if (!implant) {
-    const guardrails = {
-      sendingWindow: { start: "09:00", end: "17:00" },
-      dailyCap: 200,
-      consentRequired: true,
-    };
+    const guardrails = validGuardrails;
     const implantAgent = await prisma.agent.create({
       data: {
         workspaceId: primary.id,
@@ -494,6 +500,192 @@ async function main(): Promise<void> {
     }
   }
 
+  // B2 (DEC-105): the implant campaign's stored CampaignGraph — the Bold PLAN
+  // tab reads the real row (B1 seeded messages against stepNodeId
+  // "seed-step-1", so the graph's node ids line up with per-step counts).
+  // Standalone + idempotent so already-seeded DBs pick it up.
+  const implantAgentRow = await prisma.agent.findFirst({
+    where: { workspaceId: primary.id, name: "Implant open day" },
+  });
+  // Repair pass for DBs seeded before B2: swap the unparsable legacy
+  // guardrails blob for the schema-valid shape (detected by the missing
+  // timezone — the valid shape always carries one).
+  if (implantAgentRow) {
+    const g = implantAgentRow.guardrails as { sendingWindow?: { timezone?: string } } | null;
+    if (!g?.sendingWindow?.timezone) {
+      await prisma.agent.update({
+        where: { id: implantAgentRow.id },
+        data: { guardrails: validGuardrails },
+      });
+    }
+  }
+  const implantCampaign = implantAgentRow
+    ? await prisma.campaign.findFirst({ where: { agentId: implantAgentRow.id } })
+    : null;
+  if (implantCampaign) {
+    const hasGraph = await prisma.campaignGraph.findFirst({
+      where: { campaignId: implantCampaign.id },
+    });
+    if (!hasGraph) {
+      const graphRow = await prisma.campaignGraph.create({
+        data: {
+          workspaceId: primary.id,
+          campaignId: implantCampaign.id,
+          version: 1,
+          // Hand-authored fixture — "AI" would claim planner provenance the
+          // graph does not have (surfaces render the source).
+          source: "MANUAL",
+          graph: {
+            entry: "seed-step-1",
+            nodes: [
+              {
+                id: "seed-step-1",
+                type: "step",
+                channel: "email",
+                content: {
+                  subject: "Four consult slots left for the 21st",
+                  body: "We set aside a day for implant consults on the 21st — twenty minutes, no obligation, and you leave knowing exactly what it would cost. Four slots left. Want one?",
+                },
+              },
+              { id: "seed-delay-1", type: "delay", amount: 3, unit: "days" },
+              {
+                id: "seed-step-2",
+                type: "step",
+                channel: "sms",
+                content: {
+                  body: "Hi {{firstName}} — Bright Smile here. Still holding a consult slot on the 21st if you want it. Reply YES and I will book you in.",
+                },
+              },
+              {
+                id: "seed-branch-reply",
+                type: "branch",
+                on: "reply",
+                cases: [
+                  { when: { intent: "interested" }, goto: "seed-reply-1", pipeline: "interested" },
+                  { when: "default", goto: "seed-end" },
+                ],
+              },
+              {
+                id: "seed-reply-1",
+                type: "step",
+                channel: "email",
+                content: {
+                  body: "Great — the two nearest slots are Thursday 11:00 and Friday 14:30. Which works for you?",
+                  threaded: true,
+                },
+              },
+              { id: "seed-end", type: "end" },
+            ],
+            edges: [
+              { from: "seed-step-1", to: "seed-delay-1" },
+              { from: "seed-delay-1", to: "seed-step-2" },
+              { from: "seed-step-2", to: "seed-branch-reply" },
+              { from: "seed-reply-1", to: "seed-end" },
+            ],
+          },
+        },
+      });
+      await prisma.campaign.update({
+        where: { id: implantCampaign.id },
+        data: { graphId: graphRow.id },
+      });
+    }
+
+    // B2 (DEC-105): one SMS thread (Sofia Reyes — a prototype fixture name;
+    // NEVER Grace Hopper, the workspace-rls spec's demo-2-only sentinel) so
+    // the Bold inbox TYPE
+    // picker and the pipeline board have real channel/stage variety. The
+    // outbound rides "seed-step-2" (the graph's sms step) so it never touches
+    // the B1 "Sent to 3" seed-step-1 aggregate the e2e pins.
+    const sofiaEmail = "sofia.reyes@example.test";
+    // Each sub-resource carries its OWN guard, so a crash mid-block heals on
+    // the next run instead of leaving a half-seeded fixture forever.
+    let sofia = await prisma.contact.findFirst({
+      where: { workspaceId: primary.id, email: sofiaEmail },
+    });
+    if (!sofia) {
+      sofia = await prisma.contact.create({
+        data: {
+          workspaceId: primary.id,
+          email: sofiaEmail,
+          phone: "+15125550142",
+          firstName: "Sofia",
+          lastName: "Reyes",
+          company: "Reyes Dental Partners",
+          source: "seed",
+          optOut: {},
+        },
+      });
+    }
+    const sofiaWf = `seed-b2-wf-${sofia.id}`;
+    const hasEnrollment = await prisma.enrollment.findFirst({ where: { workflowId: sofiaWf } });
+    if (!hasEnrollment) {
+      await prisma.enrollment.create({
+        data: {
+          workspaceId: primary.id,
+          campaignId: implantCampaign.id,
+          contactId: sofia.id,
+          workflowId: sofiaWf,
+          pipelineStage: "interested",
+        },
+      });
+    }
+    const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000);
+    const hasOutbound = await prisma.message.findFirst({
+      where: { contactId: sofia.id, channel: "sms", direction: "OUTBOUND" },
+    });
+    if (!hasOutbound) {
+      await prisma.message.create({
+        data: {
+          workspaceId: primary.id,
+          campaignId: implantCampaign.id,
+          contactId: sofia.id,
+          channel: "sms",
+          direction: "OUTBOUND",
+          body: "Hi Sofia — Bright Smile here. Still holding a consult slot on the 21st if you want it. Reply YES and I will book you in.",
+          stepNodeId: "seed-step-2",
+          sentAt: threeHoursAgo,
+        },
+      });
+    }
+    let sofiaReply = await prisma.message.findFirst({
+      where: { contactId: sofia.id, channel: "sms", direction: "INBOUND" },
+    });
+    if (!sofiaReply) {
+      sofiaReply = await prisma.message.create({
+        data: {
+          workspaceId: primary.id,
+          campaignId: implantCampaign.id,
+          contactId: sofia.id,
+          channel: "sms",
+          direction: "INBOUND",
+          body: "Can this wait until early next month? Mid-move right now.",
+          intent: "objection_timing",
+          sentAt: new Date(threeHoursAgo.getTime() + 25 * 60 * 1000),
+        },
+      });
+    }
+    const hasReplyEvent = await prisma.event.findFirst({
+      where: { contactId: sofia.id, type: "sms.replied.v1" },
+    });
+    if (!hasReplyEvent) {
+      await prisma.event.create({
+        data: {
+          workspaceId: primary.id,
+          campaignId: implantCampaign.id,
+          contactId: sofia.id,
+          type: "sms.replied.v1",
+          payload: {
+            messageId: sofiaReply.id,
+            body: sofiaReply.body,
+            intent: "objection_timing",
+          },
+          occurredAt: new Date(threeHoursAgo.getTime() + 25 * 60 * 1000),
+        },
+      });
+    }
+  }
+
   for (const plan of PLAN_TIERS) {
     const exists = await prisma.plan.findFirst({ where: { agencyId: agency.id, name: plan.name } });
     if (!exists) {
@@ -528,8 +720,17 @@ async function main(): Promise<void> {
   const PERIOD_END = new Date("2026-06-30T23:59:59.000Z");
   const SENT_AT = new Date("2026-06-15T12:00:00.000Z");
   const TARGET_SENDS = 3;
-  const demoAgent = await prisma.agent.findFirst({ where: { workspaceId: primary.id } });
-  const demoContact = await prisma.contact.findFirst({ where: { workspaceId: primary.id } });
+  // Deterministically the ORIGINAL (oldest) agent/contact — an unordered
+  // findFirst could attach these June fixtures to the implant campaign and
+  // pollute the Bold inbox/pipeline fixtures.
+  const demoAgent = await prisma.agent.findFirst({
+    where: { workspaceId: primary.id },
+    orderBy: { createdAt: "asc" },
+  });
+  const demoContact = await prisma.contact.findFirst({
+    where: { workspaceId: primary.id },
+    orderBy: { createdAt: "asc" },
+  });
   if (demoAgent && demoContact) {
     const campaign =
       (await prisma.campaign.findFirst({

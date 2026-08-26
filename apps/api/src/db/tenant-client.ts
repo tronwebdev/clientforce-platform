@@ -20,6 +20,11 @@ export class TenantClient {
     return this.context.activeWorkspaceId;
   }
 
+  /** B2 (DEC-106): agency-scoped reads (CreditPrice has no workspaceId). */
+  get agencyId(): string {
+    return this.context.activeAgencyId;
+  }
+
   private get context() {
     const auth = this.req.auth;
     if (!auth) throw new UnauthorizedException();

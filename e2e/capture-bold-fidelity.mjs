@@ -15,9 +15,13 @@
  *    of impersonating evidence. Reviewers verify what they are looking at by
  *    hashing the file — never by trusting an image cache.
  *
- * Usage:  node e2e/capture-bold-fidelity.mjs           (defaults: unit b1)
+ * Usage:  node e2e/capture-bold-fidelity.mjs [unit]     (b1 | b2; default b1)
  * Env:    CAPTURE_BASE_URL (default http://localhost:3000)
  *         PLAYWRIGHT_CHROMIUM_EXECUTABLE (a pre-provisioned Chromium)
+ *
+ * Note: the b1 set is the B1-review frame list verbatim — its
+ * `build-tab-stub` frame documented the pre-B2 stub and is historical once
+ * B2 lands (re-running unit b1 would show the live pipeline there).
  */
 import { chromium } from "@playwright/test";
 import { createHash } from "node:crypto";
@@ -28,7 +32,11 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const UNIT = "b1";
+const UNIT = process.argv[2] ?? "b1";
+if (UNIT !== "b1" && UNIT !== "b2") {
+  console.error(`Unknown unit "${UNIT}" — this tool knows b1 and b2.`);
+  process.exit(1);
+}
 const OUT = join(ROOT, "docs", "fidelity", UNIT);
 const BASE = process.env.CAPTURE_BASE_URL ?? "http://localhost:3000";
 const PROTO = `file://${join(ROOT, "design_handoff_console_v3", "prototypes", "Console Bold.dc.html").replace(/ /g, "%20")}`;
@@ -108,7 +116,94 @@ async function run(label, fn) {
   }
 }
 
+/* ------------------------------------------------------------ shared helpers */
+const freshProto = async (p) => {
+  await p.goto(PROTO);
+  await p.waitForTimeout(2600);
+  const later = p.getByText("Later", { exact: true }).first();
+  if (await later.isVisible().catch(() => false)) await later.click();
+};
+
+const signInBuild = async (p) => {
+  await p.goto(`${BASE}/login`);
+  await p.getByLabel("Email").fill(OWNER_EMAIL);
+  await p.getByRole("button", { name: "Sign in" }).click();
+  await p.getByTestId("agents-subtitle").waitFor();
+  const active = await p.getByTestId("ws-active-name").textContent().catch(() => "");
+  if (active?.trim() !== "Demo Workspace") {
+    await p.getByTestId("ws-switcher").click();
+    await p.getByTestId("ws-option-demo").click();
+    await p.waitForTimeout(400);
+  }
+};
+
+const toBoldCampaign = async (p) => {
+  await p.goto(`${BASE}/bold`);
+  await p.getByTestId("bold-root").waitFor();
+  await p.addStyleTag({ content: "nextjs-portal{display:none!important}" });
+  await p.waitForTimeout(700);
+  const later = p.getByText("Later", { exact: true }).first();
+  if (await later.isVisible().catch(() => false)) await later.click();
+  await p.getByTestId("bold-camps-list").getByText("Implant open day").click();
+  await p.waitForTimeout(900);
+};
+
+/* --------------------------------------------------------------- the b2 set */
+if (UNIT === "b2") {
+  await run("prototype-b2", async () => {
+    const p = await page({ width: 1440, height: 900 });
+    await freshProto(p);
+    await p.getByText("Pipeline", { exact: true }).first().click();
+    await shot(p, "proto-pipeline-board-1440x900");
+    await p.getByText("List", { exact: true }).first().click();
+    await shot(p, "proto-pipeline-list-1440x900");
+    await p.getByText("Plan", { exact: true }).first().click();
+    await shot(p, "proto-plan-1440x900");
+    await p.getByText("The opener", { exact: true }).first().click();
+    await shot(p, "proto-plan-step-1440x900");
+    await freshProto(p);
+    await p.getByText("Inbox", { exact: true }).first().click();
+    await shot(p, "proto-inbox-1440x900");
+    await p.context().close();
+  });
+
+  await run("build-b2", async () => {
+    const p = await page({ width: 1440, height: 900 });
+    await signInBuild(p);
+    await toBoldCampaign(p);
+    await p.getByTestId("bold-tab-pipeline").click();
+    await p.getByTestId("bold-pipe-board").waitFor();
+    await shot(p, "build-pipeline-board-1440x900");
+    await p.getByTestId("bold-pipe-view-list").click();
+    await p.getByTestId("bold-pipe-list").waitFor();
+    await shot(p, "build-pipeline-list-1440x900");
+    await p.getByTestId("bold-tab-plan").click();
+    await p.getByTestId("bold-plan-node-seed-step-1").waitFor();
+    await p.waitForTimeout(600);
+    await shot(p, "build-plan-1440x900");
+    await p.getByTestId("bold-plan-node-seed-step-1").click();
+    await p.getByTestId("bold-plan-sheet").waitFor();
+    await shot(p, "build-plan-step-1440x900");
+    await p.mouse.click(300, 300);
+    await p.waitForTimeout(300);
+    // Add-step popover — the DEC-061 capability disclosure on the sms row.
+    await p.getByTestId("bold-plan-add").click();
+    await p.waitForTimeout(300);
+    await shot(p, "build-plan-add-1440x900");
+    await p.getByTestId("bold-tab-inbox").click();
+    await p.getByTestId("bold-inbox-pane").waitFor();
+    await p.waitForTimeout(600);
+    await shot(p, "build-inbox-1440x900");
+    // TYPE picker open — live counts + the disabled honest-absence rows (Q-070).
+    await p.getByTestId("bold-inbox-picker-type").click();
+    await p.waitForTimeout(300);
+    await shot(p, "build-inbox-type-1440x900");
+    await p.context().close();
+  });
+}
+
 /* ------------------------------------------------ prototype states (B1 set) */
+if (UNIT === "b1") {
 await run("prototype", async () => {
   const p = await page({ width: 1440, height: 900 });
   const fresh = async () => {
@@ -219,6 +314,7 @@ for (const [w, h, tag] of [
     await shot(p, `build-overview-${tag}`);
     await p.context().close();
   });
+}
 }
 
 await browser.close();
