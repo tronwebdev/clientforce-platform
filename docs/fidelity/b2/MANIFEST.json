@@ -1,0 +1,70 @@
+{
+  "unit": "b2",
+  "commit": "a43b9f1978962f775f6eb84199fdcd6922e8e7cf",
+  "workingTreeDirtyAtCapture": false,
+  "capturedAt": "2026-08-26T18:42:01.495Z",
+  "baseUrl": "http://localhost:3000",
+  "note": "Single-run capture; every frame from one build. Verify a frame by hashing its bytes against this manifest — never by trusting an image cache. pnpm lint:fidelity enforces the binding.",
+  "frames": {
+    "build-inbox-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 123995,
+      "sha256": "838b8e8a40b5055e3f6b76b5d5662d467228bdd1643fae2b10cc85b6d79dabba"
+    },
+    "build-inbox-type-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 123215,
+      "sha256": "f0b3562572fc33a80f7f582dffb2ab4f7672cd0fbf67f24cdb42d9e797914f84"
+    },
+    "build-pipeline-board-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 108075,
+      "sha256": "7c0f39e3215cce0313f9ffa43f07dc0aeaf54bcdc401d7d1dbf5168c2a657779"
+    },
+    "build-pipeline-list-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 109699,
+      "sha256": "d4eb52511c8cd2d317fd29a4de5bbbb5c7cda86e9ab14b5bf99f656fd997ed61"
+    },
+    "build-plan-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 139199,
+      "sha256": "b8cec046f5e6a92cd1a775677360d8ad517bbea42e9784c4c046d3cc01be0a53"
+    },
+    "build-plan-add-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 146024,
+      "sha256": "60245921f7cfa63d6fa0e1fc0783391ba27301bcf9b1028d50ac58ea577d78a8"
+    },
+    "build-plan-step-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 148642,
+      "sha256": "1998a01e94eee69f6d10c9de485388b66ac46320af1bf5d989a82fa57ba1002b"
+    },
+    "proto-inbox-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 139259,
+      "sha256": "78cdadb36ae2b84cf73ebc33ea9491bceb879c161428c7c24e89056328cf9179"
+    },
+    "proto-pipeline-board-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 133766,
+      "sha256": "2199d0021dffa91c0a3a088c78fc6d9442e45a06130b3a27c3dd24cc036fa5ea"
+    },
+    "proto-pipeline-list-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 139048,
+      "sha256": "3923a8d25946e0168beb74c21e966e605b8ba597f4bf71526369b45a12044749"
+    },
+    "proto-plan-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 142786,
+      "sha256": "9025cfead15eb0ce23f3046ce428b38244c45dbc935b107e4c4962ef5e3b6c4a"
+    },
+    "proto-plan-step-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 154734,
+      "sha256": "f140991293a4934998cade9411820c70564024924ed5eabcb4ead7190ad15f0a"
+    }
+  }
+}
