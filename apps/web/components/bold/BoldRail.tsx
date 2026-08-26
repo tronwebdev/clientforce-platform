@@ -13,6 +13,11 @@ interface BoldRailProps {
   me: Me;
   open: boolean;
   agents: AgentListItem[];
+  /** B2.6 (DEC-110): non-dismissed Ada-suggested drafts — the ✦ block's rows.
+   *  They render THERE, not in the campaigns list (no double rows). */
+  suggestions: AgentListItem[];
+  onStartSuggestion: (id: string) => void;
+  onDismissSuggestion: (id: string) => void;
   activeCampId: string | null;
   needs: MeNeedsResponse | null;
   onFocus: () => void;
@@ -40,7 +45,9 @@ function railValue(a: AgentListItem): string {
  * the core card stay clearly-marked fixture until B4/B7.
  */
 export function BoldRail(props: BoldRailProps) {
-  const { me, agents, needs } = props;
+  const { me, needs, suggestions } = props;
+  // Suggested drafts live in the ✦ block below, never as campaign rows.
+  const agents = props.agents.filter((a) => !suggestions.some((g) => g.id === a.id));
   const wsName = me.activeWorkspace?.name ?? "Workspace";
   const wsIndex = Math.max(
     0,
@@ -178,6 +185,57 @@ export function BoldRail(props: BoldRailProps) {
               ) : null}
             </div>
           </div>
+
+          {/* Block 2.5 — ✦ ADA SUGGESTS (B2.6, Q-066 closed): REAL suggested
+              drafts from the deterministic sweep. Start opens the create flow
+              on the draft; ✕ dismisses (the signal never re-suggests). */}
+          {suggestions.length > 0 ? (
+            <div data-tour="sugg" style={{ flex: "none" }} data-testid="bold-suggests">
+              <div className="cvb-rail-eyebrow" style={{ padding: "0 4px 8px" }}>
+                <span style={{ flex: 1, color: "var(--cvb-faint-2)" }}>✦ ADA SUGGESTS</span>
+                <span onClick={props.onAllCampaigns} style={{ fontSize: 10, fontWeight: 600, color: "var(--cvb-faint-2)", cursor: "pointer" }}>
+                  {suggestions.length} →
+                </span>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                {suggestions.map((g) => (
+                  <div
+                    key={g.id}
+                    onClick={() => props.onStartSuggestion(g.id)}
+                    data-testid={`bold-sugg-${g.id}`}
+                    title={g.suggestion?.reason ?? undefined}
+                    style={{ display: "flex", alignItems: "center", gap: 9, background: "var(--cvb-panel)", border: "1px solid var(--cvb-line-soft)", borderRadius: 11, padding: "8px 10px", cursor: "pointer" }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0, fontSize: 11.5, fontWeight: 600, color: "var(--cvb-muted)", letterSpacing: "-.012em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {g.name}
+                    </div>
+                    <span
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        props.onStartSuggestion(g.id);
+                      }}
+                      title="Start it"
+                      data-testid={`bold-sugg-start-${g.id}`}
+                      style={{ fontSize: 10, fontWeight: 700, color: "var(--cvb-muted)", background: "var(--cvb-card)", border: "1px solid var(--cvb-line-ctl)", borderRadius: 8, padding: "4px 8px", cursor: "pointer", flex: "none" }}
+                    >
+                      Start
+                    </span>
+                    <span
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        props.onDismissSuggestion(g.id);
+                      }}
+                      title="Not now"
+                      data-testid={`bold-sugg-dismiss-${g.id}`}
+                      style={{ fontSize: 10.5, color: "var(--cvb-ghost)", cursor: "pointer", flex: "none" }}
+                    >
+                      ✕
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           {/* Block 3 — ALWAYS ON / INBOUND (B4 wires the one-flag truth). */}
           <div style={{ flex: "none" }}>

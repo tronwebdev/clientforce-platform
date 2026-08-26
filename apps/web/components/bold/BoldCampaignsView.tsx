@@ -30,16 +30,25 @@ const CH_TONES: Record<string, [string, string, string, string]> = {
 
 export function BoldCampaignsView({
   agents,
+  suggestions,
   onSelect,
   onNew,
+  onStartSuggestion,
+  onDismissSuggestion,
 }: {
   agents: AgentListItem[];
+  /** B2.6 (DEC-110): non-dismissed Ada-suggested drafts — their own rows. */
+  suggestions: AgentListItem[];
   onSelect: (id: string) => void;
   onNew: () => void;
+  onStartSuggestion: (id: string) => void;
+  onDismissSuggestion: (id: string) => void;
 }) {
   const [filter, setFilter] = useState("All");
   const filters = ["All", "Live", "Needs you", "Drafts"];
+  const suggested = new Set(suggestions.map((g) => g.id));
   const shown = agents.filter((a) => {
+    if (suggested.has(a.id)) return false; // suggested drafts render above
     if (filter === "Live") return a.status === "ACTIVE";
     if (filter === "Drafts") return a.status === "DRAFT";
     if (filter === "Needs you") return a.status === "PAUSED" || a.health === "Warn";
@@ -78,6 +87,45 @@ export function BoldCampaignsView({
         </span>
       </div>
 
+      {suggestions.map((g) => (
+        <div
+          key={g.id}
+          onClick={() => onStartSuggestion(g.id)}
+          data-testid={`bold-sugg-row-${g.id}`}
+          style={{ display: "flex", alignItems: "center", gap: 18, padding: "18px 4px", borderBottom: "1px solid var(--cvb-line-2)", cursor: "pointer", flexWrap: "wrap" }}
+        >
+          <span style={{ width: 4, height: 44, borderRadius: 2, background: "var(--cvb-dot-amber)", flex: "none" }} />
+          <div style={{ flex: 1, minWidth: 180 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <span className="cvb-display" style={{ fontWeight: 900, fontSize: 17, letterSpacing: "-.028em" }}>{g.name}</span>
+              <span style={{ fontSize: 9.5, fontWeight: 700, color: "var(--cvb-forest)", background: "var(--cvb-mint)", border: "1px solid var(--cvb-mint-line)", borderRadius: 999, padding: "2px 8px" }}>
+                ✦ Ada's idea
+              </span>
+            </div>
+            {/* The reason is a data-derived count line, never invented narrative. */}
+            <div style={{ fontSize: 12, color: "var(--cvb-faint)", marginTop: 4 }}>{g.suggestion?.reason}</div>
+          </div>
+          <span
+            onClick={(e) => {
+              e.stopPropagation();
+              onStartSuggestion(g.id);
+            }}
+            style={{ fontSize: 12, fontWeight: 700, color: "var(--cvb-forest)", background: "var(--cvb-mint)", border: "1px solid var(--cvb-mint-line)", borderRadius: 10, padding: "8px 14px", cursor: "pointer", flex: "none" }}
+          >
+            Start
+          </span>
+          <span
+            onClick={(e) => {
+              e.stopPropagation();
+              onDismissSuggestion(g.id);
+            }}
+            title="Not now"
+            style={{ fontSize: 12, color: "var(--cvb-ghost)", cursor: "pointer", flex: "none", padding: "8px 6px" }}
+          >
+            ✕
+          </span>
+        </div>
+      ))}
       {shown.map((a) => {
         const meta = goalValueMeta(a.goal);
         const st = STATUS_PILL[a.status] ?? STATUS_PILL.DRAFT!;

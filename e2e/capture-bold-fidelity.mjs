@@ -15,7 +15,7 @@
  *    of impersonating evidence. Reviewers verify what they are looking at by
  *    hashing the file — never by trusting an image cache.
  *
- * Usage:  node e2e/capture-bold-fidelity.mjs [unit]     (b1 | b2 | b25; default b1)
+ * Usage:  node e2e/capture-bold-fidelity.mjs [unit]     (b1 | b2 | b25 | b26; default b1)
  * Env:    CAPTURE_BASE_URL (default http://localhost:3000)
  *         PLAYWRIGHT_CHROMIUM_EXECUTABLE (a pre-provisioned Chromium)
  *
@@ -33,8 +33,8 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const UNIT = process.argv[2] ?? "b1";
-if (UNIT !== "b1" && UNIT !== "b2" && UNIT !== "b25") {
-  console.error(`Unknown unit "${UNIT}" — this tool knows b1, b2 and b25.`);
+if (!["b1", "b2", "b25", "b26"].includes(UNIT)) {
+  console.error(`Unknown unit "${UNIT}" — this tool knows b1, b2, b25 and b26.`);
   process.exit(1);
 }
 const OUT = join(ROOT, "docs", "fidelity", UNIT);
@@ -148,6 +148,49 @@ const toBoldCampaign = async (p) => {
   await p.waitForTimeout(900);
 };
 
+
+
+/* -------------------------------------------------------------- the b26 set */
+if (UNIT === "b26") {
+  await run("prototype-b26", async () => {
+    const p = await page({ width: 1440, height: 900 });
+    await freshProto(p);
+    // The rail ✦ ADA SUGGESTS block renders on the default overview.
+    await shot(p, "proto-sugg-rail-1440x900");
+    await p.getByText("All", { exact: true }).first().click();
+    await p.waitForTimeout(500);
+    await shot(p, "proto-sugg-camps-1440x900");
+    await p.context().close();
+  });
+
+  await run("build-b26", async () => {
+    const p = await page({ width: 1440, height: 900 });
+    await signInBuild(p);
+    await p.goto(`${BASE}/bold`);
+    await p.getByTestId("bold-root").waitFor();
+    await p.addStyleTag({ content: "nextjs-portal{display:none!important}" });
+    const later = p.getByText("Later", { exact: true }).first();
+    if (await later.isVisible().catch(() => false)) await later.click();
+    // The shell's sweep proposes the real draft; wait for the ✦ block.
+    await p.getByTestId("bold-suggests").waitFor({ timeout: 20_000 });
+    await p.waitForTimeout(700);
+    await shot(p, "build-sugg-rail-1440x900");
+    await p.getByText("All", { exact: true }).click();
+    await p.locator('[data-testid^="bold-sugg-row-"]').waitFor();
+    await p.waitForTimeout(400);
+    await shot(p, "build-sugg-camps-1440x900");
+    await p.locator('[data-testid^="bold-sugg-row-"]').getByText("Start", { exact: true }).click();
+    await p.getByTestId("bold-create").waitFor();
+    await p.waitForTimeout(500);
+    await shot(p, "build-sugg-resume-1440x900");
+    // Evidence runs leave no rows: the swept draft goes away through the
+    // shipped surface (the next load's sweep recreates it).
+    const agents = await (await p.request.get(`${BASE}/api/cf/agents`)).json();
+    const sugg = agents.find((a) => a.name === "Win back the not-nows");
+    if (sugg) await p.request.delete(`${BASE}/api/cf/agents/${sugg.id}`);
+    await p.context().close();
+  });
+}
 
 /* -------------------------------------------------------------- the b25 set */
 if (UNIT === "b25") {

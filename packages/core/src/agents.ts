@@ -9,6 +9,23 @@ import { businessCategorySchema } from "./strategy";
 export const agentStatusSchema = z.enum(["DRAFT", "ACTIVE", "PAUSED", "ARCHIVED"]);
 export type AgentStatus = z.infer<typeof agentStatusSchema>;
 
+/**
+ * B2.6 (DEC-110, closes Q-066): the suggestion marker riding a DRAFT agent —
+ * a suggested campaign IS a draft campaign (Ada composed it through the same
+ * creation path; no parallel proposal schema). `reason` is a data-derived
+ * factual line (counts, never invented narrative); `dismissedAt` keeps the
+ * row (hidden) so the same signal is never re-suggested.
+ */
+export const agentSuggestionSchema = z.object({
+  v: z.literal(1),
+  signal: z.enum(["winback_stalled", "quiet_contacts", "collect_reviews"]),
+  reason: z.string().max(200),
+  count: z.number().int().min(0),
+  at: z.string(),
+  dismissedAt: z.string().optional(),
+});
+export type AgentSuggestion = z.infer<typeof agentSuggestionSchema>;
+
 export const createAgentSchema = z.object({
   name: z.string().min(1).max(120),
   goal: goalKeySchema,
@@ -105,6 +122,10 @@ export const updateAgentSchema = z
     ...agentValueSchema.shape,
     /** B2.5 (DEC-109): the Q-069 goal summary — editable after create; null clears. */
     goalSummary: z.string().trim().max(160).nullable().optional(),
+    /** B2.6 (DEC-110): dismiss this draft's suggestion — stamps `dismissedAt`
+     *  (the row stays so the signal never re-suggests). Rejected when the
+     *  agent carries no suggestion. */
+    dismissSuggestion: z.literal(true).optional(),
   })
   .refine(
     (v) =>
@@ -115,7 +136,11 @@ export const updateAgentSchema = z
       v.draftState !== undefined ||
       v.valueEstCents !== undefined ||
       v.valueGoalUnits !== undefined ||
-      v.valueSalesGoalCents !== undefined,
+      v.valueSalesGoalCents !== undefined ||
+      // B2.5 (DEC-109) + B2.6 (DEC-110): the additive fields count too — a
+      // summary-only or dismiss-only PATCH is a legitimate single-field write.
+      v.goalSummary !== undefined ||
+      v.dismissSuggestion !== undefined,
     { message: "Provide at least one updatable field" },
   );
 export type UpdateAgentInput = z.infer<typeof updateAgentSchema>;
@@ -148,4 +173,6 @@ export interface AgentListItem {
   valueSalesGoalCents: number | null;
   /** B2.5 (DEC-109, Q-069): the guided-create goal sentence; null on legacy rows. */
   goalSummary: string | null;
+  /** B2.6 (DEC-110, Q-066): present on Ada-suggested drafts; null otherwise. */
+  suggestion: AgentSuggestion | null;
 }

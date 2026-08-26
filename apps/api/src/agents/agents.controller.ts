@@ -10,17 +10,19 @@ import {
   Post,
 } from "@nestjs/common";
 import {
+  agentSuggestionSchema,
   createAgentSchema,
-  DEFAULT_GUARDRAILS,
   goalTerminalPill,
   parseGuardrails,
   updateAgentSchema,
   validateGraph,
   type AgentListItem,
+  type AgentSuggestion,
 } from "@clientforce/core";
 import { Prisma, Role } from "@clientforce/db";
 import { Roles } from "../auth/decorators";
 import { TenantClient } from "../db/tenant-client";
+import { agentCreateData } from "./create-agent";
 
 /**
  * Agents surface (C2.2). One row per agent (A5: one agent = one goal = one
@@ -150,6 +152,9 @@ export class AgentsController {
           goalMet: m.booked > 0,
           goalPill: goalTerminalPill(agent.goal),
           goalSummary: agent.goalSummary,
+          // B2.6 (DEC-110): the suggestion marker, parsed defensively — an
+          // unreadable blob renders as no suggestion, never a crash.
+          suggestion: parseSuggestion(agent.suggestion),
           valueEstCents: agent.valueEstCents,
           valueGoalUnits: agent.valueGoalUnits,
           valueSalesGoalCents: agent.valueSalesGoalCents,
@@ -170,23 +175,8 @@ export class AgentsController {
       });
     }
     const workspaceId = this.tenant.workspaceId;
-    return this.tenant.run((tx) =>
-      tx.agent.create({
-        data: {
-          workspaceId,
-          name: parsed.data.name,
-          goal: parsed.data.goal,
-          // M1a (DEC-065): the wizard's step-1 picker persisted — with the
-          // goal it derives the selling arc (supersedes DEC-038(6)).
-          category: parsed.data.category ?? null,
-          instructions: parsed.data.instructions ?? null,
-          // B2.5 (DEC-109, Q-069): guided create writes the goal sentence.
-          goalSummary: parsed.data.goalSummary ?? null,
-          status: "DRAFT",
-          guardrails: DEFAULT_GUARDRAILS as unknown as Prisma.InputJsonValue,
-        },
-      }),
-    );
+    // B2.6 (DEC-110): the ONE create-data shape (the suggestion sweep shares it).
+    return this.tenant.run((tx) => tx.agent.create({ data: agentCreateData(workspaceId, parsed.data) }));
   }
 
   /** B6: wizard hydration payload for "Continue setup" — DRAFT resume only. */
@@ -241,7 +231,17 @@ export class AgentsController {
           "Business category is set at creation and can't change after launch",
         );
       }
-      const { guardrails, draftState, ...rest } = parsed.data;
+      const { guardrails, draftState, dismissSuggestion, ...rest } = parsed.data;
+      // B2.6 (DEC-110): dismissal stamps dismissedAt INSIDE the marker — the
+      // row stays (hidden) so the signal never re-suggests.
+      let suggestionUpdate: Prisma.InputJsonValue | undefined;
+      if (dismissSuggestion) {
+        const existing = agent.suggestion as Record<string, unknown> | null;
+        if (!existing) {
+          throw new BadRequestException("This campaign carries no suggestion to dismiss");
+        }
+        suggestionUpdate = { ...existing, dismissedAt: new Date().toISOString() };
+      }
       // C2.3: guardrails go through the A8 schema — a PRESENT-yet-invalid
       // shape is the caller's error (designed 400, never a raw 500).
       let parsedGuardrails: ReturnType<typeof parseGuardrails> | undefined;
@@ -282,6 +282,7 @@ export class AgentsController {
         where: { id },
         data: {
           ...rest,
+          ...(suggestionUpdate !== undefined ? { suggestion: suggestionUpdate } : {}),
           ...(parsedGuardrails !== undefined
             ? { guardrails: parsedGuardrails as unknown as Prisma.InputJsonValue }
             : {}),
@@ -309,4 +310,11 @@ export class AgentsController {
       return { deleted: true };
     });
   }
+}
+
+/** B2.6: defensive parse of the suggestion marker (core schema). */
+function parseSuggestion(raw: unknown): AgentSuggestion | null {
+  if (!raw) return null;
+  const parsed = agentSuggestionSchema.safeParse(raw);
+  return parsed.success ? parsed.data : null;
 }
