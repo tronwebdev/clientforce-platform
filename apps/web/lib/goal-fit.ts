@@ -22,6 +22,10 @@ export const GOAL_FIT: Record<GoalKey, GoalFit> = {
   promote_offer: "prospecting",
   fill_event: "prospecting",
   upsell_clients: "existing_audience",
+  // B2.5 (DEC-109): the Q-067 EXTEND rows — all three work people you know.
+  accept_quotes: "existing_audience",
+  nurture_leads: "existing_audience",
+  winback_deals: "existing_audience",
   custom: "prospecting",
 };
 

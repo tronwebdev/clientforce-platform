@@ -149,6 +149,7 @@ export class AgentsController {
           // C2.9 pill wording and the Addendum-2 §D value fields (null = unset).
           goalMet: m.booked > 0,
           goalPill: goalTerminalPill(agent.goal),
+          goalSummary: agent.goalSummary,
           valueEstCents: agent.valueEstCents,
           valueGoalUnits: agent.valueGoalUnits,
           valueSalesGoalCents: agent.valueSalesGoalCents,
@@ -179,6 +180,8 @@ export class AgentsController {
           // goal it derives the selling arc (supersedes DEC-038(6)).
           category: parsed.data.category ?? null,
           instructions: parsed.data.instructions ?? null,
+          // B2.5 (DEC-109, Q-069): guided create writes the goal sentence.
+          goalSummary: parsed.data.goalSummary ?? null,
           status: "DRAFT",
           guardrails: DEFAULT_GUARDRAILS as unknown as Prisma.InputJsonValue,
         },

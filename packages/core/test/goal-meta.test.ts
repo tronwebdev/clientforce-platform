@@ -23,7 +23,7 @@ describe("GOAL_META (C2.9 label table, verbatim)", () => {
     expect(Object.keys(GOAL_META).sort()).toEqual([...GOAL_KEYS].sort());
   });
 
-  it("matches the plan's 9-row table verbatim", () => {
+  it("matches the approved table verbatim (9 rows + the B2.5/DEC-109 EXTEND)", () => {
     expect(GOAL_META).toEqual({
       book_appointments: { terminalLabel: "Meeting booked", terminalPill: "Booked" },
       generate_leads: { terminalLabel: "Lead qualified", terminalPill: "Qualified" },
@@ -33,6 +33,10 @@ describe("GOAL_META (C2.9 label table, verbatim)", () => {
       promote_offer: { terminalLabel: "Purchase made", terminalPill: "Purchased" },
       fill_event: { terminalLabel: "Registered", terminalPill: "Registered" },
       upsell_clients: { terminalLabel: "Upsell accepted", terminalPill: "Upgraded" },
+      // B2.5 (DEC-109): the Q-067 EXTEND rows.
+      accept_quotes: { terminalLabel: "Quote accepted", terminalPill: "Accepted" },
+      nurture_leads: { terminalLabel: "Warmed up", terminalPill: "Warmed" },
+      winback_deals: { terminalLabel: "Deal recovered", terminalPill: "Recovered" },
       custom: { terminalLabel: "Goal met", terminalPill: "Goal met" },
     });
   });

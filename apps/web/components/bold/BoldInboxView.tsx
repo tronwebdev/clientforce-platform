@@ -146,9 +146,9 @@ export function BoldInboxView({
     { key: "all", dot: "var(--cvb-faint)", label: "All", count: all.length },
     { key: "email", dot: "var(--cvb-forest)", label: "Email", count: all.filter((t) => hasChannel(t, "email")).length },
     { key: "sms", dot: "var(--cvb-cyan)", label: "SMS", count: all.filter((t) => hasChannel(t, "sms")).length },
-    { key: "web", dot: "var(--cvb-ghost)", label: "Web chat", count: null, why: "arrives with the site-agent wave (B4)" },
+    { key: "web", dot: "var(--cvb-ghost)", label: "Web chat", count: null, why: "Coming soon" },
     { key: "voice", dot: "var(--cvb-slate)", label: "Calls", count: all.filter((t) => hasChannel(t, "voice")).length },
-    { key: "portal", dot: "var(--cvb-ghost)", label: "Client messages", count: null, why: "arrives with the portal wave" },
+    { key: "portal", dot: "var(--cvb-ghost)", label: "Client messages", count: null, why: "Coming soon" },
   ];
   const statusRows: Array<{ key: StatusF; dot: string; label: string; count: number }> = [
     { key: "all", dot: "var(--cvb-faint)", label: "All", count: all.length },

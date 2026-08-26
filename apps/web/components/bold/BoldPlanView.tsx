@@ -5,15 +5,12 @@ import type {
   AgentListItem,
   BranchNode,
   CampaignGraph,
-  DelayNode,
   EffectiveCreditPrices,
   GraphNode,
   Guardrails,
   StepNode,
 } from "@clientforce/core";
 import {
-  GUIDED_EMAIL_CREDITS,
-  GUIDED_SMS_CREDITS,
   GraphMutationError,
   addStep,
   mainPath,
@@ -25,6 +22,7 @@ import {
 } from "@clientforce/core";
 import { branchWhenLabel, intentTint } from "../../lib/intents";
 import { triggerChip } from "../../lib/triggers";
+import { BoldSequenceList, CH_LABEL, CH_TILE, stepCredits } from "./shared/BoldSequenceList";
 import { chainMeta, stepPillText } from "../sequence/SubcampaignCards";
 import { LIVE_GRAPH_NOTICE } from "../sequence/shared";
 import {
@@ -56,21 +54,6 @@ import {
 
 const mono = { fontFamily: "var(--cvb-font-mono)" } as const;
 
-/** Channel tile tones [glyph, bg, line, ink] + display labels. */
-const CH_TILE: Record<string, [string, string, string, string]> = {
-  email: ["✉", "var(--cvb-mint)", "var(--cvb-mint-line)", "var(--cvb-forest)"],
-  sms: ["✆", "var(--cvb-cyan-tint)", "var(--cvb-cyan-line)", "var(--cvb-cyan)"],
-  whatsapp: ["◍", "var(--cvb-mint)", "var(--cvb-mint-line)", "var(--cvb-forest)"],
-  voice: ["☎", "var(--cvb-slate-tint)", "var(--cvb-slate-line)", "var(--cvb-slate)"],
-  linkedin: ["◫", "var(--cvb-slate-tint)", "var(--cvb-slate-line)", "var(--cvb-slate)"],
-};
-const CH_LABEL: Record<string, string> = {
-  email: "Email",
-  sms: "SMS",
-  whatsapp: "WhatsApp",
-  voice: "Call",
-  linkedin: "LinkedIn",
-};
 
 /** Intent → Bold dot tone (labels stay the shipped intent vocabulary;
  *  colors are skin — console-v3 tokens, never the legacy palette). */
@@ -82,27 +65,7 @@ function intentDot(intent: string): string {
   return "var(--cvb-faint)";
 }
 
-/** Per-step credit cost from the resolved price table (scripted) or the
- *  shipped compose credits (guided). null = no price data → no chip. */
-export function stepCredits(step: StepNode, prices: EffectiveCreditPrices | null): number | null {
-  if (step.mode === "guided") return step.channel === "sms" ? GUIDED_SMS_CREDITS : GUIDED_EMAIL_CREDITS;
-  const action =
-    step.channel === "sms"
-      ? "sms_segment"
-      : step.channel === "whatsapp"
-        ? "whatsapp_msg"
-        : step.channel === "voice"
-          ? "voice_minute"
-          : step.channel === "email"
-            ? "email_send"
-            : null;
-  if (!action || !prices) return null;
-  return prices.effective[action] ?? null;
-}
 
-function delayInDays(n: DelayNode): number {
-  return n.unit === "days" ? n.amount : n.unit === "hours" ? n.amount / 24 : n.amount / 1440;
-}
 
 const DAY_NAMES = ["", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 function daysLabel(days: number[]): string {
@@ -218,14 +181,6 @@ export function BoldPlanView({ agent, flash }: { agent: AgentListItem; flash: (m
     );
   }
 
-  // Day math for the node eyebrows: DAY 1, the delays advance the counter.
-  let day = 1;
-  const nodeRows = path.map((n, i) => {
-    const row = { node: n, day: Math.max(1, Math.round(day)), index: i + 1 };
-    if (n.type === "delay") day += delayInDays(n);
-    return row;
-  });
-
   const sw = view?.guardrails?.sendingWindow ?? null;
   const noWeekend = sw ? !sw.days.includes(6) && !sw.days.includes(7) : false;
 
@@ -243,97 +198,11 @@ export function BoldPlanView({ agent, flash }: { agent: AgentListItem; flash: (m
         {/* ------------------------------------------------ the sequence */}
         <div style={{ flex: 1, minWidth: 300 }}>
           <div style={{ ...mono, fontSize: 9.5, letterSpacing: ".18em", color: "var(--cvb-faint)", marginBottom: 22 }}>THE SEQUENCE</div>
-          {nodeRows.map(({ node: n, day: d }, i) => {
-            const last = i === nodeRows.length - 1;
-            if (n.type === "step") {
-              const tile = CH_TILE[n.channel] ?? CH_TILE.email!;
-              const credits = stepCredits(n, prices);
-              const title = n.content.subject?.trim() || CH_LABEL[n.channel] || n.channel;
-              const body =
-                n.mode === "guided"
-                  ? `Guided — Ada composes from the brief at send time. ${n.brief?.objective ?? ""}`.trim()
-                  : (n.content.body ?? "").trim() || "No copy yet.";
-              return (
-                <div key={n.id} onClick={() => setSheet({ kind: "step", id: n.id })} data-testid={`bold-plan-node-${n.id}`} style={{ display: "flex", gap: 18, cursor: "pointer" }}>
-                  <div style={{ width: 40, flex: "none", display: "flex", flexDirection: "column", alignItems: "center" }}>
-                    <span style={{ width: 40, height: 40, borderRadius: 14, flex: "none", background: tile[1], border: `1px solid ${tile[2]}`, color: tile[3], display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>
-                      {tile[0]}
-                    </span>
-                    <span style={{ width: 2, flex: 1, background: "var(--cvb-line-inner)", minHeight: last ? 0 : 26 }} />
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0, paddingBottom: 26 }}>
-                    <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
-                      <span className="cvb-display" style={{ fontWeight: 900, fontSize: 18, letterSpacing: "-.028em" }}>{title}</span>
-                      <span style={{ ...mono, fontSize: 9.5, letterSpacing: ".12em", color: "var(--cvb-faint)" }}>
-                        {/* sms prices are PER SEGMENT — never claim per send. */}
-                        DAY {d}
-                        {credits != null ? ` · ${credits} CREDIT${credits === 1 ? "" : "S"} / ${n.channel === "sms" && n.mode !== "guided" ? "SEGMENT" : "SEND"}` : ""}
-                      </span>
-                    </div>
-                    <div style={{ fontSize: 13.5, color: "var(--cvb-muted)", lineHeight: 1.55, marginTop: 6, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
-                      {body}
-                    </div>
-                  </div>
-                </div>
-              );
-            }
-            if (n.type === "delay") {
-              return (
-                <div key={n.id} onClick={() => setSheet({ kind: "delay", id: n.id })} data-testid={`bold-plan-node-${n.id}`} style={{ display: "flex", gap: 18, cursor: "pointer" }}>
-                  <div style={{ width: 40, flex: "none", display: "flex", flexDirection: "column", alignItems: "center" }}>
-                    <span style={{ width: 40, height: 40, borderRadius: 14, flex: "none", background: "var(--cvb-well)", border: "1px solid var(--cvb-line-ctl)", color: "var(--cvb-faint)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>
-                      ◷
-                    </span>
-                    <span style={{ width: 2, flex: 1, background: "var(--cvb-line-inner)", minHeight: last ? 0 : 26 }} />
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0, paddingBottom: 26 }}>
-                    <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
-                      <span className="cvb-display" style={{ fontWeight: 900, fontSize: 18, letterSpacing: "-.028em" }}>Wait</span>
-                      <span style={{ ...mono, fontSize: 9.5, letterSpacing: ".12em", color: "var(--cvb-faint)" }}>
-                        {n.amount} {n.unit.toUpperCase()}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              );
-            }
-            if (n.type === "branch") {
-              return (
-                <div key={n.id} data-testid={`bold-plan-node-${n.id}`} style={{ display: "flex", gap: 18 }}>
-                  <div style={{ width: 40, flex: "none", display: "flex", flexDirection: "column", alignItems: "center" }}>
-                    <span style={{ width: 40, height: 40, borderRadius: 14, flex: "none", background: "var(--cvb-amber-bg)", border: "1px solid var(--cvb-amber-line)", color: "var(--cvb-amber)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>
-                      ⎇
-                    </span>
-                    <span style={{ width: 2, flex: 1, background: "var(--cvb-line-inner)", minHeight: last ? 0 : 26 }} />
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0, paddingBottom: 26 }}>
-                    <div className="cvb-display" style={{ fontWeight: 900, fontSize: 18, letterSpacing: "-.028em" }}>
-                      {n.on === "reply" ? "When they reply" : `On ${n.on.replace(/_/g, " ")}`}
-                    </div>
-                    <div style={{ fontSize: 13.5, color: "var(--cvb-muted)", lineHeight: 1.55, marginTop: 6 }}>
-                      {n.cases.map((c) => branchWhenLabel(c.when)).join(" · ")}
-                    </div>
-                  </div>
-                </div>
-              );
-            }
-            if (n.type === "end") return null;
-            return (
-              <div key={n.id} style={{ display: "flex", gap: 18 }} data-testid={`bold-plan-node-${n.id}`}>
-                <div style={{ width: 40, flex: "none", display: "flex", flexDirection: "column", alignItems: "center" }}>
-                  <span style={{ width: 40, height: 40, borderRadius: 14, flex: "none", background: "var(--cvb-slate-tint)", border: "1px solid var(--cvb-slate-line)", color: "var(--cvb-slate)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>
-                    ◇
-                  </span>
-                  <span style={{ width: 2, flex: 1, background: "var(--cvb-line-inner)", minHeight: last ? 0 : 26 }} />
-                </div>
-                <div style={{ flex: 1, minWidth: 0, paddingBottom: 26 }}>
-                  <div className="cvb-display" style={{ fontWeight: 900, fontSize: 18, letterSpacing: "-.028em" }}>
-                    {n.type === "subcampaign" ? n.ref : n.type}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+          <BoldSequenceList
+            graph={graph}
+            prices={prices}
+            onNodeClick={(n) => setSheet({ kind: n.type === "delay" ? "delay" : "step", id: n.id })}
+          />
 
           {/* add-step — dashed tile + anchored "Choose a step type" popover
               (Campaign View canon W3-4); live channels enable, the rest

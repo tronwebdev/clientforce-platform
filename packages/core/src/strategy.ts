@@ -121,6 +121,10 @@ export const GOAL_ARC: Record<GoalKey, ArcKey> = {
   promote_offer: "momentum_deadline",
   fill_event: "momentum_deadline",
   upsell_clients: "earned_ask",
+  // B2.5 (DEC-109): the Q-067 EXTEND rows.
+  accept_quotes: "momentum_deadline",
+  nurture_leads: "give_value_first",
+  winback_deals: "revive_relationship",
   custom: "diagnose_prescribe",
 };
 

@@ -214,6 +214,80 @@ export const addContactsToList = (listId: string, contactIds: string[]) =>
 export const patchAgentGuardrails = (agentId: string, guardrails: Guardrails) =>
   send(`agents/${encodeURIComponent(agentId)}`, "PATCH", { guardrails });
 
+/* -------------------------------------------------------- B2.5 (DEC-108) */
+
+/** `GET /context/gaps` item (core `gapItemSchema` — typed to what B2.5 reads). */
+export interface BoldGapItem {
+  key: string;
+  label: string;
+  layer: "workspace" | "agent";
+  status: "open" | "typed" | "ai_decides" | "covered";
+  coveredBy?: "workspace" | "agent";
+  proposedAsk?: string;
+}
+export interface BoldGapReport {
+  gaps: BoldGapItem[];
+  resolved: number;
+  total: number;
+  launchReady: boolean;
+}
+/** `GET /context` — the merged layer view (fields as `{value, ...}`). */
+export interface BoldContextRead {
+  merged: Record<string, { value?: string } | undefined>;
+}
+export interface BoldImportResult {
+  created: number;
+  skippedDuplicates: number;
+  suppressed: number;
+  failed: Array<{ index: number; email: string; reason: string }>;
+  validationBatchId?: string;
+}
+
+export const createBoldAgent = (body: {
+  name: string;
+  goal: string;
+  category?: string;
+  instructions?: string;
+  goalSummary?: string;
+}) => send("agents", "POST", body);
+export const deleteBoldAgent = (agentId: string) =>
+  send(`agents/${encodeURIComponent(agentId)}`, "DELETE", {});
+export const patchBoldAgent = (agentId: string, body: unknown) =>
+  send(`agents/${encodeURIComponent(agentId)}`, "PATCH", body);
+export const fetchContextMerged = (agentId: string) =>
+  get<BoldContextRead>(`context?agentId=${encodeURIComponent(agentId)}`);
+export const fetchGapReport = (agentId: string, goal: string) =>
+  get<BoldGapReport>(`context/gaps?agentId=${encodeURIComponent(agentId)}&goal=${encodeURIComponent(goal)}`);
+export const answerGap = (agentId: string, key: string, value: string) =>
+  send("context/answers", "POST", { agentId, key, value });
+export const delegateGap = (agentId: string, key: string) =>
+  send("context/delegate", "POST", { agentId, key });
+export const planCampaign = (agentId: string) => send("planner/plan", "POST", { agentId });
+export const fetchPlannerGraph = (agentId: string) =>
+  get<{ campaign: unknown; graph: { version: number; graph: unknown } | null }>(
+    `planner/graph?agentId=${encodeURIComponent(agentId)}`,
+  );
+export const fetchPlannerStatus = (agentId: string) =>
+  get<{ state: "none" | "waiting" | "active" | "completed" | "failed"; failedReason?: string | null }>(
+    `planner/status?agentId=${encodeURIComponent(agentId)}`,
+  );
+export const createContactList = (name: string, origin: "manual" | "csv_import") =>
+  send("lists", "POST", { name, origin });
+export const importContactRows = (rows: unknown[], listId: string | undefined, validationBatchKey: string) =>
+  send("contacts/import", "POST", { rows, ...(listId ? { listId } : {}), validationBatchKey });
+export const fetchListMemberIds = async (listId: string): Promise<string[] | null> => {
+  const res = await get<{ rows?: Array<{ id: string }> }>(
+    `contacts/view?listId=${encodeURIComponent(listId)}`,
+  );
+  if (!res) return null;
+  return (res.rows ?? []).map((r) => r.id);
+};
+export const enrollContact = (
+  agentId: string,
+  contactId: string,
+  origin: { kind: "manual" | "csv" | "list"; listId?: string; listName?: string },
+) => send("enrollments", "POST", { agentId, contactId, origin });
+
 export async function patchAgentValue(
   agentId: string,
   body: { valueEstCents?: number | null; valueGoalUnits?: number | null },

@@ -25,6 +25,11 @@ export const GOAL_KEYS = [
   "promote_offer",
   "fill_event",
   "upsell_clients",
+  // B2.5 (DEC-109): the Bold-canon EXTEND (Q-067) — the three A4 kinds with
+  // no shipped key (quote / nurture / winback). Additive; `custom` stays last.
+  "accept_quotes",
+  "nurture_leads",
+  "winback_deals",
   "custom",
 ] as const;
 export const goalKeySchema = z.enum(GOAL_KEYS);
@@ -45,6 +50,10 @@ export const GOAL_META: Record<GoalKey, { terminalLabel: string; terminalPill: s
   promote_offer: { terminalLabel: "Purchase made", terminalPill: "Purchased" },
   fill_event: { terminalLabel: "Registered", terminalPill: "Registered" },
   upsell_clients: { terminalLabel: "Upsell accepted", terminalPill: "Upgraded" },
+  // B2.5 (DEC-109): the Q-067 EXTEND rows.
+  accept_quotes: { terminalLabel: "Quote accepted", terminalPill: "Accepted" },
+  nurture_leads: { terminalLabel: "Warmed up", terminalPill: "Warmed" },
+  winback_deals: { terminalLabel: "Deal recovered", terminalPill: "Recovered" },
   custom: { terminalLabel: "Goal met", terminalPill: "Goal met" },
 };
 
@@ -226,6 +235,21 @@ export const GOAL_FIELD_TABLE: Record<GoalKey, GoalFieldSpec> = {
   upsell_clients: {
     required: ["upsell_pitch", "upsell_audience", "pricing", "booking_link"],
     recommended: [],
+  },
+  // B2.5 (DEC-109): the Q-067 EXTEND rows — existing field vocabulary only;
+  // recommended sets follow the DEC-042 posture (owner input pending,
+  // NON-BLOCKING defaults; nothing extra is gated).
+  accept_quotes: {
+    required: ["pricing"],
+    recommended: ["services", "objection_handling", "proof_points"],
+  },
+  nurture_leads: {
+    required: [],
+    recommended: ["services", "proof_points"],
+  },
+  winback_deals: {
+    required: ["objection_handling"],
+    recommended: ["winback_offer", "pricing", "relationship_context"],
   },
   // Core only; the distiller may propose up to MAX_CUSTOM_GOAL_ASKS extra asks
   // derived from the typed objective (labeled, auditable, removable).

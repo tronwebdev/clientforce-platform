@@ -6,6 +6,7 @@ import type { Me } from "../../lib/types";
 import { BoldAdaBar, BoldAdaPanel } from "./BoldAdaBar";
 import { BoldActivityView } from "./BoldActivityView";
 import { BoldCampaignsView } from "./BoldCampaignsView";
+import { BoldCreateView } from "./BoldCreateView";
 import { BoldDock } from "./BoldDock";
 import { BoldDrawer, type BoldDrawerState } from "./BoldDrawer";
 import { BoldInboxView } from "./BoldInboxView";
@@ -333,7 +334,7 @@ export function BoldShell({
                 <div className="cvb-display" style={{ fontWeight: 900, fontSize: 22, letterSpacing: "-.03em" }}>No campaigns yet</div>
                 <span
                   role="button"
-                  onClick={() => window.location.assign("/agents/new")}
+                  onClick={() => selectDock("newcamp")}
                   style={{
                     display: "inline-block",
                     marginTop: 18,
@@ -350,9 +351,21 @@ export function BoldShell({
                 </span>
               </div>
             ) : null}
-            {surface === "camps" ? <BoldCampaignsView agents={orderedAgents} onSelect={selectCampaign} /> : null}
+            {surface === "camps" ? (
+              <BoldCampaignsView agents={orderedAgents} onSelect={selectCampaign} onNew={() => selectDock("newcamp")} />
+            ) : null}
+            {surface === "newcamp" ? (
+              <BoldCreateView
+                onCancel={() => selectDock("camps")}
+                onLaunched={(id) => {
+                  refreshAgents();
+                  selectCampaign(id);
+                }}
+                flash={flash}
+              />
+            ) : null}
             {surface === "activity" && activeCamp ? <BoldActivityView agentId={activeCamp.id} onOpenDrawer={setDrawer} /> : null}
-            {surface !== "campaign" && surface !== "camps" && surface !== "activity" ? (
+            {surface !== "campaign" && surface !== "camps" && surface !== "activity" && surface !== "newcamp" ? (
               <SurfaceStub title={title} wave={SURFACE_WAVE[surface]} />
             ) : null}
           </div>
@@ -360,10 +373,10 @@ export function BoldShell({
           <BoldAdaBar ctx={adaCtx} onOpen={() => setAdaOn(true)} />
 
           {adaOn ? (
-            <BoldAdaPanel ctx={adaCtx} onClose={() => setAdaOn(false)} onNoop={() => flash("Ada answers from a later wave — nothing was sent")} />
+            <BoldAdaPanel ctx={adaCtx} onClose={() => setAdaOn(false)} onNoop={() => flash("Ada can't answer here yet — nothing was sent")} />
           ) : null}
           {wsPick ? (
-            <BoldWsPicker me={me} onClose={() => setWsPick(false)} onNoop={(label) => flash(`${label} arrives with the agency wave (B10)`)} />
+            <BoldWsPicker me={me} onClose={() => setWsPick(false)} onNoop={(label) => flash(`${label} — coming soon`)} />
           ) : null}
           {drawer ? <BoldDrawer state={drawer} onClose={() => setDrawer(null)} /> : null}
 

@@ -500,6 +500,27 @@ async function main(): Promise<void> {
     }
   }
 
+  // B2.5 (DEC-108): one ACTIVE demo email sender, so the create flow's
+  // channel step and launch gate exercise the REAL capability read (senders
+  // were absent in the demo workspace — every surface honestly said so).
+  // CF_MANAGED, sandbox-style; idempotent on fromEmail.
+  const demoSender = await prisma.senderConnection.findFirst({
+    where: { workspaceId: primary.id, fromEmail: "hello@demo-agency.test" },
+  });
+  if (!demoSender) {
+    await prisma.senderConnection.create({
+      data: {
+        workspaceId: primary.id,
+        type: "CF_MANAGED",
+        fromEmail: "hello@demo-agency.test",
+        fromName: "Demo Agency",
+        status: "ACTIVE",
+        domainAuthStatus: {},
+        dailyLimit: 200,
+      },
+    });
+  }
+
   // B2 (DEC-105): the implant campaign's stored CampaignGraph — the Bold PLAN
   // tab reads the real row (B1 seeded messages against stepNodeId
   // "seed-step-1", so the graph's node ids line up with per-step counts).

@@ -213,7 +213,7 @@ export function BoldOverview({ agent, onOpenDrawer, onAllActivity, onValueSaved,
                   {meta.kindLabel}
                 </span>
               </div>
-              <div style={{ fontSize: 12.5, color: "rgba(255,255,255,.72)", lineHeight: 1.5, marginTop: 9, maxWidth: 340 }}>{goalSentence(agent.goal)}</div>
+              <div style={{ fontSize: 12.5, color: "rgba(255,255,255,.72)", lineHeight: 1.5, marginTop: 9, maxWidth: 340 }}>{goalSentence(agent.goal, agent.goalSummary)}</div>
               <div className="cvb-display" style={{ fontWeight: 900, fontSize: 50, letterSpacing: "-.036em", lineHeight: 0.98, color: "#fff", marginTop: 11 }} data-testid="bold-hero-value">
                 {heroValue}
               </div>
