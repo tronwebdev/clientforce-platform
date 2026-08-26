@@ -179,7 +179,7 @@ if (UNIT === "b26") {
     await p.locator('[data-testid^="bold-sugg-row-"]').waitFor();
     await p.waitForTimeout(400);
     await shot(p, "build-sugg-camps-1440x900");
-    await p.locator('[data-testid^="bold-sugg-row-"]').getByText("Start", { exact: true }).click();
+    await p.locator('[data-testid^="bold-sugg-row-"]').getByText("Start it", { exact: true }).click();
     await p.getByTestId("bold-create").waitFor();
     await p.waitForTimeout(500);
     await shot(p, "build-sugg-resume-1440x900");
