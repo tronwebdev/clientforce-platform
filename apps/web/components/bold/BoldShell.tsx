@@ -373,10 +373,10 @@ export function BoldShell({
           <BoldAdaBar ctx={adaCtx} onOpen={() => setAdaOn(true)} />
 
           {adaOn ? (
-            <BoldAdaPanel ctx={adaCtx} onClose={() => setAdaOn(false)} onNoop={() => flash("Ada answers from a later wave — nothing was sent")} />
+            <BoldAdaPanel ctx={adaCtx} onClose={() => setAdaOn(false)} onNoop={() => flash("Ada can't answer here yet — nothing was sent")} />
           ) : null}
           {wsPick ? (
-            <BoldWsPicker me={me} onClose={() => setWsPick(false)} onNoop={(label) => flash(`${label} arrives with the agency wave (B10)`)} />
+            <BoldWsPicker me={me} onClose={() => setWsPick(false)} onNoop={(label) => flash(`${label} — coming soon`)} />
           ) : null}
           {drawer ? <BoldDrawer state={drawer} onClose={() => setDrawer(null)} /> : null}
 

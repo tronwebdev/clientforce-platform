@@ -79,7 +79,7 @@ test("inbox pickers carry live counts; move, handle and the person peek are live
   await page.getByTestId("bold-inbox-picker-type").click();
   await expect(page.getByTestId("bold-inbox-opt-type-email")).toContainText("2");
   await expect(page.getByTestId("bold-inbox-opt-type-sms")).toContainText("1");
-  await expect(page.getByTestId("bold-inbox-opt-type-web")).toContainText("site-agent wave");
+  await expect(page.getByTestId("bold-inbox-opt-type-web")).toContainText("Coming soon");
   await page.getByTestId("bold-inbox-opt-type-sms").click();
   await expect(page.getByTestId(/bold-inbox-thread-/)).toHaveCount(1);
   await page.getByTestId("bold-inbox-picker-type").click();

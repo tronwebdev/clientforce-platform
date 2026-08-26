@@ -90,7 +90,8 @@ export const GOAL_VALUE_META: Record<GoalKey, GoalValueMeta> = {
   upsell_clients: {
     kindLabel: "Upsell",
     brief: "Existing clients, one tier up.",
-    valueBasis: "value per upgrade",
+    // Owner fix (B2.5 review): the prototype's qualifier, verbatim.
+    valueBasis: "value per renewal",
     unitNoun: "upgrade",
     monetary: true,
     heroMode: "count",

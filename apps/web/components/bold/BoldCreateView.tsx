@@ -526,8 +526,8 @@ export function BoldCreateView({
                   [
                     ["list", "☰", "A list you already have", "Members enroll at launch — as of launch day.", true, ""],
                     ["csv", "↑", "A file you upload", "CSV — map the columns, duplicates merge, consent honored.", true, ""],
-                    ["seg", "◈", "Everyone who matches a rule", "A live segment Ada keeps current.", false, "arrives with the segments wave"],
-                    ["find", "⌕", "People Ada finds", "Lead finder builds it from your best customers.", false, "arrives with the lead-finder wave"],
+                    ["seg", "◈", "Everyone who matches a rule", "Coming soon — Ada will keep a live segment current.", false, ""],
+                    ["find", "⌕", "People Ada finds", "Coming soon — Lead finder builds it from your best customers.", false, ""],
                   ] as const
                 ).map(([key, ic, title, sub, ready, why]) => {
                   const on = whoMode === key;
@@ -550,9 +550,11 @@ export function BoldCreateView({
                         {on && audience ? <span style={{ color: "var(--cvb-forest)", fontSize: 12 }}>✓</span> : null}
                       </div>
                       <div style={{ fontSize: 12, color: "var(--cvb-muted)", lineHeight: 1.5, marginTop: 9 }}>{sub}</div>
-                      <div style={{ ...mono, fontSize: 9.5, color: "var(--cvb-faint)", marginTop: 10 }}>
-                        {ready ? (on && audience ? `${audience.listName} · ${audience.count} enroll at launch` : key === "list" ? "pick a saved list" : "new import") : why}
-                      </div>
+                      {ready || why ? (
+                        <div style={{ ...mono, fontSize: 9.5, color: "var(--cvb-faint)", marginTop: 10 }}>
+                          {ready ? (on && audience ? `${audience.listName} · ${audience.count} enroll at launch` : key === "list" ? "pick a saved list" : "new import") : why}
+                        </div>
+                      ) : null}
                     </div>
                   );
                 })}
@@ -717,8 +719,8 @@ export function BoldCreateView({
               {(
                 [
                   ["email", "✉", "Email", emailReady === null ? "Checking senders…" : emailReady ? "A connected sender is ready." : "No active sender — connect one in Settings before launch.", emailReady === true],
-                  ["sms", "✆", "SMS", smsReady ? "Twilio sender active and approved." : "Connect a Twilio sender first (DEC-061 — no dead toggles).", smsReady],
-                  ["call", "☎", "Calls", "Outbound call steps arrive with their own wave.", false],
+                  ["sms", "✆", "SMS", smsReady ? "Twilio sender active and approved." : "Connect a Twilio sender first.", smsReady],
+                  ["call", "☎", "Calls", "Coming soon.", false],
                 ] as const
               ).map(([key, ic, label, sub, ready], i) => {
                 const on = key === "email" ? chan.email : key === "sms" ? chan.sms : false;

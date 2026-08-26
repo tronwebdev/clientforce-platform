@@ -85,10 +85,10 @@ test("create a campaign end to end through the shipped path, then launch", async
   await page.getByTestId("bold-create-spec").fill(specAnswer);
   await page.getByTestId("bold-create-next").click();
 
-  // Step 1 — sourceless audience options disclose their wave (Q-074);
-  // the CSV path runs the SHARED mapper against a synthetic file.
-  await expect(page.getByTestId("bold-who-seg")).toContainText("arrives with the segments wave");
-  await expect(page.getByTestId("bold-who-find")).toContainText("arrives with the lead-finder wave");
+  // Step 1 — sourceless audience options render coming-soon (Q-074, owner
+  // copy); the CSV path runs the SHARED mapper against a synthetic file.
+  await expect(page.getByTestId("bold-who-seg")).toContainText("Coming soon — Ada will keep a live segment current.");
+  await expect(page.getByTestId("bold-who-find")).toContainText("Coming soon — Lead finder builds it from your best customers.");
   await page.getByTestId("bold-who-csv").click();
   const csv = [
     "Full Name,Email Address,Mobile,Opted In",
@@ -133,7 +133,7 @@ test("create a campaign end to end through the shipped path, then launch", async
   // discloses DEC-061; calls carry their wave.
   await expect(page.getByTestId("bold-chan-email")).toContainText("A connected sender is ready.");
   await expect(page.getByTestId("bold-chan-sms")).toContainText("Connect a Twilio sender first");
-  await expect(page.getByTestId("bold-chan-call")).toContainText("arrive with their own wave");
+  await expect(page.getByTestId("bold-chan-call")).toContainText("Coming soon.");
   await page.getByTestId("bold-create-next").click();
 
   // Step 5 — the mechanical starter (labeled, deterministic; the one graph
