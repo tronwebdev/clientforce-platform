@@ -1,0 +1,103 @@
+{
+  "unit": "c2.9",
+  "commit": null,
+  "capturedAt": null,
+  "note": "PRE-GATE LOCK: these frames predate the fidelity freshness gate (B1 review, 2026-08-26) and were reviewed in their own PRs. Hashes recorded when the gate landed so any later drift fails lint; this manifest attests bytes, not capture provenance.",
+  "frames": {
+    "build-contacts-drawer-timeline-goal.png": {
+      "viewport": null,
+      "bytes": 125995,
+      "sha256": "bbe281527da64ccafb98d85e8ccbe9315ae0347c4e01de639a1626a97b17e22a"
+    },
+    "build-contacts-mixed-tab.png": {
+      "viewport": null,
+      "bytes": 139215,
+      "sha256": "e722a6fe3fa28344ad8cba3ed09c43d9deff472ad29ac82f294022e1e9e245e0"
+    },
+    "build-contacts-move-menu-mixed.png": {
+      "viewport": null,
+      "bytes": 130012,
+      "sha256": "e9852e9a0a3a2fef023a091ee3ca11b37a8bece37b0d32c69ceba3c1390af9aa"
+    },
+    "build-contacts-quick-toggle-mixed.png": {
+      "viewport": null,
+      "bytes": 136387,
+      "sha256": "7ced05a13f585d595f3e813bbcd68138c09828c99b5cb97550285412a49fb46b"
+    },
+    "build-contacts-single-goal-tab.png": {
+      "viewport": null,
+      "bytes": 139534,
+      "sha256": "9345b85e62eab9ebe2eeac7cdd4923fa6b0e02f452425f696972dd9675ad15d7"
+    },
+    "build-contacts-status-filter-mixed.png": {
+      "viewport": null,
+      "bytes": 146016,
+      "sha256": "1204b56563c1673addd6b5f3e50f974af64441cf2d866807909f263bb0ecc1b4"
+    },
+    "build-custom-contacts-drawer.png": {
+      "viewport": null,
+      "bytes": 124752,
+      "sha256": "eb0f85a33b6e515c21f81fae4c69af640b8a0631c44a8b6b69b5e3b0e487662c"
+    },
+    "build-custom-inbox-chip.png": {
+      "viewport": null,
+      "bytes": 90469,
+      "sha256": "285b1244c3d8c35abfce9094b5781359092f61665df9ed4957f7b42082b3008e"
+    },
+    "build-custom-lead-drawer.png": {
+      "viewport": null,
+      "bytes": 114367,
+      "sha256": "0d3031045a12471e48f476a92c4d00bcc9909ed58e4f0ead4de9d140219a439a"
+    },
+    "build-custom-leads-pill.png": {
+      "viewport": null,
+      "bytes": 90686,
+      "sha256": "5ec016db24834ad0f8e7e2bb86de4d8fb30399048f25610accfef79087ab664b"
+    },
+    "build-inbox-booked-unchanged.png": {
+      "viewport": null,
+      "bytes": 123274,
+      "sha256": "678d48070b1954a24a93e05a3a852140ec0b6ba382956d6a42fb28c7fcca6000"
+    },
+    "build-inbox-chip-promote-offer.png": {
+      "viewport": null,
+      "bytes": 89639,
+      "sha256": "1968990d38184ef63fa7c37cc4f744d16328c53b1cfb2a37d7d107050d85dc13"
+    },
+    "build-lead-drawer-goal.png": {
+      "viewport": null,
+      "bytes": 177035,
+      "sha256": "c0ec1f1b33cc425a761cc7abbd8a5b709ba936fc4779ef83162c9fc831365cf3"
+    },
+    "build-leads-booked-unchanged.png": {
+      "viewport": null,
+      "bytes": 161232,
+      "sha256": "44339e3df8bb33964522ef7080eb54bfab99370bcf669767db5018b6b9e834ba"
+    },
+    "build-leads-filter-promote-offer.png": {
+      "viewport": null,
+      "bytes": 159493,
+      "sha256": "d0cf057d1c3358c13d95eddcc283d91c7224ea7207f86677ed0d7718c08fc37a"
+    },
+    "build-leads-pills-promote-offer.png": {
+      "viewport": null,
+      "bytes": 91117,
+      "sha256": "095c0f3fdeaaefdc0e0199804b344f464741274ae7c3b9ea8c6a5355c2b0376d"
+    },
+    "build-wizard-custom-label-typed.png": {
+      "viewport": null,
+      "bytes": 125273,
+      "sha256": "eb975a6a8f1253e040cfad42ccee9009bba00295614398f5d81e2b324fafbcc2"
+    },
+    "build-wizard-explainer-book.png": {
+      "viewport": null,
+      "bytes": 122044,
+      "sha256": "82c523d8d0827756180488d74bb3abb4d22cba2d0a6fdad8e08da40d7c95c960"
+    },
+    "build-wizard-explainer-promote.png": {
+      "viewport": null,
+      "bytes": 123429,
+      "sha256": "666a3211d3b6c8f06769887f3e7d19d95f334a9d4bc5dfd47f436e49b9b13a54"
+    }
+  }
+}

@@ -1,0 +1,183 @@
+{
+  "unit": "w3",
+  "commit": null,
+  "capturedAt": null,
+  "note": "PRE-GATE LOCK: these frames predate the fidelity freshness gate (B1 review, 2026-08-26) and were reviewed in their own PRs. Hashes recorded when the gate landed so any later drift fails lint; this manifest attests bytes, not capture provenance.",
+  "frames": {
+    "build-csv-done.png": {
+      "viewport": null,
+      "bytes": 118602,
+      "sha256": "56bd0daaced23bba2f18c81c8674feabb6c7acf111ec58854ac8578785e2adc4"
+    },
+    "build-csv-mapping.png": {
+      "viewport": null,
+      "bytes": 129329,
+      "sha256": "f8b79645b33dd54c777a17c3539d8867dc82decb05d2e72b117620524dd2bddb"
+    },
+    "build-csv-review.png": {
+      "viewport": null,
+      "bytes": 129474,
+      "sha256": "789454d6a009187ffbb59877de54516989494d5b89230eb10c5682da241a3cac"
+    },
+    "build-csv-upload.png": {
+      "viewport": null,
+      "bytes": 123632,
+      "sha256": "a321ae0532e1036a425557d504577837901fddf10092d74b2b8f6ae461009601"
+    },
+    "build-list-picker.png": {
+      "viewport": null,
+      "bytes": 106515,
+      "sha256": "77b4709e395ddd1b27a99d019da4f9d98a5ab312c7b1f4ef767b167ec34ecdd8"
+    },
+    "build-manual-drawer.png": {
+      "viewport": null,
+      "bytes": 137650,
+      "sha256": "44502cb9b32c8cddecfc9148dbbe7e19bcc6536be9457488046a052f89d71fcb"
+    },
+    "build-step3-csv-picked.png": {
+      "viewport": null,
+      "bytes": 113541,
+      "sha256": "0ccd5d73651bc3c8aecbb3761fdd24b52708aaa9d71cdb4c85c62fe3cbec1a4d"
+    },
+    "build-step3-empty.png": {
+      "viewport": null,
+      "bytes": 78949,
+      "sha256": "cc68552b6f27520e07e30db9c4e54dfb5f219581d0bc9543ea55e908af0bf3ad"
+    },
+    "build-step3-goal-tags.png": {
+      "viewport": null,
+      "bytes": 81662,
+      "sha256": "ccee23e6aabcce858658dce72508c7b90561dcc396271bbce3939b24352abd88"
+    },
+    "build-step3-list-picked.png": {
+      "viewport": null,
+      "bytes": 112885,
+      "sha256": "901673f4943b1d4f67688d6ef7a39e96005ce23fed87af23299e1dbbfb032500"
+    },
+    "build-step3-manual-added.png": {
+      "viewport": null,
+      "bytes": 112955,
+      "sha256": "37dbb6342fd1c1a26b842c2476eb9838d8f68e5baa86123ceb10c289ce615cf7"
+    },
+    "build-step4-ap-off.png": {
+      "viewport": null,
+      "bytes": 141297,
+      "sha256": "c50dcb0a2d984ed3b0628a1fd6d85f8acc1967ce4da7025969047052fe966a4e"
+    },
+    "build-step4-asset-menu.png": {
+      "viewport": null,
+      "bytes": 138284,
+      "sha256": "fbc9eb80f9af918c32095667eefd10abb1940edda5912368cd1671103313d48e"
+    },
+    "build-step4-automations-prospecting.png": {
+      "viewport": null,
+      "bytes": 125316,
+      "sha256": "58abbfd329805f6764c135a02c7e440cd0a6d19ddf58e85becabc879360618b2"
+    },
+    "build-step4-automations-reactivate.png": {
+      "viewport": null,
+      "bytes": 131971,
+      "sha256": "ed9bc7b6873d3970470b68f225c0cdfaa30376b5b343693064756c83eb573941"
+    },
+    "build-step4-default.png": {
+      "viewport": null,
+      "bytes": 141041,
+      "sha256": "b3946a50ba873ef8768363683cf873f9e6076d82a98d57b4bf4407e074b5b23d"
+    },
+    "build-step4-keywords-open.png": {
+      "viewport": null,
+      "bytes": 146012,
+      "sha256": "17d0e0ddf717127543502c01dba4cd83c7a387aa62286a63eaea4a04228df328"
+    },
+    "build-step4-master-off.png": {
+      "viewport": null,
+      "bytes": 136547,
+      "sha256": "6fe7108a42628a4a82e44d934dded3570a5039dd55047aecdc38c3d9c97a3b34"
+    },
+    "build-step4-not-typical.png": {
+      "viewport": null,
+      "bytes": 138457,
+      "sha256": "98ea148ef442f34fa366138a74a20ed844288f3dd37e665f0c614754a4c428ce"
+    },
+    "build-step6-cost-strip.png": {
+      "viewport": null,
+      "bytes": 111575,
+      "sha256": "081488adadb73c3d56d3ff4d66a136e847343966bce1d900b4eb464966edc7c7"
+    },
+    "build-step6-ready.png": {
+      "viewport": null,
+      "bytes": 111502,
+      "sha256": "b1166341f9f26361d424355e6848eaaa5d82f4ae01149cce8e0166c7108ad06e"
+    },
+    "build-step6-unresolved-strip.png": {
+      "viewport": null,
+      "bytes": 95484,
+      "sha256": "8f2729039d77cac62fd53fc0f40e3bd0409c6292003f93859aedb84e5c63d506"
+    },
+    "build-step6-unresolved.png": {
+      "viewport": null,
+      "bytes": 103921,
+      "sha256": "2f98f15feae02f4d177704a7d8be5d121a76432fc84bbd3c790bd3f002ff2f05"
+    },
+    "proto-csv-done.png": {
+      "viewport": null,
+      "bytes": 126269,
+      "sha256": "105f6090559964fdd9fdd85163bcaebbde124bef2f444ed054649cee2b9aeede"
+    },
+    "proto-csv-mapping.png": {
+      "viewport": null,
+      "bytes": 141537,
+      "sha256": "3ee6e4279e2fa72300fd174b0b1abbd9f45a456f9faa2c31ce4e77680cb0d36c"
+    },
+    "proto-csv-review.png": {
+      "viewport": null,
+      "bytes": 135104,
+      "sha256": "d0c3542067eae048eb5fd8b8524dce3f51b041559b9208fdaa1fcb0683ba1335"
+    },
+    "proto-csv-upload.png": {
+      "viewport": null,
+      "bytes": 130411,
+      "sha256": "90b94fd1dc011b30148d94aef4506122bcde2fb0221ca70815f3d73857494a9f"
+    },
+    "proto-list-picker.png": {
+      "viewport": null,
+      "bytes": 138158,
+      "sha256": "33bfbba29c8cbb5f3570301521fce3cfe32bacd28217e870ee023cad303d513f"
+    },
+    "proto-manual-drawer.png": {
+      "viewport": null,
+      "bytes": 138656,
+      "sha256": "19e031bbe7e284b846905270c68fe4befdfd929d33878e7e0a038dfe8c4789d5"
+    },
+    "proto-step3-default.png": {
+      "viewport": null,
+      "bytes": 109169,
+      "sha256": "82d915fa09886b1ffadbb70dfb4a73a1e962e0d353d5281e469cead82f3cfba2"
+    },
+    "proto-step4-asset-menu.png": {
+      "viewport": null,
+      "bytes": 125974,
+      "sha256": "484870fcbd702df0c9a7bff195f25c69f415103904848472ee31e2c2bb266690"
+    },
+    "proto-step4-default.png": {
+      "viewport": null,
+      "bytes": 154557,
+      "sha256": "43d3a3ace8c22d8a01d42167e2f97643c394509b8ce3bbd5e6a62a3c9287d14e"
+    },
+    "proto-step4-keywords-open.png": {
+      "viewport": null,
+      "bytes": 156633,
+      "sha256": "e2d4a7a003409b52fb4e279b59a4ddaf40db212a758d80331b3ec49a3cd226cf"
+    },
+    "proto-step4-preview-empty.png": {
+      "viewport": null,
+      "bytes": 121007,
+      "sha256": "5730189d34f0be783187f99d1361692fffccee3e00823a86d4a09652001c7a03"
+    },
+    "proto-step6-default.png": {
+      "viewport": null,
+      "bytes": 115549,
+      "sha256": "c4efcd71435d370735f108341f2be84e59e2157f68d3b768623dc26521d05a66"
+    }
+  }
+}

@@ -1,0 +1,83 @@
+{
+  "unit": "p2.1",
+  "commit": null,
+  "capturedAt": null,
+  "note": "PRE-GATE LOCK: these frames predate the fidelity freshness gate (B1 review, 2026-08-26) and were reviewed in their own PRs. Hashes recorded when the gate landed so any later drift fails lint; this manifest attests bytes, not capture provenance.",
+  "frames": {
+    "build-inbox-all-channels.png": {
+      "viewport": null,
+      "bytes": 137838,
+      "sha256": "eab84e42f68599557f126d7afaa7f07a8004beb2306ebc9740ee841b98ba776d"
+    },
+    "build-inbox-channel-filter-sms.png": {
+      "viewport": null,
+      "bytes": 133573,
+      "sha256": "be055edf8d89c7ca266ac65802c3703295c67d46bbce4ee879f6ecf0da7b4eed"
+    },
+    "build-inbox-channel-menu.png": {
+      "viewport": null,
+      "bytes": 145781,
+      "sha256": "60b39fa0cddcd2ccf9ad063ff70e909bc4f8c4a9d5715671d78c6a0d557d590a"
+    },
+    "build-inbox-sms-thread.png": {
+      "viewport": null,
+      "bytes": 133996,
+      "sha256": "28751c554f334d71509ea96b9cccc1a83e1259832a68394470d8f0f87740e08d"
+    },
+    "build-limits-card-sms-tile.png": {
+      "viewport": null,
+      "bytes": 144855,
+      "sha256": "ce68e169fb1018537a9be31af1b6957dbfb65726513eb30eb14bf7ac0e22a970"
+    },
+    "build-limits-modal-sms-cap.png": {
+      "viewport": null,
+      "bytes": 148689,
+      "sha256": "e6d8d0984eee468ea38c31f91d07939b2d8715210dbb625b0bd411adaaca9619"
+    },
+    "build-sms-add-form.png": {
+      "viewport": null,
+      "bytes": 166436,
+      "sha256": "3c4922b4995cb183db67bce28b0355c1a10595932bacd33811b31a77992b0a4e"
+    },
+    "build-sms-connect-chooser.png": {
+      "viewport": null,
+      "bytes": 156215,
+      "sha256": "c9282f8958df02866e7c92c0d65cb391a40648fb7193787d577bb4d7c683bea3"
+    },
+    "build-sms-section-empty.png": {
+      "viewport": null,
+      "bytes": 171031,
+      "sha256": "5804950d3ee9a06944c71626634a9c095ff13ff31279ff776b43e932525be187"
+    },
+    "build-sms-sender-drawer.png": {
+      "viewport": null,
+      "bytes": 158248,
+      "sha256": "1581d4fa1f18f07be30c3d5a68c3e756bdb29754b68f12c6d9a7e3c6f12293c7"
+    },
+    "build-sms-sender-row.png": {
+      "viewport": null,
+      "bytes": 159776,
+      "sha256": "619e7339392e4a4f9b6fad5091d9bf554062468b13b22b86747b64006066f1e4"
+    },
+    "build-suppression-post-stop.png": {
+      "viewport": null,
+      "bytes": 174936,
+      "sha256": "7ce4555d5b1731dc0d00978e164fd6af04eceadb8f0877606d4292f1e9bca546"
+    },
+    "build-timeline-sms-rows.png": {
+      "viewport": null,
+      "bytes": 136459,
+      "sha256": "8f5c76ea154890fb9f27069ba57d1802245a2cacc47407b3d2fd957c73978add"
+    },
+    "build-wizard-sms-editor.png": {
+      "viewport": null,
+      "bytes": 185973,
+      "sha256": "80865546e333f1201cebe10297ddd0e023e71eed7bcd2f2eb340921365544fb9"
+    },
+    "build-wizard-sms-step.png": {
+      "viewport": null,
+      "bytes": 140614,
+      "sha256": "cc697f406b57663175256c483ad3f8ac05a4dd1d0b42450e706d96cd48fb2c16"
+    }
+  }
+}

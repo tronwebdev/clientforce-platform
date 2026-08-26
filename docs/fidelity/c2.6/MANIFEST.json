@@ -1,0 +1,253 @@
+{
+  "unit": "c2.6",
+  "commit": null,
+  "capturedAt": null,
+  "note": "PRE-GATE LOCK: these frames predate the fidelity freshness gate (B1 review, 2026-08-26) and were reviewed in their own PRs. Hashes recorded when the gate landed so any later drift fails lint; this manifest attests bytes, not capture provenance.",
+  "frames": {
+    "build-billing.png": {
+      "viewport": null,
+      "bytes": 180250,
+      "sha256": "d751cf3a6744dcb8512c304d7d8c4c8ff797f83329f5257feb2e5e527616a0d5"
+    },
+    "build-brand-doc-indexed.png": {
+      "viewport": null,
+      "bytes": 219556,
+      "sha256": "2eb0f08a560e107c2117a53760da470c6b900d4461196ab40660e970181339ce"
+    },
+    "build-brand-doc-uploading.png": {
+      "viewport": null,
+      "bytes": 219680,
+      "sha256": "4d486c92a755d4f622a696867c898379490f06e5b92621bc0fabc8fe5c42e680"
+    },
+    "build-brand-guardrails.png": {
+      "viewport": null,
+      "bytes": 199089,
+      "sha256": "f4f03d58059ad046296b61ce0a3f6b4cda9d723f1bcd4e39f6de44857f6eda6c"
+    },
+    "build-brand-summary.png": {
+      "viewport": null,
+      "bytes": 247826,
+      "sha256": "60e4ee4c36eb51c05060bf581c2631c2319e7bb1d4b3e560f50b72e53d22a152"
+    },
+    "build-brand-xlsx-indexed.png": {
+      "viewport": null,
+      "bytes": 221821,
+      "sha256": "084161505eea236ce8c85de8230e1b06154d83e4f41c4ba78c2fdadb48d06ce9"
+    },
+    "build-brand.png": {
+      "viewport": null,
+      "bytes": 212929,
+      "sha256": "dd042d8492f256d5d1f3dc3a1ae4bcec8b023d5cd42d119c3200b78e5281e951"
+    },
+    "build-connect-chooser.png": {
+      "viewport": null,
+      "bytes": 166177,
+      "sha256": "0c8c8818215354d8692178baeae125c73ab0a6a8c0166e5e25dbdbfcd727d140"
+    },
+    "build-connect-gmail-comingsoon.png": {
+      "viewport": null,
+      "bytes": 158537,
+      "sha256": "a2c9d589ddff22d22c21bae36f3ac69360064ab810e1adaca73145e8fe8ef1f2"
+    },
+    "build-custom.png": {
+      "viewport": null,
+      "bytes": 153126,
+      "sha256": "fd0683310ae9a6907b97a84ce5bcd215fd8a8125552a7135b156d29984644d8b"
+    },
+    "build-email-empty.png": {
+      "viewport": null,
+      "bytes": 167131,
+      "sha256": "fdf035ee6283a6e0c1826a92d16a608a983ef4b09d908dfbf13fd2f60b344e4d"
+    },
+    "build-mailer-after-add.png": {
+      "viewport": null,
+      "bytes": 173951,
+      "sha256": "74c5f80398711c218af3d71f6e3f3246d6b04c21c29515c1f447788199fd28dd"
+    },
+    "build-mailer-flow-dns.png": {
+      "viewport": null,
+      "bytes": 163021,
+      "sha256": "58d970ba10e4a4591d354bb5660eafa7e7373885f4204018111473550470bd5e"
+    },
+    "build-mailer-flow-identity.png": {
+      "viewport": null,
+      "bytes": 153897,
+      "sha256": "8396652876e0c1e1fd2f9e0d9c048e54306aabf3d8b27c3560f8bb5676aaba72"
+    },
+    "build-mailer-flow-summary.png": {
+      "viewport": null,
+      "bytes": 155770,
+      "sha256": "49e940cb6f6601c285e722fc6658e517174a56d9f1a294bc6e7b795399ef392c"
+    },
+    "build-mailer.png": {
+      "viewport": null,
+      "bytes": 159240,
+      "sha256": "601493beccd0c99e2221a072ddf213c0a1604aa52a11347ce35ef1bc279121e3"
+    },
+    "build-phone.png": {
+      "viewport": null,
+      "bytes": 162656,
+      "sha256": "17b19df25858569c4a6343b1db511635c3a45c29145219ae898fa2ea3763449e"
+    },
+    "build-profile.png": {
+      "viewport": null,
+      "bytes": 190400,
+      "sha256": "844030562a4f4c16b444f734494fd0f371369cc91429112a622649e0a0e41f8f"
+    },
+    "build-schedules.png": {
+      "viewport": null,
+      "bytes": 155102,
+      "sha256": "47e513985d5f438d57f6eba12beca7093edd86f9cedd4dc7c41a7c92d59e1ac3"
+    },
+    "build-sender-drawer.png": {
+      "viewport": null,
+      "bytes": 160225,
+      "sha256": "2d0eacb26920917f4ab96d19a2aa46aed6a79ccc4a0aac4e9b49b1180d1745cb"
+    },
+    "build-suppress-add.png": {
+      "viewport": null,
+      "bytes": 170459,
+      "sha256": "0d4f891c034017f0aae3281c1b225668e58227d28052f6258b1429f70cacdc6b"
+    },
+    "build-suppress-after-add.png": {
+      "viewport": null,
+      "bytes": 170734,
+      "sha256": "ac70c22c10f7d63b2cc02172e5cd7bad166dfd09f88934fb40a0ad3309a337b8"
+    },
+    "build-suppress-after-remove.png": {
+      "viewport": null,
+      "bytes": 165173,
+      "sha256": "83b92ad90eb9f09c3e1aa9ec3b568e03ec924a18252e35dacfbcc3c99d16dc57"
+    },
+    "build-suppress-error.png": {
+      "viewport": null,
+      "bytes": 157547,
+      "sha256": "dafad9dd3fb695187aa9b2f9c8083447aed6a5f5ea6d37d6b043d32591a6fa3f"
+    },
+    "build-suppress-search.png": {
+      "viewport": null,
+      "bytes": 150963,
+      "sha256": "d5269f8e3f2a5566bc6fcc089d47fb52086c0d5df055f43ddce367f94f57271d"
+    },
+    "build-suppress-skeleton.png": {
+      "viewport": null,
+      "bytes": 148677,
+      "sha256": "ab8eabe7af14153eabc4bb223dbd2c4fb517afce923fd05c53b9679afa7c7ea7"
+    },
+    "build-suppress.png": {
+      "viewport": null,
+      "bytes": 158102,
+      "sha256": "db1f06ef4f45a81684ea2afcf5676ae74c881d2e10db1742b19c934b0d337df2"
+    },
+    "build-team.png": {
+      "viewport": null,
+      "bytes": 167012,
+      "sha256": "09a96566b5844e335b9a3a85f1e353440577602cff1c2ab8d9cfbdd8e86b035a"
+    },
+    "build-usage.png": {
+      "viewport": null,
+      "bytes": 155807,
+      "sha256": "74a9d653761d07a1c6e2298cc780a91ba2794d5a34ee96cfb93f8f138e6af5bb"
+    },
+    "build-whatsapp.png": {
+      "viewport": null,
+      "bytes": 164491,
+      "sha256": "59167c83c8bd40cec129be33d576b0a0c689848d237633f652ef5497da9b76fe"
+    },
+    "proto-billing.png": {
+      "viewport": null,
+      "bytes": 181603,
+      "sha256": "c374620f33dbad0eeef5f14a8f5a0084faf55dd4f1cb77d889f8a7899f99b42a"
+    },
+    "proto-brand-guardrails.png": {
+      "viewport": null,
+      "bytes": 93010,
+      "sha256": "2cb9944db7fe09fbd57d95fb7acda1f208e0479dd7aad6f502487eba860fe30e"
+    },
+    "proto-brand-summary.png": {
+      "viewport": null,
+      "bytes": 247395,
+      "sha256": "a61b7e19d0c1cec3e6c18c36eab166ae8fd97b8fe2736bf92c88422f7fb01930"
+    },
+    "proto-brand.png": {
+      "viewport": null,
+      "bytes": 225480,
+      "sha256": "8b2a51c7edeab8863f345cc521aeb8c8a35854a843a287d331f3681fa71b7e84"
+    },
+    "proto-connect-chooser.png": {
+      "viewport": null,
+      "bytes": 182932,
+      "sha256": "f670df60d1159f6d0a7009d7bca41b8616c8932a380564879b3e8f69fe22746f"
+    },
+    "proto-custom.png": {
+      "viewport": null,
+      "bytes": 153669,
+      "sha256": "09cc74e6e4f64d7732120e038e15e85a2535b86987704ef097adfad3a27a8689"
+    },
+    "proto-email.png": {
+      "viewport": null,
+      "bytes": 179836,
+      "sha256": "901cb535d4bc6266f60a5dc900fb07c53cb7f8aaa8795fdc8e8054f4922eef63"
+    },
+    "proto-mailer-flow-dns.png": {
+      "viewport": null,
+      "bytes": 166104,
+      "sha256": "b0f2a1f3bfe28240f6265d9db3c6ed3e9941bb9b3f40c257215cb06dd5f517d5"
+    },
+    "proto-mailer-flow-identity.png": {
+      "viewport": null,
+      "bytes": 156223,
+      "sha256": "d9cab2bb9083c3286c48ad9d07d41b609545a082b5ee914e822578ae984b42fe"
+    },
+    "proto-mailer.png": {
+      "viewport": null,
+      "bytes": 159094,
+      "sha256": "8b67fc108f5a43de4f8c7716e945e562c6f6758c6c1dfbc3fb2f1cd005246fc8"
+    },
+    "proto-phone.png": {
+      "viewport": null,
+      "bytes": 160488,
+      "sha256": "cb934a1659c960dc5abff68766c6323156028bff1dfed6700677ca47c1ebc84e"
+    },
+    "proto-profile.png": {
+      "viewport": null,
+      "bytes": 193690,
+      "sha256": "1458e45c4eaabae0031dde6a66a7b0ea8969a13841b4fffd104939f2c69a28bf"
+    },
+    "proto-schedules.png": {
+      "viewport": null,
+      "bytes": 153437,
+      "sha256": "eb7d0cfe15a659718ba3661e347b3b90eed152d9d5971dd574e19e95d1241a95"
+    },
+    "proto-sender-drawer.png": {
+      "viewport": null,
+      "bytes": 207279,
+      "sha256": "ebf0d7dc093957905e788f2fdceb268151614bbc1a3063d98cef5331d9832513"
+    },
+    "proto-suppress-add.png": {
+      "viewport": null,
+      "bytes": 176628,
+      "sha256": "4c337728aa8f99f9de9d17b4b0e0db7914eab42b843bef5818b25d5c5cdf17b7"
+    },
+    "proto-suppress.png": {
+      "viewport": null,
+      "bytes": 155391,
+      "sha256": "8949c92301a5df292544d529ab76ae2d197ba658f6dfe7b9494d30504dddc0d9"
+    },
+    "proto-team.png": {
+      "viewport": null,
+      "bytes": 168011,
+      "sha256": "3fa0304d46450584aa366b702dddd84d9ddb53e24a29dec8073f0f94929bf611"
+    },
+    "proto-usage.png": {
+      "viewport": null,
+      "bytes": 154200,
+      "sha256": "afb334f07d3ccc5a62b9de6e8b629170cf696ac7ac16321d5c28ac844b48a89f"
+    },
+    "proto-whatsapp.png": {
+      "viewport": null,
+      "bytes": 163824,
+      "sha256": "99e314f79ef3f3c9b6c936156744fd2dc6eed333ae6df0efa50a34ffca2c9daf"
+    }
+  }
+}

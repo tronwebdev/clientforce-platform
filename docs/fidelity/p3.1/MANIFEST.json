@@ -1,0 +1,93 @@
+{
+  "unit": "p3.1",
+  "commit": null,
+  "capturedAt": null,
+  "note": "PRE-GATE LOCK: these frames predate the fidelity freshness gate (B1 review, 2026-08-26) and were reviewed in their own PRs. Hashes recorded when the gate landed so any later drift fails lint; this manifest attests bytes, not capture provenance.",
+  "frames": {
+    "build-calls-default.png": {
+      "viewport": null,
+      "bytes": 162010,
+      "sha256": "e9a0944beb23ab1b4816f41a363f249222fd1d885391242f8836134e5db54d23"
+    },
+    "build-calls-dial-flyout-open.png": {
+      "viewport": null,
+      "bytes": 163407,
+      "sha256": "18b85cdbb283d31a6a82197d00e45700b10f7e0450eb121c73f894a7786d9f62"
+    },
+    "build-calls-empty.png": {
+      "viewport": null,
+      "bytes": 93066,
+      "sha256": "4865eb79ec8f1c2d9218c9c3dcf1f5ccceaa51c39314d3a704faae436d8c6e5b"
+    },
+    "build-calls-filter-completed.png": {
+      "viewport": null,
+      "bytes": 152288,
+      "sha256": "b63ce30834e103019a369ced26541800489dbcc02a228170ed1a4939926a9134"
+    },
+    "build-calls-refused-notice.png": {
+      "viewport": null,
+      "bytes": 169763,
+      "sha256": "5e212b99b1a3324246920e99876df8cc7987c30346fee3e3336f454fddbbefc1"
+    },
+    "build-logs-call-refused.png": {
+      "viewport": null,
+      "bytes": 107949,
+      "sha256": "6aaf27800d5bf20cdbfe37f097c848da117120fddd9d5c352168e81a322bd69b"
+    },
+    "build-senders-buy-spoken-step.png": {
+      "viewport": null,
+      "bytes": 152320,
+      "sha256": "8fee6e24aff14a9424f9f2baf599da45945f24f270e899e826cbbc73c8e6aea9"
+    },
+    "build-senders-phone-chooser.png": {
+      "viewport": null,
+      "bytes": 155184,
+      "sha256": "f06befbf7d9845061f32af20992d158c6bb31b8f06d232efe120d493f44b3d09"
+    },
+    "build-senders-spoken-step.png": {
+      "viewport": null,
+      "bytes": 159943,
+      "sha256": "541bb8772e222d0dddedd2b6195d3795bc6f3cb328af549d0969bb0ffdeeb239"
+    },
+    "build-senders-twilio-step1.png": {
+      "viewport": null,
+      "bytes": 163422,
+      "sha256": "46cd77d02508d2563625dcbc693ff722f21fbef131f380d65af48235139abc7f"
+    },
+    "build-settings-voice-confirmed.png": {
+      "viewport": null,
+      "bytes": 121437,
+      "sha256": "156d127ae2ddb61331da1d63111ebb1fddb9fca8cc597b1170ae2e88f252ca68"
+    },
+    "build-settings-voice-inherited.png": {
+      "viewport": null,
+      "bytes": 123560,
+      "sha256": "c28ed11b7995f945bdf9c686760615e2082abedf7221a6f80f0f2ec26ebed0ad"
+    },
+    "build-settings-voice-invalid.png": {
+      "viewport": null,
+      "bytes": 121364,
+      "sha256": "67fd02e777d07eccee44f9adf3aad41b760d9a8a4e2963e097aa2a90cf082000"
+    },
+    "build-settings-voice-persona-menu.png": {
+      "viewport": null,
+      "bytes": 131445,
+      "sha256": "099adbb4b0fbcc6e31f3d342e77c1b59bf7f43a78efde36f5dc33cbe134ccffc"
+    },
+    "build-settings-voice-suggested.png": {
+      "viewport": null,
+      "bytes": 125094,
+      "sha256": "31970be632de2dae109279a464800572cb2338d57f79437b19a2ca8e38bcb1d2"
+    },
+    "proto-calls-tab.png": {
+      "viewport": null,
+      "bytes": 195032,
+      "sha256": "42002d7d32d6382d297e603babdcb025179b9554fa5740d52aea8ad406659469"
+    },
+    "proto-settings-voice-card.png": {
+      "viewport": null,
+      "bytes": 143180,
+      "sha256": "20b95b994b9de325c5cb4b5be596f0a4e3b93f840bda7b509f3fa39001dbff40"
+    }
+  }
+}

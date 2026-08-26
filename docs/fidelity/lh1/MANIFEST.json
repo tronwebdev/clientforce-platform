@@ -1,0 +1,48 @@
+{
+  "unit": "lh1",
+  "commit": null,
+  "capturedAt": null,
+  "note": "PRE-GATE LOCK: these frames predate the fidelity freshness gate (B1 review, 2026-08-26) and were reviewed in their own PRs. Hashes recorded when the gate landed so any later drift fails lint; this manifest attests bytes, not capture provenance.",
+  "frames": {
+    "lh1-01-import-report-validating.png": {
+      "viewport": null,
+      "bytes": 179324,
+      "sha256": "9c42e6ef9e5d7a0a1935554918f55261d6dbbb998b6026f0f85010d9562d4876"
+    },
+    "lh1-02-import-report-provider-down-held.png": {
+      "viewport": null,
+      "bytes": 186520,
+      "sha256": "0e4748b12e4c93513d0e48398fb7a6ff848efbb7e4b6bf8eafd52daf62ce700d"
+    },
+    "lh1-03-import-report-counts.png": {
+      "viewport": null,
+      "bytes": 182592,
+      "sha256": "30c368d945b428b6bb3180be0a26d12c706dcaa4a7eae297bc4f0f62adcd3fe9"
+    },
+    "lh1-04-contacts-chips-risky.png": {
+      "viewport": null,
+      "bytes": 170636,
+      "sha256": "880e981dfda3f220d45a40280f6be0543fdd6186b0fc7391b7aa41427b7ceeb6"
+    },
+    "lh1-05-contacts-chips-invalid.png": {
+      "viewport": null,
+      "bytes": 155020,
+      "sha256": "5b2c7a38b4cb6ebbc01fed7e9c5678e3f4fe4be4ca1cc201c0d2993653e82aa7"
+    },
+    "lh1-06-contact-drawer-valid-chip.png": {
+      "viewport": null,
+      "bytes": 121135,
+      "sha256": "08dde36c3976ad28ee67ed0173aa235f9bc686814ddb7be637ded5529b579dab"
+    },
+    "lh1-07-logs-gate-refusal-and-chip.png": {
+      "viewport": null,
+      "bytes": 85001,
+      "sha256": "66711a330e09abc78e279afbba814c019a4e667847ab02dc8dc3c9df592c6ad2"
+    },
+    "lh1-08-agent-chip-cap-queued.png": {
+      "viewport": null,
+      "bytes": 117605,
+      "sha256": "04540b15c168e8b97bf7551e0efad1b59048b7dd84666251d9c01ee0dc121ccd"
+    }
+  }
+}

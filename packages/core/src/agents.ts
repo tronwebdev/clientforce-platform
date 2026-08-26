@@ -3,6 +3,7 @@
  */
 import { z } from "zod";
 import { goalKeySchema } from "./context";
+import { agentValueSchema } from "./goal-value";
 import { businessCategorySchema } from "./strategy";
 
 export const agentStatusSchema = z.enum(["DRAFT", "ACTIVE", "PAUSED", "ARCHIVED"]);
@@ -96,6 +97,9 @@ export const updateAgentSchema = z
     guardrails: z.unknown().optional(),
     /** B6: wizard draft-resume state; null clears it (launch). */
     draftState: z.union([draftStateSchema, z.null()]).optional(),
+    /** B1 (DEC-104): campaign value estimate — Addendum-2 §D fields, edited
+     *  in the Bold overview strip (never a wizard field, D0). Null clears. */
+    ...agentValueSchema.shape,
   })
   .refine(
     (v) =>
@@ -103,8 +107,11 @@ export const updateAgentSchema = z
       v.status !== undefined ||
       v.category !== undefined ||
       v.guardrails !== undefined ||
-      v.draftState !== undefined,
-    { message: "Provide name, status, category, guardrails and/or draftState" },
+      v.draftState !== undefined ||
+      v.valueEstCents !== undefined ||
+      v.valueGoalUnits !== undefined ||
+      v.valueSalesGoalCents !== undefined,
+    { message: "Provide at least one updatable field" },
   );
 export type UpdateAgentInput = z.infer<typeof updateAgentSchema>;
 
@@ -124,4 +131,14 @@ export interface AgentListItem {
   /** Derived (DEC-037): "Good" | "Warn" — Warn when unplannable or no active sender. */
   health: "Good" | "Warn";
   createdAt: string;
+  /** B1 (DEC-104, the BACKEND_TOUCH_MAP "goal-met pill" EXTEND): true once any
+   *  enrollment reached the goal-terminal stage. There is no target model on
+   *  the list beyond valueGoalUnits — this is "met at least once", honestly. */
+  goalMet: boolean;
+  /** B1: resolved goal-terminal pill wording (C2.9 GOAL_META). */
+  goalPill: string;
+  /** B1: campaign value estimate (Addendum-2 §D), null until the owner sets it. */
+  valueEstCents: number | null;
+  valueGoalUnits: number | null;
+  valueSalesGoalCents: number | null;
 }

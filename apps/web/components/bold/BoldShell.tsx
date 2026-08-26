@@ -1,15 +1,19 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { AgentListItem, MeNeedsResponse } from "@clientforce/core";
 import type { Me } from "../../lib/types";
 import { BoldAdaBar, BoldAdaPanel } from "./BoldAdaBar";
+import { BoldActivityView } from "./BoldActivityView";
+import { BoldCampaignsView } from "./BoldCampaignsView";
 import { BoldDock } from "./BoldDock";
+import { BoldDrawer, type BoldDrawerState } from "./BoldDrawer";
+import { BoldOverview } from "./BoldOverview";
 import { BoldRail } from "./BoldRail";
 import { BoldTourLayer, BoldTourOffer, useBoldTour } from "./BoldTour";
 import { BoldWsPicker } from "./BoldWsPicker";
+import { fetchBoldAgents } from "./bold-live";
 import {
-  FIXTURE_CAMPAIGNS,
-  FIXTURE_SUGGESTIONS,
   SURFACE_TITLES,
   SURFACE_WAVE,
   TOUR_STEPS,
@@ -17,10 +21,9 @@ import {
   type BoldSurface,
 } from "./bold-data";
 
-/** Anchors present in the B0 shell — B1+ extend this as surfaces land. */
-const B0_ANCHORS = new Set(["ws", "camps", "sugg", "core", "canvas", "ada", "dock"]);
+/** Anchors present in the shell — B1 adds hero/act/tabs to B0's set. */
+const ANCHORS = new Set(["ws", "camps", "core", "canvas", "ada", "dock", "hero", "act", "tabs"]);
 
-/** Dock pages show the chat-bubble tail; rail-selected surfaces do not. */
 const DOCK_SURFACES = new Set<BoldSurface>([
   "rcp",
   "wsinbox",
@@ -37,26 +40,67 @@ const DOCK_SURFACES = new Set<BoldSurface>([
 
 const TOUR_OFFER_KEY = "cvb-tour-offer-dismissed";
 
+export type CampaignTab = "overview" | "pipeline" | "plan" | "inbox" | "stats" | "settings";
+const TABS: Array<[CampaignTab, string]> = [
+  ["overview", "Overview"],
+  ["pipeline", "Pipeline"],
+  ["plan", "Plan"],
+  ["inbox", "Inbox"],
+  ["stats", "Stats"],
+  ["settings", "Settings"],
+];
+/** Which wave delivers each not-yet-live tab (stub pill copy). */
+const TAB_WAVE: Record<Exclude<CampaignTab, "overview">, string> = {
+  pipeline: "B2 · pipeline board and list",
+  plan: "B2 · plan + branches",
+  inbox: "B2 · campaign inbox",
+  stats: "B8 · analytics",
+  settings: "B7 · settings waves",
+};
+
 /**
- * Console Bold — the B0 shell (three fixed columns, internally-scrolling
- * canvas). Shell contract per ADDENDUM_4_BOLD §1:
- * `height:100vh · overflow:hidden · padding:26px · flex · gap:18px` with
- * rail 228 / canvas flex:1 min-width:0 / dock 52 — the page NEVER scrolls.
+ * Console Bold shell — B1: the campaign console goes LIVE. The rail campaign
+ * list, overview (hero · one-row stats · activity feed), the full activity
+ * page, the six-tab frame and the all-campaigns page all read shipped data;
+ * Ada proposals wait for their engine (Q-066 — nothing canned renders as live).
  */
-export function BoldShell({ me }: { me: Me }) {
+export function BoldShell({
+  me,
+  initialAgents,
+  needs,
+}: {
+  me: Me;
+  initialAgents: AgentListItem[];
+  needs: MeNeedsResponse | null;
+}) {
+  const [agents, setAgents] = useState<AgentListItem[]>(initialAgents);
+  // Rail/list order: live → paused → draft (owner ruling, B1 review; the
+  // prototype's order), stable within each group by the shipped createdAt desc.
+  const STATUS_ORDER: Record<string, number> = useMemo(() => ({ ACTIVE: 0, PAUSED: 1, DRAFT: 2 }), []);
+  const orderedAgents = useMemo(
+    () => [...agents].sort((a, b) => (STATUS_ORDER[a.status] ?? 3) - (STATUS_ORDER[b.status] ?? 3)),
+    [agents, STATUS_ORDER],
+  );
+  const firstCampaign = orderedAgents.find((a) => a.status === "ACTIVE") ?? orderedAgents[0] ?? null;
   const [surface, setSurface] = useState<BoldSurface>("campaign");
-  const [camp, setCamp] = useState("openday");
+  const [campId, setCampId] = useState<string | null>(firstCampaign?.id ?? null);
+  const [tab, setTab] = useState<CampaignTab>("overview");
   const [railOpen, setRailOpen] = useState(true);
   const [choreo, setChoreo] = useState<"approach" | "recede" | null>(null);
   const [wsPick, setWsPick] = useState(false);
   const [adaOn, setAdaOn] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  const [dismissed, setDismissed] = useState<Record<string, boolean>>({});
   const [tourOffer, setTourOffer] = useState(false);
   const [tailTop, setTailTop] = useState<number | null>(null);
+  const [drawer, setDrawer] = useState<BoldDrawerState | null>(null);
 
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const canvasColRef = useRef<HTMLDivElement | null>(null);
+
+  const activeCamp = useMemo(
+    () => orderedAgents.find((a) => a.id === campId) ?? orderedAgents[0] ?? null,
+    [orderedAgents, campId],
+  );
 
   const flash = useCallback((t: string) => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -67,21 +111,31 @@ export function BoldShell({ me }: { me: Me }) {
     if (toastTimer.current) clearTimeout(toastTimer.current);
   }, []);
 
+  const refreshAgents = useCallback(() => {
+    void fetchBoldAgents().then((rows) => {
+      if (rows) setAgents(rows);
+    });
+  }, []);
+
   /* ------------------------------------------------------------------ tour */
 
-  const tourSteps = useMemo(() => TOUR_STEPS.filter((s) => B0_ANCHORS.has(s.sel)), []);
-  const applyPre = useCallback((pre: { surface?: BoldSurface; camp?: string }) => {
-    if (pre.surface) setSurface(pre.surface);
-    if (pre.camp) setCamp(pre.camp);
-    setAdaOn(false);
-    setWsPick(false);
-    setTourOffer(false);
-    try {
-      localStorage.setItem(TOUR_OFFER_KEY, "1");
-    } catch {
-      /* private mode — the offer just reappears next visit */
-    }
-  }, []);
+  const tourSteps = useMemo(() => TOUR_STEPS.filter((s) => ANCHORS.has(s.sel)), []);
+  const applyPre = useCallback(
+    (pre: { surface?: BoldSurface; camp?: string; tab?: string }) => {
+      if (pre.surface) setSurface(pre.surface);
+      if (pre.tab) setTab(pre.tab as CampaignTab);
+      setAdaOn(false);
+      setWsPick(false);
+      setDrawer(null);
+      setTourOffer(false);
+      try {
+        localStorage.setItem(TOUR_OFFER_KEY, "1");
+      } catch {
+        /* private mode — the offer just reappears next visit */
+      }
+    },
+    [],
+  );
   const tour = useBoldTour({ steps: tourSteps, onPre: applyPre, onFinish: flash });
 
   useEffect(() => {
@@ -134,46 +188,56 @@ export function BoldShell({ me }: { me: Me }) {
     setRailOpen(true);
     setChoreo("recede");
   }, []);
-
   const selectDock = useCallback((key: BoldSurface) => {
     setSurface(key);
     setAdaOn(false);
+    setDrawer(null);
   }, []);
-  const selectCampaign = useCallback((key: string) => {
+  const selectCampaign = useCallback((id: string) => {
     setSurface("campaign");
-    setCamp(key);
+    setCampId(id);
+    setTab("overview");
     setAdaOn(false);
+    setDrawer(null);
   }, []);
 
-  const suggestions = FIXTURE_SUGGESTIONS.filter((g) => !dismissed[g.id]);
-  const activeCamp = FIXTURE_CAMPAIGNS.find((c) => c.key === camp) ?? FIXTURE_CAMPAIGNS[0]!;
-  const adaCtx = adaContextFor(surface, activeCamp.name);
+  const onCampaign = surface === "campaign" && activeCamp != null;
+  const adaCtx = adaContextFor(surface, activeCamp?.name ?? "your campaign");
 
-  const onCampaign = surface === "campaign";
   const [eyebrow, title] =
-    surface === "campaign" ? (["CAMPAIGN", activeCamp.name] as const) : SURFACE_TITLES[surface];
-  const status = onCampaign ? activeCamp.status : null;
-  const hasBack = surface === "camps";
+    surface === "campaign"
+      ? activeCamp
+        ? (["CAMPAIGN", activeCamp.name] as const)
+        : (["CAMPAIGN", "No campaigns yet"] as const)
+      : surface === "camps"
+        ? ([`${agents.length} CAMPAIGN${agents.length === 1 ? "" : "S"}`, "Campaigns"] as const)
+        : surface === "activity"
+          ? ([`AGENT ACTIVITY · ${activeCamp?.name ?? ""}`, "Everything Ada did"] as const)
+          : SURFACE_TITLES[surface];
+  const status =
+    onCampaign && activeCamp
+      ? activeCamp.status === "ACTIVE"
+        ? { label: "Live", tone: "live" as const }
+        : activeCamp.status === "PAUSED"
+          ? { label: "Paused", tone: "capped" as const }
+          : { label: "Draft", tone: "idle" as const }
+      : null;
+  const hasBack = surface === "camps" || surface === "activity";
 
   return (
     <div className="cvb-root" data-testid="bold-root">
       <BoldRail
         me={me}
         open={railOpen}
-        surface={surface}
-        camp={camp}
-        suggestions={suggestions}
+        agents={orderedAgents}
+        activeCampId={onCampaign ? (activeCamp?.id ?? null) : null}
+        needs={needs}
         onFocus={focusMode}
         onOpenRail={openRail}
         onOpenWsPicker={() => setWsPick(true)}
         onSelectCampaign={selectCampaign}
         onAllCampaigns={() => selectDock("camps")}
         onSelectSurface={selectDock}
-        onStartSuggestion={() => flash("Campaign creation arrives with wave B1 — she keeps the idea warm")}
-        onDismissSuggestion={(id) => {
-          setDismissed((x) => ({ ...x, [id]: true }));
-          flash("Dismissed — she will not re-suggest it");
-        }}
       />
 
       <div className="cvb-canvas-col" ref={canvasColRef} data-choreo={choreo ?? undefined}>
@@ -184,7 +248,7 @@ export function BoldShell({ me }: { me: Me }) {
               <span
                 role="button"
                 aria-label="Back"
-                onClick={() => selectCampaign(camp)}
+                onClick={() => (activeCamp ? selectCampaign(activeCamp.id) : selectDock("camps"))}
                 style={{
                   width: 34,
                   height: 34,
@@ -221,41 +285,81 @@ export function BoldShell({ me }: { me: Me }) {
           </div>
 
           <div className="cvb-canvas-scroll" data-testid="bold-canvas-scroll">
-            {/* B0 stub — each wave B1+ replaces its surface here. */}
-            <div className="cvb-stub">
-              <div className="cvb-stub-stage">
-                <div className="cvb-stub-hairline" />
-                <div className="cvb-stub-body">
-                  <div className="cvb-eyebrow">PORT IN PROGRESS</div>
-                  <div className="cvb-stub-title">{title}</div>
-                  <div className="cvb-stub-copy">
-                    The Bold shell (B0) carries the frame, rail, dock, Ada bar and tour. This surface arrives with its
-                    own wave behind the same <span style={{ fontFamily: "var(--cvb-font-mono)", fontSize: 12 }}>consoleBold</span> flag —
-                    the legacy console is untouched until the flag flips.
-                  </div>
-                  <span className="cvb-stub-wave">{SURFACE_WAVE[surface]}</span>
+            {onCampaign && activeCamp ? (
+              <>
+                {/* Tab frame — Overview live in B1; the rest carry their wave. */}
+                <div data-tour="tabs" style={{ display: "flex", gap: 22, padding: "20px 40px 0", borderBottom: "1px solid var(--cvb-line-inner)", flexWrap: "wrap" }}>
+                  {TABS.map(([k, l]) => (
+                    <span
+                      key={k}
+                      onClick={() => setTab(k)}
+                      data-testid={`bold-tab-${k}`}
+                      style={{
+                        fontSize: 14,
+                        fontWeight: tab === k ? 800 : 500,
+                        letterSpacing: "-.018em",
+                        color: tab === k ? "var(--cvb-ink)" : "var(--cvb-faint)",
+                        paddingBottom: 14,
+                        borderBottom: `2px solid ${tab === k ? "var(--cvb-forest)" : "transparent"}`,
+                        cursor: "pointer",
+                        marginBottom: -1,
+                      }}
+                    >
+                      {l}
+                    </span>
+                  ))}
                 </div>
+                {tab === "overview" ? (
+                  <BoldOverview
+                    agent={activeCamp}
+                    onOpenDrawer={setDrawer}
+                    onAllActivity={() => setSurface("activity")}
+                    onValueSaved={refreshAgents}
+                    flash={flash}
+                  />
+                ) : (
+                  <SurfaceStub title={`${activeCamp.name} — ${TABS.find(([k]) => k === tab)?.[1] ?? ""}`} wave={TAB_WAVE[tab as Exclude<CampaignTab, "overview">]} />
+                )}
+              </>
+            ) : null}
+            {surface === "campaign" && !activeCamp ? (
+              <div style={{ textAlign: "center", padding: "80px 40px" }}>
+                <div className="cvb-display" style={{ fontWeight: 900, fontSize: 22, letterSpacing: "-.03em" }}>No campaigns yet</div>
+                <span
+                  role="button"
+                  onClick={() => window.location.assign("/agents/new")}
+                  style={{
+                    display: "inline-block",
+                    marginTop: 18,
+                    fontSize: 12.5,
+                    fontWeight: 800,
+                    color: "var(--cvb-card)",
+                    background: "var(--cvb-forest)",
+                    borderRadius: 12,
+                    padding: "11px 17px",
+                    cursor: "pointer",
+                  }}
+                >
+                  New campaign
+                </span>
               </div>
-            </div>
+            ) : null}
+            {surface === "camps" ? <BoldCampaignsView agents={orderedAgents} onSelect={selectCampaign} /> : null}
+            {surface === "activity" && activeCamp ? <BoldActivityView agentId={activeCamp.id} onOpenDrawer={setDrawer} /> : null}
+            {surface !== "campaign" && surface !== "camps" && surface !== "activity" ? (
+              <SurfaceStub title={title} wave={SURFACE_WAVE[surface]} />
+            ) : null}
           </div>
 
           <BoldAdaBar ctx={adaCtx} onOpen={() => setAdaOn(true)} />
 
           {adaOn ? (
-            <BoldAdaPanel
-              ctx={adaCtx}
-              onClose={() => setAdaOn(false)}
-              onNoop={() => flash("Ada is wired from wave B1 — nothing was sent")}
-            />
+            <BoldAdaPanel ctx={adaCtx} onClose={() => setAdaOn(false)} onNoop={() => flash("Ada answers from a later wave — nothing was sent")} />
           ) : null}
-
           {wsPick ? (
-            <BoldWsPicker
-              me={me}
-              onClose={() => setWsPick(false)}
-              onNoop={(label) => flash(`${label} arrives with the agency wave (B10)`)}
-            />
+            <BoldWsPicker me={me} onClose={() => setWsPick(false)} onNoop={(label) => flash(`${label} arrives with the agency wave (B10)`)} />
           ) : null}
+          {drawer ? <BoldDrawer state={drawer} onClose={() => setDrawer(null)} /> : null}
 
           {toast ? (
             <div className="cvb-toast" data-testid="bold-toast">
@@ -274,6 +378,27 @@ export function BoldShell({ me }: { me: Me }) {
       {tourOffer && tour.index == null ? (
         <BoldTourOffer stepCount={tourSteps.length} onStart={tour.start} onHide={hideTourOffer} />
       ) : null}
+    </div>
+  );
+}
+
+/** Quiet stage card for surfaces that arrive with a later wave. */
+function SurfaceStub({ title, wave }: { title: string; wave: string }) {
+  return (
+    <div className="cvb-stub">
+      <div className="cvb-stub-stage">
+        <div className="cvb-stub-hairline" />
+        <div className="cvb-stub-body">
+          <div className="cvb-eyebrow">PORT IN PROGRESS</div>
+          <div className="cvb-stub-title">{title}</div>
+          <div className="cvb-stub-copy">
+            The campaign console is live (B1). This surface arrives with its own wave behind the same{" "}
+            <span style={{ fontFamily: "var(--cvb-font-mono)", fontSize: 12 }}>consoleBold</span> flag — the legacy console is
+            untouched until the flag flips.
+          </div>
+          <span className="cvb-stub-wave">{wave}</span>
+        </div>
+      </div>
     </div>
   );
 }

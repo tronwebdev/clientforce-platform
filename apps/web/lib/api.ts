@@ -45,6 +45,16 @@ export const fetchWorkspaceFlags = cache(async (): Promise<string[]> => {
   return Array.isArray(body?.flags) ? body.flags : [];
 });
 
+/** Fetch replies waiting in the caller's OTHER workspaces (B1, the Bold rail
+ *  needs pill). Fail-soft: null renders as "no pill", never an error. */
+export const fetchMeNeeds = cache(async (): Promise<import("@clientforce/core").MeNeedsResponse | null> => {
+  const headers = await authHeaders();
+  if (!headers) return null;
+  const res = await fetch(`${API_URL}/me/needs`, { headers, cache: "no-store" });
+  if (!res.ok) return null;
+  return (await res.json()) as import("@clientforce/core").MeNeedsResponse;
+});
+
 /** Fetch contacts in the active workspace (RLS-scoped server-side). */
 export async function fetchContacts(): Promise<Contact[]> {
   const headers = await authHeaders();

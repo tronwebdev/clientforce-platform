@@ -1,0 +1,108 @@
+{
+  "unit": "wizard-bugfix",
+  "commit": null,
+  "capturedAt": null,
+  "note": "PRE-GATE LOCK: these frames predate the fidelity freshness gate (B1 review, 2026-08-26) and were reviewed in their own PRs. Hashes recorded when the gate landed so any later drift fails lint; this manifest attests bytes, not capture provenance.",
+  "frames": {
+    "b1-env-banner-worker-offline.png": {
+      "viewport": null,
+      "bytes": 125667,
+      "sha256": "64391d144523b1a7d261d07d27ea817e56b55307767c1a597484744caf919643"
+    },
+    "b2-url-scope-open.png": {
+      "viewport": null,
+      "bytes": 119809,
+      "sha256": "511f608d881dc9f14398ed755d18cf6fb1a52215d5bbab03a537c05f6f1725bf"
+    },
+    "b2-url-scope-site-toast.png": {
+      "viewport": null,
+      "bytes": 122012,
+      "sha256": "5585c5021d9068e6eb6e9b7ef8eeb11ae0accadaedb0eb90ba3a4204b1fe68e1"
+    },
+    "b3-retry-clicked.png": {
+      "viewport": null,
+      "bytes": 134061,
+      "sha256": "5a40d640d1bc41f111a2c2c1214d5820346668dafdeac084358c365662e255b9"
+    },
+    "b3-row-failed-retry.png": {
+      "viewport": null,
+      "bytes": 128739,
+      "sha256": "778ab626d15786624ffede1a748188e3503900758b99e9835515c493140ae554"
+    },
+    "b3-row-ingesting-bar.png": {
+      "viewport": null,
+      "bytes": 121479,
+      "sha256": "96f422542d06b4e0de2476f8aa5fe7068225b396e148849cc2c503e01cd91b23"
+    },
+    "b3-row-queued.png": {
+      "viewport": null,
+      "bytes": 121523,
+      "sha256": "049a0de2f877fae53949b38b51ad00c3910e1ff92dfdb113575438052108517a"
+    },
+    "b3-row-ready.png": {
+      "viewport": null,
+      "bytes": 132847,
+      "sha256": "5c789f9b9bafa39b059f5103c004778471316049e10b23c119739e90d0635794"
+    },
+    "b4-blocked-ingesting.png": {
+      "viewport": null,
+      "bytes": 128780,
+      "sha256": "b4028d883aab554154a61153ed1e126843badfaa1f4e7605fb658160ac6e03b9"
+    },
+    "b4-blocked-no-context.png": {
+      "viewport": null,
+      "bytes": 122014,
+      "sha256": "d11929692c9e63f1f7294cb65ce91b844af7adc67306a139fcbf6b8d4ab49b00"
+    },
+    "b4-blocked-no-goal.png": {
+      "viewport": null,
+      "bytes": 123264,
+      "sha256": "7f3ae997871ee26522c5b6c16ba7a75e25d71cde767c0439ddb2ef24db2c2d4f"
+    },
+    "b4-blocked-no-name.png": {
+      "viewport": null,
+      "bytes": 123900,
+      "sha256": "32f2d4e30b052f0dbe4733b79858b5b84b73140395efd7018fe4d613e308cb66"
+    },
+    "b5-implicit-draft.png": {
+      "viewport": null,
+      "bytes": 129376,
+      "sha256": "57c569c4a037ed8f8267d025641615329406a1bb28e20ae88c9b2732d84d1b42"
+    },
+    "b5-no-name-notice.png": {
+      "viewport": null,
+      "bytes": 115028,
+      "sha256": "e56938071796757b7aa167e8ee6eec480375a12f98795280168760571d6df8cc"
+    },
+    "b5-no-name-toast.png": {
+      "viewport": null,
+      "bytes": 111598,
+      "sha256": "8b3ed183036fd649a377bf592cd863936b0df464f124926fb568c743bee72516"
+    },
+    "b6-agents-list-draft-row.png": {
+      "viewport": null,
+      "bytes": 148828,
+      "sha256": "30f3e90d737a6dd4257761abf071cdbecd3bb8ad1a5d9199765f82239ddd682f"
+    },
+    "b6-resume-mid-wizard.png": {
+      "viewport": null,
+      "bytes": 79841,
+      "sha256": "8650ec7317bd74870d6ab1c78fd983dbf211c6b967c7697c3c9fe1cc341bf27b"
+    },
+    "b6-wizard-before-leave.png": {
+      "viewport": null,
+      "bytes": 79841,
+      "sha256": "8650ec7317bd74870d6ab1c78fd983dbf211c6b967c7697c3c9fe1cc341bf27b"
+    },
+    "b7-plan-failed.png": {
+      "viewport": null,
+      "bytes": 118317,
+      "sha256": "40cd68c71e021ed631723bc6e2332cfbe6072ce4371a72b98eb62cedaabdb134"
+    },
+    "b7-plan-retrying.png": {
+      "viewport": null,
+      "bytes": 148869,
+      "sha256": "b089064ff69dbbddde856a05b30a74851293aef9b599d5ba5c97d5537e4d8ee0"
+    }
+  }
+}

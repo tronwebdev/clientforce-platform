@@ -1,0 +1,43 @@
+{
+  "unit": "a3",
+  "commit": null,
+  "capturedAt": null,
+  "note": "PRE-GATE LOCK: these frames predate the fidelity freshness gate (B1 review, 2026-08-26) and were reviewed in their own PRs. Hashes recorded when the gate landed so any later drift fails lint; this manifest attests bytes, not capture provenance.",
+  "frames": {
+    "build-first-run-created.png": {
+      "viewport": null,
+      "bytes": 101603,
+      "sha256": "a91949de155b883ae4ad86a59d0ea2cd2a50eb2a4aff982c5dad2bc33a95edfd"
+    },
+    "build-first-run-filled.png": {
+      "viewport": null,
+      "bytes": 45894,
+      "sha256": "d03804c9ee399670443e59ee78358e242003fdc95b9e5dab7c853b16eba609b7"
+    },
+    "build-first-run-modal.png": {
+      "viewport": null,
+      "bytes": 30638,
+      "sha256": "fe9949288372a6d53499daccb2b6ee4fbeabf735d5b3a37bc5e65a96cadc6551"
+    },
+    "build-login-default.png": {
+      "viewport": null,
+      "bytes": 32990,
+      "sha256": "a6d14fb1218b23d08cb45299bf5ace33ff9aadd8b3850165d1c520de86471eae"
+    },
+    "build-login-error.png": {
+      "viewport": null,
+      "bytes": 35281,
+      "sha256": "e19e1d996bacd80b11e8ddba44503262fd784de64328105cbeeb71ccaafb1d76"
+    },
+    "build-login-loading.png": {
+      "viewport": null,
+      "bytes": 119933,
+      "sha256": "ebe2b867a9c572a6dbe491555431320fcbe6cbbfd028f86aad5b589414363967"
+    },
+    "build-switcher-two-memberships.png": {
+      "viewport": null,
+      "bytes": 150361,
+      "sha256": "4c7c15b43230b45bc235c8fa10e23fa0502158bbbc7faf7523205dbe0ac34478"
+    }
+  }
+}

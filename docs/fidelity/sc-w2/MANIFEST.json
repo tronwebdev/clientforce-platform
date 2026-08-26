@@ -1,0 +1,128 @@
+{
+  "unit": "sc-w2",
+  "commit": null,
+  "capturedAt": null,
+  "note": "PRE-GATE LOCK: these frames predate the fidelity freshness gate (B1 review, 2026-08-26) and were reviewed in their own PRs. Hashes recorded when the gate landed so any later drift fails lint; this manifest attests bytes, not capture provenance.",
+  "frames": {
+    "build-steps-refusal.png": {
+      "viewport": null,
+      "bytes": 128288,
+      "sha256": "a923e0427630f177a62a32dab5341cc4b615b05adb040d0bfe8afbbe5ecc5247"
+    },
+    "build-steps-subcampaign-grid.png": {
+      "viewport": null,
+      "bytes": 115746,
+      "sha256": "f5556886953997812c6d85603efccd4a8539264a766ff29cfa1891122fa8df72"
+    },
+    "build-subchain-drawer.png": {
+      "viewport": null,
+      "bytes": 165374,
+      "sha256": "2042ef294b31a780251fee54854fd4c0e530c3c26410c630fd345ba2e5c3058c"
+    },
+    "build-subchain-expanded.png": {
+      "viewport": null,
+      "bytes": 114754,
+      "sha256": "bca8ab37b7ec61c38417cefc6f2073f835db295182ef0f3e4198ea4bac900e02"
+    },
+    "build-subnew-done.png": {
+      "viewport": null,
+      "bytes": 128422,
+      "sha256": "d0096f28559f517dab0c8474f28b0ade1b0ba79d30cefbd4533eea258a935905"
+    },
+    "build-subnew-live-notice.png": {
+      "viewport": null,
+      "bytes": 117623,
+      "sha256": "f07ab0b3e9f22bc6b3a385629051ff5b41ce61bf6fbbc4fc85e889ae744ac44c"
+    },
+    "build-subnew-step0-dropdown-end.png": {
+      "viewport": null,
+      "bytes": 125509,
+      "sha256": "261b4b40bdba00ca0a4b652de5988b040d4cd553f6e1405865e0b644c8862a29"
+    },
+    "build-subnew-step0-dropdown.png": {
+      "viewport": null,
+      "bytes": 125296,
+      "sha256": "53f4a23369f541cfae4a914f8499d9b38198811be7208975a66f58d295ef5a5c"
+    },
+    "build-subnew-step0-empty.png": {
+      "viewport": null,
+      "bytes": 117623,
+      "sha256": "f07ab0b3e9f22bc6b3a385629051ff5b41ce61bf6fbbc4fc85e889ae744ac44c"
+    },
+    "build-subnew-step0-filled.png": {
+      "viewport": null,
+      "bytes": 126924,
+      "sha256": "b5016898d84839e6191f0f6ee55c1c7ff07d1c101775cd4196e1de74b0d742da"
+    },
+    "build-subnew-step1-ai.png": {
+      "viewport": null,
+      "bytes": 127170,
+      "sha256": "824bf9682a0b2505808bbdba487e4f69e477f698a76a715bd7ef84da32502c19"
+    },
+    "build-subnew-step2-review.png": {
+      "viewport": null,
+      "bytes": 127136,
+      "sha256": "6b319878d3992fca323bfd46d723ad1ff4193a56da4459caabca1c3332e3cd1d"
+    },
+    "build-wizard-branches-grid.png": {
+      "viewport": null,
+      "bytes": 124833,
+      "sha256": "0fa875c9fca7588c6476e1b986ab853262204d4b8c4ea085d603f34fe69aae90"
+    },
+    "build-wizard-subnew.png": {
+      "viewport": null,
+      "bytes": 124352,
+      "sha256": "59a08ae0461bbf2f6eb5f400bccef8e88ca42861145d52c0207493044da12ed3"
+    },
+    "build-wizard-suggest-popover.png": {
+      "viewport": null,
+      "bytes": 137239,
+      "sha256": "8abdd101d5615c3a73be62957dba8dbfde836fd2d122b2199c359b14d2525aca"
+    },
+    "proto-branches-view.png": {
+      "viewport": null,
+      "bytes": 134388,
+      "sha256": "bd28a0149a308aec5528f650e97a723afc29934087da66c32733ac526f99feae"
+    },
+    "proto-campaignview-subcampaigns.png": {
+      "viewport": null,
+      "bytes": 126528,
+      "sha256": "fdcd8570fbd21e12c89d800f1e46339678b06e47fc1eb185d3b52a8a231b77b0"
+    },
+    "proto-sub-drawer-footer.png": {
+      "viewport": null,
+      "bytes": 146220,
+      "sha256": "22dfa6c32c1e69ce608c7acb8eec91236f4bba1fdc5fdaca61e2a700e1d40175"
+    },
+    "proto-sub-drawer.png": {
+      "viewport": null,
+      "bytes": 155748,
+      "sha256": "cd52b73abb794bb50f9f272de54766eb1ab853c97a7d2758fd624d92df43ff1b"
+    },
+    "proto-subnew-done.png": {
+      "viewport": null,
+      "bytes": 137626,
+      "sha256": "1ae309555aa99dbf91c9d632a8367f71e1fd65540d150fcc3155aaac505fb42e"
+    },
+    "proto-subnew-step0-dropdown.png": {
+      "viewport": null,
+      "bytes": 137379,
+      "sha256": "bae81bc8244c1c20b2ff0824a58cbb9e82172b5780d906ae1350c6ec2719193a"
+    },
+    "proto-subnew-step0.png": {
+      "viewport": null,
+      "bytes": 142587,
+      "sha256": "375a46a36a1feba3c44042e4156680abff1352a6c9ea2cab7017cea3bcb68118"
+    },
+    "proto-subnew-step1.png": {
+      "viewport": null,
+      "bytes": 145803,
+      "sha256": "4748ffb4f3ff67e525b3ca5f7688d5108c447ca04ad1bbb2b9094fb9431d660d"
+    },
+    "proto-subnew-step2.png": {
+      "viewport": null,
+      "bytes": 145217,
+      "sha256": "5750a5ba24eb1964a216e6a849854c3486a646ddee5be5856ae8f6135642f54c"
+    }
+  }
+}

@@ -1,0 +1,153 @@
+{
+  "unit": "c2.7",
+  "commit": null,
+  "capturedAt": null,
+  "note": "PRE-GATE LOCK: these frames predate the fidelity freshness gate (B1 review, 2026-08-26) and were reviewed in their own PRs. Hashes recorded when the gate landed so any later drift fails lint; this manifest attests bytes, not capture provenance.",
+  "frames": {
+    "build-add-drawer-defs-empty.png": {
+      "viewport": null,
+      "bytes": 167197,
+      "sha256": "4563f430f8e059a44f775dde683adf71eaf3c87d30d0d3419bee9dd72d690061"
+    },
+    "build-add-drawer-defs-filled.png": {
+      "viewport": null,
+      "bytes": 172880,
+      "sha256": "b3168ff224d965f7d641d7f3e223e1676fdc10d18c0e10896a4f752cf441c77b"
+    },
+    "build-add-drawer-humanized-label.png": {
+      "viewport": null,
+      "bytes": 166885,
+      "sha256": "713d0f88860ba443b8eaa5e42dc9b2785bc2201712c638cc66a7ba3fd775397f"
+    },
+    "build-add-drawer-inline-create.png": {
+      "viewport": null,
+      "bytes": 165039,
+      "sha256": "79679e87fa3580b6a9a08b6eccdb24a2a868a3a89a88f6eba32cfb1e89945828"
+    },
+    "build-add-drawer-non-admin.png": {
+      "viewport": null,
+      "bytes": 163933,
+      "sha256": "280c53134106f10b40c36f9f168f857fbd623c02c0fa7c51e8621ba4a3a30590"
+    },
+    "build-archived-def-absent.png": {
+      "viewport": null,
+      "bytes": 165914,
+      "sha256": "75fedbfce211a6f544c24e8c4729ca8172dafad49168ebaa3bb496a8b7625ef8"
+    },
+    "build-cap-error.png": {
+      "viewport": null,
+      "bytes": 174948,
+      "sha256": "2284abd14190d8c8fd291c0e648ef80d71f9bae9ce15b99f108ee22a07ce3c87"
+    },
+    "build-csv-done.png": {
+      "viewport": null,
+      "bytes": 171666,
+      "sha256": "63afba5f88d083f3c1cff7ac20e097a2d47d6d425656690562020091e17ab48a"
+    },
+    "build-drawer-custom-editing.png": {
+      "viewport": null,
+      "bytes": 113127,
+      "sha256": "7eed4d566ccc997735f25bf54a3f1b28e15abc4ca6c05f167c44775e498effd2"
+    },
+    "build-drawer-custom-saved.png": {
+      "viewport": null,
+      "bytes": 112581,
+      "sha256": "17af886388697511d7ce451f6616fc6c3c88e7731fa8458838a451c9be41183b"
+    },
+    "build-drawer-custom-view.png": {
+      "viewport": null,
+      "bytes": 111790,
+      "sha256": "848f0af01229b8299dd96f545a73694c0f6df67c027507a26ae317fc4b2cd0ac"
+    },
+    "build-map-dd-humanized.png": {
+      "viewport": null,
+      "bytes": 177160,
+      "sha256": "73b5e36d15fb713b330d97e9b404b6e24d173669fdfe22e478c9e92ec269498f"
+    },
+    "build-map-dd-open.png": {
+      "viewport": null,
+      "bytes": 176515,
+      "sha256": "634be80af4d40ec450b6c1af3bf5011382eb407a6510cc70bb7eac4ea94b97df"
+    },
+    "build-map-dd-sections.png": {
+      "viewport": null,
+      "bytes": 178143,
+      "sha256": "245800dd0ce944799a12aa933df056a3c70af4b9387d891f5840e2ded467a664"
+    },
+    "build-map-picked-new.png": {
+      "viewport": null,
+      "bytes": 177141,
+      "sha256": "177ce16171450dd6f20b7ce9aa6138858e56cde857d7d7f404f329c4ec6fe049"
+    },
+    "build-review-created-field.png": {
+      "viewport": null,
+      "bytes": 172194,
+      "sha256": "a831b189fc3781caa473251861123dd299d33ac4e92fb54a416e83f85b9def52"
+    },
+    "build-token-fallback-card.png": {
+      "viewport": null,
+      "bytes": 212712,
+      "sha256": "18e55d7351339e9780419e3c0b8f3f692d219a852ef38f971c26d7a24eeba733"
+    },
+    "build-token-fallback-filled.png": {
+      "viewport": null,
+      "bytes": 214194,
+      "sha256": "3c54558d2aba54ce5756463fa7b6acd98555e480249b48d2ab8969ff5effc89d"
+    },
+    "build-token-inserted.png": {
+      "viewport": null,
+      "bytes": 213699,
+      "sha256": "f7518dd2cc34e332b32cbdd9475b6313c2d441245a5cecaf7808ea117b736b43"
+    },
+    "proto-add-drawer-adhoc-row.png": {
+      "viewport": null,
+      "bytes": 199746,
+      "sha256": "b28f54b19ca281b7dd8959a668226f199fc33815555f4f06962569bab8e7703d"
+    },
+    "proto-add-drawer-custom.png": {
+      "viewport": null,
+      "bytes": 202946,
+      "sha256": "bde9ce96d6cd8f58a092a6be34bcc5f3bca8952965370836b66c072df3fdfa5f"
+    },
+    "proto-drawer-custom-editing.png": {
+      "viewport": null,
+      "bytes": 236219,
+      "sha256": "abe60b216e2fb89ee1003d0d299e4321febfefcc611623da4ec38b1827df65c5"
+    },
+    "proto-drawer-custom-view.png": {
+      "viewport": null,
+      "bytes": 238279,
+      "sha256": "09fadb7eb7235f81c9520328edd4d1310e7b4a2d4473c5c15ec1a665cbfd6c2e"
+    },
+    "proto-map-dd-open.png": {
+      "viewport": null,
+      "bytes": 207311,
+      "sha256": "5fa9ed2b8fac2699a92dd09be67bad9be188519a51c971c4ee8d7dac5ca37f4f"
+    },
+    "proto-map-dd-sections.png": {
+      "viewport": null,
+      "bytes": 216169,
+      "sha256": "5b063713087f354ea847e06fd3716b90d0d7e7ffe36382b4ff700e2dcde6a882"
+    },
+    "proto-map-picked-new.png": {
+      "viewport": null,
+      "bytes": 207753,
+      "sha256": "fd36047a653640bfe49a69effd8a1112d338efe64dbc72012577bd620f1ad7ef"
+    },
+    "proto-review.png": {
+      "viewport": null,
+      "bytes": 206391,
+      "sha256": "9e7b21e9c1a17576f99dcd95c86d6e686d9c4b448d58adeb3e39853a74a9789f"
+    },
+    "proto-token-fallback-card.png": {
+      "viewport": null,
+      "bytes": 220414,
+      "sha256": "a1916249b4d3ad071cf152b24b8019ed2f69495f00299c43a1ccd0b35f5dd9d4"
+    },
+    "proto-token-fallback-filled.png": {
+      "viewport": null,
+      "bytes": 222004,
+      "sha256": "e5400c52fd4383925c44e9aeef336f3018eaf1ae85b87943568da34d0a3ce0f2"
+    }
+  }
+}

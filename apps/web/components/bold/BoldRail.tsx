@@ -1,63 +1,59 @@
 "use client";
 
 import type { CSSProperties } from "react";
+import type { AgentListItem, MeNeedsResponse } from "@clientforce/core";
+import { goalValueMeta } from "@clientforce/core";
 import type { Me } from "../../lib/types";
-import {
-  FIXTURE_ALWAYS_ON,
-  FIXTURE_CAMPAIGNS,
-  FIXTURE_CORE,
-  type BoldSuggestionFixture,
-} from "./bold-data";
-
-const DOT_COLOR: Record<string, string> = {
-  forest: "var(--cvb-forest)",
-  amber: "var(--cvb-dot-amber)",
-  faint: "var(--cvb-faint)",
-};
+import { money } from "./bold-live";
+import { FIXTURE_ALWAYS_ON, FIXTURE_CORE } from "./bold-data";
 
 const mono: CSSProperties = { fontFamily: "var(--cvb-font-mono)" };
 
 interface BoldRailProps {
   me: Me;
   open: boolean;
-  surface: string;
-  camp: string;
-  suggestions: BoldSuggestionFixture[];
+  agents: AgentListItem[];
+  activeCampId: string | null;
+  needs: MeNeedsResponse | null;
   onFocus: () => void;
   onOpenRail: () => void;
   onOpenWsPicker: () => void;
-  onSelectCampaign: (key: string) => void;
+  onSelectCampaign: (id: string) => void;
   onAllCampaigns: () => void;
   onSelectSurface: (key: "chatbot" | "rcp" | "wssettings" | "credits") => void;
-  onStartSuggestion: (id: string) => void;
-  onDismissSuggestion: (id: string) => void;
+}
+
+/** Rail campaign-row live value: `8/12` with a target, money when est set,
+ *  the bare completion count otherwise, `—` before anything happened. */
+function railValue(a: AgentListItem): string {
+  if (a.valueGoalUnits) return `${a.bookings}/${a.valueGoalUnits}`;
+  const meta = goalValueMeta(a.goal);
+  if (meta.monetary && a.valueEstCents && a.bookings > 0) return money(a.valueEstCents * a.bookings);
+  return a.bookings > 0 ? String(a.bookings) : "—";
 }
 
 /**
- * The 228px rail — four blocks in fixed order (ADDENDUM_4_BOLD §2):
- * workspace card → CAMPAIGNS → ALWAYS ON / INBOUND → ICP + credits (pinned).
- * Collapsed state renders the slim icon column (the console mark, ruling).
+ * The 228px rail — four blocks in fixed order (ADDENDUM_4_BOLD §2). B1: the
+ * CAMPAIGNS block reads live AgentListItem rows and the workspace card's
+ * amber pill reads real cross-workspace needs (GET /me/needs). Ada's
+ * suggestion block waits for a real proposal source (Q-066). ALWAYS ON and
+ * the core card stay clearly-marked fixture until B4/B7.
  */
 export function BoldRail(props: BoldRailProps) {
-  const { me } = props;
+  const { me, agents, needs } = props;
   const wsName = me.activeWorkspace?.name ?? "Workspace";
   const wsIndex = Math.max(
     0,
     me.memberships.findIndex((m) => m.workspaceId === me.activeWorkspace?.id),
   );
-  const campCount = FIXTURE_CAMPAIGNS.length;
+  const topElsewhere = needs?.elsewhere[0] ?? null;
 
   return (
     <div className="cvb-rail-wrap" data-open={props.open ? "true" : "false"} data-testid="bold-rail">
       <div className="cvb-rail" aria-hidden={!props.open}>
         {/* Block 1 — workspace card (a real selector, not decoration) + focus capsule. */}
         <div className="cvb-ws-row">
-          <div
-            data-tour="ws"
-            data-testid="bold-ws-card"
-            className="cvb-ws-card"
-            onClick={props.onOpenWsPicker}
-          >
+          <div data-tour="ws" data-testid="bold-ws-card" className="cvb-ws-card" onClick={props.onOpenWsPicker}>
             {/* Brand mark — mirrored from packages/theme/assets/mark.svg. */}
             <img src="/bold/mark.svg" alt="" style={{ width: 28, height: 28 }} />
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -92,18 +88,29 @@ export function BoldRail(props: BoldRailProps) {
                 WORKSPACE · {wsIndex + 1} OF {me.memberships.length}
               </div>
             </div>
-            {/* The prototype's amber cross-workspace needs badge ("3 elsewhere")
-                is NOT fixtured here: it would sit beside REAL workspace names it
-                contradicts — the exact one-flag-coherence defect ADDENDUM_4 §7.5
-                warns about. It lands with real needs data (B1+). */}
+            {/* B1: the cross-workspace needs pill, on REAL data (owner-filed on
+                the B0 review). Hidden when nothing waits elsewhere. */}
+            {needs && needs.totalElsewhere > 0 ? (
+              <span
+                data-testid="bold-ws-needs"
+                title={topElsewhere ? `${topElsewhere.name} has ${topElsewhere.repliesWaiting} repl${topElsewhere.repliesWaiting === 1 ? "y" : "ies"} waiting` : ""}
+                style={{
+                  fontSize: 9,
+                  fontWeight: 700,
+                  color: "var(--cvb-amber)",
+                  background: "var(--cvb-amber-bg)",
+                  border: "1px solid var(--cvb-amber-line)",
+                  borderRadius: 999,
+                  padding: "3px 7px",
+                  flex: "none",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {needs.totalElsewhere} elsewhere
+              </span>
+            ) : null}
           </div>
-          <span
-            className="cvb-capsule"
-            role="button"
-            title="Focus — collapse the rail"
-            data-testid="bold-focus-capsule"
-            onClick={props.onFocus}
-          >
+          <span className="cvb-capsule" role="button" title="Focus — collapse the rail" data-testid="bold-focus-capsule" onClick={props.onFocus}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--cvb-forest)" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
               <path d="M11 17l-5-5 5-5" />
               <path d="M18 17l-5-5 5-5" opacity=".4" />
@@ -112,10 +119,10 @@ export function BoldRail(props: BoldRailProps) {
         </div>
 
         <div className="cvb-rail-mid">
-          {/* Block 2 — CAMPAIGNS (B0 fixture rows; B1 wires the live list). */}
+          {/* Block 2 — CAMPAIGNS, live (B1). */}
           <div data-tour="camps" className="cvb-rail-camps">
             <div className="cvb-rail-eyebrow">
-              <span style={{ flex: 1 }}>CAMPAIGNS · {campCount}</span>
+              <span style={{ flex: 1 }}>CAMPAIGNS · {agents.length}</span>
               <span
                 onClick={props.onAllCampaigns}
                 style={{ fontFamily: "var(--cvb-font-ui)", fontSize: 11, fontWeight: 700, color: "var(--cvb-cyan)", cursor: "pointer", letterSpacing: 0 }}
@@ -124,17 +131,19 @@ export function BoldRail(props: BoldRailProps) {
               </span>
             </div>
             <div className="cvb-rail-camps-list" data-testid="bold-camps-list">
-              {FIXTURE_CAMPAIGNS.map((c) => {
-                const active = props.surface === "campaign" && props.camp === c.key;
+              {agents.map((a) => {
+                const active = props.activeCampId === a.id;
+                const dot =
+                  a.status === "ACTIVE" ? "var(--cvb-forest)" : a.status === "PAUSED" ? "var(--cvb-dot-amber)" : "var(--cvb-faint)";
                 return (
                   <div
-                    key={c.key}
+                    key={a.id}
                     className="cvb-camp-row"
                     data-active={active ? "true" : "false"}
-                    data-testid={`bold-camp-${c.key}`}
-                    onClick={() => props.onSelectCampaign(c.key)}
+                    data-testid={`bold-camp-${a.id}`}
+                    onClick={() => props.onSelectCampaign(a.id)}
                   >
-                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: DOT_COLOR[c.dot], flex: "none" }} />
+                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: dot, flex: "none" }} />
                     <span
                       style={{
                         flex: 1,
@@ -148,18 +157,25 @@ export function BoldRail(props: BoldRailProps) {
                         textOverflow: "ellipsis",
                       }}
                     >
-                      {c.name}
+                      {a.name}
                     </span>
-                    {c.isSuggested ? <span style={{ color: "var(--cvb-forest)", fontSize: 10, flex: "none" }}>✦</span> : null}
-                    {c.goalMet ? (
-                      <span style={{ ...mono, fontSize: 9.5, color: "var(--cvb-forest)", border: "1px solid var(--cvb-forest)", borderRadius: 999, padding: "1px 6px", flex: "none" }}>
+                    {a.goalMet ? (
+                      <span
+                        title={`${a.goalPill} — goal met`}
+                        style={{ ...mono, fontSize: 9.5, color: "var(--cvb-forest)", border: "1px solid var(--cvb-forest)", borderRadius: 999, padding: "1px 6px", flex: "none" }}
+                      >
                         ✓
                       </span>
                     ) : null}
-                    <span style={{ ...mono, fontSize: 10.5, color: active ? "var(--cvb-forest)" : "var(--cvb-muted)", flex: "none" }}>{c.value}</span>
+                    <span style={{ ...mono, fontSize: 10.5, color: active ? "var(--cvb-forest)" : "var(--cvb-muted)", flex: "none" }}>{railValue(a)}</span>
                   </div>
                 );
               })}
+              {agents.length === 0 ? (
+                <div style={{ fontSize: 11.5, color: "var(--cvb-faint)", padding: "10px 13px", lineHeight: 1.5 }}>
+                  No campaigns yet.
+                </div>
+              ) : null}
             </div>
           </div>
 
@@ -233,62 +249,6 @@ export function BoldRail(props: BoldRailProps) {
               </div>
             </div>
           </div>
-
-          {/* ✦ ADA SUGGESTS — muted block, one suggestion at a time (prototype). */}
-          {props.suggestions.length > 0 ? (
-            <div data-tour="sugg" style={{ flex: "none" }} data-testid="bold-sugg-block">
-              <div className="cvb-rail-eyebrow" style={{ padding: "0 4px 8px", color: "var(--cvb-faint-2)" }}>
-                <span style={{ flex: 1 }}>✦ ADA SUGGESTS</span>
-                <span
-                  onClick={props.onAllCampaigns}
-                  style={{ fontFamily: "var(--cvb-font-ui)", fontSize: 10, fontWeight: 600, color: "var(--cvb-faint-2)", cursor: "pointer", letterSpacing: 0 }}
-                >
-                  {props.suggestions.length} →
-                </span>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                {props.suggestions.slice(0, 1).map((g) => (
-                  <div key={g.id} className="cvb-sugg-row" title={g.value} onClick={() => props.onStartSuggestion(g.id)}>
-                    <div
-                      style={{
-                        flex: 1,
-                        minWidth: 0,
-                        fontSize: 11.5,
-                        fontWeight: 600,
-                        color: "var(--cvb-muted)",
-                        letterSpacing: "-.012em",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                      }}
-                    >
-                      {g.name}
-                    </div>
-                    <span
-                      className="cvb-sugg-start"
-                      title="Start it"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        props.onStartSuggestion(g.id);
-                      }}
-                    >
-                      Start
-                    </span>
-                    <span
-                      title="Not now"
-                      style={{ fontSize: 10.5, color: "var(--cvb-ghost)", cursor: "pointer", flex: "none" }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        props.onDismissSuggestion(g.id);
-                      }}
-                    >
-                      ✕
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
         </div>
 
         {/* Block 4 — ICP + credits card, pinned bottom (B7 wires live reads). */}
@@ -354,7 +314,7 @@ export function BoldRail(props: BoldRailProps) {
           <img src="/bold/mark.svg" alt="" style={{ width: 22, height: 22, display: "block" }} />
           <span style={{ color: "var(--cvb-faint)", fontSize: 11 }}>»</span>
           <span style={{ ...mono, fontSize: 10, fontWeight: 600, color: "var(--cvb-forest)", background: "var(--cvb-mint)", border: "1px solid var(--cvb-mint-line)", borderRadius: 999, padding: "2px 7px" }}>
-            {campCount}
+            {agents.length}
           </span>
           <span style={{ ...mono, writingMode: "vertical-rl", fontSize: 9, letterSpacing: ".14em", color: "var(--cvb-faint)" }}>CAMPAIGNS</span>
         </div>

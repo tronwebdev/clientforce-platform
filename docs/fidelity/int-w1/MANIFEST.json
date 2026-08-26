@@ -1,0 +1,78 @@
+{
+  "unit": "int-w1",
+  "commit": null,
+  "capturedAt": null,
+  "note": "PRE-GATE LOCK: these frames predate the fidelity freshness gate (B1 review, 2026-08-26) and were reviewed in their own PRs. Hashes recorded when the gate landed so any later drift fails lint; this manifest attests bytes, not capture provenance.",
+  "frames": {
+    "build-drawer-activity-notify.png": {
+      "viewport": null,
+      "bytes": 197270,
+      "sha256": "8e408b5c917e91b0a4df26d21ae052af482d96d3d6bbf6aabb12a129514afb9d"
+    },
+    "build-drawer-connected.png": {
+      "viewport": null,
+      "bytes": 195347,
+      "sha256": "6c6bc06c47fd6c44e742386aba40fe74a468e5c61e7c0dacada198b82c15aab1"
+    },
+    "build-drawer-disconnect-confirm.png": {
+      "viewport": null,
+      "bytes": 200890,
+      "sha256": "9f7564f0cc4da75b8f6dfe6b82969ebed5cbcf87a649054cceb8fba9d6e2b9b4"
+    },
+    "build-drawer-revoked.png": {
+      "viewport": null,
+      "bytes": 201654,
+      "sha256": "b858275955b3cf89923b1c9a974a5c1f4a05f6003deb252f802c4996a85553a4"
+    },
+    "build-drawer-wizard-auth.png": {
+      "viewport": null,
+      "bytes": 175760,
+      "sha256": "0d8fbdd108079428d328d882ca56b6c0861001e2e19546f5e6e594833f984aed"
+    },
+    "build-drawer-wizard-channel.png": {
+      "viewport": null,
+      "bytes": 178203,
+      "sha256": "31c2d99dcb48a310066ca8b9649c49f1f1e1a8542bcbd364cfc2383adcb5d050"
+    },
+    "build-drawer-wizard-summary.png": {
+      "viewport": null,
+      "bytes": 177259,
+      "sha256": "c1f58c245ef0ab8133f0f4a1fe2c3bcef1e0bb228149bb03bd00ea1d54364588"
+    },
+    "build-integrations-grid-after-disconnect.png": {
+      "viewport": null,
+      "bytes": 163629,
+      "sha256": "269f2aa71a45a10c74cf8d79fd35c96c36673ab7a9a75957608f636e79ca8aaf"
+    },
+    "build-integrations-grid-connected.png": {
+      "viewport": null,
+      "bytes": 162557,
+      "sha256": "ccb3b04cabfb25efa1679cedaeeccdd0b9394d02753bbaaa2bd7f2f0a21fe68c"
+    },
+    "build-integrations-grid-messaging.png": {
+      "viewport": null,
+      "bytes": 91858,
+      "sha256": "c19eeea5c3edb841d6261348239e7038cbbc78bfcfed75835f02712d51f2201d"
+    },
+    "build-integrations-grid.png": {
+      "viewport": null,
+      "bytes": 160355,
+      "sha256": "1a6591f4bc48a4cc47720c4ef5c1afdfe8215511ed89ad1291877529d6cf9757"
+    },
+    "proto-drawer-slack-connected.png": {
+      "viewport": null,
+      "bytes": 180145,
+      "sha256": "aeedbc59aadb3ffd9c086917defce27ba15de891ec64017afe9b7b987387e72b"
+    },
+    "proto-drawer-wizard-auth.png": {
+      "viewport": null,
+      "bytes": 158590,
+      "sha256": "0617cc3b078451a11329e8cc417a5562b271e8c3783f9da1480105e03674b463"
+    },
+    "proto-integrations-grid.png": {
+      "viewport": null,
+      "bytes": 148961,
+      "sha256": "367ee240e3d1e7647c1bc08bcd55b1d4f54f6a268715ab7dda7da1e3fd4606a9"
+    }
+  }
+}

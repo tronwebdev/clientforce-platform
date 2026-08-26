@@ -1,0 +1,203 @@
+{
+  "unit": "c2.8",
+  "commit": null,
+  "capturedAt": null,
+  "note": "PRE-GATE LOCK: these frames predate the fidelity freshness gate (B1 review, 2026-08-26) and were reviewed in their own PRs. Hashes recorded when the gate landed so any later drift fails lint; this manifest attests bytes, not capture provenance.",
+  "frames": {
+    "build-add-drawer-list.png": {
+      "viewport": null,
+      "bytes": 199374,
+      "sha256": "03d3332c48ed18d325da89404c2548f4d43825b058d29240956915fab076c583"
+    },
+    "build-archived-absent.png": {
+      "viewport": null,
+      "bytes": 228542,
+      "sha256": "a02c8ae13f8644344be1f97a097930542e40d06614c07152f1329546522e130b"
+    },
+    "build-bulk-after-add.png": {
+      "viewport": null,
+      "bytes": 220813,
+      "sha256": "9efdd6dc9a966b9fe263dba0a0a82ec744418fd800c303370b3147a2113b7589"
+    },
+    "build-bulk-menu-open.png": {
+      "viewport": null,
+      "bytes": 229160,
+      "sha256": "2818ba6531d8cf05f445bf2b0c8a9aaa0daf272120d8dca717d197e868a0e76c"
+    },
+    "build-csv-after-count.png": {
+      "viewport": null,
+      "bytes": 216841,
+      "sha256": "66832a50234ab401014418ed6a378f8c3d3d4d86e48554c05449c3eade9a4d6b"
+    },
+    "build-csv-done.png": {
+      "viewport": null,
+      "bytes": 195568,
+      "sha256": "6571989bddfc6a307a8e9b8f81e9d3c33b4cfbddf865bf6747accd3caac91516"
+    },
+    "build-csv-step3-list.png": {
+      "viewport": null,
+      "bytes": 198158,
+      "sha256": "52c4f5095e39661e641d0e4042e328616c913da013ffd5a89847fe5b554f9777"
+    },
+    "build-drawer-list-menu.png": {
+      "viewport": null,
+      "bytes": 234600,
+      "sha256": "857252d4c37b33645caae0e25d69d3b71912a1b518b606c782099f9305c0b5ba"
+    },
+    "build-drawer-list-row.png": {
+      "viewport": null,
+      "bytes": 224362,
+      "sha256": "71b5bd8bd2f6b56a4b98bb534d20ab80bb5c733268dc0288108c02eb2b569445"
+    },
+    "build-launch-success.png": {
+      "viewport": null,
+      "bytes": 193506,
+      "sha256": "19324cd3176b3c4dfecb360f6cdb5301dd172d33815d2b5ae40211e40284b44a"
+    },
+    "build-lead-drawer-menu.png": {
+      "viewport": null,
+      "bytes": 190244,
+      "sha256": "5989758137979b29f45af4b2eeec23883add4bab6fbe6fd2183ab6c396eaf20f"
+    },
+    "build-leads-bulk-menu.png": {
+      "viewport": null,
+      "bytes": 174242,
+      "sha256": "526ea51ca5948cc43e7859d302ae3fc1975560e48a2971a0935a8a4b650572c9"
+    },
+    "build-newlist-created-toast.png": {
+      "viewport": null,
+      "bytes": 220928,
+      "sha256": "b87ee8a0a974d70610023a273ab27b6b829560fba5bfae00b5045e149a14f9f8"
+    },
+    "build-newlist-dup-error.png": {
+      "viewport": null,
+      "bytes": 211870,
+      "sha256": "ddc7f4d09e4e15f74187120519c0a7655a55388e43c1f137a1bbf250888ab492"
+    },
+    "build-newlist-from-sel-created.png": {
+      "viewport": null,
+      "bytes": 222757,
+      "sha256": "12df17de3cb6025a936d61d0c1cc4fc2673c80cb1f479b640caa3fdf7eb66cdc"
+    },
+    "build-newlist-from-sel.png": {
+      "viewport": null,
+      "bytes": 205890,
+      "sha256": "ed15a69a87c7a30624c9a3d90683bd9a93feac89449e7c8694e217d6ff2352a4"
+    },
+    "build-newlist-modal.png": {
+      "viewport": null,
+      "bytes": 199574,
+      "sha256": "6ff3faddb122adadfd48af742d7d8cbc640c12d3e16741402e4285ceeed5ba2b"
+    },
+    "build-newlist-named.png": {
+      "viewport": null,
+      "bytes": 204437,
+      "sha256": "17cb3eeca57fe8a8421ae9e860967dfcc38a3af006223f49129ad0bccd719c31"
+    },
+    "build-postlaunch-leads-provenance.png": {
+      "viewport": null,
+      "bytes": 160960,
+      "sha256": "54787e2fa2c167f1180c323bfe1a1bfbe8d851247c46669597e3ebd0ca3dd5f2"
+    },
+    "build-postlaunch-leads.png": {
+      "viewport": null,
+      "bytes": 160130,
+      "sha256": "99d6c0ad3b12884c67270ae310a51ed7238633df5662adf955cb683d1f6b5cfc"
+    },
+    "build-rail-default.png": {
+      "viewport": null,
+      "bytes": 211946,
+      "sha256": "566a5261ebeaeb275aa1fd9d917c443db47268a8ce1cf542e235f3be137a2cb2"
+    },
+    "build-rail-scoped.png": {
+      "viewport": null,
+      "bytes": 188074,
+      "sha256": "41eff678ad4fe842b38ce3001cc43c2a2df12e9ce5ef31d58f9eb72cf4e802b3"
+    },
+    "build-timeline-list-events.png": {
+      "viewport": null,
+      "bytes": 216378,
+      "sha256": "2c010c4ba6ba3ea2308cd52fa96e7af0b43e60ee1d951e63073bf8b071abe0bc"
+    },
+    "build-wizard-choose-list-card.png": {
+      "viewport": null,
+      "bytes": 72902,
+      "sha256": "cf17c8f52c6c66ba9087b232888e51864d2a58b4c2e03f42d8b5071125186569"
+    },
+    "build-wizard-list-picked-resumed.png": {
+      "viewport": null,
+      "bytes": 82709,
+      "sha256": "c7b930ed061058b291f8fcfe08de3263fe27138fc397c7cfee405d23d67cdd55"
+    },
+    "build-wizard-list-picked.png": {
+      "viewport": null,
+      "bytes": 82709,
+      "sha256": "c7b930ed061058b291f8fcfe08de3263fe27138fc397c7cfee405d23d67cdd55"
+    },
+    "build-wizard-list-picker-search.png": {
+      "viewport": null,
+      "bytes": 94442,
+      "sha256": "6146941ba78f009877f6bb6f8038a518510d164f5532d2d207952e9330df008a"
+    },
+    "build-wizard-list-picker.png": {
+      "viewport": null,
+      "bytes": 102062,
+      "sha256": "9410148f26d94f9c1bea286c8df85fef098f61e3452164cee2a1afcb55460fcf"
+    },
+    "build-wizard-review-contacts-tile.png": {
+      "viewport": null,
+      "bytes": 80006,
+      "sha256": "faf532a937d7e78219f1887f2a968039bb7bee7d3bce8970aff90431c6e3a509"
+    },
+    "c28-agents-draft-row.png": {
+      "viewport": null,
+      "bytes": 149601,
+      "sha256": "36ac8252c3e877119dc571e93e0f24910bd101d04f3cc5e31af833ad40ef229c"
+    },
+    "c28-before-leave.png": {
+      "viewport": null,
+      "bytes": 83412,
+      "sha256": "4f6d1624ca907c19daf22457e461a2a96c26655a3a9a70cfb5f1b9b895f4ffc2"
+    },
+    "c28-resumed-picked.png": {
+      "viewport": null,
+      "bytes": 83412,
+      "sha256": "4f6d1624ca907c19daf22457e461a2a96c26655a3a9a70cfb5f1b9b895f4ffc2"
+    },
+    "proto-bulk-menu-open.png": {
+      "viewport": null,
+      "bytes": 235045,
+      "sha256": "4ea2769d809b689368be3460f1bbf8d9bd58c5e024d2b3249d3926cd029deeb2"
+    },
+    "proto-drawer-list-menu.png": {
+      "viewport": null,
+      "bytes": 245268,
+      "sha256": "fe22a12ef45df0c7dee007a791021bbf24a340437ce625c8debec541b4811c36"
+    },
+    "proto-drawer-list-row.png": {
+      "viewport": null,
+      "bytes": 234602,
+      "sha256": "699d3b287c173cda322d798c4201ab019e0ef0767b2727e0745e7bb30d588023"
+    },
+    "proto-newlist-modal.png": {
+      "viewport": null,
+      "bytes": 207979,
+      "sha256": "cb7774f5b30c231bad9e52a24592957c482a51fbbfd9be0153126b868b6d7f00"
+    },
+    "proto-rail-default.png": {
+      "viewport": null,
+      "bytes": 222631,
+      "sha256": "3ec815a829f8b3b79c9c0153067a3ab6e1fb421a1234566877993739ca03f5d0"
+    },
+    "proto-wizard-choose-list-card.png": {
+      "viewport": null,
+      "bytes": 111431,
+      "sha256": "acbff85a26c08bc6e3b0784f60a667d5a61bf3550ef63f1344825fa0c6e52965"
+    },
+    "proto-wizard-list-picker.png": {
+      "viewport": null,
+      "bytes": 141393,
+      "sha256": "02b6828d863d5b27856f777e19a29194f01e8f32f4866ea8c19a96305252e9a2"
+    }
+  }
+}

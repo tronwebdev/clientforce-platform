@@ -1,0 +1,28 @@
+{
+  "unit": "m1b",
+  "commit": null,
+  "capturedAt": null,
+  "note": "PRE-GATE LOCK: these frames predate the fidelity freshness gate (B1 review, 2026-08-26) and were reviewed in their own PRs. Hashes recorded when the gate landed so any later drift fails lint; this manifest attests bytes, not capture provenance.",
+  "frames": {
+    "build-inbox-chips-six.png": {
+      "viewport": null,
+      "bytes": 205849,
+      "sha256": "faf2c0b6e9d61ffed049c034220ef23006024c3262ce996096e6d864ee0d20ea"
+    },
+    "build-inbox-fallback-chip.png": {
+      "viewport": null,
+      "bytes": 196599,
+      "sha256": "6bdb87b4070538e14a041ed8102eac440ab9b0c8564310f0674c4483b8cd6f4e"
+    },
+    "build-timeline-objection-path.png": {
+      "viewport": null,
+      "bytes": 184691,
+      "sha256": "94621e9ebd73646e6b73bfdd7914e587e7514621fd0455f0f45b72c9af90dc61"
+    },
+    "build-wizard-branches-six.png": {
+      "viewport": null,
+      "bytes": 130211,
+      "sha256": "7d06074eb106094269648a89eb04e99cd440348403b547b63c1016a3fd796960"
+    }
+  }
+}

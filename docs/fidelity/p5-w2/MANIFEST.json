@@ -1,0 +1,83 @@
+{
+  "unit": "p5-w2",
+  "commit": null,
+  "capturedAt": null,
+  "note": "PRE-GATE LOCK: these frames predate the fidelity freshness gate (B1 review, 2026-08-26) and were reviewed in their own PRs. Hashes recorded when the gate landed so any later drift fails lint; this manifest attests bytes, not capture provenance.",
+  "frames": {
+    "build-drawer-auto-paused.png": {
+      "viewport": null,
+      "bytes": 195119,
+      "sha256": "477b9da65c46c95f67a98ef3e89d6f137fe5b0cfb529bc6b391555c590c61312"
+    },
+    "build-drawer-excellent.png": {
+      "viewport": null,
+      "bytes": 193236,
+      "sha256": "df92a6e0f48ee407f3191002ac0e2f400627048578fa3d89f62a7e12e0644b3e"
+    },
+    "build-drawer-warming-low-data.png": {
+      "viewport": null,
+      "bytes": 181388,
+      "sha256": "5985dcb9a60f572699efc6893e58936d3c1bcc1a24933fd00674edfdd9b0a590"
+    },
+    "build-drawer-warmup-held.png": {
+      "viewport": null,
+      "bytes": 182533,
+      "sha256": "b137ca5fa3a56e0399d54fe6d0b3e711a68247f524659a69479876bcb7bf44df"
+    },
+    "build-drawer-watch.png": {
+      "viewport": null,
+      "bytes": 192259,
+      "sha256": "87e2f95e59012174f72e91ace8fcafc825bb11968eed74bf575d1c95c69ceb92"
+    },
+    "build-email-list.png": {
+      "viewport": null,
+      "bytes": 175258,
+      "sha256": "2de2d1e48e83e633a6f8466dce39232ef59692281fefd782ef8693220c6fcf9d"
+    },
+    "build-mailer-list.png": {
+      "viewport": null,
+      "bytes": 159364,
+      "sha256": "8302e98cb5f42363927f948163b919d6913a8b5a0f47fdf029c6c6847b5185df"
+    },
+    "build-pause-walk.png": {
+      "viewport": null,
+      "bytes": 200599,
+      "sha256": "fc77dc1bd77896c9cad30d63b112b397defb0d907dcc25901c901ff745f8057a"
+    },
+    "build-recheck-walk.png": {
+      "viewport": null,
+      "bytes": 199140,
+      "sha256": "2e893b8549f49548bbf72ca268360db64c15a95e7e58e02b0cb4ded33de745f0"
+    },
+    "build-resume-audit.png": {
+      "viewport": null,
+      "bytes": 199488,
+      "sha256": "0e79b4b69d9b9c01da08be8c71337585458b33317b02c20ccf323c1fa54c538c"
+    },
+    "build-sms-list.png": {
+      "viewport": null,
+      "bytes": 152324,
+      "sha256": "b6355ec74c62b4d4712ba1bf92929d418f8f8c81182d08e828c6422efb379fa1"
+    },
+    "proto-drawer-healthy.png": {
+      "viewport": null,
+      "bytes": 199614,
+      "sha256": "0379908d8bce54ed2f7157b7c9a622b6fa6b3db94a89778906b9dd744fb05fcc"
+    },
+    "proto-drawer-warming.png": {
+      "viewport": null,
+      "bytes": 199614,
+      "sha256": "0379908d8bce54ed2f7157b7c9a622b6fa6b3db94a89778906b9dd744fb05fcc"
+    },
+    "proto-email-list.png": {
+      "viewport": null,
+      "bytes": 176899,
+      "sha256": "b3046782c696daf21c7a024069ee8ab6b6450b6ea5f985f9e7a6114594df939a"
+    },
+    "proto-mailer-list.png": {
+      "viewport": null,
+      "bytes": 159007,
+      "sha256": "39ad37f69bf0dd6d5342dfdb9cb4bb10205830211fdf4ebd298f18a81a6b0a52"
+    }
+  }
+}

@@ -284,6 +284,216 @@ async function main(): Promise<void> {
     });
   }
 
+  // B1 (DEC-104): three more demo campaigns + a small, COHERENT activity
+  // fixture on one of them, so the Bold rail/overview/activity surfaces (and
+  // their e2e) have real rows to stand on. Same idempotent style as the
+  // reconciliation fixtures above; the demo workspace is a dev fixture.
+  const implant = await prisma.agent.findFirst({
+    where: { workspaceId: primary.id, name: "Implant open day" },
+  });
+  if (!implant) {
+    const guardrails = {
+      sendingWindow: { start: "09:00", end: "17:00" },
+      dailyCap: 200,
+      consentRequired: true,
+    };
+    const implantAgent = await prisma.agent.create({
+      data: {
+        workspaceId: primary.id,
+        name: "Implant open day",
+        goal: "book_appointments",
+        status: "ACTIVE",
+        guardrails,
+        valueEstCents: 240_000,
+        valueGoalUnits: 12,
+      },
+    });
+    await prisma.agent.create({
+      data: {
+        workspaceId: primary.id,
+        name: "Whitening kit push",
+        goal: "promote_offer",
+        status: "ACTIVE",
+        guardrails,
+        valueEstCents: 24_900,
+      },
+    });
+    await prisma.agent.create({
+      data: {
+        workspaceId: primary.id,
+        name: "Review asks",
+        goal: "collect_reviews",
+        status: "DRAFT",
+        guardrails,
+      },
+    });
+
+    const campaign = await prisma.campaign.create({
+      data: {
+        workspaceId: primary.id,
+        agentId: implantAgent.id,
+        name: "Implant open day — primary",
+        graphId: "seed-graph-implant",
+      },
+    });
+    const demoContacts = await prisma.contact.findMany({
+      where: { workspaceId: primary.id },
+      orderBy: { createdAt: "asc" },
+      take: 3,
+    });
+    const stages = ["booked", "interested", "contacted"];
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const hourLater = new Date(yesterday.getTime() + 60 * 60 * 1000);
+    for (const [i, contact] of demoContacts.entries()) {
+      await prisma.enrollment.create({
+        data: {
+          workspaceId: primary.id,
+          campaignId: campaign.id,
+          contactId: contact.id,
+          workflowId: `seed-b1-wf-${contact.id}`,
+          pipelineStage: stages[i] ?? "contacted",
+        },
+      });
+      const outbound = await prisma.message.create({
+        data: {
+          workspaceId: primary.id,
+          campaignId: campaign.id,
+          contactId: contact.id,
+          channel: "email",
+          direction: "OUTBOUND",
+          subject: "Four consult slots left for the 21st",
+          body: "seed fixture — the open-day opener",
+          stepNodeId: "seed-step-1",
+          sentAt: yesterday,
+        },
+      });
+      await prisma.event.create({
+        data: {
+          workspaceId: primary.id,
+          campaignId: campaign.id,
+          contactId: contact.id,
+          type: "email.delivered.v1",
+          payload: { messageId: outbound.id },
+          occurredAt: new Date(yesterday.getTime() + 5 * 60 * 1000),
+        },
+      });
+      if (i < 2) {
+        await prisma.event.create({
+          data: {
+            workspaceId: primary.id,
+            campaignId: campaign.id,
+            contactId: contact.id,
+            type: "email.opened.v1",
+            payload: { messageId: outbound.id },
+            occurredAt: new Date(yesterday.getTime() + 20 * 60 * 1000),
+          },
+        });
+      }
+      if (i === 0 || i === 1) {
+        const intent = i === 0 ? "interested" : "info_request";
+        const inbound = await prisma.message.create({
+          data: {
+            workspaceId: primary.id,
+            campaignId: campaign.id,
+            contactId: contact.id,
+            channel: "email",
+            direction: "INBOUND",
+            body: i === 0 ? "Thursday works — book me in." : "What does recovery look like?",
+            intent,
+            sentAt: hourLater,
+            meta: i === 0 ? { done: true } : {},
+          },
+        });
+        await prisma.event.create({
+          data: {
+            workspaceId: primary.id,
+            campaignId: campaign.id,
+            contactId: contact.id,
+            type: "email.replied.v1",
+            payload: { messageId: inbound.id, intent },
+            occurredAt: hourLater,
+          },
+        });
+      }
+    }
+    const bookedContact = demoContacts[0];
+    if (bookedContact) {
+      await prisma.event.create({
+        data: {
+          workspaceId: primary.id,
+          campaignId: campaign.id,
+          contactId: bookedContact.id,
+          type: "lead.stage_changed.v1",
+          payload: {
+            fromStage: "interested",
+            toStage: "booked",
+            goalKey: "book_appointments",
+            label: "Meeting booked",
+          },
+          occurredAt: new Date(hourLater.getTime() + 30 * 60 * 1000),
+        },
+      });
+      await prisma.event.create({
+        data: {
+          workspaceId: primary.id,
+          campaignId: campaign.id,
+          contactId: bookedContact.id,
+          type: "payment.received.v1",
+          payload: { amount: 240_000, channel: "email" },
+          occurredAt: new Date(hourLater.getTime() + 26 * 60 * 60 * 1000),
+        },
+      });
+    }
+  }
+
+  // B1: one undone inbound reply in demo-2 so the cross-workspace needs pill
+  // ("N elsewhere", GET /me/needs) has real data behind it.
+  const second = await prisma.workspace.findFirst({
+    where: { agencyId: agency.id, slug: "demo-2" },
+  });
+  if (second) {
+    const needsMarker = await prisma.message.findFirst({
+      where: { workspaceId: second.id, stepNodeId: "seed-b1-needs" },
+    });
+    const graceContact = await prisma.contact.findFirst({ where: { workspaceId: second.id } });
+    if (!needsMarker && graceContact) {
+      const agent2 = await prisma.agent.create({
+        data: {
+          workspaceId: second.id,
+          name: "Clinic reactivation",
+          goal: "reactivate_leads",
+          status: "ACTIVE",
+          guardrails: {
+            sendingWindow: { start: "09:00", end: "17:00" },
+            dailyCap: 100,
+            consentRequired: true,
+          },
+        },
+      });
+      const campaign2 = await prisma.campaign.create({
+        data: {
+          workspaceId: second.id,
+          agentId: agent2.id,
+          name: "Clinic reactivation — primary",
+          graphId: "seed-graph-reactivation",
+        },
+      });
+      await prisma.message.create({
+        data: {
+          workspaceId: second.id,
+          campaignId: campaign2.id,
+          contactId: graceContact.id,
+          channel: "email",
+          direction: "INBOUND",
+          body: "seed fixture — a reply waiting in the second workspace",
+          intent: "info_request",
+          stepNodeId: "seed-b1-needs",
+          sentAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
+        },
+      });
+    }
+  }
+
   for (const plan of PLAN_TIERS) {
     const exists = await prisma.plan.findFirst({ where: { agencyId: agency.id, name: plan.name } });
     if (!exists) {

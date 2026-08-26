@@ -1,0 +1,63 @@
+{
+  "unit": "imp-csv",
+  "commit": null,
+  "capturedAt": null,
+  "note": "PRE-GATE LOCK: these frames predate the fidelity freshness gate (B1 review, 2026-08-26) and were reviewed in their own PRs. Hashes recorded when the gate landed so any later drift fails lint; this manifest attests bytes, not capture provenance.",
+  "frames": {
+    "build-import-bg-close-toast.png": {
+      "viewport": null,
+      "bytes": 221019,
+      "sha256": "56e72501afdd5a1328e39edaadcb203e1e15dbcec68bf15964978928b3372166"
+    },
+    "build-import-done-counts.png": {
+      "viewport": null,
+      "bytes": 194951,
+      "sha256": "8226479fc268edd9840509a81ac58b5b34cabcbf379f3cf2acb2cedcfa6da7b0"
+    },
+    "build-import-error-summary.png": {
+      "viewport": null,
+      "bytes": 207382,
+      "sha256": "789f156ca95ce1da6310e8bcd07790710ace768c0d6a5a857214bf6b8b6fc61c"
+    },
+    "build-import-progress-midrun.png": {
+      "viewport": null,
+      "bytes": 190362,
+      "sha256": "e7844aebf6549ef6b9b6b94f0a136eeec139d27a4b602af396e23d66ec1b580a"
+    },
+    "build-import-progress-start.png": {
+      "viewport": null,
+      "bytes": 187500,
+      "sha256": "29dd2a7977e6af32e18c8c377ea384f62e39ed740a5de15aa11d5eacaf58d8d5"
+    },
+    "build-import-retry-complete.png": {
+      "viewport": null,
+      "bytes": 196558,
+      "sha256": "0485a7e09edeae0b1438d3f3df4e641f1b311e7e0699e52f81361e701a9d9bed"
+    },
+    "build-import-review-after-2-polls.png": {
+      "viewport": null,
+      "bytes": 192913,
+      "sha256": "625afadffd3ae0c1f29c3e7293f91bd8bedd1d68027ab92421126ba7c8781f48"
+    },
+    "build-import-review-snapshot.png": {
+      "viewport": null,
+      "bytes": 192913,
+      "sha256": "625afadffd3ae0c1f29c3e7293f91bd8bedd1d68027ab92421126ba7c8781f48"
+    },
+    "build-rail-after-scoped.png": {
+      "viewport": null,
+      "bytes": 197306,
+      "sha256": "019f508199cd0b8654d26ad4bb5772902d226d0f8a808a30fa75a391efacfa6c"
+    },
+    "build-rail-before.png": {
+      "viewport": null,
+      "bytes": 216496,
+      "sha256": "de549980f5888111ed4961b25fcf37926883f4d0a248075c3a1b1b06be37887f"
+    },
+    "proto-import-review.png": {
+      "viewport": null,
+      "bytes": 205053,
+      "sha256": "2c064ead2fe73dd04ee8c5599cb5d34408c7bd5c0142cb86408a813b1a480769"
+    }
+  }
+}

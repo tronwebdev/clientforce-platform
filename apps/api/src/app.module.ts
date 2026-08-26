@@ -26,6 +26,7 @@ import { ContactFieldsController } from "./contacts/contact-fields.controller";
 import { ContactListsController } from "./contacts/contact-lists.controller";
 import { ContactValidationController } from "./contacts/contact-validation.controller";
 import { FlagsController } from "./flags/flags.controller";
+import { MeNeedsController } from "./me/needs.controller";
 import { validationProviders } from "./contacts/validation.providers";
 import { BusOrInlinePublisher, EVENTS_PUBLISHER } from "./events/publisher";
 
@@ -58,6 +59,8 @@ import { BusOrInlinePublisher, EVENTS_PUBLISHER } from "./events/publisher";
     ContactValidationController,
     // B0 (Console Bold): tenant read of the app-readable FeatureFlag table.
     FlagsController,
+    // B1 (DEC-104): cross-workspace replies-waiting read (rail needs pill).
+    MeNeedsController,
   ],
   providers: [
     // Order matters: authenticate + resolve tenancy first, then enforce RBAC.

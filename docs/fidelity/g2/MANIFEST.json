@@ -1,0 +1,48 @@
+{
+  "unit": "g2",
+  "commit": null,
+  "capturedAt": null,
+  "note": "PRE-GATE LOCK: these frames predate the fidelity freshness gate (B1 review, 2026-08-26) and were reviewed in their own PRs. Hashes recorded when the gate landed so any later drift fails lint; this manifest attests bytes, not capture provenance.",
+  "frames": {
+    "build-inbox-guided-email-thread.png": {
+      "viewport": null,
+      "bytes": 164244,
+      "sha256": "d6348ea46436409e4882c80f86ea4703659a9086f7f42fd7205d247d59b12624"
+    },
+    "build-logs-email-refusal-row.png": {
+      "viewport": null,
+      "bytes": 92176,
+      "sha256": "aa6bd73cbd4e7299db7495c2dc3dab50bff2c61014a11b08e4b3cf6ebf178a90"
+    },
+    "build-preview-composed-subject.png": {
+      "viewport": null,
+      "bytes": 236862,
+      "sha256": "50e4810a9f106fc9e732f6a7c506287db2f139bc5c155ce134d5ef1226f707a2"
+    },
+    "build-preview-subject-refused.png": {
+      "viewport": null,
+      "bytes": 229277,
+      "sha256": "9519a948b22a075b63b02e033c9bbe977ad71906e5e517b6c6aa020c22baebd8"
+    },
+    "build-settings-compose-messages.png": {
+      "viewport": null,
+      "bytes": 138079,
+      "sha256": "d426af51dc90d377f09693cade01174a4ddf80b0824f6f1584037acda76c78b7"
+    },
+    "build-steps-email-brief-card.png": {
+      "viewport": null,
+      "bytes": 153512,
+      "sha256": "7888ea5f04f1bc1364afc77f16dda7a20b8dfa144321971a8e1dcc5392da3ef1"
+    },
+    "build-wizard-email-brief-editor.png": {
+      "viewport": null,
+      "bytes": 221982,
+      "sha256": "e22e0268b21f6bd1c02c53996b748dcdf2e366f372c3ace4e8e96f025de235c1"
+    },
+    "build-wizard-mixed-mode-step2.png": {
+      "viewport": null,
+      "bytes": 138409,
+      "sha256": "76c6a0c8f3b27893b693fce57e92ea403f094e322e5d04b65e2db9c15c1ff80b"
+    }
+  }
+}

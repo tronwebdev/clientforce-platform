@@ -1,0 +1,138 @@
+{
+  "unit": "c2.2",
+  "commit": null,
+  "capturedAt": null,
+  "note": "PRE-GATE LOCK: these frames predate the fidelity freshness gate (B1 review, 2026-08-26) and were reviewed in their own PRs. Hashes recorded when the gate landed so any later drift fails lint; this manifest attests bytes, not capture provenance.",
+  "frames": {
+    "build-col-toggled.png": {
+      "viewport": null,
+      "bytes": 146282,
+      "sha256": "d2dfec17ddd45717dd23f6087025f7bacbf5bf2a8f47a85042235648bfa72ffc"
+    },
+    "build-dd-channel-open.png": {
+      "viewport": null,
+      "bytes": 154946,
+      "sha256": "f3991cca9ba40cdeb9a3959a047b170d5be12a578debf9d2f1947378073f472c"
+    },
+    "build-dd-columns-open.png": {
+      "viewport": null,
+      "bytes": 153079,
+      "sha256": "3b525bf840de21c42766a9b7cdb64f10a9080ae47e0c4b51b59e30a02145d012"
+    },
+    "build-dd-status-open.png": {
+      "viewport": null,
+      "bytes": 152667,
+      "sha256": "d59fef9c67194b2f2d7ee2b2094ec58e4ad42ce99f667b25fa272c392229fcdc"
+    },
+    "build-default.png": {
+      "viewport": null,
+      "bytes": 144380,
+      "sha256": "0da542be4c05d276b5812da0a1ff5eca37edf1108607e7ec2aa0f11367152372"
+    },
+    "build-empty.png": {
+      "viewport": null,
+      "bytes": 100126,
+      "sha256": "6bc0e42f91179d1049736889e717ab35a81555c7813197b03e9be13f4a5aaf0c"
+    },
+    "build-error.png": {
+      "viewport": null,
+      "bytes": 55687,
+      "sha256": "0f0956918d1d52b333f50da6f92f6da07041b86666c056208389df879006fe30"
+    },
+    "build-filtered-empty.png": {
+      "viewport": null,
+      "bytes": 76735,
+      "sha256": "c09b5e838c016a142887422afbd6e0603c18d42edbee749f8cf9cf7039c11a81"
+    },
+    "build-row-menu-open.png": {
+      "viewport": null,
+      "bytes": 151799,
+      "sha256": "c662f5b2dcb0550ca092f9ecc0c94ddc21580d0039d51d63f594f93ed6f60c54"
+    },
+    "build-selection-bulkbar.png": {
+      "viewport": null,
+      "bytes": 145148,
+      "sha256": "b3387ebb7a478ccd91d6178c6e4925a68f6d3f516338601fdd97fbdc1351b3e7"
+    },
+    "build-sidebar-profile-open.png": {
+      "viewport": null,
+      "bytes": 154261,
+      "sha256": "07647bf0715fbb6c3cc71fced2ce1affaae019326d373332064ad8ddd4151a2a"
+    },
+    "build-sidebar-tools-open.png": {
+      "viewport": null,
+      "bytes": 143482,
+      "sha256": "ea853935f5fd8fe577ca20b53956f68772fedec4370446a6508be99deaeb0a3f"
+    },
+    "build-skeleton.png": {
+      "viewport": null,
+      "bytes": 140888,
+      "sha256": "fb020b8b988fbe7b408b2ed3b663e1fa919660e4e57cb6872f41fc3a78a4b6c4"
+    },
+    "build-sorted-name.png": {
+      "viewport": null,
+      "bytes": 144380,
+      "sha256": "0da542be4c05d276b5812da0a1ff5eca37edf1108607e7ec2aa0f11367152372"
+    },
+    "proto-col-toggled.png": {
+      "viewport": null,
+      "bytes": 169775,
+      "sha256": "fd6f7f4b95fdce832b0e4a6c33ed1a6664db4ca973fe608de318da80beddd79a"
+    },
+    "proto-dd-channel-open.png": {
+      "viewport": null,
+      "bytes": 168065,
+      "sha256": "b2673b9961dda50e270bbbbb8dcb70a2ea21d5871cb546f4e84fdc8b0df4d83e"
+    },
+    "proto-dd-columns-open.png": {
+      "viewport": null,
+      "bytes": 169243,
+      "sha256": "41e30cb849747c6ee4e044db3dd49a6129369a4898162153182961a12e0287ed"
+    },
+    "proto-dd-status-open.png": {
+      "viewport": null,
+      "bytes": 167528,
+      "sha256": "8200a37889e089b80c31ccbc15011702e6cf8c58e8dcd083a9f30dcf06ab01ae"
+    },
+    "proto-default.png": {
+      "viewport": null,
+      "bytes": 158903,
+      "sha256": "94d1da2b706a0ca6da5ea9129f9f2195b001d23351b68508e2a979b93ce9c00d"
+    },
+    "proto-empty.png": {
+      "viewport": null,
+      "bytes": 169806,
+      "sha256": "6930022a3a8555f16d679f3ab83f41c9df07d5f5a3d4b125de6a0ff00cf9c10e"
+    },
+    "proto-filtered-empty.png": {
+      "viewport": null,
+      "bytes": 88055,
+      "sha256": "cd0e8cf5ae0afecb0b4b7cce8afbe82395601b5ce16ac32b84e5cbdeeece7c19"
+    },
+    "proto-row-menu-open.png": {
+      "viewport": null,
+      "bytes": 169775,
+      "sha256": "fd6f7f4b95fdce832b0e4a6c33ed1a6664db4ca973fe608de318da80beddd79a"
+    },
+    "proto-selection-bulkbar.png": {
+      "viewport": null,
+      "bytes": 169775,
+      "sha256": "fd6f7f4b95fdce832b0e4a6c33ed1a6664db4ca973fe608de318da80beddd79a"
+    },
+    "proto-sidebar-profile-open.png": {
+      "viewport": null,
+      "bytes": 168623,
+      "sha256": "298def1046bd297dbe357057150a95f9918b141dd07c0ca5d62efc08e236fd2f"
+    },
+    "proto-sidebar-tools-open.png": {
+      "viewport": null,
+      "bytes": 161236,
+      "sha256": "ed460ddf12e54560bd35c71c762724aa6a0b13e870eb23577be5a2677f2755b7"
+    },
+    "proto-sorted-name.png": {
+      "viewport": null,
+      "bytes": 169806,
+      "sha256": "6930022a3a8555f16d679f3ab83f41c9df07d5f5a3d4b125de6a0ff00cf9c10e"
+    }
+  }
+}
