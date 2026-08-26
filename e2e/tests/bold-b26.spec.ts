@@ -76,15 +76,23 @@ test("the sweep proposes a real draft; start prefills the create flow; dismiss s
   // Never a double row: the campaigns list excludes the suggested draft.
   await expect(page.getByTestId("bold-camps-list").getByText(SUGG_NAME)).toHaveCount(0);
 
-  // The campaigns page carries the suggested row: pill + data-derived reason.
+  // The campaigns page carries the suggested row at the BOTTOM (prototype
+  // placement): mint name pill + amber status pill + data-derived reason +
+  // the filled "Start it"; the header count excludes it (owner ruling).
   await page.getByText("All", { exact: true }).click();
+  await expect(page.getByTestId("bold-page-title")).toHaveText("Campaigns");
+  await expect(page.getByText(/^4 CAMPAIGNS$/)).toBeVisible();
   const suggRow = page.getByTestId(/bold-sugg-row-/);
   await expect(suggRow).toContainText(SUGG_NAME);
   await expect(suggRow).toContainText("✦ Ada's idea");
+  await expect(suggRow).toContainText("SUGGESTED");
   await expect(suggRow).toContainText("said not now or pushed back");
+  // Bottom placement: the last campaign-list row is the suggestion.
+  const pageRows = page.getByTestId("bold-camps-page").locator('[data-testid^="bold-camprow-"], [data-testid^="bold-sugg-row-"]');
+  await expect(pageRows.last()).toContainText(SUGG_NAME);
 
-  // Start → the create flow opens ON the draft: goal + summary prefilled.
-  await suggRow.getByText("Start", { exact: true }).click();
+  // Start it → the create flow opens ON the draft: goal + summary prefilled.
+  await suggRow.getByText("Start it", { exact: true }).click();
   await expect(page.getByTestId("bold-create")).toBeVisible();
   await expect(page.getByTestId("bold-goal-winback_deals")).toContainText("✓");
   await expect(page.getByTestId("bold-create-spec")).toHaveValue("Win back the deals that said not now");

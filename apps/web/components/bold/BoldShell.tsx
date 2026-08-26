@@ -252,7 +252,13 @@ export function BoldShell({
         ? (["CAMPAIGN", activeCamp.name] as const)
         : (["CAMPAIGN", "No campaigns yet"] as const)
       : surface === "camps"
-        ? ([`${agents.length} CAMPAIGN${agents.length === 1 ? "" : "S"}`, "Campaigns"] as const)
+        ? // A suggestion isn't a campaign until started (owner ruling, B2.6
+          // review) — both counts exclude undismissed suggestions; the ✦
+          // blocks carry them.
+          ([
+            `${agents.length - suggestions.length} CAMPAIGN${agents.length - suggestions.length === 1 ? "" : "S"}`,
+            "Campaigns",
+          ] as const)
         : surface === "activity"
           ? ([`AGENT ACTIVITY · ${activeCamp?.name ?? ""}`, "Everything Ada did"] as const)
           : SURFACE_TITLES[surface];
@@ -405,7 +411,6 @@ export function BoldShell({
                   selectDock("newcamp");
                 }}
                 onStartSuggestion={startSuggestion}
-                onDismissSuggestion={dismissSugg}
               />
             ) : null}
             {surface === "newcamp" ? (
