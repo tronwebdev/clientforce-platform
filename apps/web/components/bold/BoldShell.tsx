@@ -384,7 +384,7 @@ export function BoldShell({
                 ) : tab === "plan" ? (
                   <BoldPlanView agent={activeCamp} flash={flash} />
                 ) : tab === "inbox" ? (
-                  <BoldInboxView scope={{ kind: "campaign", agent: activeCamp }} onOpenDrawer={setDrawer} flash={flash} />
+                  <BoldInboxView scope={{ kind: "campaign", agent: activeCamp }} onOpenDrawer={setDrawer} flash={flash} meId={me.user.id} />
                 ) : (
                   <SurfaceStub title={`${activeCamp.name} — ${TABS.find(([k]) => k === tab)?.[1] ?? ""}`} />
                 )}
@@ -397,6 +397,7 @@ export function BoldShell({
                 onOpenDrawer={setDrawer}
                 flash={flash}
                 onThreadCount={setWsInboxCount}
+                meId={me.user.id}
               />
             ) : null}
             {surface === "contacts" ? <BoldContactsView onOpenDrawer={setDrawer} flash={flash} onCount={setContactCount} /> : null}

@@ -9,7 +9,7 @@
  * P1.8) is the live tier; the others are designed-but-inert.
  */
 export { sendStep, type SendDeps, type SendStepParams } from "./send";
-export { SendGridSender, NotImplementedSender } from "./sendgrid";
+export { SendGridSender, NotImplementedSender, KeylessSandboxSender } from "./sendgrid";
 export {
   MissingTokenError,
   hasThreadPrefix,
@@ -199,6 +199,14 @@ export {
   type ComposeEmailStepParams,
   type EmailStepComposer,
 } from "./compose-email";
+export {
+  composeReply,
+  createReplyComposer,
+  composerReplyVersionFor,
+  COMPOSER_REPLY_SYSTEM,
+  type ComposedReply,
+  type ComposeReplyThreadParams,
+} from "./compose-reply";
 // ── INT W2 (DEC-094): booking-link plumbing (calendly link + compose seam) ───
 export {
   augmentBriefWithBooking,

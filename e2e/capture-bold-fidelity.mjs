@@ -15,7 +15,7 @@
  *    of impersonating evidence. Reviewers verify what they are looking at by
  *    hashing the file — never by trusting an image cache.
  *
- * Usage:  node e2e/capture-bold-fidelity.mjs [unit]     (b1 | b2 | b25 | b26 | b3; default b1)
+ * Usage:  node e2e/capture-bold-fidelity.mjs [unit]     (b1 | b2 | b25 | b26 | b3 | b3b; default b1)
  * Env:    CAPTURE_BASE_URL (default http://localhost:3000)
  *         PLAYWRIGHT_CHROMIUM_EXECUTABLE (a pre-provisioned Chromium)
  *
@@ -33,8 +33,8 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const UNIT = process.argv[2] ?? "b1";
-if (!["b1", "b2", "b25", "b26", "b3"].includes(UNIT)) {
-  console.error(`Unknown unit "${UNIT}" — this tool knows b1, b2, b25, b26 and b3.`);
+if (!["b1", "b2", "b25", "b26", "b3", "b3b"].includes(UNIT)) {
+  console.error(`Unknown unit "${UNIT}" — this tool knows b1, b2, b25, b26, b3 and b3b.`);
   process.exit(1);
 }
 const OUT = join(ROOT, "docs", "fidelity", UNIT);
@@ -149,6 +149,66 @@ const toBoldCampaign = async (p) => {
 };
 
 
+
+/* -------------------------------------------------------------- the b3b set */
+if (UNIT === "b3b") {
+  await run("prototype-b3b", async () => {
+    const p = await page({ width: 1440, height: 900 });
+    await freshProto(p);
+    await p.locator('[title="Inbox"]').first().click();
+    await p.waitForTimeout(600);
+    // Tom's thread carries the ✦ Ada drafted card (why line · Rewrite · Send).
+    await p.getByText("Tom Becker", { exact: true }).first().click();
+    await p.waitForTimeout(500);
+    await shot(p, "proto-reply-draft-1440x900");
+    await p.getByText("Send", { exact: true }).first().click();
+    await p.waitForTimeout(500);
+    await shot(p, "proto-reply-sent-1440x900");
+    await p.context().close();
+  });
+
+  await run("build-b3b", async () => {
+    const p = await page({ width: 1440, height: 900 });
+    await signInBuild(p);
+    await p.goto(`${BASE}/bold`);
+    await p.getByTestId("bold-root").waitFor();
+    await p.addStyleTag({ content: "nextjs-portal{display:none!important}" });
+    await p.waitForTimeout(700);
+    const later = p.getByText("Later", { exact: true }).first();
+    if (await later.isVisible().catch(() => false)) await later.click();
+    await p.getByTestId("bold-dock-wsinbox").click();
+    await p.locator('[data-testid^="bold-inbox-thread-"]').filter({ hasText: "Alan Turing" }).click();
+    await p.getByTestId("bold-inbox-composer").waitFor();
+    // A leftover hold from a previous run is resumed first (clean frame).
+    const stale = p.getByTestId("bold-inbox-resume");
+    if (await stale.isVisible().catch(() => false)) {
+      await stale.click();
+      await p.waitForTimeout(800);
+    }
+    await p.getByTestId("bold-inbox-replytext").fill("Most people are back to normal food in three days — happy to hold Thursday 9:00 while you decide.");
+    await p.waitForTimeout(400);
+    await shot(p, "build-reply-composer-1440x900");
+    // A REAL send through the boundary (sandbox transport — nothing delivered,
+    // the ledger row and the reply-hold are real). Resumed after the frame.
+    await p.getByTestId("bold-inbox-send").click();
+    await p.getByTestId("bold-inbox-held").waitFor({ timeout: 15_000 });
+    await p.waitForTimeout(600);
+    await shot(p, "build-reply-sent-held-1440x900");
+    await p.getByTestId("bold-inbox-resume").click();
+    await p.waitForTimeout(600);
+    await p.getByTestId("bold-inbox-assign").click();
+    await p.waitForTimeout(400);
+    await shot(p, "build-inbox-assign-1440x900");
+    // The DEC-114 slot, live: Ada Lovelace's paid-no-review rule (deferred
+    // action, visible provenance).
+    await p.getByTestId("bold-dock-contacts").click();
+    await p.locator('[data-testid^="bold-ct-card-"]').filter({ hasText: "Ada Lovelace" }).click();
+    await p.getByTestId("bold-person-nextstep").waitFor({ timeout: 15_000 });
+    await p.waitForTimeout(500);
+    await shot(p, "build-nextstep-1440x900");
+    await p.context().close();
+  });
+}
 
 /* --------------------------------------------------------------- the b3 set */
 if (UNIT === "b3") {

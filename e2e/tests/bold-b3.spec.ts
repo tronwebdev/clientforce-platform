@@ -80,7 +80,8 @@ test("workspace inbox: attribution, campaign picker, triage round-trips", async 
   await expect(page.getByTestId("bold-inbox-donebar")).toContainText("Handled.");
   await page.getByTestId("bold-inbox-done").click();
   await expect(page.getByTestId("bold-toast")).toContainText("Reopened");
-  await expect(page.getByTestId("bold-inbox-donebar")).toContainText("read and triage");
+  // B3b: reopening lands on the live reply composer.
+  await expect(page.getByTestId("bold-inbox-composer")).toBeVisible();
 });
 
 test("contacts: segments, search, person detail, Message lands on the thread", async ({ page }) => {
@@ -135,7 +136,11 @@ test("contacts: segments, search, person detail, Message lands on the thread", a
   );
   await expect(page.getByTestId("bold-person-call")).toContainText("Coming soon");
   await expect(page.getByTestId("bold-person-book")).toContainText("Coming soon");
-  await expect(page.getByTestId("bold-person-nextstep")).toContainText("Coming soon");
+  // B3b: the slot is LIVE five-rule logic now. Ada's facts fire the
+  // paid-without-review-ask rule, whose action is not shipped — the slot
+  // shows the provenance and a visibly deferred action (DEC-114/115).
+  await expect(page.getByTestId("bold-person-nextstep")).toContainText("Paid");
+  await expect(page.getByTestId("bold-person-nextstep-deferred")).toContainText("Ask for a review");
   await expect(page.getByTestId("bold-person-ada")).toContainText("Booked");
   await page.getByTestId("bold-person-tag-add").click();
   await page.getByTestId("bold-person-tag-input").fill("e2e-tag");

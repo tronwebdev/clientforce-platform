@@ -59,6 +59,24 @@ export class SendGridSender implements EmailSender {
   }
 }
 
+/**
+ * B3b: the keyless local twin of SendGrid's sandbox mode — mints the same
+ * self-controlled RFC Message-ID and delivers NOTHING, exactly what SendGrid
+ * sandbox does minus the network validation call. For local dev and CI where
+ * no SENDGRID_API_KEY exists (the TwilioSmsSender sandbox precedent); it
+ * REFUSES to run in production so a missing key can never silently swallow
+ * real mail.
+ */
+export class KeylessSandboxSender implements EmailSender {
+  async send(_email: RenderedEmail, _sender: SenderConnection): Promise<SendResult> {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("KeylessSandboxSender is a local/CI transport — set SENDGRID_API_KEY in production.");
+    }
+    const messageId = `<${randomUUID()}@send.clientforce.io>`;
+    return { providerMessageId: messageId, rfcMessageId: messageId };
+  }
+}
+
 /** Designed-but-inert tiers — same interface, explicit not-yet (issue P1.5). */
 export class NotImplementedSender implements EmailSender {
   constructor(private readonly tier: string) {}

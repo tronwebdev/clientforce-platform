@@ -49,8 +49,21 @@ export interface SendStepParams {
   enrollmentId?: string;
   contactId: string;
   senderId: string;
-  stepNodeId: string;
+  /** Absent on B3b human replies — a reply is not a graph step. */
+  stepNodeId?: string;
   content: StepContent;
+  /**
+   * B3b (DEC-117): "step" (default) is Ada's scheduled sending — it obeys the
+   * A8 scheduling rails (sending window, daily caps) AND refuses against an
+   * active reply-hold. "reply" is a HUMAN-initiated 1:1 reply: every safety
+   * gate still runs (suspension, kill switch, sender status/health, opt-out,
+   * suppression, compliance footer, allow-list), but Ada's scheduling rails
+   * do not govern a human answering a customer, and the hold a human's own
+   * reply creates must never block that reply.
+   */
+  origin?: "step" | "reply";
+  /** B3b: reply provenance, persisted into `Message.meta.reply` verbatim. */
+  replyBy?: { userId: string; draft: "ada" | "none"; draftEdited?: boolean };
   /**
    * G2 (DEC-071): provenance of guided copy, merged into `Message.meta` at
    * persist time. PASS-THROUGH ONLY — no rail reads it; the boundary neither
@@ -106,10 +119,31 @@ export async function sendStep(deps: SendDeps, params: SendStepParams): Promise<
   }
 
   const guardrails = parseGuardrails(agent.guardrails);
+  const isReply = params.origin === "reply";
   // A8: literal-true flags are structurally guaranteed by the schema; the
-  // checks below are the enforcement those flags promise.
-  assertInsideWindow(guardrails, now);
-  await assertUnderCaps(deps, params, guardrails, sender, now);
+  // checks below are the enforcement those flags promise. B3b: they govern
+  // Ada's SCHEDULED sending — a human reply passes them (see `origin`).
+  if (!isReply) {
+    // DEC-117 (owner ruling): a human reply pauses Ada for this enrollment —
+    // scheduled sends refuse against an active hold until Resume clears it.
+    // Checked FIRST: "a human is talking to this person" is the refusal that
+    // matters, whatever the clock says.
+    if (params.enrollmentId) {
+      const hold = await withTenant(prisma, ctx, (tx) =>
+        tx.enrollmentReplyHold.findFirst({
+          where: { enrollmentId: params.enrollmentId, releasedAt: null },
+        }),
+      );
+      if (hold) {
+        throw new SendBlockedError(
+          "ENROLLMENT_HELD",
+          "a human replied on this conversation — Ada waits for Resume",
+        );
+      }
+    }
+    assertInsideWindow(guardrails, now);
+    await assertUnderCaps(deps, params, guardrails, sender, now);
+  }
 
   // suppressionCheck (A8, literal true): Contact.optOut AND Suppression rows.
   const optOut = (contact.optOut ?? {}) as { email?: boolean };
@@ -251,7 +285,7 @@ export async function sendStep(deps: SendDeps, params: SendStepParams): Promise<
         body: fullBody,
         providerMessageId,
         inReplyToId: prior?.id ?? null,
-        stepNodeId: params.stepNodeId,
+        stepNodeId: params.stepNodeId ?? null,
         // P5 W1 (DEC-083): sender attribution as a real, indexed column —
         // per-sender warmup caps + health rollups query it. meta.senderId
         // stays for every existing reader (compat).
@@ -265,6 +299,8 @@ export async function sendStep(deps: SendDeps, params: SendStepParams): Promise<
           // G2 (DEC-071): guided provenance, pass-through only — absent on
           // scripted sends, so their meta stays byte-identical.
           ...(params.composed ?? {}),
+          // B3b: human-reply provenance — absent on every step send.
+          ...(params.replyBy ? { reply: params.replyBy } : {}),
         },
       },
     }),

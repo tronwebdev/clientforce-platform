@@ -41,6 +41,25 @@ export async function assembleInboxThreads(tx: Prisma.TransactionClient, campaig
   });
   const enrollmentByKey = new Map(enrollments.map((e) => [`${e.campaignId}:${e.contactId}`, e]));
 
+  // B3b (DEC-117): per-thread working state + the reply-hold indicator.
+  const [threadStates, activeHolds] = await Promise.all([
+    tx.threadState.findMany({
+      where: { campaignId: { in: campaignIds }, contactId: { in: contactIds } },
+    }),
+    tx.enrollmentReplyHold.findMany({
+      where: { enrollmentId: { in: enrollments.map((e) => e.id) }, releasedAt: null },
+      select: { enrollmentId: true },
+    }),
+  ]);
+  const stateByKey = new Map(threadStates.map((t) => [`${t.campaignId}:${t.contactId}`, t]));
+  const heldEnrollments = new Set(activeHolds.map((h) => h.enrollmentId));
+  const assigneeIds = [...new Set(threadStates.map((t) => t.assigneeUserId).filter((v): v is string => Boolean(v)))];
+  const assignees =
+    assigneeIds.length > 0
+      ? await tx.user.findMany({ where: { id: { in: assigneeIds } }, select: { id: true, email: true, name: true } })
+      : [];
+  const assigneeById = new Map(assignees.map((u) => [u.id, u]));
+
   // DEC-094/DEC-095: contact-anchored calendar + payment system rows.
   const calendarEvents =
     contactIds.length > 0
@@ -75,6 +94,16 @@ export async function assembleInboxThreads(tx: Prisma.TransactionClient, campaig
         campaign: { id: campaign.id, name: campaign.name, agentId: campaign.agentId, agentName: campaign.agentName },
         enrollmentId: enrollment?.id ?? null,
         stage: enrollment?.pipelineStage ?? null,
+        // B3b: held = Ada is paused on this thread's enrollment (reply-hold).
+        adaHeld: enrollment ? heldEnrollments.has(enrollment.id) : false,
+        assignee: (() => {
+          const st = stateByKey.get(key);
+          return st?.assigneeUserId ? (assigneeById.get(st.assigneeUserId) ?? null) : null;
+        })(),
+        snoozedUntil: (() => {
+          const st = stateByKey.get(key);
+          return st?.snoozedUntil ? st.snoozedUntil.toISOString() : null;
+        })(),
         channels: [...new Set(msgs.map((m) => m.channel))],
         intent: lastInbound.intent ?? null,
         unread: !lastOutbound || lastInbound.sentAt > lastOutbound.sentAt,
@@ -91,7 +120,11 @@ export async function assembleInboxThreads(tx: Prisma.TransactionClient, campaig
             occurredAt: e.occurredAt.toISOString(),
           })),
         messages: msgs.map((m) => {
-          const mm = (m.meta ?? {}) as { mode?: string; composerVersion?: string };
+          const mm = (m.meta ?? {}) as {
+            mode?: string;
+            composerVersion?: string;
+            reply?: { userId: string; draft: "ada" | "none"; draftEdited?: boolean };
+          };
           return {
             id: m.id,
             direction: m.direction,
@@ -103,6 +136,8 @@ export async function assembleInboxThreads(tx: Prisma.TransactionClient, campaig
             ...(m.direction === "OUTBOUND" && mm.mode === "guided"
               ? { composed: { composerVersion: mm.composerVersion ?? null } }
               : {}),
+            // B3b: human-reply provenance (the boundary stamped it).
+            ...(m.direction === "OUTBOUND" && mm.reply ? { reply: mm.reply } : {}),
           };
         }),
       };

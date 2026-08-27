@@ -102,7 +102,10 @@ test("the activity page filters; send rows drill to recipients; contact rows ope
 
   // Drawer kind 2 — the sent-to-N recipients subset (grp).
   await page.getByTestId("bold-act-filter-send").click();
-  const sendRow = page.getByTestId("bold-activity-page").getByText(/Sent to 3/);
+  // B3b: console replies aggregate into their own ad-hoc send group, so
+  // more than one "Sent to N" row can match — the SEEDED step row is the
+  // oldest match (rows order newest-first).
+  const sendRow = page.getByTestId("bold-activity-page").getByText(/Sent to 3/).last();
   await expect(sendRow).toBeVisible();
   await sendRow.click();
   const drawer = page.getByTestId("bold-drawer");

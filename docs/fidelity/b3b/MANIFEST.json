@@ -1,0 +1,40 @@
+{
+  "unit": "b3b",
+  "commit": "7931c922a9c9c7cc7166494214c015574c8ea960",
+  "workingTreeDirtyAtCapture": false,
+  "capturedAt": "2026-08-27T07:45:53.813Z",
+  "baseUrl": "http://localhost:3000",
+  "note": "Single-run capture; every frame from one build. Verify a frame by hashing its bytes against this manifest — never by trusting an image cache. pnpm lint:fidelity enforces the binding.",
+  "frames": {
+    "build-inbox-assign-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 152133,
+      "sha256": "0cec5404c1de3211638e16383ea2268406f418175c766eb43a69acca3eaa2383"
+    },
+    "build-nextstep-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 175370,
+      "sha256": "7561be805e1626fdf47152b659bea4d49a9c35437fc501cda0a53122de390c22"
+    },
+    "build-reply-composer-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 149790,
+      "sha256": "b53680099f3cb45325e2dd7a6dffe57895b659b53bc086c03fc86152ef56a0ae"
+    },
+    "build-reply-sent-held-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 143807,
+      "sha256": "23fd78ee738d2e2803b0aea037b80abbabe5ee75de19fb395fd7b41b2d555737"
+    },
+    "proto-reply-draft-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 146590,
+      "sha256": "bf96a40e8a87362998daceb33328bb7c70f76017c5a3f35d40755a63f23dd3dc"
+    },
+    "proto-reply-sent-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 136491,
+      "sha256": "ed6ce50857ac8927c5917788185b149dbf302d8668159ac64c294c002d1dcb76"
+    }
+  }
+}

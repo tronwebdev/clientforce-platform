@@ -43,6 +43,13 @@ const DEFAULT_CREDIT_PRICES: ReadonlyArray<{ action: string; credits: number }> 
   // delta TYPE is the spine-2 ride-along; metering stays with Phase 10's
   // reconciliation — the checklist forbids a parallel meter.
   { action: "widget_turn", credits: 2 },
+  // B3b (DEC-116, owner ruling): console reply pricing — effective-dated
+  // data, admin-editable, nothing hard-coded (D1). Human typing is free; the
+  // channel cost applies when a reply SENDS (human or Ada draft alike); the
+  // Ada draft itself has its own key, seeded 0.
+  { action: "reply_email_send", credits: 1 },
+  { action: "reply_sms_send", credits: 5 },
+  { action: "reply_draft", credits: 0 },
 ];
 
 /** The 3 agency-level plan tiers (priceMonthly in integer cents). */
@@ -180,6 +187,33 @@ async function main(): Promise<void> {
       update: {},
       create: { userId: ownerAccount.id, workspaceId: workspace.id, role: "OWNER" },
     });
+
+    // B3b (DEC-116): the demo business core — the boundary's CAN-SPAM rail
+    // consumes company_address verbatim, so a demo without it can never pass
+    // a send (console replies included). Skip-if-present like every block.
+    const hasCore = await prisma.businessContext.findFirst({
+      where: { workspaceId: workspace.id, agentId: null },
+    });
+    if (!hasCore) {
+      await prisma.businessContext.create({
+        data: {
+          workspaceId: workspace.id,
+          agentId: null,
+          fields: {
+            company_address: {
+              value: "Bright Smile Dental, 412 Congress Ave, Austin, TX 78701",
+              citations: [],
+              source: "typed",
+            },
+            offer: {
+              value: "Implant consults ($2,400 per plan), whitening kits ($249), cleanings.",
+              citations: [],
+              source: "typed",
+            },
+          },
+        },
+      });
+    }
 
     const stageCount = await prisma.pipelineStage.count({
       where: { workspaceId: workspace.id, campaignId: null },

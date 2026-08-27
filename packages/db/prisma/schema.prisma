@@ -236,6 +236,7 @@ model Campaign {
   graphs      CampaignGraph[]
   enrollments Enrollment[]
   rules       CampaignRule[]
+  threadStates ThreadState[]
 
   @@index([workspaceId])
   @@index([agentId])
@@ -360,6 +361,7 @@ model Enrollment {
   updatedAt     DateTime         @updatedAt
   campaign      Campaign         @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   contact       Contact          @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  replyHolds    EnrollmentReplyHold[]
 
   @@unique([campaignId, contactId])
   @@index([workspaceId])
@@ -523,6 +525,47 @@ model EnrollmentHold {
   @@unique([campaignId, contactId])
   @@index([workspaceId, status])
   @@index([campaignId, status])
+}
+
+/// B3b (DEC-117, owner ruling): a HUMAN REPLY pauses Ada for that contact's
+/// enrollment until the explicit Resume control clears it — no auto-resume
+/// timer. Named EnrollmentReplyHold because `EnrollmentHold` above is LH1's
+/// PRE-enrollment validation hold (a different lifecycle). Released rows keep
+/// their stamps; active = releasedAt null. The send boundary refuses step
+/// sends against an active hold; human replies pass.
+model EnrollmentReplyHold {
+  id           String     @id @default(cuid())
+  workspaceId  String
+  enrollmentId String
+  campaignId   String
+  contactId    String
+  reason       String     @default("human_reply")
+  createdById  String?
+  createdAt    DateTime   @default(now())
+  releasedById String?
+  releasedAt   DateTime?
+  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  @@index([enrollmentId, releasedAt])
+  @@index([workspaceId, contactId, releasedAt])
+}
+
+/// B3b (DEC-117): per-thread working state — threads are (campaign, contact)
+/// with no Thread table (B2), so assign + snooze live here. Additive; the
+/// inbox assembler joins it.
+model ThreadState {
+  id             String    @id @default(cuid())
+  workspaceId    String
+  campaignId     String
+  contactId      String
+  assigneeUserId String?
+  snoozedUntil   DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  campaign       Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, contactId])
+  @@index([workspaceId])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

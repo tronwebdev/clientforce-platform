@@ -77,6 +77,9 @@ export type SendBlockReason =
   // B1 W4 (DEC-082): the per-agency/per-channel kill switch — same boundary
   // machinery as TENANT_SUSPENDED, one more typed reason. Reversible.
   | "CHANNEL_KILLED"
+  // B3b (DEC-117): a human replied on this conversation — Ada's scheduled
+  // sends refuse until the explicit Resume clears the reply-hold. Reversible.
+  | "ENROLLMENT_HELD"
   // P5 W1 (DEC-083): health auto-pause. A sender whose ledger-derived health
   // snapshot is `unhealthy` refuses every send; recovery (score back over the
   // hysteresis line) or the window draining restores it — reversible, and the

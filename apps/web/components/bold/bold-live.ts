@@ -72,19 +72,38 @@ export interface ContactSignalFact {
 
 /** The shipped timeline read returns `{ events: [...] }` — unwrap defensively
  *  (this exact shape mismatch crashed the person drawer in review). */
+/** B3b (DEC-114): the next-best-action slot's server-computed rule result —
+ *  null when no rule fires (the slot then renders NOTHING). */
+export interface ContactNextStep {
+  key: string;
+  live: boolean;
+  label: string;
+  provenance: string;
+  campaignId?: string | null;
+  agentId?: string;
+  agentName?: string;
+}
+
 export const fetchContactTimeline = async (
   contactId: string,
-): Promise<{ events: TimelineEvent[]; enrollments: ContactEnrollmentRef[]; signalFacts: ContactSignalFact[] } | null> => {
+): Promise<{
+  events: TimelineEvent[];
+  enrollments: ContactEnrollmentRef[];
+  signalFacts: ContactSignalFact[];
+  nextStep: ContactNextStep | null;
+} | null> => {
   const res = await get<{
     events?: TimelineEvent[];
     enrollments?: ContactEnrollmentRef[];
     signalFacts?: ContactSignalFact[];
+    nextStep?: ContactNextStep | null;
   }>(`contacts/${contactId}/timeline`);
   if (!res) return null;
   return {
     events: Array.isArray(res.events) ? res.events : [],
     enrollments: Array.isArray(res.enrollments) ? res.enrollments : [],
     signalFacts: Array.isArray(res.signalFacts) ? res.signalFacts : [],
+    nextStep: res.nextStep ?? null,
   };
 };
 
@@ -130,6 +149,8 @@ export interface BoldInboxMessage {
   sentAt: string;
   /** Compose provenance — guided-meta OUTBOUND rows only (shipped contract). */
   composed?: { composerVersion: string | null };
+  /** B3b: human-reply provenance (who sent, whether Ada drafted it). */
+  reply?: { userId: string; draft: "ada" | "none"; draftEdited?: boolean };
 }
 
 /** `GET /agents/:id/inbox` thread — keyed by contactId (no Thread table);
@@ -142,6 +163,10 @@ export interface BoldInboxThread {
   campaign?: { id: string; name: string; agentId: string; agentName: string };
   enrollmentId: string | null;
   stage: string | null;
+  /** B3b (DEC-117): Ada is paused on this thread (a human replied). */
+  adaHeld?: boolean;
+  assignee?: { id: string; email: string; name: string | null } | null;
+  snoozedUntil?: string | null;
   channels: string[];
   intent: string | null;
   unread: boolean;
@@ -357,6 +382,45 @@ export const dismissSuggestion = (agentId: string) =>
 /** B3a review (DEC-112(7)): tags (full replace) + notes on the contact PATCH. */
 export const patchContactFacts = (contactId: string, body: { tags?: string[]; notes?: string | null }) =>
   send(`contacts/${encodeURIComponent(contactId)}`, "PATCH", body);
+
+/* ---------------------------------------------------- B3b (DEC-116/117) */
+
+/** A human reply on a thread — through the shipped send boundary. */
+export const sendInboxReply = (body: {
+  campaignId: string;
+  contactId: string;
+  body: string;
+  channel: "email" | "sms";
+  draft: "ada" | "none";
+  draftEdited?: boolean;
+}) => send("inbox/reply", "POST", body);
+
+export interface ReplyDraft {
+  body: string;
+  composerVersion: string;
+  usedNote: boolean;
+}
+/** Ada drafts a reply for approve/edit/send — never auto-sent. */
+export const requestReplyDraft = (body: { campaignId: string; contactId: string; channel: "email" | "sms" }) =>
+  send("inbox/draft", "POST", body);
+
+/** The explicit Resume Ada control (owner ruling — no auto-resume timer). */
+export const resumeAda = (contactId: string) => send("inbox/resume", "POST", { contactId });
+
+export const patchThreadState = (body: {
+  campaignId: string;
+  contactId: string;
+  assigneeUserId?: string | null;
+  snoozedUntil?: string | null;
+}) => send("inbox/thread-state", "PATCH", body);
+
+export interface WorkspaceMember {
+  id: string;
+  email: string;
+  name: string | null;
+  role: string;
+}
+export const fetchInboxMembers = () => get<WorkspaceMember[]>("inbox/members");
 
 export const enrollContact = (
   agentId: string,
