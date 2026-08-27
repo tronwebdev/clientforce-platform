@@ -23,6 +23,7 @@ import { DEFAULT_GUARDRAILS } from "@clientforce/core";
 import { createPrismaClient, type PrismaClient } from "@clientforce/db";
 import { AppModule } from "../src/app.module";
 import { signDevToken } from "../src/auth/dev-token-verifier";
+import { awakeTimezone } from "./clock";
 
 const hasDb = Boolean(process.env.APP_DATABASE_URL ?? process.env.DATABASE_URL);
 const SECRET = process.env.AUTH_DEV_SECRET ?? "test-dev-secret";
@@ -84,6 +85,7 @@ describe.skipIf(!hasDb)("Human browser calling e2e", () => {
           phone: "+15125550177",
           firstName: "Hana",
           lastName: "Vale",
+          timezone: awakeTimezone(),
         },
       })
     ).id;
@@ -97,6 +99,7 @@ describe.skipIf(!hasDb)("Human browser calling e2e", () => {
           email: `vb-dnc-${suffix}@t.test`,
           phone: "+15125550178",
           firstName: "Dee",
+          timezone: awakeTimezone(),
         },
       })
     ).id;
@@ -124,19 +127,14 @@ describe.skipIf(!hasDb)("Human browser calling e2e", () => {
   const asOwner = () => ({ Authorization: `Bearer ${ownerToken}`, "x-workspace-id": ws });
 
   it("unknown consent never blocks a HUMAN dial; DNC always does (typed + Logs row)", async () => {
-    // Timing can legitimately refuse depending on the wall clock — outside
-    // the 08:00–21:00 contact floor the human dial refuses on the clock, not
-    // on consent. Both legs pin the asymmetry: the reason is NEVER consent.
+    // The fixture clocks are awake by construction — the asymmetry is pinned
+    // cleanly: unknown consent CLEARS for a human, DNC refuses typed.
     const res = await request(app.getHttpServer())
       .post("/voice/browser-calls")
       .set(asOwner())
       .send({ agentId, contactId });
-    if (res.status === 422) {
-      expect(["OUTSIDE_QUIET_HOURS", "OUTSIDE_SENDING_WINDOW"]).toContain(res.body.reason);
-    } else {
-      expect(res.status).toBe(201);
-      await owner.call.deleteMany({ where: { workspaceId: ws } });
-    }
+    expect(res.status).toBe(201);
+    await owner.call.deleteMany({ where: { workspaceId: ws } });
 
     const dnc = await request(app.getHttpServer())
       .post("/voice/browser-calls")
@@ -151,26 +149,6 @@ describe.skipIf(!hasDb)("Human browser calling e2e", () => {
   });
 
   it("keyless sandbox: the row carries human attribution + a sandbox sid; finish resolves + publishes", async () => {
-    // Give the contact an always-open clock: their own timezone can't be
-    // controlled in a wall-clock test, so scan for a zone currently awake.
-    const zones = [
-      "Pacific/Kiritimati", "Pacific/Auckland", "Asia/Tokyo", "Asia/Shanghai", "Asia/Kolkata",
-      "Europe/Berlin", "UTC", "America/Sao_Paulo", "America/New_York", "America/Chicago",
-      "America/Denver", "America/Los_Angeles", "Pacific/Honolulu",
-    ];
-    const local = (tz: string) =>
-      Number(
-        new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "2-digit", hourCycle: "h23" })
-          .formatToParts(new Date())
-          .find((p) => p.type === "hour")!.value,
-      );
-    const awake = zones.find((z) => {
-      const h = local(z);
-      return h >= 9 && h < 20;
-    });
-    expect(awake).toBeTruthy();
-    await owner.contact.update({ where: { id: contactId }, data: { timezone: awake! } });
-
     const res = await request(app.getHttpServer())
       .post("/voice/browser-calls")
       .set(asOwner())

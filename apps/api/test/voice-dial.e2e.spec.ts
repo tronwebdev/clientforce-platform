@@ -22,6 +22,7 @@ import { createPrismaClient, type PrismaClient } from "@clientforce/db";
 import { AppModule } from "../src/app.module";
 import { signDevToken } from "../src/auth/dev-token-verifier";
 import { CALL_DIAL_QUEUE_TOKEN } from "../src/voice/voice.providers";
+import { awakeTimezone } from "./clock";
 
 const hasDb = Boolean(process.env.APP_DATABASE_URL ?? process.env.DATABASE_URL);
 const SECRET = process.env.AUTH_DEV_SECRET ?? "test-dev-secret";
@@ -83,6 +84,10 @@ describe.skipIf(!hasDb)("Ada outbound dial rail e2e", () => {
           phone: "+15125550100",
           firstName: "Vera",
           lastName: "Dial",
+          // A CURRENTLY-awake clock: the 08:00–21:00 contact-local floor
+          // otherwise makes every non-timing gate test hostage to the
+          // runner's wall hour (red after 21:00 UTC, green all day).
+          timezone: awakeTimezone(),
         },
       })
     ).id;
@@ -134,21 +139,13 @@ describe.skipIf(!hasDb)("Ada outbound dial rail e2e", () => {
       .post(`/agents/${agentId}/calls`)
       .set(asOwner())
       .send({ contactId });
-    // 08:00–21:00 UTC floor (contact tz falls back to the campaign zone):
-    // outside those hours this dials via best_time instead — assert both
-    // legs deterministically by checking the clock.
-    const hour = new Date().getUTCHours();
-    if (hour >= 8 && hour < 21) {
-      expect(res.status).toBe(201);
-      const call = await owner.call.findFirst({ where: { workspaceId: ws, contactId } });
-      expect(call!.caller).toBe("ada");
-      expect(call!.placedById).toBe(userIds[0]);
-      expect(call!.providerCallSid).toContain("CA-sandbox-");
-      await owner.call.deleteMany({ where: { workspaceId: ws } }); // clean slate for the caps tests
-    } else {
-      expect(res.status).toBe(422);
-      expect(res.body.reason).toBe("OUTSIDE_QUIET_HOURS");
-    }
+    // The fixture clock is awake by construction — the dial clears.
+    expect(res.status).toBe(201);
+    const call = await owner.call.findFirst({ where: { workspaceId: ws, contactId } });
+    expect(call!.caller).toBe("ada");
+    expect(call!.placedById).toBe(userIds[0]);
+    expect(call!.providerCallSid).toContain("CA-sandbox-");
+    await owner.call.deleteMany({ where: { workspaceId: ws } }); // clean slate for the caps tests
   });
 
   it("contact-local quiet hours refuse in THEIR timezone", async () => {
@@ -204,8 +201,8 @@ describe.skipIf(!hasDb)("Ada outbound dial rail e2e", () => {
     expect(again.body.id).toBe(res.body.id);
     expect(await owner.call.count({ where: { workspaceId: ws, status: "QUEUED" } })).toBe(1);
     await owner.call.deleteMany({ where: { workspaceId: ws } });
-    // Restore an always-open local clock for the caps tests below.
-    await owner.contact.update({ where: { id: contactId }, data: { timezone: null } });
+    // Restore the awake clock for the caps tests below.
+    await owner.contact.update({ where: { id: contactId }, data: { timezone: awakeTimezone() } });
   });
 
   it("the lifetime attempt cap and the unanswered threshold refuse typed", async () => {
@@ -274,11 +271,7 @@ describe.skipIf(!hasDb)("Ada outbound dial rail e2e", () => {
       .post(`/agents/${agentId}/calls`)
       .set(asOwner())
       .send({ contactId, when: "best_time" });
-    expect([201, 422]).toContain(stillOpen.status);
-    if (stillOpen.status === 422) {
-      // Only a TIMING reason may refuse here — never the caps.
-      expect(["OUTSIDE_QUIET_HOURS", "OUTSIDE_SENDING_WINDOW"]).toContain(stillOpen.body.reason);
-    }
+    expect(stillOpen.status).toBe(201); // sid-less rows burn nothing; the clock is open
     await owner.call.deleteMany({ where: { workspaceId: ws } });
   });
 

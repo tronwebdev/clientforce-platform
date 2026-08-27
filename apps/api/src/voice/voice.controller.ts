@@ -109,7 +109,22 @@ export class VoiceController {
           parsed.data.when === "best_time" &&
           (err.reason === "OUTSIDE_SENDING_WINDOW" || err.reason === "OUTSIDE_QUIET_HOURS")
         ) {
-          return this.queueBestTime(req, agentId, campaign.id, parsed.data.contactId, workspaceId);
+          try {
+            return await this.queueBestTime(req, agentId, campaign.id, parsed.data.contactId, workspaceId);
+          } catch (gateErr) {
+            // The queue's NON-timing pre-gate refused (consent flipped, caps
+            // burned, suppression landed) — the same Logs row + 422 as a
+            // synchronous refusal, never an unhandled 500 out of the catch.
+            if (!(gateErr instanceof SendBlockedError)) throw gateErr;
+            await this.publisher.publish({
+              type: EVENT_TYPES.CALL_REFUSED,
+              workspaceId,
+              campaignId: campaign.id,
+              contactId: parsed.data.contactId,
+              payload: { reason: gateErr.reason, detail: gateErr.message, contactId: parsed.data.contactId },
+            });
+            throw new HttpException({ reason: gateErr.reason, message: gateErr.message }, 422);
+          }
         }
         // The Logs row the acceptance demands — refusal recorded BEFORE the 422.
         await this.publisher.publish({
