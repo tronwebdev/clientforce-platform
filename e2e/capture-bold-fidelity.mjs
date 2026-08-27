@@ -15,7 +15,7 @@
  *    of impersonating evidence. Reviewers verify what they are looking at by
  *    hashing the file — never by trusting an image cache.
  *
- * Usage:  node e2e/capture-bold-fidelity.mjs [unit]     (b1 | b2 | b25 | b26; default b1)
+ * Usage:  node e2e/capture-bold-fidelity.mjs [unit]     (b1 | b2 | b25 | b26 | b3; default b1)
  * Env:    CAPTURE_BASE_URL (default http://localhost:3000)
  *         PLAYWRIGHT_CHROMIUM_EXECUTABLE (a pre-provisioned Chromium)
  *
@@ -33,8 +33,8 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const UNIT = process.argv[2] ?? "b1";
-if (!["b1", "b2", "b25", "b26"].includes(UNIT)) {
-  console.error(`Unknown unit "${UNIT}" — this tool knows b1, b2, b25 and b26.`);
+if (!["b1", "b2", "b25", "b26", "b3"].includes(UNIT)) {
+  console.error(`Unknown unit "${UNIT}" — this tool knows b1, b2, b25, b26 and b3.`);
   process.exit(1);
 }
 const OUT = join(ROOT, "docs", "fidelity", UNIT);
@@ -149,6 +149,58 @@ const toBoldCampaign = async (p) => {
 };
 
 
+
+/* --------------------------------------------------------------- the b3 set */
+if (UNIT === "b3") {
+  await run("prototype-b3", async () => {
+    const p = await page({ width: 1440, height: 900 });
+    await freshProto(p);
+    // Dock → workspace Inbox (title tooltips are the dock's identity).
+    await p.locator('[title="Inbox"]').first().click();
+    await p.waitForTimeout(600);
+    await shot(p, "proto-wsinbox-1440x900");
+    await p.locator('[title="Contacts"]').first().click();
+    await p.waitForTimeout(600);
+    await shot(p, "proto-contacts-grid-1440x900");
+    await p.locator('[title="List"]').first().click();
+    await p.waitForTimeout(400);
+    await shot(p, "proto-contacts-list-1440x900");
+    // The contact detail overlay (§7's avatar-header rule).
+    await p.getByText("Maya Collins", { exact: true }).first().click();
+    await p.waitForTimeout(600);
+    await shot(p, "proto-contact-detail-1440x900");
+    await p.context().close();
+  });
+
+  await run("build-b3", async () => {
+    const p = await page({ width: 1440, height: 900 });
+    await signInBuild(p);
+    await p.goto(`${BASE}/bold`);
+    await p.getByTestId("bold-root").waitFor();
+    await p.addStyleTag({ content: "nextjs-portal{display:none!important}" });
+    await p.waitForTimeout(700);
+    const later = p.getByText("Later", { exact: true }).first();
+    if (await later.isVisible().catch(() => false)) await later.click();
+    await p.getByTestId("bold-dock-wsinbox").click();
+    await p.locator('[data-testid^="bold-inbox-thread-"]').first().waitFor();
+    await p.waitForTimeout(700);
+    await shot(p, "build-wsinbox-1440x900");
+    await p.getByTestId("bold-dock-contacts").click();
+    await p.locator('[data-testid^="bold-ct-card-"]').first().waitFor();
+    await p.waitForTimeout(600);
+    await shot(p, "build-contacts-grid-1440x900");
+    await p.getByTestId("bold-ct-view-list").click();
+    await p.locator('[data-testid^="bold-ct-row-"]').first().waitFor();
+    await p.waitForTimeout(400);
+    await shot(p, "build-contacts-list-1440x900");
+    // The person detail on the seeded booked contact.
+    await p.locator('[data-testid^="bold-ct-row-"]').filter({ hasText: "Ada Lovelace" }).click();
+    await p.getByTestId("bold-person-name").waitFor();
+    await p.waitForTimeout(600);
+    await shot(p, "build-contact-detail-1440x900");
+    await p.context().close();
+  });
+}
 
 /* -------------------------------------------------------------- the b26 set */
 if (UNIT === "b26") {

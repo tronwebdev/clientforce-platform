@@ -3,6 +3,7 @@ import { goalTerminalLabel, goalTerminalPill, parseGuardrails } from "@clientfor
 import { Role } from "@clientforce/db";
 import { Roles } from "../auth/decorators";
 import { TenantClient } from "../db/tenant-client";
+import { HAPPY_STAGES, NOT_NOW_INTENTS, QUIET_DAYS } from "../suggestions/signals";
 
 /**
  * Contacts screen surface (C2.5, checkpoints §5). The A10 segment chips are
@@ -48,7 +49,7 @@ export class ContactsViewController {
         select: { goal: true },
       });
       const activeGoalKeys = [...new Set(activeAgents.map((a) => a.goal))];
-      const [enrollments, replied, suppressions, lastEvents] = await Promise.all([
+      const [enrollments, replied, suppressions, lastEvents, lastInbounds] = await Promise.all([
         tx.enrollment.findMany({
           where: { contactId: { in: ids } },
           orderBy: { updatedAt: "desc" },
@@ -59,7 +60,7 @@ export class ContactsViewController {
             updatedAt: true,
             campaignId: true,
             campaign: {
-              select: { agent: { select: { name: true, goal: true, guardrails: true } } },
+              select: { agent: { select: { name: true, goal: true, guardrails: true, valueEstCents: true } } },
             },
           },
         }),
@@ -74,6 +75,14 @@ export class ContactsViewController {
           where: { contactId: { in: ids } },
           _max: { occurredAt: true },
         }),
+        // B3a review (DEC-112(7)): the newest INBOUND message per contact —
+        // the "last asked about" human context the card sub-line prefers.
+        tx.message.findMany({
+          where: { contactId: { in: ids }, direction: "INBOUND" },
+          orderBy: { sentAt: "desc" },
+          distinct: ["contactId"],
+          select: { contactId: true, body: true, intent: true, sentAt: true, channel: true },
+        }),
       ]);
 
       const latestEnrollment = new Map<
@@ -81,7 +90,9 @@ export class ContactsViewController {
         {
           pipelineStage: string;
           status: string;
-          campaign?: { agent: { name: string; goal: string; guardrails: unknown } | null } | null;
+          campaign?: {
+            agent: { name: string; goal: string; guardrails: unknown; valueEstCents?: number | null } | null;
+          } | null;
         }
       >();
       for (const e of enrollments) {
@@ -90,6 +101,7 @@ export class ContactsViewController {
       const repliedSet = new Set(replied.map((r) => r.contactId));
       const suppressed = new Set(suppressions.map((s) => s.address.toLowerCase()));
       const lastBy = new Map(lastEvents.map((e) => [e.contactId, e._max.occurredAt]));
+      const lastInboundBy = new Map(lastInbounds.map((m) => [m.contactId, m]));
 
       const rows = contacts.map((c) => {
         const enr = latestEnrollment.get(c.id);
@@ -108,6 +120,8 @@ export class ContactsViewController {
           phone: c.phone,
           source: c.source,
           custom: c.custom ?? {},
+          tags: c.tags,
+          notes: c.notes,
           lists: listsBy.get(c.id) ?? [],
           // LH1 (DEC-087): the validation verdict chip (valid | risky |
           // invalid | unverified) — suppression/unsub stays its own signal.
@@ -118,8 +132,19 @@ export class ContactsViewController {
           // chips render THIS, never the workspace aggregate).
           goal: enr?.campaign?.agent ? rowGoal(enr.campaign.agent) : null,
           agentName: enr?.campaign?.agent?.name ?? null,
+          // B3a (DEC-112, additive): the campaign's owner-entered per-unit
+          // estimate — the ONLY value data (DEC-104/105); the Bold contacts
+          // column renders it with the B1 potential vocabulary, never as
+          // realized payment.
+          valueEstCents: enr?.campaign?.agent?.valueEstCents ?? null,
           enrollmentStatus: enr?.status ?? null,
           replied: repliedSet.has(c.id),
+          lastInbound: (() => {
+            const m = lastInboundBy.get(c.id);
+            return m
+              ? { body: (m.body ?? "").slice(0, 140), intent: m.intent, channel: m.channel, sentAt: m.sentAt.toISOString() }
+              : null;
+          })(),
           unsub,
           lastActivity: (lastBy.get(c.id) ?? c.createdAt)?.toISOString() ?? null,
         };
@@ -128,7 +153,12 @@ export class ContactsViewController {
     });
   }
 
-  /** Drawer timeline: every Event row for the contact, cross-campaign, newest first. */
+  /** Drawer timeline: every Event row for the contact, cross-campaign, newest
+   *  first. B3a (DEC-112): the additive `enrollments` key rides along — the
+   *  campaigns this contact is in, for the contact detail (§7). The review
+   *  round (DEC-112(7)) adds `signalFacts`: which B2.6 sweep conditions THIS
+   *  contact meets, from the shared signal vocabulary — the drawer's ✦ footer
+   *  renders the factual sentence, or nothing when no condition holds. */
   @Get(":id/timeline")
   async timeline(@Param("id") id: string) {
     return this.tenant.run(async (tx) => {
@@ -137,7 +167,53 @@ export class ContactsViewController {
         orderBy: { occurredAt: "desc" },
         take: 100,
       });
+      const enrollments = await tx.enrollment.findMany({
+        where: { contactId: id },
+        orderBy: { updatedAt: "desc" },
+        select: {
+          id: true,
+          pipelineStage: true,
+          status: true,
+          updatedAt: true,
+          campaign: { select: { id: true, name: true, agent: { select: { id: true, name: true } } } },
+        },
+      });
+
+      // The same per-contact conditions the sweep counts (signals.ts):
+      // a not-now inbound · every message older than QUIET_DAYS · a happy
+      // (booked/won) outcome. Facts only — dates and counts, no narrative.
+      const msgs = await tx.message.findMany({
+        where: { contactId: id },
+        orderBy: { sentAt: "desc" },
+        select: { direction: true, intent: true, sentAt: true },
+        take: 200,
+      });
+      const signalFacts: Array<{ signal: string; at: string; days?: number }> = [];
+      const notNow = msgs.find((m) => m.direction === "INBOUND" && m.intent != null && NOT_NOW_INTENTS.includes(m.intent));
+      if (notNow) signalFacts.push({ signal: "winback_stalled", at: notNow.sentAt.toISOString() });
+      const newest = msgs[0];
+      const cutoff = Date.now() - QUIET_DAYS * 24 * 60 * 60 * 1000;
+      if (newest && newest.sentAt.getTime() < cutoff) {
+        signalFacts.push({
+          signal: "quiet_contacts",
+          at: newest.sentAt.toISOString(),
+          days: Math.floor((Date.now() - newest.sentAt.getTime()) / (24 * 60 * 60 * 1000)),
+        });
+      }
+      const happy = enrollments.find((e) => HAPPY_STAGES.includes(e.pipelineStage));
+      if (happy) signalFacts.push({ signal: "collect_reviews", at: happy.updatedAt.toISOString() });
+
       return {
+        signalFacts,
+        enrollments: enrollments.map((e) => ({
+          id: e.id,
+          stage: e.pipelineStage,
+          status: e.status,
+          campaignId: e.campaign?.id ?? null,
+          campaignName: e.campaign?.name ?? null,
+          agentId: e.campaign?.agent?.id ?? null,
+          agentName: e.campaign?.agent?.name ?? null,
+        })),
         events: rows.map((e) => ({
           id: e.id,
           type: e.type,

@@ -73,25 +73,6 @@ export const SURFACE_TITLES: Record<Exclude<BoldSurface, "campaign">, [string, s
 };
 
 /** Which wave delivers each surface — shown on the B0 canvas stub. */
-export const SURFACE_WAVE: Record<BoldSurface, string> = {
-  campaign: "B1 · campaign console",
-  camps: "B1 · campaign console",
-  wsinbox: "B3 · workspace inbox",
-  contacts: "B3 · contacts",
-  lead: "B6 · lead finder",
-  automations: "B5 · automations",
-  forms: "B5 · forms",
-  chatbot: "B4 · site agent",
-  rcp: "B4 · receptionist add-on",
-  proposals: "B5 · proposals",
-  analytics: "B8 · analytics",
-  integrations: "B8 · integrations",
-  wssettings: "B7 · settings & business core",
-  credits: "B7 · credits spend view",
-  activity: "B1 · campaign console",
-  newcamp: "B2.5 · create campaign",
-};
-
 /* --------------------------------------------------------- Ada map (ADAMAP) */
 
 export interface AdaContext {

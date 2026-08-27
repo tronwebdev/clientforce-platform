@@ -48,5 +48,32 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    // B3a review (owner ruling, DEC-112(7)): build-process vocabulary —
+    // wave ids, DEC-### and Q-### ledger ids — never reaches rendered Bold
+    // copy. String literals, JSX text and template strings under the Bold
+    // surface are checked; code comments are unaffected.
+    files: ["apps/web/components/bold/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "JSXText[value=/\\b(DEC-\\d|Q-\\d\\d|wave)\\b/i]",
+          message:
+            "Process vocabulary (wave / DEC / Q ids) must not render in Bold copy — owner ruling, B3a review.",
+        },
+        {
+          selector: "Literal[value=/\\b(DEC-\\d|Q-\\d\\d|wave)\\b/i]",
+          message:
+            "Process vocabulary (wave / DEC / Q ids) must not render in Bold copy — owner ruling, B3a review.",
+        },
+        {
+          selector: "TemplateElement[value.raw=/\\b(DEC-\\d|Q-\\d\\d|wave)\\b/i]",
+          message:
+            "Process vocabulary (wave / DEC / Q ids) must not render in Bold copy — owner ruling, B3a review.",
+        },
+      ],
+    },
+  },
   prettier,
 );

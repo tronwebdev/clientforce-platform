@@ -12,6 +12,7 @@ import {
   fetchBoldInbox,
   fetchLists,
   fetchPipelineStages,
+  fetchWorkspaceInbox,
   initials,
   moveEnrollmentStage,
   relTime,
@@ -21,7 +22,8 @@ import {
 } from "./bold-live";
 
 /**
- * Campaign inbox (B2, prototype `vInbox`) — three dropdown pickers (the
+ * The inbox (B2 campaign scope · B3a workspace scope — §4.5 "same component,
+ * different scope", DEC-112). Campaign inbox (B2, prototype `vInbox`) — three dropdown pickers (the
  * ruling: chip rows rejected) with LIVE counts, thread list, and the reading
  * pane, all over the shipped `GET /agents/:id/inbox` read (threads keyed by
  * contactId; contacts with no inbound never appear; unsubscribe threads live
@@ -36,6 +38,12 @@ import {
  * TYPE rows without a data source (Web chat · Client messages) stay visible
  * but disabled with the wave that brings them — filed, never silently
  * dropped (the B0 "3 elsewhere" ruling).
+ *
+ * Workspace scope (B3a) adds exactly what §4.5 names: the workspace-wide
+ * CAMPAIGN selector (a fourth picker, ahead of TYPE) and campaign attribution
+ * per thread — threads come from `GET /inbox` (the same server-side builder,
+ * keyed per campaign+contact, so one contact in two campaigns is two
+ * threads). Every triage action is the same shipped write.
  */
 
 const mono = { fontFamily: "var(--cvb-font-mono)" } as const;
@@ -61,30 +69,47 @@ type SortF = "new" | "wait" | "unread";
 const lastInboundOf = (t: BoldInboxThread) =>
   [...t.messages].reverse().find((m) => m.direction === "INBOUND") ?? null;
 
+export type BoldInboxScope =
+  | { kind: "campaign"; agent: AgentListItem }
+  | { kind: "workspace"; focusContactId?: string | null };
+
+/** Thread identity — campaign-qualified in workspace scope (one contact in
+ *  two campaigns is two threads). */
+const keyOf = (t: BoldInboxThread) => (t.campaign ? `${t.campaign.id}:${t.contactId}` : t.contactId);
+
 export function BoldInboxView({
-  agent,
+  scope,
   onOpenDrawer,
   flash,
+  onThreadCount,
 }: {
-  agent: AgentListItem;
+  scope: BoldInboxScope;
   onOpenDrawer: (d: BoldDrawerState) => void;
   flash: (msg: string) => void;
+  /** Workspace scope reports its live conversation count for the eyebrow. */
+  onThreadCount?: (n: number) => void;
 }) {
   const [threads, setThreads] = useState<BoldInboxThread[] | null>(null);
   const [stages, setStages] = useState<PipelineStageRow[]>([]);
   const [lists, setLists] = useState<ContactListDto[]>([]);
   const [selId, setSelId] = useState<string | null>(null);
+  const focusContactId = scope.kind === "workspace" ? (scope.focusContactId ?? null) : null;
   const [typeF, setTypeF] = useState<TypeF>("all");
   const [statusF, setStatusF] = useState<StatusF>("all");
   const [sortF, setSortF] = useState<SortF>("new");
-  const [openPicker, setOpenPicker] = useState<"type" | "status" | "sort" | null>(null);
+  const [campF, setCampF] = useState<string>("all");
+  const [openPicker, setOpenPicker] = useState<"camp" | "type" | "status" | "sort" | null>(null);
   const [moveOpen, setMoveOpen] = useState(false);
   const [listOpen, setListOpen] = useState(false);
 
+  const agentId = scope.kind === "campaign" ? scope.agent.id : null;
   const refresh = useCallback(async () => {
-    const res = await fetchBoldInbox(agent.id);
-    if (res) setThreads(res.threads);
-  }, [agent.id]);
+    const res = agentId ? await fetchBoldInbox(agentId) : await fetchWorkspaceInbox();
+    if (res) {
+      setThreads(res.threads);
+      onThreadCount?.(res.threads.length);
+    }
+  }, [agentId, onThreadCount]);
 
   useEffect(() => {
     void refresh();
@@ -106,31 +131,38 @@ export function BoldInboxView({
   const hasChannel = (t: BoldInboxThread, ch: string) => (t.channels ?? ["email"]).includes(ch);
 
   const shown = useMemo(() => {
-    const rows = all.filter((t) => (typeF === "all" || hasChannel(t, typeF)) && isStatus(t, statusF));
+    const rows = all.filter(
+      (t) =>
+        (campF === "all" || t.campaign?.id === campF) &&
+        (typeF === "all" || hasChannel(t, typeF)) &&
+        isStatus(t, statusF),
+    );
     return rows.sort((a, b) => {
       if (sortF === "wait") return a.lastAt.localeCompare(b.lastAt);
       if (sortF === "unread" && a.unread !== b.unread) return a.unread ? -1 : 1;
       return b.lastAt.localeCompare(a.lastAt);
     });
-  }, [all, typeF, statusF, sortF, isStatus]);
+  }, [all, campF, typeF, statusF, sortF, isStatus]);
 
-  const sel = shown.find((t) => t.contactId === selId) ?? all.find((t) => t.contactId === selId) ?? shown[0] ?? null;
+  const sel = shown.find((t) => keyOf(t) === selId) ?? all.find((t) => keyOf(t) === selId) ?? shown[0] ?? null;
 
   // PIN the selection. Without a pinned id the pane target silently follows
   // list reordering under the 5s poll while action menus stay open — a
   // Move/Handled/+List click would then hit the WRONG contact. The id pins on
   // first load and re-pins only when a filter excludes the current thread.
   useEffect(() => {
-    if (shown.length > 0 && !shown.some((t) => t.contactId === selId)) {
-      setSelId(shown[0]!.contactId);
+    if (shown.length > 0 && !shown.some((t) => keyOf(t) === selId)) {
+      // A drawer "Message" hand-off lands on that contact's newest thread.
+      const focused = focusContactId ? shown.find((t) => t.contactId === focusContactId) : null;
+      setSelId(keyOf(focused ?? shown[0]!));
     }
-  }, [shown, selId]);
+  }, [shown, selId, focusContactId]);
   // Any change of pane target closes the popovers that act on it.
-  const selContactId = sel?.contactId ?? null;
+  const selKey = sel ? keyOf(sel) : null;
   useEffect(() => {
     setMoveOpen(false);
     setListOpen(false);
-  }, [selContactId]);
+  }, [selKey]);
 
   if (threads === null) {
     return (
@@ -162,7 +194,50 @@ export function BoldInboxView({
     { key: "unread", label: "Unread first" },
   ];
 
+  // B3a: the workspace-wide selector — distinct campaigns present in the
+  // thread world, live counts, campaign attribution's filter.
+  const campRefs = [...new Map(all.filter((t) => t.campaign).map((t) => [t.campaign!.id, t.campaign!])).values()];
+  const campPicker =
+    scope.kind === "workspace"
+      ? [
+          {
+            k: "CAMPAIGN",
+            id: "camp" as const,
+            v: campF === "all" ? "All campaigns" : (campRefs.find((c) => c.id === campF)?.agentName ?? "All campaigns"),
+            rows: [
+              {
+                id: "camp-all",
+                dot: "var(--cvb-faint)",
+                label: "All campaigns",
+                count: all.length as number | null,
+                selected: campF === "all",
+                disabled: false,
+                why: undefined as string | undefined,
+                go: () => {
+                  setCampF("all");
+                  setOpenPicker(null);
+                },
+              },
+              ...campRefs.map((c) => ({
+                id: `camp-${c.id}`,
+                dot: "var(--cvb-forest)",
+                label: c.agentName,
+                count: all.filter((t) => t.campaign?.id === c.id).length as number | null,
+                selected: campF === c.id,
+                disabled: false,
+                why: undefined as string | undefined,
+                go: () => {
+                  setCampF(c.id);
+                  setOpenPicker(null);
+                },
+              })),
+            ],
+          },
+        ]
+      : [];
+
   const pickers = [
+    ...campPicker,
     {
       k: "TYPE",
       id: "type" as const,
@@ -337,11 +412,11 @@ export function BoldInboxView({
           const lastMsg = t.messages[t.messages.length - 1];
           const ch = CH_CHIP[lastMsg?.channel ?? "email"] ?? CH_CHIP.email!;
           const name = [t.contact?.firstName, t.contact?.lastName].filter(Boolean).join(" ") || t.contact?.email || "A contact";
-          const active = sel?.contactId === t.contactId;
+          const active = sel != null && keyOf(sel) === keyOf(t);
           return (
             <div
-              key={t.contactId}
-              onClick={() => setSelId(t.contactId)}
+              key={keyOf(t)}
+              onClick={() => setSelId(keyOf(t))}
               data-testid={`bold-inbox-thread-${t.contactId}`}
               style={{ display: "flex", gap: 12, alignItems: "center", padding: "14px 12px", borderRadius: 16, cursor: "pointer", background: active ? "var(--cvb-hover)" : "transparent", marginBottom: 4 }}
             >
@@ -353,10 +428,18 @@ export function BoldInboxView({
                   <span style={{ fontWeight: t.unread ? 800 : 600, fontSize: 13.5, letterSpacing: "-.018em", flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{name}</span>
                   <span style={{ width: 18, height: 18, borderRadius: 6, flex: "none", background: ch[1], border: `1px solid ${ch[2]}`, color: ch[3], display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8.5 }}>{ch[0]}</span>
                 </div>
-                {/* Prototype row line: short wait time · preview. */}
+                {/* Prototype row line 2: short wait time · the REAL last-message
+                    snippet (owner ruling, B3a review — the snippet is never
+                    crowded out). Campaign attribution gets its own line in
+                    workspace scope (§4.5). */}
                 <div style={{ fontSize: 11.5, color: "var(--cvb-faint)", marginTop: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                   {relTime(t.lastAt).replace(" ago", "")} · {t.preview}
                 </div>
+                {scope.kind === "workspace" && t.campaign ? (
+                  <div style={{ ...mono, fontSize: 9.5, color: "var(--cvb-ghost)", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {t.campaign.agentName}
+                  </div>
+                ) : null}
               </div>
               {t.unread ? <span style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--cvb-forest)", flex: "none" }} /> : null}
             </div>
@@ -382,7 +465,17 @@ export function BoldInboxView({
                 {initials(sel.contact)}
               </span>
               <div style={{ flex: 1, minWidth: 120 }}>
-                <div className="cvb-display" style={{ fontWeight: 900, fontSize: 19, letterSpacing: "-.028em" }} data-testid="bold-inbox-sel-name">{selName}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <div className="cvb-display" style={{ fontWeight: 900, fontSize: 19, letterSpacing: "-.028em" }} data-testid="bold-inbox-sel-name">{selName}</div>
+                  {scope.kind === "workspace" && sel.campaign ? (
+                    <span
+                      data-testid="bold-inbox-sel-camp"
+                      style={{ fontSize: 9.5, fontWeight: 600, color: "var(--cvb-muted)", background: "var(--cvb-well)", border: "1px solid var(--cvb-line-2)", borderRadius: 999, padding: "2px 8px", flex: "none" }}
+                    >
+                      {sel.campaign.agentName}
+                    </span>
+                  ) : null}
+                </div>
                 <div style={{ fontSize: 12, color: "var(--cvb-faint)", marginTop: 3 }}>
                   {[sel.contact?.company, sel.contact?.email].filter(Boolean).join(" · ") || "—"}
                 </div>
@@ -517,7 +610,7 @@ export function BoldInboxView({
             ) : (
               <div data-testid="bold-inbox-donebar" style={{ display: "flex", alignItems: "center", gap: 12, background: "var(--cvb-panel)", border: "1px solid var(--cvb-line-ctl)", borderRadius: 18, padding: "14px 18px", flexWrap: "wrap" }}>
                 <span style={{ fontSize: 11.5, color: "var(--cvb-faint)", flex: 1, minWidth: 160, lineHeight: 1.5 }}>
-                  Replies aren’t sendable from the console yet — this wave is read + triage.
+                  Replies aren’t sendable from the console yet — for now this inbox is read and triage.
                 </span>
                 <span
                   onClick={() => void toggleDone()}

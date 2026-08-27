@@ -50,12 +50,42 @@ export interface TimelineEvent {
   occurredAt: string;
 }
 
+/** B3a (DEC-112): the timeline read's additive `enrollments` rider — the
+ *  campaigns this contact is in (§7 contact detail). */
+export interface ContactEnrollmentRef {
+  id: string;
+  stage: string;
+  status: string;
+  campaignId: string | null;
+  campaignName: string | null;
+  agentId: string | null;
+  agentName: string | null;
+}
+
+/** B2.6 signal conditions this contact meets (DEC-112(7)) — the drawer's
+ *  ✦ footer renders the factual sentence, or nothing. */
+export interface ContactSignalFact {
+  signal: string;
+  at: string;
+  days?: number;
+}
+
 /** The shipped timeline read returns `{ events: [...] }` — unwrap defensively
  *  (this exact shape mismatch crashed the person drawer in review). */
-export const fetchContactTimeline = async (contactId: string): Promise<TimelineEvent[] | null> => {
-  const res = await get<{ events?: TimelineEvent[] }>(`contacts/${contactId}/timeline`);
+export const fetchContactTimeline = async (
+  contactId: string,
+): Promise<{ events: TimelineEvent[]; enrollments: ContactEnrollmentRef[]; signalFacts: ContactSignalFact[] } | null> => {
+  const res = await get<{
+    events?: TimelineEvent[];
+    enrollments?: ContactEnrollmentRef[];
+    signalFacts?: ContactSignalFact[];
+  }>(`contacts/${contactId}/timeline`);
   if (!res) return null;
-  return Array.isArray(res.events) ? res.events : [];
+  return {
+    events: Array.isArray(res.events) ? res.events : [],
+    enrollments: Array.isArray(res.enrollments) ? res.enrollments : [],
+    signalFacts: Array.isArray(res.signalFacts) ? res.signalFacts : [],
+  };
 };
 
 /* ---------------------------------------------------------- B2 (DEC-105) */
@@ -108,6 +138,8 @@ export interface BoldInboxMessage {
 export interface BoldInboxThread {
   contactId: string;
   contact: BoldContactRef | null;
+  /** B3a (DEC-112): campaign attribution — present on both scopes' reads. */
+  campaign?: { id: string; name: string; agentId: string; agentName: string };
   enrollmentId: string | null;
   stage: string | null;
   channels: string[];
@@ -158,11 +190,45 @@ export const fetchEnrollments = (agentId: string) =>
   get<BoldEnrollmentRow[]>(`enrollments?agentId=${encodeURIComponent(agentId)}`);
 export const fetchBoldInbox = (agentId: string) =>
   get<{ threads: BoldInboxThread[] }>(`agents/${agentId}/inbox`);
+/** B3a (DEC-112): the workspace-wide inbox — the SAME thread shape from the
+ *  same server-side builder, plus per-thread campaign attribution. */
+export const fetchWorkspaceInbox = () => get<{ threads: BoldInboxThread[] }>("inbox");
 export const fetchCreditPrices = () => get<EffectiveCreditPrices>("credit-prices");
 export const fetchSubcampaignRules = (agentId: string) =>
   get<SubcampaignRuleRow[]>(`planner/subcampaign-rules?agentId=${encodeURIComponent(agentId)}`);
 export const fetchSenders = () => get<BoldSenderRow[]>("senders");
 export const fetchLists = () => get<ContactListDto[]>("lists");
+
+/** `GET /contacts/view` row — the slice the Bold contacts page reads (B3a).
+ *  The read is the SHIPPED C2.5 surface; `valueEstCents` is its one additive
+ *  B3a rider (DEC-112). */
+export interface BoldContactRow {
+  id: string;
+  firstName: string | null;
+  lastName: string | null;
+  email: string | null;
+  company: string | null;
+  title: string | null;
+  phone: string | null;
+  source: string;
+  custom: Record<string, unknown>;
+  lists: Array<{ id: string; name: string }>;
+  emailVerdict: string | null;
+  createdAt: string;
+  stage: string | null;
+  goal: { key: string; label: string; pill: string } | null;
+  agentName: string | null;
+  valueEstCents: number | null;
+  enrollmentStatus: string | null;
+  replied: boolean;
+  tags: string[];
+  notes: string | null;
+  /** The newest inbound message — the "last asked about" human context. */
+  lastInbound: { body: string; intent: string | null; channel: string; sentAt: string } | null;
+  unsub: boolean;
+  lastActivity: string | null;
+}
+export const fetchContactsView = () => get<{ rows: BoldContactRow[] }>("contacts/view");
 
 export type BoldWriteResult = { ok: true; body: unknown } | { ok: false; error: string };
 
@@ -287,6 +353,10 @@ export const fetchListMemberIds = async (listId: string): Promise<string[] | nul
 export const sweepSuggestions = () => send("suggestions/sweep", "POST", {});
 export const dismissSuggestion = (agentId: string) =>
   send(`agents/${encodeURIComponent(agentId)}`, "PATCH", { dismissSuggestion: true });
+
+/** B3a review (DEC-112(7)): tags (full replace) + notes on the contact PATCH. */
+export const patchContactFacts = (contactId: string, body: { tags?: string[]; notes?: string | null }) =>
+  send(`contacts/${encodeURIComponent(contactId)}`, "PATCH", body);
 
 export const enrollContact = (
   agentId: string,

@@ -545,7 +545,7 @@ function PlanSheet({
                 ))}
               </div>
               <div style={{ fontSize: 11.5, color: "var(--cvb-faint)", lineHeight: 1.5, marginTop: 10 }}>
-                Ada composes each send from this brief. Brief editing arrives with a later Bold wave — the sequence editor keeps it until then.
+                Ada composes each send from this brief. Brief editing here is coming soon — the sequence editor keeps it until then.
               </div>
             </div>
           )
