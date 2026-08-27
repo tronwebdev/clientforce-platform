@@ -78,10 +78,13 @@ function autoMatch(field: FieldKey, headers: string[]): string {
   if (field === "email") return pick((s) => s.includes("mail"));
   if (field === "phone") return pick((s) => s.includes("phone") || s.includes("mobile"));
   if (field === "company") return pick((s) => s.includes("company") || s.includes("organi"));
-  // B3c-1: the call-consent matcher runs on call-flavored headers ONLY, and
-  // the generic consent matcher must never swallow them.
+  // B3c-1: the call-consent matcher runs on call-flavored headers ONLY. The
+  // generic matcher prefers a non-call consent header, but when the file has
+  // just one combined column (e.g. "Email/Call consent") it falls back to it —
+  // dropping the message-consent gate silently would enroll everyone.
   if (field === "callConsent") return pick((s) => s.includes("call") && (s.includes("consent") || s.includes("opt")));
-  return pick((s) => !s.includes("call") && (s.includes("consent") || s.includes("opt")));
+  const nonCall = pick((s) => !s.includes("call") && (s.includes("consent") || s.includes("opt")));
+  return nonCall !== NONE ? nonCall : pick((s) => s.includes("consent") || s.includes("opt"));
 }
 
 /** Explicit no-values — anything else non-yes stays UNKNOWN (omitted; the DB

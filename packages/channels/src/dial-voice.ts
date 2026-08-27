@@ -50,6 +50,11 @@ export interface DialVoiceParams {
    *  consent gate — unknown consent means Ada may NOT call; "human" is the
    *  B3c-2 browser-mic leg (DNC/opt-out still gate, consent does not). */
   caller?: "ada" | "human";
+  /** Best-time queueing only: skip the two TIMING gates (window + quiet
+   *  hours) so every OTHER gate — consent, attempts, caps, opt-out,
+   *  suppression, allow-list — is enforced BEFORE a call may queue. The
+   *  fire-time run never sets this. */
+  skipTimingGates?: boolean;
 }
 
 /** Fallback per-campaign cap when guardrails carry no voice cap (conservative —
@@ -96,6 +101,9 @@ export interface ResolvedCallWindow {
   days: number[];
   start: string;
   end: string;
+  /** The campaign window's own zone — the rail checks the window THERE
+   *  unconditionally, so the schedule must intersect it too. */
+  campaignTimezone: string;
   /** The hard local floor applied on top of the window (owner-safety). */
   floorStart: string;
   floorEnd: string;
@@ -139,14 +147,16 @@ export async function assertDialAllowed(
     throw new SendBlockedError("VOICE_LANGUAGE_UNSUPPORTED", language);
   }
 
-  assertInsideCallingWindow(guardrails, now);
-  // B3c-1 (DEC-113/119): the contact-local quiet-hours gate. Resolve the
-  // contact's own timezone (their column, else their latest calendar
-  // booking); when known, the campaign window AND the hard 08:00–21:00
-  // local floor are re-checked in THEIR clock — the agent-tz check above
-  // stays as the fallback truth when no contact timezone exists.
   const window = await resolveCallWindow(prisma, params.workspaceId, contact, guardrails);
-  assertInsideContactQuietHours(window, now);
+  if (!params.skipTimingGates) {
+    assertInsideCallingWindow(guardrails, now);
+    // B3c-1 (DEC-113/119): the contact-local quiet-hours gate. Resolve the
+    // contact's own timezone (their column, else their latest calendar
+    // booking); when known, the campaign window AND the hard 08:00–21:00
+    // local floor are re-checked in THEIR clock — the agent-tz check above
+    // stays as the fallback truth when no contact timezone exists.
+    assertInsideContactQuietHours(window, now);
+  }
   await assertUnderVoiceCaps(deps, params, guardrails, now);
 
   const caller = params.caller ?? "ada";
@@ -167,6 +177,10 @@ export async function assertDialAllowed(
     }).voice;
     const maxAttempts = voiceRider?.callMaxAttempts ?? DEFAULT_CALL_MAX_ATTEMPTS;
     const voicemailAfter = voiceRider?.voicemailAfter ?? DEFAULT_VOICEMAIL_AFTER;
+    // An ATTEMPT is a call that was actually placed (providerCallSid set):
+    // a queued row awaiting its window, or a fire-time refusal marked
+    // canceled, never rang — it must not burn an attempt slot. This also
+    // keeps the fire-time re-run from counting the queued row itself.
     const [attempts, failures] = await withTenant(prisma, ctx, (tx) =>
       Promise.all([
         tx.call.count({
@@ -175,6 +189,7 @@ export async function assertDialAllowed(
             contactId: params.contactId,
             direction: "OUTBOUND",
             caller: "ada",
+            providerCallSid: { not: null },
           },
         }),
         tx.call.count({
@@ -183,6 +198,7 @@ export async function assertDialAllowed(
             contactId: params.contactId,
             direction: "OUTBOUND",
             caller: "ada",
+            providerCallSid: { not: null },
             outcome: { in: ["no_answer", "busy", "failed"] },
           },
         }),
@@ -259,7 +275,16 @@ export async function resolveCallWindow(
       source = "calendar";
     }
   }
-  return { timezone, source, days, start, end, floorStart: QUIET_FLOOR_START, floorEnd: QUIET_FLOOR_END };
+  return {
+    timezone,
+    source,
+    days,
+    start,
+    end,
+    campaignTimezone: campaignTz,
+    floorStart: QUIET_FLOOR_START,
+    floorEnd: QUIET_FLOOR_END,
+  };
 }
 
 function isValidTimezone(tz: string): boolean {
@@ -304,28 +329,41 @@ export function assertInsideContactQuietHours(window: ResolvedCallWindow, now: D
   }
 }
 
-/** B3c-1: the next moment the contact-local window opens — the best-time
- *  queue's deterministic schedule (minute resolution, ≤8-day scan). */
+/**
+ * B3c-1: the next moment EVERY timing gate the rail enforces is open — the
+ * best-time queue's deterministic schedule (minute resolution, ≤8-day scan).
+ * Three checks intersect, exactly mirroring the fire-time rail: the campaign
+ * window in the CAMPAIGN zone (assertInsideCallingWindow's clock — always),
+ * the hard 08:00–21:00 floor in the contact clock, and the campaign window
+ * re-read in the contact clock when their zone is known (the quiet-hours
+ * gate). Disjoint clocks can genuinely have no overlap — null, and the
+ * caller says so instead of queueing a call that must cancel.
+ */
 export function nextWindowOpenAt(window: ResolvedCallWindow, from: Date): Date | null {
   const cursor = new Date(from.getTime());
   cursor.setUTCSeconds(0, 0);
   for (let i = 0; i < 8 * 24 * 60; i += 5) {
     const t = new Date(cursor.getTime() + i * 60 * 1000);
-    const { isoDay, hhmm } = localParts(window.timezone, t);
-    const insideFloor = hhmm >= window.floorStart && hhmm < window.floorEnd;
-    const insideWindow =
-      window.source === "campaign"
-        ? true
-        : window.days.includes(isoDay) && hhmm >= window.start && hhmm < window.end;
-    // When falling back to the campaign zone, the agent-tz window check is
-    // authoritative — evaluate it in the campaign tz too.
-    const campaignOk =
-      window.source !== "campaign"
-        ? true
-        : window.days.includes(isoDay) && hhmm >= window.start && hhmm < window.end;
-    if (insideFloor && insideWindow && campaignOk) return t;
+    if (isTimingOpen(window, t)) return t;
   }
   return null;
+}
+
+/** The ONE timing truth — the scheduler scans it; `insideNow` reports it. */
+export function isTimingOpen(window: ResolvedCallWindow, t: Date): boolean {
+  const camp = localParts(window.campaignTimezone, t);
+  const campaignOk =
+    window.days.includes(camp.isoDay) && camp.hhmm >= window.start && camp.hhmm < window.end;
+  if (!campaignOk) return false;
+  const local = localParts(window.timezone, t);
+  const insideFloor = local.hhmm >= window.floorStart && local.hhmm < window.floorEnd;
+  if (!insideFloor) return false;
+  if (window.source !== "campaign") {
+    if (!window.days.includes(local.isoDay) || local.hhmm < window.start || local.hhmm >= window.end) {
+      return false;
+    }
+  }
+  return true;
 }
 
 /**
@@ -363,6 +401,10 @@ async function assertUnderVoiceCaps(
     workspaceId: params.workspaceId,
     direction: "OUTBOUND" as const,
     createdAt: { gte: dayStart },
+    // B3c-1 review: a cap slot is a PLACED call — a queued best-time row
+    // (no sid yet) must not consume today's cap, and the fire-time re-run
+    // must not count the row it is about to place.
+    providerCallSid: { not: null },
   };
   const [campaignCount, workspaceCount] = await withTenant(
     deps.prisma,

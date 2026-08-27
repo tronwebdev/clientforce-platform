@@ -90,9 +90,11 @@ export function BoldSequenceList({
           const credits = stepCredits(n, prices);
           const title = n.content.subject?.trim() || CH_LABEL[n.channel] || n.channel;
           const body =
-            n.mode === "guided"
-              ? `Guided — Ada composes from the brief at send time. ${n.brief?.objective ?? ""}`.trim()
-              : (n.content.body ?? "").trim() || "No copy yet.";
+            n.channel === "voice"
+              ? "Ada speaks from your business facts on the call."
+              : n.mode === "guided"
+                ? `Guided — Ada composes from the brief at send time. ${n.brief?.objective ?? ""}`.trim()
+                : (n.content.body ?? "").trim() || "No copy yet.";
           return (
             <div key={n.id} onClick={onClick} data-testid={`bold-plan-node-${n.id}`} style={rowStyle}>
               <div style={{ width: 40, flex: "none", display: "flex", flexDirection: "column", alignItems: "center" }}>

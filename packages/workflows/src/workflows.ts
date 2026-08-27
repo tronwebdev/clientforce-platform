@@ -103,13 +103,24 @@ export async function campaignWorkflow(
             }
           }
           try {
-            await acts.dialEnrollmentStep({
+            const dialed = await acts.dialEnrollmentStep({
               ...base,
               campaignId: input.campaignId,
               agentId: input.agentId,
               contactId: input.contactId,
               stepNodeId: node.id,
             });
+            // A RETURNED block (no dialer on this worker) routes exactly like
+            // a thrown one — the amber Logs row, never a silent skip.
+            if (dialed.kind === "blocked") {
+              await acts.recordEnrollmentBlocked({
+                ...base,
+                nodeId: node.id,
+                reason: dialed.reason,
+                detail: dialed.detail,
+              });
+              return { status: "blocked", node: node.id, reason: dialed.reason };
+            }
           } catch (err) {
             const blocked = typedFailureOf(err, "SendBlockedError");
             if (!blocked) throw err;

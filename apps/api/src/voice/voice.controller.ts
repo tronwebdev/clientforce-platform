@@ -40,6 +40,7 @@ import {
   nextWindowOpenAt,
   resolveCallWindow,
   type CallDialJobData,
+  isTimingOpen,
 } from "@clientforce/channels";
 import {
   dialCallBodySchema,
@@ -176,21 +177,49 @@ export class VoiceController {
     contactId: string,
     workspaceId: string,
   ) {
-    const [contact, agent] = await this.tenant.run((tx) =>
-      Promise.all([
-        tx.contact.findUnique({ where: { id: contactId } }),
-        tx.agent.findUnique({ where: { id: agentId } }),
-      ]),
+    // Review-round fix: without the queue there is nothing to fire the call
+    // — an honest 503 beats a phantom "queued" row nobody will ever dial.
+    if (!this.callQueue) {
+      throw new HttpException(
+        { reason: "QUEUE_UNAVAILABLE", message: "Call scheduling is not available right now — try when their window is open." },
+        503,
+      );
+    }
+    // Review-round fix: every NON-timing gate must clear BEFORE queueing —
+    // consent, attempts, caps, opt-out, suppression, allow-list. Refusals
+    // here flow back to the caller's normal catch (Logs row + 422): a call
+    // the rail already knows it will refuse is never promised.
+    const clearance = await assertDialAllowed(
+      { prisma: this.prisma.app },
+      { workspaceId, campaignId, agentId, contactId, caller: "ada", skipTimingGates: true },
     );
-    if (!contact || !agent) throw new NotFoundException("Contact or agent not found");
-    const guardrails = parseGuardrails(agent.guardrails);
-    const window = await resolveCallWindow(this.prisma.app, workspaceId, contact, guardrails);
-    const openAt = nextWindowOpenAt(window, new Date());
+    const openAt = nextWindowOpenAt(clearance.window, new Date());
     if (!openAt) {
       throw new HttpException(
-        { reason: "OUTSIDE_QUIET_HOURS", message: "No open calling window in the next week — widen the campaign window." },
+        {
+          reason: "OUTSIDE_QUIET_HOURS",
+          message:
+            "Their clock and the campaign's calling window never overlap this week — widen the campaign window.",
+        },
         422,
       );
+    }
+    // Idempotent: one pending best-time call per (campaign, contact) —
+    // repeat clicks return the pending row instead of stacking rings.
+    const pending = await this.tenant.run((tx) =>
+      tx.call.findFirst({
+        where: {
+          campaignId,
+          contactId,
+          caller: "ada",
+          status: "QUEUED",
+          providerCallSid: null,
+        },
+      }),
+    );
+    if (pending) {
+      const meta = (pending.meta ?? {}) as { scheduledAt?: string };
+      return { ...pending, queued: true, scheduledAt: meta.scheduledAt ?? openAt.toISOString(), window: clearance.window };
     }
     const call = await this.tenant.run((tx) =>
       tx.call.create({
@@ -205,19 +234,22 @@ export class VoiceController {
           placedById: req.auth?.user.id ?? null,
           meta: {
             scheduledAt: openAt.toISOString(),
-            window: { timezone: window.timezone, source: window.source, start: window.start, end: window.end },
+            window: {
+              timezone: clearance.window.timezone,
+              source: clearance.window.source,
+              start: clearance.window.start,
+              end: clearance.window.end,
+            },
           },
         },
       }),
     );
-    if (this.callQueue) {
-      await this.callQueue.add(
-        "dial",
-        { workspaceId, callId: call.id },
-        { delay: Math.max(0, openAt.getTime() - Date.now()), jobId: `call-${call.id}` },
-      );
-    }
-    return { ...call, queued: true, scheduledAt: openAt.toISOString(), window };
+    await this.callQueue.add(
+      "dial",
+      { workspaceId, callId: call.id },
+      { delay: Math.max(0, openAt.getTime() - Date.now()), jobId: `call-${call.id}` },
+    );
+    return { ...call, queued: true, scheduledAt: openAt.toISOString(), window: clearance.window };
   }
 
   /**
@@ -247,7 +279,8 @@ export class VoiceController {
     return {
       window,
       nextOpenAt: openAt ? openAt.toISOString() : null,
-      insideNow: openAt != null && openAt.getTime() - now.getTime() < 6 * 60 * 1000,
+      // The ONE timing truth the rail enforces — never a near-enough guess.
+      insideNow: isTimingOpen(window, now),
       callConsent: (contact as { callConsent?: string }).callConsent ?? "unknown",
     };
   }

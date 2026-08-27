@@ -179,10 +179,12 @@ export function createActivities(deps: ActivityDeps) {
             enrollmentId: params.enrollmentId,
             meta: { path: ["stepNodeId"], equals: params.stepNodeId },
           },
-          select: { id: true },
+          select: { id: true, providerCallSid: true },
         }),
       );
-      if (existing) return { kind: "duplicate", callId: existing.id };
+      // A row WITH a sid was placed — true duplicate. A row WITHOUT one is a
+      // crash between create and placeCall: resume it, never skip the dial.
+      if (existing?.providerCallSid) return { kind: "duplicate", callId: existing.id };
       if (!deps.voiceDialer) {
         return { kind: "blocked", reason: "VOICE_UNCONFIGURED", detail: "no voice dialer on this worker" };
       }
@@ -221,21 +223,22 @@ export function createActivities(deps: ActivityDeps) {
         }
         throw err;
       }
-      const call = await withTenant(prisma, ctx, (tx) =>
-        tx.call.create({
-          data: {
-            workspaceId: params.workspaceId,
-            campaignId: params.campaignId,
-            agentId: params.agentId,
-            contactId: params.contactId,
-            enrollmentId: params.enrollmentId,
-            direction: "OUTBOUND",
-            status: "QUEUED",
-            caller: "ada",
-            meta: { stepNodeId: params.stepNodeId },
-          },
-        }),
-      );
+      const call =
+        existing ??
+        (await withTenant(prisma, ctx, (tx) =>
+          tx.call.create({
+            data: {
+              workspaceId: params.workspaceId,
+              campaignId: params.campaignId,
+              agentId: params.agentId,
+              contactId: params.contactId,
+              enrollmentId: params.enrollmentId,
+              direction: "OUTBOUND",
+              status: "QUEUED",
+              caller: "ada",
+              meta: { stepNodeId: params.stepNodeId },
+            },
+          })));
       const voiceServiceUrl = (process.env.VOICE_SERVICE_URL ?? "").replace(/\/$/, "");
       const apiPublicUrl = (process.env.PUBLIC_API_URL ?? "").replace(/\/$/, "");
       const gateToken = process.env.TWILIO_AUTH_TOKEN

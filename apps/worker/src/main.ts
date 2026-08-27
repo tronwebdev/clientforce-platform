@@ -20,6 +20,7 @@ import {
   runSuppressionHygiene,
   TwilioVoiceDialer,
   createCallDialWorker,
+  createCallDialQueue,
 } from "@clientforce/channels";
 import { isConfigured } from "@clientforce/config";
 import { goalKeySchema, type GoalKey } from "@clientforce/core";
@@ -163,9 +164,15 @@ function startHeartbeat(redisUrl: string): void {
 function startCallDialWorker(): void {
   if (!process.env.REDIS_URL) return;
   const prisma = createAppPrismaClient();
+  const dialQueue = createCallDialQueue();
   const dialWorker = createCallDialWorker({
     prisma,
     dialer: new TwilioVoiceDialer(),
+    // Late fires reschedule to the next opening — the queue's lateness must
+    // never cancel a call every gate had cleared.
+    requeue: async (data, delayMs) => {
+      await dialQueue.add("dial", data, { delay: delayMs, jobId: `call-${data.callId}-${Date.now()}` });
+    },
     publish: async (event) => {
       await withTenant(prisma, { workspaceId: event.workspaceId }, (tx) =>
         tx.event.create({

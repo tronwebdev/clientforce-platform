@@ -21,6 +21,7 @@ import { DEFAULT_GUARDRAILS } from "@clientforce/core";
 import { createPrismaClient, type PrismaClient } from "@clientforce/db";
 import { AppModule } from "../src/app.module";
 import { signDevToken } from "../src/auth/dev-token-verifier";
+import { CALL_DIAL_QUEUE_TOKEN } from "../src/voice/voice.providers";
 
 const hasDb = Boolean(process.env.APP_DATABASE_URL ?? process.env.DATABASE_URL);
 const SECRET = process.env.AUTH_DEV_SECRET ?? "test-dev-secret";
@@ -36,6 +37,7 @@ describe.skipIf(!hasDb)("Ada outbound dial rail e2e", () => {
   let contactId: string;
   let userIds: string[] = [];
   let ownerToken: string;
+  const queuedJobs: unknown[][] = [];
 
   beforeAll(async () => {
     process.env.AUTH_DEV_SECRET = SECRET;
@@ -92,7 +94,12 @@ describe.skipIf(!hasDb)("Ada outbound dial rail e2e", () => {
     userIds = [u1.id];
     ownerToken = await signDevToken(SECRET, { sub: `auth|vd-owner-${suffix}`, email: u1.email });
 
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    // The endpoint 503s without a queue (no phantom schedules) — the spec
+    // runs without Redis, so a capturing fake stands in.
+    const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider(CALL_DIAL_QUEUE_TOKEN)
+      .useValue({ add: async (...args: unknown[]) => { queuedJobs.push(args); } })
+      .compile();
     app = moduleRef.createNestApplication();
     await app.init();
   });
@@ -187,6 +194,15 @@ describe.skipIf(!hasDb)("Ada outbound dial rail e2e", () => {
     expect(meta.scheduledAt).toBeTruthy();
     expect(new Date(meta.scheduledAt!).getTime()).toBeGreaterThan(Date.now());
     expect(meta.window?.timezone).toBe((await owner.contact.findUnique({ where: { id: contactId } }))!.timezone);
+    expect(queuedJobs.length).toBe(1);
+    // Pending-row dedup: a second ask returns the SAME queued call, no twin.
+    const again = await request(app.getHttpServer())
+      .post(`/agents/${agentId}/calls`)
+      .set(asOwner())
+      .send({ contactId, when: "best_time" });
+    expect(again.status).toBe(201);
+    expect(again.body.id).toBe(res.body.id);
+    expect(await owner.call.count({ where: { workspaceId: ws, status: "QUEUED" } })).toBe(1);
     await owner.call.deleteMany({ where: { workspaceId: ws } });
     // Restore an always-open local clock for the caps tests below.
     await owner.contact.update({ where: { id: contactId }, data: { timezone: null } });
@@ -194,6 +210,8 @@ describe.skipIf(!hasDb)("Ada outbound dial rail e2e", () => {
 
   it("the lifetime attempt cap and the unanswered threshold refuse typed", async () => {
     // Guardrails rider: cap 3 / voicemail threshold 2 (the defaults).
+    // Attempts count PLACED calls only (providerCallSid set) — refusal rows
+    // never burn the cap, so the fixtures carry sids like real dials.
     for (let i = 0; i < 2; i++) {
       await owner.call.create({
         data: {
@@ -205,6 +223,7 @@ describe.skipIf(!hasDb)("Ada outbound dial rail e2e", () => {
           status: "FAILED",
           outcome: "no_answer",
           caller: "ada",
+          providerCallSid: `CA-sandbox-cap-${suffix}-${i}`,
         },
       });
     }
@@ -226,6 +245,7 @@ describe.skipIf(!hasDb)("Ada outbound dial rail e2e", () => {
         status: "COMPLETED",
         outcome: "completed",
         caller: "ada",
+        providerCallSid: `CA-sandbox-cap-${suffix}-2`,
       },
     });
     const capped = await request(app.getHttpServer())
@@ -234,6 +254,31 @@ describe.skipIf(!hasDb)("Ada outbound dial rail e2e", () => {
       .send({ contactId, when: "best_time" });
     expect(capped.status).toBe(422);
     expect(capped.body.reason).toBe("CALL_MAX_ATTEMPTS");
+
+    // A sid-less row (a crash between row-create and the provider dial, or a
+    // canceled queue entry) is not a placed call — it burns nothing.
+    await owner.call.deleteMany({ where: { workspaceId: ws } });
+    await owner.call.create({
+      data: {
+        workspaceId: ws,
+        campaignId,
+        agentId,
+        contactId,
+        direction: "OUTBOUND",
+        status: "FAILED",
+        outcome: "canceled",
+        caller: "ada",
+      },
+    });
+    const stillOpen = await request(app.getHttpServer())
+      .post(`/agents/${agentId}/calls`)
+      .set(asOwner())
+      .send({ contactId, when: "best_time" });
+    expect([201, 422]).toContain(stillOpen.status);
+    if (stillOpen.status === 422) {
+      // Only a TIMING reason may refuse here — never the caps.
+      expect(["OUTSIDE_QUIET_HOURS", "OUTSIDE_SENDING_WINDOW"]).toContain(stillOpen.body.reason);
+    }
     await owner.call.deleteMany({ where: { workspaceId: ws } });
   });
 

@@ -12,7 +12,8 @@
 import { Queue, Worker, type ConnectionOptions, type Job } from "bullmq";
 import { BULL_PREFIX, bullConnectionFromUrl } from "@clientforce/events";
 import { withTenant, type PrismaClient } from "@clientforce/db";
-import { assertDialAllowed } from "./dial-voice";
+import { assertDialAllowed, nextWindowOpenAt, resolveCallWindow } from "./dial-voice";
+import { parseGuardrails } from "@clientforce/core";
 import { deriveVoiceMediaToken, type VoiceDialer } from "./twilio-voice";
 import { SendBlockedError } from "./types";
 
@@ -43,11 +44,15 @@ export interface FireQueuedCallDeps {
     contactId?: string;
     payload: Record<string, unknown>;
   }) => Promise<void>;
+  /** Re-arm a delayed job for this call (late fires reschedule, never
+   *  cancel — a timing miss is the queue's own failure, not the call's). */
+  requeue?: (data: CallDialJobData, delayMs: number) => Promise<void>;
 }
 
 export type FireQueuedCallResult =
   | { kind: "placed"; providerCallSid: string; sandbox: boolean }
   | { kind: "refused"; reason: string; detail: string }
+  | { kind: "rescheduled"; scheduledAt: string }
   | { kind: "skipped"; why: string };
 
 /**
@@ -99,6 +104,35 @@ export async function fireQueuedCall(
     return { kind: "placed", providerCallSid: result.providerCallSid, sandbox: result.sandbox };
   } catch (err) {
     if (err instanceof SendBlockedError) {
+      // A TIMING refusal at fire is the queue's own lateness (a worker
+      // outage, a backlog) — reschedule to the next opening instead of
+      // canceling a call every gate had cleared. Every other refusal is a
+      // real gate change since queueing: cancel with the typed reason.
+      if (
+        (err.reason === "OUTSIDE_SENDING_WINDOW" || err.reason === "OUTSIDE_QUIET_HOURS") &&
+        deps.requeue
+      ) {
+        const [contact, agent] = await withTenant(prisma, ctx, (tx) =>
+          Promise.all([
+            tx.contact.findUnique({ where: { id: call.contactId } }),
+            tx.agent.findUnique({ where: { id: call.agentId } }),
+          ]),
+        );
+        if (contact && agent) {
+          const window = await resolveCallWindow(prisma, data.workspaceId, contact, parseGuardrails(agent.guardrails));
+          const openAt = nextWindowOpenAt(window, new Date());
+          if (openAt) {
+            await withTenant(prisma, ctx, (tx) =>
+              tx.call.update({
+                where: { id: call.id },
+                data: { meta: { ...((call.meta ?? {}) as object), scheduledAt: openAt.toISOString() } },
+              }),
+            );
+            await deps.requeue(data, Math.max(0, openAt.getTime() - Date.now()));
+            return { kind: "rescheduled", scheduledAt: openAt.toISOString() };
+          }
+        }
+      }
       await withTenant(prisma, ctx, (tx) =>
         tx.call.update({
           where: { id: call.id },

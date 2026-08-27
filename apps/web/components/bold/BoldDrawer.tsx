@@ -404,14 +404,25 @@ function PersonBody({
   // B3c-1 (DEC-118/119): the Ada-call sheet — window read on open (the
   // checkable claim comes from the SAME resolver the rail enforces).
   const callAgentId = enrollments.find((e) => e.agentId)?.agentId ?? null;
-  async function toggleCallSheet() {
-    const next = !callOpen;
-    setCallOpen(next);
-    if (next && callAgentId) {
-      const w = await fetchCallWindow(callAgentId, state.contact.id);
-      setCallWindow(w);
-      if (w) setConsent(w.callConsent);
+  // Race-proof: the window read follows whenever the sheet is open and the
+  // agent id has landed (enrollments load async) — and it refreshes the
+  // consent chips from the SERVER, so a reopened drawer never shows a stale
+  // row value.
+  useEffect(() => {
+    let alive = true;
+    if (callOpen && callAgentId) {
+      void fetchCallWindow(callAgentId, state.contact.id).then((w) => {
+        if (!alive) return;
+        setCallWindow(w);
+        if (w) setConsent(w.callConsent);
+      });
     }
+    return () => {
+      alive = false;
+    };
+  }, [callOpen, callAgentId, state.contact.id]);
+  function toggleCallSheet() {
+    setCallOpen((v) => !v);
   }
   async function queueAdaCall() {
     if (!callAgentId || dialing) return;
@@ -425,9 +436,16 @@ function PersonBody({
       const body = res.body as { queued?: boolean; scheduledAt?: string } | null;
       if (body?.queued && body.scheduledAt) {
         const at = new Date(body.scheduledAt);
-        flash?.(
-          `Queued — Ada calls ${at.toLocaleString("en-US", { weekday: "short", hour: "numeric", minute: "2-digit" })} (${callWindow?.window.timezone ?? "local"}).`,
-        );
+        const tz = callWindow?.window.timezone;
+        // The time renders in the CONTACT's zone it is labeled with — a
+        // viewer-local time under their zone label would be a false claim.
+        let when: string;
+        try {
+          when = at.toLocaleString("en-US", { weekday: "short", hour: "numeric", minute: "2-digit", ...(tz ? { timeZone: tz } : {}) });
+        } catch {
+          when = at.toLocaleString("en-US", { weekday: "short", hour: "numeric", minute: "2-digit" });
+        }
+        flash?.(`Queued — Ada calls ${when}${tz ? ` (${tz})` : ""}.`);
       } else {
         flash?.("Ada is calling now.");
       }
@@ -549,7 +567,7 @@ function PersonBody({
         {/* B3c-1 (DEC-118): the Call action goes LIVE — Ada places the
             call through the one dial rail; Book stays visibly deferred. */}
         <span
-          onClick={() => void toggleCallSheet()}
+          onClick={toggleCallSheet}
           data-testid="bold-person-call"
           style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12, fontWeight: 700, color: "var(--cvb-slate)", background: "var(--cvb-slate-tint)", border: "1px solid var(--cvb-slate-line)", borderRadius: 11, padding: "9px 13px", cursor: "pointer" }}
         >
@@ -575,20 +593,24 @@ function PersonBody({
             </div>
           ) : consent !== "granted" ? (
             <div data-testid="bold-person-call-blocked" style={{ fontSize: 12.5, color: "var(--cvb-amber)", lineHeight: 1.5 }}>
-              Ada only calls people who said yes. Set call permission below and this opens up.
+              {row
+                ? "Ada only calls people who said yes. Set call permission below and this opens up."
+                : "Ada only calls people who said yes. Set call permission from their contact page."}
             </div>
           ) : (
             <>
               <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: "-.016em" }}>Ada picks the best time</div>
               <div data-testid="bold-person-call-window" style={{ ...mono, fontSize: 10, color: "var(--cvb-muted)", marginTop: 6, lineHeight: 1.5 }}>
                 {callWindow
-                  ? `${callWindow.window.start}–${callWindow.window.end} · ${callWindow.window.timezone} (${
+                  ? `${callWindow.window.start < callWindow.window.floorStart ? callWindow.window.floorStart : callWindow.window.start}–${
+                      callWindow.window.end > callWindow.window.floorEnd ? callWindow.window.floorEnd : callWindow.window.end
+                    } · ${callWindow.window.timezone} (${
                       callWindow.window.source === "contact"
                         ? "their saved timezone"
                         : callWindow.window.source === "calendar"
                           ? "from their booking"
                           : "campaign time"
-                    })`
+                    })${callWindow.window.source !== "campaign" ? " · inside campaign hours" : ""}`
                   : "Reading the calling window…"}
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 12 }}>
@@ -596,9 +618,12 @@ function PersonBody({
                   {voicePrice != null ? `${voicePrice} credit${voicePrice === 1 ? "" : "s"} / minute` : ""}
                 </span>
                 <span
-                  onClick={() => void queueAdaCall()}
+                  onClick={() => {
+                    if (!callWindow) return; // never a live button on an unread window
+                    void queueAdaCall();
+                  }}
                   data-testid="bold-person-call-queue"
-                  style={{ fontSize: 12, fontWeight: 800, color: "var(--cvb-card)", background: "var(--cvb-forest)", borderRadius: 10, padding: "8px 13px", cursor: "pointer", flex: "none", opacity: dialing ? 0.6 : 1 }}
+                  style={{ fontSize: 12, fontWeight: 800, color: "var(--cvb-card)", background: callWindow ? "var(--cvb-forest)" : "var(--cvb-ghost)", borderRadius: 10, padding: "8px 13px", cursor: callWindow ? "pointer" : "default", flex: "none", opacity: dialing ? 0.6 : 1 }}
                 >
                   {dialing ? "Queueing…" : callWindow?.insideNow ? "Call now" : "Queue the call"}
                 </span>

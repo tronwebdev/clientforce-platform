@@ -66,12 +66,22 @@ const CH_CHIP: Record<string, [string, string, string, string]> = {
 
 /** System-row tones by event family — wording stays the ONE pinned map
  *  (`calendarSystemRow`); the colors are skin, so Bold re-tones them. */
-function systemTone(type: string): [string, string, string] {
+function systemTone(type: string, payload?: Record<string, unknown>): [string, string, string] {
   if (type === "calendar.canceled.v1") return ["var(--cvb-danger)", "var(--cvb-danger-bg)", "#f0d5ce"];
   if (type === "calendar.rescheduled.v1") return ["var(--cvb-muted)", "var(--cvb-well)", "var(--cvb-line-ctl)"];
-  // B3c-1: call rows re-tone by family — failure red, the rest slate (the
-  // Bold voice-channel identity); wording stays the ONE pinned map.
-  if (type === "call.failed.v1") return ["var(--cvb-danger)", "var(--cvb-danger-bg)", "#f0d5ce"];
+  // B3c-1: call rows re-tone by OUTCOME (the legacy map's semantics) —
+  // call.failed.v1 covers no-answer/busy/canceled too (the webhook's
+  // reason), and only a REAL failure reads red; wording stays the ONE
+  // pinned map.
+  if (type === "call.failed.v1" || type === "call.completed.v1") {
+    const word = String((payload as { reason?: string; outcome?: string } | undefined)?.reason ?? (payload as { outcome?: string } | undefined)?.outcome ?? "");
+    if (word === "failed") return ["var(--cvb-danger)", "var(--cvb-danger-bg)", "#f0d5ce"];
+    if (word === "no_answer" || word === "busy" || word === "canceled")
+      return ["var(--cvb-muted)", "var(--cvb-well)", "var(--cvb-line-ctl)"];
+    return type === "call.failed.v1"
+      ? ["var(--cvb-danger)", "var(--cvb-danger-bg)", "#f0d5ce"]
+      : ["var(--cvb-slate)", "var(--cvb-slate-tint)", "var(--cvb-slate-line)"];
+  }
   if (type.startsWith("call.")) return ["var(--cvb-slate)", "var(--cvb-slate-tint)", "var(--cvb-slate-line)"];
   return ["var(--cvb-forest)", "var(--cvb-mint)", "var(--cvb-mint-line)"];
 }
@@ -751,7 +761,7 @@ export function BoldInboxView({
               {paneItems.map((it) => {
                 if (it.ev) {
                   const row = calendarSystemRow(it.ev.type, (it.ev.payload ?? {}) as Record<string, unknown>)!;
-                  const tone = systemTone(it.ev.type);
+                  const tone = systemTone(it.ev.type, (it.ev.payload ?? {}) as Record<string, unknown>);
                   return (
                     <div key={it.key} style={{ alignSelf: "center", display: "flex", alignItems: "center", gap: 8, background: tone[1], border: `1px solid ${tone[2]}`, borderRadius: 999, padding: "6px 14px" }}>
                       <span style={{ ...mono, fontSize: 10.5, letterSpacing: ".02em", color: tone[0] }}>{row.text}</span>
