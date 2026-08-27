@@ -800,7 +800,10 @@ export function BoldInboxView({
                 <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--cvb-amber)", flex: 1, lineHeight: 1.4 }}>
                   Ada is paused for this person — you replied. She sends nothing here until you resume her.
                 </span>
-                <span onClick={() => void doResume()} data-testid="bold-inbox-resume" style={{ fontSize: 12, fontWeight: 800, color: "var(--cvb-card)", background: "var(--cvb-amber)", borderRadius: 10, padding: "8px 13px", cursor: "pointer", flex: "none" }}>
+                {/* B3b review: the amber-ink solid read near-black at this
+                    size — the owner's ruled options include the forest
+                    primary, which matches every other primary action. */}
+                <span onClick={() => void doResume()} data-testid="bold-inbox-resume" style={{ fontSize: 12, fontWeight: 800, color: "var(--cvb-card)", background: "var(--cvb-forest)", borderRadius: 10, padding: "8px 13px", cursor: "pointer", flex: "none" }}>
                   Resume Ada
                 </span>
               </div>
