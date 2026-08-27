@@ -1,0 +1,50 @@
+{
+  "unit": "b3",
+  "commit": "137935770c31d3d1d80bd1009d5febd83c52eb05",
+  "workingTreeDirtyAtCapture": false,
+  "capturedAt": "2026-08-27T01:01:17.553Z",
+  "baseUrl": "http://localhost:3000",
+  "note": "Single-run capture; every frame from one build. Verify a frame by hashing its bytes against this manifest — never by trusting an image cache. pnpm lint:fidelity enforces the binding.",
+  "frames": {
+    "build-contact-detail-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 183285,
+      "sha256": "8119c086da0b6151b69ad422e1bb50632a5c7271ec12569c7ac32f48bafeb9df"
+    },
+    "build-contacts-grid-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 143897,
+      "sha256": "6196e24dfd4f6263b86f9fe5bc1d14dbaa5e332f94ef737aa1451b05ab1fec0a"
+    },
+    "build-contacts-list-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 146013,
+      "sha256": "658e67c3c310d01e8dc0485bfad323830a87b6c4ad71bcdee48627f8579f6cb1"
+    },
+    "build-wsinbox-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 125208,
+      "sha256": "4231bf02c67c2058e1424761e062025ac8e385ec0b096661f495c0a44f1b73ae"
+    },
+    "proto-contact-detail-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 181604,
+      "sha256": "953e5e14f126b456307f941178985624630787715a7bd040fb5a5a1bd6fed820"
+    },
+    "proto-contacts-grid-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 143391,
+      "sha256": "ff0451fdb01969e92a4b37bff5abd229dac0ffdd14a0aaa578ac96f4c5869253"
+    },
+    "proto-contacts-list-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 163117,
+      "sha256": "ed8a1bdbac08a29f5254c054d5d7fc783935c7755d5a11332c3b8152ae147e3e"
+    },
+    "proto-wsinbox-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 146626,
+      "sha256": "4c147c3d7f541b823a89d0afd91c7e02ee0a0aa5da8571e86d47c0ae39a4eac5"
+    }
+  }
+}
