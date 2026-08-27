@@ -9,6 +9,7 @@ import { BoldCampaignsView } from "./BoldCampaignsView";
 import { BoldCreateView } from "./BoldCreateView";
 import { BoldDock } from "./BoldDock";
 import { BoldDrawer, type BoldDrawerState } from "./BoldDrawer";
+import { BoldContactsView } from "./BoldContactsView";
 import { BoldInboxView } from "./BoldInboxView";
 import { BoldOverview } from "./BoldOverview";
 import { BoldPipelineView } from "./BoldPipelineView";
@@ -96,6 +97,12 @@ export function BoldShell({
   const [tourOffer, setTourOffer] = useState(false);
   const [tailTop, setTailTop] = useState<number | null>(null);
   const [drawer, setDrawer] = useState<BoldDrawerState | null>(null);
+  // B3a: live eyebrow counts reported by the workspace surfaces (null until
+  // each view loads — the eyebrow never shows a canned number).
+  const [wsInboxCount, setWsInboxCount] = useState<number | null>(null);
+  const [contactCount, setContactCount] = useState<number | null>(null);
+  // The drawer's "Message" hand-off: which contact the workspace inbox opens on.
+  const [wsFocus, setWsFocus] = useState<string | null>(null);
 
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const canvasColRef = useRef<HTMLDivElement | null>(null);
@@ -261,7 +268,17 @@ export function BoldShell({
           ] as const)
         : surface === "activity"
           ? ([`AGENT ACTIVITY · ${activeCamp?.name ?? ""}`, "Everything Ada did"] as const)
-          : SURFACE_TITLES[surface];
+          : surface === "wsinbox"
+            ? // B3a: live counts, never the prototype's fixture numbers.
+              ([
+                wsInboxCount == null
+                  ? "WORKSPACE"
+                  : `WORKSPACE · ${wsInboxCount} CONVERSATION${wsInboxCount === 1 ? "" : "S"}`,
+                "Inbox",
+              ] as const)
+            : surface === "contacts"
+              ? ([contactCount == null ? "PEOPLE" : `${contactCount} ${contactCount === 1 ? "PERSON" : "PEOPLE"}`, "Contacts"] as const)
+              : SURFACE_TITLES[surface];
   const status =
     onCampaign && activeCamp
       ? activeCamp.status === "ACTIVE"
@@ -373,12 +390,22 @@ export function BoldShell({
                 ) : tab === "plan" ? (
                   <BoldPlanView agent={activeCamp} flash={flash} />
                 ) : tab === "inbox" ? (
-                  <BoldInboxView agent={activeCamp} onOpenDrawer={setDrawer} flash={flash} />
+                  <BoldInboxView scope={{ kind: "campaign", agent: activeCamp }} onOpenDrawer={setDrawer} flash={flash} />
                 ) : (
                   <SurfaceStub title={`${activeCamp.name} — ${TABS.find(([k]) => k === tab)?.[1] ?? ""}`} wave={TAB_WAVE[tab as "stats" | "settings"]} />
                 )}
               </>
             ) : null}
+            {surface === "wsinbox" ? (
+              <BoldInboxView
+                key={wsFocus ?? "ws"}
+                scope={{ kind: "workspace", focusContactId: wsFocus }}
+                onOpenDrawer={setDrawer}
+                flash={flash}
+                onThreadCount={setWsInboxCount}
+              />
+            ) : null}
+            {surface === "contacts" ? <BoldContactsView onOpenDrawer={setDrawer} flash={flash} onCount={setContactCount} /> : null}
             {surface === "campaign" && !activeCamp ? (
               <div style={{ textAlign: "center", padding: "80px 40px" }}>
                 <div className="cvb-display" style={{ fontWeight: 900, fontSize: 22, letterSpacing: "-.03em" }}>No campaigns yet</div>
@@ -439,7 +466,7 @@ export function BoldShell({
               />
             ) : null}
             {surface === "activity" && activeCamp ? <BoldActivityView agentId={activeCamp.id} onOpenDrawer={setDrawer} /> : null}
-            {surface !== "campaign" && surface !== "camps" && surface !== "activity" && surface !== "newcamp" ? (
+            {surface !== "campaign" && surface !== "camps" && surface !== "activity" && surface !== "newcamp" && surface !== "wsinbox" && surface !== "contacts" ? (
               <SurfaceStub title={title} wave={SURFACE_WAVE[surface]} />
             ) : null}
           </div>
@@ -452,7 +479,18 @@ export function BoldShell({
           {wsPick ? (
             <BoldWsPicker me={me} onClose={() => setWsPick(false)} onNoop={(label) => flash(`${label} — coming soon`)} />
           ) : null}
-          {drawer ? <BoldDrawer state={drawer} onClose={() => setDrawer(null)} /> : null}
+          {drawer ? (
+            <BoldDrawer
+              state={drawer}
+              onClose={() => setDrawer(null)}
+              flash={flash}
+              onMessage={(contactId) => {
+                setDrawer(null);
+                setWsFocus(contactId);
+                selectDock("wsinbox");
+              }}
+            />
+          ) : null}
 
           {toast ? (
             <div className="cvb-toast" data-testid="bold-toast">

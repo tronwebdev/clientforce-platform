@@ -59,7 +59,7 @@ export class ContactsViewController {
             updatedAt: true,
             campaignId: true,
             campaign: {
-              select: { agent: { select: { name: true, goal: true, guardrails: true } } },
+              select: { agent: { select: { name: true, goal: true, guardrails: true, valueEstCents: true } } },
             },
           },
         }),
@@ -81,7 +81,9 @@ export class ContactsViewController {
         {
           pipelineStage: string;
           status: string;
-          campaign?: { agent: { name: string; goal: string; guardrails: unknown } | null } | null;
+          campaign?: {
+            agent: { name: string; goal: string; guardrails: unknown; valueEstCents?: number | null } | null;
+          } | null;
         }
       >();
       for (const e of enrollments) {
@@ -118,6 +120,11 @@ export class ContactsViewController {
           // chips render THIS, never the workspace aggregate).
           goal: enr?.campaign?.agent ? rowGoal(enr.campaign.agent) : null,
           agentName: enr?.campaign?.agent?.name ?? null,
+          // B3a (DEC-112, additive): the campaign's owner-entered per-unit
+          // estimate — the ONLY value data (DEC-104/105); the Bold contacts
+          // column renders it with the B1 potential vocabulary, never as
+          // realized payment.
+          valueEstCents: enr?.campaign?.agent?.valueEstCents ?? null,
           enrollmentStatus: enr?.status ?? null,
           replied: repliedSet.has(c.id),
           unsub,
@@ -128,7 +135,9 @@ export class ContactsViewController {
     });
   }
 
-  /** Drawer timeline: every Event row for the contact, cross-campaign, newest first. */
+  /** Drawer timeline: every Event row for the contact, cross-campaign, newest
+   *  first. B3a (DEC-112): the additive `enrollments` key rides along — the
+   *  campaigns this contact is in, for the contact detail (§7). */
   @Get(":id/timeline")
   async timeline(@Param("id") id: string) {
     return this.tenant.run(async (tx) => {
@@ -137,7 +146,26 @@ export class ContactsViewController {
         orderBy: { occurredAt: "desc" },
         take: 100,
       });
+      const enrollments = await tx.enrollment.findMany({
+        where: { contactId: id },
+        orderBy: { updatedAt: "desc" },
+        select: {
+          id: true,
+          pipelineStage: true,
+          status: true,
+          campaign: { select: { id: true, name: true, agent: { select: { id: true, name: true } } } },
+        },
+      });
       return {
+        enrollments: enrollments.map((e) => ({
+          id: e.id,
+          stage: e.pipelineStage,
+          status: e.status,
+          campaignId: e.campaign?.id ?? null,
+          campaignName: e.campaign?.name ?? null,
+          agentId: e.campaign?.agent?.id ?? null,
+          agentName: e.campaign?.agent?.name ?? null,
+        })),
         events: rows.map((e) => ({
           id: e.id,
           type: e.type,

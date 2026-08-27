@@ -8,6 +8,7 @@ import {
   type ValidationProgress,
 } from "@clientforce/core";
 import { TenantClient } from "../db/tenant-client";
+import { assembleInboxThreads } from "./inbox-threads";
 
 /**
  * Agent-view read surface (C2.4, checkpoints §4) — everything the five wired
@@ -110,9 +111,10 @@ export class AgentViewController {
   }
 
   /**
-   * Inbox tab: campaign-scoped Message rows grouped per contact into threads —
-   * latest preview, unread (inbound newer than last outbound), intent of the
-   * latest inbound, done flag (meta.done on the latest inbound).
+   * Inbox tab: campaign-scoped Message rows grouped per contact into threads.
+   * B3a (DEC-112): assembly lives in the shared `assembleInboxThreads` — the
+   * workspace-wide `GET /inbox` uses the SAME builder, so the two scopes can
+   * never drift. Shape unchanged from B2 plus the additive `campaign` ref.
    */
   @Get(":id/inbox")
   async inbox(@Param("id") id: string) {
@@ -120,102 +122,12 @@ export class AgentViewController {
       const campaign = await tx.campaign.findFirst({
         where: { agentId: id },
         orderBy: { createdAt: "asc" },
+        include: { agent: { select: { name: true } } },
       });
       if (!campaign) return { threads: [] };
-      const messages = await tx.message.findMany({
-        where: { campaignId: campaign.id },
-        orderBy: { sentAt: "asc" },
-      });
-      const contactIds = [...new Set(messages.map((m) => m.contactId))];
-      const contacts = await tx.contact.findMany({
-        where: { id: { in: contactIds } },
-        select: { id: true, firstName: true, lastName: true, company: true, email: true },
-      });
-      const contactById = new Map(contacts.map((c) => [c.id, c]));
-      const enrollments = await tx.enrollment.findMany({
-        where: { campaignId: campaign.id, contactId: { in: contactIds } },
-        select: { id: true, contactId: true, pipelineStage: true },
-      });
-      const enrollmentByContact = new Map(enrollments.map((e) => [e.contactId, e]));
-
-      // INT W2 (DEC-094, designed addition — flagged): the thread reading
-      // pane interleaves booking confirmations, so attach each thread
-      // contact's `calendar.*` Event rows. Event-sourced by design — never a
-      // fabricated Message (Message is the send ledger, A6; nothing was sent
-      // when a lead books). Contact-anchored, not campaign-filtered: a
-      // booking resolves to the contact even when no campaign ref rode the
-      // envelope. Tenant scoping rides RLS like every query here.
-      const calendarEvents =
-        contactIds.length > 0
-          ? await tx.event.findMany({
-              // INT W3 (DEC-095): payments interleave beside bookings — the
-              // same Event-sourced system-row treatment (never a Message).
-              where: {
-                contactId: { in: contactIds },
-                OR: [{ type: { startsWith: "calendar." } }, { type: "payment.received.v1" }],
-              },
-              orderBy: { occurredAt: "asc" },
-            })
-          : [];
-
-      const threads = contactIds
-        .map((contactId) => {
-          const msgs = messages.filter((m) => m.contactId === contactId);
-          const lastInbound = [...msgs].reverse().find((m) => m.direction === "INBOUND");
-          if (!lastInbound) return null; // Inbox shows conversations with replies
-          // DEC-034/owner 2026-07-05: unsubscribed threads LEAVE the Inbox —
-          // their home is Contacts → Unsub and the lead timeline.
-          if (lastInbound.intent === "unsubscribe") return null;
-          const lastOutbound = [...msgs].reverse().find((m) => m.direction === "OUTBOUND");
-          const last = msgs[msgs.length - 1]!;
-          const meta = (lastInbound.meta ?? {}) as { done?: boolean };
-          const enrollment = enrollmentByContact.get(contactId);
-          return {
-            contactId,
-            contact: contactById.get(contactId) ?? null,
-            enrollmentId: enrollment?.id ?? null,
-            stage: enrollment?.pipelineStage ?? null,
-            // P2.1 (DEC-061): channels present in the thread — the §4 channel
-            // filter and per-thread chips are live once sms exists.
-            channels: [...new Set(msgs.map((m) => m.channel))],
-            intent: lastInbound.intent ?? null,
-            unread: !lastOutbound || lastInbound.sentAt > lastOutbound.sentAt,
-            done: meta.done === true,
-            lastAt: last.sentAt.toISOString(),
-            preview: (last.body ?? "").slice(0, 140),
-            messageCount: msgs.length,
-            // INT W2: the contact's calendar.* rows (see the fetch above).
-            events: calendarEvents
-              .filter((e) => e.contactId === contactId)
-              .map((e) => ({
-                id: e.id,
-                type: e.type,
-                payload: e.payload,
-                occurredAt: e.occurredAt.toISOString(),
-              })),
-            messages: msgs.map((m) => {
-              // G3 (DEC-075): composed-message provenance — the send
-              // boundary's pass-through meta ({mode, composerVersion},
-              // G1/G2) surfaces so the Inbox can mark AI-composed
-              // messages. Absent provenance stays absent: scripted rows
-              // gain no key and render unmarked, never inferred.
-              const mm = (m.meta ?? {}) as { mode?: string; composerVersion?: string };
-              return {
-                id: m.id,
-                direction: m.direction,
-                channel: m.channel,
-                subject: m.subject,
-                body: m.body,
-                intent: m.intent,
-                sentAt: m.sentAt.toISOString(),
-                ...(m.direction === "OUTBOUND" && mm.mode === "guided"
-                  ? { composed: { composerVersion: mm.composerVersion ?? null } }
-                  : {}),
-              };
-            }),
-          };
-        })
-        .filter(Boolean);
+      const threads = await assembleInboxThreads(tx, [
+        { id: campaign.id, name: campaign.name, agentId: campaign.agentId, agentName: campaign.agent.name },
+      ]);
       return { threads };
     });
   }
