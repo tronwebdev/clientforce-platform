@@ -485,7 +485,7 @@ export function BoldInboxView({
     // below the fold. Short threads render identically.
     <div style={{ display: "flex", minHeight: 0, height: "100%", flexWrap: "wrap" }} data-testid="bold-inbox">
       {/* ------------------------------------------------------- thread list */}
-      <div style={{ width: 290, flex: "none", borderRight: "1px solid var(--cvb-line-inner)", padding: "24px 18px", overflowY: "auto", minHeight: 0 }}>
+      <div style={{ width: 290, flex: "none", maxHeight: "100%", borderRight: "1px solid var(--cvb-line-inner)", padding: "24px 18px", overflowY: "auto", minHeight: 0 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 14 }}>
           {pickers.map((p) => (
             <div key={p.id} style={{ position: "relative" }}>
@@ -588,7 +588,7 @@ export function BoldInboxView({
       </div>
 
       {/* ------------------------------------------------------ reading pane */}
-      <div data-testid="bold-inbox-pane" style={{ flex: 1, minWidth: 280, padding: "26px 32px", display: "flex", flexDirection: "column" }}>
+      <div data-testid="bold-inbox-pane" style={{ flex: 1, minWidth: 280, minHeight: 0, maxHeight: "100%", padding: "26px 32px", display: "flex", flexDirection: "column" }}>
         {sel ? (
           <>
             <div style={{ display: "flex", alignItems: "center", gap: 14, paddingBottom: 22, borderBottom: "1px solid var(--cvb-line-2)", flexWrap: "wrap" }}>
