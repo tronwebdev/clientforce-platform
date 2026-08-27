@@ -34,6 +34,7 @@ import {
   assertDialAllowed,
   deriveVoiceMediaToken,
   outcomeFromTwilioStatus,
+  recordingStatusCallbackUrl,
   SendBlockedError,
   validateTwilioSignature,
   type VoiceDialer,
@@ -41,6 +42,7 @@ import {
   resolveCallWindow,
   type CallDialJobData,
   isTimingOpen,
+  workspaceRecordingEnabled,
 } from "@clientforce/channels";
 import {
   dialCallBodySchema,
@@ -146,12 +148,16 @@ export class VoiceController {
     const gateToken = process.env.TWILIO_AUTH_TOKEN
       ? `&t=${deriveVoiceMediaToken(process.env.TWILIO_AUTH_TOKEN)}`
       : "";
+    // B3c-2 (DEC-118(3)): the workspace recording flag rides the dial — the
+    // session's spoken recording sentence and the capture flip together.
+    const record = await workspaceRecordingEnabled(this.prisma.app, workspaceId);
     const result = await this.dialer.placeCall({
       to: clearance.phone,
       twimlUrl: `${voiceServiceUrl}/twiml?callId=${call.id}&workspaceId=${workspaceId}${gateToken}`,
       ...(apiPublicUrl
         ? { statusCallbackUrl: `${apiPublicUrl}/webhooks/twilio-voice-status` }
         : {}),
+      ...(record ? { record: true, recordingStatusCallbackUrl: recordingStatusCallbackUrl() } : {}),
     });
     return this.tenant.run((tx) =>
       tx.call.update({
@@ -426,6 +432,12 @@ export class VoiceController {
         if (parsed.data.spokenName === null) delete voiceDefaults.spokenName;
         else voiceDefaults.spokenName = parsed.data.spokenName;
       }
+      // B3c-2 (DEC-118(3)): the per-workspace recording toggle — read at
+      // dial time by every outbound path, so the spoken recording sentence
+      // and the actual capture always flip together.
+      if (parsed.data.recordingEnabled !== undefined) {
+        voiceDefaults.recordingEnabled = parsed.data.recordingEnabled;
+      }
       const updated = await tx.workspace.update({
         where: { id: workspaceId },
         data: { settings: { ...settings, voiceDefaults } as Prisma.InputJsonValue },
@@ -492,7 +504,18 @@ export class VoiceController {
         workspaceId: call.workspaceId,
         campaignId: call.campaignId,
         contactId: call.contactId,
-        payload: { callId: call.id, reason: outcome },
+        payload: { callId: call.id, reason: outcome, caller: call.caller },
+      });
+    } else {
+      // B3c-2: a call the WEBHOOK resolves as completed had no session
+      // finalizer (the human bridge, or a connected call with no stream) —
+      // the timeline row lands here or nowhere.
+      await this.publisher.publish({
+        type: EVENT_TYPES.CALL_COMPLETED,
+        workspaceId: call.workspaceId,
+        campaignId: call.campaignId,
+        contactId: call.contactId,
+        payload: { callId: call.id, durationSec: durationSec ?? 0, outcome, caller: call.caller },
       });
     }
     return "<Response/>";

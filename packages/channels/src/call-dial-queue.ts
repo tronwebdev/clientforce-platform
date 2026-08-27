@@ -13,6 +13,7 @@ import { Queue, Worker, type ConnectionOptions, type Job } from "bullmq";
 import { BULL_PREFIX, bullConnectionFromUrl } from "@clientforce/events";
 import { withTenant, type PrismaClient } from "@clientforce/db";
 import { assertDialAllowed, nextWindowOpenAt, resolveCallWindow } from "./dial-voice";
+import { recordingStatusCallbackUrl, workspaceRecordingEnabled } from "./recording";
 import { parseGuardrails } from "@clientforce/core";
 import { deriveVoiceMediaToken, type VoiceDialer } from "./twilio-voice";
 import { SendBlockedError } from "./types";
@@ -87,10 +88,12 @@ export async function fireQueuedCall(
     const gateToken = process.env.TWILIO_AUTH_TOKEN
       ? `&t=${deriveVoiceMediaToken(process.env.TWILIO_AUTH_TOKEN)}`
       : "";
+    const record = await workspaceRecordingEnabled(prisma, data.workspaceId);
     const result = await dialer.placeCall({
       to: clearance.phone,
       twimlUrl: `${voiceServiceUrl}/twiml?callId=${call.id}&workspaceId=${data.workspaceId}${gateToken}`,
       ...(apiPublicUrl ? { statusCallbackUrl: `${apiPublicUrl}/webhooks/twilio-voice-status` } : {}),
+      ...(record ? { record: true, recordingStatusCallbackUrl: recordingStatusCallbackUrl() } : {}),
     });
     await withTenant(prisma, ctx, (tx) =>
       tx.call.update({

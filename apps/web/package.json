@@ -21,6 +21,7 @@
     "@fontsource/ibm-plex-mono": "^5.2.7",
     "@fontsource/ibm-plex-sans": "^5.2.7",
     "@fontsource/schibsted-grotesk": "^5.2.8",
+    "@twilio/voice-sdk": "^2.18.3",
     "jose": "^5.9.6",
     "next": "^15.1.4",
     "react": "^19.0.0",

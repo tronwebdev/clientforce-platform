@@ -203,11 +203,26 @@ export const dialCallBodySchema = z.object({
 });
 export type DialCallBody = z.infer<typeof dialCallBodySchema>;
 
-/** PATCH /voice/defaults — null clears the workspace default spoken name. */
+/** PATCH /voice/defaults — null clears the workspace default spoken name.
+ *  B3c-2 (DEC-118(3)): `recordingEnabled` is the per-workspace recording
+ *  toggle — OFF by default, no per-call choice; when ON every outbound call
+ *  opens with the spoken recording sentence (the disclosure constant path,
+ *  spoken first, never composed) AND the capture actually happens, so the
+ *  sentence is true. */
 export const voiceDefaultsPatchSchema = z.object({
   spokenName: spokenNameSchema.nullable().optional(),
+  recordingEnabled: z.boolean().optional(),
 });
 export type VoiceDefaultsPatch = z.infer<typeof voiceDefaultsPatchSchema>;
+
+/** POST /voice/browser-calls — a HUMAN picks up the browser mic and calls
+ *  one contact through the business line (B3c-2, DEC-118(1)/(2): any
+ *  non-DNC contact with a phone; consent never gates a human dial). */
+export const browserCallBodySchema = z.object({
+  agentId: z.string().min(1),
+  contactId: z.string().min(1),
+});
+export type BrowserCallBody = z.infer<typeof browserCallBodySchema>;
 
 // ── Call-time resolution (PURE — owner-locked chain) ─────────────────────────
 export type SpokenNameSource = "agent" | "workspace" | "default";

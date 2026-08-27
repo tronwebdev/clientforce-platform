@@ -235,6 +235,7 @@ export {
 export { buildCachedContext, strategyOf } from "./compose-shared";
 export {
   assertDialAllowed,
+  assertContactFloor,
   assertInsideCallingWindow,
   assertInsideContactQuietHours,
   DEFAULT_CALL_MAX_ATTEMPTS,
@@ -269,6 +270,14 @@ export {
   type PlaceCallResult,
   type VoiceDialer,
 } from "./twilio-voice";
+export {
+  browserVoiceConfig,
+  mintVoiceAccessToken,
+  twimlEscape,
+  type BrowserVoiceConfig,
+  type MintedVoiceToken,
+} from "./twilio-browser";
+export { recordingStatusCallbackUrl, workspaceRecordingEnabled } from "./recording";
 export {
   buildVoiceSystemPrompt,
   checkComposedVoiceTurn,

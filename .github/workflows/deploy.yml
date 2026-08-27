@@ -142,6 +142,16 @@ jobs:
           if [ "$twilio" = false ]; then
             echo "Twilio secrets not (fully) in Key Vault — SMS transport stays unconfigured (P2.1 owner step)."
           fi
+          # B3c-2 (DEC-118(1)): the browser-calling trio — all three or keyless sandbox.
+          browserVoice=true
+          for name in TWILIO-API-KEY-SID TWILIO-API-KEY-SECRET TWILIO-TWIML-APP-SID; do
+            if ! az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name "$name" --query id -o tsv >/dev/null 2>&1; then
+              browserVoice=false
+            fi
+          done
+          if [ "$browserVoice" = false ]; then
+            echo "Browser-calling trio not (fully) in Key Vault — human in-app calls run the keyless practice line (B3c-2 owner step: Twilio API key pair + TwiML App)."
+          fi
           # DEC-067: the SMS allow-list rides Key Vault (numbers never in the repo).
           if az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name SMS-ALLOWLIST --query id -o tsv >/dev/null 2>&1; then
             smsAllowlist=true
@@ -206,6 +216,7 @@ jobs:
               sgWebhookKeyAvailable="$sgWebhookKey" \
               clerkSecretsAvailable="$clerk" \
               twilioSecretsAvailable="$twilio" \
+              browserVoiceSecretsAvailable="$browserVoice" \
               smsAllowlistAvailable="$smsAllowlist" \
               voiceFromAvailable="$voiceFrom" \
               voiceAllowlistAvailable="$voiceAllowlist" \
