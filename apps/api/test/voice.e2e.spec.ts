@@ -88,6 +88,10 @@ describe.skipIf(!hasDb)("Voice API e2e (P3.1, DEC-078)", () => {
           optOut: {},
           tags: [],
           email: `vc-${suffix}@t.test`,
+          // B3c-1 (DEC-118(2)): dials default to caller "ada", which requires
+          // affirmative consent — granted so this spec keeps pinning the P3.1
+          // flow (the consent gate has its own spec: voice-dial.e2e.spec.ts).
+          callConsent: "granted",
           phone: PHONE,
           firstName: "Sam",
           lastName: "Reed",
@@ -102,6 +106,7 @@ describe.skipIf(!hasDb)("Voice API e2e (P3.1, DEC-078)", () => {
           optOut: {},
           tags: [],
           email: `vcs-${suffix}@t.test`,
+          callConsent: "granted",
           phone: SUPPRESSED_PHONE,
           firstName: "Stopped",
         },
