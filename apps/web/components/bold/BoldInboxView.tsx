@@ -778,6 +778,9 @@ export function BoldInboxView({
                         fontSize: 14,
                         lineHeight: 1.55,
                         whiteSpace: "pre-wrap",
+                        // A long unbroken URL (the compliance footer's
+                        // unsubscribe link) must wrap, never widen the pane.
+                        overflowWrap: "anywhere",
                       }}
                     >
                       {m.body ?? ""}
