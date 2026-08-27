@@ -57,6 +57,8 @@ interface Recorded {
   composeRefused: Array<{ nodeId: string; channel?: string; reason: string }>;
   actions: Array<{ nodeId: string; kind: string; detail: string }>;
   completed: Array<{ nodeId: string }>;
+  holdChecks: number;
+  dials: Array<{ stepNodeId: string }>;
 }
 
 function recordedActivities(sendImpl?: (p: { stepNodeId: string }) => Promise<SendOutcome>): {
@@ -70,6 +72,8 @@ function recordedActivities(sendImpl?: (p: { stepNodeId: string }) => Promise<Se
     composeRefused: [],
     actions: [],
     completed: [],
+    holdChecks: 0,
+    dials: [],
   };
   const acts = {
     async sendEnrollmentStep(p: {
@@ -101,6 +105,18 @@ function recordedActivities(sendImpl?: (p: { stepNodeId: string }) => Promise<Se
     },
     async completeEnrollment(p: { nodeId: string }) {
       calls.completed.push(p);
+    },
+    // B3b: every new run polls the reply-hold before a step send — the fake
+    // is never held, so sequences run straight through (the hold path is
+    // pinned by the api inbox-reply spec + the channels boundary tests).
+    async isEnrollmentHeld() {
+      calls.holdChecks += 1;
+      return false;
+    },
+    // B3c-1: voice steps dial through the one Call spine; the fake places.
+    async dialEnrollmentStep(p: { stepNodeId: string }) {
+      calls.dials.push(p);
+      return { kind: "placed", callId: `call-${calls.dials.length}` };
     },
   } as unknown as CampaignActivities;
   return { calls, acts };
