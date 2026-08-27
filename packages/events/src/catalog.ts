@@ -215,6 +215,19 @@ export const EVENT_SCHEMAS = {
   "enrollment.resumed.v1": z.object({
     byUserId: z.string().optional(),
   }),
+  // B3c-1 (DEC-118(2)): every call-consent flip lands provenance on the
+  // timeline — who set it, to what, and how. The `how` vocabulary is the
+  // DEC-120 ruling: ONE flag, ONE path, typed provenance — `staff` (a person
+  // flips the drawer chip) and `import` (an explicit CSV column) ship now;
+  // `reply` (Ada's may-we-call ask, affirmative reply), `widget_form` (the
+  // site agent's consent tick) and `inbound_call` (the receptionist's spoken
+  // yes/declined) are reserved for their named builds — never a parallel
+  // consent store.
+  "contact.call_consent.v1": z.object({
+    value: z.enum(["granted", "denied", "unknown"]),
+    byUserId: z.string().optional(),
+    how: z.enum(["staff", "import", "reply", "widget_form", "inbound_call"]),
+  }),
 
   // ── Lists (C2.8, docs/PLAN_CONTACT_LISTS.md) ───────────────────────────────
   // The Forms/Widget/Automations JOIN POINTS: integrations later subscribe to
@@ -500,6 +513,7 @@ export const EVENT_TYPES = {
   LEAD_STAGE_CHANGED: "lead.stage_changed.v1",
   ENROLLMENT_HELD: "enrollment.held.v1",
   ENROLLMENT_RESUMED: "enrollment.resumed.v1",
+  CONTACT_CALL_CONSENT: "contact.call_consent.v1",
   LEAD_UNSUBSCRIBED: "lead.unsubscribed.v1",
   LIST_MEMBER_ADDED: "list.member.added.v1",
   LIST_MEMBER_REMOVED: "list.member.removed.v1",

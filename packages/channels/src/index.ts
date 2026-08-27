@@ -236,12 +236,30 @@ export { buildCachedContext, strategyOf } from "./compose-shared";
 export {
   assertDialAllowed,
   assertInsideCallingWindow,
+  assertInsideContactQuietHours,
+  DEFAULT_CALL_MAX_ATTEMPTS,
   DEFAULT_VOICE_DAILY_CAP,
   DEFAULT_VOICE_WORKSPACE_DAILY_CAP,
+  DEFAULT_VOICEMAIL_AFTER,
+  isTimingOpen,
+  nextWindowOpenAt,
+  QUIET_FLOOR_END,
+  QUIET_FLOOR_START,
+  resolveCallWindow,
   type DialClearance,
   type DialVoiceDeps,
   type DialVoiceParams,
+  type ResolvedCallWindow,
 } from "./dial-voice";
+export {
+  CALL_DIAL_QUEUE,
+  createCallDialQueue,
+  createCallDialWorker,
+  fireQueuedCall,
+  type CallDialJobData,
+  type FireQueuedCallDeps,
+  type FireQueuedCallResult,
+} from "./call-dial-queue";
 export {
   deriveVoiceMediaToken,
   outcomeFromTwilioStatus,

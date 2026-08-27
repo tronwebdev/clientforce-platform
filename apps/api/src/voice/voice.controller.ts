@@ -26,6 +26,7 @@ import {
   Req,
   UnauthorizedException,
   UseInterceptors,
+  Query,
 } from "@nestjs/common";
 import { AnyFilesInterceptor } from "@nestjs/platform-express";
 import type { Request } from "express";
@@ -36,6 +37,10 @@ import {
   SendBlockedError,
   validateTwilioSignature,
   type VoiceDialer,
+  nextWindowOpenAt,
+  resolveCallWindow,
+  type CallDialJobData,
+  isTimingOpen,
 } from "@clientforce/channels";
 import {
   dialCallBodySchema,
@@ -44,12 +49,15 @@ import {
   voiceDefaultsPatchSchema,
 } from "@clientforce/core";
 import { withTenant, Role, type Prisma } from "@clientforce/db";
+import { parseGuardrails } from "@clientforce/core";
 import { EVENT_TYPES } from "@clientforce/events";
+import type { Queue } from "bullmq";
 import { Public, Roles } from "../auth/decorators";
+import type { AuthenticatedRequest } from "../auth/request-context";
 import { TenantClient } from "../db/tenant-client";
 import { PrismaService } from "../db/prisma.service";
 import { EVENTS_PUBLISHER, type EventsPublisher } from "../events/publisher";
-import { VOICE_DIALER } from "./voice.providers";
+import { CALL_DIAL_QUEUE_TOKEN, VOICE_DIALER } from "./voice.providers";
 
 @Controller()
 export class VoiceController {
@@ -58,12 +66,16 @@ export class VoiceController {
     private readonly prisma: PrismaService,
     @Inject(EVENTS_PUBLISHER) private readonly publisher: EventsPublisher,
     @Inject(VOICE_DIALER) private readonly dialer: VoiceDialer,
+    @Inject(CALL_DIAL_QUEUE_TOKEN) private readonly callQueue: Queue<CallDialJobData> | null,
   ) {}
 
-  /** Dial one contact through the FULL rail order. Refusals are typed + logged. */
+  /** Dial one contact through the FULL rail order. Refusals are typed +
+   *  logged. B3c-1 (DEC-113/118): the row carries caller attribution, and
+   *  `when: "best_time"` queues the call for the next contact-local window
+   *  opening instead of refusing on the clock. */
   @Post("agents/:id/calls")
   @Roles(Role.OWNER, Role.ADMIN, Role.AGENT)
-  async dial(@Param("id") agentId: string, @Body() body: unknown) {
+  async dial(@Req() req: AuthenticatedRequest, @Param("id") agentId: string, @Body() body: unknown) {
     const parsed = dialCallBodySchema.safeParse(body);
     if (!parsed.success) {
       throw new BadRequestException({
@@ -82,12 +94,21 @@ export class VoiceController {
       campaignId: campaign.id,
       agentId,
       contactId: parsed.data.contactId,
+      caller: "ada" as const,
     };
     let clearance;
     try {
       clearance = await assertDialAllowed({ prisma: this.prisma.app }, params);
     } catch (err) {
       if (err instanceof SendBlockedError) {
+        // B3c-1: a TIMING refusal on a best-time dial is not a refusal — it
+        // is the queue's reason to exist. Every other gate still 422s.
+        if (
+          parsed.data.when === "best_time" &&
+          (err.reason === "OUTSIDE_SENDING_WINDOW" || err.reason === "OUTSIDE_QUIET_HOURS")
+        ) {
+          return this.queueBestTime(req, agentId, campaign.id, parsed.data.contactId, workspaceId);
+        }
         // The Logs row the acceptance demands — refusal recorded BEFORE the 422.
         await this.publisher.publish({
           type: EVENT_TYPES.CALL_REFUSED,
@@ -110,6 +131,9 @@ export class VoiceController {
           contactId: parsed.data.contactId,
           direction: "OUTBOUND",
           status: "QUEUED",
+          // B3c-1 (DEC-113): caller attribution on the one Call spine.
+          caller: "ada",
+          placedById: req.auth?.user.id ?? null,
         },
       }),
     );
@@ -138,6 +162,127 @@ export class VoiceController {
         },
       }),
     );
+  }
+
+  /**
+   * B3c-1: queue a best-time dial — the next contact-local window opening is
+   * computed from the SAME resolver the rail enforces, stored on the row
+   * (the checkable claim) and armed as a delayed job. The worker re-runs the
+   * full rail at fire time; a queued call never bypasses a fresh gate.
+   */
+  private async queueBestTime(
+    req: AuthenticatedRequest,
+    agentId: string,
+    campaignId: string,
+    contactId: string,
+    workspaceId: string,
+  ) {
+    // Review-round fix: without the queue there is nothing to fire the call
+    // — an honest 503 beats a phantom "queued" row nobody will ever dial.
+    if (!this.callQueue) {
+      throw new HttpException(
+        { reason: "QUEUE_UNAVAILABLE", message: "Call scheduling is not available right now — try when their window is open." },
+        503,
+      );
+    }
+    // Review-round fix: every NON-timing gate must clear BEFORE queueing —
+    // consent, attempts, caps, opt-out, suppression, allow-list. Refusals
+    // here flow back to the caller's normal catch (Logs row + 422): a call
+    // the rail already knows it will refuse is never promised.
+    const clearance = await assertDialAllowed(
+      { prisma: this.prisma.app },
+      { workspaceId, campaignId, agentId, contactId, caller: "ada", skipTimingGates: true },
+    );
+    const openAt = nextWindowOpenAt(clearance.window, new Date());
+    if (!openAt) {
+      throw new HttpException(
+        {
+          reason: "OUTSIDE_QUIET_HOURS",
+          message:
+            "Their clock and the campaign's calling window never overlap this week — widen the campaign window.",
+        },
+        422,
+      );
+    }
+    // Idempotent: one pending best-time call per (campaign, contact) —
+    // repeat clicks return the pending row instead of stacking rings.
+    const pending = await this.tenant.run((tx) =>
+      tx.call.findFirst({
+        where: {
+          campaignId,
+          contactId,
+          caller: "ada",
+          status: "QUEUED",
+          providerCallSid: null,
+        },
+      }),
+    );
+    if (pending) {
+      const meta = (pending.meta ?? {}) as { scheduledAt?: string };
+      return { ...pending, queued: true, scheduledAt: meta.scheduledAt ?? openAt.toISOString(), window: clearance.window };
+    }
+    const call = await this.tenant.run((tx) =>
+      tx.call.create({
+        data: {
+          workspaceId,
+          campaignId,
+          agentId,
+          contactId,
+          direction: "OUTBOUND",
+          status: "QUEUED",
+          caller: "ada",
+          placedById: req.auth?.user.id ?? null,
+          meta: {
+            scheduledAt: openAt.toISOString(),
+            window: {
+              timezone: clearance.window.timezone,
+              source: clearance.window.source,
+              start: clearance.window.start,
+              end: clearance.window.end,
+            },
+          },
+        },
+      }),
+    );
+    await this.callQueue.add(
+      "dial",
+      { workspaceId, callId: call.id },
+      { delay: Math.max(0, openAt.getTime() - Date.now()), jobId: `call-${call.id}` },
+    );
+    return { ...call, queued: true, scheduledAt: openAt.toISOString(), window: clearance.window };
+  }
+
+  /**
+   * B3c-1: the checkable "Ada picks the best time" read — the drawer's
+   * confirm sheet renders exactly this window, its SOURCE, and the next
+   * opening, from the same resolver the rail enforces.
+   */
+  @Get("voice/call-window")
+  async callWindow(@Query("agentId") agentId: string, @Query("contactId") contactId: string) {
+    if (!agentId || !contactId) throw new BadRequestException("agentId and contactId required");
+    const [contact, agent] = await this.tenant.run((tx) =>
+      Promise.all([
+        tx.contact.findUnique({ where: { id: contactId } }),
+        tx.agent.findUnique({ where: { id: agentId } }),
+      ]),
+    );
+    if (!contact || !agent) throw new NotFoundException("Contact or agent not found");
+    const guardrails = parseGuardrails(agent.guardrails);
+    const window = await resolveCallWindow(
+      this.prisma.app,
+      this.tenant.workspaceId,
+      contact,
+      guardrails,
+    );
+    const now = new Date();
+    const openAt = nextWindowOpenAt(window, now);
+    return {
+      window,
+      nextOpenAt: openAt ? openAt.toISOString() : null,
+      // The ONE timing truth the rail enforces — never a near-enough guess.
+      insideNow: isTimingOpen(window, now),
+      callConsent: (contact as { callConsent?: string }).callConsent ?? "unknown",
+    };
   }
 
   /** The Calls tab rows — newest first, contact names joined. */

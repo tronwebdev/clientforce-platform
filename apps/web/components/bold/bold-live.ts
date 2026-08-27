@@ -248,6 +248,9 @@ export interface BoldContactRow {
   replied: boolean;
   tags: string[];
   notes: string | null;
+  /** B3c-1 (DEC-118(2)): granted | denied | unknown — unknown = Ada may not call. */
+  callConsent: string;
+  timezone: string | null;
   /** The newest inbound message — the "last asked about" human context. */
   lastInbound: { body: string; intent: string | null; channel: string; sentAt: string } | null;
   unsub: boolean;
@@ -379,9 +382,40 @@ export const sweepSuggestions = () => send("suggestions/sweep", "POST", {});
 export const dismissSuggestion = (agentId: string) =>
   send(`agents/${encodeURIComponent(agentId)}`, "PATCH", { dismissSuggestion: true });
 
-/** B3a review (DEC-112(7)): tags (full replace) + notes on the contact PATCH. */
-export const patchContactFacts = (contactId: string, body: { tags?: string[]; notes?: string | null }) =>
-  send(`contacts/${encodeURIComponent(contactId)}`, "PATCH", body);
+/** B3a review (DEC-112(7)): tags (full replace) + notes on the contact PATCH.
+ *  B3c-1 (DEC-118(2)): callConsent rides the same PATCH — every flip lands
+ *  provenance on the timeline. */
+export const patchContactFacts = (
+  contactId: string,
+  body: { tags?: string[]; notes?: string | null; callConsent?: "granted" | "denied" | "unknown" },
+) => send(`contacts/${encodeURIComponent(contactId)}`, "PATCH", body);
+
+/* ---------------------------------------------------- B3c-1 (DEC-118/119) */
+
+/** The checkable "Ada picks the best time" read — the SAME resolver the dial
+ *  rail enforces; the confirm sheet renders exactly this. */
+export interface CallWindowRead {
+  window: {
+    timezone: string;
+    source: "contact" | "calendar" | "campaign";
+    days: number[];
+    start: string;
+    end: string;
+    floorStart: string;
+    floorEnd: string;
+  };
+  nextOpenAt: string | null;
+  insideNow: boolean;
+  callConsent: string;
+}
+export const fetchCallWindow = (agentId: string, contactId: string) =>
+  get<CallWindowRead>(
+    `voice/call-window?agentId=${encodeURIComponent(agentId)}&contactId=${encodeURIComponent(contactId)}`,
+  );
+
+/** Queue (or place) one Ada call through the full dial rail. */
+export const dialAdaCall = (agentId: string, contactId: string, when: "now" | "best_time") =>
+  send(`agents/${encodeURIComponent(agentId)}/calls`, "POST", { contactId, when });
 
 /* ---------------------------------------------------- B3b (DEC-116/117) */
 

@@ -16,6 +16,10 @@ export const importContactRowSchema = z.object({
   company: z.string().max(200).optional(),
   phone: z.string().max(60).optional(),
   title: z.string().max(120).optional(),
+  /** B3c-1 (DEC-118(2)): an EXPLICIT call-consent value from the CSV's own
+   *  column — absent means unknown (the DB default; Ada may not call).
+   *  "unknown" is never sent: omission IS unknown. */
+  callConsent: z.enum(["granted", "denied"]).optional(),
   /** Values for ACTIVE ContactFieldDef keys (validated server-side, C2.7). */
   custom: contactCustomValuesSchema.optional(),
 });

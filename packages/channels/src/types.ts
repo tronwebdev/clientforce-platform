@@ -80,6 +80,15 @@ export type SendBlockReason =
   // B3b (DEC-117): a human replied on this conversation — Ada's scheduled
   // sends refuse until the explicit Resume clears the reply-hold. Reversible.
   | "ENROLLMENT_HELD"
+  // B3c-1 (DEC-113/118): the Ada outbound-calling rails. Consent unknown or
+  // denied refuses (unknown = Ada may not call); the local quiet floor and
+  // contact-local window refuse; the lifetime per-contact attempt cap and
+  // the unanswered-attempts threshold refuse (voicemail-only delivery
+  // arrives with answering-machine detection — Q-085). All reversible.
+  | "CALL_CONSENT_REQUIRED"
+  | "OUTSIDE_QUIET_HOURS"
+  | "CALL_MAX_ATTEMPTS"
+  | "CALL_RETRIES_EXHAUSTED"
   // P5 W1 (DEC-083): health auto-pause. A sender whose ledger-derived health
   // snapshot is `unhealthy` refuses every send; recovery (score back over the
   // hysteresis line) or the window draining restores it — reversible, and the

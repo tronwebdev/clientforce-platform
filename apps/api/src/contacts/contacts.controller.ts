@@ -154,6 +154,9 @@ export class ContactsController {
       let suppressed = 0;
       const createdIds: string[] = [];
       const createdContacts: Array<{ contactId: string; email: string }> = [];
+      // B3c-1: provenance events only for EXPLICITLY imported consent —
+      // defaulted "unknown" is a non-event, never timeline noise.
+      const consentWrites: Array<{ contactId: string; value: string }> = [];
       for (const b of creatable) {
         const c = await tx.contact.create({
           data: {
@@ -167,6 +170,9 @@ export class ContactsController {
             company: b.row.company ?? null,
             phone: b.row.phone ?? null,
             title: b.row.title ?? null,
+            // B3c-1 (DEC-118(2)): an explicit CSV call-consent value writes;
+            // absent stays the "unknown" default (Ada may not call).
+            ...(b.row.callConsent ? { callConsent: b.row.callConsent } : {}),
             ...(b.row.custom && Object.keys(b.row.custom).length > 0
               ? { custom: b.row.custom as Prisma.InputJsonValue }
               : {}),
@@ -174,6 +180,9 @@ export class ContactsController {
         });
         createdIds.push(c.id);
         createdContacts.push({ contactId: c.id, email: b.email });
+        if (b.row.callConsent) {
+          consentWrites.push({ contactId: c.id, value: b.row.callConsent });
+        }
         created += 1;
         if (suppressedSet.has(b.email)) suppressed += 1;
       }
@@ -195,7 +204,7 @@ export class ContactsController {
           list = { id: row.id, name: row.name, origin: row.origin };
         }
       }
-      return { created, skippedDuplicates, suppressed, failed, createdIds, createdContacts, list };
+      return { created, skippedDuplicates, suppressed, failed, createdIds, createdContacts, consentWrites, list };
     });
 
     // LH1 (DEC-087): the ASYNC validation pass — never blocks the import.
@@ -215,6 +224,17 @@ export class ContactsController {
       if (this.validationQueue) {
         await enqueueValidationBatch(this.validationQueue, { workspaceId, batchId });
       }
+    }
+
+    // B3c-1 (DEC-118(2)): consent provenance for explicitly imported values
+    // — the LIST_MEMBER_ADDED pattern, how: "import" (DEC-120 vocabulary).
+    for (const w of result.consentWrites) {
+      await this.publisher.publish({
+        type: "contact.call_consent.v1",
+        workspaceId,
+        contactId: w.contactId,
+        payload: { value: w.value, byUserId: addedBy, how: "import" },
+      });
     }
 
     // Membership events publish after the transaction commits (C2.8 join points).
@@ -345,19 +365,26 @@ export class ContactsController {
 
   /** C2.7: custom-value edit (detail drawer). Values merge; defs never change
    *  here. B3a review (DEC-112(7), additive): `tags` (full replace) and
-   *  `notes` (set/clear) ride the same PATCH — the drawer's tag chips and
-   *  note field write these. Ada's compose-time read of notes is Q-079. */
+   *  `notes` (set/clear) ride the same PATCH. B3c-1 (DEC-118(2), additive):
+   *  `callConsent` flips here too — every flip lands provenance on the
+   *  timeline (`contact.call_consent.v1`, how: "staff" — DEC-120's typed
+   *  provenance vocabulary). */
   @Patch(":id")
   @Roles(Role.OWNER, Role.ADMIN, Role.AGENT)
-  update(@Param("id") id: string, @Body() body: { custom?: unknown; tags?: unknown; notes?: unknown }) {
+  update(
+    @Req() req: AuthenticatedRequest,
+    @Param("id") id: string,
+    @Body() body: { custom?: unknown; tags?: unknown; notes?: unknown; callConsent?: unknown },
+  ) {
     return this.tenant.run(async (tx) => {
       const contact = await tx.contact.findUnique({ where: { id } });
       if (!contact) throw new NotFoundException(`Contact ${id} not found`);
       const custom = await validateCustom(tx, body.custom);
       const tags = validateTags(body.tags);
       const notes = validateNotes(body.notes);
-      if (!custom && tags === undefined && notes === undefined) {
-        throw new BadRequestException("Provide custom values, tags or notes to update");
+      const callConsent = validateCallConsent(body.callConsent);
+      if (!custom && tags === undefined && notes === undefined && callConsent === undefined) {
+        throw new BadRequestException("Provide custom values, tags, notes or call consent to update");
       }
       const merged = custom
         ? {
@@ -367,16 +394,37 @@ export class ContactsController {
             ...custom,
           }
         : undefined;
-      return tx.contact.update({
+      const updated = await tx.contact.update({
         where: { id },
         data: {
           ...(merged ? { custom: merged as Prisma.InputJsonValue } : {}),
           ...(tags !== undefined ? { tags } : {}),
           ...(notes !== undefined ? { notes } : {}),
+          ...(callConsent !== undefined ? { callConsent } : {}),
         },
       });
+      if (callConsent !== undefined && callConsent !== (contact as { callConsent?: string }).callConsent) {
+        await tx.event.create({
+          data: {
+            workspaceId: this.tenant.workspaceId,
+            type: "contact.call_consent.v1",
+            contactId: id,
+            payload: { value: callConsent, byUserId: req.auth!.user.id, how: "staff" },
+          },
+        });
+      }
+      return updated;
     });
   }
+}
+
+/** B3c-1: the ruled tri-state — granted | denied | unknown. */
+function validateCallConsent(raw: unknown): string | undefined {
+  if (raw === undefined) return undefined;
+  if (raw !== "granted" && raw !== "denied" && raw !== "unknown") {
+    throw new BadRequestException("callConsent must be granted, denied or unknown");
+  }
+  return raw;
 }
 
 /** B3a review: tags = full replace; trimmed, deduped, each 1–40 chars, max 20. */

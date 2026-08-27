@@ -134,7 +134,9 @@ test("contacts: segments, search, person detail, Message lands on the thread", a
     "placeholder",
     "Anything Ada should know — she reads these before she writes.",
   );
-  await expect(page.getByTestId("bold-person-call")).toContainText("Coming soon");
+  // B3c-1: the Call action went LIVE (consent-honest — its own spec covers
+  // it); Book stays visibly deferred.
+  await expect(page.getByTestId("bold-person-call")).not.toContainText("Coming soon");
   await expect(page.getByTestId("bold-person-book")).toContainText("Coming soon");
   // B3b: the slot is LIVE five-rule logic now. Ada's facts fire the
   // paid-without-review-ask rule, whose action is not shipped — the slot

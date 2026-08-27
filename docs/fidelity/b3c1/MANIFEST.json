@@ -1,0 +1,30 @@
+{
+  "unit": "b3c1",
+  "commit": "544aafcf1b0e4b8177ab6416833e77f98d02641a",
+  "workingTreeDirtyAtCapture": true,
+  "capturedAt": "2026-08-27T19:15:20.259Z",
+  "baseUrl": "http://localhost:3000",
+  "note": "Single-run capture; every frame from one build. Verify a frame by hashing its bytes against this manifest — never by trusting an image cache. pnpm lint:fidelity enforces the binding.",
+  "frames": {
+    "build-addstep-calls-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 152528,
+      "sha256": "02a630f916d54aa4de46f8b1677b38c6c15d81d88283860452db71f934b11181"
+    },
+    "build-call-blocked-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 181726,
+      "sha256": "ead897a439665f44fcebda3f43b77f6e7bb257d424c30238cf3930b42ed5c57c"
+    },
+    "build-call-sheet-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 181251,
+      "sha256": "94abde85a2effe5761f82c6ab63cc74fdbc1145477af1ebab6eba960452149e4"
+    },
+    "proto-contact-call-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 176753,
+      "sha256": "30942a0c924708ae220a570df30ed76e8e0daa8bd3592ce25cac94289b7f1991"
+    }
+  }
+}

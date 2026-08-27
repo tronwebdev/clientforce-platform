@@ -158,6 +158,15 @@ export const voiceRiderSchema = z.object({
   spokenName: spokenNameSchema.optional(),
   spokenNameConfirmed: z.boolean().optional(),
   voicePersonaId: z.string().optional(),
+  /** B3c-1 (DEC-113/119): lifetime Ada-call attempts per contact per
+   *  campaign before the rail refuses. Absent = the exported default (no
+   *  zod .default() — a materialized value would rewrite every row on the
+   *  next guardrails round-trip). */
+  callMaxAttempts: z.number().int().min(1).max(20).optional(),
+  /** B3c-1: unanswered/busy/failed attempts before delivery goes
+   *  voicemail-only — until answering-machine detection ships (Q-085) the
+   *  rail refuses further live attempts at this threshold instead. */
+  voicemailAfter: z.number().int().min(1).max(10).optional(),
 });
 export type VoiceRider = z.infer<typeof voiceRiderSchema>;
 
@@ -187,6 +196,10 @@ export function parseWorkspaceVoiceDefaults(settings: unknown): WorkspaceVoiceDe
 // ── REST DTOs (A2 — zod schemas shared by api + web) ─────────────────────────
 export const dialCallBodySchema = z.object({
   contactId: z.string().min(1),
+  /** B3c-1 (DEC-113): "now" (default — the shipped behavior) or
+   *  "best_time" — Ada picks the next open moment in the contact-local
+   *  window and the call queues until then. */
+  when: z.enum(["now", "best_time"]).optional(),
 });
 export type DialCallBody = z.infer<typeof dialCallBodySchema>;
 
