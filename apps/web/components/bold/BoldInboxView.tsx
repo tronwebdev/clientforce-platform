@@ -428,12 +428,18 @@ export function BoldInboxView({
                   <span style={{ fontWeight: t.unread ? 800 : 600, fontSize: 13.5, letterSpacing: "-.018em", flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{name}</span>
                   <span style={{ width: 18, height: 18, borderRadius: 6, flex: "none", background: ch[1], border: `1px solid ${ch[2]}`, color: ch[3], display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8.5 }}>{ch[0]}</span>
                 </div>
-                {/* Prototype row line: short wait time · preview — workspace
-                    scope leads with the campaign attribution (§4.5). */}
+                {/* Prototype row line 2: short wait time · the REAL last-message
+                    snippet (owner ruling, B3a review — the snippet is never
+                    crowded out). Campaign attribution gets its own line in
+                    workspace scope (§4.5). */}
                 <div style={{ fontSize: 11.5, color: "var(--cvb-faint)", marginTop: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                  {scope.kind === "workspace" && t.campaign ? `${t.campaign.agentName} · ` : ""}
                   {relTime(t.lastAt).replace(" ago", "")} · {t.preview}
                 </div>
+                {scope.kind === "workspace" && t.campaign ? (
+                  <div style={{ ...mono, fontSize: 9.5, color: "var(--cvb-ghost)", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {t.campaign.agentName}
+                  </div>
+                ) : null}
               </div>
               {t.unread ? <span style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--cvb-forest)", flex: "none" }} /> : null}
             </div>
@@ -604,7 +610,7 @@ export function BoldInboxView({
             ) : (
               <div data-testid="bold-inbox-donebar" style={{ display: "flex", alignItems: "center", gap: 12, background: "var(--cvb-panel)", border: "1px solid var(--cvb-line-ctl)", borderRadius: 18, padding: "14px 18px", flexWrap: "wrap" }}>
                 <span style={{ fontSize: 11.5, color: "var(--cvb-faint)", flex: 1, minWidth: 160, lineHeight: 1.5 }}>
-                  Replies aren’t sendable from the console yet — this wave is read + triage.
+                  Replies aren’t sendable from the console yet — for now this inbox is read and triage.
                 </span>
                 <span
                   onClick={() => void toggleDone()}

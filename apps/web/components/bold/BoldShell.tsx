@@ -20,7 +20,6 @@ import { BoldWsPicker } from "./BoldWsPicker";
 import { dismissSuggestion, fetchBoldAgents, sweepSuggestions } from "./bold-live";
 import {
   SURFACE_TITLES,
-  SURFACE_WAVE,
   TOUR_STEPS,
   adaContextFor,
   type BoldSurface,
@@ -54,11 +53,6 @@ const TABS: Array<[CampaignTab, string]> = [
   ["stats", "Stats"],
   ["settings", "Settings"],
 ];
-/** Which wave delivers each not-yet-live tab (stub pill copy). */
-const TAB_WAVE: Record<"stats" | "settings", string> = {
-  stats: "B8 · analytics",
-  settings: "B7 · settings waves",
-};
 
 /**
  * Console Bold shell — B1 brought the campaign console live (rail · overview ·
@@ -392,7 +386,7 @@ export function BoldShell({
                 ) : tab === "inbox" ? (
                   <BoldInboxView scope={{ kind: "campaign", agent: activeCamp }} onOpenDrawer={setDrawer} flash={flash} />
                 ) : (
-                  <SurfaceStub title={`${activeCamp.name} — ${TABS.find(([k]) => k === tab)?.[1] ?? ""}`} wave={TAB_WAVE[tab as "stats" | "settings"]} />
+                  <SurfaceStub title={`${activeCamp.name} — ${TABS.find(([k]) => k === tab)?.[1] ?? ""}`} />
                 )}
               </>
             ) : null}
@@ -467,7 +461,7 @@ export function BoldShell({
             ) : null}
             {surface === "activity" && activeCamp ? <BoldActivityView agentId={activeCamp.id} onOpenDrawer={setDrawer} /> : null}
             {surface !== "campaign" && surface !== "camps" && surface !== "activity" && surface !== "newcamp" && surface !== "wsinbox" && surface !== "contacts" ? (
-              <SurfaceStub title={title} wave={SURFACE_WAVE[surface]} />
+              <SurfaceStub title={title} />
             ) : null}
           </div>
 
@@ -513,21 +507,20 @@ export function BoldShell({
   );
 }
 
-/** Quiet stage card for surfaces that arrive with a later wave. */
-function SurfaceStub({ title, wave }: { title: string; wave: string }) {
+/** Quiet stage card for areas that are not built yet — plain owner-facing
+ *  copy only (owner ruling, B3a review: build ids and process vocabulary
+ *  never render; the jargon lint rule enforces this). */
+function SurfaceStub({ title }: { title: string }) {
   return (
     <div className="cvb-stub">
       <div className="cvb-stub-stage">
         <div className="cvb-stub-hairline" />
         <div className="cvb-stub-body">
-          <div className="cvb-eyebrow">PORT IN PROGRESS</div>
+          <div className="cvb-eyebrow">COMING SOON</div>
           <div className="cvb-stub-title">{title}</div>
           <div className="cvb-stub-copy">
-            The campaign console is live (B1). This surface arrives with its own wave behind the same{" "}
-            <span style={{ fontFamily: "var(--cvb-font-mono)", fontSize: 12 }}>consoleBold</span> flag — the legacy console is
-            untouched until the flag flips.
+            This area is on its way. Everything already live keeps working in the meantime.
           </div>
-          <span className="cvb-stub-wave">{wave}</span>
         </div>
       </div>
     </div>

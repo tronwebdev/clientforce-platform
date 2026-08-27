@@ -11,9 +11,11 @@ import {
   fetchLists,
   initials,
   money,
+  patchContactFacts,
   relTime,
   type BoldContactRow,
   type ContactEnrollmentRef,
+  type ContactSignalFact,
   type TimelineEvent,
 } from "./bold-live";
 
@@ -300,14 +302,21 @@ function PersonBody({
 }) {
   const [timeline, setTimeline] = useState<TimelineEvent[] | null>(null);
   const [enrollments, setEnrollments] = useState<ContactEnrollmentRef[]>([]);
+  const [signalFacts, setSignalFacts] = useState<ContactSignalFact[]>([]);
   const [lists, setLists] = useState<ContactListDto[]>([]);
   const [listOpen, setListOpen] = useState(false);
+  const [tags, setTags] = useState<string[]>(state.row?.tags ?? []);
+  const [tagDraft, setTagDraft] = useState("");
+  const [tagOpen, setTagOpen] = useState(false);
+  const [note, setNote] = useState<string>(state.row?.notes ?? "");
+  const [noteSaved, setNoteSaved] = useState<string>(state.row?.notes ?? "");
   useEffect(() => {
     let alive = true;
     void fetchContactTimeline(state.contact.id).then((r) => {
       if (!alive) return;
       setTimeline(r?.events ?? []);
       setEnrollments(r?.enrollments ?? []);
+      setSignalFacts(r?.signalFacts ?? []);
     });
     void fetchLists().then((l) => {
       if (alive) setLists((l ?? []).filter((x) => !x.archived));
@@ -328,6 +337,28 @@ function PersonBody({
     }
     const added = (res.body as { added?: number } | null)?.added ?? 0;
     flash?.(added === 0 ? `Already in “${list.name}” — nothing to add.` : `Added to “${list.name}”.`);
+  }
+
+  // B3a review (DEC-112(7)): tags full-replace + notes on the shipped PATCH.
+  async function saveTags(next: string[]) {
+    const prev = tags;
+    setTags(next);
+    const res = await patchContactFacts(state.contact.id, { tags: next });
+    if (!res.ok) {
+      setTags(prev);
+      flash?.(res.error);
+    }
+  }
+  async function saveNote() {
+    const trimmed = note.trim();
+    if (trimmed === noteSaved.trim()) return;
+    const res = await patchContactFacts(state.contact.id, { notes: trimmed || null });
+    if (!res.ok) {
+      flash?.(res.error);
+      return;
+    }
+    setNoteSaved(trimmed);
+    flash?.("Saved.");
   }
 
   // B3a: the factual segment pill — derived from the latest enrollment's
@@ -383,7 +414,9 @@ function PersonBody({
         <Closer onClose={onClose} />
       </div>
 
-      {/* The actions that exist — call/tag/note have no write path (Q-078). */}
+      {/* Live actions first; Call and Book render visibly deferred — every
+          prototype element is built or shown as coming, never dropped
+          silently (owner ruling, B3a review). */}
       <div style={{ display: "flex", gap: 8, marginTop: 18, flexWrap: "wrap" }}>
         {onMessage ? (
           <span
@@ -414,7 +447,105 @@ function PersonBody({
             </span>
           ) : null}
         </span>
+        {(
+          [
+            ["bold-person-call", "☎ Call"],
+            ["bold-person-book", "◷ Book"],
+          ] as const
+        ).map(([tid, label]) => (
+          <span
+            key={tid}
+            data-testid={tid}
+            title="Coming soon"
+            style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12, fontWeight: 700, color: "var(--cvb-faint)", background: "var(--cvb-well)", border: "1px dashed var(--cvb-line-ctl)", borderRadius: 11, padding: "9px 13px", cursor: "default" }}
+          >
+            {label}
+            <span style={{ fontSize: 10, fontWeight: 600, color: "var(--cvb-ghost)" }}>Coming soon</span>
+          </span>
+        ))}
       </div>
+
+      {/* The next-step slot (owner ruling: five deterministic rules with
+          visible provenance). Its actions do not exist to click yet, so the
+          slot ships visibly deferred — never a generic button. */}
+      <div data-testid="bold-person-nextstep" style={{ marginTop: 14, background: "var(--cvb-panel)", border: "1px dashed var(--cvb-line-ctl)", borderRadius: 13, padding: "11px 14px", display: "flex", alignItems: "center", gap: 10 }}>
+        <span style={{ ...mono, fontSize: 9.5, letterSpacing: ".14em", color: "var(--cvb-faint)", flex: "none" }}>NEXT STEP</span>
+        <span style={{ fontSize: 12, color: "var(--cvb-faint)" }}>Coming soon.</span>
+      </div>
+
+      {/* §7 tags + notes — live writes on the shipped contact PATCH
+          (B3a review). Ada's compose-time read of notes is not built yet
+          (Q-079) — the placeholder wording is the owner's ruling. */}
+      {row ? (
+        <>
+          <div style={{ height: 1, background: "var(--cvb-line-inner)", margin: "22px 0" }} />
+          {sectionLabel("TAGS")}
+          <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
+            {tags.map((t) => (
+              <span
+                key={t}
+                data-testid={`bold-person-tag-${t}`}
+                style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 700, color: "var(--cvb-muted)", background: "var(--cvb-well)", border: "1px solid var(--cvb-line-ctl)", borderRadius: 999, padding: "5px 11px" }}
+              >
+                {t}
+                <span
+                  onClick={() => void saveTags(tags.filter((x) => x !== t))}
+                  data-testid={`bold-person-tag-remove-${t}`}
+                  style={{ fontSize: 10, color: "var(--cvb-faint)", cursor: "pointer" }}
+                >
+                  ✕
+                </span>
+              </span>
+            ))}
+            {tagOpen ? (
+              <input
+                autoFocus
+                value={tagDraft}
+                onChange={(e) => setTagDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    const t = tagDraft.trim();
+                    setTagDraft("");
+                    setTagOpen(false);
+                    if (t && !tags.includes(t)) void saveTags([...tags, t]);
+                  }
+                  if (e.key === "Escape") {
+                    setTagDraft("");
+                    setTagOpen(false);
+                  }
+                }}
+                onBlur={() => {
+                  setTagDraft("");
+                  setTagOpen(false);
+                }}
+                placeholder="Tag name"
+                data-testid="bold-person-tag-input"
+                style={{ width: 110, fontSize: 11.5, border: "1px solid var(--cvb-mint-line)", borderRadius: 999, padding: "5px 11px", background: "var(--cvb-card)", color: "var(--cvb-ink)", outline: "none" }}
+              />
+            ) : (
+              <span
+                onClick={() => setTagOpen(true)}
+                data-testid="bold-person-tag-add"
+                style={{ fontSize: 11, fontWeight: 700, color: "var(--cvb-forest)", background: "var(--cvb-mint)", border: "1px solid var(--cvb-mint-line)", borderRadius: 999, padding: "5px 11px", cursor: "pointer" }}
+              >
+                + tag
+              </span>
+            )}
+          </div>
+
+          <div style={{ height: 1, background: "var(--cvb-line-inner)", margin: "22px 0" }} />
+          {sectionLabel("NOTES")}
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            onBlur={() => void saveNote()}
+            placeholder="Anything Ada should know — she reads these before she writes."
+            data-testid="bold-person-notes"
+            rows={3}
+            style={{ width: "100%", fontSize: 13, lineHeight: 1.5, border: "1px solid var(--cvb-line-ctl)", borderRadius: 13, padding: "12px 14px", background: "var(--cvb-panel)", color: "var(--cvb-ink)", outline: "none", resize: "vertical", fontFamily: "inherit" }}
+          />
+        </>
+      ) : null}
 
       {/* §7: campaigns this contact is in — the additive enrollments read. */}
       {enrollments.length > 0 ? (
@@ -503,6 +634,30 @@ function PersonBody({
       {timeline != null && timeline.length === 0 ? (
         <div style={{ fontSize: 12.5, color: "var(--cvb-faint)" }}>Nothing recorded yet.</div>
       ) : null}
+
+      {/* ✦ footer — the B2.6 sweep condition THIS contact meets, dates and
+          counts only (shared signal vocabulary, DEC-112(7)); absent when no
+          condition holds. Priority mirrors the sweep order. */}
+      {(() => {
+        const order = ["winback_stalled", "quiet_contacts", "collect_reviews"];
+        const fact = order.map((k) => signalFacts.find((f) => f.signal === k)).find(Boolean);
+        if (!fact) return null;
+        const line =
+          fact.signal === "winback_stalled"
+            ? `Said not now ${relTime(fact.at)} — Ada flags replies like this for a win-back.`
+            : fact.signal === "quiet_contacts"
+              ? `Quiet for ${fact.days} days — Ada flags contacts like this for a re-open.`
+              : `Booked ${relTime(fact.at)} — Ada flags outcomes like this for a review ask.`;
+        return (
+          <div
+            data-testid="bold-person-ada"
+            style={{ display: "flex", alignItems: "flex-start", gap: 9, background: "var(--cvb-mint)", border: "1px solid var(--cvb-mint-line)", borderRadius: 13, padding: "12px 14px", marginTop: 8 }}
+          >
+            <span style={{ color: "var(--cvb-forest)", fontSize: 12, flex: "none" }}>✦</span>
+            <span style={{ fontSize: 12.5, color: "var(--cvb-forest)", lineHeight: 1.5 }}>{line}</span>
+          </div>
+        );
+      })()}
     </>
   );
 }

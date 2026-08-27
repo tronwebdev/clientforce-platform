@@ -343,27 +343,63 @@ export class ContactsController {
     return { ...contact, suppressed };
   }
 
-  /** C2.7: custom-value edit (detail drawer). Values merge; defs never change here. */
+  /** C2.7: custom-value edit (detail drawer). Values merge; defs never change
+   *  here. B3a review (DEC-112(7), additive): `tags` (full replace) and
+   *  `notes` (set/clear) ride the same PATCH — the drawer's tag chips and
+   *  note field write these. Ada's compose-time read of notes is Q-079. */
   @Patch(":id")
   @Roles(Role.OWNER, Role.ADMIN, Role.AGENT)
-  update(@Param("id") id: string, @Body() body: { custom?: unknown }) {
+  update(@Param("id") id: string, @Body() body: { custom?: unknown; tags?: unknown; notes?: unknown }) {
     return this.tenant.run(async (tx) => {
       const contact = await tx.contact.findUnique({ where: { id } });
       if (!contact) throw new NotFoundException(`Contact ${id} not found`);
       const custom = await validateCustom(tx, body.custom);
-      if (!custom) throw new BadRequestException("Provide custom values to update");
-      const merged = {
-        ...(contact.custom && typeof contact.custom === "object" && !Array.isArray(contact.custom)
-          ? (contact.custom as Record<string, unknown>)
-          : {}),
-        ...custom,
-      };
+      const tags = validateTags(body.tags);
+      const notes = validateNotes(body.notes);
+      if (!custom && tags === undefined && notes === undefined) {
+        throw new BadRequestException("Provide custom values, tags or notes to update");
+      }
+      const merged = custom
+        ? {
+            ...(contact.custom && typeof contact.custom === "object" && !Array.isArray(contact.custom)
+              ? (contact.custom as Record<string, unknown>)
+              : {}),
+            ...custom,
+          }
+        : undefined;
       return tx.contact.update({
         where: { id },
-        data: { custom: merged as Prisma.InputJsonValue },
+        data: {
+          ...(merged ? { custom: merged as Prisma.InputJsonValue } : {}),
+          ...(tags !== undefined ? { tags } : {}),
+          ...(notes !== undefined ? { notes } : {}),
+        },
       });
     });
   }
+}
+
+/** B3a review: tags = full replace; trimmed, deduped, each 1–40 chars, max 20. */
+function validateTags(raw: unknown): string[] | undefined {
+  if (raw === undefined) return undefined;
+  if (!Array.isArray(raw) || raw.some((t) => typeof t !== "string")) {
+    throw new BadRequestException("tags must be an array of strings");
+  }
+  const tags = [...new Set((raw as string[]).map((t) => t.trim()).filter(Boolean))];
+  if (tags.length > 20 || tags.some((t) => t.length > 40)) {
+    throw new BadRequestException("tags: max 20, each up to 40 characters");
+  }
+  return tags;
+}
+
+/** B3a review: notes — a single free-text field; null/empty clears it. */
+function validateNotes(raw: unknown): string | null | undefined {
+  if (raw === undefined) return undefined;
+  if (raw === null) return null;
+  if (typeof raw !== "string") throw new BadRequestException("notes must be a string");
+  const trimmed = raw.trim();
+  if (trimmed.length > 2000) throw new BadRequestException("notes: up to 2000 characters");
+  return trimmed || null;
 }
 
 /** Validates `custom` against ACTIVE defs — unknown/archived keys reject (400). */

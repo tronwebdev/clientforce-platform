@@ -80,7 +80,7 @@ test("workspace inbox: attribution, campaign picker, triage round-trips", async 
   await expect(page.getByTestId("bold-inbox-donebar")).toContainText("Handled.");
   await page.getByTestId("bold-inbox-done").click();
   await expect(page.getByTestId("bold-toast")).toContainText("Reopened");
-  await expect(page.getByTestId("bold-inbox-donebar")).toContainText("read + triage");
+  await expect(page.getByTestId("bold-inbox-donebar")).toContainText("read and triage");
 });
 
 test("contacts: segments, search, person detail, Message lands on the thread", async ({ page }) => {
@@ -124,6 +124,25 @@ test("contacts: segments, search, person detail, Message lands on the thread", a
   await expect(page.getByTestId("bold-drawer")).toContainText("CAMPAIGNS");
   await expect(page.getByTestId(/bold-person-camp-/).first()).toContainText("Implant open day");
   await expect(page.getByTestId("bold-drawer")).toContainText("TIMELINE");
+
+  // Review round: the notes field carries the ruled placeholder; Call/Book
+  // and the next-step slot are visibly deferred; the ✦ footer states this
+  // contact's real signal fact (a booked outcome). Tags write round-trips
+  // and self-restores.
+  await expect(page.getByTestId("bold-person-notes")).toHaveAttribute(
+    "placeholder",
+    "Anything Ada should know — she reads these before she writes.",
+  );
+  await expect(page.getByTestId("bold-person-call")).toContainText("Coming soon");
+  await expect(page.getByTestId("bold-person-book")).toContainText("Coming soon");
+  await expect(page.getByTestId("bold-person-nextstep")).toContainText("Coming soon");
+  await expect(page.getByTestId("bold-person-ada")).toContainText("Booked");
+  await page.getByTestId("bold-person-tag-add").click();
+  await page.getByTestId("bold-person-tag-input").fill("e2e-tag");
+  await page.getByTestId("bold-person-tag-input").press("Enter");
+  await expect(page.getByTestId("bold-person-tag-e2e-tag")).toBeVisible();
+  await page.getByTestId("bold-person-tag-remove-e2e-tag").click();
+  await expect(page.getByTestId("bold-person-tag-e2e-tag")).toHaveCount(0);
 
   // Message → the workspace inbox opens ON this contact's thread.
   await page.getByTestId("bold-person-message").click();

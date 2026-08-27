@@ -68,8 +68,7 @@ export function BoldAdaPanel({ ctx, onClose, onNoop }: BoldAdaPanelProps) {
               flex: "none",
             }}
           >
-            The Bold shell is up — I am wired in from the campaign console wave (B1). Until then this bar shows
-            what I will offer on each page.
+            I am not wired into this console yet. Until then this bar shows what I will offer on each page.
           </div>
         </div>
         <div className="cvb-ada-chips">

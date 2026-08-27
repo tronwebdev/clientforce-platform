@@ -320,6 +320,10 @@ model Contact {
   /// never mixed with `enrichment` (reserved for machine enrichment).
   custom      Json             @default("{}")
   tags        String[]
+  /// B3a review (DEC-112(7)): the owner's free-text note on a person.
+  /// Written from the contact detail; Ada's compose-time read of it is
+  /// B3b+ scope (Q-079).
+  notes       String?
   optOut      Json
   /// LH1 (DEC-087): email-validation verdict — valid | risky | invalid |
   /// unverified (default; `EMAIL_VERDICTS` in @clientforce/core is the

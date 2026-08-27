@@ -132,9 +132,18 @@ export function BoldContactsView({
     void refresh();
   }
 
-  /** Sub line: the latest campaign + stage — real words only, else the source. */
-  const subOf = (r: BoldContactRow) =>
-    r.agentName && r.stage ? `${r.agentName} · ${r.stage}` : r.source.replace(/_/g, " ");
+  /** Sub line (owner ruling, B3a review): prefer HUMAN context where it
+   *  exists — what they last asked/said (the newest inbound message), then
+   *  the owner's note — and fall back to campaign · state, then the source.
+   *  Every value is real data; nothing is invented. */
+  const subOf = (r: BoldContactRow) => {
+    const asked = r.lastInbound?.body.trim();
+    if (asked) return asked;
+    const note = r.notes?.trim().split("\n")[0];
+    if (note) return note;
+    if (r.agentName && r.stage) return `${r.agentName} · ${r.stage}`;
+    return r.source.replace(/_/g, " ");
+  };
   /** DEC-104/105 value honesty: the per-win estimate on goal-reached rows only. */
   const valueOf = (r: BoldContactRow) =>
     r.valueEstCents != null && (r.stage === "booked" || r.stage === "won") ? money(r.valueEstCents) : "—";

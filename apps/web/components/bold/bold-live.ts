@@ -62,18 +62,29 @@ export interface ContactEnrollmentRef {
   agentName: string | null;
 }
 
+/** B2.6 signal conditions this contact meets (DEC-112(7)) — the drawer's
+ *  ✦ footer renders the factual sentence, or nothing. */
+export interface ContactSignalFact {
+  signal: string;
+  at: string;
+  days?: number;
+}
+
 /** The shipped timeline read returns `{ events: [...] }` — unwrap defensively
  *  (this exact shape mismatch crashed the person drawer in review). */
 export const fetchContactTimeline = async (
   contactId: string,
-): Promise<{ events: TimelineEvent[]; enrollments: ContactEnrollmentRef[] } | null> => {
-  const res = await get<{ events?: TimelineEvent[]; enrollments?: ContactEnrollmentRef[] }>(
-    `contacts/${contactId}/timeline`,
-  );
+): Promise<{ events: TimelineEvent[]; enrollments: ContactEnrollmentRef[]; signalFacts: ContactSignalFact[] } | null> => {
+  const res = await get<{
+    events?: TimelineEvent[];
+    enrollments?: ContactEnrollmentRef[];
+    signalFacts?: ContactSignalFact[];
+  }>(`contacts/${contactId}/timeline`);
   if (!res) return null;
   return {
     events: Array.isArray(res.events) ? res.events : [],
     enrollments: Array.isArray(res.enrollments) ? res.enrollments : [],
+    signalFacts: Array.isArray(res.signalFacts) ? res.signalFacts : [],
   };
 };
 
@@ -210,6 +221,10 @@ export interface BoldContactRow {
   valueEstCents: number | null;
   enrollmentStatus: string | null;
   replied: boolean;
+  tags: string[];
+  notes: string | null;
+  /** The newest inbound message — the "last asked about" human context. */
+  lastInbound: { body: string; intent: string | null; channel: string; sentAt: string } | null;
   unsub: boolean;
   lastActivity: string | null;
 }
@@ -338,6 +353,10 @@ export const fetchListMemberIds = async (listId: string): Promise<string[] | nul
 export const sweepSuggestions = () => send("suggestions/sweep", "POST", {});
 export const dismissSuggestion = (agentId: string) =>
   send(`agents/${encodeURIComponent(agentId)}`, "PATCH", { dismissSuggestion: true });
+
+/** B3a review (DEC-112(7)): tags (full replace) + notes on the contact PATCH. */
+export const patchContactFacts = (contactId: string, body: { tags?: string[]; notes?: string | null }) =>
+  send(`contacts/${encodeURIComponent(contactId)}`, "PATCH", body);
 
 export const enrollContact = (
   agentId: string,

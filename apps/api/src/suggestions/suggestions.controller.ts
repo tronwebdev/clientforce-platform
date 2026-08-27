@@ -8,6 +8,7 @@ import { Role } from "@clientforce/db";
 import { Roles } from "../auth/decorators";
 import { TenantClient } from "../db/tenant-client";
 import { agentCreateData } from "../agents/create-agent";
+import { HAPPY_STAGES, NOT_NOW_INTENTS, QUIET_DAYS, THRESHOLDS } from "./signals";
 
 /**
  * B2.6 (DEC-110, closes Q-066): the suggestion sweep — Ada proposes work the
@@ -25,11 +26,6 @@ import { agentCreateData } from "../agents/create-agent";
  * best-effort on load (a worker/cron cadence is Q-076's call).
  */
 
-const QUIET_DAYS = 60;
-/** NON-BLOCKING threshold defaults (Q-076 — owner tuning pending). */
-const THRESHOLDS = { winback_stalled: 1, quiet_contacts: 3, collect_reviews: 2 } as const;
-
-const NOT_NOW_INTENTS = ["not_interested", "objection_price", "objection_timing", "not"];
 
 interface SignalResult {
   signal: AgentSuggestion["signal"];
@@ -123,7 +119,7 @@ export class SuggestionsController {
 
       // S3 — reviews: booked/won outcomes with no review campaign anywhere.
       const happy = await tx.enrollment.count({
-        where: { pipelineStage: { in: ["booked", "won"] } },
+        where: { pipelineStage: { in: HAPPY_STAGES } },
       });
       await propose(
         "collect_reviews",
