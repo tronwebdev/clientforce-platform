@@ -139,7 +139,9 @@ test("the all-campaigns page shows live rows with goal state", async ({ page }) 
   await expect(page.getByTestId("bold-camps-page")).toBeVisible();
   await expect(page.getByTestId("bold-camps-page").getByText("Implant open day")).toBeVisible();
   // The goal-met pill rides the campaign that reached its terminal stage.
-  await expect(page.getByTestId("bold-camps-page").getByText("✓ GOAL MET")).toBeVisible();
+  // (.first(): a persistent deployment can hold MORE than one goal-met
+  // campaign — the pill's presence is the claim, not its count.)
+  await expect(page.getByTestId("bold-camps-page").getByText("✓ GOAL MET").first()).toBeVisible();
 
   // The cross-workspace needs pill reads real data (one reply waits in demo-2).
   await expect(page.getByTestId("bold-ws-needs")).toHaveText("1 elsewhere");

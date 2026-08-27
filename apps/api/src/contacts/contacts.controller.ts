@@ -227,13 +227,13 @@ export class ContactsController {
     }
 
     // B3c-1 (DEC-118(2)): consent provenance for explicitly imported values
-    // — the LIST_MEMBER_ADDED pattern, how: "csv_import".
+    // — the LIST_MEMBER_ADDED pattern, how: "import" (DEC-120 vocabulary).
     for (const w of result.consentWrites) {
       await this.publisher.publish({
         type: "contact.call_consent.v1",
         workspaceId,
         contactId: w.contactId,
-        payload: { value: w.value, byUserId: addedBy, how: "csv_import" },
+        payload: { value: w.value, byUserId: addedBy, how: "import" },
       });
     }
 
@@ -367,7 +367,8 @@ export class ContactsController {
    *  here. B3a review (DEC-112(7), additive): `tags` (full replace) and
    *  `notes` (set/clear) ride the same PATCH. B3c-1 (DEC-118(2), additive):
    *  `callConsent` flips here too — every flip lands provenance on the
-   *  timeline (`contact.call_consent.v1`, how: "manual"). */
+   *  timeline (`contact.call_consent.v1`, how: "staff" — DEC-120's typed
+   *  provenance vocabulary). */
   @Patch(":id")
   @Roles(Role.OWNER, Role.ADMIN, Role.AGENT)
   update(
@@ -408,7 +409,7 @@ export class ContactsController {
             workspaceId: this.tenant.workspaceId,
             type: "contact.call_consent.v1",
             contactId: id,
-            payload: { value: callConsent, byUserId: req.auth!.user.id, how: "manual" },
+            payload: { value: callConsent, byUserId: req.auth!.user.id, how: "staff" },
           },
         });
       }

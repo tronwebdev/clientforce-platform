@@ -82,6 +82,10 @@ describe.skipIf(!hasInfra)("assertDialAllowed boundary integration", () => {
         email: `voice-${suffix}@t.test`,
         phone: PHONE,
         firstName: "Sam",
+        // B3c-1 (DEC-118(2)): callers default to "ada", and Ada requires
+        // affirmative consent — granted here so each test below pins ITS
+        // gate; the consent default has its own test.
+        callConsent: "granted",
       },
     });
     contactId = contact.id;
@@ -108,6 +112,25 @@ describe.skipIf(!hasInfra)("assertDialAllowed boundary integration", () => {
     expect(clearance.phone).toBe(PHONE);
     expect(clearance.language).toBe("en");
     expect(clearance.guardrails.dailyCap.voice).toBe(2);
+  });
+
+  it("CALL_CONSENT_REQUIRED (DEC-118(2)): an omitted caller IS ada — unknown consent refuses; human skips consent, never DNC", async () => {
+    await owner.contact.update({ where: { id: contactId }, data: { callConsent: "unknown" } });
+    // No caller param → the rail defaults to "ada" (doubt blocks).
+    expect(await reasonOf(assertDialAllowed(deps(), base()))).toBe("CALL_CONSENT_REQUIRED");
+    expect(await reasonOf(assertDialAllowed(deps(), { ...base(), caller: "ada" }))).toBe("CALL_CONSENT_REQUIRED");
+    // A human caller dials any non-DNC contact with a phone — consent does not gate…
+    expect(await reasonOf(assertDialAllowed(deps(), { ...base(), caller: "human" }))).toBe("(allowed)");
+    // …but the DNC block still does (D5: opt-out gates every caller).
+    await owner.contact.update({
+      where: { id: contactId },
+      data: { optOut: { sms: true } },
+    });
+    expect(await reasonOf(assertDialAllowed(deps(), { ...base(), caller: "human" }))).toBe("OPTED_OUT");
+    await owner.contact.update({
+      where: { id: contactId },
+      data: { optOut: {}, callConsent: "granted" },
+    });
   });
 
   it("TENANT_SUSPENDED (DEC-079): a suspended workspace — or agency — never dials", async () => {

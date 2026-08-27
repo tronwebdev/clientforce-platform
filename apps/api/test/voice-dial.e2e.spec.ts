@@ -292,7 +292,7 @@ describe.skipIf(!hasDb)("Ada outbound dial rail e2e", () => {
       where: { workspaceId: ws, contactId, type: "contact.call_consent.v1" },
       orderBy: { occurredAt: "desc" },
     });
-    expect(ev!.payload).toMatchObject({ value: "denied", how: "manual", byUserId: userIds[0] });
+    expect(ev!.payload).toMatchObject({ value: "denied", how: "staff", byUserId: userIds[0] });
   });
 
   it("the CSV import's explicit call-consent column persists + logs; absent stays unknown", async () => {
