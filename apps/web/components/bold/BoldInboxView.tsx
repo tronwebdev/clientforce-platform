@@ -480,9 +480,12 @@ export function BoldInboxView({
     : [];
 
   return (
-    <div style={{ display: "flex", minHeight: 0, flexWrap: "wrap" }} data-testid="bold-inbox">
+    // B3b: the view fills the canvas and the columns scroll INTERNALLY — a
+    // long conversation must never push the composer (or the held banner)
+    // below the fold. Short threads render identically.
+    <div style={{ display: "flex", minHeight: 0, height: "100%", flexWrap: "wrap" }} data-testid="bold-inbox">
       {/* ------------------------------------------------------- thread list */}
-      <div style={{ width: 290, flex: "none", borderRight: "1px solid var(--cvb-line-inner)", padding: "24px 18px" }}>
+      <div style={{ width: 290, flex: "none", borderRight: "1px solid var(--cvb-line-inner)", padding: "24px 18px", overflowY: "auto", minHeight: 0 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 14 }}>
           {pickers.map((p) => (
             <div key={p.id} style={{ position: "relative" }}>
@@ -740,7 +743,7 @@ export function BoldInboxView({
               </span>
             </div>
 
-            <div style={{ flex: 1, padding: "24px 0", display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "24px 0", display: "flex", flexDirection: "column", gap: 14 }}>
               {paneItems.map((it) => {
                 if (it.ev) {
                   const row = calendarSystemRow(it.ev.type, (it.ev.payload ?? {}) as Record<string, unknown>)!;
