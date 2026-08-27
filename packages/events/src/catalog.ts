@@ -215,6 +215,13 @@ export const EVENT_SCHEMAS = {
   "enrollment.resumed.v1": z.object({
     byUserId: z.string().optional(),
   }),
+  // B3c-1 (DEC-118(2)): every call-consent flip lands provenance on the
+  // timeline — who set it, to what, and how (manual | csv_import).
+  "contact.call_consent.v1": z.object({
+    value: z.enum(["granted", "denied", "unknown"]),
+    byUserId: z.string().optional(),
+    how: z.string(),
+  }),
 
   // ── Lists (C2.8, docs/PLAN_CONTACT_LISTS.md) ───────────────────────────────
   // The Forms/Widget/Automations JOIN POINTS: integrations later subscribe to
@@ -500,6 +507,7 @@ export const EVENT_TYPES = {
   LEAD_STAGE_CHANGED: "lead.stage_changed.v1",
   ENROLLMENT_HELD: "enrollment.held.v1",
   ENROLLMENT_RESUMED: "enrollment.resumed.v1",
+  CONTACT_CALL_CONSENT: "contact.call_consent.v1",
   LEAD_UNSUBSCRIBED: "lead.unsubscribed.v1",
   LIST_MEMBER_ADDED: "list.member.added.v1",
   LIST_MEMBER_REMOVED: "list.member.removed.v1",

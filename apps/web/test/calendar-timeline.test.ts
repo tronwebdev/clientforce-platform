@@ -88,9 +88,30 @@ describe("Inbox thread system rows (InboxTab.calendarSystemRow — designed addi
     );
   });
 
-  it("ONLY calendar.* types render — anything else returns null (never a fake bubble)", () => {
+  it("only cased types render — anything else returns null (never a fake bubble)", () => {
     expect(calendarSystemRow("email.replied.v1", {})).toBeNull();
     expect(calendarSystemRow("lead.stage_changed.v1", { toStage: "booked" })).toBeNull();
     expect(calendarSystemRow("calendar.unknown.v2", {})).toBeNull();
+    // B3c-1: transient/Logs-owned call types stay OUT of the thread.
+    expect(calendarSystemRow("call.started.v1", { callId: "c1" })).toBeNull();
+    expect(calendarSystemRow("call.refused.v1", { reason: "CALL_CONSENT_REQUIRED" })).toBeNull();
+  });
+
+  // B3c-1 (DEC-119): call outcomes render the D4 vocabulary with durations.
+  it("call outcomes render factually — completed green with m:ss, failures red, no-answer neutral", () => {
+    const done = calendarSystemRow("call.completed.v1", { callId: "c1", durationSec: 204, outcome: "completed" });
+    expect(done!.text).toBe("☎ Call completed — 3:24");
+    expect(done!.fg).toBe("#0F7A28");
+    expect(calendarSystemRow("call.completed.v1", { callId: "c1", durationSec: 0, outcome: "no_answer" })!.text).toBe(
+      "☎ Call — no answer",
+    );
+    expect(calendarSystemRow("call.completed.v1", { callId: "c1", durationSec: 0, outcome: "busy" })!.text).toBe(
+      "☎ Call — busy",
+    );
+    const failed = calendarSystemRow("call.failed.v1", { callId: "c1", reason: "failed" });
+    expect(failed!.text).toBe("☎ Call failed");
+    expect(failed!.fg).toBe("#C9543F");
+    expect(calendarSystemRow("call.failed.v1", { callId: "c1", reason: "no_answer" })!.text).toBe("☎ Call — no answer");
+    expect(calendarSystemRow("call.booked.v1", { callId: "c1" })!.text).toBe("📅 Booked on the call");
   });
 });

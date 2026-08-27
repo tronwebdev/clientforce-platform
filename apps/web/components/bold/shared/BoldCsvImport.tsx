@@ -60,6 +60,10 @@ const FIELDS = [
   ["phone", "Phone"],
   ["company", "Company"],
   ["consent", "Consent"],
+  // B3c-1 (DEC-118(2)): explicit call consent — the SMS-consent twin. The
+  // value PERSISTS on the contact (unlike the message-consent column, which
+  // only gates the campaign list): the Ada dial rail enforces it.
+  ["callConsent", "Call consent"],
 ] as const;
 type FieldKey = (typeof FIELDS)[number][0];
 const NONE = "(none)";
@@ -74,8 +78,16 @@ function autoMatch(field: FieldKey, headers: string[]): string {
   if (field === "email") return pick((s) => s.includes("mail"));
   if (field === "phone") return pick((s) => s.includes("phone") || s.includes("mobile"));
   if (field === "company") return pick((s) => s.includes("company") || s.includes("organi"));
-  return pick((s) => s.includes("consent") || s.includes("opt"));
+  // B3c-1: the call-consent matcher runs on call-flavored headers ONLY, and
+  // the generic consent matcher must never swallow them.
+  if (field === "callConsent") return pick((s) => s.includes("call") && (s.includes("consent") || s.includes("opt")));
+  return pick((s) => !s.includes("call") && (s.includes("consent") || s.includes("opt")));
 }
+
+/** Explicit no-values — anything else non-yes stays UNKNOWN (omitted; the DB
+ *  default already means Ada may not call — never brand a contact "denied"
+ *  from an arbitrary CSV string). */
+const CONSENT_NO = new Set(["n", "no", "false", "0", "opted out", "optedout", "opt-out", "declined", "denied"]);
 
 const CONSENT_YES = new Set(["y", "yes", "true", "1", "opted in", "optedin", "opt-in", "consented"]);
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -99,7 +111,7 @@ export function BoldCsvImport({
   const [fileName, setFileName] = useState<string | null>(null);
   const [headers, setHeaders] = useState<string[]>([]);
   const [rows, setRows] = useState<string[][]>([]);
-  const [map, setMap] = useState<Record<FieldKey, string>>({ name: NONE, email: NONE, phone: NONE, company: NONE, consent: NONE });
+  const [map, setMap] = useState<Record<FieldKey, string>>({ name: NONE, email: NONE, phone: NONE, company: NONE, consent: NONE, callConsent: NONE });
   const [importing, setImporting] = useState(false);
   const [done, setDone] = useState<CsvImportOutcome | null>(null);
 
@@ -138,6 +150,7 @@ export function BoldCsvImport({
         email: autoMatch("email", hdrs),
         phone: autoMatch("phone", hdrs),
         company: autoMatch("company", hdrs),
+        callConsent: autoMatch("callConsent", hdrs),
         consent: autoMatch("consent", hdrs),
       });
     });
@@ -150,12 +163,24 @@ export function BoldCsvImport({
     };
     const full = cell("name");
     const [firstName, ...restName] = full.split(/\s+/).filter(Boolean);
+    // B3c-1: explicit call consent persists on the row; anything neither a
+    // yes nor a no stays omitted — unknown, and Ada may not call.
+    const callCell = cell("callConsent").toLowerCase();
+    const callConsent =
+      col("callConsent") >= 0 && callCell
+        ? CONSENT_YES.has(callCell)
+          ? ("granted" as const)
+          : CONSENT_NO.has(callCell)
+            ? ("denied" as const)
+            : undefined
+        : undefined;
     return {
       email: cell("email"),
       ...(firstName ? { firstName } : {}),
       ...(restName.length ? { lastName: restName.join(" ") } : {}),
       ...(cell("phone") ? { phone: cell("phone") } : {}),
       ...(cell("company") ? { company: cell("company") } : {}),
+      ...(callConsent ? { callConsent } : {}),
     };
   }
 

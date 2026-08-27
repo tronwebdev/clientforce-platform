@@ -225,6 +225,10 @@ export function BoldPlanView({ agent, flash }: { agent: AgentListItem; flash: (m
                   [
                     ["email", true, ""],
                     ["sms", smsReady, "Connect a Twilio sender first"],
+                    // B3c-1 (DEC-118/119): call steps dial through the
+                    // platform line — the dial rail gates consent, quiet
+                    // hours, caps and attempts per contact at call time.
+                    ["voice", true, ""],
                   ] as const
                 ).map(([ch, ready, why]) => {
                   const tile = CH_TILE[ch]!;
@@ -490,7 +494,7 @@ function PlanSheet({
               <Chip>{`${perStep?.sent ?? 0} sent`}</Chip>
               <Chip>{`${perStep?.replies ?? 0} replies`}</Chip>
               {credits != null ? (
-                <Chip tone="mint">{`${credits} credit${credits === 1 ? "" : "s"} / ${step.channel === "sms" && step.mode !== "guided" ? "segment" : "send"}`}</Chip>
+                <Chip tone="mint">{`${credits} credit${credits === 1 ? "" : "s"} / ${step.channel === "sms" && step.mode !== "guided" ? "segment" : step.channel === "voice" ? "minute" : "send"}`}</Chip>
               ) : null}
             </>
           ) : delay ? (
@@ -499,7 +503,15 @@ function PlanSheet({
         </div>
 
         {step ? (
-          scripted ? (
+          step.channel === "voice" ? (
+            // B3c-1: a call step has no copy to edit — Ada speaks live from
+            // the business facts on the call itself. Claiming a script field
+            // steers her would be a lie until call tools ship.
+            <div style={{ marginTop: 22, background: "var(--cvb-slate-tint)", border: "1px solid var(--cvb-slate-line)", borderRadius: 14, padding: "14px 16px", fontSize: 13, color: "var(--cvb-slate)", lineHeight: 1.55 }} data-testid="bold-sheet-voice-note">
+              Ada places this call and speaks from your business facts, opening with the required
+              disclosure line. Call scripts and steering arrive with call tools.
+            </div>
+          ) : scripted ? (
             <div style={{ marginTop: 22 }}>
               {step.channel === "email" ? (
                 <>

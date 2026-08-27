@@ -122,6 +122,9 @@ export class ContactsViewController {
           custom: c.custom ?? {},
           tags: c.tags,
           notes: c.notes,
+          // B3c-1 (DEC-118(2)): the drawer's consent control reads/writes this.
+          callConsent: (c as { callConsent?: string }).callConsent ?? "unknown",
+          timezone: (c as { timezone?: string | null }).timezone ?? null,
           lists: listsBy.get(c.id) ?? [],
           // LH1 (DEC-087): the validation verdict chip (valid | risky |
           // invalid | unverified) — suppression/unsub stays its own signal.

@@ -93,6 +93,42 @@ export async function campaignWorkflow(
 
     switch (node.type) {
       case "step": {
+        // B3c-1 (DEC-119): voice steps DIAL through the one Call spine —
+        // behind their own patched marker so in-flight runs that recorded
+        // the deferral replay untouched. whatsapp/linkedin still defer.
+        if (node.channel === "voice" && patched("b3c1-voice-step")) {
+          if (patched("b3b-reply-hold")) {
+            while (await acts.isEnrollmentHeld(base)) {
+              await sleep(HOLD_POLL_MS);
+            }
+          }
+          try {
+            await acts.dialEnrollmentStep({
+              ...base,
+              campaignId: input.campaignId,
+              agentId: input.agentId,
+              contactId: input.contactId,
+              stepNodeId: node.id,
+            });
+          } catch (err) {
+            const blocked = typedFailureOf(err, "SendBlockedError");
+            if (!blocked) throw err;
+            await acts.recordEnrollmentBlocked({
+              ...base,
+              nodeId: node.id,
+              reason: blocked.reason,
+              detail: blocked.detail,
+            });
+            return { status: "blocked", node: node.id, reason: blocked.reason };
+          }
+          await acts.updateEnrollmentProgress({
+            ...base,
+            currentNode: node.id,
+            pipelineStage: node.pipelineOnSend,
+          });
+          current = nextAfter(input.graph, node.id);
+          break;
+        }
         if (node.channel !== "email" && node.channel !== "sms") {
           // P2.1: email + sms are live; anything else records, doesn't send.
           await acts.recordIntendedAction({

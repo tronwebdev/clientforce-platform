@@ -18,6 +18,8 @@ import {
   recomputeSenderHealth,
   runSenderDnsCheck,
   runSuppressionHygiene,
+  TwilioVoiceDialer,
+  createCallDialWorker,
 } from "@clientforce/channels";
 import { isConfigured } from "@clientforce/config";
 import { goalKeySchema, type GoalKey } from "@clientforce/core";
@@ -150,6 +152,40 @@ function startHeartbeat(redisUrl: string): void {
   };
   beat();
   setInterval(beat, 15_000);
+}
+
+/**
+ * B3c-1 (DEC-119): the best-time call queue consumer — fires each queued
+ * Ada call at its scheduled window opening, re-running the FULL dial rail
+ * first (a queued call never bypasses a fresh gate). Redis-gated like every
+ * queue consumer; VOICE_SANDBOX default-ON keeps it keyless-safe.
+ */
+function startCallDialWorker(): void {
+  if (!process.env.REDIS_URL) return;
+  const prisma = createAppPrismaClient();
+  const dialWorker = createCallDialWorker({
+    prisma,
+    dialer: new TwilioVoiceDialer(),
+    publish: async (event) => {
+      await withTenant(prisma, { workspaceId: event.workspaceId }, (tx) =>
+        tx.event.create({
+          data: {
+            workspaceId: event.workspaceId,
+            type: event.type,
+            campaignId: event.campaignId,
+            contactId: event.contactId,
+            payload: event.payload as Prisma.InputJsonValue,
+          },
+        }),
+      );
+    },
+  });
+  dialWorker.on("completed", (job) => {
+    console.log(`[worker] call-dial fired ws=${job.data.workspaceId} call=${job.data.callId}`);
+  });
+  dialWorker.on("failed", (job, err) => {
+    console.error(`[worker] call-dial failed call=${job?.data.callId}: ${err.message}`);
+  });
 }
 
 function startKnowledgeWorkers(): void {
@@ -772,6 +808,7 @@ async function enqueueRedistill(
 
 async function run(): Promise<void> {
   startKnowledgeWorkers();
+  startCallDialWorker();
 
   const address = process.env.TEMPORAL_ADDRESS;
   if (!address) {
@@ -813,6 +850,22 @@ async function run(): Promise<void> {
       transport: new SendGridSender(),
       // P2.1 (DEC-061): sms steps route through Twilio (SMS_SANDBOX default ON).
       smsTransport: new TwilioSmsSender(),
+      // B3c-1 (DEC-119): voice steps dial through the one Call spine
+      // (VOICE_SANDBOX default ON — keyless-safe, deterministic sids).
+      voiceDialer: new TwilioVoiceDialer(),
+      publishCallRefused: async (event) => {
+        await withTenant(activityPrisma, { workspaceId: event.workspaceId }, (tx) =>
+          tx.event.create({
+            data: {
+              workspaceId: event.workspaceId,
+              type: "call.refused.v1",
+              campaignId: event.campaignId,
+              contactId: event.contactId,
+              payload: { reason: event.reason, detail: event.detail, contactId: event.contactId },
+            },
+          }),
+        );
+      },
       // G1 (DEC-070) / G2 (DEC-071): guided steps compose per lead on the
       // copy route — key absent → guided steps refuse typed
       // (COMPOSER_UNCONFIGURED), the same honest-absence pattern as the

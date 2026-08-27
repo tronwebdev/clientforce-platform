@@ -14,6 +14,9 @@ import {
   type EmailStepComposer,
   type SmsSender,
   type SmsStepComposer,
+  assertDialAllowed,
+  deriveVoiceMediaToken,
+  type VoiceDialer,
 } from "@clientforce/channels";
 import {
   goalTerminalLabel,
@@ -58,6 +61,21 @@ export interface ActivityDeps {
     stepNodeId: string;
     /** G2: "email" | "sms" — picks the catalog twin at publish time. */
     channel: string;
+    reason: string;
+    detail?: string;
+  }) => Promise<void>;
+  /**
+   * B3c-1 (DEC-119): the voice dial seam — absent → voice steps refuse with
+   * the typed VOICE_UNCONFIGURED reason (the smsTransport honest-absence
+   * pattern). The worker constructs TwilioVoiceDialer (sandbox default-ON,
+   * keyless-safe).
+   */
+  voiceDialer?: VoiceDialer;
+  /** B3c-1: call.refused.v1 fan-out for step-dial refusals (optional). */
+  publishCallRefused?: (event: {
+    workspaceId: string;
+    campaignId: string;
+    contactId: string;
     reason: string;
     detail?: string;
   }) => Promise<void>;
@@ -131,6 +149,110 @@ export function createActivities(deps: ActivityDeps) {
         }),
       );
       return hold !== null;
+    },
+
+    /**
+     * B3c-1 (DEC-119): dial one voice step through the FULL dial rail —
+     * the campaign call step and the drawer's ad-hoc call share the ONE
+     * Call spine and rails. Idempotent on Call.meta.stepNodeId per
+     * enrollment (Call has no stepNodeId column — the transcript-join
+     * precedent keys meta). The dial is fire-and-forget: the outcome
+     * arrives via the Twilio status webhook / voice session, so the
+     * activity reports placed/refused, never completed.
+     */
+    async dialEnrollmentStep(params: {
+      workspaceId: string;
+      enrollmentId: string;
+      campaignId: string;
+      agentId: string;
+      contactId: string;
+      stepNodeId: string;
+    }): Promise<
+      | { kind: "placed"; callId: string }
+      | { kind: "duplicate"; callId: string }
+      | { kind: "blocked"; reason: string; detail: string }
+    > {
+      const ctx = { workspaceId: params.workspaceId };
+      const existing = await withTenant(prisma, ctx, (tx) =>
+        tx.call.findFirst({
+          where: {
+            enrollmentId: params.enrollmentId,
+            meta: { path: ["stepNodeId"], equals: params.stepNodeId },
+          },
+          select: { id: true },
+        }),
+      );
+      if (existing) return { kind: "duplicate", callId: existing.id };
+      if (!deps.voiceDialer) {
+        return { kind: "blocked", reason: "VOICE_UNCONFIGURED", detail: "no voice dialer on this worker" };
+      }
+      let clearance;
+      try {
+        clearance = await assertDialAllowed(
+          { prisma },
+          {
+            workspaceId: params.workspaceId,
+            campaignId: params.campaignId,
+            agentId: params.agentId,
+            contactId: params.contactId,
+            enrollmentId: params.enrollmentId,
+            caller: "ada",
+          },
+        );
+      } catch (err) {
+        if (err instanceof SendBlockedError) {
+          if (deps.publishCallRefused) {
+            await deps
+              .publishCallRefused({
+                workspaceId: params.workspaceId,
+                campaignId: params.campaignId,
+                contactId: params.contactId,
+                reason: err.reason,
+                detail: err.message,
+              })
+              .catch(() => undefined);
+          }
+          throw ApplicationFailure.create({
+            type: "SendBlockedError",
+            nonRetryable: true,
+            message: err.message,
+            details: [{ reason: err.reason, detail: err.message }],
+          });
+        }
+        throw err;
+      }
+      const call = await withTenant(prisma, ctx, (tx) =>
+        tx.call.create({
+          data: {
+            workspaceId: params.workspaceId,
+            campaignId: params.campaignId,
+            agentId: params.agentId,
+            contactId: params.contactId,
+            enrollmentId: params.enrollmentId,
+            direction: "OUTBOUND",
+            status: "QUEUED",
+            caller: "ada",
+            meta: { stepNodeId: params.stepNodeId },
+          },
+        }),
+      );
+      const voiceServiceUrl = (process.env.VOICE_SERVICE_URL ?? "").replace(/\/$/, "");
+      const apiPublicUrl = (process.env.PUBLIC_API_URL ?? "").replace(/\/$/, "");
+      const gateToken = process.env.TWILIO_AUTH_TOKEN
+        ? `&t=${deriveVoiceMediaToken(process.env.TWILIO_AUTH_TOKEN)}`
+        : "";
+      const result = await deps.voiceDialer.placeCall({
+        to: clearance.phone,
+        twimlUrl: `${voiceServiceUrl}/twiml?callId=${call.id}&workspaceId=${params.workspaceId}${gateToken}`,
+        ...(apiPublicUrl ? { statusCallbackUrl: `${apiPublicUrl}/webhooks/twilio-voice-status` } : {}),
+      });
+      await withTenant(prisma, ctx, (tx) =>
+        tx.call.update({
+          where: { id: call.id },
+          data: { providerCallSid: result.providerCallSid, meta: { stepNodeId: params.stepNodeId, sandbox: result.sandbox } },
+        }),
+      );
+      return { kind: "placed", callId: call.id };
     },
 
     /**

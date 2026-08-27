@@ -58,7 +58,7 @@ export interface Thread {
  * drawer-Activity precedent): the reading pane interleaves booking
  * confirmations as centered SYSTEM rows by timestamp. Pure map so the
  * treatment is pinnable: booked green · rescheduled neutral · canceled red;
- * non-calendar types return null and never render in the thread.
+ * types without a case return null and never render in the thread (B3c-1 added the call outcomes).
  */
 export function calendarSystemRow(
   type: string,
@@ -119,6 +119,42 @@ export function calendarSystemRow(
         border: "rgba(53,232,52,.3)",
       };
     }
+    // B3c-1 (DEC-119): call outcomes — the D4 deterministic vocabulary
+    // (CallsTab's OUTCOME_STYLE words). call.started (transient) and
+    // call.refused (the Logs tab's row, DEC-078) stay out of the thread.
+    case "call.completed.v1": {
+      const secs = typeof payload.durationSec === "number" ? payload.durationSec : null;
+      const dur = secs !== null ? ` — ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}` : "";
+      const outcome = typeof payload.outcome === "string" ? payload.outcome : "completed";
+      if (outcome === "no_answer") {
+        return { text: "☎ Call — no answer", fg: "#8A7F6B", bg: "#F2EEE4", border: "#EBE3D6" };
+      }
+      if (outcome === "busy") {
+        return { text: "☎ Call — busy", fg: "#8A6D1A", bg: "rgba(232,196,91,.22)", border: "rgba(232,196,91,.45)" };
+      }
+      if (outcome === "canceled") {
+        return { text: "☎ Call canceled", fg: "#8A7F6B", bg: "#F2EEE4", border: "#EBE3D6" };
+      }
+      if (outcome === "failed") {
+        return { text: "☎ Call failed", fg: "#C9543F", bg: "rgba(224,121,107,.1)", border: "rgba(224,121,107,.35)" };
+      }
+      return { text: `☎ Call completed${dur}`, fg: "#0F7A28", bg: "#D7F5DD", border: "rgba(53,232,52,.3)" };
+    }
+    case "call.failed.v1": {
+      const reason = typeof payload.reason === "string" ? payload.reason : null;
+      if (reason === "no_answer") {
+        return { text: "☎ Call — no answer", fg: "#8A7F6B", bg: "#F2EEE4", border: "#EBE3D6" };
+      }
+      if (reason === "busy") {
+        return { text: "☎ Call — busy", fg: "#8A6D1A", bg: "rgba(232,196,91,.22)", border: "rgba(232,196,91,.45)" };
+      }
+      if (reason === "canceled") {
+        return { text: "☎ Call canceled", fg: "#8A7F6B", bg: "#F2EEE4", border: "#EBE3D6" };
+      }
+      return { text: "☎ Call failed", fg: "#C9543F", bg: "rgba(224,121,107,.1)", border: "rgba(224,121,107,.35)" };
+    }
+    case "call.booked.v1":
+      return { text: "📅 Booked on the call", fg: "#16A82A", bg: "rgba(53,232,52,.1)", border: "rgba(53,232,52,.3)" };
     default:
       return null;
   }

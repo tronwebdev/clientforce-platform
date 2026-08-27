@@ -6,15 +6,19 @@ import {
   addContactsToList,
   avTint,
   contactName,
+  dialAdaCall,
   enrollContact,
   fetchBoldRecipients,
+  fetchCallWindow,
   fetchContactTimeline,
+  fetchCreditPrices,
   fetchLists,
   initials,
   money,
   patchContactFacts,
   relTime,
   type BoldContactRow,
+  type CallWindowRead,
   type ContactEnrollmentRef,
   type ContactNextStep,
   type ContactSignalFact,
@@ -53,11 +57,14 @@ const TL_TONES: Record<string, [string, string, string, string]> = {
   won: ["#e4f3e9", "#c3e2cf", "#0e5c2b", "✓"],
   reply: ["var(--cvb-cyan-tint)", "var(--cvb-cyan-line)", "var(--cvb-cyan)", "↩"],
   send: ["var(--cvb-well)", "var(--cvb-line-ctl)", "var(--cvb-faint)", "➤"],
+  // B3c-1: the Bold voice identity — slate ☎.
+  call: ["var(--cvb-slate-tint)", "var(--cvb-slate-line)", "var(--cvb-slate)", "☎"],
 };
 function timelineTone(type: string): [string, string, string, string] {
   if (type === "lead.stage_changed.v1" || type.startsWith("calendar.")) return TL_TONES.goal!;
   if (type === "payment.received.v1" || type.startsWith("proposal.")) return TL_TONES.won!;
   if (type.endsWith(".replied.v1")) return TL_TONES.reply!;
+  if (type.startsWith("call.") || type === "contact.call_consent.v1") return TL_TONES.call!;
   return TL_TONES.send!;
 }
 /** Factual line per raw timeline event type — data words, no narrative. */
@@ -71,6 +78,23 @@ function timelineLine(type: string, payload: unknown): string {
   if (type.endsWith(".delivered.v1")) return "Message delivered.";
   if (type === "lead.enrolled.v1") return "Enrolled in the campaign.";
   if (type === "lead.unsubscribed.v1") return "Unsubscribed.";
+  // B3c-1: call facts — the D4 outcome words, durations where recorded.
+  if (type === "call.started.v1") return "Ada called.";
+  if (type === "call.completed.v1") {
+    const outcome = typeof p.outcome === "string" ? p.outcome : "completed";
+    const secs = typeof p.durationSec === "number" ? p.durationSec : null;
+    const dur = secs !== null ? ` (${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")})` : "";
+    const word =
+      outcome === "no_answer" ? "no answer" : outcome === "busy" ? "busy" : outcome === "canceled" ? "canceled" : outcome === "failed" ? "failed" : "completed";
+    return `Ada called — ${word}${outcome === "completed" ? dur : ""}.`;
+  }
+  if (type === "call.failed.v1")
+    return `Ada called — ${typeof p.reason === "string" ? p.reason.replace(/_/g, " ") : "failed"}.`;
+  if (type === "call.booked.v1") return "Booked on the call.";
+  if (type === "call.refused.v1")
+    return `Call not placed — ${typeof p.reason === "string" ? p.reason.replace(/_/g, " ").toLowerCase() : "refused"}.`;
+  if (type === "contact.call_consent.v1")
+    return `Call consent set to ${typeof p.value === "string" ? p.value : "unknown"}.`;
   return type.replace(/\.v\d+$/, "").replace(/[._]/g, " ");
 }
 
@@ -309,6 +333,12 @@ function PersonBody({
   const [lists, setLists] = useState<ContactListDto[]>([]);
   const [listOpen, setListOpen] = useState(false);
   const [tags, setTags] = useState<string[]>(state.row?.tags ?? []);
+  // B3c-1: the Ada-call sheet + consent state.
+  const [callOpen, setCallOpen] = useState(false);
+  const [callWindow, setCallWindow] = useState<CallWindowRead | null>(null);
+  const [consent, setConsent] = useState<string>(state.row?.callConsent ?? "unknown");
+  const [voicePrice, setVoicePrice] = useState<number | null>(null);
+  const [dialing, setDialing] = useState(false);
   const [tagDraft, setTagDraft] = useState("");
   const [tagOpen, setTagOpen] = useState(false);
   const [note, setNote] = useState<string>(state.row?.notes ?? "");
@@ -324,6 +354,9 @@ function PersonBody({
     });
     void fetchLists().then((l) => {
       if (alive) setLists((l ?? []).filter((x) => !x.archived));
+    });
+    void fetchCreditPrices().then((p) => {
+      if (alive) setVoicePrice(p?.effective?.voice_minute ?? null);
     });
     return () => {
       alive = false;
@@ -366,6 +399,53 @@ function PersonBody({
     const r = await fetchContactTimeline(state.contact.id);
     setNextStep(r?.nextStep ?? null);
     setEnrollments(r?.enrollments ?? []);
+  }
+
+  // B3c-1 (DEC-118/119): the Ada-call sheet — window read on open (the
+  // checkable claim comes from the SAME resolver the rail enforces).
+  const callAgentId = enrollments.find((e) => e.agentId)?.agentId ?? null;
+  async function toggleCallSheet() {
+    const next = !callOpen;
+    setCallOpen(next);
+    if (next && callAgentId) {
+      const w = await fetchCallWindow(callAgentId, state.contact.id);
+      setCallWindow(w);
+      if (w) setConsent(w.callConsent);
+    }
+  }
+  async function queueAdaCall() {
+    if (!callAgentId || dialing) return;
+    setDialing(true);
+    try {
+      const res = await dialAdaCall(callAgentId, state.contact.id, "best_time");
+      if (!res.ok) {
+        flash?.(res.error);
+        return;
+      }
+      const body = res.body as { queued?: boolean; scheduledAt?: string } | null;
+      if (body?.queued && body.scheduledAt) {
+        const at = new Date(body.scheduledAt);
+        flash?.(
+          `Queued — Ada calls ${at.toLocaleString("en-US", { weekday: "short", hour: "numeric", minute: "2-digit" })} (${callWindow?.window.timezone ?? "local"}).`,
+        );
+      } else {
+        flash?.("Ada is calling now.");
+      }
+      setCallOpen(false);
+    } finally {
+      setDialing(false);
+    }
+  }
+  async function setCallConsent(value: "granted" | "denied" | "unknown") {
+    const prev = consent;
+    setConsent(value);
+    const res = await patchContactFacts(state.contact.id, { callConsent: value });
+    if (!res.ok) {
+      setConsent(prev);
+      flash?.(res.error);
+      return;
+    }
+    flash?.(value === "granted" ? "Ada may call them now." : value === "denied" ? "Ada will not call them." : "Call permission cleared.");
   }
 
   async function saveNote() {
@@ -466,23 +546,100 @@ function PersonBody({
             </span>
           ) : null}
         </span>
-        {(
-          [
-            ["bold-person-call", "☎ Call"],
-            ["bold-person-book", "◷ Book"],
-          ] as const
-        ).map(([tid, label]) => (
-          <span
-            key={tid}
-            data-testid={tid}
-            title="Coming soon"
-            style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12, fontWeight: 700, color: "var(--cvb-faint)", background: "var(--cvb-well)", border: "1px dashed var(--cvb-line-ctl)", borderRadius: 11, padding: "9px 13px", cursor: "default" }}
-          >
-            {label}
-            <span style={{ fontSize: 10, fontWeight: 600, color: "var(--cvb-ghost)" }}>Coming soon</span>
-          </span>
-        ))}
+        {/* B3c-1 (DEC-118): the Call action goes LIVE — Ada places the
+            call through the one dial rail; Book stays visibly deferred. */}
+        <span
+          onClick={() => void toggleCallSheet()}
+          data-testid="bold-person-call"
+          style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12, fontWeight: 700, color: "var(--cvb-slate)", background: "var(--cvb-slate-tint)", border: "1px solid var(--cvb-slate-line)", borderRadius: 11, padding: "9px 13px", cursor: "pointer" }}
+        >
+          ☎ Call
+        </span>
+        <span
+          data-testid="bold-person-book"
+          title="Coming soon"
+          style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12, fontWeight: 700, color: "var(--cvb-faint)", background: "var(--cvb-well)", border: "1px dashed var(--cvb-line-ctl)", borderRadius: 11, padding: "9px 13px", cursor: "default" }}
+        >
+          ◷ Book
+          <span style={{ fontSize: 10, fontWeight: 600, color: "var(--cvb-ghost)" }}>Coming soon</span>
+        </span>
       </div>
+
+      {/* The Ada-call sheet: consent-honest, with the checkable best-time
+          window (its SOURCE named) and the live per-minute price. */}
+      {callOpen ? (
+        <div data-testid="bold-person-callsheet" style={{ marginTop: 12, background: "var(--cvb-panel)", border: "1px solid var(--cvb-slate-line)", borderRadius: 13, padding: "13px 15px" }}>
+          {!callAgentId ? (
+            <div style={{ fontSize: 12.5, color: "var(--cvb-faint)", lineHeight: 1.5 }}>
+              No campaign to call from yet — add them to a campaign first.
+            </div>
+          ) : consent !== "granted" ? (
+            <div data-testid="bold-person-call-blocked" style={{ fontSize: 12.5, color: "var(--cvb-amber)", lineHeight: 1.5 }}>
+              Ada only calls people who said yes. Set call permission below and this opens up.
+            </div>
+          ) : (
+            <>
+              <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: "-.016em" }}>Ada picks the best time</div>
+              <div data-testid="bold-person-call-window" style={{ ...mono, fontSize: 10, color: "var(--cvb-muted)", marginTop: 6, lineHeight: 1.5 }}>
+                {callWindow
+                  ? `${callWindow.window.start}–${callWindow.window.end} · ${callWindow.window.timezone} (${
+                      callWindow.window.source === "contact"
+                        ? "their saved timezone"
+                        : callWindow.window.source === "calendar"
+                          ? "from their booking"
+                          : "campaign time"
+                    })`
+                  : "Reading the calling window…"}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 12 }}>
+                <span style={{ ...mono, fontSize: 10, color: "var(--cvb-faint)", flex: 1 }}>
+                  {voicePrice != null ? `${voicePrice} credit${voicePrice === 1 ? "" : "s"} / minute` : ""}
+                </span>
+                <span
+                  onClick={() => void queueAdaCall()}
+                  data-testid="bold-person-call-queue"
+                  style={{ fontSize: 12, fontWeight: 800, color: "var(--cvb-card)", background: "var(--cvb-forest)", borderRadius: 10, padding: "8px 13px", cursor: "pointer", flex: "none", opacity: dialing ? 0.6 : 1 }}
+                >
+                  {dialing ? "Queueing…" : callWindow?.insideNow ? "Call now" : "Queue the call"}
+                </span>
+              </div>
+            </>
+          )}
+        </div>
+      ) : null}
+
+      {/* Call permission (DEC-118(2)) — every flip lands provenance on the
+          timeline. Unknown = Ada may not call; humans key off DNC (B3c-2). */}
+      {row ? (
+        <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <span style={{ ...mono, fontSize: 9.5, letterSpacing: ".14em", color: "var(--cvb-faint)", flex: "none" }}>CALLS</span>
+          {(
+            [
+              ["granted", "They said yes"],
+              ["unknown", "Not asked"],
+              ["denied", "Declined"],
+            ] as const
+          ).map(([v, label]) => {
+            const on = consent === v;
+            const tone =
+              v === "granted"
+                ? ["var(--cvb-forest)", "var(--cvb-mint)", "var(--cvb-mint-line)"]
+                : v === "denied"
+                  ? ["var(--cvb-danger)", "var(--cvb-danger-bg)", "#f0d5ce"]
+                  : ["var(--cvb-muted)", "var(--cvb-well)", "var(--cvb-line-ctl)"];
+            return (
+              <span
+                key={v}
+                onClick={() => void setCallConsent(v)}
+                data-testid={`bold-person-consent-${v}`}
+                style={{ fontSize: 11, fontWeight: 700, color: on ? tone[0] : "var(--cvb-faint)", background: on ? tone[1] : "transparent", border: `1px solid ${on ? tone[2] : "var(--cvb-line-ctl)"}`, borderRadius: 999, padding: "5px 11px", cursor: "pointer" }}
+              >
+                {label}
+              </span>
+            );
+          })}
+        </div>
+      ) : null}
 
       {/* B3b (DEC-114): the next-best-action slot, LIVE — the server's
           five-rule table decides; provenance renders beside the action; a

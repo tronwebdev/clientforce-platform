@@ -46,11 +46,27 @@ export interface DialVoiceParams {
   agentId: string;
   contactId: string;
   enrollmentId?: string;
+  /** B3c-1 (DEC-113/118): who is placing the call. "ada" (default) runs the
+   *  consent gate — unknown consent means Ada may NOT call; "human" is the
+   *  B3c-2 browser-mic leg (DNC/opt-out still gate, consent does not). */
+  caller?: "ada" | "human";
 }
 
 /** Fallback per-campaign cap when guardrails carry no voice cap (conservative —
  *  a call is far more intrusive than an sms). */
 export const DEFAULT_VOICE_DAILY_CAP = 20;
+
+/** B3c-1 (DEC-113): lifetime Ada-call attempts per contact per campaign
+ *  before the rail refuses (guardrails.voice.callMaxAttempts overrides). */
+export const DEFAULT_CALL_MAX_ATTEMPTS = 3;
+/** B3c-1: no_answer/busy/failed attempts before voicemail-only delivery —
+ *  AMD is not shipped (Q-085), so the rail refuses further live attempts. */
+export const DEFAULT_VOICEMAIL_AFTER = 2;
+/** B3c-1: the hard contact-local quiet floor (F1-floor posture) — whatever
+ *  the campaign window says, Ada never rings before/after these local hours
+ *  when the contact's own timezone is known. NON-BLOCKING defaults. */
+export const QUIET_FLOOR_START = "08:00";
+export const QUIET_FLOOR_END = "21:00";
 
 /** Platform-level workspace ceiling (env-overridable) — there is no per-tenant
  *  voice SenderConnection yet to carry a dailyLimit, so the platform holds one. */
@@ -65,6 +81,24 @@ export interface DialClearance {
   contact: Contact;
   guardrails: Guardrails;
   language: LanguageCode;
+  /** B3c-1: the window the call was cleared against — the UI's checkable
+   *  "Ada picks the best time" sub-line renders exactly this. */
+  window: ResolvedCallWindow;
+}
+
+/** B3c-1 (DEC-113): the contact-local calling window, resolved from the
+ *  contact's own timezone when known (their column, else their latest
+ *  calendar booking), falling back to the campaign window's timezone — the
+ *  source is named so the claim stays checkable. */
+export interface ResolvedCallWindow {
+  timezone: string;
+  source: "contact" | "calendar" | "campaign";
+  days: number[];
+  start: string;
+  end: string;
+  /** The hard local floor applied on top of the window (owner-safety). */
+  floorStart: string;
+  floorEnd: string;
 }
 
 /**
@@ -106,7 +140,67 @@ export async function assertDialAllowed(
   }
 
   assertInsideCallingWindow(guardrails, now);
+  // B3c-1 (DEC-113/119): the contact-local quiet-hours gate. Resolve the
+  // contact's own timezone (their column, else their latest calendar
+  // booking); when known, the campaign window AND the hard 08:00–21:00
+  // local floor are re-checked in THEIR clock — the agent-tz check above
+  // stays as the fallback truth when no contact timezone exists.
+  const window = await resolveCallWindow(prisma, params.workspaceId, contact, guardrails);
+  assertInsideContactQuietHours(window, now);
   await assertUnderVoiceCaps(deps, params, guardrails, now);
+
+  const caller = params.caller ?? "ada";
+  if (caller === "ada") {
+    // DEC-118(2): Ada automated calls require AFFIRMATIVE consent — the
+    // column defaults "unknown", and unknown = Ada may not call. Consent
+    // never overrides opt-out/suppression below (D5: doubt blocks).
+    if ((contact as Contact & { callConsent?: string }).callConsent !== "granted") {
+      throw new SendBlockedError(
+        "CALL_CONSENT_REQUIRED",
+        `call consent is ${(contact as Contact & { callConsent?: string }).callConsent ?? "unknown"} — Ada only calls people who said yes`,
+      );
+    }
+    // DEC-113: max attempts per contact (lifetime, per campaign — ad-hoc and
+    // step dials share the one Call spine so they share the counter).
+    const voiceRider = (guardrails as Guardrails & {
+      voice?: { callMaxAttempts?: number; voicemailAfter?: number };
+    }).voice;
+    const maxAttempts = voiceRider?.callMaxAttempts ?? DEFAULT_CALL_MAX_ATTEMPTS;
+    const voicemailAfter = voiceRider?.voicemailAfter ?? DEFAULT_VOICEMAIL_AFTER;
+    const [attempts, failures] = await withTenant(prisma, ctx, (tx) =>
+      Promise.all([
+        tx.call.count({
+          where: {
+            campaignId: params.campaignId,
+            contactId: params.contactId,
+            direction: "OUTBOUND",
+            caller: "ada",
+          },
+        }),
+        tx.call.count({
+          where: {
+            campaignId: params.campaignId,
+            contactId: params.contactId,
+            direction: "OUTBOUND",
+            caller: "ada",
+            outcome: { in: ["no_answer", "busy", "failed"] },
+          },
+        }),
+      ]),
+    );
+    if (attempts >= maxAttempts) {
+      throw new SendBlockedError("CALL_MAX_ATTEMPTS", `${attempts} attempts — the cap is ${maxAttempts}`);
+    }
+    // DEC-113: voicemail-only after N failures. Answering-machine detection
+    // is not shipped (Q-085), so past the threshold the rail refuses further
+    // LIVE attempts instead of dropping to voicemail — never a silent retry.
+    if (failures >= voicemailAfter) {
+      throw new SendBlockedError(
+        "CALL_RETRIES_EXHAUSTED",
+        `${failures} unanswered attempts — voicemail-only delivery arrives with answering-machine detection`,
+      );
+    }
+  }
 
   // suppressionCheck (A8, literal true) — fails TOWARD suppression (D5):
   // voice AND sms consent both gate the dial; the phone number is shared.
@@ -133,7 +227,105 @@ export async function assertDialAllowed(
     throw new SendBlockedError("RECIPIENT_NOT_ALLOWLISTED", phone);
   }
 
-  return { phone, agent, contact, guardrails, language };
+  return { phone, agent, contact, guardrails, language, window };
+}
+
+/**
+ * B3c-1: resolve the contact-local calling window — ONE truth shared by the
+ * rail, the queue's next-open computation, and the UI's checkable sub-line.
+ */
+export async function resolveCallWindow(
+  prisma: PrismaClient,
+  workspaceId: string,
+  contact: Contact & { timezone?: string | null },
+  guardrails: Guardrails,
+): Promise<ResolvedCallWindow> {
+  const { days, start, end, timezone: campaignTz } = guardrails.sendingWindow;
+  let timezone = campaignTz;
+  let source: ResolvedCallWindow["source"] = "campaign";
+  if (contact.timezone && isValidTimezone(contact.timezone)) {
+    timezone = contact.timezone;
+    source = "contact";
+  } else {
+    const booking = await withTenant(prisma, { workspaceId }, (tx) =>
+      tx.meeting.findFirst({
+        where: { contactId: contact.id, timezone: { not: null } },
+        orderBy: { createdAt: "desc" },
+        select: { timezone: true },
+      }),
+    );
+    if (booking?.timezone && isValidTimezone(booking.timezone)) {
+      timezone = booking.timezone;
+      source = "calendar";
+    }
+  }
+  return { timezone, source, days, start, end, floorStart: QUIET_FLOOR_START, floorEnd: QUIET_FLOOR_END };
+}
+
+function isValidTimezone(tz: string): boolean {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function localParts(timezone: string, now: Date): { isoDay: number; hhmm: string } {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(now);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  const isoDay = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 }[get("weekday")] ?? 0;
+  return { isoDay, hhmm: `${get("hour")}:${get("minute")}` };
+}
+
+/** B3c-1: the contact-local check — window (when their tz differs from the
+ *  campaign's) plus the hard 08:00–21:00 local floor. */
+export function assertInsideContactQuietHours(window: ResolvedCallWindow, now: Date): void {
+  const { isoDay, hhmm } = localParts(window.timezone, now);
+  if (hhmm < window.floorStart || hhmm >= window.floorEnd) {
+    throw new SendBlockedError(
+      "OUTSIDE_QUIET_HOURS",
+      `${hhmm} in ${window.timezone} (${window.source} time) — Ada calls between ${window.floorStart} and ${window.floorEnd} local`,
+    );
+  }
+  if (window.source !== "campaign") {
+    if (!window.days.includes(isoDay) || hhmm < window.start || hhmm >= window.end) {
+      throw new SendBlockedError(
+        "OUTSIDE_QUIET_HOURS",
+        `${hhmm} in ${window.timezone} (${window.source} time) — the calling window is ${window.start}–${window.end}`,
+      );
+    }
+  }
+}
+
+/** B3c-1: the next moment the contact-local window opens — the best-time
+ *  queue's deterministic schedule (minute resolution, ≤8-day scan). */
+export function nextWindowOpenAt(window: ResolvedCallWindow, from: Date): Date | null {
+  const cursor = new Date(from.getTime());
+  cursor.setUTCSeconds(0, 0);
+  for (let i = 0; i < 8 * 24 * 60; i += 5) {
+    const t = new Date(cursor.getTime() + i * 60 * 1000);
+    const { isoDay, hhmm } = localParts(window.timezone, t);
+    const insideFloor = hhmm >= window.floorStart && hhmm < window.floorEnd;
+    const insideWindow =
+      window.source === "campaign"
+        ? true
+        : window.days.includes(isoDay) && hhmm >= window.start && hhmm < window.end;
+    // When falling back to the campaign zone, the agent-tz window check is
+    // authoritative — evaluate it in the campaign tz too.
+    const campaignOk =
+      window.source !== "campaign"
+        ? true
+        : window.days.includes(isoDay) && hhmm >= window.start && hhmm < window.end;
+    if (insideFloor && insideWindow && campaignOk) return t;
+  }
+  return null;
 }
 
 /**

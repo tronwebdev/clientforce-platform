@@ -240,6 +240,35 @@ export const EVENT_ROW: Record<
     label: (p) =>
       `Payment received${moneyLabel(p.amount, p.currency) ? ` — ${moneyLabel(p.amount, p.currency)}` : ""}`,
   },
+  // B3c-1 (DEC-119): call outcomes on the lead drawer — the D4 vocabulary,
+  // system-row parity with the inbox thread.
+  "call.completed.v1": {
+    icon: "☎",
+    bg: "rgba(53,232,52,.14)",
+    fg: "#0F7A28",
+    label: (p) => {
+      const outcome = typeof p.outcome === "string" ? p.outcome : "completed";
+      if (outcome === "no_answer") return "Call — no answer";
+      if (outcome === "busy") return "Call — busy";
+      if (outcome === "canceled") return "Call canceled";
+      if (outcome === "failed") return "Call failed";
+      const secs = typeof p.durationSec === "number" ? p.durationSec : null;
+      return `Call completed${secs !== null ? ` — ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}` : ""}`;
+    },
+  },
+  "call.failed.v1": {
+    icon: "☎",
+    bg: "rgba(224,121,107,.16)",
+    fg: "#C9543F",
+    label: (p) =>
+      typeof p.reason === "string" && p.reason ? `Call — ${p.reason.replace(/_/g, " ")}` : "Call failed",
+  },
+  "call.booked.v1": {
+    icon: "📅",
+    bg: "rgba(53,232,52,.14)",
+    fg: "#16A82A",
+    label: () => "Booked on the call",
+  },
 };
 
 /** Minor-units → display ("$500.00"); unknown currency falls back to the code. */

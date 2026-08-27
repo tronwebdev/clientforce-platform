@@ -325,6 +325,15 @@ model Contact {
   /// Written from the contact detail; Ada's compose-time read of it is
   /// B3b+ scope (Q-079).
   notes       String?
+  /// B3c-1 (DEC-118(2)): call consent — granted | denied | unknown. The
+  /// column defaults unknown, and unknown = Ada may NOT place an automated
+  /// call (human-placed calls key off DNC/opt-out instead, B3c-2). Every
+  /// flip lands provenance on the timeline.
+  callConsent String    @default("unknown")
+  /// B3c-1 (DEC-118): the contact-local quiet-hours source — IANA zone,
+  /// written when a calendar booking carries one; absent → the dial rail
+  /// falls back to the campaign window's zone and says so.
+  timezone    String?
   optOut      Json
   /// LH1 (DEC-087): email-validation verdict — valid | risky | invalid |
   /// unverified (default; `EMAIL_VERDICTS` in @clientforce/core is the
@@ -889,6 +898,11 @@ model Call {
   agentId         String
   contactId       String
   enrollmentId    String?
+  /// B3c-1 (DEC-113/118): who placed the call — "ada" (automated; consent
+  /// gate applies) or "human" (B3c-2's browser-mic leg; DNC gate applies).
+  caller          String     @default("ada")
+  /// The user who clicked (drawer dials); null for campaign-step dials.
+  placedById      String?
   direction       MessageDirection
   status          CallStatus @default(QUEUED)
   /// Deterministic call-status outcome (D4): completed | no_answer | busy |

@@ -105,9 +105,10 @@ export function BoldSequenceList({
                 <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
                   <span className="cvb-display" style={{ fontWeight: 900, fontSize: 18, letterSpacing: "-.028em" }}>{title}</span>
                   <span style={{ ...mono, fontSize: 9.5, letterSpacing: ".12em", color: "var(--cvb-faint)" }}>
-                    {/* sms prices are PER SEGMENT — never claim per send. */}
+                    {/* sms prices are PER SEGMENT and voice PER MINUTE —
+                        never claim per send for either. */}
                     DAY {d}
-                    {credits != null ? ` · ${credits} CREDIT${credits === 1 ? "" : "S"} / ${n.channel === "sms" && n.mode !== "guided" ? "SEGMENT" : "SEND"}` : ""}
+                    {credits != null ? ` · ${credits} CREDIT${credits === 1 ? "" : "S"} / ${n.channel === "sms" && n.mode !== "guided" ? "SEGMENT" : n.channel === "voice" ? "MINUTE" : "SEND"}` : ""}
                   </span>
                 </div>
                 <div style={{ fontSize: 13.5, color: "var(--cvb-muted)", lineHeight: 1.55, marginTop: 6, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>

@@ -238,7 +238,11 @@ export class PlannerController {
         previous,
         candidate: dto.graph as CampaignGraph,
         ctx: {
-          allowedChannels: smsSender ? ["email", "sms"] : ["email"],
+          // B3c-1 (DEC-119): "voice" joins the MANUAL-edit gate — call steps dial
+          // through the platform line, no per-tenant sender to gate on (the
+          // dial rail enforces consent/quiet-hours/caps at call time). The
+          // PLANNER still never emits voice steps (its prompt is untouched).
+          allowedChannels: smsSender ? ["email", "sms", "voice"] : ["email", "voice"],
           ruleTargetNodeIds: enabledRules.flatMap((r) => moveTargetIdsOf(r.actions)),
         },
       });
@@ -353,7 +357,11 @@ export class PlannerController {
         previous,
         candidate: mutated.graph,
         ctx: {
-          allowedChannels: smsSender ? ["email", "sms"] : ["email"],
+          // B3c-1 (DEC-119): "voice" joins the MANUAL-edit gate — call steps dial
+          // through the platform line, no per-tenant sender to gate on (the
+          // dial rail enforces consent/quiet-hours/caps at call time). The
+          // PLANNER still never emits voice steps (its prompt is untouched).
+          allowedChannels: smsSender ? ["email", "sms", "voice"] : ["email", "voice"],
           subcampaigns: "admit-new",
           ruleTargetNodeIds: rules.flatMap((r) => moveTargetIdsOf(r.actions)),
         },

@@ -69,6 +69,10 @@ const CH_CHIP: Record<string, [string, string, string, string]> = {
 function systemTone(type: string): [string, string, string] {
   if (type === "calendar.canceled.v1") return ["var(--cvb-danger)", "var(--cvb-danger-bg)", "#f0d5ce"];
   if (type === "calendar.rescheduled.v1") return ["var(--cvb-muted)", "var(--cvb-well)", "var(--cvb-line-ctl)"];
+  // B3c-1: call rows re-tone by family — failure red, the rest slate (the
+  // Bold voice-channel identity); wording stays the ONE pinned map.
+  if (type === "call.failed.v1") return ["var(--cvb-danger)", "var(--cvb-danger-bg)", "#f0d5ce"];
+  if (type.startsWith("call.")) return ["var(--cvb-slate)", "var(--cvb-slate-tint)", "var(--cvb-slate-line)"];
   return ["var(--cvb-forest)", "var(--cvb-mint)", "var(--cvb-mint-line)"];
 }
 

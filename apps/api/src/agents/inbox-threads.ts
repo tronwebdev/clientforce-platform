@@ -66,7 +66,14 @@ export async function assembleInboxThreads(tx: Prisma.TransactionClient, campaig
       ? await tx.event.findMany({
           where: {
             contactId: { in: contactIds },
-            OR: [{ type: { startsWith: "calendar." } }, { type: "payment.received.v1" }],
+            OR: [
+              { type: { startsWith: "calendar." } },
+              { type: "payment.received.v1" },
+              // B3c-1 (DEC-119): call outcomes interleave as system rows —
+              // Event-sourced like calendar/payment (never a fabricated
+              // Message); the renderers decide which types show.
+              { type: { startsWith: "call." } },
+            ],
           },
           orderBy: { occurredAt: "asc" },
         })
