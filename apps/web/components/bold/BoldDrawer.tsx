@@ -6,6 +6,7 @@ import {
   addContactsToList,
   avTint,
   contactName,
+  enrollContact,
   fetchBoldRecipients,
   fetchContactTimeline,
   fetchLists,
@@ -15,6 +16,7 @@ import {
   relTime,
   type BoldContactRow,
   type ContactEnrollmentRef,
+  type ContactNextStep,
   type ContactSignalFact,
   type TimelineEvent,
 } from "./bold-live";
@@ -303,6 +305,7 @@ function PersonBody({
   const [timeline, setTimeline] = useState<TimelineEvent[] | null>(null);
   const [enrollments, setEnrollments] = useState<ContactEnrollmentRef[]>([]);
   const [signalFacts, setSignalFacts] = useState<ContactSignalFact[]>([]);
+  const [nextStep, setNextStep] = useState<ContactNextStep | null>(null);
   const [lists, setLists] = useState<ContactListDto[]>([]);
   const [listOpen, setListOpen] = useState(false);
   const [tags, setTags] = useState<string[]>(state.row?.tags ?? []);
@@ -317,6 +320,7 @@ function PersonBody({
       setTimeline(r?.events ?? []);
       setEnrollments(r?.enrollments ?? []);
       setSignalFacts(r?.signalFacts ?? []);
+      setNextStep(r?.nextStep ?? null);
     });
     void fetchLists().then((l) => {
       if (alive) setLists((l ?? []).filter((x) => !x.archived));
@@ -349,6 +353,21 @@ function PersonBody({
       flash?.(res.error);
     }
   }
+  // B3b (DEC-114): the one live write the slot performs itself — the other
+  // live actions hand off to the reply composer via Message.
+  async function addToWinback() {
+    if (!nextStep?.agentId) return;
+    const res = await enrollContact(nextStep.agentId, state.contact.id, { kind: "manual" });
+    if (!res.ok) {
+      flash?.(res.error);
+      return;
+    }
+    flash?.(`Added to “${nextStep.agentName ?? "the win-back campaign"}”.`);
+    const r = await fetchContactTimeline(state.contact.id);
+    setNextStep(r?.nextStep ?? null);
+    setEnrollments(r?.enrollments ?? []);
+  }
+
   async function saveNote() {
     const trimmed = note.trim();
     if (trimmed === noteSaved.trim()) return;
@@ -465,13 +484,33 @@ function PersonBody({
         ))}
       </div>
 
-      {/* The next-step slot (owner ruling: five deterministic rules with
-          visible provenance). Its actions do not exist to click yet, so the
-          slot ships visibly deferred — never a generic button. */}
-      <div data-testid="bold-person-nextstep" style={{ marginTop: 14, background: "var(--cvb-panel)", border: "1px dashed var(--cvb-line-ctl)", borderRadius: 13, padding: "11px 14px", display: "flex", alignItems: "center", gap: 10 }}>
-        <span style={{ ...mono, fontSize: 9.5, letterSpacing: ".14em", color: "var(--cvb-faint)", flex: "none" }}>NEXT STEP</span>
-        <span style={{ fontSize: 12, color: "var(--cvb-faint)" }}>Coming soon.</span>
-      </div>
+      {/* B3b (DEC-114): the next-best-action slot, LIVE — the server's
+          five-rule table decides; provenance renders beside the action; a
+          rule whose action is not shipped shows visibly deferred (DEC-115);
+          when no rule fires the slot renders NOTHING — never a generic
+          button. */}
+      {nextStep ? (
+        <div data-testid="bold-person-nextstep" style={{ marginTop: 14, background: "var(--cvb-panel)", border: `1px ${nextStep.live ? "solid" : "dashed"} var(--cvb-line-ctl)`, borderRadius: 13, padding: "11px 14px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <span style={{ ...mono, fontSize: 9.5, letterSpacing: ".14em", color: "var(--cvb-faint)", flex: "none" }}>NEXT STEP</span>
+          <span data-testid="bold-person-nextstep-why" style={{ ...mono, fontSize: 10, color: "var(--cvb-muted)", flex: 1, minWidth: 90 }}>{nextStep.provenance}</span>
+          {nextStep.live ? (
+            <span
+              onClick={() => {
+                if (nextStep.key === "add_winback") void addToWinback();
+                else onMessage?.(state.contact.id);
+              }}
+              data-testid="bold-person-nextstep-go"
+              style={{ fontSize: 12, fontWeight: 800, color: "var(--cvb-card)", background: "var(--cvb-forest)", borderRadius: 10, padding: "8px 13px", cursor: "pointer", flex: "none" }}
+            >
+              {nextStep.label}
+            </span>
+          ) : (
+            <span data-testid="bold-person-nextstep-deferred" style={{ fontSize: 11.5, fontWeight: 700, color: "var(--cvb-faint)", flex: "none" }}>
+              {nextStep.label} — coming soon
+            </span>
+          )}
+        </div>
+      ) : null}
 
       {/* §7 tags + notes — live writes on the shipped contact PATCH
           (B3a review). Ada's compose-time read of notes is not built yet

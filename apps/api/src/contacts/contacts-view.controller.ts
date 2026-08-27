@@ -203,8 +203,101 @@ export class ContactsViewController {
       const happy = enrollments.find((e) => HAPPY_STAGES.includes(e.pipelineStage));
       if (happy) signalFacts.push({ signal: "collect_reviews", at: happy.updatedAt.toISOString() });
 
+      // B3b (DEC-114 live): the next-best-action slot — EXACTLY five
+      // deterministic rules, first match wins, provenance = the fact that
+      // fired it. An action is LIVE only when it maps to a shipped write; a
+      // fired-but-unshipped rule ships visibly deferred (DEC-115); no rule
+      // fired -> null and the slot renders NOTHING (never a generic button).
+      const shortDate = (iso: string) =>
+        new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      const nextStep = await (async (): Promise<Record<string, unknown> | null> => {
+        const now = Date.now();
+        // Rule 1 — booked + upcoming -> Send reminder (live via reply-send).
+        const upcoming = await tx.event.findFirst({
+          where: { contactId: id, type: "calendar.booked.v1" },
+          orderBy: { occurredAt: "desc" },
+        });
+        const upStart = (upcoming?.payload as { startAt?: string } | null)?.startAt;
+        const booked = enrollments.find((e) => e.pipelineStage === "booked");
+        if (booked && upStart && new Date(upStart).getTime() > now) {
+          return {
+            key: "send_reminder",
+            live: true,
+            label: "Send reminder",
+            provenance: `Booked for ${shortDate(upStart)}`,
+            campaignId: booked.campaign?.id ?? null,
+          };
+        }
+        // Rule 2 — no-show -> Rebook. Attendance is not recorded anywhere, so
+        // this rule CANNOT fire yet — deterministic honesty, not an omission
+        // (noted in PROGRESS; the datum lands with calendar attendance).
+        // Rule 3 — replied not-now -> Add to win-back (live via the shipped
+        // enrollment write, only when a win-back campaign exists to join).
+        const notNowFact = signalFacts.find((f) => f.signal === "winback_stalled");
+        if (notNowFact) {
+          // The action must be REAL: the enroll write requires a campaign
+          // with a persisted graph, so the rule only offers targets that can
+          // actually take the contact (DEC-114's map-to-a-real-action bar).
+          const winback = await tx.agent.findFirst({
+            where: { goal: "winback_deals", campaigns: { some: { graphs: { some: {} } } } },
+            orderBy: { createdAt: "asc" },
+            select: { id: true, name: true },
+          });
+          const alreadyIn = winback
+            ? await tx.enrollment.findFirst({
+                where: { contactId: id, campaign: { agentId: winback.id } },
+                select: { id: true },
+              })
+            : null;
+          if (winback && !alreadyIn) {
+            return {
+              key: "add_winback",
+              live: true,
+              label: "Add to win-back",
+              provenance: `Said not now ${shortDate(notNowFact.at)}`,
+              agentId: winback.id,
+              agentName: winback.name,
+            };
+          }
+        }
+        // Rule 4 — paid + no review ask -> Ask for a review (deferred: no
+        // review-ask channel is shipped; the provenance still shows).
+        const paid = await tx.event.findFirst({
+          where: { contactId: id, type: "payment.received.v1" },
+          orderBy: { occurredAt: "desc" },
+        });
+        if (paid) {
+          const inReviewCampaign = await tx.enrollment.findFirst({
+            where: { contactId: id, campaign: { agent: { goal: "collect_reviews" } } },
+            select: { id: true },
+          });
+          if (!inReviewCampaign) {
+            return {
+              key: "ask_review",
+              live: false,
+              label: "Ask for a review",
+              provenance: `Paid ${shortDate(paid.occurredAt.toISOString())}`,
+            };
+          }
+        }
+        // Rule 5 — quiet prospect -> Follow up (live via reply-send).
+        const quietFact = signalFacts.find((f) => f.signal === "quiet_contacts");
+        const isCustomer = enrollments.some((e) => e.pipelineStage === "won");
+        if (quietFact && !isCustomer) {
+          return {
+            key: "follow_up",
+            live: true,
+            label: "Follow up",
+            provenance: `Quiet for ${quietFact.days} days`,
+            campaignId: enrollments[0]?.campaign?.id ?? null,
+          };
+        }
+        return null;
+      })();
+
       return {
         signalFacts,
+        nextStep,
         enrollments: enrollments.map((e) => ({
           id: e.id,
           stage: e.pipelineStage,

@@ -204,6 +204,17 @@ export const EVENT_SCHEMAS = {
     manual: z.boolean().optional(),
   }),
   "lead.unsubscribed.v1": z.object({ channel: z.string().optional() }),
+  // B3b (DEC-117, owner ruling): a human reply pauses Ada for the contact's
+  // enrollment until the explicit Resume control — both transitions are
+  // timeline-visible facts, so they are Events (never synthetic Messages).
+  "enrollment.held.v1": z.object({
+    reason: z.string(),
+    /** The user whose reply/click placed the hold. */
+    byUserId: z.string().optional(),
+  }),
+  "enrollment.resumed.v1": z.object({
+    byUserId: z.string().optional(),
+  }),
 
   // ── Lists (C2.8, docs/PLAN_CONTACT_LISTS.md) ───────────────────────────────
   // The Forms/Widget/Automations JOIN POINTS: integrations later subscribe to
@@ -487,6 +498,8 @@ export const EVENT_TYPES = {
   PROPOSAL_PAID: "proposal.paid.v1",
   LEAD_ENROLLED: "lead.enrolled.v1",
   LEAD_STAGE_CHANGED: "lead.stage_changed.v1",
+  ENROLLMENT_HELD: "enrollment.held.v1",
+  ENROLLMENT_RESUMED: "enrollment.resumed.v1",
   LEAD_UNSUBSCRIBED: "lead.unsubscribed.v1",
   LIST_MEMBER_ADDED: "list.member.added.v1",
   LIST_MEMBER_REMOVED: "list.member.removed.v1",

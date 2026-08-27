@@ -10,16 +10,25 @@ import {
   addContactsToList,
   avTint,
   fetchBoldInbox,
+  fetchCreditPrices,
+  fetchInboxMembers,
   fetchLists,
   fetchPipelineStages,
   fetchWorkspaceInbox,
   initials,
   moveEnrollmentStage,
+  patchThreadState,
   relTime,
+  requestReplyDraft,
+  resumeAda,
+  sendInboxReply,
   setMessageDone,
   type BoldInboxThread,
   type PipelineStageRow,
+  type ReplyDraft,
+  type WorkspaceMember,
 } from "./bold-live";
+import type { EffectiveCreditPrices } from "@clientforce/core";
 
 /**
  * The inbox (B2 campaign scope · B3a workspace scope — §4.5 "same component,
@@ -30,10 +39,11 @@ import {
  * in Contacts — DEC-034). Actions are the ones that EXIST: move (the
  * bus-publishing enrollment PATCH — DEC-085), mark handled / reopen
  * (`PATCH /messages/:id/done` on the last inbound), add to list, open the
- * person peek. Reply sending, Ada reply drafts, assign and snooze have NO
- * shipped backend — they render as honest absence, never as canned UI
- * (Q-070/Q-071; the Q-066 precedent). Site-agent provenance pills wait for
- * data that does not exist yet (Q-072).
+ * person peek. B3b (DEC-116/117) made the pane WRITE: a human reply goes
+ * through the shipped send boundary (and places the reply-hold with its
+ * explicit Resume), Ada drafts land on approve/edit/send, assign + snooze
+ * ride ThreadState. Site-agent provenance pills still wait for data that
+ * does not exist yet (Q-072).
  *
  * TYPE rows without a data source (Web chat · Client messages) stay visible
  * but disabled with the wave that brings them — filed, never silently
@@ -63,7 +73,7 @@ function systemTone(type: string): [string, string, string] {
 }
 
 type TypeF = "all" | "email" | "sms" | "voice";
-type StatusF = "all" | "needs" | "booked" | "handled";
+type StatusF = "all" | "needs" | "booked" | "handled" | "assigned" | "snoozed";
 type SortF = "new" | "wait" | "unread";
 
 const lastInboundOf = (t: BoldInboxThread) =>
@@ -82,12 +92,15 @@ export function BoldInboxView({
   onOpenDrawer,
   flash,
   onThreadCount,
+  meId,
 }: {
   scope: BoldInboxScope;
   onOpenDrawer: (d: BoldDrawerState) => void;
   flash: (msg: string) => void;
   /** Workspace scope reports its live conversation count for the eyebrow. */
   onThreadCount?: (n: number) => void;
+  /** The signed-in user — "Assigned to me" filters on it. */
+  meId?: string;
 }) {
   const [threads, setThreads] = useState<BoldInboxThread[] | null>(null);
   const [stages, setStages] = useState<PipelineStageRow[]>([]);
@@ -101,6 +114,16 @@ export function BoldInboxView({
   const [openPicker, setOpenPicker] = useState<"camp" | "type" | "status" | "sort" | null>(null);
   const [moveOpen, setMoveOpen] = useState(false);
   const [listOpen, setListOpen] = useState(false);
+  // B3b: the reply spine.
+  const [replyText, setReplyText] = useState("");
+  const [sending, setSending] = useState(false);
+  const [draft, setDraft] = useState<ReplyDraft | null>(null);
+  const [drafting, setDrafting] = useState(false);
+  const [sentFor, setSentFor] = useState<string | null>(null);
+  const [members, setMembers] = useState<WorkspaceMember[]>([]);
+  const [prices, setPrices] = useState<EffectiveCreditPrices | null>(null);
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [snoozeOpen, setSnoozeOpen] = useState(false);
 
   const agentId = scope.kind === "campaign" ? scope.agent.id : null;
   const refresh = useCallback(async () => {
@@ -119,15 +142,24 @@ export function BoldInboxView({
   useEffect(() => {
     void fetchPipelineStages().then((s) => setStages(s ?? []));
     void fetchLists().then((l) => setLists((l ?? []).filter((x) => !x.archived)));
+    void fetchInboxMembers().then((m) => setMembers(m ?? []));
+    void fetchCreditPrices().then((p) => setPrices(p));
   }, []);
 
   const all = useMemo(() => threads ?? [], [threads]);
-  const isStatus = useCallback((t: BoldInboxThread, f: StatusF) => {
-    if (f === "needs") return t.unread && !t.done;
-    if (f === "booked") return t.stage === "booked";
-    if (f === "handled") return t.done;
-    return true;
-  }, []);
+  const isSnoozed = (t: BoldInboxThread) => Boolean(t.snoozedUntil && new Date(t.snoozedUntil).getTime() > Date.now());
+  const isStatus = useCallback(
+    (t: BoldInboxThread, f: StatusF) => {
+      // B3b: a snoozed thread LEAVES "Needs reply" until its time passes.
+      if (f === "needs") return t.unread && !t.done && !isSnoozed(t);
+      if (f === "booked") return t.stage === "booked";
+      if (f === "handled") return t.done;
+      if (f === "assigned") return Boolean(meId && t.assignee?.id === meId);
+      if (f === "snoozed") return isSnoozed(t);
+      return true;
+    },
+    [meId],
+  );
   const hasChannel = (t: BoldInboxThread, ch: string) => (t.channels ?? ["email"]).includes(ch);
 
   const shown = useMemo(() => {
@@ -162,6 +194,11 @@ export function BoldInboxView({
   useEffect(() => {
     setMoveOpen(false);
     setListOpen(false);
+    setAssignOpen(false);
+    setSnoozeOpen(false);
+    setReplyText("");
+    setDraft(null);
+    setSentFor(null);
   }, [selKey]);
 
   if (threads === null) {
@@ -187,6 +224,9 @@ export function BoldInboxView({
     { key: "needs", dot: "var(--cvb-dot-amber)", label: "Needs reply", count: all.filter((t) => isStatus(t, "needs")).length },
     { key: "booked", dot: "var(--cvb-forest)", label: "Booked", count: all.filter((t) => isStatus(t, "booked")).length },
     { key: "handled", dot: "var(--cvb-ghost)", label: "Handled", count: all.filter((t) => isStatus(t, "handled")).length },
+    // B3b: the live assign/snooze rows.
+    { key: "assigned", dot: "var(--cvb-cyan)", label: "Assigned to me", count: all.filter((t) => isStatus(t, "assigned")).length },
+    { key: "snoozed", dot: "var(--cvb-slate)", label: "Snoozed", count: all.filter((t) => isStatus(t, "snoozed")).length },
   ];
   const sortRows: Array<{ key: SortF; label: string }> = [
     { key: "new", label: "Newest first" },
@@ -331,6 +371,97 @@ export function BoldInboxView({
     }
     const added = (res.body as { added?: number } | null)?.added ?? 0;
     flash(added === 0 ? `Already in “${list.name}” — nothing to add.` : `Added to “${list.name}”.`);
+  }
+
+  /* ---------------------------------------------------- B3b: the reply spine */
+
+  // The channel a reply goes out on: the thread's latest sendable channel.
+  const replyChannel = ((): "email" | "sms" | null => {
+    if (!sel) return null;
+    const last = [...sel.messages].reverse().find((m) => m.channel === "email" || m.channel === "sms");
+    return (last?.channel as "email" | "sms" | undefined) ?? null;
+  })();
+  const replyPriceKey = replyChannel === "sms" ? "reply_sms_send" : "reply_email_send";
+  const replyCredits = prices?.effective?.[replyPriceKey];
+
+  async function sendReply() {
+    if (!sel?.campaign || !replyChannel || sending) return;
+    const text = replyText.trim();
+    if (!text) return;
+    setSending(true);
+    try {
+      const res = await sendInboxReply({
+        campaignId: sel.campaign.id,
+        contactId: sel.contactId,
+        body: text,
+        channel: replyChannel,
+        draft: draft ? "ada" : "none",
+        ...(draft ? { draftEdited: text !== draft.body } : {}),
+      });
+      if (!res.ok) {
+        flash(res.error);
+        return;
+      }
+      setReplyText("");
+      setDraft(null);
+      setSentFor(keyOf(sel));
+      flash(`Sent to ${selName}`);
+      void refresh();
+    } finally {
+      setSending(false);
+    }
+  }
+  async function askDraft() {
+    if (!sel?.campaign || !replyChannel || drafting) return;
+    setDrafting(true);
+    try {
+      const res = await requestReplyDraft({
+        campaignId: sel.campaign.id,
+        contactId: sel.contactId,
+        channel: replyChannel,
+      });
+      if (!res.ok) {
+        flash(res.error);
+        return;
+      }
+      const d = res.body as ReplyDraft;
+      setDraft(d);
+      setReplyText(d.body);
+    } finally {
+      setDrafting(false);
+    }
+  }
+  async function doResume() {
+    if (!sel) return;
+    const res = await resumeAda(sel.contactId);
+    if (!res.ok) {
+      flash(res.error);
+      return;
+    }
+    flash(`Ada resumes for ${selName}.`);
+    void refresh();
+  }
+  async function assign(userId: string | null) {
+    setAssignOpen(false);
+    if (!sel?.campaign) return;
+    const res = await patchThreadState({ campaignId: sel.campaign.id, contactId: sel.contactId, assigneeUserId: userId });
+    if (!res.ok) {
+      flash(res.error);
+      return;
+    }
+    flash(userId ? "Assigned." : "Unassigned.");
+    void refresh();
+  }
+  async function snooze(until: string | null) {
+    setSnoozeOpen(false);
+    if (!sel?.campaign) return;
+    const res = await patchThreadState({ campaignId: sel.campaign.id, contactId: sel.contactId, snoozedUntil: until });
+    if (!res.ok) {
+      flash(res.error);
+      return;
+    }
+    flash(until ? `Snoozed until ${new Date(until).toLocaleDateString("en-US", { month: "short", day: "numeric" })}.` : "Snooze cleared.");
+    void refresh();
   }
 
   const selName = sel
@@ -544,6 +675,62 @@ export function BoldInboxView({
                   </div>
                 ) : null}
               </div>
+              {/* B3b: assign + snooze — live ThreadState writes. */}
+              <div style={{ position: "relative", flex: "none" }}>
+                <span
+                  onClick={() => setAssignOpen((v) => !v)}
+                  data-testid="bold-inbox-assign"
+                  style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 700, color: sel.assignee ? "var(--cvb-cyan)" : "var(--cvb-muted)", background: sel.assignee ? "var(--cvb-cyan-tint)" : "transparent", border: `1px solid ${sel.assignee ? "var(--cvb-cyan-line)" : "var(--cvb-line-ctl)"}`, borderRadius: 11, padding: "10px 13px", cursor: "pointer" }}
+                >
+                  {sel.assignee ? `→ ${sel.assignee.name ?? sel.assignee.email}` : "Assign"}
+                  <span style={{ fontSize: 9, color: "var(--cvb-faint)" }}>⌄</span>
+                </span>
+                {assignOpen ? (
+                  <div style={{ position: "absolute", right: 0, top: "100%", marginTop: 5, width: 210, background: "var(--cvb-card)", border: "1px solid var(--cvb-line-ctl)", borderRadius: 13, padding: 5, zIndex: 5, boxShadow: "var(--cvb-shadow-card)" }}>
+                    {members.map((m) => (
+                      <div key={m.id} onClick={() => void assign(m.id)} data-testid={`bold-inbox-assign-${m.id}`} style={{ padding: "9px 10px", borderRadius: 9, cursor: "pointer", fontSize: 12.5, fontWeight: sel.assignee?.id === m.id ? 700 : 500, background: sel.assignee?.id === m.id ? "var(--cvb-well)" : "transparent" }}>
+                        {m.name ?? m.email}
+                        <span style={{ ...mono, fontSize: 9.5, color: "var(--cvb-faint)", marginLeft: 6 }}>{m.role.toLowerCase()}</span>
+                      </div>
+                    ))}
+                    {sel.assignee ? (
+                      <div onClick={() => void assign(null)} data-testid="bold-inbox-unassign" style={{ padding: "9px 10px", borderRadius: 9, cursor: "pointer", fontSize: 12.5, color: "var(--cvb-faint)" }}>
+                        Unassign
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+              <div style={{ position: "relative", flex: "none" }}>
+                <span
+                  onClick={() => setSnoozeOpen((v) => !v)}
+                  data-testid="bold-inbox-snooze"
+                  style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 700, color: isSnoozed(sel) ? "var(--cvb-slate)" : "var(--cvb-muted)", background: isSnoozed(sel) ? "var(--cvb-slate-tint)" : "transparent", border: `1px solid ${isSnoozed(sel) ? "var(--cvb-slate-line)" : "var(--cvb-line-ctl)"}`, borderRadius: 11, padding: "10px 13px", cursor: "pointer" }}
+                >
+                  {isSnoozed(sel) ? `Snoozed · ${new Date(sel.snoozedUntil!).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : "Snooze"}
+                  <span style={{ fontSize: 9, color: "var(--cvb-faint)" }}>⌄</span>
+                </span>
+                {snoozeOpen ? (
+                  <div style={{ position: "absolute", right: 0, top: "100%", marginTop: 5, width: 180, background: "var(--cvb-card)", border: "1px solid var(--cvb-line-ctl)", borderRadius: 13, padding: 5, zIndex: 5, boxShadow: "var(--cvb-shadow-card)" }}>
+                    {(
+                      [
+                        ["Tomorrow", 1],
+                        ["In 3 days", 3],
+                        ["Next week", 7],
+                      ] as const
+                    ).map(([l, days]) => (
+                      <div key={l} onClick={() => void snooze(new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString())} data-testid={`bold-inbox-snooze-${days}`} style={{ padding: "9px 10px", borderRadius: 9, cursor: "pointer", fontSize: 12.5 }}>
+                        {l}
+                      </div>
+                    ))}
+                    {isSnoozed(sel) ? (
+                      <div onClick={() => void snooze(null)} data-testid="bold-inbox-unsnooze" style={{ padding: "9px 10px", borderRadius: 9, cursor: "pointer", fontSize: 12.5, color: "var(--cvb-faint)" }}>
+                        Clear snooze
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
               <span
                 onClick={() => sel.contact && onOpenDrawer({ t: "person", contact: sel.contact })}
                 data-testid="bold-inbox-profile"
@@ -570,6 +757,8 @@ export function BoldInboxView({
                   relTime(m.sentAt),
                   m.channel,
                   ours && m.composed ? "✦ guided" : null,
+                  // B3b: human-reply provenance — honest about who wrote what.
+                  ours && m.reply ? (m.reply.draft === "ada" ? (m.reply.draftEdited ? "✦ Ada drafted · edited · you sent" : "✦ Ada drafted · you sent") : "you replied") : null,
                   !ours && m.intent ? intentTint(m.intent).label : null,
                 ]
                   .filter(Boolean)
@@ -596,9 +785,26 @@ export function BoldInboxView({
               })}
             </div>
 
-            {/* triage strip — the actions that exist; reply-send has no shipped
-                path (send boundary) and Ada reply drafts have no engine, so
-                neither renders as live UI (Q-070/Q-071). */}
+            {/* B3b: the reply spine — a human reply through the shipped send
+                boundary, Ada drafts on approve/edit/send, the reply-hold with
+                its explicit Resume. Mark handled/reopen stays. */}
+            {sel.adaHeld ? (
+              <div data-testid="bold-inbox-held" style={{ display: "flex", alignItems: "center", gap: 10, background: "var(--cvb-amber-bg)", border: "1px solid var(--cvb-amber-line)", borderRadius: 14, padding: "11px 16px", marginBottom: 10 }}>
+                <span style={{ color: "var(--cvb-amber)", fontSize: 12 }}>✦</span>
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--cvb-amber)", flex: 1, lineHeight: 1.4 }}>
+                  Ada is paused for this person — you replied. She sends nothing here until you resume her.
+                </span>
+                <span onClick={() => void doResume()} data-testid="bold-inbox-resume" style={{ fontSize: 12, fontWeight: 800, color: "var(--cvb-card)", background: "var(--cvb-amber)", borderRadius: 10, padding: "8px 13px", cursor: "pointer", flex: "none" }}>
+                  Resume Ada
+                </span>
+              </div>
+            ) : null}
+            {sentFor === keyOf(sel) ? (
+              <div data-testid="bold-inbox-sent" style={{ display: "flex", alignItems: "center", gap: 10, background: "var(--cvb-mint)", border: "1px solid var(--cvb-mint-line)", borderRadius: 14, padding: "11px 16px", marginBottom: 10 }}>
+                <span style={{ color: "var(--cvb-forest)", fontSize: 13 }}>✓</span>
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--cvb-forest)", flex: 1 }}>Sent. Ada is watching for the reply.</span>
+              </div>
+            ) : null}
             {sel.done ? (
               <div data-testid="bold-inbox-donebar" style={{ display: "flex", alignItems: "center", gap: 10, background: "var(--cvb-mint)", border: "1px solid var(--cvb-mint-line)", borderRadius: 18, padding: "16px 18px" }}>
                 <span style={{ color: "var(--cvb-forest)", fontSize: 14 }}>✓</span>
@@ -607,10 +813,54 @@ export function BoldInboxView({
                   Reopen
                 </span>
               </div>
+            ) : replyChannel ? (
+              <div data-testid="bold-inbox-composer" style={{ background: "var(--cvb-panel)", border: "1px solid var(--cvb-line-ctl)", borderRadius: 18, padding: "14px 16px" }}>
+                {draft ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap", marginBottom: 10 }}>
+                    <span data-testid="bold-inbox-draftpill" style={{ fontSize: 10.5, fontWeight: 700, color: "var(--cvb-forest)", background: "var(--cvb-mint)", border: "1px solid var(--cvb-mint-line)", borderRadius: 999, padding: "4px 10px" }}>
+                      ✦ Ada drafted
+                    </span>
+                    <span style={{ ...mono, fontSize: 10, color: "var(--cvb-faint)", flex: 1, minWidth: 80 }}>
+                      from the conversation and your business facts{draft.usedNote ? " and your note" : ""}
+                    </span>
+                    <span onClick={() => void askDraft()} data-testid="bold-inbox-rewrite" style={{ fontSize: 12.5, fontWeight: 700, color: "var(--cvb-cyan)", cursor: "pointer" }}>
+                      {drafting ? "Rewriting…" : "Rewrite"}
+                    </span>
+                  </div>
+                ) : null}
+                <textarea
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  placeholder={`Reply by ${replyChannel}…`}
+                  data-testid="bold-inbox-replytext"
+                  rows={draft ? 4 : 2}
+                  style={{ width: "100%", fontSize: 14, lineHeight: 1.55, border: "1px solid var(--cvb-line-ctl)", borderRadius: 13, padding: "12px 14px", background: "var(--cvb-card)", color: "var(--cvb-ink)", outline: "none", resize: "vertical", fontFamily: "inherit" }}
+                />
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10, flexWrap: "wrap" }}>
+                  {!draft ? (
+                    <span onClick={() => void askDraft()} data-testid="bold-inbox-askdraft" style={{ fontSize: 12, fontWeight: 700, color: "var(--cvb-forest)", background: "var(--cvb-mint)", border: "1px solid var(--cvb-mint-line)", borderRadius: 10, padding: "8px 12px", cursor: "pointer", flex: "none" }}>
+                      {drafting ? "✦ Drafting…" : "✦ Ask Ada to draft"}
+                    </span>
+                  ) : null}
+                  <span style={{ ...mono, fontSize: 10, color: "var(--cvb-faint)", flex: 1, minWidth: 100 }}>
+                    {replyCredits != null ? `${replyCredits} credit${replyCredits === 1 ? "" : "s"} · ${replyChannel}` : replyChannel}
+                  </span>
+                  <span onClick={() => void toggleDone()} data-testid="bold-inbox-done" style={{ fontSize: 12, fontWeight: 700, color: "var(--cvb-muted)", cursor: "pointer", flex: "none" }}>
+                    ✓ Mark handled
+                  </span>
+                  <span
+                    onClick={() => void sendReply()}
+                    data-testid="bold-inbox-send"
+                    style={{ fontSize: 12.5, fontWeight: 800, color: "var(--cvb-card)", background: replyText.trim() && !sending ? "var(--cvb-forest)" : "var(--cvb-ghost)", borderRadius: 11, padding: "10px 16px", cursor: replyText.trim() && !sending ? "pointer" : "default", flex: "none" }}
+                  >
+                    {sending ? "Sending…" : "Send"}
+                  </span>
+                </div>
+              </div>
             ) : (
               <div data-testid="bold-inbox-donebar" style={{ display: "flex", alignItems: "center", gap: 12, background: "var(--cvb-panel)", border: "1px solid var(--cvb-line-ctl)", borderRadius: 18, padding: "14px 18px", flexWrap: "wrap" }}>
                 <span style={{ fontSize: 11.5, color: "var(--cvb-faint)", flex: 1, minWidth: 160, lineHeight: 1.5 }}>
-                  Replies aren’t sendable from the console yet — for now this inbox is read and triage.
+                  Replies aren’t sendable on this channel yet.
                 </span>
                 <span
                   onClick={() => void toggleDone()}

@@ -118,6 +118,22 @@ export function createActivities(deps: ActivityDeps) {
 
   return {
     /**
+     * B3b (DEC-117): is Ada paused for this enrollment? A human reply places
+     * a reply-hold; the workflow WAITS (durable timer poll) instead of dying,
+     * so the explicit Resume control actually resumes the sequence. The send
+     * boundary carries the same check as the belt-and-braces refusal.
+     */
+    async isEnrollmentHeld(params: { workspaceId: string; enrollmentId: string }): Promise<boolean> {
+      const hold = await withTenant(prisma, { workspaceId: params.workspaceId }, (tx) =>
+        tx.enrollmentReplyHold.findFirst({
+          where: { enrollmentId: params.enrollmentId, releasedAt: null },
+          select: { id: true },
+        }),
+      );
+      return hold !== null;
+    },
+
+    /**
      * Send one graph step through the FULL P1.5 boundary. Idempotent: an
      * existing OUTBOUND Message for this (enrollment, stepNode) short-circuits
      * to a duplicate outcome — retries and workflow replays never double-send.

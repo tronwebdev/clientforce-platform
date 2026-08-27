@@ -57,8 +57,13 @@ export interface SendSmsStepParams {
   enrollmentId?: string;
   contactId: string;
   senderId: string;
-  stepNodeId: string;
+  /** Absent on B3b human replies — a reply is not a graph step. */
+  stepNodeId?: string;
   content: StepContent;
+  /** B3b (DEC-117): see the email boundary's `origin` — same contract. */
+  origin?: "step" | "reply";
+  /** B3b: reply provenance, persisted into `Message.meta.reply` verbatim. */
+  replyBy?: { userId: string; draft: "ada" | "none"; draftEdited?: boolean };
   /**
    * G1 (DEC-070): provenance of guided copy, merged into `Message.meta` at
    * persist time. PASS-THROUGH ONLY — no rail reads it; the boundary neither
@@ -118,8 +123,27 @@ export async function sendSmsStep(deps: SendSmsDeps, params: SendSmsStepParams):
   if (!contact || !phone) throw new SendBlockedError("CONTACT_NO_PHONE", params.contactId);
 
   const guardrails = parseGuardrails(agent.guardrails);
-  assertInsideWindow(guardrails, now);
-  await assertUnderSmsCaps(deps, params, guardrails, sender, now);
+  const isReply = params.origin === "reply";
+  // B3b (DEC-117): the scheduling rails + reply-hold govern Ada's scheduled
+  // sending only — the email boundary's exact contract.
+  if (!isReply) {
+    // The hold check runs FIRST — the email boundary's exact contract.
+    if (params.enrollmentId) {
+      const hold = await withTenant(prisma, ctx, (tx) =>
+        tx.enrollmentReplyHold.findFirst({
+          where: { enrollmentId: params.enrollmentId, releasedAt: null },
+        }),
+      );
+      if (hold) {
+        throw new SendBlockedError(
+          "ENROLLMENT_HELD",
+          "a human replied on this conversation — Ada waits for Resume",
+        );
+      }
+    }
+    assertInsideWindow(guardrails, now);
+    await assertUnderSmsCaps(deps, params, guardrails, sender, now);
+  }
 
   // suppressionCheck (A8, literal true): Contact.optOut.sms AND Suppression rows.
   const optOut = (contact.optOut ?? {}) as { sms?: boolean };
@@ -193,7 +217,7 @@ export async function sendSmsStep(deps: SendSmsDeps, params: SendSmsStepParams):
         body,
         providerMessageId,
         inReplyToId: priorSms?.id ?? null,
-        stepNodeId: params.stepNodeId,
+        stepNodeId: params.stepNodeId ?? null,
         // P5 W1 (DEC-083): sender attribution column — the email twin.
         senderId: params.senderId,
         sentAt: now,
@@ -202,6 +226,8 @@ export async function sendSmsStep(deps: SendSmsDeps, params: SendSmsStepParams):
           segments,
           optOutLine: !priorSms,
           ...(params.composed ?? {}),
+          // B3b: human-reply provenance — absent on every step send.
+          ...(params.replyBy ? { reply: params.replyBy } : {}),
         },
       },
     }),

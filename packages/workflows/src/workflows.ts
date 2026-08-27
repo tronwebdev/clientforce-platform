@@ -12,6 +12,7 @@ import {
   ApplicationFailure,
   condition,
   defineSignal,
+  patched,
   proxyActivities,
   setHandler,
   sleep,
@@ -31,6 +32,9 @@ import {
 
 /** Reply signal: the classified intent of an inbound reply (opaque string). */
 export const replySignal = defineSignal<[string]>(REPLY_SIGNAL);
+
+/** B3b: how often a held enrollment re-checks for Resume (durable timer). */
+const HOLD_POLL_MS = 10 * 60 * 1000;
 
 const acts = proxyActivities<ReturnType<typeof createActivities>>({
   startToCloseTimeout: "2 minutes",
@@ -99,6 +103,15 @@ export async function campaignWorkflow(
           });
           current = nextAfter(input.graph, node.id);
           break;
+        }
+        // B3b (DEC-117, owner ruling): a human reply pauses Ada for this
+        // enrollment until the explicit Resume — the workflow WAITS on a
+        // durable poll instead of failing, so Resume genuinely resumes.
+        // `patched` keeps in-flight pre-B3b runs replay-safe.
+        if (patched("b3b-reply-hold")) {
+          while (await acts.isEnrollmentHeld(base)) {
+            await sleep(HOLD_POLL_MS);
+          }
         }
         try {
           await acts.sendEnrollmentStep({

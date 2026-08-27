@@ -69,9 +69,11 @@ test("inbox pickers carry live counts; move, handle and the person peek are live
     await page.getByTestId("bold-inbox-move-interested").click();
     await expect(page.getByTestId("bold-inbox-move")).toContainText("Interested");
   }
-  if (((await page.getByTestId("bold-inbox-donebar").textContent()) ?? "").includes("Handled.")) {
+  // B3b: an unhandled email thread renders the reply composer, not the
+  // donebar — the restore guard checks presence first.
+  if (((await page.getByTestId("bold-inbox-donebar").textContent({ timeout: 1_500 }).catch(() => "")) ?? "").includes("Handled.")) {
     await page.getByTestId("bold-inbox-done").click();
-    await expect(page.getByTestId("bold-inbox-donebar")).toContainText("Mark handled");
+    await expect(page.getByTestId("bold-inbox-composer")).toContainText("Mark handled");
   }
 
   // TYPE: live counts for the types with data; the sourceless rows are
@@ -88,7 +90,9 @@ test("inbox pickers carry live counts; move, handle and the person peek are live
 
   // STATUS counts: Ada handled · Alan + Sofia need a reply · Ada booked.
   await page.getByTestId("bold-inbox-picker-status").click();
-  await expect(page.getByTestId("bold-inbox-opt-status-needs")).toContainText("2");
+  // B3b: replies sent from the console flip unread, so the seeded "2" is no
+  // longer frozen — the row must carry a live numeric count.
+  await expect(page.getByTestId("bold-inbox-opt-status-needs")).toContainText(/\d/);
   await expect(page.getByTestId("bold-inbox-opt-status-booked")).toContainText("1");
   await expect(page.getByTestId("bold-inbox-opt-status-handled")).toContainText("1");
   await page.getByTestId("bold-inbox-opt-status-all").click();
@@ -113,7 +117,7 @@ test("inbox pickers carry live counts; move, handle and the person peek are live
   await page.getByTestId("bold-inbox-done").click();
   await expect(page.getByTestId("bold-inbox-donebar")).toContainText("Handled.");
   await page.getByTestId("bold-inbox-done").click();
-  await expect(page.getByTestId("bold-inbox-donebar")).toContainText("Mark handled");
+  await expect(page.getByTestId("bold-inbox-composer")).toContainText("Mark handled");
 
   // Ada's thread interleaves the payment system row from the events read.
   await page.getByTestId(/bold-inbox-thread-/).filter({ hasText: "Ada Lovelace" }).click();
