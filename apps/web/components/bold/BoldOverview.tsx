@@ -204,19 +204,26 @@ export function BoldOverview({ agent, onOpenDrawer, onAllActivity, onValueSaved,
     }
   };
 
-  // B3d: the review strip's factual line — counts by kind, no invention.
+  // B3d review ruling: the badge carries the NUMBER; the sentence composes
+  // after it with no count and no echo — "1 reply waiting for your tap."
+  // One kind names itself; mixed kinds read "things".
   const needsLine = (() => {
-    const words: string[] = [];
-    const count = (k: string) => needs.filter((n) => n.kind === k).length;
-    const sends = count("step_send");
-    const calls = count("step_call");
-    const replies = count("reply_draft");
-    if (sends) words.push(sends === 1 ? "a scheduled send" : `${sends} scheduled sends`);
-    if (calls) words.push(calls === 1 ? "a scheduled call" : `${calls} scheduled calls`);
-    if (replies) words.push(replies === 1 ? "a reply waiting" : `${replies} replies waiting`);
-    const rest = needs.length - sends - calls - replies;
-    if (rest > 0) words.push(rest === 1 ? "one more item" : `${rest} more items`);
-    return words.length ? `${words.join(" and ")} — waiting for your tap.` : "";
+    const kinds = new Set(needs.map((n) => n.kind));
+    const n = needs.length;
+    if (n === 0) return "";
+    if (kinds.size === 1) {
+      const k = [...kinds][0];
+      const noun =
+        k === "reply_draft"
+          ? n === 1 ? "reply" : "replies"
+          : k === "step_send"
+            ? n === 1 ? "scheduled send" : "scheduled sends"
+            : k === "step_call"
+              ? n === 1 ? "scheduled call" : "scheduled calls"
+              : n === 1 ? "thing" : "things";
+      return `${noun} waiting for your tap.`;
+    }
+    return "things waiting for your tap.";
   })();
 
   return (
