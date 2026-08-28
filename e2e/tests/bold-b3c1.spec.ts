@@ -74,7 +74,7 @@ test("the drawer call action is consent-honest; the sheet shows the checkable wi
   await expect(page.getByTestId("bold-toast")).toContainText("Ada may call them now");
   await page.getByTestId("bold-person-call").click(); // close
   await page.getByTestId("bold-person-call").click(); // reopen → refetches the window
-  await expect(page.getByTestId("bold-person-call-window")).toContainText("time)", { timeout: 15_000 });
+  await expect(page.getByTestId("bold-person-call-window")).toContainText(/\((campaign time|their saved timezone|from their booking)\)/, { timeout: 15_000 });
   await expect(page.getByTestId("bold-person-callsheet")).toContainText("Ada picks the best time");
   await expect(page.getByTestId("bold-person-callsheet")).toContainText("/ minute");
   await expect(page.getByTestId("bold-person-call-queue")).toBeVisible();

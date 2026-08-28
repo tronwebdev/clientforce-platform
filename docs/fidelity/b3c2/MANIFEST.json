@@ -1,0 +1,30 @@
+{
+  "unit": "b3c2",
+  "commit": "911f0b3729616a91963d2ab5662690ce4a988a53",
+  "workingTreeDirtyAtCapture": false,
+  "capturedAt": "2026-08-28T16:50:57.485Z",
+  "baseUrl": "http://localhost:3000",
+  "note": "Single-run capture; every frame from one build. Verify a frame by hashing its bytes against this manifest — never by trusting an image cache. pnpm lint:fidelity enforces the binding.",
+  "frames": {
+    "build-callcard-practice-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 182848,
+      "sha256": "f58d2346753ebe343bc3b7da8c2c623b28175d6f10cefd57c819559398212eba"
+    },
+    "build-callsheet-human-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 169708,
+      "sha256": "daf93c23eeed14f86dc0633cc2ae2b3848809761de42def2195bd69b56552ac8"
+    },
+    "build-recording-toggle-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 183426,
+      "sha256": "cf733b25dd272c9cbcebd47cb4c86f4549276ea8f2660cf1312c9c994bf6f13b"
+    },
+    "proto-ring-widget-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 232290,
+      "sha256": "4483a13c5998d3d7e9d7d0bbe20c22131a0e6ef985baedbd108223e6122fc411"
+    }
+  }
+}

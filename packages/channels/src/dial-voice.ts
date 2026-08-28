@@ -148,18 +148,25 @@ export async function assertDialAllowed(
   }
 
   const window = await resolveCallWindow(prisma, params.workspaceId, contact, guardrails);
+  const caller = params.caller ?? "ada";
   if (!params.skipTimingGates) {
-    assertInsideCallingWindow(guardrails, now);
-    // B3c-1 (DEC-113/119): the contact-local quiet-hours gate. Resolve the
-    // contact's own timezone (their column, else their latest calendar
-    // booking); when known, the campaign window AND the hard 08:00–21:00
-    // local floor are re-checked in THEIR clock — the agent-tz check above
-    // stays as the fallback truth when no contact timezone exists.
-    assertInsideContactQuietHours(window, now);
+    if (caller === "ada") {
+      assertInsideCallingWindow(guardrails, now);
+      // B3c-1 (DEC-113/119): the contact-local quiet-hours gate. Resolve the
+      // contact's own timezone (their column, else their latest calendar
+      // booking); when known, the campaign window AND the hard 08:00–21:00
+      // local floor are re-checked in THEIR clock — the agent-tz check above
+      // stays as the fallback truth when no contact timezone exists.
+      assertInsideContactQuietHours(window, now);
+    } else {
+      // B3c-2 (DEC-121(5)): the campaign window is Ada's SCHEDULING rail —
+      // a person's live dial is not scheduled outreach, so only the
+      // callee-protecting 08:00–21:00 contact-clock floor holds for humans.
+      assertContactFloor(window, now);
+    }
   }
   await assertUnderVoiceCaps(deps, params, guardrails, now);
 
-  const caller = params.caller ?? "ada";
   if (caller === "ada") {
     // DEC-118(2): Ada automated calls require AFFIRMATIVE consent — the
     // column defaults "unknown", and unknown = Ada may not call. Consent
@@ -311,6 +318,18 @@ function localParts(timezone: string, now: Date): { isoDay: number; hhmm: string
 
 /** B3c-1: the contact-local check — window (when their tz differs from the
  *  campaign's) plus the hard 08:00–21:00 local floor. */
+/** B3c-2: the hard 08:00–21:00 floor in the CONTACT clock, alone — the
+ *  human-caller timing truth (campaign windows schedule Ada, not people). */
+export function assertContactFloor(window: ResolvedCallWindow, now: Date): void {
+  const { hhmm } = localParts(window.timezone, now);
+  if (hhmm < window.floorStart || hhmm >= window.floorEnd) {
+    throw new SendBlockedError(
+      "OUTSIDE_QUIET_HOURS",
+      `${hhmm} in ${window.timezone} (${window.source} time) — calls reach people between ${window.floorStart} and ${window.floorEnd} their time`,
+    );
+  }
+}
+
 export function assertInsideContactQuietHours(window: ResolvedCallWindow, now: Date): void {
   const { isoDay, hhmm } = localParts(window.timezone, now);
   if (hhmm < window.floorStart || hhmm >= window.floorEnd) {

@@ -15,7 +15,7 @@
  *    of impersonating evidence. Reviewers verify what they are looking at by
  *    hashing the file — never by trusting an image cache.
  *
- * Usage:  node e2e/capture-bold-fidelity.mjs [unit]     (b1 | b2 | b25 | b26 | b3 | b3b | b3c1; default b1)
+ * Usage:  node e2e/capture-bold-fidelity.mjs [unit]     (b1 | b2 | b25 | b26 | b3 | b3b | b3c1 | b3c2; default b1)
  * Env:    CAPTURE_BASE_URL (default http://localhost:3000)
  *         PLAYWRIGHT_CHROMIUM_EXECUTABLE (a pre-provisioned Chromium)
  *
@@ -33,8 +33,8 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const UNIT = process.argv[2] ?? "b1";
-if (!["b1", "b2", "b25", "b26", "b3", "b3b", "b3c1"].includes(UNIT)) {
-  console.error(`Unknown unit "${UNIT}" — this tool knows b1, b2, b25, b26, b3, b3b and b3c1.`);
+if (!["b1", "b2", "b25", "b26", "b3", "b3b", "b3c1", "b3c2"].includes(UNIT)) {
+  console.error(`Unknown unit "${UNIT}" — this tool knows b1, b2, b25, b26, b3, b3b, b3c1 and b3c2.`);
   process.exit(1);
 }
 const OUT = join(ROOT, "docs", "fidelity", UNIT);
@@ -149,6 +149,79 @@ const toBoldCampaign = async (p) => {
 };
 
 
+
+/* -------------------------------------------------------------- the b3c2 set */
+if (UNIT === "b3c2") {
+  // The seed's call-clock fixtures — pick whichever contact is awake so the
+  // human dial clears the 08:00–21:00 contact-local floor at ANY capture hour.
+  const CLOCK_CONTACTS = [
+    ["Sofia Reyes", "America/Chicago"],
+    ["Alan Turing", "Europe/Berlin"],
+    ["Edsger Dijkstra", "Asia/Tokyo"],
+  ];
+  const localHour = (tz) =>
+    Number(
+      new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "2-digit", hourCycle: "h23" })
+        .formatToParts(new Date())
+        .find((p) => p.type === "hour").value,
+    );
+  const awake = (CLOCK_CONTACTS.find(([, tz]) => {
+    const h = localHour(tz);
+    return h >= 9 && h < 20;
+  }) ?? CLOCK_CONTACTS[0])[0];
+
+  await run("prototype-b3c2", async () => {
+    const p = await page({ width: 1440, height: 900 });
+    await freshProto(p);
+    // The prototype's in-call anatomy lives in the receptionist demo's live
+    // ring widget — open the slide-over, play the demo call, capture mid-ring.
+    await p.getByText("Receptionist", { exact: true }).first().click();
+    await p.waitForTimeout(800);
+    const hear = p.getByText(/Hear a (live )?call/).first();
+    await hear.click();
+    await p.waitForTimeout(2600);
+    await shot(p, "proto-ring-widget-1440x900");
+    await p.context().close();
+  });
+
+  await run("build-b3c2", async () => {
+    const p = await page({ width: 1440, height: 900 });
+    await signInBuild(p);
+    await p.goto(`${BASE}/bold`);
+    await p.getByTestId("bold-root").waitFor();
+    await p.addStyleTag({ content: "nextjs-portal{display:none!important}" });
+    await p.waitForTimeout(700);
+    const later = p.getByText("Later", { exact: true }).first();
+    if (await later.isVisible().catch(() => false)) await later.click();
+    await p.getByTestId("bold-dock-contacts").click();
+    await p.locator('[data-testid^="bold-ct-card-"]').filter({ hasText: awake }).click();
+    await p.getByTestId("bold-person-name").waitFor();
+    // Consent unknown (the truthful default) → Ada blocked, the human leg live.
+    await p.getByTestId("bold-person-consent-unknown").click();
+    await p.waitForTimeout(600);
+    await p.getByTestId("bold-person-call").click();
+    await p.getByTestId("bold-person-call-human").waitFor();
+    await p.waitForTimeout(400);
+    await shot(p, "build-callsheet-human-1440x900");
+    // The practice-line card (keyless sandbox, labeled in plain words).
+    await p.getByTestId("bold-person-call-human").click();
+    await p.getByTestId("bold-callcard-sandbox").waitFor({ timeout: 12_000 });
+    await p.waitForTimeout(1400);
+    await shot(p, "build-callcard-practice-1440x900");
+    // End + close — the sandbox row resolves, nothing dangles.
+    await p.getByTestId("bold-callcard-end").click();
+    await p.waitForTimeout(800);
+    const endBtn = p.getByTestId("bold-callcard-end");
+    if (await endBtn.isVisible().catch(() => false)) await endBtn.click();
+    // The settings recording toggle (internal-only surface — no prototype).
+    await p.goto(`${BASE}/settings`);
+    await p.getByTestId("nav-phone").click();
+    await p.getByTestId("call-recording-card").waitFor();
+    await p.waitForTimeout(600);
+    await shot(p, "build-recording-toggle-1440x900");
+    await p.context().close();
+  });
+}
 
 /* -------------------------------------------------------------- the b3c1 set */
 if (UNIT === "b3c1") {

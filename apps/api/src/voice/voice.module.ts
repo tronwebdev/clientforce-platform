@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { DbModule } from "../db/db.module";
+import { VoiceBrowserController } from "./voice-browser.controller";
 import { VoiceController } from "./voice.controller";
 import { voiceProviders } from "./voice.providers";
 
@@ -10,7 +11,7 @@ import { voiceProviders } from "./voice.providers";
  */
 @Module({
   imports: [DbModule],
-  controllers: [VoiceController],
+  controllers: [VoiceController, VoiceBrowserController],
   providers: voiceProviders,
 })
 export class VoiceModule {}

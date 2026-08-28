@@ -25,7 +25,12 @@ describe("workspace API keys", () => {
     // The whole point: prefix + hash are what the DB holds, and neither
     // contains the secret. A dump of WorkspaceApiKey yields no usable key.
     const k = mintApiKey();
-    const secret = k.token.split("_")[2]!;
+    // The secret is base64url — its alphabet INCLUDES "_" (the src comment
+    // on parseApiKeyPrefix warns against a naive split; a secret that
+    // happens to START with "_" made split()[2] the empty string, and
+    // not.toContain("") can never pass). Slice past the known prefix.
+    const secret = k.token.slice(`${API_KEY_TOKEN_PREFIX}_${k.prefix}_`.length);
+    expect(secret.length).toBeGreaterThan(20);
     expect(k.hash).not.toContain(secret);
     expect(k.prefix).not.toContain(secret);
     expect(k.hash).toHaveLength(64); // sha256 hex

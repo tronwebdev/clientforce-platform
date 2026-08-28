@@ -104,19 +104,28 @@ export const EVENT_SCHEMAS = {
   "whatsapp.button_clicked.v1": z.object({ ...messageRef, button: z.string() }),
 
   // ── Voice ──────────────────────────────────────────────────────────────────
-  "call.started.v1": z.object({ callId: z.string() }),
+  // B3c-2 (DEC-118(1)): `caller` rides the terminal call events ADDITIVELY —
+  // "ada" (automated) or "human" (browser-mic) — so timelines can attribute
+  // a call without a Call-row lookup. Absent = the pre-B3c-2 shape (Ada).
+  "call.started.v1": z.object({ callId: z.string(), caller: z.enum(["ada", "human"]).optional() }),
   "call.completed.v1": z.object({
     callId: z.string(),
     durationSec: z.number().int().nonnegative(),
     outcome: z.string(),
     transcriptId: z.string().optional(),
     recordingUrl: z.string().optional(),
+    caller: z.enum(["ada", "human"]).optional(),
   }),
-  "call.failed.v1": z.object({ callId: z.string(), reason: z.string().optional() }),
+  "call.failed.v1": z.object({
+    callId: z.string(),
+    reason: z.string().optional(),
+    caller: z.enum(["ada", "human"]).optional(),
+  }),
   "call.booked.v1": z.object({
     callId: z.string(),
     durationSec: z.number().int().nonnegative().optional(),
     outcome: z.string().optional(),
+    caller: z.enum(["ada", "human"]).optional(),
   }),
   // P3.1 (DEC-078): the dial boundary refused BEFORE any call existed —
   // window/cap/suppression/allow-list rails (send-sms order, ported). No

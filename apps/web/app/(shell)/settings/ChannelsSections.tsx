@@ -455,6 +455,110 @@ export function SmsSendersSection({ toast }: { toast: (m: string) => void }) {
           onChanged={refresh}
         />
       ) : null}
+      <CallRecordingCard toast={toast} />
+    </div>
+  );
+}
+
+/**
+ * B3c-2 (DEC-118(3)): the per-workspace CALL RECORDING toggle. OFF by
+ * default; no per-call choice. When on, every outbound call — Ada's and a
+ * person's browser call alike — opens with the spoken recording sentence
+ * AND the audio is actually captured: the two flip together, so the
+ * sentence is never a lie in either direction.
+ */
+function CallRecordingCard({ toast }: { toast: (m: string) => void }) {
+  const [enabled, setEnabled] = useState<boolean | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    cf("voice/defaults")
+      .then((d: { recordingEnabled?: boolean }) => {
+        if (alive) setEnabled(d.recordingEnabled ?? false);
+      })
+      .catch(() => {
+        if (alive) setEnabled(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  async function flip() {
+    if (enabled === null || saving) return;
+    const next = !enabled;
+    setSaving(true);
+    try {
+      const d = (await cf("voice/defaults", {
+        method: "PATCH",
+        body: JSON.stringify({ recordingEnabled: next }),
+      })) as { recordingEnabled?: boolean };
+      setEnabled(d.recordingEnabled ?? next);
+      toast(
+        next
+          ? "Recording on — every call now opens with the spoken recording line."
+          : "Recording off — calls are not recorded.",
+      );
+    } catch {
+      toast("The recording setting did not save — try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div
+      data-testid="call-recording-card"
+      style={{
+        marginTop: 16,
+        background: "#fff",
+        border: "1px solid #EBE3D6",
+        borderRadius: 14,
+        padding: "14px 16px",
+        display: "flex",
+        alignItems: "center",
+        gap: 14,
+      }}
+    >
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13.5, fontWeight: 700, color: "#0E1512" }}>Call recording</div>
+        <div style={{ fontSize: 12.5, color: "#5C6B62", lineHeight: 1.5, marginTop: 3 }}>
+          Off by default. When on, every outbound call opens by telling the person the call may be
+          recorded — the spoken line and the recording always go together.
+        </div>
+      </div>
+      <span
+        onClick={() => void flip()}
+        data-testid="call-recording-toggle"
+        role="switch"
+        aria-checked={enabled === true}
+        style={{
+          width: 42,
+          height: 24,
+          borderRadius: 13,
+          flex: "none",
+          background: enabled ? "#16A82A" : "#E4DCCB",
+          position: "relative",
+          cursor: enabled === null ? "default" : "pointer",
+          opacity: saving || enabled === null ? 0.55 : 1,
+          transition: "background .15s ease",
+        }}
+      >
+        <span
+          style={{
+            position: "absolute",
+            top: 3,
+            left: enabled ? 21 : 3,
+            width: 18,
+            height: 18,
+            borderRadius: "50%",
+            background: "#fff",
+            boxShadow: "0 1px 3px rgba(14,21,18,.25)",
+            transition: "left .15s ease",
+          }}
+        />
+      </span>
     </div>
   );
 }

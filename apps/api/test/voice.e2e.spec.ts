@@ -15,6 +15,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createPrismaClient, type PrismaClient } from "@clientforce/db";
 import { AppModule } from "../src/app.module";
 import { signDevToken } from "../src/auth/dev-token-verifier";
+import { awakeTimezone } from "./clock";
 
 const hasDb = Boolean(process.env.APP_DATABASE_URL ?? process.env.DATABASE_URL);
 const SECRET = process.env.AUTH_DEV_SECRET ?? "test-dev-secret";
@@ -95,6 +96,9 @@ describe.skipIf(!hasDb)("Voice API e2e (P3.1, DEC-078)", () => {
           phone: PHONE,
           firstName: "Sam",
           lastName: "Reed",
+          // A currently-awake clock — the 08:00–21:00 contact-local floor
+          // otherwise turns this spec red after 21:00 runner time.
+          timezone: awakeTimezone(),
         },
       })
     ).id;
@@ -109,6 +113,7 @@ describe.skipIf(!hasDb)("Voice API e2e (P3.1, DEC-078)", () => {
           callConsent: "granted",
           phone: SUPPRESSED_PHONE,
           firstName: "Stopped",
+          timezone: awakeTimezone(),
         },
       })
     ).id;

@@ -417,6 +417,20 @@ export const fetchCallWindow = (agentId: string, contactId: string) =>
 export const dialAdaCall = (agentId: string, contactId: string, when: "now" | "best_time") =>
   send(`agents/${encodeURIComponent(agentId)}/calls`, "POST", { contactId, when });
 
+/* ---------------------------------------------------- B3c-2 (DEC-118(1)) */
+
+/** Start a HUMAN browser-mic call: the full rail runs server-side (any
+ *  non-DNC contact with a phone — consent never gates a human dial); the
+ *  response carries either a real device token or `sandbox: true` (keyless
+ *  practice line — no real call is placed). */
+export const startBrowserCall = (agentId: string, contactId: string) =>
+  send("voice/browser-calls", "POST", { agentId, contactId });
+
+/** Sandbox-only: report the practice call's outcome. A live call's truth
+ *  arrives from the provider — the server refuses this on real rows. */
+export const finishBrowserCall = (callId: string, outcome: string, durationSec: number) =>
+  send(`voice/browser-calls/${encodeURIComponent(callId)}/finish`, "POST", { outcome, durationSec });
+
 /* ---------------------------------------------------- B3b (DEC-116/117) */
 
 /** A human reply on a thread — through the shipped send boundary. */

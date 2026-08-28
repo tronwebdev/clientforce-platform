@@ -672,6 +672,26 @@ async function main(): Promise<void> {
         },
       });
     }
+    // B3c-2 (DEC-121): call-clock fixtures — three phone contacts whose
+    // STORED timezones spread across the globe (Chicago / Berlin / Tokyo),
+    // so at any wall-clock hour at least one is inside the 08:00–21:00
+    // contact-local calling floor. The drawer's window sub-line reads the
+    // saved zone ("their saved timezone" — the checkable source), and the
+    // human-call evidence/e2e pick whichever contact is awake. Idempotent
+    // updates: re-runs restore the fixture clocks.
+    await prisma.contact.updateMany({
+      where: { workspaceId: primary.id, email: sofiaEmail },
+      data: { timezone: "America/Chicago" },
+    });
+    await prisma.contact.updateMany({
+      where: { workspaceId: primary.id, email: "edsger@demo-agency.test" },
+      data: { phone: "+15125550143", timezone: "Asia/Tokyo" },
+    });
+    await prisma.contact.updateMany({
+      where: { workspaceId: primary.id, email: "alan@demo-agency.test" },
+      data: { phone: "+15125550144", timezone: "Europe/Berlin" },
+    });
+
     const sofiaWf = `seed-b2-wf-${sofia.id}`;
     const hasEnrollment = await prisma.enrollment.findFirst({ where: { workflowId: sofiaWf } });
     if (!hasEnrollment) {

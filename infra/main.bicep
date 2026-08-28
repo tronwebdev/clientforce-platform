@@ -48,6 +48,9 @@ param sendgridSandbox string = 'true'
 @description('Whether Key Vault holds the Twilio pair (TWILIO-ACCOUNT-SID/TWILIO-AUTH-TOKEN — P2.1/DEC-061). Probed by the pipeline; absent = sms transport unconfigured (sends refuse typed, inbound rejected in production).')
 param twilioSecretsAvailable bool = false
 
+@description('B3c-2 (DEC-118(1)): whether Key Vault holds the browser-calling trio (TWILIO-API-KEY-SID / TWILIO-API-KEY-SECRET / TWILIO-TWIML-APP-SID). Probed by the pipeline; absent = human browser calls run keyless sandbox (honestly labeled practice line — no real call).')
+param browserVoiceSecretsAvailable bool = false
+
 @description('Twilio SMS sandbox (P2.1/DEC-061, same discipline as SENDGRID_SANDBOX): \'true\' everywhere by default; only an explicit production parameter flips it.')
 param smsSandbox string = 'true'
 
@@ -244,6 +247,18 @@ var voiceEnv = concat(
   voiceFromAvailable ? [{ name: 'VOICE_FROM_NUMBER', secretRef: 'voice-from-number' }] : [],
   voiceAllowlistAvailable ? [{ name: 'CHANNELS_VOICE_ALLOWLIST', secretRef: 'voice-allowlist' }] : []
 )
+// B3c-2 (DEC-118(1)): the browser-calling trio — API key pair (signs the
+// device AccessToken; NOT the auth token) + the TwiML App whose Voice URL is
+// the api's bridge webhook. Same conditional discipline.
+var browserKeySidSecret = { name: 'twilio-api-key-sid', keyVaultUrl: '${kvUri}secrets/TWILIO-API-KEY-SID', identity: uami.id }
+var browserKeySecretSecret = { name: 'twilio-api-key-secret', keyVaultUrl: '${kvUri}secrets/TWILIO-API-KEY-SECRET', identity: uami.id }
+var browserTwimlAppSecret = { name: 'twilio-twiml-app-sid', keyVaultUrl: '${kvUri}secrets/TWILIO-TWIML-APP-SID', identity: uami.id }
+var browserVoiceSecrets = browserVoiceSecretsAvailable ? [browserKeySidSecret, browserKeySecretSecret, browserTwimlAppSecret] : []
+var browserVoiceEnv = browserVoiceSecretsAvailable ? [
+  { name: 'TWILIO_API_KEY_SID', secretRef: 'twilio-api-key-sid' }
+  { name: 'TWILIO_API_KEY_SECRET', secretRef: 'twilio-api-key-secret' }
+  { name: 'TWILIO_TWIML_APP_SID', secretRef: 'twilio-twiml-app-sid' }
+] : []
 var deepgramKeySecret = { name: 'deepgram-api-key', keyVaultUrl: '${kvUri}secrets/DEEPGRAM-API-KEY', identity: uami.id }
 
 // ── API (NestJS) — external ingress :3001 ───────────────────────────────────
@@ -258,7 +273,7 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
       activeRevisionsMode: 'Single'
       ingress: { external: true, targetPort: 3001, transport: 'auto', allowInsecure: false }
       registries: registries
-      secrets: concat([dbUrlSecret, appDbUrlSecret, authDevSecret, redisUrlSecret, openaiKeySecret, anthropicKeySecret, sendgridKeySecret, fieldEncKeySecret], storageSecrets, temporalSecrets, inboundTokenSecrets, sgWebhookKeySecrets, clerkApiSecrets, twilioSecrets, smsAllowlistSecrets, voiceFromSecrets, voiceAllowlistSecrets, slackSecrets, googleSecrets)
+      secrets: concat([dbUrlSecret, appDbUrlSecret, authDevSecret, redisUrlSecret, openaiKeySecret, anthropicKeySecret, sendgridKeySecret, fieldEncKeySecret], storageSecrets, temporalSecrets, inboundTokenSecrets, sgWebhookKeySecrets, clerkApiSecrets, twilioSecrets, smsAllowlistSecrets, voiceFromSecrets, voiceAllowlistSecrets, browserVoiceSecrets, slackSecrets, googleSecrets)
     }
     template: {
       containers: [
@@ -286,7 +301,7 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
             // A3 (DEC-060a): env-controlled sandbox; 'true' everywhere except
             // an explicit production parameter — see the param description.
             { name: 'SENDGRID_SANDBOX', value: sendgridSandbox }
-          ], storageEnv, temporalEnv, inboundTokenEnv, sgWebhookKeyEnv, clerkApiEnv, twilioEnv, smsEnv, voiceEnv, slackEnv, googleEnv, webAppUrlEnv, integrationsWebhookBaseEnv)
+          ], storageEnv, temporalEnv, inboundTokenEnv, sgWebhookKeyEnv, clerkApiEnv, twilioEnv, smsEnv, voiceEnv, browserVoiceEnv, slackEnv, googleEnv, webAppUrlEnv, integrationsWebhookBaseEnv)
         }
       ]
       scale: { minReplicas: 1, maxReplicas: 3 }

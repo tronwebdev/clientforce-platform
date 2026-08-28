@@ -7,6 +7,7 @@ import {
   avTint,
   contactName,
   dialAdaCall,
+  startBrowserCall,
   enrollContact,
   fetchBoldRecipients,
   fetchCallWindow,
@@ -24,6 +25,7 @@ import {
   type ContactSignalFact,
   type TimelineEvent,
 } from "./bold-live";
+import { BoldCallCard } from "./BoldCallCard";
 
 /**
  * The Bold right drawer (392px, slides in over the canvas — prototype
@@ -79,17 +81,17 @@ function timelineLine(type: string, payload: unknown): string {
   if (type === "lead.enrolled.v1") return "Enrolled in the campaign.";
   if (type === "lead.unsubscribed.v1") return "Unsubscribed.";
   // B3c-1: call facts — the D4 outcome words, durations where recorded.
-  if (type === "call.started.v1") return "Ada called.";
+  if (type === "call.started.v1") return p.caller === "human" ? "Team call placed." : "Ada called.";
   if (type === "call.completed.v1") {
     const outcome = typeof p.outcome === "string" ? p.outcome : "completed";
     const secs = typeof p.durationSec === "number" ? p.durationSec : null;
     const dur = secs !== null ? ` (${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")})` : "";
     const word =
       outcome === "no_answer" ? "no answer" : outcome === "busy" ? "busy" : outcome === "canceled" ? "canceled" : outcome === "failed" ? "failed" : "completed";
-    return `Ada called — ${word}${outcome === "completed" ? dur : ""}.`;
+    return `${p.caller === "human" ? "Team call" : "Ada called"} — ${word}${outcome === "completed" ? dur : ""}.`;
   }
   if (type === "call.failed.v1")
-    return `Ada called — ${typeof p.reason === "string" ? p.reason.replace(/_/g, " ") : "failed"}.`;
+    return `${p.caller === "human" ? "Team call" : "Ada called"} — ${typeof p.reason === "string" ? p.reason.replace(/_/g, " ") : "failed"}.`;
   if (type === "call.booked.v1") return "Booked on the call.";
   if (type === "call.refused.v1")
     return `Call not placed — ${typeof p.reason === "string" ? p.reason.replace(/_/g, " ").toLowerCase() : "refused"}.`;
@@ -336,6 +338,8 @@ function PersonBody({
   // B3c-1: the Ada-call sheet + consent state.
   const [callOpen, setCallOpen] = useState(false);
   const [callWindow, setCallWindow] = useState<CallWindowRead | null>(null);
+  const [browserCall, setBrowserCall] = useState<{ callId: string; sandbox: boolean; token?: string } | null>(null);
+  const [humanDialing, setHumanDialing] = useState(false);
   const [consent, setConsent] = useState<string>(state.row?.callConsent ?? "unknown");
   const [voicePrice, setVoicePrice] = useState<number | null>(null);
   const [dialing, setDialing] = useState(false);
@@ -424,6 +428,22 @@ function PersonBody({
   function toggleCallSheet() {
     setCallOpen((v) => !v);
   }
+  async function startHumanCall() {
+    if (!callAgentId || humanDialing || browserCall) return;
+    setHumanDialing(true);
+    try {
+      const res = await startBrowserCall(callAgentId, state.contact.id);
+      if (!res.ok) {
+        flash?.(res.error || "The call was refused.");
+        return;
+      }
+      const body = res.body as { callId: string; sandbox: boolean; token?: string };
+      setBrowserCall({ callId: body.callId, sandbox: body.sandbox, ...(body.token ? { token: body.token } : {}) });
+    } finally {
+      setHumanDialing(false);
+    }
+  }
+
   async function queueAdaCall() {
     if (!callAgentId || dialing) return;
     setDialing(true);
@@ -630,7 +650,32 @@ function PersonBody({
               </div>
             </>
           )}
+          {callAgentId ? (
+            <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--cvb-line-ctl)", display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 12, color: "var(--cvb-muted)", lineHeight: 1.45, flex: 1 }}>
+                Or call them yourself — your mic, through the business line.
+              </span>
+              <span
+                onClick={() => void startHumanCall()}
+                data-testid="bold-person-call-human"
+                style={{ fontSize: 12, fontWeight: 800, color: "var(--cvb-slate)", background: "var(--cvb-slate-tint)", border: "1px solid var(--cvb-slate-line)", borderRadius: 10, padding: "8px 13px", cursor: "pointer", flex: "none", opacity: humanDialing || browserCall ? 0.6 : 1 }}
+              >
+                {humanDialing ? "Connecting…" : "Call now"}
+              </span>
+            </div>
+          ) : null}
         </div>
+      ) : null}
+
+      {browserCall ? (
+        <BoldCallCard
+          callId={browserCall.callId}
+          contactName={contactName(state.contact)}
+          sandbox={browserCall.sandbox}
+          {...(browserCall.token ? { token: browserCall.token } : {})}
+          flash={(m) => flash?.(m)}
+          onDone={() => setBrowserCall(null)}
+        />
       ) : null}
 
       {/* Call permission (DEC-118(2)) — every flip lands provenance on the

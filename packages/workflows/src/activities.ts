@@ -15,6 +15,8 @@ import {
   type SmsSender,
   type SmsStepComposer,
   assertDialAllowed,
+  recordingStatusCallbackUrl,
+  workspaceRecordingEnabled,
   deriveVoiceMediaToken,
   type VoiceDialer,
 } from "@clientforce/channels";
@@ -244,10 +246,12 @@ export function createActivities(deps: ActivityDeps) {
       const gateToken = process.env.TWILIO_AUTH_TOKEN
         ? `&t=${deriveVoiceMediaToken(process.env.TWILIO_AUTH_TOKEN)}`
         : "";
+      const record = await workspaceRecordingEnabled(prisma, params.workspaceId);
       const result = await deps.voiceDialer.placeCall({
         to: clearance.phone,
         twimlUrl: `${voiceServiceUrl}/twiml?callId=${call.id}&workspaceId=${params.workspaceId}${gateToken}`,
         ...(apiPublicUrl ? { statusCallbackUrl: `${apiPublicUrl}/webhooks/twilio-voice-status` } : {}),
+        ...(record ? { record: true, recordingStatusCallbackUrl: recordingStatusCallbackUrl() } : {}),
       });
       await withTenant(prisma, ctx, (tx) =>
         tx.call.update({
