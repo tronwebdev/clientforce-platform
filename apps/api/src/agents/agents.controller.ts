@@ -7,9 +7,11 @@ import {
   NotFoundException,
   Param,
   Patch,
+  Req,
   Post,
 } from "@nestjs/common";
 import {
+  DEFAULT_AUTONOMY,
   agentSuggestionSchema,
   createAgentSchema,
   goalTerminalPill,
@@ -21,6 +23,7 @@ import {
 } from "@clientforce/core";
 import { Prisma, Role } from "@clientforce/db";
 import { Roles } from "../auth/decorators";
+import type { AuthenticatedRequest } from "../auth/request-context";
 import { TenantClient } from "../db/tenant-client";
 import { agentCreateData } from "./create-agent";
 
@@ -213,7 +216,7 @@ export class AgentsController {
 
   @Patch(":id")
   @Roles(Role.OWNER, Role.ADMIN)
-  async update(@Param("id") id: string, @Body() body: unknown) {
+  async update(@Req() req: AuthenticatedRequest, @Param("id") id: string, @Body() body: unknown) {
     const parsed = updateAgentSchema.safeParse(body);
     if (!parsed.success) {
       throw new BadRequestException({
@@ -276,6 +279,31 @@ export class AgentsController {
         }
         if (parsedGuardrails.composeMode === undefined && existing?.composeMode !== undefined) {
           parsedGuardrails = { ...parsedGuardrails, composeMode: existing.composeMode };
+        }
+        // B3d (DEC-122): the autonomy rider gets the same omit-preserve rule
+        // — the create flow's launch rebuild and the legacy Settings full-A8
+        // compose must never silently reset "Ask me first" back to the
+        // default. A caller that SENDS autonomy writes it as given.
+        if (parsedGuardrails.autonomy === undefined && existing?.autonomy !== undefined) {
+          parsedGuardrails = { ...parsedGuardrails, autonomy: existing.autonomy };
+        }
+        // A level CHANGE lands on the campaign timeline — who, old → new.
+        const fromLevel = existing?.autonomy ?? DEFAULT_AUTONOMY;
+        const toLevel = parsedGuardrails.autonomy ?? DEFAULT_AUTONOMY;
+        if (fromLevel !== toLevel) {
+          const campaign = await tx.campaign.findFirst({
+            where: { agentId: id },
+            orderBy: { createdAt: "asc" },
+            select: { id: true },
+          });
+          await tx.event.create({
+            data: {
+              workspaceId: this.tenant.workspaceId,
+              campaignId: campaign?.id ?? null,
+              type: "campaign.autonomy_changed.v1",
+              payload: { from: fromLevel, to: toLevel, byUserId: req.auth?.user.id },
+            },
+          });
         }
       }
       return tx.agent.update({

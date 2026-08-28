@@ -40,6 +40,10 @@ const KIND_EVENT_TYPES: Record<Exclude<BoldActivityKind, "send">, string[]> = {
     "sms.compose_refused.v1",
     "contact.enrollment_refused.v1",
     "lead.unsubscribed.v1",
+    // B3d (DEC-122): autonomy + approvals are decisions by definition.
+    "campaign.autonomy_changed.v1",
+    "approval.created.v1",
+    "approval.decided.v1",
   ],
 };
 const TYPE_TO_KIND = new Map<string, BoldActivityKind>(
@@ -104,12 +108,23 @@ export class BoldActivityController {
           : KIND_EVENT_TYPES[kindFilter];
       const wantSends = !kindFilter || kindFilter === "send";
 
+      // Goal rows: the terminal-only predicate must live IN the query — a
+      // window of newest events can otherwise be all pipeline noise, and an
+      // empty shaped page would claim exhaustion while real goal rows sit
+      // below it (pagination starvation).
+      const goalEventWhere = {
+        OR: [
+          { type: "calendar.booked.v1" },
+          { type: "lead.stage_changed.v1", payload: { path: ["goalKey"], string_contains: "" } },
+          { type: "lead.stage_changed.v1", payload: { path: ["toStage"], equals: "booked" } },
+        ],
+      };
       const [events, sendAgg] = await Promise.all([
         types.length
           ? tx.event.findMany({
               where: {
                 campaignId: campaign.id,
-                type: { in: types },
+                ...(kindFilter === "goal" ? goalEventWhere : { type: { in: types } }),
                 ...(before ? { occurredAt: { lt: before } } : {}),
               },
               orderBy: { occurredAt: "desc" },

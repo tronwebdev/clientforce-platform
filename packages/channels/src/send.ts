@@ -1,6 +1,7 @@
 import { parseFields } from "@clientforce/context";
 import {
   COMPLIANCE_STRINGS,
+  DEFAULT_AUTONOMY,
   parseGuardrails,
   resolveLanguage,
   type Guardrails,
@@ -71,6 +72,12 @@ export interface SendStepParams {
    * byte-identical to pre-G2). The sms twin landed in G1 (DEC-070).
    */
   composed?: { mode: "guided"; briefVersion: number | null; composerVersion: string };
+  /**
+   * B3d (DEC-120 expansion 1): marks this outbound as Ada's may-we-call ask —
+   * merged into `Message.meta` so an affirmative reply ON THIS THREAD can
+   * flip call consent deterministically. Pass-through; no rail reads it.
+   */
+  consentAsk?: boolean;
 }
 
 const UNSUB_BASE = (): string =>
@@ -138,6 +145,28 @@ export async function sendStep(deps: SendDeps, params: SendStepParams): Promise<
         throw new SendBlockedError(
           "ENROLLMENT_HELD",
           "a human replied on this conversation — Ada waits for Resume",
+        );
+      }
+    }
+    // B3d (DEC-122): level 1 ("Ask me first") — a scheduled step send needs
+    // an APPROVED approval for THIS step. The workflow parks and waits; this
+    // is the boundary's belt-and-braces (the ENROLLMENT_HELD pattern), so no
+    // path around the workflow can send unapproved at level 1.
+    if ((guardrails.autonomy ?? DEFAULT_AUTONOMY) === "ask" && params.enrollmentId && params.stepNodeId) {
+      const approved = await withTenant(prisma, ctx, (tx) =>
+        tx.approval.findFirst({
+          where: {
+            enrollmentId: params.enrollmentId,
+            status: "APPROVED",
+            meta: { path: ["stepNodeId"], equals: params.stepNodeId },
+          },
+          select: { id: true },
+        }),
+      );
+      if (!approved) {
+        throw new SendBlockedError(
+          "APPROVAL_REQUIRED",
+          "this campaign asks first — the step waits for your tap",
         );
       }
     }
@@ -301,6 +330,8 @@ export async function sendStep(deps: SendDeps, params: SendStepParams): Promise<
           ...(params.composed ?? {}),
           // B3b: human-reply provenance — absent on every step send.
           ...(params.replyBy ? { reply: params.replyBy } : {}),
+          // B3d: the may-we-call ask marker — absent everywhere else.
+          ...(params.consentAsk ? { consentAsk: true } : {}),
         },
       },
     }),

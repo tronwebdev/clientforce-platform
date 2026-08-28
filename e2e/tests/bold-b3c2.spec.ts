@@ -116,6 +116,11 @@ test("the workspace recording toggle round-trips and restores OFF", async ({ pag
   await expect(toggle).toBeVisible();
   await expect(page.getByTestId("call-recording-card")).toContainText("Off by default");
 
+  // Restore-first: a prior run that died mid-flip can leave it on.
+  if ((await toggle.getAttribute("aria-checked")) === "true") {
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-checked", "false", { timeout: 10_000 });
+  }
   await expect(toggle).toHaveAttribute("aria-checked", "false");
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-checked", "true", { timeout: 10_000 });

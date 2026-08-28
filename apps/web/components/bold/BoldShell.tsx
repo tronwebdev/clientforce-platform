@@ -14,6 +14,7 @@ import { BoldInboxView } from "./BoldInboxView";
 import { BoldOverview } from "./BoldOverview";
 import { BoldPipelineView } from "./BoldPipelineView";
 import { BoldPlanView } from "./BoldPlanView";
+import { BoldSettingsTab } from "./BoldSettingsTab";
 import { BoldRail } from "./BoldRail";
 import { BoldTourLayer, BoldTourOffer, useBoldTour } from "./BoldTour";
 import { BoldWsPicker } from "./BoldWsPicker";
@@ -377,6 +378,7 @@ export function BoldShell({
                     onOpenDrawer={setDrawer}
                     onAllActivity={() => setSurface("activity")}
                     onValueSaved={refreshAgents}
+                    onOpenInbox={() => setTab("inbox")}
                     flash={flash}
                   />
                 ) : tab === "pipeline" ? (
@@ -385,6 +387,8 @@ export function BoldShell({
                   <BoldPlanView agent={activeCamp} flash={flash} />
                 ) : tab === "inbox" ? (
                   <BoldInboxView scope={{ kind: "campaign", agent: activeCamp }} onOpenDrawer={setDrawer} flash={flash} meId={me.user.id} />
+                ) : tab === "settings" ? (
+                  <BoldSettingsTab agent={activeCamp} flash={flash} />
                 ) : (
                   <SurfaceStub title={`${activeCamp.name} — ${TABS.find(([k]) => k === tab)?.[1] ?? ""}`} />
                 )}

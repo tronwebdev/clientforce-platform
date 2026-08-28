@@ -542,6 +542,37 @@ model EnrollmentHold {
 /// PRE-enrollment validation hold (a different lifecycle). Released rows keep
 /// their stamps; active = releasedAt null. The send boundary refuses step
 /// sends against an active hold; human replies pass.
+/// B3d (DEC-122): ONE approval spine for everything that waits on a human
+/// tap — level-1 step parks now; budget/branch actions when their emitters
+/// exist. Derived queue items (campaign proposals = Agent.suggestion rows,
+/// needs-reply threads) are NOT duplicated here — the queue assembler reads
+/// them live; this table holds only items whose WAIT is its own state.
+model Approval {
+  id           String    @id @default(cuid())
+  workspaceId  String
+  campaignId   String
+  agentId      String
+  enrollmentId String?
+  contactId    String?
+  /// step_send | step_call | budget_move | branch_start (typed vocabulary;
+  /// reply drafts + proposals are derived, never rows)
+  kind         String
+  /// PENDING | APPROVED | DISMISSED
+  status       String    @default("PENDING")
+  /// The provenance line the queue renders — factual, human-readable.
+  reason       String
+  /// stepNodeId, channel, scheduled copy refs — kind-shaped.
+  meta         Json?
+  decidedById  String?
+  decidedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([enrollmentId, status])
+  @@index([workspaceId, campaignId, status])
+  @@index([workspaceId, status, createdAt])
+}
+
 model EnrollmentReplyHold {
   id           String     @id @default(cuid())
   workspaceId  String

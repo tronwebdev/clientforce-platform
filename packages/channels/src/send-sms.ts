@@ -10,6 +10,7 @@
  */
 import {
   COMPLIANCE_STRINGS,
+  DEFAULT_AUTONOMY,
   parseGuardrails,
   resolveLanguage,
   type Guardrails,
@@ -71,6 +72,8 @@ export interface SendSmsStepParams {
    * byte-identical to pre-G1).
    */
   composed?: { mode: "guided"; briefVersion: number | null; composerVersion: string };
+  /** B3d (DEC-120 expansion 1): the may-we-call ask marker — pass-through. */
+  consentAsk?: boolean;
 }
 
 /**
@@ -138,6 +141,24 @@ export async function sendSmsStep(deps: SendSmsDeps, params: SendSmsStepParams):
         throw new SendBlockedError(
           "ENROLLMENT_HELD",
           "a human replied on this conversation — Ada waits for Resume",
+        );
+      }
+    }
+    if ((guardrails.autonomy ?? DEFAULT_AUTONOMY) === "ask" && params.enrollmentId && params.stepNodeId) {
+      const approved = await withTenant(prisma, ctx, (tx) =>
+        tx.approval.findFirst({
+          where: {
+            enrollmentId: params.enrollmentId,
+            status: "APPROVED",
+            meta: { path: ["stepNodeId"], equals: params.stepNodeId },
+          },
+          select: { id: true },
+        }),
+      );
+      if (!approved) {
+        throw new SendBlockedError(
+          "APPROVAL_REQUIRED",
+          "this campaign asks first — the step waits for your tap",
         );
       }
     }
@@ -226,6 +247,7 @@ export async function sendSmsStep(deps: SendSmsDeps, params: SendSmsStepParams):
           segments,
           optOutLine: !priorSms,
           ...(params.composed ?? {}),
+          ...(params.consentAsk ? { consentAsk: true } : {}),
           // B3b: human-reply provenance — absent on every step send.
           ...(params.replyBy ? { reply: params.replyBy } : {}),
         },

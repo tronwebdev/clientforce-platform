@@ -7,6 +7,7 @@ import {
   avTint,
   contactName,
   dialAdaCall,
+  sendConsentAsk,
   startBrowserCall,
   enrollContact,
   fetchBoldRecipients,
@@ -96,7 +97,16 @@ function timelineLine(type: string, payload: unknown): string {
   if (type === "call.refused.v1")
     return `Call not placed — ${typeof p.reason === "string" ? p.reason.replace(/_/g, " ").toLowerCase() : "refused"}.`;
   if (type === "contact.call_consent.v1")
-    return `Call consent set to ${typeof p.value === "string" ? p.value : "unknown"}.`;
+    return `Call consent set to ${typeof p.value === "string" ? p.value : "unknown"}${p.how === "reply" ? " — they said yes by message" : ""}.`;
+  if (type === "approval.created.v1")
+    return typeof p.reason === "string" ? p.reason : "Waiting for your approval.";
+  if (type === "approval.decided.v1")
+    return p.decision === "approved" ? "Approved — it went ahead." : "Dismissed.";
+  if (type === "campaign.autonomy_changed.v1") {
+    const word = (v: unknown) =>
+      v === "ask" ? "ask first" : v === "full" ? "full autonomy" : "act inside limits";
+    return `How much Ada decides changed — ${word(p.from)} to ${word(p.to)}.`;
+  }
   return type.replace(/\.v\d+$/, "").replace(/[._]/g, " ");
 }
 
@@ -428,6 +438,23 @@ function PersonBody({
   function toggleCallSheet() {
     setCallOpen((v) => !v);
   }
+  const [asking, setAsking] = useState(false);
+  async function askConsent() {
+    if (!callAgentId || asking) return;
+    setAsking(true);
+    try {
+      const res = await sendConsentAsk(callAgentId, state.contact.id);
+      if (!res.ok) {
+        flash?.(res.error || "The ask was not sent.");
+        return;
+      }
+      const channel = (res.body as { channel?: string })?.channel;
+      flash?.(`Asked by ${channel === "sms" ? "text" : "email"} — a yes flips it automatically.`);
+    } finally {
+      setAsking(false);
+    }
+  }
+
   async function startHumanCall() {
     if (!callAgentId || humanDialing || browserCall) return;
     setHumanDialing(true);
@@ -616,6 +643,20 @@ function PersonBody({
               {row
                 ? "Ada only calls people who said yes. Set call permission below and this opens up."
                 : "Ada only calls people who said yes. Set call permission from their contact page."}
+              {callAgentId ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }}>
+                  <span style={{ fontSize: 12, color: "var(--cvb-muted)", flex: 1, lineHeight: 1.45 }}>
+                    Or have Ada ask them — a yes by message flips it.
+                  </span>
+                  <span
+                    onClick={() => void askConsent()}
+                    data-testid="bold-person-consent-ask"
+                    style={{ fontSize: 12, fontWeight: 800, color: "var(--cvb-card)", background: asking ? "var(--cvb-ghost)" : "var(--cvb-forest)", borderRadius: 10, padding: "7px 12px", cursor: "pointer", flex: "none" }}
+                  >
+                    {asking ? "Sending…" : "Ask them"}
+                  </span>
+                </div>
+              ) : null}
             </div>
           ) : (
             <>

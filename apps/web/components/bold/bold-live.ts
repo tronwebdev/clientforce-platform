@@ -431,6 +431,34 @@ export const startBrowserCall = (agentId: string, contactId: string) =>
 export const finishBrowserCall = (callId: string, outcome: string, durationSec: number) =>
   send(`voice/browser-calls/${encodeURIComponent(callId)}/finish`, "POST", { outcome, durationSec });
 
+/* ---------------------------------------------------- B3d (DEC-122) */
+
+/** One typed item in the unified approvals queue. */
+export interface ApprovalQueueItem {
+  kind: string;
+  approvalId: string | null;
+  agentId: string;
+  campaignId: string | null;
+  contactId: string | null;
+  contactName: string | null;
+  reason: string;
+  createdAt: string;
+  enrollmentId?: string | null;
+  intent?: string | null;
+}
+export const fetchApprovals = (agentId?: string) =>
+  get<{ items: ApprovalQueueItem[] }>(`approvals${agentId ? `?agentId=${encodeURIComponent(agentId)}` : ""}`);
+
+/** Decide a row-backed item — approve releases the parked step, dismiss
+ *  ends that path visibly. Derived items decide on their own endpoints. */
+export const decideApproval = (approvalId: string, decision: "approved" | "dismissed") =>
+  send(`approvals/${encodeURIComponent(approvalId)}/decide`, "POST", { decision });
+
+/** Ada's may-we-call ask — one fixed line through the send boundary; an
+ *  affirmative reply flips call consent with the message as provenance. */
+export const sendConsentAsk = (agentId: string, contactId: string) =>
+  send("inbox/consent-ask", "POST", { agentId, contactId });
+
 /* ---------------------------------------------------- B3b (DEC-116/117) */
 
 /** A human reply on a thread — through the shipped send boundary. */

@@ -92,6 +92,18 @@ export const guardrailsSchema = z.object({
    * rails below are untouched.
    */
   voice: voiceRiderSchema.optional(),
+  /**
+   * B3d (DEC-122): per-campaign autonomy — how much Ada decides. Rides this
+   * Json like every rider — no migration; absent = "limits" (the default:
+   * she acts inside the guardrails; anything outside waits). "ask" parks
+   * every scheduled outbound as an approval; "full" additionally covers
+   * budget moves + branch starts when those actions exist. NO level ever
+   * bypasses the send-boundary gates, quiet hours, consent/DNC, or the
+   * DEC-116 reply hold — autonomy decides who taps, never what is allowed.
+   * No zod .default(): a materialized value would rewrite every row on the
+   * next guardrails round-trip (the voice-rider precedent).
+   */
+  autonomy: z.enum(["ask", "limits", "full"]).optional(),
   unsubscribeFooter: z.literal(true),
   suppressionCheck: z.literal(true),
 });
@@ -106,6 +118,10 @@ export const DEFAULT_GUARDRAILS: Guardrails = {
   unsubscribeFooter: true,
   suppressionCheck: true,
 };
+
+/** B3d: the autonomy fallback — absent rider = "Act inside limits". */
+export const DEFAULT_AUTONOMY = "limits" as const;
+export type AutonomyLevel = "ask" | "limits" | "full";
 
 /**
  * Parse an agent's stored guardrails; an empty/legacy value falls back to the

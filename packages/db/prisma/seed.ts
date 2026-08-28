@@ -672,6 +672,89 @@ async function main(): Promise<void> {
         },
       });
     }
+    // B3d (Q-086 interim ruling): the staging deploy reseeds on every run
+    // (packages/db/Dockerfile CMD) — this pass makes that reseed also CLEAN
+    // the browser suite's accumulated artifacts, so the post-deploy e2e gate
+    // stops failing on leftovers. Bounded to rows the specs themselves
+    // name-tag with "e2e-": campaigns the create-flow spec launched, CSV
+    // contacts, and quote lists. Demo fixtures are untouched.
+    {
+      const e2eAgents = await prisma.agent.findMany({
+        where: {
+          workspaceId: primary.id,
+          OR: [{ goalSummary: { contains: "e2e" } }, { name: { contains: "e2e" } }],
+        },
+        select: { id: true },
+      });
+      const agentIds = e2eAgents.map((a) => a.id);
+      if (agentIds.length > 0) {
+        const camps = await prisma.campaign.findMany({
+          where: { agentId: { in: agentIds } },
+          select: { id: true },
+        });
+        const campIds = camps.map((c) => c.id);
+        if (campIds.length > 0) {
+          await prisma.enrollmentReplyHold.deleteMany({ where: { campaignId: { in: campIds } } });
+          await prisma.approval.deleteMany({ where: { campaignId: { in: campIds } } });
+          await prisma.call.deleteMany({ where: { campaignId: { in: campIds } } });
+          await prisma.message.deleteMany({ where: { campaignId: { in: campIds } } });
+          await prisma.event.deleteMany({ where: { campaignId: { in: campIds } } });
+          await prisma.enrollment.deleteMany({ where: { campaignId: { in: campIds } } });
+          await prisma.campaignGraph.deleteMany({ where: { campaignId: { in: campIds } } });
+          await prisma.campaignRule.deleteMany({ where: { campaignId: { in: campIds } } });
+          await prisma.campaign.deleteMany({ where: { id: { in: campIds } } });
+        }
+        await prisma.agent.deleteMany({ where: { id: { in: agentIds } } });
+      }
+      const e2eContacts = await prisma.contact.findMany({
+        where: { workspaceId: primary.id, email: { startsWith: "e2e-" } },
+        select: { id: true },
+      });
+      const contactIds = e2eContacts.map((c) => c.id);
+      if (contactIds.length > 0) {
+        await prisma.contactListMember.deleteMany({ where: { contactId: { in: contactIds } } });
+        await prisma.message.deleteMany({ where: { contactId: { in: contactIds } } });
+        await prisma.event.deleteMany({ where: { contactId: { in: contactIds } } });
+        await prisma.enrollment.deleteMany({ where: { contactId: { in: contactIds } } });
+        await prisma.contact.deleteMany({ where: { id: { in: contactIds } } });
+      }
+      await prisma.contactList.deleteMany({
+        where: { workspaceId: primary.id, name: { startsWith: "e2e-" } },
+      });
+      // The browser suite's practice calls (human + browser rows on demo are
+      // e2e artifacts by construction) and its autonomy-flip receipts — both
+      // displace the seeded activity feed if left to accumulate.
+      const practiceCalls = await prisma.call.findMany({
+        where: { workspaceId: primary.id, caller: "human" },
+        select: { id: true },
+      });
+      if (practiceCalls.length > 0) {
+        const callIds = practiceCalls.map((c) => c.id);
+        const callEvents = await prisma.event.findMany({
+          where: { workspaceId: primary.id, type: { startsWith: "call." } },
+          select: { id: true, payload: true },
+        });
+        const toDelete = callEvents
+          .filter((e) => callIds.includes(((e.payload ?? {}) as { callId?: string }).callId ?? ""))
+          .map((e) => e.id);
+        if (toDelete.length > 0) await prisma.event.deleteMany({ where: { id: { in: toDelete } } });
+        await prisma.call.deleteMany({ where: { id: { in: callIds } } });
+      }
+      await prisma.event.deleteMany({
+        where: { workspaceId: primary.id, type: "campaign.autonomy_changed.v1" },
+      });
+      await prisma.approval.deleteMany({ where: { workspaceId: primary.id } });
+      // The pipeline spec's drag round-trips (manual stage shuffles, two per
+      // run) — pure noise that starves the goal filter's window if left.
+      await prisma.event.deleteMany({
+        where: {
+          workspaceId: primary.id,
+          type: "lead.stage_changed.v1",
+          payload: { path: ["manual"], equals: true },
+        },
+      });
+    }
+
     // B3c-2 (DEC-121): call-clock fixtures — three phone contacts whose
     // STORED timezones spread across the globe (Chicago / Berlin / Tokyo),
     // so at any wall-clock hour at least one is inside the 08:00–21:00

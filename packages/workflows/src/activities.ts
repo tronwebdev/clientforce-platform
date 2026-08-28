@@ -21,6 +21,7 @@ import {
   type VoiceDialer,
 } from "@clientforce/channels";
 import {
+  DEFAULT_AUTONOMY,
   goalTerminalLabel,
   parseGuardrails,
   type StepBrief,
@@ -151,6 +152,80 @@ export function createActivities(deps: ActivityDeps) {
         }),
       );
       return hold !== null;
+    },
+
+    /**
+     * B3d (DEC-122): the level-1 park. At autonomy "ask" every scheduled
+     * step waits on an Approval row; the workflow polls this until the
+     * owner decides. Idempotent per (enrollment, stepNodeId) — the Call
+     * meta.stepNodeId precedent. Any other level returns not_required and
+     * the step proceeds; NO level bypasses the boundary rails downstream.
+     */
+    async ensureStepApproval(params: {
+      workspaceId: string;
+      enrollmentId: string;
+      campaignId: string;
+      agentId: string;
+      contactId: string;
+      stepNodeId: string;
+      channel?: string;
+    }): Promise<"not_required" | "pending" | "approved" | "dismissed"> {
+      const ctx = { workspaceId: params.workspaceId };
+      const agent = await withTenant(prisma, ctx, (tx) =>
+        tx.agent.findUnique({ where: { id: params.agentId }, select: { guardrails: true } }),
+      );
+      if (!agent) throw new Error(`Agent ${params.agentId} not found`);
+      const level = parseGuardrails(agent.guardrails).autonomy ?? DEFAULT_AUTONOMY;
+      if (level !== "ask") return "not_required";
+      const existing = await withTenant(prisma, ctx, (tx) =>
+        tx.approval.findFirst({
+          where: {
+            enrollmentId: params.enrollmentId,
+            meta: { path: ["stepNodeId"], equals: params.stepNodeId },
+          },
+          orderBy: { createdAt: "desc" },
+          select: { status: true },
+        }),
+      );
+      if (existing?.status === "APPROVED") return "approved";
+      if (existing?.status === "DISMISSED") return "dismissed";
+      if (existing?.status === "PENDING") return "pending";
+      const contact = await withTenant(prisma, ctx, (tx) =>
+        tx.contact.findUnique({
+          where: { id: params.contactId },
+          select: { firstName: true, lastName: true, email: true },
+        }),
+      );
+      const name =
+        [contact?.firstName, contact?.lastName].filter(Boolean).join(" ") || contact?.email || "a contact";
+      const word = params.channel === "voice" ? "call to" : `${params.channel ?? "email"} to`;
+      const approval = await withTenant(prisma, ctx, (tx) =>
+        tx.approval.create({
+          data: {
+            workspaceId: params.workspaceId,
+            campaignId: params.campaignId,
+            agentId: params.agentId,
+            enrollmentId: params.enrollmentId,
+            contactId: params.contactId,
+            kind: params.channel === "voice" ? "step_call" : "step_send",
+            reason: `A scheduled ${word} ${name} — this campaign asks first.`,
+            meta: { stepNodeId: params.stepNodeId, channel: params.channel ?? "email" },
+          },
+        }),
+      );
+      await withTenant(prisma, ctx, (tx) =>
+        tx.event.create({
+          data: {
+            workspaceId: params.workspaceId,
+            campaignId: params.campaignId,
+            contactId: params.contactId,
+            enrollmentId: params.enrollmentId,
+            type: "approval.created.v1",
+            payload: { approvalId: approval.id, kind: approval.kind, reason: approval.reason },
+          },
+        }),
+      );
+      return "pending";
     },
 
     /**
