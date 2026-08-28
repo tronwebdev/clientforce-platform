@@ -1,25 +1,25 @@
 {
   "unit": "b3d",
-  "commit": "b2b8e5d1a9b48343ce8637a59b9f11707b1ad156",
+  "commit": "b1799d2272f94129dec5c9820fd480968d89a757",
   "workingTreeDirtyAtCapture": false,
-  "capturedAt": "2026-08-28T17:47:08.508Z",
+  "capturedAt": "2026-08-28T17:51:11.655Z",
   "baseUrl": "http://localhost:3000",
   "note": "Single-run capture; every frame from one build. Verify a frame by hashing its bytes against this manifest — never by trusting an image cache. pnpm lint:fidelity enforces the binding.",
   "frames": {
     "build-approvals-panel-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 177914,
-      "sha256": "40a0f6018bcfbb32e28d2f3f023b2a9614a8020255d803e667a325cb5e1d3c86"
+      "bytes": 180506,
+      "sha256": "6f7942460a10e7b1404cfdda8d3c353e8977166cf0f42ef3fe77389ee372e758"
     },
     "build-needs-strip-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 202226,
-      "sha256": "63de3f1aa7556f1e64639b9297e7e880b0bfa80904e3bbf70eabf33148d1aa6f"
+      "bytes": 204638,
+      "sha256": "cf55ed0fae7533492614f7383b67728dd2db9655c4ebd69d51727d8722b4a7b7"
     },
     "build-settings-auto-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 115458,
-      "sha256": "a7a682f2a1aae9702d29ea282661dccf6e67615676383912cbe4e57b00f17a4a"
+      "bytes": 115459,
+      "sha256": "6a54cc0c40e87881049b470fa0eee4fc6b5565573c4fafedb59075892aca3ed4"
     },
     "proto-settings-auto-1440x900.png": {
       "viewport": "1440x900",
