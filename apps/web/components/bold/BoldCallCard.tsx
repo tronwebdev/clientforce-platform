@@ -41,6 +41,7 @@ const mono = { fontFamily: "var(--cvb-font-mono)" } as const;
 
 export function BoldCallCard({ callId, contactName, sandbox, token, onDone, flash }: BoldCallCardProps) {
   const [phase, setPhase] = useState<Phase>("connecting");
+  const [errorLine, setErrorLine] = useState<string | null>(null);
   const [seconds, setSeconds] = useState(0);
   const [muted, setMuted] = useState(false);
   const callRef = useRef<TwilioCallLike | null>(null);
@@ -62,6 +63,18 @@ export function BoldCallCard({ callId, contactName, sandbox, token, onDone, flas
     }
     (async () => {
       try {
+        // Mic preflight: a declined permission must read as a plain refusal,
+        // never a hang — surface it BEFORE the device tries to connect.
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          stream.getTracks().forEach((t) => t.stop());
+        } catch {
+          if (!cancelled) {
+            setErrorLine("Your browser declined microphone access — allow the mic and try again.");
+            setPhase("error");
+          }
+          return;
+        }
         const sdk = (await import("@twilio/voice-sdk")) as unknown as {
           Device: new (token: string, opts?: Record<string, unknown>) => TwilioDeviceLike;
         };
@@ -127,7 +140,7 @@ export function BoldCallCard({ callId, contactName, sandbox, token, onDone, flas
       : phase === "oncall"
         ? `On the call with ${contactName}`
         : phase === "error"
-          ? "The call could not connect."
+          ? (errorLine ?? "The call could not connect.")
           : "Call ended.";
 
   return (
