@@ -162,9 +162,20 @@ export class BoldActivityController {
           const hasGoalKey = typeof payload.goalKey === "string" && payload.goalKey.length > 0;
           if (toStage !== "booked" && !hasGoalKey) continue;
         }
+        // B3d: the new decision types carry their factual sentence in
+        // `reason` so the client never words them with the hold copy.
+        let reason = typeof payload.reason === "string" ? payload.reason : null;
+        if (e.type === "campaign.autonomy_changed.v1") {
+          const word = (v: unknown) =>
+            v === "ask" ? "ask first" : v === "full" ? "full autonomy" : "act inside limits";
+          reason = `How much Ada decides changed — ${word(payload.from)} to ${word(payload.to)}.`;
+        } else if (e.type === "approval.decided.v1") {
+          reason = payload.decision === "approved" ? "Approved — it went ahead." : "Dismissed.";
+        }
         rows.push({
           id: e.id,
           kind: rowKind,
+          type: e.type,
           occurredAt: e.occurredAt.toISOString(),
           contact: (e.contact as BoldActivityContact | null) ?? null,
           intent: typeof payload.intent === "string" ? payload.intent : null,
@@ -179,7 +190,7 @@ export class BoldActivityController {
           stepNodeId: typeof payload.stepNodeId === "string" ? payload.stepNodeId : null,
           channel: null,
           day: null,
-          reason: typeof payload.reason === "string" ? payload.reason : null,
+          reason,
         });
       }
       for (const s of sendAgg) {

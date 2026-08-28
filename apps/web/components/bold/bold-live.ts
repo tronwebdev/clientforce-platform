@@ -663,13 +663,22 @@ export function composeRow(row: BoldActivityRow, stepLabel?: string): ComposedRo
       return { row, tone: "proposal", chip: "Proposal", body: `Proposal activity — ${name}.`, value: null };
     case "call":
       return { row, tone: "call", chip: "Call", body: `Call with ${name}.`, value: null };
-    case "decision":
+    case "decision": {
+      // B3d: the new decision types speak their own factual sentence — only
+      // the original refusal/unsubscribe family reads as a hold.
+      const selfWorded =
+        row.type === "campaign.autonomy_changed.v1" ||
+        row.type === "approval.created.v1" ||
+        row.type === "approval.decided.v1";
       return {
         row,
         tone: "decision",
         chip: "Decision",
-        body: `Held ${name} back${row.reason ? ` — ${row.reason}` : ""}.`,
+        body: selfWorded
+          ? (row.reason ?? "A decision landed.")
+          : `Held ${name} back${row.reason ? ` — ${row.reason}` : ""}.`,
         value: null,
       };
+    }
   }
 }

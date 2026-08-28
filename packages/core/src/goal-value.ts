@@ -174,6 +174,8 @@ export interface BoldActivityRow {
   /** Stable row id (event id, or `send:{stepNodeId}:{day}` for aggregates). */
   id: string;
   kind: BoldActivityKind;
+  /** B3d: the source event type (additive) — decision rows word by it. */
+  type?: string;
   occurredAt: string;
   contact: BoldActivityContact | null;
   /** Classified intent on reply rows (IntentSchema values). */
