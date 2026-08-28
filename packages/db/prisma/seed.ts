@@ -755,6 +755,69 @@ async function main(): Promise<void> {
       });
     }
 
+    // B4 (DEC-124): the demo site agent — a REAL Widget row (stable public
+    // credential) with two visitor conversations and one captured callback,
+    // so the Bold surface, rail and dock read live truth instead of a
+    // fixture. Idempotent: keyed on the fixed publicId / session ids.
+    {
+      const demoAgentRow = await prisma.agent.findFirst({
+        where: { workspaceId: primary.id, name: "Implant open day" },
+        select: { id: true },
+      });
+      if (demoAgentRow) {
+        let widget = await prisma.widget.findFirst({
+          where: { workspaceId: primary.id },
+        });
+        if (!widget) {
+          widget = await prisma.widget.create({
+            data: {
+              workspaceId: primary.id,
+              agentId: demoAgentRow.id,
+              publicId: "wgt_demobrightsmile01",
+              design: { agentName: "Bright Smile", accent: "#146B33" },
+              fields: {},
+              behaviour: {},
+              routing: {},
+            },
+          });
+        }
+        for (const [n, turns] of [
+          [1, [
+            { id: "t1", role: "visitor", text: "How much is a single implant?", at: new Date().toISOString() },
+            { id: "t2", role: "agent", text: "$2,400 per tooth including the crown, and we finance from $180 a month.", at: new Date().toISOString() },
+          ]],
+          [2, [
+            { id: "t1", role: "visitor", text: "Are you open Saturdays?", at: new Date().toISOString() },
+            { id: "t2", role: "agent", text: "We are — mornings until noon. Want me to find you a slot?", at: new Date().toISOString() },
+          ]],
+        ] as const) {
+          const sid = `seed-b4-ws-${widget.id}-${n}`;
+          const exists = await prisma.widgetSession.findUnique({ where: { id: sid } }).catch(() => null);
+          if (!exists) {
+            await prisma.widgetSession.create({
+              data: {
+                id: sid,
+                workspaceId: primary.id,
+                widgetId: widget.id,
+                agentId: widget.agentId,
+                status: "closed",
+                agentTurns: 1,
+                turns: turns as unknown as object,
+                closedAt: new Date(),
+              },
+            });
+          }
+        }
+      }
+      // The receptionist wave gate — backoffice-flipped in production; the
+      // demo workspace carries it so the panel is reachable.
+      await prisma.featureFlag.upsert({
+        where: { workspaceId_key: { workspaceId: primary.id, key: "receptionist" } },
+        update: { enabled: true },
+        create: { workspaceId: primary.id, key: "receptionist", enabled: true },
+      });
+    }
+
     // B3c-2 (DEC-121): call-clock fixtures — three phone contacts whose
     // STORED timezones spread across the globe (Chicago / Berlin / Tokyo),
     // so at any wall-clock hour at least one is inside the 08:00–21:00

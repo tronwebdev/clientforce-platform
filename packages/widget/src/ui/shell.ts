@@ -370,17 +370,25 @@ export class WidgetShell {
       form.appendChild(label);
     }
 
-    let consent: HTMLInputElement | undefined;
-    if (spec.consent) {
+    // B4 (DEC-120(2)): the server may serve additional consent rows via the
+    // additive `consents` array (the call-consent ask, workspace-toggled).
+    // Every consent renders identically and travels as a plain string.
+    const consentBoxes: HTMLInputElement[] = [];
+    const consentSpecs = [
+      ...(spec.consent ? [spec.consent] : []),
+      ...(Array.isArray(spec.consents) ? spec.consents : []),
+    ];
+    for (const c of consentSpecs) {
       const row = el(this.doc, "label", "cfw-consent");
-      consent = this.doc.createElement("input");
-      consent.type = "checkbox";
-      consent.className = "cfw-consent-box";
-      consent.required = spec.consent.required;
-      consent.setAttribute("data-key", spec.consent.key);
-      row.appendChild(consent);
-      row.appendChild(el(this.doc, "span", "cfw-consent-text", spec.consent.text));
+      const box = this.doc.createElement("input");
+      box.type = "checkbox";
+      box.className = "cfw-consent-box";
+      box.required = c.required;
+      box.setAttribute("data-key", c.key);
+      row.appendChild(box);
+      row.appendChild(el(this.doc, "span", "cfw-consent-text", c.text));
       form.appendChild(row);
+      consentBoxes.push(box);
     }
 
     const submit = el(this.doc, "button", "cfw-capture-submit", spec.submitLabel);
@@ -391,10 +399,10 @@ export class WidgetShell {
       e.preventDefault();
       const fields: Record<string, string> = {};
       for (const [key, input] of inputs) fields[key] = input.value.trim();
-      // The consent box travels as a plain string — the server records the
-      // tick; whether a reminder may actually be sent is the send boundary's
+      // Consent boxes travel as plain strings — the server records the tick;
+      // what may actually happen (a reminder, a call) stays the rails'
       // decision, never the panel's.
-      if (consent) fields[consent.getAttribute("data-key")!] = String(consent.checked);
+      for (const box of consentBoxes) fields[box.getAttribute("data-key")!] = String(box.checked);
       this.handlers.onCaptureSubmit(fields);
     });
 

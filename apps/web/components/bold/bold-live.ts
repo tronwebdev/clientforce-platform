@@ -431,6 +431,46 @@ export const startBrowserCall = (agentId: string, contactId: string) =>
 export const finishBrowserCall = (callId: string, outcome: string, durationSec: number) =>
   send(`voice/browser-calls/${encodeURIComponent(callId)}/finish`, "POST", { outcome, durationSec });
 
+/* ---------------------------------------------------- B4 (DEC-124) */
+
+/** The one-flag truth the rail, dock and site-agent page all read. */
+export interface WidgetOverview {
+  installed: boolean;
+  busy: boolean;
+  busyCount: number;
+  chats30d: number;
+  booked30d: number;
+}
+export const fetchWidgetOverview = () => get<WidgetOverview>("widgets/overview");
+
+export interface WidgetRow {
+  id: string;
+  publicId: string | null;
+  design: Record<string, unknown>;
+  flows: Record<string, boolean>;
+  consentAsk: boolean;
+  allowedOrigins: string[];
+  agentId: string;
+  createdAt: string;
+}
+export const fetchWidgets = () => get<{ widgets: WidgetRow[] }>("widgets");
+/** One widget per workspace in v1 — returns the existing row or mints one. */
+export const ensureWidget = () => send("widgets/ensure", "POST", {});
+export const patchWidget = (
+  id: string,
+  body: {
+    design?: Record<string, unknown>;
+    flows?: Record<string, boolean>;
+    consentAsk?: boolean;
+  },
+) => send(`widgets/${encodeURIComponent(id)}`, "PATCH", body);
+
+/** Enabled feature keys for this workspace (`GET /flags`). */
+export const fetchFlags = async (): Promise<string[]> => {
+  const res = await get<{ flags?: string[] }>("flags");
+  return Array.isArray(res?.flags) ? res.flags : [];
+};
+
 /* ---------------------------------------------------- B3d (DEC-122) */
 
 /** One typed item in the unified approvals queue. */

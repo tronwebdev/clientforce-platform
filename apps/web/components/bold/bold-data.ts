@@ -190,11 +190,15 @@ export const DOCK_DEFS: BoldDockDef[] = [
 ];
 
 /** Dynamic dock tile title per state (ADDENDUM_4_BOLD §3). */
-export function dockTileTitle(def: BoldDockDef): string {
-  if (def.key === "rcp" && FIXTURE_ALWAYS_ON.receptionist.owned) return "Receptionist · live";
-  if (def.key === "chatbot") {
-    if (!FIXTURE_ALWAYS_ON.siteAgent.installed) return "Site agent · not on your site";
-    if (FIXTURE_ALWAYS_ON.siteAgent.busy) return "Site agent · 2 chatting";
+export function dockTileTitle(
+  def: BoldDockDef,
+  widget?: { installed: boolean; busy: boolean; busyCount: number } | null,
+): string {
+  // B4 (DEC-124): the chatbot tile speaks the REAL overview truth; the
+  // receptionist add-on has no owned state until its engine exists (Q-090).
+  if (def.key === "chatbot" && widget) {
+    if (!widget.installed) return "Site agent · not on your site";
+    if (widget.busy) return `Site agent · ${widget.busyCount} chatting`;
   }
   return def.name;
 }

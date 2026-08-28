@@ -11,6 +11,11 @@
 /** The Console Bold parallel-route flag (ADDENDUM_4_BOLD §9; default off). */
 export const CONSOLE_BOLD_FLAG = "consoleBold";
 
+/** B4 (DEC-124): the receptionist add-on's availability gate — backoffice
+ *  flipped like every FeatureFlag. Gates the receptionist panel; the rail
+ *  and dock keep the add-on's pitch either way. */
+export const RECEPTIONIST_FLAG = "receptionist";
+
 /** Shape returned by the API's GET /flags. */
 export interface WorkspaceFlagsResponse {
   /** Enabled flag keys for the active workspace (disabled/absent keys omitted). */

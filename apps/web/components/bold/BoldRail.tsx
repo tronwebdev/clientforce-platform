@@ -10,6 +10,8 @@ import { FIXTURE_ALWAYS_ON, FIXTURE_CORE } from "./bold-data";
 const mono: CSSProperties = { fontFamily: "var(--cvb-font-mono)" };
 
 interface BoldRailProps {
+  /** B4 (DEC-124): the one-flag widget truth (null while loading). */
+  widgetOverview?: import("./bold-live").WidgetOverview | null;
   me: Me;
   open: boolean;
   agents: AgentListItem[];
@@ -267,15 +269,20 @@ export function BoldRail(props: BoldRailProps) {
                     <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "-.012em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                       Site agent
                     </span>
-                    {FIXTURE_ALWAYS_ON.siteAgent.busy ? (
+                    {props.widgetOverview?.busy ? (
                       <span style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--cvb-forest)", flex: "none", animation: "cvb-pulse 2s ease-in-out infinite" }} />
                     ) : null}
                   </div>
                   <div style={{ fontSize: 10.5, color: "var(--cvb-faint)", marginTop: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {FIXTURE_ALWAYS_ON.siteAgent.sub}
+                    {props.widgetOverview
+                      ? props.widgetOverview.installed
+                        ? props.widgetOverview.busy
+                          ? `${props.widgetOverview.busyCount} chatting now · ${props.widgetOverview.booked30d} booked this month`
+                          : `${props.widgetOverview.chats30d} chats · ${props.widgetOverview.booked30d} booked this month`
+                        : "Not on your site — no traffic answered"
+                      : "…"}
                   </div>
                 </div>
-                <span style={{ ...mono, fontSize: 10.5, color: "var(--cvb-forest)", flex: "none" }}>{FIXTURE_ALWAYS_ON.siteAgent.value}</span>
               </div>
               <div className="cvb-alwayson-row" data-testid="bold-alwayson-receptionist" onClick={() => props.onSelectSurface("rcp")}>
                 <span

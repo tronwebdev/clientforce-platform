@@ -15,7 +15,7 @@
  *    of impersonating evidence. Reviewers verify what they are looking at by
  *    hashing the file — never by trusting an image cache.
  *
- * Usage:  node e2e/capture-bold-fidelity.mjs [unit]     (b1 | b2 | b25 | b26 | b3 | b3b | b3c1 | b3c2 | b3d; default b1)
+ * Usage:  node e2e/capture-bold-fidelity.mjs [unit]     (b1 | b2 | b25 | b26 | b3 | b3b | b3c1 | b3c2 | b3d | b4; default b1)
  * Env:    CAPTURE_BASE_URL (default http://localhost:3000)
  *         PLAYWRIGHT_CHROMIUM_EXECUTABLE (a pre-provisioned Chromium)
  *
@@ -33,8 +33,8 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const UNIT = process.argv[2] ?? "b1";
-if (!["b1", "b2", "b25", "b26", "b3", "b3b", "b3c1", "b3c2", "b3d"].includes(UNIT)) {
-  console.error(`Unknown unit "${UNIT}" — this tool knows b1, b2, b25, b26, b3, b3b, b3c1, b3c2 and b3d.`);
+if (!["b1", "b2", "b25", "b26", "b3", "b3b", "b3c1", "b3c2", "b3d", "b4"].includes(UNIT)) {
+  console.error(`Unknown unit "${UNIT}" — this tool knows b1, b2, b25, b26, b3, b3b, b3c1, b3c2, b3d and b4.`);
   process.exit(1);
 }
 const OUT = join(ROOT, "docs", "fidelity", UNIT);
@@ -149,6 +149,44 @@ const toBoldCampaign = async (p) => {
 };
 
 
+
+/* ---------------------------------------------------------------- the b4 set */
+if (UNIT === "b4") {
+  await run("prototype-b4", async () => {
+    const p = await page({ width: 1440, height: 900 });
+    await freshProto(p);
+    // The Site agent surface (dock tile "Site agent").
+    await p.locator('[title^="Site agent"]').first().click();
+    await p.waitForTimeout(800);
+    await shot(p, "proto-siteagent-1440x900");
+    // The receptionist slide-over — the prototype opens it from the dock.
+    await p.locator('[title^="Receptionist"]').first().click();
+    await p.waitForTimeout(800);
+    await shot(p, "proto-rcp-pitch-1440x900");
+    await p.context().close();
+  });
+
+  await run("build-b4", async () => {
+    const p = await page({ width: 1440, height: 900 });
+    await signInBuild(p);
+    await p.goto(`${BASE}/bold`);
+    await p.getByTestId("bold-root").waitFor();
+    await p.addStyleTag({ content: "nextjs-portal{display:none!important}" });
+    await p.waitForTimeout(700);
+    const later = p.getByText("Later", { exact: true }).first();
+    if (await later.isVisible().catch(() => false)) await later.click();
+    await p.getByTestId("bold-dock-chatbot").click();
+    await p.getByTestId("bold-siteagent-strip").waitFor({ timeout: 15_000 });
+    await p.waitForTimeout(700);
+    await shot(p, "build-siteagent-1440x900");
+    await p.getByTestId("bold-dock-rcp").click();
+    await p.getByTestId("bold-rcp").waitFor();
+    await p.waitForTimeout(700);
+    await shot(p, "build-rcp-pitch-1440x900");
+    await p.getByTestId("bold-rcp-close").click();
+    await p.context().close();
+  });
+}
 
 /* --------------------------------------------------------------- the b3d set */
 if (UNIT === "b3d") {

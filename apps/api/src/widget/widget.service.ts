@@ -80,6 +80,8 @@ interface ResolvedWidget {
   flows: WidgetFlows;
   allowedOrigins: string[];
   design: Record<string, unknown>;
+  /** B4 (DEC-120(2)): the workspace's "show the consent ask" toggle. */
+  consentAsk: boolean;
 }
 
 const DEFAULT_FLOWS: WidgetFlows = {
@@ -129,6 +131,23 @@ const CAPTURE_SPECS: Partial<Record<WidgetFlow, WidgetCaptureSpec>> = {
     },
   },
 };
+
+/** B4 (DEC-120(2)): the served capture spec is computed PER WIDGET — the
+ *  call-consent ask rides only when the workspace turned it on (default
+ *  OFF). A ticked box flips Contact.callConsent with how:"widget_form";
+ *  unticked records NOTHING (unknown stands — consent is never inferred). */
+const CALL_CONSENT_ASK = {
+  key: "callConsent",
+  text: "You can call me about this",
+  required: false,
+} as const;
+
+function specFor(widget: ResolvedWidget, flow: WidgetFlow): WidgetCaptureSpec | undefined {
+  const base = CAPTURE_SPECS[flow];
+  if (!base) return undefined;
+  if (!widget.consentAsk) return base;
+  return { ...base, consents: [CALL_CONSENT_ASK] };
+}
 
 const nowIso = (): string => new Date().toISOString();
 
@@ -207,7 +226,7 @@ export class WidgetService {
           case "quick_action": {
             const flow = WIDGET_QUICK_ACTION_FLOW[req.event.action];
             if (!servable.includes(flow)) throw new WidgetRefusal("FLOW_DISABLED", 422);
-            const spec = CAPTURE_SPECS[flow];
+            const spec = specFor(widget, flow);
             if (spec) {
               // A capture flow asks for details rather than spending an AI turn;
               // the pending flow is remembered server-side so the submit cannot
@@ -233,7 +252,7 @@ export class WidgetService {
           }
           case "capture_submit": {
             const pending = asRecord(session.meta).pendingCapture as WidgetFlow | undefined;
-            const spec = pending ? CAPTURE_SPECS[pending] : undefined;
+            const spec = pending ? specFor(widget, pending) : undefined;
             // No pending capture ⇒ nothing asked for these fields. Refuse rather
             // than store a bag of PII nobody requested.
             if (!spec || !servable.includes(pending as WidgetFlow)) {
@@ -315,6 +334,7 @@ export class WidgetService {
         flows: true,
         allowedOrigins: true,
         design: true,
+        consentAsk: true,
       },
     });
     if (!row) throw new WidgetRefusal("UNKNOWN_WIDGET", 404);
@@ -325,6 +345,7 @@ export class WidgetService {
       flows: { ...DEFAULT_FLOWS, ...(asRecord(row.flows) as Partial<WidgetFlows>) },
       allowedOrigins: row.allowedOrigins,
       design: asRecord(row.design),
+      consentAsk: row.consentAsk,
     };
   }
 
@@ -514,6 +535,30 @@ export class WidgetService {
       },
       update: { startAt: when, contactId },
     });
+
+    // B4 (DEC-120(2)): an EXPLICITLY ticked call-consent box — served only
+    // when the workspace's toggle is on — flips the ONE consent flag with the
+    // form submission as provenance. Change-guarded so a retried submit never
+    // writes a duplicate timeline event; unticked records nothing (unknown
+    // stands — never inferred). The Event row rides THIS transaction, the
+    // import-path pattern: the flag and its provenance land together.
+    if (widget.consentAsk && fields.callConsent === "true") {
+      const current = await tx.contact.findUnique({
+        where: { id: contactId },
+        select: { callConsent: true },
+      });
+      if ((current as { callConsent?: string } | null)?.callConsent !== "granted") {
+        await tx.contact.update({ where: { id: contactId }, data: { callConsent: "granted" } });
+        await tx.event.create({
+          data: {
+            workspaceId: widget.workspaceId,
+            contactId,
+            type: "contact.call_consent.v1",
+            payload: { value: "granted", how: "widget_form" },
+          },
+        });
+      }
+    }
 
     await tx.widgetSession.update({
       where: { id: session.id },
