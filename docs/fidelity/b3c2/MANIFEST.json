@@ -1,20 +1,20 @@
 {
   "unit": "b3c2",
-  "commit": "f2cb8a4c12caced1a62078146be36134d44e3f3f",
-  "workingTreeDirtyAtCapture": true,
-  "capturedAt": "2026-08-27T21:04:36.868Z",
+  "commit": "911f0b3729616a91963d2ab5662690ce4a988a53",
+  "workingTreeDirtyAtCapture": false,
+  "capturedAt": "2026-08-28T16:50:57.485Z",
   "baseUrl": "http://localhost:3000",
   "note": "Single-run capture; every frame from one build. Verify a frame by hashing its bytes against this manifest — never by trusting an image cache. pnpm lint:fidelity enforces the binding.",
   "frames": {
     "build-callcard-practice-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 201138,
-      "sha256": "2079288c769523196805035923ac6e5a866ea48c53f6f1364b9c633e77912b18"
+      "bytes": 182848,
+      "sha256": "f58d2346753ebe343bc3b7da8c2c623b28175d6f10cefd57c819559398212eba"
     },
     "build-callsheet-human-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 186304,
-      "sha256": "5fafb66e50d65211c8bbf1b572d6e344913f9f093bcca8c6708f299b7f87e62a"
+      "bytes": 169708,
+      "sha256": "daf93c23eeed14f86dc0633cc2ae2b3848809761de42def2195bd69b56552ac8"
     },
     "build-recording-toggle-1440x900.png": {
       "viewport": "1440x900",
@@ -23,8 +23,8 @@
     },
     "proto-ring-widget-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 232593,
-      "sha256": "5e26b04dc8bcb6218fe25bcc789434897e6a5c34da9cf79d8771904f1a288c46"
+      "bytes": 232290,
+      "sha256": "4483a13c5998d3d7e9d7d0bbe20c22131a0e6ef985baedbd108223e6122fc411"
     }
   }
 }
