@@ -102,6 +102,38 @@ export async function campaignWorkflow(
               await sleep(HOLD_POLL_MS);
             }
           }
+          // B3d (DEC-122): level 1 parks the step as an approval and WAITS —
+          // the reply-hold shape, its own patched marker for replay safety.
+          if (patched("b3d-approval-park")) {
+            let decision = await acts.ensureStepApproval({
+              ...base,
+              campaignId: input.campaignId,
+              agentId: input.agentId,
+              contactId: input.contactId,
+              stepNodeId: node.id,
+              channel: "voice",
+            });
+            while (decision === "pending") {
+              await sleep(HOLD_POLL_MS);
+              decision = await acts.ensureStepApproval({
+                ...base,
+                campaignId: input.campaignId,
+                agentId: input.agentId,
+                contactId: input.contactId,
+                stepNodeId: node.id,
+                channel: "voice",
+              });
+            }
+            if (decision === "dismissed") {
+              await acts.recordEnrollmentBlocked({
+                ...base,
+                nodeId: node.id,
+                reason: "APPROVAL_DISMISSED",
+                detail: "the owner dismissed this step",
+              });
+              return { status: "blocked", node: node.id, reason: "APPROVAL_DISMISSED" };
+            }
+          }
           try {
             const dialed = await acts.dialEnrollmentStep({
               ...base,
@@ -158,6 +190,37 @@ export async function campaignWorkflow(
         if (patched("b3b-reply-hold")) {
           while (await acts.isEnrollmentHeld(base)) {
             await sleep(HOLD_POLL_MS);
+          }
+        }
+        // B3d (DEC-122): level 1 ("Ask me first") — park + wait, never send.
+        if (patched("b3d-approval-park")) {
+          let decision = await acts.ensureStepApproval({
+            ...base,
+            campaignId: input.campaignId,
+            agentId: input.agentId,
+            contactId: input.contactId,
+            stepNodeId: node.id,
+            channel: node.channel,
+          });
+          while (decision === "pending") {
+            await sleep(HOLD_POLL_MS);
+            decision = await acts.ensureStepApproval({
+              ...base,
+              campaignId: input.campaignId,
+              agentId: input.agentId,
+              contactId: input.contactId,
+              stepNodeId: node.id,
+              channel: node.channel,
+            });
+          }
+          if (decision === "dismissed") {
+            await acts.recordEnrollmentBlocked({
+              ...base,
+              nodeId: node.id,
+              reason: "APPROVAL_DISMISSED",
+              detail: "the owner dismissed this step",
+            });
+            return { status: "blocked", node: node.id, reason: "APPROVAL_DISMISSED" };
           }
         }
         try {

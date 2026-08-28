@@ -40,6 +40,10 @@ const KIND_EVENT_TYPES: Record<Exclude<BoldActivityKind, "send">, string[]> = {
     "sms.compose_refused.v1",
     "contact.enrollment_refused.v1",
     "lead.unsubscribed.v1",
+    // B3d (DEC-122): autonomy + approvals are decisions by definition.
+    "campaign.autonomy_changed.v1",
+    "approval.created.v1",
+    "approval.decided.v1",
   ],
 };
 const TYPE_TO_KIND = new Map<string, BoldActivityKind>(
@@ -104,12 +108,23 @@ export class BoldActivityController {
           : KIND_EVENT_TYPES[kindFilter];
       const wantSends = !kindFilter || kindFilter === "send";
 
+      // Goal rows: the terminal-only predicate must live IN the query — a
+      // window of newest events can otherwise be all pipeline noise, and an
+      // empty shaped page would claim exhaustion while real goal rows sit
+      // below it (pagination starvation).
+      const goalEventWhere = {
+        OR: [
+          { type: "calendar.booked.v1" },
+          { type: "lead.stage_changed.v1", payload: { path: ["goalKey"], string_contains: "" } },
+          { type: "lead.stage_changed.v1", payload: { path: ["toStage"], equals: "booked" } },
+        ],
+      };
       const [events, sendAgg] = await Promise.all([
         types.length
           ? tx.event.findMany({
               where: {
                 campaignId: campaign.id,
-                type: { in: types },
+                ...(kindFilter === "goal" ? goalEventWhere : { type: { in: types } }),
                 ...(before ? { occurredAt: { lt: before } } : {}),
               },
               orderBy: { occurredAt: "desc" },
@@ -147,9 +162,20 @@ export class BoldActivityController {
           const hasGoalKey = typeof payload.goalKey === "string" && payload.goalKey.length > 0;
           if (toStage !== "booked" && !hasGoalKey) continue;
         }
+        // B3d: the new decision types carry their factual sentence in
+        // `reason` so the client never words them with the hold copy.
+        let reason = typeof payload.reason === "string" ? payload.reason : null;
+        if (e.type === "campaign.autonomy_changed.v1") {
+          const word = (v: unknown) =>
+            v === "ask" ? "ask first" : v === "full" ? "full autonomy" : "act inside limits";
+          reason = `How much Ada decides changed — ${word(payload.from)} to ${word(payload.to)}.`;
+        } else if (e.type === "approval.decided.v1") {
+          reason = payload.decision === "approved" ? "Approved — it went ahead." : "Dismissed.";
+        }
         rows.push({
           id: e.id,
           kind: rowKind,
+          type: e.type,
           occurredAt: e.occurredAt.toISOString(),
           contact: (e.contact as BoldActivityContact | null) ?? null,
           intent: typeof payload.intent === "string" ? payload.intent : null,
@@ -164,7 +190,7 @@ export class BoldActivityController {
           stepNodeId: typeof payload.stepNodeId === "string" ? payload.stepNodeId : null,
           channel: null,
           day: null,
-          reason: typeof payload.reason === "string" ? payload.reason : null,
+          reason,
         });
       }
       for (const s of sendAgg) {

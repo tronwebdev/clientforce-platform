@@ -118,6 +118,11 @@ function recordedActivities(sendImpl?: (p: { stepNodeId: string }) => Promise<Se
       calls.dials.push(p);
       return { kind: "placed", callId: `call-${calls.dials.length}` };
     },
+    // B3d: the fake campaign never asks first — parks are pinned by the api
+    // approvals spec; here sequences run straight through.
+    async ensureStepApproval() {
+      return "not_required";
+    },
   } as unknown as CampaignActivities;
   return { calls, acts };
 }

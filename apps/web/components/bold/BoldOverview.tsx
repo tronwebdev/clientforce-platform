@@ -4,8 +4,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AgentListItem, BoldActivityRow, CampaignOutcomes } from "@clientforce/core";
 import { goalSentence, goalValueMeta } from "@clientforce/core";
 import type { BoldDrawerState } from "./BoldDrawer";
+import { BoldApprovalsPanel } from "./BoldApprovalsPanel";
 import {
   KIND_TONES,
+  fetchApprovals,
+  type ApprovalQueueItem,
   composeRow,
   contactName,
   fetchBoldActivity,
@@ -32,13 +35,16 @@ interface BoldOverviewProps {
   onOpenDrawer: (d: BoldDrawerState) => void;
   onAllActivity: () => void;
   onValueSaved: () => void;
+  onOpenInbox?: () => void;
   flash: (t: string) => void;
 }
 
-export function BoldOverview({ agent, onOpenDrawer, onAllActivity, onValueSaved, flash }: BoldOverviewProps) {
+export function BoldOverview({ agent, onOpenDrawer, onAllActivity, onValueSaved, onOpenInbox, flash }: BoldOverviewProps) {
   const [outcomes, setOutcomes] = useState<CampaignOutcomes | null>(null);
   const [feed, setFeed] = useState<BoldActivityRow[] | null>(null);
   const [wonRows, setWonRows] = useState<BoldActivityRow[]>([]);
+  const [needs, setNeeds] = useState<ApprovalQueueItem[]>([]);
+  const [approvalsOpen, setApprovalsOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [estDraft, setEstDraft] = useState("");
   const [targetDraft, setTargetDraft] = useState("");
@@ -50,6 +56,7 @@ export function BoldOverview({ agent, onOpenDrawer, onAllActivity, onValueSaved,
     void fetchBoldOutcomes(agent.id).then((o) => alive && setOutcomes(o));
     void fetchBoldActivity(agent.id).then((a) => alive && setFeed(a?.rows ?? []));
     void fetchBoldActivity(agent.id, "won").then((a) => alive && setWonRows(a?.rows ?? []));
+    void fetchApprovals(agent.id).then((r) => alive && setNeeds(r?.items ?? []));
     return () => {
       alive = false;
     };
@@ -197,8 +204,58 @@ export function BoldOverview({ agent, onOpenDrawer, onAllActivity, onValueSaved,
     }
   };
 
+  // B3d review ruling: the badge carries the NUMBER; the sentence composes
+  // after it with no count and no echo — "1 reply waiting for your tap."
+  // One kind names itself; mixed kinds read "things".
+  const needsLine = (() => {
+    const kinds = new Set(needs.map((n) => n.kind));
+    const n = needs.length;
+    if (n === 0) return "";
+    if (kinds.size === 1) {
+      const k = [...kinds][0];
+      const noun =
+        k === "reply_draft"
+          ? n === 1 ? "reply" : "replies"
+          : k === "step_send"
+            ? n === 1 ? "scheduled send" : "scheduled sends"
+            : k === "step_call"
+              ? n === 1 ? "scheduled call" : "scheduled calls"
+              : n === 1 ? "thing" : "things";
+      return `${noun} waiting for your tap.`;
+    }
+    return "things waiting for your tap.";
+  })();
+
   return (
     <div style={{ padding: "26px 40px 40px" }}>
+      {/* B3d (DEC-122): the review strip — the prototype's amber needs bar
+          ABOVE the hero, live counts from the one approvals read. */}
+      {needs.length > 0 ? (
+        <div
+          onClick={() => setApprovalsOpen(true)}
+          data-testid="bold-needs-strip"
+          style={{ display: "flex", alignItems: "center", gap: 11, background: "var(--cvb-amber-bg, #FDFBF4)", border: "1px solid var(--cvb-amber-line, #EFE6CF)", borderRadius: 13, padding: "11px 14px", marginBottom: 14, cursor: "pointer" }}
+        >
+          <span style={{ ...mono, width: 19, height: 19, borderRadius: 6, display: "grid", placeItems: "center", background: "#F7EFDA", border: "1px solid #EAD9A8", fontSize: 10.5, fontWeight: 600, color: "var(--cvb-amber, #8A6D1A)", flex: "none" }}>
+            {needs.length}
+          </span>
+          <span style={{ fontSize: 12.5, color: "var(--cvb-amber, #7A6220)", lineHeight: 1.4, flex: 1, minWidth: 0 }}>
+            {needsLine}
+          </span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--cvb-forest)", flex: "none" }}>Review →</span>
+        </div>
+      ) : null}
+      {approvalsOpen ? (
+        <BoldApprovalsPanel
+          agentId={agent.id}
+          onClose={() => {
+            setApprovalsOpen(false);
+            void fetchApprovals(agent.id).then((r) => setNeeds(r?.items ?? []));
+          }}
+          {...(onOpenInbox ? { onOpenInbox } : {})}
+          flash={flash}
+        />
+      ) : null}
       {/* Hero — dark stage, gradient hairline, goal stated explicitly. */}
       <div data-tour="hero" style={{ border: "1px solid var(--cvb-line)", borderRadius: 22, animation: "cvb-rise .45s var(--cvb-ease) both" }}>
         <div style={{ background: "linear-gradient(150deg,#0C2A1B,#0A1524 66%,#0A0F14)", borderRadius: "21px 21px 0 0" }}>

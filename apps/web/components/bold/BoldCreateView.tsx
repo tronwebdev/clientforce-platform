@@ -121,6 +121,7 @@ export function BoldCreateView({
   const [planWhy, setPlanWhy] = useState<string | null>(null);
   const [prices, setPrices] = useState<EffectiveCreditPrices | null>(null);
   const [guard, setGuard] = useState({ quiet: true, weekend: false });
+  const [autonomy, setAutonomy] = useState<"ask" | "limits" | "full">("limits");
   const [busy, setBusy] = useState(false);
   const [launching, setLaunching] = useState(false);
   const planPoll = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -320,6 +321,9 @@ export function BoldCreateView({
         tracking: { openTracking: true, linkTracking: true },
         unsubscribeFooter: true,
         suppressionCheck: true,
+        // B3d: the level the owner chose in the limits step — sent
+        // explicitly so the launch rebuild can never reset it.
+        autonomy,
       };
       let res = await patchBoldAgent(agentId, {
         guardrails,
@@ -818,7 +822,45 @@ export function BoldCreateView({
 
           {/* -------------------------------------------------- 6 · limits */}
           {step === 6 ? (
-            <div style={{ background: "var(--cvb-panel)", border: "1px solid var(--cvb-line)", borderRadius: 18, overflow: "hidden", marginTop: 22, maxWidth: 560 }}>
+            <>
+            {/* B3d (DEC-122): HOW MUCH ADA DECIDES — the campaign's autonomy
+                level, chosen at creation (Settings can change it later). */}
+            <div style={{ marginTop: 22, maxWidth: 560 }}>
+              <div style={{ ...mono, fontSize: 9.5, letterSpacing: ".18em", color: "var(--cvb-faint)", marginBottom: 12 }}>
+                HOW MUCH ADA DECIDES
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10 }}>
+                {(
+                  [
+                    ["ask", "Ask me first", "Nothing sends without your tap.", "every send queued"],
+                    ["limits", "Act inside limits", "She works within the limits below; anything outside waits.", "the default"],
+                    ["full", "Full autonomy", "Receipts, not questions.", "for campaigns you trust"],
+                  ] as const
+                ).map(([key, title, body, note]) => {
+                  const on = autonomy === key;
+                  return (
+                    <div
+                      key={key}
+                      onClick={() => setAutonomy(key)}
+                      data-testid={`bold-create-auto-${key}`}
+                      role="radio"
+                      aria-checked={on}
+                      style={{ background: on ? "var(--cvb-mint)" : "var(--cvb-card)", border: `1px solid ${on ? "var(--cvb-mint-line)" : "var(--cvb-line-ctl)"}`, borderRadius: 15, padding: 14, cursor: "pointer" }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ width: 14, height: 14, borderRadius: "50%", border: `2px solid ${on ? "var(--cvb-forest)" : "var(--cvb-ghost)"}`, display: "grid", placeItems: "center", flex: "none" }}>
+                          <span style={{ width: 6, height: 6, borderRadius: "50%", background: on ? "var(--cvb-forest)" : "transparent" }} />
+                        </span>
+                        <span style={{ fontWeight: 800, fontSize: 12.5, letterSpacing: "-.018em" }}>{title}</span>
+                      </div>
+                      <div style={{ fontSize: 11.5, color: on ? "var(--cvb-forest)" : "var(--cvb-faint)", lineHeight: 1.45, marginTop: 7 }}>{body}</div>
+                      <div style={{ ...mono, fontSize: 8.5, color: on ? "var(--cvb-forest)" : "var(--cvb-ghost)", marginTop: 9 }}>{note}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <div style={{ background: "var(--cvb-panel)", border: "1px solid var(--cvb-line)", borderRadius: 18, overflow: "hidden", marginTop: 14, maxWidth: 560 }}>
               {(
                 [
                   ["quiet", "Quiet hours", "Nothing lands 20:00–08:00 — off means around the clock.", guard.quiet, true],
@@ -846,6 +888,7 @@ export function BoldCreateView({
                 </div>
               ))}
             </div>
+            </>
           ) : null}
 
           {/* -------------------------------------------------- 7 · review */}

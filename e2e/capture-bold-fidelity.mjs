@@ -15,7 +15,7 @@
  *    of impersonating evidence. Reviewers verify what they are looking at by
  *    hashing the file — never by trusting an image cache.
  *
- * Usage:  node e2e/capture-bold-fidelity.mjs [unit]     (b1 | b2 | b25 | b26 | b3 | b3b | b3c1 | b3c2; default b1)
+ * Usage:  node e2e/capture-bold-fidelity.mjs [unit]     (b1 | b2 | b25 | b26 | b3 | b3b | b3c1 | b3c2 | b3d; default b1)
  * Env:    CAPTURE_BASE_URL (default http://localhost:3000)
  *         PLAYWRIGHT_CHROMIUM_EXECUTABLE (a pre-provisioned Chromium)
  *
@@ -33,8 +33,8 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const UNIT = process.argv[2] ?? "b1";
-if (!["b1", "b2", "b25", "b26", "b3", "b3b", "b3c1", "b3c2"].includes(UNIT)) {
-  console.error(`Unknown unit "${UNIT}" — this tool knows b1, b2, b25, b26, b3, b3b, b3c1 and b3c2.`);
+if (!["b1", "b2", "b25", "b26", "b3", "b3b", "b3c1", "b3c2", "b3d"].includes(UNIT)) {
+  console.error(`Unknown unit "${UNIT}" — this tool knows b1, b2, b25, b26, b3, b3b, b3c1, b3c2 and b3d.`);
   process.exit(1);
 }
 const OUT = join(ROOT, "docs", "fidelity", UNIT);
@@ -149,6 +149,42 @@ const toBoldCampaign = async (p) => {
 };
 
 
+
+/* --------------------------------------------------------------- the b3d set */
+if (UNIT === "b3d") {
+  await run("prototype-b3d", async () => {
+    const p = await page({ width: 1440, height: 900 });
+    await freshProto(p);
+    // The campaign Settings tab — HOW MUCH ADA DECIDES is its first block.
+    await p.getByText("Settings", { exact: true }).first().click();
+    await p.waitForTimeout(800);
+    await shot(p, "proto-settings-auto-1440x900");
+    await p.context().close();
+  });
+
+  await run("build-b3d", async () => {
+    const p = await page({ width: 1440, height: 900 });
+    await signInBuild(p);
+    await toBoldCampaign(p);
+    // The live Settings radio (restored to the default at the end).
+    await p.getByText("Settings", { exact: true }).click();
+    await p.getByTestId("bold-settings").waitFor({ timeout: 15_000 });
+    await p.waitForTimeout(800);
+    await shot(p, "build-settings-auto-1440x900");
+    // Overview: the amber needs strip with live counts.
+    await p.getByText("Overview", { exact: true }).click();
+    await p.getByTestId("bold-needs-strip").waitFor({ timeout: 15_000 });
+    await p.waitForTimeout(600);
+    await shot(p, "build-needs-strip-1440x900");
+    // The approvals panel open.
+    await p.getByTestId("bold-needs-strip").click();
+    await p.getByTestId("bold-approvals").waitFor();
+    await p.waitForTimeout(700);
+    await shot(p, "build-approvals-panel-1440x900");
+    await p.getByTestId("bold-approvals-close").click();
+    await p.context().close();
+  });
+}
 
 /* -------------------------------------------------------------- the b3c2 set */
 if (UNIT === "b3c2") {

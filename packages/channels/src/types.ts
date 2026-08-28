@@ -97,7 +97,11 @@ export type SendBlockReason =
   // P3.1 (DEC-078): voice dial-boundary extension — Aura-2 voices are
   // English-only, so non-English agents refuse honestly (Q-027 tracks
   // non-English voice; the disclosure constants already ship translated).
-  | "VOICE_LANGUAGE_UNSUPPORTED";
+  | "VOICE_LANGUAGE_UNSUPPORTED"
+  // B3d (DEC-122): level 1 ("Ask me first") — a scheduled step waits for the
+  // owner's tap; the boundary refuses an unapproved step send/dial as the
+  // belt-and-braces under the workflow park. Reversible (approve releases).
+  | "APPROVAL_REQUIRED";
 
 export class SendBlockedError extends Error {
   constructor(

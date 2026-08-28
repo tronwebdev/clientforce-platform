@@ -87,10 +87,17 @@ test("rail lists live campaigns; the overview hero reads the value model", async
   await page.mouse.click(400, 300);
   await expect(numDrawer).toHaveCount(0);
 
-  // The latest goal/won event rides the HAPPENING NOW card (deduped from the
-  // feed below it); the feed carries the rest of the seeded activity.
-  await expect(page.getByText(/Payment received/).first()).toBeVisible();
-  await expect(page.getByTestId("bold-feed").getByText(/Meeting booked/).first()).toBeVisible();
+  // The feed is HAPPENING NOW — newest N, whatever they are (live activity
+  // accumulates across runs, so a fixed seeded row cannot be pinned here).
+  // The seeded won/goal facts stay durably reachable through the activity
+  // page's kind filters — the deterministic claim.
+  await expect(page.getByTestId("bold-feed")).toBeVisible();
+  await page.getByTestId("bold-all-activity").click();
+  await expect(page.getByTestId("bold-activity-page")).toBeVisible();
+  await page.getByTestId("bold-act-filter-won").click();
+  await expect(page.getByTestId("bold-activity-page").getByText(/Payment received/).first()).toBeVisible();
+  await page.getByTestId("bold-act-filter-goal").click();
+  await expect(page.getByTestId("bold-activity-page").getByText(/Meeting booked/).first()).toBeVisible();
 });
 
 test("the activity page filters; send rows drill to recipients; contact rows open the person peek", async ({ page }) => {
@@ -120,7 +127,9 @@ test("the activity page filters; send rows drill to recipients; contact rows ope
   // Drawer kind 3 — the person peek: it must RENDER the shipped timeline
   // read, not die client-side (the review blocker: the timeline endpoint
   // returns { events } and the drawer crashed on the unwrapped shape).
-  await page.getByTestId("bold-act-filter-all").click();
+  // Filter to goal rows first — the seeded row stays on page one there,
+  // whatever live activity has accumulated above it.
+  await page.getByTestId("bold-act-filter-goal").click();
   await page.getByTestId("bold-activity-page").getByText(/Meeting booked/).first().click();
   await expect(drawer).toBeVisible();
   await expect(drawer).toContainText("Ada Lovelace");

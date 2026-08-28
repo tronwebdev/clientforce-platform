@@ -11,6 +11,7 @@ import { Worker, type ConnectionOptions, type Job } from "bullmq";
 import { registerPrompt, renderPrompt, type AiGateway } from "@clientforce/ai";
 import { BULL_PREFIX, bullConnectionFromUrl } from "@clientforce/events";
 import { withTenant, type PrismaClient } from "@clientforce/db";
+import { isAffirmativeConsentReply } from "./consent-reply";
 import { type EventBus, type Intent } from "@clientforce/events";
 import { z } from "zod";
 import { INBOUND_CLASSIFY_QUEUE, type ClassifyJobData } from "./inbound";
@@ -154,6 +155,16 @@ export function createClassifyWorker(deps: ClassifyWorkerDeps): Worker<ClassifyJ
         ]),
       );
 
+      // B3d (DEC-120 expansion 1): the may-we-call ask's DETERMINISTIC yes
+      // runs BEFORE classification; the reply still classifies normally.
+      await maybeFlipConsentFromReply(deps, workspaceId, {
+        id: message.id,
+        contactId: message.contactId,
+        campaignId: message.campaignId,
+        inReplyToId: message.inReplyToId,
+        body: message.body,
+      });
+
       const intent = await classifyReply(deps.gateway, {
         goal: campaign?.agent.goal ?? "unknown",
         replyText: message.body,
@@ -245,4 +256,47 @@ export async function applyUnsubscribeReply(
       );
     });
   }
+}
+
+/**
+ * B3d (DEC-120 expansion 1): if an inbound reply answers an outbound marked
+ * `consentAsk` and its text is a plain affirmative (deterministic word set —
+ * ambiguous is NEVER yes), flip `Contact.callConsent` to granted and publish
+ * the provenance event with THE MESSAGE linked. Idempotent: an
+ * already-granted contact publishes nothing.
+ */
+export async function maybeFlipConsentFromReply(
+  deps: Pick<ClassifyWorkerDeps, "prisma" | "bus">,
+  workspaceId: string,
+  message: {
+    id: string;
+    contactId: string;
+    campaignId: string;
+    inReplyToId: string | null;
+    body: string | null;
+  },
+): Promise<boolean> {
+  if (!message.inReplyToId) return false;
+  const ctx = { workspaceId };
+  const asked = await withTenant(deps.prisma, ctx, (tx) =>
+    tx.message.findUnique({ where: { id: message.inReplyToId! }, select: { meta: true } }),
+  );
+  const askMeta = (asked?.meta ?? {}) as { consentAsk?: boolean };
+  if (askMeta.consentAsk !== true) return false;
+  if (!isAffirmativeConsentReply(message.body ?? "")) return false;
+  const contact = await withTenant(deps.prisma, ctx, (tx) =>
+    tx.contact.findUnique({ where: { id: message.contactId }, select: { callConsent: true } }),
+  );
+  if (!contact || (contact as { callConsent?: string }).callConsent === "granted") return false;
+  await withTenant(deps.prisma, ctx, (tx) =>
+    tx.contact.update({ where: { id: message.contactId }, data: { callConsent: "granted" } }),
+  );
+  await deps.bus.publish({
+    type: "contact.call_consent.v1",
+    workspaceId,
+    contactId: message.contactId,
+    campaignId: message.campaignId,
+    payload: { value: "granted", how: "reply", messageId: message.id },
+  });
+  return true;
 }

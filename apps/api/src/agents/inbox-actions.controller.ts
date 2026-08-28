@@ -50,6 +50,11 @@ import { COMPOSER_GATEWAY } from "../planner/planner.providers";
  *  - GET /inbox/members — who a thread can be assigned to.
  */
 
+const consentAskSchema = z.object({
+  agentId: z.string().min(1),
+  contactId: z.string().min(1),
+});
+
 const replySchema = z.object({
   campaignId: z.string().min(1),
   contactId: z.string().min(1),
@@ -227,6 +232,78 @@ export class InboxActionsController {
     });
 
     return { message, heldEnrollments: held };
+  }
+
+  /**
+   * B3d (DEC-120 expansion 1): Ada's may-we-call ask — one fixed line, sent
+   * through the SAME boundary as every human 1:1 message (origin "reply":
+   * every safety gate runs; a human tapped this, so the scheduling rails
+   * don't govern it), marked `consentAsk` so an affirmative reply on this
+   * thread flips call consent deterministically. Asking does NOT hold Ada —
+   * nothing was answered.
+   */
+  @Post("consent-ask")
+  @Roles(Role.OWNER, Role.ADMIN, Role.AGENT)
+  async consentAsk(@Req() req: AuthenticatedRequest, @Body() body: unknown) {
+    const dto = parse(consentAskSchema, body);
+    const workspaceId = req.auth!.activeWorkspaceId;
+    const userId = req.auth!.user.id;
+
+    const { campaign, enrollment, senderId, channel } = await this.tenant.run(async (tx) => {
+      const camp = await tx.campaign.findFirst({
+        where: { agentId: dto.agentId },
+        orderBy: { createdAt: "asc" },
+      });
+      if (!camp) throw new NotFoundException(`Agent ${dto.agentId} has no campaign`);
+      const contact = await tx.contact.findUnique({ where: { id: dto.contactId } });
+      if (!contact) throw new NotFoundException(`Contact ${dto.contactId} not found`);
+      const enr = await tx.enrollment.findFirst({
+        where: { campaignId: camp.id, contactId: dto.contactId },
+      });
+      // Channel: text when they have a phone AND a text sender is live —
+      // a call question reads naturally by text; else email.
+      const smsSender = contact.phone
+        ? await tx.senderConnection.findFirst({
+            where: { status: "ACTIVE", type: "TWILIO_SMS" },
+            orderBy: { createdAt: "asc" },
+          })
+        : null;
+      if (smsSender) return { campaign: camp, enrollment: enr, senderId: smsSender.id, channel: "sms" as const };
+      const emailSender = await tx.senderConnection.findFirst({
+        where: { status: "ACTIVE", type: "CF_MANAGED" },
+        orderBy: { createdAt: "asc" },
+      });
+      if (!emailSender) {
+        throw new BadRequestException("No active sender — connect one in Settings before asking.");
+      }
+      return { campaign: camp, enrollment: enr, senderId: emailSender.id, channel: "email" as const };
+    });
+
+    const askLine = "Mind if we call you about this? Reply YES and we'll ring at a time that suits you.";
+    const params = {
+      workspaceId,
+      campaignId: campaign.id,
+      agentId: campaign.agentId,
+      ...(enrollment ? { enrollmentId: enrollment.id } : {}),
+      contactId: dto.contactId,
+      senderId,
+      content: { subject: "Quick question", body: askLine, threaded: true },
+      origin: "reply" as const,
+      replyBy: { userId, draft: "none" as const },
+      consentAsk: true,
+    };
+    try {
+      const message =
+        channel === "sms"
+          ? await sendSmsStep({ prisma: this.prisma.app, transport: this.smsTransport }, params)
+          : await sendStep({ prisma: this.prisma.app, transport: this.emailTransport }, params);
+      return { message, channel };
+    } catch (err) {
+      if (err instanceof SendBlockedError) {
+        throw new BadRequestException(`Not sent — ${err.message}`);
+      }
+      throw err;
+    }
   }
 
   @Post("draft")

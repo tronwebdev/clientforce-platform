@@ -108,6 +108,7 @@ export {
   applyUnsubscribeReply,
   classifyReply,
   createClassifyWorker,
+  maybeFlipConsentFromReply,
   CLASSIFY_EMISSION_LABELS,
   CLASSIFY_PROMPT_NAME,
   CLASSIFY_PROMPT_VERSION,
@@ -278,6 +279,7 @@ export {
   type MintedVoiceToken,
 } from "./twilio-browser";
 export { recordingStatusCallbackUrl, workspaceRecordingEnabled } from "./recording";
+export { isAffirmativeConsentReply } from "./consent-reply";
 export {
   buildVoiceSystemPrompt,
   checkComposedVoiceTurn,

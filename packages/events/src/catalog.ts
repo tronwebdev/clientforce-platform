@@ -224,6 +224,25 @@ export const EVENT_SCHEMAS = {
   "enrollment.resumed.v1": z.object({
     byUserId: z.string().optional(),
   }),
+  // B3d (DEC-122): the autonomy radio's timeline receipt — who moved the
+  // level, from what to what. Campaign-scoped.
+  "campaign.autonomy_changed.v1": z.object({
+    from: z.enum(["ask", "limits", "full"]),
+    to: z.enum(["ask", "limits", "full"]),
+    byUserId: z.string().optional(),
+  }),
+  // B3d (DEC-122): approval lifecycle — a parked action's receipt trail.
+  "approval.created.v1": z.object({
+    approvalId: z.string(),
+    kind: z.string(),
+    reason: z.string(),
+  }),
+  "approval.decided.v1": z.object({
+    approvalId: z.string(),
+    kind: z.string(),
+    decision: z.enum(["approved", "dismissed"]),
+    byUserId: z.string().optional(),
+  }),
   // B3c-1 (DEC-118(2)): every call-consent flip lands provenance on the
   // timeline — who set it, to what, and how. The `how` vocabulary is the
   // DEC-120 ruling: ONE flag, ONE path, typed provenance — `staff` (a person
@@ -236,6 +255,9 @@ export const EVENT_SCHEMAS = {
     value: z.enum(["granted", "denied", "unknown"]),
     byUserId: z.string().optional(),
     how: z.enum(["staff", "import", "reply", "widget_form", "inbound_call"]),
+    /// B3d (DEC-120 expansion 1): how:"reply" links THE message that said
+    /// yes — the provenance is the reply itself, on the timeline.
+    messageId: z.string().optional(),
   }),
 
   // ── Lists (C2.8, docs/PLAN_CONTACT_LISTS.md) ───────────────────────────────
@@ -523,6 +545,9 @@ export const EVENT_TYPES = {
   ENROLLMENT_HELD: "enrollment.held.v1",
   ENROLLMENT_RESUMED: "enrollment.resumed.v1",
   CONTACT_CALL_CONSENT: "contact.call_consent.v1",
+  CAMPAIGN_AUTONOMY_CHANGED: "campaign.autonomy_changed.v1",
+  APPROVAL_CREATED: "approval.created.v1",
+  APPROVAL_DECIDED: "approval.decided.v1",
   LEAD_UNSUBSCRIBED: "lead.unsubscribed.v1",
   LIST_MEMBER_ADDED: "list.member.added.v1",
   LIST_MEMBER_REMOVED: "list.member.removed.v1",

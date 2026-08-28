@@ -147,6 +147,9 @@ test("create a campaign end to end through the shipped path, then launch", async
   await page.getByTestId("bold-create-next").click();
 
   // Step 6 — limits: the literal-true rails render locked, never as toggles.
+  // The autonomy radio rides this step — default "Act inside limits".
+  await expect(page.getByTestId("bold-create-auto-limits")).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByTestId("bold-create-auto-ask")).toContainText("Nothing sends without your tap");
   await expect(page.getByTestId("bold-guard-suppress")).toContainText("ALWAYS ON");
   await page.getByTestId("bold-create-next").click();
 

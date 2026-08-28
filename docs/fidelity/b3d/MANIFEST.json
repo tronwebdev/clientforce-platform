@@ -1,0 +1,30 @@
+{
+  "unit": "b3d",
+  "commit": "27986ea35b19112fc26ee79a81c77b9a4ab960e3",
+  "workingTreeDirtyAtCapture": false,
+  "capturedAt": "2026-08-28T18:15:48.361Z",
+  "baseUrl": "http://localhost:3000",
+  "note": "Single-run capture; every frame from one build. Verify a frame by hashing its bytes against this manifest — never by trusting an image cache. pnpm lint:fidelity enforces the binding.",
+  "frames": {
+    "build-approvals-panel-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 180011,
+      "sha256": "b881a0be5832c88dde27a71418001c100b1d0d7428fd59dbf4771d4f42f843e6"
+    },
+    "build-needs-strip-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 204193,
+      "sha256": "4244ba28be14de1733bdcca7dabc08563a9488d297aedc3707cf6cc6aa235985"
+    },
+    "build-settings-auto-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 115432,
+      "sha256": "9987381e6842a368410385143cbd5b41c057b4bfe194e692507ef88bf1eb2c0d"
+    },
+    "proto-settings-auto-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 151182,
+      "sha256": "38033fb5d3f85c9d2579ef790137a2b017d8838a043d3e1757b681bd877cae09"
+    }
+  }
+}
