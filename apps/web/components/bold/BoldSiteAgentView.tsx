@@ -97,13 +97,6 @@ export function BoldSiteAgentView({ flash }: { flash?: (msg: string) => void }) 
 
   return (
     <div data-testid="bold-siteagent" style={{ padding: "26px 40px 40px", maxWidth: 980 }}>
-      <div style={{ ...mono, fontSize: 9.5, letterSpacing: ".18em", color: "var(--cvb-faint)" }}>
-        {installed ? "INBOUND CHANNEL · ON YOUR SITE" : "INBOUND CHANNEL · NOT INSTALLED"}
-      </div>
-      <div style={{ fontSize: 27, fontWeight: 800, letterSpacing: "-.028em", marginTop: 4, marginBottom: 16 }}>
-        Site agent
-      </div>
-
       {!loaded ? (
         <div style={{ fontSize: 12.5, color: "var(--cvb-faint)" }}>Reading the widget…</div>
       ) : !installed ? (

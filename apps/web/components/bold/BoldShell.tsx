@@ -305,7 +305,18 @@ export function BoldShell({
               ] as const)
             : surface === "contacts"
               ? ([contactCount == null ? "PEOPLE" : `${contactCount} ${contactCount === 1 ? "PERSON" : "PEOPLE"}`, "Contacts"] as const)
-              : SURFACE_TITLES[surface];
+              : surface === "chatbot"
+                ? // B4 (DEC-124): the one-flag rule — the eyebrow flips with
+                  // the SAME overview truth the page, rail and dock read.
+                  ([
+                    widgetOverview
+                      ? widgetOverview.installed
+                        ? "INBOUND CHANNEL · ON YOUR SITE"
+                        : "INBOUND CHANNEL · NOT INSTALLED"
+                      : "INBOUND CHANNEL",
+                    "Site agent",
+                  ] as const)
+                : SURFACE_TITLES[surface];
   const status =
     onCampaign && activeCamp
       ? activeCamp.status === "ACTIVE"
