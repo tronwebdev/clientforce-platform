@@ -31,6 +31,7 @@ import { BoldFormsView } from "./BoldFormsView";
 import { BoldProposalsView } from "./BoldProposalsView";
 import { BoldAutomationsView } from "./BoldAutomationsView";
 import { BoldGuidedBuild, type GuildKind } from "./BoldGuidedBuild";
+import { BoldLeadFinderView } from "./BoldLeadFinderView";
 import {
   SURFACE_TITLES,
   TOUR_STEPS,
@@ -586,6 +587,7 @@ export function BoldShell({
             {surface === "automations" ? (
               <BoldAutomationsView key={`a${gbTick}`} onBuild={() => setGb("auto")} onCounts={onAutoCounts} flash={flash} />
             ) : null}
+            {surface === "lead" ? <BoldLeadFinderView onOpenDrawer={setDrawer} flash={flash} /> : null}
             {gb ? (
               <BoldGuidedBuild
                 kind={gb}
@@ -598,7 +600,7 @@ export function BoldShell({
                 flash={flash}
               />
             ) : null}
-            {surface !== "campaign" && surface !== "camps" && surface !== "activity" && surface !== "newcamp" && surface !== "wsinbox" && surface !== "contacts" && surface !== "chatbot" && surface !== "forms" && surface !== "proposals" && surface !== "automations" ? (
+            {surface !== "campaign" && surface !== "camps" && surface !== "activity" && surface !== "newcamp" && surface !== "wsinbox" && surface !== "contacts" && surface !== "chatbot" && surface !== "forms" && surface !== "proposals" && surface !== "automations" && surface !== "lead" ? (
               <SurfaceStub title={title} />
             ) : null}
             {rcpOpen ? (

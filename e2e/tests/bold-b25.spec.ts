@@ -92,10 +92,10 @@ test("create a campaign end to end through the shipped path, then launch", async
   await page.getByTestId("bold-who-csv").click();
   const csv = [
     "Full Name,Email Address,Mobile,Opted In",
-    `Quinn One,e2e-b25-${run}-1@example.test,+15550000001,yes`,
-    `Quinn Two,e2e-b25-${run}-2@example.test,+15550000002,yes`,
-    `Quinn Three,e2e-b25-${run}-3@example.test,,yes`,
-    `Quinn Silent,e2e-b25-${run}-4@example.test,,no`,
+    `Nora Vance,e2e-b25-${run}-1@example.test,+15550000001,yes`,
+    `Sam Okafor,e2e-b25-${run}-2@example.test,+15550000002,yes`,
+    `Lena Brook,e2e-b25-${run}-3@example.test,,yes`,
+    `Theo Marsh,e2e-b25-${run}-4@example.test,,no`,
     "Broken Row,not-an-email,,yes",
   ].join("\n");
   await page.getByTestId("bold-csv-input").setInputFiles({

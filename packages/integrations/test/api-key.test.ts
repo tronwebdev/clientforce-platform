@@ -119,6 +119,12 @@ describe("workspace API keys", () => {
     const k = mintApiKey();
     const masked = maskApiKey(k.prefix);
     expect(masked).toContain(k.prefix);
-    expect(masked).not.toContain(k.token.split("_")[2]);
+    // The secret is base64url, whose alphabet includes "_" — split("_")[2]
+    // yields a short fragment about half the time (a one-char fragment can
+    // legitimately appear inside the hex prefix, a flaky false negative).
+    // Slice past the fixed lead instead: the whole secret, exactly.
+    const secret = k.token.slice(`cfk_${k.prefix}_`.length);
+    expect(secret.length).toBeGreaterThanOrEqual(20);
+    expect(masked).not.toContain(secret);
   });
 });

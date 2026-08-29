@@ -50,6 +50,11 @@ const DEFAULT_CREDIT_PRICES: ReadonlyArray<{ action: string; credits: number }> 
   { action: "reply_email_send", credits: 1 },
   { action: "reply_sms_send", credits: 5 },
   { action: "reply_draft", credits: 0 },
+  // B6 (DEC-131, owner ruling): reveal + intent enrichment are effective-
+  // dated DATA shown in the UI, never hard-coded (the prototype's numbers
+  // are proposals; these defaults carry them until the owner re-prices).
+  { action: "lead_reveal", credits: 1 },
+  { action: "intent_enrichment", credits: 2 },
 ];
 
 /** The 3 agency-level plan tiers (priceMonthly in integer cents). */
@@ -1013,6 +1018,62 @@ async function main(): Promise<void> {
               conditions: [],
               actions: a.actions as object,
             },
+          });
+        }
+      }
+    }
+
+    // B6 (DEC-131): the demo workspace's ICP profile — shape + vertical for
+    // the registry-resolved lead-finder surfaces. Idempotent settings merge.
+    {
+      const ws = await prisma.workspace.findUnique({ where: { id: primary.id } });
+      const settings = (ws?.settings ?? {}) as Record<string, unknown>;
+      if (!settings.icpProfile) {
+        await prisma.workspace.update({
+          where: { id: primary.id },
+          data: {
+            settings: {
+              ...settings,
+              icpProfile: {
+                shape: "local_business",
+                vertical: "dental",
+                headcountBand: "5–25",
+                location: "Austin",
+                titles: ["Owner", "Practice Manager"],
+                ownerRun: true,
+              },
+            },
+          },
+        });
+      }
+
+      // B6 review fix 2: two never-worked book contacts carrying REAL facts
+      // (a targeted title; call consent) so the keyless pool demonstrates
+      // differentiated fits next to the honest "unscored" rows. No messages —
+      // inbox and campaign-activity fixtures stay untouched.
+      for (const c of [
+        {
+          email: "marta@nguyenfamilydental.test",
+          firstName: "Marta",
+          lastName: "Nguyen",
+          company: "Nguyen Family Dental",
+          title: "Owner",
+          callConsent: "granted",
+        },
+        {
+          email: "dev@cedarparksmiles.test",
+          firstName: "Dev",
+          lastName: "Patel",
+          company: "Cedar Park Smiles",
+          title: "Practice Manager",
+        },
+      ]) {
+        const exists = await prisma.contact.findFirst({
+          where: { workspaceId: primary.id, email: c.email },
+        });
+        if (!exists) {
+          await prisma.contact.create({
+            data: { workspaceId: primary.id, source: "seed", optOut: {}, tags: [], ...c },
           });
         }
       }

@@ -1004,6 +1004,55 @@ model CallRetrieval {
 
 // P1.5 (handoff A7): checked at the send boundary together with
 // Contact.optOut; unsubscribe/bounce/spam events write rows here.
+// ─────────────────────────────────────────────────────────────────────────────
+// B6 (DEC-131): lead finder + the BuyerPing intent tier
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** What counts as buying intent for this workspace — kind: topic | competitor | area. */
+model WatchTopic {
+  id          String   @id @default(cuid())
+  workspaceId String
+  kind        String
+  label       String
+  createdAt   DateTime @default(now())
+
+  @@unique([workspaceId, kind, label])
+  @@index([workspaceId])
+}
+
+/** The intent-signal ledger the first-party pipeline writes (source:
+ *  first_party | apollo). Decay is computed at read from the core registry —
+ *  the row stores the fact, never a rotting score. */
+model IntentSignal {
+  id          String   @id @default(cuid())
+  workspaceId String
+  contactId   String?
+  /** Entity resolution key when no contact matches: normalized company name
+   *  (no domain field exists on Contact — flagged, not papered over). */
+  companyKey  String?
+  source      String
+  type        String
+  receipt     String
+  occurredAt  DateTime
+  meta        Json?
+  createdAt   DateTime @default(now())
+
+  @@index([workspaceId, occurredAt])
+  @@index([workspaceId, contactId, occurredAt])
+}
+
+/** "Not a fit — hide it": provider profiles the finder stops surfacing. */
+model LeadExclusion {
+  id          String   @id @default(cuid())
+  workspaceId String
+  provider    String
+  providerRef String
+  reason      String   @default("hidden")
+  createdAt   DateTime @default(now())
+
+  @@unique([workspaceId, provider, providerRef])
+}
+
 model Suppression {
   id          String            @id @default(cuid())
   workspaceId String

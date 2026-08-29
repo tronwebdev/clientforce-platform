@@ -33,8 +33,8 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const UNIT = process.argv[2] ?? "b1";
-if (!["b1", "b2", "b25", "b26", "b3", "b3b", "b3c1", "b3c2", "b3d", "b4", "b45", "b5"].includes(UNIT)) {
-  console.error(`Unknown unit "${UNIT}" — this tool knows b1, b2, b25, b26, b3, b3b, b3c1, b3c2, b3d, b4, b45 and b5.`);
+if (!["b1", "b2", "b25", "b26", "b3", "b3b", "b3c1", "b3c2", "b3d", "b4", "b45", "b5", "b6"].includes(UNIT)) {
+  console.error(`Unknown unit "${UNIT}" — this tool knows b1, b2, b25, b26, b3, b3b, b3c1, b3c2, b3d, b4, b45, b5 and b6.`);
   process.exit(1);
 }
 const OUT = join(ROOT, "docs", "fidelity", UNIT);
@@ -152,6 +152,53 @@ const toBoldCampaign = async (p) => {
 };
 
 
+
+/* ---------------------------------------------------------------- the b6 set */
+if (UNIT === "b6") {
+  await run("prototype-b6", async () => {
+    const p = await page({ width: 1440, height: 900 });
+    await freshProto(p);
+    await p.locator('[title^="Lead finder"]').first().click();
+    await p.waitForTimeout(800);
+    await shot(p, "proto-lead-ada-1440x900");
+    await p.getByText("Search it yourself", { exact: true }).first().click();
+    await p.waitForTimeout(700);
+    await shot(p, "proto-lead-own-1440x900");
+    await p.getByText("Direct search", { exact: true }).first().click();
+    await p.waitForTimeout(700);
+    await shot(p, "proto-lead-direct-1440x900");
+    await p.getByText("Add buyer intent", { exact: true }).first().click();
+    await p.waitForTimeout(700);
+    await shot(p, "proto-lead-bp-1440x900");
+    await p.context().close();
+  });
+
+  await run("build-b6", async () => {
+    const p = await page({ width: 1440, height: 900 });
+    await signInBuild(p);
+    await p.goto(`${BASE}/bold`);
+    await p.getByTestId("bold-root").waitFor();
+    await p.addStyleTag({ content: "nextjs-portal{display:none!important}" });
+    await p.waitForTimeout(700);
+    const later = p.getByText("Later", { exact: true }).first();
+    if (await later.isVisible().catch(() => false)) await later.click();
+    await p.getByTestId("bold-dock-lead").click();
+    await p.getByTestId("bold-lead-icp").waitFor({ timeout: 15_000 });
+    await p.waitForTimeout(2600); // the auto-run search settles AND its toast clears
+    await shot(p, "build-lead-ada-1440x900");
+    await p.getByTestId("bold-lead-mode-own").click();
+    await p.waitForTimeout(700);
+    await shot(p, "build-lead-own-1440x900");
+    await p.getByTestId("bold-lead-mode-legacy").click();
+    await p.waitForTimeout(700);
+    await shot(p, "build-lead-direct-1440x900");
+    await p.getByTestId("bold-lead-bp-chip").click();
+    await p.getByTestId("bold-lead-bp").waitFor();
+    await p.waitForTimeout(600);
+    await shot(p, "build-lead-bp-1440x900");
+    await p.context().close();
+  });
+}
 
 /* ---------------------------------------------------------------- the b5 set */
 if (UNIT === "b5") {

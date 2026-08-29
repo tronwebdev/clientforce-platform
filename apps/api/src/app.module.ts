@@ -23,6 +23,7 @@ import { VoiceModule } from "./voice/voice.module";
 import { WidgetModule } from "./widget/widget.module";
 import { FormsModule } from "./forms/forms.module";
 import { ProposalsModule } from "./proposals/proposals.module";
+import { LeadsModule } from "./leads/leads.module";
 import { ContactsController } from "./contacts/contacts.controller";
 import { ContactsViewController } from "./contacts/contacts-view.controller";
 import { ContactFieldsController } from "./contacts/contact-fields.controller";
@@ -55,6 +56,7 @@ import { BusOrInlinePublisher, EVENTS_PUBLISHER } from "./events/publisher";
     WidgetModule,
     FormsModule,
     ProposalsModule,
+    LeadsModule,
   ],
   controllers: [
     HealthController,
