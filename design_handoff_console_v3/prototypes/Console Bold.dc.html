@@ -5092,12 +5092,13 @@ class Component extends DCLogic {
       return { n, sub, bg: on ? '#EAF5EE' : '#FCFCFC', bd: on ? '#CFE8D8' : '#ECEDEC',
         ring: on ? '#146B33' : '#D3DDD6', dot: on ? '#146B33' : 'transparent',
         go: () => { this.setState({ rcpWhen: k2 }); this.flash('Applies from the next call'); } }; });
-    const rcpCanState = s.rcpCan || { book: true, quote: true, move: true, refund: false };
+    const rcpCanState = s.rcpCan || { book: true, quote: true, move: true, refund: false, integrations: true };
     const RCPCAN = [
       ['book', 'Book appointments', 'Reads the calendar and confirms on the call'],
       ['quote', 'Quote prices', 'Only prices in your business core — never invented'],
       ['move', 'Move or cancel', 'Reschedules existing appointments'],
       ['refund', 'Discuss refunds', 'Off by default — money back goes to a person'],
+      ['integrations', 'Act through integrations', "Calendar, payment links — only what's connected"],
     ];
     const rcpCan = RCPCAN.map(([k2, n, sub], i) => { const on = !!rcpCanState[k2];
       return { n, sub, line: i === RCPCAN.length - 1 ? 'transparent' : '#F4F5F4',

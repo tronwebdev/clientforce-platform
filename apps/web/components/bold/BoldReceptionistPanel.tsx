@@ -23,7 +23,15 @@ const WHAT_SHE_DOES: ReadonlyArray<readonly [string, string]> = [
   ["Writes it all down", "Every call becomes a contact, a transcript and a next step."],
 ];
 
-export function BoldReceptionistPanel({ onClose }: { onClose: () => void }) {
+export function BoldReceptionistPanel({
+  onClose,
+  onPreview,
+}: {
+  onClose: () => void;
+  /** B4.5 (owner ruling 5): "Preview a call" — the scripted, clearly-labeled
+   *  demo through the live-call card. Supersedes the "Hear a call" slot. */
+  onPreview?: () => void;
+}) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -74,6 +82,15 @@ export function BoldReceptionistPanel({ onClose }: { onClose: () => void }) {
             >
               Add to plan · $39/mo — coming soon
             </span>
+            {onPreview ? (
+              <span
+                onClick={onPreview}
+                data-testid="bold-rcp-preview"
+                style={{ fontSize: 12, fontWeight: 700, color: "#fff", background: "rgba(255,255,255,.1)", border: "1px solid rgba(255,255,255,.2)", borderRadius: 10, padding: "8px 13px", cursor: "pointer" }}
+              >
+                Preview a call
+              </span>
+            ) : null}
           </div>
           <div style={{ ...mono, fontSize: 9.5, color: "rgba(242,246,242,.5)", lineHeight: 1.6, marginTop: 12 }}>
             ✦ Discloses it&rsquo;s an AI assistant on every call. $39/mo plus 15 credits a

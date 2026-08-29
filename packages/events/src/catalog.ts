@@ -127,6 +127,14 @@ export const EVENT_SCHEMAS = {
     outcome: z.string().optional(),
     caller: z.enum(["ada", "human"]).optional(),
   }),
+  // B4.5 (DEC-128): a human jumped into an in-progress Ada call — the contact
+  // leg was redirected into the call's conference room and the operator's
+  // browser leg joined it. ONE transition per takeover; the call's terminal
+  // event still lands once, from the contact leg's status webhook.
+  "call.taken_over.v1": z.object({
+    callId: z.string(),
+    byUserId: z.string().optional(),
+  }),
   // P3.1 (DEC-078): the dial boundary refused BEFORE any call existed —
   // window/cap/suppression/allow-list rails (send-sms order, ported). No
   // callId on purpose: no Call row was created (DEC-064: the catalog payload
@@ -534,6 +542,7 @@ export const EVENT_TYPES = {
   CALL_COMPLETED: "call.completed.v1",
   CALL_FAILED: "call.failed.v1",
   CALL_BOOKED: "call.booked.v1",
+  CALL_TAKEN_OVER: "call.taken_over.v1",
   CALL_REFUSED: "call.refused.v1",
   VOICE_COMPOSE_REFUSED: "voice.compose_refused.v1",
   VOICE_CONTEXT_RETRIEVED: "voice.context_retrieved.v1",

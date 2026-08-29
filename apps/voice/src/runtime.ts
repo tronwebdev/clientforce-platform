@@ -187,6 +187,14 @@ export async function finalizeCall(args: {
     { mustSay: context.mustSay },
   );
 
+  // B4.5 (DEC-128): read the row's standing meta — the takeover marker (and
+  // the dial-time keys) must survive the stats merge below.
+  const row = await withTenant(prisma, { workspaceId: context.workspaceId }, (tx) =>
+    tx.call.findUnique({ where: { id: context.callId }, select: { meta: true } }),
+  );
+  const priorMeta = (row?.meta ?? {}) as Record<string, unknown>;
+  const takenOver = Boolean((priorMeta as { takenOver?: unknown }).takenOver);
+
   const written = await persistTranscript(prisma, turns, {
     workspaceId: context.workspaceId,
     campaignId: context.campaignId,
@@ -213,12 +221,20 @@ export async function finalizeCall(args: {
     tx.call.update({
       where: { id: context.callId },
       data: {
-        status: outcome === "failed" ? "FAILED" : "COMPLETED",
-        outcome,
-        endedAt: new Date(startedAt.getTime() + durationSec * 1000),
-        durationSec,
+        // B4.5 (DEC-128): after a human takeover Ada's stream stopping is not
+        // the call ending — the conference lives on, and the contact leg's
+        // status webhook owns the terminal stamp. Voice stats still land.
+        ...(takenOver
+          ? {}
+          : {
+              status: outcome === "failed" ? ("FAILED" as const) : ("COMPLETED" as const),
+              outcome,
+              endedAt: new Date(startedAt.getTime() + durationSec * 1000),
+              durationSec,
+            }),
         costUsd: cost.totalUsd,
         meta: {
+          ...priorMeta,
           endReason,
           disclosureVariant: context.disclosureVariant,
           disclosureCompleted: report.disclosureCompleted,
@@ -244,7 +260,12 @@ export async function finalizeCall(args: {
     contactId: context.contactId,
     enrollmentId: context.enrollmentId ?? undefined,
   };
-  if (outcome === "failed") {
+  // B4.5 (DEC-128): a taken-over call is still IN PROGRESS when Ada's leg
+  // stops — its completion event lands from the contact leg's status webhook,
+  // never from here (one terminal event per call).
+  if (takenOver) {
+    // fallthrough — the recall summary below still belongs to Ada's leg.
+  } else if (outcome === "failed") {
     await publisher.publish({
       ...base,
       type: EVENT_TYPES.CALL_FAILED,

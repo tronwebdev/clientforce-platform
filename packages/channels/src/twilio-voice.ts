@@ -59,8 +59,32 @@ export interface PlaceCallResult {
   sandbox: boolean;
 }
 
+/** B4.5 (DEC-128): one conference room per call, named by OUR call id —
+ *  direction-agnostic (an inbound call gets a room the same way). */
+export function conferenceRoomForCall(callId: string): string {
+  return `cf-call-${callId}`;
+}
+
+/** The room-join TwiML both legs use: the redirected contact leg and the
+ *  browser leg from the bridge webhook. Either side leaving ends the room —
+ *  with Ada gone, nobody is left to hold an open line. */
+export function conferenceJoinTwiml(room: string): string {
+  return (
+    `<Response><Dial>` +
+    `<Conference beep="false" endConferenceOnExit="true">${room}</Conference>` +
+    `</Dial></Response>`
+  );
+}
+
 export interface VoiceDialer {
   placeCall(params: PlaceCallParams): Promise<PlaceCallResult>;
+  /**
+   * B4.5 (DEC-128): swap an IN-PROGRESS leg's TwiML — the takeover primitive.
+   * Redirecting the contact leg into its call's conference room is how a human
+   * joins mid-call; direction-agnostic (any leg with a live CallSid).
+   * Sandbox: recorded no-op, so the whole flow proves out keylessly.
+   */
+  redirectCall(providerCallSid: string, twiml: string): Promise<{ sandbox: boolean }>;
 }
 
 export class TwilioVoiceDialer implements VoiceDialer {
@@ -118,6 +142,31 @@ export class TwilioVoiceDialer implements VoiceDialer {
     }
     const data = (await res.json()) as { sid: string };
     return { providerCallSid: data.sid, sandbox: false };
+  }
+
+  async redirectCall(providerCallSid: string, twiml: string): Promise<{ sandbox: boolean }> {
+    if (this.sandbox || providerCallSid.startsWith("CA-sandbox-")) {
+      return { sandbox: true };
+    }
+    if (!this.accountSid || !this.authToken) {
+      throw new Error("Twilio credentials missing (TWILIO_ACCOUNT_SID/TWILIO_AUTH_TOKEN)");
+    }
+    const res = await fetch(
+      `${TWILIO_API}/Accounts/${this.accountSid}/Calls/${encodeURIComponent(providerCallSid)}.json`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Basic ${Buffer.from(`${this.accountSid}:${this.authToken}`).toString("base64")}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({ Twiml: twiml }).toString(),
+      },
+    );
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      throw new Error(`Twilio redirect failed (${res.status}): ${detail.slice(0, 300)}`);
+    }
+    return { sandbox: false };
   }
 }
 

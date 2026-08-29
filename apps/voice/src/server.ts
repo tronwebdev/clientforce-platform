@@ -27,7 +27,8 @@ import { loadAckClips } from "./ack";
 import { createVoiceEventsPublisher, type VoiceEventsPublisher } from "./events";
 import { mediaStreamUrl, parseMediaRequest } from "./media-url";
 import { MetricsCollector } from "./metrics";
-import { CallSession, type CallEndReason } from "./session";
+import { CallSession, type CallEndReason, type VoiceTurn } from "./session";
+import { persistLatestTurn } from "./persist";
 import { synthesizeAura } from "./deepgram";
 import {
   createVoiceGateway,
@@ -149,6 +150,9 @@ wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
   let context: CallContext | undefined;
   let startedAt = new Date();
   let finalized = false;
+  /** B4.5 (DEC-128): the live transcript feed — one serialized write per fixed
+   *  turn so upserts never race each other (or the finalize, which chains on). */
+  let liveWrite: Promise<void> = Promise.resolve();
   /** SPEC A (DEC-099): per-call recall service; its receipts flush at finalize. */
   let recall: RecallService | undefined;
 
@@ -202,17 +206,25 @@ wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
       })}`,
     );
     if (prisma && publisher && context && session) {
-      void finalizeCall({
-        prisma,
-        publisher,
-        context,
-        turns: session.transcript(),
-        metrics,
-        startedAt,
-        endReason,
-        costAlertUsd: config.costAlertUsdPerCall,
-        recall,
-      }).catch((err) => console.error("[finalize]", (err as Error).message));
+      const ctx = context;
+      const sess = session;
+      // Chain on the live feed so a queued per-turn upsert can never land
+      // AFTER finalize converged the bodies (stale-body race).
+      void liveWrite
+        .then(() =>
+          finalizeCall({
+            prisma,
+            publisher,
+            context: ctx,
+            turns: sess.transcript(),
+            metrics,
+            startedAt,
+            endReason,
+            costAlertUsd: config.costAlertUsdPerCall,
+            recall,
+          }),
+        )
+        .catch((err) => console.error("[finalize]", (err as Error).message));
     } else {
       console.log("[voice] standalone mode — no persistence (metrics only)");
     }
@@ -309,6 +321,31 @@ wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
               finish(reason);
               ws.close();
             },
+            // B4.5 (DEC-128): each fixed turn lands as its Message row the
+            // moment it exists — the console's live transcript reads the same
+            // rows finalize writes. Product path only; a failed write is
+            // logged and never touches the call.
+            ...(prisma && params.callId
+              ? {
+                  onTurn: (turns: VoiceTurn[]) => {
+                    const ctx = context;
+                    if (!ctx) return;
+                    liveWrite = liveWrite
+                      .then(() =>
+                        persistLatestTurn(prisma, turns, {
+                          workspaceId: ctx.workspaceId,
+                          campaignId: ctx.campaignId,
+                          contactId: ctx.contactId,
+                          enrollmentId: ctx.enrollmentId,
+                          callId: ctx.callId,
+                          providerCallSid: ctx.providerCallSid || ctx.callId,
+                          startedAt,
+                        }),
+                      )
+                      .catch((err) => console.error("[live-turn]", (err as Error).message));
+                  },
+                }
+              : {}),
           });
           if (prisma && publisher && context.callId && params.callId) {
             await withCallStarted(prisma, publisher, context);
