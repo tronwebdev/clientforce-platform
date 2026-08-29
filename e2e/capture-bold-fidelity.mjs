@@ -275,8 +275,15 @@ if (UNIT === "b5") {
 /* --------------------------------------------------------------- the b45 set */
 if (UNIT === "b45") {
   // The transient DB fixture that stands in for a genuinely live Ada call
-  // (no local voice loop exists) — always torn down at the end.
-  const FIXTURE_DB = process.env.FIXTURE_DATABASE_URL ?? "postgresql://postgres:postgres@localhost:5432/clientforce";
+  // (no local voice loop exists) — always torn down at the end. No cred
+  // literal here (secret-scan gate, DEC-132): the local default lives in
+  // packages/db/.env.example.
+  const FIXTURE_DB = process.env.FIXTURE_DATABASE_URL ?? process.env.DATABASE_URL;
+  if (!FIXTURE_DB) {
+    throw new Error(
+      "b45 capture needs FIXTURE_DATABASE_URL (or DATABASE_URL) — the local default is documented in packages/db/.env.example",
+    );
+  }
   const fixture = (phase) =>
     execSync(`pnpm --filter @clientforce/db exec tsx prisma/b45-live-fixture.ts ${phase}`, {
       cwd: ROOT,

@@ -81,7 +81,19 @@ test("the sweep proposes a real draft; start prefills the create flow; dismiss s
   // the filled "Start it"; the header count excludes it (owner ruling).
   await page.getByText("All", { exact: true }).click();
   await expect(page.getByTestId("bold-page-title")).toHaveText("Campaigns");
-  await expect(page.getByText(/^4 CAMPAIGNS$/)).toBeVisible();
+  // The header count excludes the suggestion (owner ruling) — assert it
+  // against the REAL campaign rows rendered on this page, never a fixture
+  // constant: the shared staging workspace carries campaigns this suite's
+  // own parallel specs (b25) launch mid-run, so an absolute "4" can't hold.
+  const campRows = page.getByTestId("bold-camps-page").locator('[data-testid^="bold-camprow-"]');
+  await expect(campRows.first()).toBeVisible();
+  await expect(async () => {
+    const campCount = await campRows.count();
+    expect(campCount).toBeGreaterThan(0);
+    await expect(page.getByText(new RegExp(`^${campCount} CAMPAIGNS$`))).toBeVisible({
+      timeout: 2_000,
+    });
+  }).toPass({ timeout: 15_000 });
   const suggRow = page.getByTestId(/bold-sugg-row-/);
   await expect(suggRow).toContainText(SUGG_NAME);
   await expect(suggRow).toContainText("✦ Ada's idea");

@@ -1,0 +1,64 @@
+# Stale-staging guard (DEC-132, beside Q-086's permanent design): staging is
+# only trustworthy while it serves main. The Aug 26–29 outage stayed silent
+# because red deploy runs scrolled by without anything comparing what staging
+# actually SERVES against main — this closes that gap: every two hours the
+# guard reads /api/version (the Bicep-stamped IMAGE_SHA) and FAILS LOUDLY when
+# staging's build has diverged from main for more than MAX_STALE_HOURS.
+# A failing run of this workflow means: go look at the Deploy (staging) runs.
+name: Staging guard (build-SHA drift)
+
+on:
+  schedule:
+    - cron: "17 */2 * * *"
+  workflow_dispatch:
+
+permissions:
+  id-token: write # OIDC federated auth to Azure (FQDN lookup only)
+  contents: read
+
+env:
+  RG: ${{ vars.AZURE_RESOURCE_GROUP }}
+  # How long staging may serve a non-main build before this guard goes red.
+  # Deploys take ~15 min; 6h absorbs retries and a branch-dispatch proof
+  # deploy without ever letting a silent multi-day drift recur.
+  MAX_STALE_HOURS: 6
+
+jobs:
+  guard:
+    name: staging serves main
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Compare staging's serving SHA against main
+        run: |
+          set -euo pipefail
+          main_sha="$(git rev-parse HEAD)"
+          main_age_s=$(( $(date +%s) - $(git log -1 --format=%ct HEAD) ))
+          web="$(az containerapp show --name clientforce-web --resource-group "$RG" --query "properties.configuration.ingress.fqdn" -o tsv)"
+          echo "main HEAD:       $main_sha ($(( main_age_s / 3600 ))h old)"
+          # An unreachable endpoint or a pre-DEC-132 build (no /api/version)
+          # both read as "unknown" — treated as divergence, never as a pass.
+          serving="$(curl -fsS --max-time 30 "https://$web/api/version" | jq -r '.sha // empty' 2>/dev/null || true)"
+          echo "staging serving: ${serving:-<unknown — /api/version absent or unreachable>}"
+          if [ "$serving" = "$main_sha" ]; then
+            echo "✓ staging serves main."
+            exit 0
+          fi
+          if [ "$main_age_s" -le $(( MAX_STALE_HOURS * 3600 )) ]; then
+            echo "main moved less than ${MAX_STALE_HOURS}h ago — a deploy may still be in flight. Not failing yet."
+            exit 0
+          fi
+          echo "::error::STAGING IS STALE — serving ${serving:-an unknown build} while main has been at $main_sha for over ${MAX_STALE_HOURS}h. Check the latest 'Deploy (staging)' runs: a red deploy job means the push never reached staging (the Aug 2026 outage mode, DEC-132)."
+          exit 1

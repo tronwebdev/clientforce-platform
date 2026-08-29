@@ -80,7 +80,23 @@ test("a human reply sends through the boundary, holds Ada, and Resume releases h
   const stamp = `Most people are back to normal food in three days. (e2e ${Date.now()})`;
   await page.getByTestId("bold-inbox-replytext").fill(stamp);
   await page.getByTestId("bold-inbox-send").click();
-  await expect(page.getByTestId("bold-toast")).toContainText("Sent to Alan Turing");
+  // Deployment fork, both honest: where the send allow-list admits the
+  // fixture address (local stack — CHANNELS_ALLOWLIST unset) the reply sends
+  // and the full hold/Resume spine runs below; on staging the live allow-list
+  // (DEC-063 family) refuses `.test` recipients BY DESIGN — the boundary's
+  // typed refusal must surface on screen, which is itself the proof the
+  // boundary fired, and the unreachable remainder skips visibly. Any OTHER
+  // refusal type still fails the spec.
+  const sendToast = page.getByTestId("bold-toast");
+  await expect(sendToast).toContainText(/Sent to Alan Turing|Send blocked \(RECIPIENT_NOT_ALLOWLISTED\)/);
+  if ((await sendToast.textContent())?.includes("RECIPIENT_NOT_ALLOWLISTED")) {
+    await expect(sendToast).toContainText("Not sent");
+    test.skip(
+      true,
+      "staging's send allow-list refuses .test recipients by design (DEC-063 family) — the full reply spine is proven on the local stack",
+    );
+    return;
+  }
   await expect(page.getByTestId("bold-inbox-sent")).toContainText("Ada is watching for the reply");
   await expect(page.getByTestId("bold-inbox-pane").getByText(stamp)).toBeVisible({ timeout: 15_000 });
   await expect(page.getByTestId("bold-inbox-pane").getByText("you replied").first()).toBeVisible();

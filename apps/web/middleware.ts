@@ -16,6 +16,9 @@ function isPublic(pathname: string): boolean {
     pathname.startsWith("/sign-in") ||
     pathname.startsWith("/sign-up") ||
     pathname.startsWith("/api/auth/") ||
+    // DEC-132: the deploy-identity probe — public so the stale-staging guard
+    // can read the serving build's SHA without a session; it returns only that.
+    pathname === "/api/version" ||
     // B5 (DEC-130): the hosted form pages — public by design, a form
     // exists to be filled in by strangers (validation is server-side).
     pathname.startsWith("/f/")
@@ -54,6 +57,8 @@ const isPublicRoute = createRouteMatcher([
   "/login",
   "/design",
   "/api/auth(.*)",
+  // DEC-132: the deploy-identity probe (build SHA only).
+  "/api/version",
   // B5 (DEC-130): the hosted form pages — public by design.
   "/f(.*)",
 ]);
