@@ -98,6 +98,7 @@ export * from "./recall";
 // server-authoritative branding field that is the ONLY path to suppressing the
 // platform attribution line.
 export * from "./widget";
+export * from "./widget-vocabulary";
 
 /**
  * Narrow an arbitrary string to a branded {@link Id}. Real validation arrives

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AgentListItem, MeNeedsResponse } from "@clientforce/core";
+import { RECEPTIONIST_FLAG } from "@clientforce/core";
 import type { Me } from "../../lib/types";
 import { BoldAdaBar, BoldAdaPanel } from "./BoldAdaBar";
 import { BoldActivityView } from "./BoldActivityView";
@@ -15,10 +16,15 @@ import { BoldOverview } from "./BoldOverview";
 import { BoldPipelineView } from "./BoldPipelineView";
 import { BoldPlanView } from "./BoldPlanView";
 import { BoldSettingsTab } from "./BoldSettingsTab";
+import { BoldSiteAgentView } from "./BoldSiteAgentView";
+import { BoldReceptionistPanel } from "./BoldReceptionistPanel";
 import { BoldRail } from "./BoldRail";
 import { BoldTourLayer, BoldTourOffer, useBoldTour } from "./BoldTour";
 import { BoldWsPicker } from "./BoldWsPicker";
-import { dismissSuggestion, fetchBoldAgents, sweepSuggestions } from "./bold-live";
+import {
+  fetchFlags,
+  fetchWidgetOverview,
+  type WidgetOverview, dismissSuggestion, fetchBoldAgents, sweepSuggestions } from "./bold-live";
 import {
   SURFACE_TITLES,
   TOUR_STEPS,
@@ -82,6 +88,9 @@ export function BoldShell({
   const firstCampaign =
     orderedAgents.find((a) => a.status === "ACTIVE") ?? orderedAgents.find((a) => !isSuggested(a)) ?? null;
   const [surface, setSurface] = useState<BoldSurface>("campaign");
+  const [widgetOverview, setWidgetOverview] = useState<WidgetOverview | null>(null);
+  const [flags, setFlags] = useState<string[]>([]);
+  const [rcpOpen, setRcpOpen] = useState(false);
   const [campId, setCampId] = useState<string | null>(firstCampaign?.id ?? null);
   const [tab, setTab] = useState<CampaignTab>("overview");
   const [railOpen, setRailOpen] = useState(true);
@@ -232,11 +241,34 @@ export function BoldShell({
     setRailOpen(true);
     setChoreo("recede");
   }, []);
+  useEffect(() => {
+    let alive = true;
+    void fetchWidgetOverview().then((o) => alive && setWidgetOverview(o));
+    void fetchFlags().then((f) => alive && setFlags(f));
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   const selectDock = useCallback((key: BoldSurface) => {
+    // B4 (DEC-124): the receptionist opens as the prototype's slide-over
+    // panel from every entry point — never a canvas surface.
+    if (key === "rcp") {
+      // Gated on the receptionist flag (the B4 wave gate): without it the
+      // add-on's pitch row stays, but the panel says so honestly.
+      if (flags.includes(RECEPTIONIST_FLAG)) {
+        setRcpOpen(true);
+      } else {
+        flash("The receptionist add-on isn't switched on for this workspace yet.");
+      }
+      setAdaOn(false);
+      setDrawer(null);
+      return;
+    }
     setSurface(key);
     setAdaOn(false);
     setDrawer(null);
-  }, []);
+  }, [flags, flash]);
   const selectCampaign = useCallback((id: string) => {
     setSurface("campaign");
     setCampId(id);
@@ -273,7 +305,18 @@ export function BoldShell({
               ] as const)
             : surface === "contacts"
               ? ([contactCount == null ? "PEOPLE" : `${contactCount} ${contactCount === 1 ? "PERSON" : "PEOPLE"}`, "Contacts"] as const)
-              : SURFACE_TITLES[surface];
+              : surface === "chatbot"
+                ? // B4 (DEC-124): the one-flag rule — the eyebrow flips with
+                  // the SAME overview truth the page, rail and dock read.
+                  ([
+                    widgetOverview
+                      ? widgetOverview.installed
+                        ? "INBOUND CHANNEL · ON YOUR SITE"
+                        : "INBOUND CHANNEL · NOT INSTALLED"
+                      : "INBOUND CHANNEL",
+                    "Site agent",
+                  ] as const)
+                : SURFACE_TITLES[surface];
   const status =
     onCampaign && activeCamp
       ? activeCamp.status === "ACTIVE"
@@ -301,6 +344,7 @@ export function BoldShell({
         onSelectCampaign={selectCampaign}
         onAllCampaigns={() => selectDock("camps")}
         onSelectSurface={selectDock}
+        widgetOverview={widgetOverview}
       />
 
       <div className="cvb-canvas-col" ref={canvasColRef} data-choreo={choreo ?? undefined}>
@@ -465,9 +509,11 @@ export function BoldShell({
               />
             ) : null}
             {surface === "activity" && activeCamp ? <BoldActivityView agentId={activeCamp.id} onOpenDrawer={setDrawer} /> : null}
-            {surface !== "campaign" && surface !== "camps" && surface !== "activity" && surface !== "newcamp" && surface !== "wsinbox" && surface !== "contacts" ? (
+            {surface === "chatbot" ? <BoldSiteAgentView flash={flash} /> : null}
+            {surface !== "campaign" && surface !== "camps" && surface !== "activity" && surface !== "newcamp" && surface !== "wsinbox" && surface !== "contacts" && surface !== "chatbot" ? (
               <SurfaceStub title={title} />
             ) : null}
+            {rcpOpen ? <BoldReceptionistPanel onClose={() => setRcpOpen(false)} /> : null}
           </div>
 
           <BoldAdaBar ctx={adaCtx} onOpen={() => setAdaOn(true)} />
@@ -500,7 +546,7 @@ export function BoldShell({
         </div>
       </div>
 
-      <BoldDock surface={surface} onSelect={selectDock} />
+      <BoldDock surface={surface} onSelect={selectDock} widgetOverview={widgetOverview} />
 
       {tour.index != null && tour.rect ? (
         <BoldTourLayer steps={tourSteps} index={tour.index} rect={tour.rect} onGo={tour.go} onSkip={tour.stop} />

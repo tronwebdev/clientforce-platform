@@ -306,7 +306,7 @@ async function main(): Promise<void> {
     await prisma.agent.create({
       data: {
         workspaceId: primary.id,
-        name: "New-Patient Booking Agent",
+        name: "New-patient booking",
         goal: "Book new-patient appointments for the clinic.",
         status: "DRAFT",
         guardrails: {
@@ -317,6 +317,17 @@ async function main(): Promise<void> {
       },
     });
   }
+  // B4 review (DEC-107 vocabulary): a campaign is never called an agent. The
+  // demo agent's original name leaked into its derived "— primary" campaign on
+  // DBs seeded before the rename — fix both in place, idempotently.
+  await prisma.agent.updateMany({
+    where: { workspaceId: primary.id, name: "New-Patient Booking Agent" },
+    data: { name: "New-patient booking" },
+  });
+  await prisma.campaign.updateMany({
+    where: { workspaceId: primary.id, name: "New-Patient Booking Agent — primary" },
+    data: { name: "New-patient booking — primary" },
+  });
 
   // B1 (DEC-104): three more demo campaigns + a small, COHERENT activity
   // fixture on one of them, so the Bold rail/overview/activity surfaces (and
@@ -752,6 +763,79 @@ async function main(): Promise<void> {
           type: "lead.stage_changed.v1",
           payload: { path: ["manual"], equals: true },
         },
+      });
+    }
+
+    // B4 (DEC-124): the demo site agent — a REAL Widget row (stable public
+    // credential) with two visitor conversations and one captured callback,
+    // so the Bold surface, rail and dock read live truth instead of a
+    // fixture. Idempotent: keyed on the fixed publicId / session ids.
+    {
+      const demoAgentRow = await prisma.agent.findFirst({
+        where: { workspaceId: primary.id, name: "Implant open day" },
+        select: { id: true },
+      });
+      if (demoAgentRow) {
+        let widget = await prisma.widget.findFirst({
+          where: { workspaceId: primary.id },
+        });
+        if (!widget) {
+          widget = await prisma.widget.create({
+            data: {
+              workspaceId: primary.id,
+              agentId: demoAgentRow.id,
+              publicId: "wgt_demobrightsmile01",
+              // vertical: the DEC-127 vocabulary key (interim home — Q-096).
+              design: { agentName: "Bright Smile", accent: "#146B33", vertical: "dental" },
+              fields: {},
+              behaviour: {},
+              routing: {},
+            },
+          });
+        }
+        // DEC-127 backfill: widgets seeded before the vocabulary registry
+        // carry no vertical — the demo clinic is dental.
+        const design = widget.design as Record<string, unknown>;
+        if (typeof design.vertical !== "string") {
+          widget = await prisma.widget.update({
+            where: { id: widget.id },
+            data: { design: { ...design, vertical: "dental" } },
+          });
+        }
+        for (const [n, turns] of [
+          [1, [
+            { id: "t1", role: "visitor", text: "How much is a single implant?", at: new Date().toISOString() },
+            { id: "t2", role: "agent", text: "$2,400 per tooth including the crown, and we finance from $180 a month.", at: new Date().toISOString() },
+          ]],
+          [2, [
+            { id: "t1", role: "visitor", text: "Are you open Saturdays?", at: new Date().toISOString() },
+            { id: "t2", role: "agent", text: "We are — mornings until noon. Want me to find you a slot?", at: new Date().toISOString() },
+          ]],
+        ] as const) {
+          const sid = `seed-b4-ws-${widget.id}-${n}`;
+          const exists = await prisma.widgetSession.findUnique({ where: { id: sid } }).catch(() => null);
+          if (!exists) {
+            await prisma.widgetSession.create({
+              data: {
+                id: sid,
+                workspaceId: primary.id,
+                widgetId: widget.id,
+                agentId: widget.agentId,
+                status: "closed",
+                agentTurns: 1,
+                turns: turns as unknown as object,
+                closedAt: new Date(),
+              },
+            });
+          }
+        }
+      }
+      // The receptionist wave gate — backoffice-flipped in production; the
+      // demo workspace carries it so the panel is reachable.
+      await prisma.featureFlag.upsert({
+        where: { workspaceId_key: { workspaceId: primary.id, key: "receptionist" } },
+        update: { enabled: true },
+        create: { workspaceId: primary.id, key: "receptionist", enabled: true },
       });
     }
 

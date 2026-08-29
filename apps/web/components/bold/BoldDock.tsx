@@ -1,10 +1,13 @@
 "use client";
 
-import { DOCK_DEFS, FIXTURE_ALWAYS_ON, dockTileTitle, type BoldSurface } from "./bold-data";
+import { DOCK_DEFS, dockTileTitle, type BoldSurface } from "./bold-data";
+import type { WidgetOverview } from "./bold-live";
 
 interface BoldDockProps {
   surface: BoldSurface;
   onSelect: (key: BoldSurface) => void;
+  /** B4 (DEC-124): the one-flag widget truth (null while loading). */
+  widgetOverview?: WidgetOverview | null;
 }
 
 /**
@@ -13,17 +16,17 @@ interface BoldDockProps {
  * `--cvb-warn-dot` solid; active tile mint fill + forest mark. Titles are
  * dynamic and must match state. Must fit 11 tiles at 540px viewport height.
  */
-export function BoldDock({ surface, onSelect }: BoldDockProps) {
+export function BoldDock({ surface, onSelect, widgetOverview }: BoldDockProps) {
   return (
     <div data-tour="dock" className="cvb-dock" data-testid="bold-dock">
       {DOCK_DEFS.map((d) => {
         const active = surface === d.key;
         const isRcp = d.key === "rcp";
         const isWc = d.key === "chatbot";
-        const live =
-          (isRcp && FIXTURE_ALWAYS_ON.receptionist.owned) ||
-          (isWc && FIXTURE_ALWAYS_ON.siteAgent.installed && FIXTURE_ALWAYS_ON.siteAgent.busy);
-        const warn = isWc && !FIXTURE_ALWAYS_ON.siteAgent.installed;
+        // B4 (DEC-124): the ONE truth — installed/busy from the real widget
+        // overview; receptionist stays unowned until its engine exists.
+        const live = isWc && Boolean(widgetOverview?.installed && widgetOverview.busy);
+        const warn = isWc && widgetOverview !== null && widgetOverview !== undefined && !widgetOverview.installed;
         const stroke = active
           ? isRcp
             ? "var(--cvb-live)"
@@ -43,7 +46,7 @@ export function BoldDock({ surface, onSelect }: BoldDockProps) {
             data-rcp={isRcp ? "true" : "false"}
             data-dock-key={d.key}
             data-testid={`bold-dock-${d.key}`}
-            title={dockTileTitle(d)}
+            title={dockTileTitle(d, widgetOverview ?? null)}
             aria-label={dockTileTitle(d)}
             onClick={() => onSelect(d.key)}
           >

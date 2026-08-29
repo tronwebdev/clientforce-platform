@@ -258,6 +258,11 @@ export const EVENT_SCHEMAS = {
     /// B3d (DEC-120 expansion 1): how:"reply" links THE message that said
     /// yes — the provenance is the reply itself, on the timeline.
     messageId: z.string().optional(),
+    /// B4 (DEC-120 expansion 3, vocabulary ahead of its runtime): a spoken
+    /// decision links THE call — "the call + the transcript moment". The
+    /// inbound receptionist engine (Q-090) is the writer; nothing fabricates
+    /// this until it exists.
+    callId: z.string().optional(),
   }),
 
   // ── Lists (C2.8, docs/PLAN_CONTACT_LISTS.md) ───────────────────────────────

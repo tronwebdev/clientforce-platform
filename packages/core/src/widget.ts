@@ -205,6 +205,13 @@ export const widgetCaptureSpecSchema = z.object({
   submitLabel: z.string().min(1).max(40),
   fields: z.array(widgetCaptureFieldSchema).min(1).max(6),
   consent: widgetCaptureConsentSchema.optional(),
+  /**
+   * B4 (DEC-120(2)): ADDITIVE second consent slot(s) — the call-consent ask
+   * rides here when the workspace turns it on (default OFF). ContractVersion
+   * stays 1: an older bundle that reads only `consent` simply doesn't render
+   * these, which is acceptable for a default-off ask.
+   */
+  consents: z.array(widgetCaptureConsentSchema).max(3).optional(),
 });
 export type WidgetCaptureSpec = z.infer<typeof widgetCaptureSpecSchema>;
 
