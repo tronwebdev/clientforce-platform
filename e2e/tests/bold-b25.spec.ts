@@ -162,11 +162,14 @@ test("create a campaign end to end through the shipped path, then launch", async
   await expect(review).toContainText("$1,800 × 3 = $5,400");
   await expect(page.getByTestId("bold-review-credits")).toContainText("~6");
 
-  // Launch: guardrails PATCH → ACTIVE → enrollments. Fresh imports are LH1
-  // `unverified`, so the gate HOLDS them — the tally says so honestly.
+  // Launch: guardrails PATCH → ACTIVE → enrollments. The ONE gate tallies
+  // honestly, and the tally depends on the deployment: keyless LH1 (the local
+  // stack) HOLDS fresh `unverified` imports for checks; a live ZeroBounce key
+  // (staging, DEC-087) REFUSES the `.test` fixtures outright. Either wording
+  // proves the gate fired — silently enrolling unchecked imports fails both.
   await page.getByTestId("bold-create-next").click();
   await expect(page.getByTestId("bold-toast")).toContainText("Campaign live", { timeout: 30_000 });
-  await expect(page.getByTestId("bold-toast")).toContainText("held for checks");
+  await expect(page.getByTestId("bold-toast")).toContainText(/held for checks|refused/);
 
   // The launched campaign is live in the console: rail row + hero summary
   // leading with the owner's own sentence (Q-069).

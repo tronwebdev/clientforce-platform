@@ -533,6 +533,10 @@ function CallRecordingCard({ toast }: { toast: (m: string) => void }) {
         data-testid="call-recording-toggle"
         role="switch"
         aria-checked={enabled === true}
+        // Honest readiness: clicks no-op until the GET resolves and while a
+        // PATCH is saving — the attribute says so (the 0.55 opacity alone
+        // left a dead-looking-but-clickable switch under slow loads).
+        aria-disabled={enabled === null || saving}
         style={{
           width: 42,
           height: 24,

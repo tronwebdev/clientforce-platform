@@ -376,6 +376,9 @@ resource web 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'PORT', value: '3000' }
             { name: 'AUTH_DEV_SECRET', secretRef: 'auth-dev-secret' }
             { name: 'API_URL', value: 'https://${api.properties.configuration.ingress.fqdn}' }
+            // DEC-132: deploy-identity stamp — /api/version echoes it so the
+            // stale-staging guard can compare the serving build against main.
+            { name: 'IMAGE_SHA', value: imageTag }
           ], clerkWebEnv)
         }
       ]
