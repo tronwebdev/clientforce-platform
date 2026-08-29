@@ -27,6 +27,10 @@ import {
   fetchLiveCalls,
   type WidgetOverview, dismissSuggestion, fetchBoldAgents, sweepSuggestions } from "./bold-live";
 import { BoldLiveCallCard } from "./BoldLiveCallCard";
+import { BoldFormsView } from "./BoldFormsView";
+import { BoldProposalsView } from "./BoldProposalsView";
+import { BoldAutomationsView } from "./BoldAutomationsView";
+import { BoldGuidedBuild, type GuildKind } from "./BoldGuidedBuild";
 import {
   SURFACE_TITLES,
   TOUR_STEPS,
@@ -109,6 +113,15 @@ export function BoldShell({
   const [liveCallId, setLiveCallId] = useState<string | null>(null);
   const [callPreview, setCallPreview] = useState(false);
   const dismissedCallsRef = useRef<Set<string>>(new Set());
+  // B5 (DEC-130): guided-build sheet + the live eyebrow counts.
+  const [gb, setGb] = useState<GuildKind | null>(null);
+  /** Bumped when a guided build lands — remounts the surface so the new row shows. */
+  const [gbTick, setGbTick] = useState(0);
+  const [formCounts, setFormCounts] = useState<{ n: number; responses: number } | null>(null);
+  const [propCount, setPropCount] = useState<number | null>(null);
+  const [autoCounts, setAutoCounts] = useState<{ n: number; on: number } | null>(null);
+  const onFormCounts = useCallback((n: number, responses: number) => setFormCounts({ n, responses }), []);
+  const onAutoCounts = useCallback((n: number, on: number) => setAutoCounts({ n, on }), []);
   // B3a: live eyebrow counts reported by the workspace surfaces (null until
   // each view loads — the eyebrow never shows a canned number).
   const [wsInboxCount, setWsInboxCount] = useState<number | null>(null);
@@ -346,7 +359,17 @@ export function BoldShell({
                       : "INBOUND CHANNEL",
                     "Site agent",
                   ] as const)
-                : SURFACE_TITLES[surface];
+                : surface === "forms"
+                  ? // B5 (DEC-130): live counts or nothing — never a canned number.
+                    ([
+                      formCounts ? `${formCounts.n} FORM${formCounts.n === 1 ? "" : "S"} · ${formCounts.responses} RESPONSE${formCounts.responses === 1 ? "" : "S"}` : "FORMS",
+                      "Forms",
+                    ] as const)
+                  : surface === "proposals"
+                    ? ([propCount == null ? "DOCUMENTS" : `${propCount} DOCUMENT${propCount === 1 ? "" : "S"}`, "Proposals"] as const)
+                    : surface === "automations"
+                      ? ([autoCounts ? `${autoCounts.n} RULE${autoCounts.n === 1 ? "" : "S"} · ${autoCounts.on} ON` : "RULES", "Automations"] as const)
+                      : SURFACE_TITLES[surface];
   const status =
     onCampaign && activeCamp
       ? activeCamp.status === "ACTIVE"
@@ -554,7 +577,28 @@ export function BoldShell({
             ) : null}
             {surface === "activity" && activeCamp ? <BoldActivityView agentId={activeCamp.id} onOpenDrawer={setDrawer} /> : null}
             {surface === "chatbot" ? <BoldSiteAgentView flash={flash} /> : null}
-            {surface !== "campaign" && surface !== "camps" && surface !== "activity" && surface !== "newcamp" && surface !== "wsinbox" && surface !== "contacts" && surface !== "chatbot" ? (
+            {surface === "forms" ? (
+              <BoldFormsView key={`f${gbTick}`} onOpenDrawer={setDrawer} onBuild={() => setGb("form")} onCounts={onFormCounts} flash={flash} />
+            ) : null}
+            {surface === "proposals" ? (
+              <BoldProposalsView key={`p${gbTick}`} onBuild={() => setGb("proposal")} onCounts={setPropCount} flash={flash} />
+            ) : null}
+            {surface === "automations" ? (
+              <BoldAutomationsView key={`a${gbTick}`} onBuild={() => setGb("auto")} onCounts={onAutoCounts} flash={flash} />
+            ) : null}
+            {gb ? (
+              <BoldGuidedBuild
+                kind={gb}
+                agents={agents}
+                onClose={() => setGb(null)}
+                onDone={() => {
+                  setGb(null);
+                  setGbTick((t) => t + 1);
+                }}
+                flash={flash}
+              />
+            ) : null}
+            {surface !== "campaign" && surface !== "camps" && surface !== "activity" && surface !== "newcamp" && surface !== "wsinbox" && surface !== "contacts" && surface !== "chatbot" && surface !== "forms" && surface !== "proposals" && surface !== "automations" ? (
               <SurfaceStub title={title} />
             ) : null}
             {rcpOpen ? (

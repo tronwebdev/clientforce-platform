@@ -99,6 +99,8 @@ export * from "./recall";
 // platform attribution line.
 export * from "./widget";
 export * from "./widget-vocabulary";
+export * from "./forms";
+export * from "./proposals";
 
 /**
  * Narrow an arbitrary string to a branded {@link Id}. Real validation arrives

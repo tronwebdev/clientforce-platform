@@ -431,6 +431,97 @@ export const startBrowserCall = (agentId: string, contactId: string) =>
 export const finishBrowserCall = (callId: string, outcome: string, durationSec: number) =>
   send(`voice/browser-calls/${encodeURIComponent(callId)}/finish`, "POST", { outcome, durationSec });
 
+/* ---------------------------------------------------- B5 (DEC-130) */
+
+export interface BoldFormField {
+  key: string;
+  label: string;
+  type: "text" | "phone" | "email" | "choice" | "longtext";
+  required: boolean;
+  options?: string[];
+}
+export interface BoldFormRow {
+  id: string;
+  title: string;
+  status: "draft" | "live" | string;
+  publicId: string | null;
+  fields: BoldFormField[];
+  design: { intro?: string; submitLabel?: string; kind?: string };
+  routing: { campaignId?: string | null; tag?: string; redirectUrl?: string };
+  responses?: number;
+  createdAt: string;
+}
+export interface BoldFormSubmissionRow {
+  id: string;
+  contactId: string | null;
+  contactName: string | null;
+  answers: Record<string, string>;
+  submittedAt: string;
+}
+export const fetchForms = () => get<{ forms: BoldFormRow[] }>("forms");
+export const fetchFormDetail = (id: string) =>
+  get<{ form: BoldFormRow; responses: number; submissions: BoldFormSubmissionRow[] }>(
+    `forms/${encodeURIComponent(id)}`,
+  );
+export const createForm = (body: Record<string, unknown>) => send("forms", "POST", body);
+export const patchForm = (id: string, body: Record<string, unknown>) =>
+  send(`forms/${encodeURIComponent(id)}`, "PATCH", body);
+
+export interface BoldProposalPriceOption {
+  name: string;
+  sub?: string;
+  amount: string;
+  best?: boolean;
+}
+export type BoldProposalBlock =
+  | { kind: "cover"; eyebrow?: string; title: string; body?: string }
+  | { kind: "text"; label?: string; title: string; body: string }
+  | { kind: "price"; label?: string; title: string; options: BoldProposalPriceOption[] }
+  | { kind: "signature"; label?: string; body?: string };
+export interface BoldProposalRow {
+  id: string;
+  title: string;
+  status: string;
+  blocks: BoldProposalBlock[];
+  contactId: string | null;
+  contactName?: string | null;
+  createdAt: string;
+}
+export const fetchProposals = () => get<{ proposals: BoldProposalRow[] }>("proposals");
+export const fetchProposal = (id: string) =>
+  get<{ proposal: BoldProposalRow; contactName: string | null }>(
+    `proposals/${encodeURIComponent(id)}`,
+  );
+export const createProposal = (body: Record<string, unknown>) => send("proposals", "POST", body);
+export const patchProposal = (id: string, body: Record<string, unknown>) =>
+  send(`proposals/${encodeURIComponent(id)}`, "PATCH", body);
+
+export interface BoldAutomationRow {
+  id: string;
+  name: string;
+  enabled: boolean;
+  invalid: boolean;
+  trigger: { kind: string; intents?: string[]; days?: number; hours?: number } | null;
+  actions: Array<{ kind: string; tag?: string; note?: string; stage?: string }>;
+  runs: number;
+  lastRunAt: string | null;
+}
+export const fetchAutomations = () => get<BoldAutomationRow[]>("automations");
+export const toggleAutomation = (id: string, enabled: boolean) =>
+  send(`automations/${encodeURIComponent(id)}`, "PATCH", { enabled });
+export const createAutomation = (body: Record<string, unknown>) =>
+  send("automations", "POST", body);
+export interface BoldAutomationRunRow {
+  id: string;
+  status: string;
+  trigger: string | null;
+  detail: string | null;
+  contactLabel: string | null;
+  occurredAt: string;
+}
+export const fetchAutomationRuns = (id: string) =>
+  get<BoldAutomationRunRow[]>(`automations/${encodeURIComponent(id)}/runs`);
+
 /* ---------------------------------------------------- B4.5 (DEC-128) */
 
 /** One row of the live-call feed the shell polls. */

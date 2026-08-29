@@ -839,6 +839,185 @@ async function main(): Promise<void> {
       });
     }
 
+    // B5 (DEC-130): the Forms / Proposals / Automations demo rows — REAL rows
+    // through the real tables so the Bold surfaces render live truth (the
+    // eyebrow counts are queries, never strings). Idempotent: keyed on fixed
+    // publicIds / titles; automations only use trigger/action kinds the
+    // ENGINE genuinely executes today.
+    {
+      const implantCampaignRow = await prisma.campaign.findFirst({
+        where: { workspaceId: primary.id, name: "Implant open day" },
+        select: { id: true },
+      });
+      const openDayFields = [
+        { key: "name", label: "Full name", type: "text", required: true },
+        { key: "phone", label: "Phone", type: "phone", required: true },
+        { key: "email", label: "Email", type: "email", required: false },
+        { key: "need", label: "What do you need?", type: "choice", required: true, options: ["Implants", "Whitening", "Cleaning", "Something else"] },
+        { key: "day", label: "Preferred day", type: "choice", required: false, options: ["Mornings", "Afternoons", "Any"] },
+        { key: "notes", label: "Anything else?", type: "longtext", required: false },
+      ];
+      const forms = [
+        {
+          publicId: "frm_demoopenday0001",
+          title: "Open day booking",
+          status: "live",
+          fields: openDayFields,
+          design: { intro: "Twenty minutes, no obligation. You leave knowing what it would cost.", submitLabel: "Book my slot", kind: "booking" },
+          routing: implantCampaignRow ? { campaignId: implantCampaignRow.id, tag: "from-form" } : { tag: "from-form" },
+        },
+        {
+          publicId: "frm_demoaskus000001",
+          title: "Ask us anything",
+          status: "live",
+          fields: [
+            { key: "name", label: "Your name", type: "text", required: true },
+            { key: "email", label: "Email", type: "email", required: true },
+            { key: "question", label: "Your question", type: "longtext", required: true },
+          ],
+          design: { submitLabel: "Send it", kind: "enquiry" },
+          routing: { tag: "from-form" },
+        },
+        {
+          publicId: null,
+          title: "Monthly tips",
+          status: "draft",
+          fields: [{ key: "email", label: "Email", type: "email", required: true }],
+          design: { submitLabel: "Sign me up", kind: "newsletter" },
+          routing: {},
+        },
+      ];
+      for (const f of forms) {
+        const existing = f.publicId
+          ? await prisma.form.findUnique({ where: { publicId: f.publicId } })
+          : await prisma.form.findFirst({ where: { workspaceId: primary.id, title: f.title } });
+        // B5 review fix 2 backfill: rows seeded before kinds existed.
+        if (existing) {
+          const design = (existing.design ?? {}) as Record<string, unknown>;
+          if (typeof design.kind !== "string") {
+            await prisma.form.update({
+              where: { id: existing.id },
+              data: { design: { ...design, kind: (f.design as { kind: string }).kind } },
+            });
+          }
+        }
+        if (!existing) {
+          await prisma.form.create({
+            data: {
+              workspaceId: primary.id,
+              title: f.title,
+              status: f.status,
+              publicId: f.publicId,
+              fields: f.fields as object,
+              design: f.design as object,
+              routing: f.routing as object,
+            },
+          });
+        }
+      }
+      // Two responses on the open-day form: real submissions from real
+      // contact rows (created here with source "form", like the rail writes).
+      const openDay = await prisma.form.findUnique({ where: { publicId: "frm_demoopenday0001" } });
+      if (openDay) {
+        const respondents = [
+          { email: "tom.becker@demo-lead.test", firstName: "Tom", lastName: "Becker", answers: { name: "Tom Becker", phone: "+15125550151", need: "Implants", day: "Afternoons", notes: "How long is recovery?" } },
+          { email: "grace.obrien@demo-lead.test", firstName: "Grace", lastName: "O'Brien", answers: { name: "Grace O'Brien", phone: "+15125550152", need: "Whitening", day: "Any" } },
+        ];
+        for (const r of respondents) {
+          let contact = await prisma.contact.findFirst({
+            where: { workspaceId: primary.id, email: r.email },
+          });
+          if (!contact) {
+            contact = await prisma.contact.create({
+              data: {
+                workspaceId: primary.id,
+                source: "form",
+                optOut: {},
+                tags: ["from-form"],
+                email: r.email,
+                firstName: r.firstName,
+                lastName: r.lastName,
+                phone: (r.answers as { phone?: string }).phone,
+              },
+            });
+          }
+          const already = await prisma.formSubmission.findFirst({
+            where: { formId: openDay.id, contactId: contact.id },
+          });
+          if (!already) {
+            await prisma.formSubmission.create({
+              data: {
+                workspaceId: primary.id,
+                formId: openDay.id,
+                contactId: contact.id,
+                answers: r.answers as object,
+              },
+            });
+          }
+        }
+      }
+
+      // One DRAFT proposal — the only status the build can honestly hold
+      // (delivery is Q-100; sent/viewed/signed states need it).
+      const propTitle = "Full-arch implant plan";
+      const existingProp = await prisma.proposal.findFirst({
+        where: { workspaceId: primary.id, title: propTitle },
+      });
+      if (!existingProp) {
+        const marcus = await prisma.contact.findFirst({
+          where: { workspaceId: primary.id },
+          orderBy: { createdAt: "asc" },
+          select: { id: true },
+        });
+        await prisma.proposal.create({
+          data: {
+            workspaceId: primary.id,
+            title: propTitle,
+            status: "draft",
+            variables: marcus ? { contactId: marcus.id } : {},
+            blocks: [
+              { kind: "cover", eyebrow: "PROPOSAL", title: "Full-arch implant plan", body: "Prepared by Bright Smile Dental · valid 14 days" },
+              { kind: "text", label: "WHAT YOU TOLD US", title: "You want to eat normally again", body: "You said chewing on the left has been painful for two years, and that a denture is not something you would consider. That ruled out the cheaper route before we started." },
+              { kind: "text", label: "THE PLAN", title: "Four months, three visits", body: "Placement in month one, healing through month three, final crowns in month four. You leave every visit able to eat." },
+              { kind: "price", label: "PRICING", title: "Three ways to do this", options: [
+                { name: "Full arch, both sides", sub: "Everything included, 8 implants", amount: "$8,400", best: true },
+                { name: "One side first", sub: "Left side now, right side later", amount: "$4,600" },
+                { name: "Monthly, 48 months", sub: "0% for the first year", amount: "$180/mo" },
+              ] },
+              { kind: "signature", label: "YOUR DECISION", body: "A $500 deposit holds your placement date. Refundable for 14 days." },
+            ] as object,
+          },
+        });
+      }
+
+      // Automations the engine GENUINELY executes (notify_team = the run-row
+      // notification surface; add_tag; reply_classified narrows by intent;
+      // lead_captured fires off form.submitted.v1 — the B5 join point).
+      const autos = [
+        { name: "Booked → tell the team", enabled: true, trigger: { kind: "meeting_booked" }, actions: [{ kind: "notify_team", note: "A booking landed — check the calendar." }] },
+        { name: "Paid → tag for a review ask", enabled: true, trigger: { kind: "payment_received" }, actions: [{ kind: "add_tag", tag: "review-candidate" }] },
+        { name: "New lead → tag the source", enabled: true, trigger: { kind: "lead_captured" }, actions: [{ kind: "add_tag", tag: "new-lead" }] },
+        { name: "Objection → notify me", enabled: false, trigger: { kind: "reply_classified", intents: ["objection"] }, actions: [{ kind: "notify_team", note: "A price objection is waiting in the inbox." }] },
+      ];
+      for (const a of autos) {
+        const existing = await prisma.automation.findFirst({
+          where: { workspaceId: primary.id, name: a.name },
+        });
+        if (!existing) {
+          await prisma.automation.create({
+            data: {
+              workspaceId: primary.id,
+              name: a.name,
+              enabled: a.enabled,
+              trigger: a.trigger as object,
+              conditions: [],
+              actions: a.actions as object,
+            },
+          });
+        }
+      }
+    }
+
     // B3c-2 (DEC-121): call-clock fixtures — three phone contacts whose
     // STORED timezones spread across the globe (Chicago / Berlin / Tokyo),
     // so at any wall-clock hour at least one is inside the 08:00–21:00
