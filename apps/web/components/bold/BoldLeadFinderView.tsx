@@ -180,7 +180,11 @@ export function BoldLeadFinderView({
         >
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <span style={{ fontSize: 14, fontWeight: 700 }}>{r.name}</span>
-            <span style={{ ...mono, fontSize: 10, color: ff, background: fb, border: `1px solid ${fd}`, borderRadius: 999, padding: "2px 8px" }}>{r.fit} fit</span>
+            {r.scored ? (
+              <span style={{ ...mono, fontSize: 10, color: ff, background: fb, border: `1px solid ${fd}`, borderRadius: 999, padding: "2px 8px" }}>{r.fit} fit</span>
+            ) : (
+              <span style={{ ...mono, fontSize: 10, color: "var(--cvb-ghost)", background: "var(--cvb-panel)", border: "1px dashed var(--cvb-line-ctl)", borderRadius: 999, padding: "2px 8px" }}>unscored</span>
+            )}
             {r.intentWeight > 0 ? (
               <span style={{ fontSize: 10, fontWeight: 700, color: "var(--cvb-forest)", background: "var(--cvb-mint)", border: "1px solid var(--cvb-mint-line)", borderRadius: 999, padding: "2px 8px" }}>
                 {r.intentReceipts[0] ?? "showing intent"}

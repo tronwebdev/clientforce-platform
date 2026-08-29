@@ -3,8 +3,10 @@
  *  - config tells the keyless truth (provider not configured, BuyerPing off,
  *    shape-registry filters — no B2B nouns for a local shape);
  *  - Ada search ranks the OWN book honestly: a lapsed contact and a not-now
- *    contact surface with factual receipts; an active enrollment, a happy
- *    customer and an opted-out contact are suppressed;
+ *    contact surface with factual receipts AND differentiated fits (no flat
+ *    numbers — B6 review fix 2), a fact-less contact reports scored:false,
+ *    and an active enrollment, a happy customer and an opted-out contact are
+ *    suppressed;
  *  - Direct search answers providerConfigured:false keylessly and reveal
  *    refuses 503 — never fabricated rows, never a phantom charge;
  *  - BuyerPing connect/disconnect round-trips the Integration row; watch
@@ -37,6 +39,7 @@ describe.skipIf(!hasDb)("Lead finder + intent tier e2e", () => {
   let ownerToken: string;
   let lapsedId: string;
   let lostId: string;
+  let blankId: string;
 
   const api = () => request(app.getHttpServer());
   const asOwner = () => ({ Authorization: `Bearer ${ownerToken}`, "x-workspace-id": ws });
@@ -124,6 +127,10 @@ describe.skipIf(!hasDb)("Lead finder + intent tier e2e", () => {
       data: { workspaceId: ws, campaignId: campaign.id, contactId: happy.id, workflowId: `t-${suffix}-h`, pipelineStage: "booked", status: "DONE" },
     });
     await mkContact(5, { optOut: { email: true } });
+    // Never-touched and title-less: nothing to score from — the honest
+    // "unscored" contract (B6 review fix 2).
+    const blank = await mkContact(6, { title: null });
+    blankId = blank.id;
 
     const u1 = await owner.user.create({
       data: { email: `lf-owner-${suffix}@t.test`, authProviderId: `auth|lf-owner-${suffix}` },
@@ -163,12 +170,24 @@ describe.skipIf(!hasDb)("Lead finder + intent tier e2e", () => {
     const ids = res.body.candidates.map((c: { contactId: string }) => c.contactId);
     expect(ids).toContain(lapsedId);
     expect(ids).toContain(lostId);
-    expect(res.body.candidates).toHaveLength(2); // active, happy and opted-out never surface
+    expect(ids).toContain(blankId);
+    expect(res.body.candidates).toHaveLength(3); // active, happy and opted-out never surface
     const lost = res.body.candidates.find((c: { contactId: string }) => c.contactId === lostId);
     expect(lost.fitReasons.join(" ")).toContain("not-now");
     const lapsed = res.body.candidates.find((c: { contactId: string }) => c.contactId === lapsedId);
     expect(lapsed.fitReasons.join(" ")).toContain("quiet");
     expect(lapsed.revealed).toBe(true); // own contacts have nothing to buy
+    // B6 review fix 2 — no flat fits: real own-book facts move the number.
+    // Lapsed = targeted title + a fresh 90-day lapse; lost = title + a prior
+    // reply; the two land on DIFFERENT fits, both scored.
+    expect(lapsed.scored).toBe(true);
+    expect(lost.scored).toBe(true);
+    expect(lapsed.fit).not.toBe(lost.fit);
+    expect(lapsed.fitReasons.join(" ")).toContain("still warm");
+    // …and a contact with nothing to score from says so instead of wearing
+    // a made-up number.
+    const blank = res.body.candidates.find((c: { contactId: string }) => c.contactId === blankId);
+    expect(blank.scored).toBe(false);
   });
 
   it("Direct search and reveal answer keylessly — no rows, no charge", async () => {

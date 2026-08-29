@@ -262,6 +262,9 @@ export class LeadsController {
             maskedPhone: r.maskedPhone,
             fit: scored.fit,
             fitReasons: scored.reasons,
+            // B6 review fix 2: a fit with no data-backed reason is fake
+            // precision — the surface shows "unscored" instead of a number.
+            scored: scored.reasons.length > 0,
             intentWeight: 0,
             intentReceipts: [] as string[],
             revealed: false,
@@ -305,7 +308,7 @@ export class LeadsController {
       const contacts = await tx.contact.findMany({
         orderBy: { createdAt: "asc" },
         take: 200,
-        select: { id: true, firstName: true, lastName: true, company: true, title: true, email: true },
+        select: { id: true, firstName: true, lastName: true, company: true, title: true, email: true, callConsent: true },
       });
       const replied = await tx.message.findMany({
         where: { direction: "INBOUND" },
@@ -342,6 +345,7 @@ export class LeadsController {
           repliedBefore: repliedSet.has(c.id),
           bookedBefore: false,
           daysSinceLastTouch: days,
+          callConsentGranted: c.callConsent === "granted",
         });
         const sigs = signalsByContact.get(c.id) ?? [];
         const intentWeight = sigs.reduce((n, s) => n + decayedWeight(s.type, s.occurredAt), 0);
@@ -364,6 +368,7 @@ export class LeadsController {
           maskedPhone: null,
           fit: scored.fit,
           fitReasons: reasons,
+          scored: scored.reasons.length > 0,
           intentWeight: Math.round(intentWeight * 10) / 10,
           intentReceipts: sigs.slice(0, 2).map((s) => s.receipt),
           revealed: true, // own contacts are already yours — nothing to buy

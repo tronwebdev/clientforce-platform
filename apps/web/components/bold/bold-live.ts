@@ -550,6 +550,8 @@ export interface LeadCandidateRow {
   maskedPhone: string | null;
   fit: number;
   fitReasons: string[];
+  /** False when no data-backed reason exists — the surface shows "unscored". */
+  scored: boolean;
   intentWeight: number;
   intentReceipts: string[];
   revealed: boolean;

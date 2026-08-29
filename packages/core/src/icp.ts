@@ -42,6 +42,8 @@ export interface LeadCandidateFacts {
   repliedBefore?: boolean;
   bookedBefore?: boolean;
   daysSinceLastTouch?: number | null;
+  /** B6 review fix 2: real own-book differentiators. */
+  callConsentGranted?: boolean;
 }
 
 export interface FitResult {
@@ -98,8 +100,20 @@ export function scoreCandidate(profile: IcpProfile, facts: LeadCandidateFacts): 
     fit += 6;
     reasons.push("has replied to you before");
   }
-  if (typeof facts.daysSinceLastTouch === "number" && facts.daysSinceLastTouch > 60) {
-    reasons.push(`quiet for ${facts.daysSinceLastTouch} days`);
+  if (facts.callConsentGranted) {
+    fit += 5;
+    reasons.push("said you may call");
+  }
+  // B6 review fix 2: recency BANDS, not a flat note — a fresh lapse is worth
+  // more than an ancient one, and the score says so.
+  if (typeof facts.daysSinceLastTouch === "number" && facts.daysSinceLastTouch >= 60) {
+    if (facts.daysSinceLastTouch <= 150) {
+      fit += 8;
+      reasons.push(`went quiet ${facts.daysSinceLastTouch} days ago — still warm`);
+    } else {
+      fit += 3;
+      reasons.push(`quiet for ${facts.daysSinceLastTouch} days`);
+    }
   }
   return { fit: Math.max(1, Math.min(99, fit)), reasons };
 }
