@@ -1,15 +1,15 @@
 {
   "unit": "b7",
-  "commit": "ab8a2495623ce317eb6da4975022d2ef17724adc",
+  "commit": "279b35eb586e22765799abb6da7361c8dbefb908",
   "workingTreeDirtyAtCapture": false,
-  "capturedAt": "2026-08-29T21:58:35.454Z",
+  "capturedAt": "2026-08-29T23:29:51.045Z",
   "baseUrl": "http://localhost:3000",
   "note": "Single-run capture; every frame from one build. Verify a frame by hashing its bytes against this manifest — never by trusting an image cache. pnpm lint:fidelity enforces the binding.",
   "frames": {
     "build-camp-settings-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 144562,
-      "sha256": "9cdee7e26dfcba57dfe1e07ffe7839325abf12a630c610ee2bd657087eb0e47f"
+      "bytes": 144538,
+      "sha256": "a972c5043d86a1dded643a2ef19c8cf5bd68eca026a4765b9eff30816ddb684f"
     },
     "build-credits-1440x900.png": {
       "viewport": "1440x900",
@@ -33,28 +33,28 @@
     },
     "build-wss-senders-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 89461,
-      "sha256": "4cd50a1f6f2ec97b1ed2e954f6de4ff79eb6c661a717eb6d82b44c7c184477d9"
+      "bytes": 89250,
+      "sha256": "9e893f1e2b94b9dec0b7945771c9d5ffcef714397be9282374475ce09fd388b1"
     },
     "proto-camp-settings-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 151173,
-      "sha256": "65f29c5e9a3d5639139ff0e5c5011a7b839416864d390dc5e45d3a4198c3294a"
+      "bytes": 151112,
+      "sha256": "c92453d21dbb054f93b0c1055a0f378ed1bc6d8a432db82336ed460ff5885013"
     },
     "proto-credits-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 221928,
-      "sha256": "ca0da2d7def7df476c941e3ef9262d65da7eefc0469405768839b3431852daf6"
+      "bytes": 221924,
+      "sha256": "7794b85794252b4c21ae8e3f89e86f49943e85e4721c3e21f04d3b1750bebfcf"
     },
     "proto-wss-core-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 123954,
-      "sha256": "7e7fabfbee4c98fc1b542cb1da104975d0e6db86d89a4bbce57f19578eef511e"
+      "bytes": 123966,
+      "sha256": "cfe43350ac1918f40a800add77053cdbbab8d44a7330bb7d83def73f6ec11c79"
     },
     "proto-wss-guard-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 130966,
-      "sha256": "526733ec8458296f395b5717715343fb7f12758fdaf1ffa57c2f6b589ba83657"
+      "bytes": 130944,
+      "sha256": "54ffc8bdee005744252ea96b0e9aca2c93638874b67f2d918b6363e1ffdf4494"
     },
     "proto-wss-hub-1440x900.png": {
       "viewport": "1440x900",
@@ -63,8 +63,8 @@
     },
     "proto-wss-senders-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 112222,
-      "sha256": "225f3f7acec5607426ddb1eea2fd3cd3dc6ec8aed526c81e4645d59dbaa7dec2"
+      "bytes": 112254,
+      "sha256": "906099749e27c31a3cb5f75bf06a79e2a17b5e84eabed465d32717f94559b65e"
     }
   }
 }
