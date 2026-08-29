@@ -184,7 +184,7 @@ if (UNIT === "b6") {
     if (await later.isVisible().catch(() => false)) await later.click();
     await p.getByTestId("bold-dock-lead").click();
     await p.getByTestId("bold-lead-icp").waitFor({ timeout: 15_000 });
-    await p.waitForTimeout(1200); // the auto-run own-book search settles
+    await p.waitForTimeout(2600); // the auto-run search settles AND its toast clears
     await shot(p, "build-lead-ada-1440x900");
     await p.getByTestId("bold-lead-mode-own").click();
     await p.waitForTimeout(700);
