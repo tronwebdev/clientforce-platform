@@ -155,6 +155,9 @@ test("proposals: the seeded draft renders its blocks with delivery visibly defer
   await expect(doc).toContainText("Full arch, both sides");
   await expect(doc).toContainText("signing arrives with delivery");
   await expect(page.getByTestId("bold-proposal-send-deferred")).toContainText("arrives with delivery");
+  // B5 review fix 1: the palette is visible and honestly deferred (Q-103).
+  await expect(page.getByTestId("bold-proposal-palette")).toContainText("ADD A BLOCK");
+  await expect(page.getByTestId("bold-proposal-palette")).toContainText("Coming soon");
 
   await page.getByTestId("bold-proposal-detail").getByText("Activity", { exact: true }).click();
   await expect(page.getByTestId("bold-proposal-activity")).toContainText("nothing here will ever be invented");

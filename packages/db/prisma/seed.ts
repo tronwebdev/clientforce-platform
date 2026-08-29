@@ -863,7 +863,7 @@ async function main(): Promise<void> {
           title: "Open day booking",
           status: "live",
           fields: openDayFields,
-          design: { intro: "Twenty minutes, no obligation. You leave knowing what it would cost.", submitLabel: "Book my slot" },
+          design: { intro: "Twenty minutes, no obligation. You leave knowing what it would cost.", submitLabel: "Book my slot", kind: "booking" },
           routing: implantCampaignRow ? { campaignId: implantCampaignRow.id, tag: "from-form" } : { tag: "from-form" },
         },
         {
@@ -875,7 +875,7 @@ async function main(): Promise<void> {
             { key: "email", label: "Email", type: "email", required: true },
             { key: "question", label: "Your question", type: "longtext", required: true },
           ],
-          design: { submitLabel: "Send it" },
+          design: { submitLabel: "Send it", kind: "enquiry" },
           routing: { tag: "from-form" },
         },
         {
@@ -883,7 +883,7 @@ async function main(): Promise<void> {
           title: "Monthly tips",
           status: "draft",
           fields: [{ key: "email", label: "Email", type: "email", required: true }],
-          design: { submitLabel: "Sign me up" },
+          design: { submitLabel: "Sign me up", kind: "newsletter" },
           routing: {},
         },
       ];
@@ -891,6 +891,16 @@ async function main(): Promise<void> {
         const existing = f.publicId
           ? await prisma.form.findUnique({ where: { publicId: f.publicId } })
           : await prisma.form.findFirst({ where: { workspaceId: primary.id, title: f.title } });
+        // B5 review fix 2 backfill: rows seeded before kinds existed.
+        if (existing) {
+          const design = (existing.design ?? {}) as Record<string, unknown>;
+          if (typeof design.kind !== "string") {
+            await prisma.form.update({
+              where: { id: existing.id },
+              data: { design: { ...design, kind: (f.design as { kind: string }).kind } },
+            });
+          }
+        }
         if (!existing) {
           await prisma.form.create({
             data: {

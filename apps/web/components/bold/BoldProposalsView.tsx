@@ -4,8 +4,9 @@
  * B5 (DEC-130): the Proposals surface — DRAFT documents on the real Proposal
  * table. The document renderer follows the prototype's block anatomy (cover /
  * text / price with the best row highlighted / signature); text blocks edit
- * inline through the real PATCH. The DELIVERY half — send, tracked opens,
- * viewed/signed states, the deposit link — is Q-100's spine: the send action
+ * inline through the real PATCH. Block add/move/remove is Q-103 — the ADD A
+ * BLOCK palette renders visibly deferred. The DELIVERY half — send, tracked
+ * opens, viewed/signed states, the deposit link — is Q-100's spine: the send action
  * is visibly deferred, Activity says why it is empty, and no status but
  * "draft" can exist. The prototype's Templates segment has no spine either
  * (it is a no-op even there) — not rendered.
@@ -144,29 +145,52 @@ export function BoldProposalsView({
 
       <div style={{ padding: "22px 40px 40px" }}>
         {tab === "Document" ? (
-          <div style={{ maxWidth: 660 }} data-testid="bold-proposal-doc">
-            {proposal.blocks.map((b, i) => (
-              <Block
-                key={i}
-                block={b}
-                editing={editing === i}
-                draft={draft}
-                setDraft={setDraft}
-                onEdit={
-                  b.kind === "text"
-                    ? () => {
-                        setEditing(i);
-                        setDraft({ title: b.title, body: b.body });
-                      }
-                    : undefined
-                }
-                onSave={() => void saveBlock(i)}
-                onCancel={() => setEditing(null)}
-              />
-            ))}
-            <div style={{ ...mono, fontSize: 9.5, color: "var(--cvb-ghost)", marginTop: 14, lineHeight: 1.6 }}>
-              Text blocks edit in place. The block palette — video, more pricing tables — arrives
-              with the full editor.
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(320px,660px) 210px", gap: 26, alignItems: "start" }} data-testid="bold-proposal-doc">
+            <div>
+              {proposal.blocks.map((b, i) => (
+                <Block
+                  key={i}
+                  block={b}
+                  editing={editing === i}
+                  draft={draft}
+                  setDraft={setDraft}
+                  onEdit={
+                    b.kind === "text"
+                      ? () => {
+                          setEditing(i);
+                          setDraft({ title: b.title, body: b.body });
+                        }
+                      : undefined
+                  }
+                  onSave={() => void saveBlock(i)}
+                  onCancel={() => setEditing(null)}
+                />
+              ))}
+              <div style={{ ...mono, fontSize: 9.5, color: "var(--cvb-ghost)", marginTop: 14, lineHeight: 1.6 }}>
+                Text blocks edit in place today.
+              </div>
+            </div>
+            {/* B5 review fix 1: the prototype's ADD A BLOCK palette, VISIBLY
+                deferred — adding, moving and removing blocks is Q-103. */}
+            <div data-testid="bold-proposal-palette" style={{ opacity: 0.6 }}>
+              <div style={{ ...mono, fontSize: 9.5, letterSpacing: ".18em", color: "var(--cvb-faint)", marginBottom: 8 }}>ADD A BLOCK</div>
+              {(
+                [
+                  ["◫", "Text section"],
+                  ["◆", "Pricing options"],
+                  ["▶", "Video"],
+                  ["✎", "Signature"],
+                  ["◧", "Cover"],
+                ] as const
+              ).map(([icon, name]) => (
+                <div key={name} title="Coming soon" style={{ display: "flex", alignItems: "center", gap: 10, border: "1px dashed var(--cvb-line-ctl)", borderRadius: 13, padding: "11px 13px", marginBottom: 8, cursor: "default" }}>
+                  <span style={{ width: 26, height: 26, borderRadius: 8, display: "grid", placeItems: "center", background: "var(--cvb-panel)", color: "var(--cvb-faint)", fontSize: 12, flex: "none" }}>{icon}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "var(--cvb-faint)" }}>{name}</span>
+                </div>
+              ))}
+              <div style={{ fontSize: 10.5, color: "var(--cvb-ghost)", lineHeight: 1.55 }}>
+                Coming soon — adding, moving and removing blocks arrives with the full editor.
+              </div>
             </div>
           </div>
         ) : null}

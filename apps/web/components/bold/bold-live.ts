@@ -446,7 +446,7 @@ export interface BoldFormRow {
   status: "draft" | "live" | string;
   publicId: string | null;
   fields: BoldFormField[];
-  design: { intro?: string; submitLabel?: string };
+  design: { intro?: string; submitLabel?: string; kind?: string };
   routing: { campaignId?: string | null; tag?: string; redirectUrl?: string };
   responses?: number;
   createdAt: string;

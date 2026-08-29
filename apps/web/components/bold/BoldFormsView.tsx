@@ -21,6 +21,7 @@ import {
   type BoldFormSubmissionRow,
 } from "./bold-live";
 import type { BoldDrawerState } from "./BoldDrawer";
+import { formPlaceholder } from "../../lib/form-placeholders";
 import { BoldCardGrid, BoldCoverCard, BoldMetaStrip, BoldSegRow, mono } from "./bold-cards";
 
 const TABS = ["Preview", "Responses", "Fields", "Where it goes", "Share"] as const;
@@ -102,13 +103,15 @@ export function BoldFormsView({
               <BoldCoverCard
                 key={f.id}
                 index={i}
-                kind={`${f.fields.length} FIELDS`}
+                // B5 review fix 2: the kind is the eyebrow when known (the
+                // guided build stores it); the field count sits in the foot.
+                kind={typeof f.design.kind === "string" ? f.design.kind.toUpperCase() : `${f.fields.length} FIELDS`}
                 title={f.title}
                 live={f.status === "live"}
                 pillTone={f.status === "live" ? "live" : "draft"}
                 pillText={f.status === "live" ? `${f.responses ?? 0} responses` : "Not published"}
                 value={f.status === "live" ? String(f.responses ?? 0) : "—"}
-                who={f.publicId ? `/f/${f.publicId}` : "Draft — not published"}
+                who={`${f.fields.length} field${f.fields.length === 1 ? "" : "s"} · ${f.publicId ? `/f/${f.publicId}` : "draft — not published"}`}
                 onOpen={() => void openForm(f.id)}
                 testId={`bold-form-card-${i}`}
               />
@@ -185,7 +188,9 @@ export function BoldFormsView({
                         ))}
                       </div>
                     ) : (
-                      <div style={{ height: f.type === "longtext" ? 64 : 40, background: "var(--cvb-panel)", border: "1px solid var(--cvb-line-inner)", borderRadius: 10, marginTop: 6 }} />
+                      <div style={{ height: f.type === "longtext" ? 64 : 40, background: "var(--cvb-panel)", border: "1px solid var(--cvb-line-inner)", borderRadius: 10, marginTop: 6, padding: "10px 12px", fontSize: 12.5, color: "var(--cvb-ghost)" }}>
+                        {formPlaceholder(f)}
+                      </div>
                     )}
                   </div>
                 ))}

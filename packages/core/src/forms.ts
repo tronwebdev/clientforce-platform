@@ -42,8 +42,13 @@ export type FormRouting = z.infer<typeof formRoutingSchema>;
 export const FORM_STATUSES = ["draft", "live"] as const;
 export type FormStatus = (typeof FORM_STATUSES)[number];
 
+export const FORM_KINDS = ["booking", "enquiry", "waitlist", "newsletter"] as const;
+export type FormKind = (typeof FORM_KINDS)[number];
+
 export const formWriteSchema = z.object({
   title: z.string().min(1).max(140),
+  /** What the form is FOR — the card's kind eyebrow (B5 review fix 2). */
+  kind: z.enum(FORM_KINDS).optional(),
   /** Shown above the fields on the hosted page. */
   intro: z.string().max(300).optional(),
   submitLabel: z.string().min(1).max(60).optional(),

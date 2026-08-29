@@ -193,6 +193,7 @@ export function BoldGuidedBuild({
               : "Ask away — a real answer comes back quickly.";
         const res = await createForm({
           title,
+          kind: kindV, // the card's kind eyebrow (B5 review fix 2)
           intro,
           submitLabel: kindV === "booking" ? "Book it" : kindV === "waitlist" ? "Join the list" : "Send it",
           fields,

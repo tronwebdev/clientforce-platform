@@ -40,9 +40,10 @@ async function resolveRouting(
   return rest;
 }
 
-const designOf = (d: { intro?: string; submitLabel?: string }) => ({
+const designOf = (d: { intro?: string; submitLabel?: string; kind?: string }) => ({
   ...(d.intro !== undefined ? { intro: d.intro } : {}),
   ...(d.submitLabel !== undefined ? { submitLabel: d.submitLabel } : {}),
+  ...(d.kind !== undefined ? { kind: d.kind } : {}),
 });
 
 const row = (f: {

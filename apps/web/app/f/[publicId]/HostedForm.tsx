@@ -6,6 +6,7 @@
  * routing verdict (redirect or the inline thank-you).
  */
 import { useState } from "react";
+import { formPlaceholder } from "../../../lib/form-placeholders";
 
 export interface HostedFormSpec {
   title: string;
@@ -92,6 +93,7 @@ export function HostedForm({ publicId, spec }: { publicId: string; spec: HostedF
                 rows={3}
                 value={answers[f.key] ?? ""}
                 onChange={(e) => setAnswers((a) => ({ ...a, [f.key]: e.target.value }))}
+                placeholder={formPlaceholder(f)}
                 style={{ width: "100%", marginTop: 7, fontSize: 13, border: "1px solid #E4E6E5", borderRadius: 11, padding: "10px 12px", resize: "vertical", fontFamily: "inherit" }}
               />
             ) : (
@@ -99,6 +101,7 @@ export function HostedForm({ publicId, spec }: { publicId: string; spec: HostedF
                 type={f.type === "email" ? "email" : f.type === "phone" ? "tel" : "text"}
                 value={answers[f.key] ?? ""}
                 onChange={(e) => setAnswers((a) => ({ ...a, [f.key]: e.target.value }))}
+                placeholder={formPlaceholder(f)}
                 style={{ width: "100%", marginTop: 7, fontSize: 13, border: "1px solid #E4E6E5", borderRadius: 11, padding: "10px 12px", fontFamily: "inherit" }}
               />
             )}
