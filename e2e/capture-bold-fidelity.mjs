@@ -33,8 +33,8 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const UNIT = process.argv[2] ?? "b1";
-if (!["b1", "b2", "b25", "b26", "b3", "b3b", "b3c1", "b3c2", "b3d", "b4", "b45", "b5", "b6"].includes(UNIT)) {
-  console.error(`Unknown unit "${UNIT}" — this tool knows b1, b2, b25, b26, b3, b3b, b3c1, b3c2, b3d, b4, b45, b5 and b6.`);
+if (!["b1", "b2", "b25", "b26", "b3", "b3b", "b3c1", "b3c2", "b3d", "b4", "b45", "b5", "b6", "b7"].includes(UNIT)) {
+  console.error(`Unknown unit "${UNIT}" — this tool knows b1, b2, b25, b26, b3, b3b, b3c1, b3c2, b3d, b4, b45, b5, b6 and b7.`);
   process.exit(1);
 }
 const OUT = join(ROOT, "docs", "fidelity", UNIT);
@@ -152,6 +152,85 @@ const toBoldCampaign = async (p) => {
 };
 
 
+
+/* ---------------------------------------------------------------- the b7 set */
+if (UNIT === "b7") {
+  await run("prototype-b7", async () => {
+    const p = await page({ width: 1440, height: 900 });
+    await freshProto(p);
+    // The wssettings hub, then each item page (the dock tile resets to the hub).
+    await p.locator('[title^="Settings"]').first().click();
+    await p.waitForTimeout(800);
+    await shot(p, "proto-wss-hub-1440x900");
+    await p.getByText("Who you are, what you sell", { exact: false }).first().click();
+    await p.waitForTimeout(800);
+    await shot(p, "proto-wss-core-1440x900");
+    await p.locator('[title^="Settings"]').first().click();
+    await p.waitForTimeout(500);
+    await p.getByText("Two email domains and one number", { exact: false }).first().click();
+    await p.waitForTimeout(800);
+    await shot(p, "proto-wss-senders-1440x900");
+    await p.locator('[title^="Settings"]').first().click();
+    await p.waitForTimeout(500);
+    await p.getByText("Workspace-wide limits", { exact: false }).first().click();
+    await p.waitForTimeout(800);
+    await shot(p, "proto-wss-guard-1440x900");
+    await p.locator('[title^="Settings"]').first().click();
+    await p.waitForTimeout(500);
+    await p.getByText("Where they go, what things cost", { exact: false }).first().click();
+    await p.waitForTimeout(800);
+    await shot(p, "proto-credits-1440x900");
+    // The campaign Settings tab in full (channels · guardrails · voice cards).
+    await p.locator('[title^="All campaigns"]').first().click().catch(() => {});
+    await p.getByText("Implant open day", { exact: true }).first().click();
+    await p.waitForTimeout(500);
+    await p.getByText("Settings", { exact: true }).first().click();
+    await p.waitForTimeout(800);
+    await shot(p, "proto-camp-settings-1440x900");
+    await p.context().close();
+  });
+
+  await run("build-b7", async () => {
+    const p = await page({ width: 1440, height: 900 });
+    await signInBuild(p);
+    await p.goto(`${BASE}/bold`);
+    await p.getByTestId("bold-root").waitFor();
+    await p.addStyleTag({ content: "nextjs-portal{display:none!important}" });
+    await p.waitForTimeout(700);
+    const later = p.getByText("Later", { exact: true }).first();
+    if (await later.isVisible().catch(() => false)) await later.click();
+    await p.getByTestId("bold-dock-wssettings").click();
+    await p.getByTestId("bold-wssettings").waitFor({ timeout: 15_000 });
+    await p.waitForTimeout(1400); // the hub's queried counts settle
+    await shot(p, "build-wss-hub-1440x900");
+    await p.getByTestId("bold-wss-core").click();
+    await p.getByTestId("bold-wss-core-item").waitFor();
+    await p.waitForTimeout(700);
+    await shot(p, "build-wss-core-1440x900");
+    await p.getByTestId("bold-wss-back").click();
+    await p.getByTestId("bold-wss-senders").click();
+    await p.getByTestId("bold-wss-senders-item").waitFor();
+    await p.waitForTimeout(700);
+    await shot(p, "build-wss-senders-1440x900");
+    await p.getByTestId("bold-wss-back").click();
+    await p.getByTestId("bold-wss-guard").click();
+    await p.getByTestId("bold-wss-guard-item").waitFor();
+    await p.waitForTimeout(700);
+    await shot(p, "build-wss-guard-1440x900");
+    await p.getByTestId("bold-wss-back").click();
+    await p.getByTestId("bold-wss-credits").click();
+    await p.getByTestId("bold-credits").waitFor();
+    await p.waitForTimeout(900);
+    await shot(p, "build-credits-1440x900");
+    // The campaign Settings tab with the returned sections.
+    await p.getByTestId("bold-camps-list").getByText("Implant open day").click();
+    await p.getByText("Settings", { exact: true }).click();
+    await p.getByTestId("bold-settings").waitFor({ timeout: 15_000 });
+    await p.waitForTimeout(1000);
+    await shot(p, "build-camp-settings-1440x900");
+    await p.context().close();
+  });
+}
 
 /* ---------------------------------------------------------------- the b6 set */
 if (UNIT === "b6") {

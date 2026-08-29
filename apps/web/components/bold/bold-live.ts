@@ -202,11 +202,21 @@ export interface SubcampaignRuleRow {
   trigger: CampaignRuleTrigger;
 }
 
-/** `GET /senders` — the slice B2 needs (DEC-061 channel capability). */
+/** `GET /senders` — the slice B2 needs (DEC-061 channel capability). B7
+ *  widens the type to the settings page's slice of the same response. */
 export interface BoldSenderRow {
   id: string;
   type: string;
   status: string;
+  fromEmail?: string;
+  fromName?: string | null;
+  replyTo?: string | null;
+  dailyLimit?: number;
+  sentToday?: number;
+  domainAuthStatus?: Record<string, unknown>;
+  health?: { state?: string; score?: number | null } | null;
+  warmup?: { pct?: number; cap?: number } | null;
+  createdAt?: string;
 }
 
 export const fetchBoldView = (agentId: string) => get<BoldAgentView>(`agents/${agentId}/view`);
@@ -906,4 +916,106 @@ export function composeRow(row: BoldActivityRow, stepLabel?: string): ComposedRo
       };
     }
   }
+}
+
+/* ---------------------------------------------------- B7 (DEC-133) */
+
+/** `GET /workspaces/members` row — the Team page's first real data. */
+export interface WorkspaceMemberRow {
+  userId: string;
+  name: string | null;
+  email: string;
+  role: "OWNER" | "ADMIN" | "AGENT";
+  since: string;
+}
+export const fetchWorkspaceMembers = () => get<WorkspaceMemberRow[]>("workspaces/members");
+
+/** `GET /workspaces/guardrail-defaults` — stored defaults + per-campaign
+ *  CURRENT values so the surface can say which campaigns differ (Q-109:
+ *  editing a default never rewrites a live campaign). */
+export interface GuardrailDefaultsDto {
+  dailyCap?: { email?: number; sms?: number; voice?: number };
+  sendingWindow?: { days: number[]; start: string; end: string; timezone: string };
+}
+export interface GuardrailDefaultsView {
+  defaults: GuardrailDefaultsDto;
+  campaigns: Array<{
+    id: string;
+    name: string;
+    status: string;
+    dailyCap: { email: number; sms?: number; voice?: number } | null;
+    sendingWindow: { days: number[]; start: string; end: string; timezone: string } | null;
+  }>;
+}
+export const fetchGuardrailDefaults = () => get<GuardrailDefaultsView>("workspaces/guardrail-defaults");
+export const patchGuardrailDefaults = (defaults: GuardrailDefaultsDto) =>
+  send("workspaces/guardrail-defaults", "PATCH", defaults);
+
+/** `GET /credits/summary` — the REAL ledger only (Q-108: sends/minutes
+ *  don't meter yet; the surface says so instead of inventing rows). */
+export interface CreditsSummary {
+  balance: number;
+  monthStart: string;
+  spent: Array<{ reason: string; credits: number; entries: number }>;
+  added: Array<{ reason: string; credits: number; entries: number }>;
+  recent: Array<{
+    id: string;
+    delta: number;
+    reason: string;
+    channel: string | null;
+    balanceAfter: number;
+    createdAt: string;
+  }>;
+}
+export const fetchCreditsSummary = () => get<CreditsSummary>("credits/summary");
+
+/** Sender wizard writes — the SHIPPED senders API, nothing parallel. */
+export const createEmailSender = (body: { fromEmail: string; fromName?: string; replyTo?: string }) =>
+  send("senders", "POST", { type: "CF_MANAGED", ...body });
+export const runDnsCheck = (senderId: string) =>
+  send(`senders/${encodeURIComponent(senderId)}/dns-check`, "POST", {});
+
+/** Answer a gap on the WORKSPACE layer (no agentId — layerFor routes it
+ *  there), so every campaign that needs the fact stops asking. */
+export const answerWorkspaceGap = (key: string, value: string) =>
+  send("context/answers", "POST", { key, value });
+
+/** B7: the rail's live Business-core + credits summary — real counts only.
+ *  Facts = workspace-layer fields with a value; gaps = the union of the
+ *  LIVE campaigns' open gap keys (gaps are goal-relative, so the union is
+ *  "what your live campaigns still miss"). Credit % has no plan-allowance
+ *  denominator yet — the bar shows balance vs what the month started with,
+ *  real arithmetic from the ledger. */
+export interface CoreSummary {
+  facts: number;
+  gaps: number;
+  balance: number | null;
+  monthStartBalance: number | null;
+  vertical: string | null;
+  location: string | null;
+}
+export async function fetchCoreSummary(agents: AgentListItem[]): Promise<CoreSummary> {
+  const live = agents.filter((a) => a.status === "ACTIVE" || a.status === "PAUSED");
+  const [ctx, credits, cfg, reports] = await Promise.all([
+    get<{ workspace?: { fields?: Record<string, { value?: string }> } | null }>("context"),
+    fetchCreditsSummary(),
+    fetchLeadConfig(),
+    Promise.all(live.map((a) => fetchGapReport(a.id, a.goal))),
+  ]);
+  const facts = Object.values(ctx?.workspace?.fields ?? {}).filter(
+    (v) => ((v as { value?: string })?.value ?? "").trim().length > 0,
+  ).length;
+  const open = new Set<string>();
+  for (const rep of reports) for (const g of rep?.gaps ?? []) if (g.status === "open") open.add(g.key);
+  const spent = (credits?.spent ?? []).reduce((n, r) => n + r.credits, 0);
+  const added = (credits?.added ?? []).reduce((n, r) => n + r.credits, 0);
+  const profile = (cfg?.profile ?? null) as { vertical?: string; location?: string } | null;
+  return {
+    facts,
+    gaps: open.size,
+    balance: credits?.balance ?? null,
+    monthStartBalance: credits ? credits.balance + spent - added : null,
+    vertical: profile?.vertical ?? null,
+    location: profile?.location ?? null,
+  };
 }

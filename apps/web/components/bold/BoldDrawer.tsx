@@ -676,7 +676,12 @@ function PersonBody({
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 12 }}>
                 <span style={{ ...mono, fontSize: 10, color: "var(--cvb-faint)", flex: 1 }}>
-                  {voicePrice != null ? `${voicePrice} credit${voicePrice === 1 ? "" : "s"} / minute` : ""}
+                  {/* B7 review fix 1: the set rate, honest about when it bills —
+                      nothing but lead reveals draws down credits yet (Q-108),
+                      and the credits page says the same thing. */}
+                  {voicePrice != null
+                    ? `${voicePrice} credit${voicePrice === 1 ? "" : "s"} / minute — the set rate; minutes don't draw down credits yet`
+                    : ""}
                 </span>
                 <span
                   onClick={() => {

@@ -32,6 +32,8 @@ import { BoldProposalsView } from "./BoldProposalsView";
 import { BoldAutomationsView } from "./BoldAutomationsView";
 import { BoldGuidedBuild, type GuildKind } from "./BoldGuidedBuild";
 import { BoldLeadFinderView } from "./BoldLeadFinderView";
+import { BoldWsSettingsView } from "./BoldWsSettingsView";
+import { BoldCreditsView } from "./BoldCreditsView";
 import {
   SURFACE_TITLES,
   TOUR_STEPS,
@@ -588,6 +590,10 @@ export function BoldShell({
               <BoldAutomationsView key={`a${gbTick}`} onBuild={() => setGb("auto")} onCounts={onAutoCounts} flash={flash} />
             ) : null}
             {surface === "lead" ? <BoldLeadFinderView onOpenDrawer={setDrawer} flash={flash} /> : null}
+            {surface === "wssettings" ? (
+              <BoldWsSettingsView onOpenCredits={() => setSurface("credits")} flash={flash} />
+            ) : null}
+            {surface === "credits" ? <BoldCreditsView /> : null}
             {gb ? (
               <BoldGuidedBuild
                 kind={gb}
@@ -600,7 +606,7 @@ export function BoldShell({
                 flash={flash}
               />
             ) : null}
-            {surface !== "campaign" && surface !== "camps" && surface !== "activity" && surface !== "newcamp" && surface !== "wsinbox" && surface !== "contacts" && surface !== "chatbot" && surface !== "forms" && surface !== "proposals" && surface !== "automations" && surface !== "lead" ? (
+            {surface !== "campaign" && surface !== "camps" && surface !== "activity" && surface !== "newcamp" && surface !== "wsinbox" && surface !== "contacts" && surface !== "chatbot" && surface !== "forms" && surface !== "proposals" && surface !== "automations" && surface !== "lead" && surface !== "wssettings" && surface !== "credits" ? (
               <SurfaceStub title={title} />
             ) : null}
             {rcpOpen ? (

@@ -185,6 +185,24 @@ describe.skipIf(!hasInfra)("assertDialAllowed boundary integration", () => {
     );
   });
 
+  it("CHANNEL_PAUSED (B7, DEC-133): channels.voice=false holds Ada's campaign dials; a human's live dial is not campaign outreach", async () => {
+    const paused = await owner.agent.create({
+      data: {
+        workspaceId: ws,
+        name: "Paused voice",
+        goal: "book_appointments",
+        guardrails: { ...GUARDRAILS, channels: { voice: false } },
+      },
+    });
+    expect(await reasonOf(assertDialAllowed(deps(), { ...base(), agentId: paused.id }))).toBe(
+      "CHANNEL_PAUSED",
+    );
+    // The toggle governs Ada's scheduling — a person's live dial passes it.
+    expect(
+      await reasonOf(assertDialAllowed(deps(), { ...base(), agentId: paused.id, caller: "human" as const })),
+    ).toBe("(allowed)");
+  });
+
   it("DAILY_CAP_REACHED: today's OUTBOUND Call rows count against guardrails.dailyCap.voice", async () => {
     const today = IN_WINDOW();
     await withTenant(app, { workspaceId: ws }, (tx) =>

@@ -170,6 +170,11 @@ export async function sendStep(deps: SendDeps, params: SendStepParams): Promise<
         );
       }
     }
+    // B7 (DEC-133): the campaign's channel toggle — off holds the step like a
+    // cap. Scheduled sends only; a human's reply is not campaign outreach.
+    if (guardrails.channels?.email === false) {
+      throw new SendBlockedError("CHANNEL_PAUSED", "email is paused for this campaign");
+    }
     assertInsideWindow(guardrails, now);
     await assertUnderCaps(deps, params, guardrails, sender, now);
   }

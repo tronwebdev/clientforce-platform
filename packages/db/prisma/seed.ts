@@ -554,20 +554,31 @@ async function main(): Promise<void> {
   // channel step and launch gate exercise the REAL capability read (senders
   // were absent in the demo workspace — every surface honestly said so).
   // CF_MANAGED, sandbox-style; idempotent on fromEmail.
+  // B7 review fix 2 (the seed-realism standard, same class as the Quinn
+  // ruling): the identity looks like the BUSINESS, not the platform. An
+  // existing old-identity row upgrades in place — never a second sender.
   const demoSender = await prisma.senderConnection.findFirst({
-    where: { workspaceId: primary.id, fromEmail: "hello@demo-agency.test" },
+    where: {
+      workspaceId: primary.id,
+      fromEmail: { in: ["hello@brightsmile.test", "hello@demo-agency.test"] },
+    },
   });
   if (!demoSender) {
     await prisma.senderConnection.create({
       data: {
         workspaceId: primary.id,
         type: "CF_MANAGED",
-        fromEmail: "hello@demo-agency.test",
-        fromName: "Demo Agency",
+        fromEmail: "hello@brightsmile.test",
+        fromName: "Bright Smile Dental",
         status: "ACTIVE",
         domainAuthStatus: {},
         dailyLimit: 200,
       },
+    });
+  } else if (demoSender.fromEmail === "hello@demo-agency.test") {
+    await prisma.senderConnection.update({
+      where: { id: demoSender.id },
+      data: { fromEmail: "hello@brightsmile.test", fromName: "Bright Smile Dental" },
     });
   }
 
@@ -1045,6 +1056,60 @@ async function main(): Promise<void> {
             },
           },
         });
+      }
+
+      // B7 (DEC-133): REPAIR pass — the earliest demo agents were seeded with
+      // the pre-A8 guardrails shape (`dailyCap: 200` scalar, no window days),
+      // which parseGuardrails rightly refuses; every settings control then
+      // no-ops on those rows. Upgrade in place, preserving the stored values;
+      // rows that already parse are untouched (idempotent).
+      {
+        const demoAgents = await prisma.agent.findMany({
+          where: { workspaceId: primary.id },
+          select: { id: true, guardrails: true },
+        });
+        for (const a of demoAgents) {
+          const g = (a.guardrails ?? {}) as Record<string, unknown>;
+          const legacyCap = typeof g.dailyCap === "number" ? g.dailyCap : null;
+          const win = (g.sendingWindow ?? {}) as Record<string, unknown>;
+          const legacyWindow =
+            typeof win.start === "string" && !Array.isArray((win as { days?: unknown }).days);
+          if (legacyCap == null && !legacyWindow) continue;
+          await prisma.agent.update({
+            where: { id: a.id },
+            data: {
+              guardrails: {
+                sendingWindow: {
+                  days: [1, 2, 3, 4, 5],
+                  start: typeof win.start === "string" ? win.start : "09:00",
+                  end: typeof win.end === "string" ? win.end : "17:00",
+                  timezone: "UTC",
+                },
+                dailyCap: { email: legacyCap ?? 200 },
+                consent: null,
+                unsubscribeFooter: true,
+                suppressionCheck: true,
+              },
+            },
+          });
+        }
+      }
+
+      // B7: the demo workspace starts with a credit balance (a real column —
+      // the ledger and the spend view read it). Set ONCE: never touched when
+      // a balance exists or any ledger row has been written.
+      {
+        const wsRow = await prisma.workspace.findUniqueOrThrow({
+          where: { id: primary.id },
+          select: { creditBalance: true },
+        });
+        const ledgerRows = await prisma.creditLedger.count({ where: { workspaceId: primary.id } });
+        if (wsRow.creditBalance === 0 && ledgerRows === 0) {
+          await prisma.workspace.update({
+            where: { id: primary.id },
+            data: { creditBalance: 2340 },
+          });
+        }
       }
 
       // B6 review fix 2: two never-worked book contacts carrying REAL facts

@@ -1,6 +1,7 @@
 import { Controller, Post } from "@nestjs/common";
 import {
   createAgentSchema,
+  parseGuardrailDefaults,
   type AgentSuggestion,
   type CreateAgentInput,
 } from "@clientforce/core";
@@ -45,6 +46,15 @@ export class SuggestionsController {
     return this.tenant.run(async (tx) => {
       const evaluated: SignalResult[] = [];
       const created: Array<{ id: string; name: string; signal: string }> = [];
+      // B7 (DEC-133): sweep drafts start from the workspace guardrail
+      // defaults too — the ONE create path keeps one starting point.
+      const wsRow = await tx.workspace.findUnique({
+        where: { id: workspaceId },
+        select: { settings: true },
+      });
+      const wsDefaults = parseGuardrailDefaults(
+        ((wsRow?.settings ?? {}) as { guardrailDefaults?: unknown }).guardrailDefaults,
+      );
 
       const goalTaken = async (goal: string) => {
         const row = await tx.agent.findFirst({ where: { goal }, select: { name: true } });
@@ -77,7 +87,7 @@ export class SuggestionsController {
           at: new Date().toISOString(),
         };
         const row = await tx.agent.create({
-          data: { ...agentCreateData(workspaceId, parsed), suggestion },
+          data: { ...agentCreateData(workspaceId, parsed, wsDefaults), suggestion },
         });
         evaluated.push({ signal, count, fired: true });
         created.push({ id: row.id, name: row.name, signal });

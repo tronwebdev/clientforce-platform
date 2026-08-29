@@ -149,6 +149,11 @@ export async function assertDialAllowed(
 
   const window = await resolveCallWindow(prisma, params.workspaceId, contact, guardrails);
   const caller = params.caller ?? "ada";
+  // B7 (DEC-133): the campaign's channel toggle — off holds Ada's campaign
+  // dialing like a cap. A person's live dial is not campaign outreach.
+  if (caller === "ada" && guardrails.channels?.voice === false) {
+    throw new SendBlockedError("CHANNEL_PAUSED", "calls are paused for this campaign");
+  }
   if (!params.skipTimingGates) {
     if (caller === "ada") {
       assertInsideCallingWindow(guardrails, now);

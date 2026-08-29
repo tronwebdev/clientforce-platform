@@ -15,6 +15,7 @@ import {
   agentSuggestionSchema,
   createAgentSchema,
   goalTerminalPill,
+  parseGuardrailDefaults,
   parseGuardrails,
   updateAgentSchema,
   validateGraph,
@@ -179,7 +180,14 @@ export class AgentsController {
     }
     const workspaceId = this.tenant.workspaceId;
     // B2.6 (DEC-110): the ONE create-data shape (the suggestion sweep shares it).
-    return this.tenant.run((tx) => tx.agent.create({ data: agentCreateData(workspaceId, parsed.data) }));
+    // B7 (DEC-133): a new campaign starts from the workspace's guardrail defaults.
+    return this.tenant.run(async (tx) => {
+      const ws = await tx.workspace.findUnique({ where: { id: workspaceId }, select: { settings: true } });
+      const defaults = parseGuardrailDefaults(
+        ((ws?.settings ?? {}) as { guardrailDefaults?: unknown }).guardrailDefaults,
+      );
+      return tx.agent.create({ data: agentCreateData(workspaceId, parsed.data, defaults) });
+    });
   }
 
   /** B6: wizard hydration payload for "Continue setup" — DRAFT resume only. */
