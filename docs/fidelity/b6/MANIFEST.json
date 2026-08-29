@@ -1,30 +1,30 @@
 {
   "unit": "b6",
-  "commit": "19ca3f18a302e99450caa974ebd182b1ba91da27",
+  "commit": "6d2643faa7b00297feb45f52041bb1dcb38f8619",
   "workingTreeDirtyAtCapture": false,
-  "capturedAt": "2026-08-29T20:09:20.215Z",
+  "capturedAt": "2026-08-29T20:48:09.509Z",
   "baseUrl": "http://localhost:3000",
   "note": "Single-run capture; every frame from one build. Verify a frame by hashing its bytes against this manifest — never by trusting an image cache. pnpm lint:fidelity enforces the binding.",
   "frames": {
     "build-lead-ada-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 121312,
-      "sha256": "482272d11f43092f622138fdb84b3ff81ad0e02af8161473830ab31ec4e02eb4"
+      "bytes": 121433,
+      "sha256": "be3fbc66ba1478ca6e155b0edd9797e2005317f5ab624c72d7dfecedce5a8cd2"
     },
     "build-lead-bp-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 122302,
-      "sha256": "ecb82feabb6a3b1f440956132ab490e01c5104b63a1e55d1e42b788bad8d19d6"
+      "bytes": 122290,
+      "sha256": "2eb8be1f41cfc9dfc76502a47669001dfb5ca53f85b0745c62d14b7e66fe076a"
     },
     "build-lead-direct-1440x900.png": {
       "viewport": "1440x900",
       "bytes": 100684,
-      "sha256": "b5c3de6dacd9490a4839d3960ff9f54d0da0bbcc180f68abab518e47436e8f5f"
+      "sha256": "fe4c028983790dc8e94e6a41c45f87b245653e839e3d0f6b6c36d474bd86c979"
     },
     "build-lead-own-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 114766,
-      "sha256": "f51fa648c0550502d4ddd7e1432db51ed21ea6eb6b17903f01e3fd6bc8e67535"
+      "bytes": 114770,
+      "sha256": "b25116a90f01eaf698558ac6c6c176fbda55a765bab3d8c13e202b1db935580a"
     },
     "proto-lead-ada-1440x900.png": {
       "viewport": "1440x900",
@@ -33,8 +33,8 @@
     },
     "proto-lead-bp-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 179856,
-      "sha256": "f04936c943241c3219e73d58c66f16fed308936d8d636c1e66d5eefe1834d488"
+      "bytes": 179854,
+      "sha256": "982dcee299d024dd039bf69a124a7fb7cc1e5752a920cf2172501d81d204ba02"
     },
     "proto-lead-direct-1440x900.png": {
       "viewport": "1440x900",

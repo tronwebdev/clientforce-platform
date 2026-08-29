@@ -1046,6 +1046,37 @@ async function main(): Promise<void> {
           },
         });
       }
+
+      // B6 review fix 2: two never-worked book contacts carrying REAL facts
+      // (a targeted title; call consent) so the keyless pool demonstrates
+      // differentiated fits next to the honest "unscored" rows. No messages —
+      // inbox and campaign-activity fixtures stay untouched.
+      for (const c of [
+        {
+          email: "marta@nguyenfamilydental.test",
+          firstName: "Marta",
+          lastName: "Nguyen",
+          company: "Nguyen Family Dental",
+          title: "Owner",
+          callConsent: "granted",
+        },
+        {
+          email: "dev@cedarparksmiles.test",
+          firstName: "Dev",
+          lastName: "Patel",
+          company: "Cedar Park Smiles",
+          title: "Practice Manager",
+        },
+      ]) {
+        const exists = await prisma.contact.findFirst({
+          where: { workspaceId: primary.id, email: c.email },
+        });
+        if (!exists) {
+          await prisma.contact.create({
+            data: { workspaceId: primary.id, source: "seed", optOut: {}, tags: [], ...c },
+          });
+        }
+      }
     }
 
     // B3c-2 (DEC-121): call-clock fixtures — three phone contacts whose
