@@ -94,6 +94,9 @@ export class AgentViewController {
           // M1a (DEC-065): with the goal this derives the Settings tab's
           // selling-arc display (selectStrategy — never stored).
           category: agent.category,
+          // B7 (DEC-132): the Settings tab's YOUR-INSTRUCTIONS card shows the
+          // standing rules verbatim — additive rider on the same read.
+          instructions: agent.instructions,
           status: agent.status,
           createdAt: agent.createdAt.toISOString(),
         },

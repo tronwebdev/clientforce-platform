@@ -104,6 +104,22 @@ export const guardrailsSchema = z.object({
    * next guardrails round-trip (the voice-rider precedent).
    */
   autonomy: z.enum(["ask", "limits", "full"]).optional(),
+  /**
+   * B7 (DEC-132): per-campaign channel toggles — the B3d deferral come home.
+   * Rides this Json like every rider — no migration; an ABSENT block or an
+   * absent key means ON (legacy rows parse unchanged). `false` PAUSES that
+   * channel: all three send boundaries (email/SMS/voice) refuse with
+   * CHANNEL_PAUSED before their cap checks, so the step holds exactly like a
+   * cap. A toggle only ever RESTRICTS — no value bypasses the A8 rails,
+   * quiet hours, consent/DNC, or the reply hold.
+   */
+  channels: z
+    .object({
+      email: z.boolean().optional(),
+      sms: z.boolean().optional(),
+      voice: z.boolean().optional(),
+    })
+    .optional(),
   unsubscribeFooter: z.literal(true),
   suppressionCheck: z.literal(true),
 });
@@ -122,6 +138,50 @@ export const DEFAULT_GUARDRAILS: Guardrails = {
 /** B3d: the autonomy fallback — absent rider = "Act inside limits". */
 export const DEFAULT_AUTONOMY = "limits" as const;
 export type AutonomyLevel = "ask" | "limits" | "full";
+
+/** B7: a channel is ON unless its key is explicitly false. */
+export function channelEnabled(
+  guardrails: Pick<Guardrails, "channels">,
+  channel: "email" | "sms" | "voice",
+): boolean {
+  return guardrails.channels?.[channel] !== false;
+}
+
+/**
+ * B7 (DEC-132): workspace-level guardrail DEFAULTS — the values a NEW
+ * campaign starts from (the settings hub's Guardrails page edits these).
+ * Stored additively in `Workspace.settings.guardrailDefaults`; absent =
+ * today's DEFAULT_GUARDRAILS baseline, so legacy workspaces are unchanged.
+ * Campaigns keep their OWN stored guardrails after creation — editing a
+ * default never rewrites a live campaign (live inheritance is Q-109).
+ */
+export const guardrailDefaultsSchema = z.object({
+  dailyCap: z
+    .object({
+      email: z.number().int().min(1).max(10_000).optional(),
+      sms: z.number().int().min(1).max(10_000).optional(),
+      voice: z.number().int().min(1).max(10_000).optional(),
+    })
+    .optional(),
+  sendingWindow: sendingWindowSchema.optional(),
+});
+export type GuardrailDefaults = z.infer<typeof guardrailDefaultsSchema>;
+
+/** Parse the stored defaults; absent/invalid-empty = no overrides. */
+export function parseGuardrailDefaults(value: unknown): GuardrailDefaults {
+  if (!value || typeof value !== "object") return {};
+  const res = guardrailDefaultsSchema.safeParse(value);
+  return res.success ? res.data : {};
+}
+
+/** The guardrails a new campaign starts from: baseline + workspace defaults. */
+export function applyGuardrailDefaults(defaults: GuardrailDefaults): Guardrails {
+  return {
+    ...DEFAULT_GUARDRAILS,
+    dailyCap: { ...DEFAULT_GUARDRAILS.dailyCap, ...(defaults.dailyCap ?? {}) },
+    ...(defaults.sendingWindow ? { sendingWindow: defaults.sendingWindow } : {}),
+  };
+}
 
 /**
  * Parse an agent's stored guardrails; an empty/legacy value falls back to the

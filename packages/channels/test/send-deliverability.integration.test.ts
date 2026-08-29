@@ -281,6 +281,22 @@ describe.skipIf(!hasInfra)("send boundary — deliverability rails (P5 W1)", () 
     });
   });
 
+  it("CHANNEL_PAUSED (B7, DEC-132): channels.email=false holds a scheduled send before the cap checks", async () => {
+    const senderId = await makeSender();
+    const before = await owner.agent.findUniqueOrThrow({ where: { id: agentId }, select: { guardrails: true } });
+    await owner.agent.update({
+      where: { id: agentId },
+      data: { guardrails: { ...(before.guardrails as object), channels: { email: false } } },
+    });
+    try {
+      await expect(sendStep(deps(), params(senderId))).rejects.toMatchObject({
+        reason: "CHANNEL_PAUSED",
+      });
+    } finally {
+      await owner.agent.update({ where: { id: agentId }, data: { guardrails: before.guardrails as object } });
+    }
+  });
+
   it("pre-W1 regression pin: no warmupState → no ramp; no healthState → no gate", async () => {
     const senderId = await makeSender(); // neither field set — the legacy shape
     await seedSentToday(senderId, 60); // day-1 curve cap (50) would refuse if a ramp applied

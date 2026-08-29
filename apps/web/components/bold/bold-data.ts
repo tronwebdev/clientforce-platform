@@ -40,15 +40,8 @@ export const FIXTURE_ALWAYS_ON = {
   receptionist: { owned: false, sub: "Add-on — your line goes to voicemail", value: "$39/mo" },
 } as const;
 
-/** B0 FIXTURE — ICP + credits card (B7 wires the business core + spend). */
-export const FIXTURE_CORE = {
-  name: "Business core",
-  sector: "Implants · Austin, TX",
-  facts: "14 facts",
-  gaps: "2 gaps",
-  credits: "2,340",
-  creditPct: 58,
-} as const;
+// B7 (DEC-132): the B0 FIXTURE_CORE card is retired — the rail's Business
+// core + credits card reads live queries (fetchCoreSummary in bold-live).
 
 /* ------------------------------------------------- surface title map (SURF) */
 

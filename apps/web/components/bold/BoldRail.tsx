@@ -1,11 +1,11 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import type { AgentListItem, MeNeedsResponse } from "@clientforce/core";
 import { goalValueMeta } from "@clientforce/core";
 import type { Me } from "../../lib/types";
-import { money } from "./bold-live";
-import { FIXTURE_ALWAYS_ON, FIXTURE_CORE } from "./bold-data";
+import { fetchCoreSummary, money, type CoreSummary } from "./bold-live";
+import { FIXTURE_ALWAYS_ON } from "./bold-data";
 
 const mono: CSSProperties = { fontFamily: "var(--cvb-font-mono)" };
 
@@ -51,6 +51,31 @@ export function BoldRail(props: BoldRailProps) {
   // Suggested drafts live in the ✦ block below, never as campaign rows.
   const agents = props.agents.filter((a) => !suggestions.some((g) => g.id === a.id));
   const wsName = me.activeWorkspace?.name ?? "Workspace";
+  // B7 (DEC-132): the core card goes LIVE — facts/gaps/credits are queries
+  // now (the B0 fixture is retired); nulls render as quiet dashes, never a
+  // canned number.
+  const [core, setCore] = useState<CoreSummary | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void fetchCoreSummary(props.agents).then((s) => {
+      if (alive) setCore(s);
+    });
+    return () => {
+      alive = false;
+    };
+    // Keyed on the campaign COUNT deliberately: a re-fetch per row identity
+    // change would hammer the gap reports for no new information.
+    // eslint-disable-next-line
+  }, [props.agents.length, me.activeWorkspace?.id]);
+  const sectorLine = core
+    ? [core.vertical ? core.vertical.charAt(0).toUpperCase() + core.vertical.slice(1) : null, core.location]
+        .filter(Boolean)
+        .join(" · ") || "Your business, in her hands"
+    : "…";
+  const creditPct =
+    core?.balance != null && core.monthStartBalance != null && core.monthStartBalance > 0
+      ? Math.max(0, Math.min(100, Math.round((core.balance / core.monthStartBalance) * 100)))
+      : null;
   const wsIndex = Math.max(
     0,
     me.memberships.findIndex((m) => m.workspaceId === me.activeWorkspace?.id),
@@ -339,36 +364,44 @@ export function BoldRail(props: BoldRailProps) {
               </span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 800, fontSize: 13, letterSpacing: "-.02em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                  {FIXTURE_CORE.name}
+                  Business core
                 </div>
-                <div style={{ fontSize: 10.5, color: "var(--cvb-faint)", marginTop: 2 }}>{FIXTURE_CORE.sector}</div>
+                <div style={{ fontSize: 10.5, color: "var(--cvb-faint)", marginTop: 2 }}>{sectorLine}</div>
               </div>
               <span style={{ fontSize: 12, color: "var(--cvb-faint)", flex: "none" }}>→</span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 11 }}>
               <span style={{ fontSize: 10, fontWeight: 700, color: "var(--cvb-forest)", background: "var(--cvb-mint)", border: "1px solid var(--cvb-mint-line)", borderRadius: 999, padding: "3px 9px" }}>
-                {FIXTURE_CORE.facts}
+                {core ? `${core.facts} fact${core.facts === 1 ? "" : "s"}` : "…"}
               </span>
-              <span style={{ fontSize: 10, fontWeight: 700, color: "var(--cvb-amber)", background: "var(--cvb-amber-bg)", border: "1px solid var(--cvb-amber-line)", borderRadius: 999, padding: "3px 9px" }}>
-                {FIXTURE_CORE.gaps}
-              </span>
+              {core && core.gaps === 0 ? (
+                <span style={{ fontSize: 10, fontWeight: 700, color: "var(--cvb-forest)", background: "var(--cvb-mint)", border: "1px solid var(--cvb-mint-line)", borderRadius: 999, padding: "3px 9px" }}>
+                  No gaps
+                </span>
+              ) : (
+                <span style={{ fontSize: 10, fontWeight: 700, color: "var(--cvb-amber)", background: "var(--cvb-amber-bg)", border: "1px solid var(--cvb-amber-line)", borderRadius: 999, padding: "3px 9px" }}>
+                  {core ? `${core.gaps} gap${core.gaps === 1 ? "" : "s"}` : "…"}
+                </span>
+              )}
             </div>
           </div>
           <div className="cvb-core-credits">
             <div style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ ...mono, fontSize: 10, letterSpacing: ".13em", color: "var(--cvb-faint)" }}>CREDITS</div>
-                <span className="cvb-display" style={{ fontWeight: 900, fontSize: 22, letterSpacing: "-.03em", lineHeight: 1, display: "block", marginTop: 4 }}>
-                  {FIXTURE_CORE.credits}
+                <span className="cvb-display" data-testid="bold-rail-credits" style={{ fontWeight: 900, fontSize: 22, letterSpacing: "-.03em", lineHeight: 1, display: "block", marginTop: 4 }}>
+                  {core?.balance != null ? core.balance.toLocaleString("en-US") : "—"}
                 </span>
               </div>
               <button type="button" className="cvb-topup" onClick={() => props.onSelectSurface("credits")}>
                 Top up
               </button>
             </div>
-            <div className="cvb-credit-bar">
-              <span style={{ width: `${FIXTURE_CORE.creditPct}%` }} />
-            </div>
+            {creditPct != null ? (
+              <div className="cvb-credit-bar" title="What is left of what the month started with">
+                <span style={{ width: `${creditPct}%` }} />
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
