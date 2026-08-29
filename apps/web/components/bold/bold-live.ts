@@ -522,6 +522,54 @@ export interface BoldAutomationRunRow {
 export const fetchAutomationRuns = (id: string) =>
   get<BoldAutomationRunRow[]>(`automations/${encodeURIComponent(id)}/runs`);
 
+/* ---------------------------------------------------- B6 (DEC-131) */
+
+export interface LeadFinderConfig {
+  providerConfigured: boolean;
+  buyerping: { connected: boolean; signalsToday: number };
+  profile: { shape: "company" | "local_business" | "consumer"; vertical?: string };
+  directFilters: Array<{ key: string; label: string; options: string[] }>;
+  topicSuggestions: { kinds: string[]; byVertical: Record<string, string[]>; fallback: string[] };
+  sources: string[];
+  watchTopics: Array<{ id: string; kind: string; label: string }>;
+}
+export const fetchLeadConfig = () => get<LeadFinderConfig>("leads/config");
+
+export interface LeadCandidateRow {
+  id: string;
+  origin: "own" | "provider";
+  provider: string;
+  providerRef: string;
+  contactId: string | null;
+  name: string;
+  title: string | null;
+  company: string | null;
+  location: string | null;
+  headcount: number | null;
+  maskedEmail: string | null;
+  maskedPhone: string | null;
+  fit: number;
+  fitReasons: string[];
+  intentWeight: number;
+  intentReceipts: string[];
+  revealed: boolean;
+}
+export interface LeadSearchResult {
+  providerConfigured: boolean;
+  consumerShape?: boolean;
+  candidates: LeadCandidateRow[];
+}
+export const searchLeads = (mode: "ada" | "direct", filters?: Record<string, string>) =>
+  send("leads/search", "POST", { mode, ...(filters ? { filters } : {}) });
+export const revealLead = (providerRef: string) => send("leads/reveal", "POST", { providerRef });
+export const hideLead = (provider: string, providerRef: string) =>
+  send("leads/hide", "POST", { provider, providerRef });
+export const setBuyerping = (enabled: boolean) => send("leads/buyerping", "POST", { enabled });
+export const addWatchTopic = (kind: string, label: string) =>
+  send("leads/watch-topics", "POST", { kind, label });
+export const removeWatchTopic = (id: string) =>
+  send(`leads/watch-topics/${encodeURIComponent(id)}`, "DELETE", {});
+
 /* ---------------------------------------------------- B4.5 (DEC-128) */
 
 /** One row of the live-call feed the shell polls. */

@@ -63,9 +63,10 @@ describe("registry drift (lib/integrations vs @clientforce/core)", () => {
     }
   });
 
-  it("the canon total is 15, ids unique, every entry carries the full card anatomy", () => {
-    expect(INTEGRATION_CATALOG).toHaveLength(15);
-    expect(new Set(INTEGRATION_CATALOG.map((e) => e.id)).size).toBe(15);
+  // B6 (DEC-131): 16th card — BuyerPing, the intent tier (deliberate move).
+  it("the canon total is 16, ids unique, every entry carries the full card anatomy", () => {
+    expect(INTEGRATION_CATALOG).toHaveLength(16);
+    expect(new Set(INTEGRATION_CATALOG.map((e) => e.id)).size).toBe(16);
     for (const e of INTEGRATION_CATALOG) {
       expect(e.name.length).toBeGreaterThan(0);
       expect(e.glyph.length).toBeGreaterThan(0);
@@ -93,8 +94,9 @@ describe("registry drift (lib/integrations vs @clientforce/core)", () => {
     }
   });
 
-  it("the category set is exactly the canon 6", () => {
-    expect(INTEGRATION_CATEGORIES).toHaveLength(6);
+  // B6 (DEC-131): prospecting joins the canon (deliberate move).
+  it("the category set is exactly the canon 7", () => {
+    expect(INTEGRATION_CATEGORIES).toHaveLength(7);
     expect(new Set(Object.keys(CATEGORY_LABELS))).toEqual(new Set(INTEGRATION_CATEGORIES));
     expect(new Set(INTEGRATION_CATALOG.map((e) => e.cat))).toEqual(new Set(INTEGRATION_CATEGORIES));
   });

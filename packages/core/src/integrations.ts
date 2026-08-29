@@ -26,6 +26,11 @@ export const INTEGRATION_PROVIDERS = [
   "webhooks",
   "hubspot",
   "zapier",
+  // B6 (DEC-131, ruling 2): BuyerPing — OUR intent tier, not a vendor. The
+  // registry entry is its home; "connect" enables the tier (no key: the
+  // first-party pipeline is free, provider-derived warm signals ride the
+  // workspace-independent APOLLO key server-side).
+  "buyerping",
 ] as const;
 export const integrationProviderSchema = z.enum(INTEGRATION_PROVIDERS);
 export type IntegrationProvider = z.infer<typeof integrationProviderSchema>;
@@ -176,6 +181,11 @@ export const zapierConfigSchema = z
   .strict();
 export type ZapierConfig = z.infer<typeof zapierConfigSchema>;
 
+/** B6: BuyerPing config — the tier toggle only; watch topics live in their
+ *  own table (WatchTopic), never in this blob. */
+export const buyerpingConfigSchema = z.object({ enabled: z.boolean() }).strict();
+export type BuyerpingConfig = z.infer<typeof buyerpingConfigSchema>;
+
 export const integrationConfigSchemas: Record<IntegrationProvider, z.ZodTypeAny> = {
   slack: slackConfigSchema,
   gcal: gcalConfigSchema,
@@ -184,6 +194,7 @@ export const integrationConfigSchemas: Record<IntegrationProvider, z.ZodTypeAny>
   webhooks: webhooksConfigSchema,
   hubspot: hubspotConfigSchema,
   zapier: zapierConfigSchema,
+  buyerping: buyerpingConfigSchema,
 };
 
 export const updateIntegrationSchema = z.object({

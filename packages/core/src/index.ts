@@ -101,6 +101,8 @@ export * from "./widget";
 export * from "./widget-vocabulary";
 export * from "./forms";
 export * from "./proposals";
+export * from "./icp";
+export * from "./intent-registry";
 
 /**
  * Narrow an arbitrary string to a branded {@link Id}. Real validation arrives

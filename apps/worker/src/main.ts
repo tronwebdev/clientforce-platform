@@ -23,7 +23,8 @@ import {
   createCallDialQueue,
 } from "@clientforce/channels";
 import { isConfigured } from "@clientforce/config";
-import { goalKeySchema, type GoalKey } from "@clientforce/core";
+import { DEFAULT_ICP_PROFILE, goalKeySchema, icpProfileSchema, type GoalKey } from "@clientforce/core";
+import { createIntentConsumer } from "@clientforce/leads";
 import { createDistillQueue, createDistillWorker } from "@clientforce/context";
 import {
   createAppPrismaClient,
@@ -358,6 +359,22 @@ function startKnowledgeWorkers(): void {
       // replies / meetings booked / goals completed, per-workspace channel
       // + toggles; idempotent per event, never dead-letters the bus.
       createIntegrationNotifier(integrationsDeps),
+      // B6 (DEC-131): the first-party intent pipeline — qualifying events
+      // land as IntentSignal rows (suppression at write, receipts from the
+      // shape/vertical registry). Free tier, real-time, never dead-letters.
+      createIntentConsumer({
+        prisma,
+        profileFor: async (workspaceId) => {
+          const ws = await owner.workspace.findUnique({
+            where: { id: workspaceId },
+            select: { settings: true },
+          });
+          const raw = ((ws?.settings ?? {}) as { icpProfile?: unknown }).icpProfile;
+          const parsed = icpProfileSchema.safeParse(raw);
+          const profile = parsed.success ? parsed.data : DEFAULT_ICP_PROFILE;
+          return { shape: profile.shape, vertical: profile.vertical ?? null };
+        },
+      }),
     ],
   });
   busRef.current = bus;

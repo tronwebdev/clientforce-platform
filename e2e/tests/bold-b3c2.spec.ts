@@ -111,6 +111,14 @@ test("the workspace recording toggle round-trips and restores OFF", async ({ pag
   test.setTimeout(120_000);
   await signIn(page);
   await page.goto("/settings");
+  // Under full-suite parallel load the legacy settings shell occasionally
+  // stalls on first paint — reload until the nav renders (bounded).
+  await expect(async () => {
+    if (!(await page.getByTestId("nav-phone").isVisible().catch(() => false))) {
+      await page.reload();
+      await page.getByTestId("nav-phone").waitFor({ timeout: 8_000 });
+    }
+  }).toPass({ timeout: 45_000 });
   await page.getByTestId("nav-phone").click();
   const toggle = page.getByTestId("call-recording-toggle");
   await expect(toggle).toBeVisible();

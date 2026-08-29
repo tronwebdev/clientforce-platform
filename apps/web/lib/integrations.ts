@@ -55,6 +55,9 @@ export const CATEGORY_LABELS = {
   messaging: "Messaging",
   payments: "Payments",
   automation: "Automation",
+  // B6 (DEC-131): the lead-finder family — BuyerPing lives here. A seventh
+  // canon category, added deliberately (the pinned category test moves with it).
+  prospecting: "Prospecting",
 } as const;
 export type IntegrationCategory = keyof typeof CATEGORY_LABELS;
 export const INTEGRATION_CATEGORIES = Object.keys(
@@ -223,6 +226,14 @@ const BASE: ReadonlyArray<Omit<CatalogEntry, "availability">> = [
     glyph: "Z",
     tile: "lime",
     desc: "Automate workflows across 6,000+ apps.",
+  },
+  {
+    id: "buyerping",
+    name: "BuyerPing",
+    cat: "prospecting",
+    glyph: "B",
+    tile: "green",
+    desc: "Buyer-intent signals on the leads you find.",
   },
   {
     id: "webhooks",
@@ -433,6 +444,23 @@ export const DRAWER_CONTENT = {
     setupSteps: [
       { title: "Mint an API key", desc: "Shown once — copy it straight into Zapier. We store only a hash, so a lost key is re-minted, never recovered." },
       { title: "Open the invite link", desc: "Our Zapier app is private: the invite link adds it to your Zapier account. A public directory listing is a separate step." },
+    ],
+    optionsKind: null,
+  },
+  // B6 (DEC-131): BuyerPing is OUR intent tier, not a vendor — nothing to
+  // paste, nothing to probe. Connect enables the tier; the Lead finder is
+  // where watch topics and the signals themselves live.
+  buyerping: {
+    mode: "fields",
+    authPerms: [],
+    syncRows: [
+      { kind: "triggers", label: "First-party signals — chats, forms, replies, calls, bookings (included, real-time)" },
+      { kind: "writes", label: "Signals land on leads with a plain reason receipt" },
+      { kind: "soon", label: "Provider warm signals (hiring, funding, tech changes) — where the plan supports them" },
+    ],
+    setupSteps: [
+      { title: "Switch it on", desc: "No key — the tier reads your own live activity. Fit matching keeps working without it." },
+      { title: "Pick watch topics", desc: "In the Lead finder: what counts as buying intent for your business." },
     ],
     optionsKind: null,
   },
