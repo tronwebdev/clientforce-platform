@@ -554,20 +554,31 @@ async function main(): Promise<void> {
   // channel step and launch gate exercise the REAL capability read (senders
   // were absent in the demo workspace — every surface honestly said so).
   // CF_MANAGED, sandbox-style; idempotent on fromEmail.
+  // B7 review fix 2 (the seed-realism standard, same class as the Quinn
+  // ruling): the identity looks like the BUSINESS, not the platform. An
+  // existing old-identity row upgrades in place — never a second sender.
   const demoSender = await prisma.senderConnection.findFirst({
-    where: { workspaceId: primary.id, fromEmail: "hello@demo-agency.test" },
+    where: {
+      workspaceId: primary.id,
+      fromEmail: { in: ["hello@brightsmile.test", "hello@demo-agency.test"] },
+    },
   });
   if (!demoSender) {
     await prisma.senderConnection.create({
       data: {
         workspaceId: primary.id,
         type: "CF_MANAGED",
-        fromEmail: "hello@demo-agency.test",
-        fromName: "Demo Agency",
+        fromEmail: "hello@brightsmile.test",
+        fromName: "Bright Smile Dental",
         status: "ACTIVE",
         domainAuthStatus: {},
         dailyLimit: 200,
       },
+    });
+  } else if (demoSender.fromEmail === "hello@demo-agency.test") {
+    await prisma.senderConnection.update({
+      where: { id: demoSender.id },
+      data: { fromEmail: "hello@brightsmile.test", fromName: "Bright Smile Dental" },
     });
   }
 
