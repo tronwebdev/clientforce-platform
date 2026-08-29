@@ -105,7 +105,7 @@ export const guardrailsSchema = z.object({
    */
   autonomy: z.enum(["ask", "limits", "full"]).optional(),
   /**
-   * B7 (DEC-132): per-campaign channel toggles — the B3d deferral come home.
+   * B7 (DEC-133): per-campaign channel toggles — the B3d deferral come home.
    * Rides this Json like every rider — no migration; an ABSENT block or an
    * absent key means ON (legacy rows parse unchanged). `false` PAUSES that
    * channel: all three send boundaries (email/SMS/voice) refuse with
@@ -148,7 +148,7 @@ export function channelEnabled(
 }
 
 /**
- * B7 (DEC-132): workspace-level guardrail DEFAULTS — the values a NEW
+ * B7 (DEC-133): workspace-level guardrail DEFAULTS — the values a NEW
  * campaign starts from (the settings hub's Guardrails page edits these).
  * Stored additively in `Workspace.settings.guardrailDefaults`; absent =
  * today's DEFAULT_GUARDRAILS baseline, so legacy workspaces are unchanged.

@@ -28,7 +28,7 @@ import type { AuthenticatedRequest } from "../auth/request-context";
  * first-run ONLY (409 once any membership exists) — additional workspaces are
  * an agency-management concern, not this endpoint's.
  *
- * B7 (DEC-132) adds the settings-surface reads/writes: the workspace's
+ * B7 (DEC-133) adds the settings-surface reads/writes: the workspace's
  * members (the Team page's first real data), and the guardrail DEFAULTS —
  * the values a NEW campaign starts from, stored additively in
  * `Workspace.settings.guardrailDefaults`. Editing a default never rewrites a

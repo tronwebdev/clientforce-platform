@@ -64,7 +64,7 @@ export type SendBlockReason =
   | "NO_COMPANY_ADDRESS"
   | "OUTSIDE_SENDING_WINDOW"
   | "DAILY_CAP_REACHED"
-  // B7 (DEC-132): the campaign's channel toggle is off — holds like a cap.
+  // B7 (DEC-133): the campaign's channel toggle is off — holds like a cap.
   | "CHANNEL_PAUSED"
   | "SENDER_DISABLED"
   | "RECIPIENT_NOT_ALLOWLISTED"

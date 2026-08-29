@@ -1,5 +1,5 @@
 /**
- * B7 (DEC-132) settings-surface e2e in a fresh workspace:
+ * B7 (DEC-133) settings-surface e2e in a fresh workspace:
  *  - /workspaces/members returns the REAL memberships of the active
  *    workspace only (tenant-scoped read; User identity joined by id);
  *  - guardrail DEFAULTS round-trip: GET starts empty, PATCH validates and

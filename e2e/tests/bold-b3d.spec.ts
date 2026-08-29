@@ -75,7 +75,7 @@ test("the settings-tab autonomy radio round-trips and self-restores", async ({ p
   await expect(page.getByTestId("bold-auto-ask")).toHaveAttribute("aria-checked", "true", { timeout: 15_000 });
   await page.getByTestId("bold-auto-limits").click();
   await expect(page.getByTestId("bold-toast")).toContainText("Act inside limits");
-  // B7 (DEC-132): the once-deferred sections shipped — channel toggles and
+  // B7 (DEC-133): the once-deferred sections shipped — channel toggles and
   // typed cap wells now render below the radio instead of the deferred note.
   await expect(page.getByTestId("bold-ch-email")).toBeVisible();
   await expect(page.getByTestId("bold-gr-cap-email")).toBeVisible();

@@ -185,7 +185,7 @@ describe.skipIf(!hasInfra)("assertDialAllowed boundary integration", () => {
     );
   });
 
-  it("CHANNEL_PAUSED (B7, DEC-132): channels.voice=false holds Ada's campaign dials; a human's live dial is not campaign outreach", async () => {
+  it("CHANNEL_PAUSED (B7, DEC-133): channels.voice=false holds Ada's campaign dials; a human's live dial is not campaign outreach", async () => {
     const paused = await owner.agent.create({
       data: {
         workspaceId: ws,

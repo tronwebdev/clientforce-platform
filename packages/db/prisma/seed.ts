@@ -1047,7 +1047,7 @@ async function main(): Promise<void> {
         });
       }
 
-      // B7 (DEC-132): REPAIR pass — the earliest demo agents were seeded with
+      // B7 (DEC-133): REPAIR pass — the earliest demo agents were seeded with
       // the pre-A8 guardrails shape (`dailyCap: 200` scalar, no window days),
       // which parseGuardrails rightly refuses; every settings control then
       // no-ops on those rows. Upgrade in place, preserving the stored values;

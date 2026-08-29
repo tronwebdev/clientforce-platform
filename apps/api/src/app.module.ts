@@ -74,7 +74,7 @@ import { BusOrInlinePublisher, EVENTS_PUBLISHER } from "./events/publisher";
     MeNeedsController,
     // B2 (DEC-106): tenant read of resolved credit prices (D1 — prices are data).
     CreditPricesController,
-    // B7 (DEC-132): tenant credit SPEND view over the real ledger (Q-108 honest).
+    // B7 (DEC-133): tenant credit SPEND view over the real ledger (Q-108 honest).
     CreditsController,
     // B2.6 (DEC-110): the deterministic suggestion sweep (drafts via the one create path).
     SuggestionsController,

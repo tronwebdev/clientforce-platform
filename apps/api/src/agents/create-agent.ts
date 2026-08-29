@@ -7,7 +7,7 @@ import type { Prisma } from "@clientforce/db";
  * suggestion sweep both assemble a DRAFT row through this helper — the ruled
  * "engine writes drafts through the same creation API"; no parallel path.
  *
- * B7 (DEC-132): `defaults` carries the workspace's guardrail DEFAULTS
+ * B7 (DEC-133): `defaults` carries the workspace's guardrail DEFAULTS
  * (`Workspace.settings.guardrailDefaults`) — a new campaign starts from
  * them; absent defaults = the historical DEFAULT_GUARDRAILS baseline.
  * Creation-time only: campaigns own their guardrails afterwards (Q-109).

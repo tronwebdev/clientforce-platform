@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * B7 (DEC-132): Settings & Business core as ONE surface — the prototype's
+ * B7 (DEC-133): Settings & Business core as ONE surface — the prototype's
  * wssettings hub (six cards) + the WORKSPACE item pages (Business core ·
  * Senders · Team · Guardrails), every number a query, nothing canned.
  *

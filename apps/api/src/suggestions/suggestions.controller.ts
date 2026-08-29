@@ -46,7 +46,7 @@ export class SuggestionsController {
     return this.tenant.run(async (tx) => {
       const evaluated: SignalResult[] = [];
       const created: Array<{ id: string; name: string; signal: string }> = [];
-      // B7 (DEC-132): sweep drafts start from the workspace guardrail
+      // B7 (DEC-133): sweep drafts start from the workspace guardrail
       // defaults too — the ONE create path keeps one starting point.
       const wsRow = await tx.workspace.findUnique({
         where: { id: workspaceId },

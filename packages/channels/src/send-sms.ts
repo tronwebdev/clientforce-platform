@@ -162,7 +162,7 @@ export async function sendSmsStep(deps: SendSmsDeps, params: SendSmsStepParams):
         );
       }
     }
-    // B7 (DEC-132): the campaign's channel toggle — off holds the step like a
+    // B7 (DEC-133): the campaign's channel toggle — off holds the step like a
     // cap. Scheduled sends only; a human's reply is not campaign outreach.
     if (guardrails.channels?.sms === false) {
       throw new SendBlockedError("CHANNEL_PAUSED", "SMS is paused for this campaign");

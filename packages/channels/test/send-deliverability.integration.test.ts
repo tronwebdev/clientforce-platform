@@ -281,7 +281,7 @@ describe.skipIf(!hasInfra)("send boundary — deliverability rails (P5 W1)", () 
     });
   });
 
-  it("CHANNEL_PAUSED (B7, DEC-132): channels.email=false holds a scheduled send before the cap checks", async () => {
+  it("CHANNEL_PAUSED (B7, DEC-133): channels.email=false holds a scheduled send before the cap checks", async () => {
     const senderId = await makeSender();
     const before = await owner.agent.findUniqueOrThrow({ where: { id: agentId }, select: { guardrails: true } });
     await owner.agent.update({

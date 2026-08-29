@@ -180,7 +180,7 @@ export class AgentsController {
     }
     const workspaceId = this.tenant.workspaceId;
     // B2.6 (DEC-110): the ONE create-data shape (the suggestion sweep shares it).
-    // B7 (DEC-132): a new campaign starts from the workspace's guardrail defaults.
+    // B7 (DEC-133): a new campaign starts from the workspace's guardrail defaults.
     return this.tenant.run(async (tx) => {
       const ws = await tx.workspace.findUnique({ where: { id: workspaceId }, select: { settings: true } });
       const defaults = parseGuardrailDefaults(

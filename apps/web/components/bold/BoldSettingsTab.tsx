@@ -4,7 +4,7 @@
  * B3d (DEC-122): HOW MUCH ADA DECIDES — the three-level autonomy radio,
  * read/written through the shipped guardrails PATCH.
  *
- * B7 (DEC-132): the deferred sections come HOME —
+ * B7 (DEC-133): the deferred sections come HOME —
  *  - CHANNELS IN PLAY: real toggles on the `guardrails.channels` rider; off
  *    holds that channel's scheduled steps at the send boundary
  *    (CHANNEL_PAUSED — a restriction, never a bypass; replies still send).

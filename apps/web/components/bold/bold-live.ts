@@ -918,7 +918,7 @@ export function composeRow(row: BoldActivityRow, stepLabel?: string): ComposedRo
   }
 }
 
-/* ---------------------------------------------------- B7 (DEC-132) */
+/* ---------------------------------------------------- B7 (DEC-133) */
 
 /** `GET /workspaces/members` row — the Team page's first real data. */
 export interface WorkspaceMemberRow {

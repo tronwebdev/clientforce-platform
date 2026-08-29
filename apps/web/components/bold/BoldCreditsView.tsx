@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * B7 (DEC-132): the credits spend view — the prototype's credits surface on
+ * B7 (DEC-133): the credits spend view — the prototype's credits surface on
  * the REAL spine: `Workspace.creditBalance` + the `CreditLedger` rows the
  * reveal debit (B6) and backoffice adjustments write, and the effective-dated
  * `CreditPrice` table for "what things cost" (D1/D2 — prices are data, never

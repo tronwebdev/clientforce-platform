@@ -25,7 +25,13 @@ test.use({
 });
 
 const OWNER_EMAIL = "owner@demo-agency.test";
-const DB_URL = process.env.FIXTURE_DATABASE_URL ?? "postgresql://postgres:postgres@localhost:5432/clientforce";
+// The transient-fixture rail needs direct DB access: FIXTURE_DATABASE_URL, or
+// the dev stack's DATABASE_URL. No cred-bearing fallback literal here — the
+// local default lives in packages/db/.env.example, and the deploy secret-scan
+// gate (rightly) refuses user:pass@ URLs in tracked files (DEC-132). Against
+// deployed staging the runner can reach neither, so the live-fixture test
+// skips there, honestly; the preview test needs no DB and always runs.
+const DB_URL = process.env.FIXTURE_DATABASE_URL ?? process.env.DATABASE_URL ?? "";
 
 const fixture = (phase: "live" | "done"): string =>
   execSync(`pnpm --filter @clientforce/db exec tsx prisma/b45-live-fixture.ts ${phase}`, {
@@ -96,6 +102,7 @@ test("Preview a call: the pitch's scripted demo runs labeled through the card an
 });
 
 test("a real live call surfaces the card; Jump in takes over honestly in the keyless sandbox", async ({ page }) => {
+  test.skip(!DB_URL, "no fixture DB reachable (FIXTURE_DATABASE_URL/DATABASE_URL unset — deployed staging) — the live-call fixture rail runs on the local stack");
   const callId = fixture("live");
   expect(callId.length).toBeGreaterThan(10);
   try {

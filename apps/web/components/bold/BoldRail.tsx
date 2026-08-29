@@ -51,7 +51,7 @@ export function BoldRail(props: BoldRailProps) {
   // Suggested drafts live in the ✦ block below, never as campaign rows.
   const agents = props.agents.filter((a) => !suggestions.some((g) => g.id === a.id));
   const wsName = me.activeWorkspace?.name ?? "Workspace";
-  // B7 (DEC-132): the core card goes LIVE — facts/gaps/credits are queries
+  // B7 (DEC-133): the core card goes LIVE — facts/gaps/credits are queries
   // now (the B0 fixture is retired); nulls render as quiet dashes, never a
   // canned number.
   const [core, setCore] = useState<CoreSummary | null>(null);

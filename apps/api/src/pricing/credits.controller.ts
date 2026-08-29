@@ -4,7 +4,7 @@ import { Roles } from "../auth/decorators";
 import { TenantClient } from "../db/tenant-client";
 
 /**
- * B7 (DEC-132): the tenant's credit SPEND view — the first workspace-facing
+ * B7 (DEC-133): the tenant's credit SPEND view — the first workspace-facing
  * read of the `CreditLedger` spine the reveal debit (B6, partial Q-020) and
  * the backoffice adjustments write into.
  *
