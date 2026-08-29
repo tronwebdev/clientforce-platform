@@ -33,8 +33,8 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const UNIT = process.argv[2] ?? "b1";
-if (!["b1", "b2", "b25", "b26", "b3", "b3b", "b3c1", "b3c2", "b3d", "b4", "b45"].includes(UNIT)) {
-  console.error(`Unknown unit "${UNIT}" — this tool knows b1, b2, b25, b26, b3, b3b, b3c1, b3c2, b3d, b4 and b45.`);
+if (!["b1", "b2", "b25", "b26", "b3", "b3b", "b3c1", "b3c2", "b3d", "b4", "b45", "b5"].includes(UNIT)) {
+  console.error(`Unknown unit "${UNIT}" — this tool knows b1, b2, b25, b26, b3, b3b, b3c1, b3c2, b3d, b4, b45 and b5.`);
   process.exit(1);
 }
 const OUT = join(ROOT, "docs", "fidelity", UNIT);
@@ -152,6 +152,78 @@ const toBoldCampaign = async (p) => {
 };
 
 
+
+/* ---------------------------------------------------------------- the b5 set */
+if (UNIT === "b5") {
+  await run("prototype-b5", async () => {
+    const p = await page({ width: 1440, height: 900 });
+    await freshProto(p);
+    // Forms: grid, then the one detailable card's Preview.
+    await p.locator('[title^="Forms"]').first().click();
+    await p.waitForTimeout(800);
+    await shot(p, "proto-forms-grid-1440x900");
+    await p.getByText("Open day booking", { exact: true }).first().click();
+    await p.waitForTimeout(800);
+    await shot(p, "proto-form-detail-1440x900");
+    // Proposals: the one detailable document.
+    await p.locator('[title^="Proposals"]').first().click();
+    await p.waitForTimeout(700);
+    await p.getByText("Full-arch implant plan", { exact: true }).first().click();
+    await p.waitForTimeout(800);
+    await shot(p, "proto-proposal-doc-1440x900");
+    // Automations: the rule table.
+    await p.locator('[title^="Automations"]').first().click();
+    await p.waitForTimeout(800);
+    await shot(p, "proto-automations-list-1440x900");
+    // The guided-build sheet (form builder, step 1).
+    await p.locator('[title^="Forms"]').first().click();
+    await p.waitForTimeout(600);
+    await p.getByText("Ask Ada to build", { exact: true }).first().click();
+    await p.waitForTimeout(800);
+    await shot(p, "proto-guided-build-1440x900");
+    await p.context().close();
+  });
+
+  await run("build-b5", async () => {
+    const p = await page({ width: 1440, height: 900 });
+    await signInBuild(p);
+    await p.goto(`${BASE}/bold`);
+    await p.getByTestId("bold-root").waitFor();
+    await p.addStyleTag({ content: "nextjs-portal{display:none!important}" });
+    await p.waitForTimeout(700);
+    const later = p.getByText("Later", { exact: true }).first();
+    if (await later.isVisible().catch(() => false)) await later.click();
+    // Forms grid + detail (the seeded live form).
+    await p.getByTestId("bold-dock-forms").click();
+    await p.getByTestId("bold-forms").waitFor({ timeout: 15_000 });
+    await p.waitForTimeout(700);
+    await shot(p, "build-forms-grid-1440x900");
+    await p.getByTestId("bold-forms").getByText("Open day booking").click();
+    await p.getByTestId("bold-form-detail").waitFor({ timeout: 15_000 });
+    await p.waitForTimeout(700);
+    await shot(p, "build-form-detail-1440x900");
+    // Proposal document.
+    await p.getByTestId("bold-dock-proposals").click();
+    await p.getByTestId("bold-proposals").waitFor({ timeout: 15_000 });
+    await p.getByTestId("bold-proposals").getByText("Full-arch implant plan").click();
+    await p.getByTestId("bold-proposal-doc").waitFor({ timeout: 15_000 });
+    await p.waitForTimeout(700);
+    await shot(p, "build-proposal-doc-1440x900");
+    // Automations list on the live engine.
+    await p.getByTestId("bold-dock-automations").click();
+    await p.getByTestId("bold-automations").waitFor({ timeout: 15_000 });
+    await p.waitForTimeout(700);
+    await shot(p, "build-automations-list-1440x900");
+    // The guided-build sheet (form builder, step 1).
+    await p.getByTestId("bold-dock-forms").click();
+    await p.getByTestId("bold-forms-build").waitFor({ timeout: 15_000 });
+    await p.getByTestId("bold-forms-build").click();
+    await p.getByTestId("bold-gb").waitFor();
+    await p.waitForTimeout(600);
+    await shot(p, "build-guided-build-1440x900");
+    await p.context().close();
+  });
+}
 
 /* --------------------------------------------------------------- the b45 set */
 if (UNIT === "b45") {

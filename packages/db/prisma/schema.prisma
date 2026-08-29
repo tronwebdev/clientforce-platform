@@ -1106,6 +1106,10 @@ model Form {
   fields      Json
   design      Json
   routing     Json
+  // B5 (DEC-130): publish state + the public credential (minted at first
+  // publish — the only identifier that leaves the platform, per the widget).
+  status      String           @default("draft")
+  publicId    String?          @unique
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
   submissions FormSubmission[]

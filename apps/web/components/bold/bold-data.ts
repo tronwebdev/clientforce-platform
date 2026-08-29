@@ -55,10 +55,12 @@ export const FIXTURE_CORE = {
 /** Ported verbatim from the prototype's SURF map: surface → [eyebrow, title]. */
 export const SURFACE_TITLES: Record<Exclude<BoldSurface, "campaign">, [string, string]> = {
   contacts: ["312 PEOPLE", "Contacts"],
-  proposals: ["4 DOCUMENTS", "Proposals"],
-  forms: ["3 FORMS · 43 RESPONSES", "Forms"],
+  // B5 (DEC-130): live surfaces compose their eyebrows from queries in the
+  // shell — these are the pre-load fallbacks, never a canned count.
+  proposals: ["DOCUMENTS", "Proposals"],
+  forms: ["FORMS", "Forms"],
   chatbot: ["INBOUND CHANNEL · ON YOUR SITE", "Site agent"],
-  automations: ["5 RULES · 3 ON", "Automations"],
+  automations: ["RULES", "Automations"],
   lead: ["LEAD FINDER", "Find who fits"],
   camps: ["4 CAMPAIGNS", "Campaigns"],
   credits: ["WORKSPACE", "Credits and billing"],

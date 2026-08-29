@@ -15,7 +15,10 @@ function isPublic(pathname: string): boolean {
     pathname === "/design" ||
     pathname.startsWith("/sign-in") ||
     pathname.startsWith("/sign-up") ||
-    pathname.startsWith("/api/auth/")
+    pathname.startsWith("/api/auth/") ||
+    // B5 (DEC-130): the hosted form pages — public by design, a form
+    // exists to be filled in by strangers (validation is server-side).
+    pathname.startsWith("/f/")
   );
 }
 
@@ -51,6 +54,8 @@ const isPublicRoute = createRouteMatcher([
   "/login",
   "/design",
   "/api/auth(.*)",
+  // B5 (DEC-130): the hosted form pages — public by design.
+  "/f(.*)",
 ]);
 
 /** Clerk guard: same policy, Clerk session instead of the dev cookie. */
