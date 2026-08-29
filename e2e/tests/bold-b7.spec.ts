@@ -88,6 +88,11 @@ test("the settings hub reads real counts; Business core, Team and Guardrails are
   // The overrides tab lists the live campaigns with their OWN values.
   await page.getByText("Campaign overrides", { exact: true }).click();
   await expect(page.getByTestId("bold-wss-guard-item")).toContainText("Whitening kit push");
+
+  // Restore: clear the defaults so re-runs (and fidelity captures) start
+  // from the neutral state — the write above already proved persistence.
+  const restored = await page.request.patch("/api/cf/workspaces/guardrail-defaults", { data: {} });
+  expect(restored.ok()).toBe(true);
 });
 
 test("credits: real balance, data-driven rates, top-ups visibly deferred over the real ledger", async ({ page }) => {
