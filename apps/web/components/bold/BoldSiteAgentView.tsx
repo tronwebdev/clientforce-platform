@@ -16,6 +16,7 @@
  * engine yet — deferred in plain words (Q-091/Q-092/Q-093).
  */
 import { useCallback, useEffect, useState } from "react";
+import { widgetCapabilityLabel, type WidgetCapabilitySlot } from "@clientforce/core";
 import {
   ensureWidget,
   fetchWidgetOverview,
@@ -27,13 +28,16 @@ import {
 
 const mono = { fontFamily: "var(--cvb-font-mono)" } as const;
 
-const FLOW_LABELS: ReadonlyArray<readonly [string, string, string]> = [
-  ["askQuestion", "Answer questions", "From your business facts only — no source, no answer."],
-  ["scheduleCallback", "Schedule a callback", "Collects a number and a good time; the call is yours."],
-  ["bookVisit", "Book a visit", "Arrives with the booking engine — off until it can complete."],
-  ["liveCallback", "Call me now", "Arrives with the live-call bridge — off until it can complete."],
-  ["instantProposal", "Instant estimate", "Arrives with proposals — off until it can complete."],
-  ["liveVoice", "Live voice", "Arrives with the voice bridge — off until it can complete."],
+// Capability NAMES resolve from core's DEC-127 vocabulary registry (owner
+// stance, keyed by the widget's interim `design.vertical` — Q-096); only the
+// framing sub-copy lives here.
+const FLOW_ROWS: ReadonlyArray<readonly [string, WidgetCapabilitySlot, string]> = [
+  ["askQuestion", "ask_question", "From your business facts only — no source, no answer."],
+  ["scheduleCallback", "schedule_callback", "Collects a number and a good time; the call is yours."],
+  ["bookVisit", "book_visit", "Arrives with the booking engine — off until it can complete."],
+  ["liveCallback", "call_me_back", "Arrives with the live-call bridge — off until it can complete."],
+  ["instantProposal", "estimate", "Arrives with proposals — off until it can complete."],
+  ["liveVoice", "live_voice", "Arrives with the voice bridge — off until it can complete."],
 ];
 const SERVABLE = new Set(["askQuestion", "scheduleCallback"]);
 
@@ -174,11 +178,16 @@ export function BoldSiteAgentView({ flash }: { flash?: (msg: string) => void }) 
             WHAT SHE MAY DO
           </div>
           <div style={{ background: "var(--cvb-panel)", border: "1px solid var(--cvb-line)", borderRadius: 16, overflow: "hidden", marginBottom: 20 }}>
-            {FLOW_LABELS.map(([key, label, sub], i) => {
+            {FLOW_ROWS.map(([key, slot, sub], i) => {
               const servable = SERVABLE.has(key);
               const on = servable && (widget.flows?.[key] ?? true);
+              const label = widgetCapabilityLabel(
+                slot,
+                "owner",
+                typeof widget.design?.vertical === "string" ? widget.design.vertical : null,
+              );
               return (
-                <div key={key} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 15px", borderBottom: i === FLOW_LABELS.length - 1 ? "none" : "1px solid var(--cvb-line-inner)", opacity: servable ? 1 : 0.62 }}>
+                <div key={key} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 15px", borderBottom: i === FLOW_ROWS.length - 1 ? "none" : "1px solid var(--cvb-line-inner)", opacity: servable ? 1 : 0.62 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 700 }}>{label}</div>
                     <div style={{ fontSize: 11.5, color: "var(--cvb-faint)", marginTop: 2, lineHeight: 1.45 }}>{sub}</div>

@@ -33,6 +33,7 @@ import {
   WIDGET_QUICK_ACTION_FLOW,
   WIDGET_REFUSALS,
   WIDGET_SERVABLE_FLOWS,
+  widgetCapabilityLabel,
   type WidgetCaptureSpec,
   type WidgetOutcome,
   type WidgetFlow,
@@ -82,6 +83,8 @@ interface ResolvedWidget {
   design: Record<string, unknown>;
   /** B4 (DEC-120(2)): the workspace's "show the consent ask" toggle. */
   consentAsk: boolean;
+  /** DEC-127: the vocabulary vertical — interim home `design.vertical` (Q-096). */
+  vertical: string | null;
 }
 
 const DEFAULT_FLOWS: WidgetFlows = {
@@ -93,15 +96,13 @@ const DEFAULT_FLOWS: WidgetFlows = {
   askQuestion: true,
 };
 
-/** Server-offered chip labels. Tenants override per widget; the client draws
- *  the icon from the KIND, so a label can never smuggle an emoji back in. */
-const DEFAULT_LABELS: Record<WidgetQuickActionKind, string> = {
-  book_visit: "Book a visit",
-  call_me_back: "Call me back",
-  schedule_callback: "Schedule a callback",
-  estimate: "Get an estimate",
-  ask_question: "Ask a question",
-};
+/** Server-offered chip labels resolve from core's DEC-127 vocabulary registry,
+ *  keyed by the widget's vertical (interim home: `design.vertical` — Q-096).
+ *  The client draws the icon from the KIND, so a label can never smuggle an
+ *  emoji back in. */
+function chipLabel(kind: WidgetQuickActionKind, widget: ResolvedWidget): string {
+  return widgetCapabilityLabel(kind, "visitor", widget.vertical);
+}
 
 /**
  * What each capture flow asks for (W2). Server-offered, so a tenant can reword
@@ -238,14 +239,14 @@ export class WidgetService {
               });
               break;
             }
-            const asked = this.turn("visitor", DEFAULT_LABELS[req.event.action]);
+            const asked = this.turn("visitor", chipLabel(req.event.action, widget));
             appended.push(asked);
             appended.push(
               await this.answer(
                 widget,
                 session,
                 [...turns, asked],
-                DEFAULT_LABELS[req.event.action],
+                chipLabel(req.event.action, widget),
               ),
             );
             break;
@@ -289,7 +290,7 @@ export class WidgetService {
           // Chips are offered on boot only. An ABSENT field means "unchanged" —
           // sending [] mid-conversation would clear the client's chips, so the
           // other events deliberately omit it.
-          ...(req.event.type === "boot" ? { quickActions: this.chips(servable) } : {}),
+          ...(req.event.type === "boot" ? { quickActions: this.chips(servable, widget) } : {}),
           appearance: null,
           branding: { platformAttribution: attribution },
           ...(capture ? { capture } : {}),
@@ -346,6 +347,10 @@ export class WidgetService {
       allowedOrigins: row.allowedOrigins,
       design: asRecord(row.design),
       consentAsk: row.consentAsk,
+      vertical:
+        typeof asRecord(row.design).vertical === "string"
+          ? (asRecord(row.design).vertical as string)
+          : null,
     };
   }
 
@@ -373,10 +378,10 @@ export class WidgetService {
     return WIDGET_SERVABLE_FLOWS.filter((flow) => configured[flow]);
   }
 
-  private chips(servable: WidgetFlow[]): WidgetQuickAction[] {
+  private chips(servable: WidgetFlow[], widget: ResolvedWidget): WidgetQuickAction[] {
     return (Object.keys(WIDGET_QUICK_ACTION_FLOW) as WidgetQuickActionKind[])
       .filter((kind) => servable.includes(WIDGET_QUICK_ACTION_FLOW[kind]))
-      .map((kind) => ({ kind, label: DEFAULT_LABELS[kind] }));
+      .map((kind) => ({ kind, label: chipLabel(kind, widget) }));
   }
 
   /**

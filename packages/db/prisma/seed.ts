@@ -306,7 +306,7 @@ async function main(): Promise<void> {
     await prisma.agent.create({
       data: {
         workspaceId: primary.id,
-        name: "New-Patient Booking Agent",
+        name: "New-patient booking",
         goal: "Book new-patient appointments for the clinic.",
         status: "DRAFT",
         guardrails: {
@@ -317,6 +317,17 @@ async function main(): Promise<void> {
       },
     });
   }
+  // B4 review (DEC-107 vocabulary): a campaign is never called an agent. The
+  // demo agent's original name leaked into its derived "— primary" campaign on
+  // DBs seeded before the rename — fix both in place, idempotently.
+  await prisma.agent.updateMany({
+    where: { workspaceId: primary.id, name: "New-Patient Booking Agent" },
+    data: { name: "New-patient booking" },
+  });
+  await prisma.campaign.updateMany({
+    where: { workspaceId: primary.id, name: "New-Patient Booking Agent — primary" },
+    data: { name: "New-patient booking — primary" },
+  });
 
   // B1 (DEC-104): three more demo campaigns + a small, COHERENT activity
   // fixture on one of them, so the Bold rail/overview/activity surfaces (and
@@ -774,11 +785,21 @@ async function main(): Promise<void> {
               workspaceId: primary.id,
               agentId: demoAgentRow.id,
               publicId: "wgt_demobrightsmile01",
-              design: { agentName: "Bright Smile", accent: "#146B33" },
+              // vertical: the DEC-127 vocabulary key (interim home — Q-096).
+              design: { agentName: "Bright Smile", accent: "#146B33", vertical: "dental" },
               fields: {},
               behaviour: {},
               routing: {},
             },
+          });
+        }
+        // DEC-127 backfill: widgets seeded before the vocabulary registry
+        // carry no vertical — the demo clinic is dental.
+        const design = widget.design as Record<string, unknown>;
+        if (typeof design.vertical !== "string") {
+          widget = await prisma.widget.update({
+            where: { id: widget.id },
+            data: { design: { ...design, vertical: "dental" } },
           });
         }
         for (const [n, turns] of [

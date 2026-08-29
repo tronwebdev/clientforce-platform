@@ -7,6 +7,10 @@
  * answering runtime, the setup wizard, the call log, and DEC-120 expansion
  * 3's end-of-call consent capture), so the pitch renders honestly with its
  * add-to-plan action visibly deferred — nothing pretends to answer a line.
+ * The $39/mo + credits price is the prototype's proposal rendered as pitch
+ * copy (Q-094: billing-sourced at B9). "Hear a call" waits on a real sample
+ * (Q-095). At activation the plan button goes FOREST SOLID — DEC-126, the
+ * gradient rule overrides the prototype fill on that control.
  */
 import { useEffect } from "react";
 
@@ -43,7 +47,7 @@ export function BoldReceptionistPanel({ onClose }: { onClose: () => void }) {
               ☎
             </span>
             <span style={{ ...mono, fontSize: 9.5, letterSpacing: ".18em", color: "rgba(255,255,255,.55)", flex: 1 }}>
-              ADD-ON · INBOUND CALLS
+              ADD-ON · $39/MO
             </span>
             <span
               onClick={onClose}
@@ -68,11 +72,12 @@ export function BoldReceptionistPanel({ onClose }: { onClose: () => void }) {
               title="Coming soon"
               style={{ fontSize: 12, fontWeight: 800, color: "rgba(242,246,242,.55)", background: "rgba(242,246,242,.1)", border: "1px dashed rgba(242,246,242,.28)", borderRadius: 10, padding: "8px 13px", cursor: "default" }}
             >
-              Add to plan — coming soon
+              Add to plan · $39/mo — coming soon
             </span>
           </div>
           <div style={{ ...mono, fontSize: 9.5, color: "rgba(242,246,242,.5)", lineHeight: 1.6, marginTop: 12 }}>
-            ✦ Discloses it&rsquo;s an AI assistant on every call.
+            ✦ Discloses it&rsquo;s an AI assistant on every call. $39/mo plus 15 credits a
+            minute of talk time.
           </div>
         </div>
 
