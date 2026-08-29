@@ -24,7 +24,9 @@ import { BoldWsPicker } from "./BoldWsPicker";
 import {
   fetchFlags,
   fetchWidgetOverview,
+  fetchLiveCalls,
   type WidgetOverview, dismissSuggestion, fetchBoldAgents, sweepSuggestions } from "./bold-live";
+import { BoldLiveCallCard } from "./BoldLiveCallCard";
 import {
   SURFACE_TITLES,
   TOUR_STEPS,
@@ -101,6 +103,12 @@ export function BoldShell({
   const [tourOffer, setTourOffer] = useState(false);
   const [tailTop, setTailTop] = useState<number | null>(null);
   const [drawer, setDrawer] = useState<BoldDrawerState | null>(null);
+  // B4.5 (DEC-128): the live-call presence — one card at a time; a dismissed
+  // call stays dismissed for the session, and the receptionist pitch's
+  // scripted preview rides the same card, clearly labeled.
+  const [liveCallId, setLiveCallId] = useState<string | null>(null);
+  const [callPreview, setCallPreview] = useState(false);
+  const dismissedCallsRef = useRef<Set<string>>(new Set());
   // B3a: live eyebrow counts reported by the workspace surfaces (null until
   // each view loads — the eyebrow never shows a canned number).
   const [wsInboxCount, setWsInboxCount] = useState<number | null>(null);
@@ -250,6 +258,28 @@ export function BoldShell({
     };
   }, []);
 
+  // B4.5 (DEC-128): the live feed — the shell's 5s poll (the A4 convention).
+  // The card keeps its own 2s detail poll once mounted, and it OUTLIVES the
+  // feed row: a call that just ended leaves the feed while the card shows
+  // its handled state until the user is done with it.
+  useEffect(() => {
+    let alive = true;
+    const sweep = async () => {
+      const res = await fetchLiveCalls();
+      if (!alive || !res) return;
+      const next = res.calls.find((c) => c.caller === "ada" && !dismissedCallsRef.current.has(c.id));
+      if (next) setLiveCallId((cur) => cur ?? next.id);
+    };
+    void sweep();
+    const iv = setInterval(() => {
+      void sweep();
+    }, 5000);
+    return () => {
+      alive = false;
+      clearInterval(iv);
+    };
+  }, []);
+
   const selectDock = useCallback((key: BoldSurface) => {
     // B4 (DEC-124): the receptionist opens as the prototype's slide-over
     // panel from every entry point — never a canvas surface.
@@ -349,7 +379,21 @@ export function BoldShell({
 
       <div className="cvb-canvas-col" ref={canvasColRef} data-choreo={choreo ?? undefined}>
         {tailTop != null ? <span className="cvb-canvas-tail" data-testid="bold-canvas-tail" style={{ top: tailTop }} /> : null}
-        <div data-tour="canvas" className="cvb-canvas" data-testid="bold-canvas">
+        <div data-tour="canvas" className="cvb-canvas" data-testid="bold-canvas" style={{ position: "relative" }}>
+          {/* B4.5 (DEC-128): the live-call card — a real call, or the pitch's
+              labeled preview; the prototype's top-right float, one at a time. */}
+          {callPreview ? (
+            <BoldLiveCallCard mode={{ kind: "preview" }} onClose={() => setCallPreview(false)} flash={flash} />
+          ) : liveCallId ? (
+            <BoldLiveCallCard
+              mode={{ kind: "live", callId: liveCallId }}
+              onClose={() => {
+                dismissedCallsRef.current.add(liveCallId);
+                setLiveCallId(null);
+              }}
+              flash={flash}
+            />
+          ) : null}
           <div className="cvb-canvas-head">
             {hasBack ? (
               <span
@@ -513,7 +557,17 @@ export function BoldShell({
             {surface !== "campaign" && surface !== "camps" && surface !== "activity" && surface !== "newcamp" && surface !== "wsinbox" && surface !== "contacts" && surface !== "chatbot" ? (
               <SurfaceStub title={title} />
             ) : null}
-            {rcpOpen ? <BoldReceptionistPanel onClose={() => setRcpOpen(false)} /> : null}
+            {rcpOpen ? (
+              <BoldReceptionistPanel
+                onClose={() => setRcpOpen(false)}
+                onPreview={() => {
+                  // The prototype's handoff: the drawer gets out of the way
+                  // and the card rises in the canvas.
+                  setRcpOpen(false);
+                  setCallPreview(true);
+                }}
+              />
+            ) : null}
           </div>
 
           <BoldAdaBar ctx={adaCtx} onOpen={() => setAdaOn(true)} />

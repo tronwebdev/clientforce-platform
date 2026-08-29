@@ -431,6 +431,50 @@ export const startBrowserCall = (agentId: string, contactId: string) =>
 export const finishBrowserCall = (callId: string, outcome: string, durationSec: number) =>
   send(`voice/browser-calls/${encodeURIComponent(callId)}/finish`, "POST", { outcome, durationSec });
 
+/* ---------------------------------------------------- B4.5 (DEC-128) */
+
+/** One row of the live-call feed the shell polls. */
+export interface LiveCallRow {
+  id: string;
+  contactId: string;
+  contactName: string | null;
+  contactPhone: string | null;
+  caller: string;
+  status: string;
+  takenOver: boolean;
+  startedAt: string;
+}
+export const fetchLiveCalls = () => get<{ calls: LiveCallRow[] }>("calls/live");
+
+/** One transcript line of a call (live or finished — same rows either way). */
+export interface CallTranscriptLine {
+  id: string;
+  direction: "INBOUND" | "OUTBOUND";
+  body: string;
+  sentAt: string;
+}
+export interface CallDetailRead {
+  call: {
+    id: string;
+    status: string;
+    outcome: string | null;
+    durationSec: number | null;
+    startedAt: string;
+    endedAt: string | null;
+    meta: Record<string, unknown> | null;
+  };
+  contact: { id: string; firstName: string | null; lastName: string | null } | null;
+  transcript: CallTranscriptLine[];
+}
+export const fetchCallDetail = (callId: string) =>
+  get<CallDetailRead>(`calls/${encodeURIComponent(callId)}`);
+
+/** JUMP IN: take over an in-progress call — the contact leg moves into the
+ *  call's conference room and the browser leg joins it (sandbox: the state
+ *  flip is real, no Device mounts). */
+export const jumpIntoCall = (callId: string) =>
+  send(`voice/calls/${encodeURIComponent(callId)}/jump-in`, "POST", {});
+
 /* ---------------------------------------------------- B4 (DEC-124) */
 
 /** The one-flag truth the rail, dock and site-agent page all read. */

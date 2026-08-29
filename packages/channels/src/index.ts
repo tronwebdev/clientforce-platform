@@ -263,6 +263,8 @@ export {
   type FireQueuedCallResult,
 } from "./call-dial-queue";
 export {
+  conferenceJoinTwiml,
+  conferenceRoomForCall,
   deriveVoiceMediaToken,
   outcomeFromTwilioStatus,
   TwilioVoiceDialer,

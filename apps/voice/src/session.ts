@@ -102,6 +102,10 @@ export interface CallSessionDeps {
   clearPlayback: () => void;
   /** A per-turn check tripped — the audit trail (voice.compose_refused.v1). */
   onRefusal?: (turn: number, reason: string, detail: string) => void;
+  /** B4.5 (DEC-128): a transcript turn was fixed (or amended by a barge-in) —
+   *  receives a COPY of the whole transcript so the live feed can persist the
+   *  latest row. Must never throw into the call; the server serializes it. */
+  onTurn?: (turns: VoiceTurn[]) => void;
   /** The session decided the call must end (timeouts, provider failure). */
   onEnd?: (reason: CallEndReason) => void;
   /** Injectable for the harness/tests; default the real Deepgram clients. */
@@ -297,7 +301,7 @@ export class CallSession {
     this.ttsAbort = abort;
     this.speaking = true;
     this.speakingTurn = 0;
-    this.turns.push({ role: "assistant", content: this.deps.disclosure, atMs: 0 });
+    this.pushTurn({ role: "assistant", content: this.deps.disclosure, atMs: 0 });
     let interrupted = false;
     try {
       const sentences = [...new SentenceChunker().push(`${this.deps.disclosure} `)];
@@ -423,7 +427,13 @@ export class CallSession {
       bufferedMs,
     });
     const current = this.turns[this.turns.length - 1];
-    if (current?.role === "assistant") current.content += " [interrupted]";
+    if (current?.role === "assistant") {
+      current.content += " [interrupted]";
+      // The amended body must reach the live feed too — at mutation time the
+      // amended turn is still the LAST row (the interrupting utterance has
+      // not committed yet), so the latest-row writer converges it.
+      this.deps.onTurn?.(this.transcript());
+    }
   }
 
   /** Owner finding 2 (the race the ear caught): the reply finished DELIVERING
@@ -441,7 +451,7 @@ export class CallSession {
   private onTurnCommit(commit: TurnCommit): void {
     if (this.closed || !commit.text) return;
     this.armIdleTimer();
-    this.turns.push({
+    this.pushTurn({
       role: "user",
       content: commit.text,
       atMs: commit.committedAt - this.startedAtMs,
@@ -580,7 +590,7 @@ export class CallSession {
         metric.assistantText = assistantText;
         metric.bargedIn = abort.signal.aborted && !metric.stalled;
         if (!abort.signal.aborted) metric.roundTripMs = Date.now() - anchor;
-        this.turns.push({
+        this.pushTurn({
           role: "assistant",
           content: metric.stalled
             ? `${assistantText} [stalled]`.trim()
@@ -758,7 +768,7 @@ export class CallSession {
     const fallbackAbort = new AbortController();
     this.ttsAbort = fallbackAbort;
     metric.assistantText = VOICE_FALLBACK_LINE;
-    this.turns.push({
+    this.pushTurn({
       role: "assistant",
       content: VOICE_FALLBACK_LINE,
       atMs: Date.now() - this.startedAtMs,
@@ -862,7 +872,7 @@ export class CallSession {
     this.ttsAbort?.abort();
     this.ttsAbort = abort;
     this.speaking = true;
-    this.turns.push({ role: "assistant", content: line, atMs: Date.now() - this.startedAtMs });
+    this.pushTurn({ role: "assistant", content: line, atMs: Date.now() - this.startedAtMs });
     try {
       await Promise.race([
         (async () => {
@@ -919,7 +929,7 @@ export class CallSession {
         source: "utterance_end",
         committedAt: Date.now(),
       };
-      this.turns.push({
+      this.pushTurn({
         role: "user",
         content: userText,
         atMs: Date.now() - (this.startedAtMs || Date.now()),
@@ -932,6 +942,13 @@ export class CallSession {
 
   transcript(): VoiceTurn[] {
     return [...this.turns];
+  }
+
+  /** B4.5 (DEC-128): every transcript append goes through here so the live
+   *  turn feed sees each turn the moment its text is fixed. */
+  private pushTurn(turn: VoiceTurn): void {
+    this.turns.push(turn);
+    this.deps.onTurn?.(this.transcript());
   }
 
   /**
@@ -1005,7 +1022,7 @@ export class CallSession {
     this.ttsAbort = abort;
     this.speaking = true;
     this.speakingTurn = this.turnCount;
-    this.turns.push({
+    this.pushTurn({
       role: "assistant",
       content: VOICE_BRIDGE_LINE,
       atMs: Date.now() - this.startedAtMs,
@@ -1046,7 +1063,7 @@ export class CallSession {
     this.ttsAbort = abort;
     this.speaking = true;
     this.speakingTurn = this.turnCount;
-    this.turns.push({
+    this.pushTurn({
       role: "assistant",
       content: VOICE_REENGAGE_LINE,
       atMs: Date.now() - this.startedAtMs,
@@ -1083,7 +1100,7 @@ export class CallSession {
     if (this.closed) return;
     this.closed = true;
     const tail = this.gate.flushPending();
-    if (tail) this.turns.push({ role: "user", content: tail, atMs: Date.now() - this.startedAtMs });
+    if (tail) this.pushTurn({ role: "user", content: tail, atMs: Date.now() - this.startedAtMs });
     if (this.idleTimer) clearTimeout(this.idleTimer);
     if (this.maxTimer) clearTimeout(this.maxTimer);
     if (this.reengageTimer) clearInterval(this.reengageTimer);

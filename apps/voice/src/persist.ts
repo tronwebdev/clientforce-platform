@@ -65,7 +65,10 @@ export function rowsFromTranscript(
     }));
 }
 
-/** Idempotent write — safe to run again on a retried finalize. */
+/** Idempotent write — safe to run again on a retried finalize. Returns the
+ *  number of transcript rows now in place (B4.5: the live per-turn feed may
+ *  have written most of them already; finalize converges bodies a barge-in
+ *  amended after their live write). */
 export async function persistTranscript(
   prisma: PrismaClient,
   turns: VoiceTurn[],
@@ -76,5 +79,40 @@ export async function persistTranscript(
   const result = await withTenant(prisma, { workspaceId: target.workspaceId }, (tx) =>
     tx.message.createMany({ data: rows, skipDuplicates: true }),
   );
-  return result.count;
+  if (result.count < rows.length) {
+    await withTenant(prisma, { workspaceId: target.workspaceId }, async (tx) => {
+      for (const row of rows) {
+        await tx.message.updateMany({
+          where: { providerMessageId: row.providerMessageId, NOT: { body: row.body } },
+          data: { body: row.body },
+        });
+      }
+    });
+  }
+  return rows.length;
+}
+
+/**
+ * B4.5 (DEC-128): the LIVE per-turn write — the same rows, the same
+ * idempotency key, written the moment a turn's text is fixed instead of at
+ * finalize. Only the LAST row is touched: rows are recomputed from the full
+ * transcript each time so the index scheme agrees with finalize by
+ * construction, and a barge-in amendment happens while the amended turn is
+ * still last. Finalize reconciles anything this missed.
+ */
+export async function persistLatestTurn(
+  prisma: PrismaClient,
+  turns: VoiceTurn[],
+  target: TranscriptTarget,
+): Promise<void> {
+  const rows = rowsFromTranscript(turns, target);
+  const last = rows[rows.length - 1];
+  if (!last) return;
+  await withTenant(prisma, { workspaceId: target.workspaceId }, (tx) =>
+    tx.message.upsert({
+      where: { providerMessageId: last.providerMessageId },
+      update: { body: last.body },
+      create: last,
+    }),
+  );
 }

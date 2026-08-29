@@ -344,6 +344,51 @@ export class VoiceController {
   }
 
   /**
+   * B4.5 (DEC-128): the live-call feed the Bold shell polls — calls genuinely
+   * on the line right now, plus dials still ringing (QUEUED, and young: a
+   * stale sandbox dial must not haunt the canvas forever). Direction-agnostic
+   * by construction — it filters on state, never on who is calling.
+   * MUST register before `calls/:id` or the param route swallows it.
+   */
+  @Get("calls/live")
+  async live() {
+    const RINGING_WINDOW_MS = 2 * 60_000;
+    return this.tenant.run(async (tx) => {
+      const rows = await tx.call.findMany({
+        where: {
+          OR: [
+            { status: "IN_PROGRESS" },
+            { status: "QUEUED", createdAt: { gte: new Date(Date.now() - RINGING_WINDOW_MS) } },
+          ],
+        },
+        orderBy: { createdAt: "desc" },
+        take: 5,
+      });
+      const contacts = await tx.contact.findMany({
+        where: { id: { in: rows.map((r) => r.contactId) } },
+        select: { id: true, firstName: true, lastName: true, phone: true },
+      });
+      const byId = new Map(contacts.map((c) => [c.id, c]));
+      return {
+        calls: rows.map((r) => {
+          const c = byId.get(r.contactId);
+          const meta = (r.meta ?? {}) as { takenOver?: unknown };
+          return {
+            id: r.id,
+            contactId: r.contactId,
+            contactName: [c?.firstName, c?.lastName].filter(Boolean).join(" ") || null,
+            contactPhone: c?.phone ?? null,
+            caller: r.caller,
+            status: r.status,
+            takenOver: Boolean(meta.takenOver),
+            startedAt: (r.startedAt ?? r.createdAt).toISOString(),
+          };
+        }),
+      };
+    });
+  }
+
+  /**
    * Call detail + the transcript thread (Message rows carrying meta.callId)
    * + the SPEC A retrieval receipts: what the agent read from the record
    * mid-call, in the order it read it. A turn with no receipt was answered

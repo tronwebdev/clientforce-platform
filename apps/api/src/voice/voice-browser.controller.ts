@@ -46,11 +46,14 @@ import { createHash } from "node:crypto";
 import {
   assertDialAllowed,
   browserVoiceConfig,
+  conferenceJoinTwiml,
+  conferenceRoomForCall,
   mintVoiceAccessToken,
   outcomeFromTwilioStatus,
   SendBlockedError,
   twimlEscape,
   validateTwilioSignature,
+  type VoiceDialer,
 } from "@clientforce/channels";
 import { browserCallBodySchema, parseWorkspaceVoiceDefaults } from "@clientforce/core";
 import { withTenant, Role } from "@clientforce/db";
@@ -60,6 +63,7 @@ import type { AuthenticatedRequest } from "../auth/request-context";
 import { TenantClient } from "../db/tenant-client";
 import { PrismaService } from "../db/prisma.service";
 import { EVENTS_PUBLISHER, type EventsPublisher } from "../events/publisher";
+import { VOICE_DIALER } from "./voice.providers";
 
 const FINISH_OUTCOMES = new Set(["completed", "no_answer", "busy", "failed", "canceled"]);
 
@@ -69,6 +73,7 @@ export class VoiceBrowserController {
     private readonly tenant: TenantClient,
     private readonly prisma: PrismaService,
     @Inject(EVENTS_PUBLISHER) private readonly publisher: EventsPublisher,
+    @Inject(VOICE_DIALER) private readonly dialer: VoiceDialer,
   ) {}
 
   private apiPublicUrl(): string {
@@ -145,6 +150,79 @@ export class VoiceBrowserController {
     }
     const minted = mintVoiceAccessToken(cfg, `ws-${workspaceId}-u-${req.auth?.user.id ?? "anon"}`);
     return { callId: call.id, sandbox: false, token: minted.token, expiresAt: minted.expiresAt };
+  }
+
+  /**
+   * B4.5 (DEC-128): JUMP IN — a human takes over an in-progress Ada call.
+   * The contact leg is REDIRECTED into the call's conference room and the
+   * operator's browser leg joins it through the bridge webhook (the B3c-2
+   * leg, per the Q-088 ruling). Ada's media stream stops when the leg
+   * redirects — she is OUT of the audio from this moment (her live listen-
+   * along is Q-097), and her voice-side finalize leaves the terminal stamp
+   * to the contact leg's status webhook. Direction-agnostic: any call row
+   * with a live provider sid joins its room the same way (Q-090 inbound).
+   * Keyless sandbox: the redirect is a recorded no-op and no Device mounts —
+   * the row still carries the takeover truthfully.
+   */
+  @Post("voice/calls/:id/jump-in")
+  @Roles(Role.OWNER, Role.ADMIN, Role.AGENT)
+  async jumpIn(@Req() req: AuthenticatedRequest, @Param("id") id: string) {
+    const call = await this.tenant.run((tx) => tx.call.findUnique({ where: { id } }));
+    if (!call) throw new NotFoundException(`Call ${id} not found`);
+    const meta = (call.meta ?? {}) as Record<string, unknown>;
+    if (call.status !== "IN_PROGRESS" || call.outcome) {
+      throw new HttpException(
+        { reason: "NOT_LIVE", message: "That call is not in progress — nothing to join." },
+        409,
+      );
+    }
+    if (meta.takenOver) {
+      throw new HttpException(
+        { reason: "ALREADY_TAKEN", message: "Someone already jumped into this call." },
+        409,
+      );
+    }
+    if (!call.providerCallSid) {
+      throw new HttpException(
+        { reason: "NO_PROVIDER_LEG", message: "The call has no provider leg to redirect yet." },
+        409,
+      );
+    }
+    const byUserId = req.auth?.user.id ?? null;
+    // Mark FIRST: the voice finalize reads the marker when Ada's stream stops
+    // (redirect ⇒ stop), and the marker is what lets the bridge webhook admit
+    // the browser leg into the room.
+    await this.tenant.run((tx) =>
+      tx.call.update({
+        where: { id: call.id },
+        data: { meta: { ...meta, takenOver: { byUserId, at: new Date().toISOString() } } },
+      }),
+    );
+    await this.publisher.publish({
+      type: EVENT_TYPES.CALL_TAKEN_OVER,
+      workspaceId: call.workspaceId,
+      campaignId: call.campaignId,
+      contactId: call.contactId,
+      enrollmentId: call.enrollmentId ?? undefined,
+      payload: { callId: call.id, ...(byUserId ? { byUserId } : {}) },
+    });
+    const room = conferenceRoomForCall(call.id);
+    const redirected = await this.dialer.redirectCall(
+      call.providerCallSid,
+      conferenceJoinTwiml(room),
+    );
+    const cfg = browserVoiceConfig();
+    if (!cfg || redirected.sandbox) {
+      return { callId: call.id, room, sandbox: true };
+    }
+    const minted = mintVoiceAccessToken(cfg, `ws-${call.workspaceId}-u-${byUserId ?? "anon"}`);
+    return {
+      callId: call.id,
+      room,
+      sandbox: false,
+      token: minted.token,
+      expiresAt: minted.expiresAt,
+    };
   }
 
   /** SANDBOX-ONLY finish: the keyless path has no webhooks — the placing
@@ -242,6 +320,18 @@ export class VoiceBrowserController {
     @Headers("x-twilio-signature") signature?: string,
   ): Promise<string> {
     this.assertTwilioSignature(req, form, signature);
+    // B4.5 (DEC-128): a JOIN leg — the operator's browser dialing into an
+    // in-progress call's conference room after jump-in marked the row. The
+    // room name derives from OUR call id; the marker is the admission check.
+    const joinCallId = typeof form?.joinCallId === "string" ? form.joinCallId : "";
+    if (joinCallId) {
+      const joined = await this.prisma.admin.call.findUnique({ where: { id: joinCallId } });
+      const joinedMeta = (joined?.meta ?? {}) as { takenOver?: unknown };
+      if (!joined || joined.status !== "IN_PROGRESS" || !joinedMeta.takenOver) {
+        return "<Response><Reject/></Response>";
+      }
+      return conferenceJoinTwiml(conferenceRoomForCall(joined.id));
+    }
     const callId = typeof form?.callId === "string" ? form.callId : "";
     const parentSid = typeof form?.CallSid === "string" ? form.CallSid : "";
     if (!callId || !parentSid) return "<Response><Reject/></Response>";

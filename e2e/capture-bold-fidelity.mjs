@@ -33,13 +33,16 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const UNIT = process.argv[2] ?? "b1";
-if (!["b1", "b2", "b25", "b26", "b3", "b3b", "b3c1", "b3c2", "b3d", "b4"].includes(UNIT)) {
-  console.error(`Unknown unit "${UNIT}" — this tool knows b1, b2, b25, b26, b3, b3b, b3c1, b3c2, b3d and b4.`);
+if (!["b1", "b2", "b25", "b26", "b3", "b3b", "b3c1", "b3c2", "b3d", "b4", "b45"].includes(UNIT)) {
+  console.error(`Unknown unit "${UNIT}" — this tool knows b1, b2, b25, b26, b3, b3b, b3c1, b3c2, b3d, b4 and b45.`);
   process.exit(1);
 }
 const OUT = join(ROOT, "docs", "fidelity", UNIT);
 const BASE = process.env.CAPTURE_BASE_URL ?? "http://localhost:3000";
 const PROTO = `file://${join(ROOT, "design_handoff_console_v3", "prototypes", "Console Bold.dc.html").replace(/ /g, "%20")}`;
+// B4.5: the live-call card's pixel truth is the OLD console's rcpCallOpen
+// treatment (owner ruling at the B4 addendum) — a different prototype file.
+const PROTO_LEGACY = `file://${join(ROOT, "design_handoff_console_v3", "prototypes", "legacy", "Clientforce Console.dc.html").replace(/ /g, "%20")}`;
 const FONTS = join(ROOT, "apps", "web", "node_modules", "@fontsource");
 const OWNER_EMAIL = "owner@demo-agency.test";
 
@@ -149,6 +152,98 @@ const toBoldCampaign = async (p) => {
 };
 
 
+
+/* --------------------------------------------------------------- the b45 set */
+if (UNIT === "b45") {
+  // The transient DB fixture that stands in for a genuinely live Ada call
+  // (no local voice loop exists) — always torn down at the end.
+  const FIXTURE_DB = process.env.FIXTURE_DATABASE_URL ?? "postgresql://postgres:postgres@localhost:5432/clientforce";
+  const fixture = (phase) =>
+    execSync(`pnpm --filter @clientforce/db exec tsx prisma/b45-live-fixture.ts ${phase}`, {
+      cwd: ROOT,
+      env: { ...process.env, DATABASE_URL: FIXTURE_DB },
+    })
+      .toString()
+      .trim();
+
+  await run("prototype-b45", async () => {
+    const p = await page({ width: 1440, height: 900 });
+    await p.goto(PROTO_LEGACY);
+    await p.waitForTimeout(2600);
+    // The legacy demo starts unowned: own the receptionist through its own
+    // upsell + 3-step wizard (Continue · Continue · Go live — step 3 carries
+    // the owner's fifth "Act through integrations" toggle), which lands on
+    // the panel home, then run the scripted preview — the ruled rcpCallOpen
+    // lifecycle (~18s: ring to t=4, a line every 3s, done at 18).
+    await p.locator(".dockTile").first().click();
+    await p.waitForTimeout(600);
+    await p.getByText("Add to plan", { exact: true }).first().click();
+    await p.waitForTimeout(600);
+    for (let i = 0; i < 4; i++) {
+      const next = p.getByText(/^(Continue|Go live)$/).first();
+      if (await next.isVisible().catch(() => false)) {
+        await next.click();
+        await p.waitForTimeout(700);
+      }
+    }
+    await p.getByText("Preview a call", { exact: true }).first().click();
+    await shot(p, "proto-call-ring-1440x900"); // shot's settle lands inside the 4s ring
+    await p.waitForTimeout(13600); // ≈t=15: the live state with the script well along
+    await shot(p, "proto-call-live-1440x900");
+    await p.waitForTimeout(3800); // past t=18: handled
+    await shot(p, "proto-call-handled-1440x900");
+    await p.context().close();
+  });
+
+  await run("build-b45", async () => {
+    const p = await page({ width: 1440, height: 900 });
+    await signInBuild(p);
+    try {
+      // A real (fixture-driven) call walks the SAME card through its phases —
+      // the card's own 2s poll flips it, no reloads.
+      fixture("ring");
+      await p.goto(`${BASE}/bold`);
+      await p.getByTestId("bold-root").waitFor();
+      await p.addStyleTag({ content: "nextjs-portal{display:none!important}" });
+      const later = p.getByText("Later", { exact: true }).first();
+      if (await later.isVisible().catch(() => false)) await later.click();
+      await p.getByTestId("bold-livecall").waitFor({ timeout: 15_000 });
+      await shot(p, "build-call-ring-1440x900");
+      fixture("live");
+      await p.getByText("✦ Ada on the line").waitFor({ timeout: 15_000 });
+      await p.waitForTimeout(600);
+      await shot(p, "build-call-live-1440x900");
+      fixture("handled");
+      await p.getByText("Call handled").waitFor({ timeout: 15_000 });
+      await p.waitForTimeout(600);
+      await shot(p, "build-call-handled-1440x900");
+    } finally {
+      fixture("done");
+    }
+    // The pitch's labeled preview — the honesty adaptations on the same card.
+    await p.goto(`${BASE}/bold`);
+    await p.getByTestId("bold-root").waitFor();
+    await p.addStyleTag({ content: "nextjs-portal{display:none!important}" });
+    const later2 = p.getByText("Later", { exact: true }).first();
+    if (await later2.isVisible().catch(() => false)) await later2.click();
+    // The panel is flag-gated and the shell fetches flags on mount — settle
+    // first, and re-click if the first click raced the fetch.
+    await p.waitForTimeout(1500);
+    await p.getByTestId("bold-dock-rcp").click();
+    if (!(await p.getByTestId("bold-rcp-preview").isVisible().catch(() => false))) {
+      await p.waitForTimeout(1500);
+      await p.getByTestId("bold-dock-rcp").click();
+    }
+    await p.getByTestId("bold-rcp-preview").waitFor();
+    await p.getByTestId("bold-rcp-preview").click();
+    await p.getByTestId("bold-livecall-answer").waitFor();
+    await p.getByTestId("bold-livecall-answer").click();
+    await p.getByText("Call handled").waitFor({ timeout: 25_000 });
+    await p.waitForTimeout(600);
+    await shot(p, "build-preview-handled-1440x900");
+    await p.context().close();
+  });
+}
 
 /* ---------------------------------------------------------------- the b4 set */
 if (UNIT === "b4") {

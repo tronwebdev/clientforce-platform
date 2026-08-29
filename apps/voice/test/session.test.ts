@@ -571,3 +571,26 @@ describe("DEC-092 owner findings wave — pacing, tail clear, silence ladder", (
     s.session.close();
   });
 });
+
+describe("B4.5 (DEC-128) — the live turn feed", () => {
+  it("onTurn fires a growing COPY on every fixed turn, ending equal to transcript()", async () => {
+    const feeds: Array<Array<{ role: string; content: string }>> = [];
+    const s = makeSession({
+      onTurn: (turns) => feeds.push(turns.map((t) => ({ role: t.role, content: t.content }))),
+    });
+    s.session.start();
+    await vi.waitFor(() => expect(feeds.length).toBeGreaterThan(0));
+    expect(feeds[0]![0]!.role).toBe("assistant"); // the disclosure is turn 0
+    await s.session.driveTurn("hello there");
+    // Each push fed the feed; lengths grow monotonically.
+    const lengths = feeds.map((f) => f.length);
+    expect(lengths).toEqual([...lengths].sort((a, b) => a - b));
+    const last = feeds[feeds.length - 1]!;
+    expect(last.some((t) => t.role === "user" && t.content === "hello there")).toBe(true);
+    expect(last[last.length - 1]!.role).toBe("assistant");
+    expect(last).toEqual(
+      s.session.transcript().map((t) => ({ role: t.role, content: t.content })),
+    );
+    s.session.close();
+  });
+});
