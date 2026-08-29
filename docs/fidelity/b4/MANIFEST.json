@@ -1,30 +1,30 @@
 {
   "unit": "b4",
-  "commit": "df6e45c03f29890d1c03cfcfb285ed130fa1e633",
+  "commit": "4df2922b86a396466e1844fca0ead0b8abf58039",
   "workingTreeDirtyAtCapture": false,
-  "capturedAt": "2026-08-28T18:55:09.769Z",
+  "capturedAt": "2026-08-29T12:49:07.228Z",
   "baseUrl": "http://localhost:3000",
   "note": "Single-run capture; every frame from one build. Verify a frame by hashing its bytes against this manifest — never by trusting an image cache. pnpm lint:fidelity enforces the binding.",
   "frames": {
     "build-rcp-pitch-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 239537,
-      "sha256": "8024ada434fedf62ccdf39350c635a902f893dc88a4e90da4d08bb4bcda70e60"
+      "bytes": 243817,
+      "sha256": "df263d212f94f5b4e63e1af58f305bb1c44b170d360de8b21ce276d6d89a7fa4"
     },
     "build-siteagent-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 140592,
-      "sha256": "10cb10a5f3388f40500f3dd62f5f5276d576c751d4905f756047a3299df0d22c"
+      "bytes": 140076,
+      "sha256": "48c6b0d396d867b150486bc397c1d221bdb7e60b118c6760d8b16568959aca12"
     },
     "proto-rcp-pitch-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 261957,
-      "sha256": "a565d6d9e3d44edb9740e112916c6a90b2b068bc77f2a290a4b6868ce7fc52a3"
+      "bytes": 261926,
+      "sha256": "8703138c2f39df4e7d9544d6e8429f3a9a8a9f558dc1044415fba913a306d37a"
     },
     "proto-siteagent-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 173365,
-      "sha256": "4d2c68f2be8d0ddf832a05e156f9c5cf843d2a59fdb3c03caa2266cdc1561a5e"
+      "bytes": 173358,
+      "sha256": "017febdc4e11795378eb890148cbe690eeafdb98c07225b19a65cb673c064dd8"
     }
   }
 }
