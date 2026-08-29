@@ -1,0 +1,60 @@
+{
+  "unit": "b5",
+  "commit": "e353b0e3c5c36391c9db70b55778bcbe23d6000f",
+  "workingTreeDirtyAtCapture": false,
+  "capturedAt": "2026-08-29T18:24:18.413Z",
+  "baseUrl": "http://localhost:3000",
+  "note": "Single-run capture; every frame from one build. Verify a frame by hashing its bytes against this manifest — never by trusting an image cache. pnpm lint:fidelity enforces the binding.",
+  "frames": {
+    "build-automations-list-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 105393,
+      "sha256": "a89c4370653d783a3279abe7a67eaf40457614fb7b2405787dc9e0b50a155467"
+    },
+    "build-form-detail-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 111813,
+      "sha256": "04147888c5ae3292be57c351da195de65953c2e57d4d54fdcb465a4e9cbfaf51"
+    },
+    "build-forms-grid-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 156751,
+      "sha256": "ee69b854119f100401829a2139d4421d63fb833edce8d82574c6eae6ccb84343"
+    },
+    "build-guided-build-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 141059,
+      "sha256": "f3bff482d2d54bfb9c239cef56af00165ab51904ff53b3c1cb86ee57930f624d"
+    },
+    "build-proposal-doc-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 158245,
+      "sha256": "5e6c58427dd272d7bcda4961bccbaf0c4c079568202e8781a2b56a4620766494"
+    },
+    "proto-automations-list-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 127040,
+      "sha256": "9519006a8a26d0b0803fa3a026ed23f9c38cfae2a413c91d1efede8479297ed8"
+    },
+    "proto-form-detail-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 138420,
+      "sha256": "e42a043a7fe470490e6550b6935ee4a4a03d7ec83d9a6a1116d32707c2f1b274"
+    },
+    "proto-forms-grid-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 160301,
+      "sha256": "aaff7afb70204736c402148fd7d059e18e9060b33df4708ed08ddb7a5882bbb5"
+    },
+    "proto-guided-build-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 115990,
+      "sha256": "29c261766fe93d79d9351608c3d27aef1d202e6de7be4c00c5843e3e3b425db2"
+    },
+    "proto-proposal-doc-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 199973,
+      "sha256": "292243ed4c81044af1698e47d94d1a0fe8f356f965eadd218fc9eb60f20aa223"
+    }
+  }
+}
