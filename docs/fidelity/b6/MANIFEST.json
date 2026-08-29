@@ -1,25 +1,25 @@
 {
   "unit": "b6",
-  "commit": "bdb4abfa0b444b0d17f91bf81cbfe56153782d37",
+  "commit": "19ca3f18a302e99450caa974ebd182b1ba91da27",
   "workingTreeDirtyAtCapture": false,
-  "capturedAt": "2026-08-29T20:08:02.630Z",
+  "capturedAt": "2026-08-29T20:09:20.215Z",
   "baseUrl": "http://localhost:3000",
   "note": "Single-run capture; every frame from one build. Verify a frame by hashing its bytes against this manifest — never by trusting an image cache. pnpm lint:fidelity enforces the binding.",
   "frames": {
     "build-lead-ada-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 123295,
-      "sha256": "70a5de3129bea8f515d22555ba828b8461707a3d3557f10a3217444668037c66"
+      "bytes": 121312,
+      "sha256": "482272d11f43092f622138fdb84b3ff81ad0e02af8161473830ab31ec4e02eb4"
     },
     "build-lead-bp-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 122299,
-      "sha256": "d138a6046e1bb6ab3fa1ad93e0156bad10051d693b8ef7da12b8bb666ddded98"
+      "bytes": 122302,
+      "sha256": "ecb82feabb6a3b1f440956132ab490e01c5104b63a1e55d1e42b788bad8d19d6"
     },
     "build-lead-direct-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 100680,
-      "sha256": "ddaa121a197f1c93f9685623ef828c161f92d8853f8a24d2a94bdd6be989e366"
+      "bytes": 100684,
+      "sha256": "b5c3de6dacd9490a4839d3960ff9f54d0da0bbcc180f68abab518e47436e8f5f"
     },
     "build-lead-own-1440x900.png": {
       "viewport": "1440x900",
@@ -28,23 +28,23 @@
     },
     "proto-lead-ada-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 161839,
-      "sha256": "228c229169354fa1c3e954b9e5dd64eb84062fc4ed88cc60fd66ef303e503fa5"
+      "bytes": 161849,
+      "sha256": "3efc5bb54103190f3c09f5ccad892cf35328e44395bc65e307d4c18aca9ca32d"
     },
     "proto-lead-bp-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 179864,
-      "sha256": "56ea946b2ebcb7e8505d5e7642feb7a3aec8863605f1cc7b38c7051c9517bfa4"
+      "bytes": 179856,
+      "sha256": "f04936c943241c3219e73d58c66f16fed308936d8d636c1e66d5eefe1834d488"
     },
     "proto-lead-direct-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 183157,
-      "sha256": "a93286a0061d10422c7f5402fba25b8bb8785d39e1166e00b2dae961721ed568"
+      "bytes": 183167,
+      "sha256": "ed16d36a2669d37fc4adbb03230ed098d5fbeab4a1968ba197b71192e71915eb"
     },
     "proto-lead-own-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 121697,
-      "sha256": "9a56d8aaec87d277209d9a24047a410a285144878bb06899e056e7b314533696"
+      "bytes": 121686,
+      "sha256": "675ce96602d49a77add65c5750e5564066a1873e6b66bec737727dd671c92c68"
     }
   }
 }
