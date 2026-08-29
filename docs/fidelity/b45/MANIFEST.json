@@ -1,0 +1,45 @@
+{
+  "unit": "b45",
+  "commit": "c8522a3c13957e011a52534af5671bf32c6d94d3",
+  "workingTreeDirtyAtCapture": false,
+  "capturedAt": "2026-08-29T13:40:14.120Z",
+  "baseUrl": "http://localhost:3000",
+  "note": "Single-run capture; every frame from one build. Verify a frame by hashing its bytes against this manifest — never by trusting an image cache. pnpm lint:fidelity enforces the binding.",
+  "frames": {
+    "build-call-handled-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 207858,
+      "sha256": "7e13fee24a5134cdd9c5fe8f4e014d102b07bfcc7c3f5e250d9d84c4f9dffa7e"
+    },
+    "build-call-live-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 202050,
+      "sha256": "5b8617b35937d7ebebc0046e074b782adc225a9d93cabd08ae944a5495447965"
+    },
+    "build-call-ring-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 195644,
+      "sha256": "78f23b5f9a1ffa5e7fdb010cfd890add02fdf156ade0c1aaeb372c959f691128"
+    },
+    "build-preview-handled-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 207831,
+      "sha256": "f9973d275b1aa51967982059b5b586c68c0ce04082363e5ca79e3008c3233e61"
+    },
+    "proto-call-handled-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 281844,
+      "sha256": "8d54b75a99651e710c139a63baa73cf986ae8f410c12c5ae8750228f2040710f"
+    },
+    "proto-call-live-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 286631,
+      "sha256": "30ce63cff06b4eaa41098a68535a592de61d74cadb3df35c11f1a5b7f329d78f"
+    },
+    "proto-call-ring-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 278578,
+      "sha256": "c5ca34f4ff13710271faa61d61b63512e938de7c865f08075ae0871ac1a63c02"
+    }
+  }
+}
