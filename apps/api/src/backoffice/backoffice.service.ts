@@ -25,6 +25,7 @@ import {
   type ImpersonationSession,
   type KillSwitchRow,
   type KillSwitchSetDto,
+  type PlanUpsertDto,
   type ReconciliationQueryDto,
   type ReconciliationRow,
   type TenantStatusName,
@@ -386,6 +387,55 @@ export class BackofficeService {
   }
 
   /** Effective credit prices (defaults + optional agency overrides) + full history. */
+  // ── B9 (DEC-136): the D2 plan editor — admin-set tier price + limits ──────
+
+  async listPlans(agencyId?: string) {
+    const rows = await this.prisma.plan.findMany({
+      where: agencyId ? { OR: [{ agencyId }, { agencyId: null }] } : {},
+      orderBy: [{ name: "asc" }, { priceMonthly: "asc" }],
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      agencyId: r.agencyId,
+      name: r.name,
+      priceMonthlyCents: r.priceMonthly,
+      limits: (r.limits ?? {}) as Record<string, unknown>,
+      confirmed: (r.features as { confirmed?: boolean } | null)?.confirmed === true,
+    }));
+  }
+
+  /** Upsert one tier row (platform-null or per-agency) and stamp it
+   *  CONFIRMED — from this write on, tenant surfaces stop calling its
+   *  numbers proposals (D2). Audited like price.set. */
+  async setPlan(operator: BackofficeStaffContext, dto: PlanUpsertDto) {
+    const agencyId = dto.agencyId ?? null;
+    return this.prisma.$transaction(async (tx) => {
+      const prior = await tx.plan.findFirst({ where: { agencyId, name: dto.name } });
+      const data = {
+        agencyId,
+        name: dto.name,
+        priceMonthly: dto.priceMonthlyCents,
+        limits: dto.limits as Prisma.InputJsonValue,
+        features: { confirmed: true } as Prisma.InputJsonValue,
+      };
+      const saved = prior
+        ? await tx.plan.update({ where: { id: prior.id }, data })
+        : await tx.plan.create({ data });
+      await this.audit(tx, operator, {
+        action: "plan.set",
+        targetType: agencyId ? "agency" : "platform",
+        targetId: agencyId ?? "platform",
+        metadata: {
+          name: dto.name,
+          priceMonthlyCents: dto.priceMonthlyCents,
+          priorPriceMonthlyCents: prior?.priceMonthly ?? null,
+          limits: dto.limits,
+        },
+      });
+      return saved;
+    });
+  }
+
   async listCreditPrices(agencyId?: string) {
     const rows = await this.prisma.creditPrice.findMany({
       where: agencyId ? { OR: [{ agencyId }, { agencyId: null }] } : {},

@@ -19,13 +19,14 @@ import { BoldSettingsTab } from "./BoldSettingsTab";
 import { BoldSiteAgentView } from "./BoldSiteAgentView";
 import { BoldReceptionistPanel } from "./BoldReceptionistPanel";
 import { BoldRail } from "./BoldRail";
-import { BoldTourLayer, BoldTourOffer, useBoldTour } from "./BoldTour";
+import { BoldGettingStartedDrawer, BoldHelpLauncher, BoldTourLayer, useBoldTour } from "./BoldTour";
 import { BoldWsPicker } from "./BoldWsPicker";
 import {
   fetchFlags,
   fetchWidgetOverview,
   fetchLiveCalls,
-  type WidgetOverview, dismissSuggestion, fetchBoldAgents, sweepSuggestions } from "./bold-live";
+  type WidgetOverview, dismissSuggestion, fetchBoldAgents, sweepSuggestions,
+  fetchGettingStarted, patchMeSettings, type GettingStartedResponse } from "./bold-live";
 import { BoldLiveCallCard } from "./BoldLiveCallCard";
 import { BoldFormsView } from "./BoldFormsView";
 import { BoldProposalsView } from "./BoldProposalsView";
@@ -43,8 +44,8 @@ import {
   type BoldSurface,
 } from "./bold-data";
 
-/** Anchors present in the shell — B1 adds hero/act/tabs to B0's set. */
-const ANCHORS = new Set(["ws", "camps", "core", "canvas", "ada", "dock", "hero", "act", "tabs"]);
+/** Anchors present in the shell — B9 adds needs/alwayson for the canon tour arc. */
+const ANCHORS = new Set(["ws", "camps", "core", "canvas", "ada", "dock", "hero", "act", "tabs", "needs", "alwayson"]);
 
 const DOCK_SURFACES = new Set<BoldSurface>([
   "rcp",
@@ -59,8 +60,6 @@ const DOCK_SURFACES = new Set<BoldSurface>([
   "integrations",
   "wssettings",
 ]);
-
-const TOUR_OFFER_KEY = "cvb-tour-offer-dismissed";
 
 export type CampaignTab = "overview" | "pipeline" | "plan" | "inbox" | "stats" | "settings";
 const TABS: Array<[CampaignTab, string]> = [
@@ -109,7 +108,12 @@ export function BoldShell({
   const [wsPick, setWsPick] = useState(false);
   const [adaOn, setAdaOn] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  const [tourOffer, setTourOffer] = useState(false);
+  // B9 tour addendum (DEC-136): tour-seen persists per USER via /me/settings,
+  // never a browser store. The ? launcher gates on it: unseen → start the
+  // tour; seen → the getting-started drawer.
+  const [tourSeen, setTourSeen] = useState(Boolean(me.user.settings?.tourSeen));
+  const [helpDrawer, setHelpDrawer] = useState(false);
+  const [checklist, setChecklist] = useState<GettingStartedResponse | "loading" | "error">("loading");
   const [tailTop, setTailTop] = useState<number | null>(null);
   const [drawer, setDrawer] = useState<BoldDrawerState | null>(null);
   // B4.5 (DEC-128): the live-call presence — one card at a time; a dismissed
@@ -208,32 +212,60 @@ export function BoldShell({
       setAdaOn(false);
       setWsPick(false);
       setDrawer(null);
-      setTourOffer(false);
-      try {
-        localStorage.setItem(TOUR_OFFER_KEY, "1");
-      } catch {
-        /* private mode — the offer just reappears next visit */
-      }
+      setHelpDrawer(false);
     },
     [],
   );
-  const tour = useBoldTour({ steps: tourSteps, onPre: applyPre, onFinish: flash });
+  // Finish and skip both mark the tour seen — replay stays one tap away in
+  // the drawer, so a skip is a real answer, not a snooze.
+  const endTour = useCallback(
+    (message: string) => {
+      setTourSeen(true);
+      void patchMeSettings({ tourSeen: true });
+      flash(message);
+    },
+    [flash],
+  );
+  const tour = useBoldTour({ steps: tourSteps, onPre: applyPre, onFinish: endTour });
+  const tourRef = useRef(tour);
+  tourRef.current = tour;
 
+  // First login: onboarding hands off with ?welcome=1 — fire the tour once,
+  // then it collapses to the ? launcher. Seen users never re-trigger.
   useEffect(() => {
-    try {
-      if (!localStorage.getItem(TOUR_OFFER_KEY)) setTourOffer(true);
-    } catch {
-      setTourOffer(true);
+    const sp = new URLSearchParams(window.location.search);
+    if (sp.get("welcome") !== "1") return;
+    sp.delete("welcome");
+    const qs = sp.toString();
+    window.history.replaceState(null, "", window.location.pathname + (qs ? `?${qs}` : ""));
+    if (!me.user.settings?.tourSeen) {
+      const t = setTimeout(() => tourRef.current.start(), 450);
+      return () => clearTimeout(t);
     }
+    return undefined;
   }, []);
-  const hideTourOffer = useCallback(() => {
-    setTourOffer(false);
-    try {
-      localStorage.setItem(TOUR_OFFER_KEY, "1");
-    } catch {
-      /* ignore */
+
+  const onHelpClick = useCallback(() => {
+    if (!tourSeen) {
+      tourRef.current.start();
+      return;
     }
-  }, []);
+    setHelpDrawer((v) => !v);
+  }, [tourSeen]);
+
+  // The drawer's done-states are server-derived on every open — never cached
+  // across opens, never hard-coded.
+  useEffect(() => {
+    if (!helpDrawer) return;
+    let on = true;
+    setChecklist("loading");
+    void fetchGettingStarted().then((r) => {
+      if (on) setChecklist(r ?? "error");
+    });
+    return () => {
+      on = false;
+    };
+  }, [helpDrawer]);
 
   /* --------------------------------------------- chat tail (dock pages only) */
 
@@ -462,9 +494,6 @@ export function BoldShell({
                 {status.label}
               </span>
             ) : null}
-            <button type="button" className="cvb-tour-btn" title="Take the tour" data-testid="bold-tour-btn" onClick={tour.start}>
-              ?
-            </button>
           </div>
 
           <div className="cvb-canvas-scroll" data-testid="bold-canvas-scroll">
@@ -667,8 +696,18 @@ export function BoldShell({
       {tour.index != null && tour.rect ? (
         <BoldTourLayer steps={tourSteps} index={tour.index} rect={tour.rect} onGo={tour.go} onSkip={tour.stop} />
       ) : null}
-      {tourOffer && tour.index == null ? (
-        <BoldTourOffer stepCount={tourSteps.length} onStart={tour.start} onHide={hideTourOffer} />
+      {/* After the layer in the DOM so the ? stays visible through the dim —
+          the final step points at it. */}
+      <BoldHelpLauncher onClick={onHelpClick} />
+      {helpDrawer && tour.index == null ? (
+        <BoldGettingStartedDrawer
+          checklist={checklist}
+          onClose={() => setHelpDrawer(false)}
+          onStartTour={() => {
+            setHelpDrawer(false);
+            tourRef.current.start();
+          }}
+        />
       ) : null}
     </div>
   );

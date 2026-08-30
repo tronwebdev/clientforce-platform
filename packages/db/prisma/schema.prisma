@@ -63,6 +63,9 @@ model User {
   email          String       @unique
   name           String?
   authProviderId String?      @unique
+  /// B9 (DEC-136, tour addendum): per-USER preferences — tour-seen and
+  /// friends persist with the account, never a browser (additive Json).
+  settings       Json         @default("{}")
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   memberships    Membership[]

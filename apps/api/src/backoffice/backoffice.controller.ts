@@ -20,6 +20,7 @@ import {
   featureFlagSetSchema,
   impersonateSchema,
   killSwitchSetSchema,
+  planUpsertSchema,
   reconciliationQuerySchema,
   tenantListQuerySchema,
   usageQuerySchema,
@@ -156,6 +157,19 @@ export class BackofficeController {
   @Get("reconciliation")
   reconciliation(@Query() query: Record<string, string>) {
     return this.svc.reconciliation(parse(reconciliationQuerySchema, query));
+  }
+
+  // ── B9 (DEC-136): the D2 billing editor — per-tier price/limits, admin-set ──
+
+  @Get("plans")
+  plans(@Query("agencyId") agencyId?: string) {
+    return this.svc.listPlans(agencyId || undefined);
+  }
+
+  @Post("plans")
+  setPlan(@Body() body: unknown, @Req() req: BackofficeRequest) {
+    const dto = parse(planUpsertSchema, body);
+    return this.svc.setPlan(req.staff!, dto);
   }
 
   @Get("credit-prices")

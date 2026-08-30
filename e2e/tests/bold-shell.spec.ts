@@ -146,9 +146,29 @@ test("shell interactions: focus collapse, dock navigation, Ada panel, tour", asy
   await expect(page.getByTestId("bold-ada-panel").getByText("Upload a CSV")).toBeVisible();
   await page.getByTestId("bold-ada-panel").getByRole("button", { name: "Close" }).click();
 
-  // Tour scaffold: the ? launches the anchored walkthrough.
+  // Canon tour (B9): tour-seen persists per USER, so reset it server-side and
+  // reload — the ? launcher then starts the 8-step walkthrough directly.
+  await page.evaluate(() =>
+    fetch("/api/cf/me/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tourSeen: false }),
+    }),
+  );
+  await page.reload();
+  await expect(page.getByTestId("bold-tour-btn")).toBeVisible();
   await page.getByTestId("bold-tour-btn").click();
   await expect(page.getByTestId("bold-tour-card")).toBeVisible();
+  await expect(page.getByTestId("bold-tour-card")).toContainText("STEP 1 OF 8");
   await page.getByTestId("bold-tour-next").click();
-  await expect(page.getByTestId("bold-tour-card")).toBeVisible();
+  await expect(page.getByTestId("bold-tour-card")).toContainText("STEP 2 OF 8");
+
+  // Skip marks the tour seen; the ? now opens the getting-started drawer with
+  // server-derived done-states instead of restarting the walkthrough.
+  await page.getByTestId("bold-tour-skip").click();
+  await expect(page.getByTestId("bold-tour-card")).not.toBeVisible();
+  await page.getByTestId("bold-tour-btn").click();
+  await expect(page.getByTestId("bold-help-drawer")).toBeVisible();
+  await expect(page.getByTestId("bold-help-drawer")).toContainText("GETTING STARTED");
+  await expect(page.getByTestId("bold-tour-replay")).toBeVisible();
 });

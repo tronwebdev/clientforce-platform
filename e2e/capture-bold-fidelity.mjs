@@ -33,8 +33,8 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const UNIT = process.argv[2] ?? "b1";
-if (!["b1", "b2", "b25", "b26", "b3", "b3b", "b3c1", "b3c2", "b3d", "b4", "b45", "b5", "b6", "b7", "b8"].includes(UNIT)) {
-  console.error(`Unknown unit "${UNIT}" — this tool knows b1, b2, b25, b26, b3, b3b, b3c1, b3c2, b3d, b4, b45, b5, b6, b7 and b8.`);
+if (!["b1", "b2", "b25", "b26", "b3", "b3b", "b3c1", "b3c2", "b3d", "b4", "b45", "b5", "b6", "b7", "b8", "b9"].includes(UNIT)) {
+  console.error(`Unknown unit "${UNIT}" — this tool knows b1, b2, b25, b26, b3, b3b, b3c1, b3c2, b3d, b4, b45, b5, b6, b7, b8 and b9.`);
   process.exit(1);
 }
 const OUT = join(ROOT, "docs", "fidelity", UNIT);
@@ -43,6 +43,10 @@ const PROTO = `file://${join(ROOT, "design_handoff_console_v3", "prototypes", "C
 // B4.5: the live-call card's pixel truth is the OLD console's rcpCallOpen
 // treatment (owner ruling at the B4 addendum) — a different prototype file.
 const PROTO_LEGACY = `file://${join(ROOT, "design_handoff_console_v3", "prototypes", "legacy", "Clientforce Console.dc.html").replace(/ /g, "%20")}`;
+// B9: the onboarding + canon-tour prototypes (the tour proto is the owner's
+// locked 2026-08-30 addendum canon — 8 steps, ? launcher, drawer).
+const PROTO_ONBOARD = `file://${join(ROOT, "design_handoff_console_v3", "prototypes", "Business Core Onboarding.dc.html").replace(/ /g, "%20")}`;
+const PROTO_TOUR = `file://${join(ROOT, "design_handoff_console_v3", "prototypes", "Product Tour.dc.html").replace(/ /g, "%20")}`;
 const FONTS = join(ROOT, "apps", "web", "node_modules", "@fontsource");
 const OWNER_EMAIL = "owner@demo-agency.test";
 
@@ -152,6 +156,152 @@ const toBoldCampaign = async (p) => {
 };
 
 
+
+/* ---------------------------------------------------------------- the b9 set */
+if (UNIT === "b9") {
+  // A throwaway principal — the flow CREATES a real tenant; torn down at the end.
+  const RUN = `fid${Date.now().toString(36)}`;
+  const EMAIL = `e2e-b9-${RUN}@fixture.test`;
+
+  await run("prototype-b9-onboarding", async () => {
+    const p = await page({ width: 1440, height: 900 });
+    await p.goto(PROTO_ONBOARD);
+    await p.waitForTimeout(2600);
+    // The auth phase — screens that ride the auth provider in the build (Q-119).
+    await shot(p, "proto-onboarding-auth-1440x900");
+    // "Sign up with Google" jumps the fixture straight into the core wizard.
+    await p.getByText("Sign up with Google", { exact: false }).first().click();
+    await p.waitForTimeout(900);
+    await shot(p, "proto-onboarding-core-1440x900");
+    await p.context().close();
+  });
+
+  await run("prototype-b9-tour", async () => {
+    const p = await page({ width: 1440, height: 900 });
+    await p.goto(PROTO_TOUR);
+    await p.waitForTimeout(2600);
+    await shot(p, "proto-tour-step1-1440x900");
+    for (let i = 0; i < 6; i++) {
+      await p.getByText("Next", { exact: true }).click();
+      await p.waitForTimeout(350);
+    }
+    await shot(p, "proto-tour-step7-1440x900");
+    await p.getByText("Skip tour ✕", { exact: true }).click();
+    await p.waitForTimeout(400);
+    await p.locator('[title="Help & tour"]').click();
+    await p.waitForTimeout(600);
+    await shot(p, "proto-tour-drawer-1440x900");
+    await p.context().close();
+  });
+
+  await run("build-b9-onboarding", async () => {
+    const p = await page({ width: 1440, height: 900 });
+    try {
+      await p.goto(`${BASE}/login`);
+      await p.getByLabel("Email").fill(EMAIL);
+      await p.getByRole("button", { name: "Sign in" }).click();
+      await p.waitForLoadState("domcontentloaded");
+      await p.goto(`${BASE}/bold`);
+      await p.getByTestId("bold-onboarding").waitFor({ timeout: 15_000 });
+      await p.addStyleTag({ content: "nextjs-portal{display:none!important}" });
+      await p.getByTestId("bold-onb-name").fill(`B9 Dental ${RUN}`);
+      await p.getByTestId("bold-onb-shape-local_business").click();
+      await p.getByTestId("bold-onb-vertical-dental").click();
+      await shot(p, "build-onb-business-1440x900");
+
+      await p.getByTestId("bold-onb-create").click();
+      await p.getByTestId("bold-onb-site").waitFor({ timeout: 15_000 });
+      await shot(p, "build-onb-site-1440x900");
+
+      await p.getByTestId("bold-onb-nosite").click();
+      await p.getByTestId("bold-onb-fact-offer").waitFor();
+      await p.getByTestId("bold-onb-fact-offer").fill("Implant consults and whitening");
+      await p.getByTestId("bold-onb-fact-offer").locator("xpath=following-sibling::span[1]").click();
+      await p.waitForTimeout(700);
+      await shot(p, "build-onb-facts-1440x900");
+
+      await p.getByTestId("bold-onb-facts-next").click();
+      await p.getByTestId("bold-onb-icp-match").click();
+      await shot(p, "build-onb-icp-1440x900");
+
+      await p.getByTestId("bold-onb-icp-next").click();
+      await p.getByTestId("bold-onb-goal-book_appointments").click();
+      await shot(p, "build-onb-goal-1440x900");
+
+      await p.getByTestId("bold-onb-goal-next").click();
+      await p.getByTestId("bold-onb-gap-next").waitFor({ timeout: 15_000 });
+      await shot(p, "build-onb-question-1440x900");
+
+      await p.getByTestId("bold-onb-gap-next").click();
+      await p.getByTestId("bold-onb-replyto").waitFor();
+      await p.getByTestId("bold-onb-replyto").fill(EMAIL);
+      await shot(p, "build-onb-sender-1440x900");
+
+      await p.getByTestId("bold-onb-sender-next").click();
+      await p.getByTestId("bold-onb-draftcard").waitFor({ timeout: 15_000 });
+      await shot(p, "build-onb-done-1440x900");
+
+      await p.getByTestId("bold-onb-toplan").click();
+      await p.getByTestId("bold-onb-card-deferred").waitFor({ timeout: 15_000 });
+      const growth = p.getByTestId("bold-onb-tier-GROWTH");
+      if (await growth.isVisible().catch(() => false)) await growth.click();
+      await shot(p, "build-onb-plan-1440x900");
+
+      // The hand-off: the console mounts and the canon tour fires once.
+      await p.getByTestId("bold-onb-finish").click();
+      await p.getByTestId("bold-root").waitFor({ timeout: 30_000 });
+      await p.addStyleTag({ content: "nextjs-portal{display:none!important}" });
+      await p.getByTestId("bold-tour-card").waitFor({ timeout: 15_000 });
+      await shot(p, "build-tour-step1-1440x900");
+
+      const nextTo = async (label) => {
+        await p.getByTestId("bold-tour-next").click();
+        await p.getByTestId("bold-tour-card").getByText(label, { exact: false }).waitFor({ timeout: 6_000 });
+      };
+      await nextTo("STEP 2 OF 8");
+      await shot(p, "build-tour-step2-1440x900");
+      await nextTo("STEP 3 OF 8");
+      await nextTo("STEP 4 OF 8");
+      await shot(p, "build-tour-step4-1440x900");
+      // Step 5 (needs) has no anchor in a fresh workspace — the engine skips
+      // it forward, honestly, rather than stranding the ring.
+      await p.getByTestId("bold-tour-next").click();
+      await p.getByTestId("bold-tour-card").getByText("STEP 6 OF 8", { exact: false }).waitFor({ timeout: 6_000 });
+      await shot(p, "build-tour-step6-1440x900");
+      await nextTo("STEP 7 OF 8");
+      await shot(p, "build-tour-step7-1440x900");
+      await nextTo("STEP 8 OF 8");
+      await shot(p, "build-tour-step8-1440x900");
+      await p.getByTestId("bold-tour-next").click(); // Done ✓
+      await p.waitForTimeout(600);
+
+      // Toured: the ? answers with the getting-started drawer (server-derived
+      // done-states — the typed fact is done, the draft campaign is not).
+      await p.getByTestId("bold-tour-btn").click();
+      await p.getByTestId("bold-help-drawer").waitFor();
+      await p.getByTestId("bold-gs-core").waitFor();
+      await shot(p, "build-tour-drawer-1440x900");
+      await p.context().close();
+    } finally {
+      execSync(`pnpm --filter @clientforce/db exec tsx prisma/b9-cleanup.ts ${EMAIL}`, { cwd: ROOT });
+    }
+  });
+
+  // The backoffice plan editor — INTERNAL-ONLY surface, no prototype exists
+  // (flagged per the working agreement); the frame documents the D2 editor.
+  await run("build-b9-backoffice-plans", async () => {
+    const p = await page({ width: 1440, height: 900 });
+    await p.goto(`${BASE}/backoffice/login`);
+    await p.getByLabel("Operator email").fill("ops@clientforce.io");
+    await p.getByRole("button", { name: "Sign in" }).click();
+    await p.waitForLoadState("domcontentloaded");
+    await p.goto(`${BASE}/backoffice/plans`);
+    await p.getByTestId("bo-plans-table").waitFor({ timeout: 15_000 });
+    await p.waitForTimeout(900);
+    await shot(p, "build-backoffice-plans-1440x900");
+    await p.context().close();
+  });
+}
 
 /* ---------------------------------------------------------------- the b8 set */
 if (UNIT === "b8") {

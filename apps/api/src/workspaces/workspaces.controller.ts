@@ -9,7 +9,9 @@ import {
   Req,
 } from "@nestjs/common";
 import {
+  CONSOLE_BOLD_FLAG,
   guardrailDefaultsSchema,
+  icpProfileSchema,
   parseGuardrailDefaults,
   parseGuardrails,
   type GuardrailDefaults,
@@ -44,10 +46,29 @@ export class WorkspacesController {
 
   @Post()
   @AllowNoMembership()
-  async create(@Req() req: AuthenticatedRequest, @Body() body: { name?: string }) {
+  async create(
+    @Req() req: AuthenticatedRequest,
+    @Body() body: { name?: string; businessType?: unknown; bold?: unknown },
+  ) {
     const name = String(body?.name ?? "").trim();
     if (name.length < 2 || name.length > 80) {
       throw new BadRequestException("Workspace name must be 2–80 characters");
+    }
+    // B9 (DEC-136): the onboarding flow's ADDITIVE riders. `businessType`
+    // seeds the industry registries' interim home in one write
+    // (`Workspace.settings.icpProfile` — the DEC-129 vertical string + the
+    // DEC-131 shape; every registry has a total fallback, so an odd string
+    // degrades to neutral copy, never a crash). `bold: true` enables the
+    // consoleBold flag on the NEW workspace so first-run lands in the
+    // console the onboarding belongs to. Both optional — the classic
+    // modal's plain {name} call is byte-identical to before.
+    let icpProfile: ReturnType<typeof icpProfileSchema.parse> | null = null;
+    if (body?.businessType != null) {
+      const parsed = icpProfileSchema.safeParse(body.businessType);
+      if (!parsed.success) {
+        throw new BadRequestException("businessType needs a shape (company | local_business | consumer)");
+      }
+      icpProfile = parsed.data;
     }
     const userId = req.auth!.user.id;
     const existing = await this.prisma.admin.membership.count({ where: { userId } });
@@ -64,9 +85,19 @@ export class WorkspacesController {
     const workspace = await this.prisma.admin.$transaction(async (tx) => {
       const agency = await tx.agency.create({ data: { name, slug, branding: {} } });
       const ws = await tx.workspace.create({
-        data: { agencyId: agency.id, name, slug, settings: {} },
+        data: {
+          agencyId: agency.id,
+          name,
+          slug,
+          settings: (icpProfile ? { icpProfile } : {}) as Prisma.InputJsonValue,
+        },
       });
       await tx.membership.create({ data: { userId, workspaceId: ws.id, role: "OWNER" } });
+      if (body?.bold === true) {
+        await tx.featureFlag.create({
+          data: { workspaceId: ws.id, key: CONSOLE_BOLD_FLAG, enabled: true },
+        });
+      }
       return ws;
     });
     return { id: workspace.id, name: workspace.name, slug: workspace.slug };

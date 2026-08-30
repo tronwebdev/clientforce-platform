@@ -68,8 +68,8 @@
 .cvb-root *,
 .cvb-tour-layer,
 .cvb-tour-layer *,
-.cvb-tour-offer,
-.cvb-tour-offer * {
+.cvb-help-drawer,
+.cvb-help-drawer * {
   box-sizing: border-box;
 }
 
@@ -368,24 +368,6 @@
 .cvb-status-pill[data-tone="live"] { color: var(--cvb-forest); background: var(--cvb-mint); border-color: var(--cvb-mint-line); }
 .cvb-status-pill[data-tone="capped"] { color: var(--cvb-amber); background: var(--cvb-amber-bg); border-color: var(--cvb-amber-line); }
 .cvb-status-pill[data-tone="idle"] { color: var(--cvb-muted); background: var(--cvb-well); border-color: var(--cvb-line-ctl); }
-.cvb-tour-btn {
-  width: 30px;
-  height: 30px;
-  border-radius: 11px;
-  border: 1px solid var(--cvb-line-ctl);
-  background: var(--cvb-panel);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--cvb-muted);
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  flex: none;
-  margin-top: 11px;
-  font-family: inherit;
-}
-.cvb-tour-btn:hover { border-color: var(--cvb-mint-line); color: var(--cvb-forest); background: var(--cvb-mint-wash); }
 
 .cvb-canvas-scroll { flex: 1; min-height: 0; overflow-y: auto; }
 
@@ -614,70 +596,105 @@
 
 /* ------------------------------------------------------------------- tour */
 
+/* Canon tour proto (Product Tour.dc.html): brand-green pulsing ring over the
+   dimmed frame; the dim IS the ring's 9999px shadow, so they move together. */
+@keyframes cvb-tour-pulse {
+  0%, 100% { box-shadow: 0 0 0 9999px rgba(14, 26, 18, 0.48), 0 0 0 0 rgba(53, 232, 52, 0.5); }
+  50% { box-shadow: 0 0 0 9999px rgba(14, 26, 18, 0.48), 0 0 0 8px rgba(53, 232, 52, 0); }
+}
 .cvb-tour-layer { position: fixed; inset: 0; z-index: 60; pointer-events: none; }
 .cvb-tour-ring {
   position: absolute;
-  border-radius: 17px;
+  border-radius: 16px;
   border: 2px solid var(--cvb-live);
-  box-shadow: 0 0 0 9999px rgba(8, 14, 11, 0.6), 0 0 24px rgba(53, 232, 52, 0.35);
+  animation: cvb-tour-pulse 2.4s ease-in-out infinite;
   transition: left 0.5s var(--cvb-ease), top 0.5s var(--cvb-ease), width 0.5s var(--cvb-ease), height 0.5s var(--cvb-ease);
 }
 .cvb-tour-card {
   position: absolute;
-  width: 344px;
-  background: var(--cvb-panel);
+  width: 330px;
+  background: var(--cvb-card);
   border: 1px solid var(--cvb-line-ctl);
-  border-radius: 20px;
-  padding: 19px 20px 17px;
+  border-radius: 16px;
+  padding: 15px 17px;
+  box-shadow: 0 24px 48px -18px rgba(16, 22, 19, 0.4);
   pointer-events: auto;
   transition: left 0.5s var(--cvb-ease), top 0.5s var(--cvb-ease);
 }
 .cvb-tour-next {
-  font-size: 12.5px;
+  font-size: 11.5px;
   font-weight: 800;
   color: var(--cvb-card);
   background: var(--cvb-forest);
-  border-radius: 11px;
-  padding: 9px 15px;
+  border-radius: 9px;
+  padding: 6px 14px;
   cursor: pointer;
   flex: none;
   border: 0;
   font-family: inherit;
 }
-.cvb-tour-chapter { height: 4px; border-radius: 2px; transition: width 0.4s ease, background 0.4s ease; }
-
-/* Tour offer — fixed bottom-left dark card. */
-.cvb-tour-offer {
-  position: fixed;
-  left: 26px;
-  bottom: 26px;
-  width: 274px;
-  background: var(--cvb-ink);
-  border-radius: 19px;
-  padding: 17px 18px;
-  z-index: 55;
-  animation: cvb-in 0.4s var(--cvb-ease) both;
-}
-.cvb-tour-offer-cta {
-  flex: 1;
-  text-align: center;
-  font-size: 12px;
-  font-weight: 800;
-  color: var(--cvb-ink);
-  background: var(--cvb-gradient-signature);
-  border-radius: 11px;
-  padding: 10px;
+.cvb-tour-back {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--cvb-ink-soft);
+  background: transparent;
+  border: 1px solid var(--cvb-line-ctl);
+  border-radius: 9px;
+  padding: 6px 12px;
   cursor: pointer;
-  border: 0;
+  flex: none;
   font-family: inherit;
 }
-.cvb-tour-offer-later {
+
+/* The ? launcher pinned bottom-right — replaces the retired invite card.
+   Rendered after the tour layer so it stays visible through the dim (the
+   final step points at it). */
+.cvb-help-launcher {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 0;
+  background: var(--cvb-forest);
+  color: var(--cvb-card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--cvb-font-display);
+  font-size: 17px;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 6px 16px -6px rgba(16, 22, 19, 0.45);
+  z-index: 61;
+}
+.cvb-help-drawer {
+  position: fixed;
+  right: 16px;
+  bottom: 64px;
+  width: 290px;
+  background: var(--cvb-card);
+  border: 1px solid var(--cvb-line-ctl);
+  border-radius: 16px;
+  padding: 15px 17px;
+  box-shadow: 0 24px 48px -18px rgba(16, 22, 19, 0.4);
+  z-index: 61;
+  animation: cvb-in 0.3s var(--cvb-ease) both;
+}
+.cvb-help-drawer-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  margin-top: 12px;
   font-size: 12px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.62);
-  background: rgba(255, 255, 255, 0.09);
-  border-radius: 11px;
-  padding: 10px 13px;
+  font-weight: 800;
+  color: var(--cvb-card);
+  background: var(--cvb-forest);
+  border-radius: 10px;
+  padding: 9px 0;
   cursor: pointer;
   border: 0;
   font-family: inherit;

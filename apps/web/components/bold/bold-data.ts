@@ -203,7 +203,6 @@ export function dockTileTitle(
 /* ------------------------------------------------------------------- tour */
 
 export interface BoldTourStep {
-  ch: string;
   sel: string;
   title: string;
   body: string;
@@ -212,104 +211,54 @@ export interface BoldTourStep {
 }
 
 /**
- * The full 14-step table, ported verbatim from the prototype's tourSteps().
- * The B0 scaffold runs only steps whose `data-tour` anchor exists in the DOM
- * (hero/act/tabs arrive with B1 and light their steps up by existing).
+ * The 8-step arc, copy verbatim from the canon tour prototype
+ * (design_handoff_console_v3/prototypes/Product Tour.dc.html, owner ruling
+ * 2026-08-30). Anchors are measured from the live layout at runtime — the
+ * prototype's px rects are illustration only and never ship.
  */
 export const TOUR_STEPS: BoldTourStep[] = [
   {
-    ch: "THE SHAPE",
-    sel: "ws",
-    title: "Everything sits inside a workspace",
-    body: "One business, one set of senders, one business core. Agencies run several — the badge tells you when another one needs a person.",
-  },
-  {
-    ch: "THE SHAPE",
-    sel: "camps",
-    title: "One campaign per goal",
-    body: "Not per channel. Each row shows what it has produced in money, not opens. ✦ marks the ones Ada proposed herself.",
-  },
-  {
-    ch: "THE SHAPE",
-    sel: "sugg",
-    title: "She proposes work you have not asked for",
-    body: "Read from your own data — lapsed patients, quiet customers, review gaps. Start it and it becomes a normal campaign. Dismiss and she stops suggesting it.",
-  },
-  {
-    ch: "THE SHAPE",
-    sel: "core",
-    title: "What she knows, and what it costs",
-    body: "The business core is where prices, hours and rules live — she never invents an answer outside it. Credits burn only when something leaves the building.",
-  },
-  {
-    ch: "A CAMPAIGN",
-    sel: "hero",
-    title: "The number is money, not activity",
-    body: "Goal, brief, value booked so far, and pace against target. Underneath: the three counts that produced it.",
+    sel: "ada",
+    title: "Meet Ada — she runs the work",
+    body: "This bar is the whole product. Ask anything in plain words — she prospects, writes, calls, books and reports back. Everything else on this screen is her work, visible.",
     pre: { surface: "campaign", tab: "overview" },
   },
   {
-    ch: "A CAMPAIGN",
+    sel: "camps",
+    title: "Campaigns are goals, not blasts",
+    body: "Each row is one goal with its own money math — live dot, progress, value. Ada suggests new ones (✦) when your own data says there's money on the table.",
+  },
+  {
+    sel: "hero",
+    title: "The money is always visible",
+    body: "Booked, potential at your price, realized when payment lands. Set the value once ('Edit value') and every number on this page speaks dollars honestly — no vanity metrics.",
+    pre: { surface: "campaign", tab: "overview" },
+  },
+  {
     sel: "act",
     grow: true,
-    title: "Every decision she made, in order",
-    body: "Sends, replies, bookings, objections, and the ones she held back. Each row opens what it refers to — a person, or all 22 recipients of a send.",
+    title: "Watch it happen live",
+    body: "Every send, reply, booking and call lands here as it happens — with Ada's own notes on what she's learning. Money moments get the mint chip.",
   },
   {
-    ch: "A CAMPAIGN",
-    sel: "tabs",
-    title: "Pipeline is people, not stages you maintain",
-    body: "She moves contacts herself as replies land. Board or list, and every card opens the contact.",
-    pre: { surface: "campaign", tab: "pipeline" },
+    sel: "needs",
+    title: "When she needs you, it's one tap",
+    body: "Amber rows wait for your yes — a reply to approve, a call to allow. You choose how much she decides alone in Settings; the safety rails always hold.",
   },
   {
-    ch: "A CAMPAIGN",
-    sel: "tabs",
-    title: "The plan, and what happens off-plan",
-    body: "The sequence is only what she sends. Below it sit the branch rules — interested, question, price pushback, silence — which run without you.",
-    pre: { surface: "campaign", tab: "plan" },
+    sel: "alwayson",
+    title: "Inbound never sleeps",
+    body: "The Site agent chats and books from your website around the clock; the Receptionist add-on answers your phone line. Same brain, same business facts.",
   },
   {
-    ch: "A CAMPAIGN",
-    sel: "tabs",
-    title: "The inbox is where you step in",
-    body: "Filter by channel or status. She drafts; you send, rewrite, move or call. Nothing sends behind your back when approval is on.",
-    pre: { surface: "campaign", tab: "inbox" },
+    sel: "core",
+    title: "She only says what you told her",
+    body: "Business core is Ada's memory — your prices, hours, policies. Facts she quotes; gaps she won't invent, she asks. Credits below meter what her work costs.",
   },
   {
-    ch: "THE WORKSPACE",
     sel: "dock",
-    title: "Everything else lives on the dock",
-    body: "Inbox, contacts, lead finder, automations, forms, chatbot, proposals, analytics, integrations, settings. The receptionist sits on top with a live dot when she is answering your line.",
-    pre: { surface: "campaign", tab: "overview" },
-  },
-  {
-    ch: "THE WORKSPACE",
-    sel: "canvas",
-    title: "Find new business three ways",
-    body: "Her matches from your closed business, your own filters, or a direct people search with reveal-per-credit. Intent signals arrive through BuyerPing.",
-    pre: { surface: "lead" },
-  },
-  {
-    ch: "THE WORKSPACE",
-    sel: "canvas",
-    title: "You build things by asking",
-    body: "Forms, chatbots, proposals and automations all have the same two doors: build it yourself, or let Ada walk you through every field. She never invents copy your core cannot support.",
-    pre: { surface: "forms" },
-  },
-  {
-    ch: "THE WORKSPACE",
-    sel: "canvas",
-    title: "Add-ons extend what she can do",
-    body: "Calendars, Stripe, Slack and Zapier are plumbing. Ads Closed Loop pushes receipted money back to Meta and Google so their bidding optimises on revenue.",
-    pre: { surface: "integrations" },
-  },
-  {
-    ch: "ADA",
-    sel: "ada",
-    title: "This bar changes with the page",
-    body: "On a campaign it asks about that campaign. On contacts it segments and imports. On forms it builds one. Type, or take one of her suggestions.",
-    pre: { surface: "campaign", tab: "overview" },
+    title: "Everything else, one column",
+    body: "Calls, inbox, contacts, lead finder, automations, forms, proposals, stats — the dock. And this tour lives under the ? button, whenever you want it again.",
   },
 ];
 

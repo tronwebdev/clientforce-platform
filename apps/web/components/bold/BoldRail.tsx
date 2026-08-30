@@ -65,7 +65,6 @@ export function BoldRail(props: BoldRailProps) {
     };
     // Keyed on the campaign COUNT deliberately: a re-fetch per row identity
     // change would hammer the gap reports for no new information.
-    // eslint-disable-next-line
   }, [props.agents.length, me.activeWorkspace?.id]);
   const sectorLine = core
     ? [core.vertical ? core.vertical.charAt(0).toUpperCase() + core.vertical.slice(1) : null, core.location]
@@ -265,7 +264,7 @@ export function BoldRail(props: BoldRailProps) {
           ) : null}
 
           {/* Block 3 — ALWAYS ON / INBOUND (B4 wires the one-flag truth). */}
-          <div style={{ flex: "none" }}>
+          <div data-tour="alwayson" style={{ flex: "none" }}>
             <div className="cvb-rail-eyebrow" style={{ padding: "0 4px 8px" }}>
               <span style={{ flex: 1 }}>ALWAYS ON</span>
               <span style={{ fontSize: 9.5, color: "var(--cvb-faint-2)" }}>INBOUND</span>
