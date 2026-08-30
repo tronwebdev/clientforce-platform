@@ -1,0 +1,120 @@
+{
+  "unit": "b9",
+  "commit": "4fc64762ee934f0c6d273d3e9bef70c6dfec6fd0",
+  "workingTreeDirtyAtCapture": false,
+  "capturedAt": "2026-08-30T01:38:17.019Z",
+  "baseUrl": "http://localhost:3000",
+  "note": "Single-run capture; every frame from one build. Verify a frame by hashing its bytes against this manifest — never by trusting an image cache. pnpm lint:fidelity enforces the binding.",
+  "frames": {
+    "build-backoffice-plans-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 122685,
+      "sha256": "508728cb90670cec281744343159dbe6843788ca3b6062e129666b5453c0f5b0"
+    },
+    "build-onb-business-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 77664,
+      "sha256": "bb9031d75273556a6643422fdd09dde192d8566a137fbf011636c2e18fbdb295"
+    },
+    "build-onb-done-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 59341,
+      "sha256": "75149a9af6fbc3977c9d36e5c61e783f5c740b970b90b0d204e271b35958b9c7"
+    },
+    "build-onb-facts-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 52904,
+      "sha256": "9f7fd64ee2df164c34d9271baec59b1372b4c6b30d1b67bf0a13f25baf2b830f"
+    },
+    "build-onb-goal-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 69363,
+      "sha256": "e8f83f861a5fd8b8e5871f0ae0fdbcad80c46d2a45e00c3d3d726dbc6c7fdaf9"
+    },
+    "build-onb-icp-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 61292,
+      "sha256": "235d40153ddb5812ee64a549ac1f8805c451ba1c56048cb34e7e9623b9defd87"
+    },
+    "build-onb-plan-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 80455,
+      "sha256": "cacd4f9539b52c129a1a616f84d500d084097c677971f1959aead1511a5d4e9c"
+    },
+    "build-onb-question-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 49387,
+      "sha256": "c38616402aed844fc32fad829a55b56659f5c350a6383b3fd61c816e88e32b57"
+    },
+    "build-onb-sender-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 51915,
+      "sha256": "9b11bf0991fbb9c06b16ccc88e516f1299d8aa5f5aecb1a442a87aa48a598fd0"
+    },
+    "build-onb-site-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 49495,
+      "sha256": "ccef446cebe7c5f8d5705e045eeb4861d0b5ab89a41804f6a9377c69be15c887"
+    },
+    "build-tour-drawer-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 201059,
+      "sha256": "02ce057dbe612543b60b14b760a44bfcaff71246dca79823c84187c36ba55363"
+    },
+    "build-tour-step1-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 159905,
+      "sha256": "67cee8e7da2728d61dba43fc3171745f26a993255375506b88a57cd5ded79019"
+    },
+    "build-tour-step2-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 144153,
+      "sha256": "325a746e42d5afa13475fd7ee3d0cc83dd0dcbba90ffc4f37bb61d44a071c08c"
+    },
+    "build-tour-step4-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 148437,
+      "sha256": "06ec5fdc84bc095a70e081e827f4c1278e7c4bd2e24833cb8c91cd22c1663340"
+    },
+    "build-tour-step6-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 158784,
+      "sha256": "eba92496b6e7ed2aff26a0b814a6cec67a58d5827a237924b4a2044bc0169066"
+    },
+    "build-tour-step7-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 154918,
+      "sha256": "36e7370c3fa982c9b1b89f370b5aac26347a6f2ffc2f63dac094c811af61abee"
+    },
+    "build-tour-step8-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 157514,
+      "sha256": "6caa1a8fcab0b74e14310bcb91c1f531f81d9f183b9880e603177d7aab4f4ff0"
+    },
+    "proto-onboarding-auth-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 419902,
+      "sha256": "1103f507d80fddf42fc67354139bea98870848b5d9282564203ba8321c9c7464"
+    },
+    "proto-onboarding-core-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 126083,
+      "sha256": "dabf14ed00118d41b7e0568fa3bf48d5dc9bbef54aefa2c14812a9b9fe9079f5"
+    },
+    "proto-tour-drawer-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 97528,
+      "sha256": "9a7c2f15a0627225eaf9646215aff30ae0a4bda59a0de640b36e06492fbbef97"
+    },
+    "proto-tour-step1-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 93206,
+      "sha256": "14a1a6be1fe945482ec71bd62b394f8f0acc062eb655885a653a982d4f608d96"
+    },
+    "proto-tour-step7-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 89708,
+      "sha256": "1f12d2407e045b375d634ce73526f7635cfd04c23af290afd82cc87c70fc6f47"
+    }
+  }
+}
