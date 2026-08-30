@@ -669,6 +669,13 @@
   box-shadow: 0 6px 16px -6px rgba(16, 22, 19, 0.45);
   z-index: 61;
 }
+/* The dock commits to fitting 11 tiles at a 540px-tall viewport; below ~620px
+   the corner launcher would sit on its bottom tile, so it steps left of the
+   dock column. Canon geometry is untouched at the acceptance viewports. */
+@media (max-height: 620px) {
+  .cvb-help-launcher { right: calc(var(--cvb-dock-w) + 26px); }
+  .cvb-help-drawer { right: calc(var(--cvb-dock-w) + 26px); }
+}
 .cvb-help-drawer {
   position: fixed;
   right: 16px;

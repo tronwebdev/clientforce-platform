@@ -11,13 +11,20 @@ import { TenantClient } from "../db/tenant-client";
  * SERVER-DERIVED from real rows, never hard-coded:
  *  - business core filled  → any workspace-layer BusinessContext field with a value
  *  - first campaign live   → any ACTIVE agent
- *  - sender verified       → an ACTIVE email sender whose LAST dns check passed
- *                            (keyless local honestly reads unverified)
+ *  - sender verified       → an ACTIVE email sender whose published DNS
+ *                            records ALL read verified (keyless local
+ *                            honestly reads unverified)
  *  - site agent embedded   → real widget sessions exist (a row alone is not
  *                            "on your website")
- *  - calendar connected    → a gcal/calendly Integration row
- *  - contacts imported     → any contact from a non-seed source
+ *  - calendar connected    → a CONNECTED gcal/calendly Integration (a
+ *                            revoked token is not a connected calendar)
+ *  - contacts imported     → a contact from a real import source
  */
+/** The sources a contact carries when a PERSON brought it in (CSV, manual
+ *  add, a revealed lead, a Zapier push). Form/widget captures belong to the
+ *  site-agent item, and seeded demo rows are nobody's progress. */
+const IMPORT_SOURCES = ["csv_import", "manual", "MANUAL", "lead_finder", "zapier"];
+
 const settingsPatchSchema = z.object({ tourSeen: z.boolean().optional() }).strict();
 
 @Controller("me")
@@ -75,19 +82,25 @@ export class MeController {
           select: { domainAuthStatus: true },
         }),
         tx.widgetSession.count(),
-        tx.integration.count({ where: { provider: { in: ["gcal", "calendly"] } } }),
-        tx.contact.count({ where: { source: { notIn: ["seed", "t", "test"] } } }),
+        tx.integration.count({ where: { provider: { in: ["gcal", "calendly"] }, status: "connected" } }),
+        tx.contact.count({ where: { source: { in: IMPORT_SOURCES } } }),
       ]);
       const coreFilled = Object.values((core?.fields ?? {}) as Record<string, { value?: string }>).some(
         (v) => ((v?.value ?? "") as string).trim().length > 0,
       );
+      // The checker's real vocabulary is DnsRecordState ("verified" |
+      // "failed" | "unchecked") plus a legacy boolean `pass` — read BOTH,
+      // and require every published record to have passed, matching the
+      // settings surface's own summary rule.
       const senderVerified = senders.some((s) => {
-        const st = (s.domainAuthStatus ?? {}) as Record<string, { status?: string } | string>;
-        return Object.values(st).some((v) =>
-          String(typeof v === "object" ? v?.status : v)
-            .toLowerCase()
-            .includes("pass"),
-        );
+        const st = (s.domainAuthStatus ?? {}) as Record<string, { status?: string; pass?: boolean } | string>;
+        const records = Object.values(st);
+        if (records.length === 0) return false;
+        return records.every((v) => {
+          if (typeof v === "object" && v?.pass === true) return true;
+          const status = String(typeof v === "object" ? (v?.status ?? "") : v).toLowerCase();
+          return status === "verified" || status === "ok" || status === "pass";
+        });
       });
       const items = [
         { key: "core", label: "Business core filled in", done: coreFilled },

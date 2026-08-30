@@ -84,6 +84,10 @@ const getJson = async <T,>(path: string): Promise<T | null> => {
 };
 
 type Step = "business" | "site" | "facts" | "icp" | "goal" | "question" | "sender" | "done" | "plan";
+/** The platform shared mailer's domain — the shipped `send.` subdomain
+ *  rule (product mail never rides the root domain). */
+const MANAGED_MAIL_DOMAIN = "send.clientforce.io";
+
 const STEP_ORDER: Step[] = ["business", "site", "facts", "icp", "goal", "question", "sender", "done", "plan"];
 
 const SHAPES: Array<[string, string, string]> = [
@@ -135,7 +139,12 @@ export function BoldOnboarding() {
   const [gap, setGap] = useState<{ key: string; label: string } | null>(null);
   const [gapAnswer, setGapAnswer] = useState("");
   const [replyTo, setReplyTo] = useState("");
+  const [wsSlug, setWsSlug] = useState<string | null>(null);
   const [senderAddr, setSenderAddr] = useState<string | null>(null);
+  // Review round: a failed gap read is NOT "no gaps", and a failed plans
+  // read is NOT "no tiers" — both get their own honest state.
+  const [gapsUnknown, setGapsUnknown] = useState(false);
+  const [plansError, setPlansError] = useState(false);
   const [plans, setPlans] = useState<{
     current: string;
     tiers: Array<{ name: string; priceMonthlyCents: number; limits: Record<string, unknown>; proposal: boolean }>;
@@ -180,6 +189,7 @@ export function BoldOnboarding() {
   }, [step, pollContext]);
 
   async function createWorkspace() {
+    if (busy) return;
     const name = bizName.trim();
     if (name.length < 2) {
       setErr("Give the business a name first.");
@@ -202,10 +212,14 @@ export function BoldOnboarding() {
       setErr(res.error ?? "That did not save — try again.");
       return;
     }
+    // The SERVER owns the slug (it appends a uniqueness suffix), so the
+    // sender step addresses the real workspace, never a client re-slug.
+    setWsSlug(((res.body as { slug?: string })?.slug ?? "").trim() || null);
     setStep("site");
   }
 
   async function readSite() {
+    if (busy) return;
     const url = siteUrl.trim();
     if (!/^https?:\/\//.test(url)) {
       setErr("A full address, starting https://");
@@ -213,10 +227,18 @@ export function BoldOnboarding() {
     }
     setBusy(true);
     setErr(null);
-    await post("knowledge/sources", { kind: "WEBSITE", uri: url, label: url.replace(/^https?:\/\//, "") });
-    await post("context/distill", {});
+    const saved = await post("knowledge/sources", { kind: "WEBSITE", uri: url, label: url.replace(/^https?:\/\//, "") });
+    if (!saved.ok) {
+      setBusy(false);
+      setErr(saved.error ?? "That address did not save — check it and try again.");
+      return;
+    }
+    const started = await post("context/distill", {});
     setBusy(false);
-    setCtxStatus("distilling");
+    // A refused distill is not a silent one: the facts step says she has not
+    // started reading rather than showing a reading state that is not running.
+    setCtxStatus(started.ok ? "distilling" : "none");
+    if (!started.ok) setErr("Saved your address, but she could not start reading it just now — type the facts below and she will pick the site up later.");
     setStep("facts");
   }
 
@@ -233,6 +255,7 @@ export function BoldOnboarding() {
   }
 
   async function saveIcp() {
+    if (busy) return;
     if (!icpPick) {
       setErr("Pick one — she needs to know who to work.");
       return;
@@ -251,12 +274,17 @@ export function BoldOnboarding() {
     }
     setBusy(true);
     setErr(null);
-    await post("context/answers", { key: "icp", value: text });
+    const saved = await post("context/answers", { key: "icp", value: text });
     setBusy(false);
+    if (!saved.ok) {
+      setErr(saved.error ?? "That did not save — try again.");
+      return;
+    }
     setStep("goal");
   }
 
   async function saveGoal() {
+    if (busy) return;
     if (!goalPick) {
       setErr("Pick the goal — it sets her pace and follow-up.");
       return;
@@ -275,6 +303,7 @@ export function BoldOnboarding() {
       const gaps = await getJson<{ gaps?: Array<{ key: string; label: string; status: string }> }>(
         `context/gaps?agentId=${encodeURIComponent(id)}&goal=${encodeURIComponent(goalPick)}`,
       );
+      setGapsUnknown(gaps == null);
       const open = (gaps?.gaps ?? []).find((g) => g.status === "open");
       setGap(open ? { key: open.key, label: open.label } : null);
     }
@@ -282,24 +311,34 @@ export function BoldOnboarding() {
   }
 
   async function saveGapAnswer(skip: boolean) {
+    if (busy) return;
     if (!skip && gap && gapAnswer.trim()) {
       setBusy(true);
-      await post("context/answers", { agentId: agentId ?? undefined, key: gap.key, value: gapAnswer.trim() });
+      const saved = await post("context/answers", { agentId: agentId ?? undefined, key: gap.key, value: gapAnswer.trim() });
       setBusy(false);
+      if (!saved.ok) {
+        setErr(saved.error ?? "That answer did not save — try again, or skip and she will ask in the moment.");
+        return;
+      }
     }
     setStep("sender");
   }
 
   async function createSender() {
+    if (busy) return;
     setBusy(true);
     setErr(null);
-    const slug = bizName
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 30) || "workspace";
-    const fromEmail = `outreach@${slug}.clientforce-mail.test`;
+    // The shared mailer's address is the PLATFORM domain (the shipped
+    // `send.` subdomain rule) with the SERVER's own workspace slug as the
+    // local part — never a client re-slug, which the uniqueness suffix
+    // would make wrong the moment two businesses share a name.
+    const slug = (wsSlug ?? "").trim();
+    if (!slug) {
+      setBusy(false);
+      setErr("Your workspace did not finish setting up — reload and start again.");
+      return;
+    }
+    const fromEmail = `${slug}@${MANAGED_MAIL_DOMAIN}`;
     const res = await post("senders", {
       type: "CF_MANAGED",
       fromEmail,
@@ -316,14 +355,28 @@ export function BoldOnboarding() {
   }
 
   async function toPlan() {
+    if (busy) return;
+    setBusy(true);
     const p = await getJson<typeof plans>("plans");
+    setBusy(false);
     setPlans(p);
+    setPlansError(p == null);
     setTierPick(p?.current ?? null);
     setStep("plan");
   }
 
+  async function retryPlans() {
+    if (busy) return;
+    setBusy(true);
+    const p = await getJson<typeof plans>("plans");
+    setBusy(false);
+    setPlans(p);
+    setPlansError(p == null);
+    setTierPick((cur) => cur ?? p?.current ?? null);
+  }
+
   async function chooseTier() {
-    if (!tierPick) return;
+    if (busy || !tierPick) return;
     setBusy(true);
     const res = await post("plans/choose", { tier: tierPick });
     setBusy(false);
@@ -337,7 +390,11 @@ export function BoldOnboarding() {
     window.location.href = "/bold?welcome=1";
   }
 
-  const money = (cents: number) => `$${Math.round(cents / 100)}`;
+  // D1: show the row's number, not a rounded stand-in for it.
+  const money = (cents: number) =>
+    cents % 100 === 0
+      ? `$${(cents / 100).toLocaleString("en-US")}`
+      : `$${(cents / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   return (
     <div data-testid="bold-onboarding" style={{ minHeight: "100vh", display: "flex", background: "var(--cvb-canvas,#F4F5F4)", fontFamily: "var(--cvb-font-ui, 'IBM Plex Sans', sans-serif)", color: "var(--cvb-ink,#101613)" }}>
@@ -553,10 +610,18 @@ export function BoldOnboarding() {
             <div>
               <div style={eyebrow}>SHE NEEDS THIS TO HIT THE GOAL</div>
               <h1 style={{ fontWeight: 900, fontSize: 30, letterSpacing: "-.034em", margin: "12px 0 8px" }}>
-                {gap ? `One question: ${gap.label.toLowerCase()}` : "Nothing missing right now"}
+                {gap
+                  ? `One question: ${gap.label.toLowerCase()}`
+                  : gapsUnknown
+                    ? "Her gap report did not load"
+                    : "Nothing missing right now"}
               </h1>
               <p style={{ fontSize: 13.5, color: "var(--cvb-muted)", lineHeight: 1.6, margin: "0 0 20px" }}>
-                {gap ? "Skip it and she asks you in the moment instead — she never invents it." : "Her gap report is clear for this goal — anything new she needs, she asks in the moment."}
+                {gap
+                  ? "Skip it and she asks you in the moment instead — she never invents it."
+                  : gapsUnknown
+                    ? "We could not read what she still needs for this goal just now — carry on; she asks in the moment for anything missing, and the campaign page shows the gaps once it loads."
+                    : "Her gap report is clear for this goal — anything new she needs, she asks in the moment."}
               </p>
               {gap ? (
                 <input value={gapAnswer} onChange={(e) => setGapAnswer(e.target.value)} placeholder="Type it — a sentence is plenty" data-testid="bold-onb-gap" style={input} />
@@ -621,6 +686,27 @@ export function BoldOnboarding() {
               <p style={{ fontSize: 13.5, color: "var(--cvb-muted)", lineHeight: 1.6, margin: "0 0 20px" }}>
                 Your agency pays Clientforce — nothing is charged today, and your choice is recorded, not billed.
               </p>
+              {plansError || (plans?.tiers ?? []).length === 0 ? (
+                <div
+                  data-testid="bold-onb-plans-unavailable"
+                  style={{ background: "var(--cvb-well,#FAFBFA)", border: "1px solid var(--cvb-line-ctl)", borderRadius: 16, padding: "15px 17px", fontSize: 12.5, color: "var(--cvb-muted)", lineHeight: 1.6 }}
+                >
+                  <strong>{plansError ? "The plans did not load." : "No plans are published yet."}</strong>{" "}
+                  {plansError
+                    ? "Nothing is wrong with your setup — this is our end. Try again, or open the console and pick a plan later in Settings."
+                    : "Your agency's tiers are not set in billing yet, so there is nothing to choose today. Open the console — you can pick a plan the moment they are published."}
+                  <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 14 }}>
+                    {plansError ? (
+                      <span onClick={() => void retryPlans()} data-testid="bold-onb-plans-retry" style={{ ...cta, padding: "10px 16px", fontSize: 12.5, opacity: busy ? 0.6 : 1 }}>
+                        {busy ? "Trying…" : "Try again"}
+                      </span>
+                    ) : null}
+                    <span onClick={() => { window.location.href = "/bold?welcome=1"; }} data-testid="bold-onb-skip-plan" style={ghostLink}>
+                      Open my console →
+                    </span>
+                  </div>
+                </div>
+              ) : null}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
                 {(plans?.tiers ?? []).map((t) => (
                   <div
@@ -660,11 +746,13 @@ export function BoldOnboarding() {
                 to fill and nothing to charge. When billing lands, you&rsquo;ll add a card here and the trial clock starts then — never
                 retroactively.
               </div>
-              <div style={{ marginTop: 24 }}>
-                <span onClick={() => void chooseTier()} data-testid="bold-onb-finish" style={{ ...cta, opacity: busy ? 0.6 : 1 }}>
-                  {busy ? "Saving…" : "Open my console →"}
-                </span>
-              </div>
+              {(plans?.tiers ?? []).length > 0 ? (
+                <div style={{ marginTop: 24 }}>
+                  <span onClick={() => void chooseTier()} data-testid="bold-onb-finish" style={{ ...cta, opacity: busy || !tierPick ? 0.6 : 1 }}>
+                    {busy ? "Saving…" : "Open my console →"}
+                  </span>
+                </div>
+              ) : null}
             </div>
           ) : null}
         </div>

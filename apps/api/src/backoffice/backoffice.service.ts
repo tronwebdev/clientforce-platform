@@ -411,12 +411,16 @@ export class BackofficeService {
     const agencyId = dto.agencyId ?? null;
     return this.prisma.$transaction(async (tx) => {
       const prior = await tx.plan.findFirst({ where: { agencyId, name: dto.name } });
+      // MERGE features — never replace. The column also carries entitlements
+      // the price editor knows nothing about (widget white-label reads
+      // `features.whiteLabel`), and a confirm must not silently drop them.
+      const priorFeatures = (prior?.features ?? {}) as Record<string, unknown>;
       const data = {
         agencyId,
         name: dto.name,
         priceMonthly: dto.priceMonthlyCents,
         limits: dto.limits as Prisma.InputJsonValue,
-        features: { confirmed: true } as Prisma.InputJsonValue,
+        features: { ...priorFeatures, confirmed: true } as Prisma.InputJsonValue,
       };
       const saved = prior
         ? await tx.plan.update({ where: { id: prior.id }, data })
@@ -430,6 +434,7 @@ export class BackofficeService {
           priceMonthlyCents: dto.priceMonthlyCents,
           priorPriceMonthlyCents: prior?.priceMonthly ?? null,
           limits: dto.limits,
+          priorFeatures: priorFeatures as Prisma.InputJsonValue,
         },
       });
       return saved;

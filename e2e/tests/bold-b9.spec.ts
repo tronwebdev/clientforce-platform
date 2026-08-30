@@ -26,6 +26,17 @@ const cleanup = (): void => {
   });
 };
 
+// Teardown lives in afterAll, not only an in-test finally: Playwright skips
+// finally blocks when a test times out, and a leaked tenant is a lie in the DB.
+test.afterAll(() => {
+  if (!DB_URL) return;
+  try {
+    cleanup();
+  } catch {
+    /* nothing to clean (the run skipped before sign-in) */
+  }
+});
+
 test("onboarding → plan → console: the whole first run on real writes", async ({ page }) => {
   test.skip(!DB_URL, "no fixture DB reachable (deployed staging) — the first-run flow needs teardown, so it runs on the local stack");
   test.setTimeout(180_000);
@@ -35,8 +46,10 @@ test("onboarding → plan → console: the whole first run on real writes", asyn
     // exists, so /bold answers with the onboarding, not the shell.
     await page.goto("/login");
     await page.getByLabel("Email").fill(EMAIL);
-    await page.getByRole("button", { name: "Sign in" }).click();
-    await page.waitForLoadState("domcontentloaded");
+    await Promise.all([
+      page.waitForURL((u) => !u.pathname.startsWith("/login"), { timeout: 30_000 }),
+      page.getByRole("button", { name: "Sign in" }).click(),
+    ]);
     await page.goto("/bold");
     await expect(page.getByTestId("bold-onboarding")).toBeVisible({ timeout: 15_000 });
 
@@ -55,6 +68,8 @@ test("onboarding → plan → console: the whole first run on real writes", asyn
     await expect(page.getByTestId("bold-onb-fact-offer")).toBeVisible();
     await page.getByTestId("bold-onb-fact-offer").fill("Implant consults and whitening");
     await page.getByTestId("bold-onb-fact-offer").locator("xpath=following-sibling::span[1]").click();
+    // The fact is only saved when it comes BACK from the context read.
+    await expect(page.getByTestId("bold-onboarding")).toContainText("Implant consults and whitening", { timeout: 15_000 });
     await page.getByTestId("bold-onb-facts-next").click();
 
     // Step 4 — ICP, step 5 — goal (creates the first DRAFT campaign).
@@ -78,6 +93,8 @@ test("onboarding → plan → console: the whole first run on real writes", asyn
     // Done card: the draft is inert and says so.
     await expect(page.getByTestId("bold-onb-draftcard")).toBeVisible({ timeout: 15_000 });
     await expect(page.getByTestId("bold-onb-draftcard")).toContainText("nothing sends until you say so");
+    // The shared mailer address is the PLATFORM domain, never a fixture TLD.
+    await expect(page.getByTestId("bold-onboarding")).toContainText("@SEND.CLIENTFORCE.IO");
     await page.getByTestId("bold-onb-toplan").click();
 
     // Plan step: tiers from GET /plans (D1 — no UI constants), the honest
@@ -88,12 +105,13 @@ test("onboarding → plan → console: the whole first run on real writes", asyn
     const tierCard = page.getByTestId("bold-onb-tier-GROWTH");
     if (await tierCard.isVisible().catch(() => false)) {
       await tierCard.click();
+      await page.getByTestId("bold-onb-finish").click();
     } else {
-      // Unseeded DB: no Plan rows — the honest empty state still lets the
-      // run finish (choice defaults are the API's concern, not the UI's).
-      test.skip(true, "no Plan tier rows on this deployment — seed the DB to exercise the plan step");
+      // Unpublished tiers: the step SAYS there is nothing to choose and still
+      // opens the console — an honest empty state, not a dead end.
+      await expect(page.getByTestId("bold-onb-plans-unavailable")).toBeVisible();
+      await page.getByTestId("bold-onb-skip-plan").click();
     }
-    await page.getByTestId("bold-onb-finish").click();
 
     // Hand-off: the console mounts (consoleBold was flipped in the bootstrap)
     // and the canon tour fires ONCE — STEP 1 OF 8 without any click.
@@ -130,6 +148,10 @@ test("onboarding → plan → console: the whole first run on real writes", asyn
     await expect(page.getByTestId("bold-help-drawer")).toBeVisible();
     await expect(page.getByTestId("bold-tour-card")).toHaveCount(0);
   } finally {
-    cleanup();
+    try {
+      cleanup();
+    } catch {
+      /* afterAll runs it again as the backstop */
+    }
   }
 });

@@ -35,10 +35,12 @@ describe.skipIf(!hasDb)("Onboarding + billing e2e", () => {
   let agencyId = "";
   let founderId = "";
   let agentUserId = "";
+  let otherUserId = "";
   let staffId = "";
   let founderToken: string;
   let agentToken: string;
   let staffToken: string;
+  let platformPlanId = "";
 
   const api = () => request(app.getHttpServer());
   const asFounder = () => ({ Authorization: `Bearer ${founderToken}`, "x-workspace-id": ws });
@@ -70,8 +72,12 @@ describe.skipIf(!hasDb)("Onboarding + billing e2e", () => {
   afterAll(async () => {
     await app?.close();
     if (agencyId) await owner.agency.delete({ where: { id: agencyId } }).catch(() => {});
+    // The plan.set audit row references this staff (FK Restrict) — clear the
+    // trail first or the staff row (and its audit) leak on every run.
+    await owner.backofficeAuditLog.deleteMany({ where: { operatorId: staffId } }).catch(() => {});
     await owner.platformStaff.delete({ where: { id: staffId } }).catch(() => {});
-    for (const id of [founderId, agentUserId]) {
+    if (platformPlanId) await owner.plan.delete({ where: { id: platformPlanId } }).catch(() => {});
+    for (const id of [founderId, agentUserId, otherUserId]) {
       if (id) await owner.user.delete({ where: { id } }).catch(() => {});
     }
     await owner.$disconnect();
@@ -115,12 +121,22 @@ describe.skipIf(!hasDb)("Onboarding + billing e2e", () => {
   });
 
   it("GET /plans resolves agency-over-platform per name and marks unconfirmed rows proposals (D2)", async () => {
+    // A PLATFORM default (agencyId null) and an agency row of the same name —
+    // resolution is only meaningful when both exist, so this test creates the
+    // platform row rather than relying on a seeded DB (CI never seeds).
+    platformPlanId = (
+      await owner.plan.create({
+        data: { agencyId: null, name: "SCALE", priceMonthly: 55_500, features: {}, limits: { workspaces: 3 } },
+      })
+    ).id;
     // An agency-scoped SCALE row nobody confirmed (seed-style: features {}).
     await owner.plan.create({
       data: { agencyId, name: "SCALE", priceMonthly: 99_900, features: {}, limits: { workspaces: 20 } },
     });
     const res = await api().get("/plans").set(asFounder());
     expect(res.status).toBe(200);
+    // Exactly ONE SCALE row survives resolution, and it is the agency's.
+    expect(res.body.tiers.filter((t: { name: string }) => t.name === "SCALE")).toHaveLength(1);
     expect(res.body.current).toBe("GROWTH"); // the schema default — nothing chosen yet
     const scale = res.body.tiers.find((t: { name: string }) => t.name === "SCALE");
     expect(scale).toMatchObject({
@@ -131,7 +147,10 @@ describe.skipIf(!hasDb)("Onboarding + billing e2e", () => {
     expect(scale.limits).toEqual({ workspaces: 20 });
   });
 
-  it("backoffice plan save stamps confirmed (proposal ends) and audits plan.set", async () => {
+  it("backoffice plan save stamps confirmed (proposal ends), keeps other features, audits plan.set", async () => {
+    await owner.plan.create({
+      data: { agencyId, name: "GROWTH", priceMonthly: 29_900, features: { whiteLabel: true }, limits: {} },
+    });
     const save = await api()
       .post("/backoffice/plans")
       .set(staff())
@@ -144,6 +163,8 @@ describe.skipIf(!hasDb)("Onboarding + billing e2e", () => {
       (r: { name: string; agencyId: string | null }) => r.name === "GROWTH" && r.agencyId === agencyId,
     );
     expect(growthRow?.confirmed).toBe(true);
+    const merged = await owner.plan.findFirstOrThrow({ where: { agencyId, name: "GROWTH" } });
+    expect(merged.features).toEqual({ whiteLabel: true, confirmed: true });
 
     const tenant = await api().get("/plans").set(asFounder());
     const growth = tenant.body.tiers.find((t: { name: string }) => t.name === "GROWTH");
@@ -153,12 +174,29 @@ describe.skipIf(!hasDb)("Onboarding + billing e2e", () => {
       agencyOverride: true,
     });
 
+    // The row carried an unrelated entitlement before the confirm — it must
+    // survive (the widget's white-label gate reads features.whiteLabel).
     const audit = await owner.backofficeAuditLog.findFirst({
       where: { action: "plan.set", targetId: agencyId },
       orderBy: { createdAt: "desc" },
     });
     expect(audit).not.toBeNull();
-    expect((audit?.metadata as { name?: string }).name).toBe("GROWTH");
+    const meta = audit?.metadata as { name?: string; priceMonthlyCents?: number; priorPriceMonthlyCents?: number | null };
+    expect(meta.name).toBe("GROWTH");
+    expect(meta.priceMonthlyCents).toBe(24_900);
+    // The row this save replaced was the seeded-style 29,900 proposal.
+    expect(meta.priorPriceMonthlyCents).toBe(29_900);
+
+    // A SECOND save records the price it replaced — the DEC-136 claim.
+    await api()
+      .post("/backoffice/plans")
+      .set(staff())
+      .send({ agencyId, name: "GROWTH", priceMonthlyCents: 26_900, limits: { workspaces: 5 } });
+    const audit2 = await owner.backofficeAuditLog.findFirst({
+      where: { action: "plan.set", targetId: agencyId },
+      orderBy: { createdAt: "desc" },
+    });
+    expect((audit2?.metadata as { priorPriceMonthlyCents?: number }).priorPriceMonthlyCents).toBe(24_900);
   });
 
   it("plans/choose is OWNER-only intent — records the tier, charges nothing", async () => {
@@ -178,6 +216,30 @@ describe.skipIf(!hasDb)("Onboarding + billing e2e", () => {
     expect(res.body).toMatchObject({ ok: true, current: "SCALE", charged: false });
     const agency = await owner.agency.findUniqueOrThrow({ where: { id: agencyId } });
     expect(agency.planTier).toBe("SCALE");
+  });
+
+  it("a single workspace's owner cannot re-bill a multi-workspace agency", async () => {
+    // A second workspace under the same agency, which the founder does NOT own.
+    const ws2 = await owner.workspace.create({
+      data: { agencyId, name: "Second site", slug: `ob-ws2-${suffix}`, settings: {} },
+    });
+    const other = await owner.user.create({
+      data: { email: `ob-other-${suffix}@t.test`, authProviderId: `auth|ob-o-${suffix}` },
+    });
+    otherUserId = other.id;
+    await owner.membership.create({ data: { userId: other.id, workspaceId: ws2.id, role: "OWNER" } });
+
+    const blocked = await api().post("/plans/choose").set(asFounder()).send({ tier: "STARTER" });
+    expect(blocked.status).toBe(403);
+    expect(String(blocked.body.message)).toContain("every workspace");
+    // The tier is unchanged — a refused write writes nothing.
+    expect((await owner.agency.findUniqueOrThrow({ where: { id: agencyId } })).planTier).toBe("SCALE");
+
+    // Own both, and the same call goes through.
+    await owner.membership.create({ data: { userId: founderId, workspaceId: ws2.id, role: "OWNER" } });
+    const ok = await api().post("/plans/choose").set(asFounder()).send({ tier: "STARTER" });
+    expect(ok.status).toBe(201);
+    expect((await owner.agency.findUniqueOrThrow({ where: { id: agencyId } })).planTier).toBe("STARTER");
   });
 
   it("tour-seen persists per USER through /me/settings (strict schema)", async () => {
@@ -220,7 +282,9 @@ describe.skipIf(!hasDb)("Onboarding + billing e2e", () => {
         fromEmail: `outreach-${suffix}@send.test`,
         fromName: "Bright Smile",
         status: "ACTIVE",
-        domainAuthStatus: { spf: { status: "pass" }, dkim: { status: "pass" } },
+        // The DNS checker's real vocabulary (DnsRecordState) — a fixture that
+        // invents its own would let the check rot undetected.
+        domainAuthStatus: { spf: { status: "verified", pass: true }, dkim: { status: "verified", pass: true } },
       },
     });
     const widget = await owner.widget.create({
@@ -230,10 +294,10 @@ describe.skipIf(!hasDb)("Onboarding + billing e2e", () => {
       data: { workspaceId: ws, widgetId: widget.id, agentId: agent.id },
     });
     await owner.integration.create({
-      data: { workspaceId: ws, provider: "gcal", config: {} },
+      data: { workspaceId: ws, provider: "gcal", status: "connected", config: {} },
     });
     await owner.contact.create({
-      data: { workspaceId: ws, source: "csv", optOut: {}, tags: [], email: `ob-c1-${suffix}@t.test` },
+      data: { workspaceId: ws, source: "csv_import", optOut: {}, tags: [], email: `ob-c1-${suffix}@t.test` },
     });
 
     const full = await api().get("/me/getting-started").set(asFounder());

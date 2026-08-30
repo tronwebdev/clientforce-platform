@@ -213,6 +213,7 @@ export function BoldShell({
       setWsPick(false);
       setDrawer(null);
       setHelpDrawer(false);
+      setRailOpen(true); // three of the eight anchors live on the rail
     },
     [],
   );
@@ -232,20 +233,27 @@ export function BoldShell({
 
   // First login: onboarding hands off with ?welcome=1 — fire the tour once,
   // then it collapses to the ? launcher. Seen users never re-trigger.
+  // The decision is latched in a ref BEFORE the param is stripped, so a
+  // double-invoked effect (React StrictMode in dev) re-schedules the start
+  // instead of losing it to its own cleanup.
+  const welcomeRef = useRef<boolean | null>(null);
   useEffect(() => {
-    const sp = new URLSearchParams(window.location.search);
-    if (sp.get("welcome") !== "1") return;
-    sp.delete("welcome");
-    const qs = sp.toString();
-    window.history.replaceState(null, "", window.location.pathname + (qs ? `?${qs}` : ""));
-    if (!me.user.settings?.tourSeen) {
-      const t = setTimeout(() => tourRef.current.start(), 450);
-      return () => clearTimeout(t);
+    if (welcomeRef.current == null) {
+      const sp = new URLSearchParams(window.location.search);
+      welcomeRef.current = sp.get("welcome") === "1" && !me.user.settings?.tourSeen;
+      if (sp.get("welcome") === "1") {
+        sp.delete("welcome");
+        const qs = sp.toString();
+        window.history.replaceState(null, "", window.location.pathname + (qs ? `?${qs}` : ""));
+      }
     }
-    return undefined;
-  }, []);
+    if (!welcomeRef.current) return undefined;
+    const t = setTimeout(() => tourRef.current.start(), 450);
+    return () => clearTimeout(t);
+  }, [me.user.settings?.tourSeen]);
 
   const onHelpClick = useCallback(() => {
+    if (tourRef.current.index != null) return; // inert while the tour runs
     if (!tourSeen) {
       tourRef.current.start();
       return;
@@ -693,7 +701,7 @@ export function BoldShell({
 
       <BoldDock surface={surface} onSelect={selectDock} widgetOverview={widgetOverview} />
 
-      {tour.index != null && tour.rect ? (
+      {tour.index != null && tour.rect && tour.rect.step === tour.index ? (
         <BoldTourLayer steps={tourSteps} index={tour.index} rect={tour.rect} onGo={tour.go} onSkip={tour.stop} />
       ) : null}
       {/* After the layer in the DOM so the ? stays visible through the dim —

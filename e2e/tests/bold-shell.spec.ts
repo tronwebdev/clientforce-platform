@@ -170,5 +170,12 @@ test("shell interactions: focus collapse, dock navigation, Ada panel, tour", asy
   await page.getByTestId("bold-tour-btn").click();
   await expect(page.getByTestId("bold-help-drawer")).toBeVisible();
   await expect(page.getByTestId("bold-help-drawer")).toContainText("GETTING STARTED");
+  // Server-derived rows, not a hard-coded list: every key renders with a real
+  // done-state, and the demo workspace's business core is filled in.
+  for (const key of ["core", "campaign", "sender", "widget", "calendar", "contacts"]) {
+    await expect(page.getByTestId(`bold-gs-${key}`)).toHaveAttribute("data-done", /true|false/);
+  }
+  await expect(page.getByTestId("bold-gs-core")).toHaveAttribute("data-done", "true");
+  await expect(page.getByTestId("bold-help-drawer")).toContainText(/GETTING STARTED · \d OF 6/);
   await expect(page.getByTestId("bold-tour-replay")).toBeVisible();
 });

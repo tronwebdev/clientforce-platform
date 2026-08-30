@@ -22,6 +22,9 @@ import type { GettingStartedResponse } from "./bold-live";
  */
 
 export interface TourRect {
+  /** The step index this geometry was measured for — the layer renders only
+   *  when it matches the current step, so a card never sits over a stale ring. */
+  step: number;
   x: number;
   y: number;
   w: number;
@@ -130,6 +133,7 @@ export function useBoldTour({ steps, onPre, onFinish }: UseBoldTourOptions) {
     const apply = (next: TourRect) => {
       setRect((cur) =>
         cur &&
+        cur.step === next.step &&
         cur.x === next.x &&
         cur.y === next.y &&
         cur.w === next.w &&
@@ -146,6 +150,7 @@ export function useBoldTour({ steps, onPre, onFinish }: UseBoldTourOptions) {
     const big = r.width * r.height > vw * vh * 0.42;
     if (big) {
       apply({
+        step: index,
         x: Math.round(r.left - 4),
         y: Math.round(r.top - 4),
         w: Math.round(r.width + 8),
@@ -177,6 +182,7 @@ export function useBoldTour({ steps, onPre, onFinish }: UseBoldTourOptions) {
       pick = [(vw - cw) / 2, vh - chH - 18];
     }
     apply({
+      step: index,
       x: Math.round(r.left - 4),
       y: Math.round(r.top - 4),
       w: Math.round(r.width + 8),

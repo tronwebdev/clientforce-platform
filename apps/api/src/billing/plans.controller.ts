@@ -1,8 +1,9 @@
-import { BadRequestException, Body, Controller, Get, Post } from "@nestjs/common";
+import { BadRequestException, Body, Controller, ForbiddenException, Get, Post, Req } from "@nestjs/common";
 import { z } from "zod";
 import { Role } from "@clientforce/db";
 import { PrismaService } from "../db/prisma.service";
 import { Roles } from "../auth/decorators";
+import type { AuthenticatedRequest } from "../auth/request-context";
 import { TenantClient } from "../db/tenant-client";
 
 /**
@@ -67,10 +68,26 @@ export class PlansController {
 
   @Post("choose")
   @Roles(Role.OWNER)
-  async choose(@Body() body: unknown) {
+  async choose(@Req() req: AuthenticatedRequest, @Body() body: unknown) {
     const parsed = chooseSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException("tier must be STARTER | GROWTH | SCALE");
     const agencyId = this.tenant.agencyId;
+    // The tier is an AGENCY-wide bill, so a single workspace's OWNER role is
+    // not enough authority on its own: the caller must own every workspace
+    // the agency has. (First run — one workspace — passes trivially; a
+    // multi-workspace agency routes the change to whoever owns all of it.)
+    const userId = req.auth!.user.id;
+    const [workspaces, owned] = await Promise.all([
+      this.prisma.admin.workspace.count({ where: { agencyId } }),
+      this.prisma.admin.membership.count({
+        where: { userId, role: "OWNER", workspace: { agencyId } },
+      }),
+    ]);
+    if (owned < workspaces) {
+      throw new ForbiddenException(
+        "Changing the plan bills the whole agency — an owner of every workspace in it has to make this change.",
+      );
+    }
     await this.prisma.admin.agency.update({
       where: { id: agencyId },
       data: { planTier: parsed.data.tier },
