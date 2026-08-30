@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@700;800;900&family=IBM+Plex+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>body{margin:0;background:#E7EAE8;font-family:'IBM Plex Sans',sans-serif;color:#101613;} a{color:#0E7D93;} a:hover{color:#146B33;}
+@keyframes tourPulse{0%,100%{box-shadow:0 0 0 9999px rgba(14,26,18,.48),0 0 0 0 rgba(53,232,52,.5)}50%{box-shadow:0 0 0 9999px rgba(14,26,18,.48),0 0 0 8px rgba(53,232,52,0)}}</style>
+</helmet>
+<section style="padding:26px 32px 50px;">
+  <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.2em;color:#5A6660;">PRODUCT TOUR · PROTO · 8 STEPS · ? LAUNCHER BOTTOM-RIGHT</div>
+  <div style="font-family:'Schibsted Grotesk',sans-serif;font-size:24px;font-weight:900;letter-spacing:-.03em;margin-top:5px;">The tour, rethought.</div>
+  <div style="font-size:13px;color:#5A6660;margin-top:5px;max-width:780px;line-height:1.5;">Click through it live — <b style="color:#101613;">Next / Back</b>, or the dots. The ? button (bottom-right) restarts it anytime. Story arc: Ada first, then where money shows, then what she does alone, then the controls, then where everything else lives.</div>
+  <div style="position:relative;width:1500px;height:880px;background:#EFF1F0;border:1px solid #DEE1DF;border-radius:20px;padding:18px;display:flex;gap:14px;box-sizing:border-box;margin-top:18px;overflow:hidden;">
+    <div id="t-rail" style="width:210px;flex:none;background:#FCFCFC;border:1px solid #E9EAEA;border-radius:14px;display:flex;flex-direction:column;overflow:hidden;">
+      <div style="display:flex;align-items:center;gap:8px;padding:11px 12px;border-bottom:1px solid #F1F2F2;">
+        <span style="width:24px;height:24px;border-radius:8px;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);flex:none;"></span>
+        <div style="flex:1;"><div style="font-size:12px;font-weight:800;">Bright Smile</div><div style="font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:.1em;color:#8B968F;">WORKSPACE</div></div>
+      </div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.14em;color:#8B968F;padding:10px 12px 5px;">CAMPAIGNS · 4</div>
+      <div style="display:flex;align-items:center;gap:7px;padding:7px 12px;background:#F2F7F3;border-left:2px solid #146B33;"><span style="width:6px;height:6px;border-radius:50%;background:#146B33;"></span><span style="font-size:11.5px;font-weight:700;flex:1;">Implant open day</span><span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#146B33;">8/12</span></div>
+      <div style="display:flex;align-items:center;gap:7px;padding:7px 12px;"><span style="width:6px;height:6px;border-radius:50%;background:#146B33;"></span><span style="font-size:11.5px;font-weight:600;color:#3B463F;flex:1;">Whitening push</span><span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#8B968F;">$6.4k</span></div>
+      <div style="display:flex;align-items:center;gap:7px;padding:7px 12px;"><span style="width:6px;height:6px;border-radius:50%;background:#D9A82B;"></span><span style="font-size:11.5px;font-weight:600;color:#3B463F;flex:1;">Lapsed revival</span><span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#8B968F;">$4.1k</span></div>
+      <div id="t-suggest" style="margin:10px 10px 0;background:#FCFCFC;border:1px solid #E9EAEA;border-radius:10px;padding:8px 10px;">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.14em;color:#8B968F;">✦ ADA SUGGESTS</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-top:6px;"><span style="font-size:11px;font-weight:600;flex:1;">Win back the not-nows</span><span style="font-size:10px;font-weight:700;color:#146B33;border:1px solid #CFE8D8;border-radius:7px;padding:2px 7px;">Start</span></div>
+      </div>
+      <div id="t-inbound" style="margin-top:10px;">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.14em;color:#8B968F;padding:0 12px 5px;">ALWAYS ON</div>
+        <div style="display:flex;align-items:center;gap:7px;padding:6px 12px;"><span style="width:22px;height:22px;border-radius:7px;background:#EAF2FA;border:1px solid #D6E6F2;font-size:9px;color:#0E7D93;display:flex;align-items:center;justify-content:center;">◉</span><div style="flex:1;"><div style="font-size:11px;font-weight:700;">Site agent</div><div style="font-size:9px;color:#8B968F;">2 chatting · 14 booked</div></div></div>
+        <div style="display:flex;align-items:center;gap:7px;padding:6px 12px;"><span style="width:22px;height:22px;border-radius:7px;background:#F2F3F3;border:1px solid #E4E6E5;font-size:9px;color:#5A6660;display:flex;align-items:center;justify-content:center;">☎</span><div style="flex:1;"><div style="font-size:11px;font-weight:700;">Receptionist</div><div style="font-size:9px;color:#8B968F;">$39/mo add-on</div></div></div>
+      </div>
+      <span style="flex:1;"></span>
+      <div id="t-core" style="margin:0 10px;background:#fff;border:1px solid #E9EAEA;border-radius:11px;padding:9px 10px;">
+        <div style="display:flex;align-items:center;gap:7px;"><span style="width:22px;height:22px;border-radius:8px;background:#146B33;color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;">B</span><div style="flex:1;"><div style="font-size:11px;font-weight:700;">Business core</div><div style="font-size:9px;color:#8B968F;">Implants · Austin</div></div></div>
+        <div style="display:flex;gap:5px;margin-top:6px;"><span style="font-size:8.5px;font-weight:700;color:#146B33;background:#EAF5EE;border:1px solid #CFE8D8;border-radius:999px;padding:2px 7px;">14 facts</span><span style="font-size:8.5px;font-weight:700;color:#8A6D1A;background:#F7EFDA;border:1px solid #EAD9A8;border-radius:999px;padding:2px 7px;">2 gaps</span></div>
+      </div>
+      <div id="t-credits" style="display:flex;align-items:center;gap:8px;padding:10px 12px 12px;"><span style="font-family:'Schibsted Grotesk',sans-serif;font-size:19px;font-weight:900;flex:1;">2,340</span><span style="font-size:10px;font-weight:800;color:#fff;background:#146B33;border-radius:9px;padding:6px 10px;">Top up</span></div>
+    </div>
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column;">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.16em;color:#8B968F;">CAMPAIGN · LIVE</div>
+      <div style="font-family:'Schibsted Grotesk',sans-serif;font-size:25px;font-weight:900;letter-spacing:-.04em;margin-top:2px;">Implant open day</div>
+      <div id="t-vitals" style="background:linear-gradient(180deg,#FFFFFF,#F7FAF8);border:1px solid #E4E6E5;border-radius:14px;margin-top:11px;padding:12px 16px;display:flex;align-items:center;gap:20px;">
+        <div><div style="display:flex;align-items:baseline;gap:6px;"><span style="font-family:'Schibsted Grotesk',sans-serif;font-size:22px;font-weight:900;color:#146B33;">8</span><span style="font-size:11px;color:#5A6660;">of 12 booked</span></div><div style="width:110px;height:4px;border-radius:2px;background:#E9EAEA;margin-top:5px;"><span style="display:block;width:66%;height:100%;border-radius:2px;background:#146B33;"></span></div></div>
+        <span style="width:1px;height:28px;background:#E9EAEA;"></span>
+        <div><div style="font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:.14em;color:#8B968F;">POTENTIAL</div><div style="font-size:13.5px;font-weight:800;margin-top:2px;">$19.2k</div></div>
+        <div><div style="font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:.14em;color:#8B968F;">REALIZED</div><div style="font-size:13.5px;font-weight:800;color:#146B33;margin-top:2px;">$4,800</div></div>
+        <div><div style="font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:.14em;color:#8B968F;">REPLY</div><div style="font-size:13.5px;font-weight:800;margin-top:2px;">19%</div></div>
+        <span style="flex:1;"></span>
+        <span style="font-size:10.5px;font-weight:700;color:#3E4B44;background:#F2F3F3;border:1px solid #E4E6E5;border-radius:9px;padding:6px 10px;">Edit value</span>
+      </div>
+      <div id="t-feed" style="background:#FCFCFC;border:1px solid #E4E6E5;border-radius:14px;margin-top:11px;flex:1;overflow:hidden;">
+        <div style="padding:11px 14px;border-bottom:1px solid #F1F2F2;display:flex;align-items:center;gap:10px;"><span style="width:3px;height:26px;border-radius:2px;background:#146B33;"></span><div style="flex:1;"><div style="font-size:12px;font-weight:600;">Dr. Alvarez booked — Tue 10:30 <span style="font-size:9.5px;font-weight:700;color:#146B33;background:#EAF5EE;border:1px solid #CFE8D8;border-radius:999px;padding:1px 7px;">+$2,400</span></div><div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#8B968F;">Booked · 1:58 PM</div></div></div>
+        <div id="t-approve" style="padding:11px 14px;border-bottom:1px solid #F1F2F2;display:flex;align-items:center;gap:10px;background:#FDFBF4;"><span style="width:3px;height:26px;border-radius:2px;background:#EAD9A8;"></span><div style="flex:1;"><div style="font-size:12px;font-weight:600;">Reply from Sofia — "payment plan?"</div><div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#8B968F;">Needs you · 1:40 PM</div></div><span style="font-size:10px;font-weight:700;color:#fff;background:#146B33;border-radius:8px;padding:4px 9px;">✦ Draft reply</span></div>
+        <div style="padding:11px 14px;display:flex;align-items:center;gap:10px;"><span style="width:3px;height:26px;border-radius:2px;background:#CFE8D8;"></span><div style="flex:1;"><div style="font-size:12px;font-weight:600;">✦ Sent the open-day invite to 12 leads</div><div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#8B968F;">Send · 2:12 PM · 12 cr</div></div></div>
+      </div>
+      <div id="t-ada" style="display:flex;align-items:center;gap:9px;margin-top:11px;background:#fff;border:1px solid #DEE1DF;border-radius:999px;padding:8px 9px 8px 14px;">
+        <span style="width:16px;height:16px;border-radius:5px;background:linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B);"></span>
+        <span style="font-size:11.5px;color:#8B968F;flex:1;">Ask Ada anything — "why is this working?"</span>
+        <span style="width:26px;height:26px;border-radius:50%;background:#146B33;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;">↑</span>
+      </div>
+    </div>
+    <div id="t-dock" style="width:40px;flex:none;display:flex;flex-direction:column;gap:6px;align-items:center;">
+      <sc-for list="{{ dockGlyphs }}" as="g" hint-placeholder-count="11"><span style="width:34px;height:34px;border-radius:11px;background:#FCFCFC;border:1px solid #E9EAEA;display:flex;align-items:center;justify-content:center;font-size:12px;color:#5A6660;">{{ g }}</span></sc-for>
+    </div>
+    <sc-if value="{{ tourOpen }}" hint-placeholder-val="{{ true }}">
+      <div style="{{ spotStyle }}"></div>
+      <div style="{{ cardStyle }}">
+        <div style="display:flex;align-items:center;gap:8px;"><span style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.14em;color:#146B33;font-weight:600;">STEP {{ stepN }} OF 8</span><span style="flex:1;"></span><span onClick="{{ closeTour }}" style="font-size:11px;color:#8B968F;cursor:pointer;">Skip tour ✕</span></div>
+        <div style="font-family:'Schibsted Grotesk',sans-serif;font-size:16.5px;font-weight:900;letter-spacing:-.02em;margin-top:7px;">{{ stepTitle }}</div>
+        <div style="font-size:12px;color:#3B463F;line-height:1.55;margin-top:5px;">{{ stepBody }}</div>
+        <div style="display:flex;align-items:center;gap:5px;margin-top:12px;">
+          <sc-for list="{{ dots }}" as="d" hint-placeholder-count="8"><span onClick="{{ d.go }}" style="{{ d.style }}"></span></sc-for>
+          <span style="flex:1;"></span>
+          <sc-if value="{{ hasBack }}" hint-placeholder-val="{{ false }}"><span onClick="{{ back }}" style="font-size:11.5px;font-weight:700;color:#3E4B44;border:1px solid #E4E6E5;border-radius:9px;padding:6px 12px;cursor:pointer;">Back</span></sc-if>
+          <span onClick="{{ next }}" style="font-size:11.5px;font-weight:800;color:#fff;background:#146B33;border-radius:9px;padding:6px 14px;cursor:pointer;">{{ nextLabel }}</span>
+        </div>
+      </div>
+    </sc-if>
+    <sc-if value="{{ drawerOpen }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute;right:16px;bottom:64px;width:290px;background:#fff;border:1px solid #DEE1DF;border-radius:16px;padding:15px 17px;box-shadow:0 24px 48px -18px rgba(16,22,19,.4);z-index:60;">
+        <div style="display:flex;align-items:center;gap:8px;"><span style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.16em;color:#8B968F;">GETTING STARTED · 3 OF 6</span><span style="flex:1;"></span><span onClick="{{ closeDrawer }}" style="font-size:11px;color:#8B968F;cursor:pointer;">✕</span></div>
+        <div style="display:flex;flex-direction:column;gap:0;margin-top:9px;">
+          <sc-for list="{{ checklist }}" as="c" hint-placeholder-count="5">
+            <div style="display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid #F1F2F2;">
+              <span style="{{ c.dotStyle }}">{{ c.mark }}</span>
+              <span style="{{ c.labelStyle }}">{{ c.label }}</span>
+            </div>
+          </sc-for>
+        </div>
+        <div onClick="{{ startFromDrawer }}" style="display:flex;align-items:center;justify-content:center;gap:7px;margin-top:12px;font-size:12px;font-weight:800;color:#fff;background:#146B33;border-radius:10px;padding:9px 0;cursor:pointer;">Start the product tour</div>
+      </div>
+    </sc-if>
+    <div onClick="{{ onHelpClick }}" title="Help & tour" style="position:absolute;right:16px;bottom:16px;width:38px;height:38px;border-radius:50%;background:#146B33;color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Schibsted Grotesk',sans-serif;font-size:17px;font-weight:900;cursor:pointer;box-shadow:0 6px 16px -6px rgba(16,22,19,.45);z-index:60;">?</div>
+  </div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1580,&quot;height&quot;:1030}}">
+class Component extends DCLogic {
+  state = { step: 0, open: true, drawer: false, toured: false };
+  steps() {
+    return [
+      {t:"Meet Ada — she runs the work", b:"This bar is the whole product. Ask anything in plain words — she prospects, writes, calls, books and reports back. Everything else on this screen is her work, visible.", r:{x:242,y:806,w:1200,h:52}, c:{x:560,y:640}},
+      {t:"Campaigns are goals, not blasts", b:"Each row is one goal with its own money math — live dot, progress, value. Ada suggests new ones (✦) when your own data says there's money on the table.", r:{x:18,y:64,w:210,h:185}, c:{x:250,y:120}},
+      {t:"The money is always visible", b:"Booked, potential at your price, realized when payment lands. Set the value once ('Edit value') and every number on this page speaks dollars honestly — no vanity metrics.", r:{x:242,y:74,w:1200,h:84}, c:{x:560,y:180}},
+      {t:"Watch it happen live", b:"Every send, reply, booking and call lands here as it happens — with Ada's own notes on what she's learning. Money moments get the mint chip.", r:{x:242,y:170,w:1200,h:200}, c:{x:560,y:390}},
+      {t:"When she needs you, it's one tap", b:"Amber rows wait for your yes — a reply to approve, a call to allow. You choose how much she decides alone in Settings; the safety rails always hold.", r:{x:242,y:193,w:1200,h:62}, c:{x:560,y:280}},
+      {t:"Inbound never sleeps", b:"The Site agent chats and books from your website around the clock; the Receptionist add-on answers your phone line. Same brain, same business facts.", r:{x:18,y:250,w:210,h:104}, c:{x:250,y:270}},
+      {t:"She only says what you told her", b:"Business core is Ada's memory — your prices, hours, policies. Facts she quotes; gaps she won't invent, she asks. Credits below meter what her work costs.", r:{x:18,y:739,w:210,h:126}, c:{x:250,y:660}},
+      {t:"Everything else, one column", b:"Calls, inbox, contacts, lead finder, automations, forms, proposals, stats — the dock. And this tour lives under the ? button, whenever you want it again.", r:{x:1444,y:14,w:44,h:480}, c:{x:1130,y:150}}
+    ];
+  }
+  renderVals() {
+    const i = this.state.step, S = this.steps(), s = S[i];
+    const px = n => n + "px";
+    return {
+      tourOpen: this.state.open, stepN: i + 1, stepTitle: s.t, stepBody: s.b,
+      spotStyle: {position:"absolute", left:px(s.r.x-6), top:px(s.r.y-6), width:px(s.r.w+12), height:px(s.r.h+12), borderRadius:"16px", border:"2px solid #35E834", animation:"tourPulse 2.4s ease-in-out infinite", zIndex:50, pointerEvents:"none"},
+      cardStyle: {position:"absolute", left:px(s.c.x), top:px(s.c.y), width:"330px", background:"#fff", border:"1px solid #DEE1DF", borderRadius:"16px", padding:"15px 17px", boxShadow:"0 24px 48px -18px rgba(16,22,19,.4)", zIndex:55},
+      dots: S.map((_, n) => ({go: () => this.setState({step: n}), style: {width:"7px", height:"7px", borderRadius:"50%", background: n === i ? "#146B33" : "#DEE1DF", cursor:"pointer"}})),
+      hasBack: i > 0, nextLabel: i === 7 ? "Done ✓" : "Next",
+      next: () => i === 7 ? this.setState({open:false, toured:true}) : this.setState({step: i + 1}),
+      back: () => this.setState({step: Math.max(0, i - 1)}),
+      closeTour: () => this.setState({open:false, toured:true}),
+      onHelpClick: () => this.state.toured ? this.setState({drawer: !this.state.drawer}) : this.setState({open:true, step:0}),
+      closeDrawer: () => this.setState({drawer:false}),
+      startFromDrawer: () => this.setState({drawer:false, open:true, step:0}),
+      drawerOpen: this.state.drawer && !this.state.open,
+      checklist: [
+        {label:"Business core filled in", done:true}, {label:"First campaign live", done:true},
+        {label:"Email sender verified", done:true}, {label:"Site agent on your website", done:false},
+        {label:"Calendar connected", done:false}, {label:"Contacts imported", done:false}
+      ].map(c => ({label:c.label, mark: c.done ? "✓" : "", 
+        dotStyle:{width:"17px",height:"17px",borderRadius:"50%",flex:"none",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"10px",fontWeight:"700",background:c.done?"#EAF5EE":"#F2F3F3",border:c.done?"1px solid #CFE8D8":"1px solid #E4E6E5",color:"#146B33"},
+        labelStyle:{fontSize:"12px",fontWeight:"600",color:c.done?"#8B968F":"#101613",textDecoration:c.done?"line-through":"none"}})),
+      dockGlyphs: ["☎","✉","◎","⌕","⚡","▤","💬","▢","▥","𝍢","⚙"]
+    };
+  }
+}
+</script>
+</body>
+</html>
