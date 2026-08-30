@@ -187,6 +187,11 @@ export class StatsController {
       const replied = repliedSet.size;
       const booked = bookedEnrollments.size;
       const won = wonEnrollments.size;
+      // Booked enrollments whose contact never replied — the receipt behind
+      // the "funnel rose" note (a real count from the same rows).
+      const bookedNoReply = [...bookedEnrollments.values()].filter(
+        (e) => !e.contactId || !repliedSet.has(e.contactId),
+      ).length;
 
       // The deterministic reading: facts with receipts from THESE aggregates
       // only — no advice, no prediction (acting on a reading is Q-116).
@@ -229,8 +234,22 @@ export class StatsController {
           { key: "opened", label: "Opened", count: openedSet.size, note: "email opens only" },
           { key: "replied", label: "Replied", count: replied },
           { key: "interested", label: "Interested", count: interestedSet.size },
-          { key: "booked", label: "Booked", count: booked },
-          { key: "won", label: "Won", count: won },
+          // B8 review fix: booked/won are OUTCOME rows, not drop stages — a
+          // booking can arrive without any reply (inbound, the site agent),
+          // so the funnel can legitimately "rise". The rows are marked
+          // outcome for the surface's visual split, and when the count
+          // exceeds an earlier stage the row carries a COMPUTED receipt in
+          // the Opened-note pattern (real rows, never copy).
+          {
+            key: "booked",
+            label: "Booked",
+            count: booked,
+            outcome: true,
+            ...(bookedNoReply > 0 && booked > interestedSet.size
+              ? { note: `bookings can arrive without a reply — ${bookedNoReply} of ${booked} came without one` }
+              : {}),
+          },
+          { key: "won", label: "Won", count: won, outcome: true },
         ],
         channels,
         reading,

@@ -71,6 +71,12 @@ test("the campaign Stats tab renders real aggregates from the seeded history", a
   await expect(page.getByText("WHERE PEOPLE DROP")).toBeVisible();
   await expect(page.getByText("email opens only")).toBeVisible();
 
+  // B8 review fix: Booked/Won are OUTCOME rows below their own rule, and a
+  // rising count carries the computed receipt (the seeded history has
+  // bookings that arrived without a reply).
+  await expect(page.getByTestId("bold-stats-outcomes-rule")).toContainText("WHAT CAME OF IT");
+  await expect(page.getByTestId("bold-stats-outcome-note-booked")).toContainText(/\d+ of \d+ came without one/);
+
   // By-channel carries the honest no-cost line, never a made-up $.
   await expect(page.getByText("Cost per booking arrives when sends and minutes start metering", { exact: false })).toBeVisible();
 

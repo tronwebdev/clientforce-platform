@@ -1040,7 +1040,7 @@ export interface BoldStatsResponse {
     estValueCents: number | null;
     collectedCents: number | null;
   };
-  funnel: Array<{ key: string; label: string; count: number; note?: string }>;
+  funnel: Array<{ key: string; label: string; count: number; note?: string; outcome?: boolean }>;
   channels: Array<{ channel: string; sent: number; repliers: number; booked: number }>;
   reading: string[];
 }

@@ -147,22 +147,57 @@ export function BoldStatsView({ agentId }: { agentId?: string }) {
           Nothing reached anyone in this window yet — the funnel draws itself from the first send.
         </div>
       ) : (
-        (data?.funnel ?? []).map((f) => (
-          <div key={f.key} style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 11 }}>
-            <span style={{ width: 88, flex: "none", fontSize: 12.5, fontWeight: 700, letterSpacing: "-.016em" }}>
-              {f.label}
-              {f.note ? <span style={{ display: "block", fontSize: 9, fontWeight: 500, color: "var(--cvb-ghost)" }}>{f.note}</span> : null}
-            </span>
-            <div style={{ flex: 1, minWidth: 0, height: 38, borderRadius: 11, background: "var(--cvb-well)", overflow: "hidden" }}>
-              <span style={{ display: "flex", alignItems: "center", height: 38, width: `${Math.max(6, Math.round((f.count / maxFunnel) * 100))}%`, background: f.key === "booked" || f.key === "won" ? "var(--cvb-mint)" : f.key === "replied" || f.key === "interested" ? "var(--cvb-cyan-tint,#D5EAF0)" : "var(--cvb-panel)", borderRadius: 11, paddingLeft: 13 }}>
-                <span style={{ fontWeight: 900, fontSize: 16, letterSpacing: "-.028em" }}>{f.count}</span>
-              </span>
-            </div>
-            <span style={{ width: 44, flex: "none", ...mono, fontSize: 10.5, color: "var(--cvb-faint)", textAlign: "right" }}>
-              {maxFunnel > 0 && (data?.funnel?.[0]?.count ?? 0) > 0 ? `${Math.round((f.count / (data!.funnel[0]!.count || 1)) * 100)}%` : "—"}
-            </span>
+        <>
+          {/* B8 review fix: the DROP path stops at Interested. Booked/Won are
+              OUTCOMES — a booking can arrive without any reply (inbound, the
+              site agent), so drawing them on the drop path reads as a bug the
+              moment the "funnel" rises. They render below their own rule, and
+              a rising count carries the server's computed receipt. */}
+          {(data?.funnel ?? [])
+            .filter((f) => !f.outcome)
+            .map((f) => (
+              <div key={f.key} style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 11 }}>
+                <span style={{ width: 88, flex: "none", fontSize: 12.5, fontWeight: 700, letterSpacing: "-.016em" }}>
+                  {f.label}
+                  {f.note ? <span style={{ display: "block", fontSize: 9, fontWeight: 500, color: "var(--cvb-ghost)" }}>{f.note}</span> : null}
+                </span>
+                <div style={{ flex: 1, minWidth: 0, height: 38, borderRadius: 11, background: "var(--cvb-well)", overflow: "hidden" }}>
+                  <span style={{ display: "flex", alignItems: "center", height: 38, width: `${Math.max(6, Math.round((f.count / maxFunnel) * 100))}%`, background: f.key === "replied" || f.key === "interested" ? "var(--cvb-cyan-tint,#D5EAF0)" : "var(--cvb-panel)", borderRadius: 11, paddingLeft: 13 }}>
+                    <span style={{ fontWeight: 900, fontSize: 16, letterSpacing: "-.028em" }}>{f.count}</span>
+                  </span>
+                </div>
+                <span style={{ width: 44, flex: "none", ...mono, fontSize: 10.5, color: "var(--cvb-faint)", textAlign: "right" }}>
+                  {maxFunnel > 0 && (data?.funnel?.[0]?.count ?? 0) > 0 ? `${Math.round((f.count / (data!.funnel[0]!.count || 1)) * 100)}%` : "—"}
+                </span>
+              </div>
+            ))}
+          <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "20px 0 12px" }} data-testid="bold-stats-outcomes-rule">
+            <span style={{ ...mono, fontSize: 9.5, letterSpacing: ".18em", color: "var(--cvb-forest)" }}>WHAT CAME OF IT</span>
+            <span style={{ flex: 1, height: 1, background: "var(--cvb-mint-line)" }} />
           </div>
-        ))
+          {(data?.funnel ?? [])
+            .filter((f) => f.outcome)
+            .map((f) => (
+              <div key={f.key} data-testid={`bold-stats-outcome-${f.key}`} style={{ marginBottom: 11 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                  <span style={{ width: 88, flex: "none", fontSize: 12.5, fontWeight: 700, letterSpacing: "-.016em", color: "var(--cvb-forest-ink,#0E3D22)" }}>{f.label}</span>
+                  <div style={{ flex: 1, minWidth: 0, height: 38, borderRadius: 11, background: "var(--cvb-well)", overflow: "hidden" }}>
+                    <span style={{ display: "flex", alignItems: "center", height: 38, width: `${Math.max(6, Math.round((f.count / maxFunnel) * 100))}%`, background: "var(--cvb-mint)", border: "1px solid var(--cvb-mint-line)", borderRadius: 11, paddingLeft: 13, boxSizing: "border-box" }}>
+                      <span style={{ fontWeight: 900, fontSize: 16, letterSpacing: "-.028em", color: "var(--cvb-forest-ink,#0E3D22)" }}>{f.count}</span>
+                    </span>
+                  </div>
+                  <span style={{ width: 44, flex: "none", ...mono, fontSize: 10.5, color: "var(--cvb-faint)", textAlign: "right" }}>
+                    {maxFunnel > 0 && (data?.funnel?.[0]?.count ?? 0) > 0 ? `${Math.round((f.count / (data!.funnel[0]!.count || 1)) * 100)}%` : "—"}
+                  </span>
+                </div>
+                {f.note ? (
+                  <div data-testid={`bold-stats-outcome-note-${f.key}`} style={{ ...mono, fontSize: 9.5, color: "var(--cvb-forest)", margin: "5px 0 0 102px", lineHeight: 1.5 }}>
+                    {f.note}
+                  </div>
+                ) : null}
+              </div>
+            ))}
+        </>
       )}
 
       <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 32 }}>

@@ -75,8 +75,12 @@ test("Preview a call: the pitch's scripted demo runs labeled through the card an
   await signIn(page);
   if (!(await toBold(page))) test.skip(true, "consoleBold flag off for the demo workspace");
 
-  await page.getByTestId("bold-dock-rcp").click();
-  await expect(page.getByTestId("bold-rcp")).toBeVisible();
+  // The receptionist tile needs the flags read — re-click until the panel
+  // opens (the bold-b4 toPass posture; a pre-flags click flashes instead).
+  await expect(async () => {
+    await page.getByTestId("bold-dock-rcp").click();
+    await expect(page.getByTestId("bold-rcp")).toBeVisible({ timeout: 2_500 });
+  }).toPass({ timeout: 20_000 });
   await page.getByTestId("bold-rcp-preview").click();
   // The prototype's handoff: the drawer leaves, the card rises.
   await expect(page.getByTestId("bold-rcp")).toBeHidden();

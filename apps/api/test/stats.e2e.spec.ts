@@ -77,6 +77,7 @@ describe.skipIf(!hasDb)("Stats e2e", () => {
     const c1 = await mkContact(1); // books via SMS
     const c2 = await mkContact(2); // replies only
     const c3 = await mkContact(3); // reached only, older
+    const c4 = await mkContact(4); // books WITHOUT ever replying (inbound-style)
     const enr = await owner.enrollment.create({
       data: { workspaceId: ws, campaignId: campA.id, contactId: c1.id, workflowId: `st-${suffix}-1`, pipelineStage: "won", status: "DONE" },
     });
@@ -91,6 +92,15 @@ describe.skipIf(!hasDb)("Stats e2e", () => {
     await msg({ workspaceId: ws, campaignId: campA.id, contactId: c2.id, channel: "email", direction: "INBOUND", intent: "question", body: "how", sentAt: daysAgo(4) });
     // c3: an OLD outbound on campaign B (outside 7d).
     await msg({ workspaceId: ws, campaignId: campB.id, contactId: c3.id, channel: "email", direction: "OUTBOUND", body: "t", sentAt: daysAgo(20) });
+    // c4: reached, never replied, still books — the funnel legitimately
+    // "rises" (B8 review fix: outcome rows + the computed receipt).
+    const enr4 = await owner.enrollment.create({
+      data: { workspaceId: ws, campaignId: campA.id, contactId: c4.id, workflowId: `st-${suffix}-4`, pipelineStage: "booked", status: "ACTIVE" },
+    });
+    await msg({ workspaceId: ws, campaignId: campA.id, enrollmentId: enr4.id, contactId: c4.id, channel: "email", direction: "OUTBOUND", body: "t", sentAt: daysAgo(6) });
+    await owner.event.create({
+      data: { workspaceId: ws, type: "lead.stage_changed.v1", campaignId: campA.id, enrollmentId: enr4.id, contactId: c4.id, payload: { fromStage: "contacted", toStage: "booked" }, occurredAt: daysAgo(5) },
+    });
 
     const ev = (data: Record<string, unknown>) => owner.event.create({ data: data as never });
     await ev({ workspaceId: ws, type: "email.opened.v1", campaignId: campA.id, contactId: c2.id, payload: {}, occurredAt: daysAgo(4) });
@@ -117,13 +127,20 @@ describe.skipIf(!hasDb)("Stats e2e", () => {
 
   it("workspace scope: tiles and funnel from real rows, distinct-contact semantics", async () => {
     const res = await api().get("/stats?range=30").set(asOwner()).expect(200);
-    expect(res.body.tiles.reached).toBe(3);
+    expect(res.body.tiles.reached).toBe(4);
     expect(res.body.tiles.replied).toBe(2);
-    expect(res.body.tiles.booked).toBe(1);
+    expect(res.body.tiles.booked).toBe(2);
     const byKey = Object.fromEntries(res.body.funnel.map((f: { key: string; count: number }) => [f.key, f.count]));
     expect(byKey.opened).toBe(1);
     expect(byKey.interested).toBe(1); // c1's "interested"; c2's "question" is not positive
     expect(byKey.won).toBe(1);
+    // B8 review fix: booked (2) exceeds interested (1) because c4 booked
+    // without replying — the booked row is an OUTCOME row carrying the
+    // computed receipt, and won is outcome-marked too.
+    const bookedRow = res.body.funnel.find((f: { key: string }) => f.key === "booked");
+    expect(bookedRow.outcome).toBe(true);
+    expect(bookedRow.note).toBe("bookings can arrive without a reply — 1 of 2 came without one");
+    expect(res.body.funnel.find((f: { key: string }) => f.key === "won").outcome).toBe(true);
     // Below the 20-send floor: counts real, rates honestly null.
     expect(res.body.floors.totalSent).toBeLessThan(res.body.floors.low);
     expect(res.body.tiles.repliedPct).toBeNull();
@@ -135,7 +152,7 @@ describe.skipIf(!hasDb)("Stats e2e", () => {
     const email = res.body.channels.find((c: { channel: string }) => c.channel === "email");
     const voice = res.body.channels.find((c: { channel: string }) => c.channel === "voice");
     expect(sms.booked).toBe(1);
-    expect(email.booked).toBe(0);
+    expect(email.booked).toBe(1); // c4's no-reply booking, last outbound email
     expect(voice.sent).toBe(1);
     expect(res.body.tiles.collectedCents).toBe(12_300);
     expect(res.body.tiles.estValueCents).toBe(10_000); // 1 won × the owner's estimate
@@ -143,9 +160,9 @@ describe.skipIf(!hasDb)("Stats e2e", () => {
 
   it("range and campaign scoping exclude the other rows", async () => {
     const seven = await api().get("/stats?range=7").set(asOwner()).expect(200);
-    expect(seven.body.tiles.reached).toBe(2); // c3's 20-day-old touch drops out
+    expect(seven.body.tiles.reached).toBe(3); // c3's 20-day-old touch drops out
     const scoped = await api().get(`/stats?range=30&agentId=${agentA}`).set(asOwner()).expect(200);
     expect(scoped.body.scope).toBe("campaign");
-    expect(scoped.body.tiles.reached).toBe(2); // campaign B's contact excluded
+    expect(scoped.body.tiles.reached).toBe(3); // campaign B's contact excluded
   });
 });
