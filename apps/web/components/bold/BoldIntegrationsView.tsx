@@ -32,14 +32,23 @@ const STATUS_CHIP: Record<string, [string, string, string, string]> = {
   revoked: ["Revoked", "#B0483A", "#FBEEEA", "#F0D2CB"],
 };
 
-export function BoldIntegrationsView({ flash }: { flash: (m: string) => void }) {
+export function BoldIntegrationsView({
+  flash,
+  onCount,
+}: {
+  flash: (m: string) => void;
+  /** B8: the shell's LIVE eyebrow — the real connected count, never canned. */
+  onCount?: (connected: number | null) => void;
+}) {
   const [statuses, setStatuses] = useState<Map<string, IntegrationStatusRow> | null>(null);
   const [open, setOpen] = useState<CatalogEntry | null>(null);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
-    setStatuses(await fetchIntegrationStatuses());
-  }, []);
+    const map = await fetchIntegrationStatuses();
+    setStatuses(map);
+    onCount?.([...map.values()].filter((r) => r.status === "connected").length);
+  }, [onCount]);
   useEffect(() => {
     void load();
   }, [load]);

@@ -123,6 +123,8 @@ export function BoldShell({
   /** Bumped when a guided build lands — remounts the surface so the new row shows. */
   const [gbTick, setGbTick] = useState(0);
   const [formCounts, setFormCounts] = useState<{ n: number; responses: number } | null>(null);
+  // B8 (DEC-135): the integrations eyebrow's live connected count.
+  const [intCount, setIntCount] = useState<number | null>(null);
   const [propCount, setPropCount] = useState<number | null>(null);
   const [autoCounts, setAutoCounts] = useState<{ n: number; on: number } | null>(null);
   const onFormCounts = useCallback((n: number, responses: number) => setFormCounts({ n, responses }), []);
@@ -374,7 +376,9 @@ export function BoldShell({
                     ? ([propCount == null ? "DOCUMENTS" : `${propCount} DOCUMENT${propCount === 1 ? "" : "S"}`, "Proposals"] as const)
                     : surface === "automations"
                       ? ([autoCounts ? `${autoCounts.n} RULE${autoCounts.n === 1 ? "" : "S"} · ${autoCounts.on} ON` : "RULES", "Automations"] as const)
-                      : SURFACE_TITLES[surface];
+                      : surface === "integrations"
+                        ? ([intCount == null ? "WORKSPACE" : `${intCount} CONNECTED`, "Integrations"] as const)
+                        : SURFACE_TITLES[surface];
   const status =
     onCampaign && activeCamp
       ? activeCamp.status === "ACTIVE"
@@ -599,7 +603,7 @@ export function BoldShell({
             ) : null}
             {surface === "credits" ? <BoldCreditsView /> : null}
             {surface === "analytics" ? <BoldStatsView /> : null}
-            {surface === "integrations" ? <BoldIntegrationsView flash={flash} /> : null}
+            {surface === "integrations" ? <BoldIntegrationsView flash={flash} onCount={setIntCount} /> : null}
             {gb ? (
               <BoldGuidedBuild
                 kind={gb}
