@@ -33,8 +33,8 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const UNIT = process.argv[2] ?? "b1";
-if (!["b1", "b2", "b25", "b26", "b3", "b3b", "b3c1", "b3c2", "b3d", "b4", "b45", "b5", "b6", "b7"].includes(UNIT)) {
-  console.error(`Unknown unit "${UNIT}" — this tool knows b1, b2, b25, b26, b3, b3b, b3c1, b3c2, b3d, b4, b45, b5, b6 and b7.`);
+if (!["b1", "b2", "b25", "b26", "b3", "b3b", "b3c1", "b3c2", "b3d", "b4", "b45", "b5", "b6", "b7", "b8"].includes(UNIT)) {
+  console.error(`Unknown unit "${UNIT}" — this tool knows b1, b2, b25, b26, b3, b3b, b3c1, b3c2, b3d, b4, b45, b5, b6, b7 and b8.`);
   process.exit(1);
 }
 const OUT = join(ROOT, "docs", "fidelity", UNIT);
@@ -152,6 +152,44 @@ const toBoldCampaign = async (p) => {
 };
 
 
+
+/* ---------------------------------------------------------------- the b8 set */
+if (UNIT === "b8") {
+  await run("prototype-b8", async () => {
+    const p = await page({ width: 1440, height: 900 });
+    await freshProto(p);
+    // The campaign Stats tab, then the workspace analytics + integrations.
+    await p.getByText("Stats", { exact: true }).first().click();
+    await p.waitForTimeout(900);
+    await shot(p, "proto-camp-stats-1440x900");
+    await p.locator('[title^="Analytics"]').first().click();
+    await p.waitForTimeout(900);
+    await shot(p, "proto-analytics-1440x900");
+    await p.locator('[title^="Integrations"]').first().click();
+    await p.waitForTimeout(900);
+    await shot(p, "proto-integrations-1440x900");
+    await p.context().close();
+  });
+
+  await run("build-b8", async () => {
+    const p = await page({ width: 1440, height: 900 });
+    await signInBuild(p);
+    await toBoldCampaign(p);
+    await p.getByText("Stats", { exact: true }).click();
+    await p.getByTestId("bold-stats").waitFor({ timeout: 15_000 });
+    await p.waitForTimeout(1600); // the /stats read settles
+    await shot(p, "build-camp-stats-1440x900");
+    await p.getByTestId("bold-dock-analytics").click();
+    await p.getByTestId("bold-stats").waitFor({ timeout: 15_000 });
+    await p.waitForTimeout(1600);
+    await shot(p, "build-analytics-1440x900");
+    await p.getByTestId("bold-dock-integrations").click();
+    await p.getByTestId("bold-integrations").waitFor({ timeout: 15_000 });
+    await p.waitForTimeout(1200);
+    await shot(p, "build-integrations-1440x900");
+    await p.context().close();
+  });
+}
 
 /* ---------------------------------------------------------------- the b7 set */
 if (UNIT === "b7") {

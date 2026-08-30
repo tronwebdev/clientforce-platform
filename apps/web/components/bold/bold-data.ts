@@ -60,7 +60,9 @@ export const SURFACE_TITLES: Record<Exclude<BoldSurface, "campaign">, [string, s
   analytics: ["WORKSPACE · ALL CAMPAIGNS", "Analytics"],
   wssettings: ["WORKSPACE", "Settings"],
   wsinbox: ["WORKSPACE · 5 CONVERSATIONS", "Inbox"],
-  integrations: ["3 CONNECTED · 2 ADD-ONS", "Integrations"],
+  // B8 (DEC-135): the eyebrow count is LIVE (the shell overrides with the
+  // real connected count) — the B0 fixture string is retired.
+  integrations: ["WORKSPACE", "Integrations"],
   rcp: ["ADD-ON · INBOUND CALLS", "AI Receptionist"],
   activity: ["AGENT ACTIVITY", "Everything Ada did"],
   // B2.5 (DEC-108): the create-campaign surface (prototype `SURF.newcamp`).

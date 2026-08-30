@@ -34,6 +34,8 @@ import { BoldGuidedBuild, type GuildKind } from "./BoldGuidedBuild";
 import { BoldLeadFinderView } from "./BoldLeadFinderView";
 import { BoldWsSettingsView } from "./BoldWsSettingsView";
 import { BoldCreditsView } from "./BoldCreditsView";
+import { BoldStatsView } from "./BoldStatsView";
+import { BoldIntegrationsView } from "./BoldIntegrationsView";
 import {
   SURFACE_TITLES,
   TOUR_STEPS,
@@ -121,6 +123,8 @@ export function BoldShell({
   /** Bumped when a guided build lands — remounts the surface so the new row shows. */
   const [gbTick, setGbTick] = useState(0);
   const [formCounts, setFormCounts] = useState<{ n: number; responses: number } | null>(null);
+  // B8 (DEC-135): the integrations eyebrow's live connected count.
+  const [intCount, setIntCount] = useState<number | null>(null);
   const [propCount, setPropCount] = useState<number | null>(null);
   const [autoCounts, setAutoCounts] = useState<{ n: number; on: number } | null>(null);
   const onFormCounts = useCallback((n: number, responses: number) => setFormCounts({ n, responses }), []);
@@ -372,7 +376,9 @@ export function BoldShell({
                     ? ([propCount == null ? "DOCUMENTS" : `${propCount} DOCUMENT${propCount === 1 ? "" : "S"}`, "Proposals"] as const)
                     : surface === "automations"
                       ? ([autoCounts ? `${autoCounts.n} RULE${autoCounts.n === 1 ? "" : "S"} · ${autoCounts.on} ON` : "RULES", "Automations"] as const)
-                      : SURFACE_TITLES[surface];
+                      : surface === "integrations"
+                        ? ([intCount == null ? "WORKSPACE" : `${intCount} CONNECTED`, "Integrations"] as const)
+                        : SURFACE_TITLES[surface];
   const status =
     onCampaign && activeCamp
       ? activeCamp.status === "ACTIVE"
@@ -503,6 +509,8 @@ export function BoldShell({
                   <BoldInboxView scope={{ kind: "campaign", agent: activeCamp }} onOpenDrawer={setDrawer} flash={flash} meId={me.user.id} />
                 ) : tab === "settings" ? (
                   <BoldSettingsTab agent={activeCamp} flash={flash} />
+                ) : tab === "stats" ? (
+                  <BoldStatsView agentId={activeCamp.id} />
                 ) : (
                   <SurfaceStub title={`${activeCamp.name} — ${TABS.find(([k]) => k === tab)?.[1] ?? ""}`} />
                 )}
@@ -594,6 +602,8 @@ export function BoldShell({
               <BoldWsSettingsView onOpenCredits={() => setSurface("credits")} flash={flash} />
             ) : null}
             {surface === "credits" ? <BoldCreditsView /> : null}
+            {surface === "analytics" ? <BoldStatsView /> : null}
+            {surface === "integrations" ? <BoldIntegrationsView flash={flash} onCount={setIntCount} /> : null}
             {gb ? (
               <BoldGuidedBuild
                 kind={gb}
@@ -606,7 +616,7 @@ export function BoldShell({
                 flash={flash}
               />
             ) : null}
-            {surface !== "campaign" && surface !== "camps" && surface !== "activity" && surface !== "newcamp" && surface !== "wsinbox" && surface !== "contacts" && surface !== "chatbot" && surface !== "forms" && surface !== "proposals" && surface !== "automations" && surface !== "lead" && surface !== "wssettings" && surface !== "credits" ? (
+            {surface !== "campaign" && surface !== "camps" && surface !== "activity" && surface !== "newcamp" && surface !== "wsinbox" && surface !== "contacts" && surface !== "chatbot" && surface !== "forms" && surface !== "proposals" && surface !== "automations" && surface !== "lead" && surface !== "wssettings" && surface !== "credits" && surface !== "analytics" && surface !== "integrations" ? (
               <SurfaceStub title={title} />
             ) : null}
             {rcpOpen ? (

@@ -63,12 +63,14 @@ test("rail lists live campaigns; the overview hero reads the value model", async
   // Hero: count leads for booking goals; POTENTIAL is money already in
   // motion — completions × est (owner ruling, B1 review), never the goal
   // ceiling, which shows only as % OF GOAL + "11 of 12 to go".
-  await expect(page.getByTestId("bold-hero-value")).toHaveText("1");
-  await expect(page.getByText("$2,400 potential at $2,400 a booking")).toBeVisible();
-  await expect(page.getByText("11 of 12 to go.")).toBeVisible();
+  // B8: the seeded demo HISTORY adds three Implant bookings (Owen · Sam ·
+  // Vera) to the original Ada Lovelace one — the hero reads 4, live.
+  await expect(page.getByTestId("bold-hero-value")).toHaveText("4");
+  await expect(page.getByText("$9,600 potential at $2,400 a booking")).toBeVisible();
+  await expect(page.getByText("8 of 12 to go.")).toBeVisible();
   const statsRow = page.getByTestId("bold-stats-row");
   await expect(statsRow).toContainText("POTENTIAL");
-  await expect(statsRow).toContainText("1 × $2,400");
+  await expect(statsRow).toContainText("4 × $2,400");
   await expect(statsRow).toContainText("REPLY RATE");
   // F1 honesty floor: under 20 sends the rate is honest-absent, never
   // invented; console replies (B3b) accumulate real sends, so past the floor
@@ -82,8 +84,8 @@ test("rail lists live campaigns; the overview hero reads the value model", async
   await expect(numDrawer).toBeVisible();
   await expect(numDrawer).toContainText("POTENTIAL VALUE");
   await expect(numDrawer).toContainText("HOW IT SPLITS");
-  await expect(numDrawer).toContainText("Booked (1)");
-  await expect(numDrawer).toContainText("To go (11)");
+  await expect(numDrawer).toContainText("Booked (4)");
+  await expect(numDrawer).toContainText("To go (8)");
   await page.mouse.click(400, 300);
   await expect(numDrawer).toHaveCount(0);
 
@@ -130,9 +132,14 @@ test("the activity page filters; send rows drill to recipients; contact rows ope
   // Filter to goal rows first — the seeded row stays on page one there,
   // whatever live activity has accumulated above it.
   await page.getByTestId("bold-act-filter-goal").click();
-  await page.getByTestId("bold-activity-page").getByText(/Meeting booked/).first().click();
+  // B8: the history seed adds newer goal rows — the SEEDED Ada Lovelace row
+  // is the oldest match (rows order newest-first), same posture as the send
+  // row above.
+  await page.getByTestId("bold-activity-page").getByText(/Meeting booked/).last().click();
+  // The oldest goal row is the history's Owen Gallagher (won, with a real
+  // payment) — the peek proves the timeline read + the payment line.
   await expect(drawer).toBeVisible();
-  await expect(drawer).toContainText("Ada Lovelace");
+  await expect(drawer).toContainText("Owen Gallagher");
   await expect(drawer).toContainText("TIMELINE");
   await expect(drawer).toContainText("Payment received.");
   await page.mouse.click(400, 300);

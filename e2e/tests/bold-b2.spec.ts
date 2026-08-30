@@ -79,21 +79,29 @@ test("inbox pickers carry live counts; move, handle and the person peek are live
   // TYPE: live counts for the types with data; the sourceless rows are
   // disabled-with-their-wave, never silently dropped (Q-070).
   await page.getByTestId("bold-inbox-picker-type").click();
-  await expect(page.getByTestId("bold-inbox-opt-type-email")).toContainText("2");
-  await expect(page.getByTestId("bold-inbox-opt-type-sms")).toContainText("1");
+  // B8: the demo history adds five email replies to Implant's original two.
+  await expect(page.getByTestId("bold-inbox-opt-type-email")).toContainText("7");
+  // B8: the history seed adds two Implant threads that carry an SMS leg.
+  await expect(page.getByTestId("bold-inbox-opt-type-sms")).toContainText("3");
   await expect(page.getByTestId("bold-inbox-opt-type-web")).toContainText("Coming soon");
-  await page.getByTestId("bold-inbox-opt-type-sms").click();
-  await expect(page.getByTestId(/bold-inbox-thread-/)).toHaveCount(1);
+  // The option rows re-render as counts land — re-click until the filter
+  // applies (the same toPass posture as the sign-in workspace switch).
+  await expect(async () => {
+    await page.getByTestId("bold-inbox-opt-type-sms").click();
+    await expect(page.getByTestId(/bold-inbox-thread-/)).toHaveCount(3, { timeout: 2_000 });
+  }).toPass({ timeout: 15_000 });
   await page.getByTestId("bold-inbox-picker-type").click();
   await page.getByTestId("bold-inbox-opt-type-all").click();
-  await expect(page.getByTestId(/bold-inbox-thread-/)).toHaveCount(3);
+  // B8: the history seed adds five replied threads to Implant's three.
+  await expect(page.getByTestId(/bold-inbox-thread-/)).toHaveCount(8);
 
   // STATUS counts: Ada handled · Alan + Sofia need a reply · Ada booked.
   await page.getByTestId("bold-inbox-picker-status").click();
   // B3b: replies sent from the console flip unread, so the seeded "2" is no
   // longer frozen — the row must carry a live numeric count.
   await expect(page.getByTestId("bold-inbox-opt-status-needs")).toContainText(/\d/);
-  await expect(page.getByTestId("bold-inbox-opt-status-booked")).toContainText("1");
+  // B8: Vera's history thread joins Ada Lovelace in booked.
+  await expect(page.getByTestId("bold-inbox-opt-status-booked")).toContainText("2");
   await expect(page.getByTestId("bold-inbox-opt-status-handled")).toContainText("1");
   await page.getByTestId("bold-inbox-opt-status-all").click();
 
@@ -151,7 +159,8 @@ test("pipeline board groups the real stages; the list carries honest values", as
   await expect(interested).toContainText("Sofia Reyes");
   // Value honesty: POTENTIAL vocabulary on the goal column only; earlier
   // stages carry the prototype's honest "no value yet".
-  await expect(page.getByTestId("bold-pipe-col-booked")).toContainText("$2,400 potential");
+  // B8: three booked (Ada Lovelace + the history's Sam and Vera) × $2,400.
+  await expect(page.getByTestId("bold-pipe-col-booked")).toContainText("$7,200 potential");
   await expect(page.getByTestId("bold-pipe-col-contacted")).toContainText("no value yet");
 
   // List view: same data as a table; Ada carries the estimate, Sofia a dash.

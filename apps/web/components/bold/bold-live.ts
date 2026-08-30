@@ -1019,3 +1019,44 @@ export async function fetchCoreSummary(agents: AgentListItem[]): Promise<CoreSum
     location: profile?.location ?? null,
   };
 }
+
+/* ---------------------------------------------------- B8 (DEC-135) */
+
+/** `GET /stats` — the ONE analytics read (campaign Stats + workspace
+ *  Analytics call the same endpoint, so the surfaces cannot disagree).
+ *  Every number server-derived from real rows; rates null below the F1
+ *  min-send floors (the surface says "too few to read", never invents). */
+export interface BoldStatsResponse {
+  scope: "campaign" | "workspace";
+  range: "7" | "30" | "all";
+  since: string | null;
+  floors: { low: number; ok: number; totalSent: number };
+  tiles: {
+    reached: number;
+    replied: number;
+    repliedPct: number | null;
+    booked: number;
+    bookedPctOfRepliers: number | null;
+    estValueCents: number | null;
+    collectedCents: number | null;
+  };
+  funnel: Array<{ key: string; label: string; count: number; note?: string; outcome?: boolean }>;
+  channels: Array<{ channel: string; sent: number; repliers: number; booked: number }>;
+  reading: string[];
+}
+export const fetchStats = (range: "7" | "30" | "all", agentId?: string) =>
+  get<BoldStatsResponse>(`stats?range=${range}${agentId ? `&agentId=${encodeURIComponent(agentId)}` : ""}`);
+
+/** `GET /integrations` — real per-provider status rows (probe-backed). */
+export interface IntegrationStatusRow {
+  provider: string;
+  status: "connected" | "unhealthy" | "revoked";
+}
+export const fetchIntegrationStatuses = async (): Promise<Map<string, IntegrationStatusRow>> => {
+  const res = await get<{ integrations?: Array<{ provider?: string; status?: string }> }>("integrations");
+  const map = new Map<string, IntegrationStatusRow>();
+  for (const r of res?.integrations ?? []) {
+    if (r.provider && r.status) map.set(r.provider, { provider: r.provider, status: r.status as IntegrationStatusRow["status"] });
+  }
+  return map;
+};

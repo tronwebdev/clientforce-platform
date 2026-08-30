@@ -1095,6 +1095,223 @@ async function main(): Promise<void> {
         }
       }
 
+      // B8 (DEC-135, owner addition): ~3 weeks of DEMO HISTORY so Stats
+      // renders meaningfully on the first walkthrough. These are REAL rows
+      // through the real tables — the Stats endpoint aggregates them like
+      // any others; nothing is fabricated at the API layer. Every message
+      // carries stepNodeId "seed-history" (the reconciliation-fixture
+      // labeling precedent) so the set is identifiable and this block is
+      // idempotent (skip when any marker row exists). Deterministic day
+      // offsets, never random.
+      {
+        const marker = await prisma.message.findFirst({
+          where: { workspaceId: primary.id, stepNodeId: "seed-history" },
+          select: { id: true },
+        });
+        const histAgents = await prisma.agent.findMany({
+          where: { workspaceId: primary.id, name: { in: ["Whitening kit push", "Implant open day"] } },
+          select: { id: true, name: true },
+        });
+        if (!marker && histAgents.length === 2) {
+          // Campaign rows materialize lazily (DEC-108) — ensure one per agent.
+          const campaignFor = async (a: { id: string; name: string }) =>
+            (await prisma.campaign.findFirst({ where: { workspaceId: primary.id, agentId: a.id } })) ??
+            prisma.campaign.create({
+              data: { workspaceId: primary.id, agentId: a.id, name: `${a.name} — primary`, graphId: "" },
+            });
+          const agentByName = new Map(histAgents.map((a) => [a.name, a]));
+          const whitRow = await campaignFor(agentByName.get("Whitening kit push")!);
+          const implRow = await campaignFor(agentByName.get("Implant open day")!);
+          const whit = { id: whitRow.id, agentId: whitRow.agentId, agent: { name: "Whitening kit push" } };
+          const impl = { id: implRow.id, agentId: implRow.agentId, agent: { name: "Implant open day" } };
+          const day = (n: number, h = 10) => new Date(Date.now() - n * 86_400_000 + h * 3_600_000 - 10 * 3_600_000);
+          /** name · campaign · outbound day offsets · opened? · reply [day, intent] · stages [day, toStage] · sms? */
+          const HIST: Array<{
+            first: string;
+            last: string;
+            camp: typeof whit;
+            outs: number[];
+            opened?: number;
+            reply?: [number, string];
+            stages?: Array<[number, string]>;
+            sms?: number;
+          }> = [
+            { first: "Ana", last: "Moreau", camp: whit, outs: [20, 16], opened: 19, reply: [18, "interested"], stages: [[17, "interested"], [15, "booked"], [9, "won"]] },
+            { first: "Ben", last: "Castillo", camp: whit, outs: [20, 15], opened: 19 },
+            { first: "Carla", last: "Nguyen", camp: whit, outs: [19, 14], opened: 18, reply: [16, "question"], sms: 13 },
+            { first: "Dev", last: "Sharma", camp: whit, outs: [19], opened: 17 },
+            { first: "Elena", last: "Brooks", camp: whit, outs: [18, 12], opened: 16, reply: [12, "interested"], stages: [[11, "booked"], [5, "won"]] },
+            { first: "Frank", last: "Osei", camp: whit, outs: [18] },
+            { first: "Gina", last: "Petrov", camp: whit, outs: [17, 11], opened: 15, reply: [11, "objection_price"], sms: 9 },
+            { first: "Hana", last: "Suzuki", camp: whit, outs: [16, 10], opened: 14 },
+            { first: "Ivan", last: "Kovac", camp: whit, outs: [15] },
+            { first: "Jill", last: "Mercer", camp: whit, outs: [13, 8], opened: 12, reply: [8, "not_interested"] },
+            { first: "Kofi", last: "Adjei", camp: whit, outs: [12, 7], opened: 10, stages: [[6, "booked"]] },
+            { first: "Lena", last: "Weiss", camp: whit, outs: [10, 5], opened: 9 },
+            { first: "Milo", last: "Ferreira", camp: whit, outs: [8, 4], opened: 7, reply: [4, "interested"], stages: [[3, "booked"]] },
+            { first: "Noor", last: "Haddad", camp: whit, outs: [6, 2], opened: 5 },
+            { first: "Owen", last: "Gallagher", camp: impl, outs: [21, 17], opened: 20, reply: [17, "interested"], stages: [[16, "booked"], [10, "won"]], sms: 15 },
+            { first: "Pia", last: "Lindqvist", camp: impl, outs: [21, 16], opened: 19 },
+            { first: "Quim", last: "Serra", camp: impl, outs: [20] },
+            { first: "Rita", last: "Okafor", camp: impl, outs: [18, 13], opened: 17, reply: [13, "question"], sms: 11 },
+            { first: "Sam", last: "Delacroix", camp: impl, outs: [17, 12], opened: 15, stages: [[10, "booked"]] },
+            { first: "Tara", last: "Bianchi", camp: impl, outs: [15, 9], opened: 13, reply: [9, "objection_price"] },
+            { first: "Umar", last: "Rashid", camp: impl, outs: [13] },
+            { first: "Vera", last: "Sokolova", camp: impl, outs: [11, 6], opened: 10, reply: [6, "interested"], stages: [[5, "booked"]] },
+            { first: "Wes", last: "Tanaka", camp: impl, outs: [9, 3], opened: 8, reply: [3, "not_interested"] },
+            { first: "Yara", last: "Costa", camp: impl, outs: [7, 2], opened: 6 },
+          ];
+          const WON_AMOUNT: Record<string, number> = { "Whitening kit push": 24_900, "Implant open day": 240_000 };
+          for (const [i, h] of HIST.entries()) {
+            const email = `${h.first.toLowerCase()}.${h.last.toLowerCase()}@demo-lead.test`;
+            const contact =
+              (await prisma.contact.findFirst({ where: { workspaceId: primary.id, email } })) ??
+              (await prisma.contact.create({
+                data: {
+                  workspaceId: primary.id,
+                  source: "seed",
+                  optOut: {},
+                  tags: [],
+                  email,
+                  firstName: h.first,
+                  lastName: h.last,
+                },
+              }));
+            const finalStage = h.stages?.length ? h.stages[h.stages.length - 1]![1] : h.reply?.[1] === "not_interested" ? "lost" : "contacted";
+            const enrollment = await prisma.enrollment.create({
+              data: {
+                workspaceId: primary.id,
+                campaignId: h.camp.id,
+                contactId: contact.id,
+                workflowId: `seed-history-${i}-${contact.id.slice(-6)}`,
+                pipelineStage: finalStage,
+                status: finalStage === "won" || finalStage === "lost" ? "DONE" : "ACTIVE",
+              },
+            });
+            for (const [j, d] of h.outs.entries()) {
+              await prisma.message.create({
+                data: {
+                  workspaceId: primary.id,
+                  campaignId: h.camp.id,
+                  enrollmentId: enrollment.id,
+                  contactId: contact.id,
+                  channel: "email",
+                  direction: "OUTBOUND",
+                  subject: j === 0 ? "A slot with your name on it" : "Still holding that slot",
+                  body: "seed history — demo walkthrough fixture",
+                  stepNodeId: "seed-history",
+                  sentAt: day(d),
+                },
+              });
+            }
+            if (h.sms != null) {
+              await prisma.message.create({
+                data: {
+                  workspaceId: primary.id,
+                  campaignId: h.camp.id,
+                  enrollmentId: enrollment.id,
+                  contactId: contact.id,
+                  channel: "sms",
+                  direction: "OUTBOUND",
+                  body: "seed history — demo walkthrough fixture (sms)",
+                  stepNodeId: "seed-history",
+                  sentAt: day(h.sms),
+                },
+              });
+            }
+            if (h.opened != null) {
+              await prisma.event.create({
+                data: {
+                  workspaceId: primary.id,
+                  type: "email.opened.v1",
+                  campaignId: h.camp.id,
+                  enrollmentId: enrollment.id,
+                  contactId: contact.id,
+                  payload: { seed: "history" },
+                  occurredAt: day(h.opened, 14),
+                },
+              });
+            }
+            if (h.reply) {
+              await prisma.message.create({
+                data: {
+                  workspaceId: primary.id,
+                  campaignId: h.camp.id,
+                  enrollmentId: enrollment.id,
+                  contactId: contact.id,
+                  channel: "email",
+                  direction: "INBOUND",
+                  intent: h.reply[1],
+                  body:
+                    h.reply[1] === "interested"
+                      ? "Yes — what times do you have?"
+                      : h.reply[1] === "question"
+                        ? "How long does the fitting take?"
+                        : h.reply[1] === "objection_price"
+                          ? "That's a bit more than I hoped — any options?"
+                          : "Not for me right now, thanks.",
+                  stepNodeId: "seed-history",
+                  sentAt: day(h.reply[0], 15),
+                },
+              });
+            }
+            let prevStage = "contacted";
+            for (const [d, toStage] of h.stages ?? []) {
+              await prisma.event.create({
+                data: {
+                  workspaceId: primary.id,
+                  type: "lead.stage_changed.v1",
+                  campaignId: h.camp.id,
+                  enrollmentId: enrollment.id,
+                  contactId: contact.id,
+                  payload: { fromStage: prevStage, toStage, seed: "history" },
+                  occurredAt: day(d, 16),
+                },
+              });
+              prevStage = toStage;
+              if (toStage === "won") {
+                await prisma.event.create({
+                  data: {
+                    workspaceId: primary.id,
+                    type: "payment.received.v1",
+                    campaignId: h.camp.id,
+                    enrollmentId: enrollment.id,
+                    contactId: contact.id,
+                    payload: { amount: WON_AMOUNT[h.camp.agent.name] ?? 24_900, seed: "history" },
+                    occurredAt: day(Math.max(1, d - 1), 17),
+                  },
+                });
+              }
+            }
+          }
+          // A handful of completed Ada calls for the by-channel row.
+          const callTargets = HIST.filter((h) => h.sms != null).slice(0, 4);
+          for (const [i, h] of callTargets.entries()) {
+            const email = `${h.first.toLowerCase()}.${h.last.toLowerCase()}@demo-lead.test`;
+            const contact = await prisma.contact.findFirst({ where: { workspaceId: primary.id, email } });
+            if (!contact) continue;
+            await prisma.call.create({
+              data: {
+                workspaceId: primary.id,
+                campaignId: h.camp.id,
+                agentId: h.camp.agentId,
+                contactId: contact.id,
+                caller: "ada",
+                direction: "OUTBOUND",
+                status: "COMPLETED",
+                outcome: "completed",
+                providerCallSid: `seed-history-call-${i}`,
+                durationSec: 96 + i * 41,
+                startedAt: day((h.sms ?? 10) - 1, 11),
+                endedAt: day((h.sms ?? 10) - 1, 12),
+                createdAt: day((h.sms ?? 10) - 1, 11),
+                meta: { seed: "history" },
+              },
+            });
+          }
+        }
+      }
+
       // B7: the demo workspace starts with a credit balance (a real column —
       // the ledger and the spend view read it). Set ONCE: never touched when
       // a balance exists or any ledger row has been written.
