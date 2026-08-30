@@ -93,7 +93,12 @@ test("the receptionist opens as the pitch slide-over — not owned, honestly def
     return;
   }
 
-  await page.getByTestId("bold-dock-rcp").click();
+  // The receptionist tile needs the flags read — re-click until the panel
+  // opens (before the flags land, the click flashes instead).
+  await expect(async () => {
+    await page.getByTestId("bold-dock-rcp").click();
+    await expect(page.getByTestId("bold-rcp")).toBeVisible({ timeout: 2_500 });
+  }).toPass({ timeout: 20_000 });
   const panel = page.getByTestId("bold-rcp");
   await expect(panel).toBeVisible({ timeout: 10_000 });
   await expect(panel).toContainText("Your line,");

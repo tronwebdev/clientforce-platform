@@ -34,6 +34,8 @@ import { BoldGuidedBuild, type GuildKind } from "./BoldGuidedBuild";
 import { BoldLeadFinderView } from "./BoldLeadFinderView";
 import { BoldWsSettingsView } from "./BoldWsSettingsView";
 import { BoldCreditsView } from "./BoldCreditsView";
+import { BoldStatsView } from "./BoldStatsView";
+import { BoldIntegrationsView } from "./BoldIntegrationsView";
 import {
   SURFACE_TITLES,
   TOUR_STEPS,
@@ -503,6 +505,8 @@ export function BoldShell({
                   <BoldInboxView scope={{ kind: "campaign", agent: activeCamp }} onOpenDrawer={setDrawer} flash={flash} meId={me.user.id} />
                 ) : tab === "settings" ? (
                   <BoldSettingsTab agent={activeCamp} flash={flash} />
+                ) : tab === "stats" ? (
+                  <BoldStatsView agentId={activeCamp.id} />
                 ) : (
                   <SurfaceStub title={`${activeCamp.name} — ${TABS.find(([k]) => k === tab)?.[1] ?? ""}`} />
                 )}
@@ -594,6 +598,8 @@ export function BoldShell({
               <BoldWsSettingsView onOpenCredits={() => setSurface("credits")} flash={flash} />
             ) : null}
             {surface === "credits" ? <BoldCreditsView /> : null}
+            {surface === "analytics" ? <BoldStatsView /> : null}
+            {surface === "integrations" ? <BoldIntegrationsView flash={flash} /> : null}
             {gb ? (
               <BoldGuidedBuild
                 kind={gb}
@@ -606,7 +612,7 @@ export function BoldShell({
                 flash={flash}
               />
             ) : null}
-            {surface !== "campaign" && surface !== "camps" && surface !== "activity" && surface !== "newcamp" && surface !== "wsinbox" && surface !== "contacts" && surface !== "chatbot" && surface !== "forms" && surface !== "proposals" && surface !== "automations" && surface !== "lead" && surface !== "wssettings" && surface !== "credits" ? (
+            {surface !== "campaign" && surface !== "camps" && surface !== "activity" && surface !== "newcamp" && surface !== "wsinbox" && surface !== "contacts" && surface !== "chatbot" && surface !== "forms" && surface !== "proposals" && surface !== "automations" && surface !== "lead" && surface !== "wssettings" && surface !== "credits" && surface !== "analytics" && surface !== "integrations" ? (
               <SurfaceStub title={title} />
             ) : null}
             {rcpOpen ? (
