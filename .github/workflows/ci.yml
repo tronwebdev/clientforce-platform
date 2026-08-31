@@ -68,6 +68,13 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      # The secret scan gated DEPLOY only, so a credential-shaped literal could
+      # pass CI, merge green, and break staging on the push — which is exactly
+      # how B6.5 left staging stale (a `postgres:postgres@` fallback in the
+      # fidelity capture). Running it here makes the PR go red instead.
+      - name: Secret scan
+        run: bash infra/scripts/secret-scan.sh
+
       - name: Build
         run: pnpm build
 

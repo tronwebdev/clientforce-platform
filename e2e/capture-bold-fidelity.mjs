@@ -658,15 +658,20 @@ if (UNIT === "b65") {
   // real consumer for the run and removed afterwards. Capture fixture, not
   // seed data: the seed script is untouched.
   const signal = (mode) => {
+    // The teardown needs a DATABASE_URL. It used to fall back to a local
+    // connection string written out in full — which is a credential-SHAPED
+    // literal (`user:pass@host`), and the deploy's secret scan rejects those
+    // on sight whether or not the credentials are real. Requiring the
+    // variable is also the more honest fix: a capture that cannot reach the
+    // database should say so, not quietly try a guess.
+    if (!process.env.DATABASE_URL) {
+      console.warn(`[b65] capture signal ${mode} skipped — DATABASE_URL is not set`);
+      return;
+    }
     try {
       execSync(`pnpm --filter @clientforce/leads exec tsx scripts/capture-signal.ts ${mode}`, {
         cwd: ROOT,
         stdio: "pipe",
-        env: {
-          ...process.env,
-          DATABASE_URL:
-            process.env.DATABASE_URL ?? "postgresql://postgres:postgres@localhost:5432/clientforce",
-        },
       });
     } catch (err) {
       console.warn(`[b65] capture signal ${mode} failed: ${(err?.message ?? err).toString().split("\n")[0]}`);
