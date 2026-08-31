@@ -47,41 +47,48 @@ async function main(): Promise<void> {
       return;
     }
 
-    // Pick a plausible target and let the CONSUMER decide: a contact with
-    // some history, not opted out and not mid-campaign. Deliberately not one
-    // that already carries a not-now reply, so the frame shows a first-party
-    // receipt beside the own-book ones rather than replacing one.
-    const active = new Set(
-      (
+    // Pick a DORMANT contact — one with no message history — that no
+    // suppression rule removes. This is the sharpest demonstration of the
+    // rule the review established: a record with nothing behind it stays out
+    // of the market feed entirely, and appears only once a real event fires.
+    // It also leaves the existing rows' stories untouched.
+    const suppressed = new Set([
+      ...(
         await prisma.enrollment.findMany({
-          where: { workspaceId: ws.id, status: "ACTIVE" },
+          where: { workspaceId: ws.id, OR: [{ status: "ACTIVE" }, { pipelineStage: { in: ["booked", "won"] } }] },
           select: { contactId: true },
         })
       ).map((e) => e.contactId),
-    );
-    const notNow = new Set(
-      (
-        await prisma.message.findMany({
+      ...(
+        await prisma.contact.findMany({
           where: {
             workspaceId: ws.id,
-            direction: "INBOUND",
-            intent: { in: ["not_interested", "objection_price", "objection_timing", "not"] },
+            OR: [
+              { optOut: { path: ["email"], equals: true } },
+              { optOut: { path: ["sms"], equals: true } },
+            ],
           },
+          select: { id: true },
+        })
+      ).map((c) => c.id),
+    ]);
+    const withHistory = new Set(
+      (
+        await prisma.message.findMany({
+          where: { workspaceId: ws.id },
           select: { contactId: true },
           distinct: ["contactId"],
         })
       ).map((m) => m.contactId),
     );
-    const withHistory = await prisma.message.findMany({
+    const contacts = await prisma.contact.findMany({
       where: { workspaceId: ws.id },
-      select: { contactId: true },
-      distinct: ["contactId"],
+      orderBy: { createdAt: "asc" },
+      select: { id: true },
     });
-    const target = withHistory
-      .map((m) => m.contactId)
-      .find((id) => !active.has(id) && !notNow.has(id));
+    const target = contacts.map((c) => c.id).find((id) => !suppressed.has(id) && !withHistory.has(id));
     if (!target) {
-      console.log("no unsuppressed contact with history in the demo workspace — no signal emitted");
+      console.log("no dormant, unsuppressed contact in the demo workspace — no signal emitted");
       return;
     }
 
