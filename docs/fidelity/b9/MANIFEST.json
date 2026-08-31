@@ -1,120 +1,130 @@
 {
   "unit": "b9",
-  "commit": "233c552508da06643722ebdd875a281f1eac95f8",
+  "commit": "9c679f82af322f59da7ac2af6de2c3ffbcdb8b19",
   "workingTreeDirtyAtCapture": false,
-  "capturedAt": "2026-08-30T16:37:29.287Z",
+  "capturedAt": "2026-08-31T17:01:12.889Z",
   "baseUrl": "http://localhost:3000",
   "note": "Single-run capture; every frame from one build. Verify a frame by hashing its bytes against this manifest — never by trusting an image cache. pnpm lint:fidelity enforces the binding.",
   "frames": {
     "build-backoffice-plans-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 122685,
-      "sha256": "508728cb90670cec281744343159dbe6843788ca3b6062e129666b5453c0f5b0"
+      "bytes": 122686,
+      "sha256": "59218309ae98c10826517353c4edc64368591b12bee9895e7e29c2cffb7ee629"
+    },
+    "build-onb-ask-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 62959,
+      "sha256": "c3aaac6be15b98d8a8ee8f61d6f2e3bd7d5f94c55962c22ac26d86f9768f6954"
+    },
+    "build-onb-audience-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 74005,
+      "sha256": "c72aaea8f2ccf8cee26b2c59337a3049233eed1f80b4f2f12a3d2222560921cb"
     },
     "build-onb-business-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 77963,
-      "sha256": "00ac0b94b807249e0f5a93b87a482c9a47bf743d86691260a3743d218d9e7aa6"
+      "bytes": 75769,
+      "sha256": "b13fc65c22835ef4c6d994cc474e79e65ec7f2921f94b3546e233b8e82809ca8"
+    },
+    "build-onb-contacts-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 70513,
+      "sha256": "958b32cd116f2917313c22e11f2d7acc6b62ce0aefc0762fe7ebb2cbad97ba2c"
     },
     "build-onb-done-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 60361,
-      "sha256": "d54745a0efc8ffb4b94c20e738ed750a1568beba69babecb29474c494a9bc8eb"
-    },
-    "build-onb-facts-1440x900.png": {
-      "viewport": "1440x900",
-      "bytes": 52904,
-      "sha256": "9f7fd64ee2df164c34d9271baec59b1372b4c6b30d1b67bf0a13f25baf2b830f"
+      "bytes": 74100,
+      "sha256": "f308959acd2ece795ba83ac4b53d86b4dc85ac5b05c0cd699a55b9ae7919e6dc"
     },
     "build-onb-goal-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 69363,
-      "sha256": "e8f83f861a5fd8b8e5871f0ae0fdbcad80c46d2a45e00c3d3d726dbc6c7fdaf9"
-    },
-    "build-onb-icp-1440x900.png": {
-      "viewport": "1440x900",
-      "bytes": 61292,
-      "sha256": "235d40153ddb5812ee64a549ac1f8805c451ba1c56048cb34e7e9623b9defd87"
+      "bytes": 70080,
+      "sha256": "16051639e863ef129e036b52959d33259dd38ea1ab80704794b2f9a3fcc09b99"
     },
     "build-onb-plan-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 80455,
-      "sha256": "cacd4f9539b52c129a1a616f84d500d084097c677971f1959aead1511a5d4e9c"
+      "bytes": 92565,
+      "sha256": "9fad16e8af610a48f81cdcef10689abeae828bdf940ba4193772aaf4556c48e7"
     },
-    "build-onb-question-1440x900.png": {
+    "build-onb-readback-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 49387,
-      "sha256": "c38616402aed844fc32fad829a55b56659f5c350a6383b3fd61c816e88e32b57"
+      "bytes": 55257,
+      "sha256": "fbe931d505bb35d1625dcee256fe603c814f81e435f9c4025b245eed31e1fb5a"
     },
-    "build-onb-sender-1440x900.png": {
+    "build-onb-replies-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 52204,
-      "sha256": "da3aac95c4d5b3c2e64295b5a312aa7ab2d3556f577c140b3c21190d67d69f97"
+      "bytes": 65905,
+      "sha256": "d7b1b41468edb9debb17e9f3ec5b41d89bab70c28bcc957ec787958d6408c8af"
     },
     "build-onb-site-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 49495,
-      "sha256": "ccef446cebe7c5f8d5705e045eeb4861d0b5ab89a41804f6a9377c69be15c887"
+      "bytes": 51577,
+      "sha256": "6928e74226dd80ca64fc54f278410f120799f43b0d378490410e1b7b8230f530"
+    },
+    "build-onb-tellher-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 73665,
+      "sha256": "1a5386f1483674dcc920f2f64a949afca2c08ed49394b67fb406adbdca42f750"
     },
     "build-tour-drawer-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 201682,
-      "sha256": "72bdce5759e0a7b2e810a1b9ac86d829534aa0022eba42697d7a571d5c3dccac"
+      "bytes": 201411,
+      "sha256": "ed747a42403b0fac1bee96be5769d79e505fe93809adc49161ff66e2a9e3ef81"
     },
     "build-tour-step1-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 160490,
-      "sha256": "02ef7e92f851d8ab864844b4f227055003344671978435e84921a8681ff4add5"
+      "bytes": 159654,
+      "sha256": "f76092a1f2321d5d9002df6d86706004dac84590452cbb8cd3ea70b33e81866f"
     },
     "build-tour-step2-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 144157,
-      "sha256": "7d0405fb3f9ef014472d007b1301168971180cb9b31dce8495c190df9cdb6e6b"
+      "bytes": 143343,
+      "sha256": "b577ba94cc0cf64ac14816a98dc2e1d39d1099a18e46b5e6a596e25b7670a6f7"
     },
     "build-tour-step4-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 148798,
-      "sha256": "498fbe01c634d88a5ff6c460a6a8f42e725056f45690c00da57214ff10c6a1dd"
+      "bytes": 147874,
+      "sha256": "a8a33a659655a79251dd865288fe50e45400b6bcdb784f76ac02f61e639bb1c8"
     },
     "build-tour-step6-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 159299,
-      "sha256": "88e3453b69e7c504df8e7b4d1ff06c35aedd6a4422f37510138122360056bef1"
+      "bytes": 158459,
+      "sha256": "f23f619c3e79496ff2d4200dcd1cdc96dc1567ba2e044300828f10b1dc6c375b"
     },
     "build-tour-step7-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 155601,
-      "sha256": "8a5b0d1db5e016143c2f3cbb10c354075c089c433264d8ed11131fdfad36e655"
+      "bytes": 154725,
+      "sha256": "bfcf80cd4e185016405846521c67585cada88a0b9c6b10d984131884a407091e"
     },
     "build-tour-step8-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 157942,
-      "sha256": "44513aa9d3e85b6f41879951b95edee7fa89c85b75994caa603805f13bb4ec3a"
+      "bytes": 157162,
+      "sha256": "4530bc0e68c7e68d019305dab2636d30b13273e58d358f4af8383f9696190fa8"
+    },
+    "proto-onboarding-audience-1440x900.png": {
+      "viewport": "1440x900",
+      "bytes": 150480,
+      "sha256": "4b1f2aa7f451d3a62306ebf91ede8a3a1e36085a9ed4eb2ca81e2577ed082ffc"
     },
     "proto-onboarding-auth-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 419369,
-      "sha256": "64e5cdc0632c2b1e6aa5273af36110bcbb8802d8b458fda34ddec8a382d405bf"
+      "bytes": 419938,
+      "sha256": "b866398acee205d942f9fa08feba32ed45cc51812026a5c41127e802eb9df718"
     },
-    "proto-onboarding-core-1440x900.png": {
+    "proto-onboarding-goal-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 126083,
-      "sha256": "dabf14ed00118d41b7e0568fa3bf48d5dc9bbef54aefa2c14812a9b9fe9079f5"
+      "bytes": 147645,
+      "sha256": "b36848f247c72f505dc456b57f97bf3aeddd24783fbf36bcc54e3e1fc8b42085"
     },
-    "proto-tour-drawer-1440x900.png": {
+    "proto-onboarding-readback-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 97528,
-      "sha256": "9a7c2f15a0627225eaf9646215aff30ae0a4bda59a0de640b36e06492fbbef97"
+      "bytes": 173334,
+      "sha256": "75826fc55bf09ab064b920388a7c7adfc29e964fe39053b34116946e8998ae18"
     },
-    "proto-tour-step1-1440x900.png": {
+    "proto-onboarding-site-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 93206,
-      "sha256": "14a1a6be1fe945482ec71bd62b394f8f0acc062eb655885a653a982d4f608d96"
-    },
-    "proto-tour-step7-1440x900.png": {
-      "viewport": "1440x900",
-      "bytes": 89687,
-      "sha256": "0009e3e490135f84f7ec5b27ff9d8477946d7853af70838db4b9b1d580d88b5c"
+      "bytes": 125678,
+      "sha256": "89f968273bf1d569768cf5806aa92c019fb51d03ae5313f02f706bbf63f5602b"
     }
   }
 }
