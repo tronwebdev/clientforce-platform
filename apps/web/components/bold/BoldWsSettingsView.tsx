@@ -21,12 +21,13 @@
  * All six doors read ONE snapshot, so the hub's counts and the page inside can
  * never disagree.
  */
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { BoldSettingsHub, type HubTarget } from "./settings/BoldSettingsHub";
 import { BoldCoreItem } from "./settings/BoldCoreItem";
 import { BoldGuardItem } from "./settings/BoldGuardItem";
 import { BoldSendersItem } from "./settings/BoldSendersItem";
 import { BoldTeamItem } from "./settings/BoldTeamItem";
+import type { ItemHeader } from "./settings/BoldItemPage";
 import { useSettingsData } from "./settings/settings-data";
 
 type Item = "core" | "senders" | "team" | "guard";
@@ -35,18 +36,22 @@ export function BoldWsSettingsView({
   onOpenCredits,
   onOpenIntegrations,
   onOpenCampaign,
+  onHeader,
   flash,
 }: {
   onOpenCredits: () => void;
   onOpenIntegrations: () => void;
   onOpenCampaign: (agentId: string) => void;
+  /** The open item page owns the canvas header (see `BoldItemPage`). */
+  onHeader: (h: ItemHeader | null) => void;
   flash: (msg: string) => void;
 }) {
   const [item, setItem] = useState<Item | null>(null);
   const { data, reload } = useSettingsData();
 
-  const back = () => setItem(null);
-  const shared = { data, reload, flash, onBack: back };
+  // Stable, so publishing the header does not re-fire on every render.
+  const back = useCallback(() => setItem(null), []);
+  const shared = { data, reload, flash, onBack: back, onHeader };
 
   if (item === null) {
     return (

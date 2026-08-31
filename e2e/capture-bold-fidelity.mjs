@@ -557,7 +557,7 @@ if (UNIT === "b75") {
     await closeDrawer();
 
     // Senders: the tabs, the sender drawer resolved by id, both add flows.
-    await p.getByTestId("bold-wss-back").click();
+    await p.getByRole("button", { name: "Back" }).click();
     await p.getByTestId("bold-wss-senders").click();
     await p.getByTestId("bold-wss-senders-item").waitFor();
     await p.waitForTimeout(900);
@@ -585,7 +585,7 @@ if (UNIT === "b75") {
     await shot(p, "build-senders-health-1440x900");
 
     // Team, and the invite drawer at both its steps.
-    await p.getByTestId("bold-wss-back").click();
+    await p.getByRole("button", { name: "Back" }).click();
     await p.getByTestId("bold-wss-team").click();
     await p.getByTestId("bold-wss-team-item").waitFor();
     await p.waitForTimeout(800);
@@ -606,7 +606,7 @@ if (UNIT === "b75") {
     await closeDrawer();
 
     // Guardrails: the sending limits and the overrides tab.
-    await p.getByTestId("bold-wss-back").click();
+    await p.getByRole("button", { name: "Back" }).click();
     await p.getByTestId("bold-wss-guard").click();
     await p.getByTestId("bold-wss-guard-item").waitFor();
     await p.waitForTimeout(900);
@@ -616,7 +616,7 @@ if (UNIT === "b75") {
     await shot(p, "build-guard-over-1440x900");
 
     // Credits: the hero and three tabs, then the buy drawer's three steps.
-    await p.getByTestId("bold-wss-back").click();
+    await p.getByRole("button", { name: "Back" }).click();
     await p.getByTestId("bold-wss-credits").click();
     await p.getByTestId("bold-credits").waitFor();
     await p.waitForTimeout(1100);
@@ -696,17 +696,17 @@ if (UNIT === "b7") {
     await p.getByTestId("bold-wss-core-item").waitFor();
     await p.waitForTimeout(700);
     await shot(p, "build-wss-core-1440x900");
-    await p.getByTestId("bold-wss-back").click();
+    await p.getByRole("button", { name: "Back" }).click();
     await p.getByTestId("bold-wss-senders").click();
     await p.getByTestId("bold-wss-senders-item").waitFor();
     await p.waitForTimeout(700);
     await shot(p, "build-wss-senders-1440x900");
-    await p.getByTestId("bold-wss-back").click();
+    await p.getByRole("button", { name: "Back" }).click();
     await p.getByTestId("bold-wss-guard").click();
     await p.getByTestId("bold-wss-guard-item").waitFor();
     await p.waitForTimeout(700);
     await shot(p, "build-wss-guard-1440x900");
-    await p.getByTestId("bold-wss-back").click();
+    await p.getByRole("button", { name: "Back" }).click();
     await p.getByTestId("bold-wss-credits").click();
     await p.getByTestId("bold-credits").waitFor();
     await p.waitForTimeout(900);

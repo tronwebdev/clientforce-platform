@@ -116,6 +116,16 @@ export function BoldShell({
   const [checklist, setChecklist] = useState<GettingStartedResponse | "loading" | "error">("loading");
   const [tailTop, setTailTop] = useState<number | null>(null);
   const [drawer, setDrawer] = useState<BoldDrawerState | null>(null);
+  /**
+   * B7.5: the settings item pages own the canvas header while one is open.
+   * The prototype gives an item page ONE header — kind eyebrow, title, status
+   * pill and the back arrow, all in the canvas head — so the settings view
+   * reports its open item up here rather than drawing a second header of its
+   * own underneath this one.
+   */
+  const [wssHeader, setWssHeader] = useState<
+    { eyebrow: string; title: string; status: { label: string; tone: "live" | "capped" | "idle" } | null; onBack: () => void } | null
+  >(null);
   // B4.5 (DEC-128): the live-call presence — one card at a time; a dismissed
   // call stays dismissed for the session, and the receptionist pitch's
   // scripted preview rides the same card, clearly labeled.
@@ -418,7 +428,9 @@ export function BoldShell({
                       ? ([autoCounts ? `${autoCounts.n} RULE${autoCounts.n === 1 ? "" : "S"} · ${autoCounts.on} ON` : "RULES", "Automations"] as const)
                       : surface === "integrations"
                         ? ([intCount == null ? "WORKSPACE" : `${intCount} CONNECTED`, "Integrations"] as const)
-                        : SURFACE_TITLES[surface];
+                        : surface === "wssettings" && wssHeader
+                          ? ([wssHeader.eyebrow, wssHeader.title] as const)
+                          : SURFACE_TITLES[surface];
   const status =
     onCampaign && activeCamp
       ? activeCamp.status === "ACTIVE"
@@ -426,8 +438,10 @@ export function BoldShell({
         : activeCamp.status === "PAUSED"
           ? { label: "Paused", tone: "capped" as const }
           : { label: "Draft", tone: "idle" as const }
-      : null;
-  const hasBack = surface === "camps" || surface === "activity";
+      : surface === "wssettings" && wssHeader
+        ? wssHeader.status
+        : null;
+  const hasBack = surface === "camps" || surface === "activity" || (surface === "wssettings" && wssHeader != null);
 
   return (
     <div className="cvb-root" data-testid="bold-root">
@@ -471,7 +485,14 @@ export function BoldShell({
               <span
                 role="button"
                 aria-label="Back"
-                onClick={() => (activeCamp ? selectCampaign(activeCamp.id) : selectDock("camps"))}
+                onClick={() => {
+                  if (surface === "wssettings" && wssHeader) {
+                    wssHeader.onBack();
+                    return;
+                  }
+                  if (activeCamp) selectCampaign(activeCamp.id);
+                  else selectDock("camps");
+                }}
                 style={{
                   width: 34,
                   height: 34,
@@ -640,6 +661,7 @@ export function BoldShell({
                 onOpenCredits={() => setSurface("credits")}
                 onOpenIntegrations={() => selectDock("integrations")}
                 onOpenCampaign={selectCampaign}
+                onHeader={setWssHeader}
                 flash={flash}
               />
             ) : null}

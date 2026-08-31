@@ -83,7 +83,7 @@ test("the settings hub reads real counts; Business core, Team and Guardrails are
   const core = page.getByText("Core", { exact: true }).first();
   const noFacts = page.getByText("She knows nothing yet", { exact: false });
   await expect(fact.or(taught).or(core).or(noFacts).first()).toBeVisible();
-  await page.getByTestId("bold-wss-back").click();
+  await page.getByRole("button", { name: "Back" }).click();
 
   // Team: the real memberships (the demo owner) + the real role enum word.
   await page.getByTestId("bold-wss-team").click();
@@ -91,7 +91,7 @@ test("the settings hub reads real counts; Business core, Team and Guardrails are
   await expect(page.getByText(OWNER_EMAIL).first()).toBeVisible();
   // Ada is a row on this page, not a feature mentioned elsewhere.
   await expect(page.getByTestId("bold-team-people")).toContainText("acts inside your guardrails");
-  await page.getByTestId("bold-wss-back").click();
+  await page.getByRole("button", { name: "Back" }).click();
 
   // Guardrail defaults: typed wells (Q-081) round-trip; live campaigns listed.
   await page.getByTestId("bold-wss-guard").click();

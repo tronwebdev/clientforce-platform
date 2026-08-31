@@ -13,7 +13,7 @@ import { useState } from "react";
 import { AddRow, RowList, type SettingsRow } from "../bold-settings-kit";
 import type { BoldSenderRow } from "../bold-live";
 import type { NumberRequestRow } from "../bold-settings-live";
-import { BoldItemPage, EmptyTab, TabNote } from "./BoldItemPage";
+import { BoldItemPage, EmptyTab, TabNote, type ItemHeader } from "./BoldItemPage";
 import {
   AddEmailSenderDrawer,
   AddNumberDrawer,
@@ -43,11 +43,13 @@ export function BoldSendersItem({
   reload,
   flash,
   onBack,
+  onHeader,
 }: {
   data: SettingsSnapshot;
   reload: () => Promise<void>;
   flash: (m: string) => void;
   onBack: () => void;
+  onHeader: (h: ItemHeader | null) => void;
 }) {
   const [tab, setTab] = useState(0);
   const [drawer, setDrawer] = useState<Drawer | null>(null);
@@ -204,6 +206,7 @@ export function BoldSendersItem({
         tab={tab}
         onTab={setTab}
         onBack={onBack}
+        onHeader={onHeader}
         ada={ada}
         recordId={data.workspaceId}
         testid="bold-wss-senders-item"

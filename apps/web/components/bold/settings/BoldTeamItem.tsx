@@ -39,7 +39,7 @@ import {
   type InviteRow,
   type WorkspaceRole,
 } from "../bold-settings-live";
-import { BoldItemPage, EmptyTab, TabNote } from "./BoldItemPage";
+import { BoldItemPage, EmptyTab, TabNote, type ItemHeader } from "./BoldItemPage";
 import { pluralise, type SettingsSnapshot } from "./settings-data";
 
 type Drawer = { t: "invite" } | { t: "person"; member: WorkspaceMemberRow } | { t: "pending"; invite: InviteRow };
@@ -82,11 +82,13 @@ export function BoldTeamItem({
   reload,
   flash,
   onBack,
+  onHeader,
 }: {
   data: SettingsSnapshot;
   reload: () => Promise<void>;
   flash: (m: string) => void;
   onBack: () => void;
+  onHeader: (h: ItemHeader | null) => void;
 }) {
   const [tab, setTab] = useState(0);
   const [drawer, setDrawer] = useState<Drawer | null>(null);
@@ -195,6 +197,7 @@ export function BoldTeamItem({
         tab={tab}
         onTab={setTab}
         onBack={onBack}
+        onHeader={onHeader}
         ada={ada}
         recordId={data.workspaceId}
         testid="bold-wss-team-item"

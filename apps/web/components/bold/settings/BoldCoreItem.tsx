@@ -22,7 +22,7 @@ import {
 } from "../bold-settings-kit";
 import type { WorkspaceContextField, WorkspaceSourceRow } from "../bold-settings-live";
 import { removeSource, retrySource } from "../bold-settings-live";
-import { BoldItemPage, EmptyTab, TabNote } from "./BoldItemPage";
+import { BoldItemPage, EmptyTab, TabNote, type ItemHeader } from "./BoldItemPage";
 import { AddFactDrawer, AddFieldDrawer, AddSourceDrawer, EditFactDrawer } from "./BoldCoreDrawers";
 import type { GapUnionRow, SettingsSnapshot } from "./settings-data";
 
@@ -61,11 +61,13 @@ export function BoldCoreItem({
   reload,
   flash,
   onBack,
+  onHeader,
 }: {
   data: SettingsSnapshot;
   reload: () => Promise<void>;
   flash: (m: string) => void;
   onBack: () => void;
+  onHeader: (h: ItemHeader | null) => void;
 }) {
   const [tab, setTab] = useState(0);
   const [drawer, setDrawer] = useState<Drawer | null>(null);
@@ -210,6 +212,7 @@ export function BoldCoreItem({
         tab={tab}
         onTab={setTab}
         onBack={onBack}
+        onHeader={onHeader}
         ada={ada}
         recordId={data.workspaceId}
         testid="bold-wss-core-item"

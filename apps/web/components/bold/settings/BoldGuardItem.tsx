@@ -26,7 +26,7 @@ import {
 } from "@clientforce/core";
 import { RowList, Toggle, type SettingsRow } from "../bold-settings-kit";
 import { patchGuardrailDefaults, type GuardrailDefaultsView } from "../bold-live";
-import { BoldItemPage, EmptyTab, TabNote } from "./BoldItemPage";
+import { BoldItemPage, EmptyTab, TabNote, type ItemHeader } from "./BoldItemPage";
 import { pluralise, type SettingsSnapshot } from "./settings-data";
 
 const TABS = ["Sending limits", "What she may say", "Quiet hours", "Campaign overrides"];
@@ -52,12 +52,14 @@ export function BoldGuardItem({
   reload,
   flash,
   onBack,
+  onHeader,
   onOpenCampaign,
 }: {
   data: SettingsSnapshot;
   reload: () => Promise<void>;
   flash: (m: string) => void;
   onBack: () => void;
+  onHeader: (h: ItemHeader | null) => void;
   onOpenCampaign: (agentId: string) => void;
 }) {
   const [tab, setTab] = useState(0);
@@ -216,6 +218,7 @@ export function BoldGuardItem({
       tab={tab}
       onTab={setTab}
       onBack={onBack}
+      onHeader={onHeader}
       ada={ada}
       recordId={data.workspaceId}
       testid="bold-wss-guard-item"
