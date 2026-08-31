@@ -47,8 +47,8 @@ async function toBold(page: Page): Promise<boolean> {
 // inside the 08:00–21:00 contact-local calling floor.
 const CLOCK_CONTACTS: ReadonlyArray<readonly [string, string]> = [
   ["Sofia Reyes", "America/Chicago"],
-  ["Alan Turing", "Europe/Berlin"],
-  ["Edsger Dijkstra", "Asia/Tokyo"],
+  ["Theo Villanueva", "Europe/Berlin"],
+  ["Nadia Farouk", "Asia/Tokyo"],
 ];
 function awakeContact(): string {
   const local = (tz: string) =>

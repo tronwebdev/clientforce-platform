@@ -99,7 +99,7 @@ test("inbox pickers carry live counts; move, handle and the person peek are live
   // B3b: replies sent from the console flip unread, so the seeded "2" is no
   // longer frozen — the row must carry a live numeric count.
   await expect(page.getByTestId("bold-inbox-opt-status-needs")).toContainText(/\d/);
-  // B8: Vera's history thread joins Ada Lovelace in booked.
+  // B8: Vera's history thread joins Marisol Castellanos in booked.
   await expect(page.getByTestId("bold-inbox-opt-status-booked")).toContainText("2");
   await expect(page.getByTestId("bold-inbox-opt-status-handled")).toContainText("1");
   await page.getByTestId("bold-inbox-opt-status-all").click();
@@ -127,14 +127,14 @@ test("inbox pickers carry live counts; move, handle and the person peek are live
   await expect(page.getByTestId("bold-inbox-composer")).toContainText("Mark handled");
 
   // Ada's thread interleaves the payment system row from the events read.
-  await page.getByTestId(/bold-inbox-thread-/).filter({ hasText: "Ada Lovelace" }).click();
+  await page.getByTestId(/bold-inbox-thread-/).filter({ hasText: "Marisol Castellanos" }).click();
   await expect(pane.getByText(/Payment received/)).toBeVisible();
 
   // The person peek renders the shipped timeline read.
   await page.getByTestId("bold-inbox-profile").click();
   const drawer = page.getByTestId("bold-drawer");
   await expect(drawer).toBeVisible();
-  await expect(drawer).toContainText("Ada Lovelace");
+  await expect(drawer).toContainText("Marisol Castellanos");
   await expect(drawer).toContainText("TIMELINE");
   await page.mouse.click(300, 300);
   await expect(drawer).toHaveCount(0);
@@ -158,7 +158,7 @@ test("pipeline board groups the real stages; the list carries honest values", as
   await expect(interested).toContainText("Sofia Reyes");
   // Value honesty: POTENTIAL vocabulary on the goal column only; earlier
   // stages carry the prototype's honest "no value yet".
-  // B8: three booked (Ada Lovelace + the history's Sam and Vera) × $2,400.
+  // B8: three booked (Marisol Castellanos + the history's Sam and Vera) × $2,400.
   await expect(page.getByTestId("bold-pipe-col-booked")).toContainText("$7,200 potential");
   await expect(page.getByTestId("bold-pipe-col-contacted")).toContainText("no value yet");
 
@@ -166,13 +166,13 @@ test("pipeline board groups the real stages; the list carries honest values", as
   await page.getByTestId("bold-pipe-view-list").click();
   const list = page.getByTestId("bold-pipe-list");
   await expect(list).toBeVisible();
-  const adaRow = list.getByTestId("bold-pipe-row").filter({ hasText: "Ada Lovelace" });
+  const adaRow = list.getByTestId("bold-pipe-row").filter({ hasText: "Marisol Castellanos" });
   await expect(adaRow).toContainText("Booked");
   await expect(adaRow).toContainText("$2,400");
 
   // Stage filter narrows the list.
   await page.getByTestId("bold-pipe-stage-interested").click();
-  await expect(list.getByTestId("bold-pipe-row").filter({ hasText: "Ada Lovelace" })).toHaveCount(0);
+  await expect(list.getByTestId("bold-pipe-row").filter({ hasText: "Marisol Castellanos" })).toHaveCount(0);
   await expect(list.getByTestId("bold-pipe-row").filter({ hasText: "Sofia Reyes" })).toHaveCount(1);
 });
 

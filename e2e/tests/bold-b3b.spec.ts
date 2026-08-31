@@ -47,10 +47,10 @@ async function toWsInbox(page: Page): Promise<boolean> {
 }
 
 async function selectAlan(page: Page) {
-  const alan = page.getByTestId(/bold-inbox-thread-/).filter({ hasText: "Alan Turing" });
+  const alan = page.getByTestId(/bold-inbox-thread-/).filter({ hasText: "Theo Villanueva" });
   await expect(alan).toHaveCount(1);
   await alan.click();
-  await expect(page.getByTestId("bold-inbox-sel-name")).toHaveText("Alan Turing");
+  await expect(page.getByTestId("bold-inbox-sel-name")).toHaveText("Theo Villanueva");
 }
 
 test("a human reply sends through the boundary, holds Ada, and Resume releases her", async ({ page }) => {
@@ -87,7 +87,7 @@ test("a human reply sends through the boundary, holds Ada, and Resume releases h
   // boundary fired, and the unreachable remainder skips visibly. Any OTHER
   // refusal type still fails the spec.
   const sendToast = page.getByTestId("bold-toast");
-  await expect(sendToast).toContainText(/Sent to Alan Turing|Send blocked \(RECIPIENT_NOT_ALLOWLISTED\)/);
+  await expect(sendToast).toContainText(/Sent to Theo Villanueva|Send blocked \(RECIPIENT_NOT_ALLOWLISTED\)/);
   if ((await sendToast.textContent())?.includes("RECIPIENT_NOT_ALLOWLISTED")) {
     await expect(sendToast).toContainText("Not sent");
     test.skip(

@@ -79,6 +79,50 @@ interface SeedContact {
 }
 
 /**
+ * B7.5 approval round: the identities the four seeded contacts USED to carry.
+ * Kept so an already-seeded database upgrades in place instead of growing a
+ * second set — the same reason the workspace principal carries one.
+ */
+const RENAMED_CONTACTS: ReadonlyArray<[string, SeedContact]> = [
+  [
+    "ada@demo-agency.test",
+    {
+      email: "marisol.castellanos@mailbox.test",
+      firstName: "Marisol",
+      lastName: "Castellanos",
+      company: "Kestrel Design Studio",
+    },
+  ],
+  [
+    "alan@demo-agency.test",
+    {
+      email: "theo.villanueva@mailbox.test",
+      firstName: "Theo",
+      lastName: "Villanueva",
+      company: "Lamar Street Coffee",
+    },
+  ],
+  [
+    "edsger@demo-agency.test",
+    {
+      email: "nadia.farouk@mailbox.test",
+      firstName: "Nadia",
+      lastName: "Farouk",
+      company: "Austin Independent Schools",
+    },
+  ],
+  [
+    "grace@demo-agency.test",
+    {
+      email: "ingrid.solberg@mailbox.test",
+      firstName: "Ingrid",
+      lastName: "Solberg",
+      company: "Northwind Physio",
+    },
+  ],
+];
+
+/**
  * Distinct contacts per workspace. The asymmetric 3-vs-1 split makes the RLS
  * re-scope visible and unambiguous in the smoke: switching from `demo` to
  * `demo-2` must drop the list from 3 rows to 1, with zero overlap.
@@ -87,24 +131,37 @@ const WORKSPACES: ReadonlyArray<{ slug: string; name: string; contacts: SeedCont
   {
     slug: "demo",
     name: "Demo Workspace",
+    // B7.5 approval round (DEC-149, amended): patients, not computer scientists
+    // on the platform's own agency domain. The demo workspace IS Bright Smile
+    // Dental, so its contact book reads like a dental practice's — the same
+    // seed-realism ruling that moved the workspace principal and the sender.
+    //
+    // ORDER IS LOAD-BEARING. These rows are fetched `orderBy: createdAt asc`
+    // and zipped BY INDEX onto the B1 activity fixture (line ~446): [0] books
+    // and pays, [1] replies with a question, [2] is only contacted. Reordering
+    // this array silently rewrites which contact did what.
+    //
+    // "Ada" had to go for a second reason: Ada is the product's own agent, so
+    // a contact of the same name is a name collision with the assistant on
+    // every surface that shows both.
     contacts: [
       {
-        email: "ada@demo-agency.test",
-        firstName: "Ada",
-        lastName: "Lovelace",
-        company: "Analytical Engines",
+        email: "marisol.castellanos@mailbox.test",
+        firstName: "Marisol",
+        lastName: "Castellanos",
+        company: "Kestrel Design Studio",
       },
       {
-        email: "alan@demo-agency.test",
-        firstName: "Alan",
-        lastName: "Turing",
-        company: "Bletchley Park",
+        email: "theo.villanueva@mailbox.test",
+        firstName: "Theo",
+        lastName: "Villanueva",
+        company: "Lamar Street Coffee",
       },
       {
-        email: "edsger@demo-agency.test",
-        firstName: "Edsger",
-        lastName: "Dijkstra",
-        company: "Eindhoven",
+        email: "nadia.farouk@mailbox.test",
+        firstName: "Nadia",
+        lastName: "Farouk",
+        company: "Austin Independent Schools",
       },
     ],
   },
@@ -113,10 +170,12 @@ const WORKSPACES: ReadonlyArray<{ slug: string; name: string; contacts: SeedCont
     name: "Demo Workspace 2",
     contacts: [
       {
-        email: "grace@demo-agency.test",
-        firstName: "Grace",
-        lastName: "Hopper",
-        company: "UNIVAC",
+        // The workspace-rls smoke's demo-2-only sentinel: this contact must
+        // never appear in `demo`, and `demo`'s three must never appear here.
+        email: "ingrid.solberg@mailbox.test",
+        firstName: "Ingrid",
+        lastName: "Solberg",
+        company: "Northwind Physio",
       },
     ],
   },
@@ -285,6 +344,34 @@ async function main(): Promise<void> {
       });
     }
 
+    // The contact rows are create-if-absent keyed on email, so a rename would
+    // otherwise ADD four people rather than change four — and because the B1
+    // activity fixture below picks contacts positionally
+    // (`orderBy: createdAt asc, take: 3`), every thread, stage and payment
+    // would stay bound to the OLD rows while the new ones rendered empty. So
+    // the previous identities are upgraded in place first, exactly as the
+    // workspace principal is above. Guarded the same way: if the new address
+    // already exists, the old row is dropped rather than renamed onto a taken
+    // unique-ish pair, so a re-run can never collide with itself.
+    for (const [was, now] of RENAMED_CONTACTS) {
+      const already = await prisma.contact.findFirst({
+        where: { workspaceId: workspace.id, email: now.email },
+      });
+      if (already) {
+        await prisma.contact.deleteMany({ where: { workspaceId: workspace.id, email: was } });
+        continue;
+      }
+      await prisma.contact.updateMany({
+        where: { workspaceId: workspace.id, email: was },
+        data: {
+          email: now.email,
+          firstName: now.firstName,
+          lastName: now.lastName,
+          company: now.company,
+        },
+      });
+    }
+
     for (const c of ws.contacts) {
       const exists = await prisma.contact.findFirst({
         where: { workspaceId: workspace.id, email: c.email },
@@ -326,9 +413,9 @@ async function main(): Promise<void> {
         listIds.set(name, list.id);
       }
       const memberships: Array<[email: string, listName: string]> = [
-        ["ada@demo-agency.test", "SaaS founders Q2"],
-        ["alan@demo-agency.test", "Cold list — agencies"],
-        ["edsger@demo-agency.test", "Dental — local"],
+        ["marisol.castellanos@mailbox.test", "SaaS founders Q2"],
+        ["theo.villanueva@mailbox.test", "Cold list — agencies"],
+        ["nadia.farouk@mailbox.test", "Dental — local"],
       ];
       for (const [email, listName] of memberships) {
         const contact = await prisma.contact.findFirst({
@@ -562,8 +649,8 @@ async function main(): Promise<void> {
     const needsMarker = await prisma.message.findFirst({
       where: { workspaceId: second.id, stepNodeId: "seed-b1-needs" },
     });
-    const graceContact = await prisma.contact.findFirst({ where: { workspaceId: second.id } });
-    if (!needsMarker && graceContact) {
+    const sentinelContact = await prisma.contact.findFirst({ where: { workspaceId: second.id } });
+    if (!needsMarker && sentinelContact) {
       const agent2 = await prisma.agent.create({
         data: {
           workspaceId: second.id,
@@ -589,7 +676,7 @@ async function main(): Promise<void> {
         data: {
           workspaceId: second.id,
           campaignId: campaign2.id,
-          contactId: graceContact.id,
+          contactId: sentinelContact.id,
           channel: "email",
           direction: "INBOUND",
           body: "seed fixture — a reply waiting in the second workspace",
@@ -725,7 +812,7 @@ async function main(): Promise<void> {
     }
 
     // B2 (DEC-105): one SMS thread (Sofia Reyes — a prototype fixture name;
-    // NEVER Grace Hopper, the workspace-rls spec's demo-2-only sentinel) so
+    // NEVER Ingrid Solberg, the workspace-rls spec's demo-2-only sentinel) so
     // the Bold inbox TYPE
     // picker and the pipeline board have real channel/stage variety. The
     // outbound rides "seed-step-2" (the graph's sms step) so it never touches
@@ -1424,11 +1511,11 @@ async function main(): Promise<void> {
       data: { timezone: "America/Chicago" },
     });
     await prisma.contact.updateMany({
-      where: { workspaceId: primary.id, email: "edsger@demo-agency.test" },
+      where: { workspaceId: primary.id, email: "nadia.farouk@mailbox.test" },
       data: { phone: "+15125550143", timezone: "Asia/Tokyo" },
     });
     await prisma.contact.updateMany({
-      where: { workspaceId: primary.id, email: "alan@demo-agency.test" },
+      where: { workspaceId: primary.id, email: "theo.villanueva@mailbox.test" },
       data: { phone: "+15125550144", timezone: "Europe/Berlin" },
     });
 

@@ -1019,8 +1019,8 @@ if (UNIT === "b3c2") {
   // human dial clears the 08:00–21:00 contact-local floor at ANY capture hour.
   const CLOCK_CONTACTS = [
     ["Sofia Reyes", "America/Chicago"],
-    ["Alan Turing", "Europe/Berlin"],
-    ["Edsger Dijkstra", "Asia/Tokyo"],
+    ["Theo Villanueva", "Europe/Berlin"],
+    ["Nadia Farouk", "Asia/Tokyo"],
   ];
   const localHour = (tz) =>
     Number(
@@ -1165,7 +1165,7 @@ if (UNIT === "b3b") {
     const later = p.getByText("Later", { exact: true }).first();
     if (await later.isVisible().catch(() => false)) await later.click();
     await p.getByTestId("bold-dock-wsinbox").click();
-    await p.locator('[data-testid^="bold-inbox-thread-"]').filter({ hasText: "Alan Turing" }).click();
+    await p.locator('[data-testid^="bold-inbox-thread-"]').filter({ hasText: "Theo Villanueva" }).click();
     await p.getByTestId("bold-inbox-composer").waitFor();
     // A leftover hold from a previous run is resumed first (clean frame).
     const stale = p.getByTestId("bold-inbox-resume");
@@ -1187,10 +1187,10 @@ if (UNIT === "b3b") {
     await p.getByTestId("bold-inbox-assign").click();
     await p.waitForTimeout(400);
     await shot(p, "build-inbox-assign-1440x900");
-    // The DEC-114 slot, live: Ada Lovelace's paid-no-review rule (deferred
+    // The DEC-114 slot, live: Marisol Castellanos's paid-no-review rule (deferred
     // action, visible provenance).
     await p.getByTestId("bold-dock-contacts").click();
-    await p.locator('[data-testid^="bold-ct-card-"]').filter({ hasText: "Ada Lovelace" }).click();
+    await p.locator('[data-testid^="bold-ct-card-"]').filter({ hasText: "Marisol Castellanos" }).click();
     await p.getByTestId("bold-person-nextstep").waitFor({ timeout: 15_000 });
     await p.waitForTimeout(500);
     await shot(p, "build-nextstep-1440x900");
@@ -1242,7 +1242,7 @@ if (UNIT === "b3") {
     await p.waitForTimeout(400);
     await shot(p, "build-contacts-list-1440x900");
     // The person detail on the seeded booked contact.
-    await p.locator('[data-testid^="bold-ct-row-"]').filter({ hasText: "Ada Lovelace" }).click();
+    await p.locator('[data-testid^="bold-ct-row-"]').filter({ hasText: "Marisol Castellanos" }).click();
     await p.getByTestId("bold-person-name").waitFor();
     await p.waitForTimeout(600);
     await shot(p, "build-contact-detail-1440x900");
@@ -1364,7 +1364,7 @@ if (UNIT === "b25") {
       name: "lapsed-patients-2026.csv",
       mimeType: "text/csv",
       buffer: Buffer.from(
-        "Full Name,Email Address,Mobile,Opted In\nSofia Reyes,sofia.reyes@example.test,+15125550142,yes\nAlan Turing,alan@demo-agency.test,,yes\nQuiet Row,quiet@example.test,,no",
+        "Full Name,Email Address,Mobile,Opted In\nSofia Reyes,sofia.reyes@example.test,+15125550142,yes\nTheo Villanueva,theo.villanueva@mailbox.test,,yes\nQuiet Row,quiet@example.test,,no",
       ),
     });
     await p.waitForTimeout(400);

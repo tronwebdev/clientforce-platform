@@ -56,7 +56,7 @@ test("workspace inbox: attribution, campaign picker, triage round-trips", async 
   // The seeded thread world: Ada (handled), Alan (needs reply), Sofia (SMS).
   await expect(page.getByTestId(/bold-inbox-thread-/).first()).toBeVisible();
   const threads = page.getByTestId(/bold-inbox-thread-/);
-  await expect(threads.filter({ hasText: "Alan Turing" })).toHaveCount(1);
+  await expect(threads.filter({ hasText: "Theo Villanueva" })).toHaveCount(1);
   // Campaign attribution rides every thread row (workspace scope).
   await expect(threads.filter({ hasText: "Implant open day" }).first()).toBeVisible();
 
@@ -65,11 +65,11 @@ test("workspace inbox: attribution, campaign picker, triage round-trips", async 
   const campOpt = page.getByTestId(/bold-inbox-opt-camp-/).filter({ hasText: "Implant open day" });
   await expect(campOpt).toHaveCount(1);
   await campOpt.click();
-  await expect(threads.filter({ hasText: "Alan Turing" })).toHaveCount(1);
+  await expect(threads.filter({ hasText: "Theo Villanueva" })).toHaveCount(1);
 
   // Select Alan's thread; the pane header carries the campaign pill.
-  await threads.filter({ hasText: "Alan Turing" }).click();
-  await expect(page.getByTestId("bold-inbox-sel-name")).toHaveText("Alan Turing");
+  await threads.filter({ hasText: "Theo Villanueva" }).click();
+  await expect(page.getByTestId("bold-inbox-sel-name")).toHaveText("Theo Villanueva");
   await expect(page.getByTestId("bold-inbox-sel-camp")).toContainText("Implant open day");
   await expect(page.getByTestId("bold-inbox-pane").getByText("What does recovery look like?")).toBeVisible();
 
@@ -96,31 +96,31 @@ test("contacts: segments, search, person detail, Message lands on the thread", a
   await expect(page.getByText(/^\d+ (PEOPLE|PERSON)$/)).toBeVisible();
 
   // Seeded people render as grid cards with the derived tag.
-  const adaCard = page.getByTestId(/bold-ct-card-/).filter({ hasText: "Ada Lovelace" });
+  const adaCard = page.getByTestId(/bold-ct-card-/).filter({ hasText: "Marisol Castellanos" });
   await expect(adaCard).toHaveCount(1);
   await expect(adaCard).toContainText("Booked"); // stage booked → the factual tag
 
   // Search narrows across names.
-  await page.getByTestId("bold-ct-search").fill("Alan Turing");
-  await expect(page.getByTestId(/bold-ct-card-/).filter({ hasText: "Alan Turing" })).toHaveCount(1);
-  await expect(page.getByTestId(/bold-ct-card-/).filter({ hasText: "Ada Lovelace" })).toHaveCount(0);
+  await page.getByTestId("bold-ct-search").fill("Theo Villanueva");
+  await expect(page.getByTestId(/bold-ct-card-/).filter({ hasText: "Theo Villanueva" })).toHaveCount(1);
+  await expect(page.getByTestId(/bold-ct-card-/).filter({ hasText: "Marisol Castellanos" })).toHaveCount(0);
   await page.getByTestId("bold-ct-search").fill("");
 
   // Customers = derived stage-won query; the demo seed has none — the
   // booked row must NOT masquerade as a customer.
   await page.getByTestId("bold-ct-seg-customers").click();
-  await expect(page.getByTestId(/bold-ct-card-/).filter({ hasText: "Ada Lovelace" })).toHaveCount(0);
+  await expect(page.getByTestId(/bold-ct-card-/).filter({ hasText: "Marisol Castellanos" })).toHaveCount(0);
   await page.getByTestId("bold-ct-seg-all").click();
 
   // List view: the prototype's row anatomy + per-row add-to-list.
   await page.getByTestId("bold-ct-view-list").click();
   await expect(page.getByText("POTENTIAL")).toBeVisible();
-  const adaRow = page.getByTestId(/bold-ct-row-/).filter({ hasText: "Ada Lovelace" });
-  await expect(adaRow).toContainText("ada@demo-agency.test");
+  const adaRow = page.getByTestId(/bold-ct-row-/).filter({ hasText: "Marisol Castellanos" });
+  await expect(adaRow).toContainText("marisol.castellanos@mailbox.test");
 
   // Person detail: avatar header, campaigns, timeline.
   await adaRow.click();
-  await expect(page.getByTestId("bold-person-name")).toHaveText("Ada Lovelace");
+  await expect(page.getByTestId("bold-person-name")).toHaveText("Marisol Castellanos");
   await expect(page.getByTestId("bold-drawer")).toContainText("CAMPAIGNS");
   await expect(page.getByTestId(/bold-person-camp-/).first()).toContainText("Implant open day");
   await expect(page.getByTestId("bold-drawer")).toContainText("TIMELINE");
@@ -153,5 +153,5 @@ test("contacts: segments, search, person detail, Message lands on the thread", a
   // Message → the workspace inbox opens ON this contact's thread.
   await page.getByTestId("bold-person-message").click();
   await expect(page.getByTestId("bold-inbox")).toBeVisible();
-  await expect(page.getByTestId("bold-inbox-sel-name")).toHaveText("Ada Lovelace", { timeout: 15_000 });
+  await expect(page.getByTestId("bold-inbox-sel-name")).toHaveText("Marisol Castellanos", { timeout: 15_000 });
 });
