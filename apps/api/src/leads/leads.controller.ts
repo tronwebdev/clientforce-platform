@@ -683,7 +683,12 @@ export class LeadsController {
         const notNowOn = notNowAt.get(c.id) ?? null;
         const isLost = notNowOn != null;
         const everTouched = touchById.has(c.id);
-        if (!isLapsed && !isLost && everTouched) continue; // still warm with you — not a "find"
+        const sigs = signalsByContact.get(c.id) ?? [];
+        // "Still warm with you" is not a find — UNLESS something just fired.
+        // A contact who asked what it costs this morning is precisely who
+        // belongs at the top of "in the market"; the own-book warm filter was
+        // dropping them before their signal was ever looked at.
+        if (!isLapsed && !isLost && everTouched && sigs.length === 0) continue;
         const scored = scoreCandidate(profile, {
           title: c.title,
           company: c.company,
@@ -692,8 +697,6 @@ export class LeadsController {
           daysSinceLastTouch: days,
           callConsentGranted: c.callConsent === "granted",
         });
-        const sigs = signalsByContact.get(c.id) ?? [];
-
         // The typed own-book signal that put this row here. Derived from the
         // very rows the suppression pass read — never a stored fiction.
         const ownType = isLost ? "said_not_now" : isLapsed ? "went_quiet" : "never_worked";
