@@ -141,11 +141,7 @@ export class LeadsController {
   async config() {
     const profile = await this.profile();
     return this.tenant.run(async (tx) => {
-      const bp = await tx.integration.findFirst({
-        where: { provider: "buyerping" },
-        select: { id: true },
-      });
-      const tierOn = Boolean(bp);
+      const tierOn = await this.readTier(tx);
       const topics = await tx.watchTopic.findMany({ orderBy: { createdAt: "asc" } });
       const since = new Date(Date.now() - 24 * 3600_000);
       const signalsToday = await tx.intentSignal.count({ where: { occurredAt: { gte: since } } });
@@ -283,24 +279,31 @@ export class LeadsController {
   @Roles(Role.OWNER, Role.ADMIN)
   async buyerping(@Req() req: AuthenticatedRequest, @Body() body: { enabled?: unknown }) {
     const enabled = body?.enabled === true;
+    const workspaceId = this.tenant.workspaceId;
     return this.tenant.run(async (tx) => {
-      const existing = await tx.integration.findFirst({ where: { provider: "buyerping" } });
-      if (!enabled) {
-        if (existing) await tx.integration.delete({ where: { id: existing.id } });
-        return { connected: false };
-      }
-      if (!existing) {
-        await tx.integration.create({
-          data: {
-            workspaceId: this.tenant.workspaceId,
-            provider: "buyerping",
-            status: "connected",
-            config: { enabled: true },
-            connectedById: req.auth?.user.id ?? null,
-          },
-        });
-      }
-      return { connected: true };
+      const ws = await tx.workspace.findUniqueOrThrow({
+        where: { id: workspaceId },
+        select: { settings: true },
+      });
+      const settings = (ws.settings ?? {}) as Record<string, unknown>;
+      await tx.workspace.update({
+        where: { id: workspaceId },
+        data: {
+          settings: {
+            ...settings,
+            buyerping: {
+              enabled,
+              changedAt: new Date().toISOString(),
+              changedBy: req.auth?.user.id ?? null,
+            },
+          } as Prisma.InputJsonValue,
+        },
+      });
+      // Retire the legacy Integration row on first touch — the tier is not an
+      // integration and must not keep a card's worth of state alive.
+      const legacy = await tx.integration.findFirst({ where: { provider: "buyerping" } });
+      if (legacy) await tx.integration.delete({ where: { id: legacy.id } });
+      return { connected: enabled };
     });
   }
 
@@ -433,15 +436,36 @@ export class LeadsController {
     };
   }
 
-  /** Is the BuyerPing tier on for this workspace? */
-  private async tierOn(): Promise<boolean> {
-    return this.tenant.run(async (tx) => {
-      const bp = await tx.integration.findFirst({
-        where: { provider: "buyerping" },
-        select: { id: true },
-      });
-      return Boolean(bp);
+  /**
+   * Is the BuyerPing tier on?
+   *
+   * DEC-152: the tier LEFT the integrations registry (ADDENDUM_5 §2) — it is
+   * not an integration, there is nothing to connect and no vendor to name, so
+   * an Integration row was the wrong home for it. Its interim home is
+   * `Workspace.settings.buyerping`, the same additive-JSON pattern as
+   * `icpProfile`; the real home is an agency-level plan entitlement, which
+   * lands with the rest of tier gating in B10.5 (Q-141).
+   *
+   * A workspace switched on before this wave still has the legacy Integration
+   * row, so that is read as true and migrated on the next toggle. Nobody's
+   * tier silently turns off.
+   */
+  private async readTier(tx: Prisma.TransactionClient): Promise<boolean> {
+    const ws = await tx.workspace.findUnique({
+      where: { id: this.tenant.workspaceId },
+      select: { settings: true },
     });
+    const bp = ((ws?.settings ?? {}) as { buyerping?: { enabled?: unknown } }).buyerping;
+    if (bp && typeof bp.enabled === "boolean") return bp.enabled;
+    const legacy = await tx.integration.findFirst({
+      where: { provider: "buyerping" },
+      select: { id: true },
+    });
+    return Boolean(legacy);
+  }
+
+  private async tierOn(): Promise<boolean> {
+    return this.tenant.run((tx) => this.readTier(tx));
   }
 
   /**

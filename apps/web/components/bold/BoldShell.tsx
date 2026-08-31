@@ -147,6 +147,11 @@ export function BoldShell({
   // each view loads — the eyebrow never shows a canned number).
   const [wsInboxCount, setWsInboxCount] = useState<number | null>(null);
   const [contactCount, setContactCount] = useState<number | null>(null);
+  // B6.5 (DEC-153): the Lead finder's question is shape- and vertical-derived
+  // ("Who's looking for a dentist" / "Who's in the market"), so the surface
+  // reports it up rather than the shell holding a fixed string — the same
+  // pattern as the live eyebrow counts above.
+  const [leadTitle, setLeadTitle] = useState<string | null>(null);
   // The drawer's "Message" hand-off: which contact the workspace inbox opens on.
   const [wsFocus, setWsFocus] = useState<string | null>(null);
 
@@ -381,7 +386,9 @@ export function BoldShell({
   const adaCtx = adaContextFor(surface, activeCamp?.name ?? "your campaign");
 
   const [eyebrow, title] =
-    surface === "campaign"
+    surface === "lead"
+      ? (["LEAD FINDER · WATCHING", leadTitle ?? "Find who fits"] as const)
+      : surface === "campaign"
       ? activeCamp
         ? (["CAMPAIGN", activeCamp.name] as const)
         : (["CAMPAIGN", "No campaigns yet"] as const)
@@ -655,7 +662,7 @@ export function BoldShell({
             {surface === "automations" ? (
               <BoldAutomationsView key={`a${gbTick}`} onBuild={() => setGb("auto")} onCounts={onAutoCounts} flash={flash} />
             ) : null}
-            {surface === "lead" ? <BoldLeadFinderView onOpenDrawer={setDrawer} flash={flash} /> : null}
+            {surface === "lead" ? <BoldLeadFinderView flash={flash} onTitle={setLeadTitle} /> : null}
             {surface === "wssettings" ? (
               <BoldWsSettingsView
                 onOpenCredits={() => setSurface("credits")}
@@ -667,7 +674,7 @@ export function BoldShell({
             ) : null}
             {surface === "credits" ? <BoldCreditsView flash={flash} /> : null}
             {surface === "analytics" ? <BoldStatsView /> : null}
-            {surface === "integrations" ? <BoldIntegrationsView flash={flash} onCount={setIntCount} /> : null}
+            {surface === "integrations" ? <BoldIntegrationsView onCount={setIntCount} /> : null}
             {gb ? (
               <BoldGuidedBuild
                 kind={gb}

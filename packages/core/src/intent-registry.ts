@@ -233,12 +233,28 @@ export interface IntentSignalDef {
   /** Template; slots interpolate from the event payload at write time. */
   receipt: string;
   receiptSlots?: ReceiptSlot[];
+  /**
+   * What a slot reads as when the event cannot fill it. A slot that simply
+   * vanishes can leave a sentence limping ("asked what would cost today"),
+   * so every slot that carries grammatical weight declares a true generic
+   * word to fall back on. Never a guess about the person — only a word for
+   * the thing.
+   */
+  slotDefaults?: Partial<Record<ReceiptSlot, string>>;
   /** Which goal this points at, so intent becomes a decision (DEC-114). */
   impliesGoal?: GoalKey;
   /** Which offer it points at, in the workspace's own words where known. */
   impliesOffer?: string;
   valueHint?: ValueBand;
-  byVertical?: Record<string, { receipt?: string; label?: string; impliesOffer?: string }>;
+  byVertical?: Record<
+    string,
+    {
+      receipt?: string;
+      label?: string;
+      impliesOffer?: string;
+      slotDefaults?: Partial<Record<ReceiptSlot, string>>;
+    }
+  >;
 }
 
 /**
@@ -335,14 +351,23 @@ export const INTENT_SIGNALS: Record<string, IntentSignalDef> = {
     sourceTag: "YOUR INBOX",
     receipt: "asked about {topic} pricing {when}",
     receiptSlots: ["topic", "when"],
+    slotDefaults: { topic: "your" },
     impliesGoal: "accept_quotes",
     valueHint: "high",
     byVertical: {
-      dental: { receipt: "asked what {topic} would cost {when}", impliesOffer: "treatment" },
-      clinic: { receipt: "asked what {topic} would cost {when}" },
+      dental: {
+        receipt: "asked what {topic} would cost {when}",
+        impliesOffer: "treatment",
+        slotDefaults: { topic: "treatment" },
+      },
+      clinic: { receipt: "asked what {topic} would cost {when}", slotDefaults: { topic: "treatment" } },
       saas: { receipt: "asked about your pricing {when}", impliesOffer: "a plan" },
-      trades: { receipt: "asked for a price on {topic} {when}", impliesOffer: "a quote" },
-      legal: { receipt: "asked what {topic} would cost {when}" },
+      trades: {
+        receipt: "asked for a price on {topic} {when}",
+        impliesOffer: "a quote",
+        slotDefaults: { topic: "the work" },
+      },
+      legal: { receipt: "asked what {topic} would cost {when}", slotDefaults: { topic: "the matter" } },
     },
   },
   link_clicked: {
@@ -481,6 +506,7 @@ export const INTENT_SIGNALS: Record<string, IntentSignalDef> = {
     sourceTag: "MOVER LIST",
     receipt: "moved into {area} {when}",
     receiptSlots: ["area", "when"],
+    slotDefaults: { area: "your area" },
     impliesGoal: "generate_leads",
     valueHint: "high",
     byVertical: {
@@ -504,6 +530,7 @@ export const INTENT_SIGNALS: Record<string, IntentSignalDef> = {
     sourceTag: "PUBLIC RECORD",
     receipt: "bought a home in {area} {when}",
     receiptSlots: ["area", "when"],
+    slotDefaults: { area: "your area" },
     impliesGoal: "generate_leads",
     valueHint: "high",
     byVertical: {
@@ -526,6 +553,7 @@ export const INTENT_SIGNALS: Record<string, IntentSignalDef> = {
     sourceTag: "LIFE EVENT",
     receipt: "{topic} {when}",
     receiptSlots: ["topic", "when"],
+    slotDefaults: { topic: "A life event you serve" },
     impliesGoal: "promote_offer",
     valueHint: "high",
     byVertical: {
@@ -569,6 +597,7 @@ export const INTENT_SIGNALS: Record<string, IntentSignalDef> = {
     sourceTag: "PUBLIC REVIEW",
     receipt: "left a {n} star review for {competitor} {when}",
     receiptSlots: ["n", "competitor", "when"],
+    slotDefaults: { n: "low", competitor: "someone nearby" },
     impliesGoal: "generate_leads",
     valueHint: "high",
     byVertical: {
@@ -591,6 +620,7 @@ export const INTENT_SIGNALS: Record<string, IntentSignalDef> = {
     sourceTag: "JOB POSTING",
     receipt: "posted {n} {role} roles {when}",
     receiptSlots: ["n", "role", "when"],
+    slotDefaults: { n: "new", role: "" },
     impliesGoal: "generate_leads",
     valueHint: "high",
     byVertical: {
@@ -614,6 +644,7 @@ export const INTENT_SIGNALS: Record<string, IntentSignalDef> = {
     sourceTag: "PUBLIC RECORD",
     receipt: "opening in {area} {when}",
     receiptSlots: ["area", "when"],
+    slotDefaults: { area: "a new place" },
     impliesGoal: "generate_leads",
     valueHint: "high",
   },
@@ -633,6 +664,7 @@ export const INTENT_SIGNALS: Record<string, IntentSignalDef> = {
     sourceTag: "PUBLIC RECORD",
     receipt: "filed a permit in {area} {when}",
     receiptSlots: ["area", "when"],
+    slotDefaults: { area: "your area" },
     impliesGoal: "accept_quotes",
     valueHint: "high",
   },
@@ -670,6 +702,7 @@ export const INTENT_SIGNALS: Record<string, IntentSignalDef> = {
     sourceTag: "PUBLIC RECORD",
     receipt: "changed their {topic} {when}",
     receiptSlots: ["topic", "when"],
+    slotDefaults: { topic: "tooling" },
     impliesGoal: "generate_leads",
     valueHint: "medium",
     byVertical: { saas: { receipt: "swapped their {topic} {when}" } },
@@ -689,6 +722,7 @@ export const INTENT_SIGNALS: Record<string, IntentSignalDef> = {
     sourceTag: "AD LIBRARY",
     receipt: "running ads for {topic} {when}",
     receiptSlots: ["topic", "when"],
+    slotDefaults: { topic: "what they sell" },
     impliesGoal: "generate_leads",
     valueHint: "medium",
   },
@@ -707,6 +741,7 @@ export const INTENT_SIGNALS: Record<string, IntentSignalDef> = {
     sourceTag: "REVIEW FEED",
     receipt: "reviews {topic} {when}",
     receiptSlots: ["topic", "when"],
+    slotDefaults: { topic: "moving" },
     valueHint: "low",
   },
   news_mention: {
@@ -724,6 +759,7 @@ export const INTENT_SIGNALS: Record<string, IntentSignalDef> = {
     sourceTag: "NEWS",
     receipt: "in the news for {topic} {when}",
     receiptSlots: ["topic", "when"],
+    slotDefaults: { topic: "something" },
     valueHint: "low",
   },
 };
@@ -846,7 +882,15 @@ export function intentReceipt(
 ): string | null {
   const template = intentReceiptTemplate(type, vertical);
   if (template === null) return null;
-  return fillReceipt(template, slots);
+  const def = INTENT_SIGNALS[type];
+  const defaults = {
+    ...def?.slotDefaults,
+    ...(vertical ? def?.byVertical?.[vertical]?.slotDefaults : undefined),
+  };
+  const supplied = Object.fromEntries(
+    Object.entries(slots).filter(([, v]) => v !== undefined && v !== null && v !== ""),
+  );
+  return fillReceipt(template, { ...defaults, ...supplied });
 }
 
 /* ── scoring ────────────────────────────────────────────────────────── */
