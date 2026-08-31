@@ -1,8 +1,8 @@
 {
   "unit": "b65",
-  "commit": "a61335be797cd7310b80d75f0ec2784ce010c46b",
+  "commit": "adadce1edd0cb2c9da20131bfa3b1242c311f624",
   "workingTreeDirtyAtCapture": false,
-  "capturedAt": "2026-08-31T20:15:18.048Z",
+  "capturedAt": "2026-08-31T20:17:17.675Z",
   "baseUrl": "http://localhost:3000",
   "note": "Single-run capture; every frame from one build. Verify a frame by hashing its bytes against this manifest — never by trusting an image cache. pnpm lint:fidelity enforces the binding.",
   "frames": {
@@ -13,13 +13,13 @@
     },
     "build-lead-brief-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 148958,
-      "sha256": "260d862230c3a4af06d5a64b4cd77c6020fdabce1788b8ef0f882921387194ab"
+      "bytes": 147508,
+      "sha256": "642207f93a6a8bf8d94c284fffb9378e70af78def24e652fbff471c57bb1464e"
     },
     "build-lead-buyerping-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 203603,
-      "sha256": "19369cccc10f17193bd82937322867ce54528cedeb120fd8e1efb4d9c242cbff"
+      "bytes": 203580,
+      "sha256": "2b2b26d0d5e883f3242a74b69001c5b2eb2620f776dcfaabfa3da15626241580"
     },
     "build-lead-direct-1440x900.png": {
       "viewport": "1440x900",
@@ -28,18 +28,18 @@
     },
     "build-lead-drawer-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 149712,
-      "sha256": "7e2472307ee056e09c49b52de80c1dcdcccb316ff07694ce56021e4bd750d90e"
+      "bytes": 149708,
+      "sha256": "0bb8b96849f8d7e88a3a9a32309a82e8a3f67101b53f2d287e0718c67a1aa6ac"
     },
     "build-lead-market-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 144407,
-      "sha256": "19213a3ffd077fd2fc0906f3ad961a53f38cc4f6d77e69cbb822d7406d7e5ed1"
+      "bytes": 144415,
+      "sha256": "83d8c8096f80502dcb6f4d968b4ac90a23933709b44c0d09b88d705f4a763f36"
     },
     "build-lead-pool-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 130585,
-      "sha256": "5f48b2452850a91a7065fa685dae9f18912dd5910c5da48934aab23c280824e0"
+      "bytes": 130567,
+      "sha256": "6de6d97151c01ce610c28aab3fb640f7eea6bd5e745ad531cdcb8c98f962bbed"
     },
     "build-lead-pool-nocount-1440x900.png": {
       "viewport": "1440x900",
@@ -48,33 +48,33 @@
     },
     "build-lead-watch-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 195044,
-      "sha256": "808c96ebcdce078e55f4e0b82732b9dc8e6b160af02727581b11563bbaafd3d2"
+      "bytes": 195030,
+      "sha256": "d70a5de766f78a3cd8e87d9b0e0f6240dbd60550e4026ccc4f5a220945ad974f"
     },
     "proto-lead-buyerping-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 225118,
-      "sha256": "1d26f742eaa17f203353ebd4736fa6de3a9e04be301e6480c5852da0214557d9"
+      "bytes": 225100,
+      "sha256": "e8694c9fa22dd871eb089b9d6493a36c80da6ce2503288f460afeffbaa49288b"
     },
     "proto-lead-direct-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 191422,
-      "sha256": "df49ff248d02e215cb144b51295a66eede610de650b5247af164b48924e7a7c0"
+      "bytes": 191367,
+      "sha256": "90a6499a0188c1c2751647ebc47a3cdb661a388456aa35649f55feffc63a64c1"
     },
     "proto-lead-market-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 169406,
-      "sha256": "7a17c96c8b877bfc7e574b745420ed46209c4e2e88d06f6642dfb3a39f5f28c3"
+      "bytes": 169372,
+      "sha256": "901acf8a77e84771a2d8e1265d20d0b8ce9759dd3b5580b3b13b0e2d0ecf05d3"
     },
     "proto-lead-pool-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 189162,
-      "sha256": "acb6413035cf349f05122fae7de1470a6c7b74a036f80e98db93bf60c9b3e0a1"
+      "bytes": 189135,
+      "sha256": "054e1d8b13b3293e29818aa2e162d0142399c46de9468f9e56ea7456d74e40b7"
     },
     "proto-lead-watch-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 217880,
-      "sha256": "5b94b85b749f6d5ce9500d0e2514eb70c956925d00d7b55813dc00f93c6833a3"
+      "bytes": 217851,
+      "sha256": "a7d6720cbf2f150a887661bf8f63ed492a9c552bd850861ee776cbed038a9552"
     }
   }
 }

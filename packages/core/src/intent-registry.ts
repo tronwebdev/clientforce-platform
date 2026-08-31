@@ -113,6 +113,7 @@ export const DECAY_FLOOR = 0.5;
 export const SIGNAL_GROUPS = [
   "site",
   "asked",
+  "onbook",
   "quiet",
   "engaged",
   "moved",
@@ -142,12 +143,29 @@ export const SIGNAL_GROUP_META: Record<SignalGroup, SignalGroupDef> = {
   },
   asked: {
     label: "Asked and never booked",
-    why: "They enquired once and went cold",
+    why: "They asked about it once and went cold",
     shapes: ["company", "local_business", "consumer"],
     byVertical: {
       saas: { label: "Asked and never signed up" },
       ecommerce: { label: "Asked and never ordered" },
       education: { label: "Enquired and never enrolled" },
+    },
+  },
+  /**
+   * Split out of `asked` deliberately. A contact reaches your book by import,
+   * by a form, or by hand, so a group whose label and description both assert
+   * an enquiry cannot hold them — the same overclaim the `never_worked`
+   * receipt was corrected for. `asked` now holds only types that mean they
+   * really did ask.
+   */
+  onbook: {
+    label: "In your records, nothing yet",
+    why: "People you already hold that nothing has happened with",
+    shapes: ["company", "local_business", "consumer"],
+    byVertical: {
+      dental: { label: "Patients on file, never booked in" },
+      salon: { label: "Clients on file, never booked in" },
+      saas: { label: "Accounts on file, never started" },
     },
   },
   quiet: {
@@ -469,7 +487,7 @@ export const INTENT_SIGNALS: Record<string, IntentSignalDef> = {
   },
   never_worked: {
     label: "In your book, never worked",
-    group: "asked",
+    group: "onbook",
     shapes: ["company", "local_business", "consumer"],
     subject: "person",
     supplier: "first_party",
