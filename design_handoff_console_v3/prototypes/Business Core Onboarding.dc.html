@@ -230,12 +230,44 @@ input::placeholder{color:#A8B2AC;}
           <div style="font-size:13.5px;color:#5A6660;line-height:1.6;margin-top:10px;">{{ st.sub }}</div>
 
           <sc-if value="{{ st.isSite }}" hint-placeholder-val="{{ true }}">
-            <div style="display:flex;align-items:center;gap:2px;background:#F4F6F5;border:1px solid #DFE3E1;border-radius:15px;padding:0 16px;height:56px;margin-top:24px;box-shadow:inset 0 1px 2px rgba(16,22,19,.05);">
-              <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#A8B2AC;flex:none;">https://</span>
-              <input value="{{ site }}" onChange="{{ setSite }}" placeholder="yourbusiness.com" style="flex:1;min-width:0;border:none;outline:none;background:transparent;font-size:15px;font-weight:600;letter-spacing:-.015em;color:#101613;">
-            </div>
-            <div style="font-size:12px;color:#8B968F;margin-top:12px;line-height:1.55;">She reads your pages once, then keeps what matters. Nothing is published or changed.</div>
-            <div onClick="{{ noSite }}" style="font-size:12.5px;color:#0E7D93;cursor:pointer;margin-top:14px;">No website? Tell her about the business instead →</div>
+            <sc-if value="{{ isSiteMode }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;align-items:center;gap:2px;background:#F4F6F5;border:1px solid #DFE3E1;border-radius:15px;padding:0 16px;height:56px;margin-top:24px;box-shadow:inset 0 1px 2px rgba(16,22,19,.05);">
+                <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#A8B2AC;flex:none;">https://</span>
+                <input value="{{ site }}" onChange="{{ setSite }}" placeholder="yourbusiness.com" style="flex:1;min-width:0;border:none;outline:none;background:transparent;font-size:15px;font-weight:600;letter-spacing:-.015em;color:#101613;">
+              </div>
+              <div style="font-size:12px;color:#8B968F;margin-top:12px;line-height:1.55;">She reads your pages once, then keeps what matters. Nothing is published or changed.</div>
+              <div onClick="{{ noSite }}" style="font-size:12.5px;color:#0E7D93;cursor:pointer;margin-top:14px;">No website? Tell her about the business instead →</div>
+            </sc-if>
+            <sc-if value="{{ isManualMode }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:10px;margin-top:22px;">
+                <div>
+                  <div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.14em;color:#8B968F;">WHAT KIND OF BUSINESS</div>
+                  <input value="{{ mkind }}" onChange="{{ setMkind }}" placeholder="e.g. dental practice · SaaS · marketing agency" style="width:100%;height:46px;background:#F4F6F5;border:1px solid #DFE3E1;border-radius:13px;padding:0 15px;font-size:13.5px;color:#101613;outline:none;box-shadow:inset 0 1px 2px rgba(16,22,19,.05);margin-top:7px;box-sizing:border-box;">
+                </div>
+                <div>
+                  <div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.14em;color:#8B968F;">WHAT YOU SELL, AND ROUGHLY WHAT IT COSTS</div>
+                  <textarea value="{{ msell }}" onChange="{{ setMsell }}" placeholder="e.g. Dental implants from $8,400, whitening kits at $249, free consults" style="width:100%;height:76px;background:#F4F6F5;border:1px solid #DFE3E1;border-radius:13px;padding:12px 15px;font-family:'IBM Plex Sans',sans-serif;font-size:13.5px;line-height:1.5;color:#101613;outline:none;resize:none;box-shadow:inset 0 1px 2px rgba(16,22,19,.05);margin-top:7px;box-sizing:border-box;"></textarea>
+                </div>
+                <div>
+                  <div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.14em;color:#8B968F;">WHERE YOU WORK</div>
+                  <input value="{{ marea }}" onChange="{{ setMarea }}" placeholder="e.g. Austin, TX — 20 miles · or nationwide" style="width:100%;height:46px;background:#F4F6F5;border:1px solid #DFE3E1;border-radius:13px;padding:0 15px;font-size:13.5px;color:#101613;outline:none;box-shadow:inset 0 1px 2px rgba(16,22,19,.05);margin-top:7px;box-sizing:border-box;">
+                </div>
+              </div>
+              <sc-if value="{{ noDocs }}" hint-placeholder-val="{{ true }}">
+                <div onClick="{{ addDoc }}" style="background:#F4F6F5;border:1.5px dashed #CFD6D1;border-radius:15px;padding:18px;margin-top:12px;text-align:center;cursor:pointer;" style-hover="border-color:#146B33;">
+                  <div style="font-size:13px;font-weight:700;letter-spacing:-.015em;">Add a price list, brochure or policy</div>
+                  <div style="font-size:11.5px;color:#8B968F;margin-top:5px;line-height:1.5;">PDF, Word or an image. She reads it the same way she reads a website.</div>
+                </div>
+              </sc-if>
+              <sc-if value="{{ hasDocs }}" hint-placeholder-val="{{ false }}">
+                <div onClick="{{ addDoc }}" style="display:flex;align-items:center;gap:11px;background:#fff;border:1px solid #CFE8D8;border-radius:15px;padding:14px 16px;margin-top:12px;cursor:pointer;">
+                  <span style="width:26px;height:26px;flex:none;border-radius:9px;background:#EAF5EE;border:1px solid #CFE8D8;color:#146B33;display:flex;align-items:center;justify-content:center;font-size:11px;">✓</span>
+                  <div style="flex:1;min-width:0;font-size:12.5px;font-weight:600;">{{ docsLine }}</div>
+                  <span style="font-size:11.5px;font-weight:700;color:#0E7D93;flex:none;">Add another</span>
+                </div>
+              </sc-if>
+              <div onClick="{{ haveSite }}" style="font-size:12.5px;color:#0E7D93;cursor:pointer;margin-top:14px;">Actually, I do have a website →</div>
+            </sc-if>
           </sc-if>
 
           <sc-if value="{{ st.isRead }}" hint-placeholder-val="{{ false }}">
@@ -251,6 +283,11 @@ input::placeholder{color:#A8B2AC;}
                 </div>
               </sc-for>
             </div>
+            <div style="display:flex;align-items:center;gap:7px;margin-top:13px;">
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.14em;color:#146B33;background:#EAF5EE;border:1px solid #CFE8D8;border-radius:999px;padding:3px 9px;">SOURCE</span>
+              <span style="font-size:11.5px;color:#5A6660;">{{ sourceLine }}</span>
+            </div>
+            <div style="font-size:12px;color:#8B968F;margin-top:9px;line-height:1.55;">{{ readFoot }}</div>
           </sc-if>
 
           <sc-if value="{{ st.isPick }}" hint-placeholder-val="{{ false }}">
@@ -264,9 +301,31 @@ input::placeholder{color:#A8B2AC;}
                       <div style="font-size:12px;color:#8B968F;margin-top:3px;line-height:1.5;">{{ o.sub }}</div>
                     </sc-if>
                   </div>
+                  <sc-if value="{{ o.showPrimary }}" hint-placeholder-val="{{ false }}">
+                    <span onClick="{{ o.setPrimary }}" style="{{ o.primaryStyle }}">{{ o.primaryL }}</span>
+                  </sc-if>
                 </div>
               </sc-for>
             </div>
+          </sc-if>
+
+          <sc-if value="{{ st.isImport }}" hint-placeholder-val="{{ false }}">
+            <sc-if value="{{ imported }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #CFE8D8;border-radius:16px;padding:17px 18px;margin-top:24px;box-shadow:0 1px 2px rgba(16,22,19,.035);">
+                <span style="width:30px;height:30px;flex:none;border-radius:10px;background:#EAF5EE;border:1px solid #CFE8D8;color:#146B33;display:flex;align-items:center;justify-content:center;font-size:13px;">✓</span>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:13px;font-weight:700;letter-spacing:-.015em;">412 contacts read · 388 she may contact</div>
+                  <div style="font-size:11.5px;color:#8B968F;margin-top:3px;line-height:1.5;">24 have no consent on record — imported as contacts, held out of sending.</div>
+                </div>
+              </div>
+            </sc-if>
+            <sc-if value="{{ notImported }}" hint-placeholder-val="{{ true }}">
+              <div onClick="{{ doImport }}" style="background:#F4F6F5;border:1.5px dashed #CFD6D1;border-radius:16px;padding:26px 18px;margin-top:24px;text-align:center;cursor:pointer;" style-hover="border-color:#146B33;">
+                <div style="font-size:13.5px;font-weight:700;letter-spacing:-.015em;">Drop a CSV here, or choose a file</div>
+                <div style="font-size:12px;color:#8B968F;margin-top:6px;line-height:1.55;">Name, email, phone, when they last bought — whatever you have. She matches the columns and shows you before anything is saved.</div>
+              </div>
+              <div onClick="{{ skipImport }}" style="font-size:12.5px;color:#0E7D93;cursor:pointer;margin-top:14px;">Skip — import later from Contacts →</div>
+            </sc-if>
           </sc-if>
 
           <sc-if value="{{ st.isAsk }}" hint-placeholder-val="{{ false }}">
@@ -301,11 +360,23 @@ input::placeholder{color:#A8B2AC;}
               <div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.18em;color:rgba(255,255,255,.5);">FIRST CAMPAIGN — READY TO REVIEW</div>
               <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:900;font-size:24px;letter-spacing:-.032em;line-height:1.12;color:#fff;margin-top:11px;">{{ campName }}</div>
               <div style="font-size:13px;color:rgba(255,255,255,.64);line-height:1.55;margin-top:10px;">{{ campSub }}</div>
+              <sc-if value="{{ hasCampAud }}" hint-placeholder-val="{{ false }}">
+                <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;color:rgba(255,255,255,.42);margin-top:12px;">{{ campAud }}</div>
+              </sc-if>
               <div style="display:flex;align-items:baseline;gap:8px;margin-top:18px;">
                 <span style="font-family:'Schibsted Grotesk',sans-serif;font-weight:900;font-size:34px;letter-spacing:-.036em;color:#35E834;line-height:1;">{{ campValue }}</span>
                 <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.14em;color:rgba(255,255,255,.4);">IF IT HITS</span>
               </div>
             </div>
+            <sc-if value="{{ hasLeadPreview }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #E7EAE8;border-radius:16px;padding:15px 17px;margin-top:10px;box-shadow:0 1px 2px rgba(16,22,19,.035);">
+                <span style="width:28px;height:28px;flex:none;border-radius:9px;background:#EAF5EE;border:1px solid #CFE8D8;color:#146B33;display:flex;align-items:center;justify-content:center;font-size:12px;">✦</span>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:13px;font-weight:700;letter-spacing:-.015em;">{{ leadPreview }}</div>
+                  <div style="font-size:11.5px;color:#8B968F;margin-top:3px;line-height:1.5;">{{ leadPreviewSrc }}</div>
+                </div>
+              </div>
+            </sc-if>
             <div style="font-size:12.5px;color:#8B968F;margin-top:14px;line-height:1.55;">Nothing sends until you say so. Everything here is editable from the console.</div>
           </sc-if>
         </div>
@@ -335,7 +406,8 @@ input::placeholder{color:#A8B2AC;}
 <script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1320,&quot;height&quot;:860}}">
 class Component extends DCLogic {
   state = { phase: 'auth', authMode: 'up', authStep: 0, name: '', biz: '', email: '', step: 0,
-    site: 'brightsmile.co', icp: null, goal: null, ask: '', mail: '', reading: false };
+    site: 'brightsmile.co', icps: [], primary: null, goal: null, ask: '', mail: '',
+    imported: false, reading: false };
 
   set(p) { this.setState(p); }
 
@@ -401,29 +473,45 @@ class Component extends DCLogic {
     const bizName = s.biz || 'Bright Smile Dental';
     const host = (s.site || 'brightsmile.co').replace(/^https?:\/\//, '');
 
-    const ICP = [
-      { k: 'i1', n: 'People who match what you sell best', sub: 'Drawn from your own pages — the buyer your offer already speaks to' },
-      { k: 'i2', n: 'Customers who went quiet', sub: 'Already in your records, already know you. Cheapest revenue you have.' },
-      { k: 'i3', n: 'Anyone who asks about you', sub: 'Widest net, lowest fit — more volume, more sorting' },
-      { k: 'i4', n: 'Let me describe them myself', sub: 'Industry, size, role, region — whatever defines a good one' },
-    ];
+    // Goal registry — audience scope + how many audiences the goal can carry.
     const GOALS = [
-      { k: 'lead', n: 'Qualify and hand over', sub: 'She works them, sorts them, your team closes' },
-      { k: 'book', n: 'Get meetings booked', sub: 'Demos, calls, consults — time in the diary' },
-      { k: 'sell', n: 'Take payment or sign-up', sub: 'Checkout, trial start, subscription — a closed sale' },
-      { k: 'revive', n: 'Win back quiet accounts', sub: 'Revenue from customers you already have' },
+      { k: 'lead', n: 'Qualify and hand over', sub: 'She works them, sorts them, your team closes', scope: 'new_demand', max: 3 },
+      { k: 'book', n: 'Get meetings booked', sub: 'Demos, calls, consults — time in the diary', scope: 'mixed', max: 3 },
+      { k: 'sell', n: 'Take payment or sign-up', sub: 'Checkout, trial start, subscription — a closed sale', scope: 'mixed', max: 3 },
+      { k: 'revive', n: 'Win back quiet accounts', sub: 'Revenue from customers you already have', scope: 'own_book', max: 2 },
     ];
+    const goal = GOALS.find((g) => g.k === s.goal) || null;
+    const goalName = goal ? goal.n : '';
+
+    // Audience registry — each option declares its shape; the goal's scope filters them.
+    const ICP_ALL = [
+      { k: 'i1', shape: 'new_demand', n: 'New people who match your best customers', sub: 'She goes and finds them — matched on the buyer your offer already speaks to' },
+      { k: 'i3', shape: 'new_demand', n: 'Anyone who asks about you', sub: 'Inbound only — website chats, forms, calls. Widest net, lowest fit.' },
+      { k: 'i2', shape: 'own_book', n: 'Customers who went quiet', sub: 'Already in your records, already know you. Cheapest revenue you have.' },
+      { k: 'i5', shape: 'own_book', n: 'Enquiries that never bought', sub: 'They asked once and went cold — she picks the thread back up' },
+      { k: 'i4', shape: 'any', n: 'Let me describe them myself', sub: 'Industry, size, role, region — whatever defines a good one' },
+    ];
+    const scope = goal ? goal.scope : 'mixed';
+    const ICP = ICP_ALL.filter((o) => o.shape === 'any' || scope === 'mixed' || o.shape === scope);
+    const maxIcp = goal ? goal.max : 3;
+    const icps = s.icps || [];
+    const primary = s.primary || icps[0] || null;
+    const icpName = (k) => (ICP_ALL.find((o) => o.k === k) || {}).n || '';
+    const ownBookPicked = icps.some((k) => (ICP_ALL.find((o) => o.k === k) || {}).shape === 'own_book');
+
     const ASK = {
       book: ['When can people actually meet you, and how long does it take?', 'e.g. 20 minutes · weekdays and Saturday mornings'],
       sell: ['What is the price, and what does it include?', 'e.g. $249/mo — all seats, onboarding included'],
       revive: ['What would bring a lapsed customer back?', 'e.g. two months free, no setup charge'],
       lead: ['What makes a lead worth your team\u2019s time?', 'e.g. 10+ seats, evaluating this quarter'],
     };
-    const goalName = (GOALS.find((g) => g.k === s.goal) || {}).n || '';
     const askQ = (ASK[s.goal] || ASK.book)[0];
     const askPh = (ASK[s.goal] || ASK.book)[1];
 
+    const manual = s.mode === 'manual';
+    const docs = s.docs || 0;
     const FOUND = [
+      { k: 'INDUSTRY', v: 'Dental practice — implant and cosmetic dentistry' },
       { k: 'WHAT YOU SELL', v: 'Implants, crowns, whitening and routine care' },
       { k: 'PRICES SHE FOUND', v: 'Implant consult free · whitening kit $249 · full-arch from $8,400' },
       { k: 'HOURS', v: 'Mon–Fri 8–5, Saturday 9–1 — quiet hours 8pm to 8am' },
@@ -431,16 +519,54 @@ class Component extends DCLogic {
       { k: 'PROOF', v: '412 reviews at 4.9 · in the same building since 2009' },
     ];
 
-    const FACETS = [
-      { n: 'Business & offer', v: 'Implants, crowns, whitening · Austin, TX', at: 1 },
-      { n: 'Voice & tone', v: 'Warm, plain, never pushy', at: 1 },
-      { n: 'Ideal customer', v: (ICP.find((i) => i.k === s.icp) || {}).n || '', at: 3 },
-      { n: 'Primary goal', v: goalName, at: 4 },
-      { n: 'Goal readiness', v: s.ask ? s.ask.slice(0, 34) : '', at: 5 },
-      { n: 'Channels', v: s.mail ? 'Mailer · reply-to ' + s.mail : '', at: 6 },
+    // ---- flow: goal before audience; contacts step only when an own-book audience is picked
+    const FLOW = [
+      manual
+        ? { kind: 'site', title: 'Tell her about the business', sub: 'A few lines is enough to start. Add a price list, brochure or policy document and she reads those the same way she reads a site.',
+            cta: 'Build my core →', foot: 'Everything here is editable later — nothing is locked in' }
+        : { kind: 'site', title: 'Skip the setup forms', sub: 'Give Ada your address and she works out what you sell, what it costs and how you sound. Nothing to fill in by hand.',
+            cta: 'Read my site →', foot: 'About ten seconds — you correct anything she gets wrong' },
+      { kind: 'read', title: 'This is what she will say about you', sub: 'Every message she writes comes from these facts. Change any of them and she keeps your version for good.',
+        cta: 'This is right →', foot: 'Editable any time from your Core' },
+      { kind: 'goal', title: 'What counts as a win?', sub: 'Your first goal. It sets how hard she pushes, when she follows up and which replies get your attention.',
+        cta: 'Continue →', foot: 'One goal now — add more campaigns whenever you like' },
+      { kind: 'icp', title: 'Who is worth chasing?', sub: 'She writes differently for each of these. Pick everyone worth the effort — up to ' + maxIcp + '.',
+        cta: 'Continue →', foot: icps.length > 1 ? 'Your primary gets the first campaign; the rest arrive as Ada\u2019s suggestions' : 'Add more audiences whenever you like' },
+      { kind: 'ask', title: 'One thing she cannot guess', sub: 'Your site never says this, and she will not invent it. Without it she has to stall on a hot reply.',
+        cta: 'Continue →', foot: 'Skip it and she asks you in the moment instead' },
     ];
+    if (ownBookPicked) FLOW.push({ kind: 'import', title: 'Bring your people with you',
+      sub: 'You picked an audience from your own records, so she needs the list. A spreadsheet is enough — she maps the columns herself.',
+      cta: 'Continue →', foot: 'Consent column respected — no consent, no sending' });
+    FLOW.push({ kind: 'send', title: 'Where should replies land?', sub: 'She sends from your Clientforce address today, so you can start now. Replies come straight back to you.',
+      cta: 'Finish setup →', foot: 'Your own domain connects later, in settings' });
+    const total = FLOW.length;
+    FLOW.forEach((x, i) => { x.eyebrow = 'STEP ' + (i + 1) + ' OF ' + total; });
+    FLOW.push({ kind: 'done', eyebrow: 'YOUR CORE IS LIVE', title: 'Your first campaign is written',
+      sub: 'Built from what you just told her — audience, timing, every message. Read it before anything sends.',
+      cta: 'Choose your plan →', foot: 'Nothing sends without your approval' });
+
+    const step = Math.min(s.step, FLOW.length - 1);
+    const st0 = FLOW[step];
+    const at = (k) => FLOW.findIndex((x) => x.kind === k);
+    const st = { ...st0, isSite: st0.kind === 'site', isRead: st0.kind === 'read',
+      isPick: st0.kind === 'goal' || st0.kind === 'icp', isAsk: st0.kind === 'ask',
+      isImport: st0.kind === 'import', isSend: st0.kind === 'send', isDone: st0.kind === 'done',
+      cta: s.reading ? 'Reading ' + host + '…' : st0.cta };
+    const isDoneStep = st0.kind === 'done';
+
+    const FACETS = [
+      { n: 'Business & offer', v: 'Dental practice · implants, crowns, whitening · Austin, TX', at: at('read') },
+      { n: 'Voice & tone', v: 'Warm, plain, never pushy', at: at('read') },
+      { n: 'First goal', v: goalName, at: at('goal') },
+      { n: 'Who to chase', v: icps.length ? (icps.length > 1 ? icpName(primary) + ' + ' + (icps.length - 1) + ' more' : icpName(icps[0])) : '', at: at('icp') },
+      { n: 'Goal readiness', v: s.ask ? s.ask.slice(0, 34) : '', at: at('ask') },
+    ];
+    if (ownBookPicked) FACETS.push({ n: 'Your contacts', v: s.imported ? '412 imported · 388 contactable' : '', at: at('import') });
+    FACETS.push({ n: 'Channels', v: s.mail ? 'Mailer · reply-to ' + s.mail : '', at: at('send') });
+
     const facets = FACETS.map((k) => {
-      const reached = s.step >= k.at;
+      const reached = step >= k.at;
       const done = reached && !!k.v;
       const gap = reached && !k.v;
       return { n: k.n, v: gap ? 'Not set — she will ask when it comes up' : k.v,
@@ -453,41 +579,41 @@ class Component extends DCLogic {
     const filled = facets.filter((k) => k.tick === '✓').length;
     const pct = Math.round((filled / facets.length) * 100) + '%';
 
-    const STEPS = [
-      { eyebrow: 'STEP 1 OF 6', title: 'Skip the setup forms', sub: 'Give Ada your address and she works out what you sell, what it costs and how you sound. Nothing to fill in by hand.',
-        cta: 'Read my site →', foot: 'About ten seconds — you correct anything she gets wrong', isSite: true },
-      { eyebrow: 'STEP 2 OF 6', title: 'This is what she will say about you', sub: 'Every message she writes comes from these five things. Change any of them and she keeps your version for good.',
-        cta: 'This is right →', foot: 'Editable any time from your Core', isRead: true },
-      { eyebrow: 'STEP 3 OF 6', title: 'Who is worth chasing?', sub: 'She writes differently for each of these. Pick where the money actually is.',
-        cta: 'Continue →', foot: 'Add more audiences whenever you like', isPick: true },
-      { eyebrow: 'STEP 4 OF 6', title: 'What counts as a win?', sub: 'This sets how hard she pushes, when she follows up and which replies get your attention.',
-        cta: 'Continue →', foot: 'One goal now — add campaigns later', isPick: true },
-      { eyebrow: 'STEP 5 OF 6', title: 'One thing she cannot guess', sub: 'Your site never says this, and she will not invent it. Without it she has to stall on a hot reply.',
-        cta: 'Continue →', foot: 'Skip it and she asks you in the moment instead', isAsk: true },
-      { eyebrow: 'STEP 6 OF 6', title: 'Where should replies land?', sub: 'She sends from your Clientforce address today, so you can start now. Replies come straight back to you.',
-        cta: 'Finish setup →', foot: 'Your own domain connects later, in settings', isSend: true },
-      { eyebrow: 'YOUR CORE IS LIVE', title: 'Your first campaign is written', sub: 'Built from what you just told her — audience, timing, every message. Read it before anything sends.',
-        cta: 'Choose your plan →', foot: 'Nothing sends without your approval', isDone: true },
-    ];
-    const st0 = STEPS[Math.min(s.step, STEPS.length - 1)];
-    const st = { ...st0, isSite: !!st0.isSite, isRead: !!st0.isRead, isPick: !!st0.isPick,
-      isAsk: !!st0.isAsk, isSend: !!st0.isSend, isDone: !!st0.isDone,
-      cta: s.reading ? 'Reading ' + host + '…' : st0.cta };
+    const isGoalStep = st0.kind === 'goal';
+    const picks = isGoalStep
+      ? GOALS.map((o) => {
+          const on = s.goal === o.k;
+          return { n: o.n, sub: o.sub, hasSub: true, shape: '50%', showPrimary: false,
+            bg: on ? '#EAF5EE' : '#fff', bd: on ? '#CFE8D8' : '#ECEDEC',
+            ring: on ? '#146B33' : '#D4DAD6', dot: on ? '#146B33' : 'transparent',
+            fg: on ? '#0E3D22' : '#101613',
+            go: () => this.setState({ goal: o.k, icps: [], primary: null, imported: false }) };
+        })
+      : ICP.map((o) => {
+          const on = icps.includes(o.k);
+          const isP = on && icps.length > 1 && primary === o.k;
+          return { n: o.n, sub: o.sub, hasSub: true, shape: '7px',
+            bg: on ? '#EAF5EE' : '#fff', bd: on ? '#CFE8D8' : '#ECEDEC',
+            ring: on ? '#146B33' : '#D4DAD6', dot: on ? '#146B33' : 'transparent',
+            fg: on ? '#0E3D22' : '#101613',
+            showPrimary: on && icps.length > 1, primaryL: isP ? 'Primary' : 'Make primary',
+            primaryStyle: isP
+              ? { fontSize: '10.5px', fontWeight: '700', color: '#146B33', background: '#fff', border: '1px solid #CFE8D8', borderRadius: '999px', padding: '4px 10px', flex: 'none', cursor: 'default' }
+              : { fontSize: '10.5px', fontWeight: '600', color: '#8B968F', background: 'transparent', border: '1px solid #DCE2DE', borderRadius: '999px', padding: '4px 10px', flex: 'none', cursor: 'pointer' },
+            setPrimary: (e) => { if (e && e.stopPropagation) e.stopPropagation(); this.setState({ primary: o.k }); },
+            go: () => {
+              const has = icps.includes(o.k);
+              if (has) {
+                const left = icps.filter((x) => x !== o.k);
+                return this.setState({ icps: left, primary: primary === o.k ? (left[0] || null) : primary, imported: left.some((x) => (ICP_ALL.find((y) => y.k === x) || {}).shape === 'own_book') ? s.imported : false });
+              }
+              if (icps.length >= maxIcp) return;
+              this.setState({ icps: icps.concat([o.k]), primary: primary || o.k });
+            } };
+        });
 
-    const isGoalStep = s.step === 3;
-    const src = isGoalStep ? GOALS : ICP;
-    const sel = isGoalStep ? s.goal : s.icp;
-    const picks = src.map((o) => {
-      const on = sel === o.k;
-      return { n: o.n, sub: o.sub, hasSub: true, shape: '50%',
-        bg: on ? '#EAF5EE' : '#fff', bd: on ? '#CFE8D8' : '#ECEDEC',
-        ring: on ? '#146B33' : '#D4DAD6', dot: on ? '#146B33' : 'transparent',
-        fg: on ? '#0E3D22' : '#101613',
-        go: () => this.setState(isGoalStep ? { goal: o.k } : { icp: o.k }) };
-    });
-
-    const dots = STEPS.map((x, i) => ({ l: x.title, flex: i === s.step ? '2.4' : '1',
-      bg: i < s.step ? '#146B33' : i === s.step ? '#35E834' : '#E4E6E5' }));
+    const dots = FLOW.map((x, i) => ({ l: x.title, flex: i === step ? '2.4' : '1',
+      bg: i < step ? '#146B33' : i === step ? '#35E834' : '#E4E6E5' }));
 
     const DOCK = [
       ['Campaigns', 'M4 6h16M4 12h16M4 18h10'],
@@ -502,7 +628,7 @@ class Component extends DCLogic {
       ['Integrations', 'M10 3v6M14 3v6M7 9h10v4a5 5 0 0 1-10 0zM12 18v3'],
       ['Settings', 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6M20 12h2M2 12h2M12 2v2M12 20v2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19'],
     ];
-    const live = s.step >= 6;
+    const live = isDoneStep;
     const ghostDock = DOCK.map((d, i) => {
       const wave = Math.min(1, Math.max(0, (filled / facets.length) * 12 - i));
       return { name: live ? d[0] : d[0] + ' · unlocks when your Core is live', d: d[1],
@@ -525,7 +651,21 @@ class Component extends DCLogic {
         pFg: on ? '#146B33' : '#101613', go: () => this.setState({ tier: p.k }) };
     });
 
-    const canGo = s.step === 2 ? !!s.icp : s.step === 3 ? !!s.goal : true;
+    const canGo = st0.kind === 'goal' ? !!s.goal
+      : st0.kind === 'icp' ? icps.length > 0
+      : st0.kind === 'site' && manual ? !!(s.msell || '').trim()
+      : true;
+
+    // The brief she just built is enough to watch the outside world — industry, service
+    // keywords, radius and size seed the signal queries with no workspace history at all.
+    // Shown only when a new-demand audience is picked; in the build, absent when the signal
+    // layer is not live. Never a fabricated count.
+    const newDemandPicked = icps.some((k) => (ICP_ALL.find((o) => o.k === k) || {}).shape === 'new_demand');
+    // Shape-derived: this demo business sells to people, so the signal speaks about people.
+    // A company-shape workspace would read "3 practices near you are hiring" from the same
+    // registry — the noun is never hard-coded.
+    const leadPreview = newDemandPicked ? '11 families moved in within 3 miles of you this month' : null;
+    const leadPreviewSrc = 'She is already watching for moments like this that match your brief. Nobody is contacted until you say so.';
 
     return {
       isAuth: phase === 'auth', isCore: phase === 'core', isPlan: phase === 'plan',
@@ -546,31 +686,49 @@ class Component extends DCLogic {
       payBg: cardReady ? '#146B33' : '#8FA79A',
       au, bizName, pct, facets, dots, st, picks, found: FOUND, ghostDock, tiers,
       site: s.site, setSite: (e) => this.setState({ site: e.target.value }),
-      noSite: () => this.setState({ step: 1 }),
+      isSiteMode: !manual, isManualMode: manual,
+      noSite: () => this.setState({ mode: 'manual' }),
+      haveSite: () => this.setState({ mode: 'site' }),
+      mkind: s.mkind || '', setMkind: (e) => this.setState({ mkind: e.target.value }),
+      msell: s.msell || '', setMsell: (e) => this.setState({ msell: e.target.value }),
+      marea: s.marea || '', setMarea: (e) => this.setState({ marea: e.target.value }),
+      docs: docs, hasDocs: docs > 0, noDocs: docs === 0,
+      docsLine: docs === 1 ? '1 document read — price list' : docs + ' documents read — price list, treatment brochure',
+      addDoc: () => this.setState({ docs: Math.min(2, docs + 1) }),
+      sourceLine: manual
+        ? 'From what you told her' + (docs ? ' · ' + docs + (docs === 1 ? ' document' : ' documents') : ' — add documents any time to deepen this')
+        : 'Read from ' + host + (docs ? ' · ' + docs + (docs === 1 ? ' document' : ' documents') : ''),
+      leadPreview: leadPreview, hasLeadPreview: !!leadPreview, leadPreviewSrc: leadPreviewSrc,
       askQ, askPh, askV: s.ask, setAsk: (e) => this.setState({ ask: e.target.value }),
-      skipAsk: () => this.setState({ step: 5 }),
+      skipAsk: () => this.setState({ ask: '', step: step + 1 }),
       mail: s.mail, setMail: (e) => this.setState({ mail: e.target.value }),
-      campName: goalName === 'Sell a product or plan' ? 'Whitening kit — Saturday fittings' : 'Implant open day — 21st',
+      readFoot: 'Add more any time — price lists, policies, documents — in Business core.',
+      imported: !!s.imported, notImported: !s.imported,
+      doImport: () => this.setState({ imported: true }),
+      skipImport: () => this.setState({ imported: false, step: step + 1 }),
+      campName: s.goal === 'sell' ? 'Whitening kit — Saturday fittings' : s.goal === 'revive' ? 'Win back the quiet ones' : 'Implant open day — 21st',
       campSub: 'Twelve consult slots, ' + (s.mail ? 'replies to ' + s.mail : 'email only') + ', paced across ten days.',
-      campValue: goalName === 'Sell a product or plan' ? '$2,988' : '$28.8k',
-      hasBack: s.step > 0, back: () => this.setState({ step: Math.max(0, s.step - 1) }),
+      campValue: s.goal === 'sell' ? '$2,988' : '$28.8k',
+      campAud: icps.length > 1 ? 'For ' + icpName(primary) + ' — ' + (icps.length - 1) + ' more waiting as suggestions' : icps.length ? 'For ' + icpName(icps[0]) : '',
+      hasCampAud: icps.length > 0,
+      hasBack: step > 0, back: () => this.setState({ step: Math.max(0, step - 1) }),
       nextBg: canGo ? '#146B33' : '#B6C4BB',
       next: () => {
         if (!canGo) return;
-        if (s.step === 0) return this.read();
-        if (s.step >= 6) return this.setState({ phase: 'plan' });
-        this.setState({ step: s.step + 1 });
+        if (st0.kind === 'site') return this.read();
+        if (isDoneStep) return this.setState({ phase: 'plan' });
+        this.setState({ step: step + 1 });
       },
-      adaState: s.reading ? 'Reading ' + host + '…' : s.step === 0 ? 'Waiting on your site'
-        : s.step >= 6 ? (filled === facets.length ? 'Core live — campaign ready' : 'Core live · ' + (facets.length - filled) + ' to fill in later')
+      adaState: s.reading ? 'Reading ' + host + '…' : st0.kind === 'site' ? 'Waiting on your site'
+        : isDoneStep ? (filled === facets.length ? 'Core live — campaign ready' : 'Core live · ' + (facets.length - filled) + ' to fill in later')
         : 'Building your Core · ' + pct,
-      adaBg: s.step >= 6 ? '#EAF5EE' : '#FCFCFC', adaBd: s.step >= 6 ? '#CFE8D8' : '#EAEBEA',
-      adaTile: s.step >= 6 ? '#146B33' : '#EAF5EE', adaTileBd: s.step >= 6 ? '#146B33' : '#CFE8D8',
-      adaTileFg: s.step >= 6 ? '#fff' : '#146B33',
-      adaFg: s.step >= 6 ? '#0E3D22' : '#101613', adaSubFg: s.step >= 6 ? '#1D5B34' : '#8B968F',
+      adaBg: isDoneStep ? '#EAF5EE' : '#FCFCFC', adaBd: isDoneStep ? '#CFE8D8' : '#EAEBEA',
+      adaTile: isDoneStep ? '#146B33' : '#EAF5EE', adaTileBd: isDoneStep ? '#146B33' : '#CFE8D8',
+      adaTileFg: isDoneStep ? '#fff' : '#146B33',
+      adaFg: isDoneStep ? '#0E3D22' : '#101613', adaSubFg: isDoneStep ? '#1D5B34' : '#8B968F',
       dockNote: live ? 'Everything Ada runs, one tap away' : 'These unlock the moment your Core is live',
       enterConsole: () => { if (cardReady) window.location.href = 'Console Bold.dc.html'; },
-      backToCore: () => this.setState({ phase: 'core', step: 6 }),
+      backToCore: () => this.setState({ phase: 'core', step: FLOW.length - 1 }),
     };
   }
 }
