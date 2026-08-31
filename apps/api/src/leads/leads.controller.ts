@@ -7,11 +7,23 @@
  * full metering stays that Q's spine).
  *
  * Honesty rails: keyless Direct mode answers `providerConfigured: false`
- * (the UI renders "provider not connected" — never fixture rows); keyless
- * Ada mode ranks the workspace's OWN book (lapsed, lost, unconverted) with
- * factual receipts; suppression removes DNC/opt-out, active enrollments and
- * happy customers before anything ranks; fit is the headline and intent the
- * second tier (ADDENDUM_4 §4.6).
+ * and the UI renders an OPERATOR condition — "Search is temporarily
+ * unavailable · nothing for you to fix" — never a vendor name and never a
+ * connect affordance (ADDENDUM_5 §1, DEC-150). Keyless Ada mode ranks the
+ * workspace's OWN book (lapsed, lost, unconverted) with factual receipts;
+ * suppression removes DNC/opt-out, active enrollments and happy customers
+ * before anything ranks; fit is the headline and intent the second tier
+ * (ADDENDUM_4 §4.6).
+ *
+ * B6.5 (DEC-150..153) rebuilds the surface's server half as a STANDING
+ * WATCH: typed feed rows carrying their own signal group, firing time,
+ * receipt, source tag and lawful basis; TIER GATING so a `bp` type produces
+ * no row anywhere in the response until BuyerPing is on (SURFACE_SPEC
+ * §12.1); server-derived counts for every control that shows one; ONE
+ * suppression source behind both the feed foot and the pool header
+ * (§12.7); and the pool's bands, of which only ALREADY YOURS can be counted
+ * from shipped data — the paid bands say plainly that their number needs
+ * the provider rather than showing an invented estimate (DEC-115, Q-140).
  */
 import {
   BadRequestException,
@@ -27,14 +39,26 @@ import {
 } from "@nestjs/common";
 import { z } from "zod";
 import {
-  decayedWeight,
   DEFAULT_ICP_PROFILE,
   DIRECT_FILTERS,
   icpProfileSchema,
+  INTENT_SIGNALS,
+  intentReceipt,
+  intentScore,
+  isVisibleSignal,
+  leadFinderTitle,
+  lockedSignalTypes,
+  plainWhen,
+  POOL_BANDS,
+  PROVIDER_PEOPLE_SEARCH,
   scoreCandidate,
+  SIGNAL_GROUP_META,
+  signalApplies,
   SOURCE_ELIGIBILITY,
+  subjectNounFor,
   WATCH_TOPIC_SUGGESTIONS,
   type IcpProfile,
+  type SignalGroup,
 } from "@clientforce/core";
 import { LeadProviderError, type LeadSearchProvider } from "@clientforce/leads";
 import { Prisma, Role } from "@clientforce/db";
@@ -58,6 +82,38 @@ const revealSchema = z.object({ providerRef: z.string().min(1).max(120) });
 const hideSchema = z.object({ provider: z.string().min(1).max(40), providerRef: z.string().min(1).max(120) });
 
 const REVEAL_PRICE_ACTION = "lead_reveal";
+
+/** The brief edit (SURFACE_SPEC §11 `Edit brief`). Additive: the profile is
+ *  written at first run by POST /workspaces; this is the only update path. */
+const briefSchema = icpProfileSchema;
+
+/**
+ * The lawful-basis sentence, in plain words, composed from the bases the
+ * workspace's OWN active signal types actually carry — never a fixed
+ * paragraph (ADDENDUM_5 §9 / SURFACE_SPEC §12.9).
+ */
+function basisSentence(types: string[]): string {
+  const bases = new Set(types.map((t) => INTENT_SIGNALS[t]?.basis).filter(Boolean));
+  const parts: string[] = [];
+  if (bases.has("first_party")) {
+    parts.push(
+      "Your own records and your own visitors can be replied to in any channel they used.",
+    );
+  }
+  if (bases.has("licensed") || bases.has("public_record")) {
+    parts.push(
+      "Movers, life events and public complaints are licensed or public data: she may email them and put them in ads, but she may not call or text until they have said yes.",
+    );
+  }
+  return parts.join(" ");
+}
+
+/** What a row's basis permits, as the chip states it. */
+function channelChip(basis: string | undefined): { label: string; warm: boolean } {
+  return basis === "first_party"
+    ? { label: "any channel she used", warm: true }
+    : { label: "email ok · no call consent", warm: false };
+}
 
 @Controller("leads")
 export class LeadsController {
@@ -89,19 +145,135 @@ export class LeadsController {
         where: { provider: "buyerping" },
         select: { id: true },
       });
+      const tierOn = Boolean(bp);
       const topics = await tx.watchTopic.findMany({ orderBy: { createdAt: "asc" } });
       const since = new Date(Date.now() - 24 * 3600_000);
       const signalsToday = await tx.intentSignal.count({ where: { occurredAt: { gte: since } } });
+      const ws = await tx.workspace.findUnique({
+        where: { id: this.tenant.workspaceId },
+        select: { createdAt: true, settings: true },
+      });
+      const scoredAgainst = await tx.contact.count();
+
+      const vertical = profile.vertical ?? null;
+      const applicable = Object.entries(INTENT_SIGNALS).filter(([, def]) =>
+        signalApplies(def, profile.shape, vertical),
+      );
+      const activeTypes = applicable.filter(([, d]) => d.tier === "core" || tierOn).map(([k]) => k);
+
+      // Group catalogue: what she watches, and what is held back. A group is
+      // ON when at least one of its types is available to this workspace at
+      // its current tier — the panel lists what a person recognises, not our
+      // event keys.
+      const groupsOf = (types: Array<[string, (typeof INTENT_SIGNALS)[string]]>) => {
+        const seen = new Map<SignalGroup, { tier: "core" | "bp"; types: string[] }>();
+        for (const [key, def] of types) {
+          const cur = seen.get(def.group) ?? { tier: def.tier, types: [] };
+          cur.types.push(key);
+          // A group containing any core type is INCLUDED; only an all-paid
+          // group carries the BUYERPING badge.
+          if (def.tier === "core") cur.tier = "core";
+          seen.set(def.group, cur);
+        }
+        return [...seen.entries()].map(([group, v]) => {
+          const meta = SIGNAL_GROUP_META[group];
+          const flav = vertical ? meta.byVertical?.[vertical] : undefined;
+          return {
+            key: group,
+            label: flav?.label ?? meta.label,
+            why: flav?.why ?? meta.why,
+            tier: v.tier,
+            types: v.types,
+          };
+        });
+      };
+      const watching = groupsOf(applicable.filter(([, d]) => d.tier === "core" || tierOn));
+      const lockedTypes = lockedSignalTypes(profile.shape, vertical);
+      const locked = tierOn
+        ? []
+        : groupsOf(applicable.filter(([, d]) => d.tier === "bp")).map((g) => ({
+            ...g,
+            // No producer exists for licensed supply yet, so we cannot say
+            // what it "would find". Naming the kinds honestly is the whole
+            // truth we have (DEC-115; the count is Q-140).
+            estimate: null as string | null,
+          }));
+
+      const settings = (ws?.settings ?? {}) as { briefUpdatedAt?: unknown };
+      const briefUpdatedAt =
+        typeof settings.briefUpdatedAt === "string" ? settings.briefUpdatedAt : null;
+      // The brief is written at first run by POST /workspaces, so the
+      // workspace's own creation is when the watch genuinely started; an
+      // edit moves it. Never a decorative date.
+      const watchingSince = briefUpdatedAt ?? ws?.createdAt?.toISOString() ?? null;
+
       return {
         providerConfigured: this.provider.configured(),
-        buyerping: { connected: Boolean(bp), signalsToday },
+        buyerping: { connected: tierOn, signalsToday },
         profile,
         directFilters: DIRECT_FILTERS[profile.shape],
+        providerPeopleSearch: PROVIDER_PEOPLE_SEARCH[profile.shape],
         topicSuggestions: WATCH_TOPIC_SUGGESTIONS[profile.shape],
         sources: SOURCE_ELIGIBILITY[profile.shape],
         watchTopics: topics.map((t) => ({ id: t.id, kind: t.kind, label: t.label })),
+        // ── B6.5: the standing-watch shell ──
+        title: leadFinderTitle(profile.shape, vertical),
+        noun: subjectNounFor(profile.shape, vertical),
+        brief: {
+          sentence: this.briefSentence(profile),
+          provenance: this.briefProvenance(profile, scoredAgainst, watching),
+          watchingSince,
+          scoredAgainst,
+        },
+        watching,
+        locked,
+        lockedTypes,
+        basis: basisSentence(activeTypes),
+        poolBands: POOL_BANDS,
       };
     });
+  }
+
+  /**
+   * The brief in one plain sentence, composed from the profile the workspace
+   * actually holds. Every clause is a fact it stated at first run; a field it
+   * never gave simply does not appear.
+   */
+  private briefSentence(p: IcpProfile): string {
+    const noun = subjectNounFor(p.shape, p.vertical ?? null).many;
+    const where = p.location
+      ? p.radiusMiles
+        ? `within ${p.radiusMiles} miles of ${p.location}`
+        : `in ${p.location}`
+      : null;
+    const who =
+      p.shape === "consumer"
+        ? null
+        : p.headcountBand
+          ? `${p.headcountBand} in size`
+          : null;
+    const role = p.titles?.length ? `reached through ${p.titles.slice(0, 3).join(", ")}` : null;
+    const clauses = [where, who, role].filter(Boolean);
+    if (clauses.length === 0) return `Any ${noun} who might need what you sell.`;
+    return `${noun.charAt(0).toUpperCase()}${noun.slice(1)} ${clauses.join(", ")}.`;
+  }
+
+  /** Where the scoring came from and what is being watched — both real. */
+  private briefProvenance(
+    p: IcpProfile,
+    scoredAgainst: number,
+    watching: Array<{ label: string }>,
+  ): string {
+    const noun = subjectNounFor(p.shape, p.vertical ?? null).many;
+    const scored =
+      scoredAgainst > 0
+        ? `Fit scored against your ${scoredAgainst} ${noun}`
+        : "Fit scored from your brief — you have no contacts on file yet";
+    if (watching.length === 0) return `${scored}.`;
+    const list = watching.map((w) => w.label.toLowerCase());
+    const tail =
+      list.length === 1 ? list[0] : `${list.slice(0, -1).join(", ")} and ${list[list.length - 1]}`;
+    return `${scored} · watching ${tail}`;
   }
 
   /** BuyerPing = OUR tier: connect enables it (no vendor token — the
@@ -187,12 +359,15 @@ export class LeadsController {
     const filters = parsed.data.filters ?? {};
 
     if (parsed.data.mode === "direct") {
-      // Consumer-shape workspaces have no provider search — the registry
-      // says so and the surface hides the mode (scope comment).
-      if (!SOURCE_ELIGIBILITY[profile.shape].includes("provider")) {
+      // Person-level provider search is not something we sell to a
+      // consumer-shape workspace — its Direct search is over its own book
+      // (SURFACE_SPEC §7). This is a PRODUCT boundary, not a lawful one, and
+      // is separate from which suppliers may produce signals (DEC-150).
+      if (!PROVIDER_PEOPLE_SEARCH[profile.shape]) {
         return { providerConfigured: false, consumerShape: true, candidates: [] };
       }
       if (!this.provider.configured()) {
+        // Operator condition. The body never names a vendor.
         return { providerConfigured: false, candidates: [] };
       }
       const raw = await this.searchProvider(filters);
@@ -201,9 +376,10 @@ export class LeadsController {
 
     // Ada mode: the OWN BOOK always (keyless posture), the provider pool on
     // top when configured — everything scored by OUR icp, fit first.
-    const own = await this.ownBookCandidates(profile);
+    const tierOn = await this.tierOn();
+    const own = await this.ownBookCandidates(profile, tierOn);
     let providerRows: Awaited<ReturnType<LeadsController["searchProvider"]>> = [];
-    if (this.provider.configured() && SOURCE_ELIGIBILITY[profile.shape].includes("provider")) {
+    if (this.provider.configured() && PROVIDER_PEOPLE_SEARCH[profile.shape]) {
       try {
         providerRows = await this.searchProvider({
           ...(profile.location ? { location: profile.location } : {}),
@@ -215,10 +391,101 @@ export class LeadsController {
         providerRows = [];
       }
     }
-    const candidates = [...own, ...providerRows].sort(
+    const all = [...own, ...providerRows].sort(
       (a, b) => b.fit - a.fit || b.intentWeight - a.intentWeight,
     );
-    return { providerConfigured: this.provider.configured(), candidates };
+
+    // Every count the surface shows is computed here, over the SAME set the
+    // rows come from — no control may show a number the list cannot justify
+    // (SURFACE_SPEC §12.4).
+    const groupCounts: Record<string, number> = {};
+    for (const r of all) if (r.group) groupCounts[r.group] = (groupCounts[r.group] ?? 0) + 1;
+    const inWindow = (r: (typeof all)[number], w: string) =>
+      w === "any" ? true : r.bucket === w;
+    const counts = {
+      groups: groupCounts,
+      when: {
+        any: all.length,
+        today: all.filter((r) => r.bucket === "today").length,
+        week: all.filter((r) => r.bucket === "week").length,
+      },
+      fit: {
+        any: all.length,
+        "80": all.filter((r) => r.fit >= 80).length,
+        "90": all.filter((r) => r.fit >= 90).length,
+      },
+    };
+
+    const group = typeof filters.group === "string" ? filters.group : null;
+    const when = typeof filters.when === "string" ? filters.when : "any";
+    const fitMin = Number(filters.fitMin ?? 0) || 0;
+    const candidates = all.filter(
+      (r) => (!group || r.group === group) && inWindow(r, when) && r.fit >= fitMin,
+    );
+
+    return {
+      providerConfigured: this.provider.configured(),
+      tierOn,
+      counts,
+      waiting: candidates.length,
+      suppression: await this.suppressionBreakdown(),
+      candidates,
+    };
+  }
+
+  /** Is the BuyerPing tier on for this workspace? */
+  private async tierOn(): Promise<boolean> {
+    return this.tenant.run(async (tx) => {
+      const bp = await tx.integration.findFirst({
+        where: { provider: "buyerping" },
+        select: { id: true },
+      });
+      return Boolean(bp);
+    });
+  }
+
+  /**
+   * ONE source for the held-back numbers, read by the feed foot AND the pool
+   * header (SURFACE_SPEC §12.7). Every reason is a real query — the same
+   * passes that already remove these contacts before anything ranks.
+   */
+  private async suppressionBreakdown() {
+    return this.tenant.run(async (tx) => {
+      const [active, happy, optOut, hidden] = await Promise.all([
+        tx.enrollment.findMany({ where: { status: "ACTIVE" }, select: { contactId: true } }),
+        tx.enrollment.findMany({
+          where: { pipelineStage: { in: [...HAPPY_STAGES] } },
+          select: { contactId: true },
+        }),
+        tx.contact.findMany({
+          where: {
+            OR: [
+              { optOut: { path: ["email"], equals: true } },
+              { optOut: { path: ["sms"], equals: true } },
+              { optOut: { path: ["voice"], equals: true } },
+            ],
+          },
+          select: { id: true },
+        }),
+        tx.leadExclusion.count(),
+      ]);
+      const activeSet = new Set(active.map((e) => e.contactId));
+      const happySet = new Set(happy.map((e) => e.contactId));
+      const optOutSet = new Set(optOut.map((c) => c.id));
+      // A contact counted once, in the strictest bucket that applies.
+      for (const id of optOutSet) {
+        activeSet.delete(id);
+        happySet.delete(id);
+      }
+      for (const id of activeSet) happySet.delete(id);
+      const reasons = [
+        { key: "yours", label: "already yours", n: happySet.size },
+        { key: "mid_campaign", label: "mid-campaign with you", n: activeSet.size },
+        { key: "do_not_contact", label: "asked not to be contacted", n: optOutSet.size },
+        { key: "hidden", label: "you hid them", n: hidden },
+      ].filter((r) => r.n > 0);
+      return { total: reasons.reduce((n, r) => n + r.n, 0), reasons };
+    });
   }
 
   private async searchProvider(filters: Record<string, string>) {
@@ -247,6 +514,7 @@ export class LeadsController {
             location: r.location,
             headcount: r.headcount,
           });
+          const chip = channelChip("licensed");
           return {
             id: `${r.provider}:${r.providerRef}`,
             origin: "provider" as const,
@@ -268,6 +536,19 @@ export class LeadsController {
             intentWeight: 0,
             intentReceipts: [] as string[],
             revealed: false,
+            // ── B6.5 row contract (SURFACE_SPEC §5 / §10): a row carries
+            // every field its drawer may read, and no drawer reads more.
+            signalType: null as string | null,
+            group: null as string | null,
+            receipt: "Matches your brief — no signal firing yet",
+            about: [r.title, r.company, r.location].filter(Boolean).join(" · "),
+            sourceTag: "DIRECT SEARCH",
+            basis: "licensed" as string,
+            channelLabel: chip.label,
+            channelWarm: chip.warm,
+            occurredAt: null as string | null,
+            bucket: "older" as "today" | "week" | "older",
+            actionable: true,
           };
         });
     });
@@ -276,18 +557,25 @@ export class LeadsController {
   /**
    * The keyless Ada pool: lapsed, lost and unconverted contacts from the
    * workspace's own book — the B2.6 sweep vocabulary, ranked honestly.
+   *
+   * B6.5: each row now carries the TYPED own-book signal that produced it
+   * (`went_quiet` / `said_not_now` / `never_worked`), its firing time and its
+   * registry receipt, so the feed can group by recency and the panel can
+   * count by group. Nothing here is invented — every one of the three is
+   * derived from the same rows the suppression pass already reads.
    */
-  private async ownBookCandidates(profile: IcpProfile) {
+  private async ownBookCandidates(profile: IcpProfile, tierOn: boolean) {
+    const vertical = profile.vertical ?? null;
     return this.tenant.run(async (tx) => {
       const now = Date.now();
       const quietBefore = new Date(now - QUIET_DAYS * 86_400_000);
 
-      const [lastTouch, notNow, active, suppressedContacts, happy] = await Promise.all([
+      const [lastTouch, notNow, active, suppressedContacts, happy, excluded] = await Promise.all([
         tx.message.groupBy({ by: ["contactId"], _max: { sentAt: true } }),
         tx.message.findMany({
           where: { direction: "INBOUND", intent: { in: [...NOT_NOW_INTENTS] } },
-          select: { contactId: true },
-          distinct: ["contactId"],
+          select: { contactId: true, sentAt: true },
+          orderBy: { sentAt: "desc" },
         }),
         tx.enrollment.findMany({ where: { status: "ACTIVE" }, select: { contactId: true } }),
         tx.contact.findMany({
@@ -298,17 +586,32 @@ export class LeadsController {
           where: { pipelineStage: { in: [...HAPPY_STAGES] } },
           select: { contactId: true },
         }),
+        // B6.5 bug fix: "Not for me" wrote a LeadExclusion row that only the
+        // PROVIDER path consulted, so hiding one of your own records did
+        // nothing and the row came straight back on the next search.
+        tx.leadExclusion.findMany({ where: { provider: "own" }, select: { providerRef: true } }),
       ]);
       const activeSet = new Set(active.map((e) => e.contactId));
       const suppressedSet = new Set(suppressedContacts.map((c) => c.id));
       const happySet = new Set(happy.map((e) => e.contactId));
-      const notNowSet = new Set(notNow.map((m) => m.contactId));
+      const notNowAt = new Map<string, Date>();
+      for (const m of notNow) if (!notNowAt.has(m.contactId)) notNowAt.set(m.contactId, m.sentAt);
+      const excludedSet = new Set(excluded.map((e) => e.providerRef));
       const touchById = new Map(lastTouch.map((t) => [t.contactId, t._max.sentAt]));
 
       const contacts = await tx.contact.findMany({
         orderBy: { createdAt: "asc" },
         take: 200,
-        select: { id: true, firstName: true, lastName: true, company: true, title: true, email: true, callConsent: true },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          company: true,
+          title: true,
+          email: true,
+          callConsent: true,
+          createdAt: true,
+        },
       });
       const replied = await tx.message.findMany({
         where: { direction: "INBOUND" },
@@ -324,19 +627,33 @@ export class LeadsController {
       });
       const signalsByContact = new Map<string, typeof signals>();
       for (const s of signals) {
+        const def = INTENT_SIGNALS[s.type];
+        // Tier gate (SURFACE_SPEC §12.1): a paid type must be ABSENT from the
+        // response, not merely hidden. Decay floor: a faded signal stops
+        // being shown rather than lingering as noise.
+        if (def && def.tier === "bp" && !tierOn) continue;
+        if (!isVisibleSignal(s.type, s.occurredAt)) continue;
         const list = signalsByContact.get(s.contactId!) ?? [];
         list.push(s);
         signalsByContact.set(s.contactId!, list);
       }
 
+      const bucketOf = (d: Date | null): "today" | "week" | "older" => {
+        if (!d) return "older";
+        const days = (now - d.getTime()) / 86_400_000;
+        return days < 1 ? "today" : days < 7 ? "week" : "older";
+      };
+
       const rows = [];
       for (const c of contacts) {
         // Suppression pass: already-yours, mid-campaign, or do-not-contact.
         if (activeSet.has(c.id) || suppressedSet.has(c.id) || happySet.has(c.id)) continue;
+        if (excludedSet.has(c.id)) continue;
         const last = touchById.get(c.id);
         const days = last ? Math.floor((now - last.getTime()) / 86_400_000) : null;
         const isLapsed = last != null && last < quietBefore;
-        const isLost = notNowSet.has(c.id);
+        const notNowOn = notNowAt.get(c.id) ?? null;
+        const isLost = notNowOn != null;
         const everTouched = touchById.has(c.id);
         if (!isLapsed && !isLost && everTouched) continue; // still warm with you — not a "find"
         const scored = scoreCandidate(profile, {
@@ -348,11 +665,24 @@ export class LeadsController {
           callConsentGranted: c.callConsent === "granted",
         });
         const sigs = signalsByContact.get(c.id) ?? [];
-        const intentWeight = sigs.reduce((n, s) => n + decayedWeight(s.type, s.occurredAt), 0);
-        const reasons = [
-          isLost ? "said not-now before — worth a fresh angle" : isLapsed ? "went quiet on you" : "in your book, never worked",
-          ...scored.reasons,
-        ];
+
+        // The typed own-book signal that put this row here. Derived from the
+        // very rows the suppression pass read — never a stored fiction.
+        const ownType = isLost ? "said_not_now" : isLapsed ? "went_quiet" : "never_worked";
+        const ownAt = isLost ? notNowOn! : isLapsed ? last! : c.createdAt;
+        const def = INTENT_SIGNALS[ownType];
+        // A first-party signal that fired more recently is the better
+        // headline — the feed is news, so the newest true fact leads.
+        const newest = sigs[0];
+        const headlineType = newest && newest.occurredAt > ownAt ? newest.type : ownType;
+        const headlineAt = newest && newest.occurredAt > ownAt ? newest.occurredAt : ownAt;
+        const headlineDef = INTENT_SIGNALS[headlineType];
+        const receipt =
+          headlineType === ownType
+            ? (intentReceipt(ownType, vertical, { when: plainWhen(ownAt) }) ?? ownType)
+            : newest!.receipt;
+        const chip = channelChip(headlineDef?.basis ?? def?.basis);
+        const reasons = [receipt, ...scored.reasons];
         rows.push({
           id: `own:${c.id}`,
           origin: "own" as const,
@@ -369,9 +699,22 @@ export class LeadsController {
           fit: scored.fit,
           fitReasons: reasons,
           scored: scored.reasons.length > 0,
-          intentWeight: Math.round(intentWeight * 10) / 10,
+          intentWeight: intentScore(
+            [...sigs.map((s) => ({ type: s.type, occurredAt: s.occurredAt })), { type: ownType, occurredAt: ownAt }],
+          ),
           intentReceipts: sigs.slice(0, 2).map((s) => s.receipt),
           revealed: true, // own contacts are already yours — nothing to buy
+          signalType: headlineType,
+          group: headlineDef?.group ?? def?.group ?? null,
+          receipt,
+          about: [c.title, c.company].filter(Boolean).join(" · "),
+          sourceTag: headlineDef?.sourceTag ?? def?.sourceTag ?? "YOUR RECORDS",
+          basis: headlineDef?.basis ?? def?.basis ?? "first_party",
+          channelLabel: chip.label,
+          channelWarm: chip.warm,
+          occurredAt: headlineAt.toISOString(),
+          bucket: bucketOf(headlineAt),
+          actionable: true,
         });
       }
       return rows.sort((a, b) => b.fit - a.fit || b.intentWeight - a.intentWeight).slice(0, 8);
@@ -456,6 +799,24 @@ export class LeadsController {
 
       // Charged once, ever: an already-known contact costs nothing.
       if (existing) {
+        // B6.5 bug fix: the provider payload was fetched and then thrown
+        // away, so a second reveal of the same person re-hit the provider
+        // and still learned nothing. Merge it onto the contact we already
+        // hold — no charge, no ledger row, but the data is kept.
+        await tx.contact.update({
+          where: { id: existing.id },
+          data: {
+            ...(existing.phone ? {} : revealed.phone ? { phone: revealed.phone } : {}),
+            ...(existing.email ? {} : revealed.email ? { email: revealed.email } : {}),
+            ...(existing.title ? {} : revealed.title ? { title: revealed.title } : {}),
+            ...(existing.company ? {} : revealed.company ? { company: revealed.company } : {}),
+            enrichment: {
+              provider: this.provider.name,
+              providerRef: parsed.data.providerRef,
+              raw: revealed.raw,
+            } as Prisma.InputJsonValue,
+          },
+        });
         return { contactId: contact.id, alreadyKnown: true, charged: 0, balance: ws.creditBalance };
       }
       const balanceAfter = ws.creditBalance - price;
@@ -470,6 +831,143 @@ export class LeadsController {
         payload: { amount: price, channel: "lead_reveal", balance: balanceAfter },
       });
       return { contactId: contact.id, alreadyKnown: false, charged: price, balance: balanceAfter };
+    });
+  }
+
+  /**
+   * "All who fit" — the standing pool as BANDS, cheapest first. 4,180 people
+   * cannot be browsed row by row, so the surface is volume and cost.
+   *
+   * Only ALREADY YOURS can be counted from shipped data: it is the workspace's
+   * own contacts, scored by our own scorer. The three paid bands describe the
+   * open market, whose size only the provider knows — so their count is
+   * `null` with a plain reason, never an invented estimate (DEC-115). Provider
+   * match counts are B10.5 (Q-140).
+   */
+  @Get("pool")
+  @Roles(Role.OWNER, Role.ADMIN, Role.AGENT)
+  async pool() {
+    const profile = await this.profile();
+    const suppression = await this.suppressionBreakdown();
+    return this.tenant.run(async (tx) => {
+      const [active, happy, optOut] = await Promise.all([
+        tx.enrollment.findMany({ where: { status: "ACTIVE" }, select: { contactId: true } }),
+        tx.enrollment.findMany({
+          where: { pipelineStage: { in: [...HAPPY_STAGES] } },
+          select: { contactId: true },
+        }),
+        tx.contact.findMany({
+          where: {
+            OR: [
+              { optOut: { path: ["email"], equals: true } },
+              { optOut: { path: ["sms"], equals: true } },
+            ],
+          },
+          select: { id: true },
+        }),
+      ]);
+      const out = new Set([
+        ...active.map((e) => e.contactId),
+        ...happy.map((e) => e.contactId),
+        ...optOut.map((c) => c.id),
+      ]);
+      const contacts = await tx.contact.findMany({
+        orderBy: { createdAt: "asc" },
+        take: 500,
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          phone: true,
+          title: true,
+          company: true,
+        },
+      });
+      const yours = contacts
+        .filter((c) => !out.has(c.id))
+        .filter((c) => Boolean(c.email) || Boolean(c.phone))
+        .map((c) => {
+          const scored = scoreCandidate(profile, { title: c.title, company: c.company });
+          return {
+            id: `own:${c.id}`,
+            contactId: c.id,
+            name:
+              [c.firstName, c.lastName].filter(Boolean).join(" ") || c.email || "Unnamed contact",
+            fit: scored.fit,
+            why: scored.reasons,
+            about: [c.title, c.company].filter(Boolean).join(" · "),
+            sourceTag: "YOUR RECORDS",
+            onFile: true,
+          };
+        })
+        .filter((r) => r.fit >= 70)
+        .sort((a, b) => b.fit - a.fit);
+
+      const bands = POOL_BANDS.map((b) =>
+        b.key === "yours"
+          ? {
+              ...b,
+              count: yours.length,
+              estimate: false,
+              rows: yours.slice(0, 12),
+              note: null as string | null,
+            }
+          : {
+              ...b,
+              // Honest absence: the open market's size is the provider's to
+              // report and no provider count exists on this deployment.
+              count: null,
+              estimate: false,
+              rows: [] as typeof yours,
+              note: "This band counts the open market, which needs the search provider — it is not a number we can estimate honestly yet.",
+            },
+      );
+      return {
+        bands,
+        total: yours.length,
+        noun: subjectNounFor(profile.shape, profile.vertical ?? null),
+        scoredNote: this.briefSentence(profile),
+        suppression,
+      };
+    });
+  }
+
+  /** The detail behind "Show them" — one source, same numbers as the foot. */
+  @Get("suppressed")
+  @Roles(Role.OWNER, Role.ADMIN, Role.AGENT)
+  async suppressed() {
+    return this.suppressionBreakdown();
+  }
+
+  /**
+   * `Edit brief` (SURFACE_SPEC §11). The ICP profile is written once at first
+   * run by POST /workspaces; this is its only update path, and it stamps when
+   * the watch was last changed so `WATCHING SINCE` is a real date.
+   */
+  @Post("brief")
+  @Roles(Role.OWNER, Role.ADMIN)
+  async brief(@Body() body: unknown) {
+    const parsed = briefSchema.safeParse(body);
+    if (!parsed.success) throw new BadRequestException("Invalid brief");
+    const workspaceId = this.tenant.workspaceId;
+    return this.tenant.run(async (tx) => {
+      const ws = await tx.workspace.findUniqueOrThrow({
+        where: { id: workspaceId },
+        select: { settings: true },
+      });
+      const settings = (ws.settings ?? {}) as Record<string, unknown>;
+      await tx.workspace.update({
+        where: { id: workspaceId },
+        data: {
+          settings: {
+            ...settings,
+            icpProfile: parsed.data,
+            briefUpdatedAt: new Date().toISOString(),
+          } as Prisma.InputJsonValue,
+        },
+      });
+      return { ok: true, profile: parsed.data };
     });
   }
 }

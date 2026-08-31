@@ -3,6 +3,10 @@
  * TRANSPORT + shape mapping only (the integrations invariant); scoring is
  * ours (core `icp`), suppression and pricing live in the service layer, and
  * a keyless adapter answers honestly — never with fabricated rows.
+ *
+ * B6.5 (DEC-150): the provider is PLATFORM INFRASTRUCTURE. The user never
+ * connects it, never authenticates it and never learns its name — they pay
+ * in credits. Nothing about the vendor may reach the UI.
  */
 export type LeadProviderErrorKind = "PROVIDER_AUTH" | "PROVIDER_UNAVAILABLE" | "PROVIDER_RATE_LIMITED";
 
@@ -53,7 +57,13 @@ export interface LeadSearchFilters {
 
 export interface LeadSearchProvider {
   readonly name: string;
-  /** False = keyless — the caller renders "provider not connected". */
+  /**
+   * False = the platform holds no key for this adapter. This is an OPERATOR
+   * condition, never a user-facing state (ADDENDUM_5 §1): the platform holds
+   * one key, one vendor relationship, one bill. A caller must render
+   * "Search is temporarily unavailable — nothing for you to fix" and must
+   * never name a vendor or offer to connect one.
+   */
   configured(): boolean;
   searchPeople(filters: LeadSearchFilters, limit: number): Promise<LeadCandidate[]>;
   reveal(providerRef: string): Promise<RevealedContact>;
