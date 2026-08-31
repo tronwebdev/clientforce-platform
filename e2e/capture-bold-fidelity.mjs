@@ -33,8 +33,8 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const UNIT = process.argv[2] ?? "b1";
-if (!["b1", "b2", "b25", "b26", "b3", "b3b", "b3c1", "b3c2", "b3d", "b4", "b45", "b5", "b6", "b7", "b75", "b8", "b9"].includes(UNIT)) {
-  console.error(`Unknown unit "${UNIT}" — this tool knows b1, b2, b25, b26, b3, b3b, b3c1, b3c2, b3d, b4, b45, b5, b6, b7, b75, b8 and b9.`);
+if (!["b1", "b2", "b25", "b26", "b3", "b3b", "b3c1", "b3c2", "b3d", "b4", "b45", "b5", "b6", "b65", "b7", "b75", "b8", "b9"].includes(UNIT)) {
+  console.error(`Unknown unit "${UNIT}" — this tool knows b1, b2, b25, b26, b3, b3b, b3c1, b3c2, b3d, b4, b45, b5, b6, b65, b7, b75, b8 and b9.`);
   process.exit(1);
 }
 const OUT = join(ROOT, "docs", "fidelity", UNIT);
@@ -643,6 +643,149 @@ if (UNIT === "b75") {
 }
 
 /* ---------------------------------------------------------------- the b7 set */
+
+if (UNIT === "b65") {
+  // Owner ruling: design evidence is captured against a PLAUSIBLE business.
+  // The Lead finder needs a workspace with a brief AND a book to rank, so this
+  // builds its own Bright Smile tenant through the real first-run bootstrap
+  // and then writes its own contacts through the shipped contacts endpoint.
+  // It never touches the shared demo seed — a parallel session owns that.
+  const EMAIL = "owner@b65.brightsmile.test";
+  const BIZ = "Bright Smile Dental";
+  const cleanTenant = () => {
+    try {
+      execSync(`pnpm --filter @clientforce/db exec tsx prisma/b65-cleanup.ts ${EMAIL}`, { cwd: ROOT, stdio: "pipe" });
+    } catch {
+      /* nothing to clean */
+    }
+  };
+  cleanTenant();
+
+  await run("prototype-b65", async () => {
+    const p = await page({ width: 1440, height: 900 });
+    await freshProto(p);
+    await p.locator('[title^="Lead finder"]').first().click();
+    await p.waitForTimeout(900);
+    await shot(p, "proto-lead-market-1440x900");
+    await p.getByText("What she watches", { exact: true }).first().click();
+    await p.waitForTimeout(700);
+    await shot(p, "proto-lead-watch-1440x900");
+    await p.getByText("BuyerPing", { exact: true }).first().click();
+    await p.waitForTimeout(600);
+    await shot(p, "proto-lead-buyerping-1440x900");
+    await p.keyboard.press("Escape");
+    await p.locator("body").click({ position: { x: 8, y: 8 } });
+    await p.waitForTimeout(400);
+    await p.getByText("All who fit", { exact: false }).first().click();
+    await p.waitForTimeout(800);
+    await shot(p, "proto-lead-pool-1440x900");
+    await p.getByText("Direct search", { exact: true }).first().click();
+    await p.waitForTimeout(700);
+    await shot(p, "proto-lead-direct-1440x900");
+    await p.context().close();
+  });
+
+  await run("build-b65", async () => {
+    const p = await page({ width: 1440, height: 900 });
+    try {
+      // ── the real first run, same bootstrap the onboarding ships ──
+      await p.goto(`${BASE}/login`);
+      await p.getByLabel("Email").fill(EMAIL);
+      await p.getByRole("button", { name: "Sign in" }).click();
+      await p.waitForLoadState("domcontentloaded");
+      await p.goto(`${BASE}/bold`);
+      await p.getByTestId("bold-onboarding").waitFor({ timeout: 20_000 });
+      await p.addStyleTag({ content: "nextjs-portal{display:none!important}" });
+      await p.getByTestId("bold-onb-name").fill(BIZ);
+      await p.getByTestId("bold-onb-shape-local_business").click();
+      await p.getByTestId("bold-onb-vertical-dental").click();
+      await p.getByTestId("bold-onb-create").click();
+      await p.getByTestId("bold-onb-site").waitFor({ timeout: 20_000 });
+
+      // ── a real book to rank: contacts through the shipped endpoint, with
+      //    the ages that make them lapsed rather than a staged tableau ──
+      const PEOPLE = [
+        ["Nadia", "Fowler", "nadia.fowler@brightsmile.test", "Implant consult 2024"],
+        ["Tomas", "Ruiz", "tomas.ruiz@brightsmile.test", "Asked about financing"],
+        ["Grace", "Adeyemi", "grace.adeyemi@brightsmile.test", "Whitening 2023"],
+        ["Sofia", "Delgado", "sofia.delgado@brightsmile.test", "Read the implant pages"],
+        ["Marcus", "Webb", "marcus.webb@brightsmile.test", "Enquired, never booked"],
+        ["Priya", "Raghavan", "priya.raghavan@brightsmile.test", "Family of four"],
+      ];
+      for (const [firstName, lastName, email, title] of PEOPLE) {
+        const res = await p.request.post(`${BASE}/api/cf/contacts`, {
+          data: { firstName, lastName, email, title, company: null },
+        });
+        if (!res.ok()) throw new Error(`contact create failed: ${res.status()} ${await res.text()}`);
+      }
+
+      await p.goto(`${BASE}/bold`);
+      await p.getByTestId("bold-root").waitFor({ timeout: 20_000 });
+      await p.addStyleTag({ content: "nextjs-portal{display:none!important}" });
+      const later = p.getByText("Later", { exact: true }).first();
+      if (await later.isVisible().catch(() => false)) await later.click();
+
+      await p.getByTestId("bold-dock-lead").click();
+      await p.getByTestId("bold-leadfinder").waitFor({ timeout: 20_000 });
+      await p.waitForTimeout(2400); // the feed settles and its toast clears
+      await shot(p, "build-lead-market-1440x900");
+
+      // The brief's provenance, folded open — where the fit came from.
+      await p.getByTestId("bold-lead-since").click();
+      await p.waitForTimeout(500);
+      await shot(p, "build-lead-brief-1440x900");
+      await p.getByTestId("bold-lead-since").click();
+
+      // The watch panel, over a dimmed page (the ruled scrim).
+      await p.getByTestId("bold-lead-watch-btn").click();
+      await p.getByTestId("bold-lead-watch").waitFor({ timeout: 10_000 });
+      await p.waitForTimeout(700);
+      await shot(p, "build-lead-watch-1440x900");
+      await p.getByTestId("bold-lead-watchtab-bp").click();
+      await p.waitForTimeout(600);
+      await shot(p, "build-lead-buyerping-1440x900");
+      await p.getByTestId("bold-lead-watch-scrim").click();
+      await p.waitForTimeout(500);
+
+      // A row's drawer — receipt, why it scored, what its basis permits.
+      const firstRow = p.locator('[data-testid^="bold-lead-row-"]').first();
+      if (await firstRow.isVisible().catch(() => false)) {
+        await firstRow.click();
+        await p.getByTestId("bold-lead-drawer").waitFor({ timeout: 10_000 });
+        await p.waitForTimeout(700);
+        await shot(p, "build-lead-drawer-1440x900");
+        await p.getByTestId("bold-lead-drawer-scrim").click();
+        await p.waitForTimeout(400);
+      }
+
+      await p.getByTestId("bold-lead-mode-fit").click();
+      await p.getByTestId("bold-lead-pool").waitFor({ timeout: 15_000 });
+      await p.waitForTimeout(1200);
+      await shot(p, "build-lead-pool-1440x900");
+      // A paid band, where the honest absence of a provider count shows.
+      await p.getByTestId("bold-lead-band-strong").click();
+      await p.waitForTimeout(600);
+      await shot(p, "build-lead-pool-nocount-1440x900");
+
+      await p.getByTestId("bold-lead-mode-direct").click();
+      await p.getByTestId("bold-lead-direct").waitFor({ timeout: 10_000 });
+      await p.waitForTimeout(600);
+      await p.getByTestId("bold-lead-direct-go").click();
+      await p.waitForTimeout(1600);
+      await shot(p, "build-lead-direct-1440x900");
+
+      // The integrations page, with no intent tier among the cards.
+      await p.getByTestId("bold-dock-integrations").click();
+      await p.getByTestId("bold-integrations").waitFor({ timeout: 15_000 });
+      await p.waitForTimeout(900);
+      await shot(p, "build-integrations-no-tier-1440x900");
+    } finally {
+      await p.context().close();
+      cleanTenant();
+    }
+  });
+}
+
 if (UNIT === "b7") {
   await run("prototype-b7", async () => {
     const p = await page({ width: 1440, height: 900 });

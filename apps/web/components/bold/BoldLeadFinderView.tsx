@@ -25,7 +25,7 @@
  * bands count the open market, which only the search provider can report, so
  * they say so instead of showing an invented estimate (DEC-115, Q-140).
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   addWatchTopic,
   fetchCreditPrices,
@@ -615,7 +615,10 @@ export function BoldLeadFinderView({
     );
   };
 
-  const groupsInFeed = useMemo(() => {
+  // A plain computation, deliberately not a hook: everything below sits after
+  // the `if (!config)` early return, and a hook there changes the hook order
+  // between the loading and loaded renders — React throws.
+  const groupsInFeed = (() => {
     const buckets: Array<["today" | "week", string, string]> = [
       ["today", "TODAY", "var(--cvb-amber,#D9A82B)"],
       ["week", "EARLIER THIS WEEK", "var(--cvb-mint-line)"],
@@ -628,7 +631,7 @@ export function BoldLeadFinderView({
       out.push({ k: "week", label: "EARLIER", dot: "var(--cvb-line-ctl)", list: older });
     }
     return out;
-  }, [rows]);
+  })();
 
   const marketBody = (
     <div data-testid="bold-lead-feed">
