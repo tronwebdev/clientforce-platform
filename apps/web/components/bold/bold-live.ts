@@ -657,6 +657,9 @@ export interface LeadPoolRow {
   contactId: string;
   name: string;
   fit: number;
+  /** False when no fact backs the number — the row says `unscored` in BOTH
+   *  the feed and the pool, never a base score dressed up as precision. */
+  scored: boolean;
   why: string[];
   about: string;
   sourceTag: string;

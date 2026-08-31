@@ -645,19 +645,21 @@ if (UNIT === "b75") {
 /* ---------------------------------------------------------------- the b7 set */
 
 if (UNIT === "b65") {
-  // Owner ruling: design evidence is captured against a PLAUSIBLE business.
-  // The Lead finder needs a workspace with a brief AND a book to rank, so this
-  // builds its own Bright Smile tenant through the real first-run bootstrap
-  // and then writes its own contacts through the shipped contacts endpoint.
-  // It never touches the shared demo seed — a parallel session owns that.
-  const EMAIL = "owner@b65.brightsmile.test";
-  const BIZ = "Bright Smile Dental";
-  // The teardown needs a DATABASE_URL. Inheriting a bare env silently skipped
-  // it, which left the tenant behind and made the NEXT run fail on a console
-  // where it expected first-run onboarding. A cleanup that cannot run says so.
-  const cleanTenant = () => {
+  // Owner ruling (B6.5 review fix 3): capture against the SEEDED demo, not a
+  // fresh tenant. The first pass built its own empty workspace, so the rail
+  // read CAMPAIGNS 0 / 0 facts / CREDITS 0 and every row looked identical —
+  // frames that cannot show the surface working. The seeded demo is a dental
+  // business with campaigns, facts, gaps, credits and a real brief (Austin,
+  // 5-25 staff, Owner / Practice Manager), which is what makes the fits differ
+  // and the receipts read.
+  //
+  // It has no IntentSignal rows, because that table is only ever written by
+  // the live bus — so one TRANSIENT first-party signal is emitted through the
+  // real consumer for the run and removed afterwards. Capture fixture, not
+  // seed data: the seed script is untouched.
+  const signal = (mode) => {
     try {
-      execSync(`pnpm --filter @clientforce/db exec tsx prisma/b65-cleanup.ts ${EMAIL}`, {
+      execSync(`pnpm --filter @clientforce/leads exec tsx scripts/capture-signal.ts ${mode}`, {
         cwd: ROOT,
         stdio: "pipe",
         env: {
@@ -667,10 +669,11 @@ if (UNIT === "b65") {
         },
       });
     } catch (err) {
-      console.warn(`[b65] teardown could not run: ${(err?.message ?? err).toString().split("\n")[0]}`);
+      console.warn(`[b65] capture signal ${mode} failed: ${(err?.message ?? err).toString().split("\n")[0]}`);
     }
   };
-  cleanTenant();
+  signal("off");
+  signal("on");
 
   await run("prototype-b65", async () => {
     const p = await page({ width: 1440, height: 900 });
@@ -699,49 +702,23 @@ if (UNIT === "b65") {
   await run("build-b65", async () => {
     const p = await page({ width: 1440, height: 900 });
     try {
-      // ── the real first run, same bootstrap the onboarding ships ──
-      await p.goto(`${BASE}/login`);
-      await p.getByLabel("Email").fill(EMAIL);
-      await p.getByRole("button", { name: "Sign in" }).click();
-      await p.waitForLoadState("domcontentloaded");
-      await p.goto(`${BASE}/bold`);
-      await p.getByTestId("bold-onboarding").waitFor({ timeout: 20_000 });
-      await p.addStyleTag({ content: "nextjs-portal{display:none!important}" });
-      await p.getByTestId("bold-onb-name").fill(BIZ);
-      // A dental practice sells to PEOPLE, so the target shape is consumer —
-      // which is what makes the page ask "Who's looking for a dentist" from
-      // the registry rather than the company-shape question.
-      await p.getByTestId("bold-onb-shape-consumer").click();
-      await p.getByTestId("bold-onb-vertical-dental").click();
-      await p.getByTestId("bold-onb-create").click();
-      await p.getByTestId("bold-onb-site").waitFor({ timeout: 20_000 });
-
-      // ── a real book to rank: contacts through the shipped endpoint, with
-      //    the ages that make them lapsed rather than a staged tableau ──
-      const PEOPLE = [
-        ["Nadia", "Fowler", "nadia.fowler@brightsmile.test", "Implant consult 2024"],
-        ["Tomas", "Ruiz", "tomas.ruiz@brightsmile.test", "Asked about financing"],
-        ["Grace", "Adeyemi", "grace.adeyemi@brightsmile.test", "Whitening 2023"],
-        ["Sofia", "Delgado", "sofia.delgado@brightsmile.test", "Read the implant pages"],
-        ["Marcus", "Webb", "marcus.webb@brightsmile.test", "Cedar Park"],
-        ["Priya", "Raghavan", "priya.raghavan@brightsmile.test", "Family of four"],
-      ];
-      for (const [firstName, lastName, email, title] of PEOPLE) {
-        const res = await p.request.post(`${BASE}/api/cf/contacts`, {
-          data: { firstName, lastName, email, title, company: null },
-        });
-        if (!res.ok()) throw new Error(`contact create failed: ${res.status()} ${await res.text()}`);
-      }
-
+      await signInBuild(p);
       await p.goto(`${BASE}/bold`);
       await p.getByTestId("bold-root").waitFor({ timeout: 20_000 });
       await p.addStyleTag({ content: "nextjs-portal{display:none!important}" });
+      await p.waitForTimeout(700);
       const later = p.getByText("Later", { exact: true }).first();
       if (await later.isVisible().catch(() => false)) await later.click();
 
+      // Restore-first: the tier off, so the gate is what the frames show.
+      await p.request.post(`${BASE}/api/cf/leads/buyerping`, { data: { enabled: false } });
+      await p.reload();
+      await p.getByTestId("bold-root").waitFor({ timeout: 20_000 });
+      await p.addStyleTag({ content: "nextjs-portal{display:none!important}" });
+
       await p.getByTestId("bold-dock-lead").click();
       await p.getByTestId("bold-leadfinder").waitFor({ timeout: 20_000 });
-      await p.waitForTimeout(2400); // the feed settles and its toast clears
+      await p.waitForTimeout(2600); // the feed settles and its toast clears
       await shot(p, "build-lead-market-1440x900");
 
       // The brief's provenance, folded open — where the fit came from.
@@ -770,11 +747,15 @@ if (UNIT === "b65") {
         await shot(p, "build-lead-drawer-1440x900");
         await p.getByTestId("bold-lead-drawer-scrim").click();
         await p.waitForTimeout(400);
+      } else {
+        // Never substitute a different frame for a missing one: if there is
+        // nothing to open, the run fails rather than quietly shipping 13.
+        throw new Error("no feed row to open — the drawer frame would be missing");
       }
 
       await p.getByTestId("bold-lead-mode-fit").click();
       await p.getByTestId("bold-lead-pool").waitFor({ timeout: 15_000 });
-      await p.waitForTimeout(1200);
+      await p.waitForTimeout(1400);
       await shot(p, "build-lead-pool-1440x900");
       // A paid band, where the honest absence of a provider count shows.
       await p.getByTestId("bold-lead-band-strong").click();
@@ -785,7 +766,7 @@ if (UNIT === "b65") {
       await p.getByTestId("bold-lead-direct").waitFor({ timeout: 10_000 });
       await p.waitForTimeout(600);
       await p.getByTestId("bold-lead-direct-go").click();
-      await p.waitForTimeout(1600);
+      await p.waitForTimeout(1800);
       await shot(p, "build-lead-direct-1440x900");
 
       // The integrations page, with no intent tier among the cards.
@@ -795,7 +776,7 @@ if (UNIT === "b65") {
       await shot(p, "build-integrations-no-tier-1440x900");
     } finally {
       await p.context().close();
-      cleanTenant();
+      signal("off");
     }
   });
 }

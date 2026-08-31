@@ -395,9 +395,12 @@ export class LeadsController {
         providerRows = [];
       }
     }
-    const all = [...own, ...providerRows].sort(
-      (a, b) => b.fit - a.fit || b.intentWeight - a.intentWeight,
-    );
+    // Same rule for provider candidates: "matches your brief — no signal
+    // firing yet" is not something that happened, so it may not sit under a
+    // recency divider. Those rows are the POOL's job and Direct search's.
+    const all = [...own, ...providerRows]
+      .filter((r) => r.occurredAt !== null)
+      .sort((a, b) => b.fit - a.fit || b.intentWeight - a.intentWeight);
 
     // Every count the surface shows is computed here, over the SAME set the
     // rows come from — no control may show a number the list cannot justify
@@ -694,17 +697,32 @@ export class LeadsController {
         // The typed own-book signal that put this row here. Derived from the
         // very rows the suppression pass read — never a stored fiction.
         const ownType = isLost ? "said_not_now" : isLapsed ? "went_quiet" : "never_worked";
-        const ownAt = isLost ? notNowOn! : isLapsed ? last! : c.createdAt;
+        // B6.5 review fix 1 (owner ruling): a row may only claim a DAY if a
+        // real event carries an `occurredAt`. `went_quiet` and `said_not_now`
+        // both have one — the last message, and the not-now reply. But
+        // `never_worked` is the ABSENCE of an event: a contact reaches your
+        // book by import or by hand, and `createdAt` is when the ROW was
+        // written, not something that happened to them. Dating a row from it
+        // put six dormant records under TODAY and lit the 🔥 for nothing.
+        const ownEventAt: Date | null = isLost ? notNowOn! : isLapsed ? last! : null;
         const def = INTENT_SIGNALS[ownType];
-        // A first-party signal that fired more recently is the better
-        // headline — the feed is news, so the newest true fact leads.
+        // The headline is the newest REAL event — a first-party signal, or the
+        // own-book event. A signal always outranks an undated own-book state.
         const newest = sigs[0];
-        const headlineType = newest && newest.occurredAt > ownAt ? newest.type : ownType;
-        const headlineAt = newest && newest.occurredAt > ownAt ? newest.occurredAt : ownAt;
+        let headlineType = ownType;
+        let headlineAt: Date | null = ownEventAt;
+        if (newest && (headlineAt === null || newest.occurredAt > headlineAt)) {
+          headlineType = newest.type;
+          headlineAt = newest.occurredAt;
+        }
+        // Dormant: nothing happened, so it cannot be news. It stays in the
+        // pool's ALREADY YOURS band, where "on file and a match" is the whole
+        // claim — the market feed is for things that actually happened.
+        if (headlineAt === null) continue;
         const headlineDef = INTENT_SIGNALS[headlineType];
         const receipt =
           headlineType === ownType
-            ? (intentReceipt(ownType, vertical, { when: plainWhen(ownAt) }) ?? ownType)
+            ? (intentReceipt(ownType, vertical, { when: plainWhen(headlineAt) }) ?? ownType)
             : newest!.receipt;
         const chip = channelChip(headlineDef?.basis ?? def?.basis);
         const reasons = [receipt, ...scored.reasons];
@@ -724,9 +742,10 @@ export class LeadsController {
           fit: scored.fit,
           fitReasons: reasons,
           scored: scored.reasons.length > 0,
-          intentWeight: intentScore(
-            [...sigs.map((s) => ({ type: s.type, occurredAt: s.occurredAt })), { type: ownType, occurredAt: ownAt }],
-          ),
+          intentWeight: intentScore([
+            ...sigs.map((s) => ({ type: s.type, occurredAt: s.occurredAt })),
+            ...(ownEventAt ? [{ type: ownType, occurredAt: ownEventAt }] : []),
+          ]),
           intentReceipts: sigs.slice(0, 2).map((s) => s.receipt),
           revealed: true, // own contacts are already yours — nothing to buy
           signalType: headlineType,
@@ -920,6 +939,12 @@ export class LeadsController {
             name:
               [c.firstName, c.lastName].filter(Boolean).join(" ") || c.email || "Unnamed contact",
             fit: scored.fit,
+            // B6.5 review fix 2 (owner ruling): ONE scoring vocabulary. The
+            // feed said `unscored` while the pool printed `50 fit` for the
+            // same person — and 50 is the scorer's BASE with zero matching
+            // facts, which is the fake precision ruled out at the B6 review.
+            // When no fact backs a number, both surfaces say `unscored`.
+            scored: scored.reasons.length > 0,
             why: scored.reasons,
             about: [c.title, c.company].filter(Boolean).join(" · "),
             sourceTag: "YOUR RECORDS",

@@ -170,8 +170,10 @@ describe.skipIf(!hasDb)("Lead finder + intent tier e2e", () => {
     const ids = res.body.candidates.map((c: { contactId: string }) => c.contactId);
     expect(ids).toContain(lapsedId);
     expect(ids).toContain(lostId);
-    expect(ids).toContain(blankId);
-    expect(res.body.candidates).toHaveLength(3); // active, happy and opted-out never surface
+    // blankId is deliberately ABSENT — see the recency assertions below.
+    // Two, not three: active, happy and opted-out never surface (suppression),
+    // and the never-worked contact is no longer news (B6.5 review fix 1).
+    expect(res.body.candidates).toHaveLength(2);
     const lost = res.body.candidates.find((c: { contactId: string }) => c.contactId === lostId);
     // B6.5 (DEC-151): own-book reasons are now REGISTRY receipts carrying
     // their own firing time — "said not now 4 weeks ago", not the old
@@ -191,10 +193,37 @@ describe.skipIf(!hasDb)("Lead finder + intent tier e2e", () => {
     expect(lost.scored).toBe(true);
     expect(lapsed.fit).not.toBe(lost.fit);
     expect(lapsed.fitReasons.join(" ")).toContain("still warm");
-    // …and a contact with nothing to score from says so instead of wearing
-    // a made-up number.
-    const blank = res.body.candidates.find((c: { contactId: string }) => c.contactId === blankId);
+    // B6.5 review fix 1: a NEVER-WORKED contact is no longer in the feed at
+    // all. Nothing happened to it — `Contact.createdAt` is when the row was
+    // written, not an event — so it cannot claim a day, and every feed row
+    // now carries a real `occurredAt`. Pin moved to the pool below, which is
+    // where "on file and a match for your brief" is the whole claim.
+    expect(res.body.candidates.map((c: { contactId: string }) => c.contactId)).not.toContain(blankId);
+    for (const row of res.body.candidates) {
+      expect(row.occurredAt, `${row.name} sits under a recency divider with no event`).toBeTruthy();
+    }
+  });
+
+  it("the pool holds the dormant rows, and says `unscored` in the same words as the feed", async () => {
+    const res = await api().get("/leads/pool").set(asOwner()).expect(200);
+    const yours = res.body.bands.find((b: { key: string }) => b.key === "yours");
+    expect(yours.free).toBe(true);
+    expect(typeof yours.count).toBe("number");
+    // B6.5 review fix 2: ONE scoring vocabulary. A contact with no matching
+    // fact carries `scored: false` HERE too, so the surface says `unscored`
+    // rather than printing the scorer's base as if it were precision.
+    const blank = yours.rows.find((r: { contactId: string }) => r.contactId === blankId);
+    expect(blank, "the dormant contact belongs to the pool").toBeTruthy();
     expect(blank.scored).toBe(false);
+    for (const r of yours.rows) {
+      expect(typeof r.scored).toBe("boolean");
+      if (!r.scored) expect(r.why).toHaveLength(0);
+    }
+    // The paid bands have no honest count on this deployment and say so.
+    for (const b of res.body.bands.filter((x: { key: string }) => x.key !== "yours")) {
+      expect(b.count).toBeNull();
+      expect(b.note).toBeTruthy();
+    }
   });
 
   it("Direct search and reveal answer keylessly — no rows, no charge", async () => {
