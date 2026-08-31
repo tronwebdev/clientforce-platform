@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { OWNER_EMAIL } from "./_fixtures";
 
 /**
  * B0 smoke — the Console Bold shell behind the `consoleBold` flag.
@@ -16,8 +17,6 @@ import { test, expect, type Page } from "@playwright/test";
  *     workspace has no flag yet, the frame tests skip with an annotation
  *     rather than fail — flipping the flag is the owner's launch lever.
  */
-
-const OWNER_EMAIL = "owner@demo-agency.test";
 
 async function signIn(page: Page): Promise<void> {
   await page.goto("/login");

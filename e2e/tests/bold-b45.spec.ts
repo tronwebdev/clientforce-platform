@@ -1,5 +1,6 @@
 import { execSync } from "node:child_process";
 import { test, expect, type Page } from "@playwright/test";
+import { OWNER_EMAIL } from "./_fixtures";
 
 /**
  * B4.5 smoke — the live-call card (the old console's rcpCallOpen treatment)
@@ -24,7 +25,6 @@ test.use({
   },
 });
 
-const OWNER_EMAIL = "owner@demo-agency.test";
 // The transient-fixture rail needs direct DB access: FIXTURE_DATABASE_URL, or
 // the dev stack's DATABASE_URL. No cred-bearing fallback literal here — the
 // local default lives in packages/db/.env.example, and the deploy secret-scan

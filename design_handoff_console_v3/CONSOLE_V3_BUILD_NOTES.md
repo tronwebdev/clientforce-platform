@@ -999,6 +999,10 @@ lift on cards, sparkline in the goal bar, stage-colored pipeline column headers.
   hold, voice immediate) → row lands PENDING A2P.
 - **Team roles = the shipped RBAC enum** (DATA_MODEL): OWNER/ADMIN/AGENT/VIEWER cards
   with permission lines in the invite flow.
+  *Amended 2026-08-31 (owner, B7.5 approval round): the enum KEYS are unchanged, but the
+  word on the card is Owner / Admin / **Member** / Viewer. "Agent" is Ada's role — a human
+  labelled Agent collides with her identity and with the campaign-agent vocabulary
+  (DEC-107). One source: `WORKSPACE_ROLE_WORD` in `@clientforce/core`.*
 - **Company profile ⇄ Workspace settings**: Business core header carries the settings
   sections as tabs (jump straight to senders/team/fields/guardrails/notifications).
 

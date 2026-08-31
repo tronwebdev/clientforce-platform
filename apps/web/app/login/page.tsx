@@ -20,7 +20,7 @@ export default async function LoginPage({
           name="email"
           type="email"
           required
-          placeholder="owner@demo-agency.test"
+          placeholder="practice@brightsmile.test"
           aria-label="Email"
         />
         {sp.error ? <p className="cf-login__error">Enter a valid email address.</p> : null}

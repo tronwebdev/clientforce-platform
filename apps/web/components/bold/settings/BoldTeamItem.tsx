@@ -29,6 +29,7 @@ import {
   Well,
   type SettingsRow,
 } from "../bold-settings-kit";
+import { workspaceRoleScope, workspaceRoleWord } from "@clientforce/core";
 import type { WorkspaceMemberRow } from "../bold-live";
 import {
   removeMember,
@@ -46,25 +47,18 @@ type Drawer = { t: "invite" } | { t: "person"; member: WorkspaceMemberRow } | { 
 
 const TABS = ["People", "What roles can do"];
 
-/** The shipped enum's words, with the scope sentence each one actually has. */
-const ROLE_SCOPE: Record<WorkspaceRole, string> = {
-  OWNER: "Everything, including senders, guardrails, credits and who is on the team",
-  ADMIN: "Campaigns, inbox, contacts and settings — not billing, not the workspace itself",
-  AGENT: "Works the inbox and runs campaigns — cannot change guardrails",
-  VIEWER: "Reads everything, sends nothing",
-};
+/**
+ * The role words and scope sentences come from ONE place (`@clientforce/core`)
+ * so this page and every other surface that names a role cannot drift. The
+ * stored enum still reads AGENT; the word a person sees is Member, because
+ * Agent is Ada's role and she is a row on this very page.
+ */
+const ROLE_ORDER: WorkspaceRole[] = ["OWNER", "ADMIN", "AGENT", "VIEWER"];
 
-const ROLE_WORD: Record<WorkspaceRole, string> = {
-  OWNER: "Owner",
-  ADMIN: "Admin",
-  AGENT: "Agent",
-  VIEWER: "Viewer",
-};
-
-const INVITABLE: Array<{ role: "ADMIN" | "AGENT" | "VIEWER"; title: string; sub: string }> = [
-  { role: "ADMIN", title: "Admin", sub: "Everything except billing and deleting the workspace." },
-  { role: "AGENT", title: "Agent", sub: "Works the inbox, runs campaigns, cannot change guardrails." },
-  { role: "VIEWER", title: "Viewer", sub: "Reads everything, sends nothing." },
+const INVITABLE: Array<{ role: "ADMIN" | "AGENT" | "VIEWER" }> = [
+  { role: "ADMIN" },
+  { role: "AGENT" },
+  { role: "VIEWER" },
 ];
 
 function inviteSub(i: InviteRow): string {
@@ -74,7 +68,7 @@ function inviteSub(i: InviteRow): string {
   if (i.state === "accepted") return `${who} · they joined`;
   const days = Math.max(0, Math.ceil((new Date(i.expiresAt).getTime() - Date.now()) / 86_400_000));
   const resends = i.resendCount > 0 ? ` · sent ${i.resendCount + 1} times` : "";
-  return `${who} · ${ROLE_WORD[i.role]} · expires in ${pluralise(days, "day", "days")}${resends}`;
+  return `${who} · ${workspaceRoleWord(i.role)} · expires in ${pluralise(days, "day", "days")}${resends}`;
 }
 
 export function BoldTeamItem({
@@ -153,8 +147,8 @@ export function BoldTeamItem({
       n: m.name ?? m.email,
       // The address rides the row, not just the drawer: two people called Sam
       // are otherwise the same row with the same words on it.
-      sub: `${m.email} · ${ROLE_WORD[m.role]} — ${ROLE_SCOPE[m.role].toLowerCase()}`,
-      chip: m.role === "OWNER" ? "Owner" : ROLE_WORD[m.role],
+      sub: `${m.email} · ${workspaceRoleWord(m.role)} — ${workspaceRoleScope(m.role).toLowerCase()}`,
+      chip: m.role === "OWNER" ? "Owner" : workspaceRoleWord(m.role),
       tone: m.role === "OWNER" ? "live" : "mute",
       onOpen: () => setDrawer({ t: "person", member: m }),
     })),
@@ -177,11 +171,11 @@ export function BoldTeamItem({
     })),
   ];
 
-  const roleRows: SettingsRow[] = (Object.keys(ROLE_SCOPE) as WorkspaceRole[]).map((r) => ({
+  const roleRows: SettingsRow[] = ROLE_ORDER.map((r) => ({
     t: "chip",
     key: r,
-    n: ROLE_WORD[r],
-    sub: ROLE_SCOPE[r],
+    n: workspaceRoleWord(r),
+    sub: workspaceRoleScope(r),
     chip: `${members.filter((m) => m.role === r).length} here`,
     tone: members.some((m) => m.role === r) ? "live" : "mute",
   }));
@@ -315,8 +309,8 @@ function InviteDrawer({ onDone, onClose }: { onDone: (t: string) => Promise<void
             {INVITABLE.map((r) => (
               <ChoiceRow
                 key={r.role}
-                title={r.title}
-                sub={r.sub}
+                title={workspaceRoleWord(r.role)}
+                sub={`${workspaceRoleScope(r.role)}.`}
                 selected={role === r.role}
                 onSelect={() => setRole(r.role)}
                 testid={`bold-drawer-invite-role-${r.role.toLowerCase()}`}
@@ -380,7 +374,7 @@ function PendingInviteDrawer({
       }
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
-        <Line label="ROLE THEY WILL GET" value={ROLE_WORD[invite.role]} />
+        <Line label="ROLE THEY WILL GET" value={workspaceRoleWord(invite.role)} />
         <Line label="INVITED BY" value={invite.invitedBy ?? "Somebody on your team"} />
         <Line
           label={expired ? "LAPSED" : "EXPIRES"}
@@ -506,7 +500,7 @@ function PersonDrawer({
                   setError(res.error);
                   return;
                 }
-                await onDone(`${member.name ?? member.email} is now ${ROLE_WORD[role]}.`);
+                await onDone(`${member.name ?? member.email} is now ${workspaceRoleWord(role)}.`);
               })();
             }}
           />
@@ -520,11 +514,11 @@ function PersonDrawer({
 
       <div style={{ ...EYEBROW, margin: "24px 0 12px" }}>WHAT THEY MAY DO</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
-        {(Object.keys(ROLE_SCOPE) as WorkspaceRole[]).map((r) => (
+        {ROLE_ORDER.map((r) => (
           <ChoiceRow
             key={r}
-            title={ROLE_WORD[r]}
-            sub={ROLE_SCOPE[r]}
+            title={workspaceRoleWord(r)}
+            sub={workspaceRoleScope(r)}
             selected={role === r}
             onSelect={() => !lastOwner && setRole(r)}
             testid={`bold-drawer-person-role-${r.toLowerCase()}`}

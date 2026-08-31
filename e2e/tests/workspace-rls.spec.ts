@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { OWNER_EMAIL } from "./_fixtures";
 
 /**
  * T8 smoke — proves the APP_DATABASE_URL non-superuser RLS path end-to-end in a
@@ -12,8 +13,6 @@ import { test, expect, type Page } from "@playwright/test";
  *   demo   → Ada Lovelace, Alan Turing, Edsger Dijkstra   (3)
  *   demo-2 → Grace Hopper                                  (1)
  */
-
-const OWNER_EMAIL = "owner@demo-agency.test";
 
 async function signIn(page: Page): Promise<void> {
   await page.goto("/login");

@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { OWNER_EMAIL } from "./_fixtures";
 
 /**
  * B3c-1 smoke — Ada outbound on the one dial rail (DEC-118/119). The drawer's
@@ -10,8 +11,6 @@ import { test, expect, type Page } from "@playwright/test";
  */
 
 test.describe.configure({ mode: "default" });
-
-const OWNER_EMAIL = "owner@demo-agency.test";
 
 async function signIn(page: Page): Promise<void> {
   await page.goto("/login");

@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { workspaceRoleWord } from "@clientforce/core";
 import { Card } from "@clientforce/ui";
 import { TopBar } from "../../../components/TopBar";
 import { fetchMe } from "../../../lib/api";
@@ -50,7 +51,7 @@ export default async function SectionPage({ params }: { params: Promise<{ sectio
                 Insufficient permissions
               </h2>
               <p style={{ color: "var(--cf-color-muted-2)" }}>
-                {title} requires {allowed?.join(" or ")}. You are signed in as {me.role}.
+                {title} requires {allowed?.map(workspaceRoleWord).join(" or ")}. You are signed in as {workspaceRoleWord(me.role)}.
               </p>
             </>
           ) : (

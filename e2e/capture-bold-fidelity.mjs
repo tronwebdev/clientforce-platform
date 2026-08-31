@@ -48,7 +48,7 @@ const PROTO_LEGACY = `file://${join(ROOT, "design_handoff_console_v3", "prototyp
 const PROTO_ONBOARD = `file://${join(ROOT, "design_handoff_console_v3", "prototypes", "Business Core Onboarding.dc.html").replace(/ /g, "%20")}`;
 const PROTO_TOUR = `file://${join(ROOT, "design_handoff_console_v3", "prototypes", "Product Tour.dc.html").replace(/ /g, "%20")}`;
 const FONTS = join(ROOT, "apps", "web", "node_modules", "@fontsource");
-const OWNER_EMAIL = "owner@demo-agency.test";
+const OWNER_EMAIL = "practice@brightsmile.test";
 
 const staging = mkdtempSync(join(tmpdir(), "bold-fidelity-"));
 const captured = new Map(); // name -> { viewport }

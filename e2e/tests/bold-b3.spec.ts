@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { OWNER_EMAIL } from "./_fixtures";
 
 /**
  * B3a smoke — workspace inbox (read + triage) + contacts (DEC-112). The
@@ -10,8 +11,6 @@ import { test, expect, type Page } from "@playwright/test";
  * on that contact's workspace-inbox thread. Self-restoring: handled state
  * is reopened; nothing is created.
  */
-
-const OWNER_EMAIL = "owner@demo-agency.test";
 
 async function signIn(page: Page): Promise<void> {
   await page.goto("/login");

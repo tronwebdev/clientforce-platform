@@ -78,6 +78,51 @@ export function workspaceFieldKey(name: string): string {
   return `field_${slug.length > 0 ? slug : "field"}`;
 }
 
+/* ------------------------------------------------------- role vocabulary */
+
+/**
+ * ONE source for how a workspace role is spoken to a person.
+ *
+ * The stored enum is OWNER / ADMIN / **AGENT** / VIEWER and it does not move —
+ * renaming a shipped enum is not additive. What moves is the WORD.
+ *
+ * "Agent" cannot be a human's role here. Ada is the workspace's one agent and
+ * the Team page says so two rows above the invite button (`Agent · acts inside
+ * your guardrails`), and an `Agent` row is a campaign's internal container
+ * everywhere else in this codebase. So a person's third role is **Member**,
+ * which is also what the surface spec has said all along.
+ *
+ * Every surface that shows a role to a person reads from here. Before this
+ * there were two label maps and four places rendering the raw enum, which is
+ * how "brightsmile · AGENT" and "You are signed in as AGENT" reached a screen.
+ */
+export const WORKSPACE_ROLE_WORD: Record<string, string> = {
+  OWNER: "Owner",
+  ADMIN: "Admin",
+  AGENT: "Member",
+  VIEWER: "Viewer",
+};
+
+/**
+ * What each role may actually do — the surface spec's own §7 sentences,
+ * verbatim, so unifying the two old label maps could not quietly reword them.
+ */
+export const WORKSPACE_ROLE_SCOPE: Record<string, string> = {
+  OWNER: "Everything, including senders, guardrails, credits and who is on the team",
+  ADMIN: "Everything except billing and deleting the workspace",
+  AGENT: "Works the inbox, runs campaigns, cannot change guardrails",
+  VIEWER: "Reads everything, sends nothing",
+};
+
+/** An unknown role reads as itself rather than vanishing or throwing. */
+export function workspaceRoleWord(role: string): string {
+  return WORKSPACE_ROLE_WORD[role] ?? role;
+}
+
+export function workspaceRoleScope(role: string): string {
+  return WORKSPACE_ROLE_SCOPE[role] ?? "";
+}
+
 /* --------------------------------------------------------------- invites */
 
 /**

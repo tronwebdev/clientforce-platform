@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { OWNER_EMAIL } from "./_fixtures";
 
 /**
  * B7 smoke — Settings & Business core as one surface + the credits view + the
@@ -15,7 +16,7 @@ import { test, expect, type Page } from "@playwright/test";
  *  - the hub's six cards carry queried counts (facts/gaps, senders, people,
  *    balance) — never the prototype's fixture numbers;
  *  - Business core lists real workspace facts; Team lists the real
- *    memberships with the real role enum;
+ *    memberships, with a person's role spoken as Member (Agent is Ada's);
  *  - the workspace guardrail DEFAULTS round-trip through typed wells
  *    (Q-081 — steppers retired) and never touch a live campaign;
  *  - credits: real balance, the seeded lead_reveal price on the rates tab,
@@ -24,8 +25,6 @@ import { test, expect, type Page } from "@playwright/test";
  */
 
 test.describe.configure({ mode: "serial" });
-
-const OWNER_EMAIL = "owner@demo-agency.test";
 
 async function signIn(page: Page): Promise<void> {
   await page.goto("/login");
@@ -85,12 +84,15 @@ test("the settings hub reads real counts; Business core, Team and Guardrails are
   await expect(fact.or(taught).or(core).or(noFacts).first()).toBeVisible();
   await page.getByRole("button", { name: "Back" }).click();
 
-  // Team: the real memberships (the demo owner) + the real role enum word.
+  // Team: the real memberships, with a person's role spoken as Member.
   await page.getByTestId("bold-wss-team").click();
   await expect(page.getByTestId("bold-wss-team-item")).toBeVisible();
   await expect(page.getByText(OWNER_EMAIL).first()).toBeVisible();
   // Ada is a row on this page, not a feature mentioned elsewhere.
-  await expect(page.getByTestId("bold-team-people")).toContainText("acts inside your guardrails");
+  // Ada keeps "Agent" — she is the workspace's one agent. A human's role
+  // reads Member; corrupting either half must fail here.
+  await expect(page.getByTestId("bold-team-people")).toContainText("Agent · acts inside your guardrails");
+  await expect(page.getByTestId("bold-team-people")).not.toContainText("· Agent —");
   await page.getByRole("button", { name: "Back" }).click();
 
   // Guardrail defaults: typed wells (Q-081) round-trip; live campaigns listed.

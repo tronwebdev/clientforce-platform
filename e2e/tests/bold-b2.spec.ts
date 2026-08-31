@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { OWNER_EMAIL } from "./_fixtures";
 
 /**
  * B2 smoke — pipeline board/list, plan + branches, campaign inbox go live
@@ -17,8 +18,6 @@ import { test, expect, type Page } from "@playwright/test";
 // The inbox test runs FIRST: it normalizes any state a previously-failed run
 // left behind, then restores it, so the later tests see the canonical seed.
 test.describe.configure({ mode: "default" });
-
-const OWNER_EMAIL = "owner@demo-agency.test";
 
 async function signInToBold(page: Page): Promise<boolean> {
   await page.goto("/login");

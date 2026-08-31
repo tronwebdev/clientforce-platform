@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { OWNER_EMAIL } from "./_fixtures";
 
 /**
  * B4 smoke — the Site agent surface on the real widget spine + the
@@ -11,8 +12,6 @@ import { test, expect, type Page } from "@playwright/test";
  */
 
 test.describe.configure({ mode: "default" });
-
-const OWNER_EMAIL = "owner@demo-agency.test";
 
 async function signIn(page: Page): Promise<void> {
   await page.goto("/login");

@@ -21,7 +21,7 @@ curl -fsS --retry 12 --retry-all-errors --retry-delay 6 -o /dev/null "https://$w
 # address (http://0.0.0.0:3000/), which is unreachable from here. We only need
 # the Set-Cookie, then we hit the public host directly over 443 with the cookie.
 login_code="$(curl -sS -c "$cookies" -o /dev/null -w '%{http_code}' \
-  --data-urlencode "email=owner@demo-agency.test" \
+  --data-urlencode "email=practice@brightsmile.test" \
   "https://$web_fqdn/api/auth/dev-login")"
 case "$login_code" in
   2??|3??) ;;

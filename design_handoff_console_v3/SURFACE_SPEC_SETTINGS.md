@@ -224,7 +224,17 @@ never "ship a worse design", it is "render only what is true and say what is mis
   *"About N days at this month's pace. Ada slows non-urgent sends before you run dry, she does
   not stop."*
 - Right column: a thin progress bar with `N% of your monthly allowance left`, and the
-  **Top up** button — the one place the signature gradient is allowed on this page.
+  **Top up** button — **forest solid with a white label**, like the rail's own Top up and
+  every other primary in the console.
+  <br>*Amended 2026-08-31 (owner). This line previously read "the one place the signature
+  gradient is allowed on this page", which contradicted §2 of this same spec ("never a
+  button fill, never a large surface") and the canon it derives from — `DESIGN_TOKENS_V3.md`
+  "Never fills or buttons", `CONSOLE_V3_CANON.md` "Never fills, buttons, toggles, or large
+  surfaces", and the `--cvb-gradient-signature` token's own source comment. Forest `#146B33`
+  is THE primary-button fill. The gradient stays where it belongs on this page: the 2–3px
+  top edge of the hero card. The gradient primary is the LEGACY skin's rule
+  (`design_handoff_clientforce_restyle/DESIGN_TOKENS.md`) and reached here through the
+  prototype — the two skins never mix in one surface.*
 - Four tiles under it: `USED THIS MONTH` · `INCLUDED MONTHLY` · `BURN` · `RUNS OUT`.
 
 ### 9.2 Tabs

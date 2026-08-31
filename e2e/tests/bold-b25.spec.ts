@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { OWNER_EMAIL } from "./_fixtures";
 
 /**
  * B2.5 smoke — the Bold create-campaign flow (DEC-108/DEC-109) end to end
@@ -13,8 +14,6 @@ import { test, expect, type Page } from "@playwright/test";
  * Unique per-run emails keep re-runs deterministic; the created campaign and
  * its list are cleaned up through the shipped DELETE/PATCH at the end.
  */
-
-const OWNER_EMAIL = "owner@demo-agency.test";
 
 // Cleanup runs even when the test fails mid-flow (a failed run must never
 // leak its uniquely-named campaign into the rail for the next run).

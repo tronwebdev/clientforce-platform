@@ -9,6 +9,7 @@
  * started", not "0%", because 0% is a measurement and this is an absence.
  */
 import type { CSSProperties } from "react";
+import { workspaceRoleWord } from "@clientforce/core";
 import { CHIP, SURFACE } from "../bold-settings-kit";
 import {
   emailSenders,
@@ -59,8 +60,10 @@ function sendersSub(d: SettingsSnapshot): string {
 function teamSub(d: SettingsSnapshot): string {
   if (d.members === null) return "Who can do what here.";
   const pending = (d.invites ?? []).filter((i) => i.state === "pending").length;
-  const roles = [...new Set(d.members.map((m) => m.role.toLowerCase()))];
-  // "Owner, admin, viewer." — sentence case, in the order the enum ranks them.
+  // The words come from the shared vocabulary, never the raw enum — lowercasing
+  // `m.role` is what put "Agent, viewer." on this card for a human.
+  const roles = [...new Set(d.members.map((m) => workspaceRoleWord(m.role).toLowerCase()))];
+  // "Owner, admin, member." — sentence case, in the order the enum ranks them.
   const said = roles.length === 0 ? "" : `${roles[0]![0]!.toUpperCase()}${roles[0]!.slice(1)}${roles.length > 1 ? `, ${roles.slice(1).join(", ")}` : ""}. `;
   const waiting = pending > 0 ? `${pluralise(pending, "invite", "invites")} waiting.` : "";
   return `${pluralise(d.members.length, "person", "people")} plus Ada. ${said}${waiting}`.trim();

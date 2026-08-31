@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { OWNER_EMAIL } from "./_fixtures";
 
 /**
  * B7.5 smoke — the settings WRITE layer, one test per acceptance criterion.
@@ -15,7 +16,6 @@ import { test, expect, type Page } from "@playwright/test";
 
 test.describe.configure({ mode: "serial" });
 
-const OWNER_EMAIL = "owner@demo-agency.test";
 /** Unique per run, so re-runs never collide on a taught fact or an invite. */
 const RUN = `${Date.now().toString(36)}`;
 

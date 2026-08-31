@@ -78,7 +78,7 @@ jobs:
           set -uo pipefail
           web="$(az containerapp show --name clientforce-web --resource-group "$RG" --query "properties.configuration.ingress.fqdn" -o tsv)"
           jar="$(mktemp)"
-          code="$(curl -sS -c "$jar" -o /dev/null -w '%{http_code}' --data-urlencode "email=owner@demo-agency.test" "https://$web/api/auth/dev-login")"
+          code="$(curl -sS -c "$jar" -o /dev/null -w '%{http_code}' --data-urlencode "email=practice@brightsmile.test" "https://$web/api/auth/dev-login")"
           echo "dev-login -> $code"
           echo "health:"
           curl -sS -b "$jar" "https://$web/api/cf/system/health" | tee /tmp/health.json | python3 -m json.tool || true
@@ -88,7 +88,7 @@ jobs:
           set -uo pipefail
           web="$(az containerapp show --name clientforce-web --resource-group "$RG" --query "properties.configuration.ingress.fqdn" -o tsv)"
           jar="$(mktemp)"
-          curl -sS -c "$jar" -o /dev/null --data-urlencode "email=owner@demo-agency.test" "https://$web/api/auth/dev-login"
+          curl -sS -c "$jar" -o /dev/null --data-urlencode "email=practice@brightsmile.test" "https://$web/api/auth/dev-login"
           cf() { curl -sS -b "$jar" -H "Content-Type: application/json" "$@"; }
 
           echo "── create a probe agent ──"

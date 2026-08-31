@@ -28,6 +28,12 @@
  * The buy flow lives in the right-hand drawer, not the prototype's centred
  * modal: every add in settings opens the same drawer, and that rule is newer
  * than the prototype.
+ *
+ * The hero's gradient is the 2px top edge and nothing else. Top up is forest
+ * solid like every other primary in the console — the signature gradient is
+ * "logo mark + ≤2 moments/screen. Never fills or buttons", and this surface's
+ * own §2 style contract says "never a button fill". The §9.1 line that made
+ * the hero an exception contradicted both and has been amended.
  */
 import { useEffect, useState } from "react";
 import type { EffectiveCreditPrices } from "@clientforce/core";
@@ -252,15 +258,29 @@ export function BoldCreditsView({ flash }: { flash?: (m: string) => void }) {
               onClick={() => setBuying(true)}
               role="button"
               data-testid="bold-credits-topup"
+              // Forest solid, white label — the same primary the rail's own Top
+              // up uses. The signature gradient is never a button fill: the
+              // canon says "Never fills or buttons", and §2 of this surface's
+              // own spec says "never a button fill". §9.1 said the opposite and
+              // was wrong; it is amended in this commit.
+              //
+              // The one thing this button needs that the rail's does not: a
+              // boundary. The rail sits on a light surface, this sits INSIDE
+              // the dark hero, where forest is 2.3–2.9:1 against the gradient
+              // behind it — under WCAG 1.4.11's 3:1 for a UI component's
+              // boundary, so the silhouette dissolves. The white label is fine
+              // at 6.6:1. A 34%-white hairline puts the edge at 3.0–3.1:1
+              // across the whole hero without touching the fill or the label.
               style={{
                 display: "block",
                 textAlign: "center",
                 fontSize: 13,
                 fontWeight: 800,
-                color: "#101613",
-                background: "var(--cvb-gradient-signature)",
+                color: "var(--cvb-card)",
+                background: "var(--cvb-forest)",
+                border: "1px solid rgba(255,255,255,.34)",
                 borderRadius: 12,
-                padding: 13,
+                padding: "12px 13px",
                 cursor: "pointer",
                 marginTop: 14,
               }}

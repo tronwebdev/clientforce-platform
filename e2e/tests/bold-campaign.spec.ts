@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { OWNER_EMAIL } from "./_fixtures";
 
 /**
  * B1 smoke — the campaign console goes live behind `consoleBold`.
@@ -9,8 +10,6 @@ import { test, expect, type Page } from "@playwright/test";
  * value est $2,400 × target 12, one booked contact (Ada Lovelace), three
  * step sends, and one payment receipt.
  */
-
-const OWNER_EMAIL = "owner@demo-agency.test";
 
 async function signInToBold(page: Page): Promise<boolean> {
   await page.goto("/login");

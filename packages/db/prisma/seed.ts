@@ -134,10 +134,58 @@ async function main(): Promise<void> {
     },
   });
 
+  // B7.5 approval round (DEC-149, amended): the workspace principal looks
+  // like the BUSINESS, not the platform. "Demo Owner · owner@demo-agency.test"
+  // sat on Bright Smile's
+  // own team page as an OWNER — a .test AGENCY identity inside a client's
+  // roster, the third instance of this class after the Quinn names and the
+  // demo sender. This is the same in-place upgrade that moved that sender from
+  // hello@demo-agency.test to hello@brightsmile.test below.
+  //
+  // Deliberately NOT owner@brightsmile.test: that address is the B9 fidelity
+  // capture's throwaway and is allow-listed in `b9-cleanup.ts`, which deletes
+  // the AGENCY of every workspace its target belongs to. Giving it a
+  // membership here would let a routine capture delete Demo Agency whole.
+  const PRACTICE_OWNER = { email: "practice@brightsmile.test", name: "Dr. Ines Duarte" };
+
+  // Upgrade in place — never a second user. The seed re-runs on every deploy,
+  // so upserting the new address alone would leave the old principal behind,
+  // still an OWNER, and grow the roster instead of changing it. The provider
+  // link is cleared with the rename because the dev verifier derives the
+  // subject from the address (`dev|<email>`) — keeping the old link makes the
+  // next sign-in a principal conflict. A Clerk-linked row is left alone: that
+  // is a real person's account, and losing their login is worse than a
+  // fixture name.
+  //
+  // `email` is @unique, so the rename cannot run blind: anything still signing
+  // in as the old address after a rename (a stale branch against shared
+  // staging, an old bookmark) makes the auth guard lazily create an orphan
+  // under it, and the next deploy's rename would then collide on the taken
+  // address — P2002, non-zero seed, BLOCKED DEPLOY, not just a red test. So a
+  // membership-less orphan is removed rather than renamed; one that somehow
+  // holds memberships is left alone for a human to look at.
+  const renamed = await prisma.user.findUnique({ where: { email: PRACTICE_OWNER.email } });
+  if (renamed) {
+    await prisma.user.deleteMany({
+      where: {
+        email: "owner@demo-agency.test",
+        memberships: { none: {} },
+        OR: [{ authProviderId: null }, { authProviderId: { startsWith: "dev|" } }],
+      },
+    });
+  } else {
+    await prisma.user.updateMany({
+      where: {
+        email: "owner@demo-agency.test",
+        OR: [{ authProviderId: null }, { authProviderId: { startsWith: "dev|" } }],
+      },
+      data: { email: PRACTICE_OWNER.email, name: PRACTICE_OWNER.name, authProviderId: null },
+    });
+  }
   const user = await prisma.user.upsert({
-    where: { email: "owner@demo-agency.test" },
-    update: {},
-    create: { email: "owner@demo-agency.test", name: "Demo Owner" },
+    where: { email: PRACTICE_OWNER.email },
+    update: { name: PRACTICE_OWNER.name },
+    create: PRACTICE_OWNER,
   });
 
   // A3 Google acceptance (DEC-060c): the owner's real account gets OWNER

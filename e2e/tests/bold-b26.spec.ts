@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { OWNER_EMAIL } from "./_fixtures";
 
 /**
  * B2.6 smoke — suggested campaigns (DEC-110, closes Q-066). The shell fires
@@ -11,7 +12,6 @@ import { test, expect, type Page } from "@playwright/test";
  * from a fresh sweep.
  */
 
-const OWNER_EMAIL = "owner@demo-agency.test";
 const SUGG_NAME = "Win back the not-nows";
 
 async function deleteSuggestionRow(page: Page) {
