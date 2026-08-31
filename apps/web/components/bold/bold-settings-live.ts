@@ -125,7 +125,13 @@ export interface SenderHealthRead {
   fromEmail: string;
   status: string;
   windowDays: number;
-  sample?: { sent: number; bounced: number; complained: number; delivered?: number };
+  /**
+   * `LedgerSample`, mirrored from its producer in `@clientforce/channels`.
+   * Written from memory the first time, it claimed a `complained` field the
+   * health engine has never had — which rendered "COMPLAINTS: undefined" in
+   * the sender drawer. Typed against the producer's own field names now.
+   */
+  sample?: { sent: number; delivered: number; bounced: number; spam: number; replied: number };
   score?: number | null;
   state?: string | null;
   sentAllTime?: number;

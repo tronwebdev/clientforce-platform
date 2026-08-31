@@ -79,6 +79,56 @@ test("every add opens the right-hand drawer, and the drawer dims the page and cl
   await expect(drawer).toBeHidden();
 });
 
+/* The guard for the bug class this whole unit was warned about: a surface that
+   reads a field its source never had renders the word `undefined` rather than
+   crashing, which is worse — it looks like data. Every settings page and every
+   drawer is swept for it. */
+
+test("no settings surface renders undefined, NaN or [object Object]", async ({ page }) => {
+  test.setTimeout(150_000);
+  await signIn(page);
+  if (!(await toSettings(page))) {
+    test.skip(true, "consoleBold not enabled");
+    return;
+  }
+  const bad = /\bundefined\b|\bNaN\b|\[object Object\]/;
+  const sweep = async (where: string) => {
+    const text = (await page.getByTestId("bold-canvas").innerText()) ?? "";
+    expect(text, `${where} renders a value it never had`).not.toMatch(bad);
+    const drawer = page.getByTestId("bold-settings-drawer");
+    if ((await drawer.count()) > 0 && (await drawer.isVisible())) {
+      expect(await drawer.innerText(), `${where} drawer renders a value it never had`).not.toMatch(bad);
+    }
+  };
+
+  await sweep("hub");
+  for (const [card, item, tabs] of [
+    ["bold-wss-core", "bold-wss-core-item", 4],
+    ["bold-wss-senders", "bold-wss-senders-item", 3],
+    ["bold-wss-team", "bold-wss-team-item", 2],
+    ["bold-wss-guard", "bold-wss-guard-item", 4],
+  ] as const) {
+    await page.getByTestId(card).click();
+    await page.getByTestId(item).waitFor();
+    for (let t = 0; t < tabs; t += 1) {
+      await page.getByTestId(`bold-wss-tab-${t}`).click();
+      await page.waitForTimeout(500);
+      await sweep(`${item} tab ${t}`);
+    }
+    await page.getByRole("button", { name: "Back" }).click();
+    await page.getByTestId("bold-wssettings").waitFor();
+  }
+
+  // The sender drawer is the one that actually carried this defect: it reads
+  // a health payload no row on the page carries.
+  await page.getByTestId("bold-wss-senders").click();
+  await page.getByTestId("bold-senders-email").getByText("team@brightsmile.test").first().click();
+  await page.getByTestId("bold-drawer-sender").waitFor();
+  await page.waitForTimeout(1400);
+  expect(await page.getByTestId("bold-drawer-sender").innerText()).not.toMatch(bad);
+  await page.getByTestId("bold-settings-drawer-close").click();
+});
+
 /* §12.2 — answering a gap removes it, creates the fact, both counts change */
 
 test("teaching a fact raises the count without a reload, and the taught row can be edited and forgotten", async ({ page }) => {

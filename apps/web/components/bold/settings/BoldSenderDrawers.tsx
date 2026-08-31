@@ -190,7 +190,7 @@ export function SenderDrawer({
     : [
         ["SENT", sample ? String(sample.sent) : "—", `last ${health?.windowDays ?? 7} days`],
         ["BOUNCES", sample ? String(sample.bounced) : "—", "hard failures"],
-        ["COMPLAINTS", sample ? String(sample.complained) : "—", "marked as spam"],
+        ["COMPLAINTS", sample ? String(sample.spam) : "—", "marked as spam"],
       ];
 
   async function saveCap() {
