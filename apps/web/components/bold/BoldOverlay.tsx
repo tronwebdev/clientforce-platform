@@ -24,8 +24,14 @@
 import { useCallback, useEffect, useLayoutEffect, useState, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 
-/** The ruled scrim: one z-layer below the panel, click-to-close. */
-export const SCRIM_COLOR = "rgba(16,22,19,.26)";
+/**
+ * The ruled scrim: one z-layer below the panel, click-to-close.
+ *
+ * B7.5 landed `--cvb-scrim` in `packages/theme` as the console-wide token for
+ * exactly this value, so that is the source and the literal here is only the
+ * fallback for a surface rendered outside the theme.
+ */
+export const SCRIM_COLOR = "var(--cvb-scrim, rgba(16,22,19,.26))";
 const SCRIM_Z = 2000;
 const PANEL_Z = 2001;
 
