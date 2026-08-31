@@ -352,7 +352,10 @@ export function SettingsDrawer({
       <div
         onClick={onClose}
         data-testid="bold-settings-scrim"
-        style={{ position: "fixed", inset: 0, background: "var(--cvb-scrim)", zIndex: 40 }}
+        // Above the help launcher (61) and the tour layer (60): a modal
+        // surface that something else can sit on top of is not modal, and the
+        // launcher sat squarely on this drawer's primary action.
+        style={{ position: "fixed", inset: 0, background: "var(--cvb-scrim)", zIndex: 62 }}
       />
       <div
         data-testid={testid ?? "bold-settings-drawer"}
@@ -365,7 +368,7 @@ export function SettingsDrawer({
           bottom: 0,
           width,
           maxWidth: "92%",
-          zIndex: 41,
+          zIndex: 63,
           background: "var(--cvb-gradient-panel)",
           borderLeft: "1px solid var(--cvb-line)",
           boxShadow: "var(--cvb-shadow-two-layer)",
