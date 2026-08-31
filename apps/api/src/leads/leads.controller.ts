@@ -61,7 +61,7 @@ import {
   type SignalGroup,
 } from "@clientforce/core";
 import { LeadProviderError, type LeadSearchProvider } from "@clientforce/leads";
-import { Prisma, Role } from "@clientforce/db";
+import { charge, priceFor, Prisma, Role } from "@clientforce/db";
 import { EVENT_TYPES } from "@clientforce/events";
 import { Roles } from "../auth/decorators";
 import type { AuthenticatedRequest } from "../auth/request-context";
@@ -797,24 +797,19 @@ export class LeadsController {
 
     const workspaceId = this.tenant.workspaceId;
     return this.tenant.run(async (tx) => {
-      // Effective-dated price, agency override first (the resolveCreditPrice
-      // rule inlined over the tenant read's visibility filter).
-      const ws = await tx.workspace.findUniqueOrThrow({
-        where: { id: workspaceId },
-        select: { agencyId: true, creditBalance: true },
-      });
-      const prices = await tx.creditPrice.findMany({
-        where: {
-          action: REVEAL_PRICE_ACTION,
-          effectiveFrom: { lte: new Date() },
-          OR: [{ agencyId: null }, { agencyId: ws.agencyId }],
-        },
-        orderBy: [{ agencyId: "desc" }, { effectiveFrom: "desc" }],
-      });
-      const price = prices[0]?.credits ?? 1;
-      if (ws.creditBalance < price) {
+      // B9.5 (DEC-157): the price and the balance now come from the ONE charge
+      // path. This used to re-implement `resolveCreditPrice` as a Prisma
+      // orderBy and fall back to a hard-coded `?? 1` — a second implementation
+      // of the rule, and a literal price in the charge path (§7.10). Both are
+      // gone; `priceFor` asks exactly the question `charge` will ask.
+      const { price, balance } = await priceFor(tx, workspaceId, REVEAL_PRICE_ACTION);
+      if (price !== null && price > 0 && balance < price) {
         throw new HttpException(
-          { reason: "NOT_ENOUGH_CREDITS", message: `Revealing costs ${price} credit${price === 1 ? "" : "s"} — top up first.` },
+          {
+            reason: "NOT_ENOUGH_CREDITS",
+            message: `Revealing costs ${price} credit${price === 1 ? "" : "s"} — top up first.`,
+            short: price - balance,
+          },
           422,
         );
       }
@@ -844,7 +839,10 @@ export class LeadsController {
           },
         }));
 
-      // Charged once, ever: an already-known contact costs nothing.
+      // Charged once, ever: an already-known contact costs nothing. This is
+      // dedupe, and it is BELT to the charge path's braces — the idempotency
+      // key on (workspace, contact, lead_reveal) means a retry of this very
+      // request cannot double-charge even for a brand-new contact.
       if (existing) {
         // B6.5 bug fix: the provider payload was fetched and then thrown
         // away, so a second reveal of the same person re-hit the provider
@@ -864,20 +862,44 @@ export class LeadsController {
             } as Prisma.InputJsonValue,
           },
         });
-        return { contactId: contact.id, alreadyKnown: true, charged: 0, balance: ws.creditBalance };
+        return { contactId: contact.id, alreadyKnown: true, charged: 0, balance };
       }
-      const balanceAfter = ws.creditBalance - price;
-      await tx.creditLedger.create({
-        data: { workspaceId, delta: -price, reason: "lead_reveal", refId: contact.id, balanceAfter },
-      });
-      await tx.workspace.update({ where: { id: workspaceId }, data: { creditBalance: balanceAfter } });
-      await this.publisher.publish({
-        type: EVENT_TYPES.CREDITS_CONSUMED,
+      const result = await charge(tx, {
         workspaceId,
-        contactId: contact.id,
-        payload: { amount: price, channel: "lead_reveal", balance: balanceAfter },
+        action: REVEAL_PRICE_ACTION,
+        // The contact is the produced row, so revealing the same person twice
+        // — by retry or by race — charges exactly once, ever.
+        sourceType: "contact",
+        sourceId: contact.id,
+        channel: REVEAL_PRICE_ACTION,
+        metadata: { provider: this.provider.name, providerRef: parsed.data.providerRef },
       });
-      return { contactId: contact.id, alreadyKnown: false, charged: price, balance: balanceAfter };
+      if (result.outcome === "refused") {
+        throw new HttpException(
+          {
+            reason: "NOT_ENOUGH_CREDITS",
+            message: `Revealing costs ${result.price} credit${result.price === 1 ? "" : "s"} — top up first.`,
+            short: result.short,
+          },
+          422,
+        );
+      }
+      // Only a charge that actually moved the balance is spend to announce; a
+      // replay already published its event the first time.
+      if (result.outcome === "charged") {
+        await this.publisher.publish({
+          type: EVENT_TYPES.CREDITS_CONSUMED,
+          workspaceId,
+          contactId: contact.id,
+          payload: { amount: result.charged, channel: REVEAL_PRICE_ACTION, balance: result.balanceAfter },
+        });
+      }
+      return {
+        contactId: contact.id,
+        alreadyKnown: false,
+        charged: result.outcome === "charged" ? result.charged : 0,
+        balance: result.balanceAfter,
+      };
     });
   }
 

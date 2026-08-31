@@ -86,3 +86,20 @@ export async function withTenant<T>(
 export { decryptField, encryptField } from "./crypto";
 
 export const DB_PACKAGE = "@clientforce/db";
+
+/**
+ * B9.5 (DEC-157): the ONE credit charge path. Exported from here because it
+ * needs a Prisma transaction client, while the price RULE it calls stays pure
+ * in `@clientforce/core`. Every consumer that charges already depends on this
+ * package, so there is no second path to reach for.
+ */
+export {
+  charge,
+  CHARGE_SOURCE_TYPES,
+  priceFor,
+  refundCharge,
+  refundReason,
+  type ChargeInput,
+  type ChargeResult,
+  type ChargeSourceType,
+} from "./charge";

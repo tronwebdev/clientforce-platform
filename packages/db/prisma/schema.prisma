@@ -1147,8 +1147,31 @@ model CreditLedger {
   refId        String?
   balanceAfter Int
   createdAt    DateTime @default(now())
+  /// B9.5 (DEC-157): what produced this charge. `sourceType` is the kind of
+  /// row ("message" | "call" | "contact" | "sync" | "widget_turn" | "reveal")
+  /// and `sourceId` is that row's own id. Together with workspace + reason
+  /// they are the IDEMPOTENCY KEY: we charge AFTER the thing happened, so the
+  /// produced row already exists and is the natural key. A replayed webhook
+  /// or a retried worker therefore leaves exactly one ledger row.
+  ///
+  /// Separate from `refId`, which is already overloaded — it carries the
+  /// contact id on a reveal and the AUDIT row id on a backoffice adjustment.
+  ///
+  /// Uniqueness is a PARTIAL unique index Prisma cannot express, declared in
+  /// the migration as
+  ///   CREATE UNIQUE INDEX ... ("workspaceId","sourceType","sourceId","reason")
+  ///   WHERE "sourceType" IS NOT NULL
+  /// so manual adjustments (which have no source) and every pre-existing row
+  /// are unaffected. Same technique as BusinessContext's two-layer keys.
+  sourceType   String?
+  sourceId     String?
+  /// What the charge was computed from — provider ids, the rounding inputs,
+  /// the quantity and unit price. Written so a bill can be explained later
+  /// without re-deriving it from logs that may have rotated.
+  meta         Json?
 
   @@index([workspaceId])
+  @@index([workspaceId, sourceType, sourceId])
 }
 
 model Form {
