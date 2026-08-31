@@ -56,7 +56,9 @@ export const SURFACE_TITLES: Record<Exclude<BoldSurface, "campaign">, [string, s
   automations: ["RULES", "Automations"],
   lead: ["LEAD FINDER", "Find who fits"],
   camps: ["4 CAMPAIGNS", "Campaigns"],
-  credits: ["WORKSPACE", "Credits and billing"],
+  // The hub card, the spec and this page all say "usage": a workspace spends
+  // credits, and its plan, card and invoices live in the account area.
+  credits: ["WORKSPACE", "Credits and usage"],
   analytics: ["WORKSPACE · ALL CAMPAIGNS", "Analytics"],
   wssettings: ["WORKSPACE", "Settings"],
   wsinbox: ["WORKSPACE · 5 CONVERSATIONS", "Inbox"],

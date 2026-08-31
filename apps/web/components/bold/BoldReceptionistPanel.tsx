@@ -42,7 +42,7 @@ export function BoldReceptionistPanel({
 
   return (
     <>
-      <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(10,14,12,.16)", zIndex: 70 }} />
+      <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "var(--cvb-scrim)", zIndex: 70 }} />
       <div
         data-testid="bold-rcp"
         style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: 420, maxWidth: "92%", background: "var(--cvb-card)", borderLeft: "1px solid var(--cvb-line-ctl)", zIndex: 71, overflowY: "auto" }}

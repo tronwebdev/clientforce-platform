@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { workspaceRoleWord } from "@clientforce/core";
 import { Card } from "@clientforce/ui";
 import { TopBar } from "../../../components/TopBar";
 import { fetchMe } from "../../../lib/api";
@@ -37,7 +38,7 @@ export default async function SettingsPage() {
               Insufficient permissions
             </h2>
             <p style={{ color: "var(--cf-color-muted-2)" }}>
-              Settings requires {ALLOWED.join(" or ")}. You are signed in as {me.role}.
+              Settings requires {ALLOWED.map(workspaceRoleWord).join(" or ")}. You are signed in as {workspaceRoleWord(me.role)}.
             </p>
           </Card>
         </div>

@@ -57,7 +57,7 @@ jobs:
           [ -s /tmp/stranded-ids ] || { echo "nothing stranded — done"; exit 0; }
           web="$(az containerapp show --name clientforce-web --resource-group "$RG" --query "properties.configuration.ingress.fqdn" -o tsv)"
           jar="$(mktemp)"
-          curl -sS -c "$jar" -o /dev/null --data-urlencode "email=owner@demo-agency.test" "https://$web/api/auth/dev-login"
+          curl -sS -c "$jar" -o /dev/null --data-urlencode "email=practice@brightsmile.test" "https://$web/api/auth/dev-login"
           demo_ids="$(psql "$(cat /tmp/dburl)" -At -c "select s.id from \"KnowledgeSource\" s join \"Workspace\" w on w.id = s.\"workspaceId\" where w.slug = 'demo' and s.id = any(string_to_array('$(paste -sd, /tmp/stranded-ids)', ','));")"
           [ -n "$demo_ids" ] || { echo "no stranded rows in the demo workspace"; exit 0; }
           for id in $demo_ids; do

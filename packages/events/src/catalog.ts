@@ -504,6 +504,68 @@ export const EVENT_SCHEMAS = {
     /** The deleted rule's trigger kind — for log rendering after the row is gone. */
     trigger: z.string(),
   }),
+
+  // ── Workspace settings · the B7.5 write layer ──────────────────────────────
+  // Every one of these is a change a PERSON made to how the workspace works,
+  // so each carries its actor: the settings surfaces render "who and when"
+  // from these rows, and "a role changed and nobody knows who did it" is the
+  // exact failure they exist to prevent.
+  "workspace.fact_taught.v1": z.object({
+    /** The stored context key (`ask_*` / `field_*`, or a registry key). */
+    key: z.string().min(1),
+    /** The question or field name, as the owner wrote it. */
+    label: z.string(),
+    /** Set when this answered a reported gap rather than adding a new fact. */
+    answeredGapKey: z.string().optional(),
+    actorId: z.string().optional(),
+  }),
+  "workspace.fact_removed.v1": z.object({
+    key: z.string().min(1),
+    label: z.string(),
+    actorId: z.string().optional(),
+  }),
+  "workspace.member_invited.v1": z.object({
+    inviteId: z.string().min(1),
+    email: z.string(),
+    role: z.string(),
+    /** False when no send transport is configured — the invite exists unsent. */
+    delivered: z.boolean(),
+    resend: z.boolean().optional(),
+    actorId: z.string().optional(),
+  }),
+  "workspace.invite_revoked.v1": z.object({
+    inviteId: z.string().min(1),
+    email: z.string(),
+    actorId: z.string().optional(),
+  }),
+  "workspace.member_role_changed.v1": z.object({
+    userId: z.string().min(1),
+    email: z.string().optional(),
+    from: z.string(),
+    to: z.string(),
+    actorId: z.string().optional(),
+  }),
+  "workspace.member_removed.v1": z.object({
+    userId: z.string().min(1),
+    email: z.string().optional(),
+    role: z.string(),
+    /** Threads that returned to the queue — the consequence, recorded. */
+    releasedThreads: z.number().int().nonnegative().optional(),
+    actorId: z.string().optional(),
+  }),
+  "workspace.guardrail_changed.v1": z.object({
+    /** Dotted path of what changed, e.g. `dailyCap.email`. */
+    path: z.string().min(1),
+    from: z.string().optional(),
+    to: z.string().optional(),
+    actorId: z.string().optional(),
+  }),
+  "workspace.number_requested.v1": z.object({
+    requestId: z.string().min(1),
+    areaCode: z.string(),
+    carries: z.string(),
+    actorId: z.string().optional(),
+  }),
 } satisfies Record<string, z.ZodTypeAny>;
 
 /** The union of all versioned event-type strings. */
@@ -588,4 +650,12 @@ export const EVENT_TYPES = {
   AUTOMATION_RULE_RUN: "automation.rule.run.v1",
   AUTOMATION_STATUS_CHANGED: "automation.status_changed.v1",
   AUTOMATION_DELETED: "automation.deleted.v1",
+  WORKSPACE_FACT_TAUGHT: "workspace.fact_taught.v1",
+  WORKSPACE_FACT_REMOVED: "workspace.fact_removed.v1",
+  WORKSPACE_MEMBER_INVITED: "workspace.member_invited.v1",
+  WORKSPACE_INVITE_REVOKED: "workspace.invite_revoked.v1",
+  WORKSPACE_MEMBER_ROLE_CHANGED: "workspace.member_role_changed.v1",
+  WORKSPACE_MEMBER_REMOVED: "workspace.member_removed.v1",
+  WORKSPACE_GUARDRAIL_CHANGED: "workspace.guardrail_changed.v1",
+  WORKSPACE_NUMBER_REQUESTED: "workspace.number_requested.v1",
 } as const satisfies Record<string, EventType>;

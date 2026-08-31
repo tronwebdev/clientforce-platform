@@ -15,7 +15,7 @@
  *    of impersonating evidence. Reviewers verify what they are looking at by
  *    hashing the file — never by trusting an image cache.
  *
- * Usage:  node e2e/capture-bold-fidelity.mjs [unit]     (b1 | b2 | b25 | b26 | b3 | b3b | b3c1 | b3c2 | b3d | b4; default b1)
+ * Usage:  node e2e/capture-bold-fidelity.mjs [unit]     (b1 | b2 | b25 | b26 | b3 | b3b | b3c1 | b3c2 | b3d | b4 | b45 | b5 | b6 | b7 | b75 | b8 | b9; default b1)
  * Env:    CAPTURE_BASE_URL (default http://localhost:3000)
  *         PLAYWRIGHT_CHROMIUM_EXECUTABLE (a pre-provisioned Chromium)
  *
@@ -33,8 +33,8 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const UNIT = process.argv[2] ?? "b1";
-if (!["b1", "b2", "b25", "b26", "b3", "b3b", "b3c1", "b3c2", "b3d", "b4", "b45", "b5", "b6", "b7", "b8", "b9"].includes(UNIT)) {
-  console.error(`Unknown unit "${UNIT}" — this tool knows b1, b2, b25, b26, b3, b3b, b3c1, b3c2, b3d, b4, b45, b5, b6, b7, b8 and b9.`);
+if (!["b1", "b2", "b25", "b26", "b3", "b3b", "b3c1", "b3c2", "b3d", "b4", "b45", "b5", "b6", "b7", "b75", "b8", "b9"].includes(UNIT)) {
+  console.error(`Unknown unit "${UNIT}" — this tool knows b1, b2, b25, b26, b3, b3b, b3c1, b3c2, b3d, b4, b45, b5, b6, b7, b75, b8 and b9.`);
   process.exit(1);
 }
 const OUT = join(ROOT, "docs", "fidelity", UNIT);
@@ -48,7 +48,7 @@ const PROTO_LEGACY = `file://${join(ROOT, "design_handoff_console_v3", "prototyp
 const PROTO_ONBOARD = `file://${join(ROOT, "design_handoff_console_v3", "prototypes", "Business Core Onboarding.dc.html").replace(/ /g, "%20")}`;
 const PROTO_TOUR = `file://${join(ROOT, "design_handoff_console_v3", "prototypes", "Product Tour.dc.html").replace(/ /g, "%20")}`;
 const FONTS = join(ROOT, "apps", "web", "node_modules", "@fontsource");
-const OWNER_EMAIL = "owner@demo-agency.test";
+const OWNER_EMAIL = "practice@brightsmile.test";
 
 const staging = mkdtempSync(join(tmpdir(), "bold-fidelity-"));
 const captured = new Map(); // name -> { viewport }
@@ -370,6 +370,278 @@ if (UNIT === "b8") {
   });
 }
 
+/* --------------------------------------------------------------- the b75 set */
+if (UNIT === "b75") {
+  // The settings WRITE layer. The prototype answers for the hub, the four item
+  // pages and three of the add drawers; the invite drawer, the add-field
+  // drawer, the person drawer and the credits buy drawer are NEW here — the
+  // proto has no counterpart, so those frames are build-only and say so in the
+  // review notes rather than being paired against something that never existed.
+  await run("prototype-b75", async () => {
+    const p = await page({ width: 1440, height: 900 });
+    await freshProto(p);
+    const toHub = async () => {
+      await p.locator('[title^="Settings"]').first().click();
+      await p.waitForTimeout(700);
+    };
+    await toHub();
+    await shot(p, "proto-hub-1440x900");
+
+    // Business core — all four tabs.
+    await p.getByText("Who you are, what you sell", { exact: false }).first().click();
+    await p.waitForTimeout(700);
+    await shot(p, "proto-core-facts-1440x900");
+    for (const [tab, name] of [
+      ["Gaps", "proto-core-gaps-1440x900"],
+      ["Who you are", "proto-core-who-1440x900"],
+      ["Where it comes from", "proto-core-sources-1440x900"],
+    ]) {
+      await p.getByText(tab, { exact: true }).first().click();
+      await p.waitForTimeout(500);
+      await shot(p, name);
+    }
+
+    // The add drawers the proto carries. Its overlay swallows clicks under it,
+    // so each drawer is dismissed by clicking the scrim itself and the item is
+    // re-entered from the hub rather than trusting the page underneath.
+    const closeOver = async () => {
+      await p.mouse.click(200, 420);
+      await p.waitForTimeout(500);
+    };
+    const toCore = async (tab) => {
+      await toHub();
+      await p.getByText("Who you are, what you sell", { exact: false }).first().click();
+      await p.waitForTimeout(600);
+      if (tab) {
+        await p.getByText(tab, { exact: true }).first().click();
+        await p.waitForTimeout(400);
+      }
+    };
+    await toCore("Where it comes from");
+    await p.getByText("Add a knowledge source", { exact: true }).first().click();
+    await p.waitForTimeout(600);
+    await shot(p, "proto-drawer-source-1440x900");
+    await closeOver();
+    await toCore(null);
+    await p.getByText("Add something she should know", { exact: true }).first().click();
+    await p.waitForTimeout(600);
+    await shot(p, "proto-drawer-fact-1440x900");
+    await closeOver();
+
+    // Senders: the three tabs, the sender drawer, and both add flows.
+    await toHub();
+    await p.getByText("Two email domains and one number", { exact: false }).first().click();
+    await p.waitForTimeout(700);
+    await shot(p, "proto-senders-email-1440x900");
+    const toSenders = async (tab) => {
+      await toHub();
+      await p.getByText("Two email domains and one number", { exact: false }).first().click();
+      await p.waitForTimeout(600);
+      if (tab) {
+        await p.getByText(tab, { exact: true }).first().click();
+        await p.waitForTimeout(400);
+      }
+    };
+    await p.getByText("hello@brightsmile.com", { exact: true }).first().click();
+    await p.waitForTimeout(600);
+    await shot(p, "proto-drawer-sender-1440x900");
+    await closeOver();
+    await toSenders(null);
+    await p.getByText("Add an email sender", { exact: true }).first().click();
+    await p.waitForTimeout(600);
+    await shot(p, "proto-drawer-addsender-1440x900");
+    await closeOver();
+    await toSenders("Numbers");
+    await shot(p, "proto-senders-num-1440x900");
+    await p.getByText("Add a number", { exact: true }).first().click();
+    await p.waitForTimeout(600);
+    await shot(p, "proto-drawer-addnumber-1440x900");
+    await closeOver();
+
+    // Team and guardrails.
+    await toHub();
+    await p.getByText("Two people plus Ada", { exact: false }).first().click();
+    await p.waitForTimeout(700);
+    await shot(p, "proto-team-1440x900");
+    await toHub();
+    await p.getByText("Workspace-wide limits", { exact: false }).first().click();
+    await p.waitForTimeout(700);
+    await shot(p, "proto-guard-sending-1440x900");
+    await p.getByText("Campaign overrides", { exact: true }).first().click();
+    await p.waitForTimeout(500);
+    await shot(p, "proto-guard-over-1440x900");
+
+    // Credits: the dark hero and its three tabs, then the buy flow's steps.
+    await toHub();
+    await p.getByText("Where they go, what things cost", { exact: false }).first().click();
+    await p.waitForTimeout(700);
+    await shot(p, "proto-credits-usage-1440x900");
+    await p.getByText("What things cost", { exact: true }).first().click();
+    await p.waitForTimeout(500);
+    await shot(p, "proto-credits-rates-1440x900");
+    await p.getByText("Top-ups", { exact: true }).first().click();
+    await p.waitForTimeout(500);
+    await shot(p, "proto-credits-topups-1440x900");
+    await p.getByText("Buy credits", { exact: true }).first().click();
+    await p.waitForTimeout(600);
+    await shot(p, "proto-buy-1-1440x900");
+    await p.getByText("Continue", { exact: true }).first().click();
+    await p.waitForTimeout(600);
+    await shot(p, "proto-buy-2-1440x900");
+    await p.getByText(/^Pay \$/).first().click();
+    await p.waitForTimeout(700);
+    await shot(p, "proto-buy-3-1440x900");
+    await p.context().close();
+  });
+
+  await run("build-b75", async () => {
+    const p = await page({ width: 1440, height: 900 });
+    await signInBuild(p);
+    await p.goto(`${BASE}/bold`);
+    await p.getByTestId("bold-root").waitFor();
+    await p.addStyleTag({ content: "nextjs-portal{display:none!important}" });
+    await p.waitForTimeout(700);
+    const later = p.getByText("Later", { exact: true }).first();
+    if (await later.isVisible().catch(() => false)) await later.click();
+
+    const toHub = async () => {
+      await p.getByTestId("bold-dock-wssettings").click();
+      await p.getByTestId("bold-wssettings").waitFor({ timeout: 15_000 });
+      await p.waitForTimeout(1400); // the hub's queried counts settle
+    };
+    const closeDrawer = async () => {
+      await p.getByTestId("bold-settings-drawer-close").click();
+      await p.waitForTimeout(400);
+    };
+
+    await toHub();
+    await shot(p, "build-hub-1440x900");
+
+    // Business core: four tabs, then each add drawer including the two the
+    // prototype never had.
+    await p.getByTestId("bold-wss-core").click();
+    await p.getByTestId("bold-wss-core-item").waitFor();
+    await p.waitForTimeout(800);
+    await shot(p, "build-core-facts-1440x900");
+    await p.getByTestId("bold-core-add").click();
+    await p.getByTestId("bold-drawer-fact").waitFor();
+    await p.waitForTimeout(500);
+    await shot(p, "build-drawer-fact-1440x900");
+    await closeDrawer();
+
+    await p.getByTestId("bold-wss-tab-1").click();
+    await p.waitForTimeout(500);
+    await shot(p, "build-core-gaps-1440x900");
+    await p.getByTestId("bold-core-add").click();
+    await p.getByTestId("bold-drawer-fact").waitFor();
+    await p.waitForTimeout(500);
+    await shot(p, "build-drawer-answer-1440x900");
+    await closeDrawer();
+
+    await p.getByTestId("bold-wss-tab-2").click();
+    await p.waitForTimeout(500);
+    await shot(p, "build-core-who-1440x900");
+    await p.getByTestId("bold-core-add").click();
+    await p.getByTestId("bold-drawer-field").waitFor();
+    await p.waitForTimeout(500);
+    await shot(p, "build-drawer-field-1440x900");
+    await closeDrawer();
+
+    await p.getByTestId("bold-wss-tab-3").click();
+    await p.waitForTimeout(500);
+    await shot(p, "build-core-sources-1440x900");
+    await p.getByTestId("bold-core-add").click();
+    await p.getByTestId("bold-drawer-source").waitFor();
+    await p.waitForTimeout(500);
+    await shot(p, "build-drawer-source-1440x900");
+    await closeDrawer();
+
+    // Senders: the tabs, the sender drawer resolved by id, both add flows.
+    await p.getByRole("button", { name: "Back" }).click();
+    await p.getByTestId("bold-wss-senders").click();
+    await p.getByTestId("bold-wss-senders-item").waitFor();
+    await p.waitForTimeout(900);
+    await shot(p, "build-senders-email-1440x900");
+    await p.getByTestId("bold-senders-email").getByText("team@brightsmile.test").first().click();
+    await p.getByTestId("bold-drawer-sender").waitFor();
+    await p.waitForTimeout(1200); // the health read lands
+    await shot(p, "build-drawer-sender-1440x900");
+    await closeDrawer();
+    await p.getByTestId("bold-senders-add-email").click();
+    await p.getByTestId("bold-drawer-addsender").waitFor();
+    await p.waitForTimeout(500);
+    await shot(p, "build-drawer-addsender-1440x900");
+    await closeDrawer();
+    await p.getByTestId("bold-wss-tab-1").click();
+    await p.waitForTimeout(500);
+    await shot(p, "build-senders-num-1440x900");
+    await p.getByTestId("bold-senders-add-number").click();
+    await p.getByTestId("bold-drawer-addnumber").waitFor();
+    await p.waitForTimeout(500);
+    await shot(p, "build-drawer-addnumber-1440x900");
+    await closeDrawer();
+    await p.getByTestId("bold-wss-tab-2").click();
+    await p.waitForTimeout(500);
+    await shot(p, "build-senders-health-1440x900");
+
+    // Team, and the invite drawer at both its steps.
+    await p.getByRole("button", { name: "Back" }).click();
+    await p.getByTestId("bold-wss-team").click();
+    await p.getByTestId("bold-wss-team-item").waitFor();
+    await p.waitForTimeout(800);
+    await shot(p, "build-team-1440x900");
+    await p.getByTestId("bold-team-invite").click();
+    await p.getByTestId("bold-drawer-invite").waitFor();
+    await p.waitForTimeout(500);
+    await shot(p, "build-drawer-invite-1-1440x900");
+    await p.getByTestId("bold-drawer-invite-email").fill("nurse@brightsmile.test");
+    await p.getByTestId("bold-drawer-invite-next").click();
+    await p.waitForTimeout(500);
+    await shot(p, "build-drawer-invite-2-1440x900");
+    await closeDrawer();
+    await p.getByTestId("bold-team-people").getByText(OWNER_EMAIL).first().click();
+    await p.getByTestId("bold-drawer-person").waitFor();
+    await p.waitForTimeout(500);
+    await shot(p, "build-drawer-person-1440x900");
+    await closeDrawer();
+
+    // Guardrails: the sending limits and the overrides tab.
+    await p.getByRole("button", { name: "Back" }).click();
+    await p.getByTestId("bold-wss-guard").click();
+    await p.getByTestId("bold-wss-guard-item").waitFor();
+    await p.waitForTimeout(900);
+    await shot(p, "build-guard-sending-1440x900");
+    await p.getByTestId("bold-wss-tab-3").click();
+    await p.waitForTimeout(600);
+    await shot(p, "build-guard-over-1440x900");
+
+    // Credits: the hero and three tabs, then the buy drawer's three steps.
+    await p.getByRole("button", { name: "Back" }).click();
+    await p.getByTestId("bold-wss-credits").click();
+    await p.getByTestId("bold-credits").waitFor();
+    await p.waitForTimeout(1100);
+    await shot(p, "build-credits-usage-1440x900");
+    await p.getByTestId("bold-credits-tab-what").click();
+    await p.waitForTimeout(600);
+    await shot(p, "build-credits-rates-1440x900");
+    await p.getByTestId("bold-credits-tab-top-ups").click();
+    await p.waitForTimeout(600);
+    await shot(p, "build-credits-topups-1440x900");
+    await p.getByTestId("bold-credits-tab-where").click();
+    await p.getByTestId("bold-credits-topup").click();
+    await p.getByTestId("bold-drawer-buy").waitFor();
+    await p.waitForTimeout(500);
+    await shot(p, "build-buy-1-1440x900");
+    await p.getByTestId("bold-drawer-buy-next").click();
+    await p.waitForTimeout(500);
+    await shot(p, "build-buy-2-1440x900");
+    await p.getByTestId("bold-drawer-buy-next").click();
+    await p.waitForTimeout(500);
+    await shot(p, "build-buy-3-1440x900");
+    await p.context().close();
+  });
+}
+
 /* ---------------------------------------------------------------- the b7 set */
 if (UNIT === "b7") {
   await run("prototype-b7", async () => {
@@ -424,17 +696,17 @@ if (UNIT === "b7") {
     await p.getByTestId("bold-wss-core-item").waitFor();
     await p.waitForTimeout(700);
     await shot(p, "build-wss-core-1440x900");
-    await p.getByTestId("bold-wss-back").click();
+    await p.getByRole("button", { name: "Back" }).click();
     await p.getByTestId("bold-wss-senders").click();
     await p.getByTestId("bold-wss-senders-item").waitFor();
     await p.waitForTimeout(700);
     await shot(p, "build-wss-senders-1440x900");
-    await p.getByTestId("bold-wss-back").click();
+    await p.getByRole("button", { name: "Back" }).click();
     await p.getByTestId("bold-wss-guard").click();
     await p.getByTestId("bold-wss-guard-item").waitFor();
     await p.waitForTimeout(700);
     await shot(p, "build-wss-guard-1440x900");
-    await p.getByTestId("bold-wss-back").click();
+    await p.getByRole("button", { name: "Back" }).click();
     await p.getByTestId("bold-wss-credits").click();
     await p.getByTestId("bold-credits").waitFor();
     await p.waitForTimeout(900);
@@ -747,8 +1019,8 @@ if (UNIT === "b3c2") {
   // human dial clears the 08:00–21:00 contact-local floor at ANY capture hour.
   const CLOCK_CONTACTS = [
     ["Sofia Reyes", "America/Chicago"],
-    ["Alan Turing", "Europe/Berlin"],
-    ["Edsger Dijkstra", "Asia/Tokyo"],
+    ["Theo Villanueva", "Europe/Berlin"],
+    ["Nadia Farouk", "Asia/Tokyo"],
   ];
   const localHour = (tz) =>
     Number(
@@ -893,7 +1165,7 @@ if (UNIT === "b3b") {
     const later = p.getByText("Later", { exact: true }).first();
     if (await later.isVisible().catch(() => false)) await later.click();
     await p.getByTestId("bold-dock-wsinbox").click();
-    await p.locator('[data-testid^="bold-inbox-thread-"]').filter({ hasText: "Alan Turing" }).click();
+    await p.locator('[data-testid^="bold-inbox-thread-"]').filter({ hasText: "Theo Villanueva" }).click();
     await p.getByTestId("bold-inbox-composer").waitFor();
     // A leftover hold from a previous run is resumed first (clean frame).
     const stale = p.getByTestId("bold-inbox-resume");
@@ -915,10 +1187,10 @@ if (UNIT === "b3b") {
     await p.getByTestId("bold-inbox-assign").click();
     await p.waitForTimeout(400);
     await shot(p, "build-inbox-assign-1440x900");
-    // The DEC-114 slot, live: Ada Lovelace's paid-no-review rule (deferred
+    // The DEC-114 slot, live: Marisol Castellanos's paid-no-review rule (deferred
     // action, visible provenance).
     await p.getByTestId("bold-dock-contacts").click();
-    await p.locator('[data-testid^="bold-ct-card-"]').filter({ hasText: "Ada Lovelace" }).click();
+    await p.locator('[data-testid^="bold-ct-card-"]').filter({ hasText: "Marisol Castellanos" }).click();
     await p.getByTestId("bold-person-nextstep").waitFor({ timeout: 15_000 });
     await p.waitForTimeout(500);
     await shot(p, "build-nextstep-1440x900");
@@ -970,7 +1242,7 @@ if (UNIT === "b3") {
     await p.waitForTimeout(400);
     await shot(p, "build-contacts-list-1440x900");
     // The person detail on the seeded booked contact.
-    await p.locator('[data-testid^="bold-ct-row-"]').filter({ hasText: "Ada Lovelace" }).click();
+    await p.locator('[data-testid^="bold-ct-row-"]').filter({ hasText: "Marisol Castellanos" }).click();
     await p.getByTestId("bold-person-name").waitFor();
     await p.waitForTimeout(600);
     await shot(p, "build-contact-detail-1440x900");
@@ -1092,7 +1364,7 @@ if (UNIT === "b25") {
       name: "lapsed-patients-2026.csv",
       mimeType: "text/csv",
       buffer: Buffer.from(
-        "Full Name,Email Address,Mobile,Opted In\nSofia Reyes,sofia.reyes@example.test,+15125550142,yes\nAlan Turing,alan@demo-agency.test,,yes\nQuiet Row,quiet@example.test,,no",
+        "Full Name,Email Address,Mobile,Opted In\nSofia Reyes,sofia.reyes@example.test,+15125550142,yes\nTheo Villanueva,theo.villanueva@mailbox.test,,yes\nQuiet Row,quiet@example.test,,no",
       ),
     });
     await p.waitForTimeout(400);

@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { OWNER_EMAIL } from "./_fixtures";
 
 /**
  * B1 smoke — the campaign console goes live behind `consoleBold`.
@@ -6,11 +7,9 @@ import { test, expect, type Page } from "@playwright/test";
  * Runs where the flag is on (seeded demo workspace); skips with an annotation
  * elsewhere, same posture as the B0 spec. Asserts against the B1 seed
  * fixtures (packages/db/prisma/seed.ts): the "Implant open day" campaign with
- * value est $2,400 × target 12, one booked contact (Ada Lovelace), three
+ * value est $2,400 × target 12, one booked contact (Marisol Castellanos), three
  * step sends, and one payment receipt.
  */
-
-const OWNER_EMAIL = "owner@demo-agency.test";
 
 async function signInToBold(page: Page): Promise<boolean> {
   await page.goto("/login");
@@ -64,7 +63,7 @@ test("rail lists live campaigns; the overview hero reads the value model", async
   // motion — completions × est (owner ruling, B1 review), never the goal
   // ceiling, which shows only as % OF GOAL + "11 of 12 to go".
   // B8: the seeded demo HISTORY adds three Implant bookings (Owen · Sam ·
-  // Vera) to the original Ada Lovelace one — the hero reads 4, live.
+  // Vera) to the original Marisol Castellanos one — the hero reads 4, live.
   await expect(page.getByTestId("bold-hero-value")).toHaveText("4");
   await expect(page.getByText("$9,600 potential at $2,400 a booking")).toBeVisible();
   await expect(page.getByText("8 of 12 to go.")).toBeVisible();
@@ -121,7 +120,7 @@ test("the activity page filters; send rows drill to recipients; contact rows ope
   await sendRow.click();
   const drawer = page.getByTestId("bold-drawer");
   await expect(drawer).toBeVisible();
-  await expect(drawer.getByText("Ada Lovelace")).toBeVisible();
+  await expect(drawer.getByText("Marisol Castellanos")).toBeVisible();
   await expect(drawer.getByText("Replied", { exact: true }).first()).toBeVisible();
   await page.mouse.click(400, 300);
   await expect(drawer).toHaveCount(0);
@@ -132,7 +131,7 @@ test("the activity page filters; send rows drill to recipients; contact rows ope
   // Filter to goal rows first — the seeded row stays on page one there,
   // whatever live activity has accumulated above it.
   await page.getByTestId("bold-act-filter-goal").click();
-  // B8: the history seed adds newer goal rows — the SEEDED Ada Lovelace row
+  // B8: the history seed adds newer goal rows — the SEEDED Marisol Castellanos row
   // is the oldest match (rows order newest-first), same posture as the send
   // row above.
   await page.getByTestId("bold-activity-page").getByText(/Meeting booked/).last().click();

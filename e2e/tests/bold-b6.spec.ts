@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { OWNER_EMAIL } from "./_fixtures";
 
 /**
  * B6 smoke — the Lead finder on its real seam, keyless posture throughout
@@ -10,8 +11,6 @@ import { test, expect, type Page } from "@playwright/test";
  */
 
 test.describe.configure({ mode: "serial" });
-
-const OWNER_EMAIL = "owner@demo-agency.test";
 
 async function signIn(page: Page): Promise<void> {
   await page.goto("/login");

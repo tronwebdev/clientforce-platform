@@ -125,7 +125,9 @@ export function BoldDrawer({
 }) {
   return (
     <div
-      style={{ position: "absolute", inset: 0, background: "rgba(10,14,12,.14)", display: "flex", justifyContent: "flex-end", zIndex: 6 }}
+      // Console-wide scrim: every overlay dims the page behind it, at one
+      // shared value rather than a per-surface guess.
+      style={{ position: "absolute", inset: 0, background: "var(--cvb-scrim)", display: "flex", justifyContent: "flex-end", zIndex: 6 }}
       onClick={onClose}
     >
       <div

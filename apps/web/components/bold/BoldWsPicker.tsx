@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { workspaceRoleWord } from "@clientforce/core";
 import type { Me } from "../../lib/types";
 import { WS_MARKS } from "./bold-data";
 
@@ -88,7 +89,7 @@ export function BoldWsPicker({ me, onClose, onNoop }: BoldWsPickerProps) {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13.5, fontWeight: 800, letterSpacing: "-.02em" }}>{m.workspace.name}</div>
                   <div style={{ fontSize: 11, color: "var(--cvb-faint)", marginTop: 2 }}>
-                    {switching === m.workspaceId ? "Switching…" : `${m.workspace.slug} · ${m.role}`}
+                    {switching === m.workspaceId ? "Switching…" : `${m.workspace.slug} · ${workspaceRoleWord(m.role)}`}
                   </div>
                 </div>
                 {here ? (

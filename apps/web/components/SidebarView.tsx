@@ -16,10 +16,13 @@ export interface SidebarViewProps {
   onSignOut?: () => void;
 }
 
+// A person is a Member, never an Agent — Agent is Ada's role (see
+// WORKSPACE_ROLE_WORD in @clientforce/core). The rest of this map is the
+// legacy skin's own wording and stays as it is.
 const ROLE_LABEL: Record<string, string> = {
   OWNER: "Agency owner",
   ADMIN: "Admin",
-  AGENT: "Agent",
+  AGENT: "Member",
   VIEWER: "Viewer",
 };
 

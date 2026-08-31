@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { OWNER_EMAIL, OWNER_NAME } from "./_fixtures";
 
 /**
  * B3b smoke — the reply spine (DEC-116/117). A human reply on the seeded
@@ -14,8 +15,6 @@ import { test, expect, type Page } from "@playwright/test";
 // Both tests work the same seeded thread — keep them sequential in-file
 // (the b26 shared-fixture convention under fullyParallel).
 test.describe.configure({ mode: "default" });
-
-const OWNER_EMAIL = "owner@demo-agency.test";
 
 async function signIn(page: Page): Promise<void> {
   await page.goto("/login");
@@ -48,10 +47,10 @@ async function toWsInbox(page: Page): Promise<boolean> {
 }
 
 async function selectAlan(page: Page) {
-  const alan = page.getByTestId(/bold-inbox-thread-/).filter({ hasText: "Alan Turing" });
+  const alan = page.getByTestId(/bold-inbox-thread-/).filter({ hasText: "Theo Villanueva" });
   await expect(alan).toHaveCount(1);
   await alan.click();
-  await expect(page.getByTestId("bold-inbox-sel-name")).toHaveText("Alan Turing");
+  await expect(page.getByTestId("bold-inbox-sel-name")).toHaveText("Theo Villanueva");
 }
 
 test("a human reply sends through the boundary, holds Ada, and Resume releases her", async ({ page }) => {
@@ -88,7 +87,7 @@ test("a human reply sends through the boundary, holds Ada, and Resume releases h
   // boundary fired, and the unreachable remainder skips visibly. Any OTHER
   // refusal type still fails the spec.
   const sendToast = page.getByTestId("bold-toast");
-  await expect(sendToast).toContainText(/Sent to Alan Turing|Send blocked \(RECIPIENT_NOT_ALLOWLISTED\)/);
+  await expect(sendToast).toContainText(/Sent to Theo Villanueva|Send blocked \(RECIPIENT_NOT_ALLOWLISTED\)/);
   if ((await sendToast.textContent())?.includes("RECIPIENT_NOT_ALLOWLISTED")) {
     await expect(sendToast).toContainText("Not sent");
     test.skip(
@@ -119,9 +118,9 @@ test("assign and snooze round-trip; the picker rows are live", async ({ page }) 
 
   // Assign to me → the header chip + the "Assigned to me" picker row count.
   await page.getByTestId("bold-inbox-assign").click();
-  await page.getByTestId(/bold-inbox-assign-/).filter({ hasText: "Demo Owner" }).click();
+  await page.getByTestId(/bold-inbox-assign-/).filter({ hasText: OWNER_NAME }).click();
   await expect(page.getByTestId("bold-toast")).toContainText("Assigned");
-  await expect(page.getByTestId("bold-inbox-assign")).toContainText("Demo Owner", { timeout: 15_000 });
+  await expect(page.getByTestId("bold-inbox-assign")).toContainText(OWNER_NAME, { timeout: 15_000 });
   await page.getByTestId("bold-inbox-picker-status").click();
   await expect(page.getByTestId("bold-inbox-opt-status-assigned")).toContainText("1");
   await page.getByTestId("bold-inbox-picker-status").click();

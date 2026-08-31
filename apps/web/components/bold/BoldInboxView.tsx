@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { workspaceRoleWord } from "@clientforce/core";
 import type { AgentListItem, ContactListDto } from "@clientforce/core";
 import { calendarSystemRow } from "../../app/(shell)/agents/[agentId]/[tab]/InboxTab";
 import { intentTint } from "../../lib/intents";
@@ -707,7 +708,7 @@ export function BoldInboxView({
                     {members.map((m) => (
                       <div key={m.id} onClick={() => void assign(m.id)} data-testid={`bold-inbox-assign-${m.id}`} style={{ padding: "9px 10px", borderRadius: 9, cursor: "pointer", fontSize: 12.5, fontWeight: sel.assignee?.id === m.id ? 700 : 500, background: sel.assignee?.id === m.id ? "var(--cvb-well)" : "transparent" }}>
                         {m.name ?? m.email}
-                        <span style={{ ...mono, fontSize: 9.5, color: "var(--cvb-faint)", marginLeft: 6 }}>{m.role.toLowerCase()}</span>
+                        <span style={{ ...mono, fontSize: 9.5, color: "var(--cvb-faint)", marginLeft: 6 }}>{workspaceRoleWord(m.role).toLowerCase()}</span>
                       </div>
                     ))}
                     {sel.assignee ? (

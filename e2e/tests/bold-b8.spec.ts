@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { OWNER_EMAIL } from "./_fixtures";
 
 /**
  * B8 smoke — analytics + integrations on real reads:
@@ -12,8 +13,6 @@ import { test, expect, type Page } from "@playwright/test";
  */
 
 test.describe.configure({ mode: "serial" });
-
-const OWNER_EMAIL = "owner@demo-agency.test";
 
 async function signIn(page: Page): Promise<void> {
   await page.goto("/login");

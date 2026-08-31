@@ -212,8 +212,8 @@ async function stagingCtx(): Promise<StagingCtx | null> {
   // The seeded user's authProviderId is bound to the WEB dev-login's subject
   // convention (`dev|<email>`) — any other sub is a principal conflict (401).
   const token = await signDevToken(DEV_SECRET, {
-    sub: "dev|owner@demo-agency.test",
-    email: "owner@demo-agency.test",
+    sub: "dev|practice@brightsmile.test",
+    email: "practice@brightsmile.test",
   });
   const meRes = await fetch(`${STAGING_API}/me`, { headers: { Authorization: `Bearer ${token}` } });
   if (!meRes.ok)

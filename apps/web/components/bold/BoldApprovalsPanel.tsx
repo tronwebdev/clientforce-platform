@@ -66,7 +66,7 @@ export function BoldApprovalsPanel({
     <>
       <div
         onClick={onClose}
-        style={{ position: "fixed", inset: 0, background: "rgba(10,14,12,.16)", zIndex: 60 }}
+        style={{ position: "fixed", inset: 0, background: "var(--cvb-scrim)", zIndex: 60 }}
       />
       <div
         data-testid="bold-approvals"

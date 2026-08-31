@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { OWNER_EMAIL } from "./_fixtures";
 
 /**
  * B3c-2 smoke — human in-app calling + the recording toggle (DEC-118).
@@ -12,8 +13,6 @@ import { test, expect, type Page } from "@playwright/test";
  */
 
 test.describe.configure({ mode: "default" });
-
-const OWNER_EMAIL = "owner@demo-agency.test";
 
 async function signIn(page: Page): Promise<void> {
   await page.goto("/login");
@@ -48,8 +47,8 @@ async function toBold(page: Page): Promise<boolean> {
 // inside the 08:00–21:00 contact-local calling floor.
 const CLOCK_CONTACTS: ReadonlyArray<readonly [string, string]> = [
   ["Sofia Reyes", "America/Chicago"],
-  ["Alan Turing", "Europe/Berlin"],
-  ["Edsger Dijkstra", "Asia/Tokyo"],
+  ["Theo Villanueva", "Europe/Berlin"],
+  ["Nadia Farouk", "Asia/Tokyo"],
 ];
 function awakeContact(): string {
   const local = (tz: string) =>

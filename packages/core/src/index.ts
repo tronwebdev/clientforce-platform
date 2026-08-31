@@ -107,6 +107,9 @@ export * from "./proposals";
 export * from "./icp";
 export * from "./intent-registry";
 
+// B7.5 — the settings write layer (SURFACE_SPEC_SETTINGS §11).
+export * from "./workspace-settings";
+
 /**
  * Narrow an arbitrary string to a branded {@link Id}. Real validation arrives
  * with the data model; this keeps the type honest without runtime cost.

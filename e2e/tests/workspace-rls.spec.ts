@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { OWNER_EMAIL } from "./_fixtures";
 
 /**
  * T8 smoke — proves the APP_DATABASE_URL non-superuser RLS path end-to-end in a
@@ -9,11 +10,9 @@ import { test, expect, type Page } from "@playwright/test";
  * bypassed (owner client), both sentinels would appear in both lists.
  *
  * Seeded by packages/db/prisma/seed.ts:
- *   demo   → Ada Lovelace, Alan Turing, Edsger Dijkstra   (3)
- *   demo-2 → Grace Hopper                                  (1)
+ *   demo   → Marisol Castellanos, Theo Villanueva, Nadia Farouk   (3)
+ *   demo-2 → Ingrid Solberg                                  (1)
  */
-
-const OWNER_EMAIL = "owner@demo-agency.test";
 
 async function signIn(page: Page): Promise<void> {
   await page.goto("/login");
@@ -48,12 +47,12 @@ test("workspace switch re-scopes contacts through the RLS app path", async ({ pa
   await switchWorkspace(page, "demo", "Demo Workspace");
   await page.goto("/contacts");
   await expect(page.getByTestId("contact-row").first()).toBeVisible();
-  await expect(page.getByText("Ada Lovelace")).toBeVisible();
-  await expect(page.getByText("Grace Hopper")).toHaveCount(0);
+  await expect(page.getByText("Marisol Castellanos")).toBeVisible();
+  await expect(page.getByText("Ingrid Solberg")).toHaveCount(0);
 
   await switchWorkspace(page, "demo-2", "Demo Workspace 2");
   await page.goto("/contacts");
   await expect(page.getByTestId("contact-row").first()).toBeVisible();
-  await expect(page.getByText("Grace Hopper")).toBeVisible();
-  await expect(page.getByText("Ada Lovelace")).toHaveCount(0);
+  await expect(page.getByText("Ingrid Solberg")).toBeVisible();
+  await expect(page.getByText("Marisol Castellanos")).toHaveCount(0);
 });
