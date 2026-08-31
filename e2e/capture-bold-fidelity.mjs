@@ -652,11 +652,22 @@ if (UNIT === "b65") {
   // It never touches the shared demo seed — a parallel session owns that.
   const EMAIL = "owner@b65.brightsmile.test";
   const BIZ = "Bright Smile Dental";
+  // The teardown needs a DATABASE_URL. Inheriting a bare env silently skipped
+  // it, which left the tenant behind and made the NEXT run fail on a console
+  // where it expected first-run onboarding. A cleanup that cannot run says so.
   const cleanTenant = () => {
     try {
-      execSync(`pnpm --filter @clientforce/db exec tsx prisma/b65-cleanup.ts ${EMAIL}`, { cwd: ROOT, stdio: "pipe" });
-    } catch {
-      /* nothing to clean */
+      execSync(`pnpm --filter @clientforce/db exec tsx prisma/b65-cleanup.ts ${EMAIL}`, {
+        cwd: ROOT,
+        stdio: "pipe",
+        env: {
+          ...process.env,
+          DATABASE_URL:
+            process.env.DATABASE_URL ?? "postgresql://postgres:postgres@localhost:5432/clientforce",
+        },
+      });
+    } catch (err) {
+      console.warn(`[b65] teardown could not run: ${(err?.message ?? err).toString().split("\n")[0]}`);
     }
   };
   cleanTenant();
