@@ -164,7 +164,10 @@ export function BoldCoreItem({
     key: g.key,
     n: g.label,
     // What is TRUE about a gap: who needs it, and what she does without it.
-    sub: `${g.campaigns.length === 1 ? g.campaigns[0]! : `${g.campaigns.length} live campaigns`} needs it — she deflects until you answer`,
+    sub:
+      g.campaigns.length === 1
+        ? `${g.campaigns[0]!} needs it — she deflects until you answer`
+        : `${g.campaigns.length} live campaigns need it — she deflects until you answer`,
     chip: "Gap",
     tone: "warn",
     onOpen: () => setDrawer({ t: "gap", gap: g }),

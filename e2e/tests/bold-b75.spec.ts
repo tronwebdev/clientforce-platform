@@ -407,6 +407,8 @@ test("credits: the hero and three tabs, with every absent number carrying its re
   await page.getByTestId("bold-credits-tab-what").click();
   await expect(page.getByTestId("bold-credits-rate-lead_reveal")).toBeVisible();
   await expect(page.getByTestId("bold-credits-rate-email_send")).toContainText("not charged yet");
+  // A zero-priced action is free by design, not waiting on a meter.
+  await expect(page.getByTestId("bold-credits-rate-reply_draft")).toContainText("always free");
 
   // Burn and billing are absent with stated reasons, not zeroes.
   await page.getByTestId("bold-credits-tab-top-ups").click();

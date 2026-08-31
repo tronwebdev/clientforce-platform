@@ -479,7 +479,10 @@ export function BoldCreditsView({ flash }: { flash?: (m: string) => void }) {
                       <span style={{ fontSize: 11, color: "var(--cvb-faint)" }}>
                         {credits === 1 ? "credit" : "credits"}
                       </span>
-                      {!metered ? (
+                      {credits === 0 ? (
+                        // Free by design, not awaiting a meter.
+                        <span style={{ ...CHIP.live, marginLeft: "auto" }}>always free</span>
+                      ) : !metered ? (
                         <span style={{ ...CHIP.mute, marginLeft: "auto" }}>not charged yet</span>
                       ) : null}
                     </div>
