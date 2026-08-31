@@ -390,6 +390,18 @@ export function BoldOnboarding() {
     window.location.href = "/bold?welcome=1";
   }
 
+  /** Plan limits read as numbers a person reads: 10,000 · 100,000 · 1M.
+   *  Grouped below a million, compact at or above it — the row's own value
+   *  either way (D1), never a re-rounded stand-in. */
+  const limitValue = (v: unknown): string => {
+    if (typeof v !== "number" || !Number.isFinite(v)) return String(v);
+    if (Math.abs(v) >= 1_000_000) {
+      const m = v / 1_000_000;
+      return `${Number.isInteger(m) ? m : Number(m.toFixed(1))}M`;
+    }
+    return v.toLocaleString("en-US");
+  };
+
   // D1: show the row's number, not a rounded stand-in for it.
   const money = (cents: number) =>
     cents % 100 === 0
@@ -729,7 +741,7 @@ export function BoldOnboarding() {
                     </div>
                     <div style={{ fontSize: 11, color: "var(--cvb-faint)", marginTop: 8, lineHeight: 1.6 }}>
                       {Object.entries(t.limits)
-                        .map(([k, v]) => `${String(v)} ${k.replace(/([A-Z])/g, " $1").toLowerCase()}`)
+                        .map(([k, v]) => `${limitValue(v)} ${k.replace(/([A-Z])/g, " $1").toLowerCase()}`)
                         .join(" · ") || "limits set by your admin"}
                     </div>
                   </div>
