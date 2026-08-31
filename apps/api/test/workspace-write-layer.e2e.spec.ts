@@ -74,6 +74,18 @@ describe.skipIf(!hasDb)("Settings write layer e2e", () => {
     userIds = [u1.id, u2.id, u3.id];
     ownerToken = await signDevToken(SECRET, { sub: `auth|wl-${suffix}`, email: u1.email });
 
+    // The credits read partitions PRICED actions into metered and not-yet, so
+    // the test owns its prices rather than leaning on the seed — CI migrates
+    // but never seeds, and a fixture that depends on someone else's rows is a
+    // test that passes for the wrong reason.
+    await owner.creditPrice.createMany({
+      data: [
+        { agencyId, action: "lead_reveal", credits: 1 },
+        { agencyId, action: "email_send", credits: 1 },
+        { agencyId, action: "reply_draft", credits: 0 },
+      ],
+    });
+
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication();
     await app.init();
