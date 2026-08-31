@@ -77,6 +77,9 @@ export * from "./flags";
 // wording per shipped goal key beside GOAL_META; money fields are nullable
 // Agent columns, honest-absent until the owner sets them.
 export * from "./goal-value";
+// B9 revision (DEC-137): the audience registry — per-goal scope/cap, the
+// shape-compatible option rows, and the shape-keyed signal noun.
+export * from "./audience";
 
 // List hygiene — email validation at every ingress (LH1, DEC-087): the
 // verdict enum of record, batch report DTOs, gate refusal/hold vocabulary.

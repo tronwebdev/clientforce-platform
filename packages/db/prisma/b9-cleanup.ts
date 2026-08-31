@@ -1,5 +1,6 @@
 /**
- * B9 (DEC-136) — teardown for the onboarding browser e2e. The flow exercises
+ * B9 (DEC-136/137) — teardown for the onboarding browser e2e AND the fidelity
+ * capture. The flow exercises
  * the REAL first-run bootstrap (agency → workspace → membership → flag →
  * campaign → sender → plan choice), so the spec creates a genuinely new
  * tenant each run; this deletes it by the run's throwaway login email.
@@ -14,8 +15,13 @@ import { PrismaClient } from "@prisma/client";
 
 async function main(): Promise<void> {
   const email = process.argv[2] ?? "";
-  if (!/^e2e-b9-[a-z0-9-]+@fixture\.test$/.test(email)) {
-    throw new Error(`refusing to clean up non-e2e email: "${email}"`);
+  // Two throwaway identities are allowed and no others: the e2e's random
+  // fixture principal, and the fidelity capture's plausible business (owner
+  // ruling — design evidence is captured against Bright Smile Dental, the
+  // same standard as the Quinn / Demo Agency rulings).
+  const ALLOWED = [/^e2e-b9-[a-z0-9-]+@fixture\.test$/, /^owner@brightsmile\.test$/];
+  if (!ALLOWED.some((re) => re.test(email))) {
+    throw new Error(`refusing to clean up non-throwaway email: "${email}"`);
   }
   const prisma = new PrismaClient();
   try {

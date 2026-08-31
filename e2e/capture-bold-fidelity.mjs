@@ -159,9 +159,21 @@ const toBoldCampaign = async (p) => {
 
 /* ---------------------------------------------------------------- the b9 set */
 if (UNIT === "b9") {
-  // A throwaway principal — the flow CREATES a real tenant; torn down at the end.
-  const RUN = `fid${Date.now().toString(36)}`;
-  const EMAIL = `e2e-b9-${RUN}@fixture.test`;
+  // Owner ruling: design evidence is captured against a PLAUSIBLE business —
+  // Bright Smile Dental / brightsmile.test — not the e2e's random fixture
+  // principal (the Quinn / Demo Agency standard). The e2e keeps its random
+  // throwaway names; this identity is fixed, and cleaned up either side so a
+  // crashed run never blocks the next capture.
+  const EMAIL = "owner@brightsmile.test";
+  const BIZ = "Bright Smile Dental";
+  const cleanTenant = () => {
+    try {
+      execSync(`pnpm --filter @clientforce/db exec tsx prisma/b9-cleanup.ts ${EMAIL}`, { cwd: ROOT, stdio: "pipe" });
+    } catch {
+      /* nothing to clean */
+    }
+  };
+  cleanTenant();
 
   await run("prototype-b9-onboarding", async () => {
     const p = await page({ width: 1440, height: 900 });
@@ -172,25 +184,23 @@ if (UNIT === "b9") {
     // "Sign up with Google" jumps the fixture straight into the core wizard.
     await p.getByText("Sign up with Google", { exact: false }).first().click();
     await p.waitForTimeout(900);
-    await shot(p, "proto-onboarding-core-1440x900");
-    await p.context().close();
-  });
-
-  await run("prototype-b9-tour", async () => {
-    const p = await page({ width: 1440, height: 900 });
-    await p.goto(PROTO_TOUR);
-    await p.waitForTimeout(2600);
-    await shot(p, "proto-tour-step1-1440x900");
-    for (let i = 0; i < 6; i++) {
-      await p.getByText("Next", { exact: true }).click();
-      await p.waitForTimeout(350);
-    }
-    await shot(p, "proto-tour-step7-1440x900");
-    await p.getByText("Skip tour ✕", { exact: true }).click();
+    await shot(p, "proto-onboarding-site-1440x900");
+    await p.getByText("Read my site →", { exact: false }).first().click();
+    await p.waitForTimeout(2200);
+    await shot(p, "proto-onboarding-readback-1440x900");
+    await p.getByText("This is right →", { exact: false }).first().click();
+    await p.waitForTimeout(700);
+    await shot(p, "proto-onboarding-goal-1440x900");
+    // Win back quiet accounts → own-book scope, so the audience step offers
+    // only own-book rows and the contacts step joins the flow.
+    await p.getByText("Win back quiet accounts", { exact: false }).first().click();
+    await p.waitForTimeout(300);
+    await p.getByText("Continue →", { exact: false }).first().click();
+    await p.waitForTimeout(700);
+    await p.getByText("Customers who went quiet", { exact: false }).first().click();
+    await p.getByText("Enquiries that never bought", { exact: false }).first().click();
     await p.waitForTimeout(400);
-    await p.locator('[title="Help & tour"]').click();
-    await p.waitForTimeout(600);
-    await shot(p, "proto-tour-drawer-1440x900");
+    await shot(p, "proto-onboarding-audience-1440x900");
     await p.context().close();
   });
 
@@ -204,38 +214,58 @@ if (UNIT === "b9") {
       await p.goto(`${BASE}/bold`);
       await p.getByTestId("bold-onboarding").waitFor({ timeout: 15_000 });
       await p.addStyleTag({ content: "nextjs-portal{display:none!important}" });
-      await p.getByTestId("bold-onb-name").fill(`B9 Dental ${RUN}`);
+
+      await p.getByTestId("bold-onb-name").fill(BIZ);
       await p.getByTestId("bold-onb-shape-local_business").click();
       await p.getByTestId("bold-onb-vertical-dental").click();
       await shot(p, "build-onb-business-1440x900");
 
       await p.getByTestId("bold-onb-create").click();
       await p.getByTestId("bold-onb-site").waitFor({ timeout: 15_000 });
+      await p.getByTestId("bold-onb-site").fill("brightsmile.test");
       await shot(p, "build-onb-site-1440x900");
 
+      // The tell-her path is a REAL screen now — capture it before going back.
       await p.getByTestId("bold-onb-nosite").click();
-      await p.getByTestId("bold-onb-fact-offer").waitFor();
-      await p.getByTestId("bold-onb-fact-offer").fill("Implant consults and whitening");
-      await p.getByTestId("bold-onb-fact-offer").locator("xpath=following-sibling::span[1]").click();
-      await p.waitForTimeout(700);
-      await shot(p, "build-onb-facts-1440x900");
+      await p.getByTestId("bold-onb-msell").waitFor();
+      await p.getByTestId("bold-onb-mkind").fill("Dental practice — implant and cosmetic dentistry");
+      await p.getByTestId("bold-onb-msell").fill("Implants from $8,400, whitening kits at $249, free consults");
+      await p.getByTestId("bold-onb-marea").fill("Austin, TX — 20 miles");
+      await p.waitForTimeout(400);
+      await shot(p, "build-onb-tellher-1440x900");
+      await p.getByTestId("bold-onb-havesite").click();
+      await p.getByTestId("bold-onb-site").waitFor();
 
-      await p.getByTestId("bold-onb-facts-next").click();
-      await p.getByTestId("bold-onb-icp-match").click();
-      await shot(p, "build-onb-icp-1440x900");
+      await p.getByTestId("bold-onb-read").click();
+      await p.getByTestId("bold-onb-read-next").waitFor({ timeout: 20_000 });
+      await p.waitForTimeout(900);
+      await shot(p, "build-onb-readback-1440x900");
 
-      await p.getByTestId("bold-onb-icp-next").click();
-      await p.getByTestId("bold-onb-goal-book_appointments").click();
+      await p.getByTestId("bold-onb-read-next").click();
+      await p.getByTestId("bold-onb-goal-winback_deals").waitFor();
+      await p.getByTestId("bold-onb-goal-winback_deals").click();
       await shot(p, "build-onb-goal-1440x900");
 
       await p.getByTestId("bold-onb-goal-next").click();
-      await p.getByTestId("bold-onb-gap-next").waitFor({ timeout: 15_000 });
-      await shot(p, "build-onb-question-1440x900");
+      await p.getByTestId("bold-onb-audience-quiet").waitFor();
+      await p.getByTestId("bold-onb-audience-quiet").click();
+      await p.getByTestId("bold-onb-audience-never_bought").click();
+      await p.waitForTimeout(400);
+      await shot(p, "build-onb-audience-1440x900");
+
+      await p.getByTestId("bold-onb-audience-next").click();
+      await p.getByTestId("bold-onb-gap-next").waitFor({ timeout: 20_000 });
+      await shot(p, "build-onb-ask-1440x900");
 
       await p.getByTestId("bold-onb-gap-next").click();
+      await p.getByTestId("bold-onb-import-next").waitFor({ timeout: 15_000 });
+      await p.waitForTimeout(600);
+      await shot(p, "build-onb-contacts-1440x900");
+
+      await p.getByTestId("bold-onb-import-skip").click();
       await p.getByTestId("bold-onb-replyto").waitFor();
-      await p.getByTestId("bold-onb-replyto").fill(EMAIL);
-      await shot(p, "build-onb-sender-1440x900");
+      await p.getByTestId("bold-onb-replyto").fill("hello@brightsmile.test");
+      await shot(p, "build-onb-replies-1440x900");
 
       await p.getByTestId("bold-onb-sender-next").click();
       await p.getByTestId("bold-onb-draftcard").waitFor({ timeout: 15_000 });
@@ -275,15 +305,14 @@ if (UNIT === "b9") {
       await p.getByTestId("bold-tour-next").click(); // Done ✓
       await p.waitForTimeout(600);
 
-      // Toured: the ? answers with the getting-started drawer (server-derived
-      // done-states — the typed fact is done, the draft campaign is not).
+      // Toured: the ? answers with the getting-started drawer (server-derived).
       await p.getByTestId("bold-tour-btn").click();
       await p.getByTestId("bold-help-drawer").waitFor();
       await p.getByTestId("bold-gs-core").waitFor();
       await shot(p, "build-tour-drawer-1440x900");
       await p.context().close();
     } finally {
-      execSync(`pnpm --filter @clientforce/db exec tsx prisma/b9-cleanup.ts ${EMAIL}`, { cwd: ROOT });
+      cleanTenant();
     }
   });
 
