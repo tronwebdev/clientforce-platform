@@ -1,8 +1,8 @@
 {
   "unit": "b65",
-  "commit": "c175df7003a1fc5d4333d4f5fe11956b2e978620",
+  "commit": "5d47de1075477a73f77b72d6f7556a4c03959f46",
   "workingTreeDirtyAtCapture": false,
-  "capturedAt": "2026-08-31T19:56:18.466Z",
+  "capturedAt": "2026-08-31T20:13:54.077Z",
   "baseUrl": "http://localhost:3000",
   "note": "Single-run capture; every frame from one build. Verify a frame by hashing its bytes against this manifest — never by trusting an image cache. pnpm lint:fidelity enforces the binding.",
   "frames": {
@@ -13,68 +13,68 @@
     },
     "build-lead-brief-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 146626,
-      "sha256": "5c533dde594bc6fa07d92b5e89cd25507de0218477f3b3b3b997db41803d7cf6"
+      "bytes": 149184,
+      "sha256": "f99627c15517f995ceab34a4abab78b8ca47fd933bbf7c2eadc7688d14914a53"
     },
     "build-lead-buyerping-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 199710,
-      "sha256": "94fee374c442ab2a2e82d9e1c56466e0da9afbd5a152f078dc0303c8af3b2f1b"
+      "bytes": 204021,
+      "sha256": "59009b6bfdb5c7ef1ac7e1a716ba59f84f0bf2bcb7cba4aac4b319092b161f28"
     },
     "build-lead-direct-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 111767,
-      "sha256": "1ccf4a2e0e1dbafe67bdb1d0dba9fe2fa5131d16b633fb6f170bd9a24c67cbca"
+      "bytes": 106776,
+      "sha256": "31544ebf91ae1e9ce883bbebd3651665eadda950a51f799452763d62ad37ed76"
     },
     "build-lead-drawer-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 147678,
-      "sha256": "877ee60979b9e64b629cc3d6e801acb7f5c280b89109c6926ac68a1090bf3a66"
+      "bytes": 150116,
+      "sha256": "432fed6e4f5dc1c4cc4c04f98c575f665f754f296f4e9ed4883e00d82a7d56dd"
     },
     "build-lead-market-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 142399,
-      "sha256": "f01eeb6e773cef7ec007149ed8caf4cce12b814f016ddb7f41aab32ca04c022b"
+      "bytes": 144847,
+      "sha256": "6e5f2d3f76c855e402e597a7018478c5b7f7c8ba598ae6ba8693fd33b33ddbb2"
     },
     "build-lead-pool-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 115427,
-      "sha256": "07e3e21f7d6d872fe5c37bcbc5004f714c4953088462f5bf54553e628e98600b"
+      "bytes": 130585,
+      "sha256": "5f48b2452850a91a7065fa685dae9f18912dd5910c5da48934aab23c280824e0"
     },
     "build-lead-pool-nocount-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 120281,
-      "sha256": "1a0f2abbc86cb8c9362f3f86bb79f381af1c261ac6c77e68e013376cae7aac5e"
+      "bytes": 122301,
+      "sha256": "e1d222f0ae50c28218e30627d826c9122d5677f65935e6d1736f223679bfe03d"
     },
     "build-lead-watch-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 192033,
-      "sha256": "60eb4591ece4a38a4512afba1938e5805435749bb6fee72397cbb7c921ad8e46"
+      "bytes": 195423,
+      "sha256": "cf85a60c8d7d037be8f4be0d1b79b576ac9ef2943e9e02877f2d1b18904e6eb8"
     },
     "proto-lead-buyerping-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 225104,
-      "sha256": "56bb1372a4b80c1a1e2f07ce387653672c3f9d63698cbf271b328a7fa69b2fa6"
+      "bytes": 225102,
+      "sha256": "950886be4090a9cf9417ce3ecce4e9cadb6bf94045c2765c48d366830b691922"
     },
     "proto-lead-direct-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 191387,
-      "sha256": "ef6f136c41f9afd399cada28e32239db5cd18352d145662604fe08e0095717fd"
+      "bytes": 191143,
+      "sha256": "54b1cab20642486e3d1b17dc38c084cf1a750aa124bbe5ebc7a87213d0a89acb"
     },
     "proto-lead-market-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 169355,
-      "sha256": "697fee084277b4c29029c70185d06a71c75c10a5ee54f76f18958bd47169cc5d"
+      "bytes": 169372,
+      "sha256": "901acf8a77e84771a2d8e1265d20d0b8ce9759dd3b5580b3b13b0e2d0ecf05d3"
     },
     "proto-lead-pool-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 189151,
-      "sha256": "a7882210970284621c05b821a6c28d0ea64851bef907a73ced903ea844694016"
+      "bytes": 189132,
+      "sha256": "f45782c210f3d5e3a8d2ca70653474cb8913fb6d8c89db821b8fe52819c5e8fd"
     },
     "proto-lead-watch-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 217880,
-      "sha256": "5b94b85b749f6d5ce9500d0e2514eb70c956925d00d7b55813dc00f93c6833a3"
+      "bytes": 217851,
+      "sha256": "a889c79498bedf8c8270dfd6806981cd70da61dc7832dab4ede2b119943ef46b"
     }
   }
 }
