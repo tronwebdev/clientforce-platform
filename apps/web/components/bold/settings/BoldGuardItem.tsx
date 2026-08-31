@@ -145,8 +145,11 @@ export function BoldGuardItem({
       const voice = stored.dailyCap?.voice;
       if (voice != null && c.dailyCap.voice != null && c.dailyCap.voice !== voice)
         diffs.push(`calls ${c.dailyCap.voice} instead of ${voice}`);
-      if (c.sendingWindow && (c.sendingWindow.start !== times.start || c.sendingWindow.end !== times.end))
-        diffs.push(`sends ${c.sendingWindow.start}–${c.sendingWindow.end}`);
+      // Compare against the EFFECTIVE window, never the draft: the draft is
+      // empty until the load lands and can be mid-edit afterwards, which
+      // reported every campaign as departing from a default it matched.
+      if (c.sendingWindow && (c.sendingWindow.start !== window.start || c.sendingWindow.end !== window.end))
+        diffs.push(`sends ${c.sendingWindow.start}–${c.sendingWindow.end} instead of ${window.start}–${window.end}`);
       return diffs.length > 0 ? { c, diffs } : null;
     })
     .filter((x): x is { c: (typeof campaigns)[number]; diffs: string[] } => x !== null);

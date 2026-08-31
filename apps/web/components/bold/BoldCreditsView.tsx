@@ -150,6 +150,16 @@ export function BoldCreditsView({ flash }: { flash?: (m: string) => void }) {
   const allowance = summary?.allowance;
   const metering = summary?.metering;
 
+  /** Priced-but-unmetered, split from priced-at-zero — see the note below. */
+  const label = (a: string) => ACTION_META[a]?.label ?? a;
+  const uniq = (xs: string[]) => xs.filter((v, i, arr) => arr.indexOf(v) === i);
+  const chargeable = uniq(
+    (metering?.unmetered ?? []).filter((a) => (prices?.effective[a] ?? 0) > 0).map(label),
+  );
+  const free = uniq(
+    (metering?.unmetered ?? []).filter((a) => (prices?.effective[a] ?? 0) === 0).map(label),
+  );
+
   /* The hero's tiles are a LIST, not a fixed four: a tile with no source is
      not rendered as a dash, it simply is not one of the tiles. */
   const tiles: Array<{ label: string; value: string; dim?: boolean }> = [
@@ -398,17 +408,21 @@ export function BoldCreditsView({ flash }: { flash?: (m: string) => void }) {
             })
           )}
 
-          {/* The kinds that have a price but no meter. Named, not drawn. */}
-          {metering && metering.unmetered.length > 0 ? (
+          {/* The kinds that have a price but no meter. Named, not drawn — and
+              a FREE action is not one of them: it is not unmeasured, it costs
+              nothing, which is a different sentence. */}
+          {chargeable.length > 0 ? (
             <div style={{ marginTop: 22 }} data-testid="bold-credits-unmetered">
               <div style={{ ...EYEBROW, marginBottom: 10 }}>NOT METERED YET</div>
               <AbsentBecause
-                what={metering.unmetered
-                  .map((a) => ACTION_META[a]?.label ?? a)
-                  .filter((v, i, arr) => arr.indexOf(v) === i)
-                  .join(" · ")}
+                what={chargeable.join(" · ")}
                 why="These have a price, but nothing writes them to your ledger yet — so this page cannot say what they cost you this month, and does not draw a bar pretending they cost nothing."
               />
+              {free.length > 0 ? (
+                <div style={{ fontSize: 11.5, color: "var(--cvb-faint)", lineHeight: 1.6, marginTop: 10 }}>
+                  {free.join(" · ")} {free.length === 1 ? "is" : "are"} free — nothing to meter.
+                </div>
+              ) : null}
             </div>
           ) : null}
         </div>
