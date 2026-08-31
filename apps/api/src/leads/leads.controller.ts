@@ -925,7 +925,11 @@ export class LeadsController {
             onFile: true,
           };
         })
-        .filter((r) => r.fit >= 70)
+        // No fit floor here, deliberately. `POOL_BANDS.yours` declares
+        // `min: null`: the band is defined by ALREADY HOLDING the details,
+        // not by a score, and "below 70 is not offered" is about buying
+        // strangers. Applying the paid floor here emptied the one band a
+        // day-one workspace can actually work.
         .sort((a, b) => b.fit - a.fit);
 
       const bands = POOL_BANDS.map((b) =>

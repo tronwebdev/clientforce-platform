@@ -483,10 +483,17 @@ export const INTENT_SIGNALS: Record<string, IntentSignalDef> = {
     receipt: "in your records, never worked",
     impliesGoal: "nurture_leads",
     valueHint: "low",
+    // These must not ASSERT an enquiry: a contact can reach your book by
+    // import, by a form, or by hand, and "enquired once" would be a fact we
+    // do not have. `pricing_asked` is the type that means they asked.
     byVertical: {
-      dental: { receipt: "enquired once and never booked" },
-      trades: { receipt: "asked for a price and never went ahead" },
-      saas: { receipt: "signed up to hear more and never started" },
+      dental: { receipt: "in your records, never booked in" },
+      clinic: { receipt: "in your records, never seen" },
+      salon: { receipt: "in your records, never booked in" },
+      trades: { receipt: "in your records, never went ahead" },
+      saas: { receipt: "in your records, never started" },
+      ecommerce: { receipt: "in your records, never ordered" },
+      education: { receipt: "in your records, never enrolled" },
     },
   },
 

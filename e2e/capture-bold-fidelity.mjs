@@ -697,7 +697,10 @@ if (UNIT === "b65") {
       await p.getByTestId("bold-onboarding").waitFor({ timeout: 20_000 });
       await p.addStyleTag({ content: "nextjs-portal{display:none!important}" });
       await p.getByTestId("bold-onb-name").fill(BIZ);
-      await p.getByTestId("bold-onb-shape-local_business").click();
+      // A dental practice sells to PEOPLE, so the target shape is consumer —
+      // which is what makes the page ask "Who's looking for a dentist" from
+      // the registry rather than the company-shape question.
+      await p.getByTestId("bold-onb-shape-consumer").click();
       await p.getByTestId("bold-onb-vertical-dental").click();
       await p.getByTestId("bold-onb-create").click();
       await p.getByTestId("bold-onb-site").waitFor({ timeout: 20_000 });
