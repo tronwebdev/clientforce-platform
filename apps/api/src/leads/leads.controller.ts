@@ -266,10 +266,11 @@ export class LeadsController {
         ? `Fit scored against your ${scoredAgainst} ${noun}`
         : "Fit scored from your brief — you have no contacts on file yet";
     if (watching.length === 0) return `${scored}.`;
+    // A colon, not "watching X": the group labels are noun phrases, and
+    // "watching reading your pages" does not read like a person wrote it.
     const list = watching.map((w) => w.label.toLowerCase());
-    const tail =
-      list.length === 1 ? list[0] : `${list.slice(0, -1).join(", ")} and ${list[list.length - 1]}`;
-    return `${scored} · watching ${tail}`;
+    const tail = list.length === 1 ? list[0] : `${list.slice(0, -1).join(", ")}, and ${list[list.length - 1]}`;
+    return `${scored} · watching: ${tail}`;
   }
 
   /** BuyerPing = OUR tier: connect enables it (no vendor token — the
