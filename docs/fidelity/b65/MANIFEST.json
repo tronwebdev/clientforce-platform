@@ -1,65 +1,65 @@
 {
   "unit": "b65",
-  "commit": "994bd80103aebe5606d4b3dd2496cb37f04a09e4",
+  "commit": "36e76a9b0c2f5093548648b58de8d9c09402a3f2",
   "workingTreeDirtyAtCapture": false,
-  "capturedAt": "2026-08-31T22:01:50.820Z",
+  "capturedAt": "2026-08-31T22:46:48.245Z",
   "baseUrl": "http://localhost:3000",
   "note": "Single-run capture; every frame from one build. Verify a frame by hashing its bytes against this manifest — never by trusting an image cache. pnpm lint:fidelity enforces the binding.",
   "frames": {
     "build-integrations-no-tier-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 140789,
-      "sha256": "f73979d459b4730d322e5c796a979fe13e787736fa796a67b21580e1a8637349"
+      "bytes": 140819,
+      "sha256": "8f5720990757cda70b6a6b4065b75e184013b37a39b3e8116d6e21c9bb134048"
     },
     "build-lead-brief-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 153829,
-      "sha256": "e5c5f67c4e4182bdadaa53fbe7c74b290ecdad934df5c9ef9e8f4c8e1a3274b3"
+      "bytes": 153873,
+      "sha256": "5cfd9d4215121e2a83e51f5ec543012a23e0a06ea50dfe1cd18d6adbd534ec52"
     },
     "build-lead-buyerping-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 200540,
-      "sha256": "c605df4e73b5f094907c23ed71c01c9cefd2817b340572bc69ea74a4303e6687"
+      "bytes": 200500,
+      "sha256": "a9ef6725ab5e62084a4741857faee99465e63235c7b74bafbeebbaf8554a4ad9"
     },
     "build-lead-direct-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 126630,
-      "sha256": "e74f3114f76810032cf91feffa52443fdf0a4e9bcbe27018ae8edd2576627950"
+      "bytes": 126657,
+      "sha256": "3cd98939e461416fa6d7e5d3f5227ca1054d4083a2f6f5492acb30730b876627"
     },
     "build-lead-drawer-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 151354,
-      "sha256": "249ab9bcb380ef70972626b373ecdf817e56344c0c1285afbf94ec91cd58d8ac"
+      "bytes": 151367,
+      "sha256": "8650a941554512807524ad60f0c28ba9175d93780c3edee664c8c911cb42a2c1"
     },
     "build-lead-market-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 145226,
-      "sha256": "61faa28dfceebe951c24c3a8d04f36a1e19c1b031a5ef3b5733c3dfb76d30676"
+      "bytes": 145173,
+      "sha256": "5eb3a52ad430f6bd120b290f80e95793de2cbb4880e566ccfdcc06ce7ed7c91e"
     },
     "build-lead-pool-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 151731,
-      "sha256": "fbd16d3bd8f999c67001b638e5e399860995881bf3e7c3be3b338451f8deb0ea"
+      "bytes": 151180,
+      "sha256": "2d9d3a2c71eb4c451b57134fedd4468884d07bf49b0f245daa29caccfd2e7897"
     },
     "build-lead-pool-nocount-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 137144,
-      "sha256": "1e01d6b4364cad919a42c0b9035ed153bcb2909b7eebc96981aa9ed2b8e681e0"
+      "bytes": 136711,
+      "sha256": "bcab944acacd3ce0a2359de9bf4edd5499cad5a67eab7cf7aa3477dd5ba02384"
     },
     "build-lead-watch-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 198714,
-      "sha256": "62c67977555777f0896a5b0e717059b224b381a9664395f325e3f58dc1cb769c"
+      "bytes": 198854,
+      "sha256": "799883e4c921f4ddba7e3c4d41127c3d6f2df51a9c2815a35b2aebaeab6e00be"
     },
     "proto-lead-buyerping-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 225127,
-      "sha256": "9624cdd12100d6ecc9a453811c58ffad10cb1033644136682ab363ca8fee4c0b"
+      "bytes": 225139,
+      "sha256": "18b9a623b6bc8a3330409895394d4717684bc036b6f76869cdf267eab14908d6"
     },
     "proto-lead-direct-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 191382,
-      "sha256": "523df1ac9caf55aed0fb6720419b7e3c4570e7d80a7094d7f184b05af6090ced"
+      "bytes": 191389,
+      "sha256": "1e60e630c14aa903f6eb3e38c77cfb8cd7992e2d5033bf439a24d6787e46f793"
     },
     "proto-lead-market-1440x900.png": {
       "viewport": "1440x900",
@@ -73,8 +73,8 @@
     },
     "proto-lead-watch-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 217878,
-      "sha256": "2126ce5b86e9477fd21c15a053408dd3c7569e0f782f460483b564302eeb83e7"
+      "bytes": 217883,
+      "sha256": "a02c3a1238381a9bc44ce5a7774a423104248b0a1d34bdafcb485f703d21038d"
     }
   }
 }
