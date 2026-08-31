@@ -401,44 +401,62 @@ if (UNIT === "b75") {
       await shot(p, name);
     }
 
-    // The add drawers the proto carries.
+    // The add drawers the proto carries. Its overlay swallows clicks under it,
+    // so each drawer is dismissed by clicking the scrim itself and the item is
+    // re-entered from the hub rather than trusting the page underneath.
+    const closeOver = async () => {
+      await p.mouse.click(200, 420);
+      await p.waitForTimeout(500);
+    };
+    const toCore = async (tab) => {
+      await toHub();
+      await p.getByText("Who you are, what you sell", { exact: false }).first().click();
+      await p.waitForTimeout(600);
+      if (tab) {
+        await p.getByText(tab, { exact: true }).first().click();
+        await p.waitForTimeout(400);
+      }
+    };
+    await toCore("Where it comes from");
     await p.getByText("Add a knowledge source", { exact: true }).first().click();
     await p.waitForTimeout(600);
     await shot(p, "proto-drawer-source-1440x900");
-    await p.keyboard.press("Escape").catch(() => {});
-    await p.locator("body").click({ position: { x: 200, y: 400 } });
-    await p.waitForTimeout(400);
-    await p.getByText("What she knows", { exact: true }).first().click();
-    await p.waitForTimeout(400);
+    await closeOver();
+    await toCore(null);
     await p.getByText("Add something she should know", { exact: true }).first().click();
     await p.waitForTimeout(600);
     await shot(p, "proto-drawer-fact-1440x900");
-    await p.locator("body").click({ position: { x: 200, y: 400 } });
-    await p.waitForTimeout(400);
+    await closeOver();
 
     // Senders: the three tabs, the sender drawer, and both add flows.
     await toHub();
     await p.getByText("Two email domains and one number", { exact: false }).first().click();
     await p.waitForTimeout(700);
     await shot(p, "proto-senders-email-1440x900");
+    const toSenders = async (tab) => {
+      await toHub();
+      await p.getByText("Two email domains and one number", { exact: false }).first().click();
+      await p.waitForTimeout(600);
+      if (tab) {
+        await p.getByText(tab, { exact: true }).first().click();
+        await p.waitForTimeout(400);
+      }
+    };
     await p.getByText("hello@brightsmile.com", { exact: true }).first().click();
     await p.waitForTimeout(600);
     await shot(p, "proto-drawer-sender-1440x900");
-    await p.locator("body").click({ position: { x: 200, y: 400 } });
-    await p.waitForTimeout(400);
+    await closeOver();
+    await toSenders(null);
     await p.getByText("Add an email sender", { exact: true }).first().click();
     await p.waitForTimeout(600);
     await shot(p, "proto-drawer-addsender-1440x900");
-    await p.locator("body").click({ position: { x: 200, y: 400 } });
-    await p.waitForTimeout(400);
-    await p.getByText("Numbers", { exact: true }).first().click();
-    await p.waitForTimeout(400);
+    await closeOver();
+    await toSenders("Numbers");
     await shot(p, "proto-senders-num-1440x900");
     await p.getByText("Add a number", { exact: true }).first().click();
     await p.waitForTimeout(600);
     await shot(p, "proto-drawer-addnumber-1440x900");
-    await p.locator("body").click({ position: { x: 200, y: 400 } });
-    await p.waitForTimeout(400);
+    await closeOver();
 
     // Team and guardrails.
     await toHub();
