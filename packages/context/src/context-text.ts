@@ -14,7 +14,10 @@ export function renderContextText(fields: ContextFields): string {
   return Object.entries(fields)
     .filter(([, v]) => v.value.trim().length > 0)
     .map(([key, v]) => {
-      const label = CONTEXT_FIELD_META[key as ContextFieldKey]?.label ?? key;
+      // B7.5: a fact taught in settings carries its own question as the label
+      // (the registry has no entry for it). Registry fields carry none, so
+      // their rendered line is unchanged.
+      const label = v.label ?? CONTEXT_FIELD_META[key as ContextFieldKey]?.label ?? key;
       return `- ${key} (${label}): ${v.value}`;
     })
     .join("\n");

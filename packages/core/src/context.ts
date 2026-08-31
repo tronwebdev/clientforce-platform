@@ -305,6 +305,15 @@ export const contextFieldValueSchema = z.object({
   source: contextFieldSourceSchema,
   /** Custom-goal distiller-proposed ask this answers ("suggested for your goal"). */
   proposedAsk: z.string().optional(),
+  /**
+   * B7.5: the human label for a field that is NOT in `CONTEXT_FIELD_META` —
+   * the question the settings surface was taught ("Do you take my insurance?")
+   * or the field name the owner wrote. Optional and additive: every field
+   * stored before this carries none, so what the renderer emits for them is
+   * byte-identical. `renderContextText` prefers it over the registry label,
+   * which is what makes a taught fact something Ada can actually quote back.
+   */
+  label: z.string().max(160).optional(),
 });
 export type ContextFieldValue = z.infer<typeof contextFieldValueSchema>;
 

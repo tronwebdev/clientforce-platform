@@ -1565,6 +1565,151 @@ async function main(): Promise<void> {
     }
   }
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // B7.5: the settings surfaces' Bright Smile Dental fixture.
+  //
+  // The demo workspace IS Bright Smile Dental — its address, senders, widget
+  // and campaigns all say so. What it lacked was anything for the SETTINGS
+  // family to show: one business-core row and no sources makes a page that is
+  // honest and says nothing.
+  //
+  // Deliberately additive and gap-neutral: every fact below uses an `ask_*` /
+  // `field_*` key this surface mints, never a registry key, so no gap report
+  // changes and no other unit's fixture moves under it.
+  {
+    const bsd = await prisma.workspace.findFirst({ where: { slug: "demo" }, select: { id: true } });
+    if (bsd) {
+      const core = await prisma.businessContext.findFirst({
+        where: { workspaceId: bsd.id, agentId: null },
+      });
+      if (core) {
+        const fields = { ...((core.fields ?? {}) as Record<string, unknown>) };
+        const taught: ReadonlyArray<[string, string, string]> = [
+          ["ask_do_you_take_my_insurance", "Do you take my insurance?", "Delta, Cigna and Aetna — we are in network with all three, and we file the claim for you."],
+          ["ask_how_long_is_recovery", "How long is recovery?", "Three days to normal food, about a week to everything else."],
+          ["ask_do_you_offer_financing", "Do you offer financing?", "From $180 a month over 48 months, and the first twelve are interest free."],
+          ["ask_how_long_is_a_consult", "How long is a consult?", "Twenty minutes, no obligation. You leave knowing what it would cost."],
+          ["field_opening_hours", "Opening hours", "Mon–Fri 8–5, Saturdays 9–1. Closed Sunday."],
+          ["field_parking", "Parking", "Free lot behind the building, entrance on 5th."],
+        ];
+        let added = 0;
+        for (const [key, label, value] of taught) {
+          if (fields[key]) continue;
+          fields[key] = { value, citations: [], source: "typed", label };
+          added += 1;
+        }
+        if (added > 0) {
+          await prisma.businessContext.update({
+            where: { id: core.id },
+            data: { fields: fields as Prisma.InputJsonValue },
+          });
+        }
+      }
+
+      // Two workspace-level knowledge sources with a real yield, so "Where it
+      // comes from" shows what each one actually produced rather than a row
+      // with nothing on the right-hand side.
+      const sources: ReadonlyArray<{
+        label: string;
+        kind: "WEBSITE" | "DOCUMENT";
+        uri: string | null;
+        chunks: string[];
+      }> = [
+        {
+          label: "brightsmile.test",
+          kind: "WEBSITE",
+          uri: "https://brightsmile.test",
+          chunks: [
+            "Bright Smile Dental — implants, orthodontics and family care in Austin, Texas.",
+            "A single implant is $2,400 including the crown. Financing from $180 a month.",
+            "Two locations, eleven staff, open since 2016.",
+          ],
+        },
+        {
+          label: "Price list 2026.pdf",
+          kind: "DOCUMENT",
+          uri: null,
+          chunks: [
+            "Whitening kit, take-home: $249, includes a twenty-minute fitting.",
+            "Standard cleaning: $120. New-patient exam with x-rays: $89.",
+          ],
+        },
+      ];
+      for (const src of sources) {
+        const exists = await prisma.knowledgeSource.findFirst({
+          where: { workspaceId: bsd.id, agentId: null, label: src.label },
+          select: { id: true },
+        });
+        if (exists) continue;
+        const row = await prisma.knowledgeSource.create({
+          data: {
+            workspaceId: bsd.id,
+            agentId: null,
+            kind: src.kind,
+            uri: src.uri,
+            label: src.label,
+            status: "READY",
+            meta: {},
+          },
+        });
+        // `embedding` is an unsupported column for the client, so the chunks
+        // go in as raw SQL — a zero vector, which is honest: nothing here was
+        // embedded by a model, and retrieval on demo data is not the point.
+        const zero = `[${new Array(1536).fill(0).join(",")}]`;
+        for (const [i, content] of src.chunks.entries()) {
+          await prisma.$executeRawUnsafe(
+            `INSERT INTO "KnowledgeChunk" ("id","workspaceId","sourceId","content","embedding","tokens","createdAt","updatedAt")
+             VALUES ($1,$2,$3,$4,$5::vector,$6,NOW(),NOW())`,
+            `seed-chunk-${row.id}-${i}`,
+            bsd.id,
+            row.id,
+            content,
+            zero,
+            Math.max(1, Math.round(content.length / 4)),
+          );
+        }
+      }
+
+      // A second email sender, mid-ramp, so the warm-up stat and the sender
+      // drawer's warm-up block have something true to render.
+      const warming = await prisma.senderConnection.findFirst({
+        where: { workspaceId: bsd.id, fromEmail: "team@brightsmile.test" },
+        select: { id: true },
+      });
+      if (!warming) {
+        const startedAt = new Date(Date.now() - 8 * 86_400_000).toISOString();
+        await prisma.senderConnection.create({
+          data: {
+            workspaceId: bsd.id,
+            type: "CF_MANAGED",
+            fromEmail: "team@brightsmile.test",
+            fromName: "Bright Smile Dental",
+            replyTo: "front-desk@brightsmile.test",
+            dailyLimit: 320,
+            warmupState: { startedAt } as unknown as Prisma.InputJsonValue,
+          },
+        });
+      }
+
+      // A second person, so Team is a team. ADMIN on purpose: the roles tab
+      // is only interesting when more than one role is actually in use.
+      const frontDesk = await prisma.user.upsert({
+        where: { email: "front-desk@brightsmile.test" },
+        update: {},
+        create: {
+          email: "front-desk@brightsmile.test",
+          name: "Front desk",
+          authProviderId: "dev|front-desk-brightsmile",
+        },
+      });
+      await prisma.membership.upsert({
+        where: { userId_workspaceId: { userId: frontDesk.id, workspaceId: bsd.id } },
+        update: {},
+        create: { userId: frontDesk.id, workspaceId: bsd.id, role: "ADMIN" },
+      });
+    }
+  }
+
   const totalContacts = WORKSPACES.reduce((n, w) => n + w.contacts.length, 0);
   const staffCount = await prisma.platformStaff.count();
   console.log(

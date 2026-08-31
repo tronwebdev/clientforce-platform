@@ -1,8 +1,17 @@
 import { test, expect, type Page } from "@playwright/test";
 
 /**
- * B7 smoke — Settings & Business core as one surface + the credits spend
- * view + the campaign Settings tab's returned sections, all on real reads:
+ * B7 smoke — Settings & Business core as one surface + the credits view + the
+ * campaign Settings tab's returned sections, all on real reads.
+ *
+ * B7.5 rebuilt these surfaces' WRITE layer, so the assertions that pinned B7's
+ * read-only shape (the deferred-invite panel, the guardrails Save button, the
+ * deferred top-up panel) moved with it. What this file keeps is B7's own
+ * contract: the hub's counts are queried, the item pages are live, and the
+ * campaign Settings tab round-trips its rider. The write layer's own criteria
+ * are in `bold-b75.spec.ts`.
+ *
+ * The original intent, unchanged:
  *  - the hub's six cards carry queried counts (facts/gaps, senders, people,
  *    balance) — never the prototype's fixture numbers;
  *  - Business core lists real workspace facts; Team lists the real
@@ -70,32 +79,34 @@ test("the settings hub reads real counts; Business core, Team and Guardrails are
   await expect(page.getByTestId("bold-wss-core-item")).toBeVisible();
   await expect(page.getByText("Where it comes from")).toBeVisible();
   const fact = page.getByText("You told her").first();
-  const distilled = page.getByText("Distilled").first();
-  const noFacts = page.getByText("No workspace facts yet", { exact: false });
-  await expect(fact.or(distilled).or(noFacts).first()).toBeVisible();
+  const taught = page.getByText("You taught her").first();
+  const core = page.getByText("Core", { exact: true }).first();
+  const noFacts = page.getByText("She knows nothing yet", { exact: false });
+  await expect(fact.or(taught).or(core).or(noFacts).first()).toBeVisible();
   await page.getByTestId("bold-wss-back").click();
 
   // Team: the real memberships (the demo owner) + the real role enum word.
   await page.getByTestId("bold-wss-team").click();
   await expect(page.getByTestId("bold-wss-team-item")).toBeVisible();
   await expect(page.getByText(OWNER_EMAIL).first()).toBeVisible();
-  await expect(page.getByTestId("bold-wss-invite-deferred")).toContainText("on its way");
+  // Ada is a row on this page, not a feature mentioned elsewhere.
+  await expect(page.getByTestId("bold-team-people")).toContainText("acts inside your guardrails");
   await page.getByTestId("bold-wss-back").click();
 
   // Guardrail defaults: typed wells (Q-081) round-trip; live campaigns listed.
   await page.getByTestId("bold-wss-guard").click();
   await expect(page.getByTestId("bold-wss-guard-item")).toBeVisible();
-  await page.getByTestId("bold-wss-cap-email").fill("150");
-  await page.getByTestId("bold-wss-guard-save").click();
-  await expect(page.getByTestId("bold-toast")).toContainText("new campaigns start from these");
+  await page.getByTestId("bold-guard-cap-email").fill("150");
+  await page.getByTestId("bold-guard-cap-email").blur();
+  await expect(page.getByTestId("bold-toast")).toContainText("150 a day");
   await page.reload();
   await page.getByTestId("bold-root").waitFor({ state: "visible" });
   await page.getByTestId("bold-dock-wssettings").click();
   await page.getByTestId("bold-wss-guard").click();
-  await expect(page.getByTestId("bold-wss-cap-email")).toHaveValue("150");
+  await expect(page.getByTestId("bold-guard-cap-email")).toHaveValue("150");
   // The overrides tab lists the live campaigns with their OWN values.
-  await page.getByText("Campaign overrides", { exact: true }).click();
-  await expect(page.getByTestId("bold-wss-guard-item")).toContainText("Whitening kit push");
+  await page.getByTestId("bold-wss-tab-3").click();
+  await expect(page.getByTestId("bold-guard-over")).toContainText("Whitening kit push");
 
   // Restore: clear the defaults so re-runs (and fidelity captures) start
   // from the neutral state — the write above already proved persistence.
@@ -115,11 +126,11 @@ test("credits: real balance, data-driven rates, top-ups visibly deferred over th
   await expect(page.getByTestId("bold-credits")).toBeVisible();
   await expect(page.getByTestId("bold-credits-balance")).toHaveText(/^[\d,]+$/);
   // Rates come from the effective-dated CreditPrice table (lead_reveal seeded at 1).
-  await page.getByText("What things cost", { exact: true }).click();
-  await expect(page.getByTestId("bold-credits-rate-lead_reveal")).toContainText("1 cr");
-  // Top-ups: deferred honestly, the ledger below is real.
-  await page.getByText("Top-ups", { exact: true }).click();
-  await expect(page.getByTestId("bold-credits-topup-deferred")).toContainText("billing rail");
+  await page.getByTestId("bold-credits-tab-what").click();
+  await expect(page.getByTestId("bold-credits-rate-lead_reveal")).toContainText("1");
+  // Top-ups: billing deferred honestly, the ledger below it is real.
+  await page.getByTestId("bold-credits-tab-top-ups").click();
+  await expect(page.getByTestId("bold-credits-billing-absent")).toContainText("billing is not connected");
 });
 
 test("campaign Settings: the returned sections — a channel toggle round-trips the rider", async ({ page }) => {

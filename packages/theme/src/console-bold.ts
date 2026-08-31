@@ -133,6 +133,16 @@ export const consoleBoldVars: Record<string, string> = {
   "--cvb-t-canvas-approach": "0.4s",
   "--cvb-t-dock": "0.38s",
   "--cvb-t-tail": "0.3s",
+
+  // B7.5 settings/write-layer style contract (SURFACE_SPEC_SETTINGS §2)
+  "--cvb-shadow-two-layer":
+    "0 1px 2px rgba(16, 22, 19, 0.04), 0 18px 34px -22px rgba(16, 22, 19, 0.1)",
+  "--cvb-gradient-panel": "linear-gradient(180deg, #ffffff, #f7faf8)",
+  "--cvb-panel-quiet": "#fcfcfc",
+  "--cvb-well-fill-2": "#f4f6f5",
+  "--cvb-well-line-2": "#dfe3e1",
+  "--cvb-scrim": "rgba(16, 22, 19, 0.26)",
+  "--cvb-r-drawer": "21px",
 };
 
 /** Ergonomic accessors for the values consumers reach for most. */

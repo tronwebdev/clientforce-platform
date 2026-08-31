@@ -1442,3 +1442,86 @@ model FeatureFlag {
   @@unique([workspaceId, key])
   @@index([workspaceId])
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// B7.5 — the settings WRITE layer (SURFACE_SPEC_SETTINGS §6–§7).
+//
+// ADDITIVE BLOCK. Everything above this line is untouched: no renames, no
+// column drops, no changed defaults. Two new tenant-scoped tables, both under
+// the standard `app.workspace_id` RLS policy (see the paired migration).
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// A pending invitation to join this workspace (§7). No invite spine existed
+/// before — the settings surface could list members but never add one. The
+/// token is stored HASHED: the plaintext exists only inside the invite link,
+/// handed out once and never readable from the database again.
+///
+/// EXPIRY IS DERIVED, never a stored state: `status = PENDING` past
+/// `expiresAt` reads as expired everywhere. That keeps a lapsed invite honest
+/// without a sweeper job whose absence would quietly leave stale rows.
+model WorkspaceInvite {
+  id           String       @id @default(cuid())
+  workspaceId  String
+  email        String
+  role         Role         @default(AGENT)
+  /// SHA-256 of the invite token. Unique so a token resolves one invite.
+  tokenHash    String       @unique
+  status       InviteStatus @default(PENDING)
+  /// Who sent it / who accepted it — the timeline names the actor by these.
+  invitedById  String?
+  acceptedById String?
+  expiresAt    DateTime
+  /// Null = created but not delivered (no send transport configured). The
+  /// surface says which of the two happened rather than claiming a send.
+  sentAt       DateTime?
+  revokedAt    DateTime?
+  acceptedAt   DateTime?
+  /// Bumped on every resend, so "sent 3 times" is a fact and not a guess.
+  resendCount  Int          @default(0)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@index([workspaceId, status])
+  @@index([workspaceId, email])
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+}
+
+/// A number the workspace asked for (§6). Number provisioning and A2P brand /
+/// campaign registration are NOT connected on this platform: the Twilio
+/// surface covers messaging and voice calls only. Rather than draw an approved
+/// A2P badge over nothing, the add-a-number drawer records the real ask and
+/// its true state, and the Numbers tab renders that state verbatim.
+///
+/// `senderId` is the seam: when provisioning lands it fills in with the
+/// `SenderConnection` the request became, and this row becomes its history.
+model NumberRequest {
+  id            String              @id @default(cuid())
+  workspaceId   String
+  /// What the owner asked for.
+  areaCode      String
+  /// "sms" | "sms_voice" — what the number should carry.
+  carries       String
+  status        NumberRequestStatus @default(REQUESTED)
+  /// "not_filed" | "filed" | "approved" | "rejected" — A2P registration state.
+  /// Stays "not_filed" until the filing unit ships; never inferred.
+  a2pState      String              @default("not_filed")
+  senderId      String?
+  note          String?
+  requestedById String?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  @@index([workspaceId, status])
+}
+
+enum NumberRequestStatus {
+  REQUESTED
+  RESERVED
+  ACTIVE
+  CANCELLED
+}

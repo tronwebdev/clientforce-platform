@@ -118,7 +118,7 @@ export function BoldIntegrationsView({
       })}
 
       {open ? (
-        <div onClick={() => setOpen(null)} style={{ position: "fixed", inset: 0, background: "rgba(10,14,12,.14)", display: "flex", justifyContent: "flex-end", zIndex: 30 }}>
+        <div onClick={() => setOpen(null)} style={{ position: "fixed", inset: 0, background: "var(--cvb-scrim)", display: "flex", justifyContent: "flex-end", zIndex: 30 }}>
           <div onClick={(ev) => ev.stopPropagation()} data-testid="bold-int-drawer" style={{ width: 392, maxWidth: "88%", height: "100%", background: "var(--cvb-card)", borderLeft: "1px solid var(--cvb-line)", padding: "30px 28px", overflowY: "auto" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <span style={{ width: 42, height: 42, borderRadius: 14, flex: "none", background: TILE[open.tile].tilebg, color: TILE[open.tile].tilefg, display: "grid", placeItems: "center", fontWeight: 900, fontSize: 17 }}>{open.glyph}</span>

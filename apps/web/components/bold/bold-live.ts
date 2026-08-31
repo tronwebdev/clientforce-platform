@@ -18,7 +18,9 @@ import type {
  * helper fails soft so a dead endpoint renders honest absence, never a crash.
  */
 
-async function get<T>(path: string): Promise<T | null> {
+/** Exported so the settings write layer shares ONE proxy contract with the
+ *  reads here — a second copy of this would be a second failure policy. */
+export async function get<T>(path: string): Promise<T | null> {
   try {
     const res = await fetch(`/api/cf/${path}`);
     if (!res.ok) return null;
@@ -215,7 +217,24 @@ export interface BoldSenderRow {
   sentToday?: number;
   domainAuthStatus?: Record<string, unknown>;
   health?: { state?: string; score?: number | null } | null;
-  warmup?: { pct?: number; cap?: number } | null;
+  /**
+   * The warm-up projection as `warmupProgressFor` actually returns it. The
+   * earlier shape here declared `cap`, which the API never sends — so the
+   * settings health row's "today's ceiling" was permanently blank. Typed
+   * against the producer now, so a missing field is a compile error rather
+   * than an empty string nobody notices.
+   */
+  warmup?: {
+    active: boolean;
+    day: number;
+    days: number;
+    currentCap: number | null;
+    target: number | null;
+    pct: number;
+    holding: boolean;
+    startedAt: string;
+    completedAt?: string;
+  } | null;
   createdAt?: string;
 }
 
@@ -272,7 +291,7 @@ export type BoldWriteResult = { ok: true; body: unknown } | { ok: false; error: 
 
 /** Writes surface the API's owner-readable message (422 gate detail, 409
  *  version race) instead of failing soft — a swallowed write is a lie. */
-async function send(path: string, method: string, body: unknown): Promise<BoldWriteResult> {
+export async function send(path: string, method: string, body: unknown): Promise<BoldWriteResult> {
   try {
     const res = await fetch(`/api/cf/${path}`, {
       method,
@@ -925,7 +944,8 @@ export interface WorkspaceMemberRow {
   userId: string;
   name: string | null;
   email: string;
-  role: "OWNER" | "ADMIN" | "AGENT";
+  // VIEWER is in the shipped enum too — the settings Team page renders it.
+  role: "OWNER" | "ADMIN" | "AGENT" | "VIEWER";
   since: string;
 }
 export const fetchWorkspaceMembers = () => get<WorkspaceMemberRow[]>("workspaces/members");

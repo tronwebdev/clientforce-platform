@@ -1202,14 +1202,159 @@ a:hover{color:#146B33;}
 
       <sc-if value="{{ vLead }}" hint-placeholder-val="{{ false }}">
         <div style="padding:22px 40px 40px;">
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-            <sc-for list="{{ lfModes }}" as="m" hint-placeholder-count="2">
+          <div style="font-size:13px;color:#5A6660;line-height:1.5;max-width:660px;margin:-12px 0 12px;">She watches for the moment someone needs what you sell, then hands you the reason. You only spend a credit when you want their details.</div>
+          <div style="display:flex;align-items:center;gap:15px;background:linear-gradient(180deg,#FFFFFF,#F7FAF8);border:1px solid #E4E6E5;border-radius:18px;padding:14px 17px;box-shadow:0 1px 2px rgba(16,22,19,.04);flex-wrap:wrap;">
+            <span style="width:28px;height:28px;border-radius:10px;background:#EAF5EE;border:1px solid #CFE8D8;color:#146B33;display:flex;align-items:center;justify-content:center;font-size:12px;flex:none;">✦</span>
+            <div style="flex:1;min-width:220px;">
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                <span style="font-size:13.5px;font-weight:600;letter-spacing:-.014em;line-height:1.4;">{{ lfBrief }}</span>
+                <span onClick="{{ lfProvTg }}" style="font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.12em;color:#5A6660;background:#F2F3F2;border:1px solid #E4E6E5;border-radius:6px;padding:2px 7px;cursor:pointer;flex:none;white-space:nowrap;">{{ lfProvL }}</span>
+              </div>
+              <sc-if value="{{ lfProvOpen }}" hint-placeholder-val="{{ false }}">
+                <div style="font-size:11px;color:#8B968F;margin-top:6px;line-height:1.5;">{{ lfBriefProv }}</div>
+              </sc-if>
+            </div>
+            <div style="position:relative;flex:none;">
+              <span onClick="{{ lfWatch }}" style="display:block;font-size:11.5px;font-weight:700;color:#3E4B44;background:#F2F3F2;border:1px solid #E4E6E5;border-radius:11px;padding:8px 13px;cursor:pointer;white-space:nowrap;">What she watches</span>
+              <sc-if value="{{ lfWatchOpen }}" hint-placeholder-val="{{ false }}">
+                <div onClick="{{ lfWatchClose }}" style="position:fixed;inset:0;background:rgba(16,22,19,.26);z-index:8;cursor:default;"></div>
+                <div style="position:absolute;right:0;top:100%;margin-top:8px;width:372px;background:#fff;border:1px solid #E4E6E5;border-radius:18px;padding:15px 16px;box-shadow:0 1px 2px rgba(16,22,19,.05),0 26px 52px -22px rgba(16,22,19,.34);z-index:9;text-align:left;max-height:560px;overflow-y:auto;">
+                  <div style="display:flex;align-items:flex-start;gap:8px;">
+                    <div style="flex:1;min-width:0;">
+                      <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.16em;color:#8B968F;">WHAT SHE WATCHES</div>
+                      <div style="font-family:'Schibsted Grotesk',sans-serif;font-size:16px;font-weight:900;letter-spacing:-.03em;margin-top:3px;">{{ lfWTitle }}</div>
+                    </div>
+                    <span onClick="{{ lfWatchClose }}" style="font-size:12px;color:#8B968F;cursor:pointer;flex:none;">✕</span>
+                  </div>
+                  <div style="display:flex;gap:6px;background:#F2F3F2;border:1px solid #E9EAEA;border-radius:11px;padding:3px;margin-top:11px;">
+                    <sc-for list="{{ lfWTabs }}" as="t" hint-placeholder-count="2">
+                      <span onClick="{{ t.go }}" style="flex:1;text-align:center;font-size:11.5px;font-weight:{{ t.fw }};color:{{ t.fg }};background:{{ t.bg }};border:1px solid {{ t.bd }};border-radius:9px;padding:7px 8px;cursor:pointer;white-space:nowrap;">{{ t.l }}</span>
+                    </sc-for>
+                  </div>
+
+                  <sc-if value="{{ lfOnWatchTab }}" hint-placeholder-val="{{ true }}">
+                    <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.16em;color:#8B968F;margin-top:13px;">WATCHING NOW — TAP TO FILTER</div>
+                    <div style="display:flex;flex-direction:column;gap:2px;margin-top:8px;">
+                      <sc-for list="{{ lfOnRows }}" as="t" hint-placeholder-count="3">
+                        <div onClick="{{ t.go }}" style="display:flex;align-items:flex-start;gap:9px;padding:8px 7px;border-radius:10px;cursor:pointer;background:{{ t.bg }};">
+                          <span style="width:15px;height:15px;border-radius:5px;flex:none;margin-top:1px;background:{{ t.bx }};border:1px solid {{ t.bxBd }};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#146B33;">{{ t.tick }}</span>
+                          <div style="flex:1;min-width:0;">
+                            <div style="display:flex;align-items:center;gap:7px;">
+                              <span style="font-size:12.5px;font-weight:700;letter-spacing:-.01em;flex:1;min-width:0;">{{ t.l }}</span>
+                              <span style="font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.12em;color:{{ t.tierFg }};background:{{ t.tierBg }};border:1px solid {{ t.tierBd }};border-radius:6px;padding:2px 6px;flex:none;">{{ t.tierL }}</span>
+                              <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;color:#146B33;flex:none;">{{ t.n }}</span>
+                            </div>
+                            <div style="font-size:11px;color:#8B968F;line-height:1.45;margin-top:2px;">{{ t.why }}</div>
+                          </div>
+                        </div>
+                      </sc-for>
+                    </div>
+                    <div style="border-top:1px solid #F1F2F1;margin-top:11px;padding-top:11px;">
+                      <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.16em;color:#8B968F;">WHEN IT FIRED</div>
+                      <div style="display:flex;gap:6px;margin-top:8px;">
+                        <sc-for list="{{ lfWhenOpts }}" as="o" hint-placeholder-count="3">
+                          <span onClick="{{ o.go }}" style="font-size:11.5px;font-weight:{{ o.fw }};color:{{ o.fg }};background:{{ o.bg }};border:1px solid {{ o.bd }};border-radius:999px;padding:5px 11px;cursor:pointer;white-space:nowrap;">{{ o.l }}</span>
+                        </sc-for>
+                      </div>
+                      <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.16em;color:#8B968F;margin-top:11px;">FIT AGAINST YOUR BRIEF</div>
+                      <div style="display:flex;gap:6px;margin-top:8px;">
+                        <sc-for list="{{ lfFitOpts }}" as="o" hint-placeholder-count="3">
+                          <span onClick="{{ o.go }}" style="font-size:11.5px;font-weight:{{ o.fw }};color:{{ o.fg }};background:{{ o.bg }};border:1px solid {{ o.bd }};border-radius:999px;padding:5px 11px;cursor:pointer;white-space:nowrap;">{{ o.l }}</span>
+                        </sc-for>
+                      </div>
+                    </div>
+                    <div style="border-top:1px solid #F1F2F1;margin-top:11px;padding-top:11px;">
+                      <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.16em;color:#8B968F;">WORDS AND PLACES</div>
+                      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:9px;">
+                        <sc-for list="{{ lfTopics }}" as="t" hint-placeholder-count="4">
+                          <span style="font-size:11px;font-weight:600;color:#3E4B44;background:#F2F3F2;border:1px solid #E4E6E5;border-radius:999px;padding:4px 9px;">{{ t }}</span>
+                        </sc-for>
+                        <span onClick="{{ lfEditBrief }}" style="font-size:11px;font-weight:700;color:#0E7D93;background:#fff;border:1px dashed #CFD6D1;border-radius:999px;padding:4px 9px;cursor:pointer;">+ add</span>
+                      </div>
+                    </div>
+                    <div style="border-top:1px solid #F1F2F1;margin-top:11px;padding-top:11px;">
+                      <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.16em;color:#8B968F;">HOW SHE MAY REACH THEM</div>
+                      <div style="font-size:11.5px;color:#3E4B44;line-height:1.55;margin-top:7px;">{{ lfBasis }}</div>
+                    </div>
+                  </sc-if>
+
+                  <sc-if value="{{ lfOnBpTab }}" hint-placeholder-val="{{ false }}">
+                    <div style="display:flex;align-items:center;gap:10px;margin-top:13px;">
+                      <span style="width:30px;height:30px;border-radius:10px;background:#F7EFDA;border:1px solid #EAD9A8;color:#8A6D1A;display:flex;align-items:center;justify-content:center;font-size:13px;flex:none;">◔</span>
+                      <div style="flex:1;min-width:0;">
+                        <div style="font-size:13.5px;font-weight:800;letter-spacing:-.02em;">BuyerPing</div>
+                        <div style="font-size:11px;color:#8B968F;margin-top:1px;">{{ lfBpAcct }}</div>
+                      </div>
+                      <span style="font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.12em;color:{{ lfBpStFg }};background:{{ lfBpStBg }};border:1px solid {{ lfBpStBd }};border-radius:999px;padding:3px 8px;flex:none;">{{ lfBpStL }}</span>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:7px;margin-top:12px;">
+                      <sc-for list="{{ lfBpDoes }}" as="d" hint-placeholder-count="3">
+                        <div style="display:flex;gap:8px;">
+                          <span style="width:5px;height:5px;border-radius:50%;background:#CFE8D8;flex:none;margin-top:6px;"></span>
+                          <span style="flex:1;min-width:0;font-size:12px;color:#3E4B44;line-height:1.55;">{{ d }}</span>
+                        </div>
+                      </sc-for>
+                    </div>
+                    <div style="display:flex;gap:7px;margin-top:12px;">
+                      <sc-for list="{{ lfBpStats }}" as="t" hint-placeholder-count="3">
+                        <div style="flex:1;min-width:0;background:#F7FAF8;border:1px solid #E9EAEA;border-radius:12px;padding:9px 10px;">
+                          <div style="font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.12em;color:#8B968F;">{{ t.n }}</div>
+                          <div style="font-size:13px;font-weight:800;letter-spacing:-.02em;margin-top:3px;">{{ t.v }}</div>
+                          <div style="font-size:10px;color:#8B968F;line-height:1.4;margin-top:2px;">{{ t.sub }}</div>
+                        </div>
+                      </sc-for>
+                    </div>
+                    <sc-if value="{{ lfHasOff }}" hint-placeholder-val="{{ true }}">
+                      <div style="border-top:1px solid #F1F2F1;margin-top:12px;padding-top:11px;">
+                        <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.16em;color:#8B968F;">{{ lfOffHead }}</div>
+                        <div style="display:flex;flex-direction:column;gap:8px;margin-top:9px;">
+                          <sc-for list="{{ lfOffRows }}" as="t" hint-placeholder-count="3">
+                            <div style="display:flex;align-items:flex-start;gap:9px;opacity:.72;">
+                              <span style="width:15px;height:15px;border-radius:5px;background:#F2F3F2;border:1px solid #E4E6E5;flex:none;margin-top:1px;"></span>
+                              <div style="flex:1;min-width:0;">
+                                <div style="font-size:12.5px;font-weight:600;color:#5A6660;">{{ t.l }}</div>
+                                <div style="font-size:10.5px;color:#8B968F;margin-top:1px;">{{ t.would }}</div>
+                              </div>
+                            </div>
+                          </sc-for>
+                        </div>
+                      </div>
+                    </sc-if>
+                    <div style="display:flex;align-items:center;gap:10px;margin-top:13px;">
+                      <span onClick="{{ lfBpToggle }}" style="font-size:11.5px;font-weight:800;color:#fff;background:#146B33;border-radius:11px;padding:9px 14px;cursor:pointer;flex:none;white-space:nowrap;">{{ lfBpBtnL }}</span>
+                      <div style="flex:1;min-width:0;">
+                        <div style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#101613;">{{ lfBpPrice }}</div>
+                        <div style="font-size:10px;color:#8B968F;">{{ lfBpNote }}</div>
+                      </div>
+                    </div>
+                    <div style="font-size:11px;color:#8B968F;line-height:1.5;margin-top:9px;">{{ lfOffFoot }}</div>
+                  </sc-if>
+                </div>
+              </sc-if>
+            </div>
+            <span onClick="{{ lfEditBrief }}" style="font-size:11.5px;font-weight:700;color:#0E7D93;cursor:pointer;flex:none;">Edit brief</span>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:8px;margin-top:14px;flex-wrap:wrap;">
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.16em;color:#8B968F;flex:none;">✦ ADA FINDS</span>
+            <sc-for list="{{ lfAdaModes }}" as="m" hint-placeholder-count="2">
+              <span onClick="{{ m.go }}" style="display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:{{ m.fw }};color:{{ m.fg }};background:{{ m.bg }};border:1px solid {{ m.bd }};border-radius:999px;padding:9px 14px;cursor:pointer;">
+                {{ m.l }}
+                <sc-if value="{{ m.hasBadge }}" hint-placeholder-val="{{ false }}">
+                  <span style="font-size:12px;line-height:1;">{{ m.badge }}</span>
+                </sc-if>
+              </span>
+            </sc-for>
+            <span style="width:1px;height:22px;background:#E4E6E5;margin:0 4px;flex:none;"></span>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.16em;color:#8B968F;flex:none;">YOU FILTER</span>
+            <sc-for list="{{ lfOwnModes }}" as="m" hint-placeholder-count="1">
               <span onClick="{{ m.go }}" style="font-size:12.5px;font-weight:{{ m.fw }};color:{{ m.fg }};background:{{ m.bg }};border:1px solid {{ m.bd }};border-radius:999px;padding:9px 15px;cursor:pointer;">{{ m.l }}</span>
             </sc-for>
+            <sc-if value="{{ lfHasSigChip }}" hint-placeholder-val="{{ false }}">
+              <span onClick="{{ lfClearSig }}" style="font-size:11.5px;font-weight:700;color:#146B33;background:#EAF5EE;border:1px solid #CFE8D8;border-radius:999px;padding:7px 12px;cursor:pointer;flex:none;white-space:nowrap;">{{ lfSigChip }} ✕</span>
+            </sc-if>
             <span style="flex:1;"></span>
-            <span onClick="{{ lfBP.go }}" style="display:flex;align-items:center;gap:7px;font-size:11.5px;font-weight:700;color:{{ lfBP.fg }};background:{{ lfBP.bg }};border:1px solid {{ lfBP.bd }};border-radius:999px;padding:8px 13px;cursor:pointer;">
-              <span style="width:6px;height:6px;border-radius:50%;background:{{ lfBP.dot }};flex:none;"></span>{{ lfBP.l }}
-            </span>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.18em;color:#8B968F;">{{ lfWaiting }}</span>
           </div>
 
           <sc-if value="{{ lfLegacy }}" hint-placeholder-val="{{ false }}">
@@ -1297,70 +1442,131 @@ a:hover{color:#146B33;}
             </div>
           </sc-if>
 
-          <sc-if value="{{ lfOwn }}" hint-placeholder-val="{{ false }}">
-            <div style="background:#FCFCFC;border:1px solid #ECEDEC;border-radius:20px;padding:20px;margin-top:16px;">
-              <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:900;font-size:17px;letter-spacing:-.03em;">Search it yourself</div>
-              <div style="font-size:12.5px;color:#5A6660;line-height:1.55;margin-top:6px;">Same data Ada searches. Set the filters and she still scores every result against your closed business.</div>
-              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:16px;">
-                <sc-for list="{{ lfFields }}" as="f" hint-placeholder-count="6">
-                  <div onClick="{{ f.go }}" style="background:#fff;border:1px solid {{ f.bd }};border-radius:14px;padding:12px 13px;cursor:pointer;">
-                    <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.14em;color:#8B968F;">{{ f.label }}</div>
-                    <div style="font-size:13px;font-weight:700;letter-spacing:-.018em;margin-top:6px;color:{{ f.fg }};">{{ f.v }}</div>
+          <sc-if value="{{ lfMarket }}" hint-placeholder-val="{{ true }}">
+            <sc-for list="{{ lfGroups }}" as="g" hint-placeholder-count="2">
+              <div style="margin-top:22px;">
+                <div style="display:flex;align-items:center;gap:11px;padding:0 4px 6px;">
+                  <span style="width:7px;height:7px;border-radius:50%;flex:none;background:{{ g.dot }};"></span>
+                  <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.18em;color:#5A6660;">{{ g.label }}</span>
+                  <span style="flex:1;height:1px;background:#F1F2F1;min-width:20px;"></span>
+                </div>
+                <sc-for list="{{ g.rows }}" as="r" hint-placeholder-count="3">
+                  <div style="display:flex;align-items:center;gap:13px;padding:14px 6px;border-bottom:1px solid #F4F5F4;border-left:3px solid {{ r.spine }};padding-left:13px;flex-wrap:wrap;">
+                    <span onClick="{{ r.open }}" style="width:40px;height:40px;border-radius:13px;flex:none;background:{{ r.logoBg }};display:flex;align-items:center;justify-content:center;font-family:'Schibsted Grotesk',sans-serif;font-weight:900;font-size:15px;color:{{ r.logoFg }};cursor:pointer;">{{ r.ini }}</span>
+                    <div onClick="{{ r.open }}" style="flex:1;min-width:190px;cursor:pointer;">
+                      <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">
+                        <span style="font-weight:700;font-size:14px;letter-spacing:-.02em;">{{ r.n }}</span>
+                        <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:500;color:{{ r.fitFg }};background:{{ r.fitBg }};border:1px solid {{ r.fitBd }};border-radius:999px;padding:2px 7px;">{{ r.fit }}</span>
+                      </div>
+                      <div style="font-size:12.5px;color:#101613;margin-top:4px;line-height:1.45;">{{ r.receipt }}</div>
+                      <div style="display:flex;align-items:center;gap:8px;margin-top:5px;flex-wrap:wrap;">
+                        <span style="font-size:11px;color:#8B968F;">{{ r.about }}</span>
+                        <span style="font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.12em;color:#5A6660;background:#F2F3F2;border:1px solid #E4E6E5;border-radius:6px;padding:2px 6px;">{{ r.source }}</span>
+                        <span style="font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.12em;color:{{ r.chFg }};background:{{ r.chBg }};border:1px solid {{ r.chBd }};border-radius:6px;padding:2px 6px;">{{ r.channel }}</span>
+                      </div>
+                    </div>
+                    <sc-if value="{{ r.locked }}" hint-placeholder-val="{{ true }}">
+                      <span onClick="{{ r.reveal }}" style="font-size:12px;font-weight:800;color:#fff;background:#146B33;border-radius:11px;padding:9px 13px;cursor:pointer;flex:none;white-space:nowrap;">Reveal · 1 cr</span>
+                      <span onClick="{{ r.hide }}" style="font-size:11.5px;font-weight:600;color:#8B968F;cursor:pointer;flex:none;white-space:nowrap;">Not for me</span>
+                    </sc-if>
+                    <sc-if value="{{ r.revealed }}" hint-placeholder-val="{{ false }}">
+                      <div style="flex:none;text-align:right;">
+                        <div style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#5A6660;">{{ r.mail }}</div>
+                        <div style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#8B968F;margin-top:2px;">{{ r.tel }}</div>
+                      </div>
+                      <span onClick="{{ r.send }}" style="font-size:12px;font-weight:800;color:#fff;background:#146B33;border-radius:11px;padding:9px 13px;cursor:pointer;flex:none;white-space:nowrap;">→ Campaign</span>
+                    </sc-if>
                   </div>
                 </sc-for>
               </div>
+            </sc-for>
+            <sc-if value="{{ lfEmpty }}" hint-placeholder-val="{{ false }}">
+              <div style="text-align:center;padding:56px 20px;">
+                <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:900;font-size:19px;letter-spacing:-.028em;">{{ lfEmptyT }}</div>
+                <div style="font-size:13px;color:#8B968F;line-height:1.55;margin:8px auto 0;max-width:400px;">{{ lfEmptyB }}</div>
+              </div>
+            </sc-if>
+            <sc-if value="{{ lfHasFoot }}" hint-placeholder-val="{{ true }}">
               <div style="display:flex;align-items:center;gap:10px;margin-top:16px;flex-wrap:wrap;">
-                <span onClick="{{ lfRun }}" style="font-size:12.5px;font-weight:800;color:#fff;background:#146B33;border-radius:12px;padding:12px 17px;cursor:pointer;">Run this search</span>
-                <span onClick="{{ lfReset }}" style="font-size:12.5px;font-weight:700;color:#5A6660;background:#F2F3F2;border:1px solid #E4E6E5;border-radius:12px;padding:12px 16px;cursor:pointer;">Reset</span>
-                <span style="font-size:11.5px;color:#8B968F;">{{ lfCost }}</span>
+                <span style="font-size:11.5px;color:#8B968F;flex:1;min-width:200px;line-height:1.5;">{{ lfSkipped }}</span>
+                <span onClick="{{ lfShowSkipped }}" style="font-size:11.5px;font-weight:700;color:#0E7D93;cursor:pointer;flex:none;">Show them</span>
               </div>
-            </div>
+              <div style="display:flex;align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap;">
+                <span style="font-size:11.5px;color:#8B968F;flex:1;min-width:200px;line-height:1.5;">{{ lfTease }}</span>
+                <span onClick="{{ lfSeeBp }}" style="font-size:11.5px;font-weight:700;color:#0E7D93;cursor:pointer;flex:none;">See what they are</span>
+              </div>
+            </sc-if>
           </sc-if>
 
-          <sc-if value="{{ lfAdaMode }}" hint-placeholder-val="{{ true }}">
-            <div style="background:#EAF5EE;border:1px solid #CFE8D8;border-radius:20px;padding:19px 20px;margin-top:16px;">
-              <div style="display:flex;align-items:flex-start;gap:11px;">
-                <span style="color:#146B33;font-size:14px;flex:none;">✦</span>
-                <div style="flex:1;min-width:0;">
-                  <div style="font-size:13.5px;color:#1D5B34;line-height:1.6;">{{ lfIcp }}</div>
-                  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px;">
-                    <sc-for list="{{ lfIcpFacts }}" as="f" hint-placeholder-count="4">
-                      <span style="font-size:11px;font-weight:600;color:#1D5B34;background:#fff;border:1px solid #CFE8D8;border-radius:999px;padding:6px 11px;">{{ f }}</span>
-                    </sc-for>
+          <sc-if value="{{ lfFit }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;align-items:center;gap:14px;background:linear-gradient(180deg,#FFFFFF,#F7FAF8);border:1px solid #E4E6E5;border-radius:18px;padding:14px 18px;margin-top:16px;box-shadow:0 1px 2px rgba(16,22,19,.04);flex-wrap:wrap;">
+              <div style="display:flex;align-items:baseline;gap:9px;flex:none;">
+                <span style="font-family:'Schibsted Grotesk',sans-serif;font-size:30px;font-weight:900;letter-spacing:-.04em;background:linear-gradient(180deg,#101613 25%,#14743A 120%);-webkit-background-clip:text;background-clip:text;color:transparent;">{{ lfPoolN }}</span>
+                <span style="font-size:13px;color:#5A6660;">{{ lfPoolUnit }}</span>
+              </div>
+              <span style="width:1px;height:26px;background:#EAEBEA;flex:none;"></span>
+              <div style="display:flex;align-items:center;gap:7px;flex:1;min-width:200px;flex-wrap:wrap;">
+                <span onClick="{{ lfWhyTg }}" style="font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.12em;color:#5A6660;background:#F2F3F2;border:1px solid #E4E6E5;border-radius:6px;padding:3px 8px;cursor:pointer;white-space:nowrap;">{{ lfWhyL }}</span>
+                <span onClick="{{ lfExclTg }}" style="font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.12em;color:#8A6D1A;background:#F7EFDA;border:1px solid #EAD9A8;border-radius:6px;padding:3px 8px;cursor:pointer;white-space:nowrap;">{{ lfExclL }}</span>
+              </div>
+            </div>
+            <sc-if value="{{ lfWhyOpen }}" hint-placeholder-val="{{ false }}">
+              <div style="font-size:12px;color:#5A6660;line-height:1.55;margin-top:9px;max-width:640px;">{{ lfPoolWhy }}</div>
+            </sc-if>
+            <sc-if value="{{ lfExclOpen }}" hint-placeholder-val="{{ false }}">
+              <div style="font-size:12px;color:#5A6660;line-height:1.55;margin-top:9px;max-width:640px;">{{ lfPoolExcl }}</div>
+            </sc-if>
+            <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;">
+              <sc-for list="{{ lfBands }}" as="b" hint-placeholder-count="4">
+                <div onClick="{{ b.go }}" style="flex:1;min-width:180px;background:{{ b.bg }};border:1px solid {{ b.bd }};border-radius:16px;padding:13px 15px;cursor:pointer;">
+                  <div style="display:flex;align-items:center;gap:7px;">
+                    <span style="font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.14em;color:{{ b.tagFg }};flex:1;min-width:0;">{{ b.tag }}</span>
+                    <span style="font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.12em;color:{{ b.costFg }};flex:none;">{{ b.cost }}</span>
                   </div>
+                  <div style="font-family:'Schibsted Grotesk',sans-serif;font-size:22px;font-weight:900;letter-spacing:-.03em;margin-top:6px;color:{{ b.numFg }};">{{ b.n }}</div>
+                  <div style="font-size:11.5px;color:#5A6660;line-height:1.45;margin-top:3px;">{{ b.sub }}</div>
                 </div>
-                <span onClick="{{ lfSearch }}" style="font-size:12.5px;font-weight:800;color:#fff;background:#146B33;border-radius:12px;padding:11px 16px;cursor:pointer;flex:none;">{{ lfBtn }}</span>
-              </div>
+              </sc-for>
             </div>
-          </sc-if>
 
-          <sc-if value="{{ lfHasResults }}" hint-placeholder-val="{{ true }}">
-            <div style="display:flex;align-items:center;gap:12px;margin:30px 0 4px;flex-wrap:wrap;">
-              <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.18em;color:#8B968F;">{{ lfCount }}</span>
-              <span style="flex:1;height:1px;background:#F1F2F1;min-width:20px;"></span>
-              <span onClick="{{ lfAddAll }}" style="font-size:12px;font-weight:700;color:#0E7D93;cursor:pointer;">Add all to a list</span>
-              <span onClick="{{ lfSendAll }}" style="font-size:12px;font-weight:800;color:#fff;background:#146B33;border-radius:11px;padding:8px 13px;cursor:pointer;">Send all to a campaign →</span>
+            <div style="display:flex;align-items:center;gap:12px;background:#FCFCFC;border:1px solid #E4E6E5;border-radius:14px;padding:12px 15px;margin-top:12px;flex-wrap:wrap;">
+              <div style="flex:1;min-width:220px;">
+                <div style="font-size:12.5px;font-weight:700;letter-spacing:-.012em;">{{ lfBulkT }}</div>
+                <div style="font-size:11.5px;color:#8B968F;line-height:1.45;margin-top:3px;">{{ lfBulkSub }}</div>
+              </div>
+              <span onClick="{{ lfBulkGo }}" style="font-size:12px;font-weight:800;color:#fff;background:#146B33;border-radius:11px;padding:9px 14px;cursor:pointer;flex:none;white-space:nowrap;">{{ lfBulkBtn }}</span>
+              <span onClick="{{ lfAddAll }}" style="font-size:12px;font-weight:700;color:#0E7D93;cursor:pointer;flex:none;white-space:nowrap;">Save as a list</span>
             </div>
-            <sc-for list="{{ lfRows }}" as="r" hint-placeholder-count="5">
-              <div style="display:flex;align-items:center;gap:13px;padding:15px 6px;border-bottom:1px solid #F4F5F4;flex-wrap:wrap;">
-                <span onClick="{{ r.open }}" style="width:40px;height:40px;border-radius:13px;flex:none;background:{{ r.logoBg }};display:flex;align-items:center;justify-content:center;font-family:'Schibsted Grotesk',sans-serif;font-weight:900;font-size:15px;color:{{ r.logoFg }};cursor:pointer;">{{ r.ini }}</span>
-                <div onClick="{{ r.open }}" style="flex:1;min-width:150px;cursor:pointer;">
+
+            <div style="display:flex;align-items:center;gap:12px;margin:16px 0 2px;flex-wrap:wrap;">
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.18em;color:#8B968F;">{{ lfBandHead }}</span>
+              <span style="flex:1;height:1px;background:#F1F2F1;min-width:20px;"></span>
+              <span style="font-size:11.5px;color:#8B968F;">Ranked by fit</span>
+            </div>
+
+            <sc-for list="{{ lfFitRows }}" as="r" hint-placeholder-count="4">
+              <div onClick="{{ r.open }}" style="display:flex;align-items:center;gap:13px;padding:13px 10px;margin:0 -4px;border-bottom:1px solid #F4F5F4;border-radius:12px;flex-wrap:wrap;cursor:pointer;" style-hover="background:#F7FAF8;">
+                <span style="width:40px;height:40px;border-radius:13px;flex:none;background:{{ r.logoBg }};display:flex;align-items:center;justify-content:center;font-family:'Schibsted Grotesk',sans-serif;font-weight:900;font-size:15px;color:{{ r.logoFg }};">{{ r.ini }}</span>
+                <div style="flex:1;min-width:200px;">
                   <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">
                     <span style="font-weight:700;font-size:14px;letter-spacing:-.02em;">{{ r.n }}</span>
                     <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:500;color:{{ r.fitFg }};background:{{ r.fitBg }};border:1px solid {{ r.fitBd }};border-radius:999px;padding:2px 7px;">{{ r.fit }}</span>
+                    <span style="font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.12em;color:#5A6660;background:#F2F3F2;border:1px solid #E4E6E5;border-radius:6px;padding:2px 6px;">{{ r.source }}</span>
                   </div>
-                  <div style="font-size:12px;color:#8B968F;margin-top:3px;line-height:1.4;">{{ r.sub }}</div>
+                  <div style="display:flex;align-items:center;gap:6px;margin-top:5px;flex-wrap:wrap;">
+                    <sc-for list="{{ r.why }}" as="w" hint-placeholder-count="3">
+                      <span style="font-size:11px;font-weight:600;color:#146B33;background:#EAF5EE;border:1px solid #CFE8D8;border-radius:999px;padding:3px 8px;">{{ w }}</span>
+                    </sc-for>
+                    <span style="font-size:11px;color:#8B968F;">{{ r.about }}</span>
+                  </div>
                 </div>
-                <span style="font-size:10px;font-weight:700;color:{{ r.sFg }};background:{{ r.sBg }};border:1px solid {{ r.sBd }};border-radius:999px;padding:3px 9px;flex:none;">{{ r.signal }}</span>
-                <span onClick="{{ r.add }}" style="font-size:12px;font-weight:700;color:{{ r.addFg }};background:{{ r.addBg }};border:1px solid {{ r.addBd }};border-radius:11px;padding:9px 13px;cursor:pointer;flex:none;">{{ r.addL }}</span>
-                <span onClick="{{ r.send }}" style="font-size:12px;font-weight:700;color:#0E7D93;background:#E2F3F6;border:1px solid #BFE3EB;border-radius:11px;padding:9px 12px;cursor:pointer;flex:none;">→ Campaign</span>
+                <span style="font-size:11px;color:{{ r.stFg }};flex:none;white-space:nowrap;">{{ r.st }}</span>
+                <span onClick="{{ r.act }}" style="font-size:12px;font-weight:800;color:{{ r.btnFg }};background:{{ r.btnBg }};border:1px solid {{ r.btnBd }};border-radius:11px;padding:9px 13px;cursor:pointer;flex:none;white-space:nowrap;">{{ r.btn }}</span>
               </div>
             </sc-for>
-          </sc-if>
-          <sc-if value="{{ lfIdle }}" hint-placeholder-val="{{ false }}">
-            <div style="text-align:center;padding:56px 20px;">
-              <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:900;font-size:19px;letter-spacing:-.028em;">Nothing found on those filters</div>
-              <div style="font-size:13px;color:#8B968F;line-height:1.55;margin-top:8px;max-width:340px;margin-left:auto;margin-right:auto;">Widen the location or drop a filter, or let Ada search from your closed business instead.</div>
+            <div style="display:flex;align-items:center;gap:10px;padding:13px 6px 0;">
+              <span style="font-size:11.5px;color:#8B968F;flex:1;line-height:1.45;">{{ lfMoreLine }}</span>
+              <span onClick="{{ lfShowMore }}" style="font-size:11.5px;font-weight:700;color:#0E7D93;cursor:pointer;flex:none;">Show more</span>
             </div>
           </sc-if>
         </div>
@@ -3137,8 +3343,8 @@ class Component extends DCLogic {
       { ch: 'THE WORKSPACE', sel: 'dock', title: 'Everything else lives on the dock',
         body: 'Inbox, contacts, lead finder, automations, forms, chatbot, proposals, analytics, integrations, settings. The receptionist sits on top with a live dot when she is answering your line.',
         pre: { surface: 'campaign', tab: 'overview' } },
-      { ch: 'THE WORKSPACE', sel: 'canvas', title: 'Find new business three ways',
-        body: 'Her matches from your closed business, your own filters, or a direct people search with reveal-per-credit. Intent signals arrive through BuyerPing.',
+      { ch: 'THE WORKSPACE', sel: 'canvas', title: 'The lead finder is a standing watch',
+        body: 'Your brief watches the outside world. Buying moments arrive on their own with their evidence and where it came from; contact details cost one credit, only when you ask.',
         pre: { surface: 'lead', item: null, over: null } },
       { ch: 'THE WORKSPACE', sel: 'canvas', title: 'You build things by asking',
         body: 'Forms, chatbots, proposals and automations all have the same two doors: build it yourself, or let Ada walk you through every field. She never invents copy your core cannot support.',
@@ -3859,39 +4065,183 @@ class Component extends DCLogic {
           this.flash(on ? 'Turned off' : 'Turned on'); } };
     });
 
-    // ---------- lead finder ----------
+    // ---------- lead finder: a standing watch (ADDENDUM 5 §6) ----------
+    // Bright Smile sells to PEOPLE, so every row is a person. A company-shape workspace
+    // renders organizations from the same registry — the noun is never hard-coded.
     const LF = [
-      { n: 'Northside Family Dental', sub: '3 locations · Austin · 14 staff · Dr. Alvarez, owner', ini: 'ND', signal: 'Hiring', s: 'warn', logoBg: '#EAF5EE', logoFg: '#146B33', fit: '94 fit', fitN: 94 },
-      { n: 'Lakeway Smile Studio', sub: '1 location · Lakeway · 6 staff · Maria Chen, owner', ini: 'LS', signal: 'New site', s: 'live', logoBg: '#E2F3F6', logoFg: '#0E7D93', fit: '91 fit', fitN: 91 },
-      { n: 'Cedar Park Orthodontics', sub: '2 locations · Cedar Park · 11 staff · practice manager', ini: 'CP', signal: 'Ad spend up', s: 'live', logoBg: '#F0EDF9', logoFg: '#5B4A8A', fit: '86 fit', fitN: 86 },
-      { n: 'Barton Creek Dental Arts', sub: '1 location · Austin · 9 staff · Dr. Reyes, owner', ini: 'BC', signal: 'Matches ICP', s: 'live', logoBg: '#F7EFDA', logoFg: '#8A6D1A', fit: '83 fit', fitN: 83 },
-      { n: 'Round Rock Kids Dentistry', sub: '2 locations · Round Rock · 12 staff · two partners', ini: 'RR', signal: 'Hiring', s: 'warn', logoBg: '#EAF3F5', logoFg: '#356170', fit: '78 fit', fitN: 78 },
+      { n: 'Nadia Fowler', ini: 'NF', when: 'today', type: 'quiet', fit: '91 fit', fitN: 91,
+        receipt: 'Last visit 19 months ago — her recall is overdue', about: '38 · Austin · implant consult in 2024',
+        source: 'YOUR RECORDS', warm: true, logoBg: '#EAF5EE', logoFg: '#146B33',
+        mail: 'nadia.fowler@gmail.com', tel: '(512) 555-0117' },
+      { n: 'Tomas Ruiz', ini: 'TR', when: 'week', type: 'asked', fit: '82 fit', fitN: 82,
+        receipt: 'Asked about implant financing in March and never booked', about: '51 · Austin · enquiry only',
+        source: 'YOUR RECORDS', warm: true, logoBg: '#E2F3F6', logoFg: '#0E7D93',
+        mail: 'tomas.ruiz@gmail.com', tel: '(512) 555-0204' },
+      { n: 'Daniel & Priya Raghavan', ini: 'DR', when: 'today', type: 'moved', fit: '96 fit', fitN: 96,
+        receipt: 'Moved into Mueller six days ago — 2 miles from you', about: 'Household of four · no local dentist on record',
+        source: 'MOVER LIST', warm: false, logoBg: '#EAF5EE', logoFg: '#146B33',
+        mail: 'd.raghavan@—.com', tel: '(512) 555-0148' },
+      { n: 'Chloe Bennett', ini: 'CB', when: 'today', type: 'life', fit: '92 fit', fitN: 92,
+        receipt: 'Booked an Austin wedding venue for April — whitening season', about: '28 · 4 miles away',
+        source: 'LIFE EVENT', warm: false, logoBg: '#F7EFDA', logoFg: '#8A6D1A',
+        mail: 'chloe.b@—.com', tel: '(512) 555-0233' },
+      { n: 'Marcus Webb', ini: 'MW', when: 'today', type: 'unhappy', fit: '89 fit', fitN: 89,
+        receipt: 'Left a one-star review for a practice three miles away — yesterday', about: '42 · Cedar Park · named the wait times',
+        source: 'PUBLIC REVIEW', warm: false, logoBg: '#F0EDF9', logoFg: '#5B4A8A',
+        mail: 'm.webb@—.com', tel: '(512) 555-0361' },
+      { n: 'Sofia Delgado', ini: 'SD', when: 'week', type: 'site', fit: '94 fit', fitN: 94,
+        receipt: 'Read your implant pricing three times on Monday, then asked the chat about payment plans', about: 'Your own visitor · Austin',
+        source: 'YOUR SITE', warm: true, logoBg: '#E2F3F6', logoFg: '#0E7D93',
+        mail: 'sofia.delgado@gmail.com', tel: '(512) 555-0288' },
+      { n: 'The Okonkwo family', ini: 'OK', when: 'week', type: 'life', fit: '84 fit', fitN: 84,
+        receipt: 'New baby announced last week — first check-up due within the year', about: 'Household of three · 6 miles away',
+        source: 'LIFE EVENT', warm: false, logoBg: '#EAF5EE', logoFg: '#146B33',
+        mail: 'n.okonkwo@—.com', tel: '(512) 555-0419' },
+      { n: 'Ray Chen', ini: 'RC', when: 'week', type: 'moved', fit: '76 fit', fitN: 76,
+        receipt: 'Moved into Round Rock three weeks ago — 8 miles out', about: 'Single household · owns the home',
+        source: 'MOVER LIST', warm: false, logoBg: '#EAF3F5', logoFg: '#356170',
+        mail: 'ray.chen@—.com', tel: '(512) 555-0552' },
+    ];
+    // tier: 'core' costs nothing to watch (your own data). 'bp' is licensed or collected
+    // supply — the BuyerPing tier. Nothing from a paid type appears until it is on.
+    const LFTYPES = [
+      ['site', 'Reading your pages', 'Your own visitors, forms and chats — always on, free', 'core', 'about 25 a month on your site'],
+      ['quiet', 'Patients who went quiet', 'Already yours, already trust you — the cheapest revenue there is', 'core', 'about 30 due a recall each month'],
+      ['asked', 'Asked and never booked', 'They enquired once and went cold', 'core', 'about 14 open enquiries'],
+      ['moved', 'Just moved into your area', 'New arrivals need a dentist within weeks', 'bp', 'about 11 a month within 3 miles'],
+      ['life', 'Life events you serve', 'Weddings, new babies, retirement — each maps to a treatment', 'bp', 'about 30 a month in your radius'],
+      ['unhappy', 'Unhappy with their practice', 'Public complaints about practices near you', 'bp', 'about 8 a month at practices nearby'],
+    ];
+    const LFLOCKED = [['Homeowners who just bought', 'about 40 a month within 3 miles'],
+      ['Insurance changes at open enrollment', 'about 260 households near you each autumn'],
+      ['People searching implant costs nearby', 'about 90 a month in your radius']];
+    const LFFIT = [
+      { n: 'Household · Mueller, 78723', ini: 'JM', fit: '88 fit', fitN: 88, about: 'Family of four · owns · moved 2019', source: 'MOVER LIST', logoBg: '#EAF5EE', logoFg: '#146B33' },
+      { n: 'Household · Hyde Park, 78751', ini: 'HP', fit: '85 fit', fitN: 85, about: 'Couple · owns · in area 6 years', source: 'MOVER LIST', logoBg: '#E2F3F6', logoFg: '#0E7D93' },
+      { n: 'Household · Zilker, 78704', ini: 'ZC', fit: '81 fit', fitN: 81, about: 'Family of three · rents', source: 'MOVER LIST', logoBg: '#F0EDF9', logoFg: '#5B4A8A' },
+      { n: 'Household · Crestview, 78757', ini: 'CR', fit: '78 fit', fitN: 78, about: 'Couple · owns · retired', source: 'MOVER LIST', logoBg: '#F7EFDA', logoFg: '#8A6D1A' },
     ];
     const SIG = { live: ['#146B33', '#EAF5EE', '#CFE8D8'], warn: ['#8A6D1A', '#F7EFDA', '#EAD9A8'] };
-    const lfMode = s.lfMode || 'ada';
+    const lfMode = s.lfMode || 'market';
     const bpOn = !!s.bpOn;
-    const lfF = s.lfF || { what: 'Dental practices', where: 'Austin, 25 mi', size: '5–25 staff', owner: 'Owner-run', intent: bpOn ? 'Any signal' : 'Not available', excl: 'Already contacted' };
-    const LFFIELDS = [
-      ['WHO THEY ARE', 'what', ['Dental practices', 'Orthodontists', 'Cosmetic clinics', 'Any healthcare']],
-      ['WHERE', 'where', ['Austin, 25 mi', 'Austin, 50 mi', 'Texas', 'Anywhere']],
-      ['SIZE', 'size', ['5–25 staff', '1–4 staff', '25–100 staff', 'Any size']],
-      ['DECISION MAKER', 'owner', ['Owner-run', 'Practice manager', 'Marketing lead', 'Anyone reachable']],
-      ['BUYER INTENT', 'intent', bpOn ? ['Any signal', 'Hiring', 'New site', 'Ad spend up', 'Reviews slipping'] : ['Not available']],
-      ['LEAVE OUT', 'excl', ['Already contacted', 'Already a customer', 'Nothing excluded']],
-    ];
-    const lfRows = LF.map((r) => {
-      const on = !!s.added[r.n];
-      return { ...r, sFg: SIG[r.s][0], sBg: SIG[r.s][1], sBd: SIG[r.s][2],
-        fit: r.fit, fitFg: r.fitN >= 90 ? '#146B33' : r.fitN >= 80 ? '#0E7D93' : '#8B968F',
-        fitBg: r.fitN >= 90 ? '#EAF5EE' : r.fitN >= 80 ? '#E2F3F6' : '#F2F3F2',
-        fitBd: r.fitN >= 90 ? '#CFE8D8' : r.fitN >= 80 ? '#BFE3EB' : '#E4E6E5',
+    const lfSig = s.lfSig || null, lfWhen = s.lfWhen || 'any', lfFitMin = s.lfFitMin || 0;
+    const lfMenu = s.lfMenu || null;
+    const lfHidden = s.lfHidden || {};
+    const lfFitCols = (n) => ({ fitFg: n >= 90 ? '#146B33' : n >= 80 ? '#0E7D93' : '#8B968F',
+      fitBg: n >= 90 ? '#EAF5EE' : n >= 80 ? '#E2F3F6' : '#F2F3F2',
+      fitBd: n >= 90 ? '#CFE8D8' : n >= 80 ? '#BFE3EB' : '#E4E6E5' });
+    const lfTier = {}; LFTYPES.forEach((t) => { lfTier[t[0]] = t[3]; });
+    const lfOnTypes = LFTYPES.filter((t) => t[3] === 'core' || bpOn);
+    const lfOffTypes = LFTYPES.filter((t) => t[3] === 'bp' && !bpOn);
+    const lfAll = LF.filter((r) => !lfHidden[r.n] && (lfTier[r.type] === 'core' || bpOn));
+    const lfToday = lfAll.filter((r) => r.when === 'today').length;
+    const lfShown = lfAll.filter((r) => (!lfSig || r.type === lfSig)
+      && (lfWhen === 'any' || r.when === lfWhen) && r.fitN >= lfFitMin);
+    const lfMk = (r) => {
+      const rv = !!s.added[r.n];
+      return { ...r, ...lfFitCols(r.fitN), spine: r.when === 'today' ? '#D9A82B' : '#CFE8D8',
+        locked: !rv, revealed: rv,
+        chFg: r.warm ? '#146B33' : '#8A6D1A', chBg: r.warm ? '#EAF5EE' : '#F7EFDA',
+        chBd: r.warm ? '#CFE8D8' : '#EAD9A8',
+        channel: r.warm ? 'any channel she used' : 'email ok · no call consent',
         open: () => this.setState({ over: { t: 'lead', k: r.n } }),
-        send: () => this.flash(r.n + ' sent to a campaign'),
-        addL: on ? 'Added ✓' : 'Add', addFg: on ? '#146B33' : '#0E7D93',
-        addBg: on ? '#EAF5EE' : '#E2F3F6', addBd: on ? '#CFE8D8' : '#BFE3EB',
-        add: () => { this.setState((x) => ({ added: { ...x.added, [r.n]: !x.added[r.n] } }));
-          this.flash(on ? 'Removed from list' : r.n + ' added'); } };
+        reveal: () => { this.setState((x) => ({ added: { ...x.added, [r.n]: true } }));
+          this.flash(r.n.split(' ')[0] + ' revealed · 1 credit'); },
+        hide: () => { this.setState({ lfHidden: { ...lfHidden, [r.n]: true } });
+          this.flash('Hidden — she will stop surfacing people like this'); },
+        send: () => this.flash(r.n + ' sent to a campaign') };
+    };
+    const lfGroups = [['today', 'TODAY', '#D9A82B'], ['week', 'EARLIER THIS WEEK', '#CFE8D8']]
+      .filter((g) => lfShown.some((r) => r.when === g[0]))
+      .map((g) => ({ label: g[1] + ' · ' + lfShown.filter((r) => r.when === g[0]).length, dot: g[2],
+        rows: lfShown.filter((r) => r.when === g[0]).map(lfMk) }));
+    const lfCounts = {}; LFTYPES.forEach((t) => { lfCounts[t[0]] = lfAll.filter((r) => r.type === t[0]).length; });
+    const lfMenuOpt = (on, l, n, go) => ({ l, n: String(n), go, tick: on ? '✓' : '',
+      bg: on ? '#EAF5EE' : 'transparent', bx: on ? '#EAF5EE' : '#F4F6F5', bxBd: on ? '#CFE8D8' : '#DFE3E1' });
+    const lfPick = (open, on) => ({ open, fg: on || open ? '#146B33' : '#5A6660',
+      bg: on || open ? '#EAF5EE' : '#FCFCFC', bd: on || open ? '#CFE8D8' : '#E4E6E5' });
+    const lfTypeL = {}; LFTYPES.forEach((t) => { lfTypeL[t[0]] = t[1]; });
+    const lfCount2 = (sig, when, fitMin) => lfAll.filter((r) => (!sig || r.type === sig)
+      && (when === 'any' || r.when === when) && r.fitN >= fitMin).length;
+    const lfPickers = [
+      { l: lfWhen === 'today' ? 'When · today' : lfWhen === 'week' ? 'When · this week' : 'When · anytime',
+        head: 'WHEN IT FIRED', w: '208px', hasLocked: false, ...lfPick(lfMenu === 'when', lfWhen !== 'any'),
+        go: () => this.setState({ lfMenu: lfMenu === 'when' ? null : 'when' }),
+        opts: [['any', 'Anytime'], ['today', 'Today'], ['week', 'Earlier this week']].map(([k, l]) =>
+          lfMenuOpt(lfWhen === k, l, lfCount2(lfSig, k, lfFitMin), () => this.setState({ lfWhen: k, lfMenu: null }))) },
+      { l: lfFitMin ? 'Fit · ' + lfFitMin + '+' : 'Fit · any', head: 'FIT AGAINST YOUR BRIEF', w: '208px',
+        hasLocked: false, ...lfPick(lfMenu === 'fit', !!lfFitMin),
+        go: () => this.setState({ lfMenu: lfMenu === 'fit' ? null : 'fit' }),
+        opts: [[0, 'Any fit'], [80, '80 and above'], [90, '90 and above']].map(([n, l]) =>
+          lfMenuOpt(lfFitMin === n, l, lfCount2(lfSig, lfWhen, n), () => this.setState({ lfFitMin: n, lfMenu: null }))) },
+    ];
+    // ---------- all who fit: the standing pool, cheapest-first ----------
+    const lfBand = s.lfBand || 'yours';
+    const LFPOOL = {
+      yours: { tag: 'ALREADY YOURS', n: '312', cost: 'FREE', free: true,
+        sub: 'Patients and enquiries on file',
+        head: 'ALREADY YOURS · 312 · DETAILS ON FILE',
+        rows: [
+          { n: 'Nadia Fowler', ini: 'NF', fit: '91 fit', fitN: 91, source: 'YOUR RECORDS', onFile: true,
+            about: '38 · Austin', why: ['Implant consult 2024', 'Inside your radius'], logoBg: '#EAF5EE', logoFg: '#146B33' },
+          { n: 'Tomas Ruiz', ini: 'TR', fit: '82 fit', fitN: 82, source: 'YOUR RECORDS', onFile: true,
+            about: '51 · Austin', why: ['Asked about financing', 'Never booked'], logoBg: '#E2F3F6', logoFg: '#0E7D93' },
+          { n: 'Grace Adeyemi', ini: 'GA', fit: '80 fit', fitN: 80, source: 'YOUR RECORDS', onFile: true,
+            about: '44 · Pflugerville', why: ['Whitening in 2023', 'Opted in to email'], logoBg: '#F7EFDA', logoFg: '#8A6D1A' },
+        ] },
+      strong: { tag: 'STRONG FIT · 90+', n: '240', cost: '1 CR', free: false,
+        sub: 'Look most like your yeses',
+        head: 'STRONG FIT · 240 · 90 AND ABOVE',
+        rows: [
+          { n: 'Household · Mueller, 78723', ini: 'JM', fit: '94 fit', fitN: 94, source: 'MOVER LIST', onFile: false,
+            about: 'Family of four', why: ['2 miles away', 'Owns the home', 'No dentist on record'], logoBg: '#EAF5EE', logoFg: '#146B33' },
+          { n: 'Household · Hyde Park, 78751', ini: 'HP', fit: '92 fit', fitN: 92, source: 'MOVER LIST', onFile: false,
+            about: 'Couple, 30s', why: ['3 miles away', 'Owns the home'], logoBg: '#E2F3F6', logoFg: '#0E7D93' },
+          { n: 'Household · Crestview, 78757', ini: 'CR', fit: '90 fit', fitN: 90, source: 'MOVER LIST', onFile: false,
+            about: 'Couple, retired', why: ['Implant age band', 'Owns the home'], logoBg: '#F7EFDA', logoFg: '#8A6D1A' },
+        ] },
+      good: { tag: 'GOOD FIT · 80–89', n: '1,180', cost: '1 CR', free: false,
+        sub: 'Right area, fewer matching facts',
+        head: 'GOOD FIT · 1,180 · 80 TO 89',
+        rows: [
+          { n: 'Household · Zilker, 78704', ini: 'ZC', fit: '86 fit', fitN: 86, source: 'MOVER LIST', onFile: false,
+            about: 'Family of three', why: ['5 miles away', 'Rents'], logoBg: '#EAF5EE', logoFg: '#146B33' },
+          { n: 'Household · Georgetown, 78626', ini: 'GT', fit: '83 fit', fitN: 83, source: 'MOVER LIST', onFile: false,
+            about: 'Couple, 40s', why: ['Owns the home'], logoBg: '#E2F3F6', logoFg: '#0E7D93' },
+        ] },
+      try: { tag: 'WORTH A TRY · 70–79', n: '2,448', cost: '1 CR', free: false,
+        sub: 'Edge of your brief — lower odds',
+        head: 'WORTH A TRY · 2,448 · 70 TO 79',
+        rows: [
+          { n: 'Household · Round Rock, 78664', ini: 'RR', fit: '76 fit', fitN: 76, source: 'MOVER LIST', onFile: false,
+            about: 'Single household', why: ['8 miles away'], logoBg: '#F2F3F2', logoFg: '#5A6660' },
+          { n: 'Household · Kyle, 78640', ini: 'KY', fit: '72 fit', fitN: 72, source: 'MOVER LIST', onFile: false,
+            about: 'Family of five', why: ['Just inside your radius'], logoBg: '#F2F3F2', logoFg: '#5A6660' },
+        ] },
+    };
+    const lfBandKeys = ['yours', 'strong', 'good', 'try'];
+    const B = LFPOOL[lfBand];
+    const lfBands = lfBandKeys.map((k) => {
+      const b = LFPOOL[k], on = lfBand === k;
+      return { tag: b.tag, n: b.n, sub: b.sub, cost: b.cost,
+        bg: on ? '#EAF5EE' : '#FCFCFC', bd: on ? '#CFE8D8' : '#E9EAEA',
+        tagFg: on ? '#146B33' : '#8B968F', numFg: on ? '#146B33' : '#101613',
+        costFg: b.free ? '#146B33' : '#A9B2AC',
+        go: () => this.setState({ lfBand: k }) };
     });
+    const LFPOOLROWS = lfBandKeys.reduce((a, k) => a.concat(LFPOOL[k].rows.map((r) => ({
+      ...r, when: 'pool', type: r.onFile ? 'quiet' : 'moved', warm: !!r.onFile,
+      receipt: r.onFile ? 'On file already, and a close match to your brief' : 'Matches your brief — no signal firing yet',
+      about: r.about + ' · ' + r.why.join(' · '),
+    }))), []);
+    const lfFitRows = B.rows.map((r) => ({ ...r, ...lfFitCols(r.fitN),
+      open: (e) => { if (e && e.stopPropagation) e.stopPropagation(); this.setState({ over: { t: 'lead', k: r.n } }); },
+      st: r.onFile ? 'Details on file' : 'No signal yet',
+      stFg: r.onFile ? '#146B33' : '#8B968F',
+      btn: r.onFile ? '→ Campaign' : 'Reveal · 1 cr',
+      btnFg: '#fff', btnBg: '#146B33', btnBd: '#146B33',
+      act: (e) => { if (e && e.stopPropagation) e.stopPropagation();
+        this.flash(r.onFile ? r.n + ' sent to a campaign' : r.n + ' revealed · 1 credit'); } }));
     // ---------- legacy (direct) people search ----------
     const lgQ = s.lgQ == null ? 'dental practice owner' : s.lgQ;
     const lgSel = s.lgSel || {};
@@ -4859,20 +5209,31 @@ class Component extends DCLogic {
            { l: 'Not now', bg: '#F2F3F2', fg: '#3E4B44', bd: '#E4E6E5', go: () => this.setState({ over: null }) }],
       rows: [], timeline: [], chips: [] });
     const leadDrawer = (k) => {
-      const r = LF.find((x) => x.n === k) || LF[0];
-      return { isInt: true, name: r.n, acct: r.sub, ic: r.ini, icBg: r.logoBg, icBd: r.logoBg, icFg: r.logoFg,
-        stL: r.fit + ' · ' + r.signal, stFg: SIG[r.s][0], stBg: SIG[r.s][1], stBd: SIG[r.s][2],
+      const r = LF.find((x) => x.n === k) || LFPOOLROWS.find((x) => x.n === k) || LF[0];
+      const seen = !!(s.added || {})[r.n];
+      const paid = lfTier[r.type] === 'bp';
+      return { isInt: true, name: r.n, acct: r.about, ic: r.ini, icBg: r.logoBg, icBd: r.logoBg, icFg: r.logoFg,
+        stL: r.fit, stFg: '#146B33', stBg: '#EAF5EE', stBd: '#CFE8D8',
         does: [
-          'Why she scored it ' + r.fit.replace(' fit', '') + ': owner-run, inside your radius, staff count in the band your best twelve share.',
-          bpOn ? 'BuyerPing signal: ' + r.signal + '. That is the reason her opener would lead with timing.' : r.signal === 'Matches ICP' ? 'No intent signal — this one is a fit match only.' : 'Signal seen without BuyerPing: ' + r.signal + '. Connect BuyerPing for the full picture.',
-          'Contact is not revealed yet. Revealing costs one credit and puts them in your contacts.',
+          'What she saw: ' + r.receipt + '.',
+          'Why it scored ' + r.fit.replace(' fit', '') + ': ' + r.about + ' — close to the people who already say yes to you.',
+          r.warm ? 'This is your own record, so she may reply in any channel they used.'
+            : 'Licensed data, so she may email them or put them in ads — she may not call or text until they have said yes.',
+          seen ? 'Details are revealed and they are in your contacts.'
+            : 'Details are not revealed yet. One credit shows the email and phone, and adds them to your contacts.',
         ],
-        touch: [['Fit score', r.fit.replace(' fit', ''), 'against your closed business'], ['Reveal cost', '1 credit', 'name, role, email, direct line'], ['Nearest match', 'Dr. Alvarez', 'your best customer, same profile']],
-        intActs: [
-          { l: 'Reveal and add to a list', bg: '#146B33', fg: '#fff', bd: '#146B33', go: () => { this.setState({ over: null, added: { ...s.added, [r.n]: true } }); this.flash(r.n + ' revealed · 1 credit'); } },
-          { l: 'Send straight to a campaign', bg: '#E2F3F6', fg: '#0E7D93', bd: '#BFE3EB', go: () => { this.setState({ over: null }); this.flash(r.n + ' sent to a campaign'); } },
-          { l: 'Not a fit — hide it', bg: '#fff', fg: '#B0483A', bd: '#F0D2CB', go: () => { this.setState({ over: null }); this.flash('Hidden. Ada will stop surfacing this profile.'); } },
-        ], rows: [], timeline: [], chips: [] };
+        touch: [
+          { n: 'Fit', v: r.fit.replace(' fit', ''), sub: 'against your own closed business' },
+          { n: 'Where it came from', v: r.source, sub: paid ? 'a BuyerPing signal' : 'included in your plan' },
+          { n: 'Reveal', v: seen ? 'Done' : '1 credit', sub: 'email and phone, added to contacts' },
+        ],
+        intActs: seen
+          ? [{ l: 'Send straight to a campaign', bg: '#146B33', fg: '#fff', bd: '#146B33', go: () => { this.setState({ over: null }); this.flash(r.n + ' sent to a campaign'); } },
+             { l: 'Add to a list', bg: '#E2F3F6', fg: '#0E7D93', bd: '#BFE3EB', go: () => { this.setState({ over: null }); this.flash(r.n + ' added to a list'); } },
+             { l: 'Not a fit — hide it', bg: '#fff', fg: '#B0483A', bd: '#F0D2CB', go: () => { this.setState({ over: null, lfHidden: { ...lfHidden, [r.n]: true } }); this.flash('Hidden. She will stop surfacing this profile.'); } }]
+          : [{ l: 'Reveal · 1 credit', bg: '#146B33', fg: '#fff', bd: '#146B33', go: () => { this.setState({ over: null, added: { ...(s.added || {}), [r.n]: true } }); this.flash(r.n + ' revealed · 1 credit'); } },
+             { l: 'Not a fit — hide it', bg: '#fff', fg: '#B0483A', bd: '#F0D2CB', go: () => { this.setState({ over: null, lfHidden: { ...lfHidden, [r.n]: true } }); this.flash('Hidden. She will stop surfacing this profile.'); } }],
+        rows: [], timeline: [], chips: [] };
     };
     const intDrawer = (k) => {
       const d = INTDET[k], base = INTS.find((i) => i.n === k) || INTS[0], sc = IST[d.st];
@@ -5368,7 +5729,7 @@ class Component extends DCLogic {
       contacts: ['312 PEOPLE', 'Contacts'], proposals: ['4 DOCUMENTS', 'Proposals'],
       forms: ['3 FORMS · 43 RESPONSES', 'Forms'],
       chatbot: [wcOn ? 'INBOUND CHANNEL · ON YOUR SITE' : 'INBOUND CHANNEL · NOT INSTALLED', 'Site agent'],
-      automations: ['5 RULES · 3 ON', 'Automations'], lead: ['LEAD FINDER', 'Find who fits'],
+      automations: ['5 RULES · 3 ON', 'Automations'], lead: ['LEAD FINDER · WATCHING', "Who's looking for a dentist"],
       camps: [String(Object.keys(CAMPS).length) + ' CAMPAIGNS', 'Campaigns'],
       credits: ['WORKSPACE', 'Credits and billing'],
       newcamp: ['SET IT UP ONCE', 'New campaign'],
@@ -5390,7 +5751,7 @@ class Component extends DCLogic {
       'campaign:settings': ['Ada · settings', 'Ask her to adjust how she works…', ['Tighten the guardrails', 'Change the selling arc', 'What are my gaps?']],
       activity: ['Ada · activity', 'Ask what she did…', ['What did you decide alone?', 'Anything I should undo?', 'Summarise overnight']],
       contacts: ['Ada · contacts', 'Ask her to segment or import…', ['Upload a CSV', 'Segment my customers', 'Who is worth a call?']],
-      lead: ['Ada · lead finder', 'Describe who you want…', ['Practices like my best customers', 'Add the top 5 to a list', 'Who is hiring?']],
+      lead: ['Ada · lead finder', 'Tell her what to watch…', ['People who just moved into 78723', 'Who is worth reaching first?', 'Watch for wedding season']],
       automations: ['Ada · automations', 'Ask her to build a rule…', ['Build one for no-shows', 'What should I automate?', 'Turn off the noisy one']],
       forms: ['Ada · forms', 'Ask her to build a form…', ['Build a booking form', 'Where do responses go?', 'Add a phone field']],
       chatbot: ['Ada · site agent', 'Ask her to build an assistant…', ['Build one for the open day', 'Change the greeting', 'What does it get wrong?']],
@@ -5411,7 +5772,7 @@ class Component extends DCLogic {
       'campaign:settings': ['Acting inside limits', 'Two knowledge gaps are costing you the insurance question nine times a month.', [['Fix gaps', 'What are my gaps?']]],
       activity: ['14 events', 'Three were her own calls — two suppressions and a cap. Nothing needs undoing.', [['Her calls', 'What did you decide alone?']]],
       contacts: ['312 people · 41 match your ICP', 'Adults 35+ within 15 miles who asked about implants. 41 fit and 12 are unworked.', [['Work the 41', 'Who is worth a call?']]],
-      lead: ['5 practices found', 'Ranked against your closed business, not keywords. Two are hiring.', [['Add all', 'Add the top 5 to a list']]],
+      lead: ['6 people waiting on you', 'Three arrived today — two just moved in nearby, one left a bad review for another practice.', [['Show today', 'Who is worth reaching first?']]],
       automations: ['5 rules · 3 on', 'The two off rules are worth about $4,800 a month between them.', [['Turn on', 'What should I automate?']]],
       forms: ['3 forms · 43 responses', 'The open-day form loses 18% on the phone field.', [['Fix it', 'Where do responses go?']]],
       chatbot: wcOn ? ['79 chats · 20 booked · $33.6k', 'She answers your site around the clock. Two questions have no source — insurance and parking — so she hands those to you instead of guessing.', [['Fill gaps', 'What does it get wrong?']]]
@@ -5701,8 +6062,108 @@ class Component extends DCLogic {
       autoRows, autoNew: () => this.setState({ adaOn: true, gb: { kind: 'auto', step: 0, a: {} } }),
       gbOn: !!gbDef, gb, gbRef: (el) => { this._gbEl = el; },
       adaChatOn: !gbDef, chatRef: (el) => { this._chatEl = el; },
-      lfRows, lfChips, lfHasResults: s.lfRan && lfMode !== 'legacy', lfIdle: lfMode === 'own' && !s.lfRan,
-      lfAdaMode: lfMode === 'ada', lfOwn: lfMode === 'own', lfLegacy: lfMode === 'legacy',
+      lfChips, lfGroups, lfFitRows, lfPickers,
+      lfMarket: lfMode === 'market', lfFit: lfMode === 'fit', lfLegacy: lfMode === 'legacy',
+      lfEmpty: lfMode === 'market' && lfGroups.length === 0,
+      lfHasFoot: lfMode === 'market' && lfGroups.length > 0,
+      lfEmptyT: 'Nothing matches those filters',
+      lfEmptyB: 'Everything she found is still here — widen the signal type, the window or the fit floor to see it.',
+      lfWaiting: lfShown.length + ' WAITING ON YOU',
+      lfProvOpen: !!s.lfProvOpen,
+      lfProvL: s.lfProvOpen ? 'WATCHING SINCE MAR 4 ✕' : 'WATCHING SINCE MAR 4',
+      lfProvTg: () => this.setState({ lfProvOpen: !s.lfProvOpen }),
+      lfBrief: 'People within 25 miles of Austin who need implants, crowns or whitening — and can pay for it.',
+      lfBriefProv: 'Fit scored from your last 300 patients · watching new arrivals, life events and nearby dissatisfaction',
+      lfLockedRows: LFLOCKED.map((t) => ({ l: t[0], would: t[1] })),
+      lfWatchOpen: !!s.lfWatchOpen,
+      lfWTitle: 'People near you, worth reaching',
+      lfOnWatchTab: (s.lfWTab || 'watch') === 'watch', lfOnBpTab: s.lfWTab === 'bp',
+      lfWTabs: [['watch', 'Watching · ' + lfOnTypes.length], ['bp', bpOn ? 'BuyerPing · on' : 'BuyerPing']].map(([k, l]) => {
+        const on = (s.lfWTab || 'watch') === k;
+        return { l, fw: on ? '800' : '600', fg: on ? '#101613' : '#5A6660',
+          bg: on ? '#fff' : 'transparent', bd: on ? '#E4E6E5' : 'transparent',
+          go: () => this.setState({ lfWTab: k }) };
+      }),
+      lfWhenOpts: [['any', 'Anytime'], ['today', 'Today'], ['week', 'This week']].map(([k, l]) => {
+        const on = lfWhen === k;
+        return { l: l + ' · ' + lfCount2(lfSig, k, lfFitMin), fw: on ? '800' : '600',
+          fg: on ? '#146B33' : '#5A6660', bg: on ? '#EAF5EE' : '#FCFCFC',
+          bd: on ? '#CFE8D8' : '#E4E6E5', go: () => this.setState({ lfWhen: k }) };
+      }),
+      lfFitOpts: [[0, 'Any fit'], [80, '80 and above'], [90, '90 and above']].map(([n, l]) => {
+        const on = lfFitMin === n;
+        return { l: l + ' · ' + lfCount2(lfSig, lfWhen, n), fw: on ? '800' : '600',
+          fg: on ? '#146B33' : '#5A6660', bg: on ? '#EAF5EE' : '#FCFCFC',
+          bd: on ? '#CFE8D8' : '#E4E6E5', go: () => this.setState({ lfFitMin: n }) };
+      }),
+      lfBpAcct: bpOn ? 'On · watching three more kinds of moment' : 'Buyer intent · not on yet',
+      lfBpStL: bpOn ? 'On' : 'Adds real intent',
+      lfBpStFg: bpOn ? '#146B33' : '#8A6D1A', lfBpStBg: bpOn ? '#EAF5EE' : '#F7EFDA',
+      lfBpStBd: bpOn ? '#CFE8D8' : '#EAD9A8',
+      lfBpDoes: bpOn
+        ? ['Tells you who is actively looking right now — job posts, new sites, review dips, ad spend moving.',
+           'Signals land on the lead so Ada can open with a reason, not a cold hello.',
+           'You can filter a search down to people showing a specific signal.']
+        : ['Without it, Ada still matches on fit — who looks like your best customers. That works, and it is the default.',
+           'With it, she also knows who is moving right now: hiring, launching a site, spending more on ads, losing reviews.',
+           'The difference is timing. Same list, ordered by who is in the market this week.'],
+      lfBpStats: bpOn
+        ? [{ n: 'SIGNALS TODAY', v: '4', sub: 'across your search area' },
+           { n: 'LEADS REORDERED', v: '5', sub: 'by who is moving now' },
+           { n: 'COST', v: '2 credits', sub: 'per lead enriched with intent' }]
+        : [{ n: 'FIT MATCHING', v: 'Included', sub: 'works without BuyerPing' },
+           { n: 'INTENT SIGNALS', v: 'Locked', sub: 'needs BuyerPing on' },
+           { n: 'COST AFTER', v: '2 credits', sub: 'per lead enriched' }],
+      lfOnRows: lfOnTypes.map((t) => {
+        const on = lfSig === t[0];
+        return { l: t[1], why: t[2], n: String(lfAll.filter((r) => r.type === t[0]).length),
+          tierL: t[3] === 'bp' ? 'BUYERPING' : 'INCLUDED',
+          tierFg: t[3] === 'bp' ? '#8A6D1A' : '#5A6660', tierBg: t[3] === 'bp' ? '#F7EFDA' : '#F2F3F2',
+          tierBd: t[3] === 'bp' ? '#EAD9A8' : '#E4E6E5',
+          bg: on ? '#EAF5EE' : 'transparent', bx: on ? '#EAF5EE' : '#F4F6F5', bxBd: on ? '#CFE8D8' : '#DFE3E1',
+          tick: on ? '✓' : '',
+          go: () => this.setState({ lfSig: on ? null : t[0] }) };
+      }),
+      lfOffRows: lfOffTypes.map((t) => ({ l: t[1], would: t[4] })).concat(bpOn ? LFLOCKED.map((t) => ({ l: t[0], would: t[1] })) : []),
+      lfHasOff: (lfOffTypes.length + (bpOn ? LFLOCKED.length : 0)) > 0,
+      lfBpOn: bpOn,
+      lfOffHead: bpOn ? 'NOT AVAILABLE YET' : 'NOT WATCHING YET',
+      lfOffFoot: bpOn
+        ? 'These are on the roadmap, not on your plan. Counts are what she can see without contacting anyone.'
+        : 'Counts are what she can see without contacting anyone. Nothing is watched, and nobody is contacted, until you switch it on.',
+      lfBpBtnL: bpOn ? 'Turn BuyerPing off' : 'Turn on BuyerPing',
+      lfBpToggle: () => { this.setState({ bpOn: !bpOn, lfSig: null });
+        this.flash(bpOn ? 'BuyerPing off — she keeps watching your own records and your site'
+          : 'BuyerPing on — three more kinds of moment, $49/mo from your plan'); },
+      lfBpPrice: bpOn ? 'On · billed with your plan' : '$49 / mo · PROPOSED',
+      lfBpNote: 'Price comes from your plan, not from this page',
+      lfBasis: 'Movers and life events are licensed data: she may email them and put them in ads, but she may not call or text until they have said yes. Your own records and your own visitors can be replied to in any channel they used.',
+      lfTopics: ['implants', 'whitening', 'Invisalign', 'Austin · 25 mi', '78723'],
+      lfSigChip: lfSig ? 'Signal: ' + lfTypeL[lfSig] : '', lfHasSigChip: !!lfSig,
+      lfClearSig: () => this.setState({ lfSig: null }),
+      lfSkipped: '14 held back for you — 9 are already your patients, 3 asked not to be contacted, 2 are mid-treatment.',
+      lfTease: bpOn ? LFLOCKED.length + ' more kinds of moment are not available yet.'
+        : lfOffTypes.length + ' more kinds of moment could be watching for you — movers, life events, people unhappy with their practice.',
+      lfShowSkipped: () => this.flash('14 held back — 9 patients, 3 do-not-contact, 2 mid-treatment'),
+      lfWatch: () => this.setState({ lfWatchOpen: !s.lfWatchOpen, lfWTab: 'watch', lfMenu: null }),
+      lfSeeBp: () => this.setState({ lfWatchOpen: true, lfWTab: 'bp', lfMenu: null }),
+      lfWatchClose: () => this.setState({ lfWatchOpen: false }),
+      lfEditBrief: () => this.flash('Editing your brief — who she watches for'),
+      lfBands, lfBandHead: B.head,
+      lfPoolN: '4,180', lfPoolUnit: 'households fit your brief',
+      lfPoolWhy: 'Scored against your last 300 patients — implants, crowns and whitening, within 25 miles of Austin. The whole market that fits you, whether or not anything is happening yet.',
+      lfWhyOpen: !!s.lfWhyOpen, lfWhyL: s.lfWhyOpen ? 'HOW THIS IS SCORED ✕' : 'HOW THIS IS SCORED',
+      lfWhyTg: () => this.setState({ lfWhyOpen: !s.lfWhyOpen, lfExclOpen: false }),
+      lfExclOpen: !!s.lfExclOpen, lfExclL: s.lfExclOpen ? '14 HELD BACK ✕' : '14 HELD BACK',
+      lfExclTg: () => this.setState({ lfExclOpen: !s.lfExclOpen, lfWhyOpen: false }),
+      lfPoolExcl: '14 held back: 9 are already your patients, 3 asked not to be contacted, 2 are mid-treatment.',
+      lfBulkT: B.free ? 'All 312 already have details' : 'Revealing all ' + B.n + ' costs ' + B.n + ' credits',
+      lfBulkSub: B.free ? 'You already hold their details and consent.' : 'Or reveal a few from the list first.',
+      lfBulkBtn: B.free ? 'Add 312 to a campaign' : 'Reveal and add ' + B.n + ' · ' + B.n + ' cr',
+      lfBulkGo: () => this.flash(B.free ? '312 added to a new campaign — no credits spent'
+        : B.n + ' queued — she reveals as credits allow'),
+      lfMoreLine: 'Showing the top ' + B.rows.length + ' of ' + B.n + ' by fit.',
+      lfShowMore: () => this.flash('Loading more of this band'),
       lgFacets, lgRows, lgQ, lgSetQ: (e) => this.setState({ lgQ: e.target.value }),
       lgCount: String(LGPEOPLE.length) + ' PEOPLE', lgHasSel: lgSelCount > 0, lgSelL: String(lgSelCount) + ' selected',
       lgSaved: LGSAVED.map((l) => ({ l, go: () => { this.setState({ lgQ: l }); this.flash('Loaded “' + l + '”'); } })),
@@ -5714,30 +6175,21 @@ class Component extends DCLogic {
       lgRevealAll: () => { const all = {}; LGPEOPLE.forEach((r) => { if (lgSel[r.n]) all[r.n] = true; });
         this.setState({ lgRev: { ...lgRev, ...all } }); this.flash('Revealed ' + lgSelCount + ' · ' + lgSelCount + ' credits'); },
       lgSaveSearch: () => this.flash('Search saved — Ada watches it for new matches'),
-      lfModes: [['ada', 'Ada\u2019s matches'], ['own', 'Search it yourself'], ['legacy', 'Direct search']].map(([k, l]) => ({ l,
-        go: () => this.setState({ lfMode: k, lfRan: k === 'ada' ? s.lfRan : false }),
+      lfAdaModes: [['market', 'In the market · ' + lfAll.length], ['fit', 'All who fit · 4,180']].map(([k, l]) => ({ l,
+        go: () => this.setState({ lfMode: k, lfMenu: null }),
+        fw: lfMode === k ? '800' : '600', fg: lfMode === k ? '#fff' : '#3E4B44',
+        bg: lfMode === k ? '#101613' : '#FCFCFC', bd: lfMode === k ? '#101613' : '#E4E6E5',
+        hasBadge: k === 'market' && lfToday > 0, badge: '🔥' })),
+      lfOwnModes: [['legacy', 'Direct search']].map(([k, l]) => ({ l,
+        go: () => this.setState({ lfMode: k, lfMenu: null }),
         fw: lfMode === k ? '800' : '600', fg: lfMode === k ? '#fff' : '#3E4B44',
         bg: lfMode === k ? '#101613' : '#FCFCFC', bd: lfMode === k ? '#101613' : '#E4E6E5' })),
-      lfBP: bpOn
-        ? { l: 'BuyerPing connected', fg: '#146B33', bg: '#EAF5EE', bd: '#CFE8D8', dot: '#146B33', go: () => this.setState({ over: { t: 'bp' } }) }
-        : { l: 'Add buyer intent', fg: '#8A6D1A', bg: '#F7EFDA', bd: '#EAD9A8', dot: '#D9A82B', go: () => this.setState({ over: { t: 'bp' } }) },
-      lfIcp: bpOn
-        ? 'Your best twelve customers are owner-run practices with five to twenty-five staff, inside twenty-five miles, that answer the phone. BuyerPing says four of them are showing intent right now.'
-        : 'Your best twelve customers are owner-run practices with five to twenty-five staff, inside twenty-five miles, that answer the phone. I built the search from them — no keywords needed.',
-      lfIcpFacts: ['12 customers read', '5–25 staff', 'owner-run', 'within 25 mi', bpOn ? '4 showing intent' : 'intent not connected'],
-      lfFields: LFFIELDS.map(([label, k, opts]) => ({ label, v: lfF[k],
-        bd: k === 'intent' && !bpOn ? '#EAD9A8' : '#ECEDEC', fg: k === 'intent' && !bpOn ? '#8A6D1A' : '#101613',
-        go: () => { if (k === 'intent' && !bpOn) { this.setState({ over: { t: 'bp' } }); return; }
-          const i = opts.indexOf(lfF[k]); this.setState({ lfF: { ...lfF, [k]: opts[(i + 1) % opts.length] } }); } })),
-      lfRun: () => { this.setState({ lfRan: true }); this.flash('5 found · 1 credit per contact revealed'); },
-      lfReset: () => this.setState({ lfF: null, lfRan: false }),
-      lfCost: 'Searching is free. One credit each time you reveal a contact.',
-      lfSendAll: () => this.flash('5 sent to a new campaign — Ada is drafting the opener'),
-      lfQuery: s.lfRan ? 'Dental practices in Austin like your best customers' : 'Describe who you want to reach…',
-      lfFg: s.lfRan ? '#101613' : '#8B968F', lfBtn: s.lfRan ? 'Search again' : 'Search',
-      lfCount: lfRows.length + ' PRACTICES FOUND',
-      lfSearch: () => { this.setState({ lfRan: true }); this.flash('Ada ran the search'); },
-      lfAddAll: () => { const all = {}; LF.forEach((r) => { all[r.n] = true; }); this.setState({ added: all }); this.flash('All 5 added to a new list'); },
+      lfModes: [['market', 'In the market · ' + lfAll.length], ['fit', 'All who fit'], ['legacy', 'Direct search']].map(([k, l]) => ({ l,
+        go: () => this.setState({ lfMode: k, lfMenu: null }),
+        fw: lfMode === k ? '800' : '600', fg: lfMode === k ? '#fff' : '#3E4B44',
+        bg: lfMode === k ? '#101613' : '#FCFCFC', bd: lfMode === k ? '#101613' : '#E4E6E5' })),
+      lfSendAll: () => this.flash('Sent to a new campaign — Ada is drafting the opener'),
+      lfAddAll: () => this.flash('Added to a new list'),
       dock, ed, wsRows, autoModes, chRows, grRows, voiceCards, cap: String(s.cap),
       capUp: () => this.setState((x) => ({ cap: Math.min(400, x.cap + 20) })),
       capDown: () => this.setState((x) => ({ cap: Math.max(20, x.cap - 20) })),

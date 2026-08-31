@@ -16,6 +16,7 @@ import { BackofficeModule } from "./backoffice/backoffice.module";
 import { KnowledgeModule } from "./knowledge/knowledge.module";
 import { MeController } from "./me/me.controller";
 import { WorkspacesController } from "./workspaces/workspaces.controller";
+import { WorkspaceSettingsController } from "./workspaces/workspace-settings.controller";
 import { PlannerModule } from "./planner/planner.module";
 import { SystemModule } from "./system/system.module";
 import { ApprovalsModule } from "./approvals/approvals.module";
@@ -65,6 +66,9 @@ import { BusOrInlinePublisher, EVENTS_PUBLISHER } from "./events/publisher";
     HealthController,
     MeController,
     WorkspacesController,
+    // B7.5: the settings WRITE layer — invites, membership changes,
+    // taught facts and number requests (SURFACE_SPEC_SETTINGS §11).
+    WorkspaceSettingsController,
     ContactsController,
     ContactsViewController,
     ContactFieldsController,

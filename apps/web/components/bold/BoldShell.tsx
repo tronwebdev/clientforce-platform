@@ -636,9 +636,14 @@ export function BoldShell({
             ) : null}
             {surface === "lead" ? <BoldLeadFinderView onOpenDrawer={setDrawer} flash={flash} /> : null}
             {surface === "wssettings" ? (
-              <BoldWsSettingsView onOpenCredits={() => setSurface("credits")} flash={flash} />
+              <BoldWsSettingsView
+                onOpenCredits={() => setSurface("credits")}
+                onOpenIntegrations={() => selectDock("integrations")}
+                onOpenCampaign={selectCampaign}
+                flash={flash}
+              />
             ) : null}
-            {surface === "credits" ? <BoldCreditsView /> : null}
+            {surface === "credits" ? <BoldCreditsView flash={flash} /> : null}
             {surface === "analytics" ? <BoldStatsView /> : null}
             {surface === "integrations" ? <BoldIntegrationsView flash={flash} onCount={setIntCount} /> : null}
             {gb ? (

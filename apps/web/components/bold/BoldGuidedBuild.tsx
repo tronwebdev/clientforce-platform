@@ -263,7 +263,7 @@ export function BoldGuidedBuild({
 
   return (
     <>
-      <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(10,14,12,.16)", zIndex: 80 }} />
+      <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "var(--cvb-scrim)", zIndex: 80 }} />
       <div data-testid="bold-gb" style={{ position: "fixed", left: "50%", transform: "translateX(-50%)", bottom: 0, width: "min(640px, 94%)", height: "74%", background: "var(--cvb-card)", borderRadius: "22px 22px 0 0", border: "1px solid var(--cvb-line)", borderBottom: "none", zIndex: 81, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "16px 20px 12px" }}>
           <span style={{ width: 30, height: 30, borderRadius: 10, background: "var(--cvb-gradient-signature, linear-gradient(135deg,#36D7ED,#35E834 55%,#D0F56B))", flex: "none" }} />

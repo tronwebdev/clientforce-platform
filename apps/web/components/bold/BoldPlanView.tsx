@@ -455,7 +455,7 @@ function PlanSheet({
 
   return (
     <div
-      style={{ position: "absolute", inset: 0, background: "rgba(10,14,12,.14)", display: "flex", justifyContent: "flex-end", zIndex: 6 }}
+      style={{ position: "absolute", inset: 0, background: "var(--cvb-scrim)", display: "flex", justifyContent: "flex-end", zIndex: 6 }}
       onClick={onClose}
     >
       <div

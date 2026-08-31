@@ -150,4 +150,19 @@
   --cvb-t-canvas-approach: 0.4s;
   --cvb-t-dock: 0.38s;
   --cvb-t-tail: 0.3s;
+  /* ---- B7.5 settings/write-layer style contract (SURFACE_SPEC_SETTINGS §2) ----
+     The §2 contract states its own elevation, panel gradient, well border and
+     scrim. They sit BESIDE the §Bold set rather than replacing it: §Bold's
+     shadow-card stays the console's card lift; these are the settings-family
+     values the spec pins literally, and the scrim is console-wide. */
+  --cvb-shadow-two-layer:
+    0 1px 2px rgba(16, 22, 19, 0.04), 0 18px 34px -22px rgba(16, 22, 19, 0.1);
+  --cvb-gradient-panel: linear-gradient(180deg, #ffffff, #f7faf8);
+  --cvb-panel-quiet: #fcfcfc;
+  --cvb-well-fill-2: #f4f6f5;
+  --cvb-well-line-2: #dfe3e1;
+  /* Every popover, drawer and sheet dims the page behind it — one z-layer
+     below the surface it belongs to, click-to-close. */
+  --cvb-scrim: rgba(16, 22, 19, 0.26);
+  --cvb-r-drawer: 21px;
 }
