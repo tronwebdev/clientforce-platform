@@ -33,8 +33,8 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const UNIT = process.argv[2] ?? "b1";
-if (!["b1", "b2", "b25", "b26", "b3", "b3b", "b3c1", "b3c2", "b3d", "b4", "b45", "b5", "b6", "b7", "b75", "b8", "b9"].includes(UNIT)) {
-  console.error(`Unknown unit "${UNIT}" — this tool knows b1, b2, b25, b26, b3, b3b, b3c1, b3c2, b3d, b4, b45, b5, b6, b7, b75, b8 and b9.`);
+if (!["b1", "b2", "b25", "b26", "b3", "b3b", "b3c1", "b3c2", "b3d", "b4", "b45", "b5", "b6", "b65", "b7", "b75", "b8", "b9"].includes(UNIT)) {
+  console.error(`Unknown unit "${UNIT}" — this tool knows b1, b2, b25, b26, b3, b3b, b3c1, b3c2, b3d, b4, b45, b5, b6, b65, b7, b75, b8 and b9.`);
   process.exit(1);
 }
 const OUT = join(ROOT, "docs", "fidelity", UNIT);
@@ -643,6 +643,144 @@ if (UNIT === "b75") {
 }
 
 /* ---------------------------------------------------------------- the b7 set */
+
+if (UNIT === "b65") {
+  // Owner ruling (B6.5 review fix 3): capture against the SEEDED demo, not a
+  // fresh tenant. The first pass built its own empty workspace, so the rail
+  // read CAMPAIGNS 0 / 0 facts / CREDITS 0 and every row looked identical —
+  // frames that cannot show the surface working. The seeded demo is a dental
+  // business with campaigns, facts, gaps, credits and a real brief (Austin,
+  // 5-25 staff, Owner / Practice Manager), which is what makes the fits differ
+  // and the receipts read.
+  //
+  // It has no IntentSignal rows, because that table is only ever written by
+  // the live bus — so one TRANSIENT first-party signal is emitted through the
+  // real consumer for the run and removed afterwards. Capture fixture, not
+  // seed data: the seed script is untouched.
+  const signal = (mode) => {
+    try {
+      execSync(`pnpm --filter @clientforce/leads exec tsx scripts/capture-signal.ts ${mode}`, {
+        cwd: ROOT,
+        stdio: "pipe",
+        env: {
+          ...process.env,
+          DATABASE_URL:
+            process.env.DATABASE_URL ?? "postgresql://postgres:postgres@localhost:5432/clientforce",
+        },
+      });
+    } catch (err) {
+      console.warn(`[b65] capture signal ${mode} failed: ${(err?.message ?? err).toString().split("\n")[0]}`);
+    }
+  };
+  signal("off");
+  signal("on");
+
+  await run("prototype-b65", async () => {
+    const p = await page({ width: 1440, height: 900 });
+    await freshProto(p);
+    await p.locator('[title^="Lead finder"]').first().click();
+    await p.waitForTimeout(900);
+    await shot(p, "proto-lead-market-1440x900");
+    await p.getByText("What she watches", { exact: true }).first().click();
+    await p.waitForTimeout(700);
+    await shot(p, "proto-lead-watch-1440x900");
+    await p.getByText("BuyerPing", { exact: true }).first().click();
+    await p.waitForTimeout(600);
+    await shot(p, "proto-lead-buyerping-1440x900");
+    await p.keyboard.press("Escape");
+    await p.locator("body").click({ position: { x: 8, y: 8 } });
+    await p.waitForTimeout(400);
+    await p.getByText("All who fit", { exact: false }).first().click();
+    await p.waitForTimeout(800);
+    await shot(p, "proto-lead-pool-1440x900");
+    await p.getByText("Direct search", { exact: true }).first().click();
+    await p.waitForTimeout(700);
+    await shot(p, "proto-lead-direct-1440x900");
+    await p.context().close();
+  });
+
+  await run("build-b65", async () => {
+    const p = await page({ width: 1440, height: 900 });
+    try {
+      await signInBuild(p);
+      await p.goto(`${BASE}/bold`);
+      await p.getByTestId("bold-root").waitFor({ timeout: 20_000 });
+      await p.addStyleTag({ content: "nextjs-portal{display:none!important}" });
+      await p.waitForTimeout(700);
+      const later = p.getByText("Later", { exact: true }).first();
+      if (await later.isVisible().catch(() => false)) await later.click();
+
+      // Restore-first: the tier off, so the gate is what the frames show.
+      await p.request.post(`${BASE}/api/cf/leads/buyerping`, { data: { enabled: false } });
+      await p.reload();
+      await p.getByTestId("bold-root").waitFor({ timeout: 20_000 });
+      await p.addStyleTag({ content: "nextjs-portal{display:none!important}" });
+
+      await p.getByTestId("bold-dock-lead").click();
+      await p.getByTestId("bold-leadfinder").waitFor({ timeout: 20_000 });
+      await p.waitForTimeout(2600); // the feed settles and its toast clears
+      await shot(p, "build-lead-market-1440x900");
+
+      // The brief's provenance, folded open — where the fit came from.
+      await p.getByTestId("bold-lead-since").click();
+      await p.waitForTimeout(500);
+      await shot(p, "build-lead-brief-1440x900");
+      await p.getByTestId("bold-lead-since").click();
+
+      // The watch panel, over a dimmed page (the ruled scrim).
+      await p.getByTestId("bold-lead-watch-btn").click();
+      await p.getByTestId("bold-lead-watch").waitFor({ timeout: 10_000 });
+      await p.waitForTimeout(700);
+      await shot(p, "build-lead-watch-1440x900");
+      await p.getByTestId("bold-lead-watchtab-bp").click();
+      await p.waitForTimeout(600);
+      await shot(p, "build-lead-buyerping-1440x900");
+      await p.getByTestId("bold-lead-watch-scrim").click();
+      await p.waitForTimeout(500);
+
+      // A row's drawer — receipt, why it scored, what its basis permits.
+      const firstRow = p.locator('[data-testid^="bold-lead-row-"]').first();
+      if (await firstRow.isVisible().catch(() => false)) {
+        await firstRow.click();
+        await p.getByTestId("bold-lead-drawer").waitFor({ timeout: 10_000 });
+        await p.waitForTimeout(700);
+        await shot(p, "build-lead-drawer-1440x900");
+        await p.getByTestId("bold-lead-drawer-scrim").click();
+        await p.waitForTimeout(400);
+      } else {
+        // Never substitute a different frame for a missing one: if there is
+        // nothing to open, the run fails rather than quietly shipping 13.
+        throw new Error("no feed row to open — the drawer frame would be missing");
+      }
+
+      await p.getByTestId("bold-lead-mode-fit").click();
+      await p.getByTestId("bold-lead-pool").waitFor({ timeout: 15_000 });
+      await p.waitForTimeout(1400);
+      await shot(p, "build-lead-pool-1440x900");
+      // A paid band, where the honest absence of a provider count shows.
+      await p.getByTestId("bold-lead-band-strong").click();
+      await p.waitForTimeout(600);
+      await shot(p, "build-lead-pool-nocount-1440x900");
+
+      await p.getByTestId("bold-lead-mode-direct").click();
+      await p.getByTestId("bold-lead-direct").waitFor({ timeout: 10_000 });
+      await p.waitForTimeout(600);
+      await p.getByTestId("bold-lead-direct-go").click();
+      await p.waitForTimeout(1800);
+      await shot(p, "build-lead-direct-1440x900");
+
+      // The integrations page, with no intent tier among the cards.
+      await p.getByTestId("bold-dock-integrations").click();
+      await p.getByTestId("bold-integrations").waitFor({ timeout: 15_000 });
+      await p.waitForTimeout(900);
+      await shot(p, "build-integrations-no-tier-1440x900");
+    } finally {
+      await p.context().close();
+      signal("off");
+    }
+  });
+}
+
 if (UNIT === "b7") {
   await run("prototype-b7", async () => {
     const p = await page({ width: 1440, height: 900 });

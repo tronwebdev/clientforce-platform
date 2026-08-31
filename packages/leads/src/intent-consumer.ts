@@ -11,6 +11,8 @@ import {
   intentReceipt,
   INTENT_SIGNALS,
   type IcpShape,
+  plainWhen,
+  type ReceiptSlot,
   SOURCE_ELIGIBILITY,
 } from "@clientforce/core";
 import { withTenant, type PrismaClient } from "@clientforce/db";
@@ -46,6 +48,28 @@ function signalTypeFor(event: BusEvent): string | null {
   return null;
 }
 
+/**
+ * B6.5 (DEC-151): receipts are interpolated AT WRITE TIME from the facts that
+ * produced them. The registry has always promised `{n}`; until now the
+ * consumer stored the template verbatim, so every receipt read like a
+ * category ("hiring right now") instead of evidence ("posted 2 hygienist
+ * roles 3 days ago"). Slots the event cannot fill are dropped, never printed.
+ */
+function receiptSlots(event: BusEvent): Partial<Record<ReceiptSlot, string | number>> {
+  const p = (event.payload ?? {}) as Record<string, unknown>;
+  const str = (v: unknown): string | undefined =>
+    typeof v === "string" && v.trim() ? v.trim() : undefined;
+  const num = (v: unknown): number | undefined => (typeof v === "number" ? v : undefined);
+  return {
+    when: plainWhen(new Date(event.occurredAt)),
+    topic: str(p.topic) ?? str(p.subject) ?? str(p.formName) ?? str(p.service),
+    role: str(p.role) ?? str(p.title),
+    area: str(p.area) ?? str(p.location),
+    competitor: str(p.competitor),
+    n: num(p.count) ?? num(p.quantity),
+  };
+}
+
 export function createIntentConsumer(deps: IntentConsumerDeps): ConsumerHook {
   const log = deps.log ?? console.warn;
   return {
@@ -56,9 +80,14 @@ export function createIntentConsumer(deps: IntentConsumerDeps): ConsumerHook {
         if (!type) return;
         const def = INTENT_SIGNALS[type];
         if (!def) return;
+        // B6.5 (DEC-150): licensed and collected supply never arrives on the
+        // first-party bus — it comes through supplier adapters (B10.5) and is
+        // tier-gated there. A `bp` type reaching this consumer would be a
+        // mis-mapped event, so refuse it rather than write an untiered row.
+        if (def.tier !== "core") return;
         const { shape, vertical } = await deps.profileFor(event.workspaceId);
         if (!def.shapes.includes(shape)) return;
-        if (!SOURCE_ELIGIBILITY[shape].includes(def.source)) return;
+        if (!SOURCE_ELIGIBILITY[shape].includes(def.supplier)) return;
 
         await withTenant(deps.prisma, { workspaceId: event.workspaceId }, async (tx) => {
           // Write-time suppression: DNC/opt-out and already-yours both stop
@@ -83,7 +112,7 @@ export function createIntentConsumer(deps: IntentConsumerDeps): ConsumerHook {
               contactId: event.contactId,
               source: "first_party",
               type,
-              receipt: intentReceipt(type, vertical) ?? type,
+              receipt: intentReceipt(type, vertical, receiptSlots(event)) ?? type,
               occurredAt: new Date(event.occurredAt),
               meta: { eventId: event.id, eventType: event.type },
             },

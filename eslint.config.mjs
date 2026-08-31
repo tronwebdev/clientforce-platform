@@ -75,5 +75,37 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    // B6.5 (SURFACE_SPEC §12.9, DEC-153): the NOUN CHECK. On the Lead finder,
+    // every noun for the people being described comes from the shape/vertical
+    // registries through `GET /leads/config` — `config.noun`, `config.title`,
+    // the group labels. A hard-coded B2B (or B2C) noun in this shared surface
+    // is a review defect: it shows businesses to a workspace that sells to
+    // consumers, and patients to one that does not have any.
+    files: ["apps/web/components/bold/BoldLeadFinderView.tsx"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "JSXText[value=/\\b(dentists?|practices?|patients?|households?|companies|business(es)?|clinics?|salons?)\\b/i]",
+          message:
+            "Nouns for the people on this surface must come from the shape/vertical registry (config.noun / config.title), never a literal.",
+        },
+        {
+          selector:
+            "Literal[value=/\\b(dentists?|practices?|patients?|households?|companies|business(es)?|clinics?|salons?)\\b/i]",
+          message:
+            "Nouns for the people on this surface must come from the shape/vertical registry (config.noun / config.title), never a literal.",
+        },
+        {
+          selector:
+            "TemplateElement[value.raw=/\\b(dentists?|practices?|patients?|households?|companies|business(es)?|clinics?|salons?)\\b/i]",
+          message:
+            "Nouns for the people on this surface must come from the shape/vertical registry (config.noun / config.title), never a literal.",
+        },
+      ],
+    },
+  },
   prettier,
 );

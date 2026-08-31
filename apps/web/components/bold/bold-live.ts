@@ -553,14 +553,51 @@ export const fetchAutomationRuns = (id: string) =>
 
 /* ---------------------------------------------------- B6 (DEC-131) */
 
+export interface SubjectNoun {
+  one: string;
+  many: string;
+}
+/** A user-facing signal GROUP — what a person recognises, not an event key. */
+export interface LeadSignalGroup {
+  key: string;
+  label: string;
+  why: string;
+  tier: "core" | "bp";
+  types: string[];
+  /** Present on locked groups; `null` when no honest number exists (Q-140). */
+  estimate?: string | null;
+}
 export interface LeadFinderConfig {
   providerConfigured: boolean;
   buyerping: { connected: boolean; signalsToday: number };
-  profile: { shape: "company" | "local_business" | "consumer"; vertical?: string };
+  profile: {
+    shape: "company" | "local_business" | "consumer";
+    vertical?: string;
+    location?: string;
+    radiusMiles?: number;
+    headcountBand?: string;
+    titles?: string[];
+    ownerRun?: boolean;
+  };
   directFilters: Array<{ key: string; label: string; options: string[] }>;
+  providerPeopleSearch: boolean;
   topicSuggestions: { kinds: string[]; byVertical: Record<string, string[]>; fallback: string[] };
   sources: string[];
   watchTopics: Array<{ id: string; kind: string; label: string }>;
+  /* B6.5 (DEC-153): the standing-watch shell, all server-derived. */
+  title: string;
+  noun: SubjectNoun;
+  brief: {
+    sentence: string;
+    provenance: string;
+    watchingSince: string | null;
+    scoredAgainst: number;
+  };
+  watching: LeadSignalGroup[];
+  locked: LeadSignalGroup[];
+  lockedTypes: string[];
+  basis: string;
+  poolBands: Array<{ key: string; tag: string; sub: string; min: number | null; max: number | null; free: boolean }>;
 }
 export const fetchLeadConfig = () => get<LeadFinderConfig>("leads/config");
 
@@ -584,12 +621,68 @@ export interface LeadCandidateRow {
   intentWeight: number;
   intentReceipts: string[];
   revealed: boolean;
+  /* B6.5 row contract (SURFACE_SPEC §5/§10) — the drawer may read only what
+   * the row itself carries, so everything it needs is here. */
+  signalType: string | null;
+  group: string | null;
+  receipt: string;
+  about: string;
+  sourceTag: string;
+  basis: string;
+  channelLabel: string;
+  channelWarm: boolean;
+  occurredAt: string | null;
+  bucket: "today" | "week" | "older";
+  actionable: boolean;
+}
+export interface LeadSuppression {
+  total: number;
+  reasons: Array<{ key: string; label: string; n: number }>;
 }
 export interface LeadSearchResult {
   providerConfigured: boolean;
   consumerShape?: boolean;
+  tierOn?: boolean;
+  waiting?: number;
+  counts?: {
+    groups: Record<string, number>;
+    when: { any: number; today: number; week: number };
+    fit: Record<string, number>;
+  };
+  suppression?: LeadSuppression;
   candidates: LeadCandidateRow[];
 }
+export interface LeadPoolRow {
+  id: string;
+  contactId: string;
+  name: string;
+  fit: number;
+  /** False when no fact backs the number — the row says `unscored` in BOTH
+   *  the feed and the pool, never a base score dressed up as precision. */
+  scored: boolean;
+  why: string[];
+  about: string;
+  sourceTag: string;
+  onFile: boolean;
+}
+export interface LeadPool {
+  bands: Array<{
+    key: string;
+    tag: string;
+    sub: string;
+    free: boolean;
+    count: number | null;
+    estimate: boolean;
+    rows: LeadPoolRow[];
+    note: string | null;
+  }>;
+  total: number;
+  noun: SubjectNoun;
+  scoredNote: string;
+  suppression: LeadSuppression;
+}
+export const fetchLeadPool = () => get<LeadPool>("leads/pool");
+export const saveBrief = (profile: Record<string, unknown>) => send("leads/brief", "POST", profile);
 export const searchLeads = (mode: "ada" | "direct", filters?: Record<string, string>) =>
   send("leads/search", "POST", { mode, ...(filters ? { filters } : {}) });
 export const revealLead = (providerRef: string) => send("leads/reveal", "POST", { providerRef });

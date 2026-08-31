@@ -94,8 +94,13 @@ export const ADA_MAP: Record<string, AdaContext> = {
   },
   lead: {
     where: "Ada · lead finder",
-    hint: "Describe who you want…",
-    chips: ["Practices like my best customers", "Add the top 5 to a list", "Who is hiring?"],
+    // B6.5: on this page the bar is the brief editor and the watch
+    // controller, not a search box (ADDENDUM_5 §6c). The chips were
+    // hard-coded B2B nouns — a review defect on a surface whose every other
+    // noun comes from the shape/vertical registry (§6.2/§12.9). Neutral
+    // until the commands are wired; wiring them is Q-146.
+    hint: "Tell her what to watch…",
+    chips: ["Who is worth reaching first?", "Why is this one here?", "Only show me 90 and above"],
   },
   automations: {
     where: "Ada · automations",

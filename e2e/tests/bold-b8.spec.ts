@@ -108,36 +108,28 @@ test("the workspace Analytics surface is the same read at workspace scope", asyn
   await expect(page.getByTestId("bold-stats-tile-reached")).toBeVisible();
 });
 
-test("integrations: the registry with real statuses; BuyerPing round-trips in place", async ({ page }) => {
+test("integrations: the registry with real statuses, and no intent tier among them", async ({ page }) => {
   test.setTimeout(90_000);
   await signIn(page);
   if (!(await toBold(page))) {
     test.skip(true, "consoleBold not enabled");
     return;
   }
-  // Restore-first: BuyerPing off via the API, then reload.
-  await page.request.post("/api/cf/leads/buyerping", { data: { enabled: false } });
-  await page.reload();
-  await page.getByTestId("bold-root").waitFor({ state: "visible" });
   await page.getByTestId("bold-dock-integrations").click();
   await expect(page.getByTestId("bold-integrations")).toBeVisible();
-
-  // Registry categories render; an absent provider never offers Connect.
-  await expect(page.getByText("PROSPECTING")).toBeVisible();
-  await expect(page.getByTestId("bold-int-buyerping")).toContainText("Connect");
 
   // A live OAuth provider hands off honestly to the shipped classic flow.
   await page.getByTestId("bold-int-gcal").click();
   await expect(page.getByTestId("bold-int-drawer")).toBeVisible();
   await expect(page.getByTestId("bold-int-classic-pointer")).toContainText("classic console");
-  await page.getByTestId("bold-int-drawer").getByText("✕").click();
+  await page.getByTestId("bold-int-drawer").getByText("\u2715").click();
 
-  // BuyerPing connects in place and the card chip flips.
-  await page.getByTestId("bold-int-buyerping").click();
-  await page.getByTestId("bold-int-buyerping-toggle").click();
-  await expect(page.getByTestId("bold-toast")).toContainText("BuyerPing on");
-  await expect(page.getByTestId("bold-int-drawer")).toContainText("CONNECTED");
-  // Restore: off again.
-  await page.getByTestId("bold-int-buyerping-toggle").click();
-  await expect(page.getByTestId("bold-toast")).toContainText("BuyerPing off");
+  // B6.5 (DEC-152): BuyerPing LEFT this registry, and the `prospecting`
+  // category went with it — it is the name of the paid SIGNAL TIER, not an
+  // integration: nothing to connect, no vendor to name. It is switched on
+  // from the Lead finder's watch panel, which bold-b65.spec.ts covers.
+  // Both pins moved deliberately, in the same PR as the removal.
+  await expect(page.getByTestId("bold-int-buyerping")).toHaveCount(0);
+  await expect(page.getByText("PROSPECTING")).toHaveCount(0);
+  await expect(page.getByTestId("bold-integrations")).not.toContainText(/buyerping/i);
 });

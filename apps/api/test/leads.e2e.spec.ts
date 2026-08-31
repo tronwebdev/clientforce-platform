@@ -170,12 +170,21 @@ describe.skipIf(!hasDb)("Lead finder + intent tier e2e", () => {
     const ids = res.body.candidates.map((c: { contactId: string }) => c.contactId);
     expect(ids).toContain(lapsedId);
     expect(ids).toContain(lostId);
-    expect(ids).toContain(blankId);
-    expect(res.body.candidates).toHaveLength(3); // active, happy and opted-out never surface
+    // blankId is deliberately ABSENT — see the recency assertions below.
+    // Two, not three: active, happy and opted-out never surface (suppression),
+    // and the never-worked contact is no longer news (B6.5 review fix 1).
+    expect(res.body.candidates).toHaveLength(2);
     const lost = res.body.candidates.find((c: { contactId: string }) => c.contactId === lostId);
-    expect(lost.fitReasons.join(" ")).toContain("not-now");
+    // B6.5 (DEC-151): own-book reasons are now REGISTRY receipts carrying
+    // their own firing time — "said not now 4 weeks ago", not the old
+    // vocabulary-free "said not-now before". Pin moved deliberately.
+    expect(lost.fitReasons.join(" ")).toContain("said not now");
+    expect(lost.receipt).toMatch(/said not now .+ ago/);
+    expect(lost.signalType).toBe("said_not_now");
+    expect(lost.sourceTag).toBe("YOUR INBOX");
+    expect(lost.basis).toBe("first_party");
     const lapsed = res.body.candidates.find((c: { contactId: string }) => c.contactId === lapsedId);
-    expect(lapsed.fitReasons.join(" ")).toContain("quiet");
+    expect(lapsed.signalType).toBe("went_quiet");
     expect(lapsed.revealed).toBe(true); // own contacts have nothing to buy
     // B6 review fix 2 — no flat fits: real own-book facts move the number.
     // Lapsed = targeted title + a fresh 90-day lapse; lost = title + a prior
@@ -184,10 +193,37 @@ describe.skipIf(!hasDb)("Lead finder + intent tier e2e", () => {
     expect(lost.scored).toBe(true);
     expect(lapsed.fit).not.toBe(lost.fit);
     expect(lapsed.fitReasons.join(" ")).toContain("still warm");
-    // …and a contact with nothing to score from says so instead of wearing
-    // a made-up number.
-    const blank = res.body.candidates.find((c: { contactId: string }) => c.contactId === blankId);
+    // B6.5 review fix 1: a NEVER-WORKED contact is no longer in the feed at
+    // all. Nothing happened to it — `Contact.createdAt` is when the row was
+    // written, not an event — so it cannot claim a day, and every feed row
+    // now carries a real `occurredAt`. Pin moved to the pool below, which is
+    // where "on file and a match for your brief" is the whole claim.
+    expect(res.body.candidates.map((c: { contactId: string }) => c.contactId)).not.toContain(blankId);
+    for (const row of res.body.candidates) {
+      expect(row.occurredAt, `${row.name} sits under a recency divider with no event`).toBeTruthy();
+    }
+  });
+
+  it("the pool holds the dormant rows, and says `unscored` in the same words as the feed", async () => {
+    const res = await api().get("/leads/pool").set(asOwner()).expect(200);
+    const yours = res.body.bands.find((b: { key: string }) => b.key === "yours");
+    expect(yours.free).toBe(true);
+    expect(typeof yours.count).toBe("number");
+    // B6.5 review fix 2: ONE scoring vocabulary. A contact with no matching
+    // fact carries `scored: false` HERE too, so the surface says `unscored`
+    // rather than printing the scorer's base as if it were precision.
+    const blank = yours.rows.find((r: { contactId: string }) => r.contactId === blankId);
+    expect(blank, "the dormant contact belongs to the pool").toBeTruthy();
     expect(blank.scored).toBe(false);
+    for (const r of yours.rows) {
+      expect(typeof r.scored).toBe("boolean");
+      if (!r.scored) expect(r.why).toHaveLength(0);
+    }
+    // The paid bands have no honest count on this deployment and say so.
+    for (const b of res.body.bands.filter((x: { key: string }) => x.key !== "yours")) {
+      expect(b.count).toBeNull();
+      expect(b.note).toBeTruthy();
+    }
   });
 
   it("Direct search and reveal answer keylessly — no rows, no charge", async () => {
@@ -203,9 +239,14 @@ describe.skipIf(!hasDb)("Lead finder + intent tier e2e", () => {
     expect(ledger).toBe(0);
   });
 
-  it("BuyerPing connect/disconnect round-trips the Integration row; topics CRUD; hide upserts", async () => {
+  it("BuyerPing round-trips OFF the integrations registry; topics CRUD; hide upserts", async () => {
+    // B6.5 (DEC-152): the tier LEFT the integrations registry (ADDENDUM_5 §2)
+    // — it is not an integration, so it must not create an Integration row.
+    // Its interim home is Workspace.settings.buyerping. Pin moved deliberately.
     await api().post("/leads/buyerping").set(asOwner()).send({ enabled: true }).expect(201);
-    expect(await owner.integration.count({ where: { workspaceId: ws, provider: "buyerping" } })).toBe(1);
+    expect(await owner.integration.count({ where: { workspaceId: ws, provider: "buyerping" } })).toBe(0);
+    const wsRow = await owner.workspace.findUniqueOrThrow({ where: { id: ws }, select: { settings: true } });
+    expect((wsRow.settings as { buyerping?: { enabled?: boolean } }).buyerping?.enabled).toBe(true);
     const t = await api().post("/leads/watch-topics").set(asOwner()).send({ kind: "topic", label: "Implants" }).expect(201);
     const cfg = await api().get("/leads/config").set(asOwner()).expect(200);
     expect(cfg.body.buyerping.connected).toBe(true);
@@ -253,12 +294,14 @@ describe.skipIf(!hasDb)("Lead finder + intent tier e2e", () => {
     const signals = await owner.intentSignal.findMany({ where: { workspaceId: ws } });
     expect(signals).toHaveLength(1);
     expect(signals[0]!.contactId).toBe(lapsedId);
-    expect(signals[0]!.receipt).toBe("asked what treatment would cost");
+    // B6.5 (DEC-151): receipts INTERPOLATE at write time, so the sentence is
+    // evidence with a time on it rather than a category. Pin moved deliberately.
+    expect(signals[0]!.receipt).toMatch(/^asked what treatment would cost /);
 
     const res = await api().post("/leads/search").set(asOwner()).send({ mode: "ada" }).expect(201);
     const lapsed = res.body.candidates.find((c: { contactId: string }) => c.contactId === lapsedId);
     expect(lapsed.intentWeight).toBeGreaterThan(0);
-    expect(lapsed.intentReceipts).toContain("asked what treatment would cost");
+    expect(lapsed.intentReceipts.join(" ")).toContain("asked what treatment would cost");
     // Fit stays the headline: ordering is fit-first, intent second.
     const fits = res.body.candidates.map((c: { fit: number }) => c.fit);
     expect([...fits].sort((a, b) => b - a)).toEqual(fits);

@@ -24,7 +24,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { CATEGORY_LABELS, INTEGRATION_CATALOG, TILE, type CatalogEntry } from "../../lib/integrations";
 import { mono } from "./bold-cards";
-import { fetchIntegrationStatuses, setBuyerping, type IntegrationStatusRow } from "./bold-live";
+import { fetchIntegrationStatuses, type IntegrationStatusRow } from "./bold-live";
 
 const STATUS_CHIP: Record<string, [string, string, string, string]> = {
   connected: ["Connected", "var(--cvb-forest)", "var(--cvb-mint)", "var(--cvb-mint-line)"],
@@ -33,16 +33,13 @@ const STATUS_CHIP: Record<string, [string, string, string, string]> = {
 };
 
 export function BoldIntegrationsView({
-  flash,
   onCount,
 }: {
-  flash: (m: string) => void;
   /** B8: the shell's LIVE eyebrow — the real connected count, never canned. */
   onCount?: (connected: number | null) => void;
 }) {
   const [statuses, setStatuses] = useState<Map<string, IntegrationStatusRow> | null>(null);
   const [open, setOpen] = useState<CatalogEntry | null>(null);
-  const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     const map = await fetchIntegrationStatuses();
@@ -54,22 +51,6 @@ export function BoldIntegrationsView({
   }, [load]);
 
   const cats = [...new Set(INTEGRATION_CATALOG.map((e) => e.cat))];
-
-  async function toggleBuyerping(connected: boolean) {
-    if (busy) return;
-    setBusy(true);
-    try {
-      const res = await setBuyerping(!connected);
-      if (!res.ok) {
-        flash(res.error || "That did not save — try again.");
-        return;
-      }
-      flash(connected ? "BuyerPing off — Ada matches on fit alone." : "BuyerPing on — intent signals start collecting.");
-      await load();
-    } finally {
-      setBusy(false);
-    }
-  }
 
   return (
     <div data-testid="bold-integrations" style={{ padding: "26px 40px 40px" }}>
@@ -134,15 +115,6 @@ export function BoldIntegrationsView({
             <div style={{ fontSize: 13, color: "var(--cvb-muted)", lineHeight: 1.6, marginTop: 16 }}>{open.desc}</div>
 
             {open.availability.kind === "live" ? (
-              open.id === "buyerping" ? (
-                <span
-                  onClick={() => void toggleBuyerping(statuses?.get("buyerping")?.status === "connected")}
-                  data-testid="bold-int-buyerping-toggle"
-                  style={{ display: "inline-block", fontSize: 12.5, fontWeight: 800, color: "#fff", background: busy ? "var(--cvb-ghost)" : "var(--cvb-forest)", borderRadius: 12, padding: "11px 16px", marginTop: 20, cursor: "pointer" }}
-                >
-                  {statuses?.get("buyerping")?.status === "connected" ? "Turn it off" : "Connect BuyerPing"}
-                </span>
-              ) : (
                 <div data-testid="bold-int-classic-pointer" style={{ marginTop: 20, background: "var(--cvb-well)", border: "1px dashed var(--cvb-line-ctl)", borderRadius: 14, padding: "13px 15px", fontSize: 12.5, color: "var(--cvb-faint)", lineHeight: 1.6 }}>
                   {statuses?.get(open.id)
                     ? "Manage this connection — reconnect, settings, activity — in the classic console's Integrations page for now. Its full setup moves here in its own step."
@@ -151,7 +123,6 @@ export function BoldIntegrationsView({
                     Open the classic Integrations page →
                   </a>
                 </div>
-              )
             ) : open.availability.kind === "managed" ? (
               <div style={{ marginTop: 20, background: "var(--cvb-well)", border: "1px dashed var(--cvb-line-ctl)", borderRadius: 14, padding: "13px 15px", fontSize: 12.5, color: "var(--cvb-faint)", lineHeight: 1.6 }}>
                 {open.availability.note}

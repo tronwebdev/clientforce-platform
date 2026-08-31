@@ -63,10 +63,12 @@ describe("registry drift (lib/integrations vs @clientforce/core)", () => {
     }
   });
 
-  // B6 (DEC-131): 16th card — BuyerPing, the intent tier (deliberate move).
-  it("the canon total is 16, ids unique, every entry carries the full card anatomy", () => {
-    expect(INTEGRATION_CATALOG).toHaveLength(16);
-    expect(new Set(INTEGRATION_CATALOG.map((e) => e.id)).size).toBe(16);
+  // B6 (DEC-131) made BuyerPing the 16th card; B6.5 (DEC-152) takes it back
+  // out — it is the paid signal TIER, not an integration. Pin moved
+  // deliberately, in the same PR as the removal.
+  it("the canon total is 15, ids unique, every entry carries the full card anatomy", () => {
+    expect(INTEGRATION_CATALOG).toHaveLength(15);
+    expect(new Set(INTEGRATION_CATALOG.map((e) => e.id)).size).toBe(15);
     for (const e of INTEGRATION_CATALOG) {
       expect(e.name.length).toBeGreaterThan(0);
       expect(e.glyph.length).toBeGreaterThan(0);
@@ -94,9 +96,13 @@ describe("registry drift (lib/integrations vs @clientforce/core)", () => {
     }
   });
 
-  // B6 (DEC-131): prospecting joins the canon (deliberate move).
-  it("the category set is exactly the canon 7", () => {
-    expect(INTEGRATION_CATEGORIES).toHaveLength(7);
+  // B6 (DEC-131) added `prospecting` for BuyerPing; B6.5 (DEC-152) removes
+  // both. The tier is not an integration — it has no vendor, nothing to
+  // connect, and the word "integration" must not appear on an intent surface
+  // (ADDENDUM_5 §2). An empty category would promise cards that never come.
+  // Both pins moved deliberately, in the same PR as the removal.
+  it("the category set is exactly the canon 6", () => {
+    expect(INTEGRATION_CATEGORIES).toHaveLength(6);
     expect(new Set(Object.keys(CATEGORY_LABELS))).toEqual(new Set(INTEGRATION_CATEGORIES));
     expect(new Set(INTEGRATION_CATALOG.map((e) => e.cat))).toEqual(new Set(INTEGRATION_CATEGORIES));
   });
