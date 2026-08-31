@@ -57,7 +57,10 @@ const DEFAULT_CREDIT_PRICES: ReadonlyArray<{ action: string; credits: number }> 
   { action: "intent_enrichment", credits: 2 },
 ];
 
-/** The 3 agency-level plan tiers (priceMonthly in integer cents). */
+/** The 3 agency-level plan tiers (priceMonthly in integer cents). B9
+ *  (DEC-136): these numbers are PROPOSALS until an admin confirms them in
+ *  the backoffice billing editor (which stamps features.confirmed — D2);
+ *  the seed deliberately writes no confirmed marker. */
 const PLAN_TIERS: ReadonlyArray<{
   name: string;
   priceMonthly: number;
@@ -1456,6 +1459,22 @@ async function main(): Promise<void> {
       await prisma.plan.create({
         data: {
           agencyId: agency.id,
+          name: plan.name,
+          priceMonthly: plan.priceMonthly,
+          features: {},
+          limits: plan.limits,
+        },
+      });
+    }
+    // B9 (DEC-136): the PLATFORM defaults (agencyId null) — what a brand-new
+    // agency's plan step resolves before any per-agency override exists.
+    // Unconfirmed on purpose: every number stays a proposal until the admin
+    // saves it in the backoffice billing editor (D2).
+    const platformRow = await prisma.plan.findFirst({ where: { agencyId: null, name: plan.name } });
+    if (!platformRow) {
+      await prisma.plan.create({
+        data: {
+          agencyId: null,
           name: plan.name,
           priceMonthly: plan.priceMonthly,
           features: {},

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { CONSOLE_BOLD_FLAG } from "@clientforce/core";
-import { FirstRunWorkspace } from "../../components/FirstRunWorkspace";
+import { BoldOnboarding } from "../../components/bold/BoldOnboarding";
 import { fetchMe, fetchWorkspaceFlags } from "../../lib/api";
 import { clerkEnabled } from "../../lib/clerk";
 
@@ -34,7 +34,10 @@ import "./bold.css";
 export default async function BoldLayout({ children }: { children: ReactNode }) {
   const me = await fetchMe();
   if (!me) redirect(clerkEnabled ? "/sign-in" : "/login");
-  if ("noWorkspace" in me) return <FirstRunWorkspace />;
+  // B9 (DEC-136): a first run lands in the Bold onboarding — business core,
+  // site distill, first campaign, sender, plan — replacing the bare
+  // name-only workspace form on this route (Q-014 closes here).
+  if ("noWorkspace" in me) return <BoldOnboarding />;
   const flags = await fetchWorkspaceFlags();
   if (!flags.includes(CONSOLE_BOLD_FLAG)) redirect("/");
   return <>{children}</>;

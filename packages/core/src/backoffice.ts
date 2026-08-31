@@ -148,6 +148,21 @@ export interface EffectiveCreditPrices {
 }
 
 /** Append an effective-dated credit price (platform default when agencyId null). */
+/**
+ * B9 (DEC-136): the D2 plan editor — per-tier price + limits are ADMIN-SET
+ * here; a Plan row the editor has saved carries `features.confirmed`, and
+ * every surface renders unconfirmed rows as PROPOSALS. agencyId null =
+ * the platform default; a named agency row overrides it (the credit-price
+ * resolution pattern).
+ */
+export const planUpsertSchema = z.object({
+  agencyId: z.string().min(1).nullable().optional(),
+  name: z.enum(["STARTER", "GROWTH", "SCALE"]),
+  priceMonthlyCents: z.number().int().min(0),
+  limits: z.record(z.string(), z.union([z.number(), z.string(), z.boolean()])),
+});
+export type PlanUpsertDto = z.infer<typeof planUpsertSchema>;
+
 export const creditPriceUpsertSchema = z.object({
   agencyId: z.string().min(1).nullable().optional(),
   action: z.string().trim().min(1).max(60),

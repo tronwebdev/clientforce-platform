@@ -2,21 +2,29 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { BoldTourStep } from "./bold-data";
+import type { GettingStartedResponse } from "./bold-live";
 
 /**
- * Anchored product tour scaffold (ADDENDUM_4_BOLD §4.11) — spotlight ring +
- * dodging card, ported from the prototype's tourGo/measureTour. The step
- * table is the full 14; the scaffold runs the steps whose `data-tour` anchor
- * is present, so B1+ light up hero/act/tabs simply by rendering the anchors.
+ * Anchored product tour — spotlight ring + dodging card, rebuilt to the canon
+ * tour prototype (Product Tour.dc.html, owner ruling 2026-08-30): 8 fixed
+ * steps, pulsing brand-green ring over a dimmed frame, STEP N OF 8 card with
+ * dots / Back / Next / Skip, and a ? launcher pinned bottom-right that turns
+ * into the getting-started drawer once the tour has been seen.
  *
  * Geometry notes ported with the logic (each was a real defect during the
  * design build): scroll the anchor into its own scroll window before
  * measuring; clip the ring to what is actually visible; verify geometry, not
  * just text presence; a target filling most of the screen cannot be dodged —
- * seat the card bottom-centre over it.
+ * seat the card bottom-centre over it. Targets are measured from the live
+ * layout at runtime, never hard-coded px. A step whose anchor is not in the
+ * DOM (e.g. the needs strip when nothing needs you) is skipped in the travel
+ * direction rather than stranding the ring.
  */
 
 export interface TourRect {
+  /** The step index this geometry was measured for — the layer renders only
+   *  when it matches the current step, so a card never sits over a stale ring. */
+  step: number;
   x: number;
   y: number;
   w: number;
@@ -36,28 +44,32 @@ interface UseBoldTourOptions {
 export function useBoldTour({ steps, onPre, onFinish }: UseBoldTourOptions) {
   const [index, setIndex] = useState<number | null>(null);
   const [rect, setRect] = useState<TourRect | null>(null);
-  const retryRef = useRef(0);
+  const indexRef = useRef<number | null>(null);
+  const dirRef = useRef(1);
 
   const go = useCallback(
     (i: number) => {
       if (i < 0 || i >= steps.length) {
+        indexRef.current = null;
         setIndex(null);
         setRect(null);
-        onFinish("Tour finished — the ? in the header reopens it");
+        onFinish("Tour finished — the ? button brings it back");
         return;
       }
+      dirRef.current = i >= (indexRef.current ?? 0) ? 1 : -1;
       const pre = steps[i]?.pre;
       if (pre) onPre(pre);
-      retryRef.current = 0;
+      indexRef.current = i;
       setIndex(i);
     },
     [steps, onPre, onFinish],
   );
 
   const stop = useCallback(() => {
+    indexRef.current = null;
     setIndex(null);
     setRect(null);
-    onFinish("Tour closed — the ? in the header reopens it");
+    onFinish("Tour closed — the ? button brings it back");
   }, [onFinish]);
 
   const measure = useCallback(() => {
@@ -111,8 +123,8 @@ export function useBoldTour({ steps, onPre, onFinish }: UseBoldTourOptions) {
     r = box(Math.max(r.left, 8), Math.max(r.top, 8), Math.min(r.right, vw - 8), Math.min(r.bottom, vh - 8));
 
     const cEl = document.querySelector("[data-tour-card]") as HTMLElement | null;
-    const cw = 344;
-    const chH = Math.max(214, cEl ? cEl.offsetHeight + 8 : 262);
+    const cw = 330;
+    const chH = Math.max(196, cEl ? cEl.offsetHeight + 8 : 240);
     const pad = 18;
     const clampY = (y: number) => Math.max(12, Math.min(y, vh - chH - 12));
     const clampX = (x: number) => Math.max(12, Math.min(x, vw - cw - 12));
@@ -121,6 +133,7 @@ export function useBoldTour({ steps, onPre, onFinish }: UseBoldTourOptions) {
     const apply = (next: TourRect) => {
       setRect((cur) =>
         cur &&
+        cur.step === next.step &&
         cur.x === next.x &&
         cur.y === next.y &&
         cur.w === next.w &&
@@ -137,6 +150,7 @@ export function useBoldTour({ steps, onPre, onFinish }: UseBoldTourOptions) {
     const big = r.width * r.height > vw * vh * 0.42;
     if (big) {
       apply({
+        step: index,
         x: Math.round(r.left - 4),
         y: Math.round(r.top - 4),
         w: Math.round(r.width + 8),
@@ -168,6 +182,7 @@ export function useBoldTour({ steps, onPre, onFinish }: UseBoldTourOptions) {
       pick = [(vw - cw) / 2, vh - chH - 18];
     }
     apply({
+      step: index,
       x: Math.round(r.left - 4),
       y: Math.round(r.top - 4),
       w: Math.round(r.width + 8),
@@ -180,19 +195,27 @@ export function useBoldTour({ steps, onPre, onFinish }: UseBoldTourOptions) {
 
   // Measure on step entry and re-measure while transitions/animations settle
   // (the .3–.45s choreography moves anchors after the switch), plus on resize.
+  // If the anchor still isn't in the DOM once the choreography has settled
+  // (a state-dependent target like the needs strip with nothing pending),
+  // skip the step in the direction of travel instead of stranding the ring.
   useEffect(() => {
     if (index == null) return;
     const raf = requestAnimationFrame(measure);
     const t1 = setTimeout(measure, 150);
     const t2 = setTimeout(measure, 480);
+    const step = steps[index];
+    const t3 = setTimeout(() => {
+      if (step && !document.querySelector(`[data-tour="${step.sel}"]`)) go(index + dirRef.current);
+    }, 700);
     window.addEventListener("resize", measure);
     return () => {
       cancelAnimationFrame(raf);
       clearTimeout(t1);
       clearTimeout(t2);
+      clearTimeout(t3);
       window.removeEventListener("resize", measure);
     };
-  }, [index, measure]);
+  }, [index, measure, steps, go]);
 
   return { index, rect, go, stop, start: () => go(0) };
 }
@@ -205,95 +228,119 @@ interface BoldTourLayerProps {
   onSkip: () => void;
 }
 
-/** Spotlight ring + chaptered card (prototype `tourOn` layer, verbatim anatomy). */
+/** Pulsing spotlight ring + STEP N OF 8 card (canon tour proto, verbatim anatomy). */
 export function BoldTourLayer({ steps, index, rect, onGo, onSkip }: BoldTourLayerProps) {
   const step = steps[index];
   if (!step) return null;
-  const chapters: string[] = [];
-  for (const s of steps) if (!chapters.includes(s.ch)) chapters.push(s.ch);
   return (
     <div className="cvb-tour-layer">
       <div className="cvb-tour-ring" style={{ left: rect.x, top: rect.y, width: rect.w, height: rect.h }} />
-      <div
-        data-tour-card="1"
-        className="cvb-tour-card"
-        data-testid="bold-tour-card"
-        style={{ left: rect.cx, top: rect.cy, boxShadow: rect.big ? "0 0 0 7px var(--cvb-glow-ring)" : "none" }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-          <span style={{ fontFamily: "var(--cvb-font-mono)", fontSize: 9, letterSpacing: ".17em", color: "var(--cvb-forest)", flex: 1 }}>{step.ch}</span>
-          <span style={{ fontFamily: "var(--cvb-font-mono)", fontSize: 9, letterSpacing: ".12em", color: "var(--cvb-faint-2)", flex: "none" }}>
-            {index + 1} of {steps.length}
+      <div data-tour-card="1" className="cvb-tour-card" data-testid="bold-tour-card" style={{ left: rect.cx, top: rect.cy }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontFamily: "var(--cvb-font-mono)", fontSize: 9, letterSpacing: ".14em", color: "var(--cvb-forest)", fontWeight: 600 }}>
+            STEP {index + 1} OF {steps.length}
+          </span>
+          <span style={{ flex: 1 }} />
+          <span data-testid="bold-tour-skip" style={{ fontSize: 11, color: "var(--cvb-faint-2)", cursor: "pointer", flex: "none" }} onClick={onSkip}>
+            Skip tour ✕
           </span>
         </div>
-        <div className="cvb-display" style={{ fontWeight: 900, fontSize: 18, letterSpacing: "-.032em", lineHeight: 1.22, marginTop: 11 }}>
+        <div className="cvb-display" style={{ fontWeight: 900, fontSize: 16.5, letterSpacing: "-.02em", lineHeight: 1.25, marginTop: 7 }}>
           {step.title}
         </div>
-        <div style={{ fontSize: 12.5, color: "var(--cvb-muted)", lineHeight: 1.58, marginTop: 9, textWrap: "pretty" }}>{step.body}</div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 17 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 4, flex: 1 }}>
-            {chapters.map((c) => {
-              const on = c === step.ch;
-              return (
-                <span
-                  key={c}
-                  title={c}
-                  className="cvb-tour-chapter"
-                  style={{ width: on ? 18 : 8, background: on ? "var(--cvb-forest)" : "var(--cvb-line-ctl)" }}
-                />
-              );
-            })}
-          </div>
+        <div style={{ fontSize: 12, color: "var(--cvb-muted)", lineHeight: 1.55, marginTop: 5, textWrap: "pretty" }}>{step.body}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 12 }}>
+          {steps.map((s, n) => (
+            <span
+              key={s.sel + s.title}
+              onClick={() => onGo(n)}
+              style={{ width: 7, height: 7, borderRadius: "50%", background: n === index ? "var(--cvb-forest)" : "var(--cvb-line-ctl)", cursor: "pointer", flex: "none" }}
+            />
+          ))}
+          <span style={{ flex: 1 }} />
           {index > 0 ? (
-            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--cvb-faint)", cursor: "pointer", flex: "none" }} onClick={() => onGo(index - 1)}>
+            <button type="button" className="cvb-tour-back" data-testid="bold-tour-back" onClick={() => onGo(index - 1)}>
               Back
-            </span>
+            </button>
           ) : null}
           <button type="button" className="cvb-tour-next" data-testid="bold-tour-next" onClick={() => onGo(index + 1)}>
-            {index === steps.length - 1 ? "Done" : "Next"}
+            {index === steps.length - 1 ? "Done ✓" : "Next"}
           </button>
         </div>
-        <span style={{ display: "block", fontSize: 11, color: "var(--cvb-faint-2)", cursor: "pointer", marginTop: 12 }} onClick={onSkip}>
-          Skip the tour
-        </span>
       </div>
     </div>
   );
 }
 
-interface BoldTourOfferProps {
-  stepCount: number;
-  onStart: () => void;
-  onHide: () => void;
+/** The ? launcher pinned bottom-right (canon proto — replaces the retired
+ *  "FIRST TIME HERE" invite card; gradient never fills buttons). */
+export function BoldHelpLauncher({ onClick }: { onClick: () => void }) {
+  return (
+    <button type="button" className="cvb-help-launcher" title="Help & tour" data-testid="bold-tour-btn" onClick={onClick}>
+      ?
+    </button>
+  );
 }
 
-/** First-run offer card, fixed bottom-left (prototype `tourOffer`). */
-export function BoldTourOffer({ stepCount, onStart, onHide }: BoldTourOfferProps) {
+interface BoldGettingStartedDrawerProps {
+  checklist: GettingStartedResponse | "loading" | "error";
+  onClose: () => void;
+  onStartTour: () => void;
+}
+
+/** Getting-started drawer over the ? launcher — every done-state
+ *  server-derived (GET /me/getting-started), never hard-coded. */
+export function BoldGettingStartedDrawer({ checklist, onClose, onStartTour }: BoldGettingStartedDrawerProps) {
+  const loaded = typeof checklist === "object" ? checklist : null;
   return (
-    <div className="cvb-tour-offer" data-testid="bold-tour-offer">
-      <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-        <span className="cvb-ada-mark">✦</span>
-        <span style={{ fontFamily: "var(--cvb-font-mono)", fontSize: 9, letterSpacing: ".16em", color: "rgba(255,255,255,.5)", flex: 1 }}>
-          FIRST TIME HERE
+    <div className="cvb-help-drawer" data-testid="bold-help-drawer">
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <span style={{ fontFamily: "var(--cvb-font-mono)", fontSize: 9, letterSpacing: ".16em", color: "var(--cvb-faint-2)" }}>
+          {loaded ? `GETTING STARTED · ${loaded.done} OF ${loaded.total}` : "GETTING STARTED"}
         </span>
-        <span style={{ fontSize: 12, color: "rgba(255,255,255,.4)", cursor: "pointer", flex: "none" }} onClick={onHide}>
+        <span style={{ flex: 1 }} />
+        <span style={{ fontSize: 11, color: "var(--cvb-faint-2)", cursor: "pointer" }} onClick={onClose}>
           ✕
         </span>
       </div>
-      <div style={{ fontSize: 13.5, fontWeight: 800, letterSpacing: "-.022em", color: "var(--cvb-card)", marginTop: 12, lineHeight: 1.35 }}>
-        {stepCount} stops, about two minutes
-      </div>
-      <div style={{ fontSize: 11.5, color: "rgba(255,255,255,.6)", marginTop: 6, lineHeight: 1.5 }}>
-        What each part is for, and where Ada acts on her own.
-      </div>
-      <div style={{ display: "flex", gap: 7, marginTop: 14 }}>
-        <button type="button" className="cvb-tour-offer-cta" onClick={onStart}>
-          Show me
-        </button>
-        <button type="button" className="cvb-tour-offer-later" onClick={onHide}>
-          Later
-        </button>
-      </div>
+      {checklist === "loading" ? (
+        <div style={{ fontSize: 12, color: "var(--cvb-faint)", marginTop: 12 }}>Checking your setup…</div>
+      ) : checklist === "error" ? (
+        <div style={{ fontSize: 12, color: "var(--cvb-faint)", marginTop: 12 }} data-testid="bold-help-drawer-error">
+          Couldn't load the checklist — the API isn't reachable right now.
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", marginTop: 9 }}>
+          {checklist.items.map((c) => (
+            <div key={c.key} data-testid={`bold-gs-${c.key}`} data-done={c.done ? "true" : "false"} style={{ display: "flex", alignItems: "center", gap: 9, padding: "7px 0", borderBottom: "1px solid var(--cvb-line-inner)" }}>
+              <span
+                style={{
+                  width: 17,
+                  height: 17,
+                  borderRadius: "50%",
+                  flex: "none",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 10,
+                  fontWeight: 700,
+                  background: c.done ? "var(--cvb-mint)" : "var(--cvb-wash)",
+                  border: c.done ? "1px solid var(--cvb-mint-line)" : "1px solid var(--cvb-line-ctl)",
+                  color: "var(--cvb-forest)",
+                }}
+              >
+                {c.done ? "✓" : ""}
+              </span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: c.done ? "var(--cvb-faint-2)" : "var(--cvb-ink)", textDecoration: c.done ? "line-through" : "none" }}>
+                {c.label}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+      <button type="button" className="cvb-help-drawer-cta" data-testid="bold-tour-replay" onClick={onStartTour}>
+        Start the product tour
+      </button>
     </div>
   );
 }

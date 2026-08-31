@@ -34,6 +34,7 @@ import { MeNeedsController } from "./me/needs.controller";
 import { CreditPricesController } from "./pricing/credit-prices.controller";
 import { CreditsController } from "./pricing/credits.controller";
 import { StatsController } from "./stats/stats.controller";
+import { PlansController } from "./billing/plans.controller";
 import { SuggestionsController } from "./suggestions/suggestions.controller";
 import { validationProviders } from "./contacts/validation.providers";
 import { BusOrInlinePublisher, EVENTS_PUBLISHER } from "./events/publisher";
@@ -79,6 +80,8 @@ import { BusOrInlinePublisher, EVENTS_PUBLISHER } from "./events/publisher";
     CreditsController,
     // B8 (DEC-135): the ONE analytics read — campaign Stats + workspace Analytics.
     StatsController,
+    // B9 (DEC-136): tenant plan-tier read + choice (D1/D2 — numbers are data).
+    PlansController,
     // B2.6 (DEC-110): the deterministic suggestion sweep (drafts via the one create path).
     SuggestionsController,
   ],

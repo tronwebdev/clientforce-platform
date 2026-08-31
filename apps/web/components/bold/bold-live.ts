@@ -1060,3 +1060,28 @@ export const fetchIntegrationStatuses = async (): Promise<Map<string, Integratio
   }
   return map;
 };
+
+/* ------------------------------------------------- B9: tour + first steps */
+
+/** `GET /me/getting-started` — the drawer checklist, every done-state
+ *  server-derived from real rows (DEC-136 tour addendum). */
+export interface GettingStartedResponse {
+  items: Array<{ key: string; label: string; done: boolean }>;
+  done: number;
+  total: number;
+}
+export const fetchGettingStarted = () => get<GettingStartedResponse>("me/getting-started");
+
+/** `PATCH /me/settings` — tour-seen persists with the account, never a browser. */
+export async function patchMeSettings(body: { tourSeen?: boolean }): Promise<boolean> {
+  try {
+    const res = await fetch("/api/cf/me/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}

@@ -233,6 +233,7 @@ export function BoldOverview({ agent, onOpenDrawer, onAllActivity, onValueSaved,
       {needs.length > 0 ? (
         <div
           onClick={() => setApprovalsOpen(true)}
+          data-tour="needs"
           data-testid="bold-needs-strip"
           style={{ display: "flex", alignItems: "center", gap: 11, background: "var(--cvb-amber-bg, #FDFBF4)", border: "1px solid var(--cvb-amber-line, #EFE6CF)", borderRadius: 13, padding: "11px 14px", marginBottom: 14, cursor: "pointer" }}
         >

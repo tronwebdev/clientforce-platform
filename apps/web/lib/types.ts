@@ -15,7 +15,7 @@ export interface MembershipView {
 
 /** Shape returned by the API's GET /me. */
 export interface Me {
-  user: { id: string; email: string; name: string | null };
+  user: { id: string; email: string; name: string | null; settings?: { tourSeen?: boolean } };
   memberships: MembershipView[];
   activeWorkspace: WorkspaceView | null;
   activeAgencyId: string;

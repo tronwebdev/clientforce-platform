@@ -33,8 +33,8 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const UNIT = process.argv[2] ?? "b1";
-if (!["b1", "b2", "b25", "b26", "b3", "b3b", "b3c1", "b3c2", "b3d", "b4", "b45", "b5", "b6", "b7", "b8"].includes(UNIT)) {
-  console.error(`Unknown unit "${UNIT}" — this tool knows b1, b2, b25, b26, b3, b3b, b3c1, b3c2, b3d, b4, b45, b5, b6, b7 and b8.`);
+if (!["b1", "b2", "b25", "b26", "b3", "b3b", "b3c1", "b3c2", "b3d", "b4", "b45", "b5", "b6", "b7", "b8", "b9"].includes(UNIT)) {
+  console.error(`Unknown unit "${UNIT}" — this tool knows b1, b2, b25, b26, b3, b3b, b3c1, b3c2, b3d, b4, b45, b5, b6, b7, b8 and b9.`);
   process.exit(1);
 }
 const OUT = join(ROOT, "docs", "fidelity", UNIT);
@@ -43,6 +43,10 @@ const PROTO = `file://${join(ROOT, "design_handoff_console_v3", "prototypes", "C
 // B4.5: the live-call card's pixel truth is the OLD console's rcpCallOpen
 // treatment (owner ruling at the B4 addendum) — a different prototype file.
 const PROTO_LEGACY = `file://${join(ROOT, "design_handoff_console_v3", "prototypes", "legacy", "Clientforce Console.dc.html").replace(/ /g, "%20")}`;
+// B9: the onboarding + canon-tour prototypes (the tour proto is the owner's
+// locked 2026-08-30 addendum canon — 8 steps, ? launcher, drawer).
+const PROTO_ONBOARD = `file://${join(ROOT, "design_handoff_console_v3", "prototypes", "Business Core Onboarding.dc.html").replace(/ /g, "%20")}`;
+const PROTO_TOUR = `file://${join(ROOT, "design_handoff_console_v3", "prototypes", "Product Tour.dc.html").replace(/ /g, "%20")}`;
 const FONTS = join(ROOT, "apps", "web", "node_modules", "@fontsource");
 const OWNER_EMAIL = "owner@demo-agency.test";
 
@@ -152,6 +156,181 @@ const toBoldCampaign = async (p) => {
 };
 
 
+
+/* ---------------------------------------------------------------- the b9 set */
+if (UNIT === "b9") {
+  // Owner ruling: design evidence is captured against a PLAUSIBLE business —
+  // Bright Smile Dental / brightsmile.test — not the e2e's random fixture
+  // principal (the Quinn / Demo Agency standard). The e2e keeps its random
+  // throwaway names; this identity is fixed, and cleaned up either side so a
+  // crashed run never blocks the next capture.
+  const EMAIL = "owner@brightsmile.test";
+  const BIZ = "Bright Smile Dental";
+  const cleanTenant = () => {
+    try {
+      execSync(`pnpm --filter @clientforce/db exec tsx prisma/b9-cleanup.ts ${EMAIL}`, { cwd: ROOT, stdio: "pipe" });
+    } catch {
+      /* nothing to clean */
+    }
+  };
+  cleanTenant();
+
+  await run("prototype-b9-onboarding", async () => {
+    const p = await page({ width: 1440, height: 900 });
+    await p.goto(PROTO_ONBOARD);
+    await p.waitForTimeout(2600);
+    // The auth phase — screens that ride the auth provider in the build (Q-119).
+    await shot(p, "proto-onboarding-auth-1440x900");
+    // "Sign up with Google" jumps the fixture straight into the core wizard.
+    await p.getByText("Sign up with Google", { exact: false }).first().click();
+    await p.waitForTimeout(900);
+    await shot(p, "proto-onboarding-site-1440x900");
+    await p.getByText("Read my site →", { exact: false }).first().click();
+    await p.waitForTimeout(2200);
+    await shot(p, "proto-onboarding-readback-1440x900");
+    await p.getByText("This is right →", { exact: false }).first().click();
+    await p.waitForTimeout(700);
+    await shot(p, "proto-onboarding-goal-1440x900");
+    // Win back quiet accounts → own-book scope, so the audience step offers
+    // only own-book rows and the contacts step joins the flow.
+    await p.getByText("Win back quiet accounts", { exact: false }).first().click();
+    await p.waitForTimeout(300);
+    await p.getByText("Continue →", { exact: false }).first().click();
+    await p.waitForTimeout(700);
+    await p.getByText("Customers who went quiet", { exact: false }).first().click();
+    await p.getByText("Enquiries that never bought", { exact: false }).first().click();
+    await p.waitForTimeout(400);
+    await shot(p, "proto-onboarding-audience-1440x900");
+    await p.context().close();
+  });
+
+  await run("build-b9-onboarding", async () => {
+    const p = await page({ width: 1440, height: 900 });
+    try {
+      await p.goto(`${BASE}/login`);
+      await p.getByLabel("Email").fill(EMAIL);
+      await p.getByRole("button", { name: "Sign in" }).click();
+      await p.waitForLoadState("domcontentloaded");
+      await p.goto(`${BASE}/bold`);
+      await p.getByTestId("bold-onboarding").waitFor({ timeout: 15_000 });
+      await p.addStyleTag({ content: "nextjs-portal{display:none!important}" });
+
+      await p.getByTestId("bold-onb-name").fill(BIZ);
+      await p.getByTestId("bold-onb-shape-local_business").click();
+      await p.getByTestId("bold-onb-vertical-dental").click();
+      await shot(p, "build-onb-business-1440x900");
+
+      await p.getByTestId("bold-onb-create").click();
+      await p.getByTestId("bold-onb-site").waitFor({ timeout: 15_000 });
+      await p.getByTestId("bold-onb-site").fill("brightsmile.test");
+      await shot(p, "build-onb-site-1440x900");
+
+      // The tell-her path is a REAL screen now — capture it before going back.
+      await p.getByTestId("bold-onb-nosite").click();
+      await p.getByTestId("bold-onb-msell").waitFor();
+      await p.getByTestId("bold-onb-mkind").fill("Dental practice — implant and cosmetic dentistry");
+      await p.getByTestId("bold-onb-msell").fill("Implants from $8,400, whitening kits at $249, free consults");
+      await p.getByTestId("bold-onb-marea").fill("Austin, TX — 20 miles");
+      await p.waitForTimeout(400);
+      await shot(p, "build-onb-tellher-1440x900");
+      await p.getByTestId("bold-onb-havesite").click();
+      await p.getByTestId("bold-onb-site").waitFor();
+
+      await p.getByTestId("bold-onb-read").click();
+      await p.getByTestId("bold-onb-read-next").waitFor({ timeout: 20_000 });
+      await p.waitForTimeout(900);
+      await shot(p, "build-onb-readback-1440x900");
+
+      await p.getByTestId("bold-onb-read-next").click();
+      await p.getByTestId("bold-onb-goal-winback_deals").waitFor();
+      await p.getByTestId("bold-onb-goal-winback_deals").click();
+      await shot(p, "build-onb-goal-1440x900");
+
+      await p.getByTestId("bold-onb-goal-next").click();
+      await p.getByTestId("bold-onb-audience-quiet").waitFor();
+      await p.getByTestId("bold-onb-audience-quiet").click();
+      await p.getByTestId("bold-onb-audience-never_bought").click();
+      await p.waitForTimeout(400);
+      await shot(p, "build-onb-audience-1440x900");
+
+      await p.getByTestId("bold-onb-audience-next").click();
+      await p.getByTestId("bold-onb-gap-next").waitFor({ timeout: 20_000 });
+      await shot(p, "build-onb-ask-1440x900");
+
+      await p.getByTestId("bold-onb-gap-next").click();
+      await p.getByTestId("bold-onb-import-next").waitFor({ timeout: 15_000 });
+      await p.waitForTimeout(600);
+      await shot(p, "build-onb-contacts-1440x900");
+
+      await p.getByTestId("bold-onb-import-skip").click();
+      await p.getByTestId("bold-onb-replyto").waitFor();
+      await p.getByTestId("bold-onb-replyto").fill("hello@brightsmile.test");
+      await shot(p, "build-onb-replies-1440x900");
+
+      await p.getByTestId("bold-onb-sender-next").click();
+      await p.getByTestId("bold-onb-draftcard").waitFor({ timeout: 15_000 });
+      await shot(p, "build-onb-done-1440x900");
+
+      await p.getByTestId("bold-onb-toplan").click();
+      await p.getByTestId("bold-onb-card-deferred").waitFor({ timeout: 15_000 });
+      const growth = p.getByTestId("bold-onb-tier-GROWTH");
+      if (await growth.isVisible().catch(() => false)) await growth.click();
+      await shot(p, "build-onb-plan-1440x900");
+
+      // The hand-off: the console mounts and the canon tour fires once.
+      await p.getByTestId("bold-onb-finish").click();
+      await p.getByTestId("bold-root").waitFor({ timeout: 30_000 });
+      await p.addStyleTag({ content: "nextjs-portal{display:none!important}" });
+      await p.getByTestId("bold-tour-card").waitFor({ timeout: 15_000 });
+      await shot(p, "build-tour-step1-1440x900");
+
+      const nextTo = async (label) => {
+        await p.getByTestId("bold-tour-next").click();
+        await p.getByTestId("bold-tour-card").getByText(label, { exact: false }).waitFor({ timeout: 6_000 });
+      };
+      await nextTo("STEP 2 OF 8");
+      await shot(p, "build-tour-step2-1440x900");
+      await nextTo("STEP 3 OF 8");
+      await nextTo("STEP 4 OF 8");
+      await shot(p, "build-tour-step4-1440x900");
+      // Step 5 (needs) has no anchor in a fresh workspace — the engine skips
+      // it forward, honestly, rather than stranding the ring.
+      await p.getByTestId("bold-tour-next").click();
+      await p.getByTestId("bold-tour-card").getByText("STEP 6 OF 8", { exact: false }).waitFor({ timeout: 6_000 });
+      await shot(p, "build-tour-step6-1440x900");
+      await nextTo("STEP 7 OF 8");
+      await shot(p, "build-tour-step7-1440x900");
+      await nextTo("STEP 8 OF 8");
+      await shot(p, "build-tour-step8-1440x900");
+      await p.getByTestId("bold-tour-next").click(); // Done ✓
+      await p.waitForTimeout(600);
+
+      // Toured: the ? answers with the getting-started drawer (server-derived).
+      await p.getByTestId("bold-tour-btn").click();
+      await p.getByTestId("bold-help-drawer").waitFor();
+      await p.getByTestId("bold-gs-core").waitFor();
+      await shot(p, "build-tour-drawer-1440x900");
+      await p.context().close();
+    } finally {
+      cleanTenant();
+    }
+  });
+
+  // The backoffice plan editor — INTERNAL-ONLY surface, no prototype exists
+  // (flagged per the working agreement); the frame documents the D2 editor.
+  await run("build-b9-backoffice-plans", async () => {
+    const p = await page({ width: 1440, height: 900 });
+    await p.goto(`${BASE}/backoffice/login`);
+    await p.getByLabel("Operator email").fill("ops@clientforce.io");
+    await p.getByRole("button", { name: "Sign in" }).click();
+    await p.waitForLoadState("domcontentloaded");
+    await p.goto(`${BASE}/backoffice/plans`);
+    await p.getByTestId("bo-plans-table").waitFor({ timeout: 15_000 });
+    await p.waitForTimeout(900);
+    await shot(p, "build-backoffice-plans-1440x900");
+    await p.context().close();
+  });
+}
 
 /* ---------------------------------------------------------------- the b8 set */
 if (UNIT === "b8") {
