@@ -143,9 +143,15 @@ if (/ibm-plex-sans\/(800|900)\.css/.test(layout))
 if (failures.length) {
   console.error(`Typography contract — FAILED (${failures.length} violation(s) of ${checked} weight-900 sites)\n`);
   console.error("  Contract: font-weight 900 must resolve to Schibsted Grotesk.");
-  console.error("  IBM Plex Sans has no 900 face, so the browser synthesises a fake bold.");
-  console.error("  Fix: add `fontFamily: \"var(--cvb-font-display)\"` to the element, or one of");
-  console.error(`  the display classes (${[...DISPLAY].join(", ")}).\n`);
+  console.error("  IBM Plex Sans has no 900 face, so the browser synthesises a fake bold.\n");
+  console.error("  BEFORE reaching for the display family, CHECK THE PROTOTYPE'\''S WEIGHT for this");
+  console.error("  element. If the prototype styles it 700 or 800 on the UI face, the 900 is");
+  console.error("  itself the deviation and the fix is the WEIGHT, not the family — adding");
+  console.error("  Schibsted there moves the build further from the prototype on two axes and");
+  console.error("  then locks it in. (This gate did exactly that to the item stat strip and the");
+  console.error("  sender-drawer stats on its first run; both are corrected in the same commit.)\n");
+  console.error("  Otherwise: add `fontFamily: \"var(--cvb-font-display)\"` to the element, or one");
+  console.error(`  of the display classes (${[...DISPLAY].join(", ")}).\n`);
   for (const f of failures) console.error(`  • ${f}`);
   process.exit(1);
 }

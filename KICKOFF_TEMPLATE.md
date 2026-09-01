@@ -114,6 +114,33 @@ don't.
   start one and prove the migration + policy for real — a migration nobody executed is a
   claim, not a verification.
 
+## ⭑ Fidelity rules (STANDING — every UI unit, no dispatch may omit them)
+
+Both come out of B7.6, where fidelity had failed by eye three times running.
+
+1. **A wave is done when its pairs pass the gate and its element inventory
+   matches the prototype — not when it works.** "It works" is the floor, not
+   the finish line. Before claiming a UI unit complete, walk the prototype's
+   element inventory for every surface you touched: leading icons and their
+   tints, sub-line composition AND order, chevrons, container type (modal vs
+   drawer vs inline), step counts and where the counter lives, whether a
+   price/rate/date is shown, button placement, dead space. A missing element
+   is a defect even when nothing is broken. Gates: `pnpm lint` runs
+   `lint:typography` (font-weight 900 must resolve to the display family) and
+   `lint:pixel` (every build/proto pair ratcheted — a pair may only ever get
+   closer to the prototype).
+
+2. **Where the prototype and any spec prose disagree, the prototype wins, and
+   the spec line is amended in the same PR.** `prototypes/Console Bold.dc.html`
+   is pixel truth; a `SURFACE_SPEC_*.md` sentence is a description of it that
+   may be wrong. Do not silently follow the prose — amend it, cite the line you
+   changed, and say so on the PR. Three of B7.5's worst deviations existed
+   because the build followed the prose faithfully.
+
+   The narrow exceptions, each of which must NAME itself on the row: an honesty
+   gate (a number with no source), a canon rule the prototype itself violates,
+   or a real defect in the prototype. Nothing else earns a departure.
+
 ## Close-out (every unit ends with)
 
 - PROGRESS.md status row + DEC entry (decisions + deferred list) + fidelity-log row.

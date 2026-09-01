@@ -235,7 +235,8 @@ export function BoldMetaStrip({ items }: { items: Array<[string, string, string,
     <div
       style={{
         display: "flex",
-        gap: 34,
+        alignItems: "center",
+        gap: 16,
         padding: "12px 40px",
         background: "var(--cvb-panel)",
         borderTop: "1px solid var(--cvb-line-inner)",
@@ -244,23 +245,24 @@ export function BoldMetaStrip({ items }: { items: Array<[string, string, string,
       }}
     >
       {items.map(([label, value, sub, color]) => (
-        <div key={label} style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+        <div key={label} style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
           <span
-            style={{ ...mono, fontSize: 8.5, letterSpacing: ".14em", color: "var(--cvb-faint)" }}
+            style={{ ...mono, fontSize: 9.5, letterSpacing: ".12em", color: "var(--cvb-faint)" }}
           >
             {label}
           </span>
+          {/* 13px/700 on the UI face, NOT the display family — Console Bold.dc.html:2058. */}
           <span
             style={{
-              fontFamily: "var(--cvb-font-display)",
-              fontWeight: 900,
-              fontSize: 15,
+              fontWeight: 700,
+              fontSize: 13,
+              letterSpacing: "-.018em",
               color: color ?? "var(--cvb-ink,#101613)",
             }}
           >
             {value}
           </span>
-          <span style={{ ...mono, fontSize: 9, color: "var(--cvb-ghost)" }}>{sub}</span>
+          <span style={{ fontSize: 11, color: "var(--cvb-faint)" }}>{sub}</span>
         </div>
       ))}
     </div>

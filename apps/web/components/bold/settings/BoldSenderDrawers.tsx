@@ -252,12 +252,12 @@ export function SenderDrawer({
             >
               {label}
             </div>
+            {/* 800/14px on the UI face, NOT the display family — Console Bold.dc.html:1944. */}
             <div
               style={{
-                fontFamily: "var(--cvb-font-display)",
-                fontWeight: 900,
-                fontSize: 22,
-                letterSpacing: "-.03em",
+                fontWeight: 800,
+                fontSize: 14,
+                letterSpacing: "-.02em",
                 marginTop: 6,
               }}
             >
@@ -280,12 +280,11 @@ export function SenderDrawer({
           }}
         >
           <div style={{ display: "flex", alignItems: "baseline", gap: 9 }}>
+            {/* 800/12.5px on the UI face — Console Bold.dc.html:1953. */}
             <span
               style={{
-                fontFamily: "var(--cvb-font-display)",
-                fontWeight: 900,
-                fontSize: 20,
-                letterSpacing: "-.03em",
+                fontWeight: 800,
+                fontSize: 12.5,
                 color: "var(--cvb-amber)",
               }}
             >
