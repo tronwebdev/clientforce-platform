@@ -128,6 +128,9 @@ export function BoldSendersItem({
     return {
       t: "chip",
       key: s.id,
+      // Per-tab tile, not per-status — Console Bold.dc.html:4724-4726.
+      ic: "\u2709",
+      tint: "mint",
       n: s.fromEmail ?? "This sender",
       sub: senderSub(s),
       chip:
@@ -160,6 +163,8 @@ export function BoldSendersItem({
     ...numbers.map<SettingsRow>((s) => ({
       t: "chip",
       key: s.id,
+      ic: "\u2706",
+      tint: "cyan",
       n: s.fromEmail ?? "This number",
       sub: `${s.sentToday ?? 0} sent today${s.dailyLimit != null ? ` of ${s.dailyLimit}` : ""}`,
       chip: s.status === "ACTIVE" ? "Live" : s.status.toLowerCase(),
@@ -169,6 +174,8 @@ export function BoldSendersItem({
     ...requests.map<SettingsRow>((r) => ({
       t: "chip",
       key: r.id,
+      ic: "\u2706",
+      tint: "cyan",
       n: `Area code ${r.areaCode}`,
       sub: `${r.carries === "sms" ? "SMS only" : "SMS and voice"} · ${r.a2pState === "not_filed" ? "A2P not filed yet" : `A2P ${r.a2pState.replace(/_/g, " ")}`}`,
       chip: "Requested",

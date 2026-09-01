@@ -474,27 +474,54 @@ export function StepDots({ step, of }: { step: number; of: number }) {
 
 /* -------------------------------------------------------- item-page rows */
 
+/**
+ * The 32px leading tile. The prototype tints it PER TAB, not per status
+ * (Console Bold.dc.html:4724-4763): email `✉` mint, numbers `✆` cyan,
+ * knowledge sources `◍`/`◫` plum, form fields `≡` grey. Rows on every other
+ * tab take the generic branch at :4757 and carry NO tile — an icon there
+ * would be a new deviation, not a restoration.
+ */
+export type RowTint = "mint" | "cyan" | "plum" | "grey";
+
+const TINT: Record<RowTint, { bg: string; bd: string; fg: string }> = {
+  mint: { bg: "var(--cvb-mint)", bd: "var(--cvb-mint-line)", fg: "var(--cvb-forest)" },
+  cyan: { bg: "var(--cvb-cyan-tint)", bd: "var(--cvb-cyan-line)", fg: "var(--cvb-cyan)" },
+  plum: { bg: "var(--cvb-plum-tint)", bd: "var(--cvb-plum-line)", fg: "var(--cvb-plum)" },
+  grey: { bg: "var(--cvb-well)", bd: "var(--cvb-line-ctl)", fg: "var(--cvb-faint)" },
+};
+
+/** Fields every row kind may carry. */
+type RowBase = {
+  key: string;
+  n: string;
+  sub: string;
+  /** Leading tile glyph. Only the four tabs above are entitled to one. */
+  ic?: string;
+  tint?: RowTint;
+  /**
+   * The sub-line IS the edit surface. In the prototype every `facts`/`who`/
+   * `gaps` row and every `val` row is `isEditable`, rendering a dashed-underline
+   * input in the row instead of static text (:4736-4740, :4772-4775). There is
+   * no edit drawer behind these rows — this is the whole editing model.
+   */
+  edit?: { value: string; onChange: (v: string) => void; onCommit?: () => void; label?: string };
+};
+
 export type SettingsRow =
-  | {
+  | (RowBase & {
       t: "chip";
-      key: string;
-      n: string;
-      sub: string;
       chip: string;
       tone: keyof typeof CHIP;
       onOpen?: () => void;
-    }
-  | { t: "val"; key: string; n: string; sub: string; val: string; onOpen?: () => void }
-  | {
+    })
+  | (RowBase & { t: "val"; val: string; onOpen?: () => void })
+  | (RowBase & {
       t: "tg";
-      key: string;
-      n: string;
-      sub: string;
       on: boolean;
       onFlip: () => void;
       /** A rail the schema enforces — shown on, and honestly not flippable. */
       locked?: boolean;
-    };
+    });
 
 export function RowList({ rows, testid }: { rows: SettingsRow[]; testid?: string }) {
   return (
@@ -502,24 +529,69 @@ export function RowList({ rows, testid }: { rows: SettingsRow[]; testid?: string
       {rows.map((r, i) => {
         const last = i === rows.length - 1;
         const clickable = r.t !== "tg" && typeof r.onOpen === "function";
+        const tint = r.tint ? TINT[r.tint] : null;
         return (
           <div
             key={r.key}
             data-testid={`bold-row-${r.key}`}
             onClick={clickable ? r.onOpen : undefined}
+            className="cvb-settings-row"
             style={{
               display: "flex",
               alignItems: "center",
               gap: 14,
               padding: "15px 4px",
               borderBottom: last ? "none" : "1px solid var(--cvb-line-inner)",
-              // Inert rows must not look clickable.
-              cursor: clickable ? "pointer" : "default",
+              // An editable row is a text field; an inert row must not look clickable.
+              cursor: clickable ? "pointer" : r.edit ? "text" : "default",
             }}
           >
+            {r.ic && tint ? (
+              <span
+                aria-hidden
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 11,
+                  flex: "none",
+                  background: tint.bg,
+                  border: `1px solid ${tint.bd}`,
+                  color: tint.fg,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 13,
+                }}
+              >
+                {r.ic}
+              </span>
+            ) : null}
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13.5, fontWeight: 700, letterSpacing: "-.016em", lineHeight: 1.4 }}>{r.n}</div>
-              <div style={{ fontSize: 11.5, color: "var(--cvb-faint)", marginTop: 3, lineHeight: 1.45 }}>{r.sub}</div>
+              {r.edit ? (
+                <input
+                  value={r.edit.value}
+                  onChange={(e) => r.edit?.onChange(e.target.value)}
+                  onBlur={() => r.edit?.onCommit?.()}
+                  onClick={(e) => e.stopPropagation()}
+                  aria-label={r.edit.label ?? r.n}
+                  data-testid={`bold-rowedit-${r.key}`}
+                  style={{
+                    width: "100%",
+                    fontFamily: "var(--cvb-font-ui)",
+                    fontSize: 12,
+                    color: "var(--cvb-ink-soft,#3E4B44)",
+                    background: "transparent",
+                    border: "none",
+                    borderBottom: "1px dashed var(--cvb-line-dash,#DCDFDD)",
+                    outline: "none",
+                    padding: "4px 0 3px",
+                    marginTop: 3,
+                  }}
+                />
+              ) : (
+                <div style={{ fontSize: 11.5, color: "var(--cvb-faint)", marginTop: 3, lineHeight: 1.45 }}>{r.sub}</div>
+              )}
             </div>
             {r.t === "chip" ? <span style={CHIP[r.tone]}>{r.chip}</span> : null}
             {r.t === "val" ? (
@@ -532,9 +604,9 @@ export function RowList({ rows, testid }: { rows: SettingsRow[]; testid?: string
                 <Toggle on={r.on} onFlip={r.onFlip} label={r.n} testid={`bold-tg-${r.key}`} />
               )
             ) : null}
-            {clickable ? (
-              <span style={{ fontSize: 12, color: "var(--cvb-ghost)", flex: "none" }}>›</span>
-            ) : null}
+            {/* No chevron. The prototype's row template has no such element on any
+                tab — not even on the sender rows, which DO open a drawer. Rows
+                signal their affordance with the cursor and the hover wash. */}
           </div>
         );
       })}

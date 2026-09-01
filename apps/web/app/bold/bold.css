@@ -728,3 +728,10 @@
 @media (prefers-reduced-motion: reduce) {
   .cvb-root *, .cvb-tour-ring, .cvb-tour-card { animation: none !important; transition: none !important; }
 }
+
+/* Item-page row hover wash. The prototype declares it on the row itself
+   (style-hover="background:#FBFCFB", Console Bold.dc.html:2324); inline styles
+   cannot express :hover, so the row carries a class for this one property. */
+.cvb-settings-row:hover {
+  background: var(--cvb-row-hover);
+}
