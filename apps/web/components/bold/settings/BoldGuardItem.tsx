@@ -156,9 +156,9 @@ export function BoldGuardItem({
       if (c.dailyCap.email !== baseEmail)
         diffs.push(`email ${c.dailyCap.email} a day instead of ${baseEmail}`);
       const sms = stored.dailyCap?.sms;
+      const voice = stored.dailyCap?.voice;
       if (sms != null && c.dailyCap.sms != null && c.dailyCap.sms !== sms)
         diffs.push(`SMS ${c.dailyCap.sms} instead of ${sms}`);
-      const voice = stored.dailyCap?.voice;
       if (voice != null && c.dailyCap.voice != null && c.dailyCap.voice !== voice)
         diffs.push(`calls ${c.dailyCap.voice} instead of ${voice}`);
       // Compare against the EFFECTIVE window, never the draft: the draft is
@@ -171,9 +171,28 @@ export function BoldGuardItem({
         diffs.push(
           `sends ${c.sendingWindow.start}–${c.sendingWindow.end} instead of ${window.start}–${window.end}`,
         );
-      return diffs.length > 0 ? { c, diffs } : null;
+      // A departure has a DIRECTION, and the chip has to say which. A campaign
+      // allowed 200 emails a day against a workspace ceiling of 120 is LOOSER,
+      // not "Tighter" — B7.5 labelled every departure "Tighter" regardless,
+      // which reads as a reassurance exactly when the opposite is true. Only
+      // the numeric ceilings carry a direction; a different sending WINDOW is
+      // neither tighter nor looser, so a window-only departure is just
+      // "Different".
+      const numeric: Array<[number, number]> = [];
+      if (c.dailyCap.email !== baseEmail) numeric.push([c.dailyCap.email, baseEmail]);
+      if (sms != null && c.dailyCap.sms != null && c.dailyCap.sms !== sms)
+        numeric.push([c.dailyCap.sms, sms]);
+      if (voice != null && c.dailyCap.voice != null && c.dailyCap.voice !== voice)
+        numeric.push([c.dailyCap.voice, voice]);
+      const looser = numeric.some(([cap, base]) => cap > base);
+      const tighter = numeric.some(([cap, base]) => cap < base);
+      const direction =
+        looser && tighter ? "Mixed" : looser ? "Looser" : tighter ? "Tighter" : "Different";
+      return diffs.length > 0 ? { c, diffs, direction } : null;
     })
-    .filter((x): x is { c: (typeof campaigns)[number]; diffs: string[] } => x !== null);
+    .filter(
+      (x): x is { c: (typeof campaigns)[number]; diffs: string[]; direction: string } => x !== null,
+    );
 
   const limitsOn =
     (stored.dailyCap ? Object.keys(stored.dailyCap).length : 0) +
@@ -231,8 +250,10 @@ export function BoldGuardItem({
       key: c.id,
       n: c.name,
       sub: dep ? dep.diffs.join(" · ") : "Inherits everything",
-      chip: dep ? "Tighter" : "Default",
-      tone: dep ? "warn" : "mute",
+      chip: dep ? dep.direction : "Default",
+      // Looser than the workspace ceiling is the one worth an amber flag; a
+      // tighter or merely different campaign is not a caution.
+      tone: dep ? (dep.direction === "Tighter" ? "mute" : "warn") : "mute",
       onOpen: () => onOpenCampaign(c.id),
     };
   });
