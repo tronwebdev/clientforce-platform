@@ -532,11 +532,59 @@ async function main(): Promise<void> {
   const implant = await prisma.agent.findFirst({
     where: { workspaceId: primary.id, name: "Implant open day" },
   });
+  /**
+   * In-place upgrade for databases seeded before B7.6. Agents are create-only
+   * below, so an existing campaign keeps the 200/day it was created with and
+   * would read as departing from the 120 workspace ceiling forever.
+   *
+   * Guarded: only a campaign still sitting on the OLD seeded value is moved,
+   * so a cap someone has since edited is left alone.
+   */
+  {
+    const stale = await prisma.agent.findMany({
+      where: { status: { not: "ARCHIVED" } },
+      select: { id: true, name: true, guardrails: true },
+    });
+    for (const a of stale) {
+      const g = a.guardrails as { dailyCap?: { email?: unknown; sms?: unknown } } | null;
+      if (g?.dailyCap?.email !== 200) continue;
+      await prisma.agent.update({
+        where: { id: a.id },
+        data: { guardrails: { ...(g as object), dailyCap: { email: 120, sms: 60 } } },
+      });
+    }
+    /**
+     * And ONE campaign that genuinely departs, because an overrides tab with
+     * nothing on it demonstrates nothing. The prototype's single departure is
+     * "SMS capped at 40 a day instead of 60" (dc.html:4582), so the demo
+     * carries the same shape: tighter on SMS, inheriting everything else.
+     */
+    const tighter = await prisma.agent.findFirst({
+      where: { status: { not: "ARCHIVED" } },
+      orderBy: { createdAt: "asc" },
+      select: { id: true, guardrails: true },
+    });
+    if (tighter) {
+      const g = tighter.guardrails as { dailyCap?: { sms?: unknown } } | null;
+      if (g?.dailyCap?.sms !== 40) {
+        await prisma.agent.update({
+          where: { id: tighter.id },
+          data: { guardrails: { ...(g as object), dailyCap: { email: 120, sms: 40 } } },
+        });
+      }
+    }
+  }
+
   // B2: schema-valid A8 guardrails (the legacy `{start,end}`-only blob fails
   // `parseGuardrails`, so views honestly render no sending window at all).
   const validGuardrails = {
     sendingWindow: { days: [1, 2, 3, 4, 5], start: "09:00", end: "17:00", timezone: "UTC" },
-    dailyCap: { email: 200 },
+    // 120/60, matching the workspace guardrail DEFAULTS seeded above — so a
+    // demo campaign INHERITS rather than departing. The prototype's overrides
+    // tab shows three campaigns on "Inherits everything" and exactly one
+    // departure (dc.html:4581-4585); with campaigns at 200 against a 120
+    // ceiling, every campaign departed and the tab was four rows of noise.
+    dailyCap: { email: 120, sms: 60 },
     consent: null,
     tracking: { openTracking: true, linkTracking: true },
     unsubscribeFooter: true,
