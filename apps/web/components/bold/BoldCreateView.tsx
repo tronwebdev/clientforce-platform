@@ -87,6 +87,7 @@ interface Audience {
 
 export function BoldCreateView({
   resume = null,
+  seedAudience = null,
   onCancel,
   onLaunched,
   flash,
@@ -94,6 +95,10 @@ export function BoldCreateView({
   /** B2.6 (DEC-110): open ON an existing suggested draft — goal/name/summary
    *  prefill from the row and the agent is never re-created. */
   resume?: { agentId: string; goal: string; name: string; summary: string | null } | null;
+  /** B6.6: opened FROM a selection — the Lead finder has just written a real
+   *  list and hands it over, so the "who" step starts answered instead of
+   *  asking again for people the person has already chosen. */
+  seedAudience?: Audience | null;
   onCancel: () => void;
   onLaunched: (agentId: string) => void;
   flash: (msg: string) => void;
@@ -104,8 +109,8 @@ export function BoldCreateView({
   const [agentId, setAgentId] = useState<string | null>(resume?.agentId ?? null);
   const createdGoal = useRef<string | null>(resume?.goal ?? null);
   const [name, setName] = useState(resume?.name ?? "");
-  const [audience, setAudience] = useState<Audience | null>(null);
-  const [whoMode, setWhoMode] = useState<"list" | "csv" | null>(null);
+  const [audience, setAudience] = useState<Audience | null>(seedAudience);
+  const [whoMode, setWhoMode] = useState<"list" | "csv" | null>(seedAudience ? "list" : null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [gaps, setGaps] = useState<BoldGapReport | null>(null);
   const [merged, setMerged] = useState<Record<string, { value?: string } | undefined>>({});

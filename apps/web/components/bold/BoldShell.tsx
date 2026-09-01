@@ -192,6 +192,14 @@ export function BoldShell({
     [orderedAgents],
   );
   const [resumeSuggestion, setResumeSuggestion] = useState<AgentListItem | null>(null);
+  /** B6.6: the Lead finder writes a real list and hands it to the create
+   *  flow, so "→ Campaign" lands on the who-step already answered. */
+  const [seedAudience, setSeedAudience] = useState<{
+    kind: "list";
+    listId: string;
+    listName: string;
+    count: number;
+  } | null>(null);
   const startSuggestion = useCallback(
     (id: string) => {
       const row = suggestions.find((g) => g.id === id);
@@ -628,7 +636,8 @@ export function BoldShell({
             ) : null}
             {surface === "newcamp" ? (
               <BoldCreateView
-                key={resumeSuggestion?.id ?? "new"}
+                key={resumeSuggestion?.id ?? seedAudience?.listId ?? "new"}
+                seedAudience={seedAudience}
                 resume={
                   resumeSuggestion
                     ? {
@@ -641,10 +650,12 @@ export function BoldShell({
                 }
                 onCancel={() => {
                   setResumeSuggestion(null);
+                  setSeedAudience(null);
                   selectDock("camps");
                 }}
                 onLaunched={(id) => {
                   setResumeSuggestion(null);
+                  setSeedAudience(null);
                   refreshAgents();
                   selectCampaign(id);
                 }}
@@ -662,7 +673,17 @@ export function BoldShell({
             {surface === "automations" ? (
               <BoldAutomationsView key={`a${gbTick}`} onBuild={() => setGb("auto")} onCounts={onAutoCounts} flash={flash} />
             ) : null}
-            {surface === "lead" ? <BoldLeadFinderView flash={flash} onTitle={setLeadTitle} /> : null}
+            {surface === "lead" ? (
+              <BoldLeadFinderView
+                flash={flash}
+                onTitle={setLeadTitle}
+                onCampaignFromList={(a) => {
+                  setResumeSuggestion(null);
+                  setSeedAudience(a);
+                  setSurface("newcamp");
+                }}
+              />
+            ) : null}
             {surface === "wssettings" ? (
               <BoldWsSettingsView
                 onOpenCredits={() => setSurface("credits")}

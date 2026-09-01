@@ -39,6 +39,7 @@ import {
 } from "@nestjs/common";
 import { z } from "zod";
 import {
+  briefWatchTopics,
   DEFAULT_ICP_PROFILE,
   DIRECT_FILTERS,
   icpProfileSchema,
@@ -47,6 +48,7 @@ import {
   intentScore,
   isVisibleSignal,
   leadFinderTitle,
+  leadFinderWatchTitle,
   lockedSignalTypes,
   plainWhen,
   POOL_BANDS,
@@ -82,6 +84,25 @@ const revealSchema = z.object({ providerRef: z.string().min(1).max(120) });
 const hideSchema = z.object({ provider: z.string().min(1).max(40), providerRef: z.string().min(1).max(120) });
 
 const REVEAL_PRICE_ACTION = "lead_reveal";
+
+/**
+ * B6.6: the one place a contact's PLACE comes from.
+ *
+ * `Contact` has no location column. The only place we ever hold one is the
+ * provider payload kept on `enrichment.raw` when a lead was revealed, so
+ * that is what this reads — and it returns null for every contact that was
+ * imported or entered by hand, which is most of them. That null is the
+ * honest answer, not a gap to paper over: inferring a city from an area
+ * code or a campaign's target area would be inventing a fact about a person
+ * (DEC-115). Giving own-book contacts a real place is Q-160.
+ */
+function contactLocation(enrichment: Prisma.JsonValue | null | undefined): string | null {
+  if (!enrichment || typeof enrichment !== "object" || Array.isArray(enrichment)) return null;
+  const raw = (enrichment as Record<string, unknown>).raw;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const loc = (raw as Record<string, unknown>).location;
+  return typeof loc === "string" && loc.trim().length > 0 ? loc.trim() : null;
+}
 
 /** The brief edit (SURFACE_SPEC §11 `Edit brief`). Additive: the profile is
  *  written at first run by POST /workspaces; this is the only update path. */
@@ -211,9 +232,23 @@ export class LeadsController {
         providerPeopleSearch: PROVIDER_PEOPLE_SEARCH[profile.shape],
         topicSuggestions: WATCH_TOPIC_SUGGESTIONS[profile.shape],
         sources: SOURCE_ELIGIBILITY[profile.shape],
-        watchTopics: topics.map((t) => ({ id: t.id, kind: t.kind, label: t.label })),
+        // B6.6: the brief's own words and places FIRST, then the ones a
+        // person typed. Reading only the `WatchTopic` table left this block
+        // empty on every workspace that had never hand-typed a chip — while
+        // the workspace had in fact stated its services and its area at
+        // first run. A derived chip is not deletable here: its home is the
+        // brief, so the surface sends you there instead of offering a delete
+        // that would leave the profile and the panel disagreeing.
+        watchTopics: [
+          ...briefWatchTopics(profile),
+          ...topics.map((t) => ({ id: t.id, kind: t.kind, label: t.label, derived: false })),
+        ],
         // ── B6.5: the standing-watch shell ──
         title: leadFinderTitle(profile.shape, vertical),
+        // B6.6: the panel names the standing brief; the page asks the
+        // question. They are two different sentences in the prototype and
+        // the build had been printing the page question in both.
+        watchTitle: leadFinderWatchTitle(profile.shape),
         noun: subjectNounFor(profile.shape, vertical),
         brief: {
           sentence: this.briefSentence(profile),
@@ -919,7 +954,16 @@ export class LeadsController {
     const profile = await this.profile();
     const suppression = await this.suppressionBreakdown();
     return this.tenant.run(async (tx) => {
-      const [active, happy, optOut] = await Promise.all([
+      const now = Date.now();
+      // B6.6: the pool asks the scorer the SAME question the market feed
+      // asks. It used to pass only `{title, company}` — so on any book whose
+      // people are not job titles (every local_business and consumer
+      // workspace: patients, households, members) no reason could ever
+      // match, every row came back with zero reasons, and the surface
+      // correctly but uselessly printed `unscored` on all of them with no
+      // why-chips beside it. The facts below are the ones `ownBookCandidates`
+      // already reads; sharing them is what makes one score mean one thing.
+      const [active, happy, optOut, lastTouch, replied] = await Promise.all([
         tx.enrollment.findMany({ where: { status: "ACTIVE" }, select: { contactId: true } }),
         tx.enrollment.findMany({
           where: { pipelineStage: { in: [...HAPPY_STAGES] } },
@@ -934,12 +978,20 @@ export class LeadsController {
           },
           select: { id: true },
         }),
+        tx.message.groupBy({ by: ["contactId"], _max: { sentAt: true } }),
+        tx.message.findMany({
+          where: { direction: "INBOUND" },
+          select: { contactId: true },
+          distinct: ["contactId"],
+        }),
       ]);
       const out = new Set([
         ...active.map((e) => e.contactId),
         ...happy.map((e) => e.contactId),
         ...optOut.map((c) => c.id),
       ]);
+      const touchById = new Map(lastTouch.map((t) => [t.contactId, t._max.sentAt]));
+      const repliedSet = new Set(replied.map((m) => m.contactId));
       const contacts = await tx.contact.findMany({
         orderBy: { createdAt: "asc" },
         take: 500,
@@ -951,13 +1003,23 @@ export class LeadsController {
           phone: true,
           title: true,
           company: true,
+          callConsent: true,
+          enrichment: true,
         },
       });
       const yours = contacts
         .filter((c) => !out.has(c.id))
         .filter((c) => Boolean(c.email) || Boolean(c.phone))
         .map((c) => {
-          const scored = scoreCandidate(profile, { title: c.title, company: c.company });
+          const last = touchById.get(c.id) ?? null;
+          const scored = scoreCandidate(profile, {
+            title: c.title,
+            company: c.company,
+            location: contactLocation(c.enrichment),
+            repliedBefore: repliedSet.has(c.id),
+            daysSinceLastTouch: last ? Math.floor((now - last.getTime()) / 86_400_000) : null,
+            callConsentGranted: c.callConsent === "granted",
+          });
           return {
             id: `own:${c.id}`,
             contactId: c.id,
@@ -971,7 +1033,15 @@ export class LeadsController {
             // When no fact backs a number, both surfaces say `unscored`.
             scored: scored.reasons.length > 0,
             why: scored.reasons,
-            about: [c.title, c.company].filter(Boolean).join(" · "),
+            // The prototype's descriptor line is "38 · Austin". We hold
+            // neither an age nor a city on a contact (Q-160, Q-161) — so this
+            // says what we DO hold and nothing more: the title and company
+            // when the book is businesses, and the place the provider gave
+            // us when the row came from a reveal. A workspace whose people
+            // are patients gets an empty line rather than a made-up one.
+            about: [c.title, c.company, contactLocation(c.enrichment)]
+              .filter(Boolean)
+              .join(" · "),
             sourceTag: "YOUR RECORDS",
             onFile: true,
           };
@@ -990,6 +1060,13 @@ export class LeadsController {
               count: yours.length,
               estimate: false,
               rows: yours.slice(0, 12),
+              // B6.6: the WHOLE band, not just the twelve rows on screen.
+              // The bulk action says "Add 312 to a campaign" and has to mean
+              // it — adding the visible twelve under that label would be a
+              // lie. Only the free band carries these: every other band is
+              // people whose details we do not hold, so they have no contact
+              // id to add.
+              contactIds: yours.map((r) => r.contactId),
               note: null as string | null,
             }
           : {
@@ -999,6 +1076,7 @@ export class LeadsController {
               count: null,
               estimate: false,
               rows: [] as typeof yours,
+              contactIds: [] as string[],
               note: "This band counts the open market, which needs the search provider — it is not a number we can estimate honestly yet.",
             },
       );
