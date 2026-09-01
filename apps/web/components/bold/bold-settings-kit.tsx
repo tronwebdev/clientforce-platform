@@ -924,8 +924,23 @@ export function AdaNote({
   );
 }
 
-/** The mono record line at the foot of every item page. */
+/**
+ * A mono record line.
+ *
+ * The item pages no longer carry one: the prototype has no such element on any
+ * of them, and SURFACE_SPEC_SETTINGS asked for it in error — the line the
+ * owner withdrew in REDO §1.2 ("the prototype doesn't carry one here"). What
+ * shipped was a raw cuid at 10px under every Settings page.
+ *
+ * It survives for the places that render a real, human-meaningful identifier
+ * (an email address, a phone number), and it now REFUSES a machine id rather
+ * than printing one: a cuid is not information to a practice owner, it is
+ * noise that looks like a defect.
+ */
+const MACHINE_ID = /^c[a-z0-9]{20,}$/i;
+
 export function RecordLine({ id }: { id: string }) {
+  if (!id || MACHINE_ID.test(id)) return null;
   return (
     <div
       data-testid="bold-record-line"

@@ -17,7 +17,6 @@ import { useState } from "react";
 import { mono } from "../bold-cards";
 import {
   AddRow,
-
   ChoiceRow,
   DrawerError,
   EYEBROW,
@@ -43,7 +42,10 @@ import {
 import { BoldItemPage, EmptyTab, TabNote, type ItemHeader } from "./BoldItemPage";
 import { pluralise, type SettingsSnapshot } from "./settings-data";
 
-type Drawer = { t: "invite" } | { t: "person"; member: WorkspaceMemberRow } | { t: "pending"; invite: InviteRow };
+type Drawer =
+  | { t: "invite" }
+  | { t: "person"; member: WorkspaceMemberRow }
+  | { t: "pending"; invite: InviteRow };
 
 const TABS = ["People", "What roles can do"];
 
@@ -109,7 +111,12 @@ export function BoldTeamItem({
     {
       label: "PENDING INVITES",
       value: String(open.filter((i) => i.state === "pending").length),
-      sub: open.length === 0 ? "nobody waiting" : open.some((i) => i.state === "expired") ? "one has lapsed" : "waiting to join",
+      sub:
+        open.length === 0
+          ? "nobody waiting"
+          : open.some((i) => i.state === "expired")
+            ? "one has lapsed"
+            : "waiting to join",
       tone: open.some((i) => i.state === "expired") ? ("amber" as const) : ("ink" as const),
     },
   ];
@@ -193,7 +200,6 @@ export function BoldTeamItem({
         onBack={onBack}
         onHeader={onHeader}
         ada={ada}
-        recordId={data.workspaceId}
         testid="bold-wss-team-item"
       >
         {tab === 0 ? (
@@ -203,20 +209,26 @@ export function BoldTeamItem({
             ) : (
               <RowList rows={peopleRows} testid="bold-team-people" />
             )}
-            <AddRow label="Invite someone" testid="bold-team-invite" onClick={() => setDrawer({ t: "invite" })} />
+            <AddRow
+              label="Invite someone"
+              testid="bold-team-invite"
+              onClick={() => setDrawer({ t: "invite" })}
+            />
           </>
         ) : (
           <>
             <RowList rows={roleRows} testid="bold-team-roles" />
             <TabNote>
-              THESE ARE THE ROLES THIS PLATFORM ENFORCES. WHAT EACH ONE MAY DO IS CHECKED ON THE SERVER, NOT HIDDEN IN
-              THE INTERFACE.
+              THESE ARE THE ROLES THIS PLATFORM ENFORCES. WHAT EACH ONE MAY DO IS CHECKED ON THE
+              SERVER, NOT HIDDEN IN THE INTERFACE.
             </TabNote>
           </>
         )}
       </BoldItemPage>
 
-      {drawer?.t === "invite" ? <InviteDrawer onDone={done} onClose={() => setDrawer(null)} /> : null}
+      {drawer?.t === "invite" ? (
+        <InviteDrawer onDone={done} onClose={() => setDrawer(null)} />
+      ) : null}
       {drawer?.t === "person" ? (
         <PersonDrawer
           member={drawer.member}
@@ -234,7 +246,13 @@ export function BoldTeamItem({
 
 /* ----------------------------------------------------------- invite drawer */
 
-function InviteDrawer({ onDone, onClose }: { onDone: (t: string) => Promise<void>; onClose: () => void }) {
+function InviteDrawer({
+  onDone,
+  onClose,
+}: {
+  onDone: (t: string) => Promise<void>;
+  onClose: () => void;
+}) {
   const [step, setStep] = useState(0);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"ADMIN" | "AGENT" | "VIEWER">("AGENT");
@@ -266,7 +284,9 @@ function InviteDrawer({ onDone, onClose }: { onDone: (t: string) => Promise<void
       testid="bold-drawer-invite"
       footer={
         <>
-          {step === 1 ? <PrimaryButton label="Back" tone="quiet" onClick={() => setStep(0)} /> : null}
+          {step === 1 ? (
+            <PrimaryButton label="Back" tone="quiet" onClick={() => setStep(0)} />
+          ) : null}
           <span style={{ flex: 1 }} />
           <StepDots step={step} of={2} />
           {step === 0 ? (
@@ -317,8 +337,11 @@ function InviteDrawer({ onDone, onClose }: { onDone: (t: string) => Promise<void
               />
             ))}
           </div>
-          <div style={{ fontSize: 11.5, color: "var(--cvb-faint)", lineHeight: 1.6, marginTop: 14 }}>
-            Owners are not invited by email — ownership is handed over from someone who already has it.
+          <div
+            style={{ fontSize: 11.5, color: "var(--cvb-faint)", lineHeight: 1.6, marginTop: 14 }}
+          >
+            Owners are not invited by email — ownership is handed over from someone who already has
+            it.
           </div>
           <DrawerError message={error} />
         </>
@@ -366,7 +389,9 @@ function PendingInviteDrawer({
                   setError(res.error);
                   return;
                 }
-                await onDone("Sent again — the new link expires in seven days, the old one is dead.");
+                await onDone(
+                  "Sent again — the new link expires in seven days, the old one is dead.",
+                );
               })();
             }}
           />
@@ -387,7 +412,11 @@ function PendingInviteDrawer({
         <Line label="TIMES SENT" value={String(invite.resendCount + 1)} />
         <Line
           label="DELIVERY"
-          value={invite.sentAt ? "Emailed to them" : "Created here — the invite mail is not connected yet"}
+          value={
+            invite.sentAt
+              ? "Emailed to them"
+              : "Created here — the invite mail is not connected yet"
+          }
         />
       </div>
 
@@ -404,14 +433,22 @@ function PendingInviteDrawer({
             marginTop: 18,
           }}
         >
-          The link stopped working after seven days. Nothing about their access changed — they simply never used it.
+          The link stopped working after seven days. Nothing about their access changed — they
+          simply never used it.
         </div>
       ) : null}
 
       <div style={{ marginTop: 24, borderTop: "1px solid var(--cvb-line-inner)", paddingTop: 18 }}>
         {confirm ? (
           <>
-            <div style={{ fontSize: 12.5, color: "var(--cvb-danger)", lineHeight: 1.55, marginBottom: 12 }}>
+            <div
+              style={{
+                fontSize: 12.5,
+                color: "var(--cvb-danger)",
+                lineHeight: 1.55,
+                marginBottom: 12,
+              }}
+            >
               The link stops working immediately. If they are mid-signup they will be turned away.
             </div>
             <div style={{ display: "flex", gap: 9 }}>
@@ -441,7 +478,12 @@ function PendingInviteDrawer({
             onClick={() => setConfirm(true)}
             role="button"
             data-testid="bold-drawer-invite-revoke"
-            style={{ fontSize: 12.5, fontWeight: 700, color: "var(--cvb-danger)", cursor: "pointer" }}
+            style={{
+              fontSize: 12.5,
+              fontWeight: 700,
+              color: "var(--cvb-danger)",
+              cursor: "pointer",
+            }}
           >
             Revoke this invite
           </span>
@@ -507,9 +549,16 @@ function PersonDrawer({
         </>
       }
     >
-      <div style={{ fontSize: 12.5, color: "var(--cvb-muted)", lineHeight: 1.55 }}>{member.email}</div>
+      <div style={{ fontSize: 12.5, color: "var(--cvb-muted)", lineHeight: 1.55 }}>
+        {member.email}
+      </div>
       <div style={{ ...mono, fontSize: 10, color: "var(--cvb-faint)", marginTop: 6 }}>
-        Joined {new Date(member.since).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+        Joined{" "}
+        {new Date(member.since).toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        })}
       </div>
 
       <div style={{ ...EYEBROW, margin: "24px 0 12px" }}>WHAT THEY MAY DO</div>
@@ -540,17 +589,24 @@ function PersonDrawer({
             marginTop: 16,
           }}
         >
-          This is the only owner, so their role is fixed and they cannot be removed. Make someone else an owner first —
-          a workspace with no owner has nobody who can pay for it or close it.
+          This is the only owner, so their role is fixed and they cannot be removed. Make someone
+          else an owner first — a workspace with no owner has nobody who can pay for it or close it.
         </div>
       ) : null}
 
       <div style={{ marginTop: 24, borderTop: "1px solid var(--cvb-line-inner)", paddingTop: 18 }}>
         {lastOwner ? null : confirm ? (
           <>
-            <div style={{ fontSize: 12.5, color: "var(--cvb-danger)", lineHeight: 1.55, marginBottom: 12 }}>
-              They lose access immediately, and every conversation assigned to them goes back to the queue for someone
-              else to pick up. Nothing they did is deleted.
+            <div
+              style={{
+                fontSize: 12.5,
+                color: "var(--cvb-danger)",
+                lineHeight: 1.55,
+                marginBottom: 12,
+              }}
+            >
+              They lose access immediately, and every conversation assigned to them goes back to the
+              queue for someone else to pick up. Nothing they did is deleted.
             </div>
             <div style={{ display: "flex", gap: 9 }}>
               <PrimaryButton
@@ -567,7 +623,8 @@ function PersonDrawer({
                       setError(res.error);
                       return;
                     }
-                    const released = (res.body as { releasedThreads?: number })?.releasedThreads ?? 0;
+                    const released =
+                      (res.body as { releasedThreads?: number })?.releasedThreads ?? 0;
                     await onDone(
                       released > 0
                         ? `Removed — ${pluralise(released, "conversation", "conversations")} went back to the queue.`
@@ -584,7 +641,12 @@ function PersonDrawer({
             onClick={() => setConfirm(true)}
             role="button"
             data-testid="bold-drawer-person-remove"
-            style={{ fontSize: 12.5, fontWeight: 700, color: "var(--cvb-danger)", cursor: "pointer" }}
+            style={{
+              fontSize: 12.5,
+              fontWeight: 700,
+              color: "var(--cvb-danger)",
+              cursor: "pointer",
+            }}
           >
             Remove from this workspace
           </span>
@@ -603,4 +665,3 @@ function Line({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
-

@@ -476,18 +476,6 @@ export function SenderDrawer({
         )}
         <DrawerError message={error} />
       </div>
-
-      <div
-        style={{
-          ...mono,
-          fontSize: 9.5,
-          letterSpacing: ".1em",
-          color: "var(--cvb-ghost)",
-          marginTop: 22,
-        }}
-      >
-        {senderId}
-      </div>
     </SettingsDrawer>
   );
 }

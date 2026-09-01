@@ -47,12 +47,20 @@ const ADD_LABEL = [
 
 function sourceLine(s: WorkspaceSourceRow): string {
   const kind =
-    s.kind === "WEBSITE" ? "Read weekly" : s.kind === "DOCUMENT" ? "Uploaded by you" : "Typed by you";
+    s.kind === "WEBSITE"
+      ? "Read weekly"
+      : s.kind === "DOCUMENT"
+        ? "Uploaded by you"
+        : "Typed by you";
   if (s.status === "FAILED") return `${kind} · could not be read`;
   if (s.status !== "READY") return `${kind} · reading it now`;
   // A yield of zero is a real, useful fact: it means nothing came out.
   const yielded =
-    s.chunks === null ? "" : s.chunks === 0 ? " · nothing usable found" : ` · ${s.chunks} facts found`;
+    s.chunks === null
+      ? ""
+      : s.chunks === 0
+        ? " · nothing usable found"
+        : ` · ${s.chunks} facts found`;
   return `${kind}${yielded}`;
 }
 
@@ -154,7 +162,13 @@ export function BoldCoreItem({
     key: f.key,
     n: f.label,
     sub: f.value,
-    chip: f.taught ? "You taught her" : f.source === "typed" ? "You told her" : f.source === "ai_decides" ? "Ada decides" : "Core",
+    chip: f.taught
+      ? "You taught her"
+      : f.source === "typed"
+        ? "You told her"
+        : f.source === "ai_decides"
+          ? "Ada decides"
+          : "Core",
     tone: f.taught || f.source === "typed" ? "live" : "mute",
     onOpen: () => setDrawer({ t: "edit", field: f }),
   }));
@@ -200,7 +214,14 @@ export function BoldCoreItem({
           : s.kind === "WEBSITE"
             ? "Live"
             : "Core",
-    tone: s.status === "FAILED" ? "danger" : s.status !== "READY" ? "cyan" : s.kind === "WEBSITE" ? "live" : "mute",
+    tone:
+      s.status === "FAILED"
+        ? "danger"
+        : s.status !== "READY"
+          ? "cyan"
+          : s.kind === "WEBSITE"
+            ? "live"
+            : "mute",
     onOpen: () => setDrawer({ t: "sourceDetail", source: s }),
   }));
 
@@ -221,7 +242,6 @@ export function BoldCoreItem({
         onBack={onBack}
         onHeader={onHeader}
         ada={ada}
-        recordId={data.workspaceId}
         testid="bold-wss-core-item"
       >
         {tab === 0 ? (
@@ -245,8 +265,8 @@ export function BoldCoreItem({
             <>
               <RowList rows={gapRows} testid="bold-core-gaps" />
               <TabNote>
-                A GAP IS WHAT A LIVE CAMPAIGN ASKED FOR AND DID NOT FIND. HOW OFTEN CUSTOMERS ASK IT IS NOT COUNTED
-                ANYWHERE YET, SO THIS PAGE DOES NOT CLAIM A NUMBER.
+                A GAP IS WHAT A LIVE CAMPAIGN ASKED FOR AND DID NOT FIND. HOW OFTEN CUSTOMERS ASK IT
+                IS NOT COUNTED ANYWHERE YET, SO THIS PAGE DOES NOT CLAIM A NUMBER.
               </TabNote>
             </>
           )
@@ -264,9 +284,12 @@ export function BoldCoreItem({
             )}
             {data.icpShape ? (
               <TabNote>
-                YOUR LEAD FINDER SEARCHES AS {String(data.icpShape).replace(/_/g, " ").toUpperCase()}
-                {data.icpVertical ? ` · ${String(data.icpVertical).replace(/_/g, " ").toUpperCase()}` : ""} — CHANGE
-                THAT FROM THE LEAD FINDER&rsquo;S OWN BRIEF.
+                YOUR LEAD FINDER SEARCHES AS{" "}
+                {String(data.icpShape).replace(/_/g, " ").toUpperCase()}
+                {data.icpVertical
+                  ? ` · ${String(data.icpVertical).replace(/_/g, " ").toUpperCase()}`
+                  : ""}{" "}
+                — CHANGE THAT FROM THE LEAD FINDER&rsquo;S OWN BRIEF.
               </TabNote>
             ) : null}
           </>
@@ -302,12 +325,18 @@ export function BoldCoreItem({
         />
       </BoldItemPage>
 
-      {drawer?.t === "fact" ? <AddFactDrawer onDone={done} onClose={() => setDrawer(null)} /> : null}
+      {drawer?.t === "fact" ? (
+        <AddFactDrawer onDone={done} onClose={() => setDrawer(null)} />
+      ) : null}
       {drawer?.t === "gap" ? (
         <AddFactDrawer gap={drawer.gap} onDone={done} onClose={() => setDrawer(null)} />
       ) : null}
-      {drawer?.t === "field" ? <AddFieldDrawer onDone={done} onClose={() => setDrawer(null)} /> : null}
-      {drawer?.t === "source" ? <AddSourceDrawer onDone={done} onClose={() => setDrawer(null)} /> : null}
+      {drawer?.t === "field" ? (
+        <AddFieldDrawer onDone={done} onClose={() => setDrawer(null)} />
+      ) : null}
+      {drawer?.t === "source" ? (
+        <AddSourceDrawer onDone={done} onClose={() => setDrawer(null)} />
+      ) : null}
       {drawer?.t === "edit" ? (
         <EditFactDrawer field={drawer.field} onDone={done} onClose={() => setDrawer(null)} />
       ) : null}
@@ -380,7 +409,11 @@ function SourceDrawer({
           label="LAST READ"
           value={
             source.status === "READY"
-              ? read.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+              ? read.toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })
               : source.status === "FAILED"
                 ? "The last attempt failed"
                 : "Reading it now"
@@ -405,8 +438,16 @@ function SourceDrawer({
       <div style={{ marginTop: 26, borderTop: "1px solid var(--cvb-line-inner)", paddingTop: 18 }}>
         {confirm ? (
           <>
-            <div style={{ fontSize: 12.5, color: "var(--cvb-danger)", lineHeight: 1.55, marginBottom: 12 }}>
-              Every fact that came from this source goes with it. She stops quoting them from the moment you remove it.
+            <div
+              style={{
+                fontSize: 12.5,
+                color: "var(--cvb-danger)",
+                lineHeight: 1.55,
+                marginBottom: 12,
+              }}
+            >
+              Every fact that came from this source goes with it. She stops quoting them from the
+              moment you remove it.
             </div>
             <div style={{ display: "flex", gap: 9 }}>
               <PrimaryButton
@@ -435,7 +476,12 @@ function SourceDrawer({
             onClick={() => setConfirm(true)}
             role="button"
             data-testid="bold-drawer-source-remove"
-            style={{ fontSize: 12.5, fontWeight: 700, color: "var(--cvb-danger)", cursor: "pointer" }}
+            style={{
+              fontSize: 12.5,
+              fontWeight: 700,
+              color: "var(--cvb-danger)",
+              cursor: "pointer",
+            }}
           >
             Remove this source
           </span>

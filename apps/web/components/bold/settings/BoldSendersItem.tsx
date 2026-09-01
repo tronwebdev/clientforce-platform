@@ -20,7 +20,14 @@ import {
   NumberRequestDrawer,
   SenderDrawer,
 } from "./BoldSenderDrawers";
-import { dnsPosture, emailSenders, pluralise, smsSenders, warmupPercent, type SettingsSnapshot } from "./settings-data";
+import {
+  dnsPosture,
+  emailSenders,
+  pluralise,
+  smsSenders,
+  warmupPercent,
+  type SettingsSnapshot,
+} from "./settings-data";
 
 type Drawer =
   | { t: "sender"; id: string }
@@ -142,7 +149,13 @@ export function BoldSendersItem({
               ? "Verifying"
               : "Unchecked",
       tone:
-        s.status !== "ACTIVE" ? "mute" : posture.state === "verified" ? "live" : posture.state === "pending" ? "warn" : "mute",
+        s.status !== "ACTIVE"
+          ? "mute"
+          : posture.state === "verified"
+            ? "live"
+            : posture.state === "pending"
+              ? "warn"
+              : "mute",
       onOpen: () => setDrawer({ t: "sender", id: s.id }),
     };
   });
@@ -189,7 +202,9 @@ export function BoldSendersItem({
     key: `h-${s.id}`,
     n: s.fromEmail ?? "This sender",
     sub: `${s.sentToday ?? 0} today${s.dailyLimit != null ? ` of ${s.dailyLimit}` : ""} · ${
-      s.health?.score != null ? `health ${s.health.score} out of 100` : "no health sweep has run yet"
+      s.health?.score != null
+        ? `health ${s.health.score} out of 100`
+        : "no health sweep has run yet"
     }${s.warmup?.active && s.warmup.currentCap != null ? ` · today's ceiling ${s.warmup.currentCap}` : ""}`,
     chip: s.health?.state ?? "no data",
     tone: s.health?.state === "unhealthy" ? "warn" : s.health?.score != null ? "live" : "mute",
@@ -215,7 +230,6 @@ export function BoldSendersItem({
         onBack={onBack}
         onHeader={onHeader}
         ada={ada}
-        recordId={data.workspaceId}
         testid="bold-wss-senders-item"
       >
         {tab === 0 ? (
@@ -228,8 +242,15 @@ export function BoldSendersItem({
             ) : (
               <RowList rows={[...emailRows, ...replyRow]} testid="bold-senders-email" />
             )}
-            <AddRow label="Add an email sender" testid="bold-senders-add-email" onClick={() => setDrawer({ t: "addEmail" })} />
-            <TabNote>ONE IDENTITY PER WORKSPACE PER CHANNEL — CAMPAIGNS RESOLVE IT AUTOMATICALLY, NO PICKERS.</TabNote>
+            <AddRow
+              label="Add an email sender"
+              testid="bold-senders-add-email"
+              onClick={() => setDrawer({ t: "addEmail" })}
+            />
+            <TabNote>
+              ONE IDENTITY PER WORKSPACE PER CHANNEL — CAMPAIGNS RESOLVE IT AUTOMATICALLY, NO
+              PICKERS.
+            </TabNote>
           </>
         ) : null}
 
@@ -243,23 +264,30 @@ export function BoldSendersItem({
             ) : (
               <RowList rows={numberRows} testid="bold-senders-num" />
             )}
-            <AddRow label="Add a number" testid="bold-senders-add-number" onClick={() => setDrawer({ t: "addNumber" })} />
+            <AddRow
+              label="Add a number"
+              testid="bold-senders-add-number"
+              onClick={() => setDrawer({ t: "addNumber" })}
+            />
             <TabNote>
-              RESERVING A NUMBER AND FILING A2P WITH THE CARRIERS IS NOT CONNECTED YET. A REQUEST RECORDS WHAT YOU ASKED
-              FOR AND SHOWS ITS REAL STATE.
+              RESERVING A NUMBER AND FILING A2P WITH THE CARRIERS IS NOT CONNECTED YET. A REQUEST
+              RECORDS WHAT YOU ASKED FOR AND SHOWS ITS REAL STATE.
             </TabNote>
           </>
         ) : null}
 
         {tab === 2 ? (
           senders.length === 0 ? (
-            <EmptyTab testid="bold-senders-health-none" line="Health arrives with your first sender." />
+            <EmptyTab
+              testid="bold-senders-health-none"
+              line="Health arrives with your first sender."
+            />
           ) : (
             <>
               <RowList rows={healthRows} testid="bold-senders-health" />
               <TabNote>
-                HEALTH IS COMPUTED FROM THE SEND LEDGER OVER A ROLLING WINDOW. A SENDER WITH NO SWEEP YET SAYS SO RATHER
-                THAN SCORING ITSELF.
+                HEALTH IS COMPUTED FROM THE SEND LEDGER OVER A ROLLING WINDOW. A SENDER WITH NO
+                SWEEP YET SAYS SO RATHER THAN SCORING ITSELF.
               </TabNote>
             </>
           )
@@ -275,10 +303,19 @@ export function BoldSendersItem({
           flash={flash}
         />
       ) : null}
-      {drawer?.t === "addEmail" ? <AddEmailSenderDrawer onDone={done} onClose={() => setDrawer(null)} /> : null}
-      {drawer?.t === "addNumber" ? <AddNumberDrawer onDone={done} onClose={() => setDrawer(null)} /> : null}
+      {drawer?.t === "addEmail" ? (
+        <AddEmailSenderDrawer onDone={done} onClose={() => setDrawer(null)} />
+      ) : null}
+      {drawer?.t === "addNumber" ? (
+        <AddNumberDrawer onDone={done} onClose={() => setDrawer(null)} />
+      ) : null}
       {drawer?.t === "request" ? (
-        <NumberRequestDrawer request={drawer.request} onClose={() => setDrawer(null)} onDone={done} flash={flash} />
+        <NumberRequestDrawer
+          request={drawer.request}
+          onClose={() => setDrawer(null)}
+          onDone={done}
+          flash={flash}
+        />
       ) : null}
     </>
   );

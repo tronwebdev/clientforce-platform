@@ -13,7 +13,6 @@
  * TypeError on three fields at once.
  */
 import { useState } from "react";
-import { mono } from "../bold-cards";
 import {
   ChoiceRow,
   DrawerError,
@@ -173,7 +172,9 @@ export function AddFieldDrawer({ onDone, onClose }: Done) {
       testid="bold-drawer-field"
       footer={
         <>
-          {step === 1 ? <PrimaryButton label="Back" tone="quiet" onClick={() => setStep(0)} /> : null}
+          {step === 1 ? (
+            <PrimaryButton label="Back" tone="quiet" onClick={() => setStep(0)} />
+          ) : null}
           <span style={{ flex: 1 }} />
           <StepDots step={step} of={2} />
           {step === 0 ? (
@@ -280,7 +281,12 @@ export function EditFactDrawer({
       footer={
         <>
           <span style={{ flex: 1 }} />
-          <PrimaryButton label="Save" busy={busy} testid="bold-drawer-editfact-save" onClick={() => void save()} />
+          <PrimaryButton
+            label="Save"
+            busy={busy}
+            testid="bold-drawer-editfact-save"
+            onClick={() => void save()}
+          />
         </>
       }
     >
@@ -294,8 +300,11 @@ export function EditFactDrawer({
           />
         </div>
       ) : (
-        <div style={{ fontSize: 12.5, color: "var(--cvb-faint)", lineHeight: 1.55, marginBottom: 16 }}>
-          This one is part of your business core, so its name is fixed. You can change what she says.
+        <div
+          style={{ fontSize: 12.5, color: "var(--cvb-faint)", lineHeight: 1.55, marginBottom: 16 }}
+        >
+          This one is part of your business core, so its name is fixed. You can change what she
+          says.
         </div>
       )}
       <Well
@@ -305,15 +314,21 @@ export function EditFactDrawer({
         multiline
         testid="bold-drawer-editfact-answer"
       />
-      <div style={{ ...mono, fontSize: 9.5, letterSpacing: ".1em", color: "var(--cvb-ghost)", marginTop: 18 }}>
-        {field.key}
-      </div>
 
       {field.taught ? (
-        <div style={{ marginTop: 26, borderTop: "1px solid var(--cvb-line-inner)", paddingTop: 18 }}>
+        <div
+          style={{ marginTop: 26, borderTop: "1px solid var(--cvb-line-inner)", paddingTop: 18 }}
+        >
           {confirmForget ? (
             <>
-              <div style={{ fontSize: 12.5, color: "var(--cvb-danger)", lineHeight: 1.55, marginBottom: 12 }}>
+              <div
+                style={{
+                  fontSize: 12.5,
+                  color: "var(--cvb-danger)",
+                  lineHeight: 1.55,
+                  marginBottom: 12,
+                }}
+              >
                 She stops quoting this immediately. Anyone who asks it goes back to your front desk.
               </div>
               <div style={{ display: "flex", gap: 9 }}>
@@ -324,7 +339,11 @@ export function EditFactDrawer({
                   testid="bold-drawer-editfact-forget-confirm"
                   onClick={() => void forget()}
                 />
-                <PrimaryButton label="Keep it" tone="quiet" onClick={() => setConfirmForget(false)} />
+                <PrimaryButton
+                  label="Keep it"
+                  tone="quiet"
+                  onClick={() => setConfirmForget(false)}
+                />
               </div>
             </>
           ) : (
@@ -332,7 +351,12 @@ export function EditFactDrawer({
               onClick={() => setConfirmForget(true)}
               role="button"
               data-testid="bold-drawer-editfact-forget"
-              style={{ fontSize: 12.5, fontWeight: 700, color: "var(--cvb-danger)", cursor: "pointer" }}
+              style={{
+                fontSize: 12.5,
+                fontWeight: 700,
+                color: "var(--cvb-danger)",
+                cursor: "pointer",
+              }}
             >
               Make her forget this
             </span>
@@ -385,11 +409,17 @@ export function AddSourceDrawer({ onDone, onClose }: Done) {
       testid="bold-drawer-source"
       footer={
         <>
-          {step === 1 ? <PrimaryButton label="Back" tone="quiet" onClick={() => setStep(0)} /> : null}
+          {step === 1 ? (
+            <PrimaryButton label="Back" tone="quiet" onClick={() => setStep(0)} />
+          ) : null}
           <span style={{ flex: 1 }} />
           <StepDots step={step} of={2} />
           {step === 0 ? (
-            <PrimaryButton label="Next" testid="bold-drawer-source-next" onClick={() => setStep(1)} />
+            <PrimaryButton
+              label="Next"
+              testid="bold-drawer-source-next"
+              onClick={() => setStep(1)}
+            />
           ) : (
             <PrimaryButton
               label="Start reading it"
@@ -482,7 +512,10 @@ export function AddSourceDrawer({ onDone, onClose }: Done) {
         </>
       ) : (
         <>
-          <StepPrompt prompt="Type what she should know." help="She reads this once — edit the source to change it." />
+          <StepPrompt
+            prompt="Type what she should know."
+            help="She reads this once — edit the source to change it."
+          />
           <div>
             <Well
               label="CALL IT"

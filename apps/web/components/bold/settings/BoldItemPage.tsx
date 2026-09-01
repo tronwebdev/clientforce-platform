@@ -65,7 +65,7 @@ export function BoldItemPage({
   onHeader: (h: ItemHeader | null) => void;
   children: ReactNode;
   ada: { note: string | null; actionLabel?: string; onAct?: () => void };
-  recordId: string | null;
+  recordId?: string | null;
   testid: string;
 }) {
   /**
@@ -78,7 +78,12 @@ export function BoldItemPage({
     onHeader({
       eyebrow: kind,
       title,
-      status: status ? { label: status.label, tone: status.tone === "warn" ? "capped" : status.tone === "mute" ? "idle" : "live" } : null,
+      status: status
+        ? {
+            label: status.label,
+            tone: status.tone === "warn" ? "capped" : status.tone === "mute" ? "idle" : "live",
+          }
+        : null,
       onBack,
     });
     return () => onHeader(null);
@@ -133,7 +138,10 @@ export function BoldItemPage({
 /** An empty tab still owes the reader a reason. */
 export function EmptyTab({ line, testid }: { line: string; testid?: string }) {
   return (
-    <div data-testid={testid} style={{ fontSize: 13, color: "var(--cvb-faint)", lineHeight: 1.6, padding: "6px 0" }}>
+    <div
+      data-testid={testid}
+      style={{ fontSize: 13, color: "var(--cvb-faint)", lineHeight: 1.6, padding: "6px 0" }}
+    >
       {line}
     </div>
   );
@@ -142,7 +150,16 @@ export function EmptyTab({ line, testid }: { line: string; testid?: string }) {
 /** A plain explanatory line under a tab's rows — used for stated absences. */
 export function TabNote({ children }: { children: ReactNode }) {
   return (
-    <div style={{ ...mono, fontSize: 10, letterSpacing: ".1em", color: "var(--cvb-faint)", lineHeight: 1.7, marginTop: 16 }}>
+    <div
+      style={{
+        ...mono,
+        fontSize: 10,
+        letterSpacing: ".1em",
+        color: "var(--cvb-faint)",
+        lineHeight: 1.7,
+        marginTop: 16,
+      }}
+    >
       {children}
     </div>
   );

@@ -140,6 +140,25 @@ const ACTION_META: Record<
   },
 };
 
+/**
+ * Any priced action or ledger reason the meta maps do not name yet.
+ *
+ * `ACTION_META` carries twelve keys and `LEDGER_META` four, against a ledger
+ * that can legitimately carry more — so the fallback used to print the raw
+ * enum, and a practice owner would read the literal word `whatsapp_msg` in
+ * mono. That is a machine identifier leaking to a reader, the same class of
+ * defect as a bare cuid.
+ *
+ * Turning `whatsapp_msg` into "Whatsapp msg" is derived from the key rather
+ * than invented, so it states no more than the ledger actually knows, while
+ * being readable. A new kind should still earn a real entry in the maps; this
+ * is the floor, not the destination.
+ */
+function humaniseKey(key: string): string {
+  const words = key.replace(/[_-]+/g, " ").trim();
+  return words ? `${words[0]!.toUpperCase()}${words.slice(1)}` : "Other";
+}
+
 /** Ledger reasons → the plain words for what happened. */
 const LEDGER_META: Record<string, { label: string; sub: string }> = {
   lead_reveal: { label: "Lead reveals", sub: "Contact details unlocked in the Lead finder" },
@@ -183,7 +202,7 @@ export function BoldCreditsView({ flash }: { flash?: (m: string) => void }) {
   const metering = summary?.metering;
 
   /** Priced-but-unmetered, split from priced-at-zero — see the note below. */
-  const label = (a: string) => ACTION_META[a]?.label ?? a;
+  const label = (a: string) => ACTION_META[a]?.label ?? humaniseKey(a);
   const uniq = (xs: string[]) => xs.filter((v, i, arr) => arr.indexOf(v) === i);
   const chargeable = uniq(
     (metering?.unmetered ?? []).filter((a) => (prices?.effective[a] ?? 0) > 0).map(label),
@@ -502,7 +521,7 @@ export function BoldCreditsView({ flash }: { flash?: (m: string) => void }) {
                   </span>
                   <div style={{ flex: 1, minWidth: 140 }}>
                     <div style={{ fontSize: 13.5, fontWeight: 700, letterSpacing: "-.018em" }}>
-                      {meta?.label ?? <span style={mono}>{r.reason}</span>}
+                      {meta?.label ?? humaniseKey(r.reason)}
                     </div>
                     <div style={{ fontSize: 11.5, color: "var(--cvb-faint)", marginTop: 3 }}>
                       {meta?.sub ?? "From your ledger"} · {r.entries} time
@@ -637,7 +656,7 @@ export function BoldCreditsView({ flash }: { flash?: (m: string) => void }) {
                           letterSpacing: "-.016em",
                         }}
                       >
-                        {meta?.label ?? <span style={mono}>{action}</span>}
+                        {meta?.label ?? humaniseKey(action)}
                       </span>
                     </div>
                     <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 12 }}>
@@ -747,7 +766,7 @@ export function BoldCreditsView({ flash }: { flash?: (m: string) => void }) {
                   </span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 700 }}>
-                      {LEDGER_META[e.reason]?.label ?? e.reason}
+                      {LEDGER_META[e.reason]?.label ?? humaniseKey(e.reason)}
                     </div>
                     <div style={{ ...mono, fontSize: 10, color: "var(--cvb-faint)", marginTop: 2 }}>
                       balance after {e.balanceAfter.toLocaleString("en-US")}

@@ -20,10 +20,7 @@
  * much, rather than leaving the difference invisible.
  */
 import { useEffect, useRef, useState } from "react";
-import {
-  DEFAULT_GUARDRAILS,
-  type GuardrailDefaults,
-} from "@clientforce/core";
+import { DEFAULT_GUARDRAILS, type GuardrailDefaults } from "@clientforce/core";
 import { RowList, Toggle, type SettingsRow } from "../bold-settings-kit";
 import { patchGuardrailDefaults, type GuardrailDefaultsView } from "../bold-live";
 import { BoldItemPage, EmptyTab, TabNote, type ItemHeader } from "./BoldItemPage";
@@ -32,16 +29,31 @@ import { pluralise, type SettingsSnapshot } from "./settings-data";
 const TABS = ["Sending limits", "What she may say", "Quiet hours", "Campaign overrides"];
 
 const CHANNELS = [
-  { key: "email" as const, label: "Daily email ceiling", sub: "Across every campaign this workspace starts" },
-  { key: "sms" as const, label: "Daily SMS ceiling", sub: "Texts cost more and annoy faster — this is the brake" },
-  { key: "voice" as const, label: "Daily call ceiling", sub: "Outbound calls she may place in a day" },
+  {
+    key: "email" as const,
+    label: "Daily email ceiling",
+    sub: "Across every campaign this workspace starts",
+  },
+  {
+    key: "sms" as const,
+    label: "Daily SMS ceiling",
+    sub: "Texts cost more and annoy faster — this is the brake",
+  },
+  {
+    key: "voice" as const,
+    label: "Daily call ceiling",
+    sub: "Outbound calls she may place in a day",
+  },
 ];
 
 /** The rails the schema enforces — shown on, and honestly not flippable. */
 const ALWAYS_ON: Array<[string, string]> = [
   ["Unsubscribe footer on every email", "Structural — the schema cannot store it off"],
   ["Suppression check before every send", "Opt-outs and do-not-contact always hold"],
-  ["A human reply pauses her", "Nothing scheduled sends into a live conversation until you resume her"],
+  [
+    "A human reply pauses her",
+    "Nothing scheduled sends into a live conversation until you resume her",
+  ],
   ["Only quote what is in your business core", "She never invents a price or a policy"],
 ];
 
@@ -129,7 +141,10 @@ export function BoldGuardItem({
       return;
     }
     if (stored.dailyCap?.[key] === n) return;
-    await write({ dailyCap: { [key]: n } }, `${CHANNELS.find((c) => c.key === key)!.label} is now ${n} a day.`);
+    await write(
+      { dailyCap: { [key]: n } },
+      `${CHANNELS.find((c) => c.key === key)!.label} is now ${n} a day.`,
+    );
   }
 
   const campaigns = view?.campaigns ?? [];
@@ -138,7 +153,8 @@ export function BoldGuardItem({
     .map((c) => {
       if (c.dailyCap == null) return null;
       const diffs: string[] = [];
-      if (c.dailyCap.email !== baseEmail) diffs.push(`email ${c.dailyCap.email} a day instead of ${baseEmail}`);
+      if (c.dailyCap.email !== baseEmail)
+        diffs.push(`email ${c.dailyCap.email} a day instead of ${baseEmail}`);
       const sms = stored.dailyCap?.sms;
       if (sms != null && c.dailyCap.sms != null && c.dailyCap.sms !== sms)
         diffs.push(`SMS ${c.dailyCap.sms} instead of ${sms}`);
@@ -148,21 +164,33 @@ export function BoldGuardItem({
       // Compare against the EFFECTIVE window, never the draft: the draft is
       // empty until the load lands and can be mid-edit afterwards, which
       // reported every campaign as departing from a default it matched.
-      if (c.sendingWindow && (c.sendingWindow.start !== window.start || c.sendingWindow.end !== window.end))
-        diffs.push(`sends ${c.sendingWindow.start}–${c.sendingWindow.end} instead of ${window.start}–${window.end}`);
+      if (
+        c.sendingWindow &&
+        (c.sendingWindow.start !== window.start || c.sendingWindow.end !== window.end)
+      )
+        diffs.push(
+          `sends ${c.sendingWindow.start}–${c.sendingWindow.end} instead of ${window.start}–${window.end}`,
+        );
       return diffs.length > 0 ? { c, diffs } : null;
     })
     .filter((x): x is { c: (typeof campaigns)[number]; diffs: string[] } => x !== null);
 
   const limitsOn =
-    (stored.dailyCap ? Object.keys(stored.dailyCap).length : 0) + ALWAYS_ON.length + (stored.sendingWindow ? 1 : 0);
+    (stored.dailyCap ? Object.keys(stored.dailyCap).length : 0) +
+    ALWAYS_ON.length +
+    (stored.sendingWindow ? 1 : 0);
 
   const stats = [
     { label: "LIMITS ON", value: String(limitsOn), sub: "workspace-wide", tone: "forest" as const },
     {
       label: "CAMPAIGNS INHERITING",
       value: String(campaigns.length - departures.length),
-      sub: campaigns.length === 0 ? "none yet" : departures.length === 0 ? "all of them" : `of ${campaigns.length}`,
+      sub:
+        campaigns.length === 0
+          ? "none yet"
+          : departures.length === 0
+            ? "all of them"
+            : `of ${campaigns.length}`,
       tone: "ink" as const,
     },
     {
@@ -223,7 +251,6 @@ export function BoldGuardItem({
       onBack={onBack}
       onHeader={onHeader}
       ada={ada}
-      recordId={data.workspaceId}
       testid="bold-wss-guard-item"
     >
       {tab === 0 ? (
@@ -236,11 +263,14 @@ export function BoldGuardItem({
                 alignItems: "center",
                 gap: 14,
                 padding: "15px 4px",
-                borderBottom: i === CHANNELS.length - 1 ? "none" : "1px solid var(--cvb-line-inner)",
+                borderBottom:
+                  i === CHANNELS.length - 1 ? "none" : "1px solid var(--cvb-line-inner)",
               }}
             >
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13.5, fontWeight: 700, letterSpacing: "-.016em" }}>{c.label}</div>
+                <div style={{ fontSize: 13.5, fontWeight: 700, letterSpacing: "-.016em" }}>
+                  {c.label}
+                </div>
                 <div style={{ fontSize: 11.5, color: "var(--cvb-faint)", marginTop: 3 }}>
                   {stored.dailyCap?.[c.key] == null
                     ? c.key === "email"
@@ -251,7 +281,9 @@ export function BoldGuardItem({
               </div>
               <input
                 value={caps[c.key]}
-                onChange={(e) => setCaps((v) => ({ ...v, [c.key]: e.target.value.replace(/\D/g, "").slice(0, 5) }))}
+                onChange={(e) =>
+                  setCaps((v) => ({ ...v, [c.key]: e.target.value.replace(/\D/g, "").slice(0, 5) }))
+                }
                 onBlur={() => void commitCap(c.key)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") void commitCap(c.key);
@@ -278,8 +310,9 @@ export function BoldGuardItem({
             </div>
           ))}
           <TabNote>
-            A CEILING SAVES THE MOMENT YOU LEAVE THE FIELD. IT APPLIES TO CAMPAIGNS YOU CREATE FROM NOW ON — LIVE ONES
-            KEEP THE LIMITS THEY WERE CREATED WITH, AND THE OVERRIDES TAB NAMES THEM.
+            A CEILING SAVES THE MOMENT YOU LEAVE THE FIELD. IT APPLIES TO CAMPAIGNS YOU CREATE FROM
+            NOW ON — LIVE ONES KEEP THE LIMITS THEY WERE CREATED WITH, AND THE OVERRIDES TAB NAMES
+            THEM.
           </TabNote>
         </div>
       ) : null}
@@ -288,16 +321,24 @@ export function BoldGuardItem({
         <>
           <RowList rows={voiceRows} testid="bold-guard-voice" />
           <TabNote>
-            THESE ARE ENFORCED AT THE SEND BOUNDARY, NOT IN THE INTERFACE — THEY HOLD EVEN IF SOMETHING ELSE ASKS FOR A
-            SEND. PER-CAMPAIGN VOICE — THE SELLING ARC, BANNED PHRASES, HER STANDING INSTRUCTIONS — LIVES ON EACH
-            CAMPAIGN&rsquo;S OWN SETTINGS.
+            THESE ARE ENFORCED AT THE SEND BOUNDARY, NOT IN THE INTERFACE — THEY HOLD EVEN IF
+            SOMETHING ELSE ASKS FOR A SEND. PER-CAMPAIGN VOICE — THE SELLING ARC, BANNED PHRASES,
+            HER STANDING INSTRUCTIONS — LIVES ON EACH CAMPAIGN&rsquo;S OWN SETTINGS.
           </TabNote>
         </>
       ) : null}
 
       {tab === 2 ? (
         <div style={{ maxWidth: 620 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "15px 4px", borderBottom: "1px solid var(--cvb-line-inner)" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 14,
+              padding: "15px 4px",
+              borderBottom: "1px solid var(--cvb-line-inner)",
+            }}
+          >
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13.5, fontWeight: 700 }}>Sending hours</div>
               <div style={{ fontSize: 11.5, color: "var(--cvb-faint)", marginTop: 3 }}>
@@ -362,9 +403,14 @@ export function BoldGuardItem({
             />
           </div>
           <TabNote>
-            CURRENTLY {(window.days ?? []).map((d) => DAY_LABEL[d]).filter(Boolean).join(" · ").toUpperCase()} ·{" "}
-            {window.start}–{window.end} {window.timezone.toUpperCase()}. CALLS ALSO RESPECT THE CONTACT&rsquo;S OWN
-            LOCAL HOURS ON TOP OF THIS.
+            CURRENTLY{" "}
+            {(window.days ?? [])
+              .map((d) => DAY_LABEL[d])
+              .filter(Boolean)
+              .join(" · ")
+              .toUpperCase()}{" "}
+            · {window.start}–{window.end} {window.timezone.toUpperCase()}. CALLS ALSO RESPECT THE
+            CONTACT&rsquo;S OWN LOCAL HOURS ON TOP OF THIS.
           </TabNote>
         </div>
       ) : null}
@@ -389,4 +435,3 @@ export function BoldGuardItem({
     </BoldItemPage>
   );
 }
-
