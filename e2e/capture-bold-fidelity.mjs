@@ -1771,7 +1771,15 @@ for (const [name, meta] of [...captured.entries()].sort(([a], [b]) => a.localeCo
 
 // Promote: clear the unit dir, copy the complete fresh set, write the manifest.
 mkdirSync(OUT, { recursive: true });
-for (const f of readdirSync(OUT)) rmSync(join(OUT, f), { force: true });
+// Clear ONLY what this tool owns: the frames and the manifest it is about to
+// rewrite. It used to wipe the whole directory, which silently deleted the
+// unit's own written evidence — PAIR_DIFF.md and CAPABILITY_INVENTORY.md, the
+// two documents B7.6 exists to produce, went with one capture run and were
+// only noticed later in git history. A capture tool must never destroy
+// anything a human wrote next to the frames.
+for (const f of readdirSync(OUT)) {
+  if (f.toLowerCase().endsWith(".png") || f === "MANIFEST.json") rmSync(join(OUT, f), { force: true });
+}
 for (const name of Object.keys(frames)) copyFileSync(join(staging, name), join(OUT, name));
 writeFileSync(
   join(OUT, "MANIFEST.json"),
