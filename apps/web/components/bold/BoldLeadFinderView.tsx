@@ -887,7 +887,7 @@ export function BoldLeadFinderView({
                     flex: "none",
                   }}
                 >
-                  {b.free ? "FREE" : revealPrice != null ? `${revealPrice} CR` : "1 CR"}
+                  {b.free ? "FREE" : revealPrice != null ? `${revealPrice} CR` : "PRICE NOT SET"}
                 </span>
               </div>
               <div
@@ -928,9 +928,19 @@ export function BoldLeadFinderView({
           >
             <div style={{ flex: 1, minWidth: 220 }}>
               <div style={{ fontSize: 12.5, fontWeight: 700 }}>
+                {/* B6.6 (owner ruling 3): the credit consequence, stated
+                    before any click — and stated from the RESOLVED price,
+                    not from a literal. This read `costs ${count} credits`,
+                    which silently assumed one credit per reveal: an agency
+                    override to 3 would have understated the bill threefold
+                    on the one screen whose job is to say what it costs. Same
+                    defect class as the reveal's deleted `?? 1` (DEC-157).
+                    With no price row we say what we know and no more. */}
                 {activeBand.free
                   ? `All ${activeBand.count} already have details`
-                  : `Revealing all ${activeBand.count} costs ${activeBand.count} credits`}
+                  : revealPrice != null
+                    ? `Revealing all ${activeBand.count} costs ${activeBand.count * revealPrice} credits`
+                    : `Revealing all ${activeBand.count} — the price is not set yet`}
               </div>
               <div style={{ fontSize: 11.5, color: "var(--cvb-ghost)", marginTop: 3 }}>
                 {activeBand.free
@@ -1753,7 +1763,11 @@ export function BoldLeadFinderView({
               ["WHERE IT CAME FROM", drawer.sourceTag, drawer.basis.replace(/_/g, " ")],
               [
                 "REVEAL",
-                drawer.revealed ? "Already yours" : revealPrice != null ? `${revealPrice} credit` : "1 credit",
+                drawer.revealed
+                  ? "Already yours"
+                  : revealPrice != null
+                    ? `${revealPrice} credit`
+                    : "price not set",
                 "email and phone",
               ],
             ].map(([n, v, sub]) => (
@@ -1791,7 +1805,7 @@ export function BoldLeadFinderView({
                   textAlign: "center",
                 }}
               >
-                Reveal · {revealPrice != null ? `${revealPrice} credit` : "1 credit"}
+                Reveal{revealPrice != null ? ` · ${revealPrice} credit` : ""}
               </span>
             ) : null}
             <span

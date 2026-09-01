@@ -1497,6 +1497,104 @@ async function main(): Promise<void> {
           });
         }
       }
+
+      // ── B6.6 (owner ruling): HIGH-FIT FIXTURES, so the pill's colour bands
+      // are actually exercised. ────────────────────────────────────────────
+      //
+      // The pool colours a fit pill cyan at 80+ and forest at 90+. Before
+      // this block the demo book topped out at 67, so BOTH paths shipped
+      // unproven and no fidelity frame could hold them. These are two new,
+      // deliberately labelled rows — never a re-score of existing contacts,
+      // which would have moved the honest `unscored` rows this demo also
+      // needs to show.
+      //
+      // The scores are EARNED through the shipped scorer, not asserted:
+      //   base 50
+      //   + 12  a place inside the brief's area (Austin), which the pool
+      //         reads from `enrichment.raw.location` — the only home a
+      //         contact's place has (Q-160)
+      //   + 12  a title the brief targets      → the 90+ row only
+      //   +  6  has replied before             (one INBOUND message)
+      //   +  5  said you may call              (callConsent granted)
+      //   +  8  went quiet 60–150 days ago     (last touch ~90d)
+      //   ------------------------------------------------------------
+      //     93  forest · 81 cyan
+      //
+      // The 90-day touch also makes them lapsed (QUIET_DAYS = 60), so they
+      // appear in the market feed as "went quiet" and bucket as older —
+      // never under TODAY, so the B6.5 honesty rule still holds.
+      const fitCampaign =
+        (await prisma.campaign.findFirst({ where: { workspaceId: primary.id } })) ?? null;
+      if (fitCampaign) {
+        const daysAgo = (n: number) => new Date(Date.now() - n * 86_400_000);
+        for (const f of [
+          {
+            email: "priya.raman@brightsmile-fixture.test",
+            firstName: "Priya",
+            lastName: "Raman",
+            company: "Raman Dental Studio",
+            title: "Owner",
+            band: "forest 90+",
+          },
+          {
+            email: "leo.mercado@brightsmile-fixture.test",
+            firstName: "Leo",
+            lastName: "Mercado",
+            company: null,
+            title: null,
+            band: "cyan 80-89",
+          },
+        ]) {
+          const existing = await prisma.contact.findFirst({
+            where: { workspaceId: primary.id, email: f.email },
+          });
+          if (existing) continue;
+          const made = await prisma.contact.create({
+            data: {
+              workspaceId: primary.id,
+              source: "seed",
+              optOut: {},
+              tags: ["fidelity-fixture"],
+              email: f.email,
+              firstName: f.firstName,
+              lastName: f.lastName,
+              company: f.company,
+              title: f.title,
+              callConsent: "granted",
+              // The place the scorer reads. Shaped exactly like a reveal's
+              // payload, because that is the only way a contact holds one.
+              enrichment: {
+                provider: "seed-fixture",
+                note: `B6.6 fidelity fixture — ${f.band}`,
+                raw: { location: "Austin, TX" },
+              },
+            },
+          });
+          await prisma.message.createMany({
+            data: [
+              {
+                workspaceId: primary.id,
+                campaignId: fitCampaign.id,
+                contactId: made.id,
+                channel: "email",
+                direction: "OUTBOUND" as const,
+                subject: "Time for a check-up?",
+                body: "seed fixture — the outbound that went unanswered",
+                sentAt: daysAgo(92),
+              },
+              {
+                workspaceId: primary.id,
+                campaignId: fitCampaign.id,
+                contactId: made.id,
+                channel: "email",
+                direction: "INBOUND" as const,
+                body: "seed fixture — they replied once, then went quiet",
+                sentAt: daysAgo(90),
+              },
+            ],
+          });
+        }
+      }
     }
 
     // B3c-2 (DEC-121): call-clock fixtures — three phone contacts whose
