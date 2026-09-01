@@ -69,10 +69,20 @@ for (const w of [400, 500, 600])
 const fontCss = faces
   .map(([fam, w], i) => `@font-face{font-family:'${fam}';font-style:normal;font-weight:${w};font-display:swap;src:url(https://local.fonts/f${i}.woff2) format('woff2');}`)
   .join("\n");
-// The React 18 UMD pair the prototype's DC runtime loads from unpkg — vendored
-// per run from the local pnpm store is not possible offline, so callers keep
-// the pair in the scratch dir the B0 port established, or set REACT_UMD_DIR.
-const UMD = process.env.REACT_UMD_DIR ?? "/tmp/claude-0/-home-user-clientforce-platform/44de266c-7e4c-55d4-96f0-d099e04fb9c2/scratchpad";
+// The React 18 UMD pair the prototype's DC runtime loads from unpkg. The
+// prototype needs React 18 specifically — the app is on 19, which dropped the
+// UMD builds — so this cannot come from the workspace's own node_modules.
+//
+// The default used to be one session's absolute scratch path, which meant the
+// tool only ran for whoever first captured a set; anyone else got ENOENT on
+// react.js. It now resolves next to this file, so a checkout is enough:
+//
+//   e2e/vendor/react.js  +  e2e/vendor/react-dom.js
+//
+// Populate it once with
+//   npm pack react@18.3.1 && tar xzf react-18.3.1.tgz package/umd/react.production.min.js
+// (same for react-dom), or point REACT_UMD_DIR anywhere else.
+const UMD = process.env.REACT_UMD_DIR ?? join(dirname(fileURLToPath(import.meta.url)), "vendor");
 
 async function wire(ctx) {
   await ctx.route("**/react.production.min.js", (r) => r.fulfill({ contentType: "application/javascript", body: readFileSync(join(UMD, "react.js"), "utf8") }));
@@ -628,16 +638,37 @@ if (UNIT === "b75") {
     await p.waitForTimeout(600);
     await shot(p, "build-credits-topups-1440x900");
     await p.getByTestId("bold-credits-tab-where").click();
-    await p.getByTestId("bold-credits-topup").click();
-    await p.getByTestId("bold-drawer-buy").waitFor();
-    await p.waitForTimeout(500);
+    // B7.6: the buy flow is a CENTRED MODAL now, not a right drawer, and it
+    // has TWO steps plus done rather than three (dc.html:2616, :5135).
+    //
+    // The entry point disables itself when no Stripe key is configured, which
+    // is a real shipped state — so capture that first, then require the key
+    // for the flow itself. Capturing the flow against a keyless API would
+    // silently shoot three frames of a disabled button.
+    // The keyless state is deliberately NOT shot here: it would only appear on
+    // a keyless run, making the frame set vary by environment, and a set whose
+    // membership depends on the machine cannot be a gate. The run fails loudly
+    // instead.
+    const topup = p.getByTestId("bold-credits-topup");
+    if ((await topup.getAttribute("aria-disabled")) === "true") {
+      throw new Error(
+        "buy flow unreachable: /credits/billing reports configured:false. " +
+          "Start the API with STRIPE_SECRET_KEY set to capture buy-1..3, or the " +
+          "frames would document a disabled button rather than the flow.",
+      );
+    }
+    await topup.click();
+    await p.getByTestId("bold-modal-buy").waitFor();
+    await p.waitForTimeout(600);
     await shot(p, "build-buy-1-1440x900");
-    await p.getByTestId("bold-drawer-buy-next").click();
-    await p.waitForTimeout(500);
+    await p.getByTestId("bold-buy-next").click();
+    await p.waitForTimeout(600);
     await shot(p, "build-buy-2-1440x900");
-    await p.getByTestId("bold-drawer-buy-next").click();
-    await p.waitForTimeout(500);
-    await shot(p, "build-buy-3-1440x900");
+    // No build-buy-3. The prototype's done step is reached by PAYING, and this
+    // build will not fake a purchase to produce a screenshot — the frame comes
+    // back when the charge path is real. proto-buy-3 keeps its place in the
+    // set as an unpaired prototype frame, which is the honest record of a step
+    // that exists in the design and is not yet reachable in the product.
     await p.context().close();
   });
 }
