@@ -24,9 +24,11 @@
  * B2 lands (re-running unit b1 would show the live pipeline there).
  */
 import { chromium } from "@playwright/test";
+import { PNG } from "pngjs";
+import pixelmatch from "pixelmatch";
 import { createHash } from "node:crypto";
 import { execSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, copyFileSync, writeFileSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, copyFileSync, writeFileSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -1777,10 +1779,46 @@ mkdirSync(OUT, { recursive: true });
 // two documents B7.6 exists to produce, went with one capture run and were
 // only noticed later in git history. A capture tool must never destroy
 // anything a human wrote next to the frames.
+// IDEMPOTENT PROMOTION. Playwright's PNG encoder is not byte-deterministic:
+// two captures of an unchanged screen produce files whose BYTES differ while
+// every pixel is identical (measured: proto-core-facts, 0 of 1,296,000 px).
+// Copying unconditionally therefore rewrote all 47 frames and all 47 hashes on
+// every run, so a changed sha meant nothing and the history filled with
+// identical images.
+//
+// So: promote a frame only when its PIXELS actually changed. A frame that
+// renders the same keeps its existing bytes and its existing hash, and a
+// changed hash now genuinely means a changed picture.
+const samePixels = (a, b) => {
+  try {
+    const A = PNG.sync.read(readFileSync(a));
+    const B = PNG.sync.read(readFileSync(b));
+    if (A.width !== B.width || A.height !== B.height) return false;
+    // The SAME perceptual threshold the pixel gate applies
+    // (infra/scripts/pixel-diff.mjs), so "unchanged" means one thing in both
+    // places. Below it is subpixel antialiasing noise, which is exactly what
+    // we refuse to rewrite a frame and churn a hash for.
+    return pixelmatch(A.data, B.data, null, A.width, A.height, { threshold: 0.1 }) === 0;
+  } catch {
+    return false;
+  }
+};
+let kept = 0;
 for (const f of readdirSync(OUT)) {
-  if (f.toLowerCase().endsWith(".png") || f === "MANIFEST.json") rmSync(join(OUT, f), { force: true });
+  if (f === "MANIFEST.json") rmSync(join(OUT, f), { force: true });
+  else if (f.toLowerCase().endsWith(".png") && !frames[f]) rmSync(join(OUT, f), { force: true });
 }
-for (const name of Object.keys(frames)) copyFileSync(join(staging, name), join(OUT, name));
+for (const name of Object.keys(frames)) {
+  const dest = join(OUT, name);
+  const src = join(staging, name);
+  if (existsSync(dest) && samePixels(src, dest)) {
+    kept += 1;
+    const bytes = readFileSync(dest);
+    frames[name] = { ...frames[name], bytes: bytes.length, sha256: createHash("sha256").update(bytes).digest("hex") };
+    continue;
+  }
+  copyFileSync(src, dest);
+}
 writeFileSync(
   join(OUT, "MANIFEST.json"),
   `${JSON.stringify(
@@ -1799,4 +1837,4 @@ writeFileSync(
   )}\n`,
 );
 rmSync(staging, { recursive: true, force: true });
-console.log(`promoted ${Object.keys(frames).length} frames + MANIFEST.json at ${commit.slice(0, 12)}${dirty ? " (dirty tree)" : ""}`);
+console.log(`promoted ${Object.keys(frames).length} frames (${kept} unchanged) + MANIFEST.json at ${commit.slice(0, 12)}${dirty ? " (dirty tree)" : ""}`);
