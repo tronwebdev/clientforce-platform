@@ -807,7 +807,10 @@ export function RowList({ rows, testid }: { rows: SettingsRow[]; testid?: string
             ) : null}
             {r.t === "tg" ? (
               r.locked ? (
-                <span style={CHIP.live}>Always on</span>
+                // "Locked", the prototype's word for a rail you cannot flip
+                // (dc.html:4568-4569). "Always on" described the state; the
+                // prototype's word describes why you cannot change it.
+                <span style={CHIP.live}>Locked</span>
               ) : (
                 <Toggle on={r.on} onFlip={r.onFlip} label={r.n} testid={`bold-tg-${r.key}`} />
               )

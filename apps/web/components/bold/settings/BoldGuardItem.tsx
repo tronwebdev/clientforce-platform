@@ -21,7 +21,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { DEFAULT_GUARDRAILS, type GuardrailDefaults } from "@clientforce/core";
-import { RowList, Toggle, type SettingsRow } from "../bold-settings-kit";
+import { CHIP, RowList, Toggle, type SettingsRow } from "../bold-settings-kit";
 import { patchGuardrailDefaults, type GuardrailDefaultsView } from "../bold-live";
 import { BoldItemPage, EmptyTab, TabNote, type ItemHeader } from "./BoldItemPage";
 import { pluralise, type SettingsSnapshot } from "./settings-data";
@@ -254,7 +254,11 @@ export function BoldGuardItem({
       testid="bold-wss-guard-item"
     >
       {tab === 0 ? (
-        <div style={{ maxWidth: 620 }}>
+        // Full canvas width. The 620px wrapper left ~370px of dead canvas to
+        // the right of every row — and the ✦ Ada card, rendered by
+        // BoldItemPage OUTSIDE the wrapper, was 370px wider than the rows it
+        // belonged to.
+        <div>
           {CHANNELS.map((c, i) => (
             <div
               key={c.key}
@@ -329,7 +333,10 @@ export function BoldGuardItem({
       ) : null}
 
       {tab === 2 ? (
-        <div style={{ maxWidth: 620 }}>
+        // Full canvas width, like every other item-page tab. A maxWidth:620
+        // wrapper left this tab reading half-empty at 1440 — the dead-space
+        // class REDO §3 names explicitly.
+        <div>
           <div
             style={{
               display: "flex",
@@ -340,9 +347,9 @@ export function BoldGuardItem({
             }}
           >
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13.5, fontWeight: 700 }}>Sending hours</div>
+              <div style={{ fontSize: 13.5, fontWeight: 700 }}>Quiet hours</div>
               <div style={{ fontSize: 11.5, color: "var(--cvb-faint)", marginTop: 3 }}>
-                Nothing lands outside them ({window.timezone})
+                Nothing lands outside these hours ({window.timezone})
               </div>
             </div>
             {(["start", "end"] as const).map((k) => (
@@ -401,6 +408,27 @@ export function BoldGuardItem({
                 );
               }}
             />
+          </div>
+          {/*
+            HOLIDAYS. The prototype's third row on this tab
+            (dc.html:4578 — 'Holidays' / 'Derived from your calendar — she
+            waits' / chip 'Auto'), dropped entirely by B7.5. Its row count is
+            part of the surface, so the row returns — but with the honest
+            posture rather than the prototype's 'Auto': no calendar is
+            connected on this platform, so nothing is derived and the chip
+            says so instead of implying a behaviour that does not exist.
+          */}
+          <div
+            data-testid="bold-guard-holidays"
+            style={{ display: "flex", alignItems: "center", gap: 14, padding: "15px 4px" }}
+          >
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13.5, fontWeight: 700 }}>Holidays</div>
+              <div style={{ fontSize: 11.5, color: "var(--cvb-faint)", marginTop: 3 }}>
+                No calendar is connected, so she does not know your closures yet
+              </div>
+            </div>
+            <span style={CHIP.mute}>Not connected</span>
           </div>
           <TabNote>
             CURRENTLY{" "}
