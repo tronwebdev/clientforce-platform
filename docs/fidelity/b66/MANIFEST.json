@@ -1,40 +1,40 @@
 {
   "unit": "b66",
-  "commit": "8b381f7acde88ec2606923ced275e6599193685c",
+  "commit": "06c22945c5f98bd40483602b5fc18fc7c315a1b5",
   "workingTreeDirtyAtCapture": false,
-  "capturedAt": "2026-09-01T01:08:55.843Z",
+  "capturedAt": "2026-09-01T07:20:00.804Z",
   "baseUrl": "http://127.0.0.1:3000",
   "note": "Single-run capture; every frame from one build. Verify a frame by hashing its bytes against this manifest — never by trusting an image cache. pnpm lint:fidelity enforces the binding.",
   "frames": {
     "build-lead-pool-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 158319,
-      "sha256": "1ebff8570a006867df88ec3d6ed6ed5ed2e93f883313f33009681c5f9faf45af"
+      "bytes": 160336,
+      "sha256": "104f82bb687ace5cae95a7978a6650732c0d04257b4f21cac1baf5e154b0d771"
     },
     "build-lead-watch-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 209796,
-      "sha256": "f653b1f9bd9fb2ee3c79c29a4f9cba581d6f1da05bd19c5f196ea0203d9b205d"
+      "bytes": 209953,
+      "sha256": "4d59ef8ce6877e55ff3e58f3f40e018c8e757d7a6e7d8e4f05f150b54cb212c0"
     },
     "build-lead-watch-words-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 211189,
-      "sha256": "01f398c89f1a680da23723020056ff8e931c3bb5db3cee648d746cb50d8a4014"
+      "bytes": 211539,
+      "sha256": "7ec1065a3a55945849583b96cf94276db44a6e7a99f216a0cf24525428b3b208"
     },
     "proto-lead-pool-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 189083,
-      "sha256": "31d46852f6868a3583a5a263fb27ab66f4500d8e1c9beb1a10dea28da3d10a20"
+      "bytes": 189091,
+      "sha256": "bcdeb317055da92ef9a2330dd12ad0f175ab43dca6dd3af5eb7129306b526c62"
     },
     "proto-lead-watch-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 230459,
-      "sha256": "fb85c90ffb58b932dd55a114ea22a7c1c877c7f192c7f32735d4ed4cdc5ecce8"
+      "bytes": 230454,
+      "sha256": "ae55e122bc6bf77a17a083b8b8ac84731bb56d3133e2acaeb8732c18e8730b58"
     },
     "proto-lead-watch-words-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 230478,
-      "sha256": "962ed0086b34864046e68d49017af0ba65500f3ce7c653214914f6d3b7b8be98"
+      "bytes": 230462,
+      "sha256": "cf9225ec81d0d7ed87929d7e57178f29037652db2314d3ac424560ac9d462a60"
     }
   }
 }
