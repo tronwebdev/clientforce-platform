@@ -681,6 +681,7 @@ export class LeadsController {
           email: true,
           callConsent: true,
           createdAt: true,
+          enrichment: true,
         },
       });
       const replied = await tx.message.findMany({
@@ -734,6 +735,13 @@ export class LeadsController {
         const scored = scoreCandidate(profile, {
           title: c.title,
           company: c.company,
+          // B6.7: the feed reads the SAME place fact the pool reads. B6.6
+          // gave the pool `location` and left this call site without it, so
+          // one contact scored 81 in the pool and 69 in the feed — the same
+          // person, two numbers, which is exactly the one-vocabulary rule
+          // the B6.5 review set. Caught by reading the recaptured frame
+          // rather than by a test, which is why the frames are worth having.
+          location: contactLocation(c.enrichment),
           repliedBefore: repliedSet.has(c.id),
           bookedBefore: false,
           daysSinceLastTouch: days,
@@ -780,7 +788,7 @@ export class LeadsController {
           name: [c.firstName, c.lastName].filter(Boolean).join(" ") || c.email || "Unnamed contact",
           title: c.title,
           company: c.company,
-          location: null,
+          location: contactLocation(c.enrichment),
           headcount: null,
           maskedEmail: null,
           maskedPhone: null,
