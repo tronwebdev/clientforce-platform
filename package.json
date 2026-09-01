@@ -2,7 +2,7 @@
   "name": "clientforce-platform",
   "version": "0.0.0",
   "private": true,
-  "description": "Clientforce AI agent platform — Turborepo monorepo",
+  "description": "Clientforce AI agent platform \u2014 Turborepo monorepo",
   "packageManager": "pnpm@10.33.0",
   "engines": {
     "node": ">=22"
@@ -11,12 +11,13 @@
     "build": "turbo run build",
     "dev": "turbo run dev",
     "test": "turbo run test",
-    "lint": "turbo run lint && pnpm lint:css && pnpm lint:ledger && pnpm lint:fidelity",
+    "lint": "turbo run lint && pnpm lint:css && pnpm lint:ledger && pnpm lint:typography && pnpm lint:fidelity",
     "lint:css": "stylelint \"**/*.css\"",
     "lint:ledger": "node infra/scripts/ledger-lint.mjs",
     "lint:fidelity": "node infra/scripts/fidelity-lint.mjs",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "lint:typography": "node infra/scripts/typography-lint.mjs"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

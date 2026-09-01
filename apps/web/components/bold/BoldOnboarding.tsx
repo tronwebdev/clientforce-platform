@@ -55,7 +55,12 @@ import {
 import { mono } from "./bold-cards";
 import { BoldCsvImport, type CsvImportOutcome } from "./shared/BoldCsvImport";
 
-const eyebrow = { ...mono, fontSize: 9.5, letterSpacing: ".18em", color: "var(--cvb-faint)" } as const;
+const eyebrow = {
+  ...mono,
+  fontSize: 9.5,
+  letterSpacing: ".18em",
+  color: "var(--cvb-faint)",
+} as const;
 const input = {
   width: "100%",
   boxSizing: "border-box" as const,
@@ -78,7 +83,12 @@ const cta = {
   padding: "13px 20px",
   cursor: "pointer",
 } as const;
-const ghostLink = { fontSize: 12.5, fontWeight: 700, color: "var(--cvb-cyan,#0E7D93)", cursor: "pointer" } as const;
+const ghostLink = {
+  fontSize: 12.5,
+  fontWeight: 700,
+  color: "var(--cvb-cyan,#0E7D93)",
+  cursor: "pointer",
+} as const;
 const card = {
   background: "var(--cvb-card)",
   border: "1px solid var(--cvb-line-ctl)",
@@ -86,7 +96,10 @@ const card = {
   padding: "15px 17px",
 } as const;
 
-async function post(path: string, body: unknown): Promise<{ ok: boolean; body?: unknown; error?: string }> {
+async function post(
+  path: string,
+  body: unknown,
+): Promise<{ ok: boolean; body?: unknown; error?: string }> {
   try {
     const res = await fetch(`/api/cf/${path}`, {
       method: "POST",
@@ -94,7 +107,11 @@ async function post(path: string, body: unknown): Promise<{ ok: boolean; body?: 
       body: JSON.stringify(body),
     });
     const parsed = await res.json().catch(() => null);
-    if (!res.ok) return { ok: false, error: (parsed as { message?: string })?.message ?? `HTTP ${res.status}` };
+    if (!res.ok)
+      return {
+        ok: false,
+        error: (parsed as { message?: string })?.message ?? `HTTP ${res.status}`,
+      };
     return { ok: true, body: parsed };
   } catch {
     return { ok: false, error: "network" };
@@ -109,7 +126,8 @@ const getJson = async <T,>(path: string): Promise<T | null> => {
   }
 };
 
-type Step = "business" | "site" | "read" | "goal" | "audience" | "ask" | "import" | "send" | "done" | "plan";
+type Step =
+  "business" | "site" | "read" | "goal" | "audience" | "ask" | "import" | "send" | "done" | "plan";
 
 /** The platform shared mailer's domain — the shipped `send.` subdomain rule
  *  (product mail never rides the root domain). */
@@ -118,7 +136,11 @@ const MANAGED_MAIL_DOMAIN = "send.clientforce.io";
 const DOC_ACCEPT = ".pdf,.docx,.xlsx,.txt,.csv,.md";
 
 const SHAPES: Array<[IcpShape, string, string]> = [
-  ["local_business", "A local business", "You serve people nearby — a practice, salon, studio, shop."],
+  [
+    "local_business",
+    "A local business",
+    "You serve people nearby — a practice, salon, studio, shop.",
+  ],
   ["company", "A company selling to companies", "Your customers are other businesses."],
   ["consumer", "Direct to consumers", "You sell to individuals wherever they are."],
 ];
@@ -148,17 +170,33 @@ const V_INDUSTRY: Record<string, string> = {
 const GOAL_OPTIONS: Array<[string, string, string]> = [
   ["generate_leads", "Qualify and hand over", "She works them, sorts them, your team closes"],
   ["book_appointments", "Get meetings booked", "Demos, calls, consults — time in the diary"],
-  ["drive_signups", "Take payment or sign-up", "Checkout, trial start, subscription — a closed sale"],
+  [
+    "drive_signups",
+    "Take payment or sign-up",
+    "Checkout, trial start, subscription — a closed sale",
+  ],
   ["winback_deals", "Win back quiet accounts", "Revenue from customers you already have"],
 ];
 const goalLabel = (k: string | null) => GOAL_OPTIONS.find(([key]) => key === k)?.[1] ?? "";
 
 /** The one thing she cannot guess, per goal — the proto's ASK table. */
 const ASK_COPY: Record<string, [string, string]> = {
-  book_appointments: ["When can people actually meet you, and how long does it take?", "e.g. 20 minutes · weekdays and Saturday mornings"],
-  drive_signups: ["What is the price, and what does it include?", "e.g. $249/mo — all seats, onboarding included"],
-  winback_deals: ["What would bring a lapsed customer back?", "e.g. two months free, no setup charge"],
-  generate_leads: ["What makes a lead worth your team's time?", "e.g. 10+ seats, evaluating this quarter"],
+  book_appointments: [
+    "When can people actually meet you, and how long does it take?",
+    "e.g. 20 minutes · weekdays and Saturday mornings",
+  ],
+  drive_signups: [
+    "What is the price, and what does it include?",
+    "e.g. $249/mo — all seats, onboarding included",
+  ],
+  winback_deals: [
+    "What would bring a lapsed customer back?",
+    "e.g. two months free, no setup charge",
+  ],
+  generate_leads: [
+    "What makes a lead worth your team's time?",
+    "e.g. 10+ seats, evaluating this quarter",
+  ],
 };
 
 export function BoldOnboarding() {
@@ -205,7 +243,12 @@ export function BoldOnboarding() {
 
   const [plans, setPlans] = useState<{
     current: string;
-    tiers: Array<{ name: string; priceMonthlyCents: number; limits: Record<string, unknown>; proposal: boolean }>;
+    tiers: Array<{
+      name: string;
+      priceMonthlyCents: number;
+      limits: Record<string, unknown>;
+      proposal: boolean;
+    }>;
   } | null>(null);
   const [plansError, setPlansError] = useState(false);
   const [tierPick, setTierPick] = useState<string | null>(null);
@@ -228,7 +271,11 @@ export function BoldOnboarding() {
   ];
   const stepNo = flow.indexOf(step);
   const stepLabel =
-    step === "plan" ? "LAST STEP" : step === "done" ? "YOUR CORE IS LIVE" : `STEP ${stepNo + 1} OF ${flow.length}`;
+    step === "plan"
+      ? "LAST STEP"
+      : step === "done"
+        ? "YOUR CORE IS LIVE"
+        : `STEP ${stepNo + 1} OF ${flow.length}`;
   const goNext = (from: Step) => {
     const i = flow.indexOf(from);
     setStep(i >= 0 && i + 1 < flow.length ? flow[i + 1]! : "done");
@@ -259,7 +306,11 @@ export function BoldOnboarding() {
     setFacts(
       Object.entries(fields)
         .filter(([, v]) => ((v as { value?: string })?.value ?? "").trim().length > 0)
-        .map(([key, v]) => ({ key, label: FIELD_LABELS[key] ?? key, value: (v as { value?: string }).value ?? "" })),
+        .map(([key, v]) => ({
+          key,
+          label: FIELD_LABELS[key] ?? key,
+          value: (v as { value?: string }).value ?? "",
+        })),
     );
   }, []);
 
@@ -287,11 +338,16 @@ export function BoldOnboarding() {
     if (busy) return;
     const name = bizName.trim();
     if (name.length < 2) return setErr("Give the business a name first.");
-    if (!shape) return setErr("Pick what kind of business this is — it tunes her vocabulary everywhere.");
+    if (!shape)
+      return setErr("Pick what kind of business this is — it tunes her vocabulary everywhere.");
     setBusy(true);
     setErr(null);
     const v = vertical === "other" ? verticalOther.trim() || undefined : (vertical ?? undefined);
-    const res = await post("workspaces", { name, businessType: { shape, ...(v ? { vertical: v } : {}) }, bold: true });
+    const res = await post("workspaces", {
+      name,
+      businessType: { shape, ...(v ? { vertical: v } : {}) },
+      bold: true,
+    });
     setBusy(false);
     if (!res.ok) return setErr(res.error ?? "That did not save — try again.");
     // The SERVER owns the slug (it appends a uniqueness suffix), so the sender
@@ -310,7 +366,10 @@ export function BoldOnboarding() {
       const res = await fetch("/api/cf/knowledge/sources/upload", { method: "POST", body: fd });
       if (!res.ok) {
         const body = (await res.json().catch(() => null)) as { message?: string } | null;
-        setErr(body?.message ?? "She could not read that file — PDF, Word, Excel, text, CSV or Markdown.");
+        setErr(
+          body?.message ??
+            "She could not read that file — PDF, Word, Excel, text, CSV or Markdown.",
+        );
         return;
       }
       setDocs((d) => [...d, file.name]);
@@ -340,7 +399,10 @@ export function BoldOnboarding() {
     setBusy(false);
     setSiteHost(host);
     setCtxStatus(started.ok ? "distilling" : "none");
-    if (!started.ok) setNote("Saved your address, but she could not start reading it just now — type the facts below and she picks the site up later.");
+    if (!started.ok)
+      setNote(
+        "Saved your address, but she could not start reading it just now — type the facts below and she picks the site up later.",
+      );
     setStep("read");
   }
 
@@ -348,7 +410,10 @@ export function BoldOnboarding() {
    *  any uploaded document is read the same way a site is. */
   async function tellHer() {
     if (busy) return;
-    if (!msell.trim()) return setErr("The one line she cannot do without: what you sell, and roughly what it costs.");
+    if (!msell.trim())
+      return setErr(
+        "The one line she cannot do without: what you sell, and roughly what it costs.",
+      );
     setBusy(true);
     setErr(null);
     // SEQUENTIALLY, not in parallel: every answer upserts the same
@@ -367,7 +432,10 @@ export function BoldOnboarding() {
     if (docs.length > 0) {
       const started = await post("context/distill", {});
       setCtxStatus(started.ok ? "distilling" : "none");
-      if (!started.ok) setNote("Your documents are saved — she could not start reading them just now, and picks them up later.");
+      if (!started.ok)
+        setNote(
+          "Your documents are saved — she could not start reading them just now, and picks them up later.",
+        );
     }
     setBusy(false);
     setStep("read");
@@ -458,10 +526,17 @@ export function BoldOnboarding() {
     if (busy) return;
     if (!skip && gap && gapAnswer.trim()) {
       setBusy(true);
-      const saved = await post("context/answers", { agentId: agentId ?? undefined, key: gap.key, value: gapAnswer.trim() });
+      const saved = await post("context/answers", {
+        agentId: agentId ?? undefined,
+        key: gap.key,
+        value: gapAnswer.trim(),
+      });
       setBusy(false);
       if (!saved.ok) {
-        return setErr(saved.error ?? "That answer did not save — try again, or skip and she will ask in the moment.");
+        return setErr(
+          saved.error ??
+            "That answer did not save — try again, or skip and she will ask in the moment.",
+        );
       }
     }
     goNext("ask");
@@ -541,8 +616,11 @@ export function BoldOnboarding() {
   /** Every fact states where it came from — facts with no stated origin are a
    *  defect. Documents count in both modes; she reads them the same way. */
   const sourceLine = (() => {
-    const d = docs.length ? ` · ${docs.length} ${docs.length === 1 ? "document" : "documents"}` : "";
-    if (mode === "manual") return `From what you told her${d || " — add documents any time to deepen this"}`;
+    const d = docs.length
+      ? ` · ${docs.length} ${docs.length === 1 ? "document" : "documents"}`
+      : "";
+    if (mode === "manual")
+      return `From what you told her${d || " — add documents any time to deepen this"}`;
     return `Read from ${siteHost ?? "your site"}${d}`;
   })();
 
@@ -567,7 +645,11 @@ export function BoldOnboarding() {
   /* ------------------------------------------------------------- the rail */
 
   const railRows: Array<{ n: string; v: string; at: Step }> = [
-    { n: "Business & offer", v: facts.find((f) => f.key === "offer")?.value ?? industryFact, at: "read" },
+    {
+      n: "Business & offer",
+      v: facts.find((f) => f.key === "offer")?.value ?? industryFact,
+      at: "read",
+    },
     { n: "First goal", v: goalLabel(goalPick), at: "goal" },
     {
       n: "Who to chase",
@@ -580,9 +662,21 @@ export function BoldOnboarding() {
     },
     { n: "Goal readiness", v: gapAnswer.trim() ? gapAnswer.trim().slice(0, 34) : "", at: "ask" },
     ...(needsImport
-      ? [{ n: "Your contacts", v: imported ? `${imported.result.created} imported · ${imported.consented} contactable` : "", at: "import" as Step }]
+      ? [
+          {
+            n: "Your contacts",
+            v: imported
+              ? `${imported.result.created} imported · ${imported.consented} contactable`
+              : "",
+            at: "import" as Step,
+          },
+        ]
       : []),
-    { n: "Channels", v: senderAddr ? `Mailer · replies to ${replyTo.trim() || "you"}` : "", at: "send" },
+    {
+      n: "Channels",
+      v: senderAddr ? `Mailer · replies to ${replyTo.trim() || "you"}` : "",
+      at: "send",
+    },
   ];
   const reachedIdx = step === "done" || step === "plan" ? flow.length : stepNo;
   const rail = railRows.map((r) => {
@@ -635,21 +729,58 @@ export function BoldOnboarding() {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-          <span style={{ width: 26, height: 26, borderRadius: 9, background: "var(--cvb-gradient-mark)", flex: "none" }} />
-          <span style={{ fontWeight: 800, fontSize: 14.5, letterSpacing: "-.02em" }}>Clientforce</span>
+          <span
+            style={{
+              width: 26,
+              height: 26,
+              borderRadius: 9,
+              background: "var(--cvb-gradient-mark)",
+              flex: "none",
+            }}
+          />
+          <span style={{ fontWeight: 800, fontSize: 14.5, letterSpacing: "-.02em" }}>
+            Clientforce
+          </span>
         </div>
         <div style={{ ...eyebrow, marginTop: 30 }}>YOUR BUSINESS CORE</div>
-        <div style={{ fontWeight: 900, fontSize: 26, letterSpacing: "-.03em", marginTop: 8 }}>{pct} assembled</div>
-        <div style={{ height: 4, background: "var(--cvb-line-ctl)", borderRadius: 2, marginTop: 12, overflow: "hidden" }}>
+        <div
+          style={{
+            fontFamily: "var(--cvb-font-display)",
+            fontWeight: 900,
+            fontSize: 26,
+            letterSpacing: "-.03em",
+            marginTop: 8,
+          }}
+        >
+          {pct} assembled
+        </div>
+        <div
+          style={{
+            height: 4,
+            background: "var(--cvb-line-ctl)",
+            borderRadius: 2,
+            marginTop: 12,
+            overflow: "hidden",
+          }}
+        >
           <div style={{ width: pct, height: "100%", background: "var(--cvb-forest)" }} />
         </div>
 
-        <div data-testid="bold-onb-checklist" style={{ display: "flex", flexDirection: "column", marginTop: 20 }}>
+        <div
+          data-testid="bold-onb-checklist"
+          style={{ display: "flex", flexDirection: "column", marginTop: 20 }}
+        >
           {rail.map((r) => (
             <div
               key={r.n}
               data-testid={`bold-onb-rail-${r.n.toLowerCase().replace(/[^a-z]+/g, "-")}`}
-              style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "9px 0", borderBottom: "1px solid var(--cvb-line-inner,#F4F5F4)" }}
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 10,
+                padding: "9px 0",
+                borderBottom: "1px solid var(--cvb-line-inner,#F4F5F4)",
+              }}
             >
               <span
                 style={{
@@ -662,7 +793,11 @@ export function BoldOnboarding() {
                   fontSize: 9.5,
                   fontWeight: 700,
                   marginTop: 1,
-                  background: r.done ? "var(--cvb-mint)" : r.gapRow ? "var(--cvb-amber-bg,#F7EFDA)" : "var(--cvb-well)",
+                  background: r.done
+                    ? "var(--cvb-mint)"
+                    : r.gapRow
+                      ? "var(--cvb-amber-bg,#F7EFDA)"
+                      : "var(--cvb-well)",
                   border: `1px solid ${r.done ? "var(--cvb-mint-line)" : r.gapRow ? "var(--cvb-amber-line,#EAD9A8)" : "var(--cvb-line-ctl)"}`,
                   color: r.done ? "var(--cvb-forest)" : "var(--cvb-amber,#8A6D1A)",
                 }}
@@ -672,7 +807,14 @@ export function BoldOnboarding() {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 12, fontWeight: 700 }}>{r.n}</div>
                 {r.shown ? (
-                  <div style={{ fontSize: 11.5, color: r.gapRow ? "var(--cvb-amber,#8A6D1A)" : "var(--cvb-faint)", marginTop: 2, lineHeight: 1.45 }}>
+                  <div
+                    style={{
+                      fontSize: 11.5,
+                      color: r.gapRow ? "var(--cvb-amber,#8A6D1A)" : "var(--cvb-faint)",
+                      marginTop: 2,
+                      lineHeight: 1.45,
+                    }}
+                  >
                     {r.shown}
                   </div>
                 ) : null}
@@ -681,18 +823,43 @@ export function BoldOnboarding() {
           ))}
         </div>
 
-        <div data-testid="bold-onb-status" style={{ ...mono, fontSize: 10, color: "var(--cvb-faint)", marginTop: "auto", lineHeight: 1.6 }}>
+        <div
+          data-testid="bold-onb-status"
+          style={{
+            ...mono,
+            fontSize: 10,
+            color: "var(--cvb-faint)",
+            marginTop: "auto",
+            lineHeight: 1.6,
+          }}
+        >
           {stepLabel}
         </div>
       </div>
 
       {/* The step panel. */}
-      <div style={{ flex: 1, minWidth: 0, display: "flex", justifyContent: "center", padding: "48px 40px" }}>
+      <div
+        style={{
+          flex: 1,
+          minWidth: 0,
+          display: "flex",
+          justifyContent: "center",
+          padding: "48px 40px",
+        }}
+      >
         <div style={{ width: "100%", maxWidth: 660 }}>
           {err ? (
             <div
               data-testid="bold-onb-error"
-              style={{ marginBottom: 18, background: "#FBEEEA", border: "1px solid #F0D2CB", color: "#B0483A", borderRadius: 12, padding: "11px 14px", fontSize: 12.5 }}
+              style={{
+                marginBottom: 18,
+                background: "#FBEEEA",
+                border: "1px solid #F0D2CB",
+                color: "#B0483A",
+                borderRadius: 12,
+                padding: "11px 14px",
+                fontSize: 12.5,
+              }}
             >
               {err}
             </div>
@@ -700,7 +867,15 @@ export function BoldOnboarding() {
           {note ? (
             <div
               data-testid="bold-onb-note"
-              style={{ marginBottom: 18, background: "var(--cvb-well)", border: "1px solid var(--cvb-line-ctl)", color: "var(--cvb-muted)", borderRadius: 12, padding: "11px 14px", fontSize: 12.5 }}
+              style={{
+                marginBottom: 18,
+                background: "var(--cvb-well)",
+                border: "1px solid var(--cvb-line-ctl)",
+                color: "var(--cvb-muted)",
+                borderRadius: 12,
+                padding: "11px 14px",
+                fontSize: 12.5,
+              }}
             >
               {note}
             </div>
@@ -710,13 +885,43 @@ export function BoldOnboarding() {
           {step === "business" ? (
             <div>
               <div style={eyebrow}>FIRST THINGS FIRST</div>
-              <h1 style={{ fontWeight: 900, fontSize: 30, letterSpacing: "-.034em", margin: "12px 0 8px" }}>What should she call the business?</h1>
-              <p style={{ fontSize: 13.5, color: "var(--cvb-muted)", lineHeight: 1.6, margin: "0 0 22px" }}>
-                The name goes on your workspace; the kind of business tunes her vocabulary on every surface.
+              <h1
+                style={{
+                  fontFamily: "var(--cvb-font-display)",
+                  fontWeight: 900,
+                  fontSize: 30,
+                  letterSpacing: "-.034em",
+                  margin: "12px 0 8px",
+                }}
+              >
+                What should she call the business?
+              </h1>
+              <p
+                style={{
+                  fontSize: 13.5,
+                  color: "var(--cvb-muted)",
+                  lineHeight: 1.6,
+                  margin: "0 0 22px",
+                }}
+              >
+                The name goes on your workspace; the kind of business tunes her vocabulary on every
+                surface.
               </p>
-              <input value={bizName} onChange={(e) => setBizName(e.target.value)} placeholder="Bright Smile Dental" data-testid="bold-onb-name" style={input} />
+              <input
+                value={bizName}
+                onChange={(e) => setBizName(e.target.value)}
+                placeholder="Bright Smile Dental"
+                data-testid="bold-onb-name"
+                style={input}
+              />
               <div style={{ ...eyebrow, margin: "26px 0 12px" }}>WHAT KIND OF BUSINESS</div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 10 }}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
+                  gap: 10,
+                }}
+              >
                 {SHAPES.map(([key, title, sub]) => (
                   <div
                     key={key}
@@ -731,7 +936,16 @@ export function BoldOnboarding() {
                     }}
                   >
                     <div style={{ fontWeight: 800, fontSize: 13.5 }}>{title}</div>
-                    <div style={{ fontSize: 11.5, color: shape === key ? "var(--cvb-forest)" : "var(--cvb-faint)", marginTop: 6, lineHeight: 1.5 }}>{sub}</div>
+                    <div
+                      style={{
+                        fontSize: 11.5,
+                        color: shape === key ? "var(--cvb-forest)" : "var(--cvb-faint)",
+                        marginTop: 6,
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      {sub}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -758,10 +972,19 @@ export function BoldOnboarding() {
                 ))}
               </div>
               {vertical === "other" ? (
-                <input value={verticalOther} onChange={(e) => setVerticalOther(e.target.value)} placeholder="What do you do? One or two words." style={{ ...input, marginTop: 12 }} />
+                <input
+                  value={verticalOther}
+                  onChange={(e) => setVerticalOther(e.target.value)}
+                  placeholder="What do you do? One or two words."
+                  style={{ ...input, marginTop: 12 }}
+                />
               ) : null}
               <div style={{ marginTop: 28 }}>
-                <span onClick={() => void createWorkspace()} data-testid="bold-onb-create" style={{ ...cta, opacity: busy ? 0.6 : 1 }}>
+                <span
+                  onClick={() => void createWorkspace()}
+                  data-testid="bold-onb-create"
+                  style={{ ...cta, opacity: busy ? 0.6 : 1 }}
+                >
                   {busy ? "Setting up…" : "Create my workspace →"}
                 </span>
               </div>
@@ -771,11 +994,28 @@ export function BoldOnboarding() {
           {/* -------------------------------------------------------- site */}
           {step === "site" ? (
             <div>
-              <div style={eyebrow}>{mode === "site" ? "SKIP THE SETUP FORMS" : "TELL HER YOURSELF"}</div>
-              <h1 style={{ fontWeight: 900, fontSize: 30, letterSpacing: "-.034em", margin: "12px 0 8px" }}>
+              <div style={eyebrow}>
+                {mode === "site" ? "SKIP THE SETUP FORMS" : "TELL HER YOURSELF"}
+              </div>
+              <h1
+                style={{
+                  fontFamily: "var(--cvb-font-display)",
+                  fontWeight: 900,
+                  fontSize: 30,
+                  letterSpacing: "-.034em",
+                  margin: "12px 0 8px",
+                }}
+              >
                 {mode === "site" ? "Point her at your website" : "Tell her about the business"}
               </h1>
-              <p style={{ fontSize: 13.5, color: "var(--cvb-muted)", lineHeight: 1.6, margin: "0 0 22px" }}>
+              <p
+                style={{
+                  fontSize: 13.5,
+                  color: "var(--cvb-muted)",
+                  lineHeight: 1.6,
+                  margin: "0 0 22px",
+                }}
+              >
                 {mode === "site"
                   ? "Give Ada your address and she works out what you sell, what it costs and how you sound. Nothing to fill in by hand."
                   : "A few lines is enough to start. Add a price list, brochure or policy document and she reads those the same way she reads a site."}
@@ -783,15 +1023,40 @@ export function BoldOnboarding() {
 
               {mode === "site" ? (
                 <>
-                  <input value={siteUrl} onChange={(e) => setSiteUrl(e.target.value)} placeholder="yourbusiness.com" data-testid="bold-onb-site" style={input} />
-                  <div style={{ fontSize: 12, color: "var(--cvb-faint)", marginTop: 12, lineHeight: 1.55 }}>
-                    She reads your pages once, then keeps what matters. Nothing is published or changed.
+                  <input
+                    value={siteUrl}
+                    onChange={(e) => setSiteUrl(e.target.value)}
+                    placeholder="yourbusiness.com"
+                    data-testid="bold-onb-site"
+                    style={input}
+                  />
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: "var(--cvb-faint)",
+                      marginTop: 12,
+                      lineHeight: 1.55,
+                    }}
+                  >
+                    She reads your pages once, then keeps what matters. Nothing is published or
+                    changed.
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 18, marginTop: 24 }}>
-                    <span onClick={() => void readSite()} data-testid="bold-onb-read" style={{ ...cta, opacity: busy ? 0.6 : 1 }}>
+                    <span
+                      onClick={() => void readSite()}
+                      data-testid="bold-onb-read"
+                      style={{ ...cta, opacity: busy ? 0.6 : 1 }}
+                    >
                       {busy ? "Starting the read…" : "Read my site →"}
                     </span>
-                    <span onClick={() => { setMode("manual"); setErr(null); }} data-testid="bold-onb-nosite" style={ghostLink}>
+                    <span
+                      onClick={() => {
+                        setMode("manual");
+                        setErr(null);
+                      }}
+                      data-testid="bold-onb-nosite"
+                      style={ghostLink}
+                    >
                       No website? Tell her about the business instead →
                     </span>
                   </div>
@@ -801,7 +1066,13 @@ export function BoldOnboarding() {
                   <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                     <div>
                       <div style={eyebrow}>WHAT KIND OF BUSINESS</div>
-                      <input value={mkind} onChange={(e) => setMkind(e.target.value)} placeholder="e.g. dental practice · SaaS · marketing agency" data-testid="bold-onb-mkind" style={{ ...input, marginTop: 7 }} />
+                      <input
+                        value={mkind}
+                        onChange={(e) => setMkind(e.target.value)}
+                        placeholder="e.g. dental practice · SaaS · marketing agency"
+                        data-testid="bold-onb-mkind"
+                        style={{ ...input, marginTop: 7 }}
+                      />
                     </div>
                     <div>
                       <div style={eyebrow}>WHAT YOU SELL, AND ROUGHLY WHAT IT COSTS</div>
@@ -816,7 +1087,13 @@ export function BoldOnboarding() {
                     </div>
                     <div>
                       <div style={eyebrow}>WHERE YOU WORK</div>
-                      <input value={marea} onChange={(e) => setMarea(e.target.value)} placeholder="e.g. Austin, TX — 20 miles · or nationwide" data-testid="bold-onb-marea" style={{ ...input, marginTop: 7 }} />
+                      <input
+                        value={marea}
+                        onChange={(e) => setMarea(e.target.value)}
+                        placeholder="e.g. Austin, TX — 20 miles · or nationwide"
+                        data-testid="bold-onb-marea"
+                        style={{ ...input, marginTop: 7 }}
+                      />
                     </div>
                   </div>
 
@@ -846,8 +1123,17 @@ export function BoldOnboarding() {
                         opacity: uploadCfg && !uploadCfg.enabled ? 0.72 : 1,
                       }}
                     >
-                      <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: "-.015em" }}>Add a price list, brochure or policy</div>
-                      <div style={{ fontSize: 11.5, color: "var(--cvb-faint)", marginTop: 5, lineHeight: 1.5 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: "-.015em" }}>
+                        Add a price list, brochure or policy
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 11.5,
+                          color: "var(--cvb-faint)",
+                          marginTop: 5,
+                          lineHeight: 1.5,
+                        }}
+                      >
                         {uploadCfg && !uploadCfg.enabled
                           ? `Uploads are not switched on for this deployment${uploadCfg.reason ? ` — ${uploadCfg.reason}` : ""}. Type the lines above instead; documents can be added later from Business core.`
                           : "PDF, Word, Excel, text, CSV or Markdown. She reads it the same way she reads a website."}
@@ -857,23 +1143,65 @@ export function BoldOnboarding() {
                     <div
                       onClick={() => uploadCfg?.enabled && docRef.current?.click()}
                       data-testid="bold-onb-docs"
-                      style={{ display: "flex", alignItems: "center", gap: 11, ...card, marginTop: 12, cursor: "pointer" }}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 11,
+                        ...card,
+                        marginTop: 12,
+                        cursor: "pointer",
+                      }}
                     >
-                      <span style={{ width: 26, height: 26, flex: "none", borderRadius: 9, background: "var(--cvb-mint)", border: "1px solid var(--cvb-mint-line)", color: "var(--cvb-forest)", display: "grid", placeItems: "center", fontSize: 11 }}>
+                      <span
+                        style={{
+                          width: 26,
+                          height: 26,
+                          flex: "none",
+                          borderRadius: 9,
+                          background: "var(--cvb-mint)",
+                          border: "1px solid var(--cvb-mint-line)",
+                          color: "var(--cvb-forest)",
+                          display: "grid",
+                          placeItems: "center",
+                          fontSize: 11,
+                        }}
+                      >
                         ✓
                       </span>
                       <div style={{ flex: 1, minWidth: 0, fontSize: 12.5, fontWeight: 600 }}>
-                        {docs.length === 1 ? `1 document read — ${docs[0]}` : `${docs.length} documents read — ${docs.join(", ")}`}
+                        {docs.length === 1
+                          ? `1 document read — ${docs[0]}`
+                          : `${docs.length} documents read — ${docs.join(", ")}`}
                       </div>
-                      <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--cvb-cyan,#0E7D93)", flex: "none" }}>Add another</span>
+                      <span
+                        style={{
+                          fontSize: 11.5,
+                          fontWeight: 700,
+                          color: "var(--cvb-cyan,#0E7D93)",
+                          flex: "none",
+                        }}
+                      >
+                        Add another
+                      </span>
                     </div>
                   )}
 
                   <div style={{ display: "flex", alignItems: "center", gap: 18, marginTop: 24 }}>
-                    <span onClick={() => void tellHer()} data-testid="bold-onb-tellher" style={{ ...cta, opacity: busy || !msell.trim() ? 0.6 : 1 }}>
+                    <span
+                      onClick={() => void tellHer()}
+                      data-testid="bold-onb-tellher"
+                      style={{ ...cta, opacity: busy || !msell.trim() ? 0.6 : 1 }}
+                    >
                       {busy ? "Saving…" : "Build my core →"}
                     </span>
-                    <span onClick={() => { setMode("site"); setErr(null); }} data-testid="bold-onb-havesite" style={ghostLink}>
+                    <span
+                      onClick={() => {
+                        setMode("site");
+                        setErr(null);
+                      }}
+                      data-testid="bold-onb-havesite"
+                      style={ghostLink}
+                    >
                       Actually, I do have a website →
                     </span>
                   </div>
@@ -886,14 +1214,42 @@ export function BoldOnboarding() {
           {step === "read" ? (
             <div>
               <div style={eyebrow}>WHAT SHE KNOWS SO FAR</div>
-              <h1 style={{ fontWeight: 900, fontSize: 30, letterSpacing: "-.034em", margin: "12px 0 8px" }}>This is what she will say about you</h1>
-              <p style={{ fontSize: 13.5, color: "var(--cvb-muted)", lineHeight: 1.6, margin: "0 0 20px" }}>
-                Every message she writes comes from these facts. Change any of them and she keeps your version for good.
+              <h1
+                style={{
+                  fontFamily: "var(--cvb-font-display)",
+                  fontWeight: 900,
+                  fontSize: 30,
+                  letterSpacing: "-.034em",
+                  margin: "12px 0 8px",
+                }}
+              >
+                This is what she will say about you
+              </h1>
+              <p
+                style={{
+                  fontSize: 13.5,
+                  color: "var(--cvb-muted)",
+                  lineHeight: 1.6,
+                  margin: "0 0 20px",
+                }}
+              >
+                Every message she writes comes from these facts. Change any of them and she keeps
+                your version for good.
               </p>
               {ctxStatus === "distilling" ? (
                 <div
                   data-testid="bold-onb-distilling"
-                  style={{ ...mono, fontSize: 10.5, color: "var(--cvb-forest)", background: "var(--cvb-mint)", border: "1px solid var(--cvb-mint-line)", borderRadius: 10, padding: "8px 12px", marginBottom: 16, display: "inline-block" }}
+                  style={{
+                    ...mono,
+                    fontSize: 10.5,
+                    color: "var(--cvb-forest)",
+                    background: "var(--cvb-mint)",
+                    border: "1px solid var(--cvb-mint-line)",
+                    borderRadius: 10,
+                    padding: "8px 12px",
+                    marginBottom: 16,
+                    display: "inline-block",
+                  }}
                 >
                   {mode === "manual" ? "READING YOUR DOCUMENTS…" : "READING YOUR SITE…"}
                 </div>
@@ -901,16 +1257,43 @@ export function BoldOnboarding() {
 
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {readRows.map((f) => (
-                  <div key={f.key} data-testid={`bold-onb-fact-row-${f.key}`} style={{ display: "flex", alignItems: "flex-start", gap: 12, ...card }}>
-                    <span style={{ width: 26, height: 26, flex: "none", borderRadius: 9, background: "var(--cvb-mint)", border: "1px solid var(--cvb-mint-line)", color: "var(--cvb-forest)", display: "grid", placeItems: "center", fontSize: 11 }}>
+                  <div
+                    key={f.key}
+                    data-testid={`bold-onb-fact-row-${f.key}`}
+                    style={{ display: "flex", alignItems: "flex-start", gap: 12, ...card }}
+                  >
+                    <span
+                      style={{
+                        width: 26,
+                        height: 26,
+                        flex: "none",
+                        borderRadius: 9,
+                        background: "var(--cvb-mint)",
+                        border: "1px solid var(--cvb-mint-line)",
+                        color: "var(--cvb-forest)",
+                        display: "grid",
+                        placeItems: "center",
+                        fontSize: 11,
+                      }}
+                    >
                       ✓
                     </span>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ ...eyebrow }}>{f.label.toUpperCase()}</div>
                       {editing === f.key ? (
                         <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-                          <input value={editDraft} onChange={(e) => setEditDraft(e.target.value)} data-testid={`bold-onb-fact-edit-${f.key}`} style={{ ...input, flex: 1 }} />
-                          <span onClick={() => void saveFactEdit(f.key)} style={{ ...cta, padding: "10px 14px", fontSize: 12.5 }}>Save</span>
+                          <input
+                            value={editDraft}
+                            onChange={(e) => setEditDraft(e.target.value)}
+                            data-testid={`bold-onb-fact-edit-${f.key}`}
+                            style={{ ...input, flex: 1 }}
+                          />
+                          <span
+                            onClick={() => void saveFactEdit(f.key)}
+                            style={{ ...cta, padding: "10px 14px", fontSize: 12.5 }}
+                          >
+                            Save
+                          </span>
                         </div>
                       ) : (
                         <div style={{ fontSize: 13, lineHeight: 1.5, marginTop: 5 }}>{f.value}</div>
@@ -918,9 +1301,18 @@ export function BoldOnboarding() {
                     </div>
                     {editing === f.key ? null : (
                       <span
-                        onClick={() => { setEditing(f.key); setEditDraft(f.value); }}
+                        onClick={() => {
+                          setEditing(f.key);
+                          setEditDraft(f.value);
+                        }}
                         data-testid={`bold-onb-fact-change-${f.key}`}
-                        style={{ fontSize: 11.5, fontWeight: 700, color: "var(--cvb-cyan,#0E7D93)", cursor: "pointer", flex: "none" }}
+                        style={{
+                          fontSize: 11.5,
+                          fontWeight: 700,
+                          color: "var(--cvb-cyan,#0E7D93)",
+                          cursor: "pointer",
+                          flex: "none",
+                        }}
                       >
                         Change
                       </span>
@@ -928,7 +1320,9 @@ export function BoldOnboarding() {
                   </div>
                 ))}
                 {readRows.length === 0 ? (
-                  <div style={{ ...card, fontSize: 12.5, color: "var(--cvb-muted)", lineHeight: 1.6 }}>
+                  <div
+                    style={{ ...card, fontSize: 12.5, color: "var(--cvb-muted)", lineHeight: 1.6 }}
+                  >
                     {ctxStatus === "distilling"
                       ? "Nothing back yet — facts land here as she finds them. You can carry on; she keeps reading."
                       : "She has nothing on file yet. Carry on — she asks for what she needs, and never invents it."}
@@ -939,13 +1333,24 @@ export function BoldOnboarding() {
               <div style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 13 }}>
                 <span
                   data-testid="bold-onb-source"
-                  style={{ ...mono, fontSize: 9.5, letterSpacing: ".14em", color: "var(--cvb-forest)", background: "var(--cvb-mint)", border: "1px solid var(--cvb-mint-line)", borderRadius: 999, padding: "3px 9px" }}
+                  style={{
+                    ...mono,
+                    fontSize: 9.5,
+                    letterSpacing: ".14em",
+                    color: "var(--cvb-forest)",
+                    background: "var(--cvb-mint)",
+                    border: "1px solid var(--cvb-mint-line)",
+                    borderRadius: 999,
+                    padding: "3px 9px",
+                  }}
                 >
                   SOURCE
                 </span>
                 <span style={{ fontSize: 11.5, color: "var(--cvb-muted)" }}>{sourceLine}</span>
               </div>
-              <div style={{ fontSize: 12, color: "var(--cvb-faint)", marginTop: 9, lineHeight: 1.55 }}>
+              <div
+                style={{ fontSize: 12, color: "var(--cvb-faint)", marginTop: 9, lineHeight: 1.55 }}
+              >
                 Add more any time — price lists, policies, documents — in Business core.
               </div>
 
@@ -961,9 +1366,27 @@ export function BoldOnboarding() {
           {step === "goal" ? (
             <div>
               <div style={eyebrow}>THE GOAL</div>
-              <h1 style={{ fontWeight: 900, fontSize: 30, letterSpacing: "-.034em", margin: "12px 0 8px" }}>What counts as a win?</h1>
-              <p style={{ fontSize: 13.5, color: "var(--cvb-muted)", lineHeight: 1.6, margin: "0 0 20px" }}>
-                Your first goal. It sets how hard she pushes, when she follows up and which replies get your attention.
+              <h1
+                style={{
+                  fontFamily: "var(--cvb-font-display)",
+                  fontWeight: 900,
+                  fontSize: 30,
+                  letterSpacing: "-.034em",
+                  margin: "12px 0 8px",
+                }}
+              >
+                What counts as a win?
+              </h1>
+              <p
+                style={{
+                  fontSize: 13.5,
+                  color: "var(--cvb-muted)",
+                  lineHeight: 1.6,
+                  margin: "0 0 20px",
+                }}
+              >
+                Your first goal. It sets how hard she pushes, when she follows up and which replies
+                get your attention.
               </p>
               <div style={{ display: "grid", gap: 10 }}>
                 {GOAL_OPTIONS.map(([key, title, sub]) => (
@@ -982,19 +1405,40 @@ export function BoldOnboarding() {
                       cursor: "pointer",
                     }}
                   >
-                    <span style={{ width: 18, height: 18, flex: "none", borderRadius: "50%", border: `1.5px solid ${goalPick === key ? "var(--cvb-forest)" : "var(--cvb-line-strong,#D4DAD6)"}`, background: goalPick === key ? "var(--cvb-forest)" : "transparent" }} />
+                    <span
+                      style={{
+                        width: 18,
+                        height: 18,
+                        flex: "none",
+                        borderRadius: "50%",
+                        border: `1.5px solid ${goalPick === key ? "var(--cvb-forest)" : "var(--cvb-line-strong,#D4DAD6)"}`,
+                        background: goalPick === key ? "var(--cvb-forest)" : "transparent",
+                      }}
+                    />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 13.5, fontWeight: 700 }}>{title}</div>
-                      <div style={{ fontSize: 12, color: "var(--cvb-faint)", marginTop: 4 }}>{sub}</div>
+                      <div style={{ fontSize: 12, color: "var(--cvb-faint)", marginTop: 4 }}>
+                        {sub}
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 24 }}>
-                <span onClick={() => (goalPick ? goNext("goal") : setErr("Pick the goal — it sets her pace and follow-up."))} data-testid="bold-onb-goal-next" style={{ ...cta, opacity: goalPick ? 1 : 0.6 }}>
+                <span
+                  onClick={() =>
+                    goalPick
+                      ? goNext("goal")
+                      : setErr("Pick the goal — it sets her pace and follow-up.")
+                  }
+                  data-testid="bold-onb-goal-next"
+                  style={{ ...cta, opacity: goalPick ? 1 : 0.6 }}
+                >
                   Continue →
                 </span>
-                <span style={{ fontSize: 11.5, color: "var(--cvb-ghost)" }}>One goal now — add more campaigns whenever you like</span>
+                <span style={{ fontSize: 11.5, color: "var(--cvb-ghost)" }}>
+                  One goal now — add more campaigns whenever you like
+                </span>
               </div>
             </div>
           ) : null}
@@ -1003,9 +1447,27 @@ export function BoldOnboarding() {
           {step === "audience" ? (
             <div>
               <div style={eyebrow}>WHO SHE WORKS</div>
-              <h1 style={{ fontWeight: 900, fontSize: 30, letterSpacing: "-.034em", margin: "12px 0 8px" }}>Who is worth chasing?</h1>
-              <p style={{ fontSize: 13.5, color: "var(--cvb-muted)", lineHeight: 1.6, margin: "0 0 20px" }}>
-                She writes differently for each of these. Pick everyone worth the effort — up to {audience.max}.
+              <h1
+                style={{
+                  fontFamily: "var(--cvb-font-display)",
+                  fontWeight: 900,
+                  fontSize: 30,
+                  letterSpacing: "-.034em",
+                  margin: "12px 0 8px",
+                }}
+              >
+                Who is worth chasing?
+              </h1>
+              <p
+                style={{
+                  fontSize: 13.5,
+                  color: "var(--cvb-muted)",
+                  lineHeight: 1.6,
+                  margin: "0 0 20px",
+                }}
+              >
+                She writes differently for each of these. Pick everyone worth the effort — up to{" "}
+                {audience.max}.
               </p>
               <div style={{ display: "grid", gap: 10 }}>
                 {options.map((o) => {
@@ -1028,14 +1490,28 @@ export function BoldOnboarding() {
                         cursor: "pointer",
                       }}
                     >
-                      <span style={{ width: 18, height: 18, flex: "none", borderRadius: 7, border: `1.5px solid ${on ? "var(--cvb-forest)" : "var(--cvb-line-strong,#D4DAD6)"}`, background: on ? "var(--cvb-forest)" : "transparent" }} />
+                      <span
+                        style={{
+                          width: 18,
+                          height: 18,
+                          flex: "none",
+                          borderRadius: 7,
+                          border: `1.5px solid ${on ? "var(--cvb-forest)" : "var(--cvb-line-strong,#D4DAD6)"}`,
+                          background: on ? "var(--cvb-forest)" : "transparent",
+                        }}
+                      />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 13.5, fontWeight: 700 }}>{o.label}</div>
-                        <div style={{ fontSize: 12, color: "var(--cvb-faint)", marginTop: 4 }}>{o.sub}</div>
+                        <div style={{ fontSize: 12, color: "var(--cvb-faint)", marginTop: 4 }}>
+                          {o.sub}
+                        </div>
                       </div>
                       {on && picks.length > 1 ? (
                         <span
-                          onClick={(e) => { e.stopPropagation(); setPrimary(o.key); }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPrimary(o.key);
+                          }}
                           data-testid={`bold-onb-primary-${o.key}`}
                           style={{
                             fontSize: 10.5,
@@ -1067,7 +1543,11 @@ export function BoldOnboarding() {
                 />
               ) : null}
               <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 24 }}>
-                <span onClick={() => void saveAudience()} data-testid="bold-onb-audience-next" style={{ ...cta, opacity: busy ? 0.6 : 1 }}>
+                <span
+                  onClick={() => void saveAudience()}
+                  data-testid="bold-onb-audience-next"
+                  style={{ ...cta, opacity: busy ? 0.6 : 1 }}
+                >
                   {busy ? "Drafting…" : "Continue →"}
                 </span>
                 <span style={{ fontSize: 11.5, color: "var(--cvb-ghost)" }}>
@@ -1083,10 +1563,29 @@ export function BoldOnboarding() {
           {step === "ask" ? (
             <div>
               <div style={eyebrow}>SHE NEEDS THIS TO HIT THE GOAL</div>
-              <h1 style={{ fontWeight: 900, fontSize: 30, letterSpacing: "-.034em", margin: "12px 0 8px" }}>
-                {gap ? "One thing she cannot guess" : gapsUnknown ? "Her gap report did not load" : "Nothing missing right now"}
+              <h1
+                style={{
+                  fontFamily: "var(--cvb-font-display)",
+                  fontWeight: 900,
+                  fontSize: 30,
+                  letterSpacing: "-.034em",
+                  margin: "12px 0 8px",
+                }}
+              >
+                {gap
+                  ? "One thing she cannot guess"
+                  : gapsUnknown
+                    ? "Her gap report did not load"
+                    : "Nothing missing right now"}
               </h1>
-              <p style={{ fontSize: 13.5, color: "var(--cvb-muted)", lineHeight: 1.6, margin: "0 0 20px" }}>
+              <p
+                style={{
+                  fontSize: 13.5,
+                  color: "var(--cvb-muted)",
+                  lineHeight: 1.6,
+                  margin: "0 0 20px",
+                }}
+              >
                 {gap
                   ? "Your site never says this, and she will not invent it. Without it she has to stall on a hot reply."
                   : gapsUnknown
@@ -1094,8 +1593,24 @@ export function BoldOnboarding() {
                     : "Her gap report is clear for this goal — anything new she needs, she asks in the moment."}
               </p>
               {gap ? (
-                <div style={{ background: "var(--cvb-amber-bg,#FDFBF4)", border: "1px solid var(--cvb-amber-line,#EFE6D0)", borderRadius: 16, padding: 18 }}>
-                  <div style={{ ...mono, fontSize: 9.5, letterSpacing: ".16em", color: "var(--cvb-amber,#8A6D1A)" }}>{gap.label.toUpperCase()}</div>
+                <div
+                  style={{
+                    background: "var(--cvb-amber-bg,#FDFBF4)",
+                    border: "1px solid var(--cvb-amber-line,#EFE6D0)",
+                    borderRadius: 16,
+                    padding: 18,
+                  }}
+                >
+                  <div
+                    style={{
+                      ...mono,
+                      fontSize: 9.5,
+                      letterSpacing: ".16em",
+                      color: "var(--cvb-amber,#8A6D1A)",
+                    }}
+                  >
+                    {gap.label.toUpperCase()}
+                  </div>
                   <div style={{ fontSize: 13.5, fontWeight: 600, lineHeight: 1.5, marginTop: 8 }}>
                     {(ASK_COPY[goalPick ?? ""] ?? ASK_COPY.book_appointments)![0]}
                   </div>
@@ -1109,11 +1624,19 @@ export function BoldOnboarding() {
                 </div>
               ) : null}
               <div style={{ display: "flex", alignItems: "center", gap: 18, marginTop: 24 }}>
-                <span onClick={() => void saveGapAnswer(false)} data-testid="bold-onb-gap-next" style={{ ...cta, opacity: busy ? 0.6 : 1 }}>
+                <span
+                  onClick={() => void saveGapAnswer(false)}
+                  data-testid="bold-onb-gap-next"
+                  style={{ ...cta, opacity: busy ? 0.6 : 1 }}
+                >
                   Continue →
                 </span>
                 {gap ? (
-                  <span onClick={() => void saveGapAnswer(true)} data-testid="bold-onb-gap-skip" style={ghostLink}>
+                  <span
+                    onClick={() => void saveGapAnswer(true)}
+                    data-testid="bold-onb-gap-skip"
+                    style={ghostLink}
+                  >
                     Skip — she will ask you when it comes up →
                   </span>
                 ) : null}
@@ -1125,23 +1648,74 @@ export function BoldOnboarding() {
           {step === "import" ? (
             <div>
               <div style={eyebrow}>YOUR OWN RECORDS</div>
-              <h1 style={{ fontWeight: 900, fontSize: 30, letterSpacing: "-.034em", margin: "12px 0 8px" }}>Bring your people with you</h1>
-              <p style={{ fontSize: 13.5, color: "var(--cvb-muted)", lineHeight: 1.6, margin: "0 0 20px" }}>
-                You picked an audience from your own records, so she needs the list. A spreadsheet is enough — she maps the columns herself.
+              <h1
+                style={{
+                  fontFamily: "var(--cvb-font-display)",
+                  fontWeight: 900,
+                  fontSize: 30,
+                  letterSpacing: "-.034em",
+                  margin: "12px 0 8px",
+                }}
+              >
+                Bring your people with you
+              </h1>
+              <p
+                style={{
+                  fontSize: 13.5,
+                  color: "var(--cvb-muted)",
+                  lineHeight: 1.6,
+                  margin: "0 0 20px",
+                }}
+              >
+                You picked an audience from your own records, so she needs the list. A spreadsheet
+                is enough — she maps the columns herself.
               </p>
               {imported ? (
-                <div data-testid="bold-onb-imported" style={{ display: "flex", alignItems: "center", gap: 12, ...card, padding: "17px 18px" }}>
-                  <span style={{ width: 30, height: 30, flex: "none", borderRadius: 10, background: "var(--cvb-mint)", border: "1px solid var(--cvb-mint-line)", color: "var(--cvb-forest)", display: "grid", placeItems: "center", fontSize: 13 }}>
+                <div
+                  data-testid="bold-onb-imported"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    ...card,
+                    padding: "17px 18px",
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 30,
+                      height: 30,
+                      flex: "none",
+                      borderRadius: 10,
+                      background: "var(--cvb-mint)",
+                      border: "1px solid var(--cvb-mint-line)",
+                      color: "var(--cvb-forest)",
+                      display: "grid",
+                      placeItems: "center",
+                      fontSize: 13,
+                    }}
+                  >
                     ✓
                   </span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: "-.015em" }}>
                       {imported.result.created} contacts read · {imported.consented} she may contact
                     </div>
-                    <div style={{ fontSize: 11.5, color: "var(--cvb-faint)", marginTop: 3, lineHeight: 1.5 }}>
+                    <div
+                      style={{
+                        fontSize: 11.5,
+                        color: "var(--cvb-faint)",
+                        marginTop: 3,
+                        lineHeight: 1.5,
+                      }}
+                    >
                       Rows without consent import as contacts only — they will not be contacted.
-                      {imported.result.skippedDuplicates > 0 ? ` ${imported.result.skippedDuplicates} were already in your records.` : ""}
-                      {imported.result.suppressed > 0 ? ` ${imported.result.suppressed} are on your suppression list and stay out.` : ""}
+                      {imported.result.skippedDuplicates > 0
+                        ? ` ${imported.result.skippedDuplicates} were already in your records.`
+                        : ""}
+                      {imported.result.suppressed > 0
+                        ? ` ${imported.result.suppressed} are on your suppression list and stay out.`
+                        : ""}
                     </div>
                   </div>
                 </div>
@@ -1149,16 +1723,26 @@ export function BoldOnboarding() {
                 <BoldCsvImport onImported={(o) => setImported(o)} flash={flash} />
               )}
               <div style={{ display: "flex", alignItems: "center", gap: 18, marginTop: 24 }}>
-                <span onClick={() => goNext("import")} data-testid="bold-onb-import-next" style={cta}>
+                <span
+                  onClick={() => goNext("import")}
+                  data-testid="bold-onb-import-next"
+                  style={cta}
+                >
                   Continue →
                 </span>
                 {imported ? null : (
-                  <span onClick={() => goNext("import")} data-testid="bold-onb-import-skip" style={ghostLink}>
+                  <span
+                    onClick={() => goNext("import")}
+                    data-testid="bold-onb-import-skip"
+                    style={ghostLink}
+                  >
                     Skip — import later from Contacts →
                   </span>
                 )}
               </div>
-              <div style={{ fontSize: 12, color: "var(--cvb-faint)", marginTop: 14, lineHeight: 1.55 }}>
+              <div
+                style={{ fontSize: 12, color: "var(--cvb-faint)", marginTop: 14, lineHeight: 1.55 }}
+              >
                 Consent column respected — no consent, no sending.
               </div>
             </div>
@@ -1168,19 +1752,50 @@ export function BoldOnboarding() {
           {step === "send" ? (
             <div>
               <div style={eyebrow}>HOW SHE SENDS</div>
-              <h1 style={{ fontWeight: 900, fontSize: 30, letterSpacing: "-.034em", margin: "12px 0 8px" }}>Where should replies land?</h1>
-              <p style={{ fontSize: 13.5, color: "var(--cvb-muted)", lineHeight: 1.6, margin: "0 0 20px" }}>
-                She sends from your Clientforce address today, so you can start now. Replies come straight back to you.
+              <h1
+                style={{
+                  fontFamily: "var(--cvb-font-display)",
+                  fontWeight: 900,
+                  fontSize: 30,
+                  letterSpacing: "-.034em",
+                  margin: "12px 0 8px",
+                }}
+              >
+                Where should replies land?
+              </h1>
+              <p
+                style={{
+                  fontSize: 13.5,
+                  color: "var(--cvb-muted)",
+                  lineHeight: 1.6,
+                  margin: "0 0 20px",
+                }}
+              >
+                She sends from your Clientforce address today, so you can start now. Replies come
+                straight back to you.
               </p>
               <div style={{ ...eyebrow, marginBottom: 8 }}>REPLIES GO TO</div>
-              <input value={replyTo} onChange={(e) => setReplyTo(e.target.value)} placeholder="you@yourbusiness.com" data-testid="bold-onb-replyto" style={input} />
+              <input
+                value={replyTo}
+                onChange={(e) => setReplyTo(e.target.value)}
+                placeholder="you@yourbusiness.com"
+                data-testid="bold-onb-replyto"
+                style={input}
+              />
               <div style={{ marginTop: 24 }}>
-                <span onClick={() => void createSender()} data-testid="bold-onb-sender-next" style={{ ...cta, opacity: busy ? 0.6 : 1 }}>
+                <span
+                  onClick={() => void createSender()}
+                  data-testid="bold-onb-sender-next"
+                  style={{ ...cta, opacity: busy ? 0.6 : 1 }}
+                >
                   {busy ? "Setting up…" : "Finish setup →"}
                 </span>
               </div>
-              <div style={{ fontSize: 12, color: "var(--cvb-faint)", marginTop: 14, lineHeight: 1.55 }}>
-                Your own domain connects later, in settings. SMS and voice attach there too, once you pick a number.
+              <div
+                style={{ fontSize: 12, color: "var(--cvb-faint)", marginTop: 14, lineHeight: 1.55 }}
+              >
+                Your own domain connects later, in settings. SMS and voice attach there too, once
+                you pick a number.
               </div>
             </div>
           ) : null}
@@ -1189,40 +1804,118 @@ export function BoldOnboarding() {
           {step === "done" ? (
             <div>
               <div style={eyebrow}>YOUR CORE IS LIVE</div>
-              <h1 style={{ fontWeight: 900, fontSize: 30, letterSpacing: "-.034em", margin: "12px 0 8px" }}>Your first campaign is written</h1>
-              <div data-testid="bold-onb-draftcard" style={{ ...card, borderRadius: 18, padding: 18, margin: "18px 0" }}>
+              <h1
+                style={{
+                  fontFamily: "var(--cvb-font-display)",
+                  fontWeight: 900,
+                  fontSize: 30,
+                  letterSpacing: "-.034em",
+                  margin: "12px 0 8px",
+                }}
+              >
+                Your first campaign is written
+              </h1>
+              <div
+                data-testid="bold-onb-draftcard"
+                style={{ ...card, borderRadius: 18, padding: 18, margin: "18px 0" }}
+              >
                 <div style={eyebrow}>YOUR FIRST CAMPAIGN — DRAFT</div>
-                <div style={{ fontWeight: 900, fontSize: 18, letterSpacing: "-.028em", marginTop: 8 }}>{bizName.trim()} — first push</div>
+                <div
+                  style={{
+                    fontFamily: "var(--cvb-font-display)",
+                    fontWeight: 900,
+                    fontSize: 18,
+                    letterSpacing: "-.028em",
+                    marginTop: 8,
+                  }}
+                >
+                  {bizName.trim()} — first push
+                </div>
                 {picks.length ? (
-                  <div style={{ ...mono, fontSize: 10, letterSpacing: ".12em", color: "var(--cvb-faint)", marginTop: 10 }}>
+                  <div
+                    style={{
+                      ...mono,
+                      fontSize: 10,
+                      letterSpacing: ".12em",
+                      color: "var(--cvb-faint)",
+                      marginTop: 10,
+                    }}
+                  >
                     {picks.length > 1
                       ? `FOR ${audienceLabel(primary ?? picks[0]!).toUpperCase()} · ${picks.length - 1} MORE SAVED TO YOUR CORE`
                       : `FOR ${audienceLabel(picks[0]!).toUpperCase()}`}
                   </div>
                 ) : null}
-                <div style={{ fontSize: 12.5, color: "var(--cvb-muted)", marginTop: 8, lineHeight: 1.6 }}>
-                  Drafted around your goal. Open it in the console to finish the plan — <strong>nothing sends until you say so</strong>.
+                <div
+                  style={{
+                    fontSize: 12.5,
+                    color: "var(--cvb-muted)",
+                    marginTop: 8,
+                    lineHeight: 1.6,
+                  }}
+                >
+                  Drafted around your goal. Open it in the console to finish the plan —{" "}
+                  <strong>nothing sends until you say so</strong>.
                 </div>
               </div>
               {signalLine ? (
-                <div data-testid="bold-onb-signal" style={{ display: "flex", alignItems: "center", gap: 12, ...card, marginBottom: 14 }}>
-                  <span style={{ width: 28, height: 28, flex: "none", borderRadius: 9, background: "var(--cvb-mint)", border: "1px solid var(--cvb-mint-line)", color: "var(--cvb-forest)", display: "grid", placeItems: "center", fontSize: 12 }}>
+                <div
+                  data-testid="bold-onb-signal"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    ...card,
+                    marginBottom: 14,
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 28,
+                      height: 28,
+                      flex: "none",
+                      borderRadius: 9,
+                      background: "var(--cvb-mint)",
+                      border: "1px solid var(--cvb-mint-line)",
+                      color: "var(--cvb-forest)",
+                      display: "grid",
+                      placeItems: "center",
+                      fontSize: 12,
+                    }}
+                  >
                     ✦
                   </span>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: "-.015em" }}>{signalLine}</div>
-                    <div style={{ fontSize: 11.5, color: "var(--cvb-faint)", marginTop: 3, lineHeight: 1.5 }}>
-                      She is already watching for moments like this that match your brief. Nobody is contacted until you say so.
+                    <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: "-.015em" }}>
+                      {signalLine}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 11.5,
+                        color: "var(--cvb-faint)",
+                        marginTop: 3,
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      She is already watching for moments like this that match your brief. Nobody is
+                      contacted until you say so.
                     </div>
                   </div>
                 </div>
               ) : null}
               {senderAddr ? (
-                <div style={{ ...mono, fontSize: 10.5, color: "var(--cvb-faint)", marginBottom: 18 }}>
-                  SENDING FROM {senderAddr.toUpperCase()} · REPLIES TO {(replyTo.trim() || "your inbox").toUpperCase()}
+                <div
+                  style={{ ...mono, fontSize: 10.5, color: "var(--cvb-faint)", marginBottom: 18 }}
+                >
+                  SENDING FROM {senderAddr.toUpperCase()} · REPLIES TO{" "}
+                  {(replyTo.trim() || "your inbox").toUpperCase()}
                 </div>
               ) : null}
-              <span onClick={() => void toPlan()} data-testid="bold-onb-toplan" style={{ ...cta, opacity: busy ? 0.6 : 1 }}>
+              <span
+                onClick={() => void toPlan()}
+                data-testid="bold-onb-toplan"
+                style={{ ...cta, opacity: busy ? 0.6 : 1 }}
+              >
                 Choose your plan →
               </span>
             </div>
@@ -1232,32 +1925,81 @@ export function BoldOnboarding() {
           {step === "plan" ? (
             <div>
               <div style={eyebrow}>LAST STEP</div>
-              <h1 style={{ fontWeight: 900, fontSize: 30, letterSpacing: "-.034em", margin: "12px 0 8px" }}>Pick a plan</h1>
-              <p style={{ fontSize: 13.5, color: "var(--cvb-muted)", lineHeight: 1.6, margin: "0 0 20px" }}>
-                Your agency pays Clientforce — nothing is charged today, and your choice is recorded, not billed.
+              <h1
+                style={{
+                  fontFamily: "var(--cvb-font-display)",
+                  fontWeight: 900,
+                  fontSize: 30,
+                  letterSpacing: "-.034em",
+                  margin: "12px 0 8px",
+                }}
+              >
+                Pick a plan
+              </h1>
+              <p
+                style={{
+                  fontSize: 13.5,
+                  color: "var(--cvb-muted)",
+                  lineHeight: 1.6,
+                  margin: "0 0 20px",
+                }}
+              >
+                Your agency pays Clientforce — nothing is charged today, and your choice is
+                recorded, not billed.
               </p>
               {plansError || (plans?.tiers ?? []).length === 0 ? (
                 <div
                   data-testid="bold-onb-plans-unavailable"
-                  style={{ background: "var(--cvb-well,#FAFBFA)", border: "1px solid var(--cvb-line-ctl)", borderRadius: 16, padding: "15px 17px", fontSize: 12.5, color: "var(--cvb-muted)", lineHeight: 1.6 }}
+                  style={{
+                    background: "var(--cvb-well,#FAFBFA)",
+                    border: "1px solid var(--cvb-line-ctl)",
+                    borderRadius: 16,
+                    padding: "15px 17px",
+                    fontSize: 12.5,
+                    color: "var(--cvb-muted)",
+                    lineHeight: 1.6,
+                  }}
                 >
-                  <strong>{plansError ? "The plans did not load." : "No plans are published yet."}</strong>{" "}
+                  <strong>
+                    {plansError ? "The plans did not load." : "No plans are published yet."}
+                  </strong>{" "}
                   {plansError
                     ? "Nothing is wrong with your setup — this is our end. Try again, or open the console and pick a plan later in Settings."
                     : "Your agency's tiers are not set in billing yet, so there is nothing to choose today. Open the console — you can pick a plan the moment they are published."}
                   <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 14 }}>
                     {plansError ? (
-                      <span onClick={() => void retryPlans()} data-testid="bold-onb-plans-retry" style={{ ...cta, padding: "10px 16px", fontSize: 12.5, opacity: busy ? 0.6 : 1 }}>
+                      <span
+                        onClick={() => void retryPlans()}
+                        data-testid="bold-onb-plans-retry"
+                        style={{
+                          ...cta,
+                          padding: "10px 16px",
+                          fontSize: 12.5,
+                          opacity: busy ? 0.6 : 1,
+                        }}
+                      >
                         {busy ? "Trying…" : "Try again"}
                       </span>
                     ) : null}
-                    <span onClick={() => { window.location.href = "/bold?welcome=1"; }} data-testid="bold-onb-skip-plan" style={ghostLink}>
+                    <span
+                      onClick={() => {
+                        window.location.href = "/bold?welcome=1";
+                      }}
+                      data-testid="bold-onb-skip-plan"
+                      style={ghostLink}
+                    >
                       Open my console →
                     </span>
                   </div>
                 </div>
               ) : null}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                  gap: 10,
+                }}
+              >
                 {(plans?.tiers ?? []).map((t) => (
                   <div
                     key={t.name}
@@ -1272,42 +2014,96 @@ export function BoldOnboarding() {
                     }}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontWeight: 800, fontSize: 13.5, flex: 1 }}>{t.name.charAt(0) + t.name.slice(1).toLowerCase()}</span>
+                      <span style={{ fontWeight: 800, fontSize: 13.5, flex: 1 }}>
+                        {t.name.charAt(0) + t.name.slice(1).toLowerCase()}
+                      </span>
                       {t.proposal ? (
                         <span
                           data-testid={`bold-onb-tier-proposal-${t.name}`}
-                          style={{ fontSize: 9, fontWeight: 700, color: "var(--cvb-amber,#8A6D1A)", background: "var(--cvb-amber-bg,#F7EFDA)", border: "1px solid var(--cvb-amber-line,#EAD9A8)", borderRadius: 999, padding: "2px 7px" }}
+                          style={{
+                            fontSize: 9,
+                            fontWeight: 700,
+                            color: "var(--cvb-amber,#8A6D1A)",
+                            background: "var(--cvb-amber-bg,#F7EFDA)",
+                            border: "1px solid var(--cvb-amber-line,#EAD9A8)",
+                            borderRadius: 999,
+                            padding: "2px 7px",
+                          }}
                         >
                           PROPOSED
                         </span>
                       ) : null}
                     </div>
-                    <div style={{ fontWeight: 900, fontSize: 24, letterSpacing: "-.03em", marginTop: 8 }}>
+                    <div
+                      style={{
+                        fontFamily: "var(--cvb-font-display)",
+                        fontWeight: 900,
+                        fontSize: 24,
+                        letterSpacing: "-.03em",
+                        marginTop: 8,
+                      }}
+                    >
                       {money(t.priceMonthlyCents)}
-                      <span style={{ fontSize: 12, fontWeight: 600, color: "var(--cvb-faint)" }}>/mo</span>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: "var(--cvb-faint)" }}>
+                        /mo
+                      </span>
                     </div>
-                    <div style={{ fontSize: 11, color: "var(--cvb-faint)", marginTop: 8, lineHeight: 1.6 }}>
+                    <div
+                      style={{
+                        fontSize: 11,
+                        color: "var(--cvb-faint)",
+                        marginTop: 8,
+                        lineHeight: 1.6,
+                      }}
+                    >
                       {Object.entries(t.limits)
-                        .map(([k, v]) => `${limitValue(v)} ${k.replace(/([A-Z])/g, " $1").toLowerCase()}`)
+                        .map(
+                          ([k, v]) =>
+                            `${limitValue(v)} ${k.replace(/([A-Z])/g, " $1").toLowerCase()}`,
+                        )
                         .join(" · ") || "limits set by your admin"}
                     </div>
                   </div>
                 ))}
               </div>
               {(plans?.tiers ?? []).length > 0 ? (
-                <div style={{ fontSize: 10.5, color: "var(--cvb-ghost)", marginTop: 10, lineHeight: 1.5 }}>
-                  Proposed prices become final when they are set in billing — you will never be charged a number you have not seen confirmed.
+                <div
+                  style={{
+                    fontSize: 10.5,
+                    color: "var(--cvb-ghost)",
+                    marginTop: 10,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  Proposed prices become final when they are set in billing — you will never be
+                  charged a number you have not seen confirmed.
                 </div>
               ) : null}
               <div
                 data-testid="bold-onb-card-deferred"
-                style={{ marginTop: 20, background: "var(--cvb-well,#FAFBFA)", border: "1px dashed var(--cvb-line-ctl)", borderRadius: 16, padding: "15px 17px", fontSize: 12.5, color: "var(--cvb-faint)", lineHeight: 1.6 }}
+                style={{
+                  marginTop: 20,
+                  background: "var(--cvb-well,#FAFBFA)",
+                  border: "1px dashed var(--cvb-line-ctl)",
+                  borderRadius: 16,
+                  padding: "15px 17px",
+                  fontSize: 12.5,
+                  color: "var(--cvb-faint)",
+                  lineHeight: 1.6,
+                }}
               >
-                <strong>Card on file — on its way.</strong> Payments aren&rsquo;t switched on for this platform yet, so there is no card form to fill and nothing to charge. When billing lands, you&rsquo;ll add a card here and the trial clock starts then — never retroactively.
+                <strong>Card on file — on its way.</strong> Payments aren&rsquo;t switched on for
+                this platform yet, so there is no card form to fill and nothing to charge. When
+                billing lands, you&rsquo;ll add a card here and the trial clock starts then — never
+                retroactively.
               </div>
               {(plans?.tiers ?? []).length > 0 ? (
                 <div style={{ marginTop: 24 }}>
-                  <span onClick={() => void chooseTier()} data-testid="bold-onb-finish" style={{ ...cta, opacity: busy || !tierPick ? 0.6 : 1 }}>
+                  <span
+                    onClick={() => void chooseTier()}
+                    data-testid="bold-onb-finish"
+                    style={{ ...cta, opacity: busy || !tierPick ? 0.6 : 1 }}
+                  >
                     {busy ? "Saving…" : "Open my console →"}
                   </span>
                 </div>

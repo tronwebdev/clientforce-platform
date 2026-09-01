@@ -55,7 +55,8 @@ export function DnsBlock({ status }: { status: Record<string, DnsRecordRead> | n
           lineHeight: 1.6,
         }}
       >
-        No check has run yet, so there is nothing to show. The records appear the moment the first check comes back.
+        No check has run yet, so there is nothing to show. The records appear the moment the first
+        check comes back.
       </div>
     );
   }
@@ -74,7 +75,14 @@ export function DnsBlock({ status }: { status: Record<string, DnsRecordRead> | n
       {entries.map(([key, rec]) => (
         <div key={key} data-testid={`bold-dns-${key}`}>
           <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-            <span style={{ ...mono, fontSize: 9.5, letterSpacing: ".18em", color: "rgba(255,255,255,.5)" }}>
+            <span
+              style={{
+                ...mono,
+                fontSize: 9.5,
+                letterSpacing: ".18em",
+                color: "rgba(255,255,255,.5)",
+              }}
+            >
               {key.toUpperCase()}
             </span>
             <span style={{ flex: 1 }} />
@@ -85,7 +93,12 @@ export function DnsBlock({ status }: { status: Record<string, DnsRecordRead> | n
                 letterSpacing: ".14em",
                 borderRadius: 999,
                 padding: "3px 9px",
-                color: rec.status === "verified" ? "#B9F5B8" : rec.status === "failed" ? "#F5C9C0" : "rgba(255,255,255,.6)",
+                color:
+                  rec.status === "verified"
+                    ? "#B9F5B8"
+                    : rec.status === "failed"
+                      ? "#F5C9C0"
+                      : "rgba(255,255,255,.6)",
                 background:
                   rec.status === "verified"
                     ? "rgba(53,232,52,.13)"
@@ -95,7 +108,11 @@ export function DnsBlock({ status }: { status: Record<string, DnsRecordRead> | n
                 border: `1px solid ${rec.status === "verified" ? "rgba(53,232,52,.32)" : "rgba(255,255,255,.16)"}`,
               }}
             >
-              {rec.status === "verified" ? "PASSING" : rec.status === "failed" ? "NOT FOUND" : "UNCHECKED"}
+              {rec.status === "verified"
+                ? "PASSING"
+                : rec.status === "failed"
+                  ? "NOT FOUND"
+                  : "UNCHECKED"}
             </span>
           </div>
           <div
@@ -110,7 +127,9 @@ export function DnsBlock({ status }: { status: Record<string, DnsRecordRead> | n
           >
             {rec.expected ?? rec.found ?? rec.detail}
           </div>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,.45)", lineHeight: 1.5, marginTop: 5 }}>
+          <div
+            style={{ fontSize: 11, color: "rgba(255,255,255,.45)", lineHeight: 1.5, marginTop: 5 }}
+          >
             {rec.detail}
           </div>
         </div>
@@ -165,7 +184,12 @@ export function SenderDrawer({
 
   if (row === null) {
     return (
-      <SettingsDrawer label="SENDER" title="That sender is gone" onClose={onClose} testid="bold-drawer-sender">
+      <SettingsDrawer
+        label="SENDER"
+        title="That sender is gone"
+        onClose={onClose}
+        testid="bold-drawer-sender"
+      >
         <div style={{ fontSize: 13, color: "var(--cvb-faint)", lineHeight: 1.6 }}>
           It was removed while this was open. Close and the list will be current.
         </div>
@@ -177,14 +201,16 @@ export function SenderDrawer({
   const sample = health?.sample;
   const warm = health?.warmup ?? row.warmup ?? null;
   const dns = (health?.domainAuthStatus ?? row.domainAuthStatus) as
-    | Record<string, DnsRecordRead>
-    | null
-    | undefined;
+    Record<string, DnsRecordRead> | null | undefined;
 
   const stats: Array<[string, string, string]> = isNumber
     ? [
         ["SENT", String(row.sentToday ?? 0), "today"],
-        ["ALL TIME", health?.sentAllTime != null ? String(health.sentAllTime) : "—", "messages out"],
+        [
+          "ALL TIME",
+          health?.sentAllTime != null ? String(health.sentAllTime) : "—",
+          "messages out",
+        ],
         ["DAILY CEILING", row.dailyLimit != null ? String(row.dailyLimit) : "—", "per day"],
       ]
     : [
@@ -221,8 +247,22 @@ export function SenderDrawer({
       <div style={{ display: "flex", gap: 18, flexWrap: "wrap" }}>
         {stats.map(([label, v, sub]) => (
           <div key={label} style={{ minWidth: 92 }}>
-            <div style={{ ...mono, fontSize: 9, letterSpacing: ".13em", color: "var(--cvb-faint)" }}>{label}</div>
-            <div style={{ fontWeight: 900, fontSize: 22, letterSpacing: "-.03em", marginTop: 6 }}>{v}</div>
+            <div
+              style={{ ...mono, fontSize: 9, letterSpacing: ".13em", color: "var(--cvb-faint)" }}
+            >
+              {label}
+            </div>
+            <div
+              style={{
+                fontFamily: "var(--cvb-font-display)",
+                fontWeight: 900,
+                fontSize: 22,
+                letterSpacing: "-.03em",
+                marginTop: 6,
+              }}
+            >
+              {v}
+            </div>
             <div style={{ fontSize: 11, color: "var(--cvb-faint)", marginTop: 3 }}>{sub}</div>
           </div>
         ))}
@@ -240,12 +280,28 @@ export function SenderDrawer({
           }}
         >
           <div style={{ display: "flex", alignItems: "baseline", gap: 9 }}>
-            <span style={{ fontWeight: 900, fontSize: 20, letterSpacing: "-.03em", color: "var(--cvb-amber)" }}>
+            <span
+              style={{
+                fontFamily: "var(--cvb-font-display)",
+                fontWeight: 900,
+                fontSize: 20,
+                letterSpacing: "-.03em",
+                color: "var(--cvb-amber)",
+              }}
+            >
               {warm.pct}%
             </span>
             <span style={{ fontSize: 12.5, color: "var(--cvb-amber)", flex: 1 }}>warmed up</span>
           </div>
-          <div style={{ height: 5, borderRadius: 3, background: "rgba(138,109,26,.16)", overflow: "hidden", marginTop: 10 }}>
+          <div
+            style={{
+              height: 5,
+              borderRadius: 3,
+              background: "rgba(138,109,26,.16)",
+              overflow: "hidden",
+              marginTop: 10,
+            }}
+          >
             <span
               style={{
                 display: "block",
@@ -264,17 +320,25 @@ export function SenderDrawer({
         </div>
       ) : null}
 
-      <div style={{ ...EYEBROW, margin: "24px 0 12px" }}>{isNumber ? "REGISTRATION" : "AUTHENTICATION"}</div>
+      <div style={{ ...EYEBROW, margin: "24px 0 12px" }}>
+        {isNumber ? "REGISTRATION" : "AUTHENTICATION"}
+      </div>
       {isNumber ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
-          <RegRow label="A2P brand" value="Not filed — number filing is not connected yet" tone="mute" />
+          <RegRow
+            label="A2P brand"
+            value="Not filed — number filing is not connected yet"
+            tone="mute"
+          />
           <RegRow label="A2P campaign" value="Not filed" tone="mute" />
           <RegRow label="Caller ID" value={row.fromName ?? "Not set"} tone="mute" />
         </div>
       ) : loaded ? (
         <DnsBlock status={dns} />
       ) : (
-        <div style={{ fontSize: 12.5, color: "var(--cvb-faint)" }}>Reading the current posture…</div>
+        <div style={{ fontSize: 12.5, color: "var(--cvb-faint)" }}>
+          Reading the current posture…
+        </div>
       )}
 
       <div style={{ ...EYEBROW, margin: "24px 0 12px" }}>WHAT YOU CAN DO</div>
@@ -311,12 +375,19 @@ export function SenderDrawer({
                 onEnter={() => void saveCap()}
               />
             </div>
-            <PrimaryButton label="Save" busy={busy} testid="bold-drawer-sender-cap-save" onClick={() => void saveCap()} />
+            <PrimaryButton
+              label="Save"
+              busy={busy}
+              testid="bold-drawer-sender-cap-save"
+              onClick={() => void saveCap()}
+            />
           </div>
         ) : (
           <ActionRow
             label="Change the daily ceiling"
-            sub={row.dailyLimit != null ? `${row.dailyLimit} a day right now.` : "No ceiling recorded."}
+            sub={
+              row.dailyLimit != null ? `${row.dailyLimit} a day right now.` : "No ceiling recorded."
+            }
             testid="bold-drawer-sender-cap-edit"
             onClick={() => setEditingCap(true)}
           />
@@ -326,9 +397,16 @@ export function SenderDrawer({
       <div style={{ marginTop: 24, borderTop: "1px solid var(--cvb-line-inner)", paddingTop: 18 }}>
         {confirm ? (
           <>
-            <div style={{ fontSize: 12.5, color: "var(--cvb-danger)", lineHeight: 1.55, marginBottom: 12 }}>
-              Pausing stops every send from this {isNumber ? "number" : "address"} immediately. Anything already queued
-              waits rather than going out from somewhere else.
+            <div
+              style={{
+                fontSize: 12.5,
+                color: "var(--cvb-danger)",
+                lineHeight: 1.55,
+                marginBottom: 12,
+              }}
+            >
+              Pausing stops every send from this {isNumber ? "number" : "address"} immediately.
+              Anything already queued waits rather than going out from somewhere else.
             </div>
             <div style={{ display: "flex", gap: 9 }}>
               <PrimaryButton
@@ -349,7 +427,11 @@ export function SenderDrawer({
                   })();
                 }}
               />
-              <PrimaryButton label="Leave it running" tone="quiet" onClick={() => setConfirm(false)} />
+              <PrimaryButton
+                label="Leave it running"
+                tone="quiet"
+                onClick={() => setConfirm(false)}
+              />
             </div>
           </>
         ) : row.status === "PAUSED" ? (
@@ -376,20 +458,35 @@ export function SenderDrawer({
               onClick={() => setConfirm(true)}
               role="button"
               data-testid="bold-drawer-sender-pause"
-              style={{ fontSize: 12.5, fontWeight: 700, color: "var(--cvb-danger)", cursor: "pointer" }}
+              style={{
+                fontSize: 12.5,
+                fontWeight: 700,
+                color: "var(--cvb-danger)",
+                cursor: "pointer",
+              }}
             >
               Pause this {isNumber ? "number" : "sender"}
             </span>
-            <div style={{ fontSize: 11.5, color: "var(--cvb-faint)", lineHeight: 1.5, marginTop: 7 }}>
-              Releasing it for good is not something this workspace can do yet — pausing is the reversible half, and it
-              is the one that stops sends.
+            <div
+              style={{ fontSize: 11.5, color: "var(--cvb-faint)", lineHeight: 1.5, marginTop: 7 }}
+            >
+              Releasing it for good is not something this workspace can do yet — pausing is the
+              reversible half, and it is the one that stops sends.
             </div>
           </>
         )}
         <DrawerError message={error} />
       </div>
 
-      <div style={{ ...mono, fontSize: 9.5, letterSpacing: ".1em", color: "var(--cvb-ghost)", marginTop: 22 }}>
+      <div
+        style={{
+          ...mono,
+          fontSize: 9.5,
+          letterSpacing: ".1em",
+          color: "var(--cvb-ghost)",
+          marginTop: 22,
+        }}
+      >
         {senderId}
       </div>
     </SettingsDrawer>
@@ -434,7 +531,9 @@ function ActionRow({
     >
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 13, fontWeight: 700 }}>{label}</div>
-        <div style={{ fontSize: 11.5, color: "var(--cvb-faint)", marginTop: 3, lineHeight: 1.45 }}>{sub}</div>
+        <div style={{ fontSize: 11.5, color: "var(--cvb-faint)", marginTop: 3, lineHeight: 1.45 }}>
+          {sub}
+        </div>
       </div>
       <span style={{ color: "var(--cvb-cyan)", fontSize: 13 }}>›</span>
     </div>
@@ -523,7 +622,9 @@ export function AddEmailSenderDrawer({
       testid="bold-drawer-addsender"
       footer={
         <>
-          {step === 2 ? <PrimaryButton label="Back" tone="quiet" onClick={() => setStep(1)} /> : null}
+          {step === 2 ? (
+            <PrimaryButton label="Back" tone="quiet" onClick={() => setStep(1)} />
+          ) : null}
           <span style={{ flex: 1 }} />
           <StepDots step={step} of={3} />
           {step === 0 ? (
@@ -534,7 +635,11 @@ export function AddEmailSenderDrawer({
               onClick={() => void create()}
             />
           ) : step === 1 ? (
-            <PrimaryButton label="Next" testid="bold-drawer-addsender-next" onClick={() => setStep(2)} />
+            <PrimaryButton
+              label="Next"
+              testid="bold-drawer-addsender-next"
+              onClick={() => setStep(2)}
+            />
           ) : (
             <PrimaryButton
               label="Finish"
@@ -596,10 +701,15 @@ export function AddEmailSenderDrawer({
                 height: 8,
                 borderRadius: "50%",
                 flex: "none",
-                background: passing.length === records.length && records.length > 0 ? "var(--cvb-live)" : "var(--cvb-warn-dot)",
+                background:
+                  passing.length === records.length && records.length > 0
+                    ? "var(--cvb-live)"
+                    : "var(--cvb-warn-dot)",
               }}
             />
-            <span style={{ ...mono, fontSize: 10.5, letterSpacing: ".08em", color: "var(--cvb-muted)" }}>
+            <span
+              style={{ ...mono, fontSize: 10.5, letterSpacing: ".08em", color: "var(--cvb-muted)" }}
+            >
               {checking ? "CHECKING…" : waitingLine.toUpperCase()}
             </span>
           </div>
@@ -623,9 +733,11 @@ export function AddEmailSenderDrawer({
               />
             ))}
           </div>
-          <div style={{ fontSize: 11.5, color: "var(--cvb-faint)", lineHeight: 1.6, marginTop: 14 }}>
-            Every new sender ramps on the same curve today — the pace you pick is recorded with the sender and takes
-            effect when per-sender ramps land.
+          <div
+            style={{ fontSize: 11.5, color: "var(--cvb-faint)", lineHeight: 1.6, marginTop: 14 }}
+          >
+            Every new sender ramps on the same curve today — the pace you pick is recorded with the
+            sender and takes effect when per-sender ramps land.
           </div>
         </>
       )}
@@ -675,14 +787,18 @@ export function AddNumberDrawer({
       testid="bold-drawer-addnumber"
       footer={
         <>
-          {step > 0 ? <PrimaryButton label="Back" tone="quiet" onClick={() => setStep(step - 1)} /> : null}
+          {step > 0 ? (
+            <PrimaryButton label="Back" tone="quiet" onClick={() => setStep(step - 1)} />
+          ) : null}
           <span style={{ flex: 1 }} />
           <StepDots step={step} of={3} />
           {step < 2 ? (
             <PrimaryButton
               label="Next"
               testid="bold-drawer-addnumber-next"
-              onClick={() => (step === 0 ? /^\d{3}$/.test(areaCode.trim()) && setStep(1) : setStep(2))}
+              onClick={() =>
+                step === 0 ? /^\d{3}$/.test(areaCode.trim()) && setStep(1) : setStep(2)
+              }
             />
           ) : (
             <PrimaryButton
@@ -747,10 +863,10 @@ export function AddNumberDrawer({
               Filing is not connected yet
             </div>
             <div style={{ fontSize: 12, color: "var(--cvb-amber)", lineHeight: 1.6, marginTop: 7 }}>
-              Reserving the number and filing your brand with the carriers is not something this workspace can do on its
-              own yet. Requesting it here records exactly what you asked for — area code {areaCode || "—"},{" "}
-              {carries === "sms" ? "SMS only" : "SMS and voice"} — and the Numbers tab shows its real state until the
-              filing lands.
+              Reserving the number and filing your brand with the carriers is not something this
+              workspace can do on its own yet. Requesting it here records exactly what you asked for
+              — area code {areaCode || "—"}, {carries === "sms" ? "SMS only" : "SMS and voice"} —
+              and the Numbers tab shows its real state until the filing lands.
             </div>
           </div>
           <DrawerError message={error} />
@@ -805,17 +921,23 @@ export function NumberRequestDrawer({
       }
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
-        <RegRow label="Carries" value={request.carries === "sms" ? "SMS only" : "SMS and voice"} tone="mute" />
+        <RegRow
+          label="Carries"
+          value={request.carries === "sms" ? "SMS only" : "SMS and voice"}
+          tone="mute"
+        />
         <RegRow label="State" value={request.status.toLowerCase()} tone="mute" />
         <RegRow
           label="A2P"
-          value={request.a2pState === "not_filed" ? "Not filed yet" : request.a2pState.replace(/_/g, " ")}
+          value={
+            request.a2pState === "not_filed" ? "Not filed yet" : request.a2pState.replace(/_/g, " ")
+          }
           tone={request.a2pState === "approved" ? "live" : "mute"}
         />
       </div>
       <div style={{ fontSize: 12, color: "var(--cvb-faint)", lineHeight: 1.6, marginTop: 18 }}>
-        Nothing has been reserved with a carrier — number provisioning and A2P filing arrive together, and this request
-        is what they will pick up when they do.
+        Nothing has been reserved with a carrier — number provisioning and A2P filing arrive
+        together, and this request is what they will pick up when they do.
       </div>
     </SettingsDrawer>
   );

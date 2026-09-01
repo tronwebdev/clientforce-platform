@@ -41,13 +41,41 @@ const LEVELS: ReadonlyArray<readonly [Level, string, string, string]> = [
   ],
 ];
 
-const CHANNELS: ReadonlyArray<readonly ["email" | "sms" | "voice", string, string, string, string, string]> = [
-  ["email", "Email", "Off holds her scheduled email steps — replies you send still go.", "✉", "var(--cvb-mint)", "var(--cvb-forest)"],
-  ["sms", "SMS", "Off holds her scheduled texts the same way.", "✆", "var(--cvb-cyan-tint,#E2F3F6)", "var(--cvb-cyan,#0E7D93)"],
-  ["voice", "Calls", "Off holds her campaign dials — your own calls are yours.", "☎", "var(--cvb-amber-bg,#F7EFDA)", "var(--cvb-amber,#8A6D1A)"],
+const CHANNELS: ReadonlyArray<
+  readonly ["email" | "sms" | "voice", string, string, string, string, string]
+> = [
+  [
+    "email",
+    "Email",
+    "Off holds her scheduled email steps — replies you send still go.",
+    "✉",
+    "var(--cvb-mint)",
+    "var(--cvb-forest)",
+  ],
+  [
+    "sms",
+    "SMS",
+    "Off holds her scheduled texts the same way.",
+    "✆",
+    "var(--cvb-cyan-tint,#E2F3F6)",
+    "var(--cvb-cyan,#0E7D93)",
+  ],
+  [
+    "voice",
+    "Calls",
+    "Off holds her campaign dials — your own calls are yours.",
+    "☎",
+    "var(--cvb-amber-bg,#F7EFDA)",
+    "var(--cvb-amber,#8A6D1A)",
+  ],
 ];
 
-const eyebrow = { ...mono, fontSize: 9.5, letterSpacing: ".18em", color: "var(--cvb-faint)" } as const;
+const eyebrow = {
+  ...mono,
+  fontSize: 9.5,
+  letterSpacing: ".18em",
+  color: "var(--cvb-faint)",
+} as const;
 const well = {
   ...mono,
   fontSize: 12.5,
@@ -74,15 +102,24 @@ export function BoldSettingsTab({
   const [know, setKnow] = useState<{ resolved: number; total: number } | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [caps, setCaps] = useState<{ email: string; sms: string; voice: string }>({ email: "", sms: "", voice: "" });
+  const [caps, setCaps] = useState<{ email: string; sms: string; voice: string }>({
+    email: "",
+    sms: "",
+    voice: "",
+  });
   const [win, setWin] = useState<{ start: string; end: string }>({ start: "09:00", end: "17:00" });
 
   const load = useCallback(async () => {
-    const [view, gaps] = await Promise.all([fetchBoldView(agent.id), fetchGapReport(agent.id, agent.goal)]);
+    const [view, gaps] = await Promise.all([
+      fetchBoldView(agent.id),
+      fetchGapReport(agent.id, agent.goal),
+    ]);
     const g = view?.guardrails ?? null;
     setGuardrails(g);
     setCategory((view?.agent as { category?: string | null } | undefined)?.category ?? null);
-    setInstructions((view?.agent as { instructions?: string | null } | undefined)?.instructions ?? null);
+    setInstructions(
+      (view?.agent as { instructions?: string | null } | undefined)?.instructions ?? null,
+    );
     setKnow(gaps ? { resolved: gaps.resolved, total: gaps.total } : null);
     if (g) {
       setCaps({
@@ -147,7 +184,9 @@ export function BoldSettingsTab({
   async function saveLimits() {
     if (refuseUnreadable()) return;
     if (!guardrails) return;
-    const dailyCap: { email: number; sms?: number; voice?: number } = { email: guardrails.dailyCap.email };
+    const dailyCap: { email: number; sms?: number; voice?: number } = {
+      email: guardrails.dailyCap.email,
+    };
     for (const k of ["email", "sms", "voice"] as const) {
       const raw = caps[k].trim();
       if (!raw) {
@@ -167,7 +206,11 @@ export function BoldSettingsTab({
       return;
     }
     await write(
-      { ...guardrails, dailyCap, sendingWindow: { ...guardrails.sendingWindow, start: win.start, end: win.end } },
+      {
+        ...guardrails,
+        dailyCap,
+        sendingWindow: { ...guardrails.sendingWindow, start: win.start, end: win.end },
+      },
       "Limits saved.",
     );
   }
@@ -176,9 +219,14 @@ export function BoldSettingsTab({
     if (refuseUnreadable()) return;
     if (!guardrails) return;
     const has = guardrails.sendingWindow.days.some((n) => n === 6 || n === 7);
-    const days = has ? guardrails.sendingWindow.days.filter((n) => n < 6) : [...guardrails.sendingWindow.days, 6];
+    const days = has
+      ? guardrails.sendingWindow.days.filter((n) => n < 6)
+      : [...guardrails.sendingWindow.days, 6];
     await write(
-      { ...guardrails, sendingWindow: { ...guardrails.sendingWindow, days: days.sort((a, b) => a - b) } },
+      {
+        ...guardrails,
+        sendingWindow: { ...guardrails.sendingWindow, days: days.sort((a, b) => a - b) },
+      },
       has ? "Weekends go silent" : "Saturday sending on",
     );
   }
@@ -188,7 +236,13 @@ export function BoldSettingsTab({
   const neverSay = guardrails?.strategy?.neverSay ?? [];
   const notes = guardrails?.strategy?.strategyNotes ?? "";
 
-  const voiceCards: Array<{ k: string; label: string; v: string; body: string; deferred?: boolean }> = [
+  const voiceCards: Array<{
+    k: string;
+    label: string;
+    v: string;
+    body: string;
+    deferred?: boolean;
+  }> = [
     {
       k: "arc",
       label: "SELLING ARC",
@@ -236,14 +290,30 @@ export function BoldSettingsTab({
       {unreadable ? (
         <div
           data-testid="bold-settings-unreadable"
-          style={{ marginBottom: 20, background: "var(--cvb-amber-bg,#F7EFDA)", border: "1px solid var(--cvb-amber-line,#EAD9A8)", borderRadius: 14, padding: "12px 15px", fontSize: 12.5, color: "var(--cvb-amber,#8A6D1A)", lineHeight: 1.5 }}
+          style={{
+            marginBottom: 20,
+            background: "var(--cvb-amber-bg,#F7EFDA)",
+            border: "1px solid var(--cvb-amber-line,#EAD9A8)",
+            borderRadius: 14,
+            padding: "12px 15px",
+            fontSize: 12.5,
+            color: "var(--cvb-amber,#8A6D1A)",
+            lineHeight: 1.5,
+          }}
         >
-          This campaign&rsquo;s stored limits don&rsquo;t parse, so the controls below can&rsquo;t save. The safety rails still hold at the
-          send boundary — fix the limits in the classic console&rsquo;s campaign settings.
+          This campaign&rsquo;s stored limits don&rsquo;t parse, so the controls below can&rsquo;t
+          save. The safety rails still hold at the send boundary — fix the limits in the classic
+          console&rsquo;s campaign settings.
         </div>
       ) : null}
       <div style={{ ...eyebrow, marginBottom: 16 }}>HOW MUCH ADA DECIDES</div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 11 }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+          gap: 11,
+        }}
+      >
         {LEVELS.map(([key, title, body, note]) => {
           const on = loaded && level === key;
           return (
@@ -263,18 +333,64 @@ export function BoldSettingsTab({
               }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                <span style={{ width: 16, height: 16, borderRadius: "50%", border: `2px solid ${on ? "var(--cvb-forest)" : "var(--cvb-ghost)"}`, display: "grid", placeItems: "center", flex: "none" }}>
-                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: on ? "var(--cvb-forest)" : "transparent" }} />
+                <span
+                  style={{
+                    width: 16,
+                    height: 16,
+                    borderRadius: "50%",
+                    border: `2px solid ${on ? "var(--cvb-forest)" : "var(--cvb-ghost)"}`,
+                    display: "grid",
+                    placeItems: "center",
+                    flex: "none",
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: "50%",
+                      background: on ? "var(--cvb-forest)" : "transparent",
+                    }}
+                  />
                 </span>
-                <span style={{ fontWeight: 800, fontSize: 14, letterSpacing: "-.022em", color: on ? "var(--cvb-forest-ink, #0E3D22)" : "var(--cvb-ink)" }}>{title}</span>
+                <span
+                  style={{
+                    fontWeight: 800,
+                    fontSize: 14,
+                    letterSpacing: "-.022em",
+                    color: on ? "var(--cvb-forest-ink, #0E3D22)" : "var(--cvb-ink)",
+                  }}
+                >
+                  {title}
+                </span>
               </div>
-              <div style={{ fontSize: 12.5, color: on ? "var(--cvb-forest)" : "var(--cvb-muted)", lineHeight: 1.55, marginTop: 10 }}>{body}</div>
-              <div style={{ ...mono, fontSize: 9, color: on ? "var(--cvb-forest)" : "var(--cvb-faint)", marginTop: 12 }}>{note}</div>
+              <div
+                style={{
+                  fontSize: 12.5,
+                  color: on ? "var(--cvb-forest)" : "var(--cvb-muted)",
+                  lineHeight: 1.55,
+                  marginTop: 10,
+                }}
+              >
+                {body}
+              </div>
+              <div
+                style={{
+                  ...mono,
+                  fontSize: 9,
+                  color: on ? "var(--cvb-forest)" : "var(--cvb-faint)",
+                  marginTop: 12,
+                }}
+              >
+                {note}
+              </div>
             </div>
           );
         })}
       </div>
-      <div style={{ ...mono, fontSize: 10, color: "var(--cvb-faint)", marginTop: 14, lineHeight: 1.6 }}>
+      <div
+        style={{ ...mono, fontSize: 10, color: "var(--cvb-faint)", marginTop: 14, lineHeight: 1.6 }}
+      >
         Whatever the level, nothing skips the safety rails — quiet hours, consent, do-not-contact
         and the pause-when-a-human-replies rule always hold.
       </div>
@@ -282,24 +398,87 @@ export function BoldSettingsTab({
       <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 34 }}>
         <div style={{ flex: 1, minWidth: 280 }}>
           <div style={{ ...eyebrow, marginBottom: 16 }}>CHANNELS IN PLAY</div>
-          <div style={{ background: "var(--cvb-card)", border: "1px solid var(--cvb-line-ctl)", borderRadius: 20, overflow: "hidden" }}>
+          <div
+            style={{
+              background: "var(--cvb-card)",
+              border: "1px solid var(--cvb-line-ctl)",
+              borderRadius: 20,
+              overflow: "hidden",
+            }}
+          >
             {CHANNELS.map(([key, label, sub, ic, bg, fg], i) => {
-              const on = loaded && (guardrails?.channels?.[key] !== false);
+              const on = loaded && guardrails?.channels?.[key] !== false;
               return (
-                <div key={key} style={{ display: "flex", alignItems: "center", gap: 12, padding: 17, borderBottom: i === CHANNELS.length - 1 ? "none" : "1px solid var(--cvb-line-inner)" }}>
-                  <span style={{ width: 34, height: 34, borderRadius: 12, flex: "none", background: bg, color: fg, display: "grid", placeItems: "center", fontSize: 14 }}>{ic}</span>
+                <div
+                  key={key}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    padding: 17,
+                    borderBottom:
+                      i === CHANNELS.length - 1 ? "none" : "1px solid var(--cvb-line-inner)",
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 34,
+                      height: 34,
+                      borderRadius: 12,
+                      flex: "none",
+                      background: bg,
+                      color: fg,
+                      display: "grid",
+                      placeItems: "center",
+                      fontSize: 14,
+                    }}
+                  >
+                    {ic}
+                  </span>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 700, fontSize: 14, letterSpacing: "-.02em" }}>{label}</div>
-                    <div style={{ fontSize: 11.5, color: "var(--cvb-faint)", marginTop: 2, lineHeight: 1.4 }}>{sub}</div>
+                    <div style={{ fontWeight: 700, fontSize: 14, letterSpacing: "-.02em" }}>
+                      {label}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 11.5,
+                        color: "var(--cvb-faint)",
+                        marginTop: 2,
+                        lineHeight: 1.4,
+                      }}
+                    >
+                      {sub}
+                    </div>
                   </div>
                   <span
                     onClick={() => void toggleChannel(key, label)}
                     data-testid={`bold-ch-${key}`}
                     role="switch"
                     aria-checked={on}
-                    style={{ width: 46, height: 28, borderRadius: 999, flex: "none", background: on ? "var(--cvb-forest)" : "var(--cvb-line-ctl)", position: "relative", cursor: "pointer", opacity: loaded ? 1 : 0.55 }}
+                    style={{
+                      width: 46,
+                      height: 28,
+                      borderRadius: 999,
+                      flex: "none",
+                      background: on ? "var(--cvb-forest)" : "var(--cvb-line-ctl)",
+                      position: "relative",
+                      cursor: "pointer",
+                      opacity: loaded ? 1 : 0.55,
+                    }}
                   >
-                    <span style={{ position: "absolute", top: 3, left: on ? 21 : 3, width: 22, height: 22, borderRadius: "50%", background: "#fff", boxShadow: "0 1px 3px rgba(16,22,19,.18)", transition: "left .2s cubic-bezier(.32,.72,0,1)" }} />
+                    <span
+                      style={{
+                        position: "absolute",
+                        top: 3,
+                        left: on ? 21 : 3,
+                        width: 22,
+                        height: 22,
+                        borderRadius: "50%",
+                        background: "#fff",
+                        boxShadow: "0 1px 3px rgba(16,22,19,.18)",
+                        transition: "left .2s cubic-bezier(.32,.72,0,1)",
+                      }}
+                    />
                   </span>
                 </div>
               );
@@ -309,36 +488,118 @@ export function BoldSettingsTab({
 
         <div style={{ flex: 1, minWidth: 280 }}>
           <div style={{ ...eyebrow, marginBottom: 16 }}>THE LINES SHE WON&rsquo;T CROSS</div>
-          <div style={{ background: "var(--cvb-card)", border: "1px solid var(--cvb-line-ctl)", borderRadius: 20, overflow: "hidden" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 17px", borderBottom: "1px solid var(--cvb-line-inner)" }}>
+          <div
+            style={{
+              background: "var(--cvb-card)",
+              border: "1px solid var(--cvb-line-ctl)",
+              borderRadius: 20,
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                padding: "16px 17px",
+                borderBottom: "1px solid var(--cvb-line-inner)",
+              }}
+            >
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 700, fontSize: 13.5, letterSpacing: "-.018em" }}>Sending hours</div>
-                <div style={{ fontSize: 11.5, color: "var(--cvb-faint)", marginTop: 2 }}>{guardrails?.sendingWindow.timezone ?? "UTC"} — nothing lands outside them</div>
+                <div style={{ fontWeight: 700, fontSize: 13.5, letterSpacing: "-.018em" }}>
+                  Sending hours
+                </div>
+                <div style={{ fontSize: 11.5, color: "var(--cvb-faint)", marginTop: 2 }}>
+                  {guardrails?.sendingWindow.timezone ?? "UTC"} — nothing lands outside them
+                </div>
               </div>
-              <input value={win.start} onChange={(e) => setWin((w) => ({ ...w, start: e.target.value }))} data-testid="bold-gr-win-start" style={well} />
+              <input
+                value={win.start}
+                onChange={(e) => setWin((w) => ({ ...w, start: e.target.value }))}
+                data-testid="bold-gr-win-start"
+                style={well}
+              />
               <span style={{ color: "var(--cvb-faint)" }}>–</span>
-              <input value={win.end} onChange={(e) => setWin((w) => ({ ...w, end: e.target.value }))} data-testid="bold-gr-win-end" style={well} />
+              <input
+                value={win.end}
+                onChange={(e) => setWin((w) => ({ ...w, end: e.target.value }))}
+                data-testid="bold-gr-win-end"
+                style={well}
+              />
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 17px", borderBottom: "1px solid var(--cvb-line-inner)" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                padding: "16px 17px",
+                borderBottom: "1px solid var(--cvb-line-inner)",
+              }}
+            >
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 700, fontSize: 13.5 }}>Honest suppression</div>
-                <div style={{ fontSize: 11.5, color: "var(--cvb-faint)", marginTop: 2 }}>Opt-outs and do-not-contact always hold — this cannot be turned off</div>
+                <div style={{ fontSize: 11.5, color: "var(--cvb-faint)", marginTop: 2 }}>
+                  Opt-outs and do-not-contact always hold — this cannot be turned off
+                </div>
               </div>
-              <span style={{ fontSize: 9.5, fontWeight: 700, color: "var(--cvb-forest)", background: "var(--cvb-mint)", border: "1px solid var(--cvb-mint-line)", borderRadius: 999, padding: "3px 9px", flex: "none" }}>ALWAYS ON</span>
+              <span
+                style={{
+                  fontSize: 9.5,
+                  fontWeight: 700,
+                  color: "var(--cvb-forest)",
+                  background: "var(--cvb-mint)",
+                  border: "1px solid var(--cvb-mint-line)",
+                  borderRadius: 999,
+                  padding: "3px 9px",
+                  flex: "none",
+                }}
+              >
+                ALWAYS ON
+              </span>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 17px", borderBottom: "1px solid var(--cvb-line-inner)" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                padding: "16px 17px",
+                borderBottom: "1px solid var(--cvb-line-inner)",
+              }}
+            >
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 700, fontSize: 13.5 }}>Saturday sending</div>
-                <div style={{ fontSize: 11.5, color: "var(--cvb-faint)", marginTop: 2 }}>Off means the weekend stays silent</div>
+                <div style={{ fontSize: 11.5, color: "var(--cvb-faint)", marginTop: 2 }}>
+                  Off means the weekend stays silent
+                </div>
               </div>
               <span
                 onClick={() => void toggleWeekend()}
                 data-testid="bold-gr-weekend"
                 role="switch"
                 aria-checked={weekend}
-                style={{ width: 46, height: 28, borderRadius: 999, flex: "none", background: weekend ? "var(--cvb-forest)" : "var(--cvb-line-ctl)", position: "relative", cursor: "pointer" }}
+                style={{
+                  width: 46,
+                  height: 28,
+                  borderRadius: 999,
+                  flex: "none",
+                  background: weekend ? "var(--cvb-forest)" : "var(--cvb-line-ctl)",
+                  position: "relative",
+                  cursor: "pointer",
+                }}
               >
-                <span style={{ position: "absolute", top: 3, left: weekend ? 21 : 3, width: 22, height: 22, borderRadius: "50%", background: "#fff", boxShadow: "0 1px 3px rgba(16,22,19,.18)", transition: "left .2s" }} />
+                <span
+                  style={{
+                    position: "absolute",
+                    top: 3,
+                    left: weekend ? 21 : 3,
+                    width: 22,
+                    height: 22,
+                    borderRadius: "50%",
+                    background: "#fff",
+                    boxShadow: "0 1px 3px rgba(16,22,19,.18)",
+                    transition: "left .2s",
+                  }}
+                />
               </span>
             </div>
             {(
@@ -348,7 +609,17 @@ export function BoldSettingsTab({
                 ["Daily call cap", "voice"],
               ] as const
             ).map(([label, key]) => (
-              <div key={key} style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 17px", borderBottom: "1px solid var(--cvb-line-inner)", background: "var(--cvb-well)" }}>
+              <div
+                key={key}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  padding: "13px 17px",
+                  borderBottom: "1px solid var(--cvb-line-inner)",
+                  background: "var(--cvb-well)",
+                }}
+              >
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 700, fontSize: 13.5 }}>{label}</div>
                 </div>
@@ -362,40 +633,98 @@ export function BoldSettingsTab({
                 />
               </div>
             ))}
-            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 17px", background: "var(--cvb-well)" }}>
-              <span style={{ fontSize: 11, color: "var(--cvb-faint)", flex: 1, lineHeight: 1.5 }}>Typed limits — she stops at the number, and holds show up in the activity feed.</span>
-              <span onClick={() => void saveLimits()} data-testid="bold-gr-save" style={{ fontSize: 12, fontWeight: 800, color: "#fff", background: "var(--cvb-forest)", borderRadius: 10, padding: "8px 13px", cursor: "pointer", flex: "none" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                padding: "13px 17px",
+                background: "var(--cvb-well)",
+              }}
+            >
+              <span style={{ fontSize: 11, color: "var(--cvb-faint)", flex: 1, lineHeight: 1.5 }}>
+                Typed limits — she stops at the number, and holds show up in the activity feed.
+              </span>
+              <span
+                onClick={() => void saveLimits()}
+                data-testid="bold-gr-save"
+                style={{
+                  fontSize: 12,
+                  fontWeight: 800,
+                  color: "#fff",
+                  background: "var(--cvb-forest)",
+                  borderRadius: 10,
+                  padding: "8px 13px",
+                  cursor: "pointer",
+                  flex: "none",
+                }}
+              >
                 Save limits
               </span>
             </div>
             <div
               data-testid="bold-gr-deferred"
-              style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 17px", borderTop: "1px dashed var(--cvb-line-ctl)", fontSize: 11.5, color: "var(--cvb-faint)", lineHeight: 1.5 }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                padding: "12px 17px",
+                borderTop: "1px dashed var(--cvb-line-ctl)",
+                fontSize: 11.5,
+                color: "var(--cvb-faint)",
+                lineHeight: 1.5,
+              }}
             >
-              Two more lines are on their way: holding a new sender&rsquo;s first batch for your look, and staying quiet on holidays
-              from your calendar.
+              Two more lines are on their way: holding a new sender&rsquo;s first batch for your
+              look, and staying quiet on holidays from your calendar.
             </div>
           </div>
         </div>
       </div>
 
       <div style={{ ...eyebrow, margin: "34px 0 16px" }}>HOW SHE SELLS IT</div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+          gap: 12,
+        }}
+      >
         {voiceCards.map((v) => (
           <div
             key={v.k}
             data-testid={`bold-voice-${v.k}`}
             style={{
               background: "var(--cvb-card)",
-              border: v.deferred ? "1px dashed var(--cvb-line-ctl)" : "1px solid var(--cvb-line-ctl)",
+              border: v.deferred
+                ? "1px dashed var(--cvb-line-ctl)"
+                : "1px solid var(--cvb-line-ctl)",
               borderRadius: 20,
               padding: 20,
               opacity: v.deferred ? 0.75 : 1,
             }}
           >
-            <div style={{ ...mono, fontSize: 9, letterSpacing: ".16em", color: "var(--cvb-faint)" }}>{v.label}</div>
-            <div style={{ fontWeight: 900, fontSize: 17, letterSpacing: "-.028em", marginTop: 10 }}>{v.v}</div>
-            <div style={{ fontSize: 12.5, color: "var(--cvb-muted)", lineHeight: 1.55, marginTop: 9 }}>{v.body}</div>
+            <div
+              style={{ ...mono, fontSize: 9, letterSpacing: ".16em", color: "var(--cvb-faint)" }}
+            >
+              {v.label}
+            </div>
+            <div
+              style={{
+                fontFamily: "var(--cvb-font-display)",
+                fontWeight: 900,
+                fontSize: 17,
+                letterSpacing: "-.028em",
+                marginTop: 10,
+              }}
+            >
+              {v.v}
+            </div>
+            <div
+              style={{ fontSize: 12.5, color: "var(--cvb-muted)", lineHeight: 1.55, marginTop: 9 }}
+            >
+              {v.body}
+            </div>
           </div>
         ))}
       </div>
