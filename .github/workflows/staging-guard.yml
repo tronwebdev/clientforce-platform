@@ -15,6 +15,7 @@ on:
 permissions:
   id-token: write # OIDC federated auth to Azure (FQDN lookup only)
   contents: read
+  actions: read # read the Deploy run's conclusion for main's HEAD
 
 env:
   RG: ${{ vars.AZURE_RESOURCE_GROUP }}
@@ -42,6 +43,8 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Compare staging's serving SHA against main
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           main_sha="$(git rev-parse HEAD)"
@@ -56,8 +59,21 @@ jobs:
             echo "✓ staging serves main."
             exit 0
           fi
+          # The grace window exists to absorb a deploy that is still running.
+          # It must NOT absorb one that has already FAILED: a red deploy run is
+          # a terminal, knowable fact the moment it concludes, and waiting six
+          # hours to report it is six hours of staging silently serving an old
+          # build. So ask what the deploy for THIS commit actually did before
+          # deciding the age matters.
+          deploy_conclusion="$(gh run list --workflow deploy.yml --commit "$main_sha" \
+            --json conclusion,status --limit 1 --jq '.[0] | select(.status=="completed") | .conclusion' 2>/dev/null || true)"
+          echo "deploy run for $main_sha: ${deploy_conclusion:-<none concluded yet>}"
+          if [ -n "$deploy_conclusion" ] && [ "$deploy_conclusion" != "success" ]; then
+            echo "::error::STAGING IS STALE — the Deploy (staging) run for $main_sha concluded '$deploy_conclusion', so this push never reached staging. Serving ${serving:-an unknown build}. Fix the deploy and re-run it; the age grace does not apply to a run that has already failed."
+            exit 1
+          fi
           if [ "$main_age_s" -le $(( MAX_STALE_HOURS * 3600 )) ]; then
-            echo "main moved less than ${MAX_STALE_HOURS}h ago — a deploy may still be in flight. Not failing yet."
+            echo "main moved less than ${MAX_STALE_HOURS}h ago and no deploy has failed — one may still be in flight. Not failing yet."
             exit 0
           fi
           echo "::error::STAGING IS STALE — serving ${serving:-an unknown build} while main has been at $main_sha for over ${MAX_STALE_HOURS}h. Check the latest 'Deploy (staging)' runs: a red deploy job means the push never reached staging (the Aug 2026 outage mode, DEC-132)."
