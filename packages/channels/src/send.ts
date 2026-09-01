@@ -24,6 +24,7 @@ import {
   resolvePaymentLink,
 } from "./payment-link";
 import { HEALTH_AUTO_PAUSE_BELOW, parseHealthState } from "./health";
+import { bounceRateRefusal } from "./deliverability";
 import { hasThreadPrefix, renderTokens, stripThreadPrefix, withReplyPrefix } from "./render";
 import { assertChannelLive, assertTenantActive } from "./tenant-status";
 import { SendBlockedError, type EmailSender, type RenderedEmail } from "./types";
@@ -124,6 +125,15 @@ export async function sendStep(deps: SendDeps, params: SendStepParams): Promise<
       `health ${health.score ?? "?"}/100 — auto-paused below ${HEALTH_AUTO_PAUSE_BELOW}`,
     );
   }
+  // D1 (DEC-173): the owner's ruling toggle, enforced. Sits immediately after
+  // the composite gate because it answers the same question about the same
+  // sender from the same snapshot — a single signal the owner drew a line
+  // under, which a composite score can sit comfortably above while the domain
+  // burns (bounce weight is 30, and a reply bonus offsets it). Ordered AFTER
+  // SENDER_UNHEALTHY so the existing rail-order pins are untouched, and BEFORE
+  // any per-recipient work so a paused sender costs one indexed read.
+  const bounceRefusal = await bounceRateRefusal(prisma, params.workspaceId, sender);
+  if (bounceRefusal) throw new SendBlockedError("SENDER_BOUNCE_RATE", bounceRefusal);
 
   const guardrails = parseGuardrails(agent.guardrails);
   const isReply = params.origin === "reply";

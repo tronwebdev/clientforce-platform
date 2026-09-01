@@ -1548,3 +1548,90 @@ enum NumberRequestStatus {
   ACTIVE
   CANCELLED
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// D1 · Deliverability hardening (backend) — ADDITIVE BLOCK (DEC-170…DEC-174).
+// Three tables, no change to anything above. The beta puts ~100 paying accounts
+// on ONE SendGrid IP pool, so one tenant's carelessness is everyone's delivery
+// problem; these are the rows the consequence layer needs in order to act
+// rather than merely display.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// DEC-173: the owner's ruling toggle — *"Pause if bounces exceed 2% — she
+/// stops rather than burn the domain."* — given somewhere to live and something
+/// to do. Set per WORKSPACE (the Health tab's scope, SURFACE_SPEC_SETTINGS §6),
+/// EVALUATED per sender at the send boundary, because a bounce rate belongs to
+/// a sending domain and not to a tenant.
+///
+/// An ABSENT row means the defaults in `@clientforce/core` apply — the row is
+/// the override, never the source of the default. Defaults are ON at 2%:
+/// inert until the sample floor is met (a fresh sender can never be paused by
+/// a rate computed from four sends), and reversible the moment the rate drains.
+model DeliverabilityRule {
+  id          String @id @default(cuid())
+  workspaceId String @unique
+
+  /// The toggle itself. Off returns the workspace to score-only auto-pause
+  /// (`SENDER_UNHEALTHY`), which is unaffected by this model either way.
+  pauseOnBounceRate Boolean @default(true)
+  /// Hard-bounce rate at/over which a sender refuses. 0.02 = the owner's 2%.
+  bounceRateThreshold Float @default(0.02)
+
+  /// DEC-171: soft bounces retry rather than suppress. This many strikes
+  /// inside the window and the address goes to the ONE suppression path.
+  softBounceThreshold  Int @default(3)
+  softBounceWindowDays Int @default(30)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// DEC-171: the soft-bounce TALLY. Explicitly NOT a second suppression store —
+/// it holds no suppression state and nothing reads it at the send boundary. It
+/// is the counter that decides WHEN to call the existing `Suppression` path,
+/// which stays the only thing a send ever consults.
+///
+/// Addresses are stored lowercase, the same normalization `Suppression` and the
+/// boundary lookup already use (DEC-085), so the two agree on identity.
+model SoftBounce {
+  id          String @id @default(cuid())
+  workspaceId String
+  channel     String
+  address     String
+
+  /// Strikes inside the current window. Reset (not incremented) once
+  /// `firstAt` ages past the workspace's window — so the count is always
+  /// derivable from this row alone.
+  count      Int      @default(1)
+  firstAt    DateTime @default(now())
+  lastAt     DateTime @default(now())
+  lastReason String?
+
+  /// Stamped when the tally crossed the threshold and wrote the `Suppression`.
+  /// Presence means "this address has already had its consequence" — it stops
+  /// a re-suppression loop, it does not itself suppress anything.
+  suppressedAt DateTime?
+
+  @@unique([workspaceId, channel, address])
+  @@index([workspaceId])
+}
+
+/// DEC-174: webhook idempotency. SendGrid RETRIES a batch until it is acked,
+/// and every retry used to re-publish its events — inflating the very bounce
+/// and complaint rates that now pause senders. `sg_event_id` is unique per
+/// event, so this is the receipt that makes a replayed batch a no-op.
+///
+/// Deliberately NOT workspace-scoped and carries no RLS policy: the receipt is
+/// written BEFORE the tenant is known (events arrive with no tenant at all and
+/// are resolved through `Message`). Owner/admin client only — the `KillSwitch`
+/// precedent for a legitimately cross-tenant row.
+model ProviderEventReceipt {
+  id       String @id @default(cuid())
+  provider String
+  eventId  String
+
+  receivedAt DateTime @default(now())
+
+  @@unique([provider, eventId])
+  @@index([receivedAt])
+}

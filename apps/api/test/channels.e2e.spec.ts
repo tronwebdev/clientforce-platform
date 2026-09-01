@@ -175,7 +175,17 @@ describe.skipIf(!hasDb)("Channels API e2e", () => {
       ]);
     expect(res.status).toBe(201);
     // P1.7: the unsubscribe also publishes lead.unsubscribed.v1 (Event row).
-    expect(res.body).toEqual({ received: 1, suppressionsApplied: 1, eventsPublished: 1 });
+    // D1 (DEC-174/webhook honesty): the response gained `duplicatesSkipped`
+    // and `unresolved`. Both are ADDITIVE fields, so the assertion moves from
+    // an exact shape to the three counters this test is actually about, plus
+    // an explicit zero on the new ones (nothing replayed, nothing orphaned).
+    expect(res.body).toMatchObject({
+      received: 1,
+      suppressionsApplied: 1,
+      eventsPublished: 1,
+      duplicatesSkipped: 0,
+      unresolved: 0,
+    });
     const suppression = await owner.suppression.findFirst({
       where: { workspaceId: ws, address: TEST_INBOX },
     });

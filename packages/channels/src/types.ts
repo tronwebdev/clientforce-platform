@@ -96,6 +96,14 @@ export type SendBlockReason =
   // hysteresis line) or the window draining restores it — reversible, and the
   // enrollment disposition stays PAUSED like every non-suppression refusal.
   | "SENDER_UNHEALTHY"
+  // D1 (DEC-173): the owner's ruling toggle — "Pause if bounces exceed 2%, she
+  // stops rather than burn the domain" — as an actual refusal. DISTINCT from
+  // SENDER_UNHEALTHY on purpose: that one is the COMPOSITE score crossing 40,
+  // which a sender can stay under while bouncing 4% (bounce weight is 30 and a
+  // reply bonus offsets it). This is the single-signal line the owner drew,
+  // and the copy the refusal carries is the copy on the toggle. Reversible:
+  // the rate is a rolling 7-day window and never fires below the sample floor.
+  | "SENDER_BOUNCE_RATE"
   // P3.1 (DEC-078): voice dial-boundary extension — Aura-2 voices are
   // English-only, so non-English agents refuse honestly (Q-027 tracks
   // non-English voice; the disclosure constants already ship translated).

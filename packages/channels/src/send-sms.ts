@@ -33,6 +33,7 @@ import {
   resolvePaymentLink,
 } from "./payment-link";
 import { HEALTH_AUTO_PAUSE_BELOW, parseHealthState } from "./health";
+import { bounceRateRefusal } from "./deliverability";
 import { renderTokens } from "./render";
 import { assertChannelLive, assertTenantActive } from "./tenant-status";
 import { SendBlockedError, type RenderedSms, type SmsSender } from "./types";
@@ -122,6 +123,12 @@ export async function sendSmsStep(deps: SendSmsDeps, params: SendSmsStepParams):
       `health ${health.score ?? "?"}/100 — auto-paused below ${HEALTH_AUTO_PAUSE_BELOW}`,
     );
   }
+  // D1 (DEC-173): the email rail's exact twin. The workspace rule is one rule,
+  // and the snapshot it reads is this sender's own — for an SMS sender the
+  // "bounce" rate is the carrier-failure rate (`sms.failed.v1`), the same
+  // ledger twin the score already uses. One line, both channels.
+  const bounceRefusal = await bounceRateRefusal(prisma, params.workspaceId, sender);
+  if (bounceRefusal) throw new SendBlockedError("SENDER_BOUNCE_RATE", bounceRefusal);
   const phone = contact?.phone ? normalizePhone(contact.phone) : "";
   if (!contact || !phone) throw new SendBlockedError("CONTACT_NO_PHONE", params.contactId);
 

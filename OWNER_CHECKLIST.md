@@ -68,5 +68,57 @@ delivery on deliberately.
   you'll get the exact steps when we wire the staging deploy.
 - **P1.7:** one MX record on `reply.clientforce.io` at SiteGround (inbound
   replies) + enabling the SendGrid event webhook (adds
-  `SENDGRID-WEBHOOK-PUBLIC-KEY` to Key Vault).
+  `SENDGRID-WEBHOOK-PUBLIC-KEY` to Key Vault) — **this one is now blocking a
+  real protection; see §5 below.**
 - **P1.8:** turning sandbox off for the live demo sequence.
+
+## 5. Turn the SendGrid event webhook on — ⛔ NOT DONE, and it matters now
+
+**What is wrong today, in one sentence:** we are not receiving a single bounce
+or spam-complaint notification, because the secret that proves those messages
+really come from SendGrid was never added, and the deployed app correctly
+refuses unsigned ones.
+
+**Why it matters more than it used to.** The build now *acts* on bounces and
+complaints — a bad address gets suppressed automatically, and a sender that
+starts bouncing gets paused before it damages the domain everyone else is
+sending from. All of that machinery is waiting on notifications that never
+arrive. Until this step is done, the bounce and complaint figures on screen
+stay at zero **because nothing is being reported, not because nothing is going
+wrong** — which is the more dangerous of the two.
+
+**Roughly ten minutes. Two halves: turn it on at SendGrid, then save the key.**
+
+1. Log in at **app.sendgrid.com** → left menu **Settings → Mail Settings →
+   Event Webhook** (on some accounts it is **Settings → Event Webhook**).
+2. Click **Create new webhook**.
+3. In **Post URL**, paste exactly:
+
+   ```
+   https://<the API address>/webhooks/sendgrid
+   ```
+
+   If you are not sure of the API address, ask for it before continuing —
+   guessing here silently sends the notifications nowhere.
+4. Tick these events, and only these: **Delivered · Opened · Clicked ·
+   Bounced · Dropped · Spam Reports · Unsubscribed · Group Unsubscribes**.
+5. Turn **Signed Event Webhook** **ON**. This is the important switch — it is
+   what makes the notifications provable, and without it the app rejects them.
+6. Click **Save**. SendGrid now shows a **Verification Key** — a long line of
+   letters and numbers. Copy it whole.
+7. Go to **portal.azure.com** → search **clientforce-kv** → **Objects →
+   Secrets** → **+ Generate/Import**.
+8. Name it EXACTLY `SENDGRID-WEBHOOK-PUBLIC-KEY`, paste the key you copied as
+   the value, and click **Create**.
+9. Tell whoever is on the build — the app only picks up a new secret on its
+   next deploy, so one deploy has to be run before anything changes.
+
+**Paste it exactly as SendGrid gives it to you.** Don't add line breaks, don't
+add `-----BEGIN PUBLIC KEY-----`, don't trim anything. The app accepts the
+plain form SendGrid shows you as well as the wrapped form, so the shortest path
+is a straight copy and paste.
+
+**How you will know it worked.** After the next deploy, bounce and complaint
+counts on the sender health view stop being permanently zero and start moving
+with real sending. If they stay at zero after a real send campaign, the webhook
+is still not landing — say so rather than assuming the numbers are good news.

@@ -46,6 +46,10 @@ export * from "./senders";
 // P5 W2 (DEC-084): the sender-health band contract (owner-locked cutoffs) —
 // ONE source for the channels engine, the Settings ring, and the B1-W4 fleet.
 export * from "./sender-health";
+// D1 (DEC-173): the deliverability rule contract — the owner's "pause if
+// bounces exceed 2%" toggle, its platform defaults, and the ONE breach
+// predicate the send boundary and every surface must share.
+export * from "./deliverability";
 
 // Enrollment DTOs (P1.6).
 export * from "./enrollments";

@@ -10,6 +10,7 @@ import {
   Query,
   UnauthorizedException,
   UseInterceptors,
+  type RawBodyRequest,
 } from "@nestjs/common";
 import { AnyFilesInterceptor } from "@nestjs/platform-express";
 import type { Queue } from "bullmq";
@@ -64,16 +65,22 @@ export class WebhooksController {
   @Public()
   @Post("sendgrid")
   async sendgrid(
+    @Req() req: RawBodyRequest<Request>,
     @Body() body: unknown,
     @Headers("x-twilio-email-event-webhook-signature") signature?: string,
     @Headers("x-twilio-email-event-webhook-timestamp") timestamp?: string,
   ) {
     const publicKey = process.env.SENDGRID_WEBHOOK_PUBLIC_KEY;
     if (publicKey) {
+      // D1 (DEC-170): SendGrid signs the RAW request bytes. Verifying against
+      // `JSON.stringify(parsedBody)` re-serializes them — different spacing,
+      // different unicode escaping — and fails a perfectly valid signature, so
+      // every signed event would have been rejected even WITH the key present.
+      // `rawBody: true` is already on in main.ts; this is the same read the
+      // Calendly and Stripe routes do, with the same dev-only fallback.
+      const rawBody = req.rawBody ? req.rawBody.toString("utf8") : JSON.stringify(body);
       const ok =
-        signature &&
-        timestamp &&
-        verifySendGridSignature(publicKey, JSON.stringify(body), signature, timestamp);
+        signature && timestamp && verifySendGridSignature(publicKey, rawBody, signature, timestamp);
       if (!ok) throw new UnauthorizedException("Invalid webhook signature");
     } else if (process.env.NODE_ENV === "production") {
       throw new UnauthorizedException("Webhook verification key not configured");
@@ -88,24 +95,51 @@ export class WebhooksController {
 
     let applied = 0;
     let published = 0;
+    let duplicates = 0;
+    // D1: events whose Message cannot be resolved were dropped SILENTLY. A
+    // bounce we cannot correlate is still a bounce that suppressed nothing, so
+    // it is counted and returned — an unexplained number here is the signal
+    // that correlation is broken, which is exactly the failure that would
+    // otherwise look like "clean delivery".
+    let unresolved = 0;
     // P5 W1 (DEC-083): bounce/spam touch sender reputation — collect the
     // distinct senders and recompute their health AFTER the events land, so a
     // collapsing sender auto-pauses within one webhook delivery, not one sweep.
     const healthTouched = new Map<string, string>();
     for (const event of events) {
+      // D1 (DEC-174): SendGrid retries a batch until it is acked, and every
+      // retry used to re-publish its events — inflating the very bounce and
+      // complaint rates that now pause senders. The receipt makes a replay a
+      // no-op. Events with no `sg_event_id` are processed as before: dedup is
+      // best-effort and must never DROP an event it cannot identify.
+      if (event.eventId && !(await this.claimEvent(event.eventId))) {
+        duplicates++;
+        continue;
+      }
       // Events carry no tenant — resolve through the persisted Message row
       // (owner-client unique lookup), then apply tenant-scoped.
       const message = await resolveEventMessage(this.prisma.admin, event);
-      if (!message) continue;
-      const { suppressed } = await applyEmailEvent(this.prisma.app, message.workspaceId, event);
+      if (!message) {
+        unresolved++;
+        continue;
+      }
+      const { suppressed, softBounce } = await applyEmailEvent(
+        this.prisma.app,
+        message.workspaceId,
+        event,
+      );
       if (suppressed) applied++;
       // P1.7 engagement awareness: every provider event becomes a typed Event
       // row on the lead (Logs feed, drawer timeline, classifier context).
-      for (const busEvent of toBusEvents(event, message)) {
+      for (const busEvent of toBusEvents(event, message, softBounce?.strikes)) {
         await this.publisher.publish(busEvent);
         published++;
       }
-      if (event.type === "bounce" || event.type === "spam_report") {
+      // D1 (DEC-171): a SOFT bounce is not a reputation event — it must not
+      // trigger the collapse fast path, or a transient block would pause a
+      // sender the health formula never scored down.
+      const hardFailure = event.type === "bounce" && event.bounce?.kind !== "soft";
+      if (hardFailure || event.type === "spam_report") {
         const senderId = messageSenderId(message);
         if (senderId) healthTouched.set(senderId, message.workspaceId);
       }
@@ -123,7 +157,44 @@ export class WebhooksController {
         console.error(`[webhooks] sender-health fast path failed for sender=${senderId}`, err);
       }
     }
-    return { received: events.length, suppressionsApplied: applied, eventsPublished: published };
+    return {
+      received: events.length,
+      suppressionsApplied: applied,
+      eventsPublished: published,
+      duplicatesSkipped: duplicates,
+      unresolved,
+    };
+  }
+
+  /**
+   * D1 (DEC-174): claim one provider event id. True = ours to process, false =
+   * already seen. The unique index is the arbiter, so two concurrent retries
+   * of the same batch cannot both win. The receipt is cross-tenant by nature
+   * (a provider event carries no tenant and is resolved through `Message`
+   * afterwards), so it is written on the admin client and carries no RLS
+   * policy — the `KillSwitch` precedent.
+   *
+   * A failure to record NEVER blocks the event: losing an event is worse than
+   * counting one twice, and the health window is 7 days of self-correcting
+   * aggregate either way.
+   */
+  private async claimEvent(eventId: string): Promise<boolean> {
+    try {
+      await this.prisma.admin.providerEventReceipt.create({
+        data: { provider: "sendgrid", eventId },
+      });
+      return true;
+    } catch (err) {
+      if (
+        typeof err === "object" &&
+        err !== null &&
+        (err as { code?: string }).code === "P2002"
+      ) {
+        return false;
+      }
+      console.error(`[webhooks] receipt write failed for event=${eventId}`, err);
+      return true;
+    }
   }
 
   @Public()

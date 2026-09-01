@@ -1,0 +1,63 @@
+# D1 (DEC-175): the kill-switch drill. Proves that BOTH emergency stops —
+# per-tenant suspension (DEC-079) and the per-agency/per-channel kill switch
+# (DEC-082) — actually stop traffic, measures how long the stop takes, and
+# proves each one reverses. No provider is contacted: the drill uses the
+# keyless sandbox transport, because the whole point of a kill switch is that
+# nothing reaches a provider.
+#
+# Safe to dispatch at any time — it builds its own throwaway agency and deletes
+# it in a `finally`, and it sends no real mail. Manual dispatch so the run URL
+# is citable evidence rather than noise on every push.
+name: kill-switch-drill
+
+on:
+  workflow_dispatch:
+    inputs:
+      thresholdMs:
+        description: "Fail the drill if any stop takes longer than this (ms)"
+        required: false
+        default: "5000"
+
+permissions:
+  contents: read
+
+env:
+  TURBO_TELEMETRY_DISABLED: 1
+  # Owner connection (migrations) + the RLS-subject app role the boundary uses.
+  DATABASE_URL: postgresql://postgres@localhost:5432/clientforce
+  APP_DATABASE_URL: postgresql://clientforce_app@localhost:5432/clientforce
+
+jobs:
+  drill:
+    name: suspension · kill switch · flip-to-stop latency · reversibility
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: clientforce
+          # Trust auth so both `postgres` and the `clientforce_app` role
+          # (created by the RLS migration, no password) can connect.
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @clientforce/channels... build
+      - run: pnpm --filter @clientforce/db db:migrate
+
+      - name: Run the kill-switch drill
+        env:
+          DRILL_THRESHOLD_MS: ${{ github.event.inputs.thresholdMs }}
+        run: pnpm exec tsx packages/channels/scripts/kill-switch-drill.ts

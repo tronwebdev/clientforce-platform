@@ -203,9 +203,22 @@ describe.skipIf(!hasInfra)("send boundary — deliverability rails (P5 W1)", () 
       reason: "SENDER_UNHEALTHY",
     });
     // Recovery restores — the same sender sends once the snapshot is healthy.
+    // D1 (DEC-173): the recovered fixture drops the RATES as well as the score.
+    // It used to change `score` alone, leaving `rates.bounce` at 8% — a state
+    // the engine cannot produce (8% bounce is the full 30-point penalty, so the
+    // score could not be 92) and one the new single-signal rail correctly
+    // refuses. A real recovery is the window draining, which moves both.
     await owner.senderConnection.update({
       where: { id: senderId },
-      data: { healthState: { ...UNHEALTHY_STATE, score: 92, state: "healthy" } },
+      data: {
+        healthState: {
+          ...UNHEALTHY_STATE,
+          score: 92,
+          state: "healthy",
+          sample: { sent: 100, delivered: 99, bounced: 1, spam: 0, replied: 0 },
+          rates: { bounce: 0.01, spam: 0, delivery: 0.99, reply: 0 },
+        },
+      },
     });
     const message = await sendStep(deps(), params(senderId));
     expect(message.senderId).toBe(senderId);

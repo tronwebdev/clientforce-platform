@@ -56,7 +56,28 @@ export const EVENT_SCHEMAS = {
   "email.delivered.v1": z.object({ ...messageRef }),
   "email.opened.v1": z.object({ ...messageRef, link: z.string().optional() }),
   "email.clicked.v1": z.object({ ...messageRef, link: z.string() }),
+  /**
+   * The HARD-bounce event: the address does not exist. Named "bounced" since
+   * P1.5 and rendered as "hard-bounced" everywhere it surfaces; D1 (DEC-171)
+   * made that true by giving soft bounces their own type below, rather than
+   * renaming an event five readers already consume.
+   */
   "email.bounced.v1": z.object({ ...messageRef, reason: z.string().optional() }),
+  /**
+   * D1 (DEC-171): a TRANSIENT failure — a block, an expired retry, a 4.x.x.
+   * It is on the lead's timeline because it happened, but it is deliberately
+   * NOT part of the hard-bounce rate: a mailbox that is full today is not a
+   * domain-burning address, and counting it as one would pause healthy senders
+   * under the 2% rule. `attempt` is the strike count within the workspace's
+   * soft-bounce window, so the timeline can say "2 of 3" rather than repeating
+   * an identical row.
+   */
+  "email.soft_bounced.v1": z.object({
+    ...messageRef,
+    reason: z.string().optional(),
+    status: z.string().optional(),
+    attempt: z.number().int().positive().optional(),
+  }),
   "email.spam.v1": z.object({ ...messageRef }),
   "email.replied.v1": z.object({ ...messageRef, intent: IntentSchema }),
   // G2 (DEC-071): the guided email composer refused after its bounded retry —
@@ -587,6 +608,7 @@ export const EVENT_TYPES = {
   EMAIL_OPENED: "email.opened.v1",
   EMAIL_CLICKED: "email.clicked.v1",
   EMAIL_BOUNCED: "email.bounced.v1",
+  EMAIL_SOFT_BOUNCED: "email.soft_bounced.v1",
   EMAIL_SPAM: "email.spam.v1",
   EMAIL_REPLIED: "email.replied.v1",
   EMAIL_COMPOSE_REFUSED: "email.compose_refused.v1",

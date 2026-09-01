@@ -20,11 +20,26 @@ export {
 export {
   applyEmailEvent,
   normalizeSendGridEvents,
+  normalizeSendGridPublicKey,
   normalizedEmailEventSchema,
   resolveEventWorkspace,
+  sendGridWebhookKeyState,
   verifySendGridSignature,
+  type ApplyEmailEventDeps,
+  type ApplyEmailEventResult,
   type NormalizedEmailEvent,
+  type WebhookKeyState,
 } from "./webhooks";
+// D1 (DEC-171): the pure bounce classifier — hard vs soft, and what a
+// `dropped` event was really echoing.
+export {
+  bounceFactsFrom,
+  classifyBounce,
+  classifyDrop,
+  type BounceFacts,
+  type BounceKind,
+  type DropEcho,
+} from "./bounce";
 export {
   SendBlockedError,
   type EmailSender,
@@ -55,6 +70,9 @@ export {
   type HealthSnapshot,
   type LedgerSample,
 } from "./health";
+// D1 (DEC-173): the "pause if bounces exceed 2%" rail — the ONE reader of the
+// workspace rule, shared by both send boundaries and the webhook.
+export { bounceRateRefusal, loadDeliverabilityRule } from "./deliverability";
 export {
   WARMUP_COMPLETION_EMIT_WINDOW_MS,
   WARMUP_CURVE_VERSION,
