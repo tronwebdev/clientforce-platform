@@ -12,9 +12,12 @@ import type { CSSProperties } from "react";
 import { workspaceRoleWord } from "@clientforce/core";
 import { CHIP, SURFACE } from "../bold-settings-kit";
 import {
+  domainCount,
   emailSenders,
   pluralise,
   smsSenders,
+  spellCount,
+  spellCountLead,
   warmupPercent,
   type SettingsSnapshot,
 } from "./settings-data";
@@ -38,21 +41,32 @@ const TINT: Record<string, [string, string, string]> = {
   slate: ["var(--cvb-slate-tint)", "var(--cvb-slate-line)", "var(--cvb-slate)"],
 };
 
-function coreSub(d: SettingsSnapshot): string {
-  if (d.fields === null) return "Who you are, what you sell, hours and prices. Everything Ada quotes.";
-  const gaps = d.gaps?.length ?? 0;
-  const facts = pluralise(d.fields.length, "fact", "facts");
-  return gaps === 0
-    ? `${facts} she quotes from. Your live campaigns are not missing anything.`
-    : `${facts} she quotes from, and ${pluralise(gaps, "thing", "things")} your live campaigns still miss.`;
+/**
+ * The prototype's sub-line describes WHAT LIVES INSIDE the card and carries no
+ * number at all ("Who you are, what you sell, hours and prices. Everything Ada
+ * quotes." — dc.html, and SURFACE_SPEC_SETTINGS §3 line 57 defines the element
+ * that way too). B7.5 replaced it with a count sentence that also restated the
+ * gaps pill sitting 12px below it — the same number twice on one card.
+ *
+ * No honesty gate is in play here: the prototype's sentence contains no number,
+ * so nothing unsourced is being withheld. The build simply volunteered counts
+ * the prototype never asked for.
+ */
+function coreSub(): string {
+  return "Who you are, what you sell, hours and prices. Everything Ada quotes.";
 }
 
 function sendersSub(d: SettingsSnapshot): string {
   if (d.senders === null) return "Where your email and messages come from.";
-  const email = emailSenders(d.senders).length;
+  // DOMAINS, not sender rows: two mailboxes on one domain is one domain, and
+  // the prototype and the Senders stat strip both count domains.
+  const domains = domainCount(emailSenders(d.senders).map((x) => x.fromEmail));
   const nums = smsSenders(d.senders).length;
   const pct = warmupPercent(d.senders);
-  const head = `${pluralise(email, "email sender", "email senders")} and ${pluralise(nums, "number", "numbers")}.`;
+  // An absence is worded, never drawn as a zero — the doctrine this family
+  // already follows on the page one click inside ("NUMBERS 0 · none yet").
+  const numPart = nums === 0 ? "no number yet" : spellCount(nums, "number", "numbers");
+  const head = `${spellCountLead(domains, "email domain", "email domains")} and ${numPart}.`;
   // No ramp ⇒ nothing to report. A "0%" here would read as a stalled warm-up.
   return pct === null ? `${head} Warm-up not started.` : `${head} Warm-up is at ${pct}%.`;
 }
@@ -62,11 +76,19 @@ function teamSub(d: SettingsSnapshot): string {
   const pending = (d.invites ?? []).filter((i) => i.state === "pending").length;
   // The words come from the shared vocabulary, never the raw enum — lowercasing
   // `m.role` is what put "Agent, viewer." on this card for a human.
+  // Ada holds a role too, and the prototype's third role word is hers —
+  // "Two people plus Ada. Owner, admin, viewer." A list built from the human
+  // members alone can never name the role of the agent the sentence just
+  // mentioned.
   const roles = [...new Set(d.members.map((m) => workspaceRoleWord(m.role).toLowerCase()))];
-  // "Owner, admin, member." — sentence case, in the order the enum ranks them.
-  const said = roles.length === 0 ? "" : `${roles[0]![0]!.toUpperCase()}${roles[0]!.slice(1)}${roles.length > 1 ? `, ${roles.slice(1).join(", ")}` : ""}. `;
+  const withAda = roles.includes("agent") ? roles : [...roles, "agent"];
+  // "Owner, admin, agent." — sentence case, in the order the enum ranks them.
+  const said =
+    withAda.length === 0
+      ? ""
+      : `${withAda[0]![0]!.toUpperCase()}${withAda[0]!.slice(1)}${withAda.length > 1 ? `, ${withAda.slice(1).join(", ")}` : ""}. `;
   const waiting = pending > 0 ? `${pluralise(pending, "invite", "invites")} waiting.` : "";
-  return `${pluralise(d.members.length, "person", "people")} plus Ada. ${said}${waiting}`.trim();
+  return `${spellCountLead(d.members.length, "person", "people")} plus Ada. ${said}${waiting}`.trim();
 }
 
 function creditsSub(d: SettingsSnapshot): string {
@@ -74,7 +96,13 @@ function creditsSub(d: SettingsSnapshot): string {
   return `${d.credits.balance.toLocaleString("en-US")} left. Where they go, what things cost, top up.`;
 }
 
-export function BoldSettingsHub({ data, onOpen }: { data: SettingsSnapshot; onOpen: (t: HubTarget) => void }) {
+export function BoldSettingsHub({
+  data,
+  onOpen,
+}: {
+  data: SettingsSnapshot;
+  onOpen: (t: HubTarget) => void;
+}) {
   const gaps = data.gaps?.length ?? 0;
   const senderRows = data.senders ?? [];
   const unhealthy = senderRows.some((s) => s.health?.state === "unhealthy");
@@ -83,14 +111,16 @@ export function BoldSettingsHub({ data, onOpen }: { data: SettingsSnapshot; onOp
     senderRows.every((s) => {
       const st = (s.domainAuthStatus ?? {}) as Record<string, { status?: string; pass?: boolean }>;
       const entries = Object.values(st);
-      return entries.length > 0 && entries.every((v) => v?.status === "verified" || v?.pass === true);
+      return (
+        entries.length > 0 && entries.every((v) => v?.status === "verified" || v?.pass === true)
+      );
     });
 
   const cards: HubCard[] = [
     {
       key: "core",
       n: "Business core",
-      sub: coreSub(data),
+      sub: coreSub(),
       ic: "◉",
       tint: TINT.forest!,
       pill:
@@ -113,7 +143,11 @@ export function BoldSettingsHub({ data, onOpen }: { data: SettingsSnapshot; onOp
             ? { label: "Needs a look", tone: "warn" }
             : verified
               ? { label: "All verified", tone: "live" }
-              : undefined,
+              : // A workspace whose DNS was never checked fell through BOTH
+                // branches and rendered a bare card — while the page one click
+                // inside showed an amber "Needs a look". The hub and the page it
+                // opens can never disagree, so the unchecked state gets said.
+                { label: "Not checked yet", tone: "warn" },
     },
     { key: "team", n: "Team and roles", sub: teamSub(data), ic: "◍", tint: TINT.plum! },
     {
@@ -127,7 +161,7 @@ export function BoldSettingsHub({ data, onOpen }: { data: SettingsSnapshot; onOp
     {
       key: "integrations",
       n: "Integrations",
-      sub: "Calendar, payments and the rest of your stack.",
+      sub: "Calendar, Stripe and the ads closed loop.",
       ic: "⇄",
       tint: TINT.slate!,
       pill:
@@ -137,13 +171,41 @@ export function BoldSettingsHub({ data, onOpen }: { data: SettingsSnapshot; onOp
     },
   ];
 
-  const cardStyle: CSSProperties = { ...SURFACE.card, padding: 20, cursor: "pointer" };
+  /**
+   * QUIET card, not raised. The prototype's hub card is flat #FCFCFC with an
+   * #ECEDEC hairline and no shadow (dc.html:1579) — and SURFACE_SPEC_SETTINGS
+   * line 35 agrees with it: "Panel gradients #FFFFFF → #F7FAF8 on raised
+   * cards; flat #FCFCFC on quiet cards." B7.5 applied the RAISED half of the
+   * style contract to a card the spec's own sentence calls quiet.
+   *
+   * Hover and entrance come from a class, because inline styles can express
+   * neither. The prototype gives the whole card a hover lift — it is the click
+   * target, so it says so — and an entrance animation on mount.
+   */
+  const cardStyle: CSSProperties = {
+    ...SURFACE.quiet,
+    borderRadius: 20,
+    padding: 20,
+    cursor: "pointer",
+  };
 
   return (
     <div data-testid="bold-wssettings" style={{ padding: "26px 40px 40px" }}>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+          gap: 12,
+        }}
+      >
         {cards.map((c) => (
-          <div key={c.key} data-testid={`bold-wss-${c.key}`} onClick={() => onOpen(c.key)} style={cardStyle}>
+          <div
+            key={c.key}
+            data-testid={`bold-wss-${c.key}`}
+            onClick={() => onOpen(c.key)}
+            className="cvb-hub-card"
+            style={cardStyle}
+          >
             <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
               <span
                 style={{
@@ -161,12 +223,29 @@ export function BoldSettingsHub({ data, onOpen }: { data: SettingsSnapshot; onOp
               >
                 {c.ic}
               </span>
-              <span style={{ fontWeight: 800, fontSize: 14.5, letterSpacing: "-.022em", flex: 1 }}>{c.n}</span>
+              <span style={{ fontWeight: 800, fontSize: 14.5, letterSpacing: "-.022em", flex: 1 }}>
+                {c.n}
+              </span>
               <span style={{ fontSize: 13, color: "var(--cvb-faint)" }}>→</span>
             </div>
-            <div style={{ fontSize: 12.5, color: "var(--cvb-muted)", lineHeight: 1.55, marginTop: 11 }}>{c.sub}</div>
+            <div
+              style={{ fontSize: 12.5, color: "var(--cvb-muted)", lineHeight: 1.55, marginTop: 11 }}
+            >
+              {c.sub}
+            </div>
             {c.pill ? (
-              <span style={{ ...(c.pill.tone === "live" ? CHIP.live : CHIP.warn), display: "inline-block", marginTop: 12 }}>
+              <span
+                // 9.5px here, not the shared CHIP's 10px: the prototype sizes
+                // the hub-card pill and the item-page row chip differently
+                // (dc.html card pill 9.5px vs row chip :2344 at 10px), and one
+                // shared atom had flattened the two into a single size.
+                style={{
+                  ...(c.pill.tone === "live" ? CHIP.live : CHIP.warn),
+                  fontSize: 9.5,
+                  display: "inline-block",
+                  marginTop: 12,
+                }}
+              >
                 {c.pill.label}
               </span>
             ) : null}

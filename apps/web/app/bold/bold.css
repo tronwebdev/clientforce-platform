@@ -735,3 +735,15 @@
 .cvb-settings-row:hover {
   background: var(--cvb-row-hover);
 }
+
+/* Settings-hub card. The prototype gives the whole card a hover lift and an
+   entrance animation (Console Bold.dc.html:1579:
+   style-hover="background:#F8FAF9;border-color:#DDE4DF" + animation:bIn .35s);
+   inline styles can express neither, so the card carries a class for both. */
+.cvb-hub-card {
+  animation: cvb-in 0.35s ease both;
+}
+.cvb-hub-card:hover {
+  background: var(--cvb-hub-card-hover);
+  border-color: var(--cvb-hub-card-hover-line);
+}

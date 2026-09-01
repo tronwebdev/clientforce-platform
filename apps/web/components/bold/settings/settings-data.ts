@@ -92,24 +92,35 @@ export function useSettingsData(): { data: SettingsSnapshot; reload: () => Promi
   const [data, setData] = useState<SettingsSnapshot>(EMPTY);
 
   const reload = useCallback(async () => {
-    const [ctx, agents, senders, members, invites, guard, credits, ints, sources, numbers, profile] =
-      await Promise.all([
-        get<ContextRead>("context"),
-        fetchBoldAgents(),
-        fetchSenders(),
-        fetchWorkspaceMembers(),
-        fetchInvites(),
-        fetchGuardrailDefaults(),
-        fetchCreditsSummary(),
-        get<{ integrations?: Array<{ status?: string }> }>("integrations"),
-        fetchWorkspaceSources(),
-        fetchNumberRequests(),
-        get<{
-          id: string;
-          name: string;
-          icpProfile: { shape?: string; vertical?: string } | null;
-        }>("workspaces/profile"),
-      ]);
+    const [
+      ctx,
+      agents,
+      senders,
+      members,
+      invites,
+      guard,
+      credits,
+      ints,
+      sources,
+      numbers,
+      profile,
+    ] = await Promise.all([
+      get<ContextRead>("context"),
+      fetchBoldAgents(),
+      fetchSenders(),
+      fetchWorkspaceMembers(),
+      fetchInvites(),
+      fetchGuardrailDefaults(),
+      fetchCreditsSummary(),
+      get<{ integrations?: Array<{ status?: string }> }>("integrations"),
+      fetchWorkspaceSources(),
+      fetchNumberRequests(),
+      get<{
+        id: string;
+        name: string;
+        icpProfile: { shape?: string; vertical?: string } | null;
+      }>("workspaces/profile"),
+    ]);
 
     const raw = ctx?.workspace?.fields ?? {};
     const fields: WorkspaceContextField[] = Object.entries(raw)
@@ -187,7 +198,8 @@ export function dnsPosture(s: BoldSenderRow): {
   if (entries.length === 0) return { state: "unchecked", line: "Not checked yet" };
   const names = entries.map(([k]) => k.toUpperCase());
   const passing = entries.filter(([, v]) => v?.status === "verified" || v?.pass === true);
-  if (passing.length === entries.length) return { state: "verified", line: `${names.join(", ")} all pass` };
+  if (passing.length === entries.length)
+    return { state: "verified", line: `${names.join(", ")} all pass` };
   const failing = entries.filter(([, v]) => v?.status === "failed").map(([k]) => k.toUpperCase());
   if (failing.length > 0)
     return { state: "pending", line: `${failing.join(" and ")} still to publish` };
@@ -198,10 +210,60 @@ export function dnsPosture(s: BoldSenderRow): {
 export function warmupPercent(senders: BoldSenderRow[] | null): number | null {
   const ramping = (senders ?? []).filter((s) => s.warmup != null);
   if (ramping.length === 0) return null;
-  const worst = ramping.reduce((a, b) => ((a.warmup?.pct ?? 100) <= (b.warmup?.pct ?? 100) ? a : b));
+  const worst = ramping.reduce((a, b) =>
+    (a.warmup?.pct ?? 100) <= (b.warmup?.pct ?? 100) ? a : b,
+  );
   return worst.warmup?.pct ?? null;
 }
 
 export function pluralise(n: number, one: string, many: string): string {
   return `${n} ${n === 1 ? one : many}`;
+}
+
+/**
+ * The prototype's number style in PROSE: small counts are spelled out
+ * ("Two email domains and one number", "Two people plus Ada"), and digits are
+ * reserved for measurements and large numbers ("82%", "2,340 left"). Pills are
+ * digits in both, so this is only for sub-lines.
+ *
+ * Ten is the conventional cut-off, and above it a digit reads better anyway.
+ */
+const SPELLED = [
+  "zero",
+  "one",
+  "two",
+  "three",
+  "four",
+  "five",
+  "six",
+  "seven",
+  "eight",
+  "nine",
+  "ten",
+] as const;
+
+export function spellCount(n: number, one: string, many: string): string {
+  const word = n >= 0 && n <= 10 ? SPELLED[n]! : n.toLocaleString("en-US");
+  return `${word} ${n === 1 ? one : many}`;
+}
+
+/** Same, capitalised — for a count that opens a sentence. */
+export function spellCountLead(n: number, one: string, many: string): string {
+  const said = spellCount(n, one, many);
+  return `${said[0]!.toUpperCase()}${said.slice(1)}`;
+}
+
+/**
+ * How many distinct DOMAINS the email senders span. The hub counts domains,
+ * not sender rows — the prototype says "Two email domains" and the Senders
+ * stat strip agrees (`EMAIL DOMAINS 2`). Two mailboxes on one domain is one
+ * domain, and calling that "two" on the hub is simply wrong.
+ */
+export function domainCount(addresses: Array<string | null | undefined>): number {
+  const domains = new Set<string>();
+  for (const a of addresses) {
+    const at = a?.lastIndexOf("@") ?? -1;
+    if (a && at > 0) domains.add(a.slice(at + 1).toLowerCase());
+  }
+  return domains.size;
 }

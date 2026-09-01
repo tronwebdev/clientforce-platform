@@ -34,6 +34,8 @@ export const consoleBoldVars: Record<string, string> = {
   "--cvb-muted": "#5a6660",
   "--cvb-line-dash": "#dcdfdd",
   "--cvb-row-hover": "#fbfcfb",
+  "--cvb-hub-card-hover": "#f8faf9",
+  "--cvb-hub-card-hover-line": "#dde4df",
   "--cvb-faint": "#8b968f",
   "--cvb-faint-2": "#a8b2ac",
   "--cvb-ghost": "#c3cbc6",
