@@ -1,5 +1,5 @@
 import { type GoalKey } from "./context";
-import { type IcpShape } from "./icp";
+import { SHAPE_FACETS, type IcpShape } from "./icp";
 
 /**
  * B6 (DEC-131, ruling 3): intent is multi-industry BY CONSTRUCTION — the
@@ -1035,22 +1035,55 @@ export const SHAPE_SUBJECT_NOUN: Record<IcpShape, SubjectNoun> = {
   company: { one: "company", many: "companies" },
 };
 
-export const VERTICAL_SUBJECT_NOUN: Record<string, SubjectNoun> = {
-  dental: { one: "patient", many: "patients" },
-  clinic: { one: "patient", many: "patients" },
-  salon: { one: "client", many: "clients" },
-  fitness: { one: "member", many: "members" },
-  legal: { one: "client", many: "clients" },
-  agency: { one: "client", many: "clients" },
-  saas: { one: "account", many: "accounts" },
-  ecommerce: { one: "customer", many: "customers" },
-  education: { one: "student", many: "students" },
-  trades: { one: "customer", many: "customers" },
-  real_estate: { one: "client", many: "clients" },
+/**
+ * B6.7: a vertical's noun carries WHAT KIND OF THING it names, because that
+ * is what decides whether it may stand in for the shape's own noun.
+ *
+ * "Patients" names people; "accounts" names organisations. Letting the
+ * vertical win unconditionally is how `local_business` + `dental` came to
+ * describe patients — the noun of the trade's customers pinned onto a
+ * workspace that sells to the trade itself (Q-164). Letting the SHAPE win
+ * unconditionally would have been just as wrong in the other direction, and
+ * an existing test caught it: a B2B SaaS workspace really does call the
+ * companies it sells to "accounts".
+ */
+export interface VerticalNoun extends SubjectNoun {
+  subject: "person" | "organisation";
+}
+export const VERTICAL_SUBJECT_NOUN: Record<string, VerticalNoun> = {
+  dental: { one: "patient", many: "patients", subject: "person" },
+  clinic: { one: "patient", many: "patients", subject: "person" },
+  salon: { one: "client", many: "clients", subject: "person" },
+  fitness: { one: "member", many: "members", subject: "person" },
+  legal: { one: "client", many: "clients", subject: "person" },
+  ecommerce: { one: "customer", many: "customers", subject: "person" },
+  education: { one: "student", many: "students", subject: "person" },
+  trades: { one: "customer", many: "customers", subject: "person" },
+  real_estate: { one: "client", many: "clients", subject: "person" },
+  // An agency's and a SaaS's customers are businesses.
+  agency: { one: "client", many: "clients", subject: "organisation" },
+  saas: { one: "account", many: "accounts", subject: "organisation" },
 };
 
+/**
+ * B6.7 (the shape-facet ruling): the vertical noun names who a business in
+ * that TRADE sells to — a dental practice sells to patients. It is therefore
+ * only the subject when the workspace itself sells to people. A supplier
+ * selling TO dental practices is `local_business` or `company` with the same
+ * `dental` vertical, and its subjects are businesses, not patients.
+ *
+ * The old line let the vertical win unconditionally, which is how the demo
+ * came to describe "Patients ... 5–25 in size, reached through Owner" — the
+ * consumer noun of the trade bolted onto a company-shaped brief (Q-164).
+ */
 export function subjectNounFor(shape: IcpShape, vertical?: string | null): SubjectNoun {
-  return (vertical ? VERTICAL_SUBJECT_NOUN[vertical] : undefined) ?? SHAPE_SUBJECT_NOUN[shape];
+  const v = vertical ? VERTICAL_SUBJECT_NOUN[vertical] : undefined;
+  if (!v) return SHAPE_SUBJECT_NOUN[shape];
+  // The vertical's noun stands in only when it names the same KIND of thing
+  // the shape sells to. A consumer workspace wants a person noun; a company
+  // or local_business one wants an organisation noun.
+  const wants = shape === "consumer" ? "person" : "organisation";
+  return v.subject === wants ? { one: v.one, many: v.many } : SHAPE_SUBJECT_NOUN[shape];
 }
 
 /**
@@ -1098,6 +1131,85 @@ export const POOL_BANDS: PoolBandDef[] = [
   { key: "try", tag: "WORTH A TRY · 70–79", sub: "Edge of your brief — lower odds", min: 70, max: 79, free: false },
 ];
 
+/**
+ * B6.7 (the shape-facet ruling, second half): the bands are RELATIVE to what
+ * a shape can actually score.
+ *
+ * The floors above are absolute — 90, 80, 70 — and that was fine only while
+ * every shape could reach 90. It cannot. `scoreCandidate` starts at 50 and
+ * adds per matching fact, so the ceiling is the sum of the rules a shape's
+ * facets can fire; and the pool supplies a fixed set of facts, so the real
+ * reachable maximum is:
+ *
+ *   base                                   50
+ *   + area, when the brief names one       12   (every shape)
+ *   + a targeted title                     12   (company / local_business)
+ *   + has replied before                    6
+ *   + said you may call                     5
+ *   + went quiet 60–150 days ago            8
+ *   ----------------------------------------------
+ *   company · local_business               93
+ *   consumer                               81
+ *
+ * A consumer workspace could therefore never enter STRONG FIT · 90+, and a
+ * band nothing can enter is the same defect as a flat 50: it looks like
+ * information and carries none. The floors are proportions of the reachable
+ * maximum instead, so the top band means "as close to your brief as this
+ * brief can describe" for every shape.
+ *
+ * The headcount and owner-run rules are deliberately NOT counted: the pool
+ * holds no headcount and no owner-run flag for a contact, so points that
+ * cannot be awarded must not raise the bar for the ones that can.
+ */
+const POOL_FACT_POINTS = { location: 12, titles: 12, replied: 6, consent: 5, recency: 8 } as const;
+
+export function reachablePoolMax(shape: IcpShape): number {
+  const titled = SHAPE_FACETS[shape].includes("titles") ? POOL_FACT_POINTS.titles : 0;
+  return (
+    50 +
+    POOL_FACT_POINTS.location +
+    titled +
+    POOL_FACT_POINTS.replied +
+    POOL_FACT_POINTS.consent +
+    POOL_FACT_POINTS.recency
+  );
+}
+
+/** Band floors for a shape, as whole scores. Proportions kept from the
+ *  absolute table above so the vocabulary ("strong / good / worth a try")
+ *  keeps meaning the same thing. */
+export function poolBandFloors(shape: IcpShape): { strong: number; good: number; try: number } {
+  const max = reachablePoolMax(shape);
+  return {
+    strong: Math.round(max * 0.9),
+    good: Math.round(max * 0.8),
+    try: Math.round(max * 0.7),
+  };
+}
+
+/**
+ * The ONE definition of which band a score falls in. The pool's cards and
+ * the row's coloured pill both read it, so a pill can never disagree with
+ * the band card above it — they were two separate constant lists before.
+ */
+export function fitTier(shape: IcpShape, fit: number): "strong" | "good" | "try" | "below" {
+  const f = poolBandFloors(shape);
+  if (fit >= f.strong) return "strong";
+  if (fit >= f.good) return "good";
+  if (fit >= f.try) return "try";
+  return "below";
+}
+
+export function poolBandsFor(shape: IcpShape): PoolBandDef[] {
+  const f = poolBandFloors(shape);
+  return [
+    POOL_BANDS[0]!,
+    { key: "strong", tag: `STRONG FIT · ${f.strong}+`, sub: "Look most like your yeses", min: f.strong, max: null, free: false },
+    { key: "good", tag: `GOOD FIT · ${f.good}–${f.strong - 1}`, sub: "Right area, fewer matching facts", min: f.good, max: f.strong - 1, free: false },
+    { key: "try", tag: `WORTH A TRY · ${f.try}–${f.good - 1}`, sub: "Edge of your brief — lower odds", min: f.try, max: f.good - 1, free: false },
+  ];
+}
+
 /* ── watch topics · direct filters (unchanged from B6) ──────────────── */
 
 /** Watch-topic suggestions, shape-appropriate (free text rides on top). */
@@ -1126,10 +1238,15 @@ export const WATCH_TOPIC_SUGGESTIONS: Record<
   },
   consumer: {
     kinds: ["topic", "area"],
+    // B6.7: these are WORDS, not instructions. The consumer rows used to
+    // read "Treatment interests your patients ask about" — a prompt telling
+    // the reader what to type, which then rode into the watch panel as if
+    // the workspace had said it (the same rail DEC-164 set for `fallback`).
+    // The local_business rows were already real words; these now match.
     byVertical: {
-      dental: ["Treatment interests your patients ask about", "Your service areas"],
-      ecommerce: ["Products people ask about"],
-      education: ["Courses people ask about"],
+      dental: ["Implants", "Aligners", "Whitening", "Emergency visits"],
+      ecommerce: ["Returns", "Sizing", "Delivery times"],
+      education: ["Course start dates", "Fees and funding"],
     },
     fallback: ["What your customers ask about", "Where they are"],
   },

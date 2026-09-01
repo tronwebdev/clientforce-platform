@@ -62,7 +62,18 @@ describe.skipIf(!hasDb)("Lead finder + intent tier e2e", () => {
           slug: `lf-ws-${suffix}`,
           creditBalance: 100,
           settings: {
-            icpProfile: { shape: "local_business", vertical: "dental", titles: ["Owner"] },
+            // B6.7: a `location` and a contact carrying one, so the
+            // feed-vs-pool score comparison below has something to compare.
+            // Without them `contactLocation` is null everywhere, the area
+            // rule never fires, and the two surfaces agree for the wrong
+            // reason — the test passed while the defect was present.
+            icpProfile: {
+              shape: "local_business",
+              vertical: "dental",
+              titles: ["Owner"],
+              location: "Austin",
+              radiusMiles: 25,
+            },
           },
         },
       })
@@ -88,8 +99,11 @@ describe.skipIf(!hasDb)("Lead finder + intent tier e2e", () => {
           ...extra,
         },
       });
-    // Lapsed: outbound touch 90 days ago, nothing since.
-    const lapsed = await mkContact(1);
+    // Lapsed: outbound touch 90 days ago, nothing since. Carries a place,
+    // shaped as a reveal payload — the only home a contact's location has.
+    const lapsed = await mkContact(1, {
+      enrichment: { provider: "t", raw: { location: "Austin, TX" } },
+    });
     lapsedId = lapsed.id;
     await owner.message.create({
       data: {
@@ -262,6 +276,37 @@ describe.skipIf(!hasDb)("Lead finder + intent tier e2e", () => {
     expect(lapsed.fit).toBeGreaterThan(50);
   });
 
+  /**
+   * B6.7: ONE score per person, whatever surface asks.
+   *
+   * B6.6 gave the pool a `location` fact and left the feed's call site
+   * without it, so the same contact came back 81 in the pool and 69 in the
+   * feed. Nothing failed — both numbers were internally consistent — and it
+   * was caught by looking at a recaptured frame. This asserts the property
+   * directly so the next divergence is a red test rather than a careful
+   * reading.
+   */
+  it("scores the same contact identically in the feed and the pool", async () => {
+    const pool = await api().get("/leads/pool").set(asOwner()).expect(200);
+    const feed = await api().post("/leads/search").set(asOwner()).send({ mode: "ada" }).expect(201);
+    const poolFit = new Map<string, number>();
+    for (const b of pool.body.bands) {
+      for (const r of b.rows) poolFit.set(r.contactId, r.fit);
+    }
+    let compared = 0;
+    for (const c of feed.body.candidates) {
+      const inPool = poolFit.get(c.contactId);
+      if (inPool == null) continue;
+      compared += 1;
+      expect(
+        c.fit,
+        `${c.contactId} scores ${c.fit} in the feed and ${inPool} in the pool — one person, two numbers`,
+      ).toBe(inPool);
+    }
+    // The assertion is worthless if the two sets never overlap.
+    expect(compared, "no contact appeared in both surfaces — nothing was compared").toBeGreaterThan(0);
+  });
+
   it("carries the whole free band's contact ids, not just the visible rows", async () => {
     const res = await api().get("/leads/pool").set(asOwner()).expect(200);
     const yours = res.body.bands.find((b: { key: string }) => b.key === "yours");
@@ -293,8 +338,8 @@ describe.skipIf(!hasDb)("Lead finder + intent tier e2e", () => {
     for (const t of res.body.watchTopics) {
       expect(t.label.toLowerCase()).not.toContain("your service area");
     }
-    // This profile has no `location`, so there is no place chip to draw.
-    expect(derived.some((t: { kind: string }) => t.kind === "area")).toBe(false);
+    // This profile names a place and a radius, so the area chip carries both.
+    expect(derived.map((t: { label: string }) => t.label)).toContain("Austin · 25 mi");
   });
 
   it("Direct search and reveal answer keylessly — no rows, no charge", async () => {

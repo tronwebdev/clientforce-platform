@@ -46,16 +46,25 @@ import {
 } from "./bold-live";
 import { BoldOverlay, BoldSheet } from "./BoldOverlay";
 import { mono } from "./bold-cards";
-import type { EffectiveCreditPrices } from "@clientforce/core";
+import { fitTier, type EffectiveCreditPrices, type IcpShape } from "@clientforce/core";
 
 type Mode = "market" | "fit" | "direct";
 
-const fitPill = (fit: number): [string, string, string] =>
-  fit >= 90
-    ? ["var(--cvb-forest)", "var(--cvb-mint)", "var(--cvb-mint-line)"]
-    : fit >= 80
-      ? ["var(--cvb-cyan,#0E7D93)", "var(--cvb-cyan-tint,#E2F3F6)", "var(--cvb-cyan-line,#BFE3EB)"]
-      : ["var(--cvb-faint)", "var(--cvb-panel)", "var(--cvb-line-ctl)"];
+/**
+ * B6.7: the pill's colour comes from the SAME band definition the cards
+ * above it use, keyed by the workspace's shape. It used to carry its own
+ * copy of the 90/80 floors, so once the bands became shape-relative a
+ * consumer row could have sat inside STRONG FIT while its pill stayed grey —
+ * the two would have disagreed on screen with no way to tell which was
+ * right.
+ */
+const fitPill = (shape: IcpShape, fit: number): [string, string, string] => {
+  const tier = fitTier(shape, fit);
+  if (tier === "strong") return ["var(--cvb-forest)", "var(--cvb-mint)", "var(--cvb-mint-line)"];
+  if (tier === "good")
+    return ["var(--cvb-cyan,#0E7D93)", "var(--cvb-cyan-tint,#E2F3F6)", "var(--cvb-cyan-line,#BFE3EB)"];
+  return ["var(--cvb-faint)", "var(--cvb-panel)", "var(--cvb-line-ctl)"];
+};
 
 const initials = (name: string) =>
   name
@@ -527,7 +536,7 @@ export function BoldLeadFinderView({
   );
 
   const feedRow = (r: LeadCandidateRow) => {
-    const [ff, fb, fd] = fitPill(r.fit);
+    const [ff, fb, fd] = fitPill(config.profile.shape, r.fit);
     return (
       <div
         key={r.id}
@@ -1000,7 +1009,7 @@ export function BoldLeadFinderView({
             <span style={{ fontSize: 11.5, color: "var(--cvb-ghost)" }}>Ranked by fit</span>
           </div>
           {activeBand.rows.map((r) => {
-            const [ff, fb, fd] = fitPill(r.fit);
+            const [ff, fb, fd] = fitPill(config.profile.shape, r.fit);
             return (
               <div
                 key={r.id}

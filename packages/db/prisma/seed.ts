@@ -1177,19 +1177,35 @@ async function main(): Promise<void> {
     {
       const ws = await prisma.workspace.findUnique({ where: { id: primary.id } });
       const settings = (ws?.settings ?? {}) as Record<string, unknown>;
-      if (!settings.icpProfile) {
+      // B6.7 REPAIR: the guard used to be "write only when absent", so every
+      // workspace already holding the mis-shaped profile would have kept it
+      // — including staging's demo, where the frames come from. A stale
+      // fixture that only new installs get right is not a fixed fixture. The
+      // repair is narrow on purpose: it corrects the KNOWN-WRONG demo
+      // profile and leaves any other stored profile alone.
+      const storedIcp = settings.icpProfile as { shape?: string; vertical?: string } | undefined;
+      const icpNeedsRepair = storedIcp?.shape === "local_business" && storedIcp?.vertical === "dental";
+      if (!settings.icpProfile || icpNeedsRepair) {
         await prisma.workspace.update({
           where: { id: primary.id },
           data: {
             settings: {
               ...settings,
+              // B6.7 (the shape-facet ruling): Bright Smile is a dental
+              // PRACTICE selling to its own patients, so its shape is
+              // `consumer` — not `local_business`, which describes a
+              // workspace selling TO local businesses. The old profile was
+              // the second kind wearing the first kind's noun, and it read
+              // as "Patients in Austin, 5–25 in size, reached through Owner,
+              // Practice Manager" (Q-164). Company-shape facets are gone
+              // because a patient has no headcount and no job title; what is
+              // left is what a practice actually targets: an area and how
+              // far it will travel.
               icpProfile: {
-                shape: "local_business",
+                shape: "consumer",
                 vertical: "dental",
-                headcountBand: "5–25",
                 location: "Austin",
-                titles: ["Owner", "Practice Manager"],
-                ownerRun: true,
+                radiusMiles: 25,
               },
             },
           },
@@ -1498,31 +1514,28 @@ async function main(): Promise<void> {
         }
       }
 
-      // ── B6.6 (owner ruling): HIGH-FIT FIXTURES, so the pill's colour bands
-      // are actually exercised. ────────────────────────────────────────────
+      // ── B6.6 / B6.7: HIGH-FIT FIXTURES, so the pill's colour bands are
+      // actually exercised. ───────────────────────────────────────────────
       //
-      // The pool colours a fit pill cyan at 80+ and forest at 90+. Before
-      // this block the demo book topped out at 67, so BOTH paths shipped
-      // unproven and no fidelity frame could hold them. These are two new,
-      // deliberately labelled rows — never a re-score of existing contacts,
+      // Before these the demo book topped out at 67 and BOTH coloured bands
+      // shipped unproven, with no fidelity frame able to hold them. They are
+      // deliberately new rows, never a re-score of the existing contacts,
       // which would have moved the honest `unscored` rows this demo also
       // needs to show.
       //
-      // The scores are EARNED through the shipped scorer, not asserted:
-      //   base 50
-      //   + 12  a place inside the brief's area (Austin), which the pool
-      //         reads from `enrichment.raw.location` — the only home a
-      //         contact's place has (Q-160)
-      //   + 12  a title the brief targets      → the 90+ row only
-      //   +  6  has replied before             (one INBOUND message)
-      //   +  5  said you may call              (callConsent granted)
-      //   +  8  went quiet 60–150 days ago     (last touch ~90d)
-      //   ------------------------------------------------------------
-      //     93  forest · 81 cyan
+      // B6.7 re-cut them for the CONSUMER shape. They were patients carrying
+      // a job title and a company, which is exactly the confusion the
+      // shape-facet ruling removes — and the title was worth 12 of the
+      // points, so the old 93 was earned by a fact a patient cannot have.
       //
-      // The 90-day touch also makes them lapsed (QUIET_DAYS = 60), so they
-      // appear in the market feed as "went quiet" and bucket as older —
-      // never under TODAY, so the B6.5 honesty rule still holds.
+      // Scores are EARNED through the shipped scorer, not asserted. For a
+      // consumer brief the pool can award:
+      //   base 50 · area 12 · replied 6 · consent 5 · quiet 60–150d 8  → 81
+      // and the shape's band floors are strong 73 / good 65 / try 57.
+      //   Priya  50+12+6+5+8 = 81 → STRONG  (forest)
+      //   Leo    50+12+6     = 68 → GOOD    (cyan)
+      // Leo's reply is recent, so he earns no recency points and no consent
+      // — that is what puts him a band below her rather than beside her.
       const fitCampaign =
         (await prisma.campaign.findFirst({ where: { workspaceId: primary.id } })) ?? null;
       if (fitCampaign) {
@@ -1532,17 +1545,19 @@ async function main(): Promise<void> {
             email: "priya.raman@brightsmile-fixture.test",
             firstName: "Priya",
             lastName: "Raman",
-            company: "Raman Dental Studio",
-            title: "Owner",
-            band: "forest 90+",
+            callConsent: "granted",
+            outboundAt: 92,
+            inboundAt: 90,
+            band: "strong · forest",
           },
           {
             email: "leo.mercado@brightsmile-fixture.test",
             firstName: "Leo",
             lastName: "Mercado",
-            company: null,
-            title: null,
-            band: "cyan 80-89",
+            callConsent: "unknown",
+            outboundAt: 34,
+            inboundAt: 30,
+            band: "good · cyan",
           },
         ]) {
           const existing = await prisma.contact.findFirst({
@@ -1558,14 +1573,13 @@ async function main(): Promise<void> {
               email: f.email,
               firstName: f.firstName,
               lastName: f.lastName,
-              company: f.company,
-              title: f.title,
-              callConsent: "granted",
+              callConsent: f.callConsent,
               // The place the scorer reads. Shaped exactly like a reveal's
-              // payload, because that is the only way a contact holds one.
+              // payload, because that is the only way a contact holds one
+              // (Q-160). No title and no company: these are patients.
               enrichment: {
                 provider: "seed-fixture",
-                note: `B6.6 fidelity fixture — ${f.band}`,
+                note: `fidelity fixture — ${f.band}`,
                 raw: { location: "Austin, TX" },
               },
             },
@@ -1579,8 +1593,8 @@ async function main(): Promise<void> {
                 channel: "email",
                 direction: "OUTBOUND" as const,
                 subject: "Time for a check-up?",
-                body: "seed fixture — the outbound that went unanswered",
-                sentAt: daysAgo(92),
+                body: "seed fixture — the outbound they answered",
+                sentAt: daysAgo(f.outboundAt),
               },
               {
                 workspaceId: primary.id,
@@ -1588,8 +1602,8 @@ async function main(): Promise<void> {
                 contactId: made.id,
                 channel: "email",
                 direction: "INBOUND" as const,
-                body: "seed fixture — they replied once, then went quiet",
-                sentAt: daysAgo(90),
+                body: "seed fixture — they replied once",
+                sentAt: daysAgo(f.inboundAt),
               },
             ],
           });
