@@ -31,7 +31,8 @@ export async function get<T>(path: string): Promise<T | null> {
 }
 
 export const fetchBoldAgents = () => get<AgentListItem[]>("agents");
-export const fetchBoldOutcomes = (agentId: string) => get<CampaignOutcomes>(`agents/${agentId}/outcomes`);
+export const fetchBoldOutcomes = (agentId: string) =>
+  get<CampaignOutcomes>(`agents/${agentId}/outcomes`);
 export const fetchBoldActivity = (agentId: string, kind?: string, cursor?: string) => {
   const q = new URLSearchParams();
   if (kind && kind !== "all") q.set("kind", kind);
@@ -380,7 +381,9 @@ export const patchBoldAgent = (agentId: string, body: unknown) =>
 export const fetchContextMerged = (agentId: string) =>
   get<BoldContextRead>(`context?agentId=${encodeURIComponent(agentId)}`);
 export const fetchGapReport = (agentId: string, goal: string) =>
-  get<BoldGapReport>(`context/gaps?agentId=${encodeURIComponent(agentId)}&goal=${encodeURIComponent(goal)}`);
+  get<BoldGapReport>(
+    `context/gaps?agentId=${encodeURIComponent(agentId)}&goal=${encodeURIComponent(goal)}`,
+  );
 export const answerGap = (agentId: string, key: string, value: string) =>
   send("context/answers", "POST", { agentId, key, value });
 export const delegateGap = (agentId: string, key: string) =>
@@ -391,13 +394,17 @@ export const fetchPlannerGraph = (agentId: string) =>
     `planner/graph?agentId=${encodeURIComponent(agentId)}`,
   );
 export const fetchPlannerStatus = (agentId: string) =>
-  get<{ state: "none" | "waiting" | "active" | "completed" | "failed"; failedReason?: string | null }>(
-    `planner/status?agentId=${encodeURIComponent(agentId)}`,
-  );
+  get<{
+    state: "none" | "waiting" | "active" | "completed" | "failed";
+    failedReason?: string | null;
+  }>(`planner/status?agentId=${encodeURIComponent(agentId)}`);
 export const createContactList = (name: string, origin: "manual" | "csv_import") =>
   send("lists", "POST", { name, origin });
-export const importContactRows = (rows: unknown[], listId: string | undefined, validationBatchKey: string) =>
-  send("contacts/import", "POST", { rows, ...(listId ? { listId } : {}), validationBatchKey });
+export const importContactRows = (
+  rows: unknown[],
+  listId: string | undefined,
+  validationBatchKey: string,
+) => send("contacts/import", "POST", { rows, ...(listId ? { listId } : {}), validationBatchKey });
 export const fetchListMemberIds = async (listId: string): Promise<string[] | null> => {
   const res = await get<{ rows?: Array<{ id: string }> }>(
     `contacts/view?listId=${encodeURIComponent(listId)}`,
@@ -458,7 +465,10 @@ export const startBrowserCall = (agentId: string, contactId: string) =>
 /** Sandbox-only: report the practice call's outcome. A live call's truth
  *  arrives from the provider — the server refuses this on real rows. */
 export const finishBrowserCall = (callId: string, outcome: string, durationSec: number) =>
-  send(`voice/browser-calls/${encodeURIComponent(callId)}/finish`, "POST", { outcome, durationSec });
+  send(`voice/browser-calls/${encodeURIComponent(callId)}/finish`, "POST", {
+    outcome,
+    durationSec,
+  });
 
 /* ---------------------------------------------------- B5 (DEC-130) */
 
@@ -597,7 +607,14 @@ export interface LeadFinderConfig {
   locked: LeadSignalGroup[];
   lockedTypes: string[];
   basis: string;
-  poolBands: Array<{ key: string; tag: string; sub: string; min: number | null; max: number | null; free: boolean }>;
+  poolBands: Array<{
+    key: string;
+    tag: string;
+    sub: string;
+    min: number | null;
+    max: number | null;
+    free: boolean;
+  }>;
 }
 export const fetchLeadConfig = () => get<LeadFinderConfig>("leads/config");
 
@@ -794,7 +811,9 @@ export interface ApprovalQueueItem {
   intent?: string | null;
 }
 export const fetchApprovals = (agentId?: string) =>
-  get<{ items: ApprovalQueueItem[] }>(`approvals${agentId ? `?agentId=${encodeURIComponent(agentId)}` : ""}`);
+  get<{ items: ApprovalQueueItem[] }>(
+    `approvals${agentId ? `?agentId=${encodeURIComponent(agentId)}` : ""}`,
+  );
 
 /** Decide a row-backed item — approve releases the parked step, dismiss
  *  ends that path visibly. Derived items decide on their own endpoints. */
@@ -824,8 +843,11 @@ export interface ReplyDraft {
   usedNote: boolean;
 }
 /** Ada drafts a reply for approve/edit/send — never auto-sent. */
-export const requestReplyDraft = (body: { campaignId: string; contactId: string; channel: "email" | "sms" }) =>
-  send("inbox/draft", "POST", body);
+export const requestReplyDraft = (body: {
+  campaignId: string;
+  contactId: string;
+  channel: "email" | "sms";
+}) => send("inbox/draft", "POST", body);
 
 /** The explicit Resume Ada control (owner ruling — no auto-resume timer). */
 export const resumeAda = (contactId: string) => send("inbox/resume", "POST", { contactId });
@@ -876,14 +898,18 @@ export function money(cents: number): string {
   return `$${d.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
 }
 
-export function contactName(c: { firstName: string | null; lastName: string | null; email: string | null } | null): string {
+export function contactName(
+  c: { firstName: string | null; lastName: string | null; email: string | null } | null,
+): string {
   if (!c) return "A contact";
   const n = [c.firstName, c.lastName].filter(Boolean).join(" ");
   return n || c.email || "A contact";
 }
 
 /** Repo avatar convention (no photo data exists — Q-068): initials + tint. */
-export function initials(c: { firstName: string | null; lastName: string | null; email: string | null } | null): string {
+export function initials(
+  c: { firstName: string | null; lastName: string | null; email: string | null } | null,
+): string {
   if (!c) return "?";
   const a = c.firstName?.trim().charAt(0) ?? "";
   const b = c.lastName?.trim().charAt(0) ?? "";
@@ -928,19 +954,42 @@ export function dayGroup(iso: string): string {
 export const KIND_TONES: Record<string, [string, string, string, string, string]> = {
   goal: ["var(--cvb-forest)", "var(--cvb-mint)", "var(--cvb-mint-line)", "var(--cvb-forest)", "◷"],
   won: ["#0e5c2b", "#e4f3e9", "#c3e2cf", "#0e5c2b", "✓"],
-  reply: ["var(--cvb-cyan)", "var(--cvb-cyan-tint)", "var(--cvb-cyan-line)", "var(--cvb-cyan)", "↩"],
+  reply: [
+    "var(--cvb-cyan)",
+    "var(--cvb-cyan-tint)",
+    "var(--cvb-cyan-line)",
+    "var(--cvb-cyan)",
+    "↩",
+  ],
   question: ["var(--cvb-cyan)", "var(--cvb-cyan-tint)", "var(--cvb-cyan-line)", "#36a9c4", "?"],
   objection: ["var(--cvb-danger)", "var(--cvb-danger-bg)", "#f0d5ce", "var(--cvb-danger)", "!"],
   send: ["var(--cvb-muted)", "var(--cvb-well)", "var(--cvb-line-ctl)", "var(--cvb-faint)", "➤"],
-  call: ["var(--cvb-slate)", "var(--cvb-slate-tint)", "var(--cvb-slate-line)", "var(--cvb-slate)", "☎"],
-  decision: ["var(--cvb-amber)", "var(--cvb-amber-bg)", "var(--cvb-amber-line)", "var(--cvb-dot-amber)", "✦"],
+  call: [
+    "var(--cvb-slate)",
+    "var(--cvb-slate-tint)",
+    "var(--cvb-slate-line)",
+    "var(--cvb-slate)",
+    "☎",
+  ],
+  decision: [
+    "var(--cvb-amber)",
+    "var(--cvb-amber-bg)",
+    "var(--cvb-amber-line)",
+    "var(--cvb-dot-amber)",
+    "✦",
+  ],
   proposal: ["#5b4a8a", "#f0edf9", "#dcd5ef", "#7a66b5", "◫"],
 };
 
 /** Intent → the Bold reply sub-kind (question/objection tones ride replies). */
 export function replyTone(intent: string | null): keyof typeof KIND_TONES {
   if (intent === "question" || intent === "info_request") return "question";
-  if (intent === "objection_price" || intent === "objection_timing" || intent === "not_interested" || intent === "not")
+  if (
+    intent === "objection_price" ||
+    intent === "objection_timing" ||
+    intent === "not_interested" ||
+    intent === "not"
+  )
     return "objection";
   return "reply";
 }
@@ -1007,7 +1056,13 @@ export function composeRow(row: BoldActivityRow, stepLabel?: string): ComposedRo
         value: null,
       };
     case "proposal":
-      return { row, tone: "proposal", chip: "Proposal", body: `Proposal activity — ${name}.`, value: null };
+      return {
+        row,
+        tone: "proposal",
+        chip: "Proposal",
+        body: `Proposal activity — ${name}.`,
+        value: null,
+      };
     case "call":
       return { row, tone: "call", chip: "Call", body: `Call with ${name}.`, value: null };
     case "decision": {
@@ -1060,7 +1115,8 @@ export interface GuardrailDefaultsView {
     sendingWindow: { days: number[]; start: string; end: string; timezone: string } | null;
   }>;
 }
-export const fetchGuardrailDefaults = () => get<GuardrailDefaultsView>("workspaces/guardrail-defaults");
+export const fetchGuardrailDefaults = () =>
+  get<GuardrailDefaultsView>("workspaces/guardrail-defaults");
 export const patchGuardrailDefaults = (defaults: GuardrailDefaultsDto) =>
   send("workspaces/guardrail-defaults", "PATCH", defaults);
 
@@ -1082,9 +1138,72 @@ export interface CreditsSummary {
 }
 export const fetchCreditsSummary = () => get<CreditsSummary>("credits/summary");
 
+/**
+ * The buy flow's billing posture (B7.6). `configured:false` is the expected
+ * state until Stripe keys are supplied, not an error — the surface disables
+ * Buy credits and prints `reason` verbatim rather than opening a checkout
+ * that cannot charge anyone.
+ */
+export interface BillingPosture {
+  configured: boolean;
+  reason: string | null;
+  card: { brand: string; last4: string; expMonth: number; expYear: number } | null;
+  packs: Array<{ credits: number; priceUsd: number; best: boolean }>;
+  /** The workspace's own daily email ceiling — the days-of-sending denominator. */
+  dailyCap: number | null;
+}
+
+export const fetchBillingPosture = () => get<BillingPosture>("credits/billing");
+
+/**
+ * Buy credits. Returns a discriminated result rather than throwing, because
+ * every failure here is a state the modal RENDERS — a decline, a 3DS
+ * challenge, a dropped connection — not an exception to swallow.
+ *
+ * `idempotencyKey` is minted once per attempt by the caller and reused across
+ * retries, so a charge whose response was lost cannot be made twice.
+ */
+export async function purchaseCredits(input: {
+  credits: number;
+  idempotencyKey: string;
+}): Promise<{ ok: true; balance: number } | { ok: false; message: string }> {
+  try {
+    const res = await fetch(`/api/cf/credits/purchase`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "idempotency-key": input.idempotencyKey },
+      body: JSON.stringify({ credits: input.credits }),
+    });
+    const body = (await res.json().catch(() => null)) as {
+      balance?: number;
+      message?: string;
+    } | null;
+    if (!res.ok) {
+      return {
+        ok: false,
+        message:
+          body?.message ??
+          "That did not go through, and nothing was charged. Try again, or use a different card.",
+      };
+    }
+    return { ok: true, balance: body?.balance ?? 0 };
+  } catch {
+    // The request left but the answer did not come back. The charge MAY have
+    // succeeded, so say exactly that rather than guessing either way; the
+    // retry carries the same idempotency key and cannot double-charge.
+    return {
+      ok: false,
+      message:
+        "The connection dropped before we heard back. Your card may or may not have been charged \u2014 press Pay again and we will finish the same purchase rather than start a second one.",
+    };
+  }
+}
+
 /** Sender wizard writes — the SHIPPED senders API, nothing parallel. */
-export const createEmailSender = (body: { fromEmail: string; fromName?: string; replyTo?: string }) =>
-  send("senders", "POST", { type: "CF_MANAGED", ...body });
+export const createEmailSender = (body: {
+  fromEmail: string;
+  fromName?: string;
+  replyTo?: string;
+}) => send("senders", "POST", { type: "CF_MANAGED", ...body });
 export const runDnsCheck = (senderId: string) =>
   send(`senders/${encodeURIComponent(senderId)}/dns-check`, "POST", {});
 
@@ -1119,7 +1238,8 @@ export async function fetchCoreSummary(agents: AgentListItem[]): Promise<CoreSum
     (v) => ((v as { value?: string })?.value ?? "").trim().length > 0,
   ).length;
   const open = new Set<string>();
-  for (const rep of reports) for (const g of rep?.gaps ?? []) if (g.status === "open") open.add(g.key);
+  for (const rep of reports)
+    for (const g of rep?.gaps ?? []) if (g.status === "open") open.add(g.key);
   const spent = (credits?.spent ?? []).reduce((n, r) => n + r.credits, 0);
   const added = (credits?.added ?? []).reduce((n, r) => n + r.credits, 0);
   const profile = (cfg?.profile ?? null) as { vertical?: string; location?: string } | null;
@@ -1158,7 +1278,9 @@ export interface BoldStatsResponse {
   reading: string[];
 }
 export const fetchStats = (range: "7" | "30" | "all", agentId?: string) =>
-  get<BoldStatsResponse>(`stats?range=${range}${agentId ? `&agentId=${encodeURIComponent(agentId)}` : ""}`);
+  get<BoldStatsResponse>(
+    `stats?range=${range}${agentId ? `&agentId=${encodeURIComponent(agentId)}` : ""}`,
+  );
 
 /** `GET /integrations` — real per-provider status rows (probe-backed). */
 export interface IntegrationStatusRow {
@@ -1166,10 +1288,16 @@ export interface IntegrationStatusRow {
   status: "connected" | "unhealthy" | "revoked";
 }
 export const fetchIntegrationStatuses = async (): Promise<Map<string, IntegrationStatusRow>> => {
-  const res = await get<{ integrations?: Array<{ provider?: string; status?: string }> }>("integrations");
+  const res = await get<{ integrations?: Array<{ provider?: string; status?: string }> }>(
+    "integrations",
+  );
   const map = new Map<string, IntegrationStatusRow>();
   for (const r of res?.integrations ?? []) {
-    if (r.provider && r.status) map.set(r.provider, { provider: r.provider, status: r.status as IntegrationStatusRow["status"] });
+    if (r.provider && r.status)
+      map.set(r.provider, {
+        provider: r.provider,
+        status: r.status as IntegrationStatusRow["status"],
+      });
   }
   return map;
 };

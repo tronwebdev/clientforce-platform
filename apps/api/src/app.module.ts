@@ -33,6 +33,7 @@ import { ContactValidationController } from "./contacts/contact-validation.contr
 import { FlagsController } from "./flags/flags.controller";
 import { MeNeedsController } from "./me/needs.controller";
 import { CreditPricesController } from "./pricing/credit-prices.controller";
+import { BillingController } from "./pricing/billing.controller";
 import { CreditsController } from "./pricing/credits.controller";
 import { StatsController } from "./stats/stats.controller";
 import { PlansController } from "./billing/plans.controller";
@@ -82,6 +83,7 @@ import { BusOrInlinePublisher, EVENTS_PUBLISHER } from "./events/publisher";
     CreditPricesController,
     // B7 (DEC-133): tenant credit SPEND view over the real ledger (Q-108 honest).
     CreditsController,
+    BillingController,
     // B8 (DEC-135): the ONE analytics read — campaign Stats + workspace Analytics.
     StatsController,
     // B9 (DEC-136): tenant plan-tier read + choice (D1/D2 — numbers are data).

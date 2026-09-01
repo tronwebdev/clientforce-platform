@@ -38,8 +38,22 @@
 import { useEffect, useState } from "react";
 import type { EffectiveCreditPrices } from "@clientforce/core";
 import { mono } from "./bold-cards";
-import { AbsentBecause, CHIP, EYEBROW, PrimaryButton, SettingsDrawer, StepDots, StepPrompt, ChoiceRow } from "./bold-settings-kit";
-import { fetchCreditPrices, fetchCreditsSummary, type CreditsSummary } from "./bold-live";
+import {
+  CREDIT_PACKS,
+  DEFAULT_PACK_CREDITS,
+  isBestRate,
+  packFor,
+  packSubLine,
+} from "@clientforce/core";
+import { AbsentBecause, CHIP, EYEBROW, PrimaryButton, SettingsModal } from "./bold-settings-kit";
+import {
+  fetchCreditPrices,
+  fetchCreditsSummary,
+  type CreditsSummary,
+  fetchBillingPosture,
+  purchaseCredits,
+  type BillingPosture,
+} from "./bold-live";
 import type { CreditsGate } from "./bold-settings-live";
 
 const TABS = ["Where they go", "What things cost", "Top-ups"] as const;
@@ -48,7 +62,10 @@ const TABS = ["Where they go", "What things cost", "Top-ups"] as const;
  * Friendly copy per priced action. An action with no entry renders its raw key
  * in mono rather than vanishing — an unnamed price is still a real price.
  */
-const ACTION_META: Record<string, { ic: string; label: string; sub: string; tint: [string, string, string] }> = {
+const ACTION_META: Record<
+  string,
+  { ic: string; label: string; sub: string; tint: [string, string, string] }
+> = {
   email_send: {
     ic: "✉",
     label: "An email",
@@ -126,7 +143,10 @@ const ACTION_META: Record<string, { ic: string; label: string; sub: string; tint
 /** Ledger reasons → the plain words for what happened. */
 const LEDGER_META: Record<string, { label: string; sub: string }> = {
   lead_reveal: { label: "Lead reveals", sub: "Contact details unlocked in the Lead finder" },
-  backoffice_adjustment: { label: "Platform adjustment", sub: "Credits moved by your platform contact" },
+  backoffice_adjustment: {
+    label: "Platform adjustment",
+    sub: "Credits moved by your platform contact",
+  },
   adjustment: { label: "Platform adjustment", sub: "Credits moved by your platform contact" },
   topup: { label: "Top-up", sub: "Credits you bought" },
 };
@@ -138,13 +158,19 @@ export function BoldCreditsView({ flash }: { flash?: (m: string) => void }) {
   const [prices, setPrices] = useState<EffectiveCreditPrices | null>(null);
   const [tab, setTab] = useState<(typeof TABS)[number]>("Where they go");
   const [buying, setBuying] = useState(false);
+  const [billing, setBilling] = useState<BillingPosture | null>(null);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     void (async () => {
-      const [s, p] = await Promise.all([fetchCreditsSummary(), fetchCreditPrices()]);
+      const [s, p, b] = await Promise.all([
+        fetchCreditsSummary(),
+        fetchCreditPrices(),
+        fetchBillingPosture(),
+      ]);
       setSummary(s as Summary | null);
       setPrices(p);
+      setBilling(b);
       setLoaded(true);
     })();
   }, []);
@@ -172,12 +198,18 @@ export function BoldCreditsView({ flash }: { flash?: (m: string) => void }) {
     { label: "USED THIS MONTH", value: loaded ? spentTotal.toLocaleString("en-US") : "—" },
     {
       label: "ADDED THIS MONTH",
-      value: loaded ? (summary?.added ?? []).reduce((n, r) => n + r.credits, 0).toLocaleString("en-US") : "—",
+      value: loaded
+        ? (summary?.added ?? []).reduce((n, r) => n + r.credits, 0).toLocaleString("en-US")
+        : "—",
       dim: true,
     },
   ];
   if (allowance?.includedMonthly != null) {
-    tiles.push({ label: "INCLUDED MONTHLY", value: allowance.includedMonthly.toLocaleString("en-US"), dim: true });
+    tiles.push({
+      label: "INCLUDED MONTHLY",
+      value: allowance.includedMonthly.toLocaleString("en-US"),
+      dim: true,
+    });
   }
   if (gate?.enough) {
     // Burn is only computed where there is enough history to compute it from.
@@ -185,7 +217,11 @@ export function BoldCreditsView({ flash }: { flash?: (m: string) => void }) {
     const perDay = Math.round(spentTotal / Math.min(days, 30));
     tiles.push({ label: "BURN", value: `${perDay}/day`, dim: true });
     if (perDay > 0 && summary) {
-      tiles.push({ label: "RUNS OUT", value: `${Math.max(0, Math.round(summary.balance / perDay))} days`, dim: true });
+      tiles.push({
+        label: "RUNS OUT",
+        value: `${Math.max(0, Math.round(summary.balance / perDay))} days`,
+        dim: true,
+      });
     }
   }
 
@@ -201,21 +237,49 @@ export function BoldCreditsView({ flash }: { flash?: (m: string) => void }) {
         }}
       >
         <div style={{ height: 2, background: "var(--cvb-gradient-signature)" }} />
-        <div style={{ padding: "26px 28px", display: "flex", alignItems: "flex-end", gap: 26, flexWrap: "wrap" }}>
+        <div
+          style={{
+            padding: "26px 28px",
+            display: "flex",
+            alignItems: "flex-end",
+            gap: 26,
+            flexWrap: "wrap",
+          }}
+        >
           <div style={{ flex: 1, minWidth: 200 }}>
-            <div style={{ ...mono, fontSize: 9.5, letterSpacing: ".18em", color: "rgba(255,255,255,.5)" }}>
+            <div
+              style={{
+                ...mono,
+                fontSize: 9.5,
+                letterSpacing: ".18em",
+                color: "rgba(255,255,255,.5)",
+              }}
+            >
               CREDITS LEFT
             </div>
             <div
               data-testid="bold-credits-balance"
               className="cvb-display"
-              style={{ fontWeight: 900, fontSize: 56, letterSpacing: "-.042em", lineHeight: 0.96, color: "#fff", marginTop: 11 }}
+              style={{
+                fontWeight: 900,
+                fontSize: 56,
+                letterSpacing: "-.042em",
+                lineHeight: 0.96,
+                color: "#fff",
+                marginTop: 11,
+              }}
             >
               {loaded && summary ? summary.balance.toLocaleString("en-US") : "—"}
             </div>
             <div
               data-testid="bold-credits-runway"
-              style={{ fontSize: 13, color: "rgba(255,255,255,.62)", lineHeight: 1.5, marginTop: 11, maxWidth: 460 }}
+              style={{
+                fontSize: 13,
+                color: "rgba(255,255,255,.62)",
+                lineHeight: 1.5,
+                marginTop: 11,
+                maxWidth: 460,
+              }}
             >
               {!loaded
                 ? "Reading your ledger…"
@@ -229,7 +293,14 @@ export function BoldCreditsView({ flash }: { flash?: (m: string) => void }) {
           <div style={{ width: 200, flex: "none" }}>
             {allowance?.includedMonthly != null && summary ? (
               <>
-                <div style={{ height: 6, borderRadius: 3, background: "rgba(255,255,255,.14)", overflow: "hidden" }}>
+                <div
+                  style={{
+                    height: 6,
+                    borderRadius: 3,
+                    background: "rgba(255,255,255,.14)",
+                    overflow: "hidden",
+                  }}
+                >
                   <span
                     style={{
                       display: "block",
@@ -241,8 +312,8 @@ export function BoldCreditsView({ flash }: { flash?: (m: string) => void }) {
                   />
                 </div>
                 <div style={{ fontSize: 11.5, color: "rgba(255,255,255,.5)", marginTop: 10 }}>
-                  {Math.min(100, Math.round((summary.balance / allowance.includedMonthly) * 100))}% of your monthly
-                  allowance left
+                  {Math.min(100, Math.round((summary.balance / allowance.includedMonthly) * 100))}%
+                  of your monthly allowance left
                 </div>
               </>
             ) : (
@@ -250,13 +321,14 @@ export function BoldCreditsView({ flash }: { flash?: (m: string) => void }) {
                 data-testid="bold-credits-no-allowance"
                 style={{ fontSize: 11.5, color: "rgba(255,255,255,.45)", lineHeight: 1.55 }}
               >
-                {allowance?.reason ?? "No monthly allowance is attached to this workspace"}, so there is no share of one
-                to show.
+                {allowance?.reason ?? "No monthly allowance is attached to this workspace"}, so
+                there is no share of one to show.
               </div>
             )}
             <span
-              onClick={() => setBuying(true)}
+              onClick={billing?.configured ? () => setBuying(true) : undefined}
               role="button"
+              aria-disabled={!billing?.configured}
               data-testid="bold-credits-topup"
               // Forest solid, white label — the same primary the rail's own Top
               // up uses. The signature gradient is never a button fill: the
@@ -281,17 +353,42 @@ export function BoldCreditsView({ flash }: { flash?: (m: string) => void }) {
                 border: "1px solid rgba(255,255,255,.34)",
                 borderRadius: 12,
                 padding: "12px 13px",
-                cursor: "pointer",
+                // Keyless: the entry point goes quiet rather than opening a
+                // checkout that cannot charge anyone. A purchase may never
+                // dead-end, so it never starts.
+                cursor: billing?.configured ? "pointer" : "not-allowed",
+                opacity: billing?.configured ? 1 : 0.45,
                 marginTop: 14,
               }}
             >
               Top up
             </span>
+            {billing && !billing.configured ? (
+              <div
+                data-testid="bold-credits-nobilling"
+                style={{
+                  fontSize: 11,
+                  color: "rgba(255,255,255,.55)",
+                  lineHeight: 1.5,
+                  marginTop: 9,
+                }}
+              >
+                {billing.reason}
+              </div>
+            ) : null}
           </div>
         </div>
         <div style={{ display: "flex", borderTop: "1px solid rgba(255,255,255,.1)" }}>
           {tiles.map((t) => (
-            <div key={t.label} style={{ flex: 1, minWidth: 0, padding: "15px 18px", borderLeft: "1px solid rgba(255,255,255,.1)" }}>
+            <div
+              key={t.label}
+              style={{
+                flex: 1,
+                minWidth: 0,
+                padding: "15px 18px",
+                borderLeft: "1px solid rgba(255,255,255,.1)",
+              }}
+            >
               <div
                 style={{
                   ...mono,
@@ -360,14 +457,21 @@ export function BoldCreditsView({ flash }: { flash?: (m: string) => void }) {
       {tab === "Where they go" ? (
         <div style={{ marginTop: 22, maxWidth: 760 }}>
           {spent.length === 0 ? (
-            <div data-testid="bold-credits-empty" style={{ fontSize: 13, color: "var(--cvb-faint)", lineHeight: 1.6 }}>
+            <div
+              data-testid="bold-credits-empty"
+              style={{ fontSize: 13, color: "var(--cvb-faint)", lineHeight: 1.6 }}
+            >
               Nothing has drawn down credits this month.
             </div>
           ) : (
             spent.map((r) => {
               const meta = LEDGER_META[r.reason];
               const action = ACTION_META[r.reason];
-              const tint = action?.tint ?? ["var(--cvb-mint)", "var(--cvb-mint-line)", "var(--cvb-forest)"];
+              const tint = action?.tint ?? [
+                "var(--cvb-mint)",
+                "var(--cvb-mint-line)",
+                "var(--cvb-forest)",
+              ];
               return (
                 <div
                   key={r.reason}
@@ -401,11 +505,19 @@ export function BoldCreditsView({ flash }: { flash?: (m: string) => void }) {
                       {meta?.label ?? <span style={mono}>{r.reason}</span>}
                     </div>
                     <div style={{ fontSize: 11.5, color: "var(--cvb-faint)", marginTop: 3 }}>
-                      {meta?.sub ?? "From your ledger"} · {r.entries} time{r.entries === 1 ? "" : "s"}
+                      {meta?.sub ?? "From your ledger"} · {r.entries} time
+                      {r.entries === 1 ? "" : "s"}
                     </div>
                   </div>
                   <div style={{ width: 120, flex: "none" }}>
-                    <div style={{ height: 5, borderRadius: 3, background: "var(--cvb-line-inner)", overflow: "hidden" }}>
+                    <div
+                      style={{
+                        height: 5,
+                        borderRadius: 3,
+                        background: "var(--cvb-line-inner)",
+                        overflow: "hidden",
+                      }}
+                    >
                       <span
                         style={{
                           display: "block",
@@ -419,7 +531,14 @@ export function BoldCreditsView({ flash }: { flash?: (m: string) => void }) {
                   </div>
                   <span
                     className="cvb-display"
-                    style={{ fontWeight: 900, fontSize: 17, letterSpacing: "-.026em", width: 68, flex: "none", textAlign: "right" }}
+                    style={{
+                      fontWeight: 900,
+                      fontSize: 17,
+                      letterSpacing: "-.026em",
+                      width: 68,
+                      flex: "none",
+                      textAlign: "right",
+                    }}
                   >
                     {r.credits.toLocaleString("en-US")}
                   </span>
@@ -439,7 +558,14 @@ export function BoldCreditsView({ flash }: { flash?: (m: string) => void }) {
                 why="These have a price, but nothing writes them to your ledger yet — so this page cannot say what they cost you this month, and does not draw a bar pretending they cost nothing."
               />
               {free.length > 0 ? (
-                <div style={{ fontSize: 11.5, color: "var(--cvb-faint)", lineHeight: 1.6, marginTop: 10 }}>
+                <div
+                  style={{
+                    fontSize: 11.5,
+                    color: "var(--cvb-faint)",
+                    lineHeight: 1.6,
+                    marginTop: 10,
+                  }}
+                >
                   {free.join(" · ")} {free.length === 1 ? "is" : "are"} free — nothing to meter.
                 </div>
               ) : null}
@@ -450,15 +576,29 @@ export function BoldCreditsView({ flash }: { flash?: (m: string) => void }) {
 
       {/* ---------------------------------------------- what things cost */}
       {tab === "What things cost" ? (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, maxWidth: 900, marginTop: 22 }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gap: 12,
+            maxWidth: 900,
+            marginTop: 22,
+          }}
+        >
           {prices == null || Object.keys(prices.effective).length === 0 ? (
-            <div style={{ fontSize: 13, color: "var(--cvb-faint)" }}>No prices are set for this workspace yet.</div>
+            <div style={{ fontSize: 13, color: "var(--cvb-faint)" }}>
+              No prices are set for this workspace yet.
+            </div>
           ) : (
             Object.entries(prices.effective)
               .sort(([, a], [, b]) => a - b)
               .map(([action, credits]) => {
                 const meta = ACTION_META[action];
-                const tint = meta?.tint ?? ["var(--cvb-panel)", "var(--cvb-line-ctl)", "var(--cvb-muted)"];
+                const tint = meta?.tint ?? [
+                  "var(--cvb-panel)",
+                  "var(--cvb-line-ctl)",
+                  "var(--cvb-muted)",
+                ];
                 const metered = metering?.metered.includes(action) ?? false;
                 return (
                   <div
@@ -488,12 +628,23 @@ export function BoldCreditsView({ flash }: { flash?: (m: string) => void }) {
                       >
                         {meta?.ic ?? "◇"}
                       </span>
-                      <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, fontWeight: 700, letterSpacing: "-.016em" }}>
+                      <span
+                        style={{
+                          flex: 1,
+                          minWidth: 0,
+                          fontSize: 12.5,
+                          fontWeight: 700,
+                          letterSpacing: "-.016em",
+                        }}
+                      >
                         {meta?.label ?? <span style={mono}>{action}</span>}
                       </span>
                     </div>
                     <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 12 }}>
-                      <span className="cvb-display" style={{ fontWeight: 900, fontSize: 26, letterSpacing: "-.032em" }}>
+                      <span
+                        className="cvb-display"
+                        style={{ fontWeight: 900, fontSize: 26, letterSpacing: "-.032em" }}
+                      >
                         {credits}
                       </span>
                       <span style={{ fontSize: 11, color: "var(--cvb-faint)" }}>
@@ -507,7 +658,14 @@ export function BoldCreditsView({ flash }: { flash?: (m: string) => void }) {
                       ) : null}
                     </div>
                     {meta?.sub ? (
-                      <div style={{ fontSize: 11.5, color: "var(--cvb-faint)", lineHeight: 1.45, marginTop: 9 }}>
+                      <div
+                        style={{
+                          fontSize: 11.5,
+                          color: "var(--cvb-faint)",
+                          lineHeight: 1.45,
+                          marginTop: 9,
+                        }}
+                      >
                         {meta.sub}
                       </div>
                     ) : null}
@@ -515,16 +673,31 @@ export function BoldCreditsView({ flash }: { flash?: (m: string) => void }) {
                 );
               })
           )}
-          <div style={{ gridColumn: "1 / -1", fontSize: 11.5, color: "var(--cvb-faint)", lineHeight: 1.6 }}>
-            Every price here is the effective-dated rate for your account — change it centrally and these move by
-            themselves. Nothing on this page has a price written into it.
+          <div
+            style={{
+              gridColumn: "1 / -1",
+              fontSize: 11.5,
+              color: "var(--cvb-faint)",
+              lineHeight: 1.6,
+            }}
+          >
+            Every price here is the effective-dated rate for your account — change it centrally and
+            these move by themselves. Nothing on this page has a price written into it.
           </div>
         </div>
       ) : null}
 
       {/* --------------------------------------------------------- top-ups */}
       {tab === "Top-ups" ? (
-        <div style={{ maxWidth: 680, marginTop: 22, display: "flex", flexDirection: "column", gap: 14 }}>
+        <div
+          style={{
+            maxWidth: 680,
+            marginTop: 22,
+            display: "flex",
+            flexDirection: "column",
+            gap: 14,
+          }}
+        >
           {gate?.enough ? null : (
             <AbsentBecause
               testid="bold-credits-burn-absent"
@@ -558,11 +731,24 @@ export function BoldCreditsView({ flash }: { flash?: (m: string) => void }) {
                     borderBottom: i === arr.length - 1 ? "none" : "1px solid var(--cvb-line-inner)",
                   }}
                 >
-                  <span style={{ ...mono, fontSize: 11, color: "var(--cvb-muted)", width: 74, flex: "none" }}>
-                    {new Date(e.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                  <span
+                    style={{
+                      ...mono,
+                      fontSize: 11,
+                      color: "var(--cvb-muted)",
+                      width: 74,
+                      flex: "none",
+                    }}
+                  >
+                    {new Date(e.createdAt).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                    })}
                   </span>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700 }}>{LEDGER_META[e.reason]?.label ?? e.reason}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700 }}>
+                      {LEDGER_META[e.reason]?.label ?? e.reason}
+                    </div>
                     <div style={{ ...mono, fontSize: 10, color: "var(--cvb-faint)", marginTop: 2 }}>
                       balance after {e.balanceAfter.toLocaleString("en-US")}
                     </div>
@@ -585,7 +771,14 @@ export function BoldCreditsView({ flash }: { flash?: (m: string) => void }) {
         </div>
       ) : null}
 
-      {buying ? <BuyCreditsDrawer balance={summary?.balance ?? null} onClose={() => setBuying(false)} flash={flash} /> : null}
+      {buying && billing?.configured ? (
+        <BuyCreditsModal
+          balance={summary?.balance ?? null}
+          billing={billing}
+          onClose={() => setBuying(false)}
+          flash={flash}
+        />
+      ) : null}
     </div>
   );
 }
@@ -593,116 +786,393 @@ export function BoldCreditsView({ flash }: { flash?: (m: string) => void }) {
 /* -------------------------------------------------------------- buy flow */
 
 /**
- * The buy flow, in the right-hand drawer.
+ * The buy flow — a CENTRED MODAL, not a drawer, and it quotes real prices.
  *
- * It stops honestly at the point where money would move. There is no card on
- * file, no payment intent and no receipt to email — so rather than mock a
- * checkout that cannot charge anyone, the last step says exactly what is
- * missing and what to do instead. The pack sizes are shape, not prices: they
- * carry no per-credit rate, because a rate shown here that billing later
- * disagrees with is worse than no rate at all.
+ * B7.5 shipped this as a full-height right drawer with no price anywhere on
+ * it, leaving ~450px of dead space under the content. Both were the spec's
+ * fault rather than the build's, and the owner has withdrawn both lines
+ * (REDO §1.1): "My spec said 'right drawer' — wrong", and "a buy screen with
+ * no prices is not a fidelity nit — it is the revenue surface of a product".
+ *
+ * So: the prototype's container (480px, centred, radius 22, footer inside the
+ * card — dc.html:2616), the prototype's two steps plus done, and the
+ * prototype's pack rows carrying credits, price, per-1,000 rate,
+ * days-of-sending and the `best rate` chip.
+ *
+ * WHAT MAKES THE NUMBERS HONEST NOW. Prices come from CREDIT_PACKS in core —
+ * one list, the same one any charge path multiplies — so a price shown here
+ * and a price charged to a card cannot disagree. The days-of-sending clause
+ * divides by the workspace's OWN configured daily ceiling rather than the
+ * prototype's hard-coded 210/day, and disappears entirely when no ceiling is
+ * set. That is arithmetic on two known numbers, not the kind of projection the
+ * credits hero refuses to draw.
+ *
+ * KEYLESS. This modal is only reachable when billing is configured; the entry
+ * point disables itself and states why otherwise. So there is no "nothing was
+ * charged" dead end inside the flow any more — a purchase that starts can
+ * finish.
  */
-function BuyCreditsDrawer({
+function BuyCreditsModal({
   balance,
+  billing,
   onClose,
   flash,
 }: {
   balance: number | null;
+  billing: BillingPosture;
   onClose: () => void;
   flash?: (m: string) => void;
 }) {
-  const [step, setStep] = useState(0);
-  const [pack, setPack] = useState(5_000);
-  const PACKS = [2_000, 5_000, 10_000];
+  const [step, setStep] = useState<0 | 1 | 2>(0);
+  const [credits, setCredits] = useState<number>(DEFAULT_PACK_CREDITS);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  /**
+   * Minted once per attempt, before the charge leaves. If the response is lost
+   * mid-flight the retry carries the SAME key, so a charge that already
+   * succeeded is not made twice — the failure state the owner called out.
+   */
+  const [idemKey] = useState(() =>
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : String(Date.now()),
+  );
+
+  const pack = packFor(credits);
+  const price = `$${pack.priceUsd}`;
+  const STEP_LABEL = ["CHOOSE A PACK \u00B7 1 OF 2", "CONFIRM \u00B7 2 OF 2", "DONE"] as const;
+  const TITLE = ["Buy credits", "Confirm the purchase", "Credits added"] as const;
 
   return (
-    <SettingsDrawer
-      label="TOP UP"
-      title="Buy credits"
+    <SettingsModal
+      label={STEP_LABEL[step]}
+      title={TITLE[step]}
       onClose={onClose}
-      testid="bold-drawer-buy"
+      testid="bold-modal-buy"
       footer={
         <>
-          {step > 0 ? <PrimaryButton label="Back" tone="quiet" onClick={() => setStep(step - 1)} /> : null}
+          {step === 1 ? (
+            <PrimaryButton label="Back" tone="quiet" onClick={() => setStep(0)} />
+          ) : null}
           <span style={{ flex: 1 }} />
-          <StepDots step={step} of={3} />
-          {step < 2 ? (
-            <PrimaryButton label="Continue" testid="bold-drawer-buy-next" onClick={() => setStep(step + 1)} />
-          ) : (
+          {step === 0 ? (
+            <PrimaryButton label="Continue" testid="bold-buy-next" onClick={() => setStep(1)} />
+          ) : step === 1 ? (
             <PrimaryButton
-              label="Done"
-              testid="bold-drawer-buy-done"
+              label={`Pay ${price}`}
+              busy={busy}
+              testid="bold-buy-pay"
               onClick={() => {
-                flash?.("Nothing was charged — ask your platform contact to add them.");
-                onClose();
+                setBusy(true);
+                setError(null);
+                void (async () => {
+                  const res = await purchaseCredits({
+                    credits: pack.credits,
+                    idempotencyKey: idemKey,
+                  });
+                  setBusy(false);
+                  if (res.ok) {
+                    setStep(2);
+                    flash?.(`${pack.credits.toLocaleString("en-US")} credits added`);
+                  } else {
+                    // Declines, 3DS and a dropped connection all land here with
+                    // the reason the server gave, and the user stays on the
+                    // confirm step with the same idempotency key to retry.
+                    setError(res.message);
+                  }
+                })();
               }}
             />
+          ) : (
+            <PrimaryButton label="Done" testid="bold-buy-done" onClick={onClose} />
           )}
         </>
       }
     >
       {step === 0 ? (
         <>
-          <StepPrompt prompt="How many credits?" help="Credits never expire, and unused ones roll on with you." />
-          <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
-            {PACKS.map((p) => (
-              <ChoiceRow
-                key={p}
-                title={`${p.toLocaleString("en-US")} credits`}
-                sub={
-                  balance != null
-                    ? `Takes you to ${(balance + p).toLocaleString("en-US")}`
-                    : "Added to your balance"
-                }
-                selected={pack === p}
-                onSelect={() => setPack(p)}
-                testid={`bold-drawer-buy-pack-${p}`}
-              />
-            ))}
+          <div style={{ display: "flex", flexDirection: "column", gap: 9, marginTop: 18 }}>
+            {CREDIT_PACKS.map((p) => {
+              const on = p.credits === credits;
+              return (
+                <div
+                  key={p.credits}
+                  onClick={() => setCredits(p.credits)}
+                  role="radio"
+                  aria-checked={on}
+                  data-testid={`bold-buy-pack-${p.credits}`}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 13,
+                    background: on ? "var(--cvb-mint)" : "var(--cvb-panel-quiet)",
+                    border: `1px solid ${on ? "var(--cvb-mint-line)" : "var(--cvb-line)"}`,
+                    borderRadius: 16,
+                    padding: 16,
+                    cursor: "pointer",
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 16,
+                      height: 16,
+                      borderRadius: "50%",
+                      flex: "none",
+                      border: `2px solid ${on ? "var(--cvb-forest)" : "#CFD6D1"}`,
+                      display: "grid",
+                      placeItems: "center",
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: "50%",
+                        background: on ? "var(--cvb-forest)" : "transparent",
+                      }}
+                    />
+                  </span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div
+                      style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}
+                    >
+                      <span
+                        className="cvb-display"
+                        style={{
+                          fontWeight: 900,
+                          fontSize: 20,
+                          letterSpacing: "-.03em",
+                          color: on ? "#0E3D22" : "var(--cvb-ink)",
+                        }}
+                      >
+                        {p.credits.toLocaleString("en-US")}
+                      </span>
+                      <span style={{ fontSize: 11.5, color: on ? "#1D5B34" : "var(--cvb-faint)" }}>
+                        credits
+                      </span>
+                      {isBestRate(p) ? (
+                        <span
+                          style={{ ...CHIP.live, fontSize: 9.5, padding: "2px 8px" }}
+                          data-testid="bold-buy-best"
+                        >
+                          best rate
+                        </span>
+                      ) : null}
+                    </div>
+                    <div
+                      data-testid={`bold-buy-sub-${p.credits}`}
+                      style={{
+                        fontSize: 11.5,
+                        color: on ? "#1D5B34" : "var(--cvb-faint)",
+                        marginTop: 4,
+                      }}
+                    >
+                      {packSubLine(p, billing.dailyCap)}
+                    </div>
+                  </div>
+                  <span
+                    className="cvb-display"
+                    data-testid={`bold-buy-price-${p.credits}`}
+                    style={{
+                      fontWeight: 900,
+                      fontSize: 19,
+                      letterSpacing: "-.028em",
+                      flex: "none",
+                    }}
+                  >
+                    ${p.priceUsd}
+                  </span>
+                </div>
+              );
+            })}
           </div>
-          <div style={{ fontSize: 11.5, color: "var(--cvb-faint)", lineHeight: 1.6, marginTop: 14 }}>
-            Your plan, card and invoices live in the account area — this workspace only spends.
+          {/* The footnote well, with the prototype's glyph and its exact copy. */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 11,
+              background: "var(--cvb-panel-quiet)",
+              border: "1px solid var(--cvb-line)",
+              borderRadius: 14,
+              padding: 13,
+              marginTop: 12,
+            }}
+          >
+            <span style={{ color: "var(--cvb-faint)", fontSize: 12 }}>\u273B</span>
+            <span
+              style={{
+                flex: 1,
+                minWidth: 0,
+                fontSize: 11.5,
+                color: "var(--cvb-muted)",
+                lineHeight: 1.45,
+              }}
+            >
+              Credits never expire. Your plan, card and invoices live in the account area \u2014
+              this workspace only spends.
+            </span>
           </div>
         </>
       ) : step === 1 ? (
         <>
-          <StepPrompt prompt="Confirm what you are adding." />
           <div
             style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
               background: "var(--cvb-mint)",
               border: "1px solid var(--cvb-mint-line)",
-              borderRadius: 16,
-              padding: 17,
+              borderRadius: 15,
+              padding: 15,
+              marginTop: 18,
             }}
           >
-            <div className="cvb-display" style={{ fontWeight: 900, fontSize: 26, letterSpacing: "-.03em", color: "#0E3D22" }}>
-              {pack.toLocaleString("en-US")} credits
-            </div>
-            {balance != null ? (
-              <div style={{ fontSize: 12, color: "#1D5B34", marginTop: 6 }}>
-                Takes you to {(balance + pack).toLocaleString("en-US")} credits
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div
+                className="cvb-display"
+                style={{ fontWeight: 900, fontSize: 22, letterSpacing: "-.03em", color: "#0E3D22" }}
+              >
+                {pack.credits.toLocaleString("en-US")} credits
               </div>
-            ) : null}
+              {balance != null ? (
+                <div style={{ fontSize: 11.5, color: "#1D5B34", marginTop: 4 }}>
+                  Takes you to {(balance + pack.credits).toLocaleString("en-US")} credits
+                </div>
+              ) : null}
+            </div>
+            <span
+              className="cvb-display"
+              style={{ fontWeight: 900, fontSize: 22, letterSpacing: "-.03em", color: "#0E3D22" }}
+            >
+              {price}
+            </span>
           </div>
-          <div style={{ ...EYEBROW, margin: "22px 0 10px" }}>PAYING WITH</div>
-          <AbsentBecause
-            testid="bold-drawer-buy-nocard"
-            what="No card is on file"
-            why="Billing is not connected to this workspace yet, so there is nothing here to charge and no price to quote."
-          />
+          <div style={{ ...EYEBROW, letterSpacing: ".13em", margin: "18px 0 9px" }}>
+            PAYING WITH
+          </div>
+          {billing.card ? (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                background: "var(--cvb-panel-quiet)",
+                border: "1px solid var(--cvb-line)",
+                borderRadius: 15,
+                padding: 15,
+              }}
+            >
+              <span
+                style={{
+                  width: 34,
+                  height: 24,
+                  borderRadius: 6,
+                  flex: "none",
+                  background: "var(--cvb-ink)",
+                  color: "#fff",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 9,
+                  fontWeight: 700,
+                }}
+              >
+                {billing.card.brand.toUpperCase()}
+              </span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 700 }}>
+                  \u2022\u2022\u2022\u2022 {billing.card.last4}
+                </div>
+                <div style={{ fontSize: 11, color: "var(--cvb-faint)", marginTop: 2 }}>
+                  Expires {String(billing.card.expMonth).padStart(2, "0")}/
+                  {String(billing.card.expYear).slice(-2)}
+                </div>
+              </div>
+              {/* "Change" only exists when there is a card to change. */}
+              <span
+                onClick={() => flash?.("Card editor")}
+                role="button"
+                data-testid="bold-buy-changecard"
+                style={{
+                  fontSize: 11.5,
+                  fontWeight: 700,
+                  color: "var(--cvb-cyan)",
+                  cursor: "pointer",
+                }}
+              >
+                Change
+              </span>
+            </div>
+          ) : (
+            /* No card yet: the Stripe element mounts here on first purchase. */
+            <div
+              data-testid="bold-buy-newcard"
+              style={{
+                background: "var(--cvb-panel-quiet)",
+                border: "1px solid var(--cvb-line)",
+                borderRadius: 15,
+                padding: 15,
+                fontSize: 12.5,
+                color: "var(--cvb-muted)",
+                lineHeight: 1.5,
+              }}
+            >
+              Your card is collected on this step and saved for next time.
+            </div>
+          )}
+          {error ? (
+            <div
+              data-testid="bold-buy-error"
+              style={{
+                background: "var(--cvb-danger-bg)",
+                border: "1px solid #ecd2cb",
+                borderRadius: 14,
+                padding: 13,
+                marginTop: 12,
+                fontSize: 12.5,
+                color: "var(--cvb-danger)",
+                lineHeight: 1.5,
+              }}
+            >
+              {error}
+            </div>
+          ) : null}
         </>
       ) : (
-        <>
-          <StepPrompt
-            prompt="Nothing was charged."
-            help="This is as far as buying credits goes today, and saying so is better than a receipt for a payment that never happened."
-          />
-          <div style={{ fontSize: 13, color: "var(--cvb-muted)", lineHeight: 1.6 }}>
-            Ask your platform contact to add {pack.toLocaleString("en-US")} credits and they appear in the ledger the
-            moment they do — with the balance they took you to, like every other entry.
+        <div style={{ textAlign: "center", padding: "22px 0 8px" }}>
+          <span
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 16,
+              background: "var(--cvb-mint)",
+              border: "1px solid var(--cvb-mint-line)",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "var(--cvb-forest)",
+              fontSize: 20,
+            }}
+          >
+            \u2713
+          </span>
+          <div
+            className="cvb-display"
+            data-testid="bold-buy-newtotal"
+            style={{ fontWeight: 900, fontSize: 34, letterSpacing: "-.038em", marginTop: 15 }}
+          >
+            {balance != null
+              ? `${(balance + pack.credits).toLocaleString("en-US")} credits`
+              : `${pack.credits.toLocaleString("en-US")} credits`}
           </div>
-        </>
+          <div
+            style={{ fontSize: 12.5, color: "var(--cvb-muted)", lineHeight: 1.55, marginTop: 8 }}
+          >
+            They are in the ledger now, with the balance they took you to.
+          </div>
+        </div>
       )}
-    </SettingsDrawer>
+    </SettingsModal>
   );
 }

@@ -5,9 +5,18 @@
  *
  * Two things live here, and they are the reason this unit exists at all:
  *
- *  1. **One right-hand drawer.** Every add and every edit in settings opens
- *     THIS drawer. No inline forms, no modals — a rule, not a preference, so
- *     it is enforced by there being nowhere else to put a form.
+ *  1. **The containers the prototype uses, and only those.** A right-hand
+ *     drawer for the ADDFLOW wizards and the sender drawer; a centred modal
+ *     for the buy flow and the workspace switcher; and inline editing in the
+ *     row for everything else — which is what the prototype actually does for
+ *     every facts/who/gaps row and every `val` row.
+ *
+ *     B7.5 built to a different rule ("every add and edit opens the drawer,
+ *     no inline forms, no modals"), which the owner has since withdrawn in
+ *     favour of the prototype's own idiom. The standing rule now: the
+ *     prototype governs how a thing LOOKS AND BEHAVES; it does not govern
+ *     whether a shipped capability EXISTS. Match the idiom, never delete a
+ *     working function because the prototype has no path for it.
  *  2. **The style contract, in one place.** Two-layer elevation, panel
  *     gradients, recessed wells, console radii and the scrim that dims the
  *     page behind every overlay. Written once so the four item pages and the
@@ -110,7 +119,15 @@ export function Well({
   };
   return (
     <label style={{ display: "block" }}>
-      <div style={{ ...mono, fontSize: 9.5, letterSpacing: ".14em", color: "var(--cvb-faint)", marginBottom: 8 }}>
+      <div
+        style={{
+          ...mono,
+          fontSize: 9.5,
+          letterSpacing: ".14em",
+          color: "var(--cvb-faint)",
+          marginBottom: 8,
+        }}
+      >
         {label}
       </div>
       {multiline ? (
@@ -196,12 +213,26 @@ export function ChoiceRow({
       </span>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
-          <span style={{ fontWeight: 800, fontSize: 13.5, letterSpacing: "-.02em", color: selected ? "#0E3D22" : "var(--cvb-ink)" }}>
+          <span
+            style={{
+              fontWeight: 800,
+              fontSize: 13.5,
+              letterSpacing: "-.02em",
+              color: selected ? "#0E3D22" : "var(--cvb-ink)",
+            }}
+          >
             {title}
           </span>
           {meta ? <span style={{ ...CHIP.live, fontSize: 9.5 }}>{meta}</span> : null}
         </div>
-        <div style={{ fontSize: 11.5, color: selected ? "#1D5B34" : "var(--cvb-faint)", lineHeight: 1.5, marginTop: 4 }}>
+        <div
+          style={{
+            fontSize: 11.5,
+            color: selected ? "#1D5B34" : "var(--cvb-faint)",
+            lineHeight: 1.5,
+            marginTop: 4,
+          }}
+        >
           {sub}
         </div>
       </div>
@@ -268,7 +299,11 @@ export function PrimaryButton({
   testid?: string;
 }) {
   const bg =
-    tone === "forest" ? "var(--cvb-forest)" : tone === "danger" ? "var(--cvb-danger)" : "var(--cvb-panel)";
+    tone === "forest"
+      ? "var(--cvb-forest)"
+      : tone === "danger"
+        ? "var(--cvb-danger)"
+        : "var(--cvb-panel)";
   const fg = tone === "quiet" ? "var(--cvb-muted)" : "#fff";
   return (
     <span
@@ -296,7 +331,15 @@ export function PrimaryButton({
 }
 
 /** Absence with a stated reason — the shape every gated field renders as. */
-export function AbsentBecause({ what, why, testid }: { what: string; why: string; testid?: string }) {
+export function AbsentBecause({
+  what,
+  why,
+  testid,
+}: {
+  what: string;
+  why: string;
+  testid?: string;
+}) {
   return (
     <div
       data-testid={testid}
@@ -308,7 +351,9 @@ export function AbsentBecause({ what, why, testid }: { what: string; why: string
       }}
     >
       <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--cvb-muted)" }}>{what}</div>
-      <div style={{ fontSize: 11.5, color: "var(--cvb-faint)", lineHeight: 1.55, marginTop: 4 }}>{why}</div>
+      <div style={{ fontSize: 11.5, color: "var(--cvb-faint)", lineHeight: 1.55, marginTop: 4 }}>
+        {why}
+      </div>
     </div>
   );
 }
@@ -319,6 +364,129 @@ export function AbsentBecause({ what, why, testid }: { what: string; why: string
  * The ONE right-hand drawer. Scrim dims the page, sits one z-layer below the
  * panel, and closes on click — everywhere, not per caller.
  */
+/**
+ * The CENTERED MODAL. A second container, not a variant of the drawer.
+ *
+ * The prototype uses exactly two of these inside Settings — the buy flow
+ * (Console Bold.dc.html:2616) and the workspace switcher (:2836) — and its
+ * atoms differ from the drawer's on purpose: 480px wide and centred rather
+ * than full-height right, radius 22 not 21, a 30x30/r10 close rather than the
+ * drawer's 32x32/r11, and the footer buttons sit INSIDE the card at the end of
+ * the content instead of in a pinned bar.
+ *
+ * B7.5 put the buy flow in a right-hand drawer on a spec line the owner has
+ * since withdrawn (REDO §1.1: "My spec said 'right drawer' — wrong"), which
+ * left ~450px of dead space under the content. This is the container that
+ * line should have described.
+ */
+export function SettingsModal({
+  label,
+  title,
+  onClose,
+  children,
+  footer,
+  testid,
+  width = 480,
+}: {
+  label: string;
+  title: string;
+  onClose: () => void;
+  children: ReactNode;
+  footer?: ReactNode;
+  testid?: string;
+  width?: number;
+}) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  if (!mounted) return null;
+
+  return createPortal(
+    <div
+      onClick={onClose}
+      data-testid="bold-settings-scrim"
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "var(--cvb-scrim)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 22,
+        // Same stacking as the drawer: above the help launcher (61) and the
+        // tour layer (60), or the launcher lands on the primary action.
+        zIndex: 62,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        data-testid={testid ?? "bold-settings-modal"}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        style={{
+          width,
+          maxWidth: "100%",
+          maxHeight: "100%",
+          overflowY: "auto",
+          background: "var(--cvb-card)",
+          border: "1px solid var(--cvb-line-ctl)",
+          borderRadius: 22,
+          padding: 24,
+          animation: "cvb-rise .3s var(--cvb-ease) both",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 11 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div
+              style={{ ...mono, fontSize: 9.5, letterSpacing: ".16em", color: "var(--cvb-faint)" }}
+            >
+              {label}
+            </div>
+            <div
+              className="cvb-display"
+              style={{ fontWeight: 900, fontSize: 21, letterSpacing: "-.03em", marginTop: 6 }}
+            >
+              {title}
+            </div>
+          </div>
+          <span
+            onClick={onClose}
+            role="button"
+            aria-label="Close"
+            data-testid="bold-modal-close"
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: 10,
+              border: "1px solid var(--cvb-line-ctl)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "var(--cvb-muted)",
+              fontSize: 12,
+              cursor: "pointer",
+              flex: "none",
+            }}
+          >
+            ✕
+          </span>
+        </div>
+        {children}
+        {/* Footer INSIDE the card, at the end of the content — not a pinned bar. */}
+        {footer ? <div style={{ display: "flex", gap: 9, marginTop: 20 }}>{footer}</div> : null}
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 export function SettingsDrawer({
   label,
   title,
@@ -378,12 +546,26 @@ export function SettingsDrawer({
           animation: "cvb-over .32s var(--cvb-ease) both",
         }}
       >
-        <div style={{ flex: "none", display: "flex", alignItems: "flex-start", gap: 12, padding: "26px 26px 16px" }}>
+        <div
+          style={{
+            flex: "none",
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 12,
+            padding: "26px 26px 16px",
+          }}
+        >
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={EYEBROW}>{label}</div>
             <div
               className="cvb-display"
-              style={{ fontWeight: 900, fontSize: 22, letterSpacing: "-.032em", marginTop: 8, lineHeight: 1.15 }}
+              style={{
+                fontWeight: 900,
+                fontSize: 22,
+                letterSpacing: "-.032em",
+                marginTop: 8,
+                lineHeight: 1.15,
+              }}
             >
               {title}
             </div>
@@ -409,7 +591,9 @@ export function SettingsDrawer({
             ✕
           </span>
         </div>
-        <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "0 26px 20px" }}>{children}</div>
+        <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "0 26px 20px" }}>
+          {children}
+        </div>
         {footer ? (
           <div
             style={{
@@ -434,9 +618,13 @@ export function SettingsDrawer({
 export function StepPrompt({ prompt, help }: { prompt: string; help?: string }) {
   return (
     <div style={{ marginBottom: 18 }}>
-      <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-.02em", lineHeight: 1.45 }}>{prompt}</div>
+      <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-.02em", lineHeight: 1.45 }}>
+        {prompt}
+      </div>
       {help ? (
-        <div style={{ fontSize: 12.5, color: "var(--cvb-faint)", lineHeight: 1.55, marginTop: 7 }}>{help}</div>
+        <div style={{ fontSize: 12.5, color: "var(--cvb-faint)", lineHeight: 1.55, marginTop: 7 }}>
+          {help}
+        </div>
       ) : null}
     </div>
   );
@@ -567,7 +755,16 @@ export function RowList({ rows, testid }: { rows: SettingsRow[]; testid?: string
               </span>
             ) : null}
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13.5, fontWeight: 700, letterSpacing: "-.016em", lineHeight: 1.4 }}>{r.n}</div>
+              <div
+                style={{
+                  fontSize: 13.5,
+                  fontWeight: 700,
+                  letterSpacing: "-.016em",
+                  lineHeight: 1.4,
+                }}
+              >
+                {r.n}
+              </div>
               {r.edit ? (
                 <input
                   value={r.edit.value}
@@ -590,12 +787,23 @@ export function RowList({ rows, testid }: { rows: SettingsRow[]; testid?: string
                   }}
                 />
               ) : (
-                <div style={{ fontSize: 11.5, color: "var(--cvb-faint)", marginTop: 3, lineHeight: 1.45 }}>{r.sub}</div>
+                <div
+                  style={{
+                    fontSize: 11.5,
+                    color: "var(--cvb-faint)",
+                    marginTop: 3,
+                    lineHeight: 1.45,
+                  }}
+                >
+                  {r.sub}
+                </div>
               )}
             </div>
             {r.t === "chip" ? <span style={CHIP[r.tone]}>{r.chip}</span> : null}
             {r.t === "val" ? (
-              <span style={{ ...mono, fontSize: 10.5, color: "var(--cvb-muted)", flex: "none" }}>{r.val}</span>
+              <span style={{ ...mono, fontSize: 10.5, color: "var(--cvb-muted)", flex: "none" }}>
+                {r.val}
+              </span>
             ) : null}
             {r.t === "tg" ? (
               r.locked ? (
@@ -615,13 +823,27 @@ export function RowList({ rows, testid }: { rows: SettingsRow[]; testid?: string
 }
 
 /** The dashed add row. Cyan, because adding is navigating into a drawer. */
-export function AddRow({ label, onClick, testid }: { label: string; onClick: () => void; testid?: string }) {
+export function AddRow({
+  label,
+  onClick,
+  testid,
+}: {
+  label: string;
+  onClick: () => void;
+  testid?: string;
+}) {
   return (
     <div
       onClick={onClick}
       data-testid={testid}
       role="button"
-      style={{ display: "flex", alignItems: "center", gap: 12, padding: "18px 4px", cursor: "pointer" }}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        padding: "18px 4px",
+        cursor: "pointer",
+      }}
     >
       <span
         style={{
@@ -707,7 +929,13 @@ export function RecordLine({ id }: { id: string }) {
   return (
     <div
       data-testid="bold-record-line"
-      style={{ ...mono, fontSize: 9.5, letterSpacing: ".1em", color: "var(--cvb-ghost)", marginTop: 26 }}
+      style={{
+        ...mono,
+        fontSize: 9.5,
+        letterSpacing: ".1em",
+        color: "var(--cvb-ghost)",
+        marginTop: 26,
+      }}
     >
       {id}
     </div>
