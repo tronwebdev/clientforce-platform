@@ -15,7 +15,7 @@ most of the *actions* did not. Where the live build and this spec disagree, this
 | No way to **answer a gap** | Gap row → same drawer, pre-filled with the asked question; answering removes the gap |
 | No way to **add a knowledge source** | `Add a knowledge source` drawer (website / document / typed), starts ingest |
 | No way to **add a phone number** | `Add a number` drawer (area → what it carries → A2P filing) |
-| Email sender add **does not use the right-hand drawer** | every add/edit in settings opens the **same right drawer**, never an inline form or a modal |
+| Email sender add **does not use the right-hand drawer** | **[AMENDED B7.6 — the prototype won]** the containers the PROTOTYPE uses: a right drawer for the ADD wizards and the sender drawer, a **centred modal** for the buy flow, and **inline editing in the row** for every fact/who/gap and every `val` row — which is what `Console Bold.dc.html` actually does (`isEditable`, :4736-4740, :4772-4775). The original line — "the same right drawer, never an inline form or a modal" — was mine and was wrong. Capability is a separate question: a function with no prototype path is KEPT and re-expressed, never dropped. |
 | **Credits and usage** looks nothing like the design | the dark hero, four tiles, three tabs, usage bars, rates table, top-ups + buy flow (§9) |
 | **Invite someone** absent (also absent from the proto) | invite drawer, now designed and in the proto (§7) |
 | Style/depth inconsistent across the page | the style contract in §2 is normative, not decorative |
@@ -86,11 +86,14 @@ All four `ws:*` pages use one component. Top to bottom:
    - `tg` — name, sub, and a **toggle** whose flip writes immediately and toasts what changed.
    Rows are clickable where a detail exists (senders, sources, people); inert rows must not
    look clickable.
-5. **Add button**, label per tab (§11 table) — opens the right drawer, never inline.
+5. **Add button**, label per tab (§11 table) — opens the right drawer. **[AMENDED B7.6 — the prototype won]** that is
+   true of ADDING, which the prototype does in a drawer; EDITING is inline in the row.
 6. **✦ Ada note**: one derived observation plus one action button that actually performs it
    (e.g. "Change it to Member"). The note must be derived from the page's own data; a generic
    sentence is a defect.
-7. Mono record line (the underlying id) at the foot.
+7. ~~Mono record line (the underlying id) at the foot.~~ **[AMENDED B7.6 — the prototype won]** the prototype carries
+   no record line on any item page, and what shipped was a raw cuid at 10px under every
+   Settings surface. Dropped. A mono line is for a HUMAN-meaningful identifier only.
 
 ---
 
@@ -101,8 +104,10 @@ All four `ws:*` pages use one component. Top to bottom:
 
 **Tabs:** What she knows · Gaps · Who you are · Where it comes from.
 
-- **What she knows** — fact rows: name + the value she quotes + `Core` pill. Each row opens an
-  edit drawer (same shape as add, pre-filled). Add label: *"Add something she should know."*
+- **What she knows** — fact rows: name + the value she quotes + `Core` pill. **[AMENDED B7.6 — the prototype won]** the
+  row is **inline-editable**: the sub-line IS the edit surface, a dashed-underline input in
+  the row (dc.html:2337-2342). No edit drawer, and no chevron — the prototype's row template
+  has no chevron on any tab. Add label: *"Add something she should know."*
 - **Gaps** — question + how often it was asked + how she currently behaves
   (`Insurance list · Asked 9 times this month — she deflects every one`), `Gap` pill amber.
   Add label: *"Answer a gap now."* Answering a gap **converts** it to a fact: the gap row
@@ -163,7 +168,9 @@ warm-up choice (`Careful` 40/day 3 weeks · `Standard` 120/day 10 days, recommen
 **Add a number** (3 steps): area (*"Local numbers get answered more often."*) → what it
 carries (`SMS only` / `SMS and voice`) → A2P filing block (*"takes about a day. I file it with
 your business details — nothing for you to do."*). Completion: `Get the number` →
-"Number reserved · A2P filed."
+~~"Number reserved · A2P filed."~~ **[AMENDED B7.6 — the prototype won]** nothing on this platform reserves a number or
+files an A2P registration, so that completion claims a provisioning that did not happen. The
+surface says what actually occurred instead.
 
 One identity per workspace per channel stays the shipped ruling; the surface must keep saying
 so where it applies.
@@ -263,7 +270,9 @@ never "ship a worse design", it is "render only what is true and say what is mis
 | Burn / Runs out / runway | ≥14 days of ledger history | omit; a projection with no history is a fabrication |
 | Auto top-up + invoices | billing (Stripe) | render visibly deferred with plain coming-soon copy and file the Q |
 
-**Buy flow** (3 steps, right drawer): pack choice (2,000/$40 · 5,000/$90 · 10,000/$180 with
+**Buy flow** (**[AMENDED B7.6 — the prototype won]** **2 steps plus done, CENTRED MODAL** — 480px, radius 22, footer
+inside the card, dc.html:2616; it was never a right drawer, and as one it left ~450px of dead
+space): pack choice (2,000/$40 · 5,000/$90 · 10,000/$180 with
 `best rate` on the last, each showing per-1,000 price and *"about N days of sending"*) →
 confirm (credits, price, *"Takes you to N credits"*, change card) → done (*"Receipt emailed.
 Ada has already resumed anything she was pacing."*). Note on the flow:
