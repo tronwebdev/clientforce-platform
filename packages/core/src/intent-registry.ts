@@ -1135,6 +1135,72 @@ export const WATCH_TOPIC_SUGGESTIONS: Record<
   },
 };
 
+/**
+ * B6.6: the WATCH PANEL's own title, which is NOT the page question.
+ * `leadFinderTitle` asks who is in the market right now; this names the
+ * standing brief behind the watch — the panel is about who she is looking
+ * for at all, not who moved today. The build had printed the page question
+ * in both places, which read as the panel repeating the header.
+ */
+export function leadFinderWatchTitle(shape: IcpShape): string {
+  // A local or consumer brief is built around a place, so the panel says so;
+  // a company brief has no radius to speak of and is built around likeness.
+  return shape === "company"
+    ? "Businesses that look like your yeses"
+    : "People near you, worth reaching";
+}
+
+/**
+ * B6.6: the words and places OF THE BRIEF — what the "WORDS AND PLACES"
+ * chips are in the prototype.
+ *
+ * The build read this list from the `WatchTopic` table alone, which is empty
+ * until someone types into it, so the block rendered with nothing in it on
+ * every real workspace. But the workspace HAS stated its words and places —
+ * at first run, into the ICP profile — and those are exactly what the
+ * prototype shows: services, the area, the radius.
+ *
+ * Everything here is a fact the workspace itself entered. Nothing is
+ * inferred and nothing is invented: a profile with no location contributes
+ * no place chip, and the caller merges the rows a person added by hand on
+ * top. `derived` marks a chip whose home is the brief, so the surface can
+ * point its removal at the brief rather than offering a delete that would
+ * silently disagree with the profile.
+ */
+export interface BriefTopic {
+  id: string;
+  kind: "topic" | "area";
+  label: string;
+  derived: boolean;
+}
+export function briefWatchTopics(profile: {
+  shape: IcpShape;
+  vertical?: string | null;
+  location?: string | null;
+  radiusMiles?: number | null;
+}): BriefTopic[] {
+  const out: BriefTopic[] = [];
+  const suggestions = WATCH_TOPIC_SUGGESTIONS[profile.shape];
+  // The vertical's own service words. `fallback` is deliberately NOT used:
+  // it is instructional copy ("Your main services"), not a word the
+  // workspace said, and a chip has to be a fact.
+  const services = profile.vertical ? suggestions.byVertical[profile.vertical] : undefined;
+  for (const s of services ?? []) {
+    // "Your service areas" is a prompt, not a place — the place chip below
+    // is built from the location the workspace actually gave.
+    if (s.toLowerCase().startsWith("your service area")) continue;
+    out.push({ id: `brief:topic:${s}`, kind: "topic", label: s, derived: true });
+  }
+  if (profile.location) {
+    const label =
+      typeof profile.radiusMiles === "number"
+        ? `${profile.location} · ${profile.radiusMiles} mi`
+        : profile.location;
+    out.push({ id: `brief:area:${label}`, kind: "area", label, derived: true });
+  }
+  return out;
+}
+
 /** Direct-mode filter sets per shape (labels + cycle options). */
 export interface DirectFilterDef {
   key: string;

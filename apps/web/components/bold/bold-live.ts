@@ -394,8 +394,13 @@ export const fetchPlannerStatus = (agentId: string) =>
   get<{ state: "none" | "waiting" | "active" | "completed" | "failed"; failedReason?: string | null }>(
     `planner/status?agentId=${encodeURIComponent(agentId)}`,
   );
-export const createContactList = (name: string, origin: "manual" | "csv_import") =>
-  send("lists", "POST", { name, origin });
+export const createContactList = (
+  name: string,
+  origin: "manual" | "csv_import",
+  /** "New list from selection" — the endpoint has always accepted this;
+   *  B6.6 is the first caller that has a selection to hand it. */
+  contactIds?: string[],
+) => send("lists", "POST", { name, origin, ...(contactIds?.length ? { contactIds } : {}) });
 export const importContactRows = (rows: unknown[], listId: string | undefined, validationBatchKey: string) =>
   send("contacts/import", "POST", { rows, ...(listId ? { listId } : {}), validationBatchKey });
 export const fetchListMemberIds = async (listId: string): Promise<string[] | null> => {
@@ -583,9 +588,14 @@ export interface LeadFinderConfig {
   providerPeopleSearch: boolean;
   topicSuggestions: { kinds: string[]; byVertical: Record<string, string[]>; fallback: string[] };
   sources: string[];
-  watchTopics: Array<{ id: string; kind: string; label: string }>;
+  /** B6.6: `derived` chips come from the BRIEF (its services and its area)
+   *  rather than the WatchTopic table, so they are not deletable here — the
+   *  brief is where they are changed. */
+  watchTopics: Array<{ id: string; kind: string; label: string; derived: boolean }>;
   /* B6.5 (DEC-153): the standing-watch shell, all server-derived. */
   title: string;
+  /** B6.6: the watch panel’s own title — not the page question. */
+  watchTitle: string;
   noun: SubjectNoun;
   brief: {
     sentence: string;
@@ -674,6 +684,10 @@ export interface LeadPool {
     count: number | null;
     estimate: boolean;
     rows: LeadPoolRow[];
+    /** B6.6: every contact in the band, not just the rows on screen — the
+     *  bulk action names the band's whole count and has to act on it.
+     *  Empty for the paid bands, whose people are not ours yet. */
+    contactIds: string[];
     note: string | null;
   }>;
   total: number;

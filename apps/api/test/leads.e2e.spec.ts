@@ -131,6 +131,11 @@ describe.skipIf(!hasDb)("Lead finder + intent tier e2e", () => {
     // "unscored" contract (B6 review fix 2).
     const blank = await mkContact(6, { title: null });
     blankId = blank.id;
+    // B6.6: MORE THAN the pool's 12-row display cap, so "the whole band"
+    // and "the rows on screen" are different sets. Without these the
+    // contactIds assertion below passes whether or not the band carries
+    // everyone — a test that no longer watches anything.
+    for (let n = 7; n <= 20; n += 1) await mkContact(n, { title: null });
 
     const u1 = await owner.user.create({
       data: { email: `lf-owner-${suffix}@t.test`, authProviderId: `auth|lf-owner-${suffix}` },
@@ -224,6 +229,72 @@ describe.skipIf(!hasDb)("Lead finder + intent tier e2e", () => {
       expect(b.count).toBeNull();
       expect(b.note).toBeTruthy();
     }
+  });
+
+  /**
+   * B6.6: the pool must ask the scorer the SAME question the feed asks.
+   *
+   * It used to pass only `{title, company}`, so every engagement fact was
+   * invisible to it: on any book whose people are not job titles, no reason
+   * could match, every row came back `unscored`, and the surface drew no fit
+   * pill and no why-chips. These assertions are on the CALL SITE, not the
+   * scorer — `scoreCandidate` was always able to use these facts, and a unit
+   * test of it would have stayed green right through the defect.
+   */
+  it("scores pool rows on the same facts the feed uses, not just title", async () => {
+    const res = await api().get("/leads/pool").set(asOwner()).expect(200);
+    const yours = res.body.bands.find((b: { key: string }) => b.key === "yours");
+
+    const lapsed = yours.rows.find((r: { contactId: string }) => r.contactId === lapsedId);
+    expect(lapsed, "the lapsed contact belongs to the pool").toBeTruthy();
+    // Reached only through `daysSinceLastTouch`, which the old call site
+    // never passed. Its absence is the missing why-chip.
+    expect(lapsed.why.join(" ")).toMatch(/quiet/i);
+    expect(lapsed.scored).toBe(true);
+
+    const lost = yours.rows.find((r: { contactId: string }) => r.contactId === lostId);
+    expect(lost, "the not-now contact belongs to the pool").toBeTruthy();
+    // Reached only through `repliedBefore`.
+    expect(lost.why.join(" ")).toMatch(/replied/i);
+
+    // A fit pill is coloured off the number, so the number has to move with
+    // the facts rather than sitting at the scorer's base for everyone.
+    expect(lapsed.fit).toBeGreaterThan(50);
+  });
+
+  it("carries the whole free band's contact ids, not just the visible rows", async () => {
+    const res = await api().get("/leads/pool").set(asOwner()).expect(200);
+    const yours = res.body.bands.find((b: { key: string }) => b.key === "yours");
+    // The bulk action is labelled with the band's COUNT and acts on this
+    // array — if it held only the twelve rows on screen, "Add 312 to a
+    // campaign" would add twelve.
+    expect(yours.contactIds).toHaveLength(yours.count);
+    for (const r of yours.rows) expect(yours.contactIds).toContain(r.contactId);
+    // The paid bands hold nobody we could add: their people are not ours.
+    for (const b of res.body.bands.filter((x: { key: string }) => x.key !== "yours")) {
+      expect(b.contactIds).toEqual([]);
+    }
+  });
+
+  it("shows the brief's own words and places, and names the panel separately", async () => {
+    const res = await api().get("/leads/config").set(asOwner()).expect(200);
+    // The watch panel had been printing the PAGE question, so the panel read
+    // as a repeat of the header.
+    expect(res.body.watchTitle).toBeTruthy();
+    expect(res.body.watchTitle).not.toBe(res.body.title);
+    // This workspace's brief is a dental local business, so its services are
+    // words it actually stated. Reading the WatchTopic table alone left this
+    // empty on every workspace that had never hand-typed a chip.
+    const derived = res.body.watchTopics.filter((t: { derived: boolean }) => t.derived);
+    expect(derived.length).toBeGreaterThan(0);
+    expect(derived.map((t: { label: string }) => t.label)).toContain("Implants");
+    // A prompt is not a fact: "Your service areas" is instructional copy and
+    // must never become a chip.
+    for (const t of res.body.watchTopics) {
+      expect(t.label.toLowerCase()).not.toContain("your service area");
+    }
+    // This profile has no `location`, so there is no place chip to draw.
+    expect(derived.some((t: { kind: string }) => t.kind === "area")).toBe(false);
   });
 
   it("Direct search and reveal answer keylessly — no rows, no charge", async () => {

@@ -154,6 +154,12 @@ Grouped by recency, because signals are news:
 Not a list: a **pool of segments, volume and cost**. 4,180 people cannot be browsed row by
 row, so the surface is built around bands.
 
+> **Amended B6.6** (prototype wins over spec prose). The pool header's sentence is
+> *"<noun> **fit your brief**"* — the prototype's words. The build had shipped *"<noun> you
+> can **work today**"*, which claims a timeliness the pool does not have: this mode is the
+> standing market, whether or not anything is happening. "Today" belongs to the market feed,
+> and having both surfaces say it made them indistinguishable.
+
 1. **Pool header**, one row: big pool number + unit noun from the shape registry, hairline
    divider, then two fold chips — `HOW THIS IS SCORED` (grey) and `N HELD BACK` (amber).
    Only one is open at a time; both closed by default. Their bodies:
@@ -205,7 +211,13 @@ A popover anchored to its button in the brief card, `max-height:560px`, internal
 - **Scrim required**: `position:fixed; inset:0; rgba(16,22,19,.26)`, z-index one below the
   panel, click-to-close. Every popover and sheet in the console follows this — an open
   overlay must visibly recede the page behind it.
-- **Header**: mono `WHAT SHE WATCHES` + a 900-weight title from the shape registry.
+- **Header**: mono `WHAT SHE WATCHES` + a 900-weight title.
+
+> **Amended B6.6** (prototype wins over spec prose). "From the shape registry" was read as
+> the PAGE question, so the panel printed `Who's in the market` under a header that already
+> said `WHAT SHE WATCHES` and read as a repeat. The panel has its OWN registry title —
+> `People near you, worth reaching` for a local or consumer brief — because it names the
+> standing brief, not today's news.
 - **Two tabs**: `Watching · N` and `BuyerPing` (`BuyerPing · on` when enabled). The tier is
   reachable in one tap from the feed foot, so it is never buried.
 - **Watching tab**: signal types with tier badge (`INCLUDED` / `BUYERPING`) and live count,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   activeSignalTypes,
+  briefWatchTopics,
   CONFIDENCE_MULTIPLIER,
   DECAY_FLOOR,
   decayedWeight,
@@ -13,6 +14,7 @@ import {
   isActionable,
   isVisibleSignal,
   leadFinderTitle,
+  leadFinderWatchTitle,
   lockedSignalTypes,
   plainWhen,
   POOL_BANDS,
@@ -301,5 +303,59 @@ describe("pool bands", () => {
     const floors = POOL_BANDS.map((b) => b.min).filter((m): m is number => m !== null);
     expect(Math.min(...floors)).toBeGreaterThanOrEqual(70);
     for (const b of POOL_BANDS.slice(1)) expect(b.free).toBe(false);
+  });
+});
+
+/**
+ * B6.6 — the watch panel's own title, and the brief's own words and places.
+ *
+ * The build printed the PAGE question inside the watch panel, and read the
+ * chips from the `WatchTopic` table alone, which is empty until someone
+ * types into it — so a workspace that had stated its services and its area
+ * at first run still saw an empty "WORDS AND PLACES" block.
+ */
+describe("B6.6 · the watch panel's title and the brief's chips", () => {
+  it("names the panel with something other than the page question", () => {
+    for (const shape of ICP_SHAPES) {
+      expect(leadFinderWatchTitle(shape)).not.toBe(leadFinderTitle(shape, "dental"));
+      expect(leadFinderWatchTitle(shape).length).toBeGreaterThan(0);
+    }
+    expect(leadFinderWatchTitle("local_business")).toBe("People near you, worth reaching");
+  });
+
+  it("derives chips from the brief's services and its area", () => {
+    const chips = briefWatchTopics({
+      shape: "local_business",
+      vertical: "dental",
+      location: "Austin",
+      radiusMiles: 25,
+    });
+    const labels = chips.map((c) => c.label);
+    expect(labels).toContain("Implants");
+    // A place chip carries the radius when the brief states one — the
+    // prototype's "Austin · 25 mi".
+    expect(labels).toContain("Austin · 25 mi");
+    expect(chips.every((c) => c.derived)).toBe(true);
+  });
+
+  it("never turns instructional copy into a chip", () => {
+    // "Your service areas" is a PROMPT in the suggestion table, not a place
+    // the workspace named. Emitting it would put a made-up fact on screen.
+    for (const shape of ICP_SHAPES) {
+      for (const vertical of ["dental", "salon", "trades", "saas", "agency"]) {
+        for (const c of briefWatchTopics({ shape, vertical, location: "Leeds" })) {
+          expect(c.label.toLowerCase()).not.toContain("your service area");
+        }
+      }
+    }
+  });
+
+  it("says nothing where the brief said nothing", () => {
+    // No vertical and no location: there is no word and no place to show,
+    // and an empty list is the honest answer (DEC-115).
+    expect(briefWatchTopics({ shape: "company" })).toEqual([]);
+    // A location with no radius is still a place, just without the "· 25 mi".
+    const noRadius = briefWatchTopics({ shape: "local_business", location: "Leeds" });
+    expect(noRadius.map((c) => c.label)).toContain("Leeds");
   });
 });

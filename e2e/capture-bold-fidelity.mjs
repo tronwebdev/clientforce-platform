@@ -33,8 +33,8 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const UNIT = process.argv[2] ?? "b1";
-if (!["b1", "b2", "b25", "b26", "b3", "b3b", "b3c1", "b3c2", "b3d", "b4", "b45", "b5", "b6", "b65", "b7", "b75", "b8", "b9"].includes(UNIT)) {
-  console.error(`Unknown unit "${UNIT}" — this tool knows b1, b2, b25, b26, b3, b3b, b3c1, b3c2, b3d, b4, b45, b5, b6, b65, b7, b75, b8 and b9.`);
+if (!["b1", "b2", "b25", "b26", "b3", "b3b", "b3c1", "b3c2", "b3d", "b4", "b45", "b5", "b6", "b65", "b66", "b7", "b75", "b8", "b9"].includes(UNIT)) {
+  console.error(`Unknown unit "${UNIT}" — this tool knows b1, b2, b25, b26, b3, b3b, b3c1, b3c2, b3d, b4, b45, b5, b6, b65, b66, b7, b75, b8 and b9.`);
   process.exit(1);
 }
 const OUT = join(ROOT, "docs", "fidelity", UNIT);
@@ -644,6 +644,40 @@ if (UNIT === "b75") {
 
 /* ---------------------------------------------------------------- the b7 set */
 
+/**
+ * The TRANSIENT first-party signal both lead-finder units capture against.
+ *
+ * The seeded demo has campaigns, facts, credits and a real brief but zero
+ * `IntentSignal` rows, because that table is only ever written by the live
+ * bus — so one synthetic event is driven through the REAL consumer for the
+ * run and removed afterwards. Capture fixture, not seed data: the seed
+ * script is untouched.
+ *
+ * Hoisted at B6.6 so b65 and b66 share ONE definition. It was local to b65,
+ * and a second copy for the new unit would have been two teardowns to keep
+ * in step.
+ */
+const signal = (mode) => {
+  // The teardown needs a DATABASE_URL. It used to fall back to a local
+  // connection string written out in full — which is a credential-SHAPED
+  // literal (`user:pass@host`), and the deploy's secret scan rejects those
+  // on sight whether or not the credentials are real. Requiring the
+  // variable is also the more honest fix: a capture that cannot reach the
+  // database should say so, not quietly try a guess.
+  if (!process.env.DATABASE_URL) {
+    console.warn(`[${UNIT}] capture signal ${mode} skipped — DATABASE_URL is not set`);
+    return;
+  }
+  try {
+    execSync(`pnpm --filter @clientforce/leads exec tsx scripts/capture-signal.ts ${mode}`, {
+      cwd: ROOT,
+      stdio: "pipe",
+    });
+  } catch (err) {
+    console.warn(`[${UNIT}] capture signal ${mode} failed: ${(err?.message ?? err).toString().split("\n")[0]}`);
+  }
+};
+
 if (UNIT === "b65") {
   // Owner ruling (B6.5 review fix 3): capture against the SEEDED demo, not a
   // fresh tenant. The first pass built its own empty workspace, so the rail
@@ -657,26 +691,6 @@ if (UNIT === "b65") {
   // the live bus — so one TRANSIENT first-party signal is emitted through the
   // real consumer for the run and removed afterwards. Capture fixture, not
   // seed data: the seed script is untouched.
-  const signal = (mode) => {
-    // The teardown needs a DATABASE_URL. It used to fall back to a local
-    // connection string written out in full — which is a credential-SHAPED
-    // literal (`user:pass@host`), and the deploy's secret scan rejects those
-    // on sight whether or not the credentials are real. Requiring the
-    // variable is also the more honest fix: a capture that cannot reach the
-    // database should say so, not quietly try a guess.
-    if (!process.env.DATABASE_URL) {
-      console.warn(`[b65] capture signal ${mode} skipped — DATABASE_URL is not set`);
-      return;
-    }
-    try {
-      execSync(`pnpm --filter @clientforce/leads exec tsx scripts/capture-signal.ts ${mode}`, {
-        cwd: ROOT,
-        stdio: "pipe",
-      });
-    } catch (err) {
-      console.warn(`[b65] capture signal ${mode} failed: ${(err?.message ?? err).toString().split("\n")[0]}`);
-    }
-  };
   signal("off");
   signal("on");
 
@@ -779,6 +793,85 @@ if (UNIT === "b65") {
       await p.getByTestId("bold-integrations").waitFor({ timeout: 15_000 });
       await p.waitForTimeout(900);
       await shot(p, "build-integrations-no-tier-1440x900");
+    } finally {
+      await p.context().close();
+      signal("off");
+    }
+  });
+}
+
+/**
+ * B6.6 — the fidelity RESTORE. Every frame here is a pair whose build half
+ * was missing something the prototype has: the pool row's fit pill, its
+ * why-chips and its action button; the bulk bar's two actions; the watch
+ * panel's WORDS AND PLACES chips and its own title.
+ *
+ * It reuses b65's signal fixture for the same reason b65 did — the market
+ * feed only carries things that actually happened, and the pool is scored
+ * against a book with real history. The pool frames are the point of this
+ * unit, so they are captured on the free band, where the workspace's own
+ * contacts are.
+ */
+if (UNIT === "b66") {
+  await run("prototype-b66", async () => {
+    const p = await page({ width: 1440, height: 900 });
+    await freshProto(p);
+    await p.locator('[title^="Lead finder"]').first().click();
+    await p.waitForTimeout(900);
+    await p.getByText("All who fit", { exact: false }).first().click();
+    await p.waitForTimeout(800);
+    await shot(p, "proto-lead-pool-1440x900");
+    await p.getByText("What she watches", { exact: true }).first().click();
+    await p.waitForTimeout(700);
+    await shot(p, "proto-lead-watch-1440x900");
+    const protoChip = p.getByText("WORDS AND PLACES", { exact: true }).first();
+    await protoChip.scrollIntoViewIfNeeded();
+    await p.waitForTimeout(400);
+    await shot(p, "proto-lead-watch-words-1440x900");
+    await p.context().close();
+  });
+
+  await run("build-b66", async () => {
+    const p = await page({ width: 1440, height: 900 });
+    try {
+      signal("on");
+      await signInBuild(p);
+      await p.goto(`${BASE}/bold`);
+      await p.getByTestId("bold-root").waitFor({ timeout: 20_000 });
+      await p.addStyleTag({ content: "nextjs-portal{display:none!important}" });
+      await p.waitForTimeout(700);
+      const later = p.getByText("Later", { exact: true }).first();
+      if (await later.isVisible().catch(() => false)) await later.click();
+
+      await p.getByTestId("bold-dock-lead").click();
+      await p.getByTestId("bold-leadfinder").waitFor({ timeout: 20_000 });
+      await p.waitForTimeout(2200);
+
+      // The pool, on the free band: fit pills coloured by score, why-chips
+      // from the scorer's reasons, and the bulk bar's restored actions.
+      await p.getByTestId("bold-lead-mode-fit").click();
+      await p.getByTestId("bold-lead-pool").waitFor({ timeout: 15_000 });
+      await p.waitForTimeout(1400);
+      // Never ship a frame that would silently omit what the unit exists to
+      // show: if the restored controls are absent, fail rather than capture.
+      await p.getByTestId("bold-lead-pool-campaign").waitFor({ timeout: 10_000 });
+      await p.getByTestId("bold-lead-pool-savelist").waitFor({ timeout: 10_000 });
+      await shot(p, "build-lead-pool-1440x900");
+
+      // The watch panel: its own title, and the brief's words and places.
+      await p.getByTestId("bold-lead-watch-btn").click();
+      await p.getByTestId("bold-lead-watch").waitFor({ timeout: 10_000 });
+      await p.waitForTimeout(700);
+      await shot(p, "build-lead-watch-1440x900");
+      // The panel scrolls, and WORDS AND PLACES sits below its fold — the
+      // first frame shows the restored TITLE, this one the restored CHIPS.
+      // Capturing only the top would have shipped a frame that cannot show
+      // half of what the unit fixed.
+      const chip = p.locator('[data-testid^="bold-lead-topic-brief:"]').first();
+      await chip.waitFor({ timeout: 10_000 });
+      await chip.scrollIntoViewIfNeeded();
+      await p.waitForTimeout(500);
+      await shot(p, "build-lead-watch-words-1440x900");
     } finally {
       await p.context().close();
       signal("off");

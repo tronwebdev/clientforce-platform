@@ -28,6 +28,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   addWatchTopic,
+  createContactList,
   fetchCreditPrices,
   fetchLeadConfig,
   fetchLeadPool,
@@ -89,10 +90,20 @@ const shortDate = (iso: string) =>
 export function BoldLeadFinderView({
   flash,
   onTitle,
+  onCampaignFromList,
 }: {
   flash: (msg: string) => void;
   /** The page question is registry-derived, so the surface reports it up. */
   onTitle?: (t: string | null) => void;
+  /** B6.6: hand a real, just-written list to the create-campaign flow. The
+   *  finder does not build campaigns of its own — it chooses people and
+   *  passes them to the one create path (B2.5). */
+  onCampaignFromList?: (a: {
+    kind: "list";
+    listId: string;
+    listName: string;
+    count: number;
+  }) => void;
 }) {
   const [config, setConfig] = useState<LeadFinderConfig | null>(null);
   const [prices, setPrices] = useState<EffectiveCreditPrices | null>(null);
@@ -237,6 +248,62 @@ export function BoldLeadFinderView({
     }
     flash(`Stopped watching “${label}”`);
     await loadConfig();
+  };
+
+  /**
+   * B6.6: the pool's two write actions, on ONE path.
+   *
+   * Both "Save as a list" and "→ Campaign" begin by writing a real
+   * `ContactList` from the chosen people — the list IS the artifact, and it
+   * is what makes the campaign hand-off honest: the create flow receives
+   * people who exist, not a promise. `POST /lists` has always accepted a
+   * selection; this is simply its first caller with one.
+   *
+   * The finder never builds a campaign itself. It hands the list to the one
+   * create path (B2.5) with the who-step answered, so there is no second
+   * campaign-creation route to keep in step with the first.
+   */
+  const listNameFor = (label: string) =>
+    `${label} · ${new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`;
+
+  const writeList = async (label: string, contactIds: string[]) => {
+    if (contactIds.length === 0) {
+      flash("Nothing to add — this band has no rows you hold details for.");
+      return null;
+    }
+    const name = listNameFor(label);
+    const res = await createContactList(name, "manual", contactIds);
+    if (!res.ok) {
+      // Includes the duplicate-name case, whose message already tells the
+      // person exactly what to do. Never swallowed into a generic failure.
+      flash(res.error);
+      return null;
+    }
+    const body = res.body as { id?: string } | null;
+    return body?.id ? { id: body.id, name } : null;
+  };
+
+  const saveAsList = async (label: string, contactIds: string[]) => {
+    const made = await writeList(label, contactIds);
+    if (!made) return;
+    flash(`Saved “${made.name}” · ${contactIds.length} on it`);
+  };
+
+  const sendToCampaign = async (label: string, contactIds: string[]) => {
+    const made = await writeList(label, contactIds);
+    if (!made) return;
+    if (!onCampaignFromList) {
+      // The list still got written, so say what actually happened rather
+      // than implying a campaign exists.
+      flash(`Saved “${made.name}” — open Campaigns to build from it`);
+      return;
+    }
+    onCampaignFromList({
+      kind: "list",
+      listId: made.id,
+      listName: made.name,
+      count: contactIds.length,
+    });
   };
 
   const runDirect = async () => {
@@ -730,7 +797,7 @@ export function BoldLeadFinderView({
         <div style={{ display: "flex", alignItems: "baseline", gap: 9, flex: "none" }}>
           <span style={{ fontSize: 30, fontWeight: 900, letterSpacing: "-.04em" }}>{pool.total}</span>
           <span style={{ fontSize: 13, color: "var(--cvb-faint)" }}>
-            {pool.noun.many} you can work today
+            {pool.noun.many} fit your brief
           </span>
         </div>
         <span style={{ width: 1, height: 26, background: "var(--cvb-line)", flex: "none" }} />
@@ -871,6 +938,49 @@ export function BoldLeadFinderView({
                   : "Or reveal a few from the list first."}
               </div>
             </div>
+            {/* B6.6: the bulk bar's two actions, restored. They are offered
+                only on the FREE band: every other band is people whose
+                details we do not hold, so there is nothing to put on a list
+                and nothing to send anywhere until they are revealed. */}
+            {activeBand.free ? (
+              <>
+                <span
+                  onClick={() =>
+                    void sendToCampaign(activeBand.tag, activeBand.contactIds)
+                  }
+                  data-testid="bold-lead-pool-campaign"
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 800,
+                    color: "#fff",
+                    background: "var(--cvb-forest)",
+                    borderRadius: 11,
+                    padding: "9px 14px",
+                    cursor: "pointer",
+                    flex: "none",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Add {activeBand.contactIds.length} to a campaign
+                </span>
+                <span
+                  onClick={() =>
+                    void saveAsList(activeBand.tag, activeBand.contactIds)
+                  }
+                  data-testid="bold-lead-pool-savelist"
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: "var(--cvb-cyan,#0E7D93)",
+                    cursor: "pointer",
+                    flex: "none",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Save as a list
+                </span>
+              </>
+            ) : null}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "16px 0 2px", flexWrap: "wrap" }}>
             <span style={{ ...mono, fontSize: 9.5, letterSpacing: ".18em", color: "var(--cvb-ghost)" }}>
@@ -975,6 +1085,28 @@ export function BoldLeadFinderView({
                   </div>
                 </div>
                 <span style={{ fontSize: 11, color: "var(--cvb-forest)", flex: "none" }}>Details on file</span>
+                {/* B6.6: the row's own action, which the port had dropped —
+                    the status text was left standing where the prototype has
+                    a status AND a button beside it. A pool row you already
+                    hold details for is one you can act on now, so the action
+                    is the same one-list hand-off the bulk bar uses. */}
+                <span
+                  onClick={() => void sendToCampaign(r.name, [r.contactId])}
+                  data-testid={`bold-lead-poolrow-campaign-${r.contactId}`}
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 800,
+                    color: "#fff",
+                    background: "var(--cvb-forest)",
+                    borderRadius: 11,
+                    padding: "9px 13px",
+                    cursor: "pointer",
+                    flex: "none",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  → Campaign
+                </span>
               </div>
             );
           })}
@@ -1136,7 +1268,7 @@ export function BoldLeadFinderView({
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={eyebrow}>WHAT SHE WATCHES</div>
           <div style={{ fontSize: 16, fontWeight: 900, letterSpacing: "-.03em", marginTop: 3 }}>
-            {config.title}
+            {config.watchTitle}
           </div>
         </div>
         <span
@@ -1314,25 +1446,48 @@ export function BoldLeadFinderView({
           <div style={{ borderTop: "1px solid var(--cvb-line-inner)", marginTop: 11, paddingTop: 11 }}>
             <div style={eyebrow}>WORDS AND PLACES</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 9 }}>
-              {config.watchTopics.map((t) => (
-                <span
-                  key={t.id}
-                  onClick={() => void dropTopic(t.id, t.label)}
-                  data-testid={`bold-lead-topic-${t.id}`}
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 600,
-                    color: "var(--cvb-faint)",
-                    background: "var(--cvb-panel)",
-                    border: "1px solid var(--cvb-line)",
-                    borderRadius: 999,
-                    padding: "4px 9px",
-                    cursor: "pointer",
-                  }}
-                >
-                  {t.label} ✕
-                </span>
-              ))}
+              {config.watchTopics.map((t) =>
+                // A brief-derived chip has no ✕: it is the profile's own word
+                // or place, and deleting it here would leave the panel and
+                // the brief saying different things. It is changed where it
+                // lives — the brief editor below.
+                t.derived ? (
+                  <span
+                    key={t.id}
+                    title="From your brief — edit it there"
+                    data-testid={`bold-lead-topic-${t.id}`}
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 600,
+                      color: "var(--cvb-faint)",
+                      background: "var(--cvb-panel)",
+                      border: "1px solid var(--cvb-line)",
+                      borderRadius: 999,
+                      padding: "4px 9px",
+                    }}
+                  >
+                    {t.label}
+                  </span>
+                ) : (
+                  <span
+                    key={t.id}
+                    onClick={() => void dropTopic(t.id, t.label)}
+                    data-testid={`bold-lead-topic-${t.id}`}
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 600,
+                      color: "var(--cvb-faint)",
+                      background: "var(--cvb-panel)",
+                      border: "1px solid var(--cvb-line)",
+                      borderRadius: 999,
+                      padding: "4px 9px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {t.label} ✕
+                  </span>
+                ),
+              )}
               <input
                 value={topicInput}
                 onChange={(e) => setTopicInput(e.target.value)}
