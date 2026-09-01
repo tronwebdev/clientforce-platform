@@ -1,8 +1,8 @@
 {
   "unit": "b75",
-  "commit": "d7ffce91b0575873f637cb643efb50f6f2dbec3b",
+  "commit": "27c6eddaa0caee9aadebdf652e17a050f9c69cfa",
   "workingTreeDirtyAtCapture": false,
-  "capturedAt": "2026-09-01T08:48:36.282Z",
+  "capturedAt": "2026-09-01T21:05:34.569Z",
   "baseUrl": "http://localhost:3000",
   "note": "Single-run capture; every frame from one build. Verify a frame by hashing its bytes against this manifest — never by trusting an image cache. pnpm lint:fidelity enforces the binding.",
   "frames": {
@@ -28,8 +28,8 @@
     },
     "build-core-sources-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 111488,
-      "sha256": "7f4ed23b7fa8fb6a9e27595c571ca6957543723add358ad623ea4908983df4fe"
+      "bytes": 111936,
+      "sha256": "2a39e1f852969af6b6001d999f6cc85d6d306f7e5978d3e475d61503e2a87307"
     },
     "build-core-who-1440x900.png": {
       "viewport": "1440x900",
@@ -53,13 +53,13 @@
     },
     "build-drawer-addnumber-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 111539,
-      "sha256": "2bcc17432511aff276ab3bcb777d7aaa3efd3dc3db9d4645d9412ec6cec8110b"
+      "bytes": 111525,
+      "sha256": "d16f71c02b540e880fc7bcf31632626846d43d32b7bfcbf289f576f3301b88df"
     },
     "build-drawer-addsender-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 137143,
-      "sha256": "538414167ef276e27efadf51e143a10131305742c555408bb68dfc06ea73bc5c"
+      "bytes": 137117,
+      "sha256": "d8fc233c02883ce5a48d47195a9b7f79ef9b39d1ffca52bf23c677abf3c75dde"
     },
     "build-drawer-answer-1440x900.png": {
       "viewport": "1440x900",
@@ -93,13 +93,13 @@
     },
     "build-drawer-sender-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 168891,
-      "sha256": "9c4b56201680d45ae1b5927582f2feb22822d6e95f93521e9dd148e6f7abd403"
+      "bytes": 168777,
+      "sha256": "a9a9e77779d4dfe90ff01160182d07659bd0474fb96ec1f45c2c6d03af7e9a60"
     },
     "build-drawer-source-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 141585,
-      "sha256": "52a3cf9b681c75a6f1d255d49ae21810292fdd76898ca0c3ae19cfdde4ef4641"
+      "bytes": 141949,
+      "sha256": "efac87eef6353492e26842ea369465c82e0c07e3f0678633c79f5e4c57d98c00"
     },
     "build-guard-over-1440x900.png": {
       "viewport": "1440x900",
@@ -113,23 +113,23 @@
     },
     "build-hub-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 106469,
-      "sha256": "6ef17cca2c59941adaee93fe776d2d69cb43ecac9909d78e98b31c11069c5fcd"
+      "bytes": 106476,
+      "sha256": "201fa645b536001a06663648b533a36fa6a8f31f7dccb0021479dd1415659314"
     },
     "build-senders-email-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 116638,
-      "sha256": "dad8d8d7e4a0bf6c31e366ca54e020b5cd53558ee0d4c7299a74d2361a495dc4"
+      "bytes": 116629,
+      "sha256": "ac11190610b2618b14ea23ee2308dbc8d95c023fc42cb0c789f806ea4caeed17"
     },
     "build-senders-health-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 105864,
-      "sha256": "2b02de559c4947283d7a73d39dc9daff4401901bc7894f38055a9ee787061ad6"
+      "bytes": 105865,
+      "sha256": "8e70b79dde6e136cb732312434171faacb09358e5c564240161b646bac84c8b5"
     },
     "build-senders-num-1440x900.png": {
       "viewport": "1440x900",
-      "bytes": 100435,
-      "sha256": "31a389c5180343216020b77844adcc71cb96ffe5d6fa1b4247cea34f8d144a66"
+      "bytes": 100428,
+      "sha256": "481acfa88c194f50957a843a35702710cf5e2a678803a551e731c578765ec96e"
     },
     "build-team-1440x900.png": {
       "viewport": "1440x900",
