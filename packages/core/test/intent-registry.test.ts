@@ -7,17 +7,23 @@ import {
   decayedWeight,
   fatigueMultiplier,
   fillReceipt,
+  fitTier,
   ICP_SHAPES,
   INTENT_SIGNALS,
   intentReceipt,
   intentScore,
   isActionable,
   isVisibleSignal,
+  icpProfileSchema,
   leadFinderTitle,
   leadFinderWatchTitle,
   lockedSignalTypes,
   plainWhen,
   POOL_BANDS,
+  poolBandFloors,
+  poolBandsFor,
+  reachablePoolMax,
+  scoreCandidate,
   PROVIDER_PEOPLE_SEARCH,
   RECEIPT_SLOTS,
   SATURATION_CAP,
@@ -279,9 +285,11 @@ describe("nouns and titles come from the registry, never a literal", () => {
     }
   });
 
-  it("lets a vertical override the shape noun", () => {
+  it("lets a vertical override the shape noun when it names the same kind of thing", () => {
     expect(subjectNounFor("consumer", "dental").many).toBe("patients");
     expect(subjectNounFor("consumer", null).many).toBe("people");
+    // B6.7: still true, and it is why the shape gate is not a blanket one —
+    // "accounts" names organisations, which is what a company shape sells to.
     expect(subjectNounFor("company", "saas").many).toBe("accounts");
     // An unknown vertical falls back to the shape rather than inventing.
     expect(subjectNounFor("company", "not-a-vertical").many).toBe(
@@ -357,5 +365,104 @@ describe("B6.6 · the watch panel's title and the brief's chips", () => {
     // A location with no radius is still a place, just without the "· 25 mi".
     const noRadius = briefWatchTopics({ shape: "local_business", location: "Leeds" });
     expect(noRadius.map((c) => c.label)).toContain("Leeds");
+  });
+});
+
+/**
+ * B6.7 — the shape-facet ruling.
+ *
+ * A qualifier only means something for the shapes that can have it, and the
+ * demo proved that is not cosmetic: `local_business` + `dental` rendered a
+ * consumer noun wearing company qualifiers, and because the title rule is
+ * worth 12 points, only rows carrying a title could reach the top band. A
+ * vocabulary bug had set the scorer's ceiling.
+ */
+describe("B6.7 · shape facets, nouns and reachable bands", () => {
+  it("strips a facet the shape cannot have, rather than storing it", () => {
+    const parsed = icpProfileSchema.parse({
+      shape: "consumer",
+      vertical: "dental",
+      location: "Austin",
+      radiusMiles: 25,
+      headcountBand: "5–25",
+      titles: ["Owner"],
+      ownerRun: true,
+    });
+    expect(parsed.headcountBand).toBeUndefined();
+    expect(parsed.titles).toBeUndefined();
+    expect(parsed.ownerRun).toBeUndefined();
+    // What a person CAN have survives untouched.
+    expect(parsed.location).toBe("Austin");
+    expect(parsed.radiusMiles).toBe(25);
+  });
+
+  it("keeps company facets for the shapes that have them", () => {
+    const parsed = icpProfileSchema.parse({
+      shape: "company",
+      headcountBand: "5–25",
+      titles: ["Owner"],
+      ownerRun: true,
+    });
+    expect(parsed.headcountBand).toBe("5–25");
+    expect(parsed.titles).toEqual(["Owner"]);
+  });
+
+  it("awards no points for a facet the shape cannot have", () => {
+    // Handed directly to the scorer, bypassing the schema — a profile can be
+    // built in code, and the ceiling this sets is a scoring fact.
+    const rogue = {
+      shape: "consumer" as const,
+      titles: ["Owner"],
+      headcountBand: "5–25",
+      ownerRun: true,
+    };
+    const scored = scoreCandidate(rogue, {
+      title: "Owner",
+      headcount: 10,
+      ownerRun: true,
+    });
+    expect(scored.fit).toBe(50);
+    expect(scored.reasons).toEqual([]);
+  });
+
+  it("gives the vertical's noun only to a workspace that sells to people", () => {
+    // A dental PRACTICE sells to patients...
+    expect(subjectNounFor("consumer", "dental").many).toBe("patients");
+    // ...but a supplier selling TO practices carries the same vertical and
+    // is not selling to anybody's patients.
+    expect(subjectNounFor("local_business", "dental").many).toBe("businesses");
+    expect(subjectNounFor("company", "dental").many).toBe("companies");
+    // And the gate is not blanket: an organisation noun still wins for an
+    // organisation shape, while a consumer shape refuses it.
+    expect(subjectNounFor("company", "saas").many).toBe("accounts");
+    expect(subjectNounFor("consumer", "saas").many).toBe("people");
+  });
+
+  it("puts the top band inside every shape's reach", () => {
+    for (const shape of ICP_SHAPES) {
+      const max = reachablePoolMax(shape);
+      const floors = poolBandFloors(shape);
+      // The defect this replaces: a consumer workspace tops out at 81 and
+      // could never enter a band floored at 90. A band nothing can enter is
+      // the same defect as a flat 50 — it looks like information and is not.
+      expect(floors.strong).toBeLessThanOrEqual(max);
+      expect(fitTier(shape, max)).toBe("strong");
+      expect(floors.strong).toBeGreaterThan(floors.good);
+      expect(floors.good).toBeGreaterThan(floors.try);
+    }
+    // Consumer really is the lower ceiling, because it has one fewer facet.
+    expect(reachablePoolMax("consumer")).toBeLessThan(reachablePoolMax("company"));
+  });
+
+  it("labels each band with the floor it actually uses", () => {
+    for (const shape of ICP_SHAPES) {
+      const bands = poolBandsFor(shape);
+      const floors = poolBandFloors(shape);
+      expect(bands[1]!.tag).toContain(String(floors.strong));
+      expect(bands[1]!.min).toBe(floors.strong);
+      // The free band is untouched: it is defined by holding the details.
+      expect(bands[0]!.key).toBe("yours");
+      expect(bands[0]!.min).toBeNull();
+    }
   });
 });

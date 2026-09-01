@@ -51,9 +51,10 @@ import {
   leadFinderWatchTitle,
   lockedSignalTypes,
   plainWhen,
-  POOL_BANDS,
+  poolBandsFor,
   PROVIDER_PEOPLE_SEARCH,
   scoreCandidate,
+  shapeAllows,
   SIGNAL_GROUP_META,
   signalApplies,
   SOURCE_ELIGIBILITY,
@@ -260,7 +261,7 @@ export class LeadsController {
         locked,
         lockedTypes,
         basis: basisSentence(activeTypes),
-        poolBands: POOL_BANDS,
+        poolBands: poolBandsFor(profile.shape),
       };
     });
   }
@@ -277,13 +278,19 @@ export class LeadsController {
         ? `within ${p.radiusMiles} miles of ${p.location}`
         : `in ${p.location}`
       : null;
+    // B6.7 (the shape-facet ruling): both clauses ask the REGISTRY whether
+    // this shape may carry the facet, rather than one of them hard-coding a
+    // shape check and the other checking nothing. `titles` had no gate at
+    // all, which is how a consumer brief could still say "reached through
+    // Owner, Practice Manager".
     const who =
-      p.shape === "consumer"
-        ? null
-        : p.headcountBand
-          ? `${p.headcountBand} in size`
-          : null;
-    const role = p.titles?.length ? `reached through ${p.titles.slice(0, 3).join(", ")}` : null;
+      shapeAllows(p.shape, "headcountBand") && p.headcountBand
+        ? `${p.headcountBand} in size`
+        : null;
+    const role =
+      shapeAllows(p.shape, "titles") && p.titles?.length
+        ? `reached through ${p.titles.slice(0, 3).join(", ")}`
+        : null;
     const clauses = [where, who, role].filter(Boolean);
     if (clauses.length === 0) return `Any ${noun} who might need what you sell.`;
     return `${noun.charAt(0).toUpperCase()}${noun.slice(1)} ${clauses.join(", ")}.`;
@@ -1046,14 +1053,14 @@ export class LeadsController {
             onFile: true,
           };
         })
-        // No fit floor here, deliberately. `POOL_BANDS.yours` declares
+        // No fit floor here, deliberately. The `yours` band declares
         // `min: null`: the band is defined by ALREADY HOLDING the details,
         // not by a score, and "below 70 is not offered" is about buying
         // strangers. Applying the paid floor here emptied the one band a
         // day-one workspace can actually work.
         .sort((a, b) => b.fit - a.fit);
 
-      const bands = POOL_BANDS.map((b) =>
+      const bands = poolBandsFor(profile.shape).map((b) =>
         b.key === "yours"
           ? {
               ...b,
