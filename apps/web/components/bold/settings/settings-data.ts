@@ -216,6 +216,33 @@ export function warmupPercent(senders: BoldSenderRow[] | null): number | null {
   return worst.warmup?.pct ?? null;
 }
 
+/**
+ * "last Tuesday" — when a source was last read, in the prototype's register.
+ *
+ * The prototype's source sub-line is `Read weekly · 9 pages · last Tuesday`
+ * (dc.html ITEMS['ws:core'].sources), and B7.5 dropped the date half of it.
+ * The owner called this out directly (REDO §1.2: "Include WHEN IT WAS LAST
+ * READ; yield may follow it") — a knowledge source whose freshness you cannot
+ * see is a source you cannot trust.
+ *
+ * Nothing here is invented: `updatedAt` is on the row already. Naming the
+ * weekday inside the last week is how a person says it; beyond that a weekday
+ * stops being unambiguous, so it degrades to a count of weeks and then to a
+ * plain date.
+ */
+export function lastReadPhrase(iso: string, now: Date = new Date()): string | null {
+  const then = new Date(iso);
+  if (Number.isNaN(then.getTime())) return null;
+  const days = Math.floor((now.getTime() - then.getTime()) / 86_400_000);
+  if (days < 0) return null;
+  if (days === 0) return "today";
+  if (days === 1) return "yesterday";
+  if (days < 7) return `last ${then.toLocaleDateString("en-US", { weekday: "long" })}`;
+  if (days < 14) return "a week ago";
+  if (days < 60) return `${Math.round(days / 7)} weeks ago`;
+  return then.toLocaleDateString("en-US", { month: "long", day: "numeric" });
+}
+
 export function pluralise(n: number, one: string, many: string): string {
   return `${n} ${n === 1 ? one : many}`;
 }

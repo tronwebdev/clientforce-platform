@@ -25,6 +25,7 @@ import { removeSource, retrySource } from "../bold-settings-live";
 import { BoldItemPage, EmptyTab, TabNote, type ItemHeader } from "./BoldItemPage";
 import { AddFactDrawer, AddFieldDrawer, AddSourceDrawer, EditFactDrawer } from "./BoldCoreDrawers";
 import type { GapUnionRow, SettingsSnapshot } from "./settings-data";
+import { lastReadPhrase } from "./settings-data";
 
 type Drawer =
   | { t: "fact" }
@@ -61,7 +62,11 @@ function sourceLine(s: WorkspaceSourceRow): string {
       : s.chunks === 0
         ? " · nothing usable found"
         : ` · ${s.chunks} facts found`;
-  return `${kind}${yielded}`;
+  // Then WHEN it was last read. The prototype's order is kind · yield · date
+  // ("Read weekly · 9 pages · last Tuesday"), and freshness is the half B7.5
+  // dropped — a source you cannot date is a source you cannot trust.
+  const read = lastReadPhrase(s.updatedAt);
+  return `${kind}${yielded}${read ? ` · ${read}` : ""}`;
 }
 
 export function BoldCoreItem({
