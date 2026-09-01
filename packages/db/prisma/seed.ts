@@ -287,9 +287,62 @@ async function main(): Promise<void> {
           timezone: "UTC",
           sendingWindow: { start: "09:00", end: "17:00" },
           dailyCap: 200,
+          /**
+           * B7.6 seed gap. The flat `dailyCap` above predates the structured
+           * guardrail defaults, and NOTHING reads it any more: the Guardrails
+           * tab, the workspaces read and the buy flow's days-of-sending line
+           * all go through `parseGuardrailDefaults(settings.guardrailDefaults)`.
+           * With this key absent the demo had no workspace-wide ceiling at
+           * all, so the buy modal dropped its "about N days of sending" clause
+           * — a prototype state with no demo data behind it.
+           *
+           * The numbers are the prototype's own (Console Bold.dc.html:4561-4562:
+           * "Daily email ceiling — 120 a day across both domains", "Daily SMS
+           * ceiling — 60 a day") so the Guardrails tab and the buy flow both
+           * show what the prototype shows.
+           */
+          guardrailDefaults: {
+            dailyCap: { email: 120, sms: 60 },
+            sendingWindow: { start: "09:00", end: "17:00", days: [1, 2, 3, 4, 5], timezone: "UTC" },
+          },
         },
       },
     });
+
+    /**
+     * In-place upgrade for databases seeded before B7.6. The upsert above is
+     * create-only (`update: {}`), so an existing workspace keeps whatever
+     * settings it was created with and would never gain `guardrailDefaults`.
+     *
+     * Guarded, and additive: it only fills the key in when it is MISSING, so a
+     * workspace whose ceiling someone has since edited through the Guardrails
+     * tab keeps their number. Merging rather than replacing also preserves
+     * every other settings key.
+     */
+    {
+      const current = (workspace.settings ?? {}) as Record<string, unknown>;
+      // Test for an actual CEILING, not for the key: a workspace can carry
+      // `guardrailDefaults: {}` (the Guardrails tab writes the object before
+      // any number is typed into it), and an empty object is just as much "no
+      // ceiling configured" as an absent one.
+      const existingCap = (current.guardrailDefaults as { dailyCap?: { email?: unknown } } | undefined)?.dailyCap
+        ?.email;
+      if (typeof existingCap !== "number") {
+        await prisma.workspace.update({
+          where: { id: workspace.id },
+          data: {
+            settings: {
+              ...current,
+              guardrailDefaults: {
+                ...((current.guardrailDefaults as Record<string, unknown> | undefined) ?? {}),
+                dailyCap: { email: 120, sms: 60 },
+                sendingWindow: { start: "09:00", end: "17:00", days: [1, 2, 3, 4, 5], timezone: "UTC" },
+              },
+            },
+          },
+        });
+      }
+    }
 
     await prisma.membership.upsert({
       where: { userId_workspaceId: { userId: user.id, workspaceId: workspace.id } },

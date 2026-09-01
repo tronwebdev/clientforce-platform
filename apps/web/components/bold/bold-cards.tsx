@@ -66,7 +66,15 @@ export function BoldSegRow({
       <span
         onClick={onCta}
         data-testid={ctaTestId}
-        style={{ fontSize: 12.5, fontWeight: 800, color: "#fff", background: "var(--cvb-forest)", borderRadius: 12, padding: "11px 17px", cursor: "pointer" }}
+        style={{
+          fontSize: 12.5,
+          fontWeight: 800,
+          color: "#fff",
+          background: "var(--cvb-forest)",
+          borderRadius: 12,
+          padding: "11px 17px",
+          cursor: "pointer",
+        }}
       >
         {cta}
       </span>
@@ -103,29 +111,104 @@ export function BoldCoverCard({
     <div
       onClick={onOpen}
       data-testid={testId}
-      style={{ border: "1px solid var(--cvb-line)", borderRadius: 20, overflow: "hidden", background: "var(--cvb-card)", cursor: onOpen ? "pointer" : "default" }}
+      style={{
+        border: "1px solid var(--cvb-line)",
+        borderRadius: 20,
+        overflow: "hidden",
+        background: "var(--cvb-card)",
+        cursor: onOpen ? "pointer" : "default",
+      }}
     >
-      <div style={{ height: 150, background: bg, padding: 20, display: "flex", flexDirection: "column" }}>
+      <div
+        style={{
+          height: 150,
+          background: bg,
+          padding: 20,
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
         <div style={{ display: "flex", alignItems: "center" }}>
-          <span style={{ ...mono, fontSize: 9, letterSpacing: ".16em", color: fg, opacity: 0.75, flex: 1 }}>{kind}</span>
+          <span
+            style={{
+              ...mono,
+              fontSize: 9,
+              letterSpacing: ".16em",
+              color: fg,
+              opacity: 0.75,
+              flex: 1,
+            }}
+          >
+            {kind}
+          </span>
           {live ? (
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,.9)", borderRadius: 999, padding: "3px 9px" }}>
-              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--cvb-forest)" }} />
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+                background: "rgba(255,255,255,.9)",
+                borderRadius: 999,
+                padding: "3px 9px",
+              }}
+            >
+              <span
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: "50%",
+                  background: "var(--cvb-forest)",
+                }}
+              />
               <span style={{ fontSize: 9, fontWeight: 700, color: "var(--cvb-forest)" }}>LIVE</span>
             </span>
           ) : null}
         </div>
-        <div style={{ marginTop: "auto", fontWeight: 900, fontSize: 20, letterSpacing: "-.03em", color: fg }}>{title}</div>
+        <div
+          style={{
+            marginTop: "auto",
+            fontFamily: "var(--cvb-font-display)",
+            fontWeight: 900,
+            fontSize: 20,
+            letterSpacing: "-.03em",
+            color: fg,
+          }}
+        >
+          {title}
+        </div>
       </div>
       <div style={{ padding: "16px 18px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 10, fontWeight: 700, color: pf, background: pb, border: `1px solid ${pd}`, borderRadius: 999, padding: "3px 10px" }}>
+          <span
+            style={{
+              fontSize: 10,
+              fontWeight: 700,
+              color: pf,
+              background: pb,
+              border: `1px solid ${pd}`,
+              borderRadius: 999,
+              padding: "3px 10px",
+            }}
+          >
             {pillText}
           </span>
           <span style={{ flex: 1 }} />
-          <span style={{ fontWeight: 900, fontSize: 16 }}>{value}</span>
+          <span style={{ fontFamily: "var(--cvb-font-display)", fontWeight: 900, fontSize: 16 }}>
+            {value}
+          </span>
         </div>
-        <div style={{ fontSize: 12, color: "var(--cvb-ghost)", marginTop: 10, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{who}</div>
+        <div
+          style={{
+            fontSize: 12,
+            color: "var(--cvb-ghost)",
+            marginTop: 10,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {who}
+        </div>
       </div>
     </div>
   );
@@ -133,7 +216,14 @@ export function BoldCoverCard({
 
 export function BoldCardGrid({ children }: { children: ReactNode }) {
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(236px,1fr))", gap: 16, marginTop: 22 }}>
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit,minmax(236px,1fr))",
+        gap: 16,
+        marginTop: 22,
+      }}
+    >
       {children}
     </div>
   );
@@ -142,12 +232,37 @@ export function BoldCardGrid({ children }: { children: ReactNode }) {
 /** The detail meta strip — label / value / sub triplets on a panel band. */
 export function BoldMetaStrip({ items }: { items: Array<[string, string, string, string?]> }) {
   return (
-    <div style={{ display: "flex", gap: 34, padding: "12px 40px", background: "var(--cvb-panel)", borderTop: "1px solid var(--cvb-line-inner)", borderBottom: "1px solid var(--cvb-line-inner)", flexWrap: "wrap" }}>
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 16,
+        padding: "12px 40px",
+        background: "var(--cvb-panel)",
+        borderTop: "1px solid var(--cvb-line-inner)",
+        borderBottom: "1px solid var(--cvb-line-inner)",
+        flexWrap: "wrap",
+      }}
+    >
       {items.map(([label, value, sub, color]) => (
-        <div key={label} style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-          <span style={{ ...mono, fontSize: 8.5, letterSpacing: ".14em", color: "var(--cvb-faint)" }}>{label}</span>
-          <span style={{ fontWeight: 900, fontSize: 15, color: color ?? "var(--cvb-ink,#101613)" }}>{value}</span>
-          <span style={{ ...mono, fontSize: 9, color: "var(--cvb-ghost)" }}>{sub}</span>
+        <div key={label} style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+          <span
+            style={{ ...mono, fontSize: 9.5, letterSpacing: ".12em", color: "var(--cvb-faint)" }}
+          >
+            {label}
+          </span>
+          {/* 13px/700 on the UI face, NOT the display family — Console Bold.dc.html:2058. */}
+          <span
+            style={{
+              fontWeight: 700,
+              fontSize: 13,
+              letterSpacing: "-.018em",
+              color: color ?? "var(--cvb-ink,#101613)",
+            }}
+          >
+            {value}
+          </span>
+          <span style={{ fontSize: 11, color: "var(--cvb-faint)" }}>{sub}</span>
         </div>
       ))}
     </div>

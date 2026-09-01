@@ -41,6 +41,7 @@ export * from "./language";
 export * from "./voice";
 
 // Guardrails schema (P1.5, A8) + sender DTOs.
+export * from "./credit-packs";
 export * from "./guardrails";
 export * from "./senders";
 // P5 W2 (DEC-084): the sender-health band contract (owner-locked cutoffs) —

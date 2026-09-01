@@ -186,6 +186,10 @@ export function BoldCoreItem({
   const sourceRows: SettingsRow[] = sources.map((s) => ({
     t: "chip",
     key: s.id,
+    // Plum tile; the glyph is the DOCUMENT mark for a file, the disc for a
+    // crawled site — Console Bold.dc.html:4743-4747 keys it off the extension.
+    ic: /\.(pdf|docx?)$/i.test(s.label) ? "\u25EB" : "\u25CD",
+    tint: "plum",
     n: s.label,
     sub: sourceLine(s),
     chip:

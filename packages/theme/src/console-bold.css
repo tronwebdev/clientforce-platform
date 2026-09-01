@@ -39,6 +39,10 @@
   --cvb-ink: #101613;
   --cvb-ink-soft: #3e4b44; /* strong body copy */
   --cvb-muted: #5a6660;
+  --cvb-line-dash: #dcdfdd; /* inline row-edit dashed rule — dc.html:2338 */
+  --cvb-row-hover: #fbfcfb; /* item-page row hover wash — dc.html:2324 */
+  --cvb-hub-card-hover: #f8faf9; /* settings-hub card hover — dc.html:1579 */
+  --cvb-hub-card-hover-line: #dde4df;
   --cvb-faint: #8b968f;
   --cvb-faint-2: #a8b2ac; /* quieter labels (ADA SUGGESTS eyebrow) */
   --cvb-ghost: #c3cbc6; /* dismiss ✕ · disabled marks */
@@ -51,6 +55,9 @@
   --cvb-cyan: #0e7d93; /* navigate/inspect links */
   --cvb-cyan-tint: #e2f3f6;
   --cvb-cyan-line: #bfe3eb;
+  --cvb-plum: #5b4a8a; /* knowledge-source tile ink — Console Bold.dc.html:4745 */
+  --cvb-plum-tint: #f0edf9;
+  --cvb-plum-line: #dcd5ef;
   --cvb-amber: #8a6d1a; /* needs-you/caution ink */
   --cvb-amber-bg: #f7efda;
   --cvb-amber-line: #ead9a8;
